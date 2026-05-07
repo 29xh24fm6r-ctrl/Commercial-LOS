@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{1e3da32e-8f52-4bf7-9326-ce0075af7b93}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_snapshotname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dealreadinesssnapshotid">
+          <cell name="cr664_snapshotname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_snapshotat" width="150" />
+          <cell name="cr664_readinessscore" width="150" />
+          <cell name="cr664_readinessband" width="150" />
+          <cell name="cr664_missingdocscount" width="150" />
+          <cell name="cr664_openblockerscount" width="150" />
+          <cell name="cr664_pendingapprovalscount" width="150" />
+          <cell name="cr664_staleitemscount" width="150" />
+          <cell name="cr664_explanationjson" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dealreadinesssnapshot">
+          <attribute name="cr664_dealreadinesssnapshotid" />
+          <attribute name="cr664_snapshotname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_snapshotname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_snapshotat" />
+          <attribute name="cr664_readinessscore" />
+          <attribute name="cr664_readinessband" />
+          <attribute name="cr664_missingdocscount" />
+          <attribute name="cr664_openblockerscount" />
+          <attribute name="cr664_pendingapprovalscount" />
+          <attribute name="cr664_staleitemscount" />
+          <attribute name="cr664_explanationjson" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Deal Readiness Snapshots" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

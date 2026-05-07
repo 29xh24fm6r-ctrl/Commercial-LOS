@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{48cb1d3c-9865-4035-96fe-3abdebc58044}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_title" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dealtimelineeventid">
+          <cell name="cr664_title" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_eventtype" width="150" />
+          <cell name="cr664_eventsubtype" width="150" />
+          <cell name="cr664_eventat" width="150" />
+          <cell name="cr664_eventby" width="150" />
+          <cell name="cr664_summary" width="150" />
+          <cell name="cr664_relatedentitytype" width="150" />
+          <cell name="cr664_relatedentityid" width="150" />
+          <cell name="cr664_visibilityscope" width="150" />
+          <cell name="cr664_payloadjson" width="150" />
+          <cell name="cr664_issystemgenerated" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dealtimelineevent">
+          <attribute name="cr664_dealtimelineeventid" />
+          <attribute name="cr664_title" />
+          <attribute name="createdon" />
+          <order attribute="cr664_title" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_eventtype" />
+          <attribute name="cr664_eventsubtype" />
+          <attribute name="cr664_eventat" />
+          <attribute name="cr664_eventby" />
+          <attribute name="cr664_summary" />
+          <attribute name="cr664_relatedentitytype" />
+          <attribute name="cr664_relatedentityid" />
+          <attribute name="cr664_visibilityscope" />
+          <attribute name="cr664_payloadjson" />
+          <attribute name="cr664_issystemgenerated" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Deal Timeline Events" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

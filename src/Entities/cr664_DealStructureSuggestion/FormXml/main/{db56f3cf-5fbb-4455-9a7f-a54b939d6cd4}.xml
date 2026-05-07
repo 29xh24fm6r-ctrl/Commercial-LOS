@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{db56f3cf-5fbb-4455-9a7f-a54b939d6cd4}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{9929f85b-5466-4028-8968-177339049980}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{d6fa64ac-97eb-4fc1-bca3-dbc8be2461e0}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{d2c52050-2a0d-4dcf-82fd-8e18cf21dd19}">
+                        <labels>
+                          <label description="Suggestion Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_suggestionname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_suggestionname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2aa7d6ae-b2a4-4c87-96c2-882c37150fac}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{eb5df7a9-f171-4bf4-b3cf-fcdd5acc22f7}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5613563b-a91d-4fa7-b85c-5dd0616c6a71}">
+                        <labels>
+                          <label description="Suggested Structure" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_suggestedstructure" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_suggestedstructure" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6a3833de-9ea3-4e88-bccf-bab78c397ac1}">
+                        <labels>
+                          <label description="Suggested Covenants" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_suggestedcovenants" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_suggestedcovenants" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f0138334-e47f-452e-bc83-6f3a1b784856}">
+                        <labels>
+                          <label description="Suggested Conditions" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_suggestedconditions" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_suggestedconditions" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c86f5c5a-28fa-48a8-afff-4755544f0d74}">
+                        <labels>
+                          <label description="Reasoning" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_reasoning" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_reasoning" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0d1556a0-a245-4ddd-995a-f7883b17c2de}">
+                        <labels>
+                          <label description="Generated Timestamp" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_generatedtimestamp" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_generatedtimestamp" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

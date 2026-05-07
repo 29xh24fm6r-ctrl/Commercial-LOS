@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{51c1440c-9cca-46ec-8b30-bfc34372db61}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_underwriting1" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_underwritingid">
+          <cell name="cr664_underwriting1" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_dealid" width="150" />
+          <cell name="cr664_ltv" width="150" />
+          <cell name="cr664_dscr" width="150" />
+          <cell name="cr664_collateraldescription" width="150" />
+          <cell name="cr664_ratetype" width="150" />
+          <cell name="cr664_proposedrate" width="150" />
+          <cell name="cr664_proposedtermmonths" width="150" />
+          <cell name="cr664_amortizationmonths" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_underwriting">
+          <attribute name="cr664_underwritingid" />
+          <attribute name="cr664_underwriting1" />
+          <attribute name="createdon" />
+          <order attribute="cr664_underwriting1" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_dealid" />
+          <attribute name="cr664_ltv" />
+          <attribute name="cr664_dscr" />
+          <attribute name="cr664_collateraldescription" />
+          <attribute name="cr664_ratetype" />
+          <attribute name="cr664_proposedrate" />
+          <attribute name="cr664_proposedtermmonths" />
+          <attribute name="cr664_amortizationmonths" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Underwritings" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,247 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{a4292ba3-58f9-4a9d-902e-3e7f8999c55d}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{912b751a-e8b3-4716-ba72-0d3eeccd7fca}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{211e03e2-f110-4833-bb8a-dd482292330b}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{f972fe12-7c45-4a3e-939e-b9c40438b393}">
+                        <labels>
+                          <label description="Alert Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_alertname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_alertname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{bb2a29d7-27ce-40a1-b3f1-cc3ae50bc09d}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d38c308b-8f97-4082-b386-0e65997e3a27}">
+                        <labels>
+                          <label description="Alert Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_alerttype" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_alerttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0004eba6-1ded-4f13-b298-660d032800df}">
+                        <labels>
+                          <label description="Alert Category" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_alertcategory" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_alertcategory" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{969f0185-f6a0-4059-85f6-553614fd3081}">
+                        <labels>
+                          <label description="Source Entity Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourceentitytype" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_sourceentitytype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1f129647-345b-493d-a89a-2713f2cc2985}">
+                        <labels>
+                          <label description="Source Entity ID" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourceentityid" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_sourceentityid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ed413624-50de-453f-9007-cc1e253f9ecd}">
+                        <labels>
+                          <label description="Severity" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_severity" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_severity" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4af44886-9b06-44a1-b227-fbe701fa90a2}">
+                        <labels>
+                          <label description="Priority" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_priority" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_priority" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{887f5517-0bc2-4ee9-b421-5db0bc181635}">
+                        <labels>
+                          <label description="Assigned To" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignedto" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_assignedto" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{acaca373-165f-4a69-83b1-373cf5424e9e}">
+                        <labels>
+                          <label description="Created Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_createddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_createddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{910e7b2d-0daf-4b93-8c5b-eb21306692aa}">
+                        <labels>
+                          <label description="Due Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_duedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_duedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{58a19ac8-dac9-48f3-aeee-4b9766422d11}">
+                        <labels>
+                          <label description="Alert Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_alertstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_alertstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{29453022-eae9-4ecc-9cb0-3c5bc186efaf}">
+                        <labels>
+                          <label description="Acknowledged By" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_acknowledgedby" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_acknowledgedby" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{35f951ea-ec2d-47c1-83d6-fb5f95552ecb}">
+                        <labels>
+                          <label description="Acknowledged Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_acknowledgeddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_acknowledgeddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{44728519-76f0-449c-80ac-28bab3023eb5}">
+                        <labels>
+                          <label description="Resolved By" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_resolvedby" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_resolvedby" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{912f776c-b264-427e-a9b3-2428df8f892c}">
+                        <labels>
+                          <label description="Resolved Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_resolveddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_resolveddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{7bceb3d1-f6a1-4214-a259-7e6647663fff}">
+                        <labels>
+                          <label description="Escalation Level" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_escalationlevel" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_escalationlevel" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3f51dff0-1baa-4263-8e70-d413796dd570}">
+                        <labels>
+                          <label description="Resolution Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_resolutionnotes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_resolutionnotes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c30a5dca-97f4-4592-b341-52ca2bc6f7a0}">
+                        <labels>
+                          <label description="Loan Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_loandeal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_loandeal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{fe46db7b-958d-4dad-8007-41d27ed9a651}">
+                        <labels>
+                          <label description="Portfolio Loan" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_portfolioloan" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_portfolioloan" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4c381c8f-b4b4-42f6-9af7-f88a9dbf5c44}">
+                        <labels>
+                          <label description="SLA Start Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_slastartdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_slastartdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{80868a7b-4d89-447a-9333-98c9bb1afe00}">
+                        <labels>
+                          <label description="SLA Due Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sladuedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_sladuedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{64d99ead-23b1-4267-b10e-cac95fddda55}">
+                        <labels>
+                          <label description="SLA Breach Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_slabreachdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_slabreachdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{021e09d5-f5d2-4caf-a569-722abdc37807}">
+                        <labels>
+                          <label description="Default Queue Owner" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_defaultqueueowner" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_defaultqueueowner" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{60a54fc2-889e-4a82-b10a-6ab2ba172ac7}">
+                        <labels>
+                          <label description="Safe Fallback Assignment" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_safefallbackassignment" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_safefallbackassignment" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2a9521a1-b331-4653-ac9d-f530e486125c}">
+                        <labels>
+                          <label description="Assignment Audit Trail" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignmentaudittrail" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_assignmentaudittrail" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

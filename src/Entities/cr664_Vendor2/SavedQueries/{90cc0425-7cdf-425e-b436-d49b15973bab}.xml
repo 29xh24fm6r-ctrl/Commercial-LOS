@@ -1,0 +1,73 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{90cc0425-7cdf-425e-b436-d49b15973bab}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_vendorname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_vendor2id">
+          <cell name="cr664_vendorname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_vendortype" width="150" />
+          <cell name="cr664_primarycontactname" width="150" />
+          <cell name="cr664_primarycontactnamelegacy" width="150" />
+          <cell name="cr664_email" width="150" />
+          <cell name="cr664_phone" width="150" />
+          <cell name="cr664_mobilephone" width="150" />
+          <cell name="cr664_companyaddress" width="150" />
+          <cell name="cr664_city" width="150" />
+          <cell name="cr664_state" width="150" />
+          <cell name="cr664_zip" width="150" />
+          <cell name="cr664_website" width="150" />
+          <cell name="cr664_notes" width="150" />
+          <cell name="cr664_activeflag" width="150" />
+          <cell name="cr664_preferredflag" width="150" />
+          <cell name="cr664_performancerating" width="150" />
+          <cell name="cr664_lastperformancereviewdate" width="150" />
+          <cell name="cr664_performancenotes" width="150" />
+          <cell name="cr664_preferredbydefaultflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_vendor2">
+          <attribute name="cr664_vendor2id" />
+          <attribute name="cr664_vendorname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_vendorname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_vendortype" />
+          <attribute name="cr664_primarycontactname" />
+          <attribute name="cr664_primarycontactnamelegacy" />
+          <attribute name="cr664_email" />
+          <attribute name="cr664_phone" />
+          <attribute name="cr664_mobilephone" />
+          <attribute name="cr664_companyaddress" />
+          <attribute name="cr664_city" />
+          <attribute name="cr664_state" />
+          <attribute name="cr664_zip" />
+          <attribute name="cr664_website" />
+          <attribute name="cr664_notes" />
+          <attribute name="cr664_activeflag" />
+          <attribute name="cr664_preferredflag" />
+          <attribute name="cr664_performancerating" />
+          <attribute name="cr664_lastperformancereviewdate" />
+          <attribute name="cr664_performancenotes" />
+          <attribute name="cr664_preferredbydefaultflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Vendors" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

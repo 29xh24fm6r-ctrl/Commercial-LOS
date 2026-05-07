@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{79457cfc-f3cc-44b4-8fe8-3a6f1b878c93}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_sessionname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_borrowerintakesessionid">
+          <cell name="cr664_sessionname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_borrowercontact" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_startedat" width="150" />
+          <cell name="cr664_completedat" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_borrowerintakesession">
+          <attribute name="cr664_borrowerintakesessionid" />
+          <attribute name="cr664_sessionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_sessionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_borrowercontact" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_startedat" />
+          <attribute name="cr664_completedat" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Borrower Intake Sessions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{30a9fe38-97b5-49b3-8886-b2f5e43f6811}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_accessname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_useradditionalworkspaceaccessid">
+          <cell name="cr664_accessname" width="300" />
+          <cell name="cr664_user" width="150" />
+          <cell name="cr664_workspacetype" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_useradditionalworkspaceaccess">
+          <attribute name="cr664_useradditionalworkspaceaccessid" />
+          <attribute name="cr664_accessname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_accessname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_user" />
+          <attribute name="cr664_workspacetype" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active User Additional Workspace Accesses" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

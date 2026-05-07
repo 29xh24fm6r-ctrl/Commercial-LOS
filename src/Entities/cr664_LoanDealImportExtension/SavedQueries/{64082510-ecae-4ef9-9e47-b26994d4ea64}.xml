@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{64082510-ecae-4ef9-9e47-b26994d4ea64}</savedqueryid>
+    <layoutxml>
+      <grid name="cr664_loandealimportextensions" jump="cr664_stagekey" select="1" icon="1" preview="1">
+        <row name="cr664_loandealimportextension" id="cr664_loandealimportextensionid">
+          <cell name="cr664_stagekey" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>2</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_loandealimportextension">
+          <attribute name="cr664_loandealimportextensionid" />
+          <attribute name="cr664_stagekey" />
+          <attribute name="createdon" />
+          <order attribute="cr664_stagekey" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Loan Deal Import Extension Associated View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

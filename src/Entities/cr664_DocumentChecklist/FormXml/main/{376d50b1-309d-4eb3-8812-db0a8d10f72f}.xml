@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{376d50b1-309d-4eb3-8812-db0a8d10f72f}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{d77a74ce-a39c-46a3-8048-52c4b0e690b1}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{72ce848b-7f75-49b9-bfb8-7364d8c1f331}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{49fb6617-2667-4200-a62e-46df2b3ebca3}">
+                        <labels>
+                          <label description="Document Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_documentname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_documentname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{05cd7528-0d3f-4eac-8b5c-bcc6819c9a4d}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{74b82c2b-5be9-40bb-b25a-34da4e231a53}">
+                        <labels>
+                          <label description="Document Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_documenttype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_documenttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f6ca4e22-44aa-4247-8cdc-39d3ef1632e8}">
+                        <labels>
+                          <label description="Upload Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_uploadstatus" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_uploadstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5c3d4b51-564e-4ddd-b332-7c71cbd1cecf}">
+                        <labels>
+                          <label description="Request Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_requestdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_requestdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b22aefdb-c13c-4306-9901-3b0d4519b1d8}">
+                        <labels>
+                          <label description="Due Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_duedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_duedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{04c3adc3-cbd3-4cc0-b81b-8bb9f9f1b650}">
+                        <labels>
+                          <label description="Received Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_receiveddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_receiveddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3e5f5302-3c37-4df6-90a6-2da5e13f9291}">
+                        <labels>
+                          <label description="Reviewer" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_reviewer" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_reviewer" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,183 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{30b4db51-c1e7-48fd-a955-1018de9eebb2}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{e254945e-bfa2-444e-b575-0a9875a90329}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{77f00d7c-e66c-49c1-8fe0-626bf4bf5f59}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{1a910016-3fce-46bc-88f0-bccd6c548244}">
+                        <labels>
+                          <label description="Relationship Profitability Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_relationshipprofitabilityname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_relationshipprofitabilityname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{efd7f6be-2e92-4683-b139-206708b542da}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5be80f84-e656-490a-b86d-cc3dd9b0cbd6}">
+                        <labels>
+                          <label description="Relationship" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_relationship" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_relationship" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f3a95fef-5675-4bf8-a7d9-0227d90039f9}">
+                        <labels>
+                          <label description="Profitability Snapshot" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_profitabilitysnapshot" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_profitabilitysnapshot" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{eb90a916-5146-4fb1-b77d-81554ee33105}">
+                        <labels>
+                          <label description="Total Loan Balance" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_totalloanbalance" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_totalloanbalance" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0be2d14d-d415-47d5-81b9-4d4a8532c468}">
+                        <labels>
+                          <label description="Total Deposits" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_totaldeposits" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_totaldeposits" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{fdfe1d20-3d17-42c8-91de-65553834b489}">
+                        <labels>
+                          <label description="Fee Income YTD" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_feeincomeytd" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_feeincomeytd" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{579e8582-a0b9-421a-9459-922dc6e5a6c6}">
+                        <labels>
+                          <label description="ROE" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_roe" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_roe" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a942b450-8ec8-4dd8-9dfe-4879718fda64}">
+                        <labels>
+                          <label description="Last Calculated Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_lastcalculateddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_lastcalculateddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ed99a37c-8edf-4f6c-b644-ec4eaa6fb3e8}">
+                        <labels>
+                          <label description="Total Loan Revenue" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_totalloanrevenue" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_totalloanrevenue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3c46f782-3805-4cc7-8290-132bfed964b4}">
+                        <labels>
+                          <label description="Total Relationship Revenue" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_totalrelationshiprevenue" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_totalrelationshiprevenue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{794c88f9-622e-49ec-bb4c-0a6c3e4c8963}">
+                        <labels>
+                          <label description="Relationship Expansion Score" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_relationshipexpansionscore" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_relationshipexpansionscore" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{794ebcc0-5d8b-456d-9e90-bf9dc9bbee67}">
+                        <labels>
+                          <label description="Warning Flag: Large Low-Profit Relationship" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_warningflaglargelowprofitrelationship" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_warningflaglargelowprofitrelationship" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d4385ac1-e41f-49b6-b201-de82ca0371c2}">
+                        <labels>
+                          <label description="Warning Flag: High-Risk Low-Return Relationship" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_warningflaghighrisklowreturnrelationship" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_warningflaghighrisklowreturnrelationship" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{438f1909-c8ed-44e6-9994-ae53d29dd0c2}">
+                        <labels>
+                          <label description="Warning Flag: Strong Cross-Sell Opportunity with Low Product Penetration" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_warningflagstrongcrosssellopportunitywithlowproductpenetration" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_warningflagstrongcrosssellopportunitywithlowproductpenetration" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d21fc32e-7205-4938-bc2b-60858b50bbfe}">
+                        <labels>
+                          <label description="Executive Summary Ready Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_executivesummaryreadyflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_executivesummaryreadyflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0c6d4a38-e093-497e-a427-f080d517ddce}">
+                        <labels>
+                          <label description="Maturity Exposure" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_maturityexposure" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_maturityexposure" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f5a9d81c-d711-4f37-b88c-0a095fa5a3d2}">
+                        <labels>
+                          <label description="Covenant / Exception Count" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_covenantexceptioncount" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_covenantexceptioncount" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{a0b43eb3-05a4-497e-b788-8e838d437beb}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{23d9c30e-af4b-4fc8-9911-5ed741b83648}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{3775a36e-36ce-4a98-af92-0802057810ff}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{9cfc6dbd-7094-4474-9246-1e4ab0b25c16}">
+                        <labels>
+                          <label description="Schedule Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_schedulename" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_schedulename" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{809cdfff-bf5e-4fdf-97a8-dbefb55a1c76}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{485f2cc8-a94d-4689-9951-2fcaa8cc17e8}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{813828ca-c9fc-4068-b52d-d8f72a1e34ef}">
+                        <labels>
+                          <label description="Creditor Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_creditorname" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_creditorname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{baba8713-f3d0-4f31-8c36-7b64ac63ec3f}">
+                        <labels>
+                          <label description="Original Amount" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_originalamount" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_originalamount" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{958d678c-216f-48c5-b8a0-218e82b69885}">
+                        <labels>
+                          <label description="Current Balance" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_currentbalance" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_currentbalance" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0dd3b8b2-8284-4039-a978-e350fd8e92ac}">
+                        <labels>
+                          <label description="Monthly Payment" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_monthlypayment" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_monthlypayment" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3765cb7c-2af8-4bea-a98c-776058c48635}">
+                        <labels>
+                          <label description="Maturity Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_maturitydate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_maturitydate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0a4661f1-9a87-43b4-a7f7-35177fa366d1}">
+                        <labels>
+                          <label description="Collateral" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_collateral" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_collateral" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{807ed866-41e9-442c-9be4-5686eb258e6f}">
+                        <labels>
+                          <label description="Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_status" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_status" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{af7342f5-83d8-4a6e-954a-47099918b78b}">
+                        <labels>
+                          <label description="Sort Order" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sortorder" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_sortorder" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

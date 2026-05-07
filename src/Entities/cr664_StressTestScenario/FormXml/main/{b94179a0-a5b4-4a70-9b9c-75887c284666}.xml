@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{b94179a0-a5b4-4a70-9b9c-75887c284666}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{20f831af-d0c4-4f4c-9b0c-aefd6ad82c00}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{02d7b5d1-d813-4d2b-ae4c-9953ca334576}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{1ebed964-b593-4a6f-a7de-14c86e6df140}">
+                        <labels>
+                          <label description="Scenario Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_scenarioname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_scenarioname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6ceaf9a0-840c-49e0-b45a-ac4e1ae8c38c}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8529c584-4cf3-4b7b-84d6-4758c83b957e}">
+                        <labels>
+                          <label description="Description" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_description" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_description" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2dc6fe25-345f-4da7-ad17-4a3ff2d404c6}">
+                        <labels>
+                          <label description="Interest Rate Shock" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_interestrateshock" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_interestrateshock" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ef24253e-6a81-4d91-8240-3e0d344401ed}">
+                        <labels>
+                          <label description="NOI Stress Percentage" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_noistresspercentage" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_noistresspercentage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{7936c4f2-0e70-4f31-8779-55e834f22375}">
+                        <labels>
+                          <label description="Collateral Value Stress Percentage" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_collateralvaluestresspercentage" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_collateralvaluestresspercentage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1f45690f-2f73-44a4-a5ed-8756c4227bb4}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

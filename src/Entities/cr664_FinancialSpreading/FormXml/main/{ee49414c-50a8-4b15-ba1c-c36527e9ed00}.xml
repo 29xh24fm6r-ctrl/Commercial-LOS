@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{ee49414c-50a8-4b15-ba1c-c36527e9ed00}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{27da6d26-ebad-4582-b5cc-52652b888219}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{fee67777-6075-4195-a34b-e9f4c39d802b}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{d73919ff-aa83-4c2c-b5fb-1562c31a1d4b}">
+                        <labels>
+                          <label description="Financial Spreading Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_financialspreadingname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_financialspreadingname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ae39cc37-2d3f-4c91-afe6-c06c9a2c36af}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4ca66cd5-b88f-4a0e-b592-f2c7fc7feb51}">
+                        <labels>
+                          <label description="Revenue" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_revenue" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_revenue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6223bd29-60d4-4429-8dc5-f805a4625540}">
+                        <labels>
+                          <label description="EBITDA" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_ebitda" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_ebitda" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{25f75690-465d-480c-b68b-9b18be4974a1}">
+                        <labels>
+                          <label description="Fixed Charges" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_fixedcharges" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_fixedcharges" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{da975b1b-25e1-4bfa-a103-9b38ae88f595}">
+                        <labels>
+                          <label description="Global Cash Flow Inputs" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_globalcashflowinputs" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_globalcashflowinputs" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{92d3b5ea-29cf-4c8a-9184-25796a8217a5}">
+                        <labels>
+                          <label description="Debt Service" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_debtservice" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_debtservice" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1fac8e7e-42c5-4527-bca9-96bb63e52b91}">
+                        <labels>
+                          <label description="Personal Cash Flow" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_personalcashflow" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_personalcashflow" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

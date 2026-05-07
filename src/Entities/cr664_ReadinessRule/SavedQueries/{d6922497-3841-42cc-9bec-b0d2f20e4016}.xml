@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{d6922497-3841-42cc-9bec-b0d2f20e4016}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_rulekey" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_readinessruleid">
+          <cell name="cr664_rulekey" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_rulecategory" width="150" />
+          <cell name="cr664_weight" width="150" />
+          <cell name="cr664_applieswhen" width="150" />
+          <cell name="cr664_failcondition" width="150" />
+          <cell name="cr664_explanationtext" width="150" />
+          <cell name="cr664_isactive" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_readinessrule">
+          <attribute name="cr664_readinessruleid" />
+          <attribute name="cr664_rulekey" />
+          <attribute name="createdon" />
+          <order attribute="cr664_rulekey" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_rulecategory" />
+          <attribute name="cr664_weight" />
+          <attribute name="cr664_applieswhen" />
+          <attribute name="cr664_failcondition" />
+          <attribute name="cr664_explanationtext" />
+          <attribute name="cr664_isactive" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Readiness Rules" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

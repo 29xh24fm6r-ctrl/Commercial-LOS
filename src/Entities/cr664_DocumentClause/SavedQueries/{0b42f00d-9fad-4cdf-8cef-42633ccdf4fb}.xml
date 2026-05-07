@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{0b42f00d-9fad-4cdf-8cef-42633ccdf4fb}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_clausekey" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_documentclauseid">
+          <cell name="cr664_clausekey" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_documenttype" width="150" />
+          <cell name="cr664_clausecategory" width="150" />
+          <cell name="cr664_clausetext" width="150" />
+          <cell name="cr664_applieswhen" width="150" />
+          <cell name="cr664_versionnumber" width="150" />
+          <cell name="cr664_isactive" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_documentclause">
+          <attribute name="cr664_documentclauseid" />
+          <attribute name="cr664_clausekey" />
+          <attribute name="createdon" />
+          <order attribute="cr664_clausekey" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_documenttype" />
+          <attribute name="cr664_clausecategory" />
+          <attribute name="cr664_clausetext" />
+          <attribute name="cr664_applieswhen" />
+          <attribute name="cr664_versionnumber" />
+          <attribute name="cr664_isactive" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Document Clauses" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

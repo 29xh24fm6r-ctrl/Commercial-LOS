@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{f2440fef-a790-4985-a830-072623bfb34c}</savedqueryid>
+    <layoutxml>
+      <grid name="cr664_accessstatuses" jump="cr664_accessstatusname" select="1" icon="1" preview="1">
+        <row name="cr664_accessstatus" id="cr664_accessstatusid">
+          <cell name="cr664_accessstatusname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>2</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_accessstatus">
+          <attribute name="cr664_accessstatusid" />
+          <attribute name="cr664_accessstatusname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_accessstatusname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Access Status Associated View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{e6016ae8-a163-40c1-bb4f-744bae2e118a}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_adminoverridename" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_adminoverrideid">
+          <cell name="cr664_adminoverridename" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_user" width="150" />
+          <cell name="cr664_overridescope" width="150" />
+          <cell name="cr664_overridereason" width="150" />
+          <cell name="cr664_overridegrantedby" width="150" />
+          <cell name="cr664_overridegrantedat" width="150" />
+          <cell name="cr664_overrideexpiration" width="150" />
+          <cell name="cr664_overridestatus" width="150" />
+          <cell name="cr664_targetworkspaceid" width="150" />
+          <cell name="cr664_targetpageid" width="150" />
+          <cell name="cr664_targetentityid" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_adminoverride">
+          <attribute name="cr664_adminoverrideid" />
+          <attribute name="cr664_adminoverridename" />
+          <attribute name="createdon" />
+          <order attribute="cr664_adminoverridename" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_user" />
+          <attribute name="cr664_overridescope" />
+          <attribute name="cr664_overridereason" />
+          <attribute name="cr664_overridegrantedby" />
+          <attribute name="cr664_overridegrantedat" />
+          <attribute name="cr664_overrideexpiration" />
+          <attribute name="cr664_overridestatus" />
+          <attribute name="cr664_targetworkspaceid" />
+          <attribute name="cr664_targetpageid" />
+          <attribute name="cr664_targetentityid" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Admin Overrides" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

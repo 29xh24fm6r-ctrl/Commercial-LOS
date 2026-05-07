@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{d7de6951-37c4-4e4e-a41e-ffdaf1e7ebb1}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{71a6c1bd-7855-4497-bc3e-e7ff5652337a}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{9796c18b-4647-4d81-8754-ce4542a02402}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{0703632c-dd6e-4995-a522-b48ce5b6661b}">
+                        <labels>
+                          <label description="Item Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_itemname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_itemname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{84c53f51-fbab-4403-925d-1ee503daa08b}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{447bc0f9-248f-472f-b604-939bff765e39}">
+                        <labels>
+                          <label description="Requirement Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_requirementtype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_requirementtype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{fac4302d-9fb3-4527-9523-800a15fa2960}">
+                        <labels>
+                          <label description="Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_status" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_status" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{413dd8e8-3e2d-439c-bdff-f6d121696514}">
+                        <labels>
+                          <label description="Due Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_duedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_duedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{df31f731-45dd-40de-bf8b-e0674cda6f2a}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c22f68aa-8201-4cb2-97ba-853e0c80318b}">
+                        <labels>
+                          <label description="Assigned Banker" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignedbanker" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_assignedbanker" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{86dc91cf-6ca2-444f-b1ad-777c24322554}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e434a09c-6f06-48a0-af72-8353ca037b45}">
+                        <labels>
+                          <label description="Product Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_producttype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_producttype" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

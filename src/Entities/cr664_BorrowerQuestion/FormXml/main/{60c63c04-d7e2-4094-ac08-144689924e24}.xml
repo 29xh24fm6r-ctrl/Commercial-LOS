@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{60c63c04-d7e2-4094-ac08-144689924e24}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{ccfe80c9-844a-48ea-af3b-337ed9d3114a}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{7d6b5b1b-14c9-42a9-a18c-5bc6519e9f8a}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{32954ae5-18ee-4cab-bdb3-4bc79abdff21}">
+                        <labels>
+                          <label description="Question Text" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_questiontext" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_questiontext" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ef002657-d2d8-4d83-ad94-fcd6ad37e603}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b772ab70-3eca-49d6-88e8-cf5dde95b427}">
+                        <labels>
+                          <label description="Question Set" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_questionset" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_questionset" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{04832bd9-e3ba-40f6-a01e-57f9b951c652}">
+                        <labels>
+                          <label description="Question Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_questiontype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_questiontype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d6f77bfa-3ac4-4b41-ba7f-803eee2c3d6d}">
+                        <labels>
+                          <label description="Required Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_requiredflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_requiredflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0fa4515d-2a25-4aaa-a06f-4a4b5ba0ef8c}">
+                        <labels>
+                          <label description="Order" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_order" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_order" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{af41d21b-ea37-4662-8924-d446e76b2d8a}">
+                        <labels>
+                          <label description="Help Text" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_helptext" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_helptext" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{d4562b06-effd-42b0-9f0f-0ecb3d379a7e}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_configurationname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_documentnotificationconfigurationid">
+          <cell name="cr664_configurationname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_appliestodocumenttype" width="150" />
+          <cell name="cr664_preexpirationreminderdays" width="150" />
+          <cell name="cr664_postexpirationreminderdays" width="150" />
+          <cell name="cr664_notifyborrowerflag" width="150" />
+          <cell name="cr664_notifybankerflag" width="150" />
+          <cell name="cr664_notifymanagerflag" width="150" />
+          <cell name="cr664_activeflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_documentnotificationconfiguration">
+          <attribute name="cr664_documentnotificationconfigurationid" />
+          <attribute name="cr664_configurationname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_configurationname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_appliestodocumenttype" />
+          <attribute name="cr664_preexpirationreminderdays" />
+          <attribute name="cr664_postexpirationreminderdays" />
+          <attribute name="cr664_notifyborrowerflag" />
+          <attribute name="cr664_notifybankerflag" />
+          <attribute name="cr664_notifymanagerflag" />
+          <attribute name="cr664_activeflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Document Notification Configurations" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

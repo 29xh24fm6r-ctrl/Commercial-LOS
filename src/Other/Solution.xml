@@ -1,0 +1,269 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ImportExportXml version="9.2.26035.200" SolutionPackageVersion="9.2" languagecode="1033" generatedBy="CrmLive" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" OrganizationVersion="9.2.26035.200" OrganizationSchemaType="Standard" CRMServerServiceabilityVersion="9.2.26041.00176">
+  <SolutionManifest>
+    <UniqueName>CommercialLendingLOS</UniqueName>
+    <LocalizedNames>
+      <LocalizedName description="Commercial Lending LOS" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="Upgrade of Commercial Lending LOS" languagecode="1033" />
+    </Descriptions>
+    <Version>1.1.0.1</Version>
+    <Managed>0</Managed>
+    <Publisher>
+      <UniqueName>DefaultPublisherorg3a57b8d4</UniqueName>
+      <LocalizedNames>
+        <LocalizedName description="Default Publisher for org3a57b8d4" languagecode="1033" />
+      </LocalizedNames>
+      <Descriptions>
+        <Description description="Default publisher for this organization" languagecode="1033" />
+      </Descriptions>
+      <EMailAddress xsi:nil="true"></EMailAddress>
+      <SupportingWebsiteUrl xsi:nil="true"></SupportingWebsiteUrl>
+      <CustomizationPrefix>new</CustomizationPrefix>
+      <CustomizationOptionValuePrefix>10000</CustomizationOptionValuePrefix>
+      <Addresses>
+        <Address>
+          <AddressNumber>1</AddressNumber>
+          <AddressTypeCode xsi:nil="true"></AddressTypeCode>
+          <City xsi:nil="true"></City>
+          <County xsi:nil="true"></County>
+          <Country xsi:nil="true"></Country>
+          <Fax xsi:nil="true"></Fax>
+          <FreightTermsCode xsi:nil="true"></FreightTermsCode>
+          <ImportSequenceNumber xsi:nil="true"></ImportSequenceNumber>
+          <Latitude xsi:nil="true"></Latitude>
+          <Line1 xsi:nil="true"></Line1>
+          <Line2 xsi:nil="true"></Line2>
+          <Line3 xsi:nil="true"></Line3>
+          <Longitude xsi:nil="true"></Longitude>
+          <Name xsi:nil="true"></Name>
+          <PostalCode xsi:nil="true"></PostalCode>
+          <PostOfficeBox xsi:nil="true"></PostOfficeBox>
+          <PrimaryContactName xsi:nil="true"></PrimaryContactName>
+          <ShippingMethodCode xsi:nil="true"></ShippingMethodCode>
+          <StateOrProvince xsi:nil="true"></StateOrProvince>
+          <Telephone1 xsi:nil="true"></Telephone1>
+          <Telephone2 xsi:nil="true"></Telephone2>
+          <Telephone3 xsi:nil="true"></Telephone3>
+          <TimeZoneRuleVersionNumber xsi:nil="true"></TimeZoneRuleVersionNumber>
+          <UPSZone xsi:nil="true"></UPSZone>
+          <UTCOffset xsi:nil="true"></UTCOffset>
+          <UTCConversionTimeZoneCode xsi:nil="true"></UTCConversionTimeZoneCode>
+        </Address>
+        <Address>
+          <AddressNumber>2</AddressNumber>
+          <AddressTypeCode xsi:nil="true"></AddressTypeCode>
+          <City xsi:nil="true"></City>
+          <County xsi:nil="true"></County>
+          <Country xsi:nil="true"></Country>
+          <Fax xsi:nil="true"></Fax>
+          <FreightTermsCode xsi:nil="true"></FreightTermsCode>
+          <ImportSequenceNumber xsi:nil="true"></ImportSequenceNumber>
+          <Latitude xsi:nil="true"></Latitude>
+          <Line1 xsi:nil="true"></Line1>
+          <Line2 xsi:nil="true"></Line2>
+          <Line3 xsi:nil="true"></Line3>
+          <Longitude xsi:nil="true"></Longitude>
+          <Name xsi:nil="true"></Name>
+          <PostalCode xsi:nil="true"></PostalCode>
+          <PostOfficeBox xsi:nil="true"></PostOfficeBox>
+          <PrimaryContactName xsi:nil="true"></PrimaryContactName>
+          <ShippingMethodCode xsi:nil="true"></ShippingMethodCode>
+          <StateOrProvince xsi:nil="true"></StateOrProvince>
+          <Telephone1 xsi:nil="true"></Telephone1>
+          <Telephone2 xsi:nil="true"></Telephone2>
+          <Telephone3 xsi:nil="true"></Telephone3>
+          <TimeZoneRuleVersionNumber xsi:nil="true"></TimeZoneRuleVersionNumber>
+          <UPSZone xsi:nil="true"></UPSZone>
+          <UTCOffset xsi:nil="true"></UTCOffset>
+          <UTCConversionTimeZoneCode xsi:nil="true"></UTCConversionTimeZoneCode>
+        </Address>
+      </Addresses>
+    </Publisher>
+    <RootComponents>
+      <RootComponent type="1" schemaName="cr664_accessstatus" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_adminoverride" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_aidraftartifact" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_aiextractionresult" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_aiinteractionlog" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_alertassignmenthistory" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_alertcategoryreference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_alertpriorityreference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_alertqueue" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_annualreview" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_approvalpattern" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_approvaltracking" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_assistantaction" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_assistantinteractionlog" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_auditevent" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_autopilotaction" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_autopilotobservation" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_autopilotrule" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_banker" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrower" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowercopilotsession" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowerintakegap" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowerintakesession" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowerprofile" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowerquestion" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowerquestionlog" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowerquestionoption" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowerquestionset" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowerrequest" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borrowerupload" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_borroweruploadstatusextension" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_businessdebtitem" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_businessdebtscheduledata" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_businessprofile" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_clientrelationship" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_collateralvaluation" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_committeedecision" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_constructiondraw" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_contactrolereference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_covenant" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_covenantbreachincident" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_covenanttracking" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_covenanttracking1" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_covenanttypereference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_creditmemo1" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_creditmemodraftsection" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dataqualityflag" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_deal" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealcontactlink" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealdocumentdrift" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealexception" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealnextbestaction" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealoutcomefact" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealreadinesssnapshot" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealstagehistory" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealstagereference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealstatusreference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealstructuresuggestion" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealtask1" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealtimelineevent" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealvendor" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealwarning" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_dealwarningrule" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_documentchecklist" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_documentclause" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_documentclauseselection" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_documentfieldmap" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_documentfragment" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_documentnotificationconfiguration" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_documentrenderrule" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_documentsectiondefinition" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_documenttyperegistry" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_duediligenceitem1" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_exceptiontypereference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_financialspreading" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_generateddocumentbaseline" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_guarantor" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_kpithresholdconfiguration" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_learninginsight" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loan" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loancovenant" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loandeal" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loandealimportextension" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loandocument" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loanhistoryevent" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loanperformancereview" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loanprofitability" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loanrequestprofile" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_loanstatusreference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_lossystemconfig" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_losuserprofile" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_mastercontact" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_meetingandcall" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_milestone" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_nextbestactionrule" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_ogbdocumenttemplate" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_outreachactivity" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_pagepermission" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_paymentfrequencyreference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_performancemetric" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_permission" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_permissiongroup" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_personalfinancialstatementdata" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_pipeline" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_platformrole" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_platformuser" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_platformworkspace" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_policyrule1" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_portfolio" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_portfolioexception" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_portfolioloan" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_portfolioloancontactlink" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_portfolioreview" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_productfamilyreference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_producttypereference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_profitabilityassumption" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_profitabilitycalculationmetadata" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_profitabilityrefreshstatus" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_profitabilitysnapshot1" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_propertytypereference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_readinessrule" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_recommendationmodel" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_recordpermission" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_referralopportunity" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_regulatoryclassificationreference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_relationshipcontactlink" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_relationshiplink" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_relationshipmanagement" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_relationshipprofitabilitysummary" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_relationshiptypereference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_reviewapproval" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_reviewchecklistitem" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_reviewtask" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_riskratingreference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_rolepermissiongroup" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_sba" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_sourceentitytypereference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_spreadindexreference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_stresstestresult" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_stresstestscenario" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_systemsetting" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_team" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_underwriting" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_uploadedsourcedocument" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_user" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_useradditionalworkspaceaccess" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_useradditionalworkspaceaccessextension" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_userdirectory" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_userextension" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_userpermissiongroup" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_userrole" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_vendor" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_vendor2" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_vendorcompliance" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_vendorcontactlink" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_vendorcontract" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_vendorinvoice" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_vendorperformance" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_vendortypereference" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_workspaceaccess" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_workspaceentitlements" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_workspacepermission" behavior="0" />
+      <RootComponent type="1" schemaName="cr664_workspacetype" behavior="0" />
+      <RootComponent type="300" schemaName="cr664_commerciallendingapp_952eb" behavior="0" />
+      <RootComponent type="62" schemaName="new_OGBLendingModelDriven" behavior="0" />
+      <RootComponent type="80" schemaName="new_OGBLendingModelDriven" behavior="0" />
+      <RootComponent type="9" schemaName="cr664_loantype" behavior="0" />
+      <RootComponent type="9" schemaName="cr664_vendor_type" behavior="0" />
+    </RootComponents>
+    <MissingDependencies>
+      <MissingDependency>
+        <Required type="61" schemaName="msdyn_/Images/AppModule_Default_Icon.png" displayName="msdyn_/Images/AppModule_Default_Icon.png" solution="AppModuleWebResources (2.5)">
+          <package appName="AppModule Web Resources Package" version="2.5">AppModuleWebResources (2.5)</package>
+        </Required>
+        <Dependent type="80" schemaName="new_OGBLendingModelDriven" displayName="OGB Lending (Model Driven)" />
+      </MissingDependency>
+      <MissingDependency>
+        <Required type="SettingDefinition" displayName="AppChannel" solution="msdyn_AppFrameworkInfraExtensions (1.0.0.16)" id.uniquename="AppChannel">
+          <package appName="PowerAppsAppFramework Package" version="1.0.0.25">PowerAppsAppFramework_Anchor (1.0.0.25)</package>
+        </Required>
+        <Dependent type="AppSetting" displayName="parentappmoduleid.uniquename=new_OGBLendingModelDriven,settingdefinitionid.uniquename=AppChannel" id.parentappmoduleid.uniquename="new_OGBLendingModelDriven" id.settingdefinitionid.uniquename="AppChannel" />
+      </MissingDependency>
+    </MissingDependencies>
+  </SolutionManifest>
+</ImportExportXml>

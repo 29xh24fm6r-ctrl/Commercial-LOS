@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{fa3d9e99-8ea6-4a51-b796-57c83e6e04d3}</savedqueryid>
+    <layoutxml>
+      <grid name="cr664_reviewapprovals" jump="cr664_reviewapprovalname" select="1" icon="1" preview="1">
+        <row name="cr664_reviewapproval" id="cr664_reviewapprovalid">
+          <cell name="cr664_reviewapprovalname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>2</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_reviewapproval">
+          <attribute name="cr664_reviewapprovalid" />
+          <attribute name="cr664_reviewapprovalname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_reviewapprovalname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Review Approval Associated View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

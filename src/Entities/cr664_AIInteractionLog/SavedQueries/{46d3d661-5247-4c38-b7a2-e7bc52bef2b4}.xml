@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{46d3d661-5247-4c38-b7a2-e7bc52bef2b4}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_promptsummary" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_aiinteractionlogid">
+          <cell name="cr664_promptsummary" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_dealreference" width="150" />
+          <cell name="cr664_usertype" width="150" />
+          <cell name="cr664_userreference" width="150" />
+          <cell name="cr664_contactreference" width="150" />
+          <cell name="cr664_aiusecase" width="150" />
+          <cell name="cr664_outputsummary" width="150" />
+          <cell name="cr664_sourcereferences" width="150" />
+          <cell name="cr664_actiontaken" width="150" />
+          <cell name="cr664_createdtimestamp" width="150" />
+          <cell name="cr664_permissiongroup" width="150" />
+          <cell name="cr664_audittrailreference" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_aiinteractionlog">
+          <attribute name="cr664_aiinteractionlogid" />
+          <attribute name="cr664_promptsummary" />
+          <attribute name="createdon" />
+          <order attribute="cr664_promptsummary" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_dealreference" />
+          <attribute name="cr664_usertype" />
+          <attribute name="cr664_userreference" />
+          <attribute name="cr664_contactreference" />
+          <attribute name="cr664_aiusecase" />
+          <attribute name="cr664_outputsummary" />
+          <attribute name="cr664_sourcereferences" />
+          <attribute name="cr664_actiontaken" />
+          <attribute name="cr664_createdtimestamp" />
+          <attribute name="cr664_permissiongroup" />
+          <attribute name="cr664_audittrailreference" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active AI Interaction Logs" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

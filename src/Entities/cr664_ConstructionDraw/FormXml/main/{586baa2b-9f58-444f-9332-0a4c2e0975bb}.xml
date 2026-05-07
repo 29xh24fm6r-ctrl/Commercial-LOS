@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{586baa2b-9f58-444f-9332-0a4c2e0975bb}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{6fc62fab-f4ff-43f0-9af9-c0a1fcf42b12}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{b71cae1b-3c7b-40c2-b8b4-8bcbce3418d7}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{bd569d12-4749-420a-861d-78334405a98e}">
+                        <labels>
+                          <label description="Draw Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_drawname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_drawname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a933e2f1-a311-4ced-aa5d-75c87c476376}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{96fb658f-1e46-4f03-bfd4-3e8041214ac7}">
+                        <labels>
+                          <label description="Draw Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_drawdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_drawdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c9e2a685-d8b1-4791-ae50-b1922b4584a6}">
+                        <labels>
+                          <label description="Draw Amount" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_drawamount" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_drawamount" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3ba8abba-4618-4a87-a8d6-0cc0497ffb92}">
+                        <labels>
+                          <label description="Approved" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_approved" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_approved" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

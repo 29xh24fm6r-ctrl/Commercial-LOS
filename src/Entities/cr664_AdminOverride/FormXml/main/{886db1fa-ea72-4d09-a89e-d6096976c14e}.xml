@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{886db1fa-ea72-4d09-a89e-d6096976c14e}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{0e4d4fc3-623a-4b07-bc6e-a648a2ee04a8}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{f2b4cf5a-9033-43b8-a1e9-c9a41e603ac6}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{732a78e1-da83-420e-b430-cf76bef87371}">
+                        <labels>
+                          <label description="Admin Override Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_adminoverridename" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_adminoverridename" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2196f12a-568b-4ef7-86e1-e4d38f02b428}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{495c95c4-267e-4a2c-813d-af1a7c15b78d}">
+                        <labels>
+                          <label description="User" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_user" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_user" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6b61e033-46f4-403f-a142-49dfcdaf9c98}">
+                        <labels>
+                          <label description="Override Scope" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_overridescope" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_overridescope" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{dcfac308-144a-427e-8b6b-d70fb5cd5c04}">
+                        <labels>
+                          <label description="Override Reason" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_overridereason" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_overridereason" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{34aac27e-9940-40d6-beb4-8bd1de89c19f}">
+                        <labels>
+                          <label description="Override Granted By" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_overridegrantedby" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_overridegrantedby" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3eaa3027-b778-4aea-98c1-1fcc833fec90}">
+                        <labels>
+                          <label description="Override Granted At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_overridegrantedat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_overridegrantedat" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{895f3673-3f03-49f4-a689-b579d5867cfd}">
+                        <labels>
+                          <label description="Override Expiration" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_overrideexpiration" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_overrideexpiration" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8e3f9dac-48a5-48c2-9d66-36f0d5cf9f91}">
+                        <labels>
+                          <label description="Override Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_overridestatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_overridestatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{42040a85-2411-450c-a4fe-98d82cf438e6}">
+                        <labels>
+                          <label description="Target Workspace ID" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_targetworkspaceid" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_targetworkspaceid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{95e8fac5-81a3-46ca-a6d2-9638c2fca909}">
+                        <labels>
+                          <label description="Target Page ID" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_targetpageid" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_targetpageid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5773feb2-cf1f-45fe-b216-09a5d0ab3ba7}">
+                        <labels>
+                          <label description="Target Entity ID" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_targetentityid" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_targetentityid" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

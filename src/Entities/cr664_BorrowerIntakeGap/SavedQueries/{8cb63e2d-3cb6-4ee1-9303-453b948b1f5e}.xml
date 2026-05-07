@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{8cb63e2d-3cb6-4ee1-9303-453b948b1f5e}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_gapsummary" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_borrowerintakegapid">
+          <cell name="cr664_gapsummary" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_borrowerintakesession" width="150" />
+          <cell name="cr664_copilotsession" width="150" />
+          <cell name="cr664_gaptype" width="150" />
+          <cell name="cr664_intakesection" width="150" />
+          <cell name="cr664_fieldname" width="150" />
+          <cell name="cr664_detectedat" width="150" />
+          <cell name="cr664_resolutionstatus" width="150" />
+          <cell name="cr664_resolutionnotes" width="150" />
+          <cell name="cr664_createdbyai" width="150" />
+          <cell name="cr664_audittrailreference" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_borrowerintakegap">
+          <attribute name="cr664_borrowerintakegapid" />
+          <attribute name="cr664_gapsummary" />
+          <attribute name="createdon" />
+          <order attribute="cr664_gapsummary" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_borrowerintakesession" />
+          <attribute name="cr664_copilotsession" />
+          <attribute name="cr664_gaptype" />
+          <attribute name="cr664_intakesection" />
+          <attribute name="cr664_fieldname" />
+          <attribute name="cr664_detectedat" />
+          <attribute name="cr664_resolutionstatus" />
+          <attribute name="cr664_resolutionnotes" />
+          <attribute name="cr664_createdbyai" />
+          <attribute name="cr664_audittrailreference" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Borrower Intake Gaps" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

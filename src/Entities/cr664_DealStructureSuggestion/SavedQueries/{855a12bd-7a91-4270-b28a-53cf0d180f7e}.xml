@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{855a12bd-7a91-4270-b28a-53cf0d180f7e}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_suggestionname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dealstructuresuggestionid">
+          <cell name="cr664_suggestionname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_suggestedstructure" width="150" />
+          <cell name="cr664_suggestedcovenants" width="150" />
+          <cell name="cr664_suggestedconditions" width="150" />
+          <cell name="cr664_reasoning" width="150" />
+          <cell name="cr664_sourcepatternids" width="150" />
+          <cell name="cr664_generatedtimestamp" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dealstructuresuggestion">
+          <attribute name="cr664_dealstructuresuggestionid" />
+          <attribute name="cr664_suggestionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_suggestionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_suggestedstructure" />
+          <attribute name="cr664_suggestedcovenants" />
+          <attribute name="cr664_suggestedconditions" />
+          <attribute name="cr664_reasoning" />
+          <attribute name="cr664_sourcepatternids" />
+          <attribute name="cr664_generatedtimestamp" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Deal Structure Suggestions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

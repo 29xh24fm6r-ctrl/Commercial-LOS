@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{3b6aac04-dc37-4c38-8a09-279fe5683ff5}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_recordpermissionname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_recordpermissionid">
+          <cell name="cr664_recordpermissionname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_entityname" width="150" />
+          <cell name="cr664_scope" width="150" />
+          <cell name="cr664_permissiongroup" width="150" />
+          <cell name="cr664_scopedrecordid" width="150" />
+          <cell name="cr664_auditableenforcementflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_recordpermission">
+          <attribute name="cr664_recordpermissionid" />
+          <attribute name="cr664_recordpermissionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_recordpermissionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_entityname" />
+          <attribute name="cr664_scope" />
+          <attribute name="cr664_permissiongroup" />
+          <attribute name="cr664_scopedrecordid" />
+          <attribute name="cr664_auditableenforcementflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Record Permissions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

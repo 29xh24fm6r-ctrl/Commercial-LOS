@@ -1,0 +1,16 @@
+# Power Platform build artifacts
+solution.zip
+*.msapp
+out/
+bin/
+obj/
+
+# Local env / auth
+.env
+.env.local
+*.pacx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

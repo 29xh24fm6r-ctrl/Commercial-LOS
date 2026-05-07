@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{a6c3a48e-5e16-458d-b42d-cc8d65ac3e32}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_approver" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_approvaltrackingid">
+          <cell name="cr664_approver" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_approvaltype" width="150" />
+          <cell name="cr664_decision" width="150" />
+          <cell name="cr664_conditions" width="150" />
+          <cell name="cr664_timestamp" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_approvaltracking">
+          <attribute name="cr664_approvaltrackingid" />
+          <attribute name="cr664_approver" />
+          <attribute name="createdon" />
+          <order attribute="cr664_approver" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_approvaltype" />
+          <attribute name="cr664_decision" />
+          <attribute name="cr664_conditions" />
+          <attribute name="cr664_timestamp" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active ApprovalTrackings" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

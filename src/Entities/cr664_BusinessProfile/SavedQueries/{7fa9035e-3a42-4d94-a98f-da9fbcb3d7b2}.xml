@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{7fa9035e-3a42-4d94-a98f-da9fbcb3d7b2}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_legalbusinessname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_businessprofileid">
+          <cell name="cr664_legalbusinessname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_dbaname" width="150" />
+          <cell name="cr664_ein" width="150" />
+          <cell name="cr664_industry" width="150" />
+          <cell name="cr664_businessdescription" width="150" />
+          <cell name="cr664_yearsinbusiness" width="150" />
+          <cell name="cr664_ownershipsummary" width="150" />
+          <cell name="cr664_employeecount" width="150" />
+          <cell name="cr664_revenuerange" width="150" />
+          <cell name="cr664_historynarrative" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_businessprofile">
+          <attribute name="cr664_businessprofileid" />
+          <attribute name="cr664_legalbusinessname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_legalbusinessname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_dbaname" />
+          <attribute name="cr664_ein" />
+          <attribute name="cr664_industry" />
+          <attribute name="cr664_businessdescription" />
+          <attribute name="cr664_yearsinbusiness" />
+          <attribute name="cr664_ownershipsummary" />
+          <attribute name="cr664_employeecount" />
+          <attribute name="cr664_revenuerange" />
+          <attribute name="cr664_historynarrative" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Business Profiles" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

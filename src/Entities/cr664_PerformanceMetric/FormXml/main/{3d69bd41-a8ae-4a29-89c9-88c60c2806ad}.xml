@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{3d69bd41-a8ae-4a29-89c9-88c60c2806ad}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{ceb9ff3b-45ce-4e24-857f-bc7c060f5025}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{b7be4328-ee5d-4239-b6ee-39c7deb4bf82}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{56fc3e7d-01c2-4e1e-add5-0cb48bcb9856}">
+                        <labels>
+                          <label description="Metric Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_metricname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_metricname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c8fcca41-d7ea-43b1-bfd4-2c71e27053a7}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b67be3d9-dc8b-4461-ade5-988b27e0a549}">
+                        <labels>
+                          <label description="Metric Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_metrictype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_metrictype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d36c3789-bcd0-4976-b38a-d0595b4e2b31}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f1b3d74c-472e-4ee1-a558-b173bdd8a2c8}">
+                        <labels>
+                          <label description="Banker" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_banker" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_banker" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{99a0d75d-0176-4d3c-9147-b2eaeb43b155}">
+                        <labels>
+                          <label description="Value" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_value" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_value" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{87a86362-e966-4b3a-b794-7dfba18412df}">
+                        <labels>
+                          <label description="Period Start" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_periodstart" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_periodstart" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c0c032a6-27c7-430f-9568-c0553c40c0b4}">
+                        <labels>
+                          <label description="Period End" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_periodend" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_periodend" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

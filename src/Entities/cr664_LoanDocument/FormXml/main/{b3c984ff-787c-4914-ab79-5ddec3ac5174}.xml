@@ -1,0 +1,159 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{b3c984ff-787c-4914-ab79-5ddec3ac5174}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{5e7bca55-57a2-4509-a932-8f00884dfefb}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{4a2de203-0b82-42e0-9937-19ae1bd100da}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{aa4aea84-f575-4ae8-8d93-1ed62411bf72}">
+                        <labels>
+                          <label description="Document Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_documentname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_documentname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{47ef0594-e205-4d0a-9756-4cdcc76669d7}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ec0bb032-b6ec-4d70-badc-c94e8ab03a75}">
+                        <labels>
+                          <label description="Portfolio Loan" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_portfolioloan" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_portfolioloan" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8ffdd06c-0c02-4907-a5fc-6c3f17e60fb9}">
+                        <labels>
+                          <label description="Document Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_documenttype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_documenttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ce622f55-ece1-40d3-b0a2-a346493af8b1}">
+                        <labels>
+                          <label description="Uploaded Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_uploadeddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_uploadeddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9bbd406b-87ff-48c9-a697-800e7bc912b6}">
+                        <labels>
+                          <label description="Uploaded By" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_uploadedby" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_uploadedby" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2285fcc8-702f-40eb-87fe-e003c2d54655}">
+                        <labels>
+                          <label description="Version" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_version" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_version" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{eaacc6a6-0a9b-4fb4-8e68-adc91ef88267}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{73177a9a-a46b-4f98-9554-d99b07d17ab5}">
+                        <labels>
+                          <label description="Render Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_renderstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_renderstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{93337e79-892f-49a5-989c-2fbbb693d308}">
+                        <labels>
+                          <label description="Render Error" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_rendererror" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_rendererror" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e72bce18-809b-4edf-bf07-47910b5b90ec}">
+                        <labels>
+                          <label description="Output File Name DOCX" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_outputfilenamedocx" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_outputfilenamedocx" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a6fa7b0e-32e4-46c9-9b6a-30d0d2f5ba09}">
+                        <labels>
+                          <label description="Output File Name PDF" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_outputfilenamepdf" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_outputfilenamepdf" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{bc964ed7-b8ee-4f64-8b43-f3719f0721bf}">
+                        <labels>
+                          <label description="Expiration Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_expirationdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_expirationdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{cd6bad06-8a59-4ba8-8100-42fcc5127780}">
+                        <labels>
+                          <label description="Expiration Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_expirationstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_expirationstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{22867f8f-37f9-4cb4-a8b5-39c724928a22}">
+                        <labels>
+                          <label description="Last Expiration Check" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_lastexpirationcheck" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_lastexpirationcheck" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

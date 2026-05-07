@@ -1,0 +1,119 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{302f0608-6715-4506-8fc7-834e05ce18ec}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{f12ff9e7-aea0-4797-9d79-7db5fa27a1ae}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{4f2a3e89-d7a4-4e1c-9e0a-6bf43ceaf69f}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{8930d56a-c956-4048-b97b-0d6f3abfa055}">
+                        <labels>
+                          <label description="Calculation Metadata Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_calculationmetadataname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_calculationmetadataname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f8a3512e-8fc4-4770-86e5-3a86af742d4f}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{67da40b5-2031-449c-94f6-d433ecab26f4}">
+                        <labels>
+                          <label description="Version" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_version" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_version" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b9527e83-3c63-4bf5-8400-8e7aa3a39887}">
+                        <labels>
+                          <label description="As-Of Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_asofdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_asofdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{740c8461-c605-4451-8698-663760446292}">
+                        <labels>
+                          <label description="Freshness Timestamp" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_freshnesstimestamp" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_freshnesstimestamp" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{21e4712a-03f1-4a63-b0c7-a8dbbcde5650}">
+                        <labels>
+                          <label description="Estimated vs Actual" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_estimatedvsactual" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_estimatedvsactual" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{adcc0bde-3c75-47c6-a33d-0a6df8f64367}">
+                        <labels>
+                          <label description="Calculation Method" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_calculationmethod" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_calculationmethod" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{7e97ed2c-efc9-41fc-bfea-113c3fb76f26}">
+                        <labels>
+                          <label description="Refresh Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_refreshstatus" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_refreshstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6e66b421-9973-4e6a-870c-e3a1374ff608}">
+                        <labels>
+                          <label description="Stale Data Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_staledataflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_staledataflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{7afce5ab-6a96-4274-a40b-ef872fa52125}">
+                        <labels>
+                          <label description="Threshold Evaluation Hook" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_thresholdevaluationhook" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_thresholdevaluationhook" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

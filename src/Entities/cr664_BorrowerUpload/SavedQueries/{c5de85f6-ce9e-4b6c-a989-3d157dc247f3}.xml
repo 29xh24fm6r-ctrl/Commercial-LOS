@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{c5de85f6-ce9e-4b6c-a989-3d157dc247f3}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_uploadname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_borroweruploadid">
+          <cell name="cr664_uploadname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_borrowerrequest" width="150" />
+          <cell name="cr664_filename" width="150" />
+          <cell name="cr664_filetype" width="150" />
+          <cell name="cr664_uploadtimestamp" width="150" />
+          <cell name="cr664_classificationstatus" width="150" />
+          <cell name="cr664_uploadedby" width="150" />
+          <cell name="cr664_loandocument" width="150" />
+          <cell name="cr664_notes" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_borrowerupload">
+          <attribute name="cr664_borroweruploadid" />
+          <attribute name="cr664_uploadname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_uploadname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_borrowerrequest" />
+          <attribute name="cr664_filename" />
+          <attribute name="cr664_filetype" />
+          <attribute name="cr664_uploadtimestamp" />
+          <attribute name="cr664_classificationstatus" />
+          <attribute name="cr664_uploadedby" />
+          <attribute name="cr664_loandocument" />
+          <attribute name="cr664_notes" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Borrower Uploads" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

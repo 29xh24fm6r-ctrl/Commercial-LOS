@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{1050f4d5-15db-40cd-a350-f2c432c15e75}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_documentname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_loandocumentid">
+          <cell name="cr664_documentname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_portfolioloan" width="150" />
+          <cell name="cr664_documenttype" width="150" />
+          <cell name="cr664_uploadeddate" width="150" />
+          <cell name="cr664_uploadedby" width="150" />
+          <cell name="cr664_version" width="150" />
+          <cell name="cr664_notes" width="150" />
+          <cell name="cr664_renderstatus" width="150" />
+          <cell name="cr664_rendererror" width="150" />
+          <cell name="cr664_outputfilenamedocx" width="150" />
+          <cell name="cr664_outputfilenamepdf" width="150" />
+          <cell name="cr664_expirationdate" width="150" />
+          <cell name="cr664_expirationstatus" width="150" />
+          <cell name="cr664_lastexpirationcheck" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_loandocument">
+          <attribute name="cr664_loandocumentid" />
+          <attribute name="cr664_documentname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_documentname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_portfolioloan" />
+          <attribute name="cr664_documenttype" />
+          <attribute name="cr664_uploadeddate" />
+          <attribute name="cr664_uploadedby" />
+          <attribute name="cr664_version" />
+          <attribute name="cr664_notes" />
+          <attribute name="cr664_renderstatus" />
+          <attribute name="cr664_rendererror" />
+          <attribute name="cr664_outputfilenamedocx" />
+          <attribute name="cr664_outputfilenamepdf" />
+          <attribute name="cr664_expirationdate" />
+          <attribute name="cr664_expirationstatus" />
+          <attribute name="cr664_lastexpirationcheck" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Loan Documents" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

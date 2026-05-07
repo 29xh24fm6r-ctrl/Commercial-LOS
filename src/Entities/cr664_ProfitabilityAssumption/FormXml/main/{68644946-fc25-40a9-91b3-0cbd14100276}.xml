@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{68644946-fc25-40a9-91b3-0cbd14100276}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{b4b1b35e-4caa-41a0-84a7-0dd86326f289}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{f5e4f073-af13-44de-bc66-72fb36528473}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{ff512452-760d-4fac-b7fb-72d8bd522a7c}">
+                        <labels>
+                          <label description="Assumption Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assumptionname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_assumptionname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c7848c3a-928b-4d8f-8a5c-da8a13a24c5a}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0ae3b6c6-9eca-4e66-84dd-c3806e670372}">
+                        <labels>
+                          <label description="Calculation Metadata" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_calculationmetadata" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_calculationmetadata" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{61e5a1a0-c29c-42d7-a715-4cdf87c921e0}">
+                        <labels>
+                          <label description="Assumption Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assumptiontype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_assumptiontype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a6b94a1b-8403-4550-b0cf-336310c977ef}">
+                        <labels>
+                          <label description="Value" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_value" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_value" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b30e7caf-6d12-4d1d-8059-8c816f82126a}">
+                        <labels>
+                          <label description="Effective Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_effectivedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_effectivedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4ec68a47-9ab1-4da3-b6f4-eb6716e62d40}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

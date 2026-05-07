@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{9240e91b-49ac-458f-8994-6af3ad50af9c}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_annualreviewname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_annualreviewid">
+          <cell name="cr664_annualreviewname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_reviewyear" width="150" />
+          <cell name="cr664_portfolioloan" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_assignedto" width="150" />
+          <cell name="cr664_duedate" width="150" />
+          <cell name="cr664_riskratingrecommendation" width="150" />
+          <cell name="cr664_summarynotes" width="150" />
+          <cell name="cr664_reviewnotes" width="150" />
+          <cell name="cr664_summaryconclusions" width="150" />
+          <cell name="cr664_missingdocumentationflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_annualreview">
+          <attribute name="cr664_annualreviewid" />
+          <attribute name="cr664_annualreviewname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_annualreviewname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_reviewyear" />
+          <attribute name="cr664_portfolioloan" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_assignedto" />
+          <attribute name="cr664_duedate" />
+          <attribute name="cr664_riskratingrecommendation" />
+          <attribute name="cr664_summarynotes" />
+          <attribute name="cr664_reviewnotes" />
+          <attribute name="cr664_summaryconclusions" />
+          <attribute name="cr664_missingdocumentationflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Annual Reviews" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{b50b4ba5-60da-4de2-96ad-3e62d0abb4ca}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{fda09024-767c-4233-bb6e-122a44de6461}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{7ec2c3a0-047f-4d80-87ac-a31a46505d6b}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{38b82fee-ea0f-41bd-8100-1bc810ad03a5}">
+                        <labels>
+                          <label description="Legal Business Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_legalbusinessname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_legalbusinessname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0dc65a94-5ae2-4909-8965-8ffea31a5288}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{578ca682-7e78-4e42-9d18-5d7be2b0989b}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{cf775f29-94f4-4136-b316-cde790b1e816}">
+                        <labels>
+                          <label description="DBA Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dbaname" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_dbaname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4d90de8a-4f4f-422f-922e-51f530532010}">
+                        <labels>
+                          <label description="EIN" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_ein" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_ein" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{cd23f6e3-b8d3-48fb-b13a-604bc6d39d16}">
+                        <labels>
+                          <label description="Industry" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_industry" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_industry" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{91976d9c-d5f3-4945-bcf5-6b90f1765945}">
+                        <labels>
+                          <label description="Business Description" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_businessdescription" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_businessdescription" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ef9682bb-e6f2-4b85-8097-78a683e332b2}">
+                        <labels>
+                          <label description="Years in Business" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_yearsinbusiness" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_yearsinbusiness" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0d41dbb4-b2a6-4a80-8886-ef5e9b0dceb7}">
+                        <labels>
+                          <label description="Ownership Summary" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_ownershipsummary" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_ownershipsummary" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5da87467-e3d6-4be9-a3a9-efa826296910}">
+                        <labels>
+                          <label description="Employee Count" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_employeecount" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_employeecount" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d8b223b2-78bf-49a7-923e-584515a49afc}">
+                        <labels>
+                          <label description="Revenue Range" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_revenuerange" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_revenuerange" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ac90c5d9-b1cd-4f05-89f9-0b8fe432fd64}">
+                        <labels>
+                          <label description="History Narrative" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_historynarrative" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_historynarrative" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

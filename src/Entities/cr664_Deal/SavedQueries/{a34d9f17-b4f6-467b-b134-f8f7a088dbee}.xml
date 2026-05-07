@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{a34d9f17-b4f6-467b-b134-f8f7a088dbee}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_borrowername" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dealid">
+          <cell name="cr664_borrowername" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_loanofficer" width="150" />
+          <cell name="cr664_dealtype" width="150" />
+          <cell name="cr664_loanamount" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_currentstage" width="150" />
+          <cell name="cr664_stageentrydate" width="150" />
+          <cell name="cr664_priority" width="150" />
+          <cell name="cr664_targetclosedate" width="150" />
+          <cell name="cr664_daysinstage" width="150" />
+          <cell name="cr664_daystotarget" width="150" />
+          <cell name="cr664_referralsource" width="150" />
+          <cell name="cr664_existingcustomer" width="150" />
+          <cell name="cr664_depositopportunity" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_deal">
+          <attribute name="cr664_dealid" />
+          <attribute name="cr664_borrowername" />
+          <attribute name="createdon" />
+          <order attribute="cr664_borrowername" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_loanofficer" />
+          <attribute name="cr664_dealtype" />
+          <attribute name="cr664_loanamount" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_currentstage" />
+          <attribute name="cr664_stageentrydate" />
+          <attribute name="cr664_priority" />
+          <attribute name="cr664_targetclosedate" />
+          <attribute name="cr664_daysinstage" />
+          <attribute name="cr664_daystotarget" />
+          <attribute name="cr664_referralsource" />
+          <attribute name="cr664_existingcustomer" />
+          <attribute name="cr664_depositopportunity" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Deals" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

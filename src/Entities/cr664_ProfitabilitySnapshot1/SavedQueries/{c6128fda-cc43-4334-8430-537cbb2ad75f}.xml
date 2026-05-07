@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{c6128fda-cc43-4334-8430-537cbb2ad75f}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_snapshotname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_profitabilitysnapshot1id">
+          <cell name="cr664_snapshotname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_relationship" width="150" />
+          <cell name="cr664_asofdate" width="150" />
+          <cell name="cr664_snapshotversion" width="150" />
+          <cell name="cr664_estimatedvsactual" width="150" />
+          <cell name="cr664_totalloanbalance" width="150" />
+          <cell name="cr664_totaldeposits" width="150" />
+          <cell name="cr664_feeincomeytd" width="150" />
+          <cell name="cr664_roe" width="150" />
+          <cell name="cr664_totalloanrevenue" width="150" />
+          <cell name="cr664_totalrelationshiprevenue" width="150" />
+          <cell name="cr664_snapshotfreshnesstimestamp" width="150" />
+          <cell name="cr664_staledataflag" width="150" />
+          <cell name="cr664_calculationmetadata" width="150" />
+          <cell name="cr664_snapshotstateflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_profitabilitysnapshot1">
+          <attribute name="cr664_profitabilitysnapshot1id" />
+          <attribute name="cr664_snapshotname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_snapshotname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_relationship" />
+          <attribute name="cr664_asofdate" />
+          <attribute name="cr664_snapshotversion" />
+          <attribute name="cr664_estimatedvsactual" />
+          <attribute name="cr664_totalloanbalance" />
+          <attribute name="cr664_totaldeposits" />
+          <attribute name="cr664_feeincomeytd" />
+          <attribute name="cr664_roe" />
+          <attribute name="cr664_totalloanrevenue" />
+          <attribute name="cr664_totalrelationshiprevenue" />
+          <attribute name="cr664_snapshotfreshnesstimestamp" />
+          <attribute name="cr664_staledataflag" />
+          <attribute name="cr664_calculationmetadata" />
+          <attribute name="cr664_snapshotstateflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Profitability Snapshots" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

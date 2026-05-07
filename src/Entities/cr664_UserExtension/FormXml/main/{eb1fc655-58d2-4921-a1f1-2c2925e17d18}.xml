@@ -1,0 +1,159 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{eb1fc655-58d2-4921-a1f1-2c2925e17d18}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{bed5c335-62d8-45a9-b58f-95bdd11f506d}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{f9f711cf-e8dd-4e94-bcc3-45fffc6297d6}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{524130c4-8fef-4199-acff-485a633227e1}">
+                        <labels>
+                          <label description="Full Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_fullname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_fullname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b8d3d48b-cd86-4380-a6f4-544f3f040fdf}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0120d330-8799-4f2a-bb14-b0e92afcafed}">
+                        <labels>
+                          <label description="Core User" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_coreuser" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_coreuser" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{19eb4bc8-d592-45d8-9238-2a6190d28507}">
+                        <labels>
+                          <label description="Email" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_email" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_email" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{31fd46dc-b0ab-458f-a1c0-9a3b35d17773}">
+                        <labels>
+                          <label description="Normalized Email" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_normalizedemail" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_normalizedemail" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8eec359b-22f0-4863-bc02-14e96c0fecf7}">
+                        <labels>
+                          <label description="Role" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_role" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_role" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1b609443-831a-45c0-a21c-33a43055de4d}">
+                        <labels>
+                          <label description="Team" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_team" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_team" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5d5cfdd4-0d2f-4238-b59f-4ed8e482ea75}">
+                        <labels>
+                          <label description="Primary Workspace" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_primaryworkspace" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_primaryworkspace" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6e392e9a-f9bb-489e-add9-0743153a56be}">
+                        <labels>
+                          <label description="Active Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_activestatus" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_activestatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{84dd933b-5c26-420b-9f02-923c893b861a}">
+                        <labels>
+                          <label description="Banker Profile" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_bankerprofile" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_bankerprofile" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{41a378bd-29dc-4f08-8a3f-4099d79f1129}">
+                        <labels>
+                          <label description="Created At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_createdat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_createdat" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2678c65f-6812-46a7-af12-b7b96a313b2b}">
+                        <labels>
+                          <label description="Updated At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_updatedat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_updatedat" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{35a7d362-2dc3-4bf5-b2bf-55606ed29a31}">
+                        <labels>
+                          <label description="Identity Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_identitystatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_identitystatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c5c63941-0819-4af8-b45c-02099cca0743}">
+                        <labels>
+                          <label description="Provisioning Source" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_provisioningsource" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_provisioningsource" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{54b17ae7-df6d-464d-a86f-f26ab285b080}">
+                        <labels>
+                          <label description="Last Login" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_lastlogin" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_lastlogin" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

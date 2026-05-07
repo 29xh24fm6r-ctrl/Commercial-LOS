@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{d0e7b1ca-3183-4d31-9c43-bdb7a2702c6c}</savedqueryid>
+    <layoutxml>
+      <grid name="cr664_creditmemodraftsections" jump="cr664_sectionkey" select="1" icon="1" preview="1">
+        <row name="cr664_creditmemodraftsection" id="cr664_creditmemodraftsectionid">
+          <cell name="cr664_sectionkey" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>2</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_creditmemodraftsection">
+          <attribute name="cr664_creditmemodraftsectionid" />
+          <attribute name="cr664_sectionkey" />
+          <attribute name="createdon" />
+          <order attribute="cr664_sectionkey" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Credit Memo Draft Section Associated View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

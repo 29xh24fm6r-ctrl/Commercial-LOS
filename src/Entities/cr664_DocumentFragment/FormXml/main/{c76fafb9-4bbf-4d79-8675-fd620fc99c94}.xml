@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{c76fafb9-4bbf-4d79-8675-fd620fc99c94}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{40962a63-3607-400a-9926-bbc689a670bb}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{f7c54bad-1ac1-4e5e-af93-874492afb6cf}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{b4c447cc-a7cc-4887-9559-a8ff917adff5}">
+                        <labels>
+                          <label description="Fragment Key" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_fragmentkey" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_fragmentkey" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c1ed0e82-1a0e-4852-911c-118fbf14e021}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{043a180c-0d09-481d-a031-e53f0ad55c7b}">
+                        <labels>
+                          <label description="Document Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_documenttype" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_documenttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{68d946ff-d5c3-421d-9b9a-a9e58816a80e}">
+                        <labels>
+                          <label description="Fragment Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_fragmenttype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_fragmenttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{524c2cf8-1039-426a-8bec-bba01f9f32a3}">
+                        <labels>
+                          <label description="Fragment Content" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_fragmentcontent" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_fragmentcontent" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1096d267-e867-48a2-8ead-2540d7338864}">
+                        <labels>
+                          <label description="Version Number" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_versionnumber" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_versionnumber" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1f9dcc12-afbc-4ca2-baa9-bc949de354dc}">
+                        <labels>
+                          <label description="Active Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_activeflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_activeflag" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

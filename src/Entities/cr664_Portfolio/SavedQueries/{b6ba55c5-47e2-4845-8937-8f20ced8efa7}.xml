@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{b6ba55c5-47e2-4845-8937-8f20ced8efa7}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_portfolioname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_portfolioid">
+          <cell name="cr664_portfolioname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_manageremail" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_portfolio">
+          <attribute name="cr664_portfolioid" />
+          <attribute name="cr664_portfolioname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_portfolioname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_manageremail" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Portfolios" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

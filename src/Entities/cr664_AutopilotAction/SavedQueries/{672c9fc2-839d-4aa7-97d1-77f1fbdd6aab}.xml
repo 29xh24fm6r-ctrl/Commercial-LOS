@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{672c9fc2-839d-4aa7-97d1-77f1fbdd6aab}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_actiontype" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_autopilotactionid">
+          <cell name="cr664_actiontype" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_rulekey" width="150" />
+          <cell name="cr664_actionpayload" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_createdat" width="150" />
+          <cell name="cr664_executedat" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_autopilotaction">
+          <attribute name="cr664_autopilotactionid" />
+          <attribute name="cr664_actiontype" />
+          <attribute name="createdon" />
+          <order attribute="cr664_actiontype" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_rulekey" />
+          <attribute name="cr664_actionpayload" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_createdat" />
+          <attribute name="cr664_executedat" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Autopilot Actions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

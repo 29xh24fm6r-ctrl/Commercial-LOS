@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{76a9d6bf-569e-4c9f-99e8-a8de8da7e8dc}</savedqueryid>
+    <layoutxml>
+      <grid name="cr664_borrowerintakesessions" jump="cr664_sessionname" select="1" icon="1" preview="1">
+        <row name="cr664_borrowerintakesession" id="cr664_borrowerintakesessionid">
+          <cell name="cr664_sessionname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>2</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_borrowerintakesession">
+          <attribute name="cr664_borrowerintakesessionid" />
+          <attribute name="cr664_sessionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_sessionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Borrower Intake Session Associated View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

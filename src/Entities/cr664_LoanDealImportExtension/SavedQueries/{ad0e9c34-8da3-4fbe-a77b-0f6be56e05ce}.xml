@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{ad0e9c34-8da3-4fbe-a77b-0f6be56e05ce}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_stagekey" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_loandealimportextensionid">
+          <cell name="cr664_stagekey" width="300" />
+          <cell name="cr664_loandeal" width="150" />
+          <cell name="cr664_lifecyclestatus" width="150" />
+          <cell name="cr664_bookedat" width="150" />
+          <cell name="cr664_source" width="150" />
+          <cell name="cr664_isimported" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_loandealimportextension">
+          <attribute name="cr664_loandealimportextensionid" />
+          <attribute name="cr664_stagekey" />
+          <attribute name="createdon" />
+          <order attribute="cr664_stagekey" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_loandeal" />
+          <attribute name="cr664_lifecyclestatus" />
+          <attribute name="cr664_bookedat" />
+          <attribute name="cr664_source" />
+          <attribute name="cr664_isimported" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Loan Deal Import Extensions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

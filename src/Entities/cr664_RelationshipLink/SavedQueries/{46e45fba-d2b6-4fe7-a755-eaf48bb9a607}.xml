@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{46e45fba-d2b6-4fe7-a755-eaf48bb9a607}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_relationshiptype" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_relationshiplinkid">
+          <cell name="cr664_relationshiptype" width="300" />
+          <cell name="cr664_entitytype" width="150" />
+          <cell name="cr664_entityid" width="150" />
+          <cell name="cr664_relatedentitytype" width="150" />
+          <cell name="cr664_relatedentityid" width="150" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_workspaceid" width="150" />
+          <cell name="cr664_createdat" width="150" />
+          <cell name="cr664_metadatajson" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_relationshiplink">
+          <attribute name="cr664_relationshiplinkid" />
+          <attribute name="cr664_relationshiptype" />
+          <attribute name="createdon" />
+          <order attribute="cr664_relationshiptype" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_entitytype" />
+          <attribute name="cr664_entityid" />
+          <attribute name="cr664_relatedentitytype" />
+          <attribute name="cr664_relatedentityid" />
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_workspaceid" />
+          <attribute name="cr664_createdat" />
+          <attribute name="cr664_metadatajson" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Relationship Links" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

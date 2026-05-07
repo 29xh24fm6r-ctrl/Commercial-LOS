@@ -1,0 +1,119 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{9abfe541-ffef-40a8-9273-fd9520e385f6}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{be6c8033-9849-4d7d-a442-542c952a3a4b}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{0be518f3-1aa8-4980-8a2a-38a35ffc6ece}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{76f2e221-dcb0-4de6-8fea-72ab992585b5}">
+                        <labels>
+                          <label description="Upload Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_uploadname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_uploadname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{7ba36390-a2cf-4322-90fa-e13204fe0bb8}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{96eff2c2-fca3-4190-a6f1-87ce5cfb74f3}">
+                        <labels>
+                          <label description="Borrower Request" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_borrowerrequest" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_borrowerrequest" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{62039be5-826b-4496-a08b-384f68cc0fd4}">
+                        <labels>
+                          <label description="File Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_filename" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_filename" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{26bfe94a-22ff-4fb1-b8a4-99c66f0ebb1b}">
+                        <labels>
+                          <label description="File Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_filetype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_filetype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{94f05168-b412-4e12-a765-738b2593651c}">
+                        <labels>
+                          <label description="Upload Timestamp" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_uploadtimestamp" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_uploadtimestamp" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b8ffbaaa-fd99-4675-b2c2-455374d39f76}">
+                        <labels>
+                          <label description="Classification Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_classificationstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_classificationstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2941ce61-91ba-4401-b3b2-fd01c3f992a6}">
+                        <labels>
+                          <label description="Uploaded By" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_uploadedby" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_uploadedby" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{92d60ed2-1140-4f59-b51e-1d888364ba1e}">
+                        <labels>
+                          <label description="Loan Document" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_loandocument" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_loandocument" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c6d347d8-9072-4a51-af17-28554a72f20b}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

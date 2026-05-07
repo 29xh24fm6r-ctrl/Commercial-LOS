@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{abb79dea-81b3-4d18-87b8-f2e45110aeef}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_fragmentkey" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_documentfragmentid">
+          <cell name="cr664_fragmentkey" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_documenttype" width="150" />
+          <cell name="cr664_fragmenttype" width="150" />
+          <cell name="cr664_fragmentcontent" width="150" />
+          <cell name="cr664_versionnumber" width="150" />
+          <cell name="cr664_activeflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_documentfragment">
+          <attribute name="cr664_documentfragmentid" />
+          <attribute name="cr664_fragmentkey" />
+          <attribute name="createdon" />
+          <order attribute="cr664_fragmentkey" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_documenttype" />
+          <attribute name="cr664_fragmenttype" />
+          <attribute name="cr664_fragmentcontent" />
+          <attribute name="cr664_versionnumber" />
+          <attribute name="cr664_activeflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Document Fragments" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

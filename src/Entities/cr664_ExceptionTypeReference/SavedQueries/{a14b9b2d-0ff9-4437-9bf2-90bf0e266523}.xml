@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>0</isdefault>
+    <savedqueryid>{a14b9b2d-0ff9-4437-9bf2-90bf0e266523}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_name" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_exceptiontypereferenceid">
+          <cell name="cr664_name" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_exceptiontypereference">
+          <attribute name="cr664_exceptiontypereferenceid" />
+          <attribute name="cr664_name" />
+          <attribute name="createdon" />
+          <order attribute="cr664_name" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="1" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Inactive Exception Type References" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

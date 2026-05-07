@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{8274aa8d-fe5a-4de8-88c9-a033eb80dce2}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{bb050221-6d68-45ad-ae60-63c2d3a5e7f4}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{08957f7b-ae3f-4e39-a7ec-a53ce46ea6ff}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{bb37c6b5-b56f-4e12-843f-b6e294a0211f}">
+                        <labels>
+                          <label description="Relationship Contact Link Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_relationshipcontactlinkname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_relationshipcontactlinkname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f2fe9fe5-af33-4649-a313-b6cd49a3f327}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{621086f1-808d-460f-a408-3f784361bd9f}">
+                        <labels>
+                          <label description="Client / Relationship" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_clientrelationship" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_clientrelationship" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a8dc9654-c0b5-4b85-8822-f57532990237}">
+                        <labels>
+                          <label description="Contact" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_contact" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_contact" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b2cfe5d9-996b-4f01-a69e-7bde183d30bb}">
+                        <labels>
+                          <label description="Contact Role" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_contactrole" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_contactrole" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f57f3501-d6f2-4d23-bd7a-b6817221921b}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

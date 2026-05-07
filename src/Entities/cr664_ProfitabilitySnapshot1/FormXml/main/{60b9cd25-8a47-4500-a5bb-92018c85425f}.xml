@@ -1,0 +1,167 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{60b9cd25-8a47-4500-a5bb-92018c85425f}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{da916228-e1ed-4683-b231-cfd68dd08a6c}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{006ce90c-8c8f-446a-8eea-0da2cff4909b}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{744b4497-283a-404f-9c40-eb42e6344e39}">
+                        <labels>
+                          <label description="Snapshot Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_snapshotname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_snapshotname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8cc93594-b31b-4616-973c-35a5823a741c}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f877f364-60d3-422e-99ee-a166c3268fbf}">
+                        <labels>
+                          <label description="Relationship" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_relationship" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_relationship" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{370ba2d7-7f80-4211-8a18-42d038959eac}">
+                        <labels>
+                          <label description="As-Of Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_asofdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_asofdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ccc107a4-5717-44d3-ae91-16d1570ad2d7}">
+                        <labels>
+                          <label description="Snapshot Version" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_snapshotversion" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_snapshotversion" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{09532f68-a5da-4cef-b178-2bf9e5c8a9e2}">
+                        <labels>
+                          <label description="Estimated vs Actual" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_estimatedvsactual" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_estimatedvsactual" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a95a6b8f-0cd7-4a0b-b279-9a6f3cb2c0b4}">
+                        <labels>
+                          <label description="Total Loan Balance" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_totalloanbalance" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_totalloanbalance" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3f3df7b2-5494-4a8b-a0fb-9fdfa7ddf218}">
+                        <labels>
+                          <label description="Total Deposits" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_totaldeposits" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_totaldeposits" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ccac47cb-e0c7-4263-a6db-6b4a2d50bf46}">
+                        <labels>
+                          <label description="Fee Income YTD" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_feeincomeytd" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_feeincomeytd" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6ec0781f-8787-4e88-b810-f21ba406962a}">
+                        <labels>
+                          <label description="ROE" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_roe" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_roe" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b5e683bd-09e1-4b05-954e-430d6cf3dc65}">
+                        <labels>
+                          <label description="Total Loan Revenue" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_totalloanrevenue" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_totalloanrevenue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e06981cb-cb63-4f54-b8a8-8e441d1c31c1}">
+                        <labels>
+                          <label description="Total Relationship Revenue" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_totalrelationshiprevenue" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_totalrelationshiprevenue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{faa41e76-a0f3-4da2-8d6c-4abcdb491b86}">
+                        <labels>
+                          <label description="Snapshot Freshness Timestamp" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_snapshotfreshnesstimestamp" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_snapshotfreshnesstimestamp" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5a632f54-a11e-4292-9f45-76ae2b7d5fcb}">
+                        <labels>
+                          <label description="Stale Data Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_staledataflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_staledataflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{05998187-351d-48de-8a80-c3121ff7c602}">
+                        <labels>
+                          <label description="Calculation Metadata" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_calculationmetadata" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_calculationmetadata" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8166b87a-2225-473f-bcad-6f21cf0f35bc}">
+                        <labels>
+                          <label description="Snapshot State Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_snapshotstateflag" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_snapshotstateflag" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{e9b0a660-c361-483e-a263-9754eec72706}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{d0ce7bb0-b3b4-4b26-b137-6196d31f1322}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{1fe6e398-41ea-4619-b154-1564740e7ed9}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{4573d400-6ccf-4b67-9690-a3dd1b9fb7b2}">
+                        <labels>
+                          <label description="Portfolio Exception Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_portfolioexceptionname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_portfolioexceptionname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4baf4f98-f9c3-4d87-b5a3-41720c810b62}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e63908ae-20a0-4125-a616-79d3a235c2d4}">
+                        <labels>
+                          <label description="Portfolio Loan" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_portfolioloan" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_portfolioloan" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2e071957-7148-4763-a8b0-d85bc23b1104}">
+                        <labels>
+                          <label description="Exception Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_exceptiontype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_exceptiontype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{219f2609-163a-4907-afc7-86becb78a75e}">
+                        <labels>
+                          <label description="Severity" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_severity" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_severity" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{12c68871-572d-41de-a25e-96205a3f9db7}">
+                        <labels>
+                          <label description="Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_status" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_status" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a689a8ae-0990-487d-8491-f6353f13300f}">
+                        <labels>
+                          <label description="Identified Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_identifieddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_identifieddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ffab7c86-cc31-4f85-a55c-28416cd6b356}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

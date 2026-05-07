@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{8537e7e0-1fbf-48a0-b0d5-a05eaa1a13fe}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{19c07f35-9cb3-45c8-9854-a807407a2106}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{e282ecde-e0d5-4f99-990f-af15fed2697a}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{97f2f380-2410-4ab9-bb2c-7d6c090947ef}">
+                        <labels>
+                          <label description="Configuration Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_configurationname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_configurationname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9a89b609-c528-49f7-b66e-fd55ee64af72}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{60e920ab-9497-4c1f-be06-aa39999164dd}">
+                        <labels>
+                          <label description="Applies To Document Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_appliestodocumenttype" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_appliestodocumenttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{bacf7a4d-d29a-4c80-8f26-fea83a2cbb1b}">
+                        <labels>
+                          <label description="Pre-Expiration Reminder Days" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_preexpirationreminderdays" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_preexpirationreminderdays" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a216f984-b732-4e24-90f3-3c3d2975d922}">
+                        <labels>
+                          <label description="Post-Expiration Reminder Days" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_postexpirationreminderdays" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_postexpirationreminderdays" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1cca9ed7-fc1a-4ba0-a00f-7d6d02a76383}">
+                        <labels>
+                          <label description="Notify Borrower Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notifyborrowerflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_notifyborrowerflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{69dea5b7-b6ff-43f3-8a47-bc2ac76d7de9}">
+                        <labels>
+                          <label description="Notify Banker Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notifybankerflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_notifybankerflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f641f7a0-f87d-4818-8466-fb488c1c3c05}">
+                        <labels>
+                          <label description="Notify Manager Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notifymanagerflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_notifymanagerflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3a44c24c-bd01-40e6-b06f-3523eca7f6a6}">
+                        <labels>
+                          <label description="Active Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_activeflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_activeflag" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

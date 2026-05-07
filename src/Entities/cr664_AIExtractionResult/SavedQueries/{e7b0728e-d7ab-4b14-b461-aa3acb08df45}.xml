@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{e7b0728e-d7ab-4b14-b461-aa3acb08df45}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_extractionname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_aiextractionresultid">
+          <cell name="cr664_extractionname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_dealreference" width="150" />
+          <cell name="cr664_sourcedocumentreference" width="150" />
+          <cell name="cr664_extractiontype" width="150" />
+          <cell name="cr664_extractedjson" width="150" />
+          <cell name="cr664_confidencesummary" width="150" />
+          <cell name="cr664_reviewstatus" width="150" />
+          <cell name="cr664_reviewrequiredflag" width="150" />
+          <cell name="cr664_permissiongroup" width="150" />
+          <cell name="cr664_audittrailreference" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_aiextractionresult">
+          <attribute name="cr664_aiextractionresultid" />
+          <attribute name="cr664_extractionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_extractionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_dealreference" />
+          <attribute name="cr664_sourcedocumentreference" />
+          <attribute name="cr664_extractiontype" />
+          <attribute name="cr664_extractedjson" />
+          <attribute name="cr664_confidencesummary" />
+          <attribute name="cr664_reviewstatus" />
+          <attribute name="cr664_reviewrequiredflag" />
+          <attribute name="cr664_permissiongroup" />
+          <attribute name="cr664_audittrailreference" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active AI Extraction Results" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

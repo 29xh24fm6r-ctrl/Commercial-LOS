@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{0bf5f51a-862f-46a3-86a7-37c03182f760}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{dc8787d1-c761-4f4b-8ad2-a1ac02b30f01}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{44d50194-91c0-421d-892d-89e95e9888bb}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{31db540e-36ee-41ed-9717-7f8aa15370d4}">
+                        <labels>
+                          <label description="Policy Rule Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_policyrulename" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_policyrulename" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{99415cad-a124-4a80-b091-54c2fcbb7f71}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{bb8ecaf3-b292-499e-8db0-2f69b703d05e}">
+                        <labels>
+                          <label description="Policy Domain" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_policydomain" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_policydomain" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{61e4c14f-f4af-4b58-bebe-88b03370f65c}">
+                        <labels>
+                          <label description="Policy Key" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_policykey" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_policykey" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1107213c-6ba7-42fc-8bde-c56c39169cc8}">
+                        <labels>
+                          <label description="Applies To Role" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_appliestorole" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_appliestorole" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9b40aac6-8c0a-4fb4-b443-6e74dd04618f}">
+                        <labels>
+                          <label description="Applies To Workspace" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_appliestoworkspace" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_appliestoworkspace" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{eaf54ba8-d809-4f3b-8d65-a49bcfdbf73a}">
+                        <labels>
+                          <label description="Applies To Action" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_appliestoaction" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_appliestoaction" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2567fbf7-6402-46e8-8d3f-34fef3a9f628}">
+                        <labels>
+                          <label description="Condition Expression" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_conditionexpression" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_conditionexpression" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2104745b-645a-4202-93c8-d56fdcfa071e}">
+                        <labels>
+                          <label description="Outcome" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_outcome" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_outcome" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{23996822-f06f-4c77-aaef-2119e9d3bfd8}">
+                        <labels>
+                          <label description="Failure Message" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_failuremessage" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_failuremessage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ab8b9433-89e3-4a50-814d-08dfca5063a7}">
+                        <labels>
+                          <label description="Priority" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_priority" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_priority" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3791a27a-bad4-44f7-af83-109885f92d7c}">
+                        <labels>
+                          <label description="Is Active" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_isactive" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_isactive" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

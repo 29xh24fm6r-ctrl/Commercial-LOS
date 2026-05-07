@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{d94335a2-c3c3-46ed-8433-3bff2923012d}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{1783d8d2-5fe8-446b-b85c-9f1a82766770}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{8d284177-4e16-4d43-ae7a-a2cf038b55e2}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{aaa45e16-4f32-4672-a054-9b095ec6d4bc}">
+                        <labels>
+                          <label description="Deal Contact Link Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dealcontactlinkname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_dealcontactlinkname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{91b15a76-d617-4d50-a0c2-7e4ce943cc28}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a6d0342a-bd01-4a01-a15e-7ca7cb7593a5}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d0722fab-44ee-4372-9382-33c4c1ed43a0}">
+                        <labels>
+                          <label description="Contact" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_contact" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_contact" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{cdcf52a2-cf44-4355-9c15-3de48333df98}">
+                        <labels>
+                          <label description="Contact Role" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_contactrole" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_contactrole" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1dcdedec-a712-4e4a-b3d0-70dce737c164}">
+                        <labels>
+                          <label description="Is Primary Contact" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_isprimarycontact" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_isprimarycontact" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2a1d028b-6cd1-4efd-b22a-33a433ff87aa}">
+                        <labels>
+                          <label description="Last Contact Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_lastcontactdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_lastcontactdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{59e67171-b6ec-405a-8ae2-fa5ab2d6c85e}">
+                        <labels>
+                          <label description="Next Follow-Up Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_nextfollowupdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_nextfollowupdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ad997f98-9253-4ba4-8ccd-aec129cfbb5c}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

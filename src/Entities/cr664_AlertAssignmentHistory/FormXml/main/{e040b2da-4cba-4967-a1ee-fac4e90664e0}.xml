@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{e040b2da-4cba-4967-a1ee-fac4e90664e0}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{87ef57e3-1387-4004-88ce-90b8bb4e46f9}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{a7669b4b-69f6-49b4-bab5-85c06ac3da60}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{0fafa5ea-0264-4a50-95c5-61c97fd2f7e9}">
+                        <labels>
+                          <label description="Assignment Event Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignmenteventname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_assignmenteventname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0b54cf20-bb8f-4596-a8fd-bd6bd6a91a54}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{34333ba8-2ef8-449f-b663-c90161c841e8}">
+                        <labels>
+                          <label description="alert_id" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_alert_id" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_alert_id" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5938c8c9-8bc2-43e7-a1ad-8d33d849353a}">
+                        <labels>
+                          <label description="assigned_user" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assigned_user" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_assigned_user" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{175c3f3e-7f50-4d19-9b45-2e59ce2956df}">
+                        <labels>
+                          <label description="assigned_team" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assigned_team" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_assigned_team" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8f8bb4d4-ae72-4112-8519-6ce46637f146}">
+                        <labels>
+                          <label description="assignment_reason" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignment_reason" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_assignment_reason" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3e2915a3-8050-447f-abfe-a5ce00579733}">
+                        <labels>
+                          <label description="assignment_timestamp" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignment_timestamp" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_assignment_timestamp" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{bd761706-b9bd-4efa-8346-a87a29035972}">
+                        <labels>
+                          <label description="assignment_type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignment_type" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_assignment_type" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

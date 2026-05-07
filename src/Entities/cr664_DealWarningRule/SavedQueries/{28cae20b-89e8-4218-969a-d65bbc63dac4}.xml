@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{28cae20b-89e8-4218-969a-d65bbc63dac4}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_rulename" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dealwarningruleid">
+          <cell name="cr664_rulename" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_warningtype" width="150" />
+          <cell name="cr664_severity" width="150" />
+          <cell name="cr664_applieswhen" width="150" />
+          <cell name="cr664_warningtext" width="150" />
+          <cell name="cr664_isactive" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dealwarningrule">
+          <attribute name="cr664_dealwarningruleid" />
+          <attribute name="cr664_rulename" />
+          <attribute name="createdon" />
+          <order attribute="cr664_rulename" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_warningtype" />
+          <attribute name="cr664_severity" />
+          <attribute name="cr664_applieswhen" />
+          <attribute name="cr664_warningtext" />
+          <attribute name="cr664_isactive" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Deal Warning Rules" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{025f3303-6d48-429a-b4e7-e743b9938c81}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_invoicenumber" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_vendorinvoiceid">
+          <cell name="cr664_invoicenumber" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_vendor" width="150" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_invoicedate" width="150" />
+          <cell name="cr664_invoiceamount" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_duedate" width="150" />
+          <cell name="cr664_paiddate" width="150" />
+          <cell name="cr664_notes" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_vendorinvoice">
+          <attribute name="cr664_vendorinvoiceid" />
+          <attribute name="cr664_invoicenumber" />
+          <attribute name="createdon" />
+          <order attribute="cr664_invoicenumber" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_vendor" />
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_invoicedate" />
+          <attribute name="cr664_invoiceamount" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_duedate" />
+          <attribute name="cr664_paiddate" />
+          <attribute name="cr664_notes" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Vendor Invoices" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

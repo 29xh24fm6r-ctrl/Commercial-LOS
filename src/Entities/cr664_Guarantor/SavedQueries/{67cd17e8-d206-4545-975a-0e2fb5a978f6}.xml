@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>1</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{67cd17e8-d206-4545-975a-0e2fb5a978f6}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_guarantorname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_guarantorid">
+          <cell name="cr664_guarantorname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>4</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_guarantor">
+          <attribute name="cr664_guarantorid" />
+          <attribute name="cr664_guarantorname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_guarantorname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <filter type="or" isquickfindfields="1">
+            <condition attribute="cr664_guarantorname" operator="like" value="{0}" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Quick Find Active Guarantors" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{2c1a383c-525e-41ba-b8ff-184f1c07b8dd}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{31092b0b-c600-4848-b9ee-6d06ad421f6d}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{014df888-56b9-45b9-b450-114ceae38d21}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{f389f810-b7e7-4172-b381-83e363e61b03}">
+                        <labels>
+                          <label description="Milestone" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_milestone1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_milestone1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c59db26b-f2ac-46e7-b6d0-989035fa7f65}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{135834d5-71db-4cfd-87cc-fb084d937aaf}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dealid" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_dealid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5d7c5d1b-80f0-44a3-8b66-3b2977e96da3}">
+                        <labels>
+                          <label description="Prospect Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_prospectdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_prospectdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{950baca0-ada7-4b83-a988-d58a9a7d917e}">
+                        <labels>
+                          <label description="Application Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_applicationdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_applicationdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e2a0b56c-4ff2-4ad7-8e17-f4d053ac6cb4}">
+                        <labels>
+                          <label description="UW Start Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_uwstartdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_uwstartdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1ef69863-9af3-47c3-99a2-1a668df91c05}">
+                        <labels>
+                          <label description="Credit Memo Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_creditmemodate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_creditmemodate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1e687145-87b7-4b8c-80a9-be3e4786132f}">
+                        <labels>
+                          <label description="Approval Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_approvaldate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_approvaldate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{99f36abc-e831-4c51-a1de-073012147e1c}">
+                        <labels>
+                          <label description="Commitment Sent Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_commitmentsentdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_commitmentsentdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{7013ca66-19a1-48ee-93c2-bf12ec419d3e}">
+                        <labels>
+                          <label description="Commitment Signed Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_commitmentsigneddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_commitmentsigneddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{fd8b7ec2-f5bc-4782-9dd6-aae731c7bb98}">
+                        <labels>
+                          <label description="Scheduled Closing Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_scheduledclosingdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_scheduledclosingdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{843e37f3-6a0c-4837-865b-f6faa6352db4}">
+                        <labels>
+                          <label description="Actual Closing Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_actualclosingdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_actualclosingdate" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

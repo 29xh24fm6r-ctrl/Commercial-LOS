@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{c959a01c-e1b2-42c6-8dcc-158e865ebdf1}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{75c86c51-cafb-4be4-8a72-4f2fc99e8167}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{1bb7b842-3642-441e-a334-d17277ad287c}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{9f61f69a-1080-4ec3-8ba9-5ee0de06388e}">
+                        <labels>
+                          <label description="Workspace Permission Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_workspacepermissionname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_workspacepermissionname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8edb3b9a-4360-4167-8227-84cadae1a8ad}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0fe85580-be43-4fa5-a56d-850b7ac8a7a2}">
+                        <labels>
+                          <label description="Workspace Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_workspacetype" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_workspacetype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b2940747-34f5-46a9-8fd5-53c4b75504d6}">
+                        <labels>
+                          <label description="Permission Group" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_permissiongroup" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_permissiongroup" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{cdeda420-64a6-4b29-a26f-2a85cc31883c}">
+                        <labels>
+                          <label description="Auditable Enforcement Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_auditableenforcementflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_auditableenforcementflag" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

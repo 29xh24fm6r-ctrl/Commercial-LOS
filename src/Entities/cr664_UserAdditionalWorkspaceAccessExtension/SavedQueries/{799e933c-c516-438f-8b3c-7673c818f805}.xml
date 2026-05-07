@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{799e933c-c516-438f-8b3c-7673c818f805}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_extensionname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_useradditionalworkspaceaccessextensionid">
+          <cell name="cr664_extensionname" width="300" />
+          <cell name="cr664_useradditionalworkspaceaccess" width="150" />
+          <cell name="cr664_primaryuserdirectory" width="150" />
+          <cell name="cr664_useremail" width="150" />
+          <cell name="cr664_directoryemail" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_useradditionalworkspaceaccessextension">
+          <attribute name="cr664_useradditionalworkspaceaccessextensionid" />
+          <attribute name="cr664_extensionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_extensionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_useradditionalworkspaceaccess" />
+          <attribute name="cr664_primaryuserdirectory" />
+          <attribute name="cr664_useremail" />
+          <attribute name="cr664_directoryemail" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active User Additional Workspace Access Extensions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{c7b8633b-4d63-4d04-a3e6-ab83f1498871}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_guarantorname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_guarantorid">
+          <cell name="cr664_guarantorname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_ownershippercentage" width="150" />
+          <cell name="cr664_personalfinancialdetails" width="150" />
+          <cell name="cr664_creditscore" width="150" />
+          <cell name="cr664_dealid" width="150" />
+          <cell name="cr664_borrowerid" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_guarantor">
+          <attribute name="cr664_guarantorid" />
+          <attribute name="cr664_guarantorname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_guarantorname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_ownershippercentage" />
+          <attribute name="cr664_personalfinancialdetails" />
+          <attribute name="cr664_creditscore" />
+          <attribute name="cr664_dealid" />
+          <attribute name="cr664_borrowerid" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Guarantors" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

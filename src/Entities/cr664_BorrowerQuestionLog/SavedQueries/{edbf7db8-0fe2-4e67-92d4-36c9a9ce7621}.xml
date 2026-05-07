@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{edbf7db8-0fe2-4e67-92d4-36c9a9ce7621}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_questionsummary" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_borrowerquestionlogid">
+          <cell name="cr664_questionsummary" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_copilotsession" width="150" />
+          <cell name="cr664_questiontext" width="150" />
+          <cell name="cr664_responsetext" width="150" />
+          <cell name="cr664_topic" width="150" />
+          <cell name="cr664_escalationflag" width="150" />
+          <cell name="cr664_escalationreason" width="150" />
+          <cell name="cr664_voiceinteractionflag" width="150" />
+          <cell name="cr664_createdtimestamp" width="150" />
+          <cell name="cr664_createdbyai" width="150" />
+          <cell name="cr664_audittrailreference" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_borrowerquestionlog">
+          <attribute name="cr664_borrowerquestionlogid" />
+          <attribute name="cr664_questionsummary" />
+          <attribute name="createdon" />
+          <order attribute="cr664_questionsummary" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_copilotsession" />
+          <attribute name="cr664_questiontext" />
+          <attribute name="cr664_responsetext" />
+          <attribute name="cr664_topic" />
+          <attribute name="cr664_escalationflag" />
+          <attribute name="cr664_escalationreason" />
+          <attribute name="cr664_voiceinteractionflag" />
+          <attribute name="cr664_createdtimestamp" />
+          <attribute name="cr664_createdbyai" />
+          <attribute name="cr664_audittrailreference" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Borrower Question Logs" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

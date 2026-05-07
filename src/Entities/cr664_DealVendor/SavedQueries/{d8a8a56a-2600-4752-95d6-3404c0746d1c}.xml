@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>0</isdefault>
+    <savedqueryid>{d8a8a56a-2600-4752-95d6-3404c0746d1c}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_dealvendorname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dealvendorid">
+          <cell name="cr664_dealvendorname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dealvendor">
+          <attribute name="cr664_dealvendorid" />
+          <attribute name="cr664_dealvendorname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_dealvendorname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="1" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Inactive Deal Vendors" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

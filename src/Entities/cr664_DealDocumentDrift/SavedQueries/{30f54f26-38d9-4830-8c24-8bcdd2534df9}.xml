@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>1</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{30f54f26-38d9-4830-8c24-8bcdd2534df9}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_driftname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dealdocumentdriftid">
+          <cell name="cr664_driftname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>4</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dealdocumentdrift">
+          <attribute name="cr664_dealdocumentdriftid" />
+          <attribute name="cr664_driftname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_driftname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <filter type="or" isquickfindfields="1">
+            <condition attribute="cr664_driftname" operator="like" value="{0}" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Quick Find Active Deal Document Drifts" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

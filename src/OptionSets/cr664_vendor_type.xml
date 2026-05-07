@@ -1,0 +1,96 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<optionset Name="cr664_vendor_type" localizedName="Vendor Category" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <OptionSetType>picklist</OptionSetType>
+  <IsGlobal>1</IsGlobal>
+  <IntroducedVersion>1.0.0.0</IntroducedVersion>
+  <IsCustomizable>1</IsCustomizable>
+  <ExternalTypeName></ExternalTypeName>
+  <displaynames>
+    <displayname description="Vendor Category" languagecode="1033" />
+  </displaynames>
+  <Descriptions>
+    <Description description="" languagecode="1033" />
+  </Descriptions>
+  <options>
+    <option value="788190000" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="Environmental Firm" languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+    <option value="788190002" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="Title Company" languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+    <option value="788190003" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="Closing Attorney" languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+    <option value="788190005" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="Insurance Agent" languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+    <option value="788190006" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="UCC Provider" languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+    <option value="788190007" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="Flood Service Provider" languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+    <option value="788190008" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="Certified Development Corp." languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+    <option value="788190009" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="Survey Firm" languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+    <option value="788190010" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="Equipment Appraiser" languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+    <option value="788190011" ExternalValue="" IsHidden="0">
+      <labels>
+        <label description="Consultant" languagecode="1033" />
+      </labels>
+      <Descriptions>
+        <Description description="" languagecode="1033" />
+      </Descriptions>
+    </option>
+  </options>
+</optionset>

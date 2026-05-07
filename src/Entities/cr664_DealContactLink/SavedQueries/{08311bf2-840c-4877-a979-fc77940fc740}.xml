@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{08311bf2-840c-4877-a979-fc77940fc740}</savedqueryid>
+    <layoutxml>
+      <grid name="cr664_dealcontactlinks" jump="cr664_dealcontactlinkname" select="1" icon="1" preview="1">
+        <row name="cr664_dealcontactlink" id="cr664_dealcontactlinkid">
+          <cell name="cr664_dealcontactlinkname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>2</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dealcontactlink">
+          <attribute name="cr664_dealcontactlinkid" />
+          <attribute name="cr664_dealcontactlinkname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_dealcontactlinkname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Deal Contact Link Associated View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

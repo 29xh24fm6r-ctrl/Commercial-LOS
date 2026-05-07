@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{07194c76-f85a-422b-8d0f-76cdd0275b31}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_financialspreadingname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_financialspreadingid">
+          <cell name="cr664_financialspreadingname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_revenue" width="150" />
+          <cell name="cr664_ebitda" width="150" />
+          <cell name="cr664_fixedcharges" width="150" />
+          <cell name="cr664_globalcashflowinputs" width="150" />
+          <cell name="cr664_debtservice" width="150" />
+          <cell name="cr664_personalcashflow" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_financialspreading">
+          <attribute name="cr664_financialspreadingid" />
+          <attribute name="cr664_financialspreadingname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_financialspreadingname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_revenue" />
+          <attribute name="cr664_ebitda" />
+          <attribute name="cr664_fixedcharges" />
+          <attribute name="cr664_globalcashflowinputs" />
+          <attribute name="cr664_debtservice" />
+          <attribute name="cr664_personalcashflow" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active FinancialSpreadings" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

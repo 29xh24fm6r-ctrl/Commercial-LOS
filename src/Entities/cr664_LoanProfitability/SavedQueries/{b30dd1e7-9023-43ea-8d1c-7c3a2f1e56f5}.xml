@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{b30dd1e7-9023-43ea-8d1c-7c3a2f1e56f5}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_loanname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_loanprofitabilityid">
+          <cell name="cr664_loanname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_loanamount" width="150" />
+          <cell name="cr664_interestrate" width="150" />
+          <cell name="cr664_profitabilitystatus" width="150" />
+          <cell name="cr664_period" width="150" />
+          <cell name="cr664_producttype" width="150" />
+          <cell name="cr664_avgearningbalance" width="150" />
+          <cell name="cr664_avgdrawn" width="150" />
+          <cell name="cr664_avgundrawn" width="150" />
+          <cell name="cr664_avgloanrate" width="150" />
+          <cell name="cr664_referenceindex" width="150" />
+          <cell name="cr664_averagespread" width="150" />
+          <cell name="cr664_interestincome" width="150" />
+          <cell name="cr664_feeincomeupfrontrecognized" width="150" />
+          <cell name="cr664_feeincomeongoing" width="150" />
+          <cell name="cr664_otherincome" width="150" />
+          <cell name="cr664_costoffundsrate" width="150" />
+          <cell name="cr664_fundingcost" width="150" />
+          <cell name="cr664_liquiditycapitalcharge" width="150" />
+          <cell name="cr664_creditprovision" width="150" />
+          <cell name="cr664_operatingcostallocation" width="150" />
+          <cell name="cr664_netinterestincome" width="150" />
+          <cell name="cr664_totalfeeincome" width="150" />
+          <cell name="cr664_grossrevenue" width="150" />
+          <cell name="cr664_totalallocatedcosts" width="150" />
+          <cell name="cr664_contributionmargin" width="150" />
+          <cell name="cr664_contributionmarginpercent" width="150" />
+          <cell name="cr664_roe" width="150" />
+          <cell name="cr664_dealid" width="150" />
+          <cell name="cr664_borrowerid" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_loanprofitability">
+          <attribute name="cr664_loanprofitabilityid" />
+          <attribute name="cr664_loanname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_loanname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_loanamount" />
+          <attribute name="cr664_interestrate" />
+          <attribute name="cr664_profitabilitystatus" />
+          <attribute name="cr664_period" />
+          <attribute name="cr664_producttype" />
+          <attribute name="cr664_avgearningbalance" />
+          <attribute name="cr664_avgdrawn" />
+          <attribute name="cr664_avgundrawn" />
+          <attribute name="cr664_avgloanrate" />
+          <attribute name="cr664_referenceindex" />
+          <attribute name="cr664_averagespread" />
+          <attribute name="cr664_interestincome" />
+          <attribute name="cr664_feeincomeupfrontrecognized" />
+          <attribute name="cr664_feeincomeongoing" />
+          <attribute name="cr664_otherincome" />
+          <attribute name="cr664_costoffundsrate" />
+          <attribute name="cr664_fundingcost" />
+          <attribute name="cr664_liquiditycapitalcharge" />
+          <attribute name="cr664_creditprovision" />
+          <attribute name="cr664_operatingcostallocation" />
+          <attribute name="cr664_netinterestincome" />
+          <attribute name="cr664_totalfeeincome" />
+          <attribute name="cr664_grossrevenue" />
+          <attribute name="cr664_totalallocatedcosts" />
+          <attribute name="cr664_contributionmargin" />
+          <attribute name="cr664_contributionmarginpercent" />
+          <attribute name="cr664_roe" />
+          <attribute name="cr664_dealid" />
+          <attribute name="cr664_borrowerid" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active LoanProfitabilities" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

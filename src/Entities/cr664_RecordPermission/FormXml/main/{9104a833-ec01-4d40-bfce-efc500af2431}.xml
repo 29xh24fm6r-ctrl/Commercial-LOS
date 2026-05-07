@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{9104a833-ec01-4d40-bfce-efc500af2431}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{d3878ddd-4ec5-4759-ba0d-89560c94f26e}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{8b10a668-c831-406a-8d54-6b77547f22bb}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{f0c66f51-237a-4b4c-873b-3458d3ae29a1}">
+                        <labels>
+                          <label description="Record Permission Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_recordpermissionname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_recordpermissionname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b3d82460-106a-4554-b323-49c0eac122af}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0d1c8b7e-8679-4f85-bd2a-01e041d6fdea}">
+                        <labels>
+                          <label description="Entity Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_entityname" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_entityname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{56b16d5d-4f80-4ca3-bf64-b39661f46eb8}">
+                        <labels>
+                          <label description="Scope" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_scope" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_scope" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e22e56bf-c8c3-4b4c-b258-79d6b8cd1ce1}">
+                        <labels>
+                          <label description="Permission Group" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_permissiongroup" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_permissiongroup" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{336e157c-2931-402a-9a33-ca4c0603f652}">
+                        <labels>
+                          <label description="Scoped Record ID" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_scopedrecordid" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_scopedrecordid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0742e00b-3430-430a-a871-1166a723f341}">
+                        <labels>
+                          <label description="Auditable Enforcement Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_auditableenforcementflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_auditableenforcementflag" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

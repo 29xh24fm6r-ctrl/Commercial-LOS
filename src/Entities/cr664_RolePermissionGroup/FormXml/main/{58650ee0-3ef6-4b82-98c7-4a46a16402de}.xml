@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{58650ee0-3ef6-4b82-98c7-4a46a16402de}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{a2fd7b29-305b-49d5-ac1c-d91b725add64}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{5f28be80-51b9-40a3-9454-0182f642c5d1}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{a24719de-de5f-4792-90bf-00af69788db9}">
+                        <labels>
+                          <label description="Role Permission Group Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_rolepermissiongroupname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_rolepermissiongroupname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d7024f1f-d2c2-4c1b-9e75-4dc4395634b9}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a1fafbcc-4efa-4b3d-8fe3-9f8ca82fb55d}">
+                        <labels>
+                          <label description="Role" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_role" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_role" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{30d0c2da-428a-4deb-843a-1c97e54f4b90}">
+                        <labels>
+                          <label description="Permission Group" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_permissiongroup" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_permissiongroup" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{64a7a02f-9675-49bd-92de-678595cdc96e}">
+                        <labels>
+                          <label description="Scoped Access Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_scopedaccessflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_scopedaccessflag" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

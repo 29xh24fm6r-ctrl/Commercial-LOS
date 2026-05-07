@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>0</isdefault>
+    <savedqueryid>{1aee866a-af59-4c43-8802-03ab8f9f1449}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_artifactname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_aidraftartifactid">
+          <cell name="cr664_artifactname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_aidraftartifact">
+          <attribute name="cr664_aidraftartifactid" />
+          <attribute name="cr664_artifactname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_artifactname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="1" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Inactive AI Draft Artifacts" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

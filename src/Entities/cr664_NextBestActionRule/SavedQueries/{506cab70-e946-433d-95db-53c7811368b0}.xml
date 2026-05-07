@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{506cab70-e946-433d-95db-53c7811368b0}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_rulename" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_nextbestactionruleid">
+          <cell name="cr664_rulename" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_ruledescription" width="150" />
+          <cell name="cr664_priority" width="150" />
+          <cell name="cr664_applieswhen" width="150" />
+          <cell name="cr664_actiontype" width="150" />
+          <cell name="cr664_actiondefinition" width="150" />
+          <cell name="cr664_isactive" width="150" />
+          <cell name="cr664_createdby" width="150" />
+          <cell name="cr664_createddate" width="150" />
+          <cell name="cr664_lastmodifiedby" width="150" />
+          <cell name="cr664_lastmodifieddate" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_nextbestactionrule">
+          <attribute name="cr664_nextbestactionruleid" />
+          <attribute name="cr664_rulename" />
+          <attribute name="createdon" />
+          <order attribute="cr664_rulename" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_ruledescription" />
+          <attribute name="cr664_priority" />
+          <attribute name="cr664_applieswhen" />
+          <attribute name="cr664_actiontype" />
+          <attribute name="cr664_actiondefinition" />
+          <attribute name="cr664_isactive" />
+          <attribute name="cr664_createdby" />
+          <attribute name="cr664_createddate" />
+          <attribute name="cr664_lastmodifiedby" />
+          <attribute name="cr664_lastmodifieddate" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Next Best Action Rules" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

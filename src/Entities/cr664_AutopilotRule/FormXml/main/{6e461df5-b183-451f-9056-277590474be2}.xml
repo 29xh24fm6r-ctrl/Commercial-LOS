@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{6e461df5-b183-451f-9056-277590474be2}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{70623bd1-1626-48be-9276-ead603052613}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{891620cb-8462-4489-8c3e-48cd8b504e22}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{c53f1e91-1b0c-4a23-b72c-8b4b7c23a715}">
+                        <labels>
+                          <label description="Rule Key" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_rulekey" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_rulekey" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c3409aa8-faa9-43b3-87a4-c2b249083527}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3d5c1299-d2c0-4f5d-a207-4eb78cb47a6c}">
+                        <labels>
+                          <label description="Stage Scope" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_stagescope" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_stagescope" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a27d1d11-8fbe-447b-84b6-90bc1f78541d}">
+                        <labels>
+                          <label description="Condition Logic" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_conditionlogic" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_conditionlogic" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9929d27a-4e64-437b-a351-d5d06bbd3315}">
+                        <labels>
+                          <label description="Action Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_actiontype" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_actiontype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1369a5fe-6d10-4f25-bfee-06487bc40055}">
+                        <labels>
+                          <label description="Priority" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_priority" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_priority" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{40ec9116-46cb-4947-a72e-fa6f7e22484c}">
+                        <labels>
+                          <label description="Is Active" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_isactive" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_isactive" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

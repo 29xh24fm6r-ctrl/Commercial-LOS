@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{dec4a97b-bfad-497d-a31d-d6930d54bb92}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{06481e3f-b511-44c5-9904-2a8c2a09e006}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{29aeac98-f046-4d0c-84a5-f39026c49d95}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{1800e4cb-84fd-4837-b6ed-d4ec60417a20}">
+                        <labels>
+                          <label description="Status Extension Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_statusextensionname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_statusextensionname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b57a2995-3bc9-48f7-81bb-20d06c365d37}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4812cc35-ebce-4776-825c-45943303d2ea}">
+                        <labels>
+                          <label description="Borrower Upload" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_borrowerupload" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_borrowerupload" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b7e88ea1-5c85-4b66-b158-d2bcbf09c797}">
+                        <labels>
+                          <label description="Processing Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_processingstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_processingstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{56a13fb2-2db3-4aa1-a60b-7f9d70af160e}">
+                        <labels>
+                          <label description="Created At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_createdat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_createdat" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{7506459a-33be-4533-9e64-df7688dd2049}">
+                        <labels>
+                          <label description="Updated At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_updatedat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_updatedat" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

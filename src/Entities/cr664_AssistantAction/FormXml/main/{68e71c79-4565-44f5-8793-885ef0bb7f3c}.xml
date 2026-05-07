@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{68e71c79-4565-44f5-8793-885ef0bb7f3c}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{9485f3b6-bf19-4892-b272-632d6866b77e}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{3d7b8c8f-ec0e-4309-ada4-fcadc0ef8773}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{f10d3115-23a1-43dc-863f-f245f49f599b}">
+                        <labels>
+                          <label description="Action Label" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_actionlabel" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_actionlabel" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{08b13796-8c85-481f-bf53-c3d750a72c2a}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{78f287a8-081b-415a-a4a9-71beaecceebc}">
+                        <labels>
+                          <label description="Launch Target" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_launchtarget" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_launchtarget" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{610b320b-5475-47f2-98bd-704b6e643dc7}">
+                        <labels>
+                          <label description="Permission Profile" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_permissionprofile" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_permissionprofile" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d2c57bfc-df13-4e9c-83f2-f322fec82179}">
+                        <labels>
+                          <label description="Stage Profile" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_stageprofile" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_stageprofile" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{65374ed3-2122-48e8-b60f-d71a59da3c5d}">
+                        <labels>
+                          <label description="Context Requirements" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_contextrequirements" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_contextrequirements" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6cbd9917-14a8-45cd-9bfa-9806c4b6a184}">
+                        <labels>
+                          <label description="Is Active" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_isactive" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_isactive" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

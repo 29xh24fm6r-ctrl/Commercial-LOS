@@ -1,0 +1,159 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{bc74e818-9db3-4898-8316-e0e8ec087210}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{fe439b51-725b-4b39-a8fe-26343015d497}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{6af44f66-ae82-49d1-a1fb-4f9753d62fa2}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{24f79c1c-e0cf-473d-b58d-e3e7c0e25860}">
+                        <labels>
+                          <label description="Full Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_fullname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_fullname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{91961aba-4eda-4ce2-bfd0-79cfbf655c28}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3948f443-9bb0-4032-a722-2604e72185e2}">
+                        <labels>
+                          <label description="Title" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_title" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_title" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2c430689-771e-4580-924c-b087c97a1b88}">
+                        <labels>
+                          <label description="Email" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_email" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_email" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5fe1ba43-3066-4bbf-95cc-14fbb34df8ad}">
+                        <labels>
+                          <label description="Phone" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_phone" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_phone" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{51c8d148-02ec-4479-9bcc-dbd41c159e5e}">
+                        <labels>
+                          <label description="Mobile Phone" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_mobilephone" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_mobilephone" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{49246a5b-9240-4f79-a829-c51c0295392f}">
+                        <labels>
+                          <label description="Team" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_team" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_team" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c879c245-2df6-4636-a075-72ad1dfd7354}">
+                        <labels>
+                          <label description="Manager Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_managername" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_managername" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{16435fe9-e6e4-4aac-9bff-003bfd9d2188}">
+                        <labels>
+                          <label description="Role Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_roletype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_roletype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{14ff5a46-f838-4fb5-af51-bcf5b8e323ca}">
+                        <labels>
+                          <label description="Active Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_activeflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_activeflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{130fd867-8f2d-4901-bbc1-923a77daa560}">
+                        <labels>
+                          <label description="Profile Photo" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_profilephoto" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_profilephoto" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c7de360c-2006-4a85-8606-c1f10e6cbce2}">
+                        <labels>
+                          <label description="NMLS or Internal ID" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_nmlsorinternalid" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_nmlsorinternalid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8e598108-5f6e-4484-ab51-ae77de8101b1}">
+                        <labels>
+                          <label description="Office Location" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_officelocation" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_officelocation" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{77baa881-f87a-45ca-87ec-17f91a3fb2ca}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{caf37f15-abf3-44d8-9c9e-6f1dcd732f21}">
+                        <labels>
+                          <label description="User Login Mapping" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_userloginmapping" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_userloginmapping" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

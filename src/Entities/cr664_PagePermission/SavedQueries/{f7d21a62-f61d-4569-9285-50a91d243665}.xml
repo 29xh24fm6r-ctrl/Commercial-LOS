@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>0</isdefault>
+    <savedqueryid>{f7d21a62-f61d-4569-9285-50a91d243665}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_pagepermissionname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_pagepermissionid">
+          <cell name="cr664_pagepermissionname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_pagepermission">
+          <attribute name="cr664_pagepermissionid" />
+          <attribute name="cr664_pagepermissionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_pagepermissionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="1" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Inactive Page Permissions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

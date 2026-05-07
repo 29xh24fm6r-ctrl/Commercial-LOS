@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{3079db65-7e4f-443c-8c59-0f608294d0b1}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{68d38cee-06a7-4813-8670-97c7e12c43db}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{494f296a-92b6-4a12-b16c-24b7c29d4dfd}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{9eefd1a7-2097-4ece-85e4-3cf51efb6c1b}">
+                        <labels>
+                          <label description="Extraction Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_extractionname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_extractionname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{44073ff8-9d31-4031-b2f9-f85f2424ddff}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a586a3fb-1877-4d40-842f-e4253192fa84}">
+                        <labels>
+                          <label description="Deal Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dealreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_dealreference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{974c4a76-3a22-4f43-a2ca-b49702a65ae1}">
+                        <labels>
+                          <label description="Source Document Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourcedocumentreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_sourcedocumentreference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0a7aecfa-8759-429e-8322-863c99484918}">
+                        <labels>
+                          <label description="Extraction Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_extractiontype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_extractiontype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{46f6724e-a43e-468c-a344-28d3317051bb}">
+                        <labels>
+                          <label description="Extracted JSON" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_extractedjson" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_extractedjson" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{46e81829-a9e7-4768-95ed-c8adc8e30683}">
+                        <labels>
+                          <label description="Confidence Summary" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_confidencesummary" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_confidencesummary" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9fd8c83f-cd77-4042-ad21-3f862887ec95}">
+                        <labels>
+                          <label description="Review Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_reviewstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_reviewstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ce7014f7-63fd-41f2-a731-d1f67b001e15}">
+                        <labels>
+                          <label description="Review Required Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_reviewrequiredflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_reviewrequiredflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{fe71c04e-4354-4244-b1c0-306869d3db92}">
+                        <labels>
+                          <label description="Permission Group" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_permissiongroup" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_permissiongroup" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{61b6c333-4219-4a63-9221-3940453c4ce1}">
+                        <labels>
+                          <label description="Audit Trail Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_audittrailreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_audittrailreference" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

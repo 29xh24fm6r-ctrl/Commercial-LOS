@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{9834166c-7d67-438d-8d00-f045f10f013e}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_loannumber" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_portfolioloanid">
+          <cell name="cr664_loannumber" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_client" width="150" />
+          <cell name="cr664_primarybanker" width="150" />
+          <cell name="cr664_relationshipmanager" width="150" />
+          <cell name="cr664_loantypereference" width="150" />
+          <cell name="cr664_industry" width="150" />
+          <cell name="cr664_collateraltypereference" width="150" />
+          <cell name="cr664_commitmentamount" width="150" />
+          <cell name="cr664_outstandingbalance" width="150" />
+          <cell name="cr664_interestrate" width="150" />
+          <cell name="cr664_ratetypereference" width="150" />
+          <cell name="cr664_nextrepricedate" width="150" />
+          <cell name="cr664_originationdate" width="150" />
+          <cell name="cr664_maturitydate" width="150" />
+          <cell name="cr664_riskratingreference" width="150" />
+          <cell name="cr664_watchlistflag" width="150" />
+          <cell name="cr664_pastdueflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_portfolioloan">
+          <attribute name="cr664_portfolioloanid" />
+          <attribute name="cr664_loannumber" />
+          <attribute name="createdon" />
+          <order attribute="cr664_loannumber" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_client" />
+          <attribute name="cr664_primarybanker" />
+          <attribute name="cr664_relationshipmanager" />
+          <attribute name="cr664_loantypereference" />
+          <attribute name="cr664_industry" />
+          <attribute name="cr664_collateraltypereference" />
+          <attribute name="cr664_commitmentamount" />
+          <attribute name="cr664_outstandingbalance" />
+          <attribute name="cr664_interestrate" />
+          <attribute name="cr664_ratetypereference" />
+          <attribute name="cr664_nextrepricedate" />
+          <attribute name="cr664_originationdate" />
+          <attribute name="cr664_maturitydate" />
+          <attribute name="cr664_riskratingreference" />
+          <attribute name="cr664_watchlistflag" />
+          <attribute name="cr664_pastdueflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Portfolio Loans" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

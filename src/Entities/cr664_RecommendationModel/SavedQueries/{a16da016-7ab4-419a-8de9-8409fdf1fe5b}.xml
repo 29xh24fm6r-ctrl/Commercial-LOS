@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{a16da016-7ab4-419a-8de9-8409fdf1fe5b}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_recommendationname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_recommendationmodelid">
+          <cell name="cr664_recommendationname" width="300" />
+          <cell name="cr664_recommendationtype" width="150" />
+          <cell name="cr664_dealname" width="150" />
+          <cell name="cr664_workspaceid" width="150" />
+          <cell name="cr664_rationale" width="150" />
+          <cell name="cr664_priority" width="150" />
+          <cell name="cr664_sourcesignals" width="150" />
+          <cell name="cr664_createdat" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_visibility" width="150" />
+          <cell name="cr664_metadatajson" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_recommendationmodel">
+          <attribute name="cr664_recommendationmodelid" />
+          <attribute name="cr664_recommendationname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_recommendationname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_recommendationtype" />
+          <attribute name="cr664_dealname" />
+          <attribute name="cr664_workspaceid" />
+          <attribute name="cr664_rationale" />
+          <attribute name="cr664_priority" />
+          <attribute name="cr664_sourcesignals" />
+          <attribute name="cr664_createdat" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_visibility" />
+          <attribute name="cr664_metadatajson" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Recommendation Models" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

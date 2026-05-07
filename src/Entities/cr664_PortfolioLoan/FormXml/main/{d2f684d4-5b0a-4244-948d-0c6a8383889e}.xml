@@ -1,0 +1,391 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{d2f684d4-5b0a-4244-948d-0c6a8383889e}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{5fc798b1-4ff9-4a62-ba70-14851589e105}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{8a058b4d-d96d-4460-aa76-165236facc2d}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{6927f745-692d-46ac-af9f-dc63072df1bf}">
+                        <labels>
+                          <label description="Loan Number" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_loannumber" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_loannumber" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0ae2f977-5c21-4ff6-831f-aa7c20ca6a7e}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9b90ccf0-2935-4e32-a4de-8f019d8f996d}">
+                        <labels>
+                          <label description="Client" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_client" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_client" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{41cbeb36-af83-4324-8a22-83c1678a6f53}">
+                        <labels>
+                          <label description="Primary Banker" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_primarybanker" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_primarybanker" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8d8e7233-ac4d-46a7-8e78-34e21249dc50}">
+                        <labels>
+                          <label description="Relationship Manager" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_relationshipmanager" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_relationshipmanager" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1f7faa6f-0d40-4f89-be35-3224ae72a966}">
+                        <labels>
+                          <label description="Loan Type Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_loantypereference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_loantypereference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{fd19e0c5-ce8a-48d2-a14e-f2a9f3a729d7}">
+                        <labels>
+                          <label description="Industry" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_industry" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_industry" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9abdbff6-3b72-48c7-8ad2-232c03f07675}">
+                        <labels>
+                          <label description="Collateral Type Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_collateraltypereference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_collateraltypereference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e8002709-071f-4719-8e51-5abb9bd021ee}">
+                        <labels>
+                          <label description="Commitment Amount" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_commitmentamount" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_commitmentamount" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e19b1454-7d27-42ef-91ff-ef046e268c0f}">
+                        <labels>
+                          <label description="Outstanding Balance" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_outstandingbalance" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_outstandingbalance" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1d07222c-f4c6-4792-8bd3-d30a08c53521}">
+                        <labels>
+                          <label description="Interest Rate" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_interestrate" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_interestrate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a21042c5-9522-4aad-aad7-8688cccf5da1}">
+                        <labels>
+                          <label description="Rate Type Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_ratetypereference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_ratetypereference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{87564e32-235f-4643-a0a6-de1e16ea6f06}">
+                        <labels>
+                          <label description="Next Reprice Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_nextrepricedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_nextrepricedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{21e06bdf-1b94-4fc4-aeff-06c64893c88f}">
+                        <labels>
+                          <label description="Origination Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_originationdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_originationdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{38d596e4-5f45-4f85-b5a8-92ef950baad6}">
+                        <labels>
+                          <label description="Maturity Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_maturitydate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_maturitydate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1c34e4b0-921d-4f8a-a6e3-49d108311323}">
+                        <labels>
+                          <label description="Risk Rating Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_riskratingreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_riskratingreference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3abd8cf7-097d-4957-b178-6ea26d9040fe}">
+                        <labels>
+                          <label description="Watchlist Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_watchlistflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_watchlistflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5caa5ccf-4667-473b-9e20-574f9b5dd60c}">
+                        <labels>
+                          <label description="Past Due Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_pastdueflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_pastdueflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8a4d695f-eead-48cd-90a5-290e1dba13e7}">
+                        <labels>
+                          <label description="Days Past Due" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dayspastdue" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_dayspastdue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{482cc0aa-7010-4442-b6df-a2108cd3bd25}">
+                        <labels>
+                          <label description="Annual Review Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_annualreviewdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_annualreviewdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f1141a78-5e9c-40c8-bb50-58c2ccca193c}">
+                        <labels>
+                          <label description="Covenant Review Status Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_covenantreviewstatusreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_covenantreviewstatusreference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8a9c5dd0-9adc-4341-a267-c8bdc38df9f3}">
+                        <labels>
+                          <label description="Exceptions Summary" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_exceptionssummary" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_exceptionssummary" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{05fb7213-69b9-4428-851f-8f59d24d3f12}">
+                        <labels>
+                          <label description="Status Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_statusreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_statusreference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{42fbec6c-d124-4b86-871a-b810ba29296f}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{68bac94d-1eca-4e7e-99ff-ca633c5e8580}">
+                        <labels>
+                          <label description="Vendor Invoice" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_vendorinvoice" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_vendorinvoice" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5d957225-7999-415e-8e4a-b37366bd5607}">
+                        <labels>
+                          <label description="Relationship" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_relationship" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_relationship" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8d05ddc6-0d02-49c1-8083-e3b3088a30b3}">
+                        <labels>
+                          <label description="Borrower Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_borrowername" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_borrowername" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ee8c4651-b77f-4df8-a743-6421a52320a8}">
+                        <labels>
+                          <label description="Assigned Banker" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignedbanker" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_assignedbanker" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5445ff84-bbc8-4628-a870-c6e6363573eb}">
+                        <labels>
+                          <label description="Product Type Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_producttypereference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_producttypereference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1032f097-3d10-4432-a319-15b683c28b69}">
+                        <labels>
+                          <label description="Original Commitment" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_originalcommitment" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_originalcommitment" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f760e055-7ca2-40da-83f4-2d3459d03569}">
+                        <labels>
+                          <label description="Current Commitment" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_currentcommitment" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_currentcommitment" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9f68b425-9c76-4f32-afd8-2ea03c7414bb}">
+                        <labels>
+                          <label description="Original Balance" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_originalbalance" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_originalbalance" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6b383605-5f51-410f-b322-1b7d3d373603}">
+                        <labels>
+                          <label description="Current Outstanding Balance" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_currentoutstandingbalance" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_currentoutstandingbalance" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{587cd09f-f17f-4e8e-b545-bd1cffb34f90}">
+                        <labels>
+                          <label description="Unfunded Amount" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_unfundedamount" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_unfundedamount" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{85ba5c73-53d1-438a-9f10-a31a295519da}">
+                        <labels>
+                          <label description="Note Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_notedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{717aceaa-1e1b-4532-8475-0a92562e690b}">
+                        <labels>
+                          <label description="Booking Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_bookingdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_bookingdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6aa88c29-0445-41fe-9db9-d57f7e2a6b75}">
+                        <labels>
+                          <label description="Actual Close Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_actualclosedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_actualclosedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{aa365599-9f7c-414d-9e19-7542de6c8687}">
+                        <labels>
+                          <label description="Next Review Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_nextreviewdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_nextreviewdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b7946242-d673-44a8-ac32-b2e021319660}">
+                        <labels>
+                          <label description="Last Review Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_lastreviewdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_lastreviewdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{408bfaed-70ce-4dd1-b6d9-485deb230402}">
+                        <labels>
+                          <label description="Spread Index Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_spreadindexreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_spreadindexreference" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2dbb58d3-67f4-472c-a620-1b54a79ce7f4}">
+                        <labels>
+                          <label description="Floor Rate" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_floorrate" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_floorrate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{19a28797-99b0-4235-a0dd-9c84848db6a0}">
+                        <labels>
+                          <label description="Ceiling Rate" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_ceilingrate" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr664_ceilingrate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{57c4a819-4f5a-4005-ab13-010c946fd530}">
+                        <labels>
+                          <label description="Originating Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_originatingdeal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_originatingdeal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{57b0f4c3-feb5-4802-8967-6bc9a30b101b}">
+                        <labels>
+                          <label description="Governed Lineage" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_governedlineage" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_governedlineage" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,43 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{a0bb417e-2327-4110-919b-9167cb0f7865}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_rolepermissiongroupname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_rolepermissiongroupid">
+          <cell name="cr664_rolepermissiongroupname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_role" width="150" />
+          <cell name="cr664_permissiongroup" width="150" />
+          <cell name="cr664_scopedaccessflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_rolepermissiongroup">
+          <attribute name="cr664_rolepermissiongroupid" />
+          <attribute name="cr664_rolepermissiongroupname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_rolepermissiongroupname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_role" />
+          <attribute name="cr664_permissiongroup" />
+          <attribute name="cr664_scopedaccessflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Role Permission Groups" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

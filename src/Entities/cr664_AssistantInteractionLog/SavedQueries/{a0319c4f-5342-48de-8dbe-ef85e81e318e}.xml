@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{a0319c4f-5342-48de-8dbe-ef85e81e318e}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_promptsummary" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_assistantinteractionlogid">
+          <cell name="cr664_promptsummary" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_user" width="150" />
+          <cell name="cr664_responsesummary" width="150" />
+          <cell name="cr664_actionlaunched" width="150" />
+          <cell name="cr664_createdat" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_assistantinteractionlog">
+          <attribute name="cr664_assistantinteractionlogid" />
+          <attribute name="cr664_promptsummary" />
+          <attribute name="createdon" />
+          <order attribute="cr664_promptsummary" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_user" />
+          <attribute name="cr664_responsesummary" />
+          <attribute name="cr664_actionlaunched" />
+          <attribute name="cr664_createdat" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Assistant Interaction Logs" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

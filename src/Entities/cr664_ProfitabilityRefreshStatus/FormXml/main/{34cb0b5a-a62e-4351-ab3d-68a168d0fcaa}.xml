@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{34cb0b5a-a62e-4351-ab3d-68a168d0fcaa}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{713e38e7-05e9-4b14-a29c-d822ddc9eade}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{257bf5ec-c371-4f33-81ec-1776448a7ac5}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{2a0932a0-73b5-4650-9fda-b6e46a3ea484}">
+                        <labels>
+                          <label description="Refresh Status Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_refreshstatusname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_refreshstatusname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{81398030-f838-4caf-9a78-8ddfb891d7fb}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8edcbff5-7c8f-439e-8802-0314992eaf9f}">
+                        <labels>
+                          <label description="Last Refresh Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_lastrefreshdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_lastrefreshdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f43a27a7-4470-4365-abc4-6d99a09692be}">
+                        <labels>
+                          <label description="Next Scheduled Refresh" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_nextscheduledrefresh" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_nextscheduledrefresh" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{96426168-4c5c-4356-a95a-6a4a89f5c10d}">
+                        <labels>
+                          <label description="Refresh Cadence" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_refreshcadence" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_refreshcadence" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{7f989af0-a857-46d7-b087-2a1a0dd10914}">
+                        <labels>
+                          <label description="Stale Data Threshold (hours)" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_staledatathresholdhours" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_staledatathresholdhours" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{43557af6-e5e6-4f59-8012-21a21e235f31}">
+                        <labels>
+                          <label description="Stale Data Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_staledataflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_staledataflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f455c742-94a0-4c8f-8afd-9371480948e6}">
+                        <labels>
+                          <label description="Threshold Evaluation Hook" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_thresholdevaluationhook" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_thresholdevaluationhook" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{63628987-4563-48c0-a450-b022d9ea54eb}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

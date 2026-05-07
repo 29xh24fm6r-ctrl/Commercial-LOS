@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{2bdf677b-16bd-4cab-a385-d5ba3177e82b}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_collateralname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_collateralvaluationid">
+          <cell name="cr664_collateralname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_valuationdate" width="150" />
+          <cell name="cr664_valuationamount" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_collateralvaluation">
+          <attribute name="cr664_collateralvaluationid" />
+          <attribute name="cr664_collateralname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_collateralname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_valuationdate" />
+          <attribute name="cr664_valuationamount" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Collateral Valuations" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

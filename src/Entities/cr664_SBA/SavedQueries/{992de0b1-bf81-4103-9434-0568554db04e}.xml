@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{992de0b1-bf81-4103-9434-0568554db04e}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_sbaloannumber" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_sbaid">
+          <cell name="cr664_sbaloannumber" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_dealid" width="150" />
+          <cell name="cr664_sbaauthstatus" width="150" />
+          <cell name="cr664_sbaauthdate" width="150" />
+          <cell name="cr664_cdcname" width="150" />
+          <cell name="cr664_plporstandard" width="150" />
+          <cell name="cr664_generalnotes" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_sba">
+          <attribute name="cr664_sbaid" />
+          <attribute name="cr664_sbaloannumber" />
+          <attribute name="createdon" />
+          <order attribute="cr664_sbaloannumber" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_dealid" />
+          <attribute name="cr664_sbaauthstatus" />
+          <attribute name="cr664_sbaauthdate" />
+          <attribute name="cr664_cdcname" />
+          <attribute name="cr664_plporstandard" />
+          <attribute name="cr664_generalnotes" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active SBAs" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

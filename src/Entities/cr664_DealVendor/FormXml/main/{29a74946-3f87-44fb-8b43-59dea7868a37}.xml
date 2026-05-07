@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{29a74946-3f87-44fb-8b43-59dea7868a37}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{123eca24-805d-4d14-840c-a7c8d026d7f0}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{81406a1e-7a2f-4c7e-96f2-2b36cc56755b}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{e956a8cc-7232-43ad-88ba-4addb2c52c3d}">
+                        <labels>
+                          <label description="Deal Vendor Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dealvendorname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_dealvendorname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{74f97901-b567-4498-83df-ce736be0fc23}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{af552153-bab0-4c87-88af-04be644816f1}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{11b3f263-78be-41a3-8af1-6ab0c402e888}">
+                        <labels>
+                          <label description="Vendor" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_vendor" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_vendor" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f182caae-90fd-45ad-824e-c6f608fbf8d4}">
+                        <labels>
+                          <label description="Vendor Role" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_vendorrole" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_vendorrole" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c131f25b-e14a-42de-97bd-549b4a0b3632}">
+                        <labels>
+                          <label description="Selected Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_selectedflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_selectedflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a43cce09-35cd-4e37-a7b3-da0a7b37a00c}">
+                        <labels>
+                          <label description="Selection Rationale" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_selectionrationale" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_selectionrationale" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{32f174c3-0f7e-4c41-af85-a4cb8df0d74e}">
+                        <labels>
+                          <label description="Contract Used" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_contractused" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_contractused" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{061385e2-6c6e-4de6-819b-781f0550114f}">
+                        <labels>
+                          <label description="Performance Snapshot" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_performancesnapshot" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_performancesnapshot" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

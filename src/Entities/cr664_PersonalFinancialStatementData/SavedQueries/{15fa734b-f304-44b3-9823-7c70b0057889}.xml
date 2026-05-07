@@ -1,0 +1,63 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{15fa734b-f304-44b3-9823-7c70b0057889}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_statementname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_personalfinancialstatementdataid">
+          <cell name="cr664_statementname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_borrower" width="150" />
+          <cell name="cr664_cash" width="150" />
+          <cell name="cr664_marketablesecurities" width="150" />
+          <cell name="cr664_retirementaccounts" width="150" />
+          <cell name="cr664_realestatevalue" width="150" />
+          <cell name="cr664_otherassets" width="150" />
+          <cell name="cr664_notespayable" width="150" />
+          <cell name="cr664_creditcarddebt" width="150" />
+          <cell name="cr664_mortgagebalances" width="150" />
+          <cell name="cr664_otherliabilities" width="150" />
+          <cell name="cr664_networthcalculated" width="150" />
+          <cell name="cr664_snapshotat" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_personalfinancialstatementdata">
+          <attribute name="cr664_personalfinancialstatementdataid" />
+          <attribute name="cr664_statementname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_statementname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_borrower" />
+          <attribute name="cr664_cash" />
+          <attribute name="cr664_marketablesecurities" />
+          <attribute name="cr664_retirementaccounts" />
+          <attribute name="cr664_realestatevalue" />
+          <attribute name="cr664_otherassets" />
+          <attribute name="cr664_notespayable" />
+          <attribute name="cr664_creditcarddebt" />
+          <attribute name="cr664_mortgagebalances" />
+          <attribute name="cr664_otherliabilities" />
+          <attribute name="cr664_networthcalculated" />
+          <attribute name="cr664_snapshotat" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Personal Financial Statement Data" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{27987500-1c44-44f9-9582-f254182a8d6a}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{956af7c7-d18c-497f-8d52-0f6883ca56f8}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{089d6801-3b1e-489b-94b1-485b86c044f2}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{90e8ef24-5df8-4006-9af3-08f21b2fd45d}">
+                        <labels>
+                          <label description="Loan History Event Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_loanhistoryeventname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_loanhistoryeventname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c238d78b-dd36-4373-aeff-f77eb901f73e}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{42143a7f-a241-4475-a3b0-ad8fcaec1430}">
+                        <labels>
+                          <label description="Event Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_eventtype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_eventtype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d42e20b2-d07e-4c6f-ab99-b02335c999b8}">
+                        <labels>
+                          <label description="Portfolio Loan" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_portfolioloan" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_portfolioloan" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{99a1aa03-7132-47e1-be58-27fd19bb6deb}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{354c7d58-1f4c-4df1-bb43-89b5e493bcb8}">
+                        <labels>
+                          <label description="Old Stage" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_oldstage" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_oldstage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1b99d3e1-2e2c-455e-8f94-9fa0ade95bb0}">
+                        <labels>
+                          <label description="New Stage" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_newstage" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_newstage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9deb7d22-4f08-4ba8-ac7a-e06b3eac163f}">
+                        <labels>
+                          <label description="Event Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_eventdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_eventdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d9c63075-0d55-4f4c-b0c7-0c33e1c67412}">
+                        <labels>
+                          <label description="Description" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_description" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_description" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

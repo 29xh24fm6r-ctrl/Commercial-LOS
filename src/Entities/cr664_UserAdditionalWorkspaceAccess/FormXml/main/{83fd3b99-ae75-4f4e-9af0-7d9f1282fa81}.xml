@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{83fd3b99-ae75-4f4e-9af0-7d9f1282fa81}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{07a53017-a853-4e20-ab5a-628bdc9e6dc3}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{152900c3-15dc-4982-9f4f-94721081170b}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{1d9c9681-b0fb-4450-b1e9-553a503f0e55}">
+                        <labels>
+                          <label description="Access Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_accessname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_accessname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c07f0284-a3ab-49a3-8a58-3910ebbb60a3}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c0c27731-7dd6-4b51-ab89-abb57be3b562}">
+                        <labels>
+                          <label description="User" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_user" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_user" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2af77fd0-685a-4a96-869f-5486e2539bb2}">
+                        <labels>
+                          <label description="Workspace Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_workspacetype" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_workspacetype" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

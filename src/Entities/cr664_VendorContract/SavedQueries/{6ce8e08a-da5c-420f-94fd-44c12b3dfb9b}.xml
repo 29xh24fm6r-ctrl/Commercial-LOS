@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{6ce8e08a-da5c-420f-94fd-44c12b3dfb9b}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_contractname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_vendorcontractid">
+          <cell name="cr664_contractname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_vendor" width="150" />
+          <cell name="cr664_contracttype" width="150" />
+          <cell name="cr664_effectivedate" width="150" />
+          <cell name="cr664_expirationdate" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_pricingnotes" width="150" />
+          <cell name="cr664_slanotes" width="150" />
+          <cell name="cr664_documentreference" width="150" />
+          <cell name="cr664_notes" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_vendorcontract">
+          <attribute name="cr664_vendorcontractid" />
+          <attribute name="cr664_contractname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_contractname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_vendor" />
+          <attribute name="cr664_contracttype" />
+          <attribute name="cr664_effectivedate" />
+          <attribute name="cr664_expirationdate" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_pricingnotes" />
+          <attribute name="cr664_slanotes" />
+          <attribute name="cr664_documentreference" />
+          <attribute name="cr664_notes" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Vendor Contracts" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

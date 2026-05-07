@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{17c8f3fc-6dc9-4289-a831-938783cb6c24}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{32ce66f6-0d0a-4799-8af0-35df723ced0f}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{db419ee7-ee83-416c-a7df-74df13981779}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{fe64a163-e753-4b4a-b09c-afa708cae2b4}">
+                        <labels>
+                          <label description="Task Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_taskname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_taskname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{cab91e25-6e9a-46d7-89ac-161c54a54b7c}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c2bf0729-9a34-43a3-868b-1fa9d12ffe24}">
+                        <labels>
+                          <label description="Annual Review" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_annualreview" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_annualreview" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d70e3f09-2b76-47e5-ae72-509d72250623}">
+                        <labels>
+                          <label description="Assigned To" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignedto" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_assignedto" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b84954b6-3079-4f13-906c-93afb32f7498}">
+                        <labels>
+                          <label description="Due Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_duedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_duedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9231ce31-341f-4723-956a-2295d9668d2b}">
+                        <labels>
+                          <label description="Completed Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_completedflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_completedflag" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

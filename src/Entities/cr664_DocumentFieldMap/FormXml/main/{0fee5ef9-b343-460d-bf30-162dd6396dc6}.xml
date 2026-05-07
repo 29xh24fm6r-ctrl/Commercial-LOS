@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{0fee5ef9-b343-460d-bf30-162dd6396dc6}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{26c2eafb-f37c-4256-a285-6d2364c4f8ac}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{f876417c-1e50-4627-9432-562d8e184ab3}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{2a570223-bf54-41f9-b08c-9e8c52651e5e}">
+                        <labels>
+                          <label description="TemplateFieldKey" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_templatefieldkey" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_templatefieldkey" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{58ad2d1b-320c-4878-af78-040206cfe6ed}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3dec10de-f0a1-476a-b153-28087a14d847}">
+                        <labels>
+                          <label description="DocumentType" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_documenttype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_documenttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{721361cf-6e86-418d-9fae-b7b0c2096086}">
+                        <labels>
+                          <label description="SourceTable" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourcetable" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_sourcetable" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4d740b18-9d31-4fa1-aa02-c63e21fcfccc}">
+                        <labels>
+                          <label description="SourceField" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourcefield" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_sourcefield" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{46606e45-4e62-469c-b8c4-a78b42798ab7}">
+                        <labels>
+                          <label description="IsRequired" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_isrequired" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_isrequired" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{20dff0a6-2026-47f1-b1d9-f21534679729}">
+                        <labels>
+                          <label description="TransformRule" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_transformrule" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_transformrule" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{fe087cab-6e6f-419b-9644-744e939c2a70}">
+                        <labels>
+                          <label description="SortOrder" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sortorder" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_sortorder" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1756efc7-2d0c-4390-9138-c9e527248a7e}">
+                        <labels>
+                          <label description="IsActive" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_isactive" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_isactive" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

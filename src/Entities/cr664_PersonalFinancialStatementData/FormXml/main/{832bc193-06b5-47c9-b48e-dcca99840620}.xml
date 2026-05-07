@@ -1,0 +1,159 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{832bc193-06b5-47c9-b48e-dcca99840620}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{8ab1bcc2-f209-494e-9596-61a682bb91cd}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{dd8a7500-95b3-41c5-aba5-fffea1967f85}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{47f3e014-4b26-485c-8bb7-dbd5cedaa074}">
+                        <labels>
+                          <label description="Statement Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_statementname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_statementname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{56d926b7-3eea-4906-a9a1-61fe82bfff86}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d87abb20-09b2-4c1d-8eec-54631c47c550}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{19121f41-478b-438b-9512-ee788d81fae0}">
+                        <labels>
+                          <label description="Borrower" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_borrower" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_borrower" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2073ec60-9cef-4354-aa4f-aa43ba40968d}">
+                        <labels>
+                          <label description="Cash" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_cash" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_cash" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8f35ee7a-3119-4880-8cb3-1cb28e228d61}">
+                        <labels>
+                          <label description="Marketable Securities" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_marketablesecurities" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_marketablesecurities" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5c7bbec7-8564-482f-8a57-ba7cfd21b9c3}">
+                        <labels>
+                          <label description="Retirement Accounts" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_retirementaccounts" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_retirementaccounts" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{53c1d835-526a-43f2-9eac-19d315a3bc71}">
+                        <labels>
+                          <label description="Real Estate Value" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_realestatevalue" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_realestatevalue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{09b7314e-1908-4a9a-97e9-2cf0cb822016}">
+                        <labels>
+                          <label description="Other Assets" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_otherassets" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_otherassets" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{615c2f0f-6cfa-4dcc-974c-8111088fc07d}">
+                        <labels>
+                          <label description="Notes Payable" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notespayable" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_notespayable" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{468249eb-5f21-4e8d-a71b-ef37c140ca0e}">
+                        <labels>
+                          <label description="Credit Card Debt" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_creditcarddebt" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_creditcarddebt" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0cd6429c-9ca4-4a35-9993-4e3904fcce81}">
+                        <labels>
+                          <label description="Mortgage Balances" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_mortgagebalances" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_mortgagebalances" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{24a082ba-abff-4b22-90c7-117109461aa9}">
+                        <labels>
+                          <label description="Other Liabilities" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_otherliabilities" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_otherliabilities" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{aa4b4315-7bd4-4ff3-ae19-632dd247eb17}">
+                        <labels>
+                          <label description="Net Worth Calculated" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_networthcalculated" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_networthcalculated" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1b34b0f6-ca61-4360-acdd-476a147aae71}">
+                        <labels>
+                          <label description="Snapshot At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_snapshotat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_snapshotat" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{abd3ac94-089f-48aa-b84c-bfc5363d9b9e}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{65fd8a30-5d44-4efa-a8d7-380953627919}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{40e4071c-5718-4916-80a4-af526ff3a33b}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{2a771440-331e-414a-8b81-0aac130e0740}">
+                        <labels>
+                          <label description="Entitlement Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_entitlementname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_entitlementname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1241489a-0d9c-4f61-b800-7a1c23e2b972}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{80ef5dec-3436-4c10-80e8-48eefa14643d}">
+                        <labels>
+                          <label description="LOS User Profile" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_losuserprofile" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_losuserprofile" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4b431c60-ef7a-4f62-9b97-e73c7c74caaf}">
+                        <labels>
+                          <label description="Workspace" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_workspace" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_workspace" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{57f0d3d4-0bb7-4bf3-9fa9-dcbaba3fa015}">
+                        <labels>
+                          <label description="AccessLevel" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_accesslevel" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_accesslevel" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d69e25a2-cba0-4486-a785-c2b9588e8362}">
+                        <labels>
+                          <label description="IsDefault" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_isdefault" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_isdefault" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

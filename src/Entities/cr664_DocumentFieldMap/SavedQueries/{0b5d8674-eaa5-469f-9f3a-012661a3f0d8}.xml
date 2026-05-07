@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{0b5d8674-eaa5-469f-9f3a-012661a3f0d8}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_templatefieldkey" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_documentfieldmapid">
+          <cell name="cr664_templatefieldkey" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_documenttype" width="150" />
+          <cell name="cr664_sourcetable" width="150" />
+          <cell name="cr664_sourcefield" width="150" />
+          <cell name="cr664_isrequired" width="150" />
+          <cell name="cr664_transformrule" width="150" />
+          <cell name="cr664_sortorder" width="150" />
+          <cell name="cr664_isactive" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_documentfieldmap">
+          <attribute name="cr664_documentfieldmapid" />
+          <attribute name="cr664_templatefieldkey" />
+          <attribute name="createdon" />
+          <order attribute="cr664_templatefieldkey" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_documenttype" />
+          <attribute name="cr664_sourcetable" />
+          <attribute name="cr664_sourcefield" />
+          <attribute name="cr664_isrequired" />
+          <attribute name="cr664_transformrule" />
+          <attribute name="cr664_sortorder" />
+          <attribute name="cr664_isactive" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Document Field Maps" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

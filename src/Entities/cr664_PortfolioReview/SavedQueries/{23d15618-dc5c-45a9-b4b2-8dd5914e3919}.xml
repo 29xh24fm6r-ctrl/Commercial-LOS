@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{23d15618-dc5c-45a9-b4b2-8dd5914e3919}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_portfolioreviewname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_portfolioreviewid">
+          <cell name="cr664_portfolioreviewname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_portfolioloan" width="150" />
+          <cell name="cr664_reviewyear" width="150" />
+          <cell name="cr664_reviewtype" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_riskratingrecommended" width="150" />
+          <cell name="cr664_summary" width="150" />
+          <cell name="cr664_completeddate" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_portfolioreview">
+          <attribute name="cr664_portfolioreviewid" />
+          <attribute name="cr664_portfolioreviewname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_portfolioreviewname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_portfolioloan" />
+          <attribute name="cr664_reviewyear" />
+          <attribute name="cr664_reviewtype" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_riskratingrecommended" />
+          <attribute name="cr664_summary" />
+          <attribute name="cr664_completeddate" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Portfolio Reviews" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

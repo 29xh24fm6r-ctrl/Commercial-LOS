@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{134f98e7-9eb0-41cd-8a00-7eb873ff0cd3}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_recommendationname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dealnextbestactionid">
+          <cell name="cr664_recommendationname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_user" width="150" />
+          <cell name="cr664_rule" width="150" />
+          <cell name="cr664_recommendedactiontype" width="150" />
+          <cell name="cr664_recommendedactiondefinition" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_generateddate" width="150" />
+          <cell name="cr664_completeddate" width="150" />
+          <cell name="cr664_notes" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dealnextbestaction">
+          <attribute name="cr664_dealnextbestactionid" />
+          <attribute name="cr664_recommendationname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_recommendationname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_user" />
+          <attribute name="cr664_rule" />
+          <attribute name="cr664_recommendedactiontype" />
+          <attribute name="cr664_recommendedactiondefinition" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_generateddate" />
+          <attribute name="cr664_completeddate" />
+          <attribute name="cr664_notes" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Deal Next Best Actions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

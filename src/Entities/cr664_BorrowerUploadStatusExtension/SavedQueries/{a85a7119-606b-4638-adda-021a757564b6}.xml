@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{a85a7119-606b-4638-adda-021a757564b6}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_statusextensionname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_borroweruploadstatusextensionid">
+          <cell name="cr664_statusextensionname" width="300" />
+          <cell name="cr664_borrowerupload" width="150" />
+          <cell name="cr664_processingstatus" width="150" />
+          <cell name="cr664_createdat" width="150" />
+          <cell name="cr664_updatedat" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_borroweruploadstatusextension">
+          <attribute name="cr664_borroweruploadstatusextensionid" />
+          <attribute name="cr664_statusextensionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_statusextensionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_borrowerupload" />
+          <attribute name="cr664_processingstatus" />
+          <attribute name="cr664_createdat" />
+          <attribute name="cr664_updatedat" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Borrower Upload Status Extensions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

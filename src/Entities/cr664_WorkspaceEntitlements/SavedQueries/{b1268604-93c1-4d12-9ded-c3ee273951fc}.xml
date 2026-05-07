@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{b1268604-93c1-4d12-9ded-c3ee273951fc}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_entitlementname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_workspaceentitlementsid">
+          <cell name="cr664_entitlementname" width="300" />
+          <cell name="cr664_losuserprofile" width="150" />
+          <cell name="cr664_workspace" width="150" />
+          <cell name="cr664_accesslevel" width="150" />
+          <cell name="cr664_isdefault" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_workspaceentitlements">
+          <attribute name="cr664_workspaceentitlementsid" />
+          <attribute name="cr664_entitlementname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_entitlementname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_losuserprofile" />
+          <attribute name="cr664_workspace" />
+          <attribute name="cr664_accesslevel" />
+          <attribute name="cr664_isdefault" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Workspace Entitlements" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

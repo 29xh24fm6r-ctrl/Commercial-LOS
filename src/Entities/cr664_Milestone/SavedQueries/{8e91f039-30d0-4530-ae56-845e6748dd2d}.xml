@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{8e91f039-30d0-4530-ae56-845e6748dd2d}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_milestone1" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_milestoneid">
+          <cell name="cr664_milestone1" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_dealid" width="150" />
+          <cell name="cr664_prospectdate" width="150" />
+          <cell name="cr664_applicationdate" width="150" />
+          <cell name="cr664_uwstartdate" width="150" />
+          <cell name="cr664_creditmemodate" width="150" />
+          <cell name="cr664_approvaldate" width="150" />
+          <cell name="cr664_commitmentsentdate" width="150" />
+          <cell name="cr664_commitmentsigneddate" width="150" />
+          <cell name="cr664_scheduledclosingdate" width="150" />
+          <cell name="cr664_actualclosingdate" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_milestone">
+          <attribute name="cr664_milestoneid" />
+          <attribute name="cr664_milestone1" />
+          <attribute name="createdon" />
+          <order attribute="cr664_milestone1" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_dealid" />
+          <attribute name="cr664_prospectdate" />
+          <attribute name="cr664_applicationdate" />
+          <attribute name="cr664_uwstartdate" />
+          <attribute name="cr664_creditmemodate" />
+          <attribute name="cr664_approvaldate" />
+          <attribute name="cr664_commitmentsentdate" />
+          <attribute name="cr664_commitmentsigneddate" />
+          <attribute name="cr664_scheduledclosingdate" />
+          <attribute name="cr664_actualclosingdate" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Milestones" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{945dc8bc-f128-4948-ab48-a2a67b4778ce}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_sectionlabel" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_documentsectiondefinitionid">
+          <cell name="cr664_sectionlabel" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_documenttype" width="150" />
+          <cell name="cr664_sectionkey" width="150" />
+          <cell name="cr664_order" width="150" />
+          <cell name="cr664_repeatableflag" width="150" />
+          <cell name="cr664_repeatsource" width="150" />
+          <cell name="cr664_rendermode" width="150" />
+          <cell name="cr664_optionalflag" width="150" />
+          <cell name="cr664_activeflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_documentsectiondefinition">
+          <attribute name="cr664_documentsectiondefinitionid" />
+          <attribute name="cr664_sectionlabel" />
+          <attribute name="createdon" />
+          <order attribute="cr664_sectionlabel" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_documenttype" />
+          <attribute name="cr664_sectionkey" />
+          <attribute name="cr664_order" />
+          <attribute name="cr664_repeatableflag" />
+          <attribute name="cr664_repeatsource" />
+          <attribute name="cr664_rendermode" />
+          <attribute name="cr664_optionalflag" />
+          <attribute name="cr664_activeflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Document Section Definitions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

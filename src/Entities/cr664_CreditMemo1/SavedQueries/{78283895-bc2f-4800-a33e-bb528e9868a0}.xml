@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{78283895-bc2f-4800-a33e-bb528e9868a0}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_memoname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_creditmemo1id">
+          <cell name="cr664_memoname" width="300" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_workspaceid" width="150" />
+          <cell name="cr664_memotype" width="150" />
+          <cell name="cr664_sourcerunid" width="150" />
+          <cell name="cr664_sourcerefs" width="150" />
+          <cell name="cr664_generatedat" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_memojson" width="150" />
+          <cell name="cr664_memotext" width="150" />
+          <cell name="cr664_version" width="150" />
+          <cell name="cr664_borrowersafe" width="150" />
+          <cell name="cr664_memo_schema_version" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_creditmemo1">
+          <attribute name="cr664_creditmemo1id" />
+          <attribute name="cr664_memoname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_memoname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_workspaceid" />
+          <attribute name="cr664_memotype" />
+          <attribute name="cr664_sourcerunid" />
+          <attribute name="cr664_sourcerefs" />
+          <attribute name="cr664_generatedat" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_memojson" />
+          <attribute name="cr664_memotext" />
+          <attribute name="cr664_version" />
+          <attribute name="cr664_borrowersafe" />
+          <attribute name="cr664_memo_schema_version" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Credit Memos" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

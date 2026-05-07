@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{e7c5c8ac-6987-4008-9575-1725c40f2479}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_opportunityname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_referralopportunityid">
+          <cell name="cr664_opportunityname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_opportunitytype" width="150" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_assignedbanker" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_notes" width="150" />
+          <cell name="cr664_contact" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_referralopportunity">
+          <attribute name="cr664_referralopportunityid" />
+          <attribute name="cr664_opportunityname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_opportunityname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_opportunitytype" />
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_assignedbanker" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_notes" />
+          <attribute name="cr664_contact" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Referral Opportunities" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

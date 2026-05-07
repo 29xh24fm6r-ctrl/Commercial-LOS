@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{6c6275b7-7ed3-47c5-849b-74b74305d302}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_artifactname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_aidraftartifactid">
+          <cell name="cr664_artifactname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_dealreference" width="150" />
+          <cell name="cr664_artifacttype" width="150" />
+          <cell name="cr664_drafttext" width="150" />
+          <cell name="cr664_sourcesnapshotjson" width="150" />
+          <cell name="cr664_reviewstatus" width="150" />
+          <cell name="cr664_reviewedby" width="150" />
+          <cell name="cr664_reviewedat" width="150" />
+          <cell name="cr664_reviewrequiredflag" width="150" />
+          <cell name="cr664_permissiongroup" width="150" />
+          <cell name="cr664_audittrailreference" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_aidraftartifact">
+          <attribute name="cr664_aidraftartifactid" />
+          <attribute name="cr664_artifactname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_artifactname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_dealreference" />
+          <attribute name="cr664_artifacttype" />
+          <attribute name="cr664_drafttext" />
+          <attribute name="cr664_sourcesnapshotjson" />
+          <attribute name="cr664_reviewstatus" />
+          <attribute name="cr664_reviewedby" />
+          <attribute name="cr664_reviewedat" />
+          <attribute name="cr664_reviewrequiredflag" />
+          <attribute name="cr664_permissiongroup" />
+          <attribute name="cr664_audittrailreference" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active AI Draft Artifacts" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

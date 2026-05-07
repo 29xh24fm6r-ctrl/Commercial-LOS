@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{6e8b016a-192f-459d-bf96-e705f59b80b1}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{99a21ed8-cdcb-4fda-ad39-987e8fa337d7}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{47cce6de-c140-4bad-b894-3b240f6a8ba6}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{4018697e-a063-4e9f-a434-c3574fac1e6e}">
+                        <labels>
+                          <label description="Portfolio Loan Contact Link Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_portfolioloancontactlinkname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_portfolioloancontactlinkname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1cc3ae31-2615-4079-b76a-9773f6587d02}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f99f9581-c88a-4eac-bf60-8876cd7c1de4}">
+                        <labels>
+                          <label description="Portfolio Loan" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_portfolioloan" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_portfolioloan" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0a319326-0bbd-4d5e-bae6-825afa21f5c5}">
+                        <labels>
+                          <label description="Contact" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_contact" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_contact" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e3b2a6da-71d7-4e29-9474-7b79e1a903e8}">
+                        <labels>
+                          <label description="Contact Role" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_contactrole" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_contactrole" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5f6f8a7d-58d3-4114-a346-2216f1cdfb38}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

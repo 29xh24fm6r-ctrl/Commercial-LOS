@@ -1,0 +1,151 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{ec39ae98-41f5-4047-adba-a128a4ce43e6}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{b8790eaa-ed3e-4533-ae24-6a2f5989be29}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{9eeec236-e67d-4ad8-8d0b-4b4080dfeb36}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{b7ca0bb2-c141-42bc-8f60-f6fd5ec7b0b6}">
+                        <labels>
+                          <label description="Memo Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_memoname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_memoname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{30cb5a1a-b84d-4c26-a4b7-a72f28ee591b}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2e784e11-edb8-49ce-af21-948bd47cd734}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{26ed1fb2-d01c-44ee-b95c-aa97285176e7}">
+                        <labels>
+                          <label description="Workspace ID" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_workspaceid" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_workspaceid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4da4c90d-46d1-43e5-ae40-fc76e357a37f}">
+                        <labels>
+                          <label description="Memo Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_memotype" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_memotype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{986f4196-ba07-41bb-bde2-0845321a9f9e}">
+                        <labels>
+                          <label description="Source Run ID" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourcerunid" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_sourcerunid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{88e62d77-0350-4374-99d5-1f5aa6bf0b74}">
+                        <labels>
+                          <label description="Source Refs" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourcerefs" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_sourcerefs" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5025378b-e34f-481b-b2a4-9f2d193d05aa}">
+                        <labels>
+                          <label description="Generated At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_generatedat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_generatedat" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{61af5a98-1894-4bcd-8a7d-3e400110f67f}">
+                        <labels>
+                          <label description="Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_status" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_status" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{de19a129-eb86-4031-b02a-dc7fa923fc75}">
+                        <labels>
+                          <label description="Memo JSON" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_memojson" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_memojson" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{746f1503-768f-4f60-ac20-685c1baf3e31}">
+                        <labels>
+                          <label description="Memo Text" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_memotext" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_memotext" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a5505cd4-31e5-4479-88d9-759b702249ca}">
+                        <labels>
+                          <label description="Version" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_version" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_version" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{82499f8d-2028-4c0e-8f0c-90eb88c69591}">
+                        <labels>
+                          <label description="Borrower Safe" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_borrowersafe" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_borrowersafe" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3529b939-763e-4376-ab99-fc81e22a284d}">
+                        <labels>
+                          <label description="memo_schema_version" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_memo_schema_version" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_memo_schema_version" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{2d3c65bf-b072-484e-9ac8-5d6f3424a46f}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_assignmenteventname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_alertassignmenthistoryid">
+          <cell name="cr664_assignmenteventname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_alert_id" width="150" />
+          <cell name="cr664_assigned_user" width="150" />
+          <cell name="cr664_assigned_team" width="150" />
+          <cell name="cr664_assignment_reason" width="150" />
+          <cell name="cr664_assignment_timestamp" width="150" />
+          <cell name="cr664_assignment_type" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_alertassignmenthistory">
+          <attribute name="cr664_alertassignmenthistoryid" />
+          <attribute name="cr664_assignmenteventname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_assignmenteventname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_alert_id" />
+          <attribute name="cr664_assigned_user" />
+          <attribute name="cr664_assigned_team" />
+          <attribute name="cr664_assignment_reason" />
+          <attribute name="cr664_assignment_timestamp" />
+          <attribute name="cr664_assignment_type" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Alert Assignment Histories" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

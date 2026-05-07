@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{3129e624-715b-462b-baf8-5b4a9d34acce}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{7508c5fb-4a91-4ee8-9448-368dc372cc38}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{08dbd3f5-4533-46ae-ae7a-03a7eefb9ce8}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{e08a4053-e1e3-4567-a8c0-d4d73dd19225}">
+                        <labels>
+                          <label description="Warning Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_warningname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_warningname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a38d650f-423d-47ed-bb95-353ad48b8c8e}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5857bc6e-2ce9-4b75-8522-e629071ce509}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f3ce12fd-b36f-47f3-a29d-831f65d825e0}">
+                        <labels>
+                          <label description="Warning Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_warningtype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_warningtype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8b3cc6d1-6447-44b8-9eaa-e24c3c0b188a}">
+                        <labels>
+                          <label description="Severity" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_severity" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_severity" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{35033854-8249-46bf-b058-d08a3a2b70a2}">
+                        <labels>
+                          <label description="Warning Text" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_warningtext" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_warningtext" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0fe7e956-27fa-4d08-a8a6-48bb521db12d}">
+                        <labels>
+                          <label description="Detected At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_detectedat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_detectedat" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f3064a87-e50a-47a6-a026-2a9de02fd7fd}">
+                        <labels>
+                          <label description="Resolved At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_resolvedat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_resolvedat" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f65c1f62-19bf-4e5f-97c8-db5a2902beef}">
+                        <labels>
+                          <label description="Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_status" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_status" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

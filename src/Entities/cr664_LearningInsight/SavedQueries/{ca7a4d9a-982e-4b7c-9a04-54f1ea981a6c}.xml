@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{ca7a4d9a-982e-4b7c-9a04-54f1ea981a6c}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_insighttitle" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_learninginsightid">
+          <cell name="cr664_insighttitle" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_insightdate" width="150" />
+          <cell name="cr664_sourcedealoutcome" width="150" />
+          <cell name="cr664_insighttype" width="150" />
+          <cell name="cr664_recommendation" width="150" />
+          <cell name="cr664_actionstatus" width="150" />
+          <cell name="cr664_assignedto" width="150" />
+          <cell name="cr664_team" width="150" />
+          <cell name="cr664_impactscore" width="150" />
+          <cell name="cr664_followupdate" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_learninginsight">
+          <attribute name="cr664_learninginsightid" />
+          <attribute name="cr664_insighttitle" />
+          <attribute name="createdon" />
+          <order attribute="cr664_insighttitle" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_insightdate" />
+          <attribute name="cr664_sourcedealoutcome" />
+          <attribute name="cr664_insighttype" />
+          <attribute name="cr664_recommendation" />
+          <attribute name="cr664_actionstatus" />
+          <attribute name="cr664_assignedto" />
+          <attribute name="cr664_team" />
+          <attribute name="cr664_impactscore" />
+          <attribute name="cr664_followupdate" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Learning Insights" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

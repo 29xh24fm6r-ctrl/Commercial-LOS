@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>1</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{535955e0-c1e3-4cb2-90be-8640eb4a4d9b}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_refreshstatusname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_profitabilityrefreshstatusid">
+          <cell name="cr664_refreshstatusname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>4</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_profitabilityrefreshstatus">
+          <attribute name="cr664_profitabilityrefreshstatusid" />
+          <attribute name="cr664_refreshstatusname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_refreshstatusname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <filter type="or" isquickfindfields="1">
+            <condition attribute="cr664_refreshstatusname" operator="like" value="{0}" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Quick Find Active Profitability Refresh Statuses" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

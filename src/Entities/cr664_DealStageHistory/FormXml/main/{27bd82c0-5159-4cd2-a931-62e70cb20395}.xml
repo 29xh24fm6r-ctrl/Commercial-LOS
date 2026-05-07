@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{27bd82c0-5159-4cd2-a931-62e70cb20395}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{a24c1704-ff60-49b8-92a1-c2efadbc4bb2}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{c60add52-ccc7-420a-a0e5-5ab84e8857c8}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{a5154c8c-6770-4c1f-9d3c-cfd2afdcf0f9}">
+                        <labels>
+                          <label description="Change User" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_changeuser" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_changeuser" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5d272059-03d8-4549-a584-484484818cab}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{341548d4-498f-4c02-84b0-de109d8e229a}">
+                        <labels>
+                          <label description="Prior Stage" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_priorstage" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_priorstage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e24a7db0-e80c-42c3-bce7-68256064ada6}">
+                        <labels>
+                          <label description="New Stage" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_newstage" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_newstage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f7c2cfc8-2f53-484c-b5fe-5d54b8aaf37e}">
+                        <labels>
+                          <label description="DateTime Changed" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_datetimechanged" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_datetimechanged" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{28006dc5-32fc-49e2-bc66-e943fee81900}">
+                        <labels>
+                          <label description="Change Reason" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_changereason" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_changereason" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

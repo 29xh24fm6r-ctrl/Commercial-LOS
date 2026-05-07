@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{27cb6088-f130-4204-b2a4-83646502bc98}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{04504e1b-aa21-4ae6-9f99-42992fa1f7f3}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{9783fa3e-926e-4927-8634-622b77f44386}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{5044bd96-db9c-4c0b-b809-0511b6aeb6a1}">
+                        <labels>
+                          <label description="Document Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_documenttype" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_documenttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{46b02b0d-2fe3-4e75-bc1e-53009562990e}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2351461b-0e03-4890-921f-4e7ed786375a}">
+                        <labels>
+                          <label description="Active Template" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_activetemplate" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_activetemplate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d76c12df-7041-4a35-aa23-5073df1f70cb}">
+                        <labels>
+                          <label description="Placeholder Schema Version" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_placeholderschemaversion" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_placeholderschemaversion" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{01576537-1a77-408e-9e11-7a96f55cc96a}">
+                        <labels>
+                          <label description="Allowed Sections" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_allowedsections" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_allowedsections" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{62b0a048-7e06-4c86-8a14-703a2b431606}">
+                        <labels>
+                          <label description="Required Sections" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_requiredsections" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_requiredsections" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2dec1dfe-cf0e-4ff0-b872-7401d4b3868f}">
+                        <labels>
+                          <label description="Validation Profile" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_validationprofile" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_validationprofile" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{75e48127-ec2a-4142-9bc7-1ec168e53a3d}">
+                        <labels>
+                          <label description="Output Profile" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_outputprofile" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_outputprofile" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{672a1b7e-47a3-45cc-9a2b-3e400f668cc2}">
+                        <labels>
+                          <label description="Stage Eligibility Profile" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_stageeligibilityprofile" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_stageeligibilityprofile" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{da71e6fc-c82d-43b3-8aa3-3d954abdb6cf}">
+                        <labels>
+                          <label description="Permission Profile" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_permissionprofile" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_permissionprofile" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{332d3da9-cb35-4140-9e5c-889cca6ecbfb}">
+                        <labels>
+                          <label description="Active Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_activeflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_activeflag" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{2ca0bc3e-5af4-4361-a4b2-28ee6697aeb5}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{084ea245-896e-420d-92b8-ab018b192b06}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{07cc3c8c-adae-489d-ae6b-768cdfde9ac5}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{6b4be948-af93-4422-a604-64c628c9587d}">
+                        <labels>
+                          <label description="Flag Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_flagname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_flagname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a2bfff86-076d-4ae6-8ea6-b773785d2922}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6ea448b9-5449-4062-be8a-7f19851ebe93}">
+                        <labels>
+                          <label description="Flag Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_flagtype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_flagtype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{243909e1-cbc8-48bf-b920-169e4f25e3c5}">
+                        <labels>
+                          <label description="Source Table" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourcetable" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_sourcetable" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9061a713-f2a9-4f2e-8f3a-8c95f0324da4}">
+                        <labels>
+                          <label description="Source Record ID" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourcerecordid" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_sourcerecordid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2c15d58b-73d9-40a9-9eb5-9d1410da7338}">
+                        <labels>
+                          <label description="Flagged By" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_flaggedby" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_flaggedby" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{16a9002e-436d-4396-b1d2-f2d618f43c00}">
+                        <labels>
+                          <label description="Flagged Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_flaggeddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_flaggeddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8bbd6318-f9d0-44da-a168-2cfa88681bef}">
+                        <labels>
+                          <label description="Flag Description" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_flagdescription" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_flagdescription" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c1cb0067-eec3-4914-892d-8e38097a28c8}">
+                        <labels>
+                          <label description="Resolution Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_resolutionstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_resolutionstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0188d69c-2334-4115-8eb0-282ce18edcac}">
+                        <labels>
+                          <label description="Resolution Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_resolutionnotes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_resolutionnotes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c081bccb-83fd-4a88-a564-57153ef12bfd}">
+                        <labels>
+                          <label description="Profitability Snapshot Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_profitabilitysnapshotreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_profitabilitysnapshotreference" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

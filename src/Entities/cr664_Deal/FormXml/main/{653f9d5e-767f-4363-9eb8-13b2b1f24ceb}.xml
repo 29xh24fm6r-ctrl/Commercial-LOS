@@ -1,0 +1,413 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{653f9d5e-767f-4363-9eb8-13b2b1f24ceb}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form headerdensity="HighWithControls">
+      <tabs>
+        <tab verticallayout="true" id="{6226a878-c853-4741-bb36-8b6261d0a117}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{1b13b797-58ce-483c-8336-4e8b7d9f8917}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{0fead17e-a454-49ba-9ef8-2d419c4f4b13}" locklevel="0" colspan="1" rowspan="1">
+                        <labels>
+                          <label description="Borrower" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_borrowerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="cr664_borrowerid" disabled="false" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell locklevel="0" id="{ccbe08ec-9459-42ae-b53a-c2a2edeaf805}" rowspan="4" colspan="1" auto="false">
+                        <labels>
+                          <label description="New SG control 1772295559063" languagecode="1033" />
+                        </labels>
+                        <control indicationOfSubgrid="true" id="Subgrid_new_3" classid="{E7A81278-8635-4D9E-8D4D-59480B391C5B}">
+                          <parameters>
+                            <RecordsPerPage>4</RecordsPerPage>
+                            <AutoExpand>Fixed</AutoExpand>
+                            <EnableQuickFind>false</EnableQuickFind>
+                            <EnableViewPicker>false</EnableViewPicker>
+                            <EnableChartPicker>true</EnableChartPicker>
+                            <ChartGridMode>All</ChartGridMode>
+                            <RelationshipName>cr664_DocumentChecklist_cr664_Deal_cr664_Deal</RelationshipName>
+                            <TargetEntityType>cr664_documentchecklist</TargetEntityType>
+                            <ViewId>{96CDA1EB-2B87-4885-8251-F88EF1E0EABC}</ViewId>
+                            <ViewIds>{96CDA1EB-2B87-4885-8251-F88EF1E0EABC}</ViewIds>
+                          </parameters>
+                        </control>
+                      </cell>
+                    </row>
+                    <row />
+                    <row />
+                    <row />
+                    <row>
+                      <cell locklevel="0" id="{484d738b-211c-4ab7-a2cd-dfe89962e3cc}" rowspan="4" colspan="1" auto="false">
+                        <labels>
+                          <label description="New SG control 1772295720364" languagecode="1033" />
+                        </labels>
+                        <control indicationOfSubgrid="true" id="Subgrid_new_4" classid="{E7A81278-8635-4D9E-8D4D-59480B391C5B}">
+                          <parameters>
+                            <RecordsPerPage>4</RecordsPerPage>
+                            <AutoExpand>Fixed</AutoExpand>
+                            <EnableQuickFind>false</EnableQuickFind>
+                            <EnableViewPicker>false</EnableViewPicker>
+                            <EnableChartPicker>true</EnableChartPicker>
+                            <ChartGridMode>All</ChartGridMode>
+                            <RelationshipName>cr664_VendorPerformance_cr664_Deal_cr664_Deal</RelationshipName>
+                            <TargetEntityType>cr664_vendorperformance</TargetEntityType>
+                            <ViewId>{0D11A270-69ED-4C1C-A63D-C5B6485682F6}</ViewId>
+                            <ViewIds>{0D11A270-69ED-4C1C-A63D-C5B6485682F6}</ViewIds>
+                          </parameters>
+                        </control>
+                      </cell>
+                    </row>
+                    <row />
+                    <row />
+                    <row />
+                    <row>
+                      <cell id="{a44d7b54-43c8-41aa-b031-04eda293686d}">
+                        <labels>
+                          <label description="Borrower Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_borrowername" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_borrowername" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6769a84c-14de-4b9c-a62a-f4b3012d5bbe}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a3f94804-bc51-4730-a37c-81900f689111}">
+                        <labels>
+                          <label description="Loan Officer" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_loanofficer" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_loanofficer" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a29072a6-c368-4306-b323-df63bddf4f99}">
+                        <labels>
+                          <label description="Deal Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dealtype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_dealtype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4e153e7a-7ca2-40b1-91dc-914c7e83f3a1}">
+                        <labels>
+                          <label description="Loan Amount" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_loanamount" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_loanamount" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{dc24516d-1c9c-4551-8cfd-4b3b7533f6b4}">
+                        <labels>
+                          <label description="Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_status" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_status" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2fae06ea-b127-4ebc-8585-32c7b08a48ad}">
+                        <labels>
+                          <label description="Current Stage" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_currentstage" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_currentstage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{52ac100a-7e56-44f8-9574-57650f881a5a}">
+                        <labels>
+                          <label description="Stage Entry Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_stageentrydate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_stageentrydate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{fe41944b-c699-46c6-941f-2808a87370f7}">
+                        <labels>
+                          <label description="Priority" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_priority" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_priority" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f00cc36b-3010-475b-8278-f31a8330a3b5}">
+                        <labels>
+                          <label description="Target Close Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_targetclosedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_targetclosedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e148f11e-f48c-4edf-8de9-243eed467f06}">
+                        <labels>
+                          <label description="Days in Stage" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_daysinstage" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_daysinstage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8affe7e1-c67b-4f18-acd4-490a54317e34}">
+                        <labels>
+                          <label description="Days to Target" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_daystotarget" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_daystotarget" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{10021639-949e-43bc-8903-cda23a31cc98}">
+                        <labels>
+                          <label description="Referral Source" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_referralsource" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_referralsource" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{bd3c9f5e-f69d-4e10-b7a1-88b5454d063b}">
+                        <labels>
+                          <label description="Existing Customer" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_existingcustomer" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_existingcustomer" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5ce912e6-9db1-49b5-95a8-ecb6355a3e4d}">
+                        <labels>
+                          <label description="Deposit Opportunity" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_depositopportunity" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_depositopportunity" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+        <tab name="tab_4" id="1891825a-1616-425f-89f7-a8b44afff758" IsUserDefined="0" locklevel="0" showlabel="true">
+          <labels>
+            <label description="Vendors" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section name="tab_4_section_1" id="d4c2ec30-38aa-4038-8721-f8329df81426" IsUserDefined="0" locklevel="0" showlabel="true" showbar="false" layout="varwidth" celllabelalignment="Left" celllabelposition="Left" columns="1" labelwidth="115">
+                  <labels>
+                    <label description="New Section" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row />
+                    <row>
+                      <cell locklevel="0" id="{1160020c-9432-4875-9c81-dd37d7e966ae}" rowspan="4" colspan="1" auto="false">
+                        <labels>
+                          <label description="New SG control 1772307262693" languagecode="1033" />
+                        </labels>
+                        <control indicationOfSubgrid="true" id="Subgrid_new_6" classid="{E7A81278-8635-4D9E-8D4D-59480B391C5B}">
+                          <parameters>
+                            <RecordsPerPage>4</RecordsPerPage>
+                            <AutoExpand>Fixed</AutoExpand>
+                            <EnableQuickFind>false</EnableQuickFind>
+                            <EnableViewPicker>false</EnableViewPicker>
+                            <EnableChartPicker>true</EnableChartPicker>
+                            <ChartGridMode>All</ChartGridMode>
+                            <RelationshipName>cr664_VendorPerformance_cr664_Deal_cr664_Deal</RelationshipName>
+                            <TargetEntityType>cr664_vendorperformance</TargetEntityType>
+                            <ViewId>{0D11A270-69ED-4C1C-A63D-C5B6485682F6}</ViewId>
+                            <ViewIds>{0D11A270-69ED-4C1C-A63D-C5B6485682F6}</ViewIds>
+                          </parameters>
+                        </control>
+                      </cell>
+                    </row>
+                    <row />
+                    <row />
+                    <row />
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+        <tab name="tab_3" id="12a82f3d-60e6-47a8-a83f-8845b489abd2" IsUserDefined="0" locklevel="0" showlabel="true">
+          <labels>
+            <label description="Documents" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section name="tab_3_section_1" id="47f6db37-7690-4890-b0a2-80d68a6225aa" IsUserDefined="0" locklevel="0" showlabel="true" showbar="false" layout="varwidth" celllabelalignment="Left" celllabelposition="Left" columns="1" labelwidth="115">
+                  <labels>
+                    <label description="New Section" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row />
+                    <row>
+                      <cell locklevel="0" id="{b8f8fef5-4261-4d94-be29-5e768385cb5e}" rowspan="4" colspan="1" auto="false">
+                        <labels>
+                          <label description="New SG control 1772306843399" languagecode="1033" />
+                        </labels>
+                        <control indicationOfSubgrid="true" id="Subgrid_new_5" classid="{E7A81278-8635-4D9E-8D4D-59480B391C5B}">
+                          <parameters>
+                            <RecordsPerPage>4</RecordsPerPage>
+                            <AutoExpand>Fixed</AutoExpand>
+                            <EnableQuickFind>false</EnableQuickFind>
+                            <EnableViewPicker>false</EnableViewPicker>
+                            <EnableChartPicker>true</EnableChartPicker>
+                            <ChartGridMode>All</ChartGridMode>
+                            <RelationshipName>cr664_DocumentChecklist_cr664_Deal_cr664_Deal</RelationshipName>
+                            <TargetEntityType>cr664_documentchecklist</TargetEntityType>
+                            <ViewId>{96CDA1EB-2B87-4885-8251-F88EF1E0EABC}</ViewId>
+                            <ViewIds>{96CDA1EB-2B87-4885-8251-F88EF1E0EABC}</ViewIds>
+                          </parameters>
+                        </control>
+                      </cell>
+                    </row>
+                    <row />
+                    <row />
+                    <row />
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+        <tab name="tab_2" id="384679a5-e59f-4fd6-9b44-8cd4dd78683a" IsUserDefined="0" locklevel="0" showlabel="true">
+          <labels>
+            <label description="Approvals" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section name="tab_2_section_1" id="771c671a-625f-4d1e-872d-83b3048b58a0" IsUserDefined="0" locklevel="0" showlabel="true" showbar="false" layout="varwidth" celllabelalignment="Left" celllabelposition="Left" columns="1" labelwidth="115">
+                  <labels>
+                    <label description="New Section" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row />
+                    <row>
+                      <cell locklevel="0" id="{8143c1d8-98db-4a6a-b7b6-4ee649151eb5}" rowspan="4" colspan="1" auto="false">
+                        <labels>
+                          <label description="New SG control 1772294494152" languagecode="1033" />
+                        </labels>
+                        <control indicationOfSubgrid="true" id="Subgrid_new_1" classid="{E7A81278-8635-4D9E-8D4D-59480B391C5B}">
+                          <parameters>
+                            <RecordsPerPage>4</RecordsPerPage>
+                            <AutoExpand>Fixed</AutoExpand>
+                            <EnableQuickFind>false</EnableQuickFind>
+                            <EnableViewPicker>false</EnableViewPicker>
+                            <EnableChartPicker>true</EnableChartPicker>
+                            <ChartGridMode>All</ChartGridMode>
+                            <RelationshipName>cr664_ApprovalTracking_cr664_Deal_cr664_Deal</RelationshipName>
+                            <TargetEntityType>cr664_approvaltracking</TargetEntityType>
+                            <ViewId>{a6c3a48e-5e16-458d-b42d-cc8d65ac3e32}</ViewId>
+                            <ViewIds>{a6c3a48e-5e16-458d-b42d-cc8d65ac3e32}</ViewIds>
+                          </parameters>
+                        </control>
+                      </cell>
+                    </row>
+                    <row />
+                    <row />
+                    <row />
+                    <row>
+                      <cell locklevel="0" id="{38bb06aa-13b9-4267-a5df-d1241329a00b}" rowspan="4" colspan="1" auto="false">
+                        <labels>
+                          <label description="Stage History" languagecode="1033" />
+                        </labels>
+                        <control indicationOfSubgrid="true" id="Subgrid_new_2" classid="{E7A81278-8635-4D9E-8D4D-59480B391C5B}">
+                          <parameters>
+                            <RecordsPerPage>4</RecordsPerPage>
+                            <AutoExpand>Fixed</AutoExpand>
+                            <EnableQuickFind>false</EnableQuickFind>
+                            <EnableViewPicker>false</EnableViewPicker>
+                            <EnableChartPicker>true</EnableChartPicker>
+                            <ChartGridMode>All</ChartGridMode>
+                            <RelationshipName>cr664_DealStageHistory_cr664_Deal_cr664_Deal</RelationshipName>
+                            <TargetEntityType>cr664_dealstagehistory</TargetEntityType>
+                            <ViewId>{1A562366-E560-4087-AF8B-990209450506}</ViewId>
+                            <ViewIds>{1A562366-E560-4087-AF8B-990209450506}</ViewIds>
+                          </parameters>
+                        </control>
+                      </cell>
+                    </row>
+                    <row />
+                    <row />
+                    <row />
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+      <header id="{f6374968-f558-475c-8b2e-bef67706cc27}" celllabelposition="Top" columns="111" labelwidth="115" celllabelalignment="Left">
+        <rows>
+          <row>
+            <cell id="{fba1a079-434a-42a2-a1fd-378aea94ebf7}" showlabel="false">
+              <labels>
+                <label description="" languagecode="1033" />
+              </labels>
+            </cell>
+            <cell id="{47f9ca10-f2d2-48c0-988c-c2c86ecbeb0a}" showlabel="false">
+              <labels>
+                <label description="" languagecode="1033" />
+              </labels>
+            </cell>
+            <cell id="{38065faf-1d79-4ec5-8ce0-f2b8c2d86d11}" showlabel="false">
+              <labels>
+                <label description="" languagecode="1033" />
+              </labels>
+            </cell>
+          </row>
+        </rows>
+      </header>
+      <footer id="{5b40753e-c523-4771-9d35-e5909265ca9a}" celllabelposition="Top" columns="111" labelwidth="115" celllabelalignment="Left">
+        <rows>
+          <row>
+            <cell id="{bf19e389-d8e6-45e9-b608-355ee8e66780}" showlabel="false">
+              <labels>
+                <label description="" languagecode="1033" />
+              </labels>
+            </cell>
+            <cell id="{608b261b-a386-458e-8361-8c7c271e91fb}" showlabel="false">
+              <labels>
+                <label description="" languagecode="1033" />
+              </labels>
+            </cell>
+            <cell id="{576e2bd8-e787-4b23-98b5-38a20054c60d}" showlabel="false">
+              <labels>
+                <label description="" languagecode="1033" />
+              </labels>
+            </cell>
+          </row>
+        </rows>
+      </footer>
+      <DisplayConditions Order="0" FallbackForm="true">
+        <Everyone />
+      </DisplayConditions>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

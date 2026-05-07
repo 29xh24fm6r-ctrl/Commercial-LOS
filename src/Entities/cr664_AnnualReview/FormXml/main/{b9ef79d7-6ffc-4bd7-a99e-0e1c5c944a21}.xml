@@ -1,0 +1,135 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{b9ef79d7-6ffc-4bd7-a99e-0e1c5c944a21}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{3c35c1ef-3f74-4226-ad5a-4a1b36c6f3d9}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{7a9f8ce5-135b-48e2-8b5a-87590ebec2ed}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{5bb85d1f-c821-4513-b783-d2dd0e95d189}">
+                        <labels>
+                          <label description="Annual Review Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_annualreviewname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_annualreviewname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b06d4288-52d3-4e0e-b8fd-b0feaf553e77}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a4b11a5a-d4d5-40a5-ac6f-fa22bf74494b}">
+                        <labels>
+                          <label description="Review Year" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_reviewyear" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_reviewyear" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d6f5128d-f954-4abb-85cd-e994235654ee}">
+                        <labels>
+                          <label description="Portfolio Loan" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_portfolioloan" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_portfolioloan" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3f62be4f-8292-4671-8ad4-61deea1b1f43}">
+                        <labels>
+                          <label description="Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_status" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_status" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{45be91ec-9805-4b31-9c81-32de97d3d829}">
+                        <labels>
+                          <label description="Assigned To" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignedto" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_assignedto" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{507dd476-0e41-4966-908c-5f274c13639a}">
+                        <labels>
+                          <label description="Due Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_duedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_duedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3852a03d-32f7-4fc1-bb4c-5cede399a638}">
+                        <labels>
+                          <label description="Risk Rating Recommendation" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_riskratingrecommendation" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_riskratingrecommendation" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8c969ed0-fc9d-4f00-b260-b19382243834}">
+                        <labels>
+                          <label description="Summary Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_summarynotes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_summarynotes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ff4bf71d-6c86-400e-9947-a237edda2391}">
+                        <labels>
+                          <label description="Review Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_reviewnotes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_reviewnotes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6ef608d6-13bd-4502-99e6-6d4de7cbeb15}">
+                        <labels>
+                          <label description="Summary Conclusions" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_summaryconclusions" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_summaryconclusions" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6d7568e9-5007-445e-bb94-966438d11950}">
+                        <labels>
+                          <label description="Missing Documentation Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_missingdocumentationflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_missingdocumentationflag" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{c6992fe7-fd15-4996-9fcc-dc1cdbea528d}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{7e3726ab-0dbd-4db4-aef7-307efafae43b}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{05fa32fb-4ee5-459f-92d7-8b2eb52937b3}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{9d170d18-6a3f-401f-9dd9-d63eb7529b66}">
+                        <labels>
+                          <label description="Covenant Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_covenantname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_covenantname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e88e9759-3e92-468a-8dc0-c4b506fc17dc}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c600c173-a575-4453-94ec-ed9502bbdce4}">
+                        <labels>
+                          <label description="Portfolio Loan" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_portfolioloan" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_portfolioloan" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{fb08aa6e-05fe-4fd7-aab9-04d2e105d496}">
+                        <labels>
+                          <label description="Covenant Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_covenanttype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_covenanttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8e7bc83b-2c01-4290-b56a-0afda9ba4672}">
+                        <labels>
+                          <label description="Threshold" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_threshold" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_threshold" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{75a7c304-0cd1-41f2-bfd8-ac22b793553b}">
+                        <labels>
+                          <label description="Last Tested Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_lasttesteddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_lasttesteddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{faa3c74f-4b0a-4250-8520-9789d14c5446}">
+                        <labels>
+                          <label description="Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_status" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_status" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{081a4653-e462-4277-92c1-cb8137840605}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

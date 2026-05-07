@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{70e268db-84c1-43be-bd82-2b15939a0c3c}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_fullname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_mastercontactid">
+          <cell name="cr664_fullname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_firstname" width="150" />
+          <cell name="cr664_lastname" width="150" />
+          <cell name="cr664_title" width="150" />
+          <cell name="cr664_company" width="150" />
+          <cell name="cr664_email" width="150" />
+          <cell name="cr664_phone" width="150" />
+          <cell name="cr664_mobilephone" width="150" />
+          <cell name="cr664_preferredcontactmethod" width="150" />
+          <cell name="cr664_addressline1" width="150" />
+          <cell name="cr664_addressline2" width="150" />
+          <cell name="cr664_city" width="150" />
+          <cell name="cr664_state" width="150" />
+          <cell name="cr664_postalcode" width="150" />
+          <cell name="cr664_country" width="150" />
+          <cell name="cr664_notes" width="150" />
+          <cell name="cr664_activeflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_mastercontact">
+          <attribute name="cr664_mastercontactid" />
+          <attribute name="cr664_fullname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_fullname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_firstname" />
+          <attribute name="cr664_lastname" />
+          <attribute name="cr664_title" />
+          <attribute name="cr664_company" />
+          <attribute name="cr664_email" />
+          <attribute name="cr664_phone" />
+          <attribute name="cr664_mobilephone" />
+          <attribute name="cr664_preferredcontactmethod" />
+          <attribute name="cr664_addressline1" />
+          <attribute name="cr664_addressline2" />
+          <attribute name="cr664_city" />
+          <attribute name="cr664_state" />
+          <attribute name="cr664_postalcode" />
+          <attribute name="cr664_country" />
+          <attribute name="cr664_notes" />
+          <attribute name="cr664_activeflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Master Contacts" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

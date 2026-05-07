@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>0</isdefault>
+    <savedqueryid>{4d00be78-2362-49eb-851d-a2eb4b755566}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_relationshipmanagement1" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_relationshipmanagementid">
+          <cell name="cr664_relationshipmanagement1" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_relationshipmanagement">
+          <attribute name="cr664_relationshipmanagementid" />
+          <attribute name="cr664_relationshipmanagement1" />
+          <attribute name="createdon" />
+          <order attribute="cr664_relationshipmanagement1" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="1" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Inactive Relationship Managements" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

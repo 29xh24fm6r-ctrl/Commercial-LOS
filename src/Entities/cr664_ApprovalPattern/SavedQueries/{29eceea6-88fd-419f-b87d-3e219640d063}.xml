@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{29eceea6-88fd-419f-b87d-3e219640d063}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_patternname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_approvalpatternid">
+          <cell name="cr664_patternname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_producttype" width="150" />
+          <cell name="cr664_riskband" width="150" />
+          <cell name="cr664_industry" width="150" />
+          <cell name="cr664_collateralsummary" width="150" />
+          <cell name="cr664_commonstructure" width="150" />
+          <cell name="cr664_covenants" width="150" />
+          <cell name="cr664_conditions" width="150" />
+          <cell name="cr664_exceptions" width="150" />
+          <cell name="cr664_outcome" width="150" />
+          <cell name="cr664_sourcedeal" width="150" />
+          <cell name="cr664_patterncreateddate" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_approvalpattern">
+          <attribute name="cr664_approvalpatternid" />
+          <attribute name="cr664_patternname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_patternname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_producttype" />
+          <attribute name="cr664_riskband" />
+          <attribute name="cr664_industry" />
+          <attribute name="cr664_collateralsummary" />
+          <attribute name="cr664_commonstructure" />
+          <attribute name="cr664_covenants" />
+          <attribute name="cr664_conditions" />
+          <attribute name="cr664_exceptions" />
+          <attribute name="cr664_outcome" />
+          <attribute name="cr664_sourcedeal" />
+          <attribute name="cr664_patterncreateddate" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Approval Patterns" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

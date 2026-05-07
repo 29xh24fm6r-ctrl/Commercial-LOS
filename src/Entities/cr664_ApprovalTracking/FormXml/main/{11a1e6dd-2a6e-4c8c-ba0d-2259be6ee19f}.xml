@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{11a1e6dd-2a6e-4c8c-ba0d-2259be6ee19f}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{2f1ff5ee-e2be-4361-8f12-ea54844e4551}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{bf608f82-a76b-4391-acd0-802743450dc8}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{343dcedc-481e-4ac3-927a-47bf0d7ddc65}">
+                        <labels>
+                          <label description="Approver" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_approver" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_approver" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9dc4b425-2db5-443a-b1be-02ed3b5d2fc8}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{76e9b9b3-ae9a-4e34-b9c1-d087248c7f0c}">
+                        <labels>
+                          <label description="Approval Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_approvaltype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_approvaltype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{487ceb46-6af7-4341-b6e3-9522f5160867}">
+                        <labels>
+                          <label description="Decision" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_decision" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_decision" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{349f610d-2a0d-4b6a-bbb6-1face2bcb775}">
+                        <labels>
+                          <label description="Conditions" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_conditions" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_conditions" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5acddcd1-4e23-4144-a79d-373645facbad}">
+                        <labels>
+                          <label description="Timestamp" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_timestamp" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_timestamp" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

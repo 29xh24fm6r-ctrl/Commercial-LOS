@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{cf60d8a8-2559-4341-81a0-04e68022e7b1}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{1c64b7c7-04dd-4eb9-8c72-43a61e461ab4}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{ae995080-f6c3-462d-9c72-4232749ddca6}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{d14d9f07-a288-4d8b-bdc5-b5b7d68b9b2e}">
+                        <labels>
+                          <label description="Extension Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_extensionname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_extensionname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2469b88a-6324-404c-9399-4355a5abb51e}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c06494c8-6260-49f3-ab2d-43262a997a5f}">
+                        <labels>
+                          <label description="User Additional Workspace Access" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_useradditionalworkspaceaccess" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_useradditionalworkspaceaccess" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{74b76bc9-153c-4cd5-b01b-3397503858b4}">
+                        <labels>
+                          <label description="Primary User Directory" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_primaryuserdirectory" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_primaryuserdirectory" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2a460f56-6ead-48de-80df-00be2ecfae3c}">
+                        <labels>
+                          <label description="User Email" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_useremail" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_useremail" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9e176bb0-eeeb-460c-a704-cb3c27f6cc3f}">
+                        <labels>
+                          <label description="Directory Email" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_directoryemail" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_directoryemail" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

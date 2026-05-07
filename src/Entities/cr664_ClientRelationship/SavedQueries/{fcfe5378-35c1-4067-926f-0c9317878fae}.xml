@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{fcfe5378-35c1-4067-926f-0c9317878fae}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_clientname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_clientrelationshipid">
+          <cell name="cr664_clientname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_borrowertype" width="150" />
+          <cell name="cr664_industry" width="150" />
+          <cell name="cr664_headquartersaddress" width="150" />
+          <cell name="cr664_primarybanker" width="150" />
+          <cell name="cr664_existingcustomerflag" width="150" />
+          <cell name="cr664_depositrelationship" width="150" />
+          <cell name="cr664_treasuryopportunity" width="150" />
+          <cell name="cr664_crosssellnotes" width="150" />
+          <cell name="cr664_generalnotes" width="150" />
+          <cell name="cr664_depositrelationshipvalueestimate" width="150" />
+          <cell name="cr664_treasurymanagementrevenueopportunityestimate" width="150" />
+          <cell name="cr664_crosssellrevenueopportunityestimate" width="150" />
+          <cell name="cr664_netrelationshipvalueindicator" width="150" />
+          <cell name="cr664_strategicrelationshipflag" width="150" />
+          <cell name="cr664_largerelationshipflag" width="150" />
+          <cell name="cr664_atriskrelationshipflag" width="150" />
+          <cell name="cr664_relationshipexecutivesummarysnapshot" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_clientrelationship">
+          <attribute name="cr664_clientrelationshipid" />
+          <attribute name="cr664_clientname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_clientname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_borrowertype" />
+          <attribute name="cr664_industry" />
+          <attribute name="cr664_headquartersaddress" />
+          <attribute name="cr664_primarybanker" />
+          <attribute name="cr664_existingcustomerflag" />
+          <attribute name="cr664_depositrelationship" />
+          <attribute name="cr664_treasuryopportunity" />
+          <attribute name="cr664_crosssellnotes" />
+          <attribute name="cr664_generalnotes" />
+          <attribute name="cr664_depositrelationshipvalueestimate" />
+          <attribute name="cr664_treasurymanagementrevenueopportunityestimate" />
+          <attribute name="cr664_crosssellrevenueopportunityestimate" />
+          <attribute name="cr664_netrelationshipvalueindicator" />
+          <attribute name="cr664_strategicrelationshipflag" />
+          <attribute name="cr664_largerelationshipflag" />
+          <attribute name="cr664_atriskrelationshipflag" />
+          <attribute name="cr664_relationshipexecutivesummarysnapshot" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Clients / Relationships" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

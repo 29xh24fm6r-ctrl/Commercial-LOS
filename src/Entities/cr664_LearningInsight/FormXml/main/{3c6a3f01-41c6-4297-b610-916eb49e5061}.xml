@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{3c6a3f01-41c6-4297-b610-916eb49e5061}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{0b9f8fd2-93d1-48fa-b6a4-7e15c13abb49}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{0e687e5a-ecaa-48d5-9c55-67e382a6ff31}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{de584325-8c8d-4e76-a7ad-a8e093b0fe8d}">
+                        <labels>
+                          <label description="Insight Title" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_insighttitle" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_insighttitle" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f853c42c-c2a9-4cb0-90af-ffe44500911b}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{878bebee-6089-4188-9feb-645227fe0ac1}">
+                        <labels>
+                          <label description="Insight Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_insightdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_insightdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b70617c9-4cee-43d3-9a47-6418eaa587f8}">
+                        <labels>
+                          <label description="Source Deal Outcome" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sourcedealoutcome" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_sourcedealoutcome" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c7758987-e612-4822-8bbc-a6b3799fece0}">
+                        <labels>
+                          <label description="Insight Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_insighttype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_insighttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8f0f9ab1-c5a6-4232-8ad6-367b08c9faa3}">
+                        <labels>
+                          <label description="Recommendation" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_recommendation" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_recommendation" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3d678ebd-2fd7-4a26-9802-f5253d5384d7}">
+                        <labels>
+                          <label description="Action Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_actionstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_actionstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{24253a26-e264-4e35-ab88-826f2a3bb309}">
+                        <labels>
+                          <label description="Assigned To" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignedto" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_assignedto" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6606cbda-46c2-4eb5-9b1c-bb9725d10b52}">
+                        <labels>
+                          <label description="Team" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_team" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_team" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c0dd7122-f950-4c04-8a2b-029b4f13927a}">
+                        <labels>
+                          <label description="Impact Score" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_impactscore" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_impactscore" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{38e6dc63-92d0-4bb6-a65e-e7cc5a3d6826}">
+                        <labels>
+                          <label description="Follow-Up Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_followupdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_followupdate" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

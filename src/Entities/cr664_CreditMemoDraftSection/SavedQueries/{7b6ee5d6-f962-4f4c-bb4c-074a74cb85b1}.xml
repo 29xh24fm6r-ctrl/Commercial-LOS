@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{7b6ee5d6-f962-4f4c-bb4c-074a74cb85b1}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_sectionkey" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_creditmemodraftsectionid">
+          <cell name="cr664_sectionkey" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_deal" width="150" />
+          <cell name="cr664_drafttext" width="150" />
+          <cell name="cr664_sourcesnapshotjson" width="150" />
+          <cell name="cr664_reviewstatus" width="150" />
+          <cell name="cr664_lastgeneratedat" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_creditmemodraftsection">
+          <attribute name="cr664_creditmemodraftsectionid" />
+          <attribute name="cr664_sectionkey" />
+          <attribute name="createdon" />
+          <order attribute="cr664_sectionkey" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_deal" />
+          <attribute name="cr664_drafttext" />
+          <attribute name="cr664_sourcesnapshotjson" />
+          <attribute name="cr664_reviewstatus" />
+          <attribute name="cr664_lastgeneratedat" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Credit Memo Draft Sections" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

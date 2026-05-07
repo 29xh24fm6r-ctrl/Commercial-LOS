@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{04f5a37a-acd4-448c-bf97-9d604ca50e75}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{0f707f1e-422d-4c28-a9bc-4ac1c30ce458}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{c7a52e2b-bf86-4aa9-8395-0cf9a65950c7}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{368f5f2c-4a52-4902-9829-24cf12353a94}">
+                        <labels>
+                          <label description="SBA Loan Number" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sbaloannumber" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_sbaloannumber" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8a0504d0-8348-4738-8503-6def85d2c2be}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c03f89f9-81f8-4417-a35b-09a0d88661b0}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dealid" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_dealid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{66b9eeab-e4f7-4dc0-aaff-bf561199ffdb}">
+                        <labels>
+                          <label description="SBA Auth Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sbaauthstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_sbaauthstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c2e91198-ce27-4dfe-9de8-7b965186bcef}">
+                        <labels>
+                          <label description="SBA Auth Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_sbaauthdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_sbaauthdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{aec41cef-b470-459c-b06d-65d2436568be}">
+                        <labels>
+                          <label description="CDC Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_cdcname" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_cdcname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4099ea24-5403-4b14-84d4-5d1e0446c269}">
+                        <labels>
+                          <label description="PLP or Standard" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_plporstandard" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_plporstandard" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{b890a52c-1d28-4509-bc33-40d45b62812d}">
+                        <labels>
+                          <label description="General Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_generalnotes" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_generalnotes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

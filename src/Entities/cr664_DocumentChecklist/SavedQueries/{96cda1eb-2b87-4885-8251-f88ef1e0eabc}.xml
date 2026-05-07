@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{96cda1eb-2b87-4885-8251-f88ef1e0eabc}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_documentname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_documentchecklistid">
+          <cell name="cr664_documentname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_documenttype" width="150" />
+          <cell name="cr664_uploadstatus" width="150" />
+          <cell name="cr664_requestdate" width="150" />
+          <cell name="cr664_duedate" width="150" />
+          <cell name="cr664_receiveddate" width="150" />
+          <cell name="cr664_reviewer" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_documentchecklist">
+          <attribute name="cr664_documentchecklistid" />
+          <attribute name="cr664_documentname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_documentname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_documenttype" />
+          <attribute name="cr664_uploadstatus" />
+          <attribute name="cr664_requestdate" />
+          <attribute name="cr664_duedate" />
+          <attribute name="cr664_receiveddate" />
+          <attribute name="cr664_reviewer" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Document Checklists" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

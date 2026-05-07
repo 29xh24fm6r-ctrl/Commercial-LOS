@@ -1,0 +1,143 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{2300f222-23d5-416a-b6d1-87b5fd9ccfb3}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{5cded4d1-2218-4a6d-b7b6-63f8b3ed10e1}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{971e92f8-52ee-4e84-b6c7-df57d653ba6b}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{51bb2269-62dc-4b0a-929d-2a0ad26ac02e}">
+                        <labels>
+                          <label description="Gap Summary" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_gapsummary" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_gapsummary" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{d055ff3f-c18c-4200-a176-20930bea6322}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{11917e49-f873-46ab-a2c4-9a6ac227a35d}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{79fc7b54-7068-463b-9374-165882042be7}">
+                        <labels>
+                          <label description="Borrower Intake Session" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_borrowerintakesession" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_borrowerintakesession" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{33db7029-5c66-48fa-8a3a-df49c6aab4a4}">
+                        <labels>
+                          <label description="Copilot Session" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_copilotsession" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_copilotsession" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f9bc2fa8-c1d9-4430-b61c-58f5cee30869}">
+                        <labels>
+                          <label description="Gap Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_gaptype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_gaptype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1fe708a5-09ad-4762-9c79-d80ba1a5a389}">
+                        <labels>
+                          <label description="Intake Section" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_intakesection" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_intakesection" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2b154a83-23cf-466d-84fb-220f875ee0d3}">
+                        <labels>
+                          <label description="Field Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_fieldname" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_fieldname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{00d49938-02d6-4a6e-96e2-30c5c599299f}">
+                        <labels>
+                          <label description="Detected At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_detectedat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_detectedat" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0b049905-3c62-4389-b07c-0a60e191669e}">
+                        <labels>
+                          <label description="Resolution Status" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_resolutionstatus" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_resolutionstatus" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{894815f0-0a06-4a5f-93b7-f9c834288c4b}">
+                        <labels>
+                          <label description="Resolution Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_resolutionnotes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_resolutionnotes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{640fce5e-fc02-4361-a66d-a8f74e8e3b3c}">
+                        <labels>
+                          <label description="Created By AI" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_createdbyai" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_createdbyai" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3a1b845a-6e87-4aa1-b530-cead952bd3d2}">
+                        <labels>
+                          <label description="Audit Trail Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_audittrailreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_audittrailreference" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

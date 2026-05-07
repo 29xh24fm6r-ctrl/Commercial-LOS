@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>0</isdefault>
+    <savedqueryid>{c4223884-a5a3-4c2a-86fa-679c56a29390}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_schedulename" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_businessdebtscheduledataid">
+          <cell name="cr664_schedulename" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_businessdebtscheduledata">
+          <attribute name="cr664_businessdebtscheduledataid" />
+          <attribute name="cr664_schedulename" />
+          <attribute name="createdon" />
+          <order attribute="cr664_schedulename" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="1" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Inactive Business Debt Schedule Data" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

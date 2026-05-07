@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{ceba50ca-9f0b-4424-9905-715b4cfe59ed}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_alertname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_alertqueueid">
+          <cell name="cr664_alertname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_alerttype" width="150" />
+          <cell name="cr664_alertcategory" width="150" />
+          <cell name="cr664_sourceentitytype" width="150" />
+          <cell name="cr664_sourceentityid" width="150" />
+          <cell name="cr664_severity" width="150" />
+          <cell name="cr664_priority" width="150" />
+          <cell name="cr664_assignedto" width="150" />
+          <cell name="cr664_createddate" width="150" />
+          <cell name="cr664_duedate" width="150" />
+          <cell name="cr664_alertstatus" width="150" />
+          <cell name="cr664_acknowledgedby" width="150" />
+          <cell name="cr664_acknowledgeddate" width="150" />
+          <cell name="cr664_resolvedby" width="150" />
+          <cell name="cr664_resolveddate" width="150" />
+          <cell name="cr664_escalationlevel" width="150" />
+          <cell name="cr664_resolutionnotes" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_alertqueue">
+          <attribute name="cr664_alertqueueid" />
+          <attribute name="cr664_alertname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_alertname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_alerttype" />
+          <attribute name="cr664_alertcategory" />
+          <attribute name="cr664_sourceentitytype" />
+          <attribute name="cr664_sourceentityid" />
+          <attribute name="cr664_severity" />
+          <attribute name="cr664_priority" />
+          <attribute name="cr664_assignedto" />
+          <attribute name="cr664_createddate" />
+          <attribute name="cr664_duedate" />
+          <attribute name="cr664_alertstatus" />
+          <attribute name="cr664_acknowledgedby" />
+          <attribute name="cr664_acknowledgeddate" />
+          <attribute name="cr664_resolvedby" />
+          <attribute name="cr664_resolveddate" />
+          <attribute name="cr664_escalationlevel" />
+          <attribute name="cr664_resolutionnotes" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Alert Queues" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{feaab932-8c50-4a84-827f-ef43f915cd07}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{22fd8653-1a5e-4240-bd86-291fa6bc5f66}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{bf9e01b5-261e-4e88-9d27-3a5097a8815e}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{125ffbab-fae6-4b30-b304-21b4b592d602}">
+                        <labels>
+                          <label description="Option Text" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_optiontext" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_optiontext" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0ddd3f4b-1a8e-4ced-b124-160375b5a454}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{828ff010-a11b-40bd-b1b9-d38fc3475191}">
+                        <labels>
+                          <label description="Question" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_question" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_question" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{affe870c-ecf1-46ed-9a1e-a43fac6b1c00}">
+                        <labels>
+                          <label description="Order" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_order" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr664_order" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{18311fd6-1345-4a1b-83ea-9a3d312887f8}">
+                        <labels>
+                          <label description="Is Correct" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_iscorrect" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_iscorrect" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

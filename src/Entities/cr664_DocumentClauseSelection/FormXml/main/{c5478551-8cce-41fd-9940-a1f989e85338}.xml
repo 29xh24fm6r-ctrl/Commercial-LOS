@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{c5478551-8cce-41fd-9940-a1f989e85338}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{adf8da0c-819f-480c-8fbc-f6c7ab285e08}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{b3c2435b-a2aa-46c0-be25-749c41e8c1c5}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{0bcb9ff7-c0e3-42e5-a638-af9e4349b52e}">
+                        <labels>
+                          <label description="Clause Key" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_clausekey" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_clausekey" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e95438ac-8b79-4b2b-8469-63d0bc5a0112}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{86d6683b-b970-41e0-8110-603f0f672929}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a89d9d3f-26d1-4520-b49c-04832f1b092e}">
+                        <labels>
+                          <label description="Document Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_documenttype" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_documenttype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{550996cb-c589-46c8-8825-fbcb55fa4000}">
+                        <labels>
+                          <label description="Selected Value" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_selectedvalue" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_selectedvalue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3ac1f823-b833-4504-ad71-6b00dc3465f1}">
+                        <labels>
+                          <label description="Selected At" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_selectedat" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_selectedat" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{5684da00-1e12-40d1-9d6b-4b23a9749782}">
+                        <labels>
+                          <label description="Selected By" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_selectedby" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_selectedby" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{98a7efce-9bbe-4d20-92f3-bbce64bd0d19}">
+                        <labels>
+                          <label description="Source" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_source" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_source" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4c0a6538-1b94-4212-9a04-4538f2012601}">
+                        <labels>
+                          <label description="Clause Key Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_clausekeyreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_clausekeyreference" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

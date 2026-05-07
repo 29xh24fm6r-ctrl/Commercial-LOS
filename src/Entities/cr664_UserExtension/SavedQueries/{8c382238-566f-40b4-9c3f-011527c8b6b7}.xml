@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{8c382238-566f-40b4-9c3f-011527c8b6b7}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_fullname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_userextensionid">
+          <cell name="cr664_fullname" width="300" />
+          <cell name="cr664_coreuser" width="150" />
+          <cell name="cr664_email" width="150" />
+          <cell name="cr664_normalizedemail" width="150" />
+          <cell name="cr664_role" width="150" />
+          <cell name="cr664_team" width="150" />
+          <cell name="cr664_primaryworkspace" width="150" />
+          <cell name="cr664_activestatus" width="150" />
+          <cell name="cr664_bankerprofile" width="150" />
+          <cell name="cr664_createdat" width="150" />
+          <cell name="cr664_updatedat" width="150" />
+          <cell name="cr664_identitystatus" width="150" />
+          <cell name="cr664_provisioningsource" width="150" />
+          <cell name="cr664_lastlogin" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_userextension">
+          <attribute name="cr664_userextensionid" />
+          <attribute name="cr664_fullname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_fullname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_coreuser" />
+          <attribute name="cr664_email" />
+          <attribute name="cr664_normalizedemail" />
+          <attribute name="cr664_role" />
+          <attribute name="cr664_team" />
+          <attribute name="cr664_primaryworkspace" />
+          <attribute name="cr664_activestatus" />
+          <attribute name="cr664_bankerprofile" />
+          <attribute name="cr664_createdat" />
+          <attribute name="cr664_updatedat" />
+          <attribute name="cr664_identitystatus" />
+          <attribute name="cr664_provisioningsource" />
+          <attribute name="cr664_lastlogin" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active User Extensions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

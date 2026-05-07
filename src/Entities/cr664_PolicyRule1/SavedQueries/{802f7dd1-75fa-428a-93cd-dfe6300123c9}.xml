@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{802f7dd1-75fa-428a-93cd-dfe6300123c9}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_policyrulename" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_policyrule1id">
+          <cell name="cr664_policyrulename" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_policydomain" width="150" />
+          <cell name="cr664_policykey" width="150" />
+          <cell name="cr664_appliestorole" width="150" />
+          <cell name="cr664_appliestoworkspace" width="150" />
+          <cell name="cr664_appliestoaction" width="150" />
+          <cell name="cr664_conditionexpression" width="150" />
+          <cell name="cr664_outcome" width="150" />
+          <cell name="cr664_failuremessage" width="150" />
+          <cell name="cr664_priority" width="150" />
+          <cell name="cr664_isactive" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_policyrule1">
+          <attribute name="cr664_policyrule1id" />
+          <attribute name="cr664_policyrulename" />
+          <attribute name="createdon" />
+          <order attribute="cr664_policyrulename" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_policydomain" />
+          <attribute name="cr664_policykey" />
+          <attribute name="cr664_appliestorole" />
+          <attribute name="cr664_appliestoworkspace" />
+          <attribute name="cr664_appliestoaction" />
+          <attribute name="cr664_conditionexpression" />
+          <attribute name="cr664_outcome" />
+          <attribute name="cr664_failuremessage" />
+          <attribute name="cr664_priority" />
+          <attribute name="cr664_isactive" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Policy Rules" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

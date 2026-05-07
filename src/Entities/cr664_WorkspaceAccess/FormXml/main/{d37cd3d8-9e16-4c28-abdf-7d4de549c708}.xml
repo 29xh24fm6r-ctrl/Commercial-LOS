@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{d37cd3d8-9e16-4c28-abdf-7d4de549c708}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{aa291092-a18b-4d7c-99dc-11cbe8ec435c}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{d78fe581-d4b2-460b-b4e9-ccd5cb5c6ac1}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{dc30d6fe-aced-41df-938b-0d93a232dfc8}">
+                        <labels>
+                          <label description="Access Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_accessname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_accessname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2002b1bc-b004-4fb0-926d-21116bdf0355}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{61c62e58-44d9-40d1-8db0-2f26dc155c67}">
+                        <labels>
+                          <label description="User" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_user" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_user" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ab28e6da-1f08-464f-bc3d-506bceb1ecf1}">
+                        <labels>
+                          <label description="Workspace Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_workspacetype" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_workspacetype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9b815b8a-121e-493a-be57-051b5b5410ce}">
+                        <labels>
+                          <label description="Is Primary" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_isprimary" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_isprimary" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e301ab0e-17e1-4eea-ac19-d401d2615eb4}">
+                        <labels>
+                          <label description="Access Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_accesstype" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_accesstype" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

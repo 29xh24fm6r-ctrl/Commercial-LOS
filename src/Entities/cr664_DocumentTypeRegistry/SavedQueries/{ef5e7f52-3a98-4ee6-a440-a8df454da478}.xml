@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{ef5e7f52-3a98-4ee6-a440-a8df454da478}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_documenttype" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_documenttyperegistryid">
+          <cell name="cr664_documenttype" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_activetemplate" width="150" />
+          <cell name="cr664_placeholderschemaversion" width="150" />
+          <cell name="cr664_allowedsections" width="150" />
+          <cell name="cr664_requiredsections" width="150" />
+          <cell name="cr664_validationprofile" width="150" />
+          <cell name="cr664_outputprofile" width="150" />
+          <cell name="cr664_stageeligibilityprofile" width="150" />
+          <cell name="cr664_permissionprofile" width="150" />
+          <cell name="cr664_activeflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_documenttyperegistry">
+          <attribute name="cr664_documenttyperegistryid" />
+          <attribute name="cr664_documenttype" />
+          <attribute name="createdon" />
+          <order attribute="cr664_documenttype" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_activetemplate" />
+          <attribute name="cr664_placeholderschemaversion" />
+          <attribute name="cr664_allowedsections" />
+          <attribute name="cr664_requiredsections" />
+          <attribute name="cr664_validationprofile" />
+          <attribute name="cr664_outputprofile" />
+          <attribute name="cr664_stageeligibilityprofile" />
+          <attribute name="cr664_permissionprofile" />
+          <attribute name="cr664_activeflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Document Type Registries" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

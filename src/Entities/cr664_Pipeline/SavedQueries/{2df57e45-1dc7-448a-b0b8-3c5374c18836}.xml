@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{2df57e45-1dc7-448a-b0b8-3c5374c18836}</savedqueryid>
+    <layoutxml>
+      <grid name="cr664_pipelines" jump="cr664_pipeline" select="1" icon="1" preview="1">
+        <row name="cr664_pipeline" id="cr664_pipelineid">
+          <cell name="cr664_pipeline" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>2</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_pipeline">
+          <attribute name="cr664_pipelineid" />
+          <attribute name="cr664_pipeline" />
+          <attribute name="createdon" />
+          <order attribute="cr664_pipeline" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Pipeline Associated View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

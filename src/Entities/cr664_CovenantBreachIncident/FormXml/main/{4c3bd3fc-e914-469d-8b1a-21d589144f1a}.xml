@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{4c3bd3fc-e914-469d-8b1a-21d589144f1a}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{fa887dfb-fe47-4f2a-8e4a-1f43c91ddafa}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{078b66df-f873-4e03-9a1d-3c885ad1d791}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{84866a75-6a01-4165-b707-39844505afce}">
+                        <labels>
+                          <label description="Incident Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_incidentname" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_incidentname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a897e2f2-0f1e-4955-9e4c-a29f918cdb0f}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0aece747-8253-40b9-ad31-702210409e4e}">
+                        <labels>
+                          <label description="Breach Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_breachdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_breachdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c2b9d82b-b0a2-40b2-8326-39c5f2af982c}">
+                        <labels>
+                          <label description="Severity" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_severity" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_severity" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{b8fbf4f4-1f7d-450c-a893-33390be896f3}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_flagname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dataqualityflagid">
+          <cell name="cr664_flagname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_flagtype" width="150" />
+          <cell name="cr664_sourcetable" width="150" />
+          <cell name="cr664_sourcerecordid" width="150" />
+          <cell name="cr664_flaggedby" width="150" />
+          <cell name="cr664_flaggeddate" width="150" />
+          <cell name="cr664_flagdescription" width="150" />
+          <cell name="cr664_resolutionstatus" width="150" />
+          <cell name="cr664_resolutionnotes" width="150" />
+          <cell name="cr664_profitabilitysnapshotreference" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dataqualityflag">
+          <attribute name="cr664_dataqualityflagid" />
+          <attribute name="cr664_flagname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_flagname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_flagtype" />
+          <attribute name="cr664_sourcetable" />
+          <attribute name="cr664_sourcerecordid" />
+          <attribute name="cr664_flaggedby" />
+          <attribute name="cr664_flaggeddate" />
+          <attribute name="cr664_flagdescription" />
+          <attribute name="cr664_resolutionstatus" />
+          <attribute name="cr664_resolutionnotes" />
+          <attribute name="cr664_profitabilitysnapshotreference" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Data Quality Flags" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

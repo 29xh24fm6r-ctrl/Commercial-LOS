@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{7e85cfb1-cf83-497c-9edc-1d0407d43285}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_contractname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_vendorcontractid">
+          <cell name="cr664_contractname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>1</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_vendorcontract">
+          <attribute name="cr664_vendorcontractid" />
+          <attribute name="cr664_contractname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_contractname" descending="false" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Vendor Contract Advanced Find View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

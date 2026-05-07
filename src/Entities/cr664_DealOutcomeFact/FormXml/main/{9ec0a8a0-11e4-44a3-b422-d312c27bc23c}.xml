@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{9ec0a8a0-11e4-44a3-b422-d312c27bc23c}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{0638ec49-2aa0-47f0-b76a-0be4e1fdd182}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{06bfa6aa-4090-41e7-8afc-e79e0371e4dd}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{d463f578-589c-4296-bfb6-dae8ce74119d}">
+                        <labels>
+                          <label description="Deal Outcome Name" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dealoutcomename" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_dealoutcomename" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4e7e77e8-4d79-459a-87f1-9f47d2378a62}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{002cba81-f3d9-4aec-b833-da4856632dc3}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{74a50568-590d-47ab-a451-4835d29e8d2c}">
+                        <labels>
+                          <label description="Outcome Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_outcometype" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_outcometype" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{4a286524-7c59-4878-9911-4667cd4aaf77}">
+                        <labels>
+                          <label description="Outcome Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_outcomedate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_outcomedate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c7666c42-daa7-4ab3-8bfd-eacd139cdde4}">
+                        <labels>
+                          <label description="Win/Loss Reason" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_winlossreason" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_winlossreason" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0fbe04cd-ea07-45e2-b80b-6280130879ba}">
+                        <labels>
+                          <label description="Deal Amount" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_dealamount" classid="{533b9e00-756b-4312-95a0-dc888637ac78}" datafieldname="cr664_dealamount" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{14808442-a0ef-402b-9e27-ca6969469751}">
+                        <labels>
+                          <label description="Assigned Banker" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_assignedbanker" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_assignedbanker" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{cad5970a-fe4d-41f5-9fd4-59fd5c5dd2f5}">
+                        <labels>
+                          <label description="Team" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_team" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_team" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2449698b-26ea-42c6-9752-4ea145ec5ba5}">
+                        <labels>
+                          <label description="Stage at Outcome" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_stageatoutcome" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_stageatoutcome" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ce089b7b-7346-4ace-8074-663015e4c712}">
+                        <labels>
+                          <label description="Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_notes" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_notes" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

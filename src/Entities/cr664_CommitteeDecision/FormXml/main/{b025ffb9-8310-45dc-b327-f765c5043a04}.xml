@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{b025ffb9-8310-45dc-b327-f765c5043a04}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{592e6159-e347-47e3-905a-a4e183c6e350}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{9bae9dab-734b-4855-9782-ba84eb0cb9a9}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{adb50727-4aec-439a-9cf0-4e237f8cd4e4}">
+                        <labels>
+                          <label description="Decision Maker" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_decisionmaker" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_decisionmaker" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{097a1ce1-5219-4734-9be0-d4e591d12399}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c83f319c-07a9-4c2e-9e98-e5efcb851d54}">
+                        <labels>
+                          <label description="ApprovalTracking" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_approvalid" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_approvalid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{7eb7da54-d002-44d1-a2e4-9c4154a7bd89}">
+                        <labels>
+                          <label description="Decision Notes" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_decisionnotes" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_decisionnotes" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{27ea8514-38b6-44b8-8a4a-5ad0e66b94f0}">
+                        <labels>
+                          <label description="Linked Documents" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_linkeddocuments" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr664_linkeddocuments" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

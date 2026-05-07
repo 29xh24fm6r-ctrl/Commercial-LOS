@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>0</isdefault>
+    <savedqueryid>{050f8dfb-edbf-4369-9eb5-b0d5702978c3}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_observationtype" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_autopilotobservationid">
+          <cell name="cr664_observationtype" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_autopilotobservation">
+          <attribute name="cr664_autopilotobservationid" />
+          <attribute name="cr664_observationtype" />
+          <attribute name="createdon" />
+          <order attribute="cr664_observationtype" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="1" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Inactive Autopilot Observations" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

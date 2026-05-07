@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{cb8ddc7c-c81b-4c67-a2fb-9c8ce42e2cab}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_ruletype" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_documentrenderruleid">
+          <cell name="cr664_ruletype" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_documenttype" width="150" />
+          <cell name="cr664_sectionkey" width="150" />
+          <cell name="cr664_ruleexpression" width="150" />
+          <cell name="cr664_truefalsebehavior" width="150" />
+          <cell name="cr664_sortorder" width="150" />
+          <cell name="cr664_activeflag" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_documentrenderrule">
+          <attribute name="cr664_documentrenderruleid" />
+          <attribute name="cr664_ruletype" />
+          <attribute name="createdon" />
+          <order attribute="cr664_ruletype" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_documenttype" />
+          <attribute name="cr664_sectionkey" />
+          <attribute name="cr664_ruleexpression" />
+          <attribute name="cr664_truefalsebehavior" />
+          <attribute name="cr664_sortorder" />
+          <attribute name="cr664_activeflag" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Document Render Rules" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

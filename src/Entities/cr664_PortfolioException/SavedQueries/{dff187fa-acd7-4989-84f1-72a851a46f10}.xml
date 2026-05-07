@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{dff187fa-acd7-4989-84f1-72a851a46f10}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_portfolioexceptionname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_portfolioexceptionid">
+          <cell name="cr664_portfolioexceptionname" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_portfolioloan" width="150" />
+          <cell name="cr664_exceptiontype" width="150" />
+          <cell name="cr664_severity" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_identifieddate" width="150" />
+          <cell name="cr664_notes" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_portfolioexception">
+          <attribute name="cr664_portfolioexceptionid" />
+          <attribute name="cr664_portfolioexceptionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_portfolioexceptionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_portfolioloan" />
+          <attribute name="cr664_exceptiontype" />
+          <attribute name="cr664_severity" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_identifieddate" />
+          <attribute name="cr664_notes" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Portfolio Exceptions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

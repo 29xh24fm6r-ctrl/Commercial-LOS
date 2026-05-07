@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{a6306c9b-e78f-422d-b442-0bccf6fb3674}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_templatename" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_ogbdocumenttemplateid">
+          <cell name="cr664_templatename" width="300" />
+          <cell name="createdon" width="125" />
+          <cell name="cr664_documenttype" width="150" />
+          <cell name="cr664_version" width="150" />
+          <cell name="cr664_status" width="150" />
+          <cell name="cr664_effectivedate" width="150" />
+          <cell name="cr664_filelocation" width="150" />
+          <cell name="cr664_notes" width="150" />
+          <cell name="cr664_placeholderschemaversion" width="150" />
+          <cell name="cr664_templatefilename" width="150" />
+          <cell name="cr664_templatestoragepath" width="150" />
+          <cell name="cr664_supportsdocx" width="150" />
+          <cell name="cr664_supportspdf" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_ogbdocumenttemplate">
+          <attribute name="cr664_ogbdocumenttemplateid" />
+          <attribute name="cr664_templatename" />
+          <attribute name="createdon" />
+          <order attribute="cr664_templatename" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr664_documenttype" />
+          <attribute name="cr664_version" />
+          <attribute name="cr664_status" />
+          <attribute name="cr664_effectivedate" />
+          <attribute name="cr664_filelocation" />
+          <attribute name="cr664_notes" />
+          <attribute name="cr664_placeholderschemaversion" />
+          <attribute name="cr664_templatefilename" />
+          <attribute name="cr664_templatestoragepath" />
+          <attribute name="cr664_supportsdocx" />
+          <attribute name="cr664_supportspdf" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active OGB Document Templates" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

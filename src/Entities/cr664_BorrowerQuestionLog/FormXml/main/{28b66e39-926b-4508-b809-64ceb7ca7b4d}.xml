@@ -1,0 +1,143 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{28b66e39-926b-4508-b809-64ceb7ca7b4d}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{a9d58146-f100-4ab8-a9df-4c56815891ef}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{0b9a01ae-5e65-4a2c-b999-10cfccfe4348}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{f04d70a9-d820-4d7f-b7dc-6692cdd2e92a}">
+                        <labels>
+                          <label description="Question Summary" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_questionsummary" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr664_questionsummary" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{18bda90a-b330-4e23-afc9-0f5983b10aba}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8e42efa8-723c-4e06-98b8-1d2664acf245}">
+                        <labels>
+                          <label description="Deal" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_deal" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_deal" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{137e84cb-e683-4611-82f9-afb13d976f13}">
+                        <labels>
+                          <label description="Copilot Session" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_copilotsession" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_copilotsession" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{12f138a1-5eda-430e-8836-20d6c5a5361e}">
+                        <labels>
+                          <label description="Question Text" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_questiontext" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_questiontext" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f2be45bd-5749-4bbb-bdfb-e80cd24f3706}">
+                        <labels>
+                          <label description="Response Text" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_responsetext" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_responsetext" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{10ea8d8a-16c6-418e-bd12-868b3903c016}">
+                        <labels>
+                          <label description="Topic" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_topic" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr664_topic" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{33b5fc3d-fa13-4a56-b7bb-c3b0b4f5670a}">
+                        <labels>
+                          <label description="Escalation Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_escalationflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_escalationflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ce7f4361-4488-43c3-9224-38c763da21a2}">
+                        <labels>
+                          <label description="Escalation Reason" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_escalationreason" classid="{e0dece4b-6fc8-4a8f-a065-082708572369}" datafieldname="cr664_escalationreason" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{83468dce-2569-4bdd-8b27-606399e26e14}">
+                        <labels>
+                          <label description="Voice Interaction Flag" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_voiceinteractionflag" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_voiceinteractionflag" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2f39770a-9094-421f-a59a-7fe51eaec920}">
+                        <labels>
+                          <label description="Created Timestamp" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_createdtimestamp" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr664_createdtimestamp" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{dc9adf86-2552-4f68-9532-82055ef1a315}">
+                        <labels>
+                          <label description="Created By AI" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_createdbyai" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr664_createdbyai" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{94d607f3-80e1-46bc-a135-b951b09c051b}">
+                        <labels>
+                          <label description="Audit Trail Reference" languagecode="1033" />
+                        </labels>
+                        <control id="cr664_audittrailreference" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr664_audittrailreference" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

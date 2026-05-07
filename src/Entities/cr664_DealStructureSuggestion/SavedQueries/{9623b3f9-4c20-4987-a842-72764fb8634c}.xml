@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>0</isdefault>
+    <savedqueryid>{9623b3f9-4c20-4987-a842-72764fb8634c}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_suggestionname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_dealstructuresuggestionid">
+          <cell name="cr664_suggestionname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_dealstructuresuggestion">
+          <attribute name="cr664_dealstructuresuggestionid" />
+          <attribute name="cr664_suggestionname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_suggestionname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="1" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Inactive Deal Structure Suggestions" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{99e35b61-4dc9-4626-aa9f-606de62da636}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr664_memoname" select="1" icon="1" preview="1">
+        <row name="result" id="cr664_creditmemo1id">
+          <cell name="cr664_memoname" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>1</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr664_creditmemo1">
+          <attribute name="cr664_creditmemo1id" />
+          <attribute name="cr664_memoname" />
+          <attribute name="createdon" />
+          <order attribute="cr664_memoname" descending="false" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Credit Memo Advanced Find View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>
