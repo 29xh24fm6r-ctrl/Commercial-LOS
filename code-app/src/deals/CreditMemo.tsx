@@ -15,12 +15,16 @@ import {
   type SaveCreditMemoDraftOutcome,
   type SaveCreditMemoDraftSection,
 } from './creditMemoActions';
+import {
+  deriveCreditMemoFreshness,
+  type CreditMemoFreshnessResult,
+} from './creditMemoFreshness';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 export function CreditMemo() {
-  const { deal, tasks, documents, creditMemo, refresh } = useDealData();
+  const { deal, tasks, documents, creditMemo, activity, refresh } = useDealData();
   const banker = useBanker();
   const bootstrap = useBootstrap();
   const [showDraft, setShowDraft] = useState(false);
@@ -32,7 +36,22 @@ export function CreditMemo() {
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
   const memosData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
+  const activityData = activity.kind === 'ready' ? activity.data : undefined;
   const canWrite = !!banker.systemUserId;
+
+  // Phase 26: derived-only freshness. We only render the badge once
+  // the credit memo query has resolved — while it's still loading we
+  // don't yet know whether there's a memo to freshness-check.
+  const freshness =
+    creditMemo.kind === 'ready'
+      ? deriveCreditMemoFreshness({
+          deal,
+          tasks: tasksData,
+          documents: documentsData,
+          creditMemo: memosData,
+          activity: activityData,
+        })
+      : undefined;
 
   const handleSave = useCallback(
     async (args: {
@@ -93,6 +112,7 @@ export function CreditMemo() {
             copy remain available; Save Draft requires a resolvable Dataverse user.
           </p>
         )}
+        {freshness && <FreshnessBlock freshness={freshness} />}
         <Body creditMemo={creditMemo} />
       </Card>
       {showDraft && (
@@ -107,6 +127,64 @@ export function CreditMemo() {
       )}
     </>
   );
+}
+
+function FreshnessBlock({ freshness }: { freshness: CreditMemoFreshnessResult }) {
+  // Derived-only state: always say "May be stale" / "Review recommended"
+  // — never claim the memo IS stale, never offer a regenerate button.
+  const sev: SeverityKey =
+    freshness.kind === 'blocked'
+      ? 'blocked'
+      : freshness.kind === 'at-risk'
+        ? 'atRisk'
+        : freshness.kind === 'fresh'
+          ? 'clear'
+          : 'neutral';
+  const heading =
+    freshness.kind === 'blocked'
+      ? 'Memo may be stale'
+      : freshness.kind === 'at-risk'
+        ? 'Memo may be stale'
+        : freshness.kind === 'fresh'
+          ? 'Memo appears current'
+          : 'No memo on file';
+  return (
+    <div style={styles.freshnessBox} role="status" aria-label="Credit memo freshness">
+      <div style={styles.freshnessHeader}>
+        <Badge variant={sev}>{heading}</Badge>
+        <span style={styles.freshnessTimestamp}>
+          {freshness.latestSavedAt
+            ? `Last saved ${formatDateTime(freshness.latestSavedAt) ?? '—'}`
+            : 'No save timestamp on file.'}
+        </span>
+      </div>
+      <p style={styles.freshnessCta}>{freshness.ctaText}</p>
+      {freshness.reasons.length > 0 && (
+        <ul style={styles.freshnessReasonList}>
+          {freshness.reasons.map((r) => (
+            <li key={r.id}>{r.label}</li>
+          ))}
+        </ul>
+      )}
+      <p style={styles.freshnessFootnote}>
+        Derived from authorized deal, task, document, and activity records. Memo
+        status is not changed in Dataverse by this check.
+      </p>
+    </div>
+  );
+}
+
+function formatDateTime(iso: string | undefined): string | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 function subtitleFor(creditMemo: AsyncResult<CreditMemoData>): string | undefined {
@@ -352,5 +430,47 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${palette.atRiskBg}`,
     borderRadius: radius.sm,
     lineHeight: typography.lineHeight.snug,
+  },
+  freshnessBox: {
+    margin: 0,
+    padding: `${spacing.xs} ${spacing.md}`,
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  freshnessHeader: {
+    display: 'flex',
+    gap: spacing.sm,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  freshnessTimestamp: {
+    fontSize: typography.size.sm,
+    color: palette.textMuted,
+  },
+  freshnessCta: {
+    margin: 0,
+    fontSize: typography.size.md,
+    color: palette.text,
+    lineHeight: typography.lineHeight.snug,
+  },
+  freshnessReasonList: {
+    margin: 0,
+    paddingLeft: spacing.md,
+    fontSize: typography.size.sm,
+    color: palette.text,
+    lineHeight: typography.lineHeight.snug,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+  },
+  freshnessFootnote: {
+    margin: 0,
+    fontSize: typography.size.xs,
+    color: palette.textSubtle,
+    fontStyle: 'italic',
   },
 };

@@ -5,6 +5,7 @@ import {
   type BlockerSeverity,
   type BlockerStatus,
 } from './blockerRules';
+import { deriveCreditMemoFreshness } from './creditMemoFreshness';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, severityPalette, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -14,12 +15,53 @@ import { palette, severityPalette, spacing, typography, type SeverityKey } from 
  * can fold in task and document state without issuing duplicate
  * queries. Deal-only signals still render immediately; task/document
  * signals appear once those child queries resolve.
+ *
+ * Phase 26: a credit-memo freshness signal is folded in when the
+ * derived freshness state is at-risk or blocked. The signal is
+ * derived-only — DealBlockers never updates any memo's status.
  */
 export function DealBlockers() {
-  const { deal, tasks, documents } = useDealData();
+  const { deal, tasks, documents, creditMemo, activity } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
-  const { status, signals, closedDealNote } = deriveBlockers(deal, tasksData, documentsData);
+  const memoData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
+  const activityData = activity.kind === 'ready' ? activity.data : undefined;
+  const blockersResult = deriveBlockers(deal, tasksData, documentsData);
+  const memoSignals: BlockerSignal[] = [];
+  if (creditMemo.kind === 'ready') {
+    const freshness = deriveCreditMemoFreshness({
+      deal,
+      tasks: tasksData,
+      documents: documentsData,
+      creditMemo: memoData,
+      activity: activityData,
+      blockers: blockersResult,
+    });
+    if (freshness.kind === 'at-risk' || freshness.kind === 'blocked') {
+      memoSignals.push({
+        id: 'credit-memo-freshness',
+        severity: freshness.kind === 'blocked' ? 'blocked' : 'at-risk',
+        label: 'Credit memo may be stale',
+        detail: `${freshness.ctaText} ${freshness.reasons
+          .map((r) => r.label)
+          .join(' ')}`.trim(),
+      });
+    }
+  }
+  // Promote overall severity if the memo freshness signal is more
+  // severe than the existing blocker status.
+  const combinedStatus: BlockerStatus = memoSignals.some(
+    (s) => s.severity === 'blocked',
+  )
+    ? 'blocked'
+    : blockersResult.status === 'blocked'
+      ? 'blocked'
+      : memoSignals.length > 0 || blockersResult.status === 'at-risk'
+        ? 'at-risk'
+        : 'clear';
+  const signals = [...blockersResult.signals, ...memoSignals];
+  const closedDealNote = blockersResult.closedDealNote;
+  const status = combinedStatus;
   const statusKey = statusToSeverity(status);
   const accent = severityPalette[statusKey].bar;
 
@@ -46,8 +88,8 @@ export function DealBlockers() {
       )}
 
       <CardFooter>
-        <span>Derived from authorized deal, task, and document records.</span>
-        <span>Memo, approval, and alert checks will be added later.</span>
+        <span>Derived from authorized deal, task, document, and credit-memo records.</span>
+        <span>Approval and alert checks will be added later.</span>
       </CardFooter>
     </Card>
   );
