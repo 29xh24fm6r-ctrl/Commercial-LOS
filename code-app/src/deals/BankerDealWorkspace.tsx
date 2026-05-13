@@ -6,12 +6,12 @@ import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
 import { DealSummary } from './DealSummary';
 import { DealBlockers } from './DealBlockers';
+import { DealTasks } from './DealTasks';
 import { PlaceholderCard } from './PlaceholderCard';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
 
 const PLACEHOLDER_SECTIONS: Array<{ title: string; hint: string }> = [
-  { title: 'Tasks / Next Actions', hint: 'Open tasks and required next actions — coming in a later phase.' },
   { title: 'Documents', hint: 'Document tracker, requests, and uploads — coming in a later phase.' },
   { title: 'Activity Timeline', hint: 'Calls, meetings, emails, and system events — coming in a later phase.' },
   { title: 'Borrower Communication', hint: 'Outreach history and quick actions — coming in a later phase.' },
@@ -87,6 +87,7 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
         <DealHeader deal={deal} />
         <DealBlockers deal={deal} />
         <DealSummary deal={deal} />
+        <DealTasks dealId={deal.id} />
         <div style={styles.grid}>
           {PLACEHOLDER_SECTIONS.map((s) => (
             <PlaceholderCard key={s.title} title={s.title} hint={s.hint} />

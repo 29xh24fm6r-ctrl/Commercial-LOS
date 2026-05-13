@@ -52,6 +52,11 @@
           "entitySetName": "cr664_bankers",
           "logicalName": "cr664_banker",
           "isHidden": false
+        },
+        "dealtasks": {
+          "entitySetName": "cr664_dealtask1s",
+          "logicalName": "cr664_dealtask1",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""
