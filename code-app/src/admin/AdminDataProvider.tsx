@@ -11,6 +11,13 @@ import {
   type RefreshStatusSummary,
   type ConfigurationSnapshot,
 } from './adminDiagnosticsQueries';
+import {
+  timed,
+  recordRefresh,
+  recordProviderLoaded,
+} from '../shared/observability/perfRegistry';
+
+const PERF_GROUP = 'AdminDataProvider';
 
 export type AsyncResult<T> =
   | { kind: 'loading' }
@@ -82,35 +89,63 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       });
   }
 
-  function reloadDataQuality(): void {
+  function reloadDataQuality(): Promise<unknown> {
     setDataQuality({ kind: 'loading' });
-    bind(setDataQuality, loadOpenDataQualityFlags());
+    const p = timed(PERF_GROUP, 'loadOpenDataQualityFlags', () =>
+      loadOpenDataQualityFlags(),
+    );
+    bind(setDataQuality, p);
+    return p;
   }
-  function reloadAuditAnomalies(): void {
+  function reloadAuditAnomalies(): Promise<unknown> {
     setAuditAnomalies({ kind: 'loading' });
-    bind(setAuditAnomalies, loadAuditAnomalies());
+    const p = timed(PERF_GROUP, 'loadAuditAnomalies', () => loadAuditAnomalies());
+    bind(setAuditAnomalies, p);
+    return p;
   }
-  function reloadAlerts(): void {
+  function reloadAlerts(): Promise<unknown> {
     setAlerts({ kind: 'loading' });
-    bind(setAlerts, loadOpenAlerts());
+    const p = timed(PERF_GROUP, 'loadOpenAlerts', () => loadOpenAlerts());
+    bind(setAlerts, p);
+    return p;
   }
-  function reloadRefreshStatus(): void {
+  function reloadRefreshStatus(): Promise<unknown> {
     setRefreshStatus({ kind: 'loading' });
-    bind(setRefreshStatus, loadLatestRefreshStatus());
+    const p = timed(PERF_GROUP, 'loadLatestRefreshStatus', () =>
+      loadLatestRefreshStatus(),
+    );
+    bind(setRefreshStatus, p);
+    return p;
   }
-  function reloadConfiguration(): void {
+  function reloadConfiguration(): Promise<unknown> {
     setConfiguration({ kind: 'loading' });
-    bind(setConfiguration, loadConfigurationOverview());
+    const p = timed(PERF_GROUP, 'loadConfigurationOverview', () =>
+      loadConfigurationOverview(),
+    );
+    bind(setConfiguration, p);
+    return p;
   }
 
   // Initial load.
   useEffect(() => {
     cancelledRef.current = false;
-    reloadDataQuality();
-    reloadAuditAnomalies();
-    reloadAlerts();
-    reloadRefreshStatus();
-    reloadConfiguration();
+    const startedAt =
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+    void Promise.allSettled([
+      reloadDataQuality(),
+      reloadAuditAnomalies(),
+      reloadAlerts(),
+      reloadRefreshStatus(),
+      reloadConfiguration(),
+    ]).then(() => {
+      const endedAt =
+        typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now();
+      recordProviderLoaded(PERF_GROUP, endedAt - startedAt);
+    });
     return () => {
       cancelledRef.current = true;
     };
@@ -118,6 +153,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refresh = useCallback((key: AdminDataKey) => {
+    recordRefresh(PERF_GROUP, key);
     switch (key) {
       case 'dataQuality':
         reloadDataQuality();

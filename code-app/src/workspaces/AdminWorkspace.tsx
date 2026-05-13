@@ -9,6 +9,7 @@ import { AlertBacklog } from '../admin/AlertBacklog';
 import { ConfigurationOverview } from '../admin/ConfigurationOverview';
 import { StageGovernanceDiagnostics } from '../admin/StageGovernanceDiagnostics';
 import { ReleaseReadinessGate } from '../admin/ReleaseReadinessGate';
+import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function AdminWorkspace() {
@@ -54,6 +55,7 @@ function AdminWorkspaceContent() {
         </div>
         <ConfigurationOverview />
         <StageGovernanceDiagnostics />
+        <PerformanceDiagnostics />
       </main>
     </div>
   );

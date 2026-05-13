@@ -4,6 +4,13 @@ import { loadDealTasks, type DealTasksResult } from './dealTaskQueries';
 import { loadDealDocuments, type DealDocumentsResult } from './dealDocumentQueries';
 import { loadDealCreditMemo, type CreditMemoData } from './creditMemoQueries';
 import { loadDealActivity, type TimelineEvent } from './activityQueries';
+import {
+  timed,
+  recordRefresh,
+  recordProviderLoaded,
+} from '../shared/observability/perfRegistry';
+
+const PERF_GROUP = 'DealDataProvider';
 
 export type AsyncResult<T> =
   | { kind: 'loading' }
@@ -89,29 +96,65 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
       });
   }
 
-  function reloadTasks(): void {
+  // Each reload returns the timed in-flight promise so the initial
+  // useEffect can both bind state AND wait on the aggregate
+  // completion to record a single provider-loaded event. Returning
+  // the promise costs nothing — bind() already consumes it.
+  function reloadTasks(): Promise<unknown> {
     setTasks({ kind: 'loading' });
-    bind(setTasks, loadDealTasks(deal.id));
+    const p = timed(PERF_GROUP, 'loadDealTasks', () => loadDealTasks(deal.id));
+    bind(setTasks, p);
+    return p;
   }
-  function reloadDocuments(): void {
+  function reloadDocuments(): Promise<unknown> {
     setDocuments({ kind: 'loading' });
-    bind(setDocuments, loadDealDocuments(deal.id));
+    const p = timed(PERF_GROUP, 'loadDealDocuments', () =>
+      loadDealDocuments(deal.id),
+    );
+    bind(setDocuments, p);
+    return p;
   }
-  function reloadCreditMemo(): void {
+  function reloadCreditMemo(): Promise<unknown> {
     setCreditMemo({ kind: 'loading' });
-    bind(setCreditMemo, loadDealCreditMemo(deal.id));
+    const p = timed(PERF_GROUP, 'loadDealCreditMemo', () =>
+      loadDealCreditMemo(deal.id),
+    );
+    bind(setCreditMemo, p);
+    return p;
   }
-  function reloadActivity(): void {
+  function reloadActivity(): Promise<unknown> {
     setActivity({ kind: 'loading' });
-    bind(setActivity, loadDealActivity(deal.id));
+    const p = timed(PERF_GROUP, 'loadDealActivity', () =>
+      loadDealActivity(deal.id),
+    );
+    bind(setActivity, p);
+    return p;
   }
 
   useEffect(() => {
     cancelledRef.current = false;
-    reloadTasks();
-    reloadDocuments();
-    reloadCreditMemo();
-    reloadActivity();
+    const startedAt =
+      typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+    // Kick off all four initial parallel loads via the reloadX
+    // helpers. They bind state via bind() AND return the timed
+    // promise; we collect them so we can record an aggregate
+    // provider-loaded event when everything settles. Promise.allSettled
+    // is fire-and-forget — bind() owns state routing and never throws
+    // into this scope.
+    void Promise.allSettled([
+      reloadTasks(),
+      reloadDocuments(),
+      reloadCreditMemo(),
+      reloadActivity(),
+    ]).then(() => {
+      const endedAt =
+        typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now();
+      recordProviderLoaded(PERF_GROUP, endedAt - startedAt);
+    });
     return () => {
       cancelledRef.current = true;
     };
@@ -119,6 +162,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   }, [deal.id]);
 
   const refresh = useCallback((key: DealDataKey) => {
+    recordRefresh(PERF_GROUP, key);
     switch (key) {
       case 'tasks':
         reloadTasks();

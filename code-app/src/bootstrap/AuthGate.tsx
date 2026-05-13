@@ -6,6 +6,7 @@ import { NotProvisionedError, UnresolvedWorkspaceError } from './errors';
 import { BootstrapProvider } from './BootstrapContext';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
+import { timed } from '../shared/observability/perfRegistry';
 
 type GateState =
   | { kind: 'loading' }
@@ -19,7 +20,7 @@ export function AuthGate() {
 
   useEffect(() => {
     let cancelled = false;
-    runBootstrap()
+    timed('AuthGate', 'runBootstrap', () => runBootstrap())
       .then((result) => {
         if (!cancelled) setState({ kind: 'ready', result });
       })
