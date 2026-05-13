@@ -3,7 +3,6 @@ import type { DealDetail } from './dealQueries';
 import type { DealTask, DealTasksResult } from './dealTaskQueries';
 import type { DealDocument, DealDocumentsResult } from './dealDocumentQueries';
 import type {
-  CreditMemoData,
   CreditMemoSummary,
   CreditMemoSectionItem,
 } from './creditMemoQueries';

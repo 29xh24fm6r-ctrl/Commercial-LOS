@@ -6,6 +6,7 @@ import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
 import { DealSummary } from './DealSummary';
 import { DealBlockers } from './DealBlockers';
+import { DealStageProgressionCard } from './DealStageProgressionCard';
 import { DealTasks } from './DealTasks';
 import { DealDocuments } from './DealDocuments';
 import { CreditMemo } from './CreditMemo';
@@ -87,6 +88,7 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
         <DealDataProvider deal={deal}>
           <DealHeader />
           <DealBlockers />
+          <DealStageProgressionCard />
           <DealSummary />
           <DealTasks />
           <DealDocuments />
