@@ -8,7 +8,7 @@ import { TeamWorkspace } from './workspaces/TeamWorkspace';
 import { ManagerWorkspace } from './workspaces/ManagerWorkspace';
 import { ExecutiveWorkspace } from './workspaces/ExecutiveWorkspace';
 import { AdminWorkspace } from './workspaces/AdminWorkspace';
-import { DealPlaceholder } from './deals/DealPlaceholder';
+import { DealRoute } from './deals/DealRoute';
 
 export default function App() {
   return (
@@ -56,7 +56,7 @@ export default function App() {
               </WorkspaceGate>
             }
           />
-          <Route path="/deals/:dealId" element={<DealPlaceholder />} />
+          <Route path="/deals/:dealId" element={<DealRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
