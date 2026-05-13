@@ -2,6 +2,7 @@ import { TeamProvider } from '../team/TeamProvider';
 import { TeamDataProvider } from '../team/TeamDataProvider';
 import { useTeam } from '../team/TeamContext';
 import { TeamPipelineSummary } from '../team/TeamPipelineSummary';
+import { SharedWorkQueue } from '../team/SharedWorkQueue';
 import { SharedActiveDeals } from '../team/SharedActiveDeals';
 import { BottlenecksAgingByStage } from '../team/BottlenecksAgingByStage';
 import { TeamDocumentNeeds } from '../team/TeamDocumentNeeds';
@@ -44,6 +45,7 @@ function TeamWorkspaceContent() {
         </div>
       </header>
       <main style={styles.main}>
+        <SharedWorkQueue />
         <TeamPipelineSummary />
         <div style={styles.twoCol}>
           <BottlenecksAgingByStage />

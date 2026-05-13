@@ -2,6 +2,7 @@ import { Cr664_bankersService } from '../generated/services/Cr664_bankersService
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
+import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
 
 /**
  * Team Workspace queries. Live operational data — Team Workspace is
@@ -229,6 +230,64 @@ export async function loadTeamDocuments(teamId: string): Promise<TeamDocumentRow
       dealName: d.cr664_dealname,
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Team credit memos (via navigation filter on parent deal's team)
+// ---------------------------------------------------------------------------
+
+export type TeamMemoStatusKey = 'draft' | 'final' | 'stale';
+
+export interface TeamMemoRow {
+  id: string;
+  name: string;
+  statusKey: TeamMemoStatusKey | undefined;
+  generatedAt: string;
+  modifiedOn: string | undefined;
+  dealId: string | undefined;
+  dealName: string | undefined;
+}
+
+const MEMO_STATUS_MAP: Record<number, TeamMemoStatusKey> = {
+  788190000: 'draft',
+  788190001: 'final',
+  788190002: 'stale',
+};
+
+function lookupMemoStatusTeam(v: unknown): TeamMemoStatusKey | undefined {
+  if (typeof v === 'number') return MEMO_STATUS_MAP[v];
+  if (typeof v === 'string' && /^\d+$/.test(v)) return MEMO_STATUS_MAP[Number(v)];
+  return undefined;
+}
+
+/**
+ * Credit memos whose parent deal's team matches the given team.
+ * Same navigation-property filter pattern that loadTeamTasks /
+ * loadTeamDocuments use. No banker / deal-id scoping needed — the
+ * team FK on the parent deal is enough.
+ */
+export async function loadTeamMemos(teamId: string): Promise<TeamMemoRow[]> {
+  const result = await Cr664_creditmemo1sService.getAll({
+    filter: [
+      `cr664_Deal/_cr664_team_value eq ${teamId}`,
+      `statecode eq 0`,
+    ].join(' and '),
+    orderBy: ['cr664_generatedat desc'],
+  });
+  if (!result.success) {
+    throw new Error(result.error?.message ?? 'Failed to load team memos');
+  }
+  return (result.data ?? []).map(
+    (m): TeamMemoRow => ({
+      id: m.cr664_creditmemo1id,
+      name: m.cr664_memoname,
+      statusKey: lookupMemoStatusTeam(m.cr664_status),
+      generatedAt: m.cr664_generatedat,
+      modifiedOn: m.modifiedon,
+      dealId: m._cr664_deal_value,
+      dealName: m.cr664_dealname,
+    }),
+  );
 }
 
 // ---------------------------------------------------------------------------
