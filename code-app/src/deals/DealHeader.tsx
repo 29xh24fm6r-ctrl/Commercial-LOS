@@ -1,10 +1,7 @@
-import type { DealDetail } from './dealQueries';
+import { useDealData } from './DealDataProvider';
 
-interface DealHeaderProps {
-  deal: DealDetail;
-}
-
-export function DealHeader({ deal }: DealHeaderProps) {
+export function DealHeader() {
+  const { deal } = useDealData();
   return (
     <header style={styles.header} aria-label="Deal header">
       <div style={styles.titleRow}>

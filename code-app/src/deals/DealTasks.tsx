@@ -1,68 +1,38 @@
-import { useEffect, useState } from 'react';
-import { loadDealTasks, type DealTask, type DealTasksResult } from './dealTaskQueries';
-
-interface DealTasksProps {
-  /** The already-authorized deal id from BankerDealWorkspace.
-   *  This component only mounts after loadDealForBanker has resolved
-   *  to 'ready', so the deal access check has already passed. */
-  dealId: string;
-}
-
-type State =
-  | { kind: 'loading' }
-  | { kind: 'ready'; result: DealTasksResult }
-  | { kind: 'failed'; message: string };
+import { useDealData, type AsyncResult } from './DealDataProvider';
+import type { DealTask, DealTasksResult } from './dealTaskQueries';
 
 /**
- * Read-only task list scoped to the current deal. No edit, complete,
- * or create actions in this phase. Query fires only on mount after
- * the parent has authorized the deal — see prop contract above.
+ * Read-only task list scoped to the current deal. Consumes the deal
+ * data provider — no fetch of its own. Provider already issued the
+ * task query against the authorized deal id.
  */
-export function DealTasks({ dealId }: DealTasksProps) {
-  const [state, setState] = useState<State>({ kind: 'loading' });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ kind: 'loading' });
-    loadDealTasks(dealId)
-      .then((result) => {
-        if (!cancelled) setState({ kind: 'ready', result });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : String(err);
-        setState({ kind: 'failed', message });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [dealId]);
-
+export function DealTasks() {
+  const { tasks } = useDealData();
   return (
     <section style={styles.card} aria-labelledby="deal-tasks-heading">
       <h3 id="deal-tasks-heading" style={styles.heading}>
         Tasks / Next Actions
       </h3>
-      <Body state={state} />
+      <Body tasks={tasks} />
     </section>
   );
 }
 
-function Body({ state }: { state: State }) {
-  if (state.kind === 'loading') {
+function Body({ tasks }: { tasks: AsyncResult<DealTasksResult> }) {
+  if (tasks.kind === 'loading') {
     return <p style={styles.muted}>Loading tasks…</p>;
   }
-  if (state.kind === 'failed') {
+  if (tasks.kind === 'failed') {
     return (
       <div style={styles.errorBox} role="alert">
         <div style={styles.errorTitle}>Could not load tasks</div>
-        <div style={styles.errorDetail}>{state.message}</div>
+        <div style={styles.errorDetail}>{tasks.message}</div>
         <div style={styles.errorHint}>Refresh to retry.</div>
       </div>
     );
   }
 
-  const { open, completed } = state.result;
+  const { open, completed } = tasks.data;
 
   if (open.length === 0 && completed.length === 0) {
     return <p style={styles.muted}>No tasks on this deal yet.</p>;

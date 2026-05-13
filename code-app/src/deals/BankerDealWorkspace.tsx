@@ -8,6 +8,7 @@ import { DealSummary } from './DealSummary';
 import { DealBlockers } from './DealBlockers';
 import { DealTasks } from './DealTasks';
 import { DealDocuments } from './DealDocuments';
+import { DealDataProvider } from './DealDataProvider';
 import { PlaceholderCard } from './PlaceholderCard';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
@@ -84,16 +85,18 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
         </Link>
       </nav>
       <main style={styles.main}>
-        <DealHeader deal={deal} />
-        <DealBlockers deal={deal} />
-        <DealSummary deal={deal} />
-        <DealTasks dealId={deal.id} />
-        <DealDocuments dealId={deal.id} />
-        <div style={styles.grid}>
-          {PLACEHOLDER_SECTIONS.map((s) => (
-            <PlaceholderCard key={s.title} title={s.title} hint={s.hint} />
-          ))}
-        </div>
+        <DealDataProvider deal={deal}>
+          <DealHeader />
+          <DealBlockers />
+          <DealSummary />
+          <DealTasks />
+          <DealDocuments />
+          <div style={styles.grid}>
+            {PLACEHOLDER_SECTIONS.map((s) => (
+              <PlaceholderCard key={s.title} title={s.title} hint={s.hint} />
+            ))}
+          </div>
+        </DealDataProvider>
       </main>
     </div>
   );

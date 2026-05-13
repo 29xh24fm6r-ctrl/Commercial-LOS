@@ -1,72 +1,41 @@
-import { useEffect, useState } from 'react';
-import {
-  loadDealDocuments,
-  type DealDocument,
-  type DealDocumentsResult,
-  type DocumentStatus,
+import { useDealData, type AsyncResult } from './DealDataProvider';
+import type {
+  DealDocument,
+  DealDocumentsResult,
+  DocumentStatus,
 } from './dealDocumentQueries';
 
-interface DealDocumentsProps {
-  /** Authorized deal id from BankerDealWorkspace. This component only
-   *  mounts after loadDealForBanker resolves to 'ready'. */
-  dealId: string;
-}
-
-type State =
-  | { kind: 'loading' }
-  | { kind: 'ready'; result: DealDocumentsResult }
-  | { kind: 'failed'; message: string };
-
 /**
- * Read-only document checklist scoped to the current deal. No upload,
- * request, review, approve, or delete actions in this phase. Query
- * fires only on mount after the parent has authorized the deal.
+ * Read-only document checklist scoped to the current deal. Consumes
+ * the deal data provider — no fetch of its own.
  */
-export function DealDocuments({ dealId }: DealDocumentsProps) {
-  const [state, setState] = useState<State>({ kind: 'loading' });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ kind: 'loading' });
-    loadDealDocuments(dealId)
-      .then((result) => {
-        if (!cancelled) setState({ kind: 'ready', result });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : String(err);
-        setState({ kind: 'failed', message });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [dealId]);
-
+export function DealDocuments() {
+  const { documents } = useDealData();
   return (
     <section style={styles.card} aria-labelledby="deal-documents-heading">
       <h3 id="deal-documents-heading" style={styles.heading}>
         Documents
       </h3>
-      <Body state={state} />
+      <Body documents={documents} />
     </section>
   );
 }
 
-function Body({ state }: { state: State }) {
-  if (state.kind === 'loading') {
+function Body({ documents }: { documents: AsyncResult<DealDocumentsResult> }) {
+  if (documents.kind === 'loading') {
     return <p style={styles.muted}>Loading documents…</p>;
   }
-  if (state.kind === 'failed') {
+  if (documents.kind === 'failed') {
     return (
       <div style={styles.errorBox} role="alert">
         <div style={styles.errorTitle}>Could not load documents</div>
-        <div style={styles.errorDetail}>{state.message}</div>
+        <div style={styles.errorDetail}>{documents.message}</div>
         <div style={styles.errorHint}>Refresh to retry.</div>
       </div>
     );
   }
 
-  const { outstanding, received, reviewed } = state.result;
+  const { outstanding, received, reviewed } = documents.data;
   const total = outstanding.length + received.length + reviewed.length;
 
   if (total === 0) {

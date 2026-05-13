@@ -1,8 +1,5 @@
+import { useDealData } from './DealDataProvider';
 import type { DealDetail } from './dealQueries';
-
-interface DealSummaryProps {
-  deal: DealDetail;
-}
 
 /**
  * Read-only deal summary. Uses fields already on the authorized
@@ -11,7 +8,8 @@ interface DealSummaryProps {
  * dedicated "use of proceeds" column) are intentionally not rendered;
  * fields that exist but are unset on this deal render as "Not provided".
  */
-export function DealSummary({ deal }: DealSummaryProps) {
+export function DealSummary() {
+  const { deal } = useDealData();
   return (
     <section style={styles.card} aria-labelledby="deal-summary-heading">
       <h3 id="deal-summary-heading" style={styles.heading}>

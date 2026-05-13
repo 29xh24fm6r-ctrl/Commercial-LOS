@@ -1,4 +1,4 @@
-import type { DealDetail } from './dealQueries';
+import { useDealData } from './DealDataProvider';
 import {
   deriveBlockers,
   type BlockerSignal,
@@ -6,17 +6,17 @@ import {
   type BlockerStatus,
 } from './blockerRules';
 
-interface DealBlockersProps {
-  deal: DealDetail;
-}
-
 /**
- * Read-only blocker card. Derives signals from the already-authorized
- * deal record only — no task, document, memo, or alert queries. Future
- * phases will fold those in alongside the deal-field signals here.
+ * Read-only blocker card. Consumes the deal data provider so signals
+ * can fold in task and document state without issuing duplicate
+ * queries. Deal-only signals still render immediately; task/document
+ * signals appear once those child queries resolve.
  */
-export function DealBlockers({ deal }: DealBlockersProps) {
-  const { status, signals, closedDealNote } = deriveBlockers(deal);
+export function DealBlockers() {
+  const { deal, tasks, documents } = useDealData();
+  const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
+  const documentsData = documents.kind === 'ready' ? documents.data : undefined;
+  const { status, signals, closedDealNote } = deriveBlockers(deal, tasksData, documentsData);
   const palette = STATUS_PALETTE[status];
 
   return (
@@ -41,7 +41,7 @@ export function DealBlockers({ deal }: DealBlockersProps) {
 
       {status === 'clear' && (
         <p style={styles.cleanMessage}>
-          {closedDealNote ?? 'No blockers detected on the current deal fields.'}
+          {closedDealNote ?? 'No blockers detected from authorized deal, task, or document records.'}
         </p>
       )}
 
@@ -54,9 +54,11 @@ export function DealBlockers({ deal }: DealBlockersProps) {
       )}
 
       <footer style={styles.footer}>
-        <p style={styles.footerLine}>Derived from current deal fields only.</p>
         <p style={styles.footerLine}>
-          Task, document, memo, and alert checks will be added in a later phase.
+          Derived from authorized deal, task, and document records.
+        </p>
+        <p style={styles.footerLine}>
+          Memo, approval, and alert checks will be added later.
         </p>
       </footer>
     </section>

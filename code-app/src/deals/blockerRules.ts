@@ -1,4 +1,6 @@
 import type { DealDetail } from './dealQueries';
+import type { DealTasksResult } from './dealTaskQueries';
+import type { DealDocumentsResult } from './dealDocumentQueries';
 
 export type BlockerSeverity = 'blocked' | 'at-risk' | 'info';
 export type BlockerStatus = 'blocked' | 'at-risk' | 'clear';
@@ -42,15 +44,38 @@ function formatDate(iso: string | undefined): string {
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function isPastDue(iso: string | undefined, now: Date): boolean {
+  const d = parseDate(iso);
+  return !!d && d.getTime() < now.getTime();
+}
+
+function joinPreview(items: string[], max = 3): string {
+  if (items.length === 0) return '';
+  const shown = items.slice(0, max).join(', ');
+  return items.length > max ? `${shown}, +${items.length - max} more` : shown;
+}
+
 /**
- * Derive blocker / at-risk signals from the already-authorized deal
- * record only. No tasks, documents, memos, or alert queues are
- * consulted — those will hang off this same result type in later phases.
+ * Derive blocker / at-risk signals from the authorized deal record,
+ * plus optional task and document results loaded by DealDataProvider.
  *
- * Closed deals always resolve to 'clear' regardless of other signals;
+ * - tasks and documents are optional and may still be loading or
+ *   failed; their signals are only added when 'ready'. Deal-only
+ *   signals always render, so the card is useful even if a child
+ *   query is in flight or errored.
+ * - Per spec rules: missing-doc and overdue-task style signals are
+ *   never 'blocked'; only target close >= 7 days overdue qualifies
+ *   for red. Red is reserved for explicit blocking conditions.
+ *
+ * Closed deals short-circuit to 'clear' regardless of other signals;
  * a missed-close warning on a finalized deal is noise.
  */
-export function deriveBlockers(deal: DealDetail, now: Date = new Date()): BlockersResult {
+export function deriveBlockers(
+  deal: DealDetail,
+  tasks: DealTasksResult | undefined,
+  documents: DealDocumentsResult | undefined,
+  now: Date = new Date(),
+): BlockersResult {
   if (deal.isClosed) {
     return {
       status: 'clear',
@@ -105,6 +130,32 @@ export function deriveBlockers(deal: DealDetail, now: Date = new Date()): Blocke
       label: 'Missing information',
       detail: `Not captured on this deal: ${missing.join(', ')}.`,
     });
+  }
+
+  // 4. Open tasks past their due date (from authorized child query)
+  if (tasks) {
+    const overdueTasks = tasks.open.filter((t) => isPastDue(t.dueDate, now));
+    if (overdueTasks.length > 0) {
+      signals.push({
+        id: 'overdue-tasks',
+        severity: 'at-risk',
+        label: `${overdueTasks.length} overdue open task${overdueTasks.length === 1 ? '' : 's'}`,
+        detail: `Past due: ${joinPreview(overdueTasks.map((t) => t.title))}.`,
+      });
+    }
+  }
+
+  // 5. Outstanding documents past their due date (from authorized child query)
+  if (documents) {
+    const overdueDocs = documents.outstanding.filter((d) => isPastDue(d.dueDate, now));
+    if (overdueDocs.length > 0) {
+      signals.push({
+        id: 'overdue-documents',
+        severity: 'at-risk',
+        label: `${overdueDocs.length} overdue outstanding document${overdueDocs.length === 1 ? '' : 's'}`,
+        detail: `Past due: ${joinPreview(overdueDocs.map((d) => d.name))}.`,
+      });
+    }
   }
 
   const status: BlockerStatus = signals.some((s) => s.severity === 'blocked')
