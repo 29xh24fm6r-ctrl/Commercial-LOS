@@ -26,7 +26,8 @@ export type DealDataKey =
   | 'creditMemo'
   | 'activity'
   | 'after-task-complete'
-  | 'after-document-request';
+  | 'after-document-request'
+  | 'after-credit-memo-draft-saved';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -143,6 +144,14 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // refresh so the DocumentRequested timeline event appears.
         // DealBlockers recomputes via the refreshed documents.
         reloadDocuments();
+        reloadActivity();
+        break;
+      case 'after-credit-memo-draft-saved':
+        // Targeted reload after Phase-25 credit memo draft save.
+        // creditMemo must refresh so the new draft and its section
+        // rows appear; activity must refresh so the NoteLogged
+        // timeline event appears.
+        reloadCreditMemo();
         reloadActivity();
         break;
     }

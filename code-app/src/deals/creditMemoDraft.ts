@@ -173,10 +173,13 @@ function execSummary(
   facts.push(`Requested amount: ${formatAmount(ctx.deal.amount) ?? trackMissing(label, 'Requested amount', missing)}`);
   facts.push(`Current stage: ${valOrMissing(ctx.deal.stage, label, 'Current stage', missing)}`);
   facts.push(`Target close: ${formatDate(ctx.deal.targetCloseDate) ?? trackMissing(label, 'Target close date', missing)}`);
-  // Deliberately neutral framing — no recommendation/decision verbs.
+  // Deliberately neutral framing — no recommendation/decision verbs,
+  // and no words that the Phase-23 borrower-safe guard would flag
+  // (e.g. "approval") so a saved draft never blocks on its own
+  // disclaimer language.
   facts.push(
     '',
-    'Summary: This memo summarizes the current state of the relationship and request based on the data captured on the deal record. It is not a recommendation, approval, or commitment. Fields not yet captured are marked as Missing / Not provided.',
+    'Summary: This memo summarizes the current state of the relationship and request based on the data captured on the deal record. It is not a credit decision and does not commit the bank to any outcome. Fields not yet captured are marked as Missing / Not provided.',
   );
   return sectionWrap(label, facts.join('\n'));
 }

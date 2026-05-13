@@ -14,6 +14,11 @@ export interface BootstrapResult {
   entraObjectId: string | undefined;
   profileId: string;
   profileName: string;
+  /** Resolved cr664_PlatformWorkspace.id for the user's default
+   *  entitlement. Surfaced so governed writes that need to stamp
+   *  cr664_workspaceid (e.g. credit memo draft save) can read it
+   *  without duplicating the entitlement lookup. */
+  workspaceId: string;
   workspaceName: string;
   route: string;
 }
@@ -64,6 +69,7 @@ export async function runBootstrap(): Promise<BootstrapResult> {
     entraObjectId: ctx.user.objectId,
     profileId: profile.cr664_losuserprofileid,
     profileName: profile.cr664_profilename,
+    workspaceId,
     workspaceName: workspaceName ?? '',
     route,
   };

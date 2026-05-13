@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
+import { useBanker } from '../banker/BankerContext';
+import { useBootstrap } from '../bootstrap/BootstrapContext';
 import type {
   CreditMemoData,
   CreditMemoSummary,
@@ -8,20 +10,65 @@ import type {
   CreditMemoReviewStatusKey,
 } from './creditMemoQueries';
 import { CreditMemoDraftModal } from './CreditMemoDraftModal';
+import {
+  saveCreditMemoDraft,
+  type SaveCreditMemoDraftOutcome,
+  type SaveCreditMemoDraftSection,
+} from './creditMemoActions';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 export function CreditMemo() {
-  const { deal, tasks, documents, creditMemo } = useDealData();
+  const { deal, tasks, documents, creditMemo, refresh } = useDealData();
+  const banker = useBanker();
+  const bootstrap = useBootstrap();
   const [showDraft, setShowDraft] = useState(false);
 
-  // Phase 24: Generate Draft Preview button surfaces whenever the
-  // banker is viewing the deal. The flow is purely local — no
-  // gating on systemUserId because there is no governed write to do.
+  // Phase 24 + 25: Generate Draft Preview is always available. The
+  // governed Save Draft handler is wired only when banker writes are
+  // currently allowed (Dataverse systemuser resolved). When writes
+  // are blocked, the modal stays in Phase-24 local-preview mode.
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
   const memosData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
+  const canWrite = !!banker.systemUserId;
+
+  const handleSave = useCallback(
+    async (args: {
+      memoBody: string;
+      saveNote: string;
+      sections: SaveCreditMemoDraftSection[];
+    }): Promise<SaveCreditMemoDraftOutcome> => {
+      if (!banker.systemUserId) {
+        return {
+          kind: 'unknown',
+          message: 'Cannot save: no Dataverse systemuser resolved for the current banker.',
+        };
+      }
+      // Next version stamp = max existing version + 1, or 1 if none.
+      const nextVersion =
+        (memosData?.memos.reduce((max, m) => Math.max(max, m.version ?? 0), 0) ?? 0) + 1;
+      const memoName = `${deal.name} — Draft v${nextVersion}`;
+      const outcome = await saveCreditMemoDraft({
+        // dealId is the AUTHORIZED deal id from DealDataProvider —
+        // never trust the route param.
+        dealId: deal.id,
+        dealName: deal.name,
+        workspaceId: bootstrap.workspaceId,
+        systemUserId: banker.systemUserId,
+        memoName,
+        memoType: 'Banker draft',
+        memoBody: args.memoBody,
+        saveNote: args.saveNote,
+        sections: args.sections,
+        version: nextVersion,
+      });
+      refresh('after-credit-memo-draft-saved');
+      return outcome;
+    },
+    [banker.systemUserId, bootstrap.workspaceId, deal.id, deal.name, memosData, refresh],
+  );
 
   return (
     <>
@@ -40,6 +87,12 @@ export function CreditMemo() {
             </button>
           }
         />
+        {banker.writeDisabledReason && (
+          <p style={styles.writeDisabledBanner} role="status">
+            <strong>Save disabled:</strong> {banker.writeDisabledReason} Generation and
+            copy remain available; Save Draft requires a resolvable Dataverse user.
+          </p>
+        )}
         <Body creditMemo={creditMemo} />
       </Card>
       {showDraft && (
@@ -49,6 +102,7 @@ export function CreditMemo() {
           documents={documentsData}
           existingMemos={memosData}
           onClose={() => setShowDraft(false)}
+          onSave={canWrite ? handleSave : undefined}
         />
       )}
     </>
@@ -288,5 +342,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: typography.family,
     letterSpacing: typography.letterSpacing.label,
     textTransform: 'uppercase',
+  },
+  writeDisabledBanner: {
+    margin: 0,
+    padding: `${spacing.xs} ${spacing.md}`,
+    background: palette.atRiskBg,
+    color: palette.atRiskFg,
+    fontSize: typography.size.sm,
+    border: `1px solid ${palette.atRiskBg}`,
+    borderRadius: radius.sm,
+    lineHeight: typography.lineHeight.snug,
   },
 };
