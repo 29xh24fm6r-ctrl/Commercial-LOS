@@ -10,6 +10,7 @@ export * as Cr664_loandealsModel from './models/Cr664_loandealsModel';
 export * as Cr664_losuserprofilesModel from './models/Cr664_losuserprofilesModel';
 export * as Cr664_platformusersModel from './models/Cr664_platformusersModel';
 export * as Cr664_platformworkspacesModel from './models/Cr664_platformworkspacesModel';
+export * as Cr664_usersModel from './models/Cr664_usersModel';
 export * as Cr664_workspaceentitlementsesModel from './models/Cr664_workspaceentitlementsesModel';
 
 // Services
@@ -18,4 +19,5 @@ export * from './services/Cr664_loandealsService';
 export * from './services/Cr664_losuserprofilesService';
 export * from './services/Cr664_platformusersService';
 export * from './services/Cr664_platformworkspacesService';
+export * from './services/Cr664_usersService';
 export * from './services/Cr664_workspaceentitlementsesService';

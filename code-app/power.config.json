@@ -42,6 +42,11 @@
           "entitySetName": "cr664_workspaceentitlementses",
           "logicalName": "cr664_workspaceentitlements",
           "isHidden": false
+        },
+        "users": {
+          "entitySetName": "cr664_users",
+          "logicalName": "cr664_user",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""
