@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
+import { useBanker } from '../banker/BankerContext';
 import type { TimelineEvent, TimelineEventTypeKey } from './activityQueries';
+import { DraftBorrowerUpdateModal } from './DraftBorrowerUpdateModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -21,17 +23,47 @@ const BORROWER_COMM_TYPES = new Set<TimelineEventTypeKey>([
 ]);
 
 export function BorrowerCommunication() {
-  const { activity } = useDealData();
+  const { deal, activity, documents, tasks } = useDealData();
+  const banker = useBanker();
   const filtered = useFilteredActivity(activity);
+  const [showDraft, setShowDraft] = useState(false);
+
+  // Phase 23 draft flow surfaces the action whenever the banker is
+  // authorized to view the deal. No write happens on click; the modal
+  // is local-only. We deliberately do NOT gate on systemUserId here —
+  // there is no governed write to perform.
+  const outstandingDocs = documents.kind === 'ready' ? documents.data.outstanding : [];
+  const openTasks = tasks.kind === 'ready' ? tasks.data.open : [];
 
   return (
-    <Card>
-      <CardHeader
-        title="Borrower Communication"
-        subtitle="Email, call, and borrower update events from the deal timeline."
-      />
-      <Body activity={activity} filtered={filtered} />
-    </Card>
+    <>
+      <Card>
+        <CardHeader
+          title="Borrower Communication"
+          subtitle="Email, call, and borrower update events from the deal timeline."
+          trailing={
+            <button
+              type="button"
+              onClick={() => setShowDraft(true)}
+              style={styles.draftButton}
+              aria-label="Draft borrower update"
+            >
+              Draft Borrower Update
+            </button>
+          }
+        />
+        <Body activity={activity} filtered={filtered} />
+      </Card>
+      {showDraft && (
+        <DraftBorrowerUpdateModal
+          deal={deal}
+          outstandingDocuments={outstandingDocs}
+          openTasks={openTasks}
+          bankerName={banker.fullName}
+          onClose={() => setShowDraft(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -191,4 +223,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   errorDetail: { color: palette.text, fontSize: typography.size.sm },
   errorHint: { color: palette.textMuted, fontSize: typography.size.xs, fontStyle: 'italic' },
+  draftButton: {
+    background: palette.primary,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
 };
