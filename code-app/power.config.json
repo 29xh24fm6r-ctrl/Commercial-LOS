@@ -47,6 +47,11 @@
           "entitySetName": "cr664_users",
           "logicalName": "cr664_user",
           "isHidden": false
+        },
+        "bankers": {
+          "entitySetName": "cr664_bankers",
+          "logicalName": "cr664_banker",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""

@@ -5,6 +5,7 @@
 
 // Models
 export * as CommonModels from './models/CommonModels';
+export * as Cr664_bankersModel from './models/Cr664_bankersModel';
 export * as Cr664_borrowersModel from './models/Cr664_borrowersModel';
 export * as Cr664_loandealsModel from './models/Cr664_loandealsModel';
 export * as Cr664_losuserprofilesModel from './models/Cr664_losuserprofilesModel';
@@ -14,6 +15,7 @@ export * as Cr664_usersModel from './models/Cr664_usersModel';
 export * as Cr664_workspaceentitlementsesModel from './models/Cr664_workspaceentitlementsesModel';
 
 // Services
+export * from './services/Cr664_bankersService';
 export * from './services/Cr664_borrowersService';
 export * from './services/Cr664_loandealsService';
 export * from './services/Cr664_losuserprofilesService';

@@ -1,50 +1,52 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { runBootstrap } from './bootstrapFlow';
+import type { BootstrapResult } from './bootstrapFlow';
 import { NotProvisionedError, UnresolvedWorkspaceError } from './errors';
+import { BootstrapProvider } from './BootstrapContext';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
 
-type Phase =
+type GateState =
   | { kind: 'loading' }
+  | { kind: 'ready'; result: BootstrapResult }
   | { kind: 'not-provisioned'; upn: string }
   | { kind: 'unresolved'; workspaceName: string | undefined }
   | { kind: 'failed'; message: string };
 
-export function Bootstrap() {
-  const navigate = useNavigate();
-  const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
+export function AuthGate() {
+  const [state, setState] = useState<GateState>({ kind: 'loading' });
 
   useEffect(() => {
     let cancelled = false;
     runBootstrap()
       .then((result) => {
-        if (!cancelled) navigate(result.route, { replace: true });
+        if (!cancelled) setState({ kind: 'ready', result });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         if (err instanceof NotProvisionedError) {
-          setPhase({ kind: 'not-provisioned', upn: err.upn });
+          setState({ kind: 'not-provisioned', upn: err.upn });
         } else if (err instanceof UnresolvedWorkspaceError) {
-          setPhase({ kind: 'unresolved', workspaceName: err.workspaceName });
+          setState({ kind: 'unresolved', workspaceName: err.workspaceName });
         } else {
           const message = err instanceof Error ? err.message : String(err);
-          setPhase({ kind: 'failed', message });
+          setState({ kind: 'failed', message });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, []);
 
-  switch (phase.kind) {
+  switch (state.kind) {
     case 'loading':
       return <LoadingState message="Signing you in…" />;
     case 'not-provisioned':
       return (
         <ErrorState
           title="Access not provisioned"
-          detail={`No LOS profile exists for ${phase.upn}.`}
+          detail={`No LOS profile exists for ${state.upn}.`}
           hint="Ask an admin to provision your platform profile and workspace entitlements."
         />
       );
@@ -53,8 +55,8 @@ export function Bootstrap() {
         <ErrorState
           title="Workspace not recognized"
           detail={
-            phase.workspaceName
-              ? `Your assigned workspace "${phase.workspaceName}" is not a known landing target.`
+            state.workspaceName
+              ? `Your assigned workspace "${state.workspaceName}" is not a known landing target.`
               : 'No primary workspace is assigned to your profile.'
           }
           hint="Ask an admin to set your primary workspace or default entitlement."
@@ -64,9 +66,15 @@ export function Bootstrap() {
       return (
         <ErrorState
           title="Sign-in failed"
-          detail={phase.message}
+          detail={state.message}
           hint="Refresh to retry. If this keeps happening, contact your admin."
         />
+      );
+    case 'ready':
+      return (
+        <BootstrapProvider value={state.result}>
+          <Outlet />
+        </BootstrapProvider>
       );
   }
 }
