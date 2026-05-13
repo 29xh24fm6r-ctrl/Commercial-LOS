@@ -1,20 +1,65 @@
+import { useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
+import { useBanker } from '../banker/BankerContext';
 import type {
   DealDocument,
   DealDocumentsResult,
   DocumentStatus,
 } from './dealDocumentQueries';
+import { requestDocument, type RequestDocumentOutcome } from './documentActions';
+import { RequestDocumentModal } from './RequestDocumentModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 export function DealDocuments() {
-  const { documents } = useDealData();
+  const { deal, documents, refresh } = useDealData();
+  const banker = useBanker();
+  const [pendingDoc, setPendingDoc] = useState<DealDocument | null>(null);
+
+  async function handleConfirm(note: string): Promise<RequestDocumentOutcome> {
+    if (!pendingDoc || !banker.systemUserId) {
+      return { kind: 'unknown', message: 'Cannot submit: missing document or system user id.' };
+    }
+    const outcome = await requestDocument({
+      documentId: pendingDoc.id,
+      documentName: pendingDoc.name,
+      // dealId is the ALREADY-AUTHORIZED deal id from DealDataProvider —
+      // never trusted from the route param directly.
+      dealId: deal.id,
+      priorRequestDate: pendingDoc.requestDate,
+      systemUserId: banker.systemUserId,
+      requestNote: note,
+    });
+    refresh('after-document-request');
+    return outcome;
+  }
+
+  const canWrite = !!banker.systemUserId;
+
   return (
-    <Card>
-      <CardHeader title="Documents" subtitle={subtitleFor(documents)} />
-      <Body documents={documents} />
-    </Card>
+    <>
+      <Card>
+        <CardHeader title="Documents" subtitle={subtitleFor(documents)} />
+        {banker.writeDisabledReason && (
+          <p style={styles.writeDisabledBanner} role="status">
+            <strong>Request disabled:</strong> {banker.writeDisabledReason}
+          </p>
+        )}
+        <Body
+          documents={documents}
+          canWrite={canWrite}
+          onRequest={(doc) => setPendingDoc(doc)}
+        />
+      </Card>
+      {pendingDoc && (
+        <RequestDocumentModal
+          doc={pendingDoc}
+          onConfirm={handleConfirm}
+          onClose={() => setPendingDoc(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -26,7 +71,15 @@ function subtitleFor(documents: AsyncResult<DealDocumentsResult>): string | unde
   return `${outstanding.length} outstanding · ${received.length} received · ${reviewed.length} reviewed`;
 }
 
-function Body({ documents }: { documents: AsyncResult<DealDocumentsResult> }) {
+function Body({
+  documents,
+  canWrite,
+  onRequest,
+}: {
+  documents: AsyncResult<DealDocumentsResult>;
+  canWrite: boolean;
+  onRequest: (doc: DealDocument) => void;
+}) {
   if (documents.kind === 'loading') return <p style={styles.muted}>Loading documents…</p>;
   if (documents.kind === 'failed')
     return <ErrorBlock title="Could not load documents" detail={documents.message} />;
@@ -42,18 +95,24 @@ function Body({ documents }: { documents: AsyncResult<DealDocumentsResult> }) {
         documents={outstanding}
         emptyHint="No outstanding documents."
         status="outstanding"
+        canWrite={canWrite}
+        onRequest={onRequest}
       />
       <Group
         groupLabel="Received"
         documents={received}
         emptyHint="None received yet."
         status="received"
+        canWrite={false}
+        onRequest={onRequest}
       />
       <Group
         groupLabel="Reviewed"
         documents={reviewed}
         emptyHint="No reviewed documents yet."
         status="reviewed"
+        canWrite={false}
+        onRequest={onRequest}
       />
     </div>
   );
@@ -64,11 +123,15 @@ function Group({
   documents,
   emptyHint,
   status,
+  canWrite,
+  onRequest,
 }: {
   groupLabel: string;
   documents: DealDocument[];
   emptyHint: string;
   status: DocumentStatus;
+  canWrite: boolean;
+  onRequest: (doc: DealDocument) => void;
 }) {
   return (
     <div style={styles.group}>
@@ -81,7 +144,13 @@ function Group({
       ) : (
         <ul style={styles.list}>
           {documents.map((d) => (
-            <DocumentRow key={d.id} doc={d} status={status} />
+            <DocumentRow
+              key={d.id}
+              doc={d}
+              status={status}
+              canWrite={canWrite}
+              onRequest={onRequest}
+            />
           ))}
         </ul>
       )}
@@ -89,7 +158,17 @@ function Group({
   );
 }
 
-function DocumentRow({ doc, status }: { doc: DealDocument; status: DocumentStatus }) {
+function DocumentRow({
+  doc,
+  status,
+  canWrite,
+  onRequest,
+}: {
+  doc: DealDocument;
+  status: DocumentStatus;
+  canWrite: boolean;
+  onRequest: (doc: DealDocument) => void;
+}) {
   const overdue = status === 'outstanding' && isOverdue(doc.dueDate);
   const sev: SeverityKey =
     status === 'reviewed'
@@ -99,6 +178,10 @@ function DocumentRow({ doc, status }: { doc: DealDocument; status: DocumentStatu
         : overdue
           ? 'atRisk'
           : 'neutral';
+  // Phase 22: Request action shows on outstanding rows only. canWrite
+  // is the gate; the Group already restricts it to the Outstanding
+  // group so received/reviewed rows can never show the button.
+  const showRequest = canWrite && status === 'outstanding';
 
   return (
     <li style={styles.row}>
@@ -126,6 +209,16 @@ function DocumentRow({ doc, status }: { doc: DealDocument; status: DocumentStatu
           )}
         </div>
       </div>
+      {showRequest && (
+        <button
+          type="button"
+          onClick={() => onRequest(doc)}
+          style={styles.requestButton}
+          aria-label={`Request document ${doc.name}`}
+        >
+          {doc.requestDate ? 'Re-request' : 'Request'}
+        </button>
+      )}
     </li>
   );
 }
@@ -180,6 +273,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: typography.size.md,
     fontStyle: 'italic',
   },
+  writeDisabledBanner: {
+    margin: 0,
+    padding: `${spacing.xs} ${spacing.md}`,
+    background: palette.atRiskBg,
+    color: palette.atRiskFg,
+    fontSize: typography.size.sm,
+    border: `1px solid ${palette.atRiskBg}`,
+    borderRadius: radius.sm,
+    lineHeight: typography.lineHeight.snug,
+  },
   lists: { display: 'flex', flexDirection: 'column', gap: spacing.md },
   group: { display: 'flex', flexDirection: 'column', gap: spacing.xs },
   groupHeaderRow: { display: 'flex', alignItems: 'center', gap: spacing.xs },
@@ -221,6 +324,21 @@ const styles: Record<string, React.CSSProperties> = {
   metaLabel: { color: palette.textSubtle },
   metaValue: { color: palette.text },
   metaValueEmphasis: { color: palette.atRiskFg, fontWeight: typography.weight.semibold },
+  requestButton: {
+    flexShrink: 0,
+    alignSelf: 'center',
+    background: palette.primary,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
   errorBox: {
     background: palette.blockedBg,
     border: `1px solid ${palette.blockedBg}`,

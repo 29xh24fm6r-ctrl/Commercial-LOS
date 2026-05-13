@@ -13,16 +13,20 @@ export type AsyncResult<T> =
 /** Keys callers pass to refresh() to reload one resource (or a curated
  *  bundle) without a global storm.
  *
- *    'after-task-complete'  Phase-21 write: reload tasks + activity.
- *                            DealBlockers reads tasks via context so
- *                            it recomputes automatically.
+ *    'after-task-complete'     Phase-21 write: reload tasks + activity.
+ *                              DealBlockers reads tasks via context so
+ *                              it recomputes automatically.
+ *    'after-document-request'  Phase-22 write: reload documents +
+ *                              activity. Blockers recompute via the
+ *                              refreshed documents.
  */
 export type DealDataKey =
   | 'tasks'
   | 'documents'
   | 'creditMemo'
   | 'activity'
-  | 'after-task-complete';
+  | 'after-task-complete'
+  | 'after-document-request';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -131,6 +135,14 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // DealBlockers picks up the new task state automatically since
         // it reads tasks via context.
         reloadTasks();
+        reloadActivity();
+        break;
+      case 'after-document-request':
+        // Targeted reload after Phase-22 document request. Documents
+        // must refresh so the new request date appears; activity must
+        // refresh so the DocumentRequested timeline event appears.
+        // DealBlockers recomputes via the refreshed documents.
+        reloadDocuments();
         reloadActivity();
         break;
     }
