@@ -1,6 +1,7 @@
 import { BankerProvider } from '../banker/BankerProvider';
 import { useBanker } from '../banker/BankerContext';
 import { PersonalPipeline } from '../banker/PersonalPipeline';
+import { MyWorkQueue } from '../banker/MyWorkQueue';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function BankerWorkspace() {
@@ -30,6 +31,7 @@ function BankerWorkspaceContent() {
         </div>
       </header>
       <main style={styles.main}>
+        <MyWorkQueue />
         <PersonalPipeline />
       </main>
     </div>
