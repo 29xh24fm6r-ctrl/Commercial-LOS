@@ -8,6 +8,7 @@ import { DealSummary } from './DealSummary';
 import { DealBlockers } from './DealBlockers';
 import { DealTasks } from './DealTasks';
 import { DealDocuments } from './DealDocuments';
+import { CreditMemo } from './CreditMemo';
 import { DealDataProvider } from './DealDataProvider';
 import { PlaceholderCard } from './PlaceholderCard';
 import { LoadingState } from '../shared/LoadingState';
@@ -16,7 +17,6 @@ import { ErrorState } from '../shared/ErrorState';
 const PLACEHOLDER_SECTIONS: Array<{ title: string; hint: string }> = [
   { title: 'Activity Timeline', hint: 'Calls, meetings, emails, and system events — coming in a later phase.' },
   { title: 'Borrower Communication', hint: 'Outreach history and quick actions — coming in a later phase.' },
-  { title: 'Credit Memo', hint: 'Draft, generate, and export — coming in a later phase.' },
 ];
 
 interface BankerDealWorkspaceProps {
@@ -91,6 +91,7 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
           <DealSummary />
           <DealTasks />
           <DealDocuments />
+          <CreditMemo />
           <div style={styles.grid}>
             {PLACEHOLDER_SECTIONS.map((s) => (
               <PlaceholderCard key={s.title} title={s.title} hint={s.hint} />

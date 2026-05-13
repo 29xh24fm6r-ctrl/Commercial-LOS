@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { DealDetail } from './dealQueries';
 import { loadDealTasks, type DealTasksResult } from './dealTaskQueries';
 import { loadDealDocuments, type DealDocumentsResult } from './dealDocumentQueries';
+import { loadDealCreditMemo, type CreditMemoData } from './creditMemoQueries';
 
 /**
  * AsyncResult is the per-resource shape for child queries that load
@@ -20,6 +21,7 @@ export interface DealData {
   deal: DealDetail;
   tasks: AsyncResult<DealTasksResult>;
   documents: AsyncResult<DealDocumentsResult>;
+  creditMemo: AsyncResult<CreditMemoData>;
 }
 
 const DealDataContext = createContext<DealData | null>(null);
@@ -53,11 +55,15 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   const [documents, setDocuments] = useState<AsyncResult<DealDocumentsResult>>({
     kind: 'loading',
   });
+  const [creditMemo, setCreditMemo] = useState<AsyncResult<CreditMemoData>>({
+    kind: 'loading',
+  });
 
   useEffect(() => {
     let cancelled = false;
     setTasks({ kind: 'loading' });
     setDocuments({ kind: 'loading' });
+    setCreditMemo({ kind: 'loading' });
 
     loadDealTasks(deal.id)
       .then((data) => {
@@ -79,13 +85,23 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         setDocuments({ kind: 'failed', message });
       });
 
+    loadDealCreditMemo(deal.id)
+      .then((data) => {
+        if (!cancelled) setCreditMemo({ kind: 'ready', data });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : String(err);
+        setCreditMemo({ kind: 'failed', message });
+      });
+
     return () => {
       cancelled = true;
     };
   }, [deal.id]);
 
   return (
-    <DealDataContext.Provider value={{ deal, tasks, documents }}>
+    <DealDataContext.Provider value={{ deal, tasks, documents, creditMemo }}>
       {children}
     </DealDataContext.Provider>
   );
