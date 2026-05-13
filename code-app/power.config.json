@@ -77,6 +77,11 @@
           "entitySetName": "cr664_dealtimelineevents",
           "logicalName": "cr664_dealtimelineevent",
           "isHidden": false
+        },
+        "teams": {
+          "entitySetName": "cr664_teams",
+          "logicalName": "cr664_team",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""
