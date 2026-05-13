@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
 import type {
   CreditMemoData,
@@ -6,17 +7,51 @@ import type {
   CreditMemoStatusKey,
   CreditMemoReviewStatusKey,
 } from './creditMemoQueries';
+import { CreditMemoDraftModal } from './CreditMemoDraftModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 export function CreditMemo() {
-  const { creditMemo } = useDealData();
+  const { deal, tasks, documents, creditMemo } = useDealData();
+  const [showDraft, setShowDraft] = useState(false);
+
+  // Phase 24: Generate Draft Preview button surfaces whenever the
+  // banker is viewing the deal. The flow is purely local — no
+  // gating on systemUserId because there is no governed write to do.
+  const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
+  const documentsData = documents.kind === 'ready' ? documents.data : undefined;
+  const memosData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
+
   return (
-    <Card>
-      <CardHeader title="Credit Memo" subtitle={subtitleFor(creditMemo)} />
-      <Body creditMemo={creditMemo} />
-    </Card>
+    <>
+      <Card>
+        <CardHeader
+          title="Credit Memo"
+          subtitle={subtitleFor(creditMemo)}
+          trailing={
+            <button
+              type="button"
+              onClick={() => setShowDraft(true)}
+              style={styles.draftButton}
+              aria-label="Generate credit memo draft preview"
+            >
+              Generate Draft Preview
+            </button>
+          }
+        />
+        <Body creditMemo={creditMemo} />
+      </Card>
+      {showDraft && (
+        <CreditMemoDraftModal
+          deal={deal}
+          tasks={tasksData}
+          documents={documentsData}
+          existingMemos={memosData}
+          onClose={() => setShowDraft(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -241,4 +276,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   errorDetail: { color: palette.text, fontSize: typography.size.sm },
   errorHint: { color: palette.textMuted, fontSize: typography.size.xs, fontStyle: 'italic' },
+  draftButton: {
+    background: palette.primary,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
 };
