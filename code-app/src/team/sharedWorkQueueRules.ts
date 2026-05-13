@@ -4,30 +4,32 @@ import type {
   TeamMemoRow,
   TeamTaskRow,
 } from './teamQueries';
+import {
+  BLOCKED_PAST_CLOSE_DAYS,
+  CLOSING_SOON_DAYS,
+  STALE_STAGE_AT_RISK_DAYS,
+  compareWorkQueueItems,
+  daysFromNow,
+  isPastDue,
+  tierBase,
+  type WorkQueueItemBase,
+  type WorkQueueSeverity,
+} from '../shared/workQueue/primitives';
 
 /**
  * Phase 34: Team Workspace Shared Work Queue — pure derivation.
- *
- * Structurally similar to the banker queue (Phase 32) and manager
- * queue (Phase 33) but INTENTIONALLY a separate module — per the
- * guardrail, the three queues stay parallel until one more phase
- * proves the repeated shape is stable enough to extract safely.
+ * Phase 35: shared severity/sort/date primitives now live in
+ * src/shared/workQueue/primitives.ts; this file keeps team-specific
+ * signal rules (notably unassigned-task) + the team item-type enum +
+ * the derivation.
  *
  * Team-specific signals:
- *   - assigneeName is carried on every item so the team can see who
+ *   - ownerName is carried on every item so the team can see who
  *     owns each piece of work without a deal drill-through.
  *   - unassigned-task fires when an open task has no assignee. The
  *     manager queue surfaces unassigned-banker (deal-level routing
  *     gap); the team queue surfaces unassigned-task (work-level
  *     routing gap). Distinct roles, distinct signals.
- *
- * Severity tiers (highest to lowest):
- *   blocked  — past target close by >= BLOCKED_PAST_CLOSE_DAYS, OR
- *              open unassigned task (work routing gap)
- *   overdue  — task or outstanding document past its due date
- *   at-risk  — past target close (< BLOCKED threshold), stale stage,
- *              or memo review needed
- *   upcoming — closing within CLOSING_SOON_DAYS
  */
 
 export type SharedWorkQueueItemType =
@@ -39,18 +41,11 @@ export type SharedWorkQueueItemType =
   | 'memo-review'
   | 'closing-soon';
 
-export type SharedWorkQueueSeverity =
-  | 'blocked'
-  | 'overdue'
-  | 'at-risk'
-  | 'upcoming';
+export type SharedWorkQueueSeverity = WorkQueueSeverity;
 
-export interface SharedWorkQueueItem {
-  id: string;
+export interface SharedWorkQueueItem extends WorkQueueItemBase {
   type: SharedWorkQueueItemType;
-  severity: SharedWorkQueueSeverity;
   dealId: string;
-  dealName: string;
   /** Owner of the work — task assignee for task items, deal banker
    *  for deal-level items. Surfaced verbatim so the team can route
    *  without a drill-through. */
@@ -58,7 +53,6 @@ export interface SharedWorkQueueItem {
   title: string;
   reason: string;
   dateIso: string | undefined;
-  sortKey: number;
 }
 
 export interface DeriveSharedWorkQueueInput {
@@ -68,18 +62,6 @@ export interface DeriveSharedWorkQueueInput {
   memos: readonly TeamMemoRow[];
   now?: Date;
 }
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const BLOCKED_PAST_CLOSE_DAYS = 7;
-const STALE_STAGE_AT_RISK_DAYS = 30;
-const CLOSING_SOON_DAYS = 14;
-
-const TIER_RANK: Record<SharedWorkQueueSeverity, number> = {
-  blocked: 4,
-  overdue: 3,
-  'at-risk': 2,
-  upcoming: 1,
-};
 
 export function deriveSharedWorkQueue(
   input: DeriveSharedWorkQueueInput,
@@ -150,10 +132,7 @@ export function deriveSharedWorkQueue(
     items.push(documentOverdueItem(d, deal, nowMs));
   }
 
-  items.sort((a, b) => {
-    if (b.sortKey !== a.sortKey) return b.sortKey - a.sortKey;
-    return a.dealName.localeCompare(b.dealName);
-  });
+  items.sort(compareWorkQueueItems);
   return items;
 }
 
@@ -326,23 +305,3 @@ function documentOverdueItem(
   };
 }
 
-function tierBase(s: SharedWorkQueueSeverity): number {
-  return TIER_RANK[s] * 10_000;
-}
-
-function isPastDue(iso: string | undefined, nowMs: number): boolean {
-  if (!iso) return false;
-  const ms = new Date(iso).getTime();
-  return Number.isFinite(ms) && ms < nowMs;
-}
-
-function daysFromNow(iso: string | undefined, nowMs: number): number | null {
-  if (!iso) return null;
-  const ms = new Date(iso).getTime();
-  if (!Number.isFinite(ms)) return null;
-  // Calendar-day differencing — same start-of-UTC-day pattern as the
-  // banker and manager queues.
-  const targetDay = Math.floor(ms / MS_PER_DAY);
-  const nowDay = Math.floor(nowMs / MS_PER_DAY);
-  return targetDay - nowDay;
-}

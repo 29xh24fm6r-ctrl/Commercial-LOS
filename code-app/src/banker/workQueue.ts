@@ -5,27 +5,30 @@ import type {
   WorkQueueMemoRow,
   WorkQueueTaskRow,
 } from './workQueueQueries';
+import {
+  BLOCKED_PAST_CLOSE_DAYS,
+  CLOSING_SOON_DAYS,
+  STALE_STAGE_AT_RISK_DAYS,
+  compareWorkQueueItems,
+  daysFromNow,
+  isPastDue,
+  tierBase,
+  type WorkQueueItemBase,
+  type WorkQueueSeverity,
+} from '../shared/workQueue/primitives';
 
 /**
  * Phase 32: banker My Work Queue — pure derivation.
- *
- * Builds an ordered list of work items from already-authorized
- * banker-scoped data (deals + open tasks + outstanding documents +
- * memos). No I/O, no shared state. The function deliberately keeps
- * its rules SIMPLER than the deal-workspace blockerRules /
- * creditMemoFreshness — the queue surfaces "what needs the banker's
- * attention today", not the deep cause analysis those cards do.
+ * Phase 35: shared severity/sort/date primitives now live in
+ * src/shared/workQueue/primitives.ts; this file keeps banker-specific
+ * signal rules + the banker WorkQueueItemType enum + the derivation.
  *
  * Severity ordering (highest to lowest):
- *   blocked       — deal-level true blocker (past target close by
- *                   >= BLOCKED_PAST_CLOSE_DAYS)
- *   overdue       — task / document past its due date
- *   at-risk       — past target close (<7d), stale stage, memo
- *                   review needed
- *   upcoming      — closing within next CLOSING_SOON_DAYS
- *
- * Sort within tier: most-urgent first (largest overdue days first,
- * nearest closing date first).
+ *   blocked  — deal-level true blocker (past target close by
+ *              >= BLOCKED_PAST_CLOSE_DAYS)
+ *   overdue  — task / document past its due date
+ *   at-risk  — past target close (<7d), stale stage, memo review
+ *   upcoming — closing within next CLOSING_SOON_DAYS
  */
 
 export type WorkQueueItemType =
@@ -36,39 +39,22 @@ export type WorkQueueItemType =
   | 'memo-review'
   | 'closing-soon';
 
-export type WorkQueueSeverity = 'blocked' | 'overdue' | 'at-risk' | 'upcoming';
+// Re-export so callers (MyWorkQueue.tsx) can keep importing
+// WorkQueueSeverity from './workQueue' without behavior change.
+export type { WorkQueueSeverity };
 
-export interface WorkQueueItem {
-  id: string;
+export interface WorkQueueItem extends WorkQueueItemBase {
   type: WorkQueueItemType;
-  severity: WorkQueueSeverity;
   dealId: string;
-  dealName: string;
   title: string;
   reason: string;
-  /** ISO date relevant to the item (due date, target close date,
-   *  memo generated date). Optional. */
   dateIso: string | undefined;
-  /** Numeric sort key — higher means more urgent. */
-  sortKey: number;
 }
 
 export interface DeriveWorkQueueInput {
   data: BankerWorkQueueData;
   now?: Date;
 }
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const BLOCKED_PAST_CLOSE_DAYS = 7;
-const STALE_STAGE_AT_RISK_DAYS = 30;
-const CLOSING_SOON_DAYS = 14;
-
-const TIER_RANK: Record<WorkQueueSeverity, number> = {
-  blocked: 4,
-  overdue: 3,
-  'at-risk': 2,
-  upcoming: 1,
-};
 
 export function deriveBankerWorkQueue(input: DeriveWorkQueueInput): WorkQueueItem[] {
   const now = input.now ?? new Date();
@@ -131,12 +117,7 @@ export function deriveBankerWorkQueue(input: DeriveWorkQueueInput): WorkQueueIte
     items.push(documentOverdueItem(d, deal, nowMs));
   }
 
-  // Sort by sortKey desc (most urgent first). Ties broken by deal
-  // name for deterministic ordering across renders.
-  items.sort((a, b) => {
-    if (b.sortKey !== a.sortKey) return b.sortKey - a.sortKey;
-    return a.dealName.localeCompare(b.dealName);
-  });
+  items.sort(compareWorkQueueItems);
   return items;
 }
 
@@ -296,28 +277,3 @@ function documentOverdueItem(
   };
 }
 
-function tierBase(s: WorkQueueSeverity): number {
-  // Each tier gets a 10_000-wide window so per-tier day-counts don't
-  // bleed across tiers. A blocked item is always above any overdue
-  // item, regardless of how many days the overdue item is past due.
-  return TIER_RANK[s] * 10_000;
-}
-
-function isPastDue(iso: string | undefined, nowMs: number): boolean {
-  if (!iso) return false;
-  const ms = new Date(iso).getTime();
-  return Number.isFinite(ms) && ms < nowMs;
-}
-
-function daysFromNow(iso: string | undefined, nowMs: number): number | null {
-  if (!iso) return null;
-  const ms = new Date(iso).getTime();
-  if (!Number.isFinite(ms)) return null;
-  // Calendar-day differencing: normalize each timestamp to its
-  // start-of-UTC-day before subtracting. This gives the
-  // banker-intuitive day count (May 13 → May 20 = 7 days, not 6.5)
-  // regardless of the time of day either timestamp carries.
-  const targetDay = Math.floor(ms / MS_PER_DAY);
-  const nowDay = Math.floor(nowMs / MS_PER_DAY);
-  return targetDay - nowDay;
-}

@@ -7,18 +7,21 @@ import {
 import {
   deriveTeamWorkQueue,
   type TeamWorkQueueItem,
-  type TeamWorkQueueSeverity,
 } from './teamWorkQueueRules';
 import { LoadingState } from '../shared/LoadingState';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import {
-  palette,
-  radius,
-  spacing,
-  typography,
-  type SeverityKey,
-} from '../shared/theme';
+  MAX_WORK_QUEUE_ROWS,
+  countBySeverity,
+  formatQueueDate,
+  overallBadgeLabel,
+  overallSeverityKey,
+  severityLabel,
+  severityToKey,
+  subtitleForCounts,
+} from '../shared/workQueue/primitives';
+import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
  * Phase 33: manager-team Team Work Queue. Read-only card.
@@ -40,8 +43,6 @@ type ChildState =
   | { kind: 'loading' }
   | { kind: 'ready'; data: TeamWorkQueueChildren }
   | { kind: 'failed'; message: string };
-
-const MAX_ROWS = 60;
 
 export function TeamWorkQueue() {
   const { teamPipeline } = useManagerData();
@@ -86,7 +87,7 @@ export function TeamWorkQueue() {
       ? children.data
       : { tasks: [], outstandingDocuments: [], memos: [] },
   });
-  const visible = items.slice(0, MAX_ROWS);
+  const visible = items.slice(0, MAX_WORK_QUEUE_ROWS);
   const counts = countBySeverity(items);
 
   if (items.length === 0) {
@@ -105,9 +106,11 @@ export function TeamWorkQueue() {
     <Card>
       <CardHeader
         title="Team Work Queue"
-        subtitle={subtitleFor(counts)}
+        subtitle={subtitleForCounts(counts)}
         trailing={
-          <Badge variant={overallSeverity(counts)}>{overallBadge(counts)}</Badge>
+          <Badge variant={overallSeverityKey(counts)}>
+            {overallBadgeLabel(counts)}
+          </Badge>
         }
       />
       <ul style={styles.list} aria-label="Team work queue items">
@@ -115,9 +118,10 @@ export function TeamWorkQueue() {
           <Row key={item.id} item={item} />
         ))}
       </ul>
-      {items.length > MAX_ROWS && (
+      {items.length > MAX_WORK_QUEUE_ROWS && (
         <p style={styles.muted}>
-          Showing the {MAX_ROWS} most urgent of {items.length} team work items.
+          Showing the {MAX_WORK_QUEUE_ROWS} most urgent of {items.length} team
+          work items.
         </p>
       )}
       <CardFooter>
@@ -162,7 +166,7 @@ function Row({ item }: { item: TeamWorkQueueItem }) {
         {item.dateIso && (
           <span>
             <span style={styles.metaLabel}>Date: </span>
-            {formatDate(item.dateIso) ?? '—'}
+            {formatQueueDate(item.dateIso) ?? '—'}
           </span>
         )}
       </div>
@@ -170,20 +174,8 @@ function Row({ item }: { item: TeamWorkQueueItem }) {
   );
 }
 
-function severityToKey(s: TeamWorkQueueSeverity): SeverityKey {
-  if (s === 'blocked') return 'blocked';
-  if (s === 'overdue') return 'atRisk';
-  if (s === 'at-risk') return 'atRisk';
-  return 'info';
-}
-
-function severityLabel(s: TeamWorkQueueSeverity): string {
-  if (s === 'blocked') return 'Blocked';
-  if (s === 'overdue') return 'Overdue';
-  if (s === 'at-risk') return 'At risk';
-  return 'Upcoming';
-}
-
+// Manager-specific item-type label. typeLabel stays per-role because
+// each role's WorkQueueItemType enum is distinct.
 function typeLabel(t: TeamWorkQueueItem['type']): string {
   switch (t) {
     case 'blocked-deal':
@@ -201,66 +193,6 @@ function typeLabel(t: TeamWorkQueueItem['type']): string {
     case 'closing-soon':
       return 'Closing soon';
   }
-}
-
-interface SeverityCounts {
-  blocked: number;
-  overdue: number;
-  atRisk: number;
-  upcoming: number;
-  total: number;
-}
-
-function countBySeverity(
-  items: readonly TeamWorkQueueItem[],
-): SeverityCounts {
-  let blocked = 0;
-  let overdue = 0;
-  let atRisk = 0;
-  let upcoming = 0;
-  for (const i of items) {
-    if (i.severity === 'blocked') blocked++;
-    else if (i.severity === 'overdue') overdue++;
-    else if (i.severity === 'at-risk') atRisk++;
-    else upcoming++;
-  }
-  return { blocked, overdue, atRisk, upcoming, total: items.length };
-}
-
-function subtitleFor(c: SeverityCounts): string {
-  const bits: string[] = [];
-  if (c.blocked > 0) bits.push(`${c.blocked} blocked`);
-  if (c.overdue > 0) bits.push(`${c.overdue} overdue`);
-  if (c.atRisk > 0) bits.push(`${c.atRisk} at risk`);
-  if (c.upcoming > 0) bits.push(`${c.upcoming} upcoming`);
-  return bits.join(' · ') || `${c.total} work item${c.total === 1 ? '' : 's'}`;
-}
-
-function overallSeverity(c: SeverityCounts): SeverityKey {
-  if (c.blocked > 0) return 'blocked';
-  if (c.overdue > 0 || c.atRisk > 0) return 'atRisk';
-  if (c.upcoming > 0) return 'info';
-  return 'clear';
-}
-
-function overallBadge(c: SeverityCounts): string {
-  if (c.blocked > 0) return 'Blockers open';
-  if (c.overdue > 0) return 'Overdue items';
-  if (c.atRisk > 0) return 'Review needed';
-  if (c.upcoming > 0) return 'Upcoming';
-  return 'Clear';
-}
-
-function formatDate(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
-  return d.toLocaleDateString('en-US', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 type ParentReadiness = 'loading' | 'failed' | 'ready';

@@ -5,30 +5,30 @@ import type {
   TeamWorkQueueMemoRow,
   TeamWorkQueueTaskRow,
 } from './teamWorkQueueQueries';
+import {
+  BLOCKED_PAST_CLOSE_DAYS,
+  CLOSING_SOON_DAYS,
+  STALE_STAGE_AT_RISK_DAYS,
+  compareWorkQueueItems,
+  daysFromNow,
+  isPastDue,
+  tierBase,
+  type WorkQueueItemBase,
+  type WorkQueueSeverity,
+} from '../shared/workQueue/primitives';
 
 /**
  * Phase 33: manager-team Work Queue — pure derivation.
- *
- * Structurally similar to the banker queue (Phase 32) but
- * INTENTIONALLY a separate module so the manager workspace never
- * imports banker code. The rules are deliberately simpler than the
- * deal-workspace blockerRules / creditMemoFreshness — this queue
- * surfaces "what needs the team's attention today", not deep cause
- * analysis.
+ * Phase 35: shared severity/sort/date primitives now live in
+ * src/shared/workQueue/primitives.ts; this file keeps manager-specific
+ * signal rules (notably unassigned-banker) + the manager item-type
+ * enum + the derivation.
  *
  * Manager-specific signals:
  *   - assignedBanker is included on every item so the manager can
  *     route work without a drill-through into the deal record.
  *   - unassigned-banker fires when a team deal has no assigned
  *     banker on file (manager visibility into routing gaps).
- *
- * Severity tiers (highest to lowest):
- *   blocked  — past target close by >= BLOCKED_PAST_CLOSE_DAYS, OR
- *              unassigned banker on an in-flight deal
- *   overdue  — task or outstanding document past its due date
- *   at-risk  — past target close (< BLOCKED threshold), stale stage,
- *              or memo review needed
- *   upcoming — closing within CLOSING_SOON_DAYS
  */
 
 export type TeamWorkQueueItemType =
@@ -40,21 +40,17 @@ export type TeamWorkQueueItemType =
   | 'memo-review'
   | 'closing-soon';
 
-export type TeamWorkQueueSeverity = 'blocked' | 'overdue' | 'at-risk' | 'upcoming';
+export type TeamWorkQueueSeverity = WorkQueueSeverity;
 
-export interface TeamWorkQueueItem {
-  id: string;
+export interface TeamWorkQueueItem extends WorkQueueItemBase {
   type: TeamWorkQueueItemType;
-  severity: TeamWorkQueueSeverity;
   dealId: string;
-  dealName: string;
   /** Banker assigned to the deal, if any. Surfaced verbatim from
    *  TeamDeal.assignedBankerName. */
   bankerName: string | undefined;
   title: string;
   reason: string;
   dateIso: string | undefined;
-  sortKey: number;
 }
 
 export interface DeriveTeamWorkQueueInput {
@@ -62,18 +58,6 @@ export interface DeriveTeamWorkQueueInput {
   children: TeamWorkQueueChildren;
   now?: Date;
 }
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const BLOCKED_PAST_CLOSE_DAYS = 7;
-const STALE_STAGE_AT_RISK_DAYS = 30;
-const CLOSING_SOON_DAYS = 14;
-
-const TIER_RANK: Record<TeamWorkQueueSeverity, number> = {
-  blocked: 4,
-  overdue: 3,
-  'at-risk': 2,
-  upcoming: 1,
-};
 
 export function deriveTeamWorkQueue(
   input: DeriveTeamWorkQueueInput,
@@ -134,10 +118,7 @@ export function deriveTeamWorkQueue(
     items.push(documentOverdueItem(d, deal, nowMs));
   }
 
-  items.sort((a, b) => {
-    if (b.sortKey !== a.sortKey) return b.sortKey - a.sortKey;
-    return a.dealName.localeCompare(b.dealName);
-  });
+  items.sort(compareWorkQueueItems);
   return items;
 }
 
@@ -315,23 +296,3 @@ function documentOverdueItem(
   };
 }
 
-function tierBase(s: TeamWorkQueueSeverity): number {
-  return TIER_RANK[s] * 10_000;
-}
-
-function isPastDue(iso: string | undefined, nowMs: number): boolean {
-  if (!iso) return false;
-  const ms = new Date(iso).getTime();
-  return Number.isFinite(ms) && ms < nowMs;
-}
-
-function daysFromNow(iso: string | undefined, nowMs: number): number | null {
-  if (!iso) return null;
-  const ms = new Date(iso).getTime();
-  if (!Number.isFinite(ms)) return null;
-  // Calendar-day differencing — start-of-UTC-day on each side. Same
-  // pattern as the banker queue.
-  const targetDay = Math.floor(ms / MS_PER_DAY);
-  const nowDay = Math.floor(nowMs / MS_PER_DAY);
-  return targetDay - nowDay;
-}
