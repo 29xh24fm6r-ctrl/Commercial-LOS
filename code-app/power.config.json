@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "appId": null,
+  "appDisplayName": "Commercial Lending LOS (Rebuild)",
+  "region": "prod",
+  "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+  "description": "Source-controlled rebuild of the Commercial Lending Code App. See ../SPEC.md and ../src/Entities/ for the canonical spec and Dataverse schema.",
+  "buildPath": "./dist",
+  "buildEntryPoint": "index.html",
+  "localAppUrl": "http://localhost:3000",
+  "logoPath": "Default",
+  "connectionReferences": {},
+  "databaseReferences": {
+    "default.cds": {
+      "dataSources": {
+        "losuserprofiles": {
+          "entitySetName": "cr664_losuserprofiles",
+          "logicalName": "cr664_losuserprofile",
+          "isHidden": false
+        },
+        "loandeals": {
+          "entitySetName": "cr664_loandeals",
+          "logicalName": "cr664_loandeal",
+          "isHidden": false
+        },
+        "borrowers": {
+          "entitySetName": "cr664_borrowers",
+          "logicalName": "cr664_borrower",
+          "isHidden": false
+        },
+        "platformusers": {
+          "entitySetName": "cr664_platformusers",
+          "logicalName": "cr664_platformuser",
+          "isHidden": false
+        },
+        "platformworkspaces": {
+          "entitySetName": "cr664_platformworkspaces",
+          "logicalName": "cr664_platformworkspace",
+          "isHidden": false
+        },
+        "workspaceentitlements": {
+          "entitySetName": "cr664_workspaceentitlementses",
+          "logicalName": "cr664_workspaceentitlements",
+          "isHidden": false
+        }
+      },
+      "environmentVariableName": ""
+    }
+  }
+}
