@@ -82,6 +82,26 @@
           "entitySetName": "cr664_teams",
           "logicalName": "cr664_team",
           "isHidden": false
+        },
+        "profitabilitysnapshots": {
+          "entitySetName": "cr664_profitabilitysnapshot1s",
+          "logicalName": "cr664_profitabilitysnapshot1",
+          "isHidden": false
+        },
+        "dealreadinesssnapshots": {
+          "entitySetName": "cr664_dealreadinesssnapshots",
+          "logicalName": "cr664_dealreadinesssnapshot",
+          "isHidden": false
+        },
+        "performancemetrics": {
+          "entitySetName": "cr664_performancemetrics",
+          "logicalName": "cr664_performancemetric",
+          "isHidden": false
+        },
+        "profitabilityrefreshstatuses": {
+          "entitySetName": "cr664_profitabilityrefreshstatuses",
+          "logicalName": "cr664_profitabilityrefreshstatus",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""
