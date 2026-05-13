@@ -87,11 +87,36 @@ export async function loadDealForBanker(
  * Phase 36: manager-team-scoped deal authorization. Mirrors
  * loadDealForBanker but matches the deal's _cr664_team_value
  * against the caller's authorized teamId. Used by
- * ManagerDealWorkspace under the new /deals/:id manager branch.
+ * ManagerDealWorkspace under the /deals/:id manager branch.
  * The manager surface stays read-only; this function only
  * authorizes — it does not gate any write.
  */
 export async function loadDealForManager(
+  dealId: string,
+  teamId: string,
+): Promise<DealLoadResult> {
+  return loadDealByTeamMatch(dealId, teamId);
+}
+
+/**
+ * Phase 37: team-scoped deal authorization. Same team-match rule
+ * as loadDealForManager today — both surfaces gate on the deal's
+ * _cr664_team_value matching the caller's authorized teamId. The
+ * two functions are kept distinct on purpose: their authorization
+ * boundaries are conceptually different (manager oversight vs
+ * shared-team operating visibility) and may diverge in a later
+ * phase (e.g. if team members get a tighter "deals you touch"
+ * scope). The shared loadDealByTeamMatch helper keeps the schema
+ * predicate in lockstep until that day.
+ */
+export async function loadDealForTeam(
+  dealId: string,
+  teamId: string,
+): Promise<DealLoadResult> {
+  return loadDealByTeamMatch(dealId, teamId);
+}
+
+async function loadDealByTeamMatch(
   dealId: string,
   teamId: string,
 ): Promise<DealLoadResult> {

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useTeamData, type AsyncResult } from './TeamDataProvider';
 import type {
   TeamDealRow,
@@ -42,6 +43,7 @@ import { palette, radius, spacing, typography } from '../shared/theme';
 
 export function SharedWorkQueue() {
   const { deals, tasks, documents, memos } = useTeamData();
+  const navigate = useNavigate();
 
   const readiness = computeReadiness(deals, tasks, documents, memos);
   if (readiness !== 'ready') return renderShell(readiness, deals, tasks, documents, memos);
@@ -83,7 +85,11 @@ export function SharedWorkQueue() {
       />
       <ul style={styles.list} aria-label="Shared work queue items">
         {visible.map((item) => (
-          <Row key={item.id} item={item} />
+          <Row
+            key={item.id}
+            item={item}
+            onOpen={() => navigate(`/deals/${item.dealId}`)}
+          />
         ))}
       </ul>
       {items.length > MAX_WORK_QUEUE_ROWS && (
@@ -98,18 +104,37 @@ export function SharedWorkQueue() {
           memos only. No all-data fallback.
         </span>
         <span>
-          Read-only — deal drill-through from the team workspace is intentionally
-          not yet wired.
+          Open a row to view the deal in read-only mode. Write actions remain
+          banker-only.
         </span>
       </CardFooter>
     </Card>
   );
 }
 
-function Row({ item }: { item: SharedWorkQueueItem }) {
+function Row({
+  item,
+  onOpen,
+}: {
+  item: SharedWorkQueueItem;
+  onOpen: () => void;
+}) {
   const sev = severityToKey(item.severity);
   return (
-    <li style={styles.row}>
+    <li
+      style={styles.row}
+      className="cc-row-hover"
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      tabIndex={0}
+      role="link"
+      aria-label={`Open deal ${item.dealName}`}
+    >
       <div style={styles.rowHead}>
         <span style={styles.rowTitle}>
           <StatusDot variant={sev} /> {item.title}
@@ -240,6 +265,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 4,
+    cursor: 'pointer',
   },
   rowHead: {
     display: 'flex',

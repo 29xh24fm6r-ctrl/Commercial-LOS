@@ -5,6 +5,8 @@ import { BankerProvider } from '../banker/BankerProvider';
 import { BankerDealWorkspace } from './BankerDealWorkspace';
 import { ManagerProvider } from '../manager/ManagerProvider';
 import { ManagerDealWorkspace } from '../manager/ManagerDealWorkspace';
+import { TeamProvider } from '../team/TeamProvider';
+import { TeamDealWorkspace } from '../team/TeamDealWorkspace';
 import { ErrorState } from '../shared/ErrorState';
 
 /**
@@ -15,8 +17,13 @@ import { ErrorState } from '../shared/ErrorState';
  * Phase 4: banker context — full read/write deal workspace.
  * Phase 36: manager context — manager-team-scoped read-only deal
  * workspace (no writes; manager authorization via
- * loadDealForManager). Other roles (team, executive, admin) remain
- * intentionally unwired; they see an explicit denial.
+ * loadDealForManager).
+ * Phase 37: team context — team-scoped read-only deal workspace
+ * (no writes; team authorization via loadDealForTeam).
+ * Executive / admin remain intentionally unwired and see an explicit
+ * denial. Executive must stay snapshot-only per the Phase-37 brief
+ * guardrail; admin operational drill-through is a separate
+ * governance decision.
  */
 export function DealRoute() {
   const { route } = useBootstrap();
@@ -45,6 +52,14 @@ export function DealRoute() {
       <ManagerProvider>
         <ManagerDealWorkspace dealId={dealId} />
       </ManagerProvider>
+    );
+  }
+
+  if (route === WORKSPACE_ROUTES.team) {
+    return (
+      <TeamProvider>
+        <TeamDealWorkspace dealId={dealId} />
+      </TeamProvider>
     );
   }
 
