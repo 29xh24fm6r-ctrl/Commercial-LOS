@@ -102,6 +102,31 @@
           "entitySetName": "cr664_profitabilityrefreshstatuses",
           "logicalName": "cr664_profitabilityrefreshstatus",
           "isHidden": false
+        },
+        "dataqualityflags": {
+          "entitySetName": "cr664_dataqualityflags",
+          "logicalName": "cr664_dataqualityflag",
+          "isHidden": false
+        },
+        "auditevents": {
+          "entitySetName": "cr664_auditevents",
+          "logicalName": "cr664_auditevent",
+          "isHidden": false
+        },
+        "alertqueues": {
+          "entitySetName": "cr664_alertqueues",
+          "logicalName": "cr664_alertqueue",
+          "isHidden": false
+        },
+        "systemsettings": {
+          "entitySetName": "cr664_systemsettings",
+          "logicalName": "cr664_systemsetting",
+          "isHidden": false
+        },
+        "kpithresholdconfigurations": {
+          "entitySetName": "cr664_kpithresholdconfigurations",
+          "logicalName": "cr664_kpithresholdconfiguration",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""
