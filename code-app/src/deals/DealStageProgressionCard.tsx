@@ -4,11 +4,13 @@ import {
   type ProgressionEligibilityResult,
   type ProgressionEligibilityStatus,
 } from './stageProgressionGuard';
+import { stageProgressionAvailability } from './stageProgressionAvailability';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import {
   palette,
   severityPalette,
+  radius,
   spacing,
   typography,
   type SeverityKey,
@@ -35,6 +37,12 @@ export function DealStageProgressionCard() {
     creditMemo: creditMemoData,
     activity: activityData,
   });
+
+  // Phase 28: the Advance Stage write is intentionally not shipped
+  // because the schema does not expose a deterministic next-stage
+  // ordering. See ./stageProgressionAvailability.ts for the full
+  // audit and the future-extension contract.
+  const availability = stageProgressionAvailability();
 
   const sev = statusToSeverity(eligibility.status);
   const accent = severityPalette[sev].bar;
@@ -65,6 +73,13 @@ export function DealStageProgressionCard() {
       )}
 
       <NextActionBlock eligibility={eligibility} />
+
+      {!availability.available && (
+        <div style={styles.schemaLimitationBox} role="status" aria-label="Stage progression write availability">
+          <div style={styles.schemaLimitationLabel}>{availability.banner}</div>
+          <p style={styles.schemaLimitationDetail}>{availability.detail}</p>
+        </div>
+      )}
 
       <CardFooter>
         <span>
@@ -156,6 +171,26 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: typography.size.md,
     color: palette.text,
+    lineHeight: typography.lineHeight.snug,
+  },
+  schemaLimitationBox: {
+    background: palette.neutralBg,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+  },
+  schemaLimitationLabel: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: palette.neutralFg,
+  },
+  schemaLimitationDetail: {
+    margin: 0,
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
     lineHeight: typography.lineHeight.snug,
   },
 };

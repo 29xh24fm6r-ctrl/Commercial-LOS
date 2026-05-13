@@ -40,7 +40,10 @@ export interface DealData {
   refresh: (key: DealDataKey) => void;
 }
 
-const DealDataContext = createContext<DealData | null>(null);
+/** Exported so tests can mount cards against a hand-built context
+ *  without firing the real load* queries. Not for app code use —
+ *  app code should consume useDealData(). */
+export const DealDataContext = createContext<DealData | null>(null);
 
 export function useDealData(): DealData {
   const ctx = useContext(DealDataContext);
