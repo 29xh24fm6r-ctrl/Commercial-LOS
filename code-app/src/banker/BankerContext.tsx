@@ -4,6 +4,14 @@ export interface BankerIdentity {
   bankerId: string;
   fullName: string;
   email: string;
+  /** Dataverse systemuserid resolved from the current Entra OID. Used
+   *  by governed writes (audit/timeline events require a ChangedBy /
+   *  EventBy lookup to systemuser). Undefined when the lookup fails or
+   *  returns no match — UI must disable write actions in that case. */
+  systemUserId: string | undefined;
+  /** Reason systemUserId is undefined, surfaced so write UIs can
+   *  explain why their controls are disabled. */
+  writeDisabledReason: string | undefined;
 }
 
 const BankerContext = createContext<BankerIdentity | null>(null);

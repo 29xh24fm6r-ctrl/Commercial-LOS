@@ -1,17 +1,62 @@
+import { useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
+import { useBanker } from '../banker/BankerContext';
 import type { DealTask, DealTasksResult } from './dealTaskQueries';
+import { completeTask, type CompleteTaskOutcome } from './dealTaskActions';
+import { CompleteTaskModal } from './CompleteTaskModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 export function DealTasks() {
-  const { tasks } = useDealData();
+  const { deal, tasks, refresh } = useDealData();
+  const banker = useBanker();
+  const [pendingTask, setPendingTask] = useState<DealTask | null>(null);
+
+  async function handleConfirm(note: string): Promise<CompleteTaskOutcome> {
+    if (!pendingTask || !banker.systemUserId) {
+      return { kind: 'unknown', message: 'Cannot submit: missing task or system user id.' };
+    }
+    const outcome = await completeTask({
+      taskId: pendingTask.id,
+      taskName: pendingTask.title,
+      // dealId is the already-authorized deal id from DealDataProvider —
+      // never trusted from the route param directly.
+      dealId: deal.id,
+      priorAssigneeName: pendingTask.assigneeName,
+      systemUserId: banker.systemUserId,
+      completionNote: note,
+    });
+    refresh('after-task-complete');
+    return outcome;
+  }
+
   const subtitle = subtitleFor(tasks);
+  const canWrite = !!banker.systemUserId;
+
   return (
-    <Card>
-      <CardHeader title="Tasks / Next Actions" subtitle={subtitle} />
-      <Body tasks={tasks} />
-    </Card>
+    <>
+      <Card>
+        <CardHeader title="Tasks / Next Actions" subtitle={subtitle} />
+        {banker.writeDisabledReason && (
+          <p style={styles.writeDisabledBanner} role="status">
+            <strong>Complete disabled:</strong> {banker.writeDisabledReason}
+          </p>
+        )}
+        <Body
+          tasks={tasks}
+          canWrite={canWrite}
+          onComplete={(task) => setPendingTask(task)}
+        />
+      </Card>
+      {pendingTask && (
+        <CompleteTaskModal
+          task={pendingTask}
+          onConfirm={handleConfirm}
+          onClose={() => setPendingTask(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -26,7 +71,15 @@ function subtitleFor(tasks: AsyncResult<DealTasksResult>): string | undefined {
   return parts.join(' · ');
 }
 
-function Body({ tasks }: { tasks: AsyncResult<DealTasksResult> }) {
+function Body({
+  tasks,
+  canWrite,
+  onComplete,
+}: {
+  tasks: AsyncResult<DealTasksResult>;
+  canWrite: boolean;
+  onComplete: (task: DealTask) => void;
+}) {
   if (tasks.kind === 'loading') return <p style={styles.muted}>Loading tasks…</p>;
   if (tasks.kind === 'failed') return <ErrorBlock title="Could not load tasks" detail={tasks.message} />;
 
@@ -37,12 +90,21 @@ function Body({ tasks }: { tasks: AsyncResult<DealTasksResult> }) {
 
   return (
     <div style={styles.lists}>
-      <TaskList groupLabel="Open" badgeCount={open.length} tasks={open} emptyHint="No open tasks." />
+      <TaskList
+        groupLabel="Open"
+        badgeCount={open.length}
+        tasks={open}
+        emptyHint="No open tasks."
+        canWrite={canWrite}
+        onComplete={onComplete}
+      />
       <TaskList
         groupLabel="Recently completed"
         badgeCount={completed.length}
         tasks={completed}
         emptyHint="No completed tasks yet."
+        canWrite={false}
+        onComplete={onComplete}
       />
     </div>
   );
@@ -53,11 +115,15 @@ function TaskList({
   badgeCount,
   tasks,
   emptyHint,
+  canWrite,
+  onComplete,
 }: {
   groupLabel: string;
   badgeCount: number;
   tasks: DealTask[];
   emptyHint: string;
+  canWrite: boolean;
+  onComplete: (task: DealTask) => void;
 }) {
   return (
     <div style={styles.group}>
@@ -70,7 +136,12 @@ function TaskList({
       ) : (
         <ul style={styles.list}>
           {tasks.map((t) => (
-            <TaskRow key={t.id} task={t} />
+            <TaskRow
+              key={t.id}
+              task={t}
+              canWrite={canWrite && !t.completed}
+              onComplete={onComplete}
+            />
           ))}
         </ul>
       )}
@@ -78,7 +149,15 @@ function TaskList({
   );
 }
 
-function TaskRow({ task }: { task: DealTask }) {
+function TaskRow({
+  task,
+  canWrite,
+  onComplete,
+}: {
+  task: DealTask;
+  canWrite: boolean;
+  onComplete: (task: DealTask) => void;
+}) {
   const overdue = isOverdue(task);
   const sev: SeverityKey = task.completed ? 'clear' : overdue ? 'atRisk' : 'info';
   return (
@@ -102,6 +181,16 @@ function TaskRow({ task }: { task: DealTask }) {
           )}
         </div>
       </div>
+      {canWrite && (
+        <button
+          type="button"
+          onClick={() => onComplete(task)}
+          style={styles.completeButton}
+          aria-label={`Complete task ${task.title}`}
+        >
+          Complete
+        </button>
+      )}
     </li>
   );
 }
@@ -157,6 +246,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: typography.size.md,
     fontStyle: 'italic',
   },
+  writeDisabledBanner: {
+    margin: 0,
+    padding: `${spacing.xs} ${spacing.md}`,
+    background: palette.atRiskBg,
+    color: palette.atRiskFg,
+    fontSize: typography.size.sm,
+    border: `1px solid ${palette.atRiskBg}`,
+    borderRadius: radius.sm,
+    lineHeight: typography.lineHeight.snug,
+  },
   lists: { display: 'flex', flexDirection: 'column', gap: spacing.md },
   group: { display: 'flex', flexDirection: 'column', gap: spacing.xs },
   groupHeaderRow: { display: 'flex', alignItems: 'center', gap: spacing.xs },
@@ -198,6 +297,21 @@ const styles: Record<string, React.CSSProperties> = {
   metaLabel: { color: palette.textSubtle },
   metaValue: { color: palette.text },
   metaValueEmphasis: { color: palette.atRiskFg, fontWeight: typography.weight.semibold },
+  completeButton: {
+    flexShrink: 0,
+    alignSelf: 'center',
+    background: palette.primary,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
   errorBox: {
     background: palette.blockedBg,
     border: `1px solid ${palette.blockedBg}`,
