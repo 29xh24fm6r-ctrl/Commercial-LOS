@@ -10,14 +10,10 @@ import { DealTasks } from './DealTasks';
 import { DealDocuments } from './DealDocuments';
 import { CreditMemo } from './CreditMemo';
 import { ActivityTimeline } from './ActivityTimeline';
+import { BorrowerCommunication } from './BorrowerCommunication';
 import { DealDataProvider } from './DealDataProvider';
-import { PlaceholderCard } from './PlaceholderCard';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
-
-const PLACEHOLDER_SECTIONS: Array<{ title: string; hint: string }> = [
-  { title: 'Borrower Communication', hint: 'Outreach history and quick actions — coming in a later phase.' },
-];
 
 interface BankerDealWorkspaceProps {
   dealId: string;
@@ -93,11 +89,7 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
           <DealDocuments />
           <CreditMemo />
           <ActivityTimeline />
-          <div style={styles.grid}>
-            {PLACEHOLDER_SECTIONS.map((s) => (
-              <PlaceholderCard key={s.title} title={s.title} hint={s.hint} />
-            ))}
-          </div>
+          <BorrowerCommunication />
         </DealDataProvider>
       </main>
     </div>
@@ -120,9 +112,4 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
   },
   main: { padding: '1rem 2rem 2rem' },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-    gap: '1rem',
-  },
 };
