@@ -18,15 +18,18 @@ export type AsyncResult<T> =
   | { kind: 'failed'; message: string };
 
 /** Keys callers pass to refresh() to reload one diagnostic without a
- *  global refetch storm. The 'after-resolve' bundle is the targeted
- *  reload used by Phase-18 writes — flag list + audit anomalies. */
+ *  global refetch storm.
+ *    'after-resolve'       Phase-18: DQ flag resolved -> reload flags + audit
+ *    'after-alert-resolve' Phase-19: alert resolved/dismissed -> reload
+ *                          alerts + audit */
 export type AdminDataKey =
   | 'dataQuality'
   | 'auditAnomalies'
   | 'alerts'
   | 'refreshStatus'
   | 'configuration'
-  | 'after-resolve';
+  | 'after-resolve'
+  | 'after-alert-resolve';
 
 export interface AdminData {
   dataQuality: AsyncResult<DataQualityFlagRow[]>;
@@ -135,6 +138,11 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
         // Targeted reload after Phase-18 resolve: just the two cards
         // the write affects. No global refresh storm.
         reloadDataQuality();
+        reloadAuditAnomalies();
+        break;
+      case 'after-alert-resolve':
+        // Targeted reload after Phase-19 alert resolve/dismiss.
+        reloadAlerts();
         reloadAuditAnomalies();
         break;
     }

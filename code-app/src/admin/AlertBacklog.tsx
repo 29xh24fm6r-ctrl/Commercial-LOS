@@ -1,10 +1,18 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAdminData, type AsyncResult } from './AdminDataProvider';
+import { useAdmin } from './AdminContext';
 import type { AlertRow, AlertSeverityKey } from './adminDiagnosticsQueries';
+import {
+  resolveAlert,
+  dismissAlert,
+  type AlertActionMode,
+  type AlertOutcome,
+} from './alertActions';
+import { ResolveAlertModal } from './ResolveAlertModal';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { adminStyles, formatDate } from './adminCardChrome';
-import { palette, type SeverityKey } from '../shared/theme';
+import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 interface AlertSummary {
   total: number;
@@ -16,17 +24,72 @@ interface AlertSummary {
 
 const PREVIEW_LIMIT = 6;
 
+interface PendingAction {
+  alert: AlertRow;
+  mode: AlertActionMode;
+}
+
 export function AlertBacklog() {
-  const { alerts } = useAdminData();
+  const { alerts, refresh } = useAdminData();
+  const admin = useAdmin();
+  const [pending, setPending] = useState<PendingAction | null>(null);
+
+  async function handleConfirm(note: string): Promise<AlertOutcome> {
+    if (!pending || !admin.systemUserId) {
+      return {
+        kind: 'unknown',
+        message: 'Cannot submit: missing alert or system user id.',
+      };
+    }
+    const input = {
+      alertId: pending.alert.id,
+      alertName: pending.alert.alertName,
+      priorStatus: pending.alert.alertStatus,
+      systemUserId: admin.systemUserId,
+      resolutionNote: note,
+    };
+    const outcome =
+      pending.mode === 'resolve' ? await resolveAlert(input) : await dismissAlert(input);
+    refresh('after-alert-resolve');
+    return outcome;
+  }
+
   return (
-    <Card>
-      <CardHeader title="Alert / Blocker Backlog" />
-      <Body alerts={alerts} />
-    </Card>
+    <>
+      <Card>
+        <CardHeader title="Alert / Blocker Backlog" />
+        {admin.writeDisabledReason && (
+          <p style={styles.writeDisabledBanner} role="status">
+            <strong>Remediation disabled:</strong> {admin.writeDisabledReason}
+          </p>
+        )}
+        <Body
+          alerts={alerts}
+          canWrite={!!admin.systemUserId}
+          onAct={(alert, mode) => setPending({ alert, mode })}
+        />
+      </Card>
+      {pending && (
+        <ResolveAlertModal
+          alert={pending.alert}
+          mode={pending.mode}
+          onConfirm={handleConfirm}
+          onClose={() => setPending(null)}
+        />
+      )}
+    </>
   );
 }
 
-function Body({ alerts }: { alerts: AsyncResult<AlertRow[]> }) {
+function Body({
+  alerts,
+  canWrite,
+  onAct,
+}: {
+  alerts: AsyncResult<AlertRow[]>;
+  canWrite: boolean;
+  onAct: (alert: AlertRow, mode: AlertActionMode) => void;
+}) {
   const summary = useMemo<AlertSummary | null>(() => {
     if (alerts.kind !== 'ready') return null;
     return summarize(alerts.data);
@@ -74,7 +137,7 @@ function Body({ alerts }: { alerts: AsyncResult<AlertRow[]> }) {
             <li key={a.id} style={adminStyles.row}>
               <div style={adminStyles.rowHead}>
                 <span style={adminStyles.rowTitle}>{a.alertName}</span>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <div style={styles.badgeRow}>
                   {isBreached && <Badge variant="blocked">SLA breached</Badge>}
                   {a.severityKey && (
                     <Badge variant={severityKey(a.severityKey)}>{a.severity ?? a.severityKey}</Badge>
@@ -106,6 +169,24 @@ function Body({ alerts }: { alerts: AsyncResult<AlertRow[]> }) {
                   </span>
                 )}
               </div>
+              {canWrite && (
+                <div style={styles.actionsRow}>
+                  <button
+                    type="button"
+                    onClick={() => onAct(a, 'resolve')}
+                    style={styles.primaryButton}
+                  >
+                    Resolve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onAct(a, 'dismiss')}
+                    style={styles.secondaryButton}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
             </li>
           );
         })}
@@ -162,3 +243,50 @@ function ErrorBlock({ title, detail }: { title: string; detail: string }) {
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  writeDisabledBanner: {
+    margin: 0,
+    padding: `${spacing.xs} ${spacing.md}`,
+    background: palette.atRiskBg,
+    color: palette.atRiskFg,
+    fontSize: typography.size.sm,
+    border: `1px solid ${palette.atRiskBg}`,
+    borderRadius: radius.sm,
+    lineHeight: typography.lineHeight.snug,
+  },
+  badgeRow: { display: 'flex', gap: spacing.xxs, flexWrap: 'wrap', flexShrink: 0 },
+  actionsRow: {
+    display: 'flex',
+    gap: spacing.xs,
+    paddingTop: spacing.xs,
+    borderTop: `1px solid ${palette.divider}`,
+    marginTop: spacing.xxs,
+  },
+  primaryButton: {
+    background: palette.primary,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
+  secondaryButton: {
+    background: palette.surface,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
+};
