@@ -4,7 +4,7 @@ import {
   type ProgressionEligibilityResult,
   type ProgressionEligibilityStatus,
 } from './stageProgressionGuard';
-import { stageProgressionAvailability } from './stageProgressionAvailability';
+import { stageProgressionAvailability } from '../shared/governance/stageProgressionAvailability';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import {
@@ -40,8 +40,8 @@ export function DealStageProgressionCard() {
 
   // Phase 28: the Advance Stage write is intentionally not shipped
   // because the schema does not expose a deterministic next-stage
-  // ordering. See ./stageProgressionAvailability.ts for the full
-  // audit and the future-extension contract.
+  // ordering. See src/shared/governance/stageProgressionAvailability.ts
+  // for the full audit and the future-extension contract.
   const availability = stageProgressionAvailability();
 
   const sev = statusToSeverity(eligibility.status);

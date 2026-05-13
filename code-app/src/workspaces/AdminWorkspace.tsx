@@ -7,6 +7,7 @@ import { AuditAnomalies } from '../admin/AuditAnomalies';
 import { RefreshStatus } from '../admin/RefreshStatus';
 import { AlertBacklog } from '../admin/AlertBacklog';
 import { ConfigurationOverview } from '../admin/ConfigurationOverview';
+import { StageGovernanceDiagnostics } from '../admin/StageGovernanceDiagnostics';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function AdminWorkspace() {
@@ -50,6 +51,7 @@ function AdminWorkspaceContent() {
           <RefreshStatus />
         </div>
         <ConfigurationOverview />
+        <StageGovernanceDiagnostics />
       </main>
     </div>
   );
