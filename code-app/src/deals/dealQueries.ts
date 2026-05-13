@@ -1,6 +1,12 @@
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 
-export interface DealHeader {
+/**
+ * Parsed, UI-facing shape of one cr664_loandeal record. Only fields that
+ * actually exist on Cr664_loandeals (see ../generated/models/Cr664_loandealsModel.ts)
+ * are included here.
+ */
+export interface DealDetail {
+  // Header fields (rendered in <DealHeader />)
   id: string;
   name: string;
   clientName: string | undefined;
@@ -9,10 +15,22 @@ export interface DealHeader {
   amount: number | undefined;
   bankerName: string | undefined;
   targetCloseDate: string | undefined;
+
+  // Summary fields (rendered in <DealSummary />)
+  productType: string | undefined;
+  loanStructure: string | undefined;
+  customerType: string | undefined;
+  industry: string | undefined;
+  guarantorStructure: string | undefined;
+  pricingType: string | undefined;
+  spreadIndex: string | undefined;
+  spreadMargin: number | undefined;
+  collateralSummary: string | undefined;
+  createdOn: string | undefined;
 }
 
 export type DealLoadResult =
-  | { kind: 'ready'; deal: DealHeader }
+  | { kind: 'ready'; deal: DealDetail }
   | { kind: 'denied' }
   | { kind: 'not-found' }
   | { kind: 'failed'; message: string };
@@ -69,6 +87,17 @@ export async function loadDealForBanker(
       amount: deal.cr664_amount,
       bankerName: deal.cr664_assignedbankername,
       targetCloseDate: deal.cr664_targetclosedate,
+
+      productType: deal.cr664_producttypereferencename,
+      loanStructure: deal.cr664_loanstructuretypereferencename,
+      customerType: deal.cr664_customertypename,
+      industry: deal.cr664_industryname,
+      guarantorStructure: deal.cr664_guarantorstructurename,
+      pricingType: deal.cr664_pricingtypereferencename,
+      spreadIndex: deal.cr664_spreadindexreferencename,
+      spreadMargin: deal.cr664_spreadmargin,
+      collateralSummary: deal.cr664_collateralsummary,
+      createdOn: deal.createdon,
     },
   };
 }

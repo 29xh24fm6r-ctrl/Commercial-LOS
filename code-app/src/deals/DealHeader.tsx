@@ -1,7 +1,7 @@
-import type { DealHeader as DealHeaderData } from './dealQueries';
+import type { DealDetail } from './dealQueries';
 
 interface DealHeaderProps {
-  deal: DealHeaderData;
+  deal: DealDetail;
 }
 
 export function DealHeader({ deal }: DealHeaderProps) {

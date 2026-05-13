@@ -4,12 +4,12 @@ import { useBanker } from '../banker/BankerContext';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
+import { DealSummary } from './DealSummary';
 import { PlaceholderCard } from './PlaceholderCard';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
 
 const PLACEHOLDER_SECTIONS: Array<{ title: string; hint: string }> = [
-  { title: 'Deal Summary', hint: 'Key terms, structure, and overview — coming in a later phase.' },
   { title: 'Tasks / Next Actions', hint: 'Open tasks and required next actions — coming in a later phase.' },
   { title: 'Documents', hint: 'Document tracker, requests, and uploads — coming in a later phase.' },
   { title: 'Activity Timeline', hint: 'Calls, meetings, emails, and system events — coming in a later phase.' },
@@ -85,6 +85,7 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
       </nav>
       <main style={styles.main}>
         <DealHeader deal={deal} />
+        <DealSummary deal={deal} />
         <div style={styles.grid}>
           {PLACEHOLDER_SECTIONS.map((s) => (
             <PlaceholderCard key={s.title} title={s.title} hint={s.hint} />
