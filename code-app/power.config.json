@@ -44,8 +44,8 @@
           "isHidden": false
         },
         "users": {
-          "entitySetName": "cr664_users",
-          "logicalName": "cr664_user",
+          "entitySetName": "systemusers",
+          "logicalName": "systemuser",
           "isHidden": false
         },
         "bankers": {

@@ -28,6 +28,7 @@ export * as Cr664_systemsettingsModel from './models/Cr664_systemsettingsModel';
 export * as Cr664_teamsModel from './models/Cr664_teamsModel';
 export * as Cr664_usersModel from './models/Cr664_usersModel';
 export * as Cr664_workspaceentitlementsesModel from './models/Cr664_workspaceentitlementsesModel';
+export * as SystemusersModel from './models/SystemusersModel';
 
 // Services
 export * from './services/Cr664_alertqueuesService';
@@ -53,3 +54,4 @@ export * from './services/Cr664_systemsettingsService';
 export * from './services/Cr664_teamsService';
 export * from './services/Cr664_usersService';
 export * from './services/Cr664_workspaceentitlementsesService';
+export * from './services/SystemusersService';

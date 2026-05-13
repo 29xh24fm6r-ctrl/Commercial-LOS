@@ -9,6 +9,9 @@ import { resolveWorkspaceRoute } from './workspaceRoutes';
 export interface BootstrapResult {
   upn: string;
   fullName: string;
+  /** Entra Object ID for the authenticated user. Surfaced so admin
+   *  writes can resolve to a Dataverse systemuserid. */
+  entraObjectId: string | undefined;
   profileId: string;
   profileName: string;
   workspaceName: string;
@@ -58,6 +61,7 @@ export async function runBootstrap(): Promise<BootstrapResult> {
   return {
     upn,
     fullName,
+    entraObjectId: ctx.user.objectId,
     profileId: profile.cr664_losuserprofileid,
     profileName: profile.cr664_profilename,
     workspaceName: workspaceName ?? '',
