@@ -3,6 +3,7 @@ import type { DealDetail } from './dealQueries';
 import { loadDealTasks, type DealTasksResult } from './dealTaskQueries';
 import { loadDealDocuments, type DealDocumentsResult } from './dealDocumentQueries';
 import { loadDealCreditMemo, type CreditMemoData } from './creditMemoQueries';
+import { loadDealActivity, type TimelineEvent } from './activityQueries';
 
 /**
  * AsyncResult is the per-resource shape for child queries that load
@@ -22,6 +23,7 @@ export interface DealData {
   tasks: AsyncResult<DealTasksResult>;
   documents: AsyncResult<DealDocumentsResult>;
   creditMemo: AsyncResult<CreditMemoData>;
+  activity: AsyncResult<TimelineEvent[]>;
 }
 
 const DealDataContext = createContext<DealData | null>(null);
@@ -58,12 +60,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   const [creditMemo, setCreditMemo] = useState<AsyncResult<CreditMemoData>>({
     kind: 'loading',
   });
+  const [activity, setActivity] = useState<AsyncResult<TimelineEvent[]>>({
+    kind: 'loading',
+  });
 
   useEffect(() => {
     let cancelled = false;
     setTasks({ kind: 'loading' });
     setDocuments({ kind: 'loading' });
     setCreditMemo({ kind: 'loading' });
+    setActivity({ kind: 'loading' });
 
     loadDealTasks(deal.id)
       .then((data) => {
@@ -95,13 +101,23 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         setCreditMemo({ kind: 'failed', message });
       });
 
+    loadDealActivity(deal.id)
+      .then((data) => {
+        if (!cancelled) setActivity({ kind: 'ready', data });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : String(err);
+        setActivity({ kind: 'failed', message });
+      });
+
     return () => {
       cancelled = true;
     };
   }, [deal.id]);
 
   return (
-    <DealDataContext.Provider value={{ deal, tasks, documents, creditMemo }}>
+    <DealDataContext.Provider value={{ deal, tasks, documents, creditMemo, activity }}>
       {children}
     </DealDataContext.Provider>
   );

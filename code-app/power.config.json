@@ -72,6 +72,11 @@
           "entitySetName": "cr664_creditmemodraftsections",
           "logicalName": "cr664_creditmemodraftsection",
           "isHidden": false
+        },
+        "dealtimelineevents": {
+          "entitySetName": "cr664_dealtimelineevents",
+          "logicalName": "cr664_dealtimelineevent",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""
