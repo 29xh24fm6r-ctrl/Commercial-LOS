@@ -27,6 +27,10 @@ export interface DealDetail {
   spreadMargin: number | undefined;
   collateralSummary: string | undefined;
   createdOn: string | undefined;
+
+  // Blocker-derivation inputs (rendered in <DealBlockers />)
+  stageEntryDate: string | undefined;
+  isClosed: boolean;
 }
 
 export type DealLoadResult =
@@ -98,6 +102,12 @@ export async function loadDealForBanker(
       spreadMargin: deal.cr664_spreadmargin,
       collateralSummary: deal.cr664_collateralsummary,
       createdOn: deal.createdon,
+
+      stageEntryDate: deal.cr664_stageentrydate,
+      isClosed:
+        deal.cr664_closedflag === true ||
+        deal.cr664_isterminalstatus === true ||
+        deal.statecode === 1,
     },
   };
 }

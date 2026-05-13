@@ -5,6 +5,7 @@ import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
 import { DealSummary } from './DealSummary';
+import { DealBlockers } from './DealBlockers';
 import { PlaceholderCard } from './PlaceholderCard';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
@@ -15,7 +16,6 @@ const PLACEHOLDER_SECTIONS: Array<{ title: string; hint: string }> = [
   { title: 'Activity Timeline', hint: 'Calls, meetings, emails, and system events — coming in a later phase.' },
   { title: 'Borrower Communication', hint: 'Outreach history and quick actions — coming in a later phase.' },
   { title: 'Credit Memo', hint: 'Draft, generate, and export — coming in a later phase.' },
-  { title: 'Deal Blockers', hint: 'Missing docs, overdue tasks, stalled stage — coming in a later phase.' },
 ];
 
 interface BankerDealWorkspaceProps {
@@ -85,6 +85,7 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
       </nav>
       <main style={styles.main}>
         <DealHeader deal={deal} />
+        <DealBlockers deal={deal} />
         <DealSummary deal={deal} />
         <div style={styles.grid}>
           {PLACEHOLDER_SECTIONS.map((s) => (
