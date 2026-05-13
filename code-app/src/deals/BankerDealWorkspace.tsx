@@ -14,6 +14,7 @@ import { BorrowerCommunication } from './BorrowerCommunication';
 import { DealDataProvider } from './DealDataProvider';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
+import { palette, spacing, typography } from '../shared/theme';
 
 interface BankerDealWorkspaceProps {
   dealId: string;
@@ -76,9 +77,11 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
   return (
     <div style={styles.page}>
       <nav style={styles.crumbs} aria-label="Breadcrumb">
-        <Link to={WORKSPACE_ROUTES.banker} style={styles.back}>
-          ← Banker Workspace
+        <Link to={WORKSPACE_ROUTES.banker} className="cc-link" style={styles.back}>
+          ← Banker Command Center
         </Link>
+        <span style={styles.crumbSep} aria-hidden="true">/</span>
+        <span style={styles.crumbCurrent}>{deal.name}</span>
       </nav>
       <main style={styles.main}>
         <DealDataProvider deal={deal}>
@@ -98,18 +101,33 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    fontFamily: 'system-ui, sans-serif',
+    fontFamily: typography.family,
     minHeight: '100vh',
-    background: '#fafafa',
-    color: '#1a1a1a',
+    background: palette.pageBg,
+    color: palette.text,
   },
   crumbs: {
-    padding: '1rem 2rem 0',
+    padding: `${spacing.md} ${spacing.xxl} 0`,
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+    fontSize: typography.size.sm,
   },
   back: {
-    color: '#4a5fc1',
-    textDecoration: 'none',
-    fontSize: '0.9rem',
+    fontSize: typography.size.sm,
   },
-  main: { padding: '1rem 2rem 2rem' },
+  crumbSep: {
+    color: palette.textSubtle,
+  },
+  crumbCurrent: {
+    color: palette.textMuted,
+    fontWeight: typography.weight.medium,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: 360,
+  },
+  main: {
+    padding: `${spacing.md} ${spacing.xxl} ${spacing.xxl}`,
+  },
 };

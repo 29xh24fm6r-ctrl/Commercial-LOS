@@ -6,41 +6,38 @@ import type {
   CreditMemoStatusKey,
   CreditMemoReviewStatusKey,
 } from './creditMemoQueries';
+import { Card, CardHeader } from '../shared/Card';
+import { Badge } from '../shared/Badge';
+import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
-/**
- * Read-only credit memo card. Shows existing cr664_CreditMemo1 records
- * (latest first) and cr664_CreditMemoDraftSection drafts for the
- * current deal. No generation, edit, or export actions — those are
- * later phases. Consumes the deal data provider; no fetch of its own.
- */
 export function CreditMemo() {
   const { creditMemo } = useDealData();
   return (
-    <section style={styles.card} aria-labelledby="credit-memo-heading">
-      <h3 id="credit-memo-heading" style={styles.heading}>
-        Credit Memo
-      </h3>
+    <Card>
+      <CardHeader title="Credit Memo" subtitle={subtitleFor(creditMemo)} />
       <Body creditMemo={creditMemo} />
-    </section>
+    </Card>
   );
 }
 
+function subtitleFor(creditMemo: AsyncResult<CreditMemoData>): string | undefined {
+  if (creditMemo.kind !== 'ready') return undefined;
+  const { memos, sections } = creditMemo.data;
+  if (memos.length === 0 && sections.length === 0) return undefined;
+  const parts: string[] = [];
+  if (memos.length) parts.push(`${memos.length} memo${memos.length === 1 ? '' : 's'}`);
+  if (sections.length)
+    parts.push(`${sections.length} section draft${sections.length === 1 ? '' : 's'}`);
+  return parts.join(' · ');
+}
+
 function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
-  if (creditMemo.kind === 'loading') {
+  if (creditMemo.kind === 'loading')
     return <p style={styles.muted}>Loading credit memo…</p>;
-  }
-  if (creditMemo.kind === 'failed') {
-    return (
-      <div style={styles.errorBox} role="alert">
-        <div style={styles.errorTitle}>Could not load credit memo</div>
-        <div style={styles.errorDetail}>{creditMemo.message}</div>
-        <div style={styles.errorHint}>Refresh to retry.</div>
-      </div>
-    );
-  }
+  if (creditMemo.kind === 'failed')
+    return <ErrorBlock title="Could not load credit memo" detail={creditMemo.message} />;
 
   const { memos, sections } = creditMemo.data;
-
   if (memos.length === 0 && sections.length === 0) {
     return <p style={styles.muted}>No credit memo exists yet.</p>;
   }
@@ -49,7 +46,10 @@ function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
     <div style={styles.body}>
       {memos.length > 0 && (
         <div style={styles.group}>
-          <h4 style={styles.groupHeading}>Memos ({memos.length})</h4>
+          <div style={styles.groupHeaderRow}>
+            <h4 style={styles.groupHeading}>Memos</h4>
+            <Badge variant="neutral">{memos.length}</Badge>
+          </div>
           <ul style={styles.list}>
             {memos.map((m) => (
               <MemoRow key={m.id} memo={m} />
@@ -59,7 +59,10 @@ function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
       )}
       {sections.length > 0 && (
         <div style={styles.group}>
-          <h4 style={styles.groupHeading}>Section drafts ({sections.length})</h4>
+          <div style={styles.groupHeaderRow}>
+            <h4 style={styles.groupHeading}>Section drafts</h4>
+            <Badge variant="neutral">{sections.length}</Badge>
+          </div>
           <ul style={styles.list}>
             {sections.map((s) => (
               <SectionRow key={s.id} section={s} />
@@ -72,7 +75,6 @@ function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
 }
 
 function MemoRow({ memo }: { memo: CreditMemoSummary }) {
-  const palette = MEMO_STATUS_PALETTE[memo.statusKey ?? 'draft'];
   return (
     <li style={styles.row}>
       <div style={styles.rowHeader}>
@@ -88,18 +90,12 @@ function MemoRow({ memo }: { memo: CreditMemoSummary }) {
         </div>
         <div style={styles.badgeRow}>
           {memo.status && (
-            <span
-              style={{
-                ...styles.badge,
-                background: palette.bg,
-                color: palette.fg,
-              }}
-            >
-              {memo.status}
-            </span>
+            <Badge variant={memoStatusToSeverity(memo.statusKey)}>{memo.status}</Badge>
           )}
           {memo.borrowerSafe && (
-            <span style={styles.borrowerSafeBadge}>Borrower-safe</span>
+            <Badge variant="info" appearance="outline">
+              Borrower-safe
+            </Badge>
           )}
         </div>
       </div>
@@ -109,7 +105,6 @@ function MemoRow({ memo }: { memo: CreditMemoSummary }) {
 }
 
 function SectionRow({ section }: { section: CreditMemoSectionItem }) {
-  const palette = REVIEW_STATUS_PALETTE[section.reviewStatusKey ?? 'Pending'];
   return (
     <li style={styles.row}>
       <div style={styles.rowHeader}>
@@ -125,15 +120,9 @@ function SectionRow({ section }: { section: CreditMemoSectionItem }) {
         </div>
         {section.reviewStatus && (
           <div style={styles.badgeRow}>
-            <span
-              style={{
-                ...styles.badge,
-                background: palette.bg,
-                color: palette.fg,
-              }}
-            >
+            <Badge variant={reviewStatusToSeverity(section.reviewStatusKey)}>
               {section.reviewStatus}
-            </span>
+            </Badge>
           </div>
         )}
       </div>
@@ -142,17 +131,27 @@ function SectionRow({ section }: { section: CreditMemoSectionItem }) {
   );
 }
 
-const MEMO_STATUS_PALETTE: Record<CreditMemoStatusKey, { bg: string; fg: string }> = {
-  draft: { bg: '#eef0f4', fg: '#404655' },
-  final: { bg: '#e7f4ea', fg: '#155724' },
-  stale: { bg: '#fff4d6', fg: '#6a3f00' },
-};
+function memoStatusToSeverity(key: CreditMemoStatusKey | undefined): SeverityKey {
+  if (key === 'final') return 'clear';
+  if (key === 'stale') return 'atRisk';
+  return 'neutral';
+}
 
-const REVIEW_STATUS_PALETTE: Record<CreditMemoReviewStatusKey, { bg: string; fg: string }> = {
-  Pending: { bg: '#eef0f4', fg: '#404655' },
-  Reviewed: { bg: '#e7f4ea', fg: '#155724' },
-  NeedsChanges: { bg: '#fff4d6', fg: '#6a3f00' },
-};
+function reviewStatusToSeverity(key: CreditMemoReviewStatusKey | undefined): SeverityKey {
+  if (key === 'Reviewed') return 'clear';
+  if (key === 'NeedsChanges') return 'atRisk';
+  return 'neutral';
+}
+
+function ErrorBlock({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div style={styles.errorBox} role="alert">
+      <div style={styles.errorTitle}>{title}</div>
+      <div style={styles.errorDetail}>{detail}</div>
+      <div style={styles.errorHint}>Refresh to retry.</div>
+    </div>
+  );
+}
 
 function formatDate(iso: string | undefined): string | undefined {
   if (!iso) return undefined;
@@ -162,26 +161,22 @@ function formatDate(iso: string | undefined): string | undefined {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  card: {
-    background: '#fff',
-    border: '1px solid #e5e5e5',
-    borderRadius: 6,
-    padding: '1.25rem 1.5rem',
-    marginBottom: '1.5rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.85rem',
+  muted: {
+    margin: 0,
+    color: palette.textMuted,
+    fontSize: typography.size.md,
+    fontStyle: 'italic',
   },
-  heading: { margin: 0, fontSize: '1.05rem', fontWeight: 600, color: '#222' },
-  muted: { margin: 0, color: '#888', fontSize: '0.9rem', fontStyle: 'italic' },
-  body: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  group: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
+  body: { display: 'flex', flexDirection: 'column', gap: spacing.md },
+  group: { display: 'flex', flexDirection: 'column', gap: spacing.xs },
+  groupHeaderRow: { display: 'flex', alignItems: 'center', gap: spacing.xs },
   groupHeading: {
     margin: 0,
-    fontSize: '0.78rem',
+    fontSize: typography.size.xs,
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    color: '#666',
+    letterSpacing: typography.letterSpacing.label,
+    color: palette.textSubtle,
+    fontWeight: typography.weight.semibold,
   },
   list: {
     listStyle: 'none',
@@ -189,71 +184,61 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.6rem',
+    gap: spacing.xs,
   },
   row: {
-    padding: '0.7rem 0.85rem',
-    background: '#fafafa',
-    border: '1px solid #ececec',
-    borderRadius: 4,
+    padding: `${spacing.sm} ${spacing.md}`,
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.45rem',
+    gap: spacing.xs,
   },
   rowHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: '0.75rem',
+    gap: spacing.sm,
   },
-  rowTitleBlock: { display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, minWidth: 0 },
-  rowTitle: { fontSize: '0.95rem', fontWeight: 600, color: '#1a1a1a' },
+  rowTitleBlock: { display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 },
+  rowTitle: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
+  },
   rowSubtitle: {
-    fontSize: '0.82rem',
-    color: '#666',
+    fontSize: typography.size.sm,
+    color: palette.textMuted,
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '0.25rem',
+    gap: 4,
     alignItems: 'center',
   },
-  dotSep: { color: '#bbb' },
-  metaLabel: { color: '#888' },
-  badgeRow: { display: 'flex', gap: '0.4rem', flexShrink: 0, flexWrap: 'wrap' },
-  badge: {
-    padding: '0.15rem 0.55rem',
-    borderRadius: 999,
-    fontSize: '0.72rem',
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-  },
-  borrowerSafeBadge: {
-    padding: '0.15rem 0.55rem',
-    borderRadius: 999,
-    fontSize: '0.72rem',
-    fontWeight: 600,
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    background: '#eef3ff',
-    color: '#3949ab',
-  },
+  dotSep: { color: palette.textSubtle },
+  metaLabel: { color: palette.textSubtle },
+  badgeRow: { display: 'flex', gap: spacing.xxs, flexShrink: 0, flexWrap: 'wrap' },
   preview: {
     margin: 0,
-    fontSize: '0.88rem',
-    color: '#444',
-    lineHeight: 1.45,
+    fontSize: typography.size.md,
+    color: palette.textMuted,
+    lineHeight: typography.lineHeight.normal,
     whiteSpace: 'pre-wrap',
   },
   errorBox: {
-    background: '#fef6f6',
-    border: '1px solid #f3d3d3',
-    borderRadius: 4,
-    padding: '0.65rem 0.85rem',
+    background: palette.blockedBg,
+    border: `1px solid ${palette.blockedBg}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.15rem',
+    gap: 2,
   },
-  errorTitle: { color: '#7a0014', fontWeight: 600, fontSize: '0.9rem' },
-  errorDetail: { color: '#444', fontSize: '0.85rem' },
-  errorHint: { color: '#888', fontSize: '0.8rem', fontStyle: 'italic' },
+  errorTitle: {
+    color: palette.blockedFg,
+    fontWeight: typography.weight.semibold,
+    fontSize: typography.size.md,
+  },
+  errorDetail: { color: palette.text, fontSize: typography.size.sm },
+  errorHint: { color: palette.textMuted, fontSize: typography.size.xs, fontStyle: 'italic' },
 };

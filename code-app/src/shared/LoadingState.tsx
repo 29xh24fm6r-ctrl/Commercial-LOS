@@ -1,3 +1,5 @@
+import { palette, spacing, typography } from './theme';
+
 interface LoadingStateProps {
   message?: string;
 }
@@ -6,7 +8,7 @@ export function LoadingState({ message = 'Loading…' }: LoadingStateProps) {
   return (
     <div role="status" aria-live="polite" style={styles.container}>
       <div style={styles.spinner} aria-hidden="true" />
-      <span>{message}</span>
+      <span style={styles.message}>{message}</span>
     </div>
   );
 }
@@ -17,17 +19,24 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '1rem',
+    gap: spacing.md,
     minHeight: '100vh',
-    color: '#555',
-    fontFamily: 'system-ui, sans-serif',
+    color: palette.textMuted,
+    background: palette.pageBg,
+    fontFamily: typography.family,
   },
   spinner: {
-    width: 32,
-    height: 32,
-    border: '3px solid #e5e5e5',
-    borderTopColor: '#4a5fc1',
+    width: 28,
+    height: 28,
+    border: `3px solid ${palette.divider}`,
+    borderTopColor: palette.primary,
     borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
+    animation: 'spin 0.85s linear infinite',
+  },
+  message: {
+    fontSize: typography.size.sm,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+    color: palette.textSubtle,
   },
 };

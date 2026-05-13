@@ -1,3 +1,5 @@
+import { palette, spacing, typography } from './theme';
+
 interface ErrorStateProps {
   title: string;
   detail?: string;
@@ -7,9 +9,11 @@ interface ErrorStateProps {
 export function ErrorState({ title, detail, hint }: ErrorStateProps) {
   return (
     <div role="alert" style={styles.container}>
-      <h1 style={styles.title}>{title}</h1>
-      {detail && <p style={styles.detail}>{detail}</p>}
-      {hint && <p style={styles.hint}>{hint}</p>}
+      <div style={styles.card}>
+        <h1 style={styles.title}>{title}</h1>
+        {detail && <p style={styles.detail}>{detail}</p>}
+        {hint && <p style={styles.hint}>{hint}</p>}
+      </div>
     </div>
   );
 }
@@ -17,16 +21,41 @@ export function ErrorState({ title, detail, hint }: ErrorStateProps) {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '0.75rem',
     minHeight: '100vh',
-    padding: '2rem',
-    fontFamily: 'system-ui, sans-serif',
-    textAlign: 'center',
+    padding: spacing.xl,
+    fontFamily: typography.family,
+    background: palette.pageBg,
   },
-  title: { color: '#b00020', margin: 0, fontSize: '1.5rem' },
-  detail: { color: '#222', margin: 0, maxWidth: 480 },
-  hint: { color: '#666', margin: 0, maxWidth: 480, fontSize: '0.9rem' },
+  card: {
+    maxWidth: 520,
+    background: palette.surface,
+    border: `1px solid ${palette.border}`,
+    borderRadius: 8,
+    padding: `${spacing.xl} ${spacing.xxl}`,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.sm,
+    textAlign: 'left',
+  },
+  title: {
+    margin: 0,
+    color: palette.blocked,
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.semibold,
+    letterSpacing: typography.letterSpacing.heading,
+  },
+  detail: {
+    margin: 0,
+    color: palette.text,
+    fontSize: typography.size.base,
+    lineHeight: typography.lineHeight.snug,
+  },
+  hint: {
+    margin: 0,
+    color: palette.textMuted,
+    fontSize: typography.size.sm,
+    lineHeight: typography.lineHeight.snug,
+  },
 };

@@ -1,41 +1,33 @@
 import { useDealData, type AsyncResult } from './DealDataProvider';
 import type { TimelineEvent, TimelineEventTypeKey } from './activityQueries';
+import { Card, CardHeader } from '../shared/Card';
+import { Badge, StatusDot } from '../shared/Badge';
+import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
-/**
- * Read-only activity timeline scoped to the current deal. Consumes the
- * deal data provider — no fetch of its own. Single source:
- * cr664_DealTimelineEvent (the canonical ledger). Newest events first.
- */
 export function ActivityTimeline() {
   const { activity } = useDealData();
   return (
-    <section style={styles.card} aria-labelledby="deal-activity-heading">
-      <h3 id="deal-activity-heading" style={styles.heading}>
-        Activity Timeline
-      </h3>
+    <Card>
+      <CardHeader title="Activity Timeline" subtitle={subtitleFor(activity)} />
       <Body activity={activity} />
-    </section>
+    </Card>
   );
 }
 
+function subtitleFor(activity: AsyncResult<TimelineEvent[]>): string | undefined {
+  if (activity.kind !== 'ready') return undefined;
+  if (activity.data.length === 0) return undefined;
+  return `${activity.data.length} event${activity.data.length === 1 ? '' : 's'}, newest first`;
+}
+
 function Body({ activity }: { activity: AsyncResult<TimelineEvent[]> }) {
-  if (activity.kind === 'loading') {
-    return <p style={styles.muted}>Loading activity…</p>;
-  }
-  if (activity.kind === 'failed') {
-    return (
-      <div style={styles.errorBox} role="alert">
-        <div style={styles.errorTitle}>Could not load activity</div>
-        <div style={styles.errorDetail}>{activity.message}</div>
-        <div style={styles.errorHint}>Refresh to retry.</div>
-      </div>
-    );
-  }
+  if (activity.kind === 'loading') return <p style={styles.muted}>Loading activity…</p>;
+  if (activity.kind === 'failed')
+    return <ErrorBlock title="Could not load activity" detail={activity.message} />;
 
   const events = activity.data;
-  if (events.length === 0) {
+  if (events.length === 0)
     return <p style={styles.muted}>No timeline events on this deal yet.</p>;
-  }
 
   return (
     <ol style={styles.list}>
@@ -47,30 +39,18 @@ function Body({ activity }: { activity: AsyncResult<TimelineEvent[]> }) {
 }
 
 function EventRow({ event }: { event: TimelineEvent }) {
-  const palette = paletteFor(event.eventTypeKey);
-  const actor = event.isSystemGenerated
-    ? 'System'
-    : event.actorName ?? 'Unknown user';
+  const sev = severityFor(event.eventTypeKey);
+  const actor = event.isSystemGenerated ? 'System' : event.actorName ?? 'Unknown user';
 
   return (
     <li style={styles.row}>
       <div style={styles.lane}>
-        <span aria-hidden="true" style={{ ...styles.dot, background: palette.dot }} />
+        <StatusDot variant={sev} />
       </div>
       <div style={styles.body}>
         <div style={styles.titleRow}>
           <span style={styles.title}>{event.title}</span>
-          {event.eventType && (
-            <span
-              style={{
-                ...styles.typeBadge,
-                background: palette.badgeBg,
-                color: palette.badgeFg,
-              }}
-            >
-              {event.eventType}
-            </span>
-          )}
+          {event.eventType && <Badge variant={sev}>{event.eventType}</Badge>}
           {event.eventSubType && (
             <span style={styles.subTypeBadge}>{event.eventSubType}</span>
           )}
@@ -91,38 +71,42 @@ function EventRow({ event }: { event: TimelineEvent }) {
 function Meta({ label, value }: { label: string; value: string | undefined }) {
   return (
     <span style={styles.metaItem}>
-      <span style={styles.metaLabel}>{label}:</span>{' '}
+      <span style={styles.metaLabel}>{label}</span>
       <span style={styles.metaValue}>{value ?? '—'}</span>
     </span>
   );
 }
 
-/**
- * Color discipline (red reserved for blocker card only):
- *   amber   = an issue surfaced     (BlockerOpened)
- *   green   = a positive resolution (BlockerResolved, TaskCompleted,
- *                                    DocumentUploaded)
- *   blue    = banker action / communication
- *   neutral = system / process events
- */
-function paletteFor(key: TimelineEventTypeKey | undefined): {
-  dot: string;
-  badgeBg: string;
-  badgeFg: string;
-} {
+function ErrorBlock({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div style={styles.errorBox} role="alert">
+      <div style={styles.errorTitle}>{title}</div>
+      <div style={styles.errorDetail}>{detail}</div>
+      <div style={styles.errorHint}>Refresh to retry.</div>
+    </div>
+  );
+}
+
+/** Color discipline (red stays reserved for DealBlockers.blocked only):
+ *   amber = BlockerOpened
+ *   clear = positive resolution (BlockerResolved, TaskCompleted,
+ *           DocumentUploaded)
+ *   info  = banker action / communication
+ *   neutral = system + process events */
+function severityFor(key: TimelineEventTypeKey | undefined): SeverityKey {
   switch (key) {
     case 'BlockerOpened':
-      return { dot: '#a86400', badgeBg: '#fff4d6', badgeFg: '#6a3f00' };
+      return 'atRisk';
     case 'BlockerResolved':
     case 'TaskCompleted':
     case 'DocumentUploaded':
-      return { dot: '#1e7e34', badgeBg: '#e7f4ea', badgeFg: '#155724' };
+      return 'clear';
     case 'CallLogged':
     case 'EmailLogged':
     case 'MeetingLogged':
     case 'NoteLogged':
     case 'BorrowerUpdateSent':
-      return { dot: '#4a5fc1', badgeBg: '#eef0fa', badgeFg: '#2e3b86' };
+      return 'info';
     case 'StageChanged':
     case 'TaskCreated':
     case 'DocumentRequested':
@@ -131,7 +115,7 @@ function paletteFor(key: TimelineEventTypeKey | undefined): {
     case 'ApprovalDecision':
     case undefined:
     default:
-      return { dot: '#5a6a85', badgeBg: '#eef0f4', badgeFg: '#404655' };
+      return 'neutral';
   }
 }
 
@@ -158,18 +142,12 @@ function formatWhen(iso: string): string {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  card: {
-    background: '#fff',
-    border: '1px solid #e5e5e5',
-    borderRadius: 6,
-    padding: '1.25rem 1.5rem',
-    marginBottom: '1.5rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.85rem',
+  muted: {
+    margin: 0,
+    color: palette.textMuted,
+    fontSize: typography.size.md,
+    fontStyle: 'italic',
   },
-  heading: { margin: 0, fontSize: '1.05rem', fontWeight: 600, color: '#222' },
-  muted: { margin: 0, color: '#888', fontSize: '0.9rem', fontStyle: 'italic' },
   list: {
     listStyle: 'none',
     margin: 0,
@@ -181,74 +159,56 @@ const styles: Record<string, React.CSSProperties> = {
   row: {
     display: 'grid',
     gridTemplateColumns: '22px 1fr',
-    gap: '0.6rem',
-    paddingBottom: '0.85rem',
-    paddingTop: '0.25rem',
+    gap: spacing.sm,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
   },
-  lane: {
-    display: 'flex',
-    justifyContent: 'center',
-    paddingTop: 7,
-  },
-  dot: {
-    width: 11,
-    height: 11,
-    borderRadius: '50%',
-    flexShrink: 0,
-  },
-  body: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.3rem',
-  },
-  titleRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '0.4rem',
-    alignItems: 'center',
-  },
-  title: { fontSize: '0.95rem', fontWeight: 600, color: '#1a1a1a' },
-  typeBadge: {
-    padding: '0.1rem 0.45rem',
-    borderRadius: 999,
-    fontSize: '0.7rem',
-    fontWeight: 600,
-    letterSpacing: '0.03em',
+  lane: { display: 'flex', justifyContent: 'center', paddingTop: 6 },
+  body: { display: 'flex', flexDirection: 'column', gap: 4 },
+  titleRow: { display: 'flex', flexWrap: 'wrap', gap: spacing.xs, alignItems: 'center' },
+  title: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
   },
   subTypeBadge: {
     padding: '0.1rem 0.45rem',
-    borderRadius: 4,
-    fontSize: '0.7rem',
-    fontWeight: 500,
-    background: '#f0f1f3',
-    color: '#555',
+    borderRadius: radius.sm,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.medium,
+    background: palette.neutralBg,
+    color: palette.textMuted,
   },
   summary: {
     margin: 0,
-    fontSize: '0.88rem',
-    color: '#444',
-    lineHeight: 1.45,
+    fontSize: typography.size.md,
+    color: palette.text,
+    lineHeight: typography.lineHeight.snug,
   },
   meta: {
     display: 'flex',
-    gap: '0.9rem',
+    gap: spacing.md,
     flexWrap: 'wrap',
-    fontSize: '0.78rem',
-    color: '#666',
+    fontSize: typography.size.sm,
+    color: palette.textMuted,
   },
-  metaItem: { whiteSpace: 'nowrap' },
-  metaLabel: { color: '#888' },
-  metaValue: { color: '#444' },
+  metaItem: { whiteSpace: 'nowrap', display: 'inline-flex', gap: 4 },
+  metaLabel: { color: palette.textSubtle },
+  metaValue: { color: palette.text },
   errorBox: {
-    background: '#fef6f6',
-    border: '1px solid #f3d3d3',
-    borderRadius: 4,
-    padding: '0.65rem 0.85rem',
+    background: palette.blockedBg,
+    border: `1px solid ${palette.blockedBg}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.15rem',
+    gap: 2,
   },
-  errorTitle: { color: '#7a0014', fontWeight: 600, fontSize: '0.9rem' },
-  errorDetail: { color: '#444', fontSize: '0.85rem' },
-  errorHint: { color: '#888', fontSize: '0.8rem', fontStyle: 'italic' },
+  errorTitle: {
+    color: palette.blockedFg,
+    fontWeight: typography.weight.semibold,
+    fontSize: typography.size.md,
+  },
+  errorDetail: { color: palette.text, fontSize: typography.size.sm },
+  errorHint: { color: palette.textMuted, fontSize: typography.size.xs, fontStyle: 'italic' },
 };

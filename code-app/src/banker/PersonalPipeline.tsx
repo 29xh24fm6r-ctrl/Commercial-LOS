@@ -4,6 +4,9 @@ import { useBanker } from './BankerContext';
 import { loadBankerPipeline, type PipelineDeal } from './dealQueries';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
+import { Card, CardHeader } from '../shared/Card';
+import { Badge } from '../shared/Badge';
+import { palette, radius, spacing, typography } from '../shared/theme';
 
 type State =
   | { kind: 'loading' }
@@ -11,6 +14,7 @@ type State =
   | { kind: 'failed'; message: string };
 
 const ALL = '__all__';
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function PersonalPipeline() {
   const { bankerId } = useBanker();
@@ -36,9 +40,9 @@ export function PersonalPipeline() {
     };
   }, [bankerId]);
 
-  const { stageOptions, statusOptions, visibleDeals } = useMemo(() => {
+  const derived = useMemo(() => {
     if (state.kind !== 'ready') {
-      return { stageOptions: [], statusOptions: [], visibleDeals: [] };
+      return { stageOptions: [] as string[], statusOptions: [] as string[], visibleDeals: [] as PipelineDeal[], counts: emptyCounts() };
     }
     const stages = uniqueSorted(state.deals.map((d) => d.stage));
     const statuses = uniqueSorted(state.deals.map((d) => d.status));
@@ -47,7 +51,7 @@ export function PersonalPipeline() {
         (stageFilter === ALL || d.stage === stageFilter) &&
         (statusFilter === ALL || d.status === statusFilter),
     );
-    return { stageOptions: stages, statusOptions: statuses, visibleDeals: visible };
+    return { stageOptions: stages, statusOptions: statuses, visibleDeals: visible, counts: countSignals(state.deals) };
   }, [state, stageFilter, statusFilter]);
 
   if (state.kind === 'loading') return <LoadingState message="Loading your pipeline…" />;
@@ -62,73 +66,50 @@ export function PersonalPipeline() {
   }
 
   const total = state.deals.length;
-  const visibleCount = visibleDeals.length;
+  const visibleCount = derived.visibleDeals.length;
   const filtersActive = stageFilter !== ALL || statusFilter !== ALL;
 
   if (total === 0) {
     return (
-      <section style={styles.section} aria-labelledby="pipeline-heading">
-        <header style={styles.header}>
-          <h2 id="pipeline-heading" style={styles.heading}>
-            Personal Pipeline
-          </h2>
-          <p style={styles.subtitle}>No active deals assigned to you.</p>
-        </header>
+      <Card>
+        <CardHeader
+          title="Personal Pipeline"
+          subtitle="No active deals assigned to you."
+        />
         <p style={styles.empty}>
           When deals are assigned to you, they'll show up here.
         </p>
-      </section>
+      </Card>
     );
   }
 
-  return (
-    <section style={styles.section} aria-labelledby="pipeline-heading">
-      <header style={styles.header}>
-        <h2 id="pipeline-heading" style={styles.heading}>
-          Personal Pipeline
-        </h2>
-        <p style={styles.subtitle}>
-          {filtersActive
-            ? `${visibleCount} of ${total} deal${total === 1 ? '' : 's'}`
-            : `${total} active deal${total === 1 ? '' : 's'}`}
-        </p>
-      </header>
+  const subtitle = filtersActive
+    ? `${visibleCount} of ${total} deal${total === 1 ? '' : 's'} shown`
+    : `${total} active deal${total === 1 ? '' : 's'}${derived.counts.closingThisMonth > 0 ? ` · ${derived.counts.closingThisMonth} closing this month` : ''}${derived.counts.pastTargetClose > 0 ? ` · ${derived.counts.pastTargetClose} past target close` : ''}`;
 
-      {(stageOptions.length > 1 || statusOptions.length > 1) && (
+  return (
+    <Card>
+      <CardHeader title="Personal Pipeline" subtitle={subtitle} />
+
+      {(derived.stageOptions.length > 1 || derived.statusOptions.length > 1) && (
         <div style={styles.filters} role="group" aria-label="Pipeline filters">
-          {stageOptions.length > 1 && (
-            <label style={styles.filterLabel}>
-              Stage
-              <select
-                value={stageFilter}
-                onChange={(e) => setStageFilter(e.target.value)}
-                style={styles.select}
-              >
-                <option value={ALL}>All stages</option>
-                {stageOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {derived.stageOptions.length > 1 && (
+            <FilterField
+              label="Stage"
+              value={stageFilter}
+              onChange={setStageFilter}
+              options={derived.stageOptions}
+              allLabel="All stages"
+            />
           )}
-          {statusOptions.length > 1 && (
-            <label style={styles.filterLabel}>
-              Status
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={styles.select}
-              >
-                <option value={ALL}>All statuses</option>
-                {statusOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
+          {derived.statusOptions.length > 1 && (
+            <FilterField
+              label="Status"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={derived.statusOptions}
+              allLabel="All statuses"
+            />
           )}
         </div>
       )}
@@ -140,47 +121,98 @@ export function PersonalPipeline() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Deal</th>
-                <th style={styles.th}>Client</th>
-                <th style={styles.th}>Stage</th>
-                <th style={styles.th}>Status</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>Amount</th>
-                <th style={styles.th}>Target close</th>
-                <th style={styles.th}>Last activity</th>
+                <th className="cc-th">Deal</th>
+                <th className="cc-th">Client</th>
+                <th className="cc-th">Stage</th>
+                <th className="cc-th">Status</th>
+                <th className="cc-th" style={{ textAlign: 'right' }}>Amount</th>
+                <th className="cc-th">Target close</th>
+                <th className="cc-th">Last activity</th>
               </tr>
             </thead>
             <tbody>
-              {visibleDeals.map((d) => (
-                <tr
-                  key={d.id}
-                  style={styles.row}
-                  onClick={() => navigate(`/deals/${d.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      navigate(`/deals/${d.id}`);
-                    }
-                  }}
-                  tabIndex={0}
-                  role="link"
-                  aria-label={`Open deal ${d.name}`}
-                >
-                  <td style={styles.td}>{d.name}</td>
-                  <td style={styles.td}>{d.clientName ?? '—'}</td>
-                  <td style={styles.td}>{d.stage ?? '—'}</td>
-                  <td style={styles.td}>{d.status ?? '—'}</td>
-                  <td style={{ ...styles.td, textAlign: 'right' }}>
-                    {formatCurrency(d.amount)}
-                  </td>
-                  <td style={styles.td}>{formatDate(d.targetCloseDate)}</td>
-                  <td style={styles.td}>{formatRelative(d.lastActivityOn)}</td>
-                </tr>
+              {derived.visibleDeals.map((d) => (
+                <DealRow key={d.id} deal={d} onOpen={() => navigate(`/deals/${d.id}`)} />
               ))}
             </tbody>
           </table>
         </div>
       )}
-    </section>
+    </Card>
+  );
+}
+
+function DealRow({ deal, onOpen }: { deal: PipelineDeal; onOpen: () => void }) {
+  const isPastClose = isOverdueDate(deal.targetCloseDate);
+  return (
+    <tr
+      className="cc-row-hover"
+      style={styles.row}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      tabIndex={0}
+      role="link"
+      aria-label={`Open deal ${deal.name}`}
+    >
+      <td className="cc-td">
+        <span style={styles.dealName}>{deal.name}</span>
+      </td>
+      <td className="cc-td">{deal.clientName ?? '—'}</td>
+      <td className="cc-td">
+        {deal.stage ? <Badge variant="neutral">{deal.stage}</Badge> : '—'}
+      </td>
+      <td className="cc-td">
+        {deal.status ? <Badge variant="neutral" appearance="outline">{deal.status}</Badge> : '—'}
+      </td>
+      <td className="cc-td cc-td-num">{formatCurrency(deal.amount)}</td>
+      <td className="cc-td">
+        {isPastClose ? (
+          <span style={styles.overdue}>{formatDate(deal.targetCloseDate)}</span>
+        ) : (
+          formatDate(deal.targetCloseDate)
+        )}
+      </td>
+      <td className="cc-td" style={{ color: palette.textMuted }}>
+        {formatRelative(deal.lastActivityOn)}
+      </td>
+    </tr>
+  );
+}
+
+function FilterField({
+  label,
+  value,
+  onChange,
+  options,
+  allLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  allLabel: string;
+}) {
+  return (
+    <label style={styles.filterLabel}>
+      {label}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={styles.select}
+      >
+        <option value={ALL}>{allLabel}</option>
+        {options.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -188,6 +220,33 @@ function uniqueSorted(values: Array<string | undefined>): string[] {
   const set = new Set<string>();
   for (const v of values) if (v) set.add(v);
   return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+function emptyCounts() {
+  return { closingThisMonth: 0, pastTargetClose: 0 };
+}
+
+function countSignals(deals: PipelineDeal[]): { closingThisMonth: number; pastTargetClose: number } {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+  let closingThisMonth = 0;
+  let pastTargetClose = 0;
+  for (const d of deals) {
+    if (!d.targetCloseDate) continue;
+    const t = new Date(d.targetCloseDate).getTime();
+    if (Number.isNaN(t)) continue;
+    if (t >= monthStart && t < monthEnd) closingThisMonth++;
+    if (t < now.getTime()) pastTargetClose++;
+  }
+  return { closingThisMonth, pastTargetClose };
+}
+
+function isOverdueDate(iso: string | undefined): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getTime() < Date.now();
 }
 
 function formatCurrency(amount: number | undefined): string {
@@ -210,7 +269,7 @@ function formatRelative(iso: string | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  const days = Math.floor((Date.now() - d.getTime()) / MS_PER_DAY);
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   if (days < 30) return `${days}d ago`;
@@ -219,43 +278,47 @@ function formatRelative(iso: string | undefined): string {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  section: { padding: 0 },
-  header: { marginBottom: '1rem' },
-  heading: { margin: 0, fontSize: '1.15rem', fontWeight: 600 },
-  subtitle: { margin: '0.25rem 0 0', color: '#666', fontSize: '0.9rem' },
-  filters: { display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' },
+  empty: {
+    margin: 0,
+    color: palette.textMuted,
+    fontSize: typography.size.sm,
+    fontStyle: 'italic',
+  },
+  filters: { display: 'flex', gap: spacing.md, flexWrap: 'wrap', alignItems: 'flex-end' },
   filterLabel: {
     display: 'flex',
     flexDirection: 'column',
-    fontSize: '0.8rem',
-    color: '#555',
-    gap: '0.25rem',
+    fontSize: typography.size.xs,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+    color: palette.textSubtle,
+    gap: 4,
+    fontWeight: typography.weight.semibold,
   },
   select: {
     padding: '0.4rem 0.6rem',
-    fontSize: '0.9rem',
-    border: '1px solid #d0d0d0',
-    borderRadius: 4,
-    background: '#fff',
-    minWidth: 160,
+    fontSize: typography.size.sm,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    background: palette.surface,
+    minWidth: 170,
+    color: palette.text,
+    fontFamily: typography.family,
   },
-  empty: { color: '#888', fontStyle: 'italic' },
   tableWrap: {
-    background: '#fff',
-    border: '1px solid #e5e5e5',
-    borderRadius: 6,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
     overflow: 'auto',
+    background: palette.surface,
   },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.92rem' },
-  th: {
-    textAlign: 'left',
-    padding: '0.65rem 0.85rem',
-    background: '#f6f6f8',
-    borderBottom: '1px solid #e5e5e5',
-    fontWeight: 600,
-    color: '#444',
-    whiteSpace: 'nowrap',
+  table: { width: '100%', borderCollapse: 'collapse' },
+  row: { cursor: 'pointer' },
+  dealName: {
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
   },
-  row: { cursor: 'pointer', borderTop: '1px solid #f0f0f0' },
-  td: { padding: '0.65rem 0.85rem', whiteSpace: 'nowrap', verticalAlign: 'middle' },
+  overdue: {
+    color: palette.atRiskFg,
+    fontWeight: typography.weight.semibold,
+  },
 };

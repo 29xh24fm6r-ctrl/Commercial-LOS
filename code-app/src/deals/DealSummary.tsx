@@ -1,5 +1,7 @@
 import { useDealData } from './DealDataProvider';
 import type { DealDetail } from './dealQueries';
+import { Card, CardHeader } from '../shared/Card';
+import { palette, spacing, typography } from '../shared/theme';
 
 /**
  * Read-only deal summary. Uses fields already on the authorized
@@ -11,10 +13,8 @@ import type { DealDetail } from './dealQueries';
 export function DealSummary() {
   const { deal } = useDealData();
   return (
-    <section style={styles.card} aria-labelledby="deal-summary-heading">
-      <h3 id="deal-summary-heading" style={styles.heading}>
-        Deal Summary
-      </h3>
+    <Card>
+      <CardHeader title="Deal Summary" />
 
       <dl style={styles.grid}>
         <Fact label="Product type" value={deal.productType} />
@@ -34,7 +34,7 @@ export function DealSummary() {
           <p style={styles.notProvided}>Not provided</p>
         )}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -70,45 +70,45 @@ function formatDate(iso: string | undefined): string | undefined {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  card: {
-    background: '#fff',
-    border: '1px solid #e5e5e5',
-    borderRadius: 6,
-    padding: '1.25rem 1.5rem',
-    marginBottom: '1.5rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.25rem',
-  },
-  heading: { margin: 0, fontSize: '1.05rem', fontWeight: 600, color: '#222' },
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-    gap: '0.85rem 1.5rem',
+    gap: `${spacing.sm} ${spacing.xl}`,
     margin: 0,
   },
-  fact: { display: 'flex', flexDirection: 'column', gap: '0.15rem' },
+  fact: { display: 'flex', flexDirection: 'column', gap: 2 },
   dt: {
-    fontSize: '0.75rem',
+    fontSize: typography.size.xs,
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    color: '#777',
+    letterSpacing: typography.letterSpacing.label,
+    color: palette.textSubtle,
+    fontWeight: typography.weight.semibold,
   },
-  dd: { margin: 0, fontSize: '0.95rem', color: '#1a1a1a' },
-  ddMissing: { margin: 0, fontSize: '0.95rem', color: '#999', fontStyle: 'italic' },
+  dd: { margin: 0, fontSize: typography.size.base, color: palette.text },
+  ddMissing: {
+    margin: 0,
+    fontSize: typography.size.base,
+    color: palette.textSubtle,
+    fontStyle: 'italic',
+  },
   longField: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.35rem',
-    borderTop: '1px solid #f0f0f0',
-    paddingTop: '1rem',
+    gap: spacing.xs,
+    borderTop: `1px solid ${palette.divider}`,
+    paddingTop: spacing.sm,
   },
   collateralText: {
     margin: 0,
-    fontSize: '0.95rem',
-    color: '#1a1a1a',
+    fontSize: typography.size.base,
+    color: palette.text,
     whiteSpace: 'pre-wrap',
-    lineHeight: 1.45,
+    lineHeight: typography.lineHeight.normal,
   },
-  notProvided: { margin: 0, fontSize: '0.95rem', color: '#999', fontStyle: 'italic' },
+  notProvided: {
+    margin: 0,
+    fontSize: typography.size.base,
+    color: palette.textSubtle,
+    fontStyle: 'italic',
+  },
 };
