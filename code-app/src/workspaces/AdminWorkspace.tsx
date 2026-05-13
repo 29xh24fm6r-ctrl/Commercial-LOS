@@ -8,6 +8,7 @@ import { RefreshStatus } from '../admin/RefreshStatus';
 import { AlertBacklog } from '../admin/AlertBacklog';
 import { ConfigurationOverview } from '../admin/ConfigurationOverview';
 import { StageGovernanceDiagnostics } from '../admin/StageGovernanceDiagnostics';
+import { ReleaseReadinessGate } from '../admin/ReleaseReadinessGate';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function AdminWorkspace() {
@@ -41,6 +42,7 @@ function AdminWorkspaceContent() {
         </div>
       </header>
       <main style={styles.main}>
+        <ReleaseReadinessGate />
         <SystemHealthSummary />
         <div style={styles.twoCol}>
           <DataQualityFlags />
