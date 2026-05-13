@@ -33,3 +33,16 @@ export function useBanker(): BankerIdentity {
   }
   return ctx;
 }
+
+/**
+ * Phase 36: returns the banker identity when one is mounted, or null
+ * when it isn't (e.g. inside ManagerDealWorkspace's read-only path).
+ *
+ * Deal-workspace cards that may be rendered under either role
+ * (DealTasks / DealDocuments / CreditMemo / BorrowerCommunication)
+ * use this instead of useBanker so they can short-circuit their
+ * write surfaces in read-only manager mode.
+ */
+export function useOptionalBanker(): BankerIdentity | null {
+  return useContext(BankerContext);
+}

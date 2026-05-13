@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useManagerData, type AsyncResult } from './ManagerDataProvider';
 import {
   loadTeamWorkQueueChildren,
@@ -46,6 +47,7 @@ type ChildState =
 
 export function TeamWorkQueue() {
   const { teamPipeline } = useManagerData();
+  const navigate = useNavigate();
   const [children, setChildren] = useState<ChildState>({ kind: 'loading' });
 
   // Authorized deal ids — derived from the manager-scoped team
@@ -115,7 +117,11 @@ export function TeamWorkQueue() {
       />
       <ul style={styles.list} aria-label="Team work queue items">
         {visible.map((item) => (
-          <Row key={item.id} item={item} />
+          <Row
+            key={item.id}
+            item={item}
+            onOpen={() => navigate(`/deals/${item.dealId}`)}
+          />
         ))}
       </ul>
       {items.length > MAX_WORK_QUEUE_ROWS && (
@@ -138,10 +144,29 @@ export function TeamWorkQueue() {
   );
 }
 
-function Row({ item }: { item: TeamWorkQueueItem }) {
+function Row({
+  item,
+  onOpen,
+}: {
+  item: TeamWorkQueueItem;
+  onOpen: () => void;
+}) {
   const sev = severityToKey(item.severity);
   return (
-    <li style={styles.row}>
+    <li
+      style={styles.row}
+      className="cc-row-hover"
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      tabIndex={0}
+      role="link"
+      aria-label={`Open deal ${item.dealName}`}
+    >
       <div style={styles.rowHead}>
         <span style={styles.rowTitle}>
           <StatusDot variant={sev} /> {item.title}
@@ -256,6 +281,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 4,
+    cursor: 'pointer',
   },
   rowHead: {
     display: 'flex',

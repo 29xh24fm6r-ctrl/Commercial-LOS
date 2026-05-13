@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
-import { useBanker } from '../banker/BankerContext';
+import { useOptionalBanker } from '../banker/BankerContext';
 import type { TimelineEvent, TimelineEventTypeKey } from './activityQueries';
 import { DraftBorrowerUpdateModal } from './DraftBorrowerUpdateModal';
 import { Card, CardHeader } from '../shared/Card';
@@ -22,16 +22,25 @@ const BORROWER_COMM_TYPES = new Set<TimelineEventTypeKey>([
   'BorrowerUpdateSent',
 ]);
 
-export function BorrowerCommunication() {
+interface BorrowerCommunicationProps {
+  /** Phase 36: read-only manager path — no Draft Borrower Update
+   *  button, no modal mounted. The filtered timeline still renders.
+   *  Defaults to false. */
+  readOnly?: boolean;
+}
+
+export function BorrowerCommunication({
+  readOnly = false,
+}: BorrowerCommunicationProps = {}) {
   const { deal, activity, documents, tasks } = useDealData();
-  const banker = useBanker();
+  const banker = useOptionalBanker();
   const filtered = useFilteredActivity(activity);
   const [showDraft, setShowDraft] = useState(false);
 
-  // Phase 23 draft flow surfaces the action whenever the banker is
+  // Phase 23 draft flow surfaces the action whenever a banker is
   // authorized to view the deal. No write happens on click; the modal
-  // is local-only. We deliberately do NOT gate on systemUserId here —
-  // there is no governed write to perform.
+  // is local-only. Phase 36: in manager read-only mode neither the
+  // trigger button nor the modal renders.
   const outstandingDocs = documents.kind === 'ready' ? documents.data.outstanding : [];
   const openTasks = tasks.kind === 'ready' ? tasks.data.open : [];
 
@@ -42,24 +51,26 @@ export function BorrowerCommunication() {
           title="Borrower Communication"
           subtitle="Email, call, and borrower update events from the deal timeline."
           trailing={
-            <button
-              type="button"
-              onClick={() => setShowDraft(true)}
-              style={styles.draftButton}
-              aria-label="Draft borrower update"
-            >
-              Draft Borrower Update
-            </button>
+            readOnly ? undefined : (
+              <button
+                type="button"
+                onClick={() => setShowDraft(true)}
+                style={styles.draftButton}
+                aria-label="Draft borrower update"
+              >
+                Draft Borrower Update
+              </button>
+            )
           }
         />
         <Body activity={activity} filtered={filtered} />
       </Card>
-      {showDraft && (
+      {!readOnly && showDraft && (
         <DraftBorrowerUpdateModal
           deal={deal}
           outstandingDocuments={outstandingDocs}
           openTasks={openTasks}
-          bankerName={banker.fullName}
+          bankerName={banker?.fullName}
           onClose={() => setShowDraft(false)}
         />
       )}

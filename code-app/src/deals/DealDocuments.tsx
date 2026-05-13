@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
-import { useBanker } from '../banker/BankerContext';
+import { useOptionalBanker } from '../banker/BankerContext';
 import type {
   DealDocument,
   DealDocumentsResult,
@@ -12,13 +12,19 @@ import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
-export function DealDocuments() {
+interface DealDocumentsProps {
+  /** Phase 36: read-only manager path — no Request button, no
+   *  modal, no writeDisabledReason banner. Defaults to false. */
+  readOnly?: boolean;
+}
+
+export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
   const { deal, documents, refresh } = useDealData();
-  const banker = useBanker();
+  const banker = useOptionalBanker();
   const [pendingDoc, setPendingDoc] = useState<DealDocument | null>(null);
 
   async function handleConfirm(note: string): Promise<RequestDocumentOutcome> {
-    if (!pendingDoc || !banker.systemUserId) {
+    if (!pendingDoc || !banker?.systemUserId) {
       return { kind: 'unknown', message: 'Cannot submit: missing document or system user id.' };
     }
     const outcome = await requestDocument({
@@ -35,13 +41,13 @@ export function DealDocuments() {
     return outcome;
   }
 
-  const canWrite = !!banker.systemUserId;
+  const canWrite = !readOnly && !!banker?.systemUserId;
 
   return (
     <>
       <Card>
         <CardHeader title="Documents" subtitle={subtitleFor(documents)} />
-        {banker.writeDisabledReason && (
+        {!readOnly && banker?.writeDisabledReason && (
           <p style={styles.writeDisabledBanner} role="status">
             <strong>Request disabled:</strong> {banker.writeDisabledReason}
           </p>
@@ -52,7 +58,7 @@ export function DealDocuments() {
           onRequest={(doc) => setPendingDoc(doc)}
         />
       </Card>
-      {pendingDoc && (
+      {!readOnly && pendingDoc && (
         <RequestDocumentModal
           doc={pendingDoc}
           onConfirm={handleConfirm}

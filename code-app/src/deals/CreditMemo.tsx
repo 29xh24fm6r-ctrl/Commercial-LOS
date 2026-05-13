@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
-import { useBanker } from '../banker/BankerContext';
+import { useOptionalBanker } from '../banker/BankerContext';
 import { useBootstrap } from '../bootstrap/BootstrapContext';
 import type {
   CreditMemoData,
@@ -23,21 +23,30 @@ import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
-export function CreditMemo() {
+interface CreditMemoProps {
+  /** Phase 36: read-only manager path — no Generate Draft Preview
+   *  button, no modal mounted, no writeDisabledReason banner. The
+   *  freshness signal stays visible (it is derived-only). Defaults
+   *  to false. */
+  readOnly?: boolean;
+}
+
+export function CreditMemo({ readOnly = false }: CreditMemoProps = {}) {
   const { deal, tasks, documents, creditMemo, activity, refresh } = useDealData();
-  const banker = useBanker();
+  const banker = useOptionalBanker();
   const bootstrap = useBootstrap();
   const [showDraft, setShowDraft] = useState(false);
 
-  // Phase 24 + 25: Generate Draft Preview is always available. The
-  // governed Save Draft handler is wired only when banker writes are
-  // currently allowed (Dataverse systemuser resolved). When writes
+  // Phase 24 + 25: Generate Draft Preview is available in banker mode.
+  // The governed Save Draft handler is wired only when banker writes
+  // are currently allowed (Dataverse systemuser resolved). When writes
   // are blocked, the modal stays in Phase-24 local-preview mode.
+  // Phase 36: in manager read-only mode neither surface renders.
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
   const memosData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
   const activityData = activity.kind === 'ready' ? activity.data : undefined;
-  const canWrite = !!banker.systemUserId;
+  const canWrite = !readOnly && !!banker?.systemUserId;
 
   // Phase 26: derived-only freshness. We only render the badge once
   // the credit memo query has resolved — while it's still loading we
@@ -59,7 +68,7 @@ export function CreditMemo() {
       saveNote: string;
       sections: SaveCreditMemoDraftSection[];
     }): Promise<SaveCreditMemoDraftOutcome> => {
-      if (!banker.systemUserId) {
+      if (!banker?.systemUserId) {
         return {
           kind: 'unknown',
           message: 'Cannot save: no Dataverse systemuser resolved for the current banker.',
@@ -86,7 +95,7 @@ export function CreditMemo() {
       refresh('after-credit-memo-draft-saved');
       return outcome;
     },
-    [banker.systemUserId, bootstrap.workspaceId, deal.id, deal.name, memosData, refresh],
+    [banker?.systemUserId, bootstrap.workspaceId, deal.id, deal.name, memosData, refresh],
   );
 
   return (
@@ -96,17 +105,19 @@ export function CreditMemo() {
           title="Credit Memo"
           subtitle={subtitleFor(creditMemo)}
           trailing={
-            <button
-              type="button"
-              onClick={() => setShowDraft(true)}
-              style={styles.draftButton}
-              aria-label="Generate credit memo draft preview"
-            >
-              Generate Draft Preview
-            </button>
+            readOnly ? undefined : (
+              <button
+                type="button"
+                onClick={() => setShowDraft(true)}
+                style={styles.draftButton}
+                aria-label="Generate credit memo draft preview"
+              >
+                Generate Draft Preview
+              </button>
+            )
           }
         />
-        {banker.writeDisabledReason && (
+        {!readOnly && banker?.writeDisabledReason && (
           <p style={styles.writeDisabledBanner} role="status">
             <strong>Save disabled:</strong> {banker.writeDisabledReason} Generation and
             copy remain available; Save Draft requires a resolvable Dataverse user.
@@ -115,7 +126,7 @@ export function CreditMemo() {
         {freshness && <FreshnessBlock freshness={freshness} />}
         <Body creditMemo={creditMemo} />
       </Card>
-      {showDraft && (
+      {!readOnly && showDraft && (
         <CreditMemoDraftModal
           deal={deal}
           tasks={tasksData}

@@ -80,34 +80,69 @@ export async function loadDealForBanker(
     return { kind: 'denied' };
   }
 
+  return { kind: 'ready', deal: mapDealDetail(deal) };
+}
+
+/**
+ * Phase 36: manager-team-scoped deal authorization. Mirrors
+ * loadDealForBanker but matches the deal's _cr664_team_value
+ * against the caller's authorized teamId. Used by
+ * ManagerDealWorkspace under the new /deals/:id manager branch.
+ * The manager surface stays read-only; this function only
+ * authorizes — it does not gate any write.
+ */
+export async function loadDealForManager(
+  dealId: string,
+  teamId: string,
+): Promise<DealLoadResult> {
+  const result = await Cr664_loandealsService.get(dealId);
+
+  if (!result.success) {
+    if (isNotFoundError(result.error)) return { kind: 'not-found' };
+    const message = result.error?.message ?? 'Unknown error';
+    return { kind: 'failed', message };
+  }
+
+  const deal = result.data;
+  if (!deal) return { kind: 'not-found' };
+
+  if (deal._cr664_team_value !== teamId) {
+    return { kind: 'denied' };
+  }
+
+  return { kind: 'ready', deal: mapDealDetail(deal) };
+}
+
+function mapDealDetail(
+  deal: NonNullable<
+    Awaited<ReturnType<typeof Cr664_loandealsService.get>>['data']
+  >,
+): DealDetail {
   return {
-    kind: 'ready',
-    deal: {
-      id: deal.cr664_loandealid,
-      name: deal.cr664_dealname,
-      clientName: deal.cr664_clientname,
-      stage: deal.cr664_stagereferencename,
-      status: deal.cr664_statusreferencename,
-      amount: deal.cr664_amount,
-      bankerName: deal.cr664_assignedbankername,
-      targetCloseDate: deal.cr664_targetclosedate,
+    id: deal.cr664_loandealid,
+    name: deal.cr664_dealname,
+    clientName: deal.cr664_clientname,
+    stage: deal.cr664_stagereferencename,
+    status: deal.cr664_statusreferencename,
+    amount: deal.cr664_amount,
+    bankerName: deal.cr664_assignedbankername,
+    targetCloseDate: deal.cr664_targetclosedate,
 
-      productType: deal.cr664_producttypereferencename,
-      loanStructure: deal.cr664_loanstructuretypereferencename,
-      customerType: deal.cr664_customertypename,
-      industry: deal.cr664_industryname,
-      guarantorStructure: deal.cr664_guarantorstructurename,
-      pricingType: deal.cr664_pricingtypereferencename,
-      spreadIndex: deal.cr664_spreadindexreferencename,
-      spreadMargin: deal.cr664_spreadmargin,
-      collateralSummary: deal.cr664_collateralsummary,
-      createdOn: deal.createdon,
+    productType: deal.cr664_producttypereferencename,
+    loanStructure: deal.cr664_loanstructuretypereferencename,
+    customerType: deal.cr664_customertypename,
+    industry: deal.cr664_industryname,
+    guarantorStructure: deal.cr664_guarantorstructurename,
+    pricingType: deal.cr664_pricingtypereferencename,
+    spreadIndex: deal.cr664_spreadindexreferencename,
+    spreadMargin: deal.cr664_spreadmargin,
+    collateralSummary: deal.cr664_collateralsummary,
+    createdOn: deal.createdon,
 
-      stageEntryDate: deal.cr664_stageentrydate,
-      isClosed:
-        deal.cr664_closedflag === true ||
-        deal.cr664_isterminalstatus === true ||
-        deal.statecode === 1,
-    },
+    stageEntryDate: deal.cr664_stageentrydate,
+    isClosed:
+      deal.cr664_closedflag === true ||
+      deal.cr664_isterminalstatus === true ||
+      deal.statecode === 1,
   };
 }

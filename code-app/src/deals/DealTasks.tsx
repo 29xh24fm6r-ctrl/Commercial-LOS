@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
-import { useBanker } from '../banker/BankerContext';
+import { useOptionalBanker } from '../banker/BankerContext';
 import type { DealTask, DealTasksResult } from './dealTaskQueries';
 import { completeTask, type CompleteTaskOutcome } from './dealTaskActions';
 import { CompleteTaskModal } from './CompleteTaskModal';
@@ -8,13 +8,20 @@ import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
-export function DealTasks() {
+interface DealTasksProps {
+  /** Phase 36: when true (manager read-only path), no write surface
+   *  renders — no Complete button, no modal, no writeDisabledReason
+   *  banner. Defaults to false (banker behavior unchanged). */
+  readOnly?: boolean;
+}
+
+export function DealTasks({ readOnly = false }: DealTasksProps = {}) {
   const { deal, tasks, refresh } = useDealData();
-  const banker = useBanker();
+  const banker = useOptionalBanker();
   const [pendingTask, setPendingTask] = useState<DealTask | null>(null);
 
   async function handleConfirm(note: string): Promise<CompleteTaskOutcome> {
-    if (!pendingTask || !banker.systemUserId) {
+    if (!pendingTask || !banker?.systemUserId) {
       return { kind: 'unknown', message: 'Cannot submit: missing task or system user id.' };
     }
     const outcome = await completeTask({
@@ -32,13 +39,13 @@ export function DealTasks() {
   }
 
   const subtitle = subtitleFor(tasks);
-  const canWrite = !!banker.systemUserId;
+  const canWrite = !readOnly && !!banker?.systemUserId;
 
   return (
     <>
       <Card>
         <CardHeader title="Tasks / Next Actions" subtitle={subtitle} />
-        {banker.writeDisabledReason && (
+        {!readOnly && banker?.writeDisabledReason && (
           <p style={styles.writeDisabledBanner} role="status">
             <strong>Complete disabled:</strong> {banker.writeDisabledReason}
           </p>
@@ -49,7 +56,7 @@ export function DealTasks() {
           onComplete={(task) => setPendingTask(task)}
         />
       </Card>
-      {pendingTask && (
+      {!readOnly && pendingTask && (
         <CompleteTaskModal
           task={pendingTask}
           onConfirm={handleConfirm}

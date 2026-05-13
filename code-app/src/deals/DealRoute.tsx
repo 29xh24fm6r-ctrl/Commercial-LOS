@@ -3,14 +3,20 @@ import { useBootstrap } from '../bootstrap/BootstrapContext';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { BankerProvider } from '../banker/BankerProvider';
 import { BankerDealWorkspace } from './BankerDealWorkspace';
+import { ManagerProvider } from '../manager/ManagerProvider';
+import { ManagerDealWorkspace } from '../manager/ManagerDealWorkspace';
 import { ErrorState } from '../shared/ErrorState';
 
 /**
  * Deal route dispatcher. Branches on the user's resolved workspace and
  * wraps in the appropriate workspace-specific provider before any deal
- * query runs. Only banker context is supported in phase 4; other roles
- * (manager, team, executive, admin) see an explicit denial until their
- * deal-access flows are designed.
+ * query runs.
+ *
+ * Phase 4: banker context — full read/write deal workspace.
+ * Phase 36: manager context — manager-team-scoped read-only deal
+ * workspace (no writes; manager authorization via
+ * loadDealForManager). Other roles (team, executive, admin) remain
+ * intentionally unwired; they see an explicit denial.
  */
 export function DealRoute() {
   const { route } = useBootstrap();
@@ -31,6 +37,14 @@ export function DealRoute() {
       <BankerProvider>
         <BankerDealWorkspace dealId={dealId} />
       </BankerProvider>
+    );
+  }
+
+  if (route === WORKSPACE_ROUTES.manager) {
+    return (
+      <ManagerProvider>
+        <ManagerDealWorkspace dealId={dealId} />
+      </ManagerProvider>
     );
   }
 
