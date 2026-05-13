@@ -57,6 +57,11 @@
           "entitySetName": "cr664_dealtask1s",
           "logicalName": "cr664_dealtask1",
           "isHidden": false
+        },
+        "documentchecklists": {
+          "entitySetName": "cr664_documentchecklists",
+          "logicalName": "cr664_documentchecklist",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""

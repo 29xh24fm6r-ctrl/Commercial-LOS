@@ -8,6 +8,7 @@ export * as CommonModels from './models/CommonModels';
 export * as Cr664_bankersModel from './models/Cr664_bankersModel';
 export * as Cr664_borrowersModel from './models/Cr664_borrowersModel';
 export * as Cr664_dealtask1sModel from './models/Cr664_dealtask1sModel';
+export * as Cr664_documentchecklistsModel from './models/Cr664_documentchecklistsModel';
 export * as Cr664_loandealsModel from './models/Cr664_loandealsModel';
 export * as Cr664_losuserprofilesModel from './models/Cr664_losuserprofilesModel';
 export * as Cr664_platformusersModel from './models/Cr664_platformusersModel';
@@ -19,6 +20,7 @@ export * as Cr664_workspaceentitlementsesModel from './models/Cr664_workspaceent
 export * from './services/Cr664_bankersService';
 export * from './services/Cr664_borrowersService';
 export * from './services/Cr664_dealtask1sService';
+export * from './services/Cr664_documentchecklistsService';
 export * from './services/Cr664_loandealsService';
 export * from './services/Cr664_losuserprofilesService';
 export * from './services/Cr664_platformusersService';
