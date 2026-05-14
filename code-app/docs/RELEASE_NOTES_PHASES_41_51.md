@@ -1,11 +1,18 @@
 # Release Notes — Phases 41 through 51
 
-**Current state as of Phase 51**
+> **Historical record.** This document captures the platform state at
+> the Phase 51 milestone. Current state — including the Phase 53–55
+> document-lifecycle expansion — lives in
+> [RELEASE_NOTES_PHASES_52_55.md](RELEASE_NOTES_PHASES_52_55.md). The
+> [STABILIZATION_CHECKLIST.md](STABILIZATION_CHECKLIST.md) is always
+> current.
+
+**State as of Phase 51 (the snapshot this document covers)**
 
 - 675 tests passing across 43 test files
 - `npm run build` clean
 - Bundle ~634 kB minified / ~154 kB gzipped
-- **Not production-ready.** The Release Readiness Gate still rolls up to **"Not ready to promote — blockers open"** for the same reason as the Phase 40 baseline (Stage Governance schema gap, see [STAGE_PROGRESSION_ENABLEMENT_MAP.md](STAGE_PROGRESSION_ENABLEMENT_MAP.md)). What changed since Phase 40: the platform's governance discipline is now test-pinned end-to-end, and the first new operational workflow since Phase 25 has shipped (mark-document-received).
+- **Not production-ready.** The Release Readiness Gate rolled up to **"Not ready to promote — blockers open"** for the same reason as the Phase 40 baseline (Stage Governance schema gap, see [STAGE_PROGRESSION_ENABLEMENT_MAP.md](STAGE_PROGRESSION_ENABLEMENT_MAP.md)). What changed during Phases 41–51: the platform's governance discipline was test-pinned end-to-end, and the first new operational workflow since Phase 25 shipped (mark-document-received). The document lifecycle was closed end-to-end in Phase 55 — see the Phase 52–55 release notes for that work.
 
 Companion docs:
 - [RELEASE_NOTES_PHASES_1_40.md](RELEASE_NOTES_PHASES_1_40.md) — historical record up to Phase 40

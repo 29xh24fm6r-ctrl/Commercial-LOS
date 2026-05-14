@@ -106,11 +106,10 @@ A future phase could add a Mark-reviewed governed write — see §6.
   but doesn't update `cr664_reviewer` until day 8, the signal
   fires anyway — the schema doesn't carry enough information to
   distinguish.
-- **No way to clear without writing `cr664_reviewer`.** The
-  banker's only way to silence the signal today is to populate
-  the reviewer field — which currently has no in-app write path.
-  The banker can populate it via Power Apps / Dataverse directly.
-  This is the most acute follow-up gap (see §6).
+- ~~**No way to clear without writing `cr664_reviewer`.**~~ **Resolved
+  in Phase 55.** The signal now clears interactively when the
+  banker uses the Phase 55 governed Mark-reviewed write. See
+  [PHASE_55_DOCUMENT_REVIEW_WRITE.md](PHASE_55_DOCUMENT_REVIEW_WRITE.md).
 - **Single threshold.** The 7-day window is fixed in shared
   primitives. Different deal types or document types might
   warrant different windows; we don't model that.
@@ -127,38 +126,32 @@ A future phase could add a Mark-reviewed governed write — see §6.
 ## 6. Future schema improvements
 
 The signal is honest about what it can derive from current state.
-Two upstream improvements would make it sharper:
+At Phase 54 there were two upstream improvements that would make
+it sharper; Phase 55 closed one of them.
 
 1. **Add `cr664_revieweddate` (DateTime) to `cr664_DocumentChecklist`.**
-   Anchor the signal on review-or-current-state elapsed time
-   instead of receipt time. Would also enable a "reviewed N days
-   ago" cadence and a true Mark-reviewed write.
-2. **Add a `Mark reviewed` governed write.** Inside the app,
-   alongside the Phase 51 Mark-received write. Sets both
-   `cr664_reviewer` and `cr664_revieweddate`. Follows the
-   established three-write coordination pattern (update + audit +
-   timeline). Phase 51 left the in-app review path explicitly
-   out of scope; closing it would complete the document
-   lifecycle (outstanding → received → reviewed) entirely
-   in-app.
-
-Neither requires changes to the receive flow — the signal model
-keeps working even if Mark-reviewed never ships.
+   Still a useful future improvement. Would let the signal anchor
+   on review-or-current-state elapsed time instead of receipt
+   time, enable a "reviewed N days ago" cadence, and let the
+   Phase 55 Mark-reviewed action stamp both fields in the same
+   governed update.
+2. ~~**Add a `Mark reviewed` governed write.**~~ **Shipped in
+   Phase 55** (`deal-document-review`). The in-app review path
+   exists; the document lifecycle (outstanding → received →
+   reviewed) is closed entirely in-app.
 
 ---
 
-## 7. What did NOT change
+## 7. What did NOT change at Phase 54
 
-- `GOVERNED_WRITES` is unchanged. Still 7 entries.
+- `GOVERNED_WRITES` was unchanged at Phase 54 — still 7 entries.
+  *(Phase 55 added the 8th entry, `deal-document-review`.)*
 - No new audit event, no new timeline event.
 - No new permission boundary. Manager / team / executive / admin
-  workspaces are untouched.
+  workspaces were untouched.
 - No new entity. No schema change.
 - No automated escalation, no borrower notification, no AI review
   logic.
-- The Phase 51 mark-received flow is unchanged. The receive button
-  on outstanding documents (Deal Workspace and Command Center)
-  works exactly as before.
-- The Phase 46–50 inventory-driven regression sweeps continue to
-  pass — Phase 54 did not add a governed write; the inventory
-  is identical.
+- The Phase 51 mark-received flow was unchanged.
+- The Phase 46–50 inventory-driven regression sweeps continued to
+  pass — Phase 54 did not add a governed write.

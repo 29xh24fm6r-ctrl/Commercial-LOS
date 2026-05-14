@@ -1,12 +1,21 @@
 # Stabilization Checklist — Commercial Lending Code App
 
-**Phase: 51 (latest)**
-**Test suite: 675 tests passing across 43 files**
-**Bundle: ~634 kB minified / ~154 kB gzipped**
+**Phase: 55 (latest)**
+**Test suite: 750 tests passing across 45 files**
+**Bundle: ~651 kB minified / ~159 kB gzipped**
 
-See [RELEASE_NOTES_PHASES_41_51.md](RELEASE_NOTES_PHASES_41_51.md) for the
-per-phase narrative since Phase 40, and the canonical current operational
-state across roles.
+See [RELEASE_NOTES_PHASES_52_55.md](RELEASE_NOTES_PHASES_52_55.md) for
+the per-phase narrative since Phase 51, including the closed
+document lifecycle (request → mark received → mark reviewed),
+the Phase 54 pending-review signal, and the Phase 55 eighth
+governed write.
+
+For earlier history see
+[RELEASE_NOTES_PHASES_41_51.md](RELEASE_NOTES_PHASES_41_51.md)
+(governance-hardening sequence + first operational expansion since
+Phase 25) and
+[RELEASE_NOTES_PHASES_1_40.md](RELEASE_NOTES_PHASES_1_40.md)
+(initial build through stabilization milestone).
 
 Status legend (matches the in-app Release Readiness Gate):
 
@@ -46,7 +55,7 @@ Status legend (matches the in-app Release Readiness Gate):
 
 ---
 
-## Governed write domains (7 entries)
+## Governed write domains (8 entries)
 
 | Domain | Phase | Audit | Timeline | Status |
 | --- | --- | --- | --- | --- |
@@ -56,7 +65,8 @@ Status legend (matches the in-app Release Readiness Gate):
 | Deal task complete | 21 | ✓ | ✓ | **Ready** |
 | Deal document request | 22 | ✓ | ✓ | **Ready** |
 | Credit memo draft save | 25 | ✓ | ✓ | **Ready** |
-| Deal document mark received | **51** | ✓ | ✓ | **Ready** |
+| Deal document mark received | 51 | ✓ | ✓ | **Ready** |
+| Deal document mark reviewed | **55** | ✓ | ✓ | **Ready** |
 
 Each governed write uses the same coordination shape: discriminated outcome union (`success | <domain>-failed | governance-partial | unknown`), single correlation id per attempt, best-effort Failed audit when the primary update fails, CRITICAL `governance-partial` copy when audit or timeline fails after the primary update succeeded ("Do not retry — the X may already be saved").
 
@@ -134,15 +144,19 @@ The Release Readiness Gate reports `test-coverage-build-verification` as **Not W
 | Executive transitional fallback queries (no snapshot entities for `PipelineByStage`, `MonthlyClosingForecast`) | Executive snapshot-only invariant | 15 |
 | No borrower email / draft entity in the generated schema | Borrower update delivery | 23 |
 | No File column on `cr664_DocumentChecklist` | Binary document upload | 51 (was 22) |
+| No `cr664_revieweddate` column on `cr664_DocumentChecklist` *(not blocking)* | Phase 54 pending-review signal anchors on receipt time, not review time; "reviewed N days ago" cadence | 55 |
 
 ---
 
 ## Explicitly deferred capabilities (NOT built)
 
-> Do NOT advertise these as working. They remain intentionally out of scope as of Phase 51.
+> Do NOT advertise these as working. They remain intentionally out of scope as of Phase 55.
 
 - **Email / Outlook / Graph delivery** — borrower update is local Copy-only (Phase 23).
-- **Binary document upload** — Phase 22 stamps `cr664_requestdate`; Phase 51 stamps `cr664_receiveddate` (Mark received). Both are metadata-only. No file column on the schema, so no binary travels. See [PHASE_51_DOCUMENT_UPLOAD_SCOPE.md](PHASE_51_DOCUMENT_UPLOAD_SCOPE.md).
+- **Binary document upload** — Phase 22 stamps `cr664_requestdate`; Phase 51 stamps `cr664_receiveddate`; Phase 55 stamps `cr664_reviewer`. All three are metadata-only. No file column on the schema, so no binary travels. See [PHASE_51_DOCUMENT_UPLOAD_SCOPE.md](PHASE_51_DOCUMENT_UPLOAD_SCOPE.md).
+- **Borrower upload portal** — no external client surface exists. Borrowers continue to deliver out of band (email, file share, hand-delivery).
+- **OCR / AI extraction / document intelligence** — no content analysis of any received document.
+- **SharePoint / Teams / Outlook attachment sync** — no external system integration.
 - **AI / model-driven generation** — credit memo draft is a deterministic generator; the preview banner explicitly says "No AI was used to produce this draft." (Phase 24).
 - **Memo finalize / export / PDF / Submit** — Phase 24 + 25 ship Generate / Save Draft only.
 - **Stage progression write** — see "Blocked" above. Phase 28 ships a deliberate non-implementation; Phase 43 documents the concrete unblock checklist.
@@ -156,10 +170,10 @@ The Release Readiness Gate reports `test-coverage-build-verification` as **Not W
 ## Before promotion — required out-of-band steps
 
 1. `npm run build` — must complete clean.
-2. `npm test -- --run` — full suite green (currently 675/675).
+2. `npm test -- --run` — full suite green (currently 750/750).
 3. Open the Admin Workspace and confirm the **Release Readiness Gate** overall badge reads either *"Cannot fully verify — signals not wired"* (acceptable when no blocker fires) or shows the expected **Blocked** state for Stage Governance and the **Not Wired** state for build/test (those are the current expected red flags).
 4. Confirm no executive snapshot reports a stale-data flag (`staleDataFlag`).
 5. Confirm no Critical alerts are open in the Alert Backlog.
-6. Confirm the seven governed writes still pass their inventory-completeness regression tests in `src/shared/governance/` — Phase 46/47/49/50 sweeps. Adding a new governed write without extending the inventory mappings is a deliberate test failure.
+6. Confirm the eight governed writes still pass their inventory-completeness regression tests in `src/shared/governance/` — Phase 46/47/49/50 sweeps. Adding a new governed write without extending the inventory mappings is a deliberate test failure.
 
 If any of those steps surfaces an unexpected signal, **do not promote**.
