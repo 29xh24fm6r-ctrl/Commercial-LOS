@@ -12,9 +12,12 @@ import {
 } from './workQueue';
 import {
   markDocumentReceived,
+  markDocumentReviewed,
   type MarkDocumentReceivedOutcome,
+  type MarkDocumentReviewedOutcome,
 } from '../deals/documentActions';
 import { ReceiveDocumentModal } from '../deals/ReceiveDocumentModal';
+import { ReviewDocumentModal } from '../deals/ReviewDocumentModal';
 import type { DealDocument } from '../deals/dealDocumentQueries';
 import { LoadingState } from '../shared/LoadingState';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
@@ -54,10 +57,12 @@ type State =
   | { kind: 'failed'; message: string };
 
 export function MyWorkQueue() {
-  const { bankerId, systemUserId } = useBanker();
+  const { bankerId, fullName, systemUserId } = useBanker();
   const navigate = useNavigate();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [pendingReceive, setPendingReceive] =
+    useState<{ dealId: string; meta: WorkQueueDocumentMetadata } | null>(null);
+  const [pendingReview, setPendingReview] =
     useState<{ dealId: string; meta: WorkQueueDocumentMetadata } | null>(null);
 
   const reload = useCallback(() => {
@@ -101,6 +106,32 @@ export function MyWorkQueue() {
     if (outcome.kind === 'success' || outcome.kind === 'governance-partial') {
       // Either branch persisted the receiveddate stamp; the queue's
       // outstanding filter will drop the row on next reload.
+      reload();
+    }
+    return outcome;
+  }
+
+  async function handleReviewConfirm(
+    note: string,
+  ): Promise<MarkDocumentReviewedOutcome> {
+    if (!pendingReview || !systemUserId) {
+      return {
+        kind: 'unknown',
+        message: 'Cannot submit: missing document or system user id.',
+      };
+    }
+    const outcome = await markDocumentReviewed({
+      documentId: pendingReview.meta.documentId,
+      documentName: pendingReview.meta.documentName,
+      dealId: pendingReview.dealId,
+      systemUserId,
+      reviewerName: fullName,
+      reviewNote: note,
+    });
+    if (outcome.kind === 'success' || outcome.kind === 'governance-partial') {
+      // Either branch persisted cr664_reviewer; the queue's
+      // pendingReview filter (no reviewer) will drop the row on
+      // next reload. Phase 54's signal also clears.
       reload();
     }
     return outcome;
@@ -151,7 +182,12 @@ export function MyWorkQueue() {
     );
   }
 
-  const modalDoc = pendingReceive ? toDealDocumentShape(pendingReceive.meta) : null;
+  const receiveModalDoc = pendingReceive
+    ? toDealDocumentShape(pendingReceive.meta, 'outstanding')
+    : null;
+  const reviewModalDoc = pendingReview
+    ? toDealDocumentShape(pendingReview.meta, 'received')
+    : null;
 
   return (
     <>
@@ -171,9 +207,13 @@ export function MyWorkQueue() {
               key={item.id}
               item={item}
               canReceive={canReceive}
+              canReview={canReceive /* same gate: systemUserId present */}
               onOpen={() => navigate(`/deals/${item.dealId}`)}
               onReceive={(meta) =>
                 setPendingReceive({ dealId: item.dealId, meta })
+              }
+              onReview={(meta) =>
+                setPendingReview({ dealId: item.dealId, meta })
               }
             />
           ))}
@@ -190,16 +230,24 @@ export function MyWorkQueue() {
             fallback.
           </span>
           <span>
-            Open a row to act in the Deal Workspace, or use Mark received
-            inline for outstanding documents.
+            Open a row to act in the Deal Workspace, or use Mark received /
+            Mark reviewed inline for documents.
           </span>
         </CardFooter>
       </Card>
-      {modalDoc && pendingReceive && (
+      {receiveModalDoc && pendingReceive && (
         <ReceiveDocumentModal
-          doc={modalDoc}
+          doc={receiveModalDoc}
           onConfirm={handleReceiveConfirm}
           onClose={() => setPendingReceive(null)}
+        />
+      )}
+      {reviewModalDoc && pendingReview && fullName && (
+        <ReviewDocumentModal
+          doc={reviewModalDoc}
+          reviewerName={fullName}
+          onConfirm={handleReviewConfirm}
+          onClose={() => setPendingReview(null)}
         />
       )}
     </>
@@ -209,18 +257,26 @@ export function MyWorkQueue() {
 function Row({
   item,
   canReceive,
+  canReview,
   onOpen,
   onReceive,
+  onReview,
 }: {
   item: WorkQueueItem;
   canReceive: boolean;
+  canReview: boolean;
   onOpen: () => void;
   onReceive: (meta: WorkQueueDocumentMetadata) => void;
+  onReview: (meta: WorkQueueDocumentMetadata) => void;
 }) {
   const sev = severityToKey(item.severity);
   const showReceive =
     canReceive &&
     item.type === 'overdue-document' &&
+    item.documentMetadata !== undefined;
+  const showReview =
+    canReview &&
+    item.type === 'pending-review-document' &&
     item.documentMetadata !== undefined;
   return (
     <li
@@ -285,26 +341,52 @@ function Row({
           </button>
         </div>
       )}
+      {showReview && item.documentMetadata && (
+        <div style={styles.rowActions}>
+          <button
+            type="button"
+            onClick={(e) => {
+              // Stop the row's onClick — Mark reviewed should not
+              // also navigate.
+              e.stopPropagation();
+              onReview(item.documentMetadata!);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+              }
+            }}
+            style={styles.receiveButton}
+            aria-label={`Mark document ${item.title} reviewed`}
+          >
+            Mark reviewed
+          </button>
+        </div>
+      )}
     </li>
   );
 }
 
-function toDealDocumentShape(meta: WorkQueueDocumentMetadata): DealDocument {
+function toDealDocumentShape(
+  meta: WorkQueueDocumentMetadata,
+  status: 'outstanding' | 'received',
+): DealDocument {
   // The modal renders read-only summary facts (name, due date, last
-  // requested) and reads `id` for nothing — the parent constructs
-  // the action input from documentMetadata directly. We provide
-  // honest values for the fields the modal renders and leave
-  // unrelated fields at their outstanding-row defaults.
+  // requested for receive; reviewer + received-status for review)
+  // and reads `id` for nothing — the parent constructs the action
+  // input from documentMetadata directly. We provide honest values
+  // for the fields the modal renders and leave unrelated fields at
+  // safe defaults.
   return {
     id: meta.documentId,
     name: meta.documentName,
     dueDate: meta.dueDate,
     requestDate: meta.requestDate,
-    receivedDate: undefined,
+    receivedDate: meta.receivedDate,
     reviewer: undefined,
     uploaded: false,
     modifiedOn: undefined,
-    status: 'outstanding',
+    status,
   };
 }
 

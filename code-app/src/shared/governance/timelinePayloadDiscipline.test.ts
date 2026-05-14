@@ -59,6 +59,12 @@ const TIMELINE_BY_WRITE_ID: Readonly<Record<string, TimelineMapping>> =
       eventTypeValue: 788190010,
       subtypeHasDomainPrefix: false,
     },
+    'deal-document-review': {
+      file: 'src/deals/documentActions.ts',
+      eventTypeConst: 'TIMELINE_EVENT_TYPE_NOTE_LOGGED',
+      eventTypeValue: 788190002,
+      subtypeHasDomainPrefix: true,
+    },
     'credit-memo-draft-save': {
       file: 'src/deals/creditMemoActions.ts',
       eventTypeConst: 'TIMELINE_EVENT_TYPE_NOTE_LOGGED',
@@ -204,11 +210,31 @@ describe('Phase 50 — per-write timeline event-type constants are pinned', () =
     });
   }
 
-  it('the three event-type numeric values are distinct', () => {
-    const values = Object.values(TIMELINE_BY_WRITE_ID).map(
-      (m) => m.eventTypeValue,
-    );
-    expect(new Set(values).size).toBe(values.length);
+  it('event-type numeric values are distinct UNLESS the writes use distinct domain subtypes', () => {
+    // Phase 50's original invariant was "all timeline event-type
+    // values are distinct." Phase 55 relaxes it: writes that don't
+    // have a dedicated schema enum value (e.g. document-review) may
+    // reuse NoteLogged, as long as the subtype carries the domain
+    // discriminator (subtypeHasDomainPrefix = true). The schema's
+    // option set is finite; not every governed write gets its own
+    // top-level enum value.
+    const seen = new Map<number, string>(); // eventTypeValue → first writeId
+    for (const [writeId, m] of Object.entries(TIMELINE_BY_WRITE_ID)) {
+      const prior = seen.get(m.eventTypeValue);
+      if (prior === undefined) {
+        seen.set(m.eventTypeValue, writeId);
+        continue;
+      }
+      // Both writes share this event-type value. They are allowed
+      // to do so only if BOTH carry a domain-prefixed subtype.
+      const priorMapping = TIMELINE_BY_WRITE_ID[prior]!;
+      expect(
+        priorMapping.subtypeHasDomainPrefix && m.subtypeHasDomainPrefix,
+        `writes "${prior}" and "${writeId}" both use event-type ${m.eventTypeValue} ` +
+          'but at least one lacks a domain-prefixed subtype — the timeline ' +
+          'reader cannot distinguish them.',
+      ).toBe(true);
+    }
   });
 });
 

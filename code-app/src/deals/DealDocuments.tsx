@@ -8,12 +8,15 @@ import type {
 } from './dealDocumentQueries';
 import {
   markDocumentReceived,
+  markDocumentReviewed,
   requestDocument,
   type MarkDocumentReceivedOutcome,
+  type MarkDocumentReviewedOutcome,
   type RequestDocumentOutcome,
 } from './documentActions';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
+import { ReviewDocumentModal } from './ReviewDocumentModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import {
@@ -35,6 +38,9 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     null,
   );
   const [pendingReceiveDoc, setPendingReceiveDoc] = useState<DealDocument | null>(
+    null,
+  );
+  const [pendingReviewDoc, setPendingReviewDoc] = useState<DealDocument | null>(
     null,
   );
 
@@ -73,6 +79,24 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     return outcome;
   }
 
+  async function handleReviewConfirm(
+    note: string,
+  ): Promise<MarkDocumentReviewedOutcome> {
+    if (!pendingReviewDoc || !banker?.systemUserId) {
+      return { kind: 'unknown', message: 'Cannot submit: missing document or system user id.' };
+    }
+    const outcome = await markDocumentReviewed({
+      documentId: pendingReviewDoc.id,
+      documentName: pendingReviewDoc.name,
+      dealId: deal.id,
+      systemUserId: banker.systemUserId,
+      reviewerName: banker.fullName,
+      reviewNote: note,
+    });
+    refresh('after-document-review');
+    return outcome;
+  }
+
   const canWrite = !readOnly && !!banker?.systemUserId;
 
   return (
@@ -89,6 +113,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           canWrite={canWrite}
           onRequest={(doc) => setPendingRequestDoc(doc)}
           onReceive={(doc) => setPendingReceiveDoc(doc)}
+          onReview={(doc) => setPendingReviewDoc(doc)}
         />
       </Card>
       {!readOnly && pendingRequestDoc && (
@@ -103,6 +128,14 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           doc={pendingReceiveDoc}
           onConfirm={handleReceiveConfirm}
           onClose={() => setPendingReceiveDoc(null)}
+        />
+      )}
+      {!readOnly && pendingReviewDoc && banker?.fullName && (
+        <ReviewDocumentModal
+          doc={pendingReviewDoc}
+          reviewerName={banker.fullName}
+          onConfirm={handleReviewConfirm}
+          onClose={() => setPendingReviewDoc(null)}
         />
       )}
     </>
@@ -136,11 +169,13 @@ function Body({
   canWrite,
   onRequest,
   onReceive,
+  onReview,
 }: {
   documents: AsyncResult<DealDocumentsResult>;
   canWrite: boolean;
   onRequest: (doc: DealDocument) => void;
   onReceive: (doc: DealDocument) => void;
+  onReview: (doc: DealDocument) => void;
 }) {
   if (documents.kind === 'loading') return <p style={styles.muted}>Loading documents…</p>;
   if (documents.kind === 'failed')
@@ -160,15 +195,17 @@ function Body({
         canWrite={canWrite}
         onRequest={onRequest}
         onReceive={onReceive}
+        onReview={onReview}
       />
       <Group
         groupLabel="Received"
         documents={received}
         emptyHint="None received yet."
         status="received"
-        canWrite={false}
+        canWrite={canWrite}
         onRequest={onRequest}
         onReceive={onReceive}
+        onReview={onReview}
       />
       <Group
         groupLabel="Reviewed"
@@ -178,6 +215,7 @@ function Body({
         canWrite={false}
         onRequest={onRequest}
         onReceive={onReceive}
+        onReview={onReview}
       />
     </div>
   );
@@ -191,6 +229,7 @@ function Group({
   canWrite,
   onRequest,
   onReceive,
+  onReview,
 }: {
   groupLabel: string;
   documents: DealDocument[];
@@ -199,6 +238,7 @@ function Group({
   canWrite: boolean;
   onRequest: (doc: DealDocument) => void;
   onReceive: (doc: DealDocument) => void;
+  onReview: (doc: DealDocument) => void;
 }) {
   return (
     <div style={styles.group}>
@@ -218,6 +258,7 @@ function Group({
               canWrite={canWrite}
               onRequest={onRequest}
               onReceive={onReceive}
+              onReview={onReview}
             />
           ))}
         </ul>
@@ -232,12 +273,14 @@ function DocumentRow({
   canWrite,
   onRequest,
   onReceive,
+  onReview,
 }: {
   doc: DealDocument;
   status: DocumentStatus;
   canWrite: boolean;
   onRequest: (doc: DealDocument) => void;
   onReceive: (doc: DealDocument) => void;
+  onReview: (doc: DealDocument) => void;
 }) {
   const overdue = status === 'outstanding' && isOverdue(doc.dueDate);
   const sev: SeverityKey =
@@ -252,8 +295,10 @@ function DocumentRow({
   // is the gate; the Group already restricts it to the Outstanding
   // group so received/reviewed rows can never show the button.
   // Phase 51: Mark-received button shows on the same outstanding rows.
+  // Phase 55: Mark-reviewed button shows on received rows.
   const showRequest = canWrite && status === 'outstanding';
   const showReceive = canWrite && status === 'outstanding';
+  const showReview = canWrite && status === 'received';
 
   return (
     <li style={styles.row}>
@@ -290,7 +335,7 @@ function DocumentRow({
           )}
         </div>
       </div>
-      {(showRequest || showReceive) && (
+      {(showRequest || showReceive || showReview) && (
         <div style={styles.rowActions}>
           {showRequest && (
             <button
@@ -310,6 +355,16 @@ function DocumentRow({
               aria-label={`Mark document ${doc.name} received`}
             >
               Mark received
+            </button>
+          )}
+          {showReview && (
+            <button
+              type="button"
+              onClick={() => onReview(doc)}
+              style={styles.reviewButton}
+              aria-label={`Mark document ${doc.name} reviewed`}
+            >
+              Mark reviewed
             </button>
           )}
         </div>
@@ -440,6 +495,19 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase',
   },
   receiveButton: {
+    background: palette.surface,
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
+  reviewButton: {
     background: palette.surface,
     color: palette.primary,
     border: `1px solid ${palette.primary}`,

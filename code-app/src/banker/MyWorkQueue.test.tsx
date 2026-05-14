@@ -28,6 +28,7 @@ vi.mock('./workQueueQueries', () => ({
 
 vi.mock('../deals/documentActions', () => ({
   markDocumentReceived: vi.fn(),
+  markDocumentReviewed: vi.fn(),
 }));
 
 vi.mock('./BankerContext', () => ({
@@ -40,12 +41,16 @@ vi.mock('react-router-dom', () => ({
 }));
 
 import { loadBankerWorkQueueData } from './workQueueQueries';
-import { markDocumentReceived } from '../deals/documentActions';
+import {
+  markDocumentReceived,
+  markDocumentReviewed,
+} from '../deals/documentActions';
 import { useBanker } from './BankerContext';
 import { MyWorkQueue } from './MyWorkQueue';
 
 const loadMock = vi.mocked(loadBankerWorkQueueData);
 const receiveMock = vi.mocked(markDocumentReceived);
+const reviewMock = vi.mocked(markDocumentReviewed);
 const useBankerMock = vi.mocked(useBanker);
 
 function overdueDueDate(): string {
@@ -101,6 +106,7 @@ function workQueueData(overrides: Partial<BankerWorkQueueData> = {}): BankerWork
 beforeEach(() => {
   loadMock.mockReset();
   receiveMock.mockReset();
+  reviewMock.mockReset();
   navigateSpy.mockReset();
   useBankerMock.mockReset();
   useBankerMock.mockReturnValue({
@@ -297,11 +303,15 @@ describe('MyWorkQueue — Phase 53 receive integration', () => {
     expect(loadMock).toHaveBeenCalledTimes(1);
   });
 
-  it('the queue footer says "Mark received inline" so bankers discover the new action', async () => {
+  it('the queue footer mentions both Mark received and Mark reviewed so bankers discover the inline actions', async () => {
     loadMock.mockResolvedValue(workQueueData());
     render(<MyWorkQueue />);
     await screen.findByText(/personal financial statement/i);
-    expect(screen.getByText(/Mark received inline/i)).toBeInTheDocument();
+    // Phase 53 added the receive action; Phase 55 added review.
+    // The footer mentions both as discovery aids.
+    expect(
+      screen.getByText(/Mark received.*Mark reviewed.*inline/i),
+    ).toBeInTheDocument();
   });
 });
 
@@ -402,5 +412,172 @@ describe('MyWorkQueue — Phase 54 pending-review surfacing', () => {
       /No urgent work items across your active deals/i,
     );
     expect(screen.queryByText(/recent receipt/i)).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 55 — Mark reviewed integration
+// ---------------------------------------------------------------------------
+
+function pendingReviewRow(overrides: Partial<{
+  id: string;
+  dealId: string;
+  name: string;
+  receivedDate: string;
+}> = {}) {
+  // 14 days before "now" by default — past the 7-day threshold.
+  const receivedAt = new Date();
+  receivedAt.setUTCDate(receivedAt.getUTCDate() - 14);
+  return {
+    id: overrides.id ?? 'doc-pending',
+    dealId: overrides.dealId ?? 'deal-77',
+    name: overrides.name ?? 'Tax Return 2024',
+    dueDate: undefined,
+    requestDate: undefined,
+    receivedDate: overrides.receivedDate ?? receivedAt.toISOString(),
+    reviewer: undefined,
+    uploaded: false,
+    modifiedOn: undefined,
+  };
+}
+
+describe('MyWorkQueue — Phase 55 review integration', () => {
+  it('renders a Mark reviewed button on pending-review-document rows when systemUserId is present', async () => {
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      pendingReviewDocuments: [pendingReviewRow()],
+    });
+    render(<MyWorkQueue />);
+
+    expect(
+      await screen.findByRole('button', {
+        name: /mark document tax return 2024 reviewed/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('does NOT render the Mark reviewed button when systemUserId is missing', async () => {
+    useBankerMock.mockReturnValue({
+      bankerId: 'banker-1',
+      fullName: 'M. Paller',
+      email: 'm@bank.test',
+      systemUserId: undefined,
+      writeDisabledReason: 'Could not resolve systemuserid',
+    });
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      pendingReviewDocuments: [pendingReviewRow()],
+    });
+    render(<MyWorkQueue />);
+
+    await screen.findByText(/tax return 2024/i);
+    expect(
+      screen.queryByRole('button', { name: /mark document.*reviewed/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('clicking Mark reviewed opens the ReviewDocumentModal (does NOT navigate)', async () => {
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      pendingReviewDocuments: [pendingReviewRow()],
+    });
+    render(<MyWorkQueue />);
+
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: /mark document.*reviewed/i }),
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: /mark document reviewed/i }),
+    ).toBeInTheDocument();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('submitting the modal invokes markDocumentReviewed with banker identity + dealId + note', async () => {
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      pendingReviewDocuments: [pendingReviewRow()],
+    });
+    reviewMock.mockResolvedValue({ kind: 'success' });
+    render(<MyWorkQueue />);
+
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: /mark document.*reviewed/i }),
+    );
+    await user.type(
+      screen.getByLabelText(/review note/i),
+      'reviewed; ratios reconcile',
+    );
+    await user.click(screen.getByRole('button', { name: /^mark reviewed$/i }));
+
+    await waitFor(() => {
+      expect(reviewMock).toHaveBeenCalledWith({
+        documentId: 'doc-pending',
+        documentName: 'Tax Return 2024',
+        dealId: 'deal-77',
+        systemUserId: 'sys-user-1',
+        reviewerName: 'M. Paller',
+        reviewNote: 'reviewed; ratios reconcile',
+      });
+    });
+  });
+
+  it('reloads the queue after a successful review (so the pending-review row drops out)', async () => {
+    loadMock
+      .mockResolvedValueOnce({
+        ...workQueueData({ outstandingDocuments: [] }),
+        pendingReviewDocuments: [pendingReviewRow()],
+      })
+      .mockResolvedValueOnce({
+        ...workQueueData({ outstandingDocuments: [] }),
+        // After reload, no pending docs (reviewer was set; loader
+        // filtered it out).
+        pendingReviewDocuments: [],
+      });
+    reviewMock.mockResolvedValue({ kind: 'success' });
+    render(<MyWorkQueue />);
+
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: /mark document.*reviewed/i }),
+    );
+    await user.type(screen.getByLabelText(/review note/i), 'reviewed');
+    await user.click(screen.getByRole('button', { name: /^mark reviewed$/i }));
+
+    await waitFor(() => {
+      expect(loadMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('does NOT render Mark reviewed on overdue-document rows (those are received-action rows)', async () => {
+    loadMock.mockResolvedValue(workQueueData());
+    render(<MyWorkQueue />);
+    // Overdue-document row is present (Phase 53 setup).
+    await screen.findByText(/personal financial statement/i);
+    // It should show Mark received, NOT Mark reviewed.
+    expect(
+      screen.getByRole('button', { name: /mark document.*received/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /mark document.*reviewed/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does NOT render Mark received on pending-review-document rows (those are reviewed-action rows)', async () => {
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      pendingReviewDocuments: [pendingReviewRow()],
+    });
+    render(<MyWorkQueue />);
+    await screen.findByText(/tax return 2024/i);
+    // Pending-review row shows Mark reviewed but NOT Mark received.
+    expect(
+      screen.getByRole('button', { name: /mark document.*reviewed/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /mark document.*received/i }),
+    ).not.toBeInTheDocument();
   });
 });

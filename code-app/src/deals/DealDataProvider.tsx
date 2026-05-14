@@ -30,6 +30,11 @@ export type AsyncResult<T> =
  *                              activity. Row flips Outstanding →
  *                              Received once the refreshed documents
  *                              land.
+ *    'after-document-review'   Phase-55 write: reload documents +
+ *                              activity. Row flips Received →
+ *                              Reviewed once the refreshed documents
+ *                              land; Phase 54 pending-review signal
+ *                              clears via the same reload.
  */
 export type DealDataKey =
   | 'tasks'
@@ -39,6 +44,7 @@ export type DealDataKey =
   | 'after-task-complete'
   | 'after-document-request'
   | 'after-document-receive'
+  | 'after-document-review'
   | 'after-credit-memo-draft-saved';
 
 export interface DealData {
@@ -203,6 +209,17 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // refresh so the new receivedDate appears (deriveStatus flips
         // the row Outstanding → Received); activity must refresh so
         // the DocumentUploaded timeline event appears.
+        reloadDocuments();
+        reloadActivity();
+        break;
+      case 'after-document-review':
+        // Targeted reload after Phase-55 mark-reviewed. Documents
+        // must refresh so the new reviewer field appears
+        // (deriveStatus flips the row Received → Reviewed; the
+        // Phase 54 pending-review signal also clears via the
+        // refreshed reviewer presence); activity must refresh so
+        // the NoteLogged timeline event with the
+        // documentchecklist:reviewed subtype appears.
         reloadDocuments();
         reloadActivity();
         break;

@@ -48,13 +48,17 @@ export type { WorkQueueSeverity };
 
 /** Phase 53: carries just enough document metadata for the Command
  *  Center mark-received modal to identify the row and render
- *  honestly (name / due date / last requested). Only populated for
- *  type === 'overdue-document'. */
+ *  honestly (name / due date / last requested).
+ *  Phase 55: extended with receivedDate so the mark-reviewed modal
+ *  can display when the document was received. Populated by
+ *  documentOverdueItem (Phase 53, receivedDate undefined) and
+ *  pendingReviewDocumentItem (Phase 55, receivedDate set). */
 export interface WorkQueueDocumentMetadata {
   documentId: string;
   documentName: string;
   dueDate: string | undefined;
   requestDate: string | undefined;
+  receivedDate: string | undefined;
 }
 
 export interface WorkQueueItem extends WorkQueueItemBase {
@@ -316,6 +320,7 @@ function documentOverdueItem(
       documentName: d.name,
       dueDate: d.dueDate,
       requestDate: d.requestDate,
+      receivedDate: d.receivedDate, // undefined for outstanding docs
     },
   };
 }
@@ -351,6 +356,15 @@ function pendingReviewDocumentItem(
     // Older receivedDate → larger elapsed → higher sort priority
     // within the at-risk tier.
     sortKey: tierBase('at-risk') + elapsedDays,
+    // Phase 55: carry document metadata so MyWorkQueue can launch
+    // the mark-reviewed modal without re-fetching the document.
+    documentMetadata: {
+      documentId: d.id,
+      documentName: d.name,
+      dueDate: d.dueDate,
+      requestDate: d.requestDate,
+      receivedDate: d.receivedDate,
+    },
   };
 }
 

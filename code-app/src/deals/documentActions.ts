@@ -57,6 +57,8 @@ const AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
 
 const TIMELINE_EVENT_TYPE_DOCUMENT_REQUESTED = 788190009;
 const TIMELINE_EVENT_TYPE_DOCUMENT_UPLOADED = 788190010;
+const TIMELINE_EVENT_TYPE_NOTE_LOGGED = 788190002;
+const TIMELINE_SUBTYPE_DOCUMENT_REVIEWED = 'documentchecklist:reviewed';
 
 function beforeStateForRequest(prior: string | undefined): string {
   if (!prior) return 'Not yet requested';
@@ -411,6 +413,229 @@ export async function markDocumentReceived(
       nowIso,
     }),
     emitTimelineEventForReceive({ input, correlationId, nowIso }),
+  ]);
+
+  if (audit.error || timeline.error) {
+    return {
+      kind: 'governance-partial',
+      auditError: audit.error,
+      timelineError: timeline.error,
+    };
+  }
+  return { kind: 'success' };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 55: governed write for marking a received document reviewed.
+//
+// What this is:
+//   - The third (and final, given the current schema) transition in the
+//     document lifecycle: outstanding → received → reviewed. Writes the
+//     banker's display name to cr664_reviewer so the existing
+//     deriveStatus logic flips the row Received → Reviewed. Clears the
+//     Phase 54 pending-review signal automatically (the predicate
+//     keys off reviewer presence).
+//
+// What this is NOT (honestly):
+//   - It is NOT approval. The banker has read the document and is
+//     stamping their identity as the reviewer. The audit + timeline
+//     events use conservative wording ("Document reviewed") — never
+//     "approved", "cleared", "accepted", "validated".
+//   - It is NOT a content judgment. The note flows verbatim to the
+//     audit trail; the action makes no claim about what the document
+//     contains.
+//   - It does NOT touch cr664_uploadstatus, the file column (which
+//     still doesn't exist), or any other field besides cr664_reviewer.
+//
+// Three-write coordination mirrors Phase 22 / Phase 51:
+//   1. Update cr664_DocumentChecklist.cr664_reviewer = <banker name>.
+//   2. Emit cr664_AuditEvent ('DocumentChecklist Reviewed') with
+//      outcome=Succeeded.
+//   3. Emit cr664_DealTimelineEvent (NoteLogged, subtype
+//      'documentchecklist:reviewed|correlation:<id>') so the deal
+//      activity ledger records the review.
+//
+// Outcome shape: success | review-failed | governance-partial |
+// unknown — same Phase 47 four-branch shape every other governed
+// write uses.
+// ---------------------------------------------------------------------------
+
+export type MarkDocumentReviewedOutcome =
+  | { kind: 'success' }
+  | { kind: 'review-failed'; docError: string }
+  | {
+      kind: 'governance-partial';
+      auditError: string | undefined;
+      timelineError: string | undefined;
+    }
+  | { kind: 'unknown'; message: string };
+
+export interface MarkDocumentReviewedInput {
+  documentId: string;
+  documentName: string;
+  dealId: string;
+  systemUserId: string;
+  /** Display name written to cr664_reviewer. This is the banker's
+   *  visible identity on the deal-documents card (the schema's
+   *  reviewer field is a text column, not a user lookup). The
+   *  systemUserId on the audit + timeline events is the durable
+   *  identity link; the reviewer field is the human-readable
+   *  display. */
+  reviewerName: string;
+  reviewNote: string;
+}
+
+async function emitAuditEventForReview(opts: {
+  input: MarkDocumentReviewedInput;
+  correlationId: string;
+  outcome: number;
+  failureReason: string | undefined;
+  nowIso: string;
+}): Promise<{ id: string | undefined; error: string | undefined }> {
+  const payload = {
+    cr664_auditeventname: 'DocumentChecklist Reviewed',
+    cr664_eventcategory: AUDIT_EVENT_CATEGORY_LIFECYCLE,
+    cr664_eventtype: AUDIT_EVENT_TYPE_STATUS_CHANGE,
+    cr664_entitytype: AUDIT_ENTITY_TYPE_LOAN_DEAL,
+    cr664_entityid: opts.input.documentId,
+    cr664_relatedentitytype: 'cr664_documentchecklist',
+    cr664_relatedentityid: opts.input.documentId,
+    'cr664_LoanDeal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
+    cr664_outcomestatus: opts.outcome,
+    cr664_failurereason: opts.failureReason,
+    cr664_changeddate: opts.nowIso,
+    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    cr664_fieldname: 'cr664_reviewer',
+    cr664_oldvalue: '',
+    cr664_newvalue: opts.input.reviewerName,
+    cr664_beforestate: 'Received',
+    cr664_afterstate: 'Reviewed',
+    cr664_notes: opts.input.reviewNote,
+    cr664_sourcescreensourceprocess: 'DealWorkspace/DealDocuments/review',
+    cr664_correlationid: opts.correlationId,
+    ownerid: opts.input.systemUserId,
+    owneridtype: 'systemuser',
+    statecode: 0,
+  };
+  try {
+    const result = await Cr664_auditeventsService.create(
+      payload as unknown as Parameters<typeof Cr664_auditeventsService.create>[0],
+    );
+    if (!result.success) {
+      return {
+        id: undefined,
+        error: result.error?.message ?? 'AuditEvent create returned non-success',
+      };
+    }
+    return { id: result.data?.cr664_auditeventid, error: undefined };
+  } catch (err: unknown) {
+    return { id: undefined, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+async function emitTimelineEventForReview(opts: {
+  input: MarkDocumentReviewedInput;
+  correlationId: string;
+  nowIso: string;
+}): Promise<{ id: string | undefined; error: string | undefined }> {
+  const payload = {
+    cr664_title: opts.input.documentName,
+    cr664_summary: opts.input.reviewNote,
+    cr664_eventat: opts.nowIso,
+    cr664_eventtype: TIMELINE_EVENT_TYPE_NOTE_LOGGED,
+    cr664_visibilityscope: TIMELINE_VISIBILITY_BANKER_AND_MANAGER,
+    cr664_issystemgenerated: false,
+    cr664_relatedentitytype: 'cr664_documentchecklist',
+    cr664_relatedentityid: opts.input.documentId,
+    'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
+    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    cr664_eventsubtype: `${TIMELINE_SUBTYPE_DOCUMENT_REVIEWED}|correlation:${opts.correlationId}`,
+    ownerid: opts.input.systemUserId,
+    owneridtype: 'systemuser',
+    statecode: 0,
+  };
+  try {
+    const result = await Cr664_dealtimelineeventsService.create(
+      payload as unknown as Parameters<
+        typeof Cr664_dealtimelineeventsService.create
+      >[0],
+    );
+    if (!result.success) {
+      return {
+        id: undefined,
+        error: result.error?.message ?? 'DealTimelineEvent create returned non-success',
+      };
+    }
+    return { id: result.data?.cr664_dealtimelineeventid, error: undefined };
+  } catch (err: unknown) {
+    return { id: undefined, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function markDocumentReviewed(
+  input: MarkDocumentReviewedInput,
+): Promise<MarkDocumentReviewedOutcome> {
+  const note = input.reviewNote.trim();
+  if (note.length === 0) {
+    return { kind: 'unknown', message: 'Review note must not be empty.' };
+  }
+  const reviewerName = input.reviewerName.trim();
+  if (reviewerName.length === 0) {
+    return {
+      kind: 'unknown',
+      message: 'Reviewer display name must not be empty.',
+    };
+  }
+
+  const correlationId = newCorrelationId('rv');
+  const nowIso = new Date().toISOString();
+
+  // Step 1: stamp cr664_reviewer. This is the only schema-level
+  // write — the deriveStatus selector flips the document from
+  // received → reviewed off this field alone, and the Phase 54
+  // pending-review signal clears because its predicate keys off
+  // reviewer presence.
+  try {
+    const update = await Cr664_documentchecklistsService.update(input.documentId, {
+      cr664_reviewer: reviewerName,
+    } as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1]);
+    if (!update.success) {
+      void emitAuditEventForReview({
+        input,
+        correlationId,
+        outcome: AUDIT_OUTCOME_FAILED,
+        failureReason: update.error?.message ?? 'Unknown document update error',
+        nowIso,
+      });
+      return {
+        kind: 'review-failed',
+        docError: update.error?.message ?? 'Document update failed',
+      };
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    void emitAuditEventForReview({
+      input,
+      correlationId,
+      outcome: AUDIT_OUTCOME_FAILED,
+      failureReason: message,
+      nowIso,
+    });
+    return { kind: 'review-failed', docError: message };
+  }
+
+  // Step 2 + 3: audit + timeline in parallel. Either failing flips
+  // the outcome to governance-partial.
+  const [audit, timeline] = await Promise.all([
+    emitAuditEventForReview({
+      input,
+      correlationId,
+      outcome: AUDIT_OUTCOME_SUCCEEDED,
+      failureReason: undefined,
+      nowIso,
+    }),
+    emitTimelineEventForReview({ input, correlationId, nowIso }),
   ]);
 
   if (audit.error || timeline.error) {

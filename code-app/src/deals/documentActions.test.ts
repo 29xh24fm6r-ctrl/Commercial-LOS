@@ -13,7 +13,11 @@ vi.mock('../generated/services/Cr664_dealtimelineeventsService', () => ({
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
-import { markDocumentReceived, requestDocument } from './documentActions';
+import {
+  markDocumentReceived,
+  markDocumentReviewed,
+  requestDocument,
+} from './documentActions';
 
 const docUpdate = vi.mocked(Cr664_documentchecklistsService.update);
 const auditCreate = vi.mocked(Cr664_auditeventsService.create);
@@ -456,5 +460,181 @@ describe('markDocumentReceived', () => {
     expect(audit1).not.toEqual(audit2);
     expect(timeline1).toBe(`correlation:${audit1 as string}`);
     expect(timeline2).toBe(`correlation:${audit2 as string}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 55 — markDocumentReviewed
+// ---------------------------------------------------------------------------
+
+function baseReviewInput(
+  overrides: Partial<Parameters<typeof markDocumentReviewed>[0]> = {},
+) {
+  return {
+    documentId: 'doc-1',
+    documentName: 'Personal Financial Statement',
+    dealId: 'deal-77',
+    systemUserId: 'sys-user-1',
+    reviewerName: 'M. Paller',
+    reviewNote: 'reviewed; ratios within expected range',
+    ...overrides,
+  };
+}
+
+describe('markDocumentReviewed', () => {
+  it('returns success when document update + audit + timeline all succeed', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    const outcome = await markDocumentReviewed(baseReviewInput());
+
+    expect(outcome.kind).toBe('success');
+    expect(docUpdate).toHaveBeenCalledTimes(1);
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    expect(timelineCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes cr664_reviewer (and ONLY cr664_reviewer) on the document', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    await markDocumentReviewed(baseReviewInput({ reviewerName: '  M. Paller  ' }));
+
+    expect(docUpdate).toHaveBeenCalledWith(
+      'doc-1',
+      expect.objectContaining({ cr664_reviewer: 'M. Paller' }),
+    );
+    const payload = docUpdate.mock.calls[0]![1] as Record<string, unknown>;
+    // Phase 55 must NOT touch any other field on the row — the binary
+    // / uploadStatus / receiveddate state is preserved.
+    expect(payload.cr664_receiveddate).toBeUndefined();
+    expect(payload.cr664_uploadstatus).toBeUndefined();
+    expect(payload.cr664_requestdate).toBeUndefined();
+  });
+
+  it('emits an audit event with Received → Reviewed state and the reviewer fieldname', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    await markDocumentReviewed(baseReviewInput());
+
+    const payload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.cr664_auditeventname).toBe('DocumentChecklist Reviewed');
+    expect(payload.cr664_eventcategory).toBe(788190002); // Lifecycle
+    expect(payload.cr664_eventtype).toBe(788190001); // StatusChange
+    expect(payload.cr664_entitytype).toBe(788190000); // LoanDeal
+    expect(payload.cr664_outcomestatus).toBe(788190000); // Succeeded
+    expect(payload.cr664_entityid).toBe('doc-1');
+    expect(payload.cr664_relatedentitytype).toBe('cr664_documentchecklist');
+    expect(payload['cr664_LoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/systemusers(sys-user-1)');
+    expect(payload['cr664_ActorUser@odata.bind']).toBe('/systemusers(sys-user-1)');
+    expect(payload.cr664_fieldname).toBe('cr664_reviewer');
+    expect(payload.cr664_newvalue).toBe('M. Paller');
+    expect(payload.cr664_beforestate).toBe('Received');
+    expect(payload.cr664_afterstate).toBe('Reviewed');
+    expect(payload.cr664_sourcescreensourceprocess).toBe(
+      'DealWorkspace/DealDocuments/review',
+    );
+    expect(payload.cr664_notes).toBe('reviewed; ratios within expected range');
+    expect(typeof payload.cr664_correlationid).toBe('string');
+  });
+
+  it('emits a DealTimelineEvent with NoteLogged eventtype and domain-prefixed subtype', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    await markDocumentReviewed(baseReviewInput());
+
+    const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.cr664_eventtype).toBe(788190002); // NoteLogged
+    expect(payload.cr664_title).toBe('Personal Financial Statement');
+    expect(payload.cr664_summary).toBe('reviewed; ratios within expected range');
+    expect(payload.cr664_issystemgenerated).toBe(false);
+    expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
+    expect(payload.cr664_visibilityscope).toBe(788190000); // BankerAndManager
+    expect(payload.cr664_eventsubtype).toMatch(
+      /^documentchecklist:reviewed\|correlation:/,
+    );
+  });
+
+  it('returns review-failed and fires a best-effort Failed audit when the document update fails', async () => {
+    docUpdate.mockReturnValue(failedUpdate('row locked'));
+    auditCreate.mockReturnValue(successAudit('a-fail-trace'));
+    timelineCreate.mockReturnValue(successTimeline('t-not-called'));
+
+    const outcome = await markDocumentReviewed(baseReviewInput());
+
+    expect(outcome.kind).toBe('review-failed');
+    if (outcome.kind === 'review-failed') {
+      expect(outcome.docError).toBe('row locked');
+    }
+    expect(docUpdate).toHaveBeenCalledTimes(1);
+    expect(auditCreate).toHaveBeenCalled();
+    const payload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.cr664_outcomestatus).toBe(788190001); // Failed
+    expect(payload.cr664_failurereason).toBe('row locked');
+    expect(timelineCreate).not.toHaveBeenCalled();
+  });
+
+  it('returns governance-partial when audit fails but doc + timeline succeed', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(failedAudit('audit write blocked'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    const outcome = await markDocumentReviewed(baseReviewInput());
+
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.auditError).toBe('audit write blocked');
+      expect(outcome.timelineError).toBeUndefined();
+    }
+  });
+
+  it('rejects an empty review note without touching any service', async () => {
+    const outcome = await markDocumentReviewed(
+      baseReviewInput({ reviewNote: '   ' }),
+    );
+    expect(outcome.kind).toBe('unknown');
+    expect(docUpdate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(timelineCreate).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty reviewer name without touching any service', async () => {
+    const outcome = await markDocumentReviewed(
+      baseReviewInput({ reviewerName: '   ' }),
+    );
+    expect(outcome.kind).toBe('unknown');
+    expect(docUpdate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(timelineCreate).not.toHaveBeenCalled();
+  });
+
+  it('generates a distinct correlation id per attempt; audit and timeline share it within one attempt', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+    await markDocumentReviewed(baseReviewInput());
+
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-2'));
+    timelineCreate.mockReturnValue(successTimeline('t-2'));
+    await markDocumentReviewed(baseReviewInput());
+
+    const audit1 = (auditCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_correlationid as string;
+    const audit2 = (auditCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_correlationid as string;
+    const timeline1 = (timelineCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_eventsubtype as string;
+    const timeline2 = (timelineCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_eventsubtype as string;
+
+    expect(audit1).not.toEqual(audit2);
+    expect(timeline1).toContain(`correlation:${audit1}`);
+    expect(timeline2).toContain(`correlation:${audit2}`);
+    expect(timeline1).toMatch(/^documentchecklist:reviewed\|/);
+    expect(timeline2).toMatch(/^documentchecklist:reviewed\|/);
   });
 });
