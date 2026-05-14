@@ -300,3 +300,48 @@ export const WORKSPACE_DEAL_ACCESS: readonly WorkspaceDealAccess[] = [
 
 export const WORKSPACE_ISOLATION_VERIFIED = true;
 export const PERMISSION_BEFORE_QUERY_VERIFIED = true;
+
+// ---------------------------------------------------------------------------
+// Phase 41: Reference data governance
+//
+// Records which platform reference-data tables / catalogs are governed by
+// a canonical in-app source. Each entry documents:
+//   - whether the catalog is canonical (single source of truth);
+//   - whether the associated PROGRESSION / mutation surface is enabled;
+//   - the reason it's blocked when not enabled, with the phase that
+//     introduced the gap / decision.
+//
+// The shape is deliberately minimal — this is a governance record, not a
+// configuration mechanism. The Release Readiness Gate continues to use the
+// existing categories; this block exists so the platform can ENUMERATE its
+// governed reference data, and so a future phase that flips
+// progressionEnabled to true must do so via deliberate edit.
+// ---------------------------------------------------------------------------
+
+export interface ReferenceDataGovernanceEntry {
+  /** True when this reference data has a single authoritative in-app
+   *  source (e.g. src/shared/stages/stageCatalog.ts for the stage
+   *  catalog). */
+  canonical: boolean;
+  /** True when the associated progression / mutation surface is wired.
+   *  Stage progression remains FALSE until the Phase 28 schema gap is
+   *  closed; flipping this to true requires the schema work + the
+   *  Phase 21/22/25-style governed write. */
+  progressionEnabled: boolean;
+  /** Phase that introduced the canonical source. */
+  introducedInPhase: number;
+  /** Reason progression is blocked, when progressionEnabled is false. */
+  progressionBlockedReason: string;
+}
+
+export const REFERENCE_DATA_GOVERNED: Readonly<
+  Record<'stageCatalog', ReferenceDataGovernanceEntry>
+> = Object.freeze({
+  stageCatalog: {
+    canonical: true,
+    progressionEnabled: false,
+    introducedInPhase: 41,
+    progressionBlockedReason:
+      'Phase 28 schema gap — Cr664_stagereferences not registered as a Power Apps data source and no sequence/order field is exposed on the loan deal record. The Phase 41 catalog provides canonical lifecycle metadata + governance predicates, but does NOT enable the Advance Stage write. See docs/STAGE_GOVERNANCE.md and src/shared/governance/stageProgressionAvailability.ts.',
+  },
+});

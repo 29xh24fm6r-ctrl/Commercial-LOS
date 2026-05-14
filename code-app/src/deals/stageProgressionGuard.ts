@@ -5,6 +5,7 @@ import type { CreditMemoData } from './creditMemoQueries';
 import type { TimelineEvent } from './activityQueries';
 import { deriveBlockers, type BlockersResult } from './blockerRules';
 import { deriveCreditMemoFreshness } from './creditMemoFreshness';
+import { stageNameGatesMemo } from '../shared/stages/stageCatalog';
 
 /**
  * Phase 27: derived-only stage progression eligibility. Pure function;
@@ -68,17 +69,15 @@ const GUIDANCE_BLOCKED =
 /**
  * Stages that gate progression on a credit memo. A deal currently
  * sitting at one of these stages cannot move forward without at
- * least one memo on file. Match is case-insensitive substring so
- * "Underwriting Review" / "Senior Committee" / etc. are caught.
+ * least one memo on file. Phase 41: the patterns formerly inline
+ * here ([/underwrit/i, /committee/i]) now live in the canonical
+ * stage catalog as the 'underwriting' lifecycle group; the helper
+ * stageNameGatesMemo() preserves exact prior behavior — substring
+ * match on the original two patterns ("Underwriting Review",
+ * "Senior Committee", etc. all still match).
  */
-const MEMO_GATING_STAGE_PATTERNS: readonly RegExp[] = [
-  /underwrit/i,
-  /committee/i,
-];
-
 function stageRequiresMemo(stage: string | undefined): boolean {
-  if (!stage) return false;
-  return MEMO_GATING_STAGE_PATTERNS.some((p) => p.test(stage));
+  return stageNameGatesMemo(stage);
 }
 
 export function deriveStageProgressionEligibility(
