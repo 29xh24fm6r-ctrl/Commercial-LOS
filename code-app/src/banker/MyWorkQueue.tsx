@@ -318,6 +318,8 @@ function typeLabel(t: WorkQueueItem['type']): string {
       return 'Overdue task';
     case 'overdue-document':
       return 'Overdue document';
+    case 'pending-review-document':
+      return 'Pending review';
     case 'at-risk-deal':
       return 'At-risk deal';
     case 'memo-review':

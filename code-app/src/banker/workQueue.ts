@@ -8,10 +8,12 @@ import type {
 import {
   BLOCKED_PAST_CLOSE_DAYS,
   CLOSING_SOON_DAYS,
+  PENDING_REVIEW_AT_RISK_DAYS,
   STALE_STAGE_AT_RISK_DAYS,
   compareWorkQueueItems,
   daysFromNow,
   isPastDue,
+  isReceivedDocumentPendingReview,
   tierBase,
   type WorkQueueItemBase,
   type WorkQueueSeverity,
@@ -35,6 +37,7 @@ export type WorkQueueItemType =
   | 'blocked-deal'
   | 'overdue-task'
   | 'overdue-document'
+  | 'pending-review-document'
   | 'at-risk-deal'
   | 'memo-review'
   | 'closing-soon';
@@ -124,12 +127,31 @@ export function deriveBankerWorkQueue(input: DeriveWorkQueueInput): WorkQueueIte
     items.push(taskOverdueItem(t, deal, nowMs));
   }
 
-  // 3. Document-level overdue items.
+  // 3. Document-level overdue items (outstanding, past due date).
   for (const d of input.data.outstandingDocuments) {
     if (!isPastDue(d.dueDate, nowMs)) continue;
     const deal = dealById.get(d.dealId);
     if (!deal || deal.isClosed) continue;
     items.push(documentOverdueItem(d, deal, nowMs));
+  }
+
+  // 4. Phase 54: documents marked received but still lacking a
+  //    reviewer past the at-risk threshold. Advisory signal — not
+  //    an approval, not a workflow trigger, just a banker reminder
+  //    that this document has sat unreviewed.
+  for (const d of input.data.pendingReviewDocuments) {
+    if (
+      !isReceivedDocumentPendingReview({
+        receivedDate: d.receivedDate,
+        reviewer: d.reviewer,
+        nowMs,
+      })
+    ) {
+      continue;
+    }
+    const deal = dealById.get(d.dealId);
+    if (!deal || deal.isClosed) continue;
+    items.push(pendingReviewDocumentItem(d, deal, nowMs));
   }
 
   items.sort(compareWorkQueueItems);
@@ -295,6 +317,40 @@ function documentOverdueItem(
       dueDate: d.dueDate,
       requestDate: d.requestDate,
     },
+  };
+}
+
+/**
+ * Phase 54: pending-review item. Surfaces when a document was
+ * marked received but no reviewer has been recorded after
+ * PENDING_REVIEW_AT_RISK_DAYS calendar days. Conservative copy:
+ * "may require review" — not "overdue review", not "review failed",
+ * not "approval pending".
+ *
+ * The signal clears as soon as cr664_reviewer is populated on the
+ * row (the row drops out of pendingReviewDocuments at the loader
+ * level, so this function never sees it).
+ */
+function pendingReviewDocumentItem(
+  d: WorkQueueDocumentRow,
+  deal: PipelineDeal,
+  nowMs: number,
+): WorkQueueItem {
+  const days = daysFromNow(d.receivedDate, nowMs);
+  // daysFromNow returns negative for past anchors (received earlier).
+  const elapsedDays = days != null ? Math.abs(days) : PENDING_REVIEW_AT_RISK_DAYS;
+  return {
+    id: `${d.id}::pending-review-document`,
+    type: 'pending-review-document',
+    severity: 'at-risk',
+    dealId: deal.id,
+    dealName: deal.name,
+    title: d.name,
+    reason: `Received ${elapsedDays} day(s) ago on "${deal.name}" — may require review.`,
+    dateIso: d.receivedDate,
+    // Older receivedDate → larger elapsed → higher sort priority
+    // within the at-risk tier.
+    sortKey: tierBase('at-risk') + elapsedDays,
   };
 }
 

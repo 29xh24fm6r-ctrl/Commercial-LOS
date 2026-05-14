@@ -3,6 +3,7 @@ import {
   BLOCKED_PAST_CLOSE_DAYS,
   CLOSING_SOON_DAYS,
   MAX_WORK_QUEUE_ROWS,
+  PENDING_REVIEW_AT_RISK_DAYS,
   STALE_STAGE_AT_RISK_DAYS,
   WORK_QUEUE_TIER_RANK,
   WORK_QUEUE_TIER_WINDOW,
@@ -11,6 +12,7 @@ import {
   daysFromNow,
   formatQueueDate,
   isPastDue,
+  isReceivedDocumentPendingReview,
   overallBadgeLabel,
   overallSeverityKey,
   severityLabel,
@@ -188,5 +190,89 @@ describe('formatQueueDate', () => {
     // environment runs in a non-UTC zone.
     expect(formatQueueDate('2026-05-01T00:00:00Z')).toBe('May 1, 2026');
     expect(formatQueueDate('2026-12-31T00:00:00Z')).toBe('Dec 31, 2026');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 54: isReceivedDocumentPendingReview predicate
+// ---------------------------------------------------------------------------
+
+describe('isReceivedDocumentPendingReview (Phase 54)', () => {
+  it('exposes the documented threshold constant', () => {
+    expect(PENDING_REVIEW_AT_RISK_DAYS).toBe(7);
+  });
+
+  it('returns true when received past threshold and no reviewer', () => {
+    // 12 days before NOW.
+    expect(
+      isReceivedDocumentPendingReview({
+        receivedDate: '2026-05-01T00:00:00Z',
+        reviewer: undefined,
+        nowMs: NOW_MS,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false when within the threshold window', () => {
+    // 4 days before NOW — under the default 7-day threshold.
+    expect(
+      isReceivedDocumentPendingReview({
+        receivedDate: '2026-05-09T00:00:00Z',
+        reviewer: undefined,
+        nowMs: NOW_MS,
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when a reviewer is present (signal cleared)', () => {
+    expect(
+      isReceivedDocumentPendingReview({
+        receivedDate: '2026-04-01T00:00:00Z',
+        reviewer: 'M. Paller',
+        nowMs: NOW_MS,
+      }),
+    ).toBe(false);
+  });
+
+  it('treats a whitespace-only reviewer as no reviewer', () => {
+    expect(
+      isReceivedDocumentPendingReview({
+        receivedDate: '2026-04-01T00:00:00Z',
+        reviewer: '   ',
+        nowMs: NOW_MS,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false when receivedDate is missing (still outstanding)', () => {
+    expect(
+      isReceivedDocumentPendingReview({
+        receivedDate: undefined,
+        reviewer: undefined,
+        nowMs: NOW_MS,
+      }),
+    ).toBe(false);
+  });
+
+  it('honors a caller-supplied thresholdDays override', () => {
+    // 4 days ago — under 7-day default, but past a 3-day override.
+    expect(
+      isReceivedDocumentPendingReview({
+        receivedDate: '2026-05-09T00:00:00Z',
+        reviewer: undefined,
+        nowMs: NOW_MS,
+        thresholdDays: 3,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for invalid date strings (defensive)', () => {
+    expect(
+      isReceivedDocumentPendingReview({
+        receivedDate: 'not-a-date',
+        reviewer: undefined,
+        nowMs: NOW_MS,
+      }),
+    ).toBe(false);
   });
 });

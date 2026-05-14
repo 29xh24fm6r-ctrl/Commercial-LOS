@@ -92,6 +92,7 @@ function workQueueData(overrides: Partial<BankerWorkQueueData> = {}): BankerWork
         modifiedOn: undefined,
       },
     ],
+    pendingReviewDocuments: [],
     memos: [],
     ...overrides,
   };
@@ -301,5 +302,105 @@ describe('MyWorkQueue — Phase 53 receive integration', () => {
     render(<MyWorkQueue />);
     await screen.findByText(/personal financial statement/i);
     expect(screen.getByText(/Mark received inline/i)).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 54 — pending-review-document rendering
+// ---------------------------------------------------------------------------
+
+describe('MyWorkQueue — Phase 54 pending-review surfacing', () => {
+  it('renders a Pending review row when a document was received >7 days ago and has no reviewer', async () => {
+    // Received 14 days before "now" — well past threshold.
+    const receivedAt = new Date();
+    receivedAt.setUTCDate(receivedAt.getUTCDate() - 14);
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      pendingReviewDocuments: [
+        {
+          id: 'doc-pending',
+          dealId: 'deal-77',
+          name: 'Tax Return 2024',
+          dueDate: undefined,
+          requestDate: undefined,
+          receivedDate: receivedAt.toISOString(),
+          reviewer: undefined,
+          uploaded: false,
+          modifiedOn: undefined,
+        },
+      ],
+    });
+    render(<MyWorkQueue />);
+
+    // Row appears.
+    expect(await screen.findByText(/tax return 2024/i)).toBeInTheDocument();
+    // Conservative copy: "may require review", never "overdue review"
+    // or "approval".
+    expect(screen.getByText(/may require review/i)).toBeInTheDocument();
+    expect(screen.queryByText(/overdue review/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/approval/i)).not.toBeInTheDocument();
+    // Type label rendered as "Pending review" (badge).
+    expect(screen.getByText(/^Pending review$/i)).toBeInTheDocument();
+  });
+
+  it('does NOT render a Mark received button on pending-review rows (already received)', async () => {
+    const receivedAt = new Date();
+    receivedAt.setUTCDate(receivedAt.getUTCDate() - 14);
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      pendingReviewDocuments: [
+        {
+          id: 'doc-pending',
+          dealId: 'deal-77',
+          name: 'Tax Return 2024',
+          dueDate: undefined,
+          requestDate: undefined,
+          receivedDate: receivedAt.toISOString(),
+          reviewer: undefined,
+          uploaded: false,
+          modifiedOn: undefined,
+        },
+      ],
+    });
+    render(<MyWorkQueue />);
+
+    await screen.findByText(/tax return 2024/i);
+    // Phase 53's Mark received button is for outstanding rows only.
+    // A pending-review row is already received — the action would be
+    // a no-op.
+    expect(
+      screen.queryByRole('button', { name: /mark document.*received/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does NOT render a pending-review row when received within the threshold window', async () => {
+    const receivedAt = new Date();
+    receivedAt.setUTCDate(receivedAt.getUTCDate() - 3); // 3 days ago
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      pendingReviewDocuments: [
+        {
+          id: 'doc-recent',
+          dealId: 'deal-77',
+          name: 'Recent receipt',
+          dueDate: undefined,
+          requestDate: undefined,
+          receivedDate: receivedAt.toISOString(),
+          reviewer: undefined,
+          uploaded: false,
+          modifiedOn: undefined,
+        },
+      ],
+    });
+    render(<MyWorkQueue />);
+
+    // No items at all — neither overdue-document (no due date) nor
+    // pending-review (within threshold). The empty-state copy
+    // appears in two places (card subtitle + body) — we narrow the
+    // assertion to the body line.
+    await screen.findByText(
+      /No urgent work items across your active deals/i,
+    );
+    expect(screen.queryByText(/recent receipt/i)).not.toBeInTheDocument();
   });
 });

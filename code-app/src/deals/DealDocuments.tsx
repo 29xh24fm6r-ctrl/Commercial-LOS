@@ -16,6 +16,10 @@ import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
+import {
+  PENDING_REVIEW_AT_RISK_DAYS,
+  isReceivedDocumentPendingReview,
+} from '../shared/workQueue/primitives';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 interface DealDocumentsProps {
@@ -110,7 +114,21 @@ function subtitleFor(documents: AsyncResult<DealDocumentsResult>): string | unde
   const { outstanding, received, reviewed } = documents.data;
   const total = outstanding.length + received.length + reviewed.length;
   if (total === 0) return undefined;
-  return `${outstanding.length} outstanding · ${received.length} received · ${reviewed.length} reviewed`;
+  // Phase 54: count of received documents that have sat unreviewed
+  // past the at-risk threshold. Displayed only when non-zero so the
+  // subtitle stays calm under normal load.
+  const nowMs = Date.now();
+  const pendingReviewCount = received.filter((d) =>
+    isReceivedDocumentPendingReview({
+      receivedDate: d.receivedDate,
+      reviewer: d.reviewer,
+      nowMs,
+    }),
+  ).length;
+  const base = `${outstanding.length} outstanding · ${received.length} received · ${reviewed.length} reviewed`;
+  return pendingReviewCount > 0
+    ? `${base} · ${pendingReviewCount} may require review`
+    : base;
 }
 
 function Body({
@@ -253,6 +271,15 @@ function DocumentRow({
             <>
               <Meta label="Received" value={formatDate(doc.receivedDate)} />
               {doc.uploaded && <Meta label="Source" value="Uploaded" />}
+              {isReceivedDocumentPendingReview({
+                receivedDate: doc.receivedDate,
+                reviewer: doc.reviewer,
+                nowMs: Date.now(),
+              }) && (
+                <Badge variant="atRisk" appearance="outline">
+                  Pending review for {PENDING_REVIEW_AT_RISK_DAYS}+ days
+                </Badge>
+              )}
             </>
           )}
           {status === 'reviewed' && (

@@ -63,6 +63,13 @@ export interface BankerWorkQueueData {
   /** Outstanding documents (no reviewer + no received date + not
    *  uploaded) across the banker's deals. */
   outstandingDocuments: WorkQueueDocumentRow[];
+  /** Phase 54: documents marked received (receivedDate set OR
+   *  uploadStatus true) that still lack a reviewer. The work queue
+   *  surfaces only those past the PENDING_REVIEW_AT_RISK_DAYS
+   *  threshold, but the raw list is exposed so consumers (e.g.
+   *  DealDocuments via this query OR its own loader) can render
+   *  the count or a per-row tag independently. */
+  pendingReviewDocuments: WorkQueueDocumentRow[];
   /** Credit memos across the banker's deals — every status. */
   memos: WorkQueueMemoRow[];
 }
@@ -111,10 +118,29 @@ async function loadOpenTasksForDeals(
     .filter((t) => t.dealId !== '');
 }
 
-async function loadOutstandingDocumentsForDeals(
+/**
+ * Phase 54: refactor of the Phase-32 outstanding-only loader. Now
+ * fetches every not-yet-reviewed document across the banker's deals
+ * in a single query, then splits client-side into the two buckets
+ * the work queue cares about:
+ *
+ *   - outstanding   : no reviewer, no receivedDate, not uploaded
+ *   - pendingReview : no reviewer, but receivedDate is set OR
+ *                     uploadStatus is true (matches Phase-22 +
+ *                     Phase-51 deriveStatus 'received' semantics)
+ *
+ * Both buckets use the same WorkQueueDocumentRow shape; consumers
+ * key off receivedDate / reviewer to decide what to render.
+ */
+async function loadDocumentsAwaitingActionForDeals(
   dealIds: readonly string[],
-): Promise<WorkQueueDocumentRow[]> {
-  if (dealIds.length === 0) return [];
+): Promise<{
+  outstanding: WorkQueueDocumentRow[];
+  pendingReview: WorkQueueDocumentRow[];
+}> {
+  if (dealIds.length === 0) {
+    return { outstanding: [], pendingReview: [] };
+  }
   const filter = `(${dealIdFilter(dealIds)}) and statecode eq 0`;
   const result = await Cr664_documentchecklistsService.getAll({
     filter,
@@ -123,7 +149,7 @@ async function loadOutstandingDocumentsForDeals(
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Failed to load banker documents');
   }
-  return (result.data ?? [])
+  const rows = (result.data ?? [])
     .map((d) => ({
       id: d.cr664_documentchecklistid,
       dealId: d._cr664_deal_value ?? '',
@@ -135,15 +161,21 @@ async function loadOutstandingDocumentsForDeals(
       uploaded: d.cr664_uploadstatus === true,
       modifiedOn: d.modifiedon,
     }))
-    // Match the deal-workspace definition of "outstanding":
-    // no reviewer + no received date + not uploaded.
     .filter(
       (d) =>
         d.dealId !== '' &&
-        !(d.reviewer && d.reviewer.trim().length > 0) &&
-        !d.receivedDate &&
-        !d.uploaded,
+        !(d.reviewer && d.reviewer.trim().length > 0),
     );
+  const outstanding: WorkQueueDocumentRow[] = [];
+  const pendingReview: WorkQueueDocumentRow[] = [];
+  for (const d of rows) {
+    if (d.receivedDate || d.uploaded) {
+      pendingReview.push(d);
+    } else {
+      outstanding.push(d);
+    }
+  }
+  return { outstanding, pendingReview };
 }
 
 async function loadMemosForDeals(
@@ -178,20 +210,32 @@ export async function loadBankerWorkQueueData(
     loadBankerPipeline(bankerId),
   );
   if (deals.length === 0) {
-    return { deals, tasks: [], outstandingDocuments: [], memos: [] };
+    return {
+      deals,
+      tasks: [],
+      outstandingDocuments: [],
+      pendingReviewDocuments: [],
+      memos: [],
+    };
   }
 
   // Step 2: child queries scoped to those deal ids, in parallel.
   const dealIds = deals.map((d) => d.id);
-  const [tasks, outstandingDocuments, memos] = await Promise.all([
+  const [tasks, documents, memos] = await Promise.all([
     timed(PERF_GROUP, 'loadOpenTasksForDeals', () =>
       loadOpenTasksForDeals(dealIds),
     ),
-    timed(PERF_GROUP, 'loadOutstandingDocumentsForDeals', () =>
-      loadOutstandingDocumentsForDeals(dealIds),
+    timed(PERF_GROUP, 'loadDocumentsAwaitingActionForDeals', () =>
+      loadDocumentsAwaitingActionForDeals(dealIds),
     ),
     timed(PERF_GROUP, 'loadMemosForDeals', () => loadMemosForDeals(dealIds)),
   ]);
 
-  return { deals, tasks, outstandingDocuments, memos };
+  return {
+    deals,
+    tasks,
+    outstandingDocuments: documents.outstanding,
+    pendingReviewDocuments: documents.pendingReview,
+    memos,
+  };
 }

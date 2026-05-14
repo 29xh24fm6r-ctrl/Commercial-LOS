@@ -54,6 +54,53 @@ export const BLOCKED_PAST_CLOSE_DAYS = 7;
 export const STALE_STAGE_AT_RISK_DAYS = 30;
 export const CLOSING_SOON_DAYS = 14;
 
+/**
+ * Phase 54: documents marked received but still lacking a reviewer
+ * past this many calendar days surface as "pending review" — an
+ * advisory at-risk signal, NOT an approval or workflow state.
+ *
+ * The signal is conservative by design:
+ *   - the schema has no cr664_revieweddate column to anchor against,
+ *     so the predicate uses receivedDate as the elapsed-time anchor;
+ *   - the wording everywhere is "may require review" / "pending
+ *     review" — never "overdue review" or "review failed";
+ *   - the signal CLEARS as soon as cr664_reviewer is set on the row,
+ *     since that is the only signal the schema offers that a banker
+ *     has actually engaged with the document.
+ */
+export const PENDING_REVIEW_AT_RISK_DAYS = 7;
+
+/**
+ * Phase 54 predicate. Returns true when a document checklist row is
+ * in the "received but not yet reviewed" state AND has sat there
+ * past the threshold.
+ *
+ * - reviewer non-empty → the row is reviewed; signal is cleared.
+ * - no receivedDate → the row is still outstanding; not in scope
+ *   for this signal.
+ * - receivedDate present + reviewer empty + elapsed >= threshold →
+ *   pending review.
+ *
+ * The uploaded flag is intentionally ignored here. It indicates the
+ * upstream channel of arrival; the review timeline is anchored on
+ * receivedDate alone.
+ */
+export function isReceivedDocumentPendingReview(opts: {
+  receivedDate: string | undefined;
+  reviewer: string | undefined;
+  nowMs: number;
+  thresholdDays?: number;
+}): boolean {
+  if (opts.reviewer && opts.reviewer.trim().length > 0) return false;
+  if (!opts.receivedDate) return false;
+  const days = daysFromNow(opts.receivedDate, opts.nowMs);
+  if (days == null) return false;
+  // daysFromNow returns negative for past dates (received in the
+  // past). The threshold compares against the absolute value.
+  const elapsed = Math.abs(days);
+  return elapsed >= (opts.thresholdDays ?? PENDING_REVIEW_AT_RISK_DAYS);
+}
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
