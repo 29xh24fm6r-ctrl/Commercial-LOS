@@ -1,6 +1,7 @@
 import { Cr664_alertqueuesService } from '../generated/services/Cr664_alertqueuesService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { newCorrelationId } from '../shared/governance/correlationId';
+import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 
 /**
  * Phase 19: governed writes for cr664_AlertQueue remediation.
@@ -51,8 +52,6 @@ const ALERT_STATUS_CLOSED = 788190004;
 const EVENT_CATEGORY_ALERT = 788190003;
 const EVENT_TYPE_EXCEPTION_RESOLVED = 788190006;
 const ENTITY_TYPE_CONFIGURATION = 788190005;
-const OUTCOME_SUCCEEDED = 788190000;
-const OUTCOME_FAILED = 788190001;
 
 interface RemediationParams {
   mode: AlertActionMode;
@@ -152,7 +151,7 @@ async function applyAlertRemediation(
         input,
         params,
         correlationId,
-        outcome: OUTCOME_FAILED,
+        outcome: AUDIT_OUTCOME_FAILED,
         failureReason: update.error?.message ?? 'Unknown alert update error',
       });
       return {
@@ -166,7 +165,7 @@ async function applyAlertRemediation(
       input,
       params,
       correlationId,
-      outcome: OUTCOME_FAILED,
+      outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
     });
     return { kind: 'alert-failed', alertError: message };
@@ -178,7 +177,7 @@ async function applyAlertRemediation(
     input,
     params,
     correlationId,
-    outcome: OUTCOME_SUCCEEDED,
+    outcome: AUDIT_OUTCOME_SUCCEEDED,
     failureReason: undefined,
   });
   if (audit.error) {

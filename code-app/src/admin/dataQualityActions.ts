@@ -1,6 +1,7 @@
 import { Cr664_dataqualityflagsService } from '../generated/services/Cr664_dataqualityflagsService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { newCorrelationId } from '../shared/governance/correlationId';
+import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 
 /**
  * First write in the rebuild: resolve an open cr664_DataQualityFlag.
@@ -49,8 +50,6 @@ const RESOLUTION_STATUS_RESOLVED = 788190001;
 const EVENT_CATEGORY_EXCEPTION = 788190007;
 const EVENT_TYPE_EXCEPTION_RESOLVED = 788190006;
 const ENTITY_TYPE_CONFIGURATION = 788190005;
-const OUTCOME_SUCCEEDED = 788190000;
-const OUTCOME_FAILED = 788190001;
 
 async function emitAuditEvent(opts: {
   input: ResolveFlagInput;
@@ -130,7 +129,7 @@ export async function resolveDataQualityFlag(
       void emitAuditEvent({
         input,
         correlationId,
-        outcome: OUTCOME_FAILED,
+        outcome: AUDIT_OUTCOME_FAILED,
         failureReason: updateResult.error?.message ?? 'Unknown flag update error',
       });
       return {
@@ -144,7 +143,7 @@ export async function resolveDataQualityFlag(
     void emitAuditEvent({
       input,
       correlationId,
-      outcome: OUTCOME_FAILED,
+      outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
     });
     return { kind: 'flag-failed', flagError: message };
@@ -157,7 +156,7 @@ export async function resolveDataQualityFlag(
     const audit = await emitAuditEvent({
       input,
       correlationId,
-      outcome: OUTCOME_SUCCEEDED,
+      outcome: AUDIT_OUTCOME_SUCCEEDED,
       failureReason: undefined,
     });
     if (audit.error) {

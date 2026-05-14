@@ -25,6 +25,7 @@ modules it names. Read the modules.
 | Release readiness derivation             | [releaseReadiness.ts](../src/shared/governance/releaseReadiness.ts)                                               |
 | Stage progression availability contract  | [stageProgressionAvailability.ts](../src/shared/governance/stageProgressionAvailability.ts)                       |
 | Correlation-id generation (governed writes) | `newCorrelationId` in [correlationId.ts](../src/shared/governance/correlationId.ts)                            |
+| Audit outcome enum values (`cr664_outcomestatus`) | `AUDIT_OUTCOME_SUCCEEDED` / `AUDIT_OUTCOME_FAILED` in [auditEnums.ts](../src/shared/governance/auditEnums.ts) |
 | Current-user → Dataverse systemuserid resolution | `resolveCurrentSystemUserId` in [currentUserLookup.ts](../src/shared/governance/currentUserLookup.ts)      |
 
 ## Lifecycle / stage

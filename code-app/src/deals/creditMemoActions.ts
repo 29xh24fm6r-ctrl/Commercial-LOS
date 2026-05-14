@@ -3,6 +3,7 @@ import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr66
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
 import { newCorrelationId } from '../shared/governance/correlationId';
+import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 
 /**
  * Phase 25: governed credit-memo draft save. The fifth governed
@@ -93,8 +94,6 @@ const SECTION_REVIEW_STATUS_PENDING = 788190000;
 const AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002;
 const AUDIT_EVENT_TYPE_STATUS_CHANGE = 788190001;
 const AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
-const AUDIT_OUTCOME_SUCCEEDED = 788190000;
-const AUDIT_OUTCOME_FAILED = 788190001;
 
 const TIMELINE_EVENT_TYPE_NOTE_LOGGED = 788190002;
 const TIMELINE_VISIBILITY_BANKER_AND_MANAGER = 788190000;
