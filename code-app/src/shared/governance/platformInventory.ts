@@ -1,13 +1,22 @@
 /**
- * Phase 40: static platform inventory.
+ * Static platform inventory. Introduced in Phase 40; extended through
+ * Phase 51 (Phase 41 added REFERENCE_DATA_GOVERNED; Phase 43 added
+ * the optional `enablementMapPath` field on DeliberatelyBlockedEntry;
+ * Phase 51 added `deal-document-receive` to GOVERNED_WRITES and
+ * tightened the `document-upload` NOT_WIRED reason).
  *
  * Single source of truth for what the commercial-lending app has
  * built, deliberately not wired, and intentionally blocked. Consumed
  * by:
  *   - the Release Readiness Gate admin card (no behavior change —
- *     the previously inline constants moved here verbatim);
- *   - the Phase-40 stabilization checklist + release notes docs
- *     (docs/STABILIZATION_CHECKLIST.md + docs/RELEASE_NOTES_PHASES_1_40.md);
+ *     the originally inline constants moved here verbatim in Phase 40);
+ *   - the stabilization checklist + release notes docs
+ *     (docs/STABILIZATION_CHECKLIST.md +
+ *      docs/RELEASE_NOTES_PHASES_1_40.md +
+ *      docs/RELEASE_NOTES_PHASES_41_51.md);
+ *   - the Phase 46–50 inventory-driven regression sweeps in
+ *     src/shared/governance/ that pin the contract every governed
+ *     write must follow;
  *   - a focused test (platformInventory.test.ts) that pins the known
  *     blockers and not-wired surfaces so drift can't silently land.
  *

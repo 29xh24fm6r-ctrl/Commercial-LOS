@@ -1,8 +1,12 @@
 # Stabilization Checklist — Commercial Lending Code App
 
-**Phase: 40 (stabilization)**
-**Test suite: 347 tests passing across 33 files**
-**Bundle: ~620 kB minified / ~152 kB gzipped**
+**Phase: 51 (latest)**
+**Test suite: 675 tests passing across 43 files**
+**Bundle: ~634 kB minified / ~154 kB gzipped**
+
+See [RELEASE_NOTES_PHASES_41_51.md](RELEASE_NOTES_PHASES_41_51.md) for the
+per-phase narrative since Phase 40, and the canonical current operational
+state across roles.
 
 Status legend (matches the in-app Release Readiness Gate):
 
@@ -42,7 +46,7 @@ Status legend (matches the in-app Release Readiness Gate):
 
 ---
 
-## Governed write domains
+## Governed write domains (7 entries)
 
 | Domain | Phase | Audit | Timeline | Status |
 | --- | --- | --- | --- | --- |
@@ -52,8 +56,11 @@ Status legend (matches the in-app Release Readiness Gate):
 | Deal task complete | 21 | ✓ | ✓ | **Ready** |
 | Deal document request | 22 | ✓ | ✓ | **Ready** |
 | Credit memo draft save | 25 | ✓ | ✓ | **Ready** |
+| Deal document mark received | **51** | ✓ | ✓ | **Ready** |
 
 Each governed write uses the same coordination shape: discriminated outcome union (`success | <domain>-failed | governance-partial | unknown`), single correlation id per attempt, best-effort Failed audit when the primary update fails, CRITICAL `governance-partial` copy when audit or timeline fails after the primary update succeeded ("Do not retry — the X may already be saved").
+
+The discipline is regression-pinned end-to-end by the Phase 46–50 sweeps in `src/shared/governance/`: correlation-id ([correlationId.ts](../src/shared/governance/correlationId.ts)), outcome union, audit payload schema, timeline payload schema, plus the Phase 48 data-layer isolation guard.
 
 ---
 
@@ -121,23 +128,24 @@ The Release Readiness Gate reports `test-coverage-build-verification` as **Not W
 
 | Gap | Affected feature | Phase that documented it |
 | --- | --- | --- |
-| `Cr664_stagereferences` not registered as a Power Apps data source | Advance Stage write | 28 / 29 |
-| No stage ordering / sequence field on loan deal or system settings | Advance Stage write | 28 / 29 |
+| `Cr664_stagereferences` not registered as a Power Apps data source | Advance Stage write | 28 / 29 / 43 |
+| No stage ordering / sequence field on loan deal or system settings | Advance Stage write | 28 / 29 / 43 |
+| No `StageAdvanced` enum value on `cr664_DealTimelineEvent.cr664_eventtype` | Advance Stage timeline emission | 43 |
 | Executive transitional fallback queries (no snapshot entities for `PipelineByStage`, `MonthlyClosingForecast`) | Executive snapshot-only invariant | 15 |
 | No borrower email / draft entity in the generated schema | Borrower update delivery | 23 |
-| No document storage / upload pipeline | Document upload | 22 |
+| No File column on `cr664_DocumentChecklist` | Binary document upload | 51 (was 22) |
 
 ---
 
 ## Explicitly deferred capabilities (NOT built)
 
-> Do NOT advertise these as working. They are intentionally out of scope as of Phase 40.
+> Do NOT advertise these as working. They remain intentionally out of scope as of Phase 51.
 
 - **Email / Outlook / Graph delivery** — borrower update is local Copy-only (Phase 23).
-- **Document upload** — Phase 22 stamps `cr664_requestdate` only; no upload pipeline.
+- **Binary document upload** — Phase 22 stamps `cr664_requestdate`; Phase 51 stamps `cr664_receiveddate` (Mark received). Both are metadata-only. No file column on the schema, so no binary travels. See [PHASE_51_DOCUMENT_UPLOAD_SCOPE.md](PHASE_51_DOCUMENT_UPLOAD_SCOPE.md).
 - **AI / model-driven generation** — credit memo draft is a deterministic generator; the preview banner explicitly says "No AI was used to produce this draft." (Phase 24).
 - **Memo finalize / export / PDF / Submit** — Phase 24 + 25 ship Generate / Save Draft only.
-- **Stage progression write** — see "Blocked" above. Phase 28 ships a deliberate non-implementation with documented remediation.
+- **Stage progression write** — see "Blocked" above. Phase 28 ships a deliberate non-implementation; Phase 43 documents the concrete unblock checklist.
 - **Executive `/deals/:id` drill-through** — DealRoute denies. Snapshot-only is by design (Phase 15).
 - **Admin `/deals/:id` drill-through** — DealRoute denies. Separate governance decision required.
 - **Cross-team manager visibility** — Phase 14 / 33 / 36 scope manager to single team via `_cr664_team_value`.
@@ -148,9 +156,10 @@ The Release Readiness Gate reports `test-coverage-build-verification` as **Not W
 ## Before promotion — required out-of-band steps
 
 1. `npm run build` — must complete clean.
-2. `npm test -- --run` — full suite green (currently 347/347).
+2. `npm test -- --run` — full suite green (currently 675/675).
 3. Open the Admin Workspace and confirm the **Release Readiness Gate** overall badge reads either *"Cannot fully verify — signals not wired"* (acceptable when no blocker fires) or shows the expected **Blocked** state for Stage Governance and the **Not Wired** state for build/test (those are the current expected red flags).
 4. Confirm no executive snapshot reports a stale-data flag (`staleDataFlag`).
 5. Confirm no Critical alerts are open in the Alert Backlog.
+6. Confirm the seven governed writes still pass their inventory-completeness regression tests in `src/shared/governance/` — Phase 46/47/49/50 sweeps. Adding a new governed write without extending the inventory mappings is a deliberate test failure.
 
 If any of those steps surfaces an unexpected signal, **do not promote**.

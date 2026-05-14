@@ -1,11 +1,19 @@
 # Release Notes — Phases 1 through 40
 
-**Current state as of Phase 40**
+> **Historical record.** This document captures the platform state as of
+> the Phase 40 stabilization milestone. Current state — including the
+> Phases 41–50 governance hardening sequence and the Phase 51 operational
+> expansion — lives in
+> [RELEASE_NOTES_PHASES_41_51.md](RELEASE_NOTES_PHASES_41_51.md). The
+> [STABILIZATION_CHECKLIST.md](STABILIZATION_CHECKLIST.md) is always
+> current.
+
+**State as of Phase 40 (the snapshot this document covers)**
 
 - 347 tests passing across 33 test files
 - `npm run build` clean
 - Bundle ~620 kB minified / ~152 kB gzipped
-- **Not production-ready.** The Release Readiness Gate currently rolls up to **"Not ready to promote — blockers open"**, with **Stage Governance** as the expected **Blocked** category and **Test/build verification** as the expected **Not Wired** category. See `STABILIZATION_CHECKLIST.md` for the full pre-promotion checklist.
+- **Not production-ready.** The Release Readiness Gate rolled up to **"Not ready to promote — blockers open"**, with **Stage Governance** as the expected **Blocked** category and **Test/build verification** as the expected **Not Wired** category. The Phase 40 stabilization checklist captured the pre-promotion gates; the current checklist (post-Phase-51) is in [STABILIZATION_CHECKLIST.md](STABILIZATION_CHECKLIST.md).
 
 ---
 
