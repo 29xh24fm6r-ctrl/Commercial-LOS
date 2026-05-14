@@ -5,6 +5,12 @@ import {
   type ReleaseCategoryStatus,
 } from '../shared/governance/releaseReadiness';
 import { stageProgressionDiagnostics } from '../shared/governance/stageProgressionAvailability';
+import {
+  EXEC_TRANSITIONAL_FALLBACK_FEATURES,
+  GOVERNED_WRITES,
+  PERMISSION_BEFORE_QUERY_VERIFIED,
+  WORKSPACE_ISOLATION_VERIFIED,
+} from '../shared/governance/platformInventory';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { adminStyles } from './adminCardChrome';
@@ -33,30 +39,13 @@ import {
  * deriveReleaseReadiness without touching the categories.
  */
 
-// Static architectural invariants — verified by repository structure
-// and routing wiring, captured here as the single point of truth for
-// this gate. Flip via deliberate refactor only.
-const WORKSPACE_ISOLATION_VERIFIED = true;
-const PERMISSION_BEFORE_QUERY_VERIFIED = true;
-
-// Executive surfaces still on transitional operational fallback (no
-// snapshot entity in Dataverse yet). Update this list as snapshot
-// entities ship.
-const EXEC_TRANSITIONAL_FALLBACK_FEATURES: readonly string[] = [
-  'PipelineByStage',
-  'MonthlyClosingForecast',
-];
-
-// Governed writes shipped. Update this inventory whenever a new
-// governed-write phase lands.
-const GOVERNED_WRITES_SHIPPED: readonly { id: string; label: string }[] = [
-  { id: 'data-quality-flag-resolve', label: 'Data Quality Flag resolve' },
-  { id: 'alert-resolve', label: 'Alert resolve' },
-  { id: 'alert-dismiss', label: 'Alert dismiss' },
-  { id: 'deal-task-complete', label: 'Deal task complete' },
-  { id: 'deal-document-request', label: 'Deal document request' },
-  { id: 'credit-memo-draft-save', label: 'Credit memo draft save' },
-];
+// Phase 40: every non-runtime input above is now sourced from the
+// shared platformInventory module so the docs, the test that pins
+// known blockers, and this gate all read from one source of truth.
+// The constants imported above were previously inline here — the
+// rendered behavior is unchanged.
+const GOVERNED_WRITES_SHIPPED: readonly { id: string; label: string }[] =
+  GOVERNED_WRITES.map((w) => ({ id: w.id, label: w.label }));
 
 export function ReleaseReadinessGate() {
   const { dataQuality, auditAnomalies, alerts, refreshStatus } = useAdminData();
