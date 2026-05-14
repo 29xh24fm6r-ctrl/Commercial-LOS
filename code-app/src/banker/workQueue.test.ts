@@ -44,6 +44,7 @@ function doc(overrides: Partial<WorkQueueDocumentRow>): WorkQueueDocumentRow {
     dealId: 'deal-1',
     name: 'A document',
     dueDate: undefined,
+    requestDate: undefined,
     receivedDate: undefined,
     reviewer: undefined,
     uploaded: false,

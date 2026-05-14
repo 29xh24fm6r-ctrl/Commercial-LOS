@@ -35,6 +35,10 @@ export interface WorkQueueDocumentRow {
   dealId: string;
   name: string;
   dueDate: string | undefined;
+  /** Phase 53: surfaced for the Command Center mark-received modal so
+   *  the row displays "Last requested" accurately. Loaded but unused
+   *  by Phase 32's derivation. */
+  requestDate: string | undefined;
   receivedDate: string | undefined;
   reviewer: string | undefined;
   uploaded: boolean;
@@ -125,6 +129,7 @@ async function loadOutstandingDocumentsForDeals(
       dealId: d._cr664_deal_value ?? '',
       name: d.cr664_documentname,
       dueDate: d.cr664_duedate,
+      requestDate: d.cr664_requestdate,
       receivedDate: d.cr664_receiveddate,
       reviewer: d.cr664_reviewer,
       uploaded: d.cr664_uploadstatus === true,

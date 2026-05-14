@@ -43,12 +43,27 @@ export type WorkQueueItemType =
 // WorkQueueSeverity from './workQueue' without behavior change.
 export type { WorkQueueSeverity };
 
+/** Phase 53: carries just enough document metadata for the Command
+ *  Center mark-received modal to identify the row and render
+ *  honestly (name / due date / last requested). Only populated for
+ *  type === 'overdue-document'. */
+export interface WorkQueueDocumentMetadata {
+  documentId: string;
+  documentName: string;
+  dueDate: string | undefined;
+  requestDate: string | undefined;
+}
+
 export interface WorkQueueItem extends WorkQueueItemBase {
   type: WorkQueueItemType;
   dealId: string;
   title: string;
   reason: string;
   dateIso: string | undefined;
+  /** Phase 53: populated only on overdue-document rows; lets
+   *  MyWorkQueue invoke the Phase 51 markDocumentReceived action
+   *  without re-fetching the document. */
+  documentMetadata?: WorkQueueDocumentMetadata;
 }
 
 export interface DeriveWorkQueueInput {
@@ -274,6 +289,12 @@ function documentOverdueItem(
     reason: `Outstanding document overdue by ${overdueDays} day(s) on "${deal.name}".`,
     dateIso: d.dueDate,
     sortKey: tierBase('overdue') + overdueDays,
+    documentMetadata: {
+      documentId: d.id,
+      documentName: d.name,
+      dueDate: d.dueDate,
+      requestDate: d.requestDate,
+    },
   };
 }
 
