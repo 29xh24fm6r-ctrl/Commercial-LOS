@@ -3,6 +3,7 @@ import { Cr664_auditeventsService } from '../generated/services/Cr664_auditevent
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
+import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
 
 /**
  * Phase 21: governed write for completing an open cr664_DealTask1 from
@@ -60,7 +61,6 @@ const AUDIT_EVENT_TYPE_STATUS_CHANGE = 788190001;
 const AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
 
 const TIMELINE_EVENT_TYPE_TASK_COMPLETED = 788190005;
-const TIMELINE_VISIBILITY_BANKER_AND_MANAGER = 788190000;
 
 async function emitAuditEvent(opts: {
   input: CompleteTaskInput;

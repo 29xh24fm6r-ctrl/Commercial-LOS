@@ -26,6 +26,7 @@ modules it names. Read the modules.
 | Stage progression availability contract  | [stageProgressionAvailability.ts](../src/shared/governance/stageProgressionAvailability.ts)                       |
 | Correlation-id generation (governed writes) | `newCorrelationId` in [correlationId.ts](../src/shared/governance/correlationId.ts)                            |
 | Audit outcome enum values (`cr664_outcomestatus`) | `AUDIT_OUTCOME_SUCCEEDED` / `AUDIT_OUTCOME_FAILED` in [auditEnums.ts](../src/shared/governance/auditEnums.ts) |
+| Timeline visibility enum value (`cr664_visibilityscope`) | `TIMELINE_VISIBILITY_BANKER_AND_MANAGER` in [timelineEnums.ts](../src/shared/governance/timelineEnums.ts) |
 | Current-user → Dataverse systemuserid resolution | `resolveCurrentSystemUserId` in [currentUserLookup.ts](../src/shared/governance/currentUserLookup.ts)      |
 
 ## Lifecycle / stage

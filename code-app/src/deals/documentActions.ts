@@ -3,6 +3,7 @@ import { Cr664_auditeventsService } from '../generated/services/Cr664_auditevent
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
+import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
 
 /**
  * Phase 22: governed write for requesting an outstanding document on
@@ -55,7 +56,6 @@ const AUDIT_EVENT_TYPE_STATUS_CHANGE = 788190001;
 const AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
 
 const TIMELINE_EVENT_TYPE_DOCUMENT_REQUESTED = 788190009;
-const TIMELINE_VISIBILITY_BANKER_AND_MANAGER = 788190000;
 
 function beforeStateForRequest(prior: string | undefined): string {
   if (!prior) return 'Not yet requested';
