@@ -108,6 +108,13 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsAudit: true,
     emitsTimeline: true,
   },
+  {
+    id: 'deal-document-request-handoff',
+    label: 'Deal document request — Outlook handoff (no-admin)',
+    phase: 63,
+    emitsAudit: true,
+    emitsTimeline: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------

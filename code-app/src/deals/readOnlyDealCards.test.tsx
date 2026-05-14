@@ -36,6 +36,10 @@ vi.mock('./documentActions', () => ({ requestDocument: vi.fn() }));
 vi.mock('./sendDocumentRequestEmail', () => ({
   sendDocumentRequestEmail: vi.fn(),
 }));
+// Phase 63: same isolation for the Outlook-handoff governed write.
+vi.mock('./prepareDocumentRequestHandoff', () => ({
+  prepareDocumentRequestHandoff: vi.fn(),
+}));
 vi.mock('./creditMemoActions', () => ({ saveCreditMemoDraft: vi.fn() }));
 vi.mock('./creditMemoQueries', () => ({}));
 vi.mock('./activityQueries', () => ({}));

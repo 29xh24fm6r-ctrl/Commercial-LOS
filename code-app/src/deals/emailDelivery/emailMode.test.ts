@@ -3,6 +3,7 @@ import { EMAIL_MODE } from './emailMode';
 
 /**
  * Phase 61: emailMode constant pins.
+ * Phase 63: extended for the HANDOFF mode.
  *
  * The mode is read ONCE at module load from
  * import.meta.env.VITE_EMAIL_MODE. Vitest does not set the variable,
@@ -11,18 +12,18 @@ import { EMAIL_MODE } from './emailMode';
  * variable is missing.
  *
  * The point of this file is to pin BOTH that the default is DRY_RUN
- * AND that the value is one of the two enum strings. A future
+ * AND that the value is one of the three enum strings. A future
  * regression where a typo'd env var silently flips into LIVE would
  * fail here because the export type would no longer be the narrowed
- * 'DRY_RUN' | 'LIVE' union.
+ * 'DRY_RUN' | 'LIVE' | 'HANDOFF' union.
  */
 
-describe('Phase 61 — emailMode', () => {
+describe('Phase 61 / 63 — emailMode', () => {
   it('defaults to DRY_RUN when VITE_EMAIL_MODE is unset (the vitest default)', () => {
     expect(EMAIL_MODE).toBe('DRY_RUN');
   });
 
-  it('is one of the two enum members', () => {
-    expect(['DRY_RUN', 'LIVE']).toContain(EMAIL_MODE);
+  it('is one of the three enum members', () => {
+    expect(['DRY_RUN', 'LIVE', 'HANDOFF']).toContain(EMAIL_MODE);
   });
 });

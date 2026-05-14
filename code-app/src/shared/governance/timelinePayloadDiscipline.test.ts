@@ -71,6 +71,12 @@ const TIMELINE_BY_WRITE_ID: Readonly<Record<string, TimelineMapping>> =
       eventTypeValue: 788190001,
       subtypeHasDomainPrefix: false,
     },
+    'deal-document-request-handoff': {
+      file: 'src/deals/prepareDocumentRequestHandoff.ts',
+      eventTypeConst: 'TIMELINE_EVENT_TYPE_NOTE_LOGGED',
+      eventTypeValue: 788190002,
+      subtypeHasDomainPrefix: true,
+    },
     'credit-memo-draft-save': {
       file: 'src/deals/creditMemoActions.ts',
       eventTypeConst: 'TIMELINE_EVENT_TYPE_NOTE_LOGGED',

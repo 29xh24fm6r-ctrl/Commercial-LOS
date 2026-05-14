@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the nine shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61)', () => {
+  it('contains the ten shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63)', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -32,6 +32,7 @@ describe('platformInventory — governed writes', () => {
         'deal-document-receive',
         'deal-document-request',
         'deal-document-request-email',
+        'deal-document-request-handoff',
         'deal-document-review',
         'deal-task-complete',
       ].sort(),
@@ -47,6 +48,7 @@ describe('platformInventory — governed writes', () => {
         'deal-task-complete',
         'deal-document-request',
         'deal-document-request-email',
+        'deal-document-request-handoff',
         'deal-document-receive',
         'deal-document-review',
         'credit-memo-draft-save',

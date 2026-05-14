@@ -96,6 +96,13 @@ const OUTCOME_BY_WRITE_ID: Readonly<Record<string, OutcomeMapping>> =
       failurePattern: 'governance-partial',
       successCarriesIds: true,
     },
+    'deal-document-request-handoff': {
+      file: 'src/deals/prepareDocumentRequestHandoff.ts',
+      typeName: 'PrepareDocumentRequestHandoffOutcome',
+      primaryFailedKind: 'handoff-failed',
+      failurePattern: 'governance-partial',
+      successCarriesIds: true,
+    },
     'credit-memo-draft-save': {
       file: 'src/deals/creditMemoActions.ts',
       typeName: 'SaveCreditMemoDraftOutcome',
@@ -401,6 +408,10 @@ describe('Phase 47 — modal callers convert thrown errors to { kind: "unknown",
       {
         typeName: 'SendDocumentRequestEmailOutcome',
         actionModule: './sendDocumentRequestEmail',
+      },
+      {
+        typeName: 'PrepareDocumentRequestHandoffOutcome',
+        actionModule: './prepareDocumentRequestHandoff',
       },
     ],
     'src/deals/CreditMemoDraftModal.tsx': [

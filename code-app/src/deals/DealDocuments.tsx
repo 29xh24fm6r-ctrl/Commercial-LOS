@@ -18,6 +18,12 @@ import {
   sendDocumentRequestEmail,
   type SendDocumentRequestEmailOutcome,
 } from './sendDocumentRequestEmail';
+import {
+  prepareDocumentRequestHandoff,
+  type PrepareDocumentRequestHandoffOutcome,
+  type HandoffMethod,
+} from './prepareDocumentRequestHandoff';
+import { EMAIL_MODE } from './emailDelivery/emailMode';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
@@ -90,6 +96,33 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     return outcome;
   }
 
+  async function handlePrepareHandoff(handoffInput: {
+    recipient: string;
+    subject: string;
+    body: string;
+    method: HandoffMethod;
+  }): Promise<PrepareDocumentRequestHandoffOutcome> {
+    if (!pendingRequestDoc || !banker?.systemUserId) {
+      return {
+        kind: 'unknown',
+        message: 'Cannot prepare handoff: missing document or system user id.',
+      };
+    }
+    const outcome = await prepareDocumentRequestHandoff({
+      documentId: pendingRequestDoc.id,
+      documentName: pendingRequestDoc.name,
+      dealId: deal.id,
+      systemUserId: banker.systemUserId,
+      recipient: handoffInput.recipient,
+      subject: handoffInput.subject,
+      body: handoffInput.body,
+      method: handoffInput.method,
+      mode: EMAIL_MODE,
+    });
+    refresh('after-document-request-handoff');
+    return outcome;
+  }
+
   async function handleReceiveConfirm(
     note: string,
   ): Promise<MarkDocumentReceivedOutcome> {
@@ -149,6 +182,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           doc={pendingRequestDoc}
           onConfirm={handleRequestConfirm}
           onSendEmail={handleSendEmail}
+          onPrepareHandoff={handlePrepareHandoff}
           onClose={() => setPendingRequestDoc(null)}
         />
       )}

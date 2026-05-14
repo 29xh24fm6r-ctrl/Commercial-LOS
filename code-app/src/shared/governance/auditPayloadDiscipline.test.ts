@@ -75,6 +75,11 @@ const AUDIT_BY_WRITE_ID: Readonly<Record<string, AuditMapping>> = Object.freeze(
     eventName: 'DocumentRequest Outlook Send',
     linksToDeal: true,
   },
+  'deal-document-request-handoff': {
+    file: 'src/deals/prepareDocumentRequestHandoff.ts',
+    eventName: 'DocumentRequest Outlook Handoff',
+    linksToDeal: true,
+  },
   'credit-memo-draft-save': {
     file: 'src/deals/creditMemoActions.ts',
     eventName: 'CreditMemo Draft Saved',

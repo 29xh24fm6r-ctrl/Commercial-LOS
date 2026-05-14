@@ -2,45 +2,71 @@ import { useEffect, useRef, useState } from 'react';
 import type { DealDocument } from './dealDocumentQueries';
 import type { RequestDocumentOutcome } from './documentActions';
 import type { SendDocumentRequestEmailOutcome } from './sendDocumentRequestEmail';
+import type {
+  HandoffMethod,
+  PrepareDocumentRequestHandoffOutcome,
+} from './prepareDocumentRequestHandoff';
 import { EMAIL_MODE } from './emailDelivery/emailMode';
+import {
+  buildHandoffClipboardText,
+  buildMailtoUrl,
+} from './emailDelivery/emailHandoff';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
- * Phase 22 (request) + Phase 61 (Outlook send).
+ * Phase 22 (request) + Phase 61 (Outlook send) + Phase 63 (handoff).
  *
- * Backwards-compatible: when `onSendEmail` is not provided, the modal
- * behaves exactly as Phase 22 — note-only in-app request, no email
- * section, no mode badge, no send outcome. When `onSendEmail` IS
- * provided, the modal grows:
- *   - A Mode badge surfacing the build-time DRY_RUN / LIVE setting
- *   - A "Send email" toggle (default ON)
- *   - Recipient + subject fields the banker types into
- *   - Sequenced submission: the request is recorded FIRST; the send
- *     is attempted only if the request succeeded
- *   - A combined outcome view that shows both outcomes honestly
+ * Three operational modes are supported:
+ *   - DRY_RUN / LIVE: the modal renders the "Send email through
+ *     Outlook" toggle and calls `onSendEmail` (the Phase 61 governed
+ *     send action). LIVE today is a stub; DRY_RUN never leaves the
+ *     client.
+ *   - HANDOFF (Phase 63): the modal renders an "Open in Outlook"
+ *     mailto button + a "Copy email" clipboard fallback. The app
+ *     does NOT send. The banker sends from their own Outlook
+ *     client. After the banker confirms the handoff, the modal
+ *     calls `onPrepareHandoff` which records an audit + timeline
+ *     row stating the handoff was prepared.
+ *
+ * Backwards-compatible: when neither `onSendEmail` nor
+ * `onPrepareHandoff` is provided, the modal behaves exactly as
+ * Phase 22 — note-only in-app request, no email surfaces, no mode
+ * badge. This preserves the Phase 22 contract for callers that have
+ * not yet wired the Phase 61/63 surfaces.
  */
 
 interface RequestDocumentModalProps {
   doc: DealDocument;
   onConfirm: (note: string) => Promise<RequestDocumentOutcome>;
   onClose: () => void;
-  /** Phase 61. When provided, the modal sequences the send after the
-   *  request and renders both outcomes. */
+  /** Phase 61. When provided AND EMAIL_MODE is DRY_RUN or LIVE, the
+   *  modal sequences the send after the request and renders both
+   *  outcomes. */
   onSendEmail?: (input: {
     recipient: string;
     subject: string;
     body: string;
   }) => Promise<SendDocumentRequestEmailOutcome>;
+  /** Phase 63. When provided AND EMAIL_MODE is HANDOFF, the modal
+   *  renders the mailto + clipboard surfaces and records the handoff
+   *  as a governed write via this callback. */
+  onPrepareHandoff?: (input: {
+    recipient: string;
+    subject: string;
+    body: string;
+    method: HandoffMethod;
+  }) => Promise<PrepareDocumentRequestHandoffOutcome>;
 }
 
 type ModalState =
   | { kind: 'editing' }
-  | { kind: 'submitting'; phase: 'request' | 'send' }
+  | { kind: 'submitting'; phase: 'request' | 'send' | 'handoff' }
   | {
       kind: 'outcome';
       requestOutcome: RequestDocumentOutcome;
       sendOutcome: SendDocumentRequestEmailOutcome | undefined;
+      handoffOutcome: PrepareDocumentRequestHandoffOutcome | undefined;
     };
 
 export function RequestDocumentModal({
@@ -48,10 +74,22 @@ export function RequestDocumentModal({
   onConfirm,
   onClose,
   onSendEmail,
+  onPrepareHandoff,
 }: RequestDocumentModalProps) {
-  const emailFeatureEnabled = !!onSendEmail;
+  // Mode selection is gated on BOTH the build-time EMAIL_MODE and
+  // the caller wiring. A HANDOFF build that lacks onPrepareHandoff
+  // falls back to "in-app request only" (Phase 22 behavior) rather
+  // than rendering a non-functional mailto button.
+  const handoffFeatureEnabled = EMAIL_MODE === 'HANDOFF' && !!onPrepareHandoff;
+  const sendFeatureEnabled =
+    EMAIL_MODE !== 'HANDOFF' && !!onSendEmail;
+  const emailSurfaceVisible = handoffFeatureEnabled || sendFeatureEnabled;
   const [note, setNote] = useState('');
-  const [sendEnabled, setSendEnabled] = useState(emailFeatureEnabled);
+  const [sendEnabled, setSendEnabled] = useState(sendFeatureEnabled);
+  const [handoffMethod, setHandoffMethod] = useState<HandoffMethod | undefined>(
+    undefined,
+  );
+  const [clipboardCopied, setClipboardCopied] = useState(false);
   const [recipient, setRecipient] = useState('');
   const [subject, setSubject] = useState(`Document request: ${doc.name}`);
   const [state, setState] = useState<ModalState>({ kind: 'editing' });
@@ -75,14 +113,73 @@ export function RequestDocumentModal({
   const trimmedNote = note.trim();
   const trimmedRecipient = recipient.trim();
   const trimmedSubject = subject.trim();
-  const willSend = emailFeatureEnabled && sendEnabled;
-  const sendInputsValid =
-    !willSend ||
+  const willSend = sendFeatureEnabled && sendEnabled;
+  const willHandoff = handoffFeatureEnabled;
+  // For SEND, the recipient/subject are required if the toggle is on.
+  // For HANDOFF, the recipient/subject are ALWAYS required (the mailto
+  // and clipboard surfaces are useless without them).
+  const emailInputsValid =
+    (!willSend && !willHandoff) ||
     (trimmedRecipient.length > 0 && trimmedSubject.length > 0);
   const canSubmit =
-    state.kind === 'editing' && trimmedNote.length > 0 && sendInputsValid;
+    state.kind === 'editing' && trimmedNote.length > 0 && emailInputsValid;
   const inProgress = state.kind === 'submitting';
   const isReRequest = !!doc.requestDate;
+
+  async function recordHandoff(method: HandoffMethod) {
+    if (!onPrepareHandoff) return;
+    try {
+      return await onPrepareHandoff({
+        recipient: trimmedRecipient,
+        subject: trimmedSubject,
+        body: trimmedNote,
+        method,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        kind: 'unknown' as const,
+        message,
+      } satisfies PrepareDocumentRequestHandoffOutcome;
+    }
+  }
+
+  function handleOpenMailto() {
+    if (!handoffFeatureEnabled || trimmedRecipient.length === 0) return;
+    const url = buildMailtoUrl({
+      recipient: trimmedRecipient,
+      subject: trimmedSubject,
+      body: trimmedNote,
+    });
+    // The mailto navigation happens in the same tab; the OS hands off
+    // to the default mail client. window.open with noopener is the
+    // safer pattern when available — it also surfaces a popup-blocker
+    // failure synchronously, which we treat as "fall back to copy".
+    try {
+      window.location.href = url;
+    } catch {
+      // Defensive: if window.location.href fails, the banker can fall
+      // back to the clipboard path.
+    }
+    setHandoffMethod('mailto');
+  }
+
+  async function handleCopyClipboard() {
+    if (!handoffFeatureEnabled || trimmedRecipient.length === 0) return;
+    const text = buildHandoffClipboardText({
+      recipient: trimmedRecipient,
+      subject: trimmedSubject,
+      body: trimmedNote,
+    });
+    try {
+      await navigator.clipboard.writeText(text);
+      setClipboardCopied(true);
+    } catch {
+      // navigator.clipboard can fail in non-secure contexts. We still
+      // mark the method so the audit row reflects the banker's intent.
+    }
+    setHandoffMethod('clipboard');
+  }
 
   async function handleConfirm() {
     if (!canSubmit) return;
@@ -96,35 +193,65 @@ export function RequestDocumentModal({
         kind: 'outcome',
         requestOutcome: { kind: 'unknown', message },
         sendOutcome: undefined,
+        handoffOutcome: undefined,
       });
       return;
     }
 
-    // Only attempt the send when the request itself recorded. A
-    // failed request (doc-failed) means the upstream Dataverse row
-    // was not updated — sending an email about a request that was
-    // not recorded would be dishonest.
-    const shouldAttemptSend =
-      willSend && !!onSendEmail && requestOutcome.kind === 'success';
-
-    if (!shouldAttemptSend) {
-      setState({ kind: 'outcome', requestOutcome, sendOutcome: undefined });
+    // Only attempt the second governed write when the request itself
+    // recorded. A failed request (doc-failed) means the upstream
+    // Dataverse row was not updated — recording an email send / handoff
+    // for an unrecorded request would be dishonest.
+    if (requestOutcome.kind !== 'success') {
+      setState({
+        kind: 'outcome',
+        requestOutcome,
+        sendOutcome: undefined,
+        handoffOutcome: undefined,
+      });
       return;
     }
 
-    setState({ kind: 'submitting', phase: 'send' });
-    let sendOutcome: SendDocumentRequestEmailOutcome;
-    try {
-      sendOutcome = await onSendEmail({
-        recipient: trimmedRecipient,
-        subject: trimmedSubject,
-        body: trimmedNote,
+    if (willHandoff && handoffMethod) {
+      setState({ kind: 'submitting', phase: 'handoff' });
+      const handoffOutcome = await recordHandoff(handoffMethod);
+      setState({
+        kind: 'outcome',
+        requestOutcome,
+        sendOutcome: undefined,
+        handoffOutcome,
       });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      sendOutcome = { kind: 'unknown', message };
+      return;
     }
-    setState({ kind: 'outcome', requestOutcome, sendOutcome });
+
+    if (willSend && onSendEmail) {
+      setState({ kind: 'submitting', phase: 'send' });
+      let sendOutcome: SendDocumentRequestEmailOutcome;
+      try {
+        sendOutcome = await onSendEmail({
+          recipient: trimmedRecipient,
+          subject: trimmedSubject,
+          body: trimmedNote,
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        sendOutcome = { kind: 'unknown', message };
+      }
+      setState({
+        kind: 'outcome',
+        requestOutcome,
+        sendOutcome,
+        handoffOutcome: undefined,
+      });
+      return;
+    }
+
+    setState({
+      kind: 'outcome',
+      requestOutcome,
+      sendOutcome: undefined,
+      handoffOutcome: undefined,
+    });
   }
 
   return (
@@ -142,7 +269,7 @@ export function RequestDocumentModal({
               {isReRequest ? 'Re-request Document' : 'Request Document'}
             </h2>
           </div>
-          {emailFeatureEnabled && <ModeBadge />}
+          {emailSurfaceVisible && <ModeBadge />}
         </header>
 
         <section style={styles.summarySection}>
@@ -161,6 +288,7 @@ export function RequestDocumentModal({
           <OutcomeBlock
             requestOutcome={state.requestOutcome}
             sendOutcome={state.sendOutcome}
+            handoffOutcome={state.handoffOutcome}
           />
         ) : (
           <>
@@ -175,14 +303,14 @@ export function RequestDocumentModal({
                 onChange={(e) => setNote(e.target.value)}
                 disabled={inProgress}
                 placeholder={
-                  emailFeatureEnabled
+                  emailSurfaceVisible
                     ? 'Describe what is being requested and any context. This text is the email body AND the audit/timeline note for the request itself.'
                     : 'Describe what is being requested and any context. The note is copied to the audit event and the deal activity timeline.'
                 }
                 rows={4}
                 style={{ ...styles.textarea, opacity: inProgress ? 0.6 : 1 }}
               />
-              {!emailFeatureEnabled && (
+              {!emailSurfaceVisible && (
                 <p style={styles.helperLine}>
                   In-app request only. No borrower email is sent in this phase. The note is
                   recorded on the deal timeline and audit trail; cr664_DocumentChecklist
@@ -191,7 +319,7 @@ export function RequestDocumentModal({
               )}
             </section>
 
-            {emailFeatureEnabled && (
+            {sendFeatureEnabled && (
               <section style={styles.emailSection}>
                 <label style={styles.toggleRow}>
                   <input
@@ -247,6 +375,116 @@ export function RequestDocumentModal({
                 )}
               </section>
             )}
+
+            {handoffFeatureEnabled && (
+              <section style={styles.emailSection}>
+                <div style={styles.toggleLabel}>
+                  Borrower email — Outlook handoff
+                </div>
+                <p style={styles.helperLine}>
+                  This Code App does not send email. Fill in the fields below,
+                  then choose <strong>Open in Outlook</strong> (recommended) or{' '}
+                  <strong>Copy email</strong> as a fallback. You send from your
+                  own Outlook client. When you click <strong>Record request</strong>
+                  the app stores the request and notes that you prepared an
+                  Outlook handoff for {trimmedRecipient ? <strong>{trimmedRecipient}</strong> : 'this borrower'}.
+                </p>
+                <div style={styles.inputRow}>
+                  <label htmlFor="email-recipient" style={styles.label}>
+                    Send to <span style={styles.required}>required</span>
+                  </label>
+                  <input
+                    id="email-recipient"
+                    type="email"
+                    value={recipient}
+                    onChange={(e) => {
+                      setRecipient(e.target.value);
+                      setHandoffMethod(undefined);
+                      setClipboardCopied(false);
+                    }}
+                    disabled={inProgress}
+                    placeholder="borrower@example.com"
+                    autoComplete="off"
+                    style={styles.input}
+                  />
+                </div>
+                <div style={styles.inputRow}>
+                  <label htmlFor="email-subject" style={styles.label}>
+                    Subject <span style={styles.required}>required</span>
+                  </label>
+                  <input
+                    id="email-subject"
+                    type="text"
+                    value={subject}
+                    onChange={(e) => {
+                      setSubject(e.target.value);
+                      setHandoffMethod(undefined);
+                      setClipboardCopied(false);
+                    }}
+                    disabled={inProgress}
+                    style={styles.input}
+                  />
+                </div>
+                <div style={styles.handoffActionRow}>
+                  <button
+                    type="button"
+                    onClick={handleOpenMailto}
+                    disabled={
+                      !(trimmedRecipient && trimmedSubject && trimmedNote)
+                    }
+                    // Surfaced for tests + assistive tech so the
+                    // exact mailto URL the OS receives is inspectable
+                    // before the navigation fires.
+                    data-mailto-href={
+                      trimmedRecipient && trimmedSubject && trimmedNote
+                        ? buildMailtoUrl({
+                            recipient: trimmedRecipient,
+                            subject: trimmedSubject,
+                            body: trimmedNote,
+                          })
+                        : undefined
+                    }
+                    style={
+                      trimmedRecipient && trimmedSubject && trimmedNote
+                        ? styles.handoffPrimaryButton
+                        : styles.handoffPrimaryButtonDisabled
+                    }
+                  >
+                    Open in Outlook
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyClipboard}
+                    disabled={
+                      !(trimmedRecipient && trimmedSubject && trimmedNote)
+                    }
+                    style={
+                      trimmedRecipient && trimmedSubject && trimmedNote
+                        ? styles.handoffSecondaryButton
+                        : styles.handoffSecondaryButtonDisabled
+                    }
+                  >
+                    {clipboardCopied ? 'Copied ✓' : 'Copy email'}
+                  </button>
+                </div>
+                {handoffMethod ? (
+                  <p style={styles.helperLine}>
+                    {handoffMethod === 'mailto'
+                      ? 'Outlook handoff launched. After you click Record request, the app will note that you opened a mailto link.'
+                      : 'Email content copied to the clipboard. After you click Record request, the app will note that you copied the message for manual send.'}{' '}
+                    The app did <strong>not</strong> send email. The audit row
+                    captures the full recipient address; the timeline shows it
+                    masked.
+                  </p>
+                ) : (
+                  <p style={styles.helperLine}>
+                    Mode is <strong>{EMAIL_MODE}</strong>. Choose one of the
+                    options above to record the handoff method on the audit
+                    row.
+                  </p>
+                )}
+              </section>
+            )}
           </>
         )}
 
@@ -275,6 +513,8 @@ export function RequestDocumentModal({
                   state,
                   isReRequest,
                   willSend,
+                  willHandoff,
+                  handoffMethod,
                 })}
               </button>
             </>
@@ -289,21 +529,36 @@ function primaryButtonLabel({
   state,
   isReRequest,
   willSend,
+  willHandoff,
+  handoffMethod,
 }: {
   state: ModalState;
   isReRequest: boolean;
   willSend: boolean;
+  willHandoff: boolean;
+  handoffMethod: HandoffMethod | undefined;
 }): string {
   if (state.kind === 'submitting') {
-    return state.phase === 'request' ? 'Recording…' : 'Sending…';
+    if (state.phase === 'request') return 'Recording…';
+    if (state.phase === 'handoff') return 'Recording handoff…';
+    return 'Sending…';
   }
   if (willSend) {
     return isReRequest ? 'Record re-request & send' : 'Record request & send';
+  }
+  if (willHandoff && handoffMethod) {
+    return isReRequest
+      ? 'Record re-request & handoff'
+      : 'Record request & handoff';
   }
   return isReRequest ? 'Record re-request' : 'Record request';
 }
 
 function ModeBadge() {
+  // LIVE is the only mode that performs an actual network send today.
+  // DRY_RUN and HANDOFF both keep the message client-side; we tint
+  // them as neutral surfaces so a banker can't mistake DRY_RUN or
+  // HANDOFF for a real send.
   const isLive = EMAIL_MODE === 'LIVE';
   return (
     <span
@@ -324,14 +579,17 @@ function ModeBadge() {
 function OutcomeBlock({
   requestOutcome,
   sendOutcome,
+  handoffOutcome,
 }: {
   requestOutcome: RequestDocumentOutcome;
   sendOutcome: SendDocumentRequestEmailOutcome | undefined;
+  handoffOutcome: PrepareDocumentRequestHandoffOutcome | undefined;
 }) {
   return (
     <div style={styles.outcomeStack}>
       <RequestOutcomeBlock outcome={requestOutcome} />
       {sendOutcome && <SendOutcomeBlock outcome={sendOutcome} />}
+      {handoffOutcome && <HandoffOutcomeBlock outcome={handoffOutcome} />}
     </div>
   );
 }
@@ -454,6 +712,105 @@ function SendOutcomeBlock({ outcome }: { outcome: SendDocumentRequestEmailOutcom
         <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Unexpected error on send
+          </div>
+          <p style={styles.outcomeDetail}>{outcome.message}</p>
+        </div>
+      );
+  }
+}
+
+function HandoffOutcomeBlock({
+  outcome,
+}: {
+  outcome: PrepareDocumentRequestHandoffOutcome;
+}) {
+  switch (outcome.kind) {
+    case 'success': {
+      const methodLabel =
+        outcome.method === 'mailto'
+          ? 'mailto link opened'
+          : 'clipboard copied';
+      return (
+        <div
+          style={{
+            ...styles.outcomeBox,
+            background: palette.clearBg,
+            borderColor: palette.clear,
+          }}
+        >
+          <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>
+            Outlook handoff recorded
+          </div>
+          <p style={styles.outcomeDetail}>
+            Recipient: <strong>{outcome.maskedRecipient}</strong>. Method:{' '}
+            <strong>{methodLabel}</strong>. The app did <strong>not</strong>{' '}
+            send email — you are responsible for the actual send from your
+            Outlook client. The audit row carries the full recipient; the
+            timeline shows it masked.
+          </p>
+        </div>
+      );
+    }
+    case 'handoff-failed':
+      return (
+        <div
+          style={{
+            ...styles.outcomeBox,
+            background: palette.atRiskBg,
+            borderColor: palette.atRisk,
+          }}
+        >
+          <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
+            Could not record Outlook handoff
+          </div>
+          <p style={styles.outcomeDetail}>
+            The handoff was not recorded on the audit trail. The document
+            request itself is still recorded. Fix the input and try again.
+          </p>
+          <p style={styles.outcomeDetailMono}>{outcome.reason}</p>
+        </div>
+      );
+    case 'governance-partial':
+      return (
+        <div
+          style={{
+            ...styles.outcomeBox,
+            background: palette.blockedBg,
+            borderColor: palette.blocked,
+          }}
+        >
+          <div style={{ ...styles.outcomeTitle, color: palette.blockedFg }}>
+            Critical: handoff governance write failed
+          </div>
+          <p style={styles.outcomeDetail}>
+            You may have already opened Outlook or copied the email content
+            (recipient: <strong>{outcome.maskedRecipient}</strong>), but one or
+            both governance writes failed. The handoff is not fully recorded on
+            the audit trail. Do <strong>not</strong> retry from this modal —
+            capture this message and ask the AuditEvent / TimelineEvent owner
+            to investigate.
+          </p>
+          {outcome.auditError && (
+            <p style={styles.outcomeDetailMono}>Audit: {outcome.auditError}</p>
+          )}
+          {outcome.timelineError && (
+            <p style={styles.outcomeDetailMono}>
+              Timeline: {outcome.timelineError}
+            </p>
+          )}
+        </div>
+      );
+    case 'unknown':
+      return (
+        <div
+          style={{
+            ...styles.outcomeBox,
+            background: palette.atRiskBg,
+            borderColor: palette.atRisk,
+          }}
+        >
+          <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
+            Unexpected error on handoff
           </div>
           <p style={styles.outcomeDetail}>{outcome.message}</p>
         </div>
@@ -585,6 +942,63 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: typography.size.md,
   },
   toggleLabel: { fontWeight: typography.weight.semibold },
+  handoffActionRow: {
+    display: 'flex',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  handoffPrimaryButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    background: palette.primary,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    textDecoration: 'none',
+  },
+  handoffPrimaryButtonDisabled: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    background: palette.borderStrong,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    cursor: 'not-allowed',
+    fontFamily: typography.family,
+    textDecoration: 'none',
+    pointerEvents: 'none',
+  },
+  handoffSecondaryButton: {
+    background: palette.surface,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.medium,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  handoffSecondaryButtonDisabled: {
+    background: palette.surfaceAlt,
+    color: palette.textMuted,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.medium,
+    cursor: 'not-allowed',
+    fontFamily: typography.family,
+  },
   inputRow: { display: 'flex', flexDirection: 'column', gap: spacing.xxs },
   input: {
     fontFamily: typography.family,
