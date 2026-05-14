@@ -6,7 +6,13 @@ import type {
   DealDocumentsResult,
   DocumentStatus,
 } from './dealDocumentQueries';
-import { requestDocument, type RequestDocumentOutcome } from './documentActions';
+import {
+  markDocumentReceived,
+  requestDocument,
+  type MarkDocumentReceivedOutcome,
+  type RequestDocumentOutcome,
+} from './documentActions';
+import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
@@ -21,23 +27,45 @@ interface DealDocumentsProps {
 export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
   const { deal, documents, refresh } = useDealData();
   const banker = useOptionalBanker();
-  const [pendingDoc, setPendingDoc] = useState<DealDocument | null>(null);
+  const [pendingRequestDoc, setPendingRequestDoc] = useState<DealDocument | null>(
+    null,
+  );
+  const [pendingReceiveDoc, setPendingReceiveDoc] = useState<DealDocument | null>(
+    null,
+  );
 
-  async function handleConfirm(note: string): Promise<RequestDocumentOutcome> {
-    if (!pendingDoc || !banker?.systemUserId) {
+  async function handleRequestConfirm(note: string): Promise<RequestDocumentOutcome> {
+    if (!pendingRequestDoc || !banker?.systemUserId) {
       return { kind: 'unknown', message: 'Cannot submit: missing document or system user id.' };
     }
     const outcome = await requestDocument({
-      documentId: pendingDoc.id,
-      documentName: pendingDoc.name,
+      documentId: pendingRequestDoc.id,
+      documentName: pendingRequestDoc.name,
       // dealId is the ALREADY-AUTHORIZED deal id from DealDataProvider —
       // never trusted from the route param directly.
       dealId: deal.id,
-      priorRequestDate: pendingDoc.requestDate,
+      priorRequestDate: pendingRequestDoc.requestDate,
       systemUserId: banker.systemUserId,
       requestNote: note,
     });
     refresh('after-document-request');
+    return outcome;
+  }
+
+  async function handleReceiveConfirm(
+    note: string,
+  ): Promise<MarkDocumentReceivedOutcome> {
+    if (!pendingReceiveDoc || !banker?.systemUserId) {
+      return { kind: 'unknown', message: 'Cannot submit: missing document or system user id.' };
+    }
+    const outcome = await markDocumentReceived({
+      documentId: pendingReceiveDoc.id,
+      documentName: pendingReceiveDoc.name,
+      dealId: deal.id,
+      systemUserId: banker.systemUserId,
+      receiveNote: note,
+    });
+    refresh('after-document-receive');
     return outcome;
   }
 
@@ -55,14 +83,22 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
         <Body
           documents={documents}
           canWrite={canWrite}
-          onRequest={(doc) => setPendingDoc(doc)}
+          onRequest={(doc) => setPendingRequestDoc(doc)}
+          onReceive={(doc) => setPendingReceiveDoc(doc)}
         />
       </Card>
-      {!readOnly && pendingDoc && (
+      {!readOnly && pendingRequestDoc && (
         <RequestDocumentModal
-          doc={pendingDoc}
-          onConfirm={handleConfirm}
-          onClose={() => setPendingDoc(null)}
+          doc={pendingRequestDoc}
+          onConfirm={handleRequestConfirm}
+          onClose={() => setPendingRequestDoc(null)}
+        />
+      )}
+      {!readOnly && pendingReceiveDoc && (
+        <ReceiveDocumentModal
+          doc={pendingReceiveDoc}
+          onConfirm={handleReceiveConfirm}
+          onClose={() => setPendingReceiveDoc(null)}
         />
       )}
     </>
@@ -81,10 +117,12 @@ function Body({
   documents,
   canWrite,
   onRequest,
+  onReceive,
 }: {
   documents: AsyncResult<DealDocumentsResult>;
   canWrite: boolean;
   onRequest: (doc: DealDocument) => void;
+  onReceive: (doc: DealDocument) => void;
 }) {
   if (documents.kind === 'loading') return <p style={styles.muted}>Loading documents…</p>;
   if (documents.kind === 'failed')
@@ -103,6 +141,7 @@ function Body({
         status="outstanding"
         canWrite={canWrite}
         onRequest={onRequest}
+        onReceive={onReceive}
       />
       <Group
         groupLabel="Received"
@@ -111,6 +150,7 @@ function Body({
         status="received"
         canWrite={false}
         onRequest={onRequest}
+        onReceive={onReceive}
       />
       <Group
         groupLabel="Reviewed"
@@ -119,6 +159,7 @@ function Body({
         status="reviewed"
         canWrite={false}
         onRequest={onRequest}
+        onReceive={onReceive}
       />
     </div>
   );
@@ -131,6 +172,7 @@ function Group({
   status,
   canWrite,
   onRequest,
+  onReceive,
 }: {
   groupLabel: string;
   documents: DealDocument[];
@@ -138,6 +180,7 @@ function Group({
   status: DocumentStatus;
   canWrite: boolean;
   onRequest: (doc: DealDocument) => void;
+  onReceive: (doc: DealDocument) => void;
 }) {
   return (
     <div style={styles.group}>
@@ -156,6 +199,7 @@ function Group({
               status={status}
               canWrite={canWrite}
               onRequest={onRequest}
+              onReceive={onReceive}
             />
           ))}
         </ul>
@@ -169,11 +213,13 @@ function DocumentRow({
   status,
   canWrite,
   onRequest,
+  onReceive,
 }: {
   doc: DealDocument;
   status: DocumentStatus;
   canWrite: boolean;
   onRequest: (doc: DealDocument) => void;
+  onReceive: (doc: DealDocument) => void;
 }) {
   const overdue = status === 'outstanding' && isOverdue(doc.dueDate);
   const sev: SeverityKey =
@@ -187,7 +233,9 @@ function DocumentRow({
   // Phase 22: Request action shows on outstanding rows only. canWrite
   // is the gate; the Group already restricts it to the Outstanding
   // group so received/reviewed rows can never show the button.
+  // Phase 51: Mark-received button shows on the same outstanding rows.
   const showRequest = canWrite && status === 'outstanding';
+  const showReceive = canWrite && status === 'outstanding';
 
   return (
     <li style={styles.row}>
@@ -215,15 +263,29 @@ function DocumentRow({
           )}
         </div>
       </div>
-      {showRequest && (
-        <button
-          type="button"
-          onClick={() => onRequest(doc)}
-          style={styles.requestButton}
-          aria-label={`Request document ${doc.name}`}
-        >
-          {doc.requestDate ? 'Re-request' : 'Request'}
-        </button>
+      {(showRequest || showReceive) && (
+        <div style={styles.rowActions}>
+          {showRequest && (
+            <button
+              type="button"
+              onClick={() => onRequest(doc)}
+              style={styles.requestButton}
+              aria-label={`Request document ${doc.name}`}
+            >
+              {doc.requestDate ? 'Re-request' : 'Request'}
+            </button>
+          )}
+          {showReceive && (
+            <button
+              type="button"
+              onClick={() => onReceive(doc)}
+              style={styles.receiveButton}
+              aria-label={`Mark document ${doc.name} received`}
+            >
+              Mark received
+            </button>
+          )}
+        </div>
       )}
     </li>
   );
@@ -330,12 +392,30 @@ const styles: Record<string, React.CSSProperties> = {
   metaLabel: { color: palette.textSubtle },
   metaValue: { color: palette.text },
   metaValueEmphasis: { color: palette.atRiskFg, fontWeight: typography.weight.semibold },
-  requestButton: {
+  rowActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.xxs,
     flexShrink: 0,
     alignSelf: 'center',
+  },
+  requestButton: {
     background: palette.primary,
     color: palette.textInverse,
     border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
+  receiveButton: {
+    background: palette.surface,
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
     borderRadius: radius.sm,
     padding: `${spacing.xxs} ${spacing.sm}`,
     fontSize: typography.size.xs,

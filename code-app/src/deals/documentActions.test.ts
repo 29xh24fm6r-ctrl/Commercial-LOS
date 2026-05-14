@@ -13,7 +13,7 @@ vi.mock('../generated/services/Cr664_dealtimelineeventsService', () => ({
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
-import { requestDocument } from './documentActions';
+import { markDocumentReceived, requestDocument } from './documentActions';
 
 const docUpdate = vi.mocked(Cr664_documentchecklistsService.update);
 const auditCreate = vi.mocked(Cr664_auditeventsService.create);
@@ -268,6 +268,185 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(successAudit('a-2'));
     timelineCreate.mockReturnValue(successTimeline('t-2'));
     await requestDocument(baseInput());
+
+    const audit1 = (auditCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_correlationid;
+    const audit2 = (auditCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_correlationid;
+    const timeline1 = (timelineCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_eventsubtype;
+    const timeline2 = (timelineCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_eventsubtype;
+
+    expect(audit1).not.toEqual(audit2);
+    expect(timeline1).toBe(`correlation:${audit1 as string}`);
+    expect(timeline2).toBe(`correlation:${audit2 as string}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 51 — markDocumentReceived
+// ---------------------------------------------------------------------------
+
+function baseReceiveInput(
+  overrides: Partial<Parameters<typeof markDocumentReceived>[0]> = {},
+) {
+  return {
+    documentId: 'doc-1',
+    documentName: 'Personal Financial Statement',
+    dealId: 'deal-77',
+    systemUserId: 'sys-user-1',
+    receiveNote: 'received via email from borrower',
+    ...overrides,
+  };
+}
+
+describe('markDocumentReceived', () => {
+  it('returns success when document update + audit + timeline all succeed', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    const outcome = await markDocumentReceived(baseReceiveInput());
+
+    expect(outcome.kind).toBe('success');
+    expect(docUpdate).toHaveBeenCalledTimes(1);
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    expect(timelineCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes cr664_receiveddate (ISO string) on the document — NOT cr664_uploadstatus', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    await markDocumentReceived(baseReceiveInput());
+
+    expect(docUpdate).toHaveBeenCalledWith(
+      'doc-1',
+      expect.objectContaining({ cr664_receiveddate: expect.any(String) }),
+    );
+    const payload = docUpdate.mock.calls[0]![1] as Record<string, unknown>;
+    // Honest scope: phase 51 does NOT set cr664_uploadstatus — that
+    // flag is reserved for a future phase that wires real in-app
+    // binary upload.
+    expect(payload.cr664_uploadstatus).toBeUndefined();
+    expect(
+      Number.isNaN(new Date(payload.cr664_receiveddate as string).getTime()),
+    ).toBe(false);
+  });
+
+  it('emits an audit event with Outstanding → Received state and the receiveddate fieldname', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    await markDocumentReceived(baseReceiveInput());
+
+    const payload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.cr664_auditeventname).toBe('DocumentChecklist Received');
+    expect(payload.cr664_eventcategory).toBe(788190002); // Lifecycle
+    expect(payload.cr664_eventtype).toBe(788190001); // StatusChange
+    expect(payload.cr664_entitytype).toBe(788190000); // LoanDeal
+    expect(payload.cr664_outcomestatus).toBe(788190000); // Succeeded
+    expect(payload.cr664_entityid).toBe('doc-1');
+    expect(payload.cr664_relatedentitytype).toBe('cr664_documentchecklist');
+    expect(payload.cr664_relatedentityid).toBe('doc-1');
+    expect(payload['cr664_LoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/systemusers(sys-user-1)');
+    expect(payload['cr664_ActorUser@odata.bind']).toBe('/systemusers(sys-user-1)');
+    expect(payload.cr664_fieldname).toBe('cr664_receiveddate');
+    expect(payload.cr664_beforestate).toBe('Outstanding');
+    expect(payload.cr664_afterstate).toBe('Received');
+    expect(payload.cr664_sourcescreensourceprocess).toBe(
+      'DealWorkspace/DealDocuments/receive',
+    );
+    expect(payload.cr664_notes).toBe('received via email from borrower');
+    expect(typeof payload.cr664_correlationid).toBe('string');
+  });
+
+  it('emits a DealTimelineEvent with cr664_eventtype=DocumentUploaded (788190010)', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    await markDocumentReceived(baseReceiveInput());
+
+    const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.cr664_eventtype).toBe(788190010);
+    expect(payload.cr664_title).toBe('Personal Financial Statement');
+    expect(payload.cr664_summary).toBe('received via email from borrower');
+    expect(payload.cr664_issystemgenerated).toBe(false);
+    expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
+    expect(payload['cr664_EventBy@odata.bind']).toBe('/systemusers(sys-user-1)');
+    expect(payload.cr664_relatedentitytype).toBe('cr664_documentchecklist');
+    expect(payload.cr664_relatedentityid).toBe('doc-1');
+    expect(payload.cr664_visibilityscope).toBe(788190000); // BankerAndManager
+  });
+
+  it('returns receive-failed and fires a best-effort Failed audit when the document update fails', async () => {
+    docUpdate.mockReturnValue(failedUpdate('row locked'));
+    auditCreate.mockReturnValue(successAudit('a-fail-trace'));
+    timelineCreate.mockReturnValue(successTimeline('t-not-called'));
+
+    const outcome = await markDocumentReceived(baseReceiveInput());
+
+    expect(outcome.kind).toBe('receive-failed');
+    if (outcome.kind === 'receive-failed') {
+      expect(outcome.docError).toBe('row locked');
+    }
+    expect(docUpdate).toHaveBeenCalledTimes(1);
+    expect(auditCreate).toHaveBeenCalled();
+    const payload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.cr664_outcomestatus).toBe(788190001); // Failed
+    expect(payload.cr664_failurereason).toBe('row locked');
+    expect(timelineCreate).not.toHaveBeenCalled();
+  });
+
+  it('returns governance-partial when audit fails but doc + timeline succeed', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(failedAudit('audit write blocked'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    const outcome = await markDocumentReceived(baseReceiveInput());
+
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.auditError).toBe('audit write blocked');
+      expect(outcome.timelineError).toBeUndefined();
+    }
+  });
+
+  it('returns governance-partial when timeline fails but doc + audit succeed', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(failedTimeline('timeline 500'));
+
+    const outcome = await markDocumentReceived(baseReceiveInput());
+
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.auditError).toBeUndefined();
+      expect(outcome.timelineError).toBe('timeline 500');
+    }
+  });
+
+  it('rejects an empty receipt note without touching any service', async () => {
+    const outcome = await markDocumentReceived(
+      baseReceiveInput({ receiveNote: '   ' }),
+    );
+    expect(outcome.kind).toBe('unknown');
+    expect(docUpdate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+    expect(timelineCreate).not.toHaveBeenCalled();
+  });
+
+  it('generates a distinct correlation id per attempt; same id ties audit and timeline within one attempt', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+    await markDocumentReceived(baseReceiveInput());
+
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-2'));
+    timelineCreate.mockReturnValue(successTimeline('t-2'));
+    await markDocumentReceived(baseReceiveInput());
 
     const audit1 = (auditCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_correlationid;
     const audit2 = (auditCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_correlationid;

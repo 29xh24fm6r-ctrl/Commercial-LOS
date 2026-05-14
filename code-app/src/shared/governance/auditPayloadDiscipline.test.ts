@@ -60,6 +60,11 @@ const AUDIT_BY_WRITE_ID: Readonly<Record<string, AuditMapping>> = Object.freeze(
     eventName: 'DocumentChecklist Requested',
     linksToDeal: true,
   },
+  'deal-document-receive': {
+    file: 'src/deals/documentActions.ts',
+    eventName: 'DocumentChecklist Received',
+    linksToDeal: true,
+  },
   'credit-memo-draft-save': {
     file: 'src/deals/creditMemoActions.ts',
     eventName: 'CreditMemo Draft Saved',

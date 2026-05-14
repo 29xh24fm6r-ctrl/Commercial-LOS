@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the six shipped governed writes (Phases 18, 19, 21, 22, 25)', () => {
+  it('contains the seven shipped governed writes (Phases 18, 19, 21, 22, 25, 51)', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -29,6 +29,7 @@ describe('platformInventory — governed writes', () => {
         'alert-resolve',
         'credit-memo-draft-save',
         'data-quality-flag-resolve',
+        'deal-document-receive',
         'deal-document-request',
         'deal-task-complete',
       ].sort(),
@@ -40,9 +41,12 @@ describe('platformInventory — governed writes', () => {
       expect(w.emitsAudit).toBe(true);
     }
     const dealWrites = GOVERNED_WRITES.filter((w) =>
-      ['deal-task-complete', 'deal-document-request', 'credit-memo-draft-save'].includes(
-        w.id,
-      ),
+      [
+        'deal-task-complete',
+        'deal-document-request',
+        'deal-document-receive',
+        'credit-memo-draft-save',
+      ].includes(w.id),
     );
     for (const w of dealWrites) {
       expect(w.emitsTimeline).toBe(true);
@@ -51,7 +55,10 @@ describe('platformInventory — governed writes', () => {
 
   it('does NOT list any unbuilt write surface as a shipped governed write', () => {
     // These are explicitly deferred per the brief — they MUST NOT
-    // appear under shipped governed writes.
+    // appear under shipped governed writes. Note that
+    // `document-upload` (binary file upload) remains here even
+    // though Phase 51 shipped `deal-document-receive` — receive is
+    // a metadata-only write, not a binary upload.
     const forbidden = [
       'stage-progression-advance',
       'credit-memo-finalize',

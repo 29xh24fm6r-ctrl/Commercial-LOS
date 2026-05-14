@@ -26,6 +26,10 @@ export type AsyncResult<T> =
  *    'after-document-request'  Phase-22 write: reload documents +
  *                              activity. Blockers recompute via the
  *                              refreshed documents.
+ *    'after-document-receive'  Phase-51 write: reload documents +
+ *                              activity. Row flips Outstanding →
+ *                              Received once the refreshed documents
+ *                              land.
  */
 export type DealDataKey =
   | 'tasks'
@@ -34,6 +38,7 @@ export type DealDataKey =
   | 'activity'
   | 'after-task-complete'
   | 'after-document-request'
+  | 'after-document-receive'
   | 'after-credit-memo-draft-saved';
 
 export interface DealData {
@@ -190,6 +195,14 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // must refresh so the new request date appears; activity must
         // refresh so the DocumentRequested timeline event appears.
         // DealBlockers recomputes via the refreshed documents.
+        reloadDocuments();
+        reloadActivity();
+        break;
+      case 'after-document-receive':
+        // Targeted reload after Phase-51 mark-received. Documents must
+        // refresh so the new receivedDate appears (deriveStatus flips
+        // the row Outstanding → Received); activity must refresh so
+        // the DocumentUploaded timeline event appears.
         reloadDocuments();
         reloadActivity();
         break;

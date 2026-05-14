@@ -75,6 +75,13 @@ const OUTCOME_BY_WRITE_ID: Readonly<Record<string, OutcomeMapping>> =
       failurePattern: 'governance-partial',
       successCarriesIds: false,
     },
+    'deal-document-receive': {
+      file: 'src/deals/documentActions.ts',
+      typeName: 'MarkDocumentReceivedOutcome',
+      primaryFailedKind: 'receive-failed',
+      failurePattern: 'governance-partial',
+      successCarriesIds: false,
+    },
     'credit-memo-draft-save': {
       file: 'src/deals/creditMemoActions.ts',
       typeName: 'SaveCreditMemoDraftOutcome',

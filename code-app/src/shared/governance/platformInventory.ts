@@ -78,6 +78,13 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsAudit: true,
     emitsTimeline: true,
   },
+  {
+    id: 'deal-document-receive',
+    label: 'Deal document mark received',
+    phase: 51,
+    emitsAudit: true,
+    emitsTimeline: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -133,10 +140,17 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
   },
   {
     id: 'document-upload',
-    label: 'Document upload',
+    label: 'Document upload (binary file)',
     reason:
-      'No document upload pipeline exists. Phase 22 only stamps ' +
-      'cr664_requestdate on the document checklist row.',
+      'No binary file upload pipeline exists. The cr664_DocumentChecklist ' +
+      'schema has no File column to upload to (and no generated upload ' +
+      'service can target what does not exist). The @microsoft/power-apps ' +
+      'SDK does expose client.uploadFileToRecord, so the unblock path is ' +
+      'schema-side: add a File column on cr664_DocumentChecklist, ' +
+      'regenerate the SDK, then wire the in-app upload UI. Phase 22 stamps ' +
+      'cr664_requestdate (Request) and Phase 51 stamps cr664_receiveddate ' +
+      '(Mark received) — both metadata-only; neither carries a binary. ' +
+      'See docs/PHASE_51_DOCUMENT_UPLOAD_SCOPE.md.',
   },
   {
     id: 'ai-generation',

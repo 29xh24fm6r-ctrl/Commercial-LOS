@@ -46,6 +46,7 @@ interface ActionMapping {
 const ACTION_BY_WRITE_ID: Readonly<Record<string, ActionMapping>> = Object.freeze({
   'deal-task-complete': { file: 'src/deals/dealTaskActions.ts', prefix: 'dt' },
   'deal-document-request': { file: 'src/deals/documentActions.ts', prefix: 'dr' },
+  'deal-document-receive': { file: 'src/deals/documentActions.ts', prefix: 'rd' },
   'credit-memo-draft-save': { file: 'src/deals/creditMemoActions.ts', prefix: 'cm' },
   'alert-resolve': { file: 'src/admin/alertActions.ts', prefix: 'al' },
   'alert-dismiss': { file: 'src/admin/alertActions.ts', prefix: 'al' },
@@ -278,20 +279,43 @@ describe('Phase 46 — variable name is consistently `correlationId`', () => {
 // ---------------------------------------------------------------------------
 
 describe('Phase 46 — deal-domain pairs share the SAME correlation id', () => {
-  for (const w of GOVERNED_WRITES) {
-    if (!w.emitsTimeline) continue;
-    const mapping = ACTION_BY_WRITE_ID[w.id]!;
-    it(`${w.id} passes ONE correlationId to both audit and timeline emitters`, () => {
-      const src = readSource(mapping.file);
-      // There must be exactly one declaration of correlationId in the
-      // file. Multiple declarations would imply two ids for one write.
+  // The original Phase-46 invariant was "exactly one `const
+  // correlationId =` per file." Phase 51 introduced a second
+  // governed write (deal-document-receive) in the same file as
+  // deal-document-request, so the invariant is now generalized:
+  // each file should have one declaration PER governed-write
+  // mapping that points to it. That is still strong enough to
+  // catch the original failure mode — two ids generated within
+  // one coordinated write — because the entries in
+  // ACTION_BY_WRITE_ID are 1:1 with action functions.
+  it('every action file declares correlationId exactly once per governed-write mapping pointing at it', () => {
+    const expectedByFile = new Map<string, number>();
+    for (const m of Object.values(ACTION_BY_WRITE_ID)) {
+      expectedByFile.set(m.file, (expectedByFile.get(m.file) ?? 0) + 1);
+    }
+    // Two GOVERNED_WRITES ids share alertActions.ts but use ONE
+    // coordinator (applyAlertRemediation); the file declares
+    // correlationId once. Subtract the duplicate so the expected
+    // count matches the actual count.
+    const sharedAlertCount = ['alert-resolve', 'alert-dismiss'].filter(
+      (id) => ACTION_BY_WRITE_ID[id],
+    ).length;
+    if (sharedAlertCount > 1) {
+      expectedByFile.set(
+        'src/admin/alertActions.ts',
+        (expectedByFile.get('src/admin/alertActions.ts') ?? 0) -
+          (sharedAlertCount - 1),
+      );
+    }
+    for (const [file, expected] of expectedByFile) {
+      const src = readSource(file);
       const decls = src.match(/\bconst\s+correlationId\s*=/g) ?? [];
       expect(
         decls.length,
-        `${mapping.file} declares correlationId ${decls.length} times — should be exactly 1`,
-      ).toBe(1);
-    });
-  }
+        `${file} declares correlationId ${decls.length} time(s); expected ${expected}`,
+      ).toBe(expected);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
