@@ -1,6 +1,7 @@
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
+import { newCorrelationId } from '../shared/governance/correlationId';
 
 /**
  * Phase 22: governed write for requesting an outstanding document on
@@ -56,13 +57,6 @@ const AUDIT_OUTCOME_FAILED = 788190001;
 
 const TIMELINE_EVENT_TYPE_DOCUMENT_REQUESTED = 788190009;
 const TIMELINE_VISIBILITY_BANKER_AND_MANAGER = 788190000;
-
-function newCorrelationId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `dr-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 function beforeStateForRequest(prior: string | undefined): string {
   if (!prior) return 'Not yet requested';
@@ -165,7 +159,7 @@ export async function requestDocument(
     return { kind: 'unknown', message: 'Request note must not be empty.' };
   }
 
-  const correlationId = newCorrelationId();
+  const correlationId = newCorrelationId('dr');
   const nowIso = new Date().toISOString();
 
   // Step 1: stamp the document's request date.

@@ -1,5 +1,6 @@
 import { Cr664_alertqueuesService } from '../generated/services/Cr664_alertqueuesService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
+import { newCorrelationId } from '../shared/governance/correlationId';
 
 /**
  * Phase 19: governed writes for cr664_AlertQueue remediation.
@@ -52,13 +53,6 @@ const EVENT_TYPE_EXCEPTION_RESOLVED = 788190006;
 const ENTITY_TYPE_CONFIGURATION = 788190005;
 const OUTCOME_SUCCEEDED = 788190000;
 const OUTCOME_FAILED = 788190001;
-
-function newCorrelationId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `al-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 interface RemediationParams {
   mode: AlertActionMode;
@@ -141,7 +135,7 @@ async function applyAlertRemediation(
     return { kind: 'unknown', message: 'Resolution note must not be empty.' };
   }
 
-  const correlationId = newCorrelationId();
+  const correlationId = newCorrelationId('al');
   const nowIso = new Date().toISOString();
 
   // Step 1: update the alert lifecycle fields.

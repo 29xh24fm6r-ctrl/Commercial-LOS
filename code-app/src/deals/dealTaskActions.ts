@@ -1,6 +1,7 @@
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
+import { newCorrelationId } from '../shared/governance/correlationId';
 
 /**
  * Phase 21: governed write for completing an open cr664_DealTask1 from
@@ -61,13 +62,6 @@ const AUDIT_OUTCOME_FAILED = 788190001;
 
 const TIMELINE_EVENT_TYPE_TASK_COMPLETED = 788190005;
 const TIMELINE_VISIBILITY_BANKER_AND_MANAGER = 788190000;
-
-function newCorrelationId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `dt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 async function emitAuditEvent(opts: {
   input: CompleteTaskInput;
@@ -163,7 +157,7 @@ export async function completeTask(input: CompleteTaskInput): Promise<CompleteTa
     return { kind: 'unknown', message: 'Completion note must not be empty.' };
   }
 
-  const correlationId = newCorrelationId();
+  const correlationId = newCorrelationId('dt');
 
   // Step 1: flip task to completed.
   try {

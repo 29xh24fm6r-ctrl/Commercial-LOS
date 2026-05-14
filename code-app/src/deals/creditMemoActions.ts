@@ -2,6 +2,7 @@ import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmem
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
+import { newCorrelationId } from '../shared/governance/correlationId';
 
 /**
  * Phase 25: governed credit-memo draft save. The fifth governed
@@ -98,13 +99,6 @@ const AUDIT_OUTCOME_FAILED = 788190001;
 const TIMELINE_EVENT_TYPE_NOTE_LOGGED = 788190002;
 const TIMELINE_VISIBILITY_BANKER_AND_MANAGER = 788190000;
 const TIMELINE_SUBTYPE_CREDIT_MEMO_DRAFT_SAVED = 'creditmemo:draft-saved';
-
-function newCorrelationId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `cm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 async function emitAuditEvent(opts: {
   input: SaveCreditMemoDraftInput;
@@ -245,7 +239,7 @@ export async function saveCreditMemoDraft(
   // banker's whitespace/formatting isn't silently rewritten.
   const trimmedInput = { ...input, saveNote: note };
 
-  const correlationId = newCorrelationId();
+  const correlationId = newCorrelationId('cm');
   const nowIso = new Date().toISOString();
 
   // Step 1: create the cr664_creditmemo1 row as Draft.
