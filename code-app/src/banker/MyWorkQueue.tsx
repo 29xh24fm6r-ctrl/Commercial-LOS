@@ -148,7 +148,7 @@ export function MyWorkQueue() {
     return (
       <Card>
         <CardHeader title="My Work Queue" subtitle="Loading banker-scoped work items…" />
-        <LoadingState message="" />
+        <LoadingState message="Loading your work queue…" />
       </Card>
     );
   }
@@ -225,10 +225,7 @@ export function MyWorkQueue() {
           </p>
         )}
         <CardFooter>
-          <span>
-            Banker-scoped, derived from your assigned deals only. No all-data
-            fallback.
-          </span>
+          <span>Scoped to your active deals.</span>
           <span>
             Open a row to act in the Deal Workspace, or use Mark received /
             Mark reviewed inline for documents.

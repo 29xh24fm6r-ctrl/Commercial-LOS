@@ -321,8 +321,15 @@ function DocumentRow({
                 reviewer: doc.reviewer,
                 nowMs: Date.now(),
               }) && (
-                <Badge variant="atRisk" appearance="outline">
-                  Pending review for {PENDING_REVIEW_AT_RISK_DAYS}+ days
+                <Badge
+                  variant="atRisk"
+                  appearance="outline"
+                  // Phase 57: shortened the visible text to "Pending
+                  // review"; the threshold detail moves to the
+                  // title/aria-label for screen readers + tooltip.
+                  title={`Received ${PENDING_REVIEW_AT_RISK_DAYS}+ days ago and not yet reviewed.`}
+                >
+                  Pending review
                 </Badge>
               )}
             </>
@@ -475,11 +482,17 @@ const styles: Record<string, React.CSSProperties> = {
   metaValue: { color: palette.text },
   metaValueEmphasis: { color: palette.atRiskFg, fontWeight: typography.weight.semibold },
   rowActions: {
+    // Phase 57: switched from column to row + wrap. On wide rows
+    // (Request + Mark received on outstanding) the two buttons sit
+    // side-by-side; on narrow rows they wrap. Saves vertical space
+    // and keeps the row body compact.
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.xxs,
     flexShrink: 0,
     alignSelf: 'center',
+    justifyContent: 'flex-end',
   },
   requestButton: {
     background: palette.primary,

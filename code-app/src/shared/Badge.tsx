@@ -8,6 +8,10 @@ interface BadgeProps {
   appearance?: 'soft' | 'outline';
   /** Uppercase / letter-spaced. Defaults true for status-like text. */
   emphasize?: boolean;
+  /** Optional tooltip text. Renders as the native `title` attribute
+   *  on the span so longer context is available on hover and via
+   *  screen readers without bloating the visible badge text. */
+  title?: string;
   children: ReactNode;
 }
 
@@ -15,6 +19,7 @@ export function Badge({
   variant = 'neutral',
   appearance = 'soft',
   emphasize = true,
+  title,
   children,
 }: BadgeProps) {
   const p = severityPalette[variant];
@@ -38,7 +43,11 @@ export function Badge({
   } else {
     inline.fontSize = typography.size.sm;
   }
-  return <span style={inline}>{children}</span>;
+  return (
+    <span style={inline} title={title}>
+      {children}
+    </span>
+  );
 }
 
 /** Small colored dot for severity lists (signal rows, timeline rows). */
