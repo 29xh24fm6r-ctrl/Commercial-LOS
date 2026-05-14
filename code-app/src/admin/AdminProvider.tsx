@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useBootstrap } from '../bootstrap/BootstrapContext';
 import { AdminIdentityProvider, type AdminIdentity } from './AdminContext';
-import { resolveCurrentSystemUserId } from './currentUserLookup';
+import { resolveCurrentSystemUserId } from '../shared/governance/currentUserLookup';
 import { LoadingState } from '../shared/LoadingState';
 
 type State =

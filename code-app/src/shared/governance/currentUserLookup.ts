@@ -1,4 +1,4 @@
-import { SystemusersService } from '../generated/services/SystemusersService';
+import { SystemusersService } from '../../generated/services/SystemusersService';
 
 /**
  * Resolves the current authenticated user to a Dataverse systemuserid.
@@ -15,6 +15,11 @@ import { SystemusersService } from '../generated/services/SystemusersService';
  * (e.g. local dev mock, or a user that hasn't been provisioned in this
  * environment yet). Callers must treat null as "writes unavailable"
  * rather than fabricating a placeholder.
+ *
+ * Phase 48: moved from src/admin/ to src/shared/governance/ so the
+ * banker provider (and any future write-capable role provider) can
+ * consume it without crossing a role boundary. The function body is
+ * unchanged.
  */
 export async function resolveCurrentSystemUserId(
   objectId: string | undefined,

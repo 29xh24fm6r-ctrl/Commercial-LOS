@@ -24,6 +24,8 @@ modules it names. Read the modules.
 | Reference-data governance posture        | `REFERENCE_DATA_GOVERNED` in [platformInventory.ts](../src/shared/governance/platformInventory.ts)                |
 | Release readiness derivation             | [releaseReadiness.ts](../src/shared/governance/releaseReadiness.ts)                                               |
 | Stage progression availability contract  | [stageProgressionAvailability.ts](../src/shared/governance/stageProgressionAvailability.ts)                       |
+| Correlation-id generation (governed writes) | `newCorrelationId` in [correlationId.ts](../src/shared/governance/correlationId.ts)                            |
+| Current-user → Dataverse systemuserid resolution | `resolveCurrentSystemUserId` in [currentUserLookup.ts](../src/shared/governance/currentUserLookup.ts)      |
 
 ## Lifecycle / stage
 

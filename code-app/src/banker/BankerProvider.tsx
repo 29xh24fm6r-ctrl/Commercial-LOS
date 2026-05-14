@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { useBootstrap } from '../bootstrap/BootstrapContext';
-import { resolveCurrentSystemUserId } from '../admin/currentUserLookup';
+import { resolveCurrentSystemUserId } from '../shared/governance/currentUserLookup';
 import { BankerIdentityProvider, type BankerIdentity } from './BankerContext';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
