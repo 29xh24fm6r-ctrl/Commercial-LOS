@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   DELIBERATELY_BLOCKED,
   EXEC_TRANSITIONAL_FALLBACK_FEATURES,
@@ -6,6 +8,7 @@ import {
   LOCAL_ONLY_FLOWS,
   NOT_WIRED,
   PERMISSION_BEFORE_QUERY_VERIFIED,
+  REFERENCE_DATA_GOVERNED,
   WORKSPACE_DEAL_ACCESS,
   WORKSPACE_ISOLATION_VERIFIED,
 } from './platformInventory';
@@ -155,5 +158,54 @@ describe('platformInventory — architectural invariants', () => {
   it('workspace isolation and permission-before-query are currently verified true', () => {
     expect(WORKSPACE_ISOLATION_VERIFIED).toBe(true);
     expect(PERMISSION_BEFORE_QUERY_VERIFIED).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 43 — Stage Progression Enablement Map cross-reference
+//
+// Pins the standing invariant that the enablement map exists and that
+// stage progression remains blocked. The enablement map plans the
+// unblock; it must NOT change the blocked status.
+// ---------------------------------------------------------------------------
+
+describe('platformInventory — Phase 43 stage progression enablement', () => {
+  it('REFERENCE_DATA_GOVERNED.stageCatalog.progressionEnabled is still false', () => {
+    expect(REFERENCE_DATA_GOVERNED.stageCatalog.progressionEnabled).toBe(false);
+  });
+
+  it('stage-progression-advance is still in DELIBERATELY_BLOCKED', () => {
+    const entry = DELIBERATELY_BLOCKED.find(
+      (b) => b.id === 'stage-progression-advance',
+    );
+    expect(entry).toBeDefined();
+  });
+
+  it('stage-progression-advance is NOT in GOVERNED_WRITES', () => {
+    const writeIds = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(writeIds.has('stage-progression-advance')).toBe(false);
+  });
+
+  it('blocked reason still cites the Phase 28 schema gap', () => {
+    const entry = DELIBERATELY_BLOCKED.find(
+      (b) => b.id === 'stage-progression-advance',
+    )!;
+    expect(entry.reason).toMatch(/Cr664_stagereferences|sequence|stage reference/i);
+  });
+
+  it('stage-progression-advance carries an enablementMapPath pointing at the planning doc', () => {
+    const entry = DELIBERATELY_BLOCKED.find(
+      (b) => b.id === 'stage-progression-advance',
+    )!;
+    expect(entry.enablementMapPath).toBe(
+      'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md',
+    );
+  });
+
+  it('the enablement map file actually exists on disk', () => {
+    // Repo root from this test file: src/shared/governance/ → up 3.
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const mapPath = resolve(repoRoot, 'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md');
+    expect(existsSync(mapPath)).toBe(true);
   });
 });

@@ -66,6 +66,7 @@ modules it names. Read the modules.
 | Stabilization punch list                 | [STABILIZATION_CHECKLIST.md](STABILIZATION_CHECKLIST.md)                  |
 | Phase 1–40 narrative + bundle history    | [RELEASE_NOTES_PHASES_1_40.md](RELEASE_NOTES_PHASES_1_40.md)              |
 | Stage governance rationale + non-goals   | [STAGE_GOVERNANCE.md](STAGE_GOVERNANCE.md)                                |
+| Stage progression unblock checklist (planning) | [STAGE_PROGRESSION_ENABLEMENT_MAP.md](STAGE_PROGRESSION_ENABLEMENT_MAP.md) |
 | Standing engineering rules               | [ENGINEERING_OPERATING_RULES.md](ENGINEERING_OPERATING_RULES.md)          |
 | Phase brief + AAR format                 | [PHASE_EXECUTION_TEMPLATE.md](PHASE_EXECUTION_TEMPLATE.md)                |
 

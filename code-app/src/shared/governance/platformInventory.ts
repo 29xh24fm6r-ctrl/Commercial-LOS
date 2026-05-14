@@ -90,6 +90,10 @@ export interface DeliberatelyBlockedEntry {
   label: string;
   phase: number;
   reason: string;
+  /** Optional path (repo-relative) to a planning doc that describes
+   *  what would have to be true for this block to be lifted. Linked
+   *  for discoverability; presence of a map does NOT imply schedule. */
+  enablementMapPath?: string;
 }
 
 export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [
@@ -101,7 +105,9 @@ export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [
       'Dataverse schema does not expose a deterministic next-stage ordering. ' +
       'No Cr664_stagereferences service in the generated SDK; no sequence/order ' +
       'field on the loan deal record or in system settings. See ' +
-      'src/shared/governance/stageProgressionAvailability.ts for the future-extension contract.',
+      'src/shared/governance/stageProgressionAvailability.ts for the future-extension contract. ' +
+      'See docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md for the concrete unblock checklist.',
+    enablementMapPath: 'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md',
   },
 ];
 
