@@ -150,7 +150,7 @@ The Release Readiness Gate reports `test-coverage-build-verification` as **Not W
 1. `npm run build` — must complete clean.
 2. `npm test -- --run` — full suite green (currently 347/347).
 3. Open the Admin Workspace and confirm the **Release Readiness Gate** overall badge reads either *"Cannot fully verify — signals not wired"* (acceptable when no blocker fires) or shows the expected **Blocked** state for Stage Governance and the **Not Wired** state for build/test (those are the current expected red flags).
-4. Confirm no executive snapshot is stale (`staleDataFlag`).
+4. Confirm no executive snapshot reports a stale-data flag (`staleDataFlag`).
 5. Confirm no Critical alerts are open in the Alert Backlog.
 
 If any of those steps surfaces an unexpected signal, **do not promote**.

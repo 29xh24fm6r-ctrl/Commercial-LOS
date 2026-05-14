@@ -257,7 +257,7 @@ describe('DraftBorrowerUpdateModal — Copy gating and behavior', () => {
     await user.type(body, '\nYou are approved and cleared to close.');
 
     const guard = screen.getByRole('alert');
-    expect(within(guard).getByText(/Borrower-safe language check failed/i)).toBeInTheDocument();
+    expect(within(guard).getByText(/Borrower-safe language check flagged issues/i)).toBeInTheDocument();
     // Each flagged term appears twice inside the guard: bolded inside
     // its <li>, and again in the reason sentence. Both terms must be
     // present.

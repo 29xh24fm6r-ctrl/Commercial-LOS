@@ -328,7 +328,7 @@ describe('CreditMemoDraftModal — Phase 25 Save Draft flow', () => {
 
     const guard = screen.getByRole('alert');
     expect(
-      within(guard).getByText(/Borrower-safe language check failed/i),
+      within(guard).getByText(/Borrower-safe language check flagged issues/i),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save credit memo draft/i })).toBeDisabled();
     expect(onSave).not.toHaveBeenCalled();

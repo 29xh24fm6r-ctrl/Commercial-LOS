@@ -190,7 +190,7 @@ export function DraftBorrowerUpdateModal({
 
         {prohibitedHits.length > 0 && (
           <div style={styles.guardBox} role="alert">
-            <div style={styles.guardTitle}>Borrower-safe language check failed</div>
+            <div style={styles.guardTitle}>Borrower-safe language check flagged issues</div>
             <ul style={styles.guardList}>
               {prohibitedHits.map((h) => (
                 <li key={h.term}>
