@@ -1,22 +1,59 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DealDocument } from './dealDocumentQueries';
 import type { RequestDocumentOutcome } from './documentActions';
+import type { SendDocumentRequestEmailOutcome } from './sendDocumentRequestEmail';
+import { EMAIL_MODE } from './emailDelivery/emailMode';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
+
+/**
+ * Phase 22 (request) + Phase 61 (Outlook send).
+ *
+ * Backwards-compatible: when `onSendEmail` is not provided, the modal
+ * behaves exactly as Phase 22 — note-only in-app request, no email
+ * section, no mode badge, no send outcome. When `onSendEmail` IS
+ * provided, the modal grows:
+ *   - A Mode badge surfacing the build-time DRY_RUN / LIVE setting
+ *   - A "Send email" toggle (default ON)
+ *   - Recipient + subject fields the banker types into
+ *   - Sequenced submission: the request is recorded FIRST; the send
+ *     is attempted only if the request succeeded
+ *   - A combined outcome view that shows both outcomes honestly
+ */
 
 interface RequestDocumentModalProps {
   doc: DealDocument;
   onConfirm: (note: string) => Promise<RequestDocumentOutcome>;
   onClose: () => void;
+  /** Phase 61. When provided, the modal sequences the send after the
+   *  request and renders both outcomes. */
+  onSendEmail?: (input: {
+    recipient: string;
+    subject: string;
+    body: string;
+  }) => Promise<SendDocumentRequestEmailOutcome>;
 }
 
 type ModalState =
   | { kind: 'editing' }
-  | { kind: 'submitting' }
-  | { kind: 'outcome'; outcome: RequestDocumentOutcome };
+  | { kind: 'submitting'; phase: 'request' | 'send' }
+  | {
+      kind: 'outcome';
+      requestOutcome: RequestDocumentOutcome;
+      sendOutcome: SendDocumentRequestEmailOutcome | undefined;
+    };
 
-export function RequestDocumentModal({ doc, onConfirm, onClose }: RequestDocumentModalProps) {
+export function RequestDocumentModal({
+  doc,
+  onConfirm,
+  onClose,
+  onSendEmail,
+}: RequestDocumentModalProps) {
+  const emailFeatureEnabled = !!onSendEmail;
   const [note, setNote] = useState('');
+  const [sendEnabled, setSendEnabled] = useState(emailFeatureEnabled);
+  const [recipient, setRecipient] = useState('');
+  const [subject, setSubject] = useState(`Document request: ${doc.name}`);
   const [state, setState] = useState<ModalState>({ kind: 'editing' });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -36,20 +73,58 @@ export function RequestDocumentModal({ doc, onConfirm, onClose }: RequestDocumen
   }, [onClose, state.kind]);
 
   const trimmedNote = note.trim();
-  const canSubmit = state.kind === 'editing' && trimmedNote.length > 0;
+  const trimmedRecipient = recipient.trim();
+  const trimmedSubject = subject.trim();
+  const willSend = emailFeatureEnabled && sendEnabled;
+  const sendInputsValid =
+    !willSend ||
+    (trimmedRecipient.length > 0 && trimmedSubject.length > 0);
+  const canSubmit =
+    state.kind === 'editing' && trimmedNote.length > 0 && sendInputsValid;
   const inProgress = state.kind === 'submitting';
   const isReRequest = !!doc.requestDate;
 
   async function handleConfirm() {
     if (!canSubmit) return;
-    setState({ kind: 'submitting' });
+    setState({ kind: 'submitting', phase: 'request' });
+    let requestOutcome: RequestDocumentOutcome;
     try {
-      const outcome = await onConfirm(trimmedNote);
-      setState({ kind: 'outcome', outcome });
+      requestOutcome = await onConfirm(trimmedNote);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      setState({ kind: 'outcome', outcome: { kind: 'unknown', message } });
+      setState({
+        kind: 'outcome',
+        requestOutcome: { kind: 'unknown', message },
+        sendOutcome: undefined,
+      });
+      return;
     }
+
+    // Only attempt the send when the request itself recorded. A
+    // failed request (doc-failed) means the upstream Dataverse row
+    // was not updated — sending an email about a request that was
+    // not recorded would be dishonest.
+    const shouldAttemptSend =
+      willSend && !!onSendEmail && requestOutcome.kind === 'success';
+
+    if (!shouldAttemptSend) {
+      setState({ kind: 'outcome', requestOutcome, sendOutcome: undefined });
+      return;
+    }
+
+    setState({ kind: 'submitting', phase: 'send' });
+    let sendOutcome: SendDocumentRequestEmailOutcome;
+    try {
+      sendOutcome = await onSendEmail({
+        recipient: trimmedRecipient,
+        subject: trimmedSubject,
+        body: trimmedNote,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      sendOutcome = { kind: 'unknown', message };
+    }
+    setState({ kind: 'outcome', requestOutcome, sendOutcome });
   }
 
   return (
@@ -67,6 +142,7 @@ export function RequestDocumentModal({ doc, onConfirm, onClose }: RequestDocumen
               {isReRequest ? 'Re-request Document' : 'Request Document'}
             </h2>
           </div>
+          {emailFeatureEnabled && <ModeBadge />}
         </header>
 
         <section style={styles.summarySection}>
@@ -82,28 +158,96 @@ export function RequestDocumentModal({ doc, onConfirm, onClose }: RequestDocumen
         </section>
 
         {state.kind === 'outcome' ? (
-          <OutcomeBlock outcome={state.outcome} />
+          <OutcomeBlock
+            requestOutcome={state.requestOutcome}
+            sendOutcome={state.sendOutcome}
+          />
         ) : (
-          <section style={styles.noteSection}>
-            <label htmlFor="request-document-note" style={styles.label}>
-              Request note <span style={styles.required}>required</span>
-            </label>
-            <textarea
-              id="request-document-note"
-              ref={textareaRef}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              disabled={inProgress}
-              placeholder="Describe what is being requested and any context. The note is copied to the audit event and the deal activity timeline."
-              rows={4}
-              style={{ ...styles.textarea, opacity: inProgress ? 0.6 : 1 }}
-            />
-            <p style={styles.helperLine}>
-              In-app request only. No borrower email is sent in this phase. The note is
-              recorded on the deal timeline and audit trail; cr664_DocumentChecklist
-              itself has no request-note column.
-            </p>
-          </section>
+          <>
+            <section style={styles.noteSection}>
+              <label htmlFor="request-document-note" style={styles.label}>
+                Request note <span style={styles.required}>required</span>
+              </label>
+              <textarea
+                id="request-document-note"
+                ref={textareaRef}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                disabled={inProgress}
+                placeholder={
+                  emailFeatureEnabled
+                    ? 'Describe what is being requested and any context. This text is the email body AND the audit/timeline note for the request itself.'
+                    : 'Describe what is being requested and any context. The note is copied to the audit event and the deal activity timeline.'
+                }
+                rows={4}
+                style={{ ...styles.textarea, opacity: inProgress ? 0.6 : 1 }}
+              />
+              {!emailFeatureEnabled && (
+                <p style={styles.helperLine}>
+                  In-app request only. No borrower email is sent in this phase. The note is
+                  recorded on the deal timeline and audit trail; cr664_DocumentChecklist
+                  itself has no request-note column.
+                </p>
+              )}
+            </section>
+
+            {emailFeatureEnabled && (
+              <section style={styles.emailSection}>
+                <label style={styles.toggleRow}>
+                  <input
+                    type="checkbox"
+                    checked={sendEnabled}
+                    onChange={(e) => setSendEnabled(e.target.checked)}
+                    disabled={inProgress}
+                  />
+                  <span style={styles.toggleLabel}>
+                    Send email through Outlook
+                  </span>
+                </label>
+                {sendEnabled && (
+                  <>
+                    <div style={styles.inputRow}>
+                      <label htmlFor="email-recipient" style={styles.label}>
+                        Send to <span style={styles.required}>required</span>
+                      </label>
+                      <input
+                        id="email-recipient"
+                        type="email"
+                        value={recipient}
+                        onChange={(e) => setRecipient(e.target.value)}
+                        disabled={inProgress}
+                        placeholder="borrower@example.com"
+                        autoComplete="off"
+                        style={styles.input}
+                      />
+                    </div>
+                    <div style={styles.inputRow}>
+                      <label htmlFor="email-subject" style={styles.label}>
+                        Subject <span style={styles.required}>required</span>
+                      </label>
+                      <input
+                        id="email-subject"
+                        type="text"
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                        disabled={inProgress}
+                        style={styles.input}
+                      />
+                    </div>
+                    <p style={styles.helperLine}>
+                      The body of the email is the request note above. The full
+                      recipient address is recorded only on the audit event; the
+                      timeline and outcome panel show a masked form. Mode is{' '}
+                      <strong>{EMAIL_MODE}</strong>:
+                      {EMAIL_MODE === 'DRY_RUN'
+                        ? ' nothing leaves the client.'
+                        : ' Outlook will attempt delivery.'}
+                    </p>
+                  </>
+                )}
+              </section>
+            )}
+          </>
         )}
 
         <footer style={styles.footer}>
@@ -127,11 +271,11 @@ export function RequestDocumentModal({ doc, onConfirm, onClose }: RequestDocumen
                 disabled={!canSubmit}
                 style={canSubmit ? styles.primaryButton : styles.primaryButtonDisabled}
               >
-                {inProgress
-                  ? 'Recording…'
-                  : isReRequest
-                    ? 'Record re-request'
-                    : 'Record request'}
+                {primaryButtonLabel({
+                  state,
+                  isReRequest,
+                  willSend,
+                })}
               </button>
             </>
           )}
@@ -141,12 +285,63 @@ export function RequestDocumentModal({ doc, onConfirm, onClose }: RequestDocumen
   );
 }
 
-function OutcomeBlock({ outcome }: { outcome: RequestDocumentOutcome }) {
+function primaryButtonLabel({
+  state,
+  isReRequest,
+  willSend,
+}: {
+  state: ModalState;
+  isReRequest: boolean;
+  willSend: boolean;
+}): string {
+  if (state.kind === 'submitting') {
+    return state.phase === 'request' ? 'Recording…' : 'Sending…';
+  }
+  if (willSend) {
+    return isReRequest ? 'Record re-request & send' : 'Record request & send';
+  }
+  return isReRequest ? 'Record re-request' : 'Record request';
+}
+
+function ModeBadge() {
+  const isLive = EMAIL_MODE === 'LIVE';
+  return (
+    <span
+      role="status"
+      aria-label={`Email delivery mode: ${EMAIL_MODE}`}
+      style={{
+        ...styles.modeBadge,
+        background: isLive ? palette.clearBg : palette.surfaceAlt,
+        color: isLive ? palette.clearFg : palette.textSubtle,
+        borderColor: isLive ? palette.clear : palette.border,
+      }}
+    >
+      Mode: {EMAIL_MODE}
+    </span>
+  );
+}
+
+function OutcomeBlock({
+  requestOutcome,
+  sendOutcome,
+}: {
+  requestOutcome: RequestDocumentOutcome;
+  sendOutcome: SendDocumentRequestEmailOutcome | undefined;
+}) {
+  return (
+    <div style={styles.outcomeStack}>
+      <RequestOutcomeBlock outcome={requestOutcome} />
+      {sendOutcome && <SendOutcomeBlock outcome={sendOutcome} />}
+    </div>
+  );
+}
+
+function RequestOutcomeBlock({ outcome }: { outcome: RequestDocumentOutcome }) {
   switch (outcome.kind) {
     case 'success':
       return (
         <div style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}>
-          <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>Recorded</div>
+          <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>Request recorded</div>
           <p style={styles.outcomeDetail}>
             Document request stamped; audit and timeline events recorded.
           </p>
@@ -160,7 +355,7 @@ function OutcomeBlock({ outcome }: { outcome: RequestDocumentOutcome }) {
           </div>
           <p style={styles.outcomeDetail}>
             The document is unchanged. A Failed audit event was recorded best-effort.
-            Refresh and try again.
+            Refresh and try again. No email was attempted because the request itself did not record.
           </p>
           <p style={styles.outcomeDetailMono}>{outcome.docError}</p>
         </div>
@@ -191,7 +386,74 @@ function OutcomeBlock({ outcome }: { outcome: RequestDocumentOutcome }) {
       return (
         <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
-            Unexpected error
+            Unexpected error on request
+          </div>
+          <p style={styles.outcomeDetail}>{outcome.message}</p>
+        </div>
+      );
+  }
+}
+
+function SendOutcomeBlock({ outcome }: { outcome: SendDocumentRequestEmailOutcome }) {
+  switch (outcome.kind) {
+    case 'success': {
+      const isLive = outcome.mode === 'LIVE';
+      return (
+        <div style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}>
+          <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>
+            {isLive ? 'Outlook accepted the message' : 'Send recorded (DRY_RUN)'}
+          </div>
+          <p style={styles.outcomeDetail}>
+            Recipient: <strong>{outcome.maskedRecipient}</strong>. Mode:{' '}
+            <strong>{outcome.mode}</strong>.{' '}
+            {isLive
+              ? 'Audit and timeline events recorded. The full address is on the audit row.'
+              : 'No message left the client. The audit + timeline events record the simulated send honestly.'}
+          </p>
+          {outcome.providerMessageId && (
+            <p style={styles.outcomeDetailMono}>Provider id: {outcome.providerMessageId}</p>
+          )}
+        </div>
+      );
+    }
+    case 'send-failed':
+      return (
+        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+          <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
+            Outlook did not accept the message
+          </div>
+          <p style={styles.outcomeDetail}>
+            The request itself remains recorded. The send was attempted in{' '}
+            <strong>{outcome.mode}</strong> mode and failed
+            {outcome.transient ? ' (transient — retry may help)' : ' (permanent — do not retry without resolving)'}.
+          </p>
+          <p style={styles.outcomeDetailMono}>{outcome.sendError}</p>
+        </div>
+      );
+    case 'governance-partial':
+      return (
+        <div style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}>
+          <div style={{ ...styles.outcomeTitle, color: palette.blockedFg }}>
+            Critical: send governance write failed
+          </div>
+          <p style={styles.outcomeDetail}>
+            Outlook accepted the message (recipient: <strong>{outcome.maskedRecipient}</strong>), but
+            one or both governance writes failed. The send is not fully governed; do NOT retry — the
+            message has already gone out.
+          </p>
+          {outcome.auditError && (
+            <p style={styles.outcomeDetailMono}>Audit: {outcome.auditError}</p>
+          )}
+          {outcome.timelineError && (
+            <p style={styles.outcomeDetailMono}>Timeline: {outcome.timelineError}</p>
+          )}
+        </div>
+      );
+    case 'unknown':
+      return (
+        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+          <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
+            Unexpected error on send
           </div>
           <p style={styles.outcomeDetail}>{outcome.message}</p>
         </div>
@@ -241,7 +503,13 @@ const styles: Record<string, React.CSSProperties> = {
     gap: spacing.md,
     padding: `${spacing.xl} ${spacing.xl}`,
   },
-  header: { display: 'flex', flexDirection: 'column', gap: 2 },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
   eyebrow: {
     fontSize: typography.size.xs,
     letterSpacing: typography.letterSpacing.label,
@@ -255,6 +523,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: typography.weight.semibold,
     color: palette.text,
     letterSpacing: typography.letterSpacing.heading,
+  },
+  modeBadge: {
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    border: '1px solid',
+    borderRadius: radius.sm,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: typography.letterSpacing.label,
+    whiteSpace: 'nowrap',
   },
   summarySection: {
     display: 'flex',
@@ -291,6 +569,33 @@ const styles: Record<string, React.CSSProperties> = {
   },
   dd: { margin: 0, fontSize: typography.size.sm, color: palette.text, wordBreak: 'break-word' },
   noteSection: { display: 'flex', flexDirection: 'column', gap: spacing.xs },
+  emailSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTop: `1px solid ${palette.divider}`,
+  },
+  toggleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+    cursor: 'pointer',
+    color: palette.text,
+    fontSize: typography.size.md,
+  },
+  toggleLabel: { fontWeight: typography.weight.semibold },
+  inputRow: { display: 'flex', flexDirection: 'column', gap: spacing.xxs },
+  input: {
+    fontFamily: typography.family,
+    fontSize: typography.size.base,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.sm}`,
+    color: palette.text,
+    background: palette.surface,
+    lineHeight: typography.lineHeight.snug,
+  },
   label: {
     fontSize: typography.size.xs,
     textTransform: 'uppercase',
@@ -318,6 +623,7 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: typography.lineHeight.snug,
   },
   helperLine: { margin: 0, fontSize: typography.size.xs, color: palette.textSubtle },
+  outcomeStack: { display: 'flex', flexDirection: 'column', gap: spacing.sm },
   outcomeBox: {
     border: '1px solid',
     borderRadius: radius.sm,

@@ -89,6 +89,13 @@ const OUTCOME_BY_WRITE_ID: Readonly<Record<string, OutcomeMapping>> =
       failurePattern: 'governance-partial',
       successCarriesIds: false,
     },
+    'deal-document-request-email': {
+      file: 'src/deals/sendDocumentRequestEmail.ts',
+      typeName: 'SendDocumentRequestEmailOutcome',
+      primaryFailedKind: 'send-failed',
+      failurePattern: 'governance-partial',
+      successCarriesIds: true,
+    },
     'credit-memo-draft-save': {
       file: 'src/deals/creditMemoActions.ts',
       typeName: 'SaveCreditMemoDraftOutcome',
@@ -378,37 +385,45 @@ describe('Phase 47 — modal callers convert thrown errors to { kind: "unknown",
   // proof that errors never escape the action contract as
   // exceptions — they always arrive at the UI as an outcome
   // branch.
-  const MODAL_TO_OUTCOME: Readonly<Record<string, { typeName: string; actionModule: string }>> = {
-    'src/deals/CompleteTaskModal.tsx': {
-      typeName: 'CompleteTaskOutcome',
-      actionModule: './dealTaskActions',
-    },
-    'src/deals/RequestDocumentModal.tsx': {
-      typeName: 'RequestDocumentOutcome',
-      actionModule: './documentActions',
-    },
-    'src/deals/CreditMemoDraftModal.tsx': {
-      typeName: 'SaveCreditMemoDraftOutcome',
-      actionModule: './creditMemoActions',
-    },
-    'src/admin/ResolveAlertModal.tsx': {
-      typeName: 'AlertOutcome',
-      actionModule: './alertActions',
-    },
-    'src/admin/ResolveFlagModal.tsx': {
-      typeName: 'ResolveOutcome',
-      actionModule: './dataQualityActions',
-    },
+  // Phase 61: RequestDocumentModal now imports TWO outcome types
+  // (the existing Phase 22 request outcome AND the new Phase 61
+  // Outlook-send outcome). The mapping uses an array to express
+  // "every type in this list must be imported from the matching
+  // action module."
+  const MODAL_TO_OUTCOME: Readonly<
+    Record<string, ReadonlyArray<{ typeName: string; actionModule: string }>>
+  > = {
+    'src/deals/CompleteTaskModal.tsx': [
+      { typeName: 'CompleteTaskOutcome', actionModule: './dealTaskActions' },
+    ],
+    'src/deals/RequestDocumentModal.tsx': [
+      { typeName: 'RequestDocumentOutcome', actionModule: './documentActions' },
+      {
+        typeName: 'SendDocumentRequestEmailOutcome',
+        actionModule: './sendDocumentRequestEmail',
+      },
+    ],
+    'src/deals/CreditMemoDraftModal.tsx': [
+      { typeName: 'SaveCreditMemoDraftOutcome', actionModule: './creditMemoActions' },
+    ],
+    'src/admin/ResolveAlertModal.tsx': [
+      { typeName: 'AlertOutcome', actionModule: './alertActions' },
+    ],
+    'src/admin/ResolveFlagModal.tsx': [
+      { typeName: 'ResolveOutcome', actionModule: './dataQualityActions' },
+    ],
   };
 
-  for (const [modal, { typeName, actionModule }] of Object.entries(MODAL_TO_OUTCOME)) {
-    it(`${modal} imports ${typeName} from ${actionModule}`, () => {
-      const src = readSource(modal);
-      const re = new RegExp(
-        `import\\s+(?:type\\s+)?\\{[^}]*\\b${typeName}\\b[^}]*\\}\\s+from\\s+['"]${actionModule}['"]`,
-      );
-      expect(re.test(src)).toBe(true);
-    });
+  for (const [modal, imports] of Object.entries(MODAL_TO_OUTCOME)) {
+    for (const { typeName, actionModule } of imports) {
+      it(`${modal} imports ${typeName} from ${actionModule}`, () => {
+        const src = readSource(modal);
+        const re = new RegExp(
+          `import\\s+(?:type\\s+)?\\{[^}]*\\b${typeName}\\b[^}]*\\}\\s+from\\s+['"]${actionModule}['"]`,
+        );
+        expect(re.test(src)).toBe(true);
+      });
+    }
 
     it(`${modal} wraps the action callback in try/catch and emits { kind: 'unknown' } on caught error`, () => {
       const src = readSource(modal);

@@ -14,6 +14,10 @@ import {
   type MarkDocumentReviewedOutcome,
   type RequestDocumentOutcome,
 } from './documentActions';
+import {
+  sendDocumentRequestEmail,
+  type SendDocumentRequestEmailOutcome,
+} from './sendDocumentRequestEmail';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
@@ -59,6 +63,30 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       requestNote: note,
     });
     refresh('after-document-request');
+    return outcome;
+  }
+
+  async function handleSendEmail(emailInput: {
+    recipient: string;
+    subject: string;
+    body: string;
+  }): Promise<SendDocumentRequestEmailOutcome> {
+    if (!pendingRequestDoc || !banker?.systemUserId) {
+      return {
+        kind: 'unknown',
+        message: 'Cannot send: missing document or system user id.',
+      };
+    }
+    const outcome = await sendDocumentRequestEmail({
+      documentId: pendingRequestDoc.id,
+      documentName: pendingRequestDoc.name,
+      dealId: deal.id,
+      systemUserId: banker.systemUserId,
+      recipient: emailInput.recipient,
+      subject: emailInput.subject,
+      body: emailInput.body,
+    });
+    refresh('after-document-request-email');
     return outcome;
   }
 
@@ -120,6 +148,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
         <RequestDocumentModal
           doc={pendingRequestDoc}
           onConfirm={handleRequestConfirm}
+          onSendEmail={handleSendEmail}
           onClose={() => setPendingRequestDoc(null)}
         />
       )}

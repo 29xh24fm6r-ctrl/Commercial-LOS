@@ -43,6 +43,7 @@ export type DealDataKey =
   | 'activity'
   | 'after-task-complete'
   | 'after-document-request'
+  | 'after-document-request-email'
   | 'after-document-receive'
   | 'after-document-review'
   | 'after-credit-memo-draft-saved';
@@ -202,6 +203,13 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // refresh so the DocumentRequested timeline event appears.
         // DealBlockers recomputes via the refreshed documents.
         reloadDocuments();
+        reloadActivity();
+        break;
+      case 'after-document-request-email':
+        // Targeted reload after the Phase-61 Outlook send. The
+        // checklist row is unchanged (the request itself already
+        // stamped cr664_requestdate via the Phase-22 write); only
+        // the activity timeline picks up the new EmailLogged event.
         reloadActivity();
         break;
       case 'after-document-receive':

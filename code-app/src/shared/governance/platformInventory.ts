@@ -101,6 +101,13 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsAudit: true,
     emitsTimeline: true,
   },
+  {
+    id: 'deal-document-request-email',
+    label: 'Deal document request — Outlook send',
+    phase: 61,
+    emitsAudit: true,
+    emitsTimeline: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -148,11 +155,30 @@ export interface NotWiredEntry {
 export const NOT_WIRED: readonly NotWiredEntry[] = [
   {
     id: 'email-delivery',
-    label: 'Borrower email delivery (Outlook/Graph)',
+    label: 'Borrower update email delivery (Outlook/Graph)',
     reason:
-      'External communication delivery has not been implemented. Phase 23 ' +
-      'borrower-update is local-only Copy-to-clipboard. No Outlook/Graph ' +
-      'integration. No BorrowerUpdateSent timeline event is ever emitted.',
+      'Phase 23 borrower-update remains local-only Copy-to-clipboard. The ' +
+      'banker generates a borrower-safe update preview and pastes it into ' +
+      'their own mail client; no Outlook/Graph integration is invoked for ' +
+      'that flow and no BorrowerUpdateSent timeline event is ever emitted. ' +
+      'Phase 61 wired document-request email delivery as a SEPARATE governed ' +
+      'flow (deal-document-request-email in GOVERNED_WRITES) — borrower-' +
+      'update delivery would be a distinct future phase with its own ' +
+      'outcome union and audit/timeline coordination.',
+  },
+  {
+    id: 'outlook-connector-live-send',
+    label: 'Outlook connector LIVE send (Office 365 connector registration)',
+    reason:
+      'Phase 61 wires the document-request email-send governed write end ' +
+      'to end (audit + timeline + outcome union + masked recipient + ' +
+      'DRY_RUN/LIVE mode discipline). DRY_RUN operates fully today: the ' +
+      'adapter validates inputs and synthesizes "accepted" without a ' +
+      'network call. LIVE today returns a permanent-failure with a clear ' +
+      '"Office 365 Outlook connector not yet registered" reason — the ' +
+      'connector needs to be registered for this Code App and the SDK ' +
+      'regenerated, at which point the LIVE adapter swaps in the typed ' +
+      'Office365_*Service call. See docs/PHASE_61_OUTLOOK_EMAIL_DELIVERY.md.',
   },
   {
     id: 'document-upload',
