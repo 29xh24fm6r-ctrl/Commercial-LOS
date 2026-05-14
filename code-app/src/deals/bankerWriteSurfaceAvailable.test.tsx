@@ -28,6 +28,13 @@ vi.mock('./DealDataProvider', () => ({
 
 vi.mock('./dealTaskActions', () => ({ completeTask: vi.fn() }));
 vi.mock('./documentActions', () => ({ requestDocument: vi.fn() }));
+// Phase 62: the deal-card chain now imports sendDocumentRequestEmail
+// transitively (Phase 61). Mock it so the SDK service chain it pulls
+// in does not load during the test (the SDK has a broken internal
+// import unrelated to the action's contract).
+vi.mock('./sendDocumentRequestEmail', () => ({
+  sendDocumentRequestEmail: vi.fn(),
+}));
 vi.mock('./creditMemoActions', () => ({ saveCreditMemoDraft: vi.fn() }));
 vi.mock('./creditMemoQueries', () => ({}));
 vi.mock('./activityQueries', () => ({}));

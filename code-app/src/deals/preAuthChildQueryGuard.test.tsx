@@ -63,6 +63,12 @@ vi.mock('./activityQueries', () => ({ loadDealActivity }));
 // DealDataProvider can drag the SDK into the test runtime.
 vi.mock('./dealTaskActions', () => ({ completeTask: vi.fn() }));
 vi.mock('./documentActions', () => ({ requestDocument: vi.fn() }));
+// Phase 62: the deal-card chain now imports sendDocumentRequestEmail
+// transitively (Phase 61). Mock it so the SDK service chain it pulls
+// in does not load during the test.
+vi.mock('./sendDocumentRequestEmail', () => ({
+  sendDocumentRequestEmail: vi.fn(),
+}));
 vi.mock('./creditMemoActions', () => ({ saveCreditMemoDraft: vi.fn() }));
 vi.mock('./CompleteTaskModal', () => ({ CompleteTaskModal: () => null }));
 vi.mock('./RequestDocumentModal', () => ({ RequestDocumentModal: () => null }));
