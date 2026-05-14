@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   timed,
   recordRefresh,
@@ -95,19 +95,37 @@ describe('perfRegistry — refresh + provider events', () => {
   });
 
   it('slowestRecent surfaces the highest-duration completed queries', async () => {
-    await timed('G', 'fast', async () => {
-      await new Promise((r) => setTimeout(r, 2));
-    });
-    await timed('G', 'slow', async () => {
-      await new Promise((r) => setTimeout(r, 30));
-    });
-    await timed('G', 'medium', async () => {
-      await new Promise((r) => setTimeout(r, 10));
-    });
-    const snap = getPerfSnapshot(2);
-    // After sort, [0] is the slowest, [1] is medium.
-    expect(snap.slowestRecent[0]!.label).toBe('slow');
-    expect(snap.slowestRecent[1]!.label).toBe('medium');
+    // Stub performance.now so the durations are deterministic.
+    // Real setTimeout-based timing was flaky under heavy test load:
+    // setTimeout(2) could end up taking longer than setTimeout(30)
+    // when the event loop was busy, and the ordering assertion below
+    // would intermittently fail. The intent of this test is to pin
+    // the sort/ordering logic — not to test the platform's
+    // setTimeout resolution.
+    let clock = 0;
+    const nowSpy = vi
+      .spyOn(performance, 'now')
+      .mockImplementation(() => clock);
+    try {
+      clock = 1000;
+      await timed('G', 'fast', async () => {
+        clock = 1005; // 5 ms duration
+      });
+      clock = 2000;
+      await timed('G', 'slow', async () => {
+        clock = 2080; // 80 ms duration
+      });
+      clock = 3000;
+      await timed('G', 'medium', async () => {
+        clock = 3030; // 30 ms duration
+      });
+      const snap = getPerfSnapshot(2);
+      // After sort, [0] is the slowest, [1] is medium.
+      expect(snap.slowestRecent[0]!.label).toBe('slow');
+      expect(snap.slowestRecent[1]!.label).toBe('medium');
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });
 
