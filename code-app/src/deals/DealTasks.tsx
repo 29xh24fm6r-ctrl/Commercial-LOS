@@ -136,7 +136,14 @@ function TaskList({
     <div style={styles.group}>
       <div style={styles.groupHeaderRow}>
         <h4 style={styles.groupHeading}>{groupLabel}</h4>
-        <Badge variant="neutral">{badgeCount}</Badge>
+        <Badge
+          variant="neutral"
+          title={`${badgeCount} ${groupLabel.toLowerCase()} ${
+            badgeCount === 1 ? 'task' : 'tasks'
+          }`}
+        >
+          {badgeCount}
+        </Badge>
       </div>
       {tasks.length === 0 ? (
         <p style={styles.muted}>{emptyHint}</p>

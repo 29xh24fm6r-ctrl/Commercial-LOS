@@ -41,6 +41,7 @@ function Body({ activity }: { activity: AsyncResult<TimelineEvent[]> }) {
 function EventRow({ event }: { event: TimelineEvent }) {
   const sev = severityFor(event.eventTypeKey);
   const actor = event.isSystemGenerated ? 'System' : event.actorName ?? 'Unknown user';
+  const sourceLabel = friendlyEntityLabel(event.relatedEntityType);
 
   return (
     <li style={styles.row}>
@@ -50,17 +51,44 @@ function EventRow({ event }: { event: TimelineEvent }) {
       <div style={styles.body}>
         <div style={styles.titleRow}>
           <span style={styles.title}>{event.title}</span>
-          {event.eventType && <Badge variant={sev}>{event.eventType}</Badge>}
+          {event.eventType && (
+            <Badge
+              variant={sev}
+              title={event.eventTypeKey ? `Event type key: ${event.eventTypeKey}` : undefined}
+            >
+              {event.eventType}
+            </Badge>
+          )}
           {event.eventSubType && (
-            <span style={styles.subTypeBadge}>{event.eventSubType}</span>
+            <span
+              style={styles.subTypeBadge}
+              title={event.eventSubType}
+            >
+              {event.eventSubType}
+            </span>
           )}
         </div>
         {event.summary && <p style={styles.summary}>{event.summary}</p>}
         <div style={styles.meta}>
           <Meta label="When" value={formatWhen(event.eventAt)} />
-          <Meta label="By" value={actor} />
-          {event.relatedEntityType && (
-            <Meta label="Source" value={event.relatedEntityType} />
+          {/* Phase 58: subtly distinguish system-generated events
+              from banker actions via italicized actor value. No new
+              color, no new layout. */}
+          <Meta
+            label="By"
+            value={actor}
+            italic={event.isSystemGenerated}
+          />
+          {sourceLabel && (
+            <Meta
+              label="Source"
+              value={sourceLabel}
+              valueTitle={
+                event.relatedEntityType && event.relatedEntityType !== sourceLabel
+                  ? `Schema entity: ${event.relatedEntityType}`
+                  : undefined
+              }
+            />
           )}
         </div>
       </div>
@@ -68,13 +96,49 @@ function EventRow({ event }: { event: TimelineEvent }) {
   );
 }
 
-function Meta({ label, value }: { label: string; value: string | undefined }) {
+function Meta({
+  label,
+  value,
+  italic,
+  valueTitle,
+}: {
+  label: string;
+  value: string | undefined;
+  italic?: boolean;
+  valueTitle?: string;
+}) {
   return (
     <span style={styles.metaItem}>
       <span style={styles.metaLabel}>{label}</span>
-      <span style={styles.metaValue}>{value ?? '—'}</span>
+      <span
+        style={italic ? styles.metaValueItalic : styles.metaValue}
+        title={valueTitle}
+      >
+        {value ?? '—'}
+      </span>
     </span>
   );
+}
+
+/** Phase 58: maps schema entity names (e.g. cr664_documentchecklist)
+ *  to banker-friendly source labels. Falls back to the raw value
+ *  when no mapping is documented, so a future schema entity does
+ *  not silently disappear — it just shows its raw name with the
+ *  full identifier on the title attribute. */
+function friendlyEntityLabel(
+  entityType: string | undefined,
+): string | undefined {
+  if (!entityType) return undefined;
+  const map: Record<string, string> = {
+    cr664_dealtask1: 'Task',
+    cr664_documentchecklist: 'Document',
+    cr664_creditmemo1: 'Credit memo',
+    cr664_creditmemodraftsection: 'Credit memo section',
+    cr664_loandeal: 'Deal',
+    cr664_alertqueue: 'Alert',
+    cr664_dataqualityflag: 'Data quality flag',
+  };
+  return map[entityType] ?? entityType;
 }
 
 function ErrorBlock({ title, detail }: { title: string; detail: string }) {
@@ -184,6 +248,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: typography.size.md,
     color: palette.text,
     lineHeight: typography.lineHeight.snug,
+    // Phase 58: long URLs / very long words wrap instead of pushing
+    // the timeline row beyond the card edge.
+    wordBreak: 'break-word',
   },
   meta: {
     display: 'flex',
@@ -195,6 +262,13 @@ const styles: Record<string, React.CSSProperties> = {
   metaItem: { whiteSpace: 'nowrap', display: 'inline-flex', gap: 4 },
   metaLabel: { color: palette.textSubtle },
   metaValue: { color: palette.text },
+  // Phase 58: subtle italic for system-generated event actors
+  // ("By: System"). No new color, no new layout — same color as
+  // the plain value, just italicized.
+  metaValueItalic: {
+    color: palette.text,
+    fontStyle: 'italic',
+  },
   errorBox: {
     background: palette.blockedBg,
     border: `1px solid ${palette.blockedBg}`,

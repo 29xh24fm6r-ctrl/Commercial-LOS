@@ -178,8 +178,8 @@ function FreshnessBlock({ freshness }: { freshness: CreditMemoFreshnessResult })
         </ul>
       )}
       <p style={styles.freshnessFootnote}>
-        Derived from authorized deal, task, document, and activity records. Memo
-        status is not changed in Dataverse by this check.
+        Calculated from the deal's current tasks, documents, and activity.
+        This check does not modify the memo.
       </p>
     </div>
   );
@@ -226,7 +226,12 @@ function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
         <div style={styles.group}>
           <div style={styles.groupHeaderRow}>
             <h4 style={styles.groupHeading}>Memos</h4>
-            <Badge variant="neutral">{memos.length}</Badge>
+            <Badge
+              variant="neutral"
+              title={`${memos.length} memo${memos.length === 1 ? '' : 's'} on file for this deal`}
+            >
+              {memos.length}
+            </Badge>
           </div>
           <ul style={styles.list}>
             {memos.map((m) => (
@@ -239,7 +244,12 @@ function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
         <div style={styles.group}>
           <div style={styles.groupHeaderRow}>
             <h4 style={styles.groupHeading}>Section drafts</h4>
-            <Badge variant="neutral">{sections.length}</Badge>
+            <Badge
+              variant="neutral"
+              title={`${sections.length} section draft${sections.length === 1 ? '' : 's'} on file for this deal`}
+            >
+              {sections.length}
+            </Badge>
           </div>
           <ul style={styles.list}>
             {sections.map((s) => (
@@ -268,10 +278,19 @@ function MemoRow({ memo }: { memo: CreditMemoSummary }) {
         </div>
         <div style={styles.badgeRow}>
           {memo.status && (
-            <Badge variant={memoStatusToSeverity(memo.statusKey)}>{memo.status}</Badge>
+            <Badge
+              variant={memoStatusToSeverity(memo.statusKey)}
+              title="Memo workflow status"
+            >
+              {memo.status}
+            </Badge>
           )}
           {memo.borrowerSafe && (
-            <Badge variant="info" appearance="outline">
+            <Badge
+              variant="info"
+              appearance="outline"
+              title="Generated without language that would require borrower-side review"
+            >
               Borrower-safe
             </Badge>
           )}
@@ -283,14 +302,21 @@ function MemoRow({ memo }: { memo: CreditMemoSummary }) {
 }
 
 function SectionRow({ section }: { section: CreditMemoSectionItem }) {
+  // Phase 58: removed the visible "Key: <sectionKey>" subtitle line.
+  // It exposed a raw schema identifier to bankers without value
+  // (sectionLabel above already names the section). Kept the key on
+  // the title's `title` attribute for engineering-debug hover.
   return (
     <li style={styles.row}>
       <div style={styles.rowHeader}>
         <div style={styles.rowTitleBlock}>
-          <div style={styles.rowTitle}>{section.sectionLabel}</div>
+          <div
+            style={styles.rowTitle}
+            title={`Section key: ${section.sectionKey}`}
+          >
+            {section.sectionLabel}
+          </div>
           <div style={styles.rowSubtitle}>
-            <span style={styles.metaLabel}>Key:</span> {section.sectionKey}
-            <span style={styles.dotSep}>·</span>
             <span>
               Last generated {formatDate(section.lastGeneratedAt) ?? '—'}
             </span>
@@ -298,7 +324,10 @@ function SectionRow({ section }: { section: CreditMemoSectionItem }) {
         </div>
         {section.reviewStatus && (
           <div style={styles.badgeRow}>
-            <Badge variant={reviewStatusToSeverity(section.reviewStatusKey)}>
+            <Badge
+              variant={reviewStatusToSeverity(section.reviewStatusKey)}
+              title="Section review status"
+            >
               {section.reviewStatus}
             </Badge>
           </div>
