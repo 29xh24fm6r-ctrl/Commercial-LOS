@@ -111,6 +111,59 @@ describe('platformInventory — not wired', () => {
     }
   });
 
+  // Phase 68: every NOT_WIRED entry MUST carry a blockerKind tag
+  // from the closed union { connector | schema | governance |
+  // observability | compound }. The tag drives the Capability
+  // Inventory section in the Release Readiness Gate (it groups
+  // by upstream-blocker shape so stakeholders see structure, not
+  // a single "blocked" bucket).
+  it('every not-wired entry carries a blockerKind from the closed union (Phase 68)', () => {
+    const allowed = new Set<string>([
+      'connector',
+      'schema',
+      'governance',
+      'observability',
+      'compound',
+    ]);
+    for (const n of NOT_WIRED) {
+      expect(typeof n.blockerKind).toBe('string');
+      expect(
+        allowed.has(n.blockerKind),
+        `NOT_WIRED.${n.id} has unknown blockerKind="${n.blockerKind}"`,
+      ).toBe(true);
+    }
+  });
+
+  it('specific not-wired entries map to specific blockerKinds (Phase 68 anchor)', () => {
+    const byId = new Map(NOT_WIRED.map((n) => [n.id, n]));
+    // Connector-blocked
+    expect(byId.get('outlook-connector-live-send')?.blockerKind).toBe(
+      'connector',
+    );
+    // Schema-blocked
+    expect(byId.get('document-upload')?.blockerKind).toBe('schema');
+    expect(byId.get('stage-reference-data-source')?.blockerKind).toBe(
+      'schema',
+    );
+    expect(byId.get('stage-ordering-contract')?.blockerKind).toBe('schema');
+    // Governance / deferred design decision
+    expect(byId.get('email-delivery')?.blockerKind).toBe('governance');
+    expect(byId.get('ai-generation')?.blockerKind).toBe('governance');
+    expect(byId.get('executive-deal-drillthrough')?.blockerKind).toBe(
+      'governance',
+    );
+    expect(byId.get('admin-deal-drillthrough')?.blockerKind).toBe(
+      'governance',
+    );
+    // In-app observability not wired
+    expect(byId.get('test-coverage-build-verification')?.blockerKind).toBe(
+      'observability',
+    );
+    // Compound: borrower-portal stacks auth + invitation + role +
+    // schema + secure-message + connector blockers
+    expect(byId.get('borrower-portal')?.blockerKind).toBe('compound');
+  });
+
   it('email-delivery reason explicitly mentions no Outlook / no Graph and the Phase-23 local-only stance', () => {
     const email = NOT_WIRED.find((n) => n.id === 'email-delivery')!;
     expect(email.reason).toMatch(/outlook|graph/i);

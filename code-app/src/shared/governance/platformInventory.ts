@@ -153,10 +153,40 @@ export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [
 // out of scope for the current phase set)
 // ---------------------------------------------------------------------------
 
+/**
+ * Phase 68 — `NotWiredBlockerKind` classifies WHY a not-wired
+ * capability is not wired, so the Release Readiness Gate can
+ * surface upstream-blocker structure without collapsing
+ * everything into a single "blocked" bucket.
+ *
+ *  - 'connector'     — Power Platform connector registration /
+ *                      Office 365 / Graph dependency not in place.
+ *  - 'schema'        — a Dataverse column / table / option-set
+ *                      value is missing. The SDK can't even
+ *                      target it.
+ *  - 'governance'    — a deliberate non-goal or deferred design
+ *                      decision; nothing upstream is missing,
+ *                      we have not chosen to ship the surface.
+ *  - 'observability' — runtime signal does not exist inside the
+ *                      app (e.g. CI status; build/test feed).
+ *  - 'compound'      — two or more of the above stacked. Use only
+ *                      when the entry's reason text explicitly
+ *                      enumerates multiple unrelated upstream
+ *                      blockers (e.g. borrower-portal).
+ */
+export type NotWiredBlockerKind =
+  | 'connector'
+  | 'schema'
+  | 'governance'
+  | 'observability'
+  | 'compound';
+
 export interface NotWiredEntry {
   id: string;
   label: string;
   reason: string;
+  /** Phase 68 — required classification of the upstream blocker. */
+  blockerKind: NotWiredBlockerKind;
 }
 
 export const NOT_WIRED: readonly NotWiredEntry[] = [
@@ -172,6 +202,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'flow (deal-document-request-email in GOVERNED_WRITES) — borrower-' +
       'update delivery would be a distinct future phase with its own ' +
       'outcome union and audit/timeline coordination.',
+    blockerKind: 'governance',
   },
   {
     id: 'outlook-connector-live-send',
@@ -186,6 +217,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'connector needs to be registered for this Code App and the SDK ' +
       'regenerated, at which point the LIVE adapter swaps in the typed ' +
       'Office365_*Service call. See docs/PHASE_61_OUTLOOK_EMAIL_DELIVERY.md.',
+    blockerKind: 'connector',
   },
   {
     id: 'document-upload',
@@ -200,6 +232,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'cr664_requestdate (Request) and Phase 51 stamps cr664_receiveddate ' +
       '(Mark received) — both metadata-only; neither carries a binary. ' +
       'See docs/PHASE_51_DOCUMENT_UPLOAD_SCOPE.md.',
+    blockerKind: 'schema',
   },
   {
     id: 'ai-generation',
@@ -208,6 +241,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'No AI/model calls anywhere in the app. Phase 24 credit memo draft is ' +
       'a pure deterministic generator. The "no AI used" line is asserted in ' +
       'the draft preview banner.',
+    blockerKind: 'governance',
   },
   {
     id: 'test-coverage-build-verification',
@@ -216,6 +250,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'The app has no runtime signal for npm run build or npm test results. ' +
       'CI verification is performed out-of-band; the Release Readiness Gate ' +
       'reports this row as Not Wired by design.',
+    blockerKind: 'observability',
   },
   {
     id: 'stage-reference-data-source',
@@ -223,6 +258,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     reason:
       'Cr664_stagereferences is not registered as a Power Apps data source; ' +
       'no typed service exists in src/generated/services/.',
+    blockerKind: 'schema',
   },
   {
     id: 'stage-ordering-contract',
@@ -230,6 +266,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     reason:
       'No sequence / order field is exposed on the loan deal record, system ' +
       'settings, or KPI threshold configuration.',
+    blockerKind: 'schema',
   },
   {
     id: 'executive-deal-drillthrough',
@@ -238,6 +275,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'Executive workspace is snapshot-only by design (Phase 15). Deal ' +
       'drill-through from the executive surface requires a separate ' +
       'governance decision.',
+    blockerKind: 'governance',
   },
   {
     id: 'admin-deal-drillthrough',
@@ -245,6 +283,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     reason:
       'Admin operational deal drill-through is a separate governance ' +
       'decision; intentionally not wired through DealRoute.',
+    blockerKind: 'governance',
   },
   {
     id: 'borrower-portal',
@@ -283,6 +322,7 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'the full capability matrix and unblock checklist; ' +
       'docs/PHASE_65_BORROWER_PORTAL_DEFERRAL.md for the standing ' +
       'deferral rationale.',
+    blockerKind: 'compound',
   },
 ];
 
