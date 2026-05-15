@@ -158,8 +158,49 @@ describe('platformInventory — local-only flows', () => {
     // The note must explicitly cite that no portal is implied. This
     // pin survives even if the rest of the wording is edited later.
     expect(entry!.note).toMatch(/borrower portal|NOT_WIRED\.borrower-portal/i);
-    // The note must reference the Phase 66 doc by path.
+    // The note must reference the Phase 66 doc by path AND the
+    // Phase 67 handoff-extension doc by path.
     expect(entry!.note).toMatch(/PHASE_66_BORROWER_SAFE_STATUS_PACKET\.md/);
+    expect(entry!.note).toMatch(/PHASE_67_PACKET_EMAIL_HANDOFF\.md/);
+  });
+
+  it('borrower-safe status packet (Phase 67) explicitly states no audit / timeline / Dataverse write for the handoff', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'borrower-safe-status-packet',
+    )!;
+    // The Phase 67 extension MUST stay LOCAL_ONLY. The note must
+    // disclaim audit, timeline, and Dataverse writes — Phase 67 is
+    // explicitly NOT a governed write.
+    expect(entry.note).toMatch(/no audit row/i);
+    expect(entry.note).toMatch(/no timeline event/i);
+    expect(entry.note).toMatch(/no Dataverse write/i);
+    // The note MUST describe the Phase 63 handoff helpers being
+    // surfaced in the modal (mailto / clipboard).
+    expect(entry.note).toMatch(/mailto/i);
+    expect(entry.note).toMatch(/clipboard/i);
+    // The note MUST state that recipient is never inferred from the
+    // free-text clientName.
+    expect(entry.note).toMatch(/never infer a recipient from clientName/i);
+  });
+});
+
+// Phase 67 pin: the handoff extension is NOT a governed write. If a
+// future phase records the handoff to Dataverse it MUST add a
+// GOVERNED_WRITES entry and remove this pin.
+describe('platformInventory — Phase 67 handoff classification', () => {
+  it('borrower-safe-status-packet is NOT in GOVERNED_WRITES', () => {
+    const writeIds = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
+  });
+
+  it('GOVERNED_WRITES count is still 10 (Phase 67 did not add a new governed write)', () => {
+    expect(GOVERNED_WRITES.length).toBe(10);
+  });
+
+  it('the Phase 67 deferral doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(repoRoot, 'docs/PHASE_67_PACKET_EMAIL_HANDOFF.md');
+    expect(existsSync(docPath)).toBe(true);
   });
 });
 

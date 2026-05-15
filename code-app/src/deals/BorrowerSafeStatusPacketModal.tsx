@@ -2,14 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import type { DealDetail } from './dealQueries';
 import type { DealDocumentsResult } from './dealDocumentQueries';
 import { buildBorrowerSafeStatusPacket } from './borrowerSafeStatusPacket';
+import {
+  buildHandoffClipboardText,
+  buildMailtoUrl,
+} from './emailDelivery/emailHandoff';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
- * Phase 66: borrower-safe status packet modal. LOCAL-ONLY preview +
- * Copy. No Dataverse write, no email send, no SDK call. The banker
- * uses the copied text with the Phase 63 Outlook handoff (or any
- * personal channel) to send the packet themselves.
+ * Phase 66: borrower-safe status packet modal. Local preview + Copy.
+ * Phase 67: integrated with the Phase 63 Outlook handoff pattern —
+ * the modal renders an "Open in Outlook" mailto: button and a "Copy
+ * email" clipboard button alongside the local preview. The app still
+ * does NOT send email and still does NOT write to Dataverse — the
+ * banker drafts in-app and sends from their own Outlook client.
  *
  * The modal is intentionally simpler than the Phase 23 Draft Borrower
  * Update modal:
@@ -21,6 +27,18 @@ import { palette, radius, spacing, typography } from '../shared/theme';
  *     deterministic and the static-source tests pin that forbidden
  *     phrases never appear in the template; the banker CAN edit the
  *     preview before copying, but edits are their responsibility.
+ *
+ * Recipient handling (Phase 67):
+ *   - cr664_borrowers has no email column (Phase 64 audit) and
+ *     DealDetail does not surface a verified borrower email. The
+ *     modal renders an empty recipient field. The banker can type
+ *     a recipient if they have one OR leave it blank and choose in
+ *     Outlook after launch. We DO NOT infer email from the free-text
+ *     clientName field; we DO NOT hardcode a fallback.
+ *   - The full recipient (when typed) appears ONLY in the compose
+ *     surface and the mailto URL / clipboard text. It is never
+ *     surfaced elsewhere (no audit row, no timeline, no Dataverse
+ *     write of any kind).
  */
 
 interface BorrowerSafeStatusPacketModalProps {
@@ -30,7 +48,14 @@ interface BorrowerSafeStatusPacketModalProps {
   onClose: () => void;
 }
 
-type CopyState = 'idle' | 'copied' | 'failed';
+// Phase 67: the modal tracks the last action the banker took so the
+// outcome panel reflects it accurately. Both branches are local-only
+// — neither writes to Dataverse.
+type ActionState =
+  | { kind: 'idle' }
+  | { kind: 'copied' }
+  | { kind: 'copy-failed' }
+  | { kind: 'mailto-launched' };
 
 export function BorrowerSafeStatusPacketModal({
   deal,
@@ -51,12 +76,13 @@ export function BorrowerSafeStatusPacketModal({
   );
   const [subject, setSubject] = useState(initial.subject);
   const [body, setBody] = useState(initial.body);
-  const [copy, setCopy] = useState<CopyState>('idle');
+  const [recipient, setRecipient] = useState('');
+  const [action, setAction] = useState<ActionState>({ kind: 'idle' });
 
   useEffect(() => {
     setSubject(initial.subject);
     setBody(initial.body);
-    setCopy('idle');
+    setAction({ kind: 'idle' });
   }, [initial]);
 
   useEffect(() => {
@@ -70,20 +96,45 @@ export function BorrowerSafeStatusPacketModal({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
-  const canCopy = body.trim().length > 0 && subject.trim().length > 0;
+  const trimmedSubject = subject.trim();
+  const trimmedBody = body.trim();
+  const trimmedRecipient = recipient.trim();
+  // Phase 67: subject + body are required to produce a meaningful
+  // handoff. Recipient is intentionally optional — the banker can
+  // leave it blank and choose the recipient in Outlook after launch.
+  const canHandoff = trimmedSubject.length > 0 && trimmedBody.length > 0;
+
+  function handleOpenMailto() {
+    if (!canHandoff) return;
+    const url = buildMailtoUrl({
+      recipient: trimmedRecipient,
+      subject: trimmedSubject,
+      body,
+    });
+    try {
+      window.location.href = url;
+    } catch {
+      // If window.location.href fails the banker can still use Copy.
+    }
+    setAction({ kind: 'mailto-launched' });
+  }
 
   async function handleCopy() {
-    if (!canCopy) return;
-    const payload = `Subject: ${subject}\n\n${body}`;
+    if (!canHandoff) return;
+    const payload = buildHandoffClipboardText({
+      recipient: trimmedRecipient,
+      subject: trimmedSubject,
+      body,
+    });
     try {
       if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(payload);
-        setCopy('copied');
+        setAction({ kind: 'copied' });
         return;
       }
-      setCopy('failed');
+      setAction({ kind: 'copy-failed' });
     } catch {
-      setCopy('failed');
+      setAction({ kind: 'copy-failed' });
     }
   }
 
@@ -108,12 +159,11 @@ export function BorrowerSafeStatusPacketModal({
         </header>
 
         <p style={styles.localOnlyBanner} role="status">
-          <strong>Local preview only — nothing is saved to this deal.</strong>{' '}
+          <strong>Prepared for banker review — nothing is saved to this deal.</strong>{' '}
           The packet is a borrower-safe summary of outstanding, received, and
-          under-review items. To get it to the borrower, copy the text and
-          send it through your own mail client (the Phase 63 Outlook handoff
-          on the Documents card is one option). The app does not send this
-          and does not record that you copied it.
+          under-review items. Open it in Outlook or copy the email text;
+          the banker sends from Outlook. The app does not send this and does
+          not record that you opened or copied it.
         </p>
 
         <section style={styles.toSection}>
@@ -128,6 +178,31 @@ export function BorrowerSafeStatusPacketModal({
             label="Items under bank review"
             value={String(documents.reviewed.length)}
           />
+        </section>
+
+        <section style={styles.fieldBlock}>
+          <label style={styles.label} htmlFor="status-packet-recipient">
+            Recipient (optional)
+          </label>
+          <input
+            id="status-packet-recipient"
+            type="email"
+            value={recipient}
+            onChange={(e) => {
+              setRecipient(e.target.value);
+              setAction({ kind: 'idle' });
+            }}
+            placeholder=""
+            autoComplete="off"
+            style={styles.input}
+          />
+          <p style={styles.helperLine}>
+            Recipient is optional. Leave blank and choose in Outlook if you do
+            not have a verified borrower email — the borrower record on this
+            deal carries a display name only. The recipient is never saved by
+            this app; it appears only in your local Outlook compose surface
+            (or in the copied email text).
+          </p>
         </section>
 
         <section style={styles.fieldBlock}>
@@ -160,7 +235,7 @@ export function BorrowerSafeStatusPacketModal({
           </p>
         </section>
 
-        {copy === 'copied' && (
+        {action.kind === 'copied' && (
           <div
             style={{
               ...styles.outcomeBox,
@@ -169,15 +244,34 @@ export function BorrowerSafeStatusPacketModal({
             }}
           >
             <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>
-              Copied to clipboard
+              Email content copied to clipboard
             </div>
             <p style={styles.outcomeDetail}>
-              Paste the text into your mail client to send manually. Nothing was
-              logged to this deal's activity ledger.
+              Paste the text into your Outlook compose window. The banker
+              sends from Outlook; the app did not send and nothing was logged
+              to this deal's activity ledger.
             </p>
           </div>
         )}
-        {copy === 'failed' && (
+        {action.kind === 'mailto-launched' && (
+          <div
+            style={{
+              ...styles.outcomeBox,
+              background: palette.clearBg,
+              borderColor: palette.clear,
+            }}
+          >
+            <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>
+              Outlook handoff launched
+            </div>
+            <p style={styles.outcomeDetail}>
+              Your default mail client should open with the packet pre-filled.
+              The banker sends from Outlook; the app did not send and nothing
+              was logged to this deal's activity ledger.
+            </p>
+          </div>
+        )}
+        {action.kind === 'copy-failed' && (
           <div
             style={{
               ...styles.outcomeBox,
@@ -202,11 +296,24 @@ export function BorrowerSafeStatusPacketModal({
           <button
             type="button"
             onClick={handleCopy}
-            disabled={!canCopy}
-            style={canCopy ? styles.primaryButton : styles.primaryButtonDisabled}
-            aria-label="Copy borrower-safe status packet"
+            disabled={!canHandoff}
+            style={
+              canHandoff ? styles.secondaryButton : styles.secondaryButtonDisabled
+            }
+            aria-label="Copy borrower-safe email"
           >
-            {copy === 'copied' ? 'Copied ✓' : 'Copy borrower update'}
+            {action.kind === 'copied' ? 'Copied ✓' : 'Copy email'}
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenMailto}
+            disabled={!canHandoff}
+            style={
+              canHandoff ? styles.primaryButton : styles.primaryButtonDisabled
+            }
+            aria-label="Open borrower-safe email in Outlook"
+          >
+            Open in Outlook
           </button>
         </footer>
       </div>
@@ -387,6 +494,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: typography.size.md,
     fontWeight: typography.weight.medium,
     cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  secondaryButtonDisabled: {
+    background: palette.surfaceAlt,
+    color: palette.textMuted,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.medium,
+    cursor: 'not-allowed',
     fontFamily: typography.family,
   },
 };

@@ -73,6 +73,7 @@ modules it names. Read the modules.
 | Stage progression unblock checklist (planning) | [STAGE_PROGRESSION_ENABLEMENT_MAP.md](STAGE_PROGRESSION_ENABLEMENT_MAP.md) |
 | Borrower portal feasibility audit (Phase 64) | [PHASE_64_BORROWER_PORTAL_AUDIT.md](PHASE_64_BORROWER_PORTAL_AUDIT.md) |
 | Borrower portal deferral rationale + unblock checklist (Phase 65) | [PHASE_65_BORROWER_PORTAL_DEFERRAL.md](PHASE_65_BORROWER_PORTAL_DEFERRAL.md) |
+| Borrower-safe status packet handoff workflow (Phase 67) | [PHASE_67_PACKET_EMAIL_HANDOFF.md](PHASE_67_PACKET_EMAIL_HANDOFF.md) |
 | Standing engineering rules               | [ENGINEERING_OPERATING_RULES.md](ENGINEERING_OPERATING_RULES.md)          |
 | Phase brief + AAR format                 | [PHASE_EXECUTION_TEMPLATE.md](PHASE_EXECUTION_TEMPLATE.md)                |
 

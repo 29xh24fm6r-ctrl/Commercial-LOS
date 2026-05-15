@@ -339,11 +339,21 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'Generate-and-copy borrower-safe summary of outstanding / received / ' +
       'under-review document items, with a "Next requested actions" list. ' +
       'No Dataverse write, no audit row, no timeline event, no email send. ' +
-      'The banker uses the Phase 63 Outlook handoff or any personal channel ' +
-      'to deliver the packet. Implementation: src/deals/borrowerSafeStatusPacket.ts ' +
-      '(pure generator) + src/deals/BorrowerSafeStatusPacketModal.tsx (local ' +
-      'preview + copy-to-clipboard). Does NOT imply a borrower portal exists ' +
-      '(see NOT_WIRED.borrower-portal). See docs/PHASE_66_BORROWER_SAFE_STATUS_PACKET.md.',
+      'Phase 66 shipped the pure generator + local-preview modal. Phase 67 ' +
+      'extended the modal to surface the Phase 63 Outlook handoff helpers ' +
+      'directly (Open in Outlook mailto: + Copy email clipboard) so the ' +
+      'banker can prepare a borrower-safe email without leaving the modal. ' +
+      'The recipient field is optional and empty by default — cr664_borrowers ' +
+      'has no email column, so we never infer a recipient from clientName ' +
+      'and never hardcode one. The full recipient (when typed) appears only ' +
+      'in the local Outlook compose surface and the copied email text; no ' +
+      'audit row, no timeline event, no Dataverse write of any kind. ' +
+      'Implementation: src/deals/borrowerSafeStatusPacket.ts (pure ' +
+      'generator) + src/deals/BorrowerSafeStatusPacketModal.tsx (local ' +
+      'preview + mailto handoff + clipboard handoff). Does NOT imply a ' +
+      'borrower portal exists (see NOT_WIRED.borrower-portal). See ' +
+      'docs/PHASE_66_BORROWER_SAFE_STATUS_PACKET.md for the packet shape ' +
+      'and docs/PHASE_67_PACKET_EMAIL_HANDOFF.md for the handoff workflow.',
   },
 ];
 
