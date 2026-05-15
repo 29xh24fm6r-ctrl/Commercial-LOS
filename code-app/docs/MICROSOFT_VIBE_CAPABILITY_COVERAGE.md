@@ -51,10 +51,10 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.1 Banker Command Center
 
 - **Vibe expected.** A banker's home: pipeline + work queue + alerts + KPIs at a glance.
-- **Current state.** **Operational.** Phase 4 banker workspace + Phase 54 pending-review signal + Phase 56 (work queue refresh) + MyWorkQueue surfaces. **Phase 75** added a deterministic personal activity/workload snapshot card (PersonalActivitySummary) at the top of the banker workspace — active deal count, total pipeline (with missing-amount gap), closing-soon, past-target-close, stage attention, open + overdue tasks, outstanding documents, documents-may-require-review, and draft credit memos — all derived from the banker work-queue data the workspace already loads. The disclaimer is explicit ("workload snapshot, not a performance evaluation. No ranking, no predictive claim, no compensation impact.").
-- **Gap.** No relationship-memory hint cards; no AI-summarized "what changed since you last looked"; no deal-autopilot suggestions.
-- **Blocker.** None for the core. The Vibe-doc deltas above are Lane F (Copilot) and Lane A (in-repo memory MVP).
-- **Safe next step.** Lane A: a deterministic relationship-memory lite card surfacing last-activity / open-commitments per borrower from existing records.
+- **Current state.** **Operational.** Phase 4 banker workspace + Phase 54 pending-review signal + Phase 56 (work queue refresh) + MyWorkQueue surfaces. **Phase 75** added a deterministic personal activity/workload snapshot card (PersonalActivitySummary). **Phase 76** added a deterministic Relationship Memory Lite card (RelationshipMemory) that groups the banker's active deals by normalized client name and surfaces per-client attention signals + deal-pill navigation. Both Phase 75 and Phase 76 are pure derivations on the BankerWorkQueueData the work queue already loads; no new schema, no new query shapes, no new write surfaces, no AI.
+- **Gap.** No AI-summarized "what changed since you last looked"; no deal-autopilot suggestions; no persistent banker notes per borrower; no contact-history ingestion from Outlook/Teams.
+- **Blocker.** None for the core. The Vibe-doc deltas above are Lane F (Copilot), Lane E (Outlook/Teams), and schema (persistent banker notes / verified borrower entity id).
+- **Safe next step.** Lane A: dark theme tokens (Phase 74 named this as the largest remaining a11y gap), OR a banker-only "relationship notes" capture (Phase-23-style LOCAL_ONLY flow layered on top of the Phase 76 client-keyed view).
 - **Schema / admin work needed?** No.
 - **Build now / later / deferred.** Now.
 
@@ -201,12 +201,12 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.16 Relationship memory
 
 - **Vibe expected.** "What we know about this borrower" persists across deals; banker notes accrue; conversation history surfaces.
-- **Current state.** **Not started.** Deal-scoped data only. `cr664_borrowers` has no notes/preferences/contact-history field.
-- **Gap.** Everything cross-deal.
-- **Blocker.** Schema (new entity or extended borrower record) + governance (privacy / consent).
-- **Safe next step.** Lane A could ship a banker-only "relationship notes" card per deal as a Phase-23-style LOCAL_ONLY flow (generate-and-copy notes the banker maintains in their own system) — that's a stop-gap, not a relationship-memory replacement. Real relationship memory is multi-deal and needs new schema.
-- **Schema / admin work needed?** Yes (real implementation).
-- **Build now / later / deferred.** Later.
+- **Current state.** **Partially operational (advanced by Phase 76).** Deal-scoped data only; `cr664_borrowers` has no notes/preferences/contact-history field. Phase 76 added **Relationship Memory Lite** — a deterministic banker-only card that groups the banker's active deals by normalized client name and surfaces a per-client snapshot (active deal count, total pipeline, last activity, nearest upcoming close, open document requests, open + overdue tasks, pending-review docs, closing-soon, stage-at-risk, draft memos, deal pills with deep-link to the deal workspace). Conservative copy is explicit: "client-name grouped", "not a verified relationship graph", "not a household linkage", "not a relationship score", "no predictive claim". No AI, no graph, no cross-borrower deduplication, no household linkage.
+- **Gap.** Cross-deal banker notes that accrue per-borrower; verified borrower entity id; conversation/contact-history; cross-borrower deduplication; relationship graph table; Outlook/Teams activity ingestion; AI-assisted relationship briefs.
+- **Blocker.** Schema (new entity or extended borrower record) + governance (privacy / consent) for the persistent-notes slice; Lane E (Teams/Outlook) for contact-history; Lane F (AI) for relationship briefs.
+- **Safe next step.** Lane A: a banker-only "relationship notes" capture (Phase-23-style LOCAL_ONLY flow — generate-and-copy notes the banker maintains in their own system) layered on top of the Phase 76 client-keyed view. Real cross-borrower memory still requires new schema.
+- **Schema / admin work needed?** No for further derivation extensions; yes for persistent notes / verified borrower entity id.
+- **Build now / later / deferred.** Phase 76 closed the in-repo derivation slice. Further extensions (notes capture, contact-history, AI briefs) are later.
 
 ### 1.17 Deal autopilot
 

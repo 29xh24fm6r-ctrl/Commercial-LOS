@@ -2,6 +2,7 @@ import { BankerProvider } from '../banker/BankerProvider';
 import { useBanker } from '../banker/BankerContext';
 import { PersonalPipeline } from '../banker/PersonalPipeline';
 import { PersonalActivitySummary } from '../banker/PersonalActivitySummary';
+import { RelationshipMemory } from '../banker/RelationshipMemory';
 import { MyWorkQueue } from '../banker/MyWorkQueue';
 import { palette, spacing, typography } from '../shared/theme';
 
@@ -34,6 +35,7 @@ function BankerWorkspaceContent() {
       <main style={styles.main}>
         <PersonalActivitySummary />
         <MyWorkQueue />
+        <RelationshipMemory />
         <PersonalPipeline />
       </main>
     </div>
