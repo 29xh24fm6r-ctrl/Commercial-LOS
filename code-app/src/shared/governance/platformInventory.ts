@@ -246,6 +246,44 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'Admin operational deal drill-through is a separate governance ' +
       'decision; intentionally not wired through DealRoute.',
   },
+  {
+    id: 'borrower-portal',
+    label: 'Borrower portal (external-user-facing)',
+    reason:
+      'No borrower-facing surface ships in this Code App. Phase 64 audited ' +
+      'the platform end-to-end against a borrower portal MVP scope and ' +
+      'confirmed six concurrent hard blockers, every one of which sits ' +
+      'outside this repo: ' +
+      '(1) no external auth provider — runBootstrap() requires a Bank-' +
+      'tenant Entra UPN matched to a cr664_users row, and borrowers are not ' +
+      'on the Bank tenant; ' +
+      '(2) no invitation-token / magic-link table — src/generated/services ' +
+      'contains no Invitation*, Token*, MagicLink*, OneTime*, or Consent* ' +
+      'service; ' +
+      '(3) no external-user role model — src/bootstrap/workspaceRoutes.ts ' +
+      'recognizes exactly five internal regexes (banker/team/manager/' +
+      'executive|board/admin) and there is no entitlement chain for an ' +
+      'external workspace; ' +
+      '(4) no File column for uploads on cr664_DocumentChecklist — same ' +
+      'gap pinned by NOT_WIRED.document-upload; the cr664_uploadstatus ' +
+      'boolean is metadata only and no binary can land on the row; ' +
+      '(5) no secure-message persistence — no Messages/Conversations/' +
+      'Comments service exists and cr664_DealTimelineEvent.cr664_visibility' +
+      'scope has no BorrowerSafe value (BankerAndManager/Team/' +
+      'ExecutiveSafe/AdminOnly only), so a borrower-readable activity ' +
+      'stream has no schema slot; ' +
+      '(6) no connector-backed email delivery — the Office 365 Outlook ' +
+      'connector is unregistered (NOT_WIRED.outlook-connector-live-send), ' +
+      'so even outbound borrower notifications cannot be automated; ' +
+      'Phase 63 HANDOFF mode is banker-initiated only and is not a ' +
+      'notification surface. The operational substitute for borrower ' +
+      'communication today is the Phase 63 deal-document-request-handoff ' +
+      'governed write (the banker drafts in-app and sends from their own ' +
+      'Outlook client). See docs/PHASE_64_BORROWER_PORTAL_AUDIT.md for ' +
+      'the full capability matrix and unblock checklist; ' +
+      'docs/PHASE_65_BORROWER_PORTAL_DEFERRAL.md for the standing ' +
+      'deferral rationale.',
+  },
 ];
 
 // ---------------------------------------------------------------------------

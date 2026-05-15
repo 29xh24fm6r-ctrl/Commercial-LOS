@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { resolve, relative, sep } from 'node:path';
 import {
   DELIBERATELY_BLOCKED,
   EXEC_TRANSITIONAL_FALLBACK_FEATURES,
@@ -99,6 +99,8 @@ describe('platformInventory — not wired', () => {
     expect(ids.has('stage-ordering-contract')).toBe(true);
     expect(ids.has('executive-deal-drillthrough')).toBe(true);
     expect(ids.has('admin-deal-drillthrough')).toBe(true);
+    // Phase 65 — borrower-portal deferral ratification.
+    expect(ids.has('borrower-portal')).toBe(true);
   });
 
   it('every not-wired entry has a concrete reason (not a vague "coming soon")', () => {
@@ -220,5 +222,239 @@ describe('platformInventory — Phase 43 stage progression enablement', () => {
     const repoRoot = resolve(__dirname, '..', '..', '..');
     const mapPath = resolve(repoRoot, 'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md');
     expect(existsSync(mapPath)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 65 — Borrower Portal Deferral Ratification
+//
+// Converts the Phase 64 audit into permanent governance metadata + tests.
+// The standing posture is "no borrower-facing portal ships in this Code App";
+// every assertion below pins one slice of that posture so a future phase
+// cannot quietly add a portal route, magic-link table, or external auth
+// without flipping these tests.
+// ---------------------------------------------------------------------------
+
+const REPO_ROOT = resolve(__dirname, '..', '..', '..');
+
+describe('platformInventory — Phase 65 borrower portal deferral', () => {
+  it('borrower-portal appears in NOT_WIRED', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'borrower-portal');
+    expect(entry).toBeDefined();
+    expect(entry!.label.toLowerCase()).toContain('borrower');
+  });
+
+  it('borrower-portal is NOT in GOVERNED_WRITES', () => {
+    const writeIds = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(writeIds.has('borrower-portal')).toBe(false);
+  });
+
+  it('borrower-portal is NOT in LOCAL_ONLY_FLOWS', () => {
+    const flowIds = new Set(LOCAL_ONLY_FLOWS.map((f) => f.id));
+    expect(flowIds.has('borrower-portal')).toBe(false);
+  });
+
+  it('borrower-portal is NOT in DELIBERATELY_BLOCKED (the deferral lives in NOT_WIRED, not DB)', () => {
+    // The Phase 64 audit classifies the borrower portal as missing
+    // upstream capability (auth / schema / connector), which matches the
+    // NOT_WIRED semantic. DELIBERATELY_BLOCKED is reserved for surfaces
+    // we WOULD ship if a schema decision had been made differently
+    // (e.g. Advance Stage). The borrower portal isn't one decision away;
+    // it's many. Keeping it in NOT_WIRED is the truthful classification.
+    const blockedIds = new Set(DELIBERATELY_BLOCKED.map((b) => b.id));
+    expect(blockedIds.has('borrower-portal')).toBe(false);
+  });
+
+  it('the NOT_WIRED reason cites every concrete blocker the Phase 64 audit confirmed', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'borrower-portal')!;
+    // Each of the six blockers the Phase 64 audit confirmed must
+    // appear in the reason text. Fragment-based to tolerate light
+    // copy-editing.
+    expect(entry.reason).toMatch(/external auth/i);
+    expect(entry.reason).toMatch(/(invitation|magic[- ]?link|token)/i);
+    expect(entry.reason).toMatch(/external[- ]user role/i);
+    expect(entry.reason).toMatch(/file column|cr664_documentchecklist/i);
+    expect(entry.reason).toMatch(/(secure[- ]message|messages|conversations)/i);
+    expect(entry.reason).toMatch(/(connector[- ]backed|outlook connector|office 365)/i);
+    // The Phase 65 doc must be reachable from the row.
+    expect(entry.reason).toMatch(/PHASE_65_BORROWER_PORTAL_DEFERRAL\.md/);
+    // The Phase 64 audit must be reachable from the row.
+    expect(entry.reason).toMatch(/PHASE_64_BORROWER_PORTAL_AUDIT\.md/);
+  });
+
+  it('the NOT_WIRED reason is concrete (not "coming soon" / "tbd")', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'borrower-portal')!;
+    expect(/\bcoming soon\b/i.test(entry.reason)).toBe(false);
+    expect(/\btbd\b/i.test(entry.reason)).toBe(false);
+    // Length floor — the existing not-wired-reason test imposes 40
+    // chars; the borrower-portal reason must be substantially longer
+    // than that (six blockers + two doc references).
+    expect(entry.reason.length).toBeGreaterThan(400);
+  });
+
+  it('the Phase 65 deferral doc actually exists on disk', () => {
+    const docPath = resolve(REPO_ROOT, 'docs/PHASE_65_BORROWER_PORTAL_DEFERRAL.md');
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('the Phase 64 audit doc actually exists on disk', () => {
+    const docPath = resolve(REPO_ROOT, 'docs/PHASE_64_BORROWER_PORTAL_AUDIT.md');
+    expect(existsSync(docPath)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 65 — static-source assertion: no portal surface code exists
+//
+// A NOT_WIRED row is necessary but not sufficient. If a borrower route /
+// magic-link handler / upload-portal component lands in the tree, the row
+// would be a lie. This test sweeps src/ for any file whose path implies a
+// borrower-portal surface and asserts the set is empty.
+// ---------------------------------------------------------------------------
+
+function isSourceFile(name: string): boolean {
+  return (
+    name.endsWith('.ts') ||
+    name.endsWith('.tsx') ||
+    name.endsWith('.js') ||
+    name.endsWith('.jsx')
+  );
+}
+
+function isTestFile(name: string): boolean {
+  return /\.test\.(ts|tsx|js|jsx)$/.test(name);
+}
+
+function collectAll(dirAbs: string, out: string[]): void {
+  for (const entry of readdirSync(dirAbs)) {
+    if (entry === 'node_modules' || entry === 'dist' || entry === '.git') continue;
+    const abs = resolve(dirAbs, entry);
+    const stat = statSync(abs);
+    if (stat.isDirectory()) {
+      collectAll(abs, out);
+    } else if (stat.isFile() && isSourceFile(entry)) {
+      out.push(abs);
+    }
+  }
+}
+
+function relForward(abs: string): string {
+  return relative(REPO_ROOT, abs).split(sep).join('/');
+}
+
+// File-PATH patterns that would imply a portal surface. These match the
+// path, not the contents, so a name reference inside a banker-only file
+// (e.g. "borrower-update-draft") does not trigger them.
+const FORBIDDEN_PATH_PATTERNS: ReadonlyArray<{ id: string; re: RegExp }> = [
+  // /borrower/ as a route segment, OR borrower-portal-*, OR
+  // BorrowerPortal*, OR src/borrower/ as a top-level role module.
+  {
+    id: 'borrower portal route',
+    re: /(?:^|\/)src\/borrower\/|borrower[-_ ]?portal|BorrowerPortal/i,
+  },
+  // Magic-link / one-time-code / invitation routes or handlers.
+  {
+    id: 'magic-link route',
+    re: /(?:^|\/)magic[-_ ]?link|MagicLink|one[-_ ]?time[-_ ]?(code|token)|OneTime(?:Code|Token)|invitation[-_ ]?token|InvitationToken/i,
+  },
+  // Upload-portal UI (distinct from the existing internal
+  // document-upload non-capability; this guards against an
+  // external-user-facing upload surface).
+  {
+    id: 'upload portal route',
+    re: /upload[-_ ]?portal|UploadPortal|borrower[-_ ]?upload|BorrowerUpload/i,
+  },
+];
+
+describe('platformInventory — Phase 65 static-source assertions (no portal code exists)', () => {
+  const SRC = resolve(REPO_ROOT, 'src');
+  const all: string[] = [];
+  collectAll(SRC, all);
+
+  // Test infrastructure self-reference: the platformInventory test file
+  // itself contains these patterns inside string literals (the regexes
+  // above). Allowlist test files from the structural sweep.
+  const nonTestFiles = all.filter((abs) => !isTestFile(abs.split(sep).pop()!));
+
+  // Allowlisted source files that mention "borrower-portal" by
+  // CONTENT (audited literal references — e.g. the platformInventory
+  // entry id, governance prose). These are the only places the
+  // string should appear in production source.
+  const ALLOWED_BORROWER_PORTAL_REFERENCES: ReadonlySet<string> = new Set([
+    'src/shared/governance/platformInventory.ts',
+  ]);
+
+  for (const { id, re } of FORBIDDEN_PATH_PATTERNS) {
+    it(`no source file path matches ${id} pattern`, () => {
+      const offending = nonTestFiles
+        .map(relForward)
+        .filter((p) => re.test(p));
+      expect(
+        offending,
+        `${id}: forbidden paths found — ${offending.join(', ')}`,
+      ).toEqual([]);
+    });
+  }
+
+  it('"borrower-portal" string literal only appears in the inventory file (production source)', () => {
+    const hits: string[] = [];
+    for (const abs of nonTestFiles) {
+      const rel = relForward(abs);
+      if (ALLOWED_BORROWER_PORTAL_REFERENCES.has(rel)) continue;
+      const src = readFileSync(abs, 'utf8');
+      if (/['"`]borrower-portal['"`]/.test(src)) hits.push(rel);
+    }
+    expect(
+      hits,
+      `'borrower-portal' literal leaked into production source outside the inventory: ${hits.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('no production source imports a token / magic-link / invitation module', () => {
+    const offending: string[] = [];
+    for (const abs of nonTestFiles) {
+      const rel = relForward(abs);
+      const src = readFileSync(abs, 'utf8');
+      // Match import lines only — comments stripped roughly.
+      const codeOnly = src
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+      if (
+        /\bimport\b[^;]*\bfrom\s+['"][^'"]*(?:magicLink|MagicLink|oneTimeToken|OneTimeToken|invitationToken|InvitationToken)/.test(
+          codeOnly,
+        )
+      ) {
+        offending.push(rel);
+      }
+    }
+    expect(offending).toEqual([]);
+  });
+
+  it('workspaceRoutes still recognizes exactly the five internal roles (no borrower / external / guest)', () => {
+    // Read the file and assert the route map keys haven't expanded. A
+    // future phase that adds a borrower role would have to touch this
+    // file AND this test in the same commit, which is the desired
+    // friction.
+    const src = readFileSync(
+      resolve(REPO_ROOT, 'src/bootstrap/workspaceRoutes.ts'),
+      'utf8',
+    );
+    expect(src).toMatch(/banker:\s*'\/workspaces\/banker'/);
+    expect(src).toMatch(/team:\s*'\/workspaces\/team'/);
+    expect(src).toMatch(/manager:\s*'\/workspaces\/manager'/);
+    expect(src).toMatch(/executive:\s*'\/workspaces\/executive'/);
+    expect(src).toMatch(/admin:\s*'\/workspaces\/admin'/);
+    // None of the external-role markers may appear.
+    expect(src).not.toMatch(/\bborrower\b/i);
+    expect(src).not.toMatch(/\bexternal\b/i);
+    expect(src).not.toMatch(/\bguest\b/i);
+    expect(src).not.toMatch(/\bportal\b/i);
+  });
+
+  it('WORKSPACE_DEAL_ACCESS lists exactly the five internal roles', () => {
+    const roles = WORKSPACE_DEAL_ACCESS.map((w) => w.role).sort();
+    expect(roles).toEqual(
+      ['admin', 'banker', 'executive', 'manager', 'team'].sort(),
+    );
   });
 });
