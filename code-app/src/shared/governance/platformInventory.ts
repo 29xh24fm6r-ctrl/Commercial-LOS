@@ -331,6 +331,20 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'write. Phase 25 added the governed Save Draft path (which is a ' +
       'governed write — see GOVERNED_WRITES.credit-memo-draft-save).',
   },
+  {
+    id: 'borrower-safe-status-packet',
+    label: 'Borrower-safe status packet',
+    phase: 66,
+    note:
+      'Generate-and-copy borrower-safe summary of outstanding / received / ' +
+      'under-review document items, with a "Next requested actions" list. ' +
+      'No Dataverse write, no audit row, no timeline event, no email send. ' +
+      'The banker uses the Phase 63 Outlook handoff or any personal channel ' +
+      'to deliver the packet. Implementation: src/deals/borrowerSafeStatusPacket.ts ' +
+      '(pure generator) + src/deals/BorrowerSafeStatusPacketModal.tsx (local ' +
+      'preview + copy-to-clipboard). Does NOT imply a borrower portal exists ' +
+      '(see NOT_WIRED.borrower-portal). See docs/PHASE_66_BORROWER_SAFE_STATUS_PACKET.md.',
+  },
 ];
 
 // ---------------------------------------------------------------------------

@@ -21,5 +21,15 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     setupFiles: ['src/setupTests.ts'],
+    // Phase 66 stability bump. Several jsdom + userEvent.type tests
+    // intermittently hit the Vitest 5s default ceiling under heavy
+    // parallel-suite load (1011+ tests at Phase 66). Every flaking
+    // test passes in well under 1s in isolation; the contention
+    // happens when many workers run userEvent simulated-keystroke
+    // loops at the same time. Bumping the default per-test timeout
+    // to 15s is an env-resilience fix — it changes nothing about
+    // what the tests verify. If a test legitimately needs longer
+    // than 15s, pass `{ timeout: ... }` to `it()` and document why.
+    testTimeout: 15_000,
   },
 })

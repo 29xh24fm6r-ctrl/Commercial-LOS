@@ -135,16 +135,31 @@ describe('platformInventory — executive transitional fallback', () => {
 });
 
 describe('platformInventory — local-only flows', () => {
-  it('lists borrower update draft and credit memo local preview', () => {
+  it('lists borrower update draft, credit memo local preview, and Phase 66 borrower-safe status packet', () => {
     const ids = new Set(LOCAL_ONLY_FLOWS.map((f) => f.id));
     expect(ids.has('borrower-update-draft')).toBe(true);
     expect(ids.has('credit-memo-local-preview')).toBe(true);
+    // Phase 66 — borrower-safe status packet (no portal claim).
+    expect(ids.has('borrower-safe-status-packet')).toBe(true);
   });
 
   it('every local-only flow note explicitly states no Dataverse write', () => {
     for (const f of LOCAL_ONLY_FLOWS) {
       expect(f.note.toLowerCase()).toMatch(/no dataverse write|no.*write/);
     }
+  });
+
+  it('borrower-safe status packet (Phase 66) note explicitly disclaims any portal implication', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'borrower-safe-status-packet',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(66);
+    // The note must explicitly cite that no portal is implied. This
+    // pin survives even if the rest of the wording is edited later.
+    expect(entry!.note).toMatch(/borrower portal|NOT_WIRED\.borrower-portal/i);
+    // The note must reference the Phase 66 doc by path.
+    expect(entry!.note).toMatch(/PHASE_66_BORROWER_SAFE_STATUS_PACKET\.md/);
   });
 });
 

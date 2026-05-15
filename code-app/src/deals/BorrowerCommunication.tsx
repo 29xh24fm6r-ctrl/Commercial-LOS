@@ -3,6 +3,7 @@ import { useDealData, type AsyncResult } from './DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
 import type { TimelineEvent, TimelineEventTypeKey } from './activityQueries';
 import { DraftBorrowerUpdateModal } from './DraftBorrowerUpdateModal';
+import { BorrowerSafeStatusPacketModal } from './BorrowerSafeStatusPacketModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -36,6 +37,10 @@ export function BorrowerCommunication({
   const banker = useOptionalBanker();
   const filtered = useFilteredActivity(activity);
   const [showDraft, setShowDraft] = useState(false);
+  // Phase 66: borrower-safe status packet (local preview + copy).
+  // Local-only flow — no write. Surfaced alongside the Phase-23
+  // draft action when a banker is authorized to view the deal.
+  const [showPacket, setShowPacket] = useState(false);
 
   // Phase 23 draft flow surfaces the action whenever a banker is
   // authorized to view the deal. No write happens on click; the modal
@@ -43,6 +48,14 @@ export function BorrowerCommunication({
   // trigger button nor the modal renders.
   const outstandingDocs = documents.kind === 'ready' ? documents.data.outstanding : [];
   const openTasks = tasks.kind === 'ready' ? tasks.data.open : [];
+  // The packet needs the full DealDocumentsResult (outstanding +
+  // received + reviewed). It's only meaningful when documents are
+  // ready; we surface the trigger anyway and let the modal render
+  // empty-state sections if the data is loading.
+  const fullDocs =
+    documents.kind === 'ready'
+      ? documents.data
+      : { outstanding: [], received: [], reviewed: [] };
 
   return (
     <>
@@ -52,14 +65,24 @@ export function BorrowerCommunication({
           subtitle="Email, call, and borrower update events from the deal timeline."
           trailing={
             readOnly ? undefined : (
-              <button
-                type="button"
-                onClick={() => setShowDraft(true)}
-                style={styles.draftButton}
-                aria-label="Draft borrower update"
-              >
-                Draft Borrower Update
-              </button>
+              <div style={styles.actionRow}>
+                <button
+                  type="button"
+                  onClick={() => setShowPacket(true)}
+                  style={styles.secondaryButton}
+                  aria-label="Open borrower-safe status packet"
+                >
+                  Borrower-safe status packet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDraft(true)}
+                  style={styles.draftButton}
+                  aria-label="Draft borrower update"
+                >
+                  Draft Borrower Update
+                </button>
+              </div>
             )
           }
         />
@@ -72,6 +95,14 @@ export function BorrowerCommunication({
           openTasks={openTasks}
           bankerName={banker?.fullName}
           onClose={() => setShowDraft(false)}
+        />
+      )}
+      {!readOnly && showPacket && (
+        <BorrowerSafeStatusPacketModal
+          deal={deal}
+          documents={fullDocs}
+          bankerName={banker?.fullName}
+          onClose={() => setShowPacket(false)}
         />
       )}
     </>
@@ -238,6 +269,25 @@ const styles: Record<string, React.CSSProperties> = {
     background: palette.primary,
     color: palette.textInverse,
     border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
+  actionRow: {
+    display: 'flex',
+    gap: spacing.xs,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  secondaryButton: {
+    background: palette.surface,
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
     borderRadius: radius.sm,
     padding: `${spacing.xxs} ${spacing.sm}`,
     fontSize: typography.size.xs,
