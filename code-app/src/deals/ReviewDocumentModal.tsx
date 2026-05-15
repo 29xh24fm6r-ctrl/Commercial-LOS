@@ -121,9 +121,11 @@ export function ReviewDocumentModal({
               disabled={inProgress}
               placeholder="Describe what was reviewed and any context worth recording. The note is copied to the audit event and the deal activity timeline."
               rows={4}
+              aria-required="true"
+              aria-describedby="review-document-note-help"
               style={{ ...styles.textarea, opacity: inProgress ? 0.6 : 1 }}
             />
-            <p style={styles.helperLine}>
+            <p id="review-document-note-help" style={styles.helperLine}>
               Stamps your name on cr664_reviewer. This records that you
               reviewed the document — it does not approve, accept, or
               validate the contents. The note flows to the audit trail
@@ -164,10 +166,14 @@ export function ReviewDocumentModal({
 }
 
 function OutcomeBlock({ outcome }: { outcome: MarkDocumentReviewedOutcome }) {
+  // Phase 74: outcome blocks announce to assistive tech.
   switch (outcome.kind) {
     case 'success':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}>
+        <div
+          role="status"
+          style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>Recorded</div>
           <p style={styles.outcomeDetail}>
             Document reviewed; audit and timeline events recorded.
@@ -176,7 +182,10 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReviewedOutcome }) {
       );
     case 'review-failed':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Could not record review
           </div>
@@ -189,7 +198,10 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReviewedOutcome }) {
       );
     case 'governance-partial':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.blockedFg }}>
             Critical: governance write failed
           </div>
@@ -211,7 +223,10 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReviewedOutcome }) {
       );
     case 'unknown':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Unexpected error
           </div>

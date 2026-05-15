@@ -321,12 +321,12 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.28 Accessibility / theme support
 
 - **Vibe expected.** WCAG-compliant; dark/light theme; keyboard nav; screen-reader labels.
-- **Current state.** **Partially operational.** A custom theme system (`palette`, `radius`, `spacing`, `typography`) exists. Severity-aware badges (`Badge`, `StatusDot`). Modal patterns use `role="dialog"` + `aria-modal`. No formal accessibility audit has been run; some surfaces likely fall short.
-- **Gap.** Formal a11y audit; dark theme; keyboard nav consistency; tested screen-reader paths.
-- **Blocker.** None technical. Just hasn't been a phase brief.
-- **Safe next step.** Lane A: an accessibility-audit phase that fixes the lowest-hanging fruit (color contrast on severity badges; keyboard-trap audit on modals; aria-label hygiene).
+- **Current state.** **Partially operational (advanced by Phase 74).** A custom theme system (`palette`, `radius`, `spacing`, `typography`) exists. Severity-aware badges (`Badge`, `StatusDot`). Modal patterns use `role="dialog"` + `aria-modal` + `aria-labelledby`. Phase 74 audited the Phase 51–73 operational surfaces and applied targeted fixes: outcome blocks now announce via `role="status"` (success) / `role="alert"` (error/partial/unknown) so screen readers surface results after submit; required textareas declare `aria-required="true"` and link their helper line via `aria-describedby`; the `Badge` component forwards `aria-label` so short visible text ("New", "Pending review") has an explicit accessible name. Conservative-copy discipline preserved — no "failed/invalid/approved" wording introduced.
+- **Gap.** Dark theme; user-selectable themes; color-blind-safe palette; tested keyboard-nav consistency across long-running tab cycles; formal screen-reader path audit (NVDA/JAWS/VoiceOver runs).
+- **Blocker.** None technical for theming. Color-blind-safe palette requires palette-vetting work.
+- **Safe next step.** Lane A: dark theme via token switch + color-blind-safe severity palette. Lane B/F: optional WCAG contrast-ratio static test against the theme tokens.
 - **Schema / admin work needed?** No.
-- **Build now / later / deferred.** Now.
+- **Build now / later / deferred.** Now (theme tokens). Later (formal screen-reader path audit).
 
 ### 1.29 Audit / governance
 

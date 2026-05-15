@@ -452,7 +452,10 @@ function DocumentRow({
                   // Phase 57: shortened the visible text to "Pending
                   // review"; the threshold detail moves to the
                   // title/aria-label for screen readers + tooltip.
+                  // Phase 74: aria-label parity — some screen readers
+                  // ignore title alone.
                   title={`Received ${PENDING_REVIEW_AT_RISK_DAYS}+ days ago and not yet reviewed.`}
+                  aria-label={`Pending review — received ${PENDING_REVIEW_AT_RISK_DAYS}+ days ago and not yet reviewed`}
                 >
                   Pending review
                 </Badge>

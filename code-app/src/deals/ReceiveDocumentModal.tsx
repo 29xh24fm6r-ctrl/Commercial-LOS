@@ -114,9 +114,11 @@ export function ReceiveDocumentModal({
               disabled={inProgress}
               placeholder="Describe how the document arrived (e.g. emailed by borrower, hand-delivered) and any context worth recording. The note is copied to the audit event and the deal activity timeline."
               rows={4}
+              aria-required="true"
+              aria-describedby="receive-document-note-help"
               style={{ ...styles.textarea, opacity: inProgress ? 0.6 : 1 }}
             />
-            <p style={styles.helperLine}>
+            <p id="receive-document-note-help" style={styles.helperLine}>
               Metadata-only: this records receipt on the deal timeline and audit
               trail. The cr664_DocumentChecklist schema has no file column, so no
               binary upload occurs in this phase. See
@@ -157,10 +159,17 @@ export function ReceiveDocumentModal({
 }
 
 function OutcomeBlock({ outcome }: { outcome: MarkDocumentReceivedOutcome }) {
+  // Phase 74: outcome blocks announce to assistive tech when they
+  // appear. Success is polite (role=status); error / partial /
+  // unknown are assertive (role=alert) so screen readers surface
+  // them without waiting for focus to land.
   switch (outcome.kind) {
     case 'success':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}>
+        <div
+          role="status"
+          style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>Recorded</div>
           <p style={styles.outcomeDetail}>
             Document marked received; audit and timeline events recorded.
@@ -169,7 +178,10 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReceivedOutcome }) {
       );
     case 'receive-failed':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Could not record receipt
           </div>
@@ -182,7 +194,10 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReceivedOutcome }) {
       );
     case 'governance-partial':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.blockedFg }}>
             Critical: governance write failed
           </div>
@@ -204,7 +219,10 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReceivedOutcome }) {
       );
     case 'unknown':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Unexpected error
           </div>

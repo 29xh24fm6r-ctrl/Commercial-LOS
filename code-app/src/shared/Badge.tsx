@@ -12,6 +12,12 @@ interface BadgeProps {
    *  on the span so longer context is available on hover and via
    *  screen readers without bloating the visible badge text. */
   title?: string;
+  /** Phase 74: explicit accessible name. Forwarded to the span as
+   *  aria-label so screen readers read the long form even when the
+   *  visible text is a short status word ("New", "Pending review").
+   *  `title` remains for sighted-hover; aria-label is the
+   *  screen-reader-authoritative form. */
+  'aria-label'?: string;
   children: ReactNode;
 }
 
@@ -20,6 +26,7 @@ export function Badge({
   appearance = 'soft',
   emphasize = true,
   title,
+  'aria-label': ariaLabel,
   children,
 }: BadgeProps) {
   const p = severityPalette[variant];
@@ -44,7 +51,7 @@ export function Badge({
     inline.fontSize = typography.size.sm;
   }
   return (
-    <span style={inline} title={title}>
+    <span style={inline} title={title} aria-label={ariaLabel}>
       {children}
     </span>
   );

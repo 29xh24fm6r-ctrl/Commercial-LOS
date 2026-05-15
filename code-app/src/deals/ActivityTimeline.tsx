@@ -125,6 +125,10 @@ function EventRow({
               variant="info"
               appearance="outline"
               title="New since your last visit on this browser. Locally tracked; not synced across devices."
+              // Phase 74: aria-label parity — the bare visible "New"
+              // is ambiguous to screen readers without the title
+              // context. Provide the full meaning explicitly.
+              aria-label="New since your last visit on this browser, locally tracked"
             >
               New
             </Badge>

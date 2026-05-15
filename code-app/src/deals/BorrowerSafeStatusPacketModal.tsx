@@ -237,6 +237,7 @@ export function BorrowerSafeStatusPacketModal({
 
         {action.kind === 'copied' && (
           <div
+            role="status"
             style={{
               ...styles.outcomeBox,
               background: palette.clearBg,
@@ -255,6 +256,7 @@ export function BorrowerSafeStatusPacketModal({
         )}
         {action.kind === 'mailto-launched' && (
           <div
+            role="status"
             style={{
               ...styles.outcomeBox,
               background: palette.clearBg,
@@ -273,6 +275,7 @@ export function BorrowerSafeStatusPacketModal({
         )}
         {action.kind === 'copy-failed' && (
           <div
+            role="alert"
             style={{
               ...styles.outcomeBox,
               background: palette.atRiskBg,

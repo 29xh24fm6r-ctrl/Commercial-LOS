@@ -308,10 +308,14 @@ export function RequestDocumentModal({
                     : 'Describe what is being requested and any context. The note is copied to the audit event and the deal activity timeline.'
                 }
                 rows={4}
+                aria-required="true"
+                aria-describedby={
+                  emailSurfaceVisible ? undefined : 'request-document-note-help'
+                }
                 style={{ ...styles.textarea, opacity: inProgress ? 0.6 : 1 }}
               />
               {!emailSurfaceVisible && (
-                <p style={styles.helperLine}>
+                <p id="request-document-note-help" style={styles.helperLine}>
                   In-app request only. No borrower email is sent in this phase. The note is
                   recorded on the deal timeline and audit trail; cr664_DocumentChecklist
                   itself has no request-note column.
@@ -346,6 +350,7 @@ export function RequestDocumentModal({
                         disabled={inProgress}
                         placeholder="borrower@example.com"
                         autoComplete="off"
+                        aria-required="true"
                         style={styles.input}
                       />
                     </div>
@@ -359,6 +364,7 @@ export function RequestDocumentModal({
                         value={subject}
                         onChange={(e) => setSubject(e.target.value)}
                         disabled={inProgress}
+                        aria-required="true"
                         style={styles.input}
                       />
                     </div>
@@ -405,6 +411,7 @@ export function RequestDocumentModal({
                     disabled={inProgress}
                     placeholder="borrower@example.com"
                     autoComplete="off"
+                    aria-required="true"
                     style={styles.input}
                   />
                 </div>
@@ -422,6 +429,7 @@ export function RequestDocumentModal({
                       setClipboardCopied(false);
                     }}
                     disabled={inProgress}
+                    aria-required="true"
                     style={styles.input}
                   />
                 </div>
@@ -595,10 +603,15 @@ function OutcomeBlock({
 }
 
 function RequestOutcomeBlock({ outcome }: { outcome: RequestDocumentOutcome }) {
+  // Phase 74: announce outcome via aria live region (status for success,
+  // alert for error / partial / unknown).
   switch (outcome.kind) {
     case 'success':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}>
+        <div
+          role="status"
+          style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>Request recorded</div>
           <p style={styles.outcomeDetail}>
             Document request stamped; audit and timeline events recorded.
@@ -607,7 +620,10 @@ function RequestOutcomeBlock({ outcome }: { outcome: RequestDocumentOutcome }) {
       );
     case 'doc-failed':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Could not record request
           </div>
@@ -620,7 +636,10 @@ function RequestOutcomeBlock({ outcome }: { outcome: RequestDocumentOutcome }) {
       );
     case 'governance-partial':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.blockedFg }}>
             Critical: governance write failed
           </div>
@@ -642,7 +661,10 @@ function RequestOutcomeBlock({ outcome }: { outcome: RequestDocumentOutcome }) {
       );
     case 'unknown':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Unexpected error on request
           </div>
@@ -653,11 +675,15 @@ function RequestOutcomeBlock({ outcome }: { outcome: RequestDocumentOutcome }) {
 }
 
 function SendOutcomeBlock({ outcome }: { outcome: SendDocumentRequestEmailOutcome }) {
+  // Phase 74: announce outcome via aria live region.
   switch (outcome.kind) {
     case 'success': {
       const isLive = outcome.mode === 'LIVE';
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}>
+        <div
+          role="status"
+          style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>
             {isLive ? 'Outlook accepted the message' : 'Send recorded (DRY_RUN)'}
           </div>
@@ -676,7 +702,10 @@ function SendOutcomeBlock({ outcome }: { outcome: SendDocumentRequestEmailOutcom
     }
     case 'send-failed':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Outlook did not accept the message
           </div>
@@ -690,7 +719,10 @@ function SendOutcomeBlock({ outcome }: { outcome: SendDocumentRequestEmailOutcom
       );
     case 'governance-partial':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.blockedFg }}>
             Critical: send governance write failed
           </div>
@@ -709,7 +741,10 @@ function SendOutcomeBlock({ outcome }: { outcome: SendDocumentRequestEmailOutcom
       );
     case 'unknown':
       return (
-        <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Unexpected error on send
           </div>
@@ -724,6 +759,7 @@ function HandoffOutcomeBlock({
 }: {
   outcome: PrepareDocumentRequestHandoffOutcome;
 }) {
+  // Phase 74: announce outcome via aria live region.
   switch (outcome.kind) {
     case 'success': {
       const methodLabel =
@@ -732,6 +768,7 @@ function HandoffOutcomeBlock({
           : 'clipboard copied';
       return (
         <div
+          role="status"
           style={{
             ...styles.outcomeBox,
             background: palette.clearBg,
@@ -754,6 +791,7 @@ function HandoffOutcomeBlock({
     case 'handoff-failed':
       return (
         <div
+          role="alert"
           style={{
             ...styles.outcomeBox,
             background: palette.atRiskBg,
@@ -773,6 +811,7 @@ function HandoffOutcomeBlock({
     case 'governance-partial':
       return (
         <div
+          role="alert"
           style={{
             ...styles.outcomeBox,
             background: palette.blockedBg,
@@ -803,6 +842,7 @@ function HandoffOutcomeBlock({
     case 'unknown':
       return (
         <div
+          role="alert"
           style={{
             ...styles.outcomeBox,
             background: palette.atRiskBg,

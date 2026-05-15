@@ -173,12 +173,14 @@ export function CreateDocumentReviewTaskModal({
                 disabled={inProgress}
                 placeholder="Why does this document need a follow-up review task? (e.g. need to compare against memo; need a second pair of eyes; deferring until Friday.) The note is copied to the audit event and the deal activity timeline."
                 rows={4}
+                aria-required="true"
+                aria-describedby="create-review-task-note-help"
                 style={{
                   ...styles.textarea,
                   opacity: inProgress ? 0.6 : 1,
                 }}
               />
-              <p style={styles.helperLine}>
+              <p id="create-review-task-note-help" style={styles.helperLine}>
                 The task is self-assigned to you. It surfaces in your work
                 queue and on the deal's open-tasks list. No automatic routing
                 or escalation occurs. The cr664_dealtask1s schema has no
@@ -240,10 +242,12 @@ function OutcomeBlock({
 }: {
   outcome: CreateDocumentReviewTaskOutcome;
 }) {
+  // Phase 74: outcome blocks announce to assistive tech.
   switch (outcome.kind) {
     case 'success':
       return (
         <div
+          role="status"
           style={{
             ...styles.outcomeBox,
             background: palette.clearBg,
@@ -263,6 +267,7 @@ function OutcomeBlock({
     case 'task-create-failed':
       return (
         <div
+          role="alert"
           style={{
             ...styles.outcomeBox,
             background: palette.atRiskBg,
@@ -282,6 +287,7 @@ function OutcomeBlock({
     case 'governance-partial':
       return (
         <div
+          role="alert"
           style={{
             ...styles.outcomeBox,
             background: palette.blockedBg,
@@ -313,6 +319,7 @@ function OutcomeBlock({
     case 'unknown':
       return (
         <div
+          role="alert"
           style={{
             ...styles.outcomeBox,
             background: palette.atRiskBg,
