@@ -51,10 +51,10 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.1 Banker Command Center
 
 - **Vibe expected.** A banker's home: pipeline + work queue + alerts + KPIs at a glance.
-- **Current state.** **Operational.** Phase 4 banker workspace + Phase 54 pending-review signal + Phase 56 (work queue refresh) + MyWorkQueue surfaces.
+- **Current state.** **Operational.** Phase 4 banker workspace + Phase 54 pending-review signal + Phase 56 (work queue refresh) + MyWorkQueue surfaces. **Phase 75** added a deterministic personal activity/workload snapshot card (PersonalActivitySummary) at the top of the banker workspace — active deal count, total pipeline (with missing-amount gap), closing-soon, past-target-close, stage attention, open + overdue tasks, outstanding documents, documents-may-require-review, and draft credit memos — all derived from the banker work-queue data the workspace already loads. The disclaimer is explicit ("workload snapshot, not a performance evaluation. No ranking, no predictive claim, no compensation impact.").
 - **Gap.** No relationship-memory hint cards; no AI-summarized "what changed since you last looked"; no deal-autopilot suggestions.
 - **Blocker.** None for the core. The Vibe-doc deltas above are Lane F (Copilot) and Lane A (in-repo memory MVP).
-- **Safe next step.** Lane A: ship a Phase-21-style governed task-reassign write to action the Phase 54 stale-pending-review signal (the 11th governed write).
+- **Safe next step.** Lane A: a deterministic relationship-memory lite card surfacing last-activity / open-commitments per borrower from existing records.
 - **Schema / admin work needed?** No.
 - **Build now / later / deferred.** Now.
 
@@ -231,12 +231,12 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.19 Performance scoring
 
 - **Vibe expected.** Banker / team / deal scoring against KPI thresholds; rolled up to manager and exec.
-- **Current state.** **Partially operational** (advanced by Phase 71). KPI threshold configuration exists (`cr664_kpithresholdconfigurations`); profitability snapshots feed executive surfaces; Phase 15 transitional fallback marks `PipelineByStage` and `MonthlyClosingForecast` as transitional. Phase 71 added deterministic per-banker / per-team derived analytics (stage aging + pipeline mix on manager workspace; per-banker workload breakdown on team workspace). The Phase 71 surfaces explicitly disclaim "score" / "ranking" / "predictive" language.
+- **Current state.** **Partially operational** (advanced by Phase 71 + Phase 75). KPI threshold configuration exists (`cr664_kpithresholdconfigurations`); profitability snapshots feed executive surfaces; Phase 15 transitional fallback marks `PipelineByStage` and `MonthlyClosingForecast` as transitional. Phase 71 added deterministic per-banker / per-team derived analytics (stage aging + pipeline mix on manager workspace; per-banker workload breakdown on team workspace). **Phase 75** added the banker-side counterpart: a personal activity / workload snapshot on the banker workspace covering pipeline shape, time-sensitive attention signals, work-item counts, document attention, and draft memos. All three surfaces explicitly disclaim "score" / "ranking" / "predictive" / "compensation" language.
 - **Gap.** Connector-backed performance signals (Teams presence; activity logs from external systems); AI-derived insight.
 - **Blocker.** Lane E (Teams) for some signals; Lane F (AI) for insight.
-- **Safe next step.** Maintain. Future phase could extend the Phase 71 derivation with more dimensions (e.g. velocity, win rate) once Phase 56-era close/won tracking lands.
+- **Safe next step.** Maintain. Future phase could extend the derivations with more dimensions (e.g. velocity, win rate) once Phase 56-era close/won tracking lands.
 - **Schema / admin work needed?** No for further derivation; Lane B/E/F for the connector-backed slice.
-- **Build now / later / deferred.** Phase 71 closed the largest in-repo slice. Further extensions are later.
+- **Build now / later / deferred.** Phase 71 + Phase 75 closed the in-repo slice across all three role workspaces. Further extensions are later.
 
 ### 1.20 Alert queue
 
