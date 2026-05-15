@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../generated/services/Cr664_dealtask1sService', () => ({
-  Cr664_dealtask1sService: { update: vi.fn() },
+  // Phase 21 uses `update`; Phase 70 adds `create` for the new
+  // governed task-creation write. Both are stubbed at the module
+  // boundary so the test file can drive either action.
+  Cr664_dealtask1sService: { update: vi.fn(), create: vi.fn() },
 }));
 vi.mock('../generated/services/Cr664_auditeventsService', () => ({
   Cr664_auditeventsService: { create: vi.fn() },
@@ -261,5 +264,244 @@ describe('completeTask', () => {
     // Timeline encodes correlation id in eventsubtype: 'correlation:<id>'
     expect(timeline1).toBe(`correlation:${audit1 as string}`);
     expect(timeline2).toBe(`correlation:${audit2 as string}`);
+  });
+});
+
+// ===========================================================================
+// Phase 70 — createDocumentReviewTask
+// ===========================================================================
+
+import { createDocumentReviewTask } from './dealTaskActions';
+
+const taskCreate = vi.mocked(Cr664_dealtask1sService.create);
+
+function reviewTaskInput(
+  overrides: Partial<Parameters<typeof createDocumentReviewTask>[0]> = {},
+) {
+  return {
+    dealId: 'deal-77',
+    documentId: 'doc-1',
+    documentName: 'Personal Financial Statement',
+    systemUserId: 'sys-user-1',
+    bankerName: 'M. Paller',
+    followUpNote: 'Defer review until Friday — checking against memo.',
+    ...overrides,
+  };
+}
+
+function successCreate(newTaskId: string) {
+  return Promise.resolve({
+    success: true,
+    data: { cr664_dealtask1id: newTaskId },
+  } as unknown as ReturnType<typeof Cr664_dealtask1sService.create> extends Promise<infer R>
+    ? R
+    : never);
+}
+function failedCreate(message: string) {
+  return Promise.resolve({
+    success: false,
+    data: undefined,
+    error: { message },
+  } as unknown as ReturnType<typeof Cr664_dealtask1sService.create> extends Promise<infer R>
+    ? R
+    : never);
+}
+
+describe('Phase 70 — createDocumentReviewTask', () => {
+  beforeEach(() => {
+    taskCreate.mockReset();
+    auditCreate.mockReset();
+    timelineCreate.mockReset();
+  });
+
+  describe('happy path', () => {
+    it('returns kind: success with the new taskId', async () => {
+      taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
+      auditCreate.mockReturnValueOnce(successAudit('aud-1'));
+      timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
+      const result = await createDocumentReviewTask(reviewTaskInput());
+      expect(result.kind).toBe('success');
+      if (result.kind === 'success') {
+        expect(result.taskId).toBe('task-new-1');
+      }
+    });
+
+    it('builds the task title from the document name', async () => {
+      taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
+      auditCreate.mockReturnValueOnce(successAudit('aud-1'));
+      timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
+      await createDocumentReviewTask(reviewTaskInput());
+      const payload = taskCreate.mock.calls[0]![0] as Record<string, unknown>;
+      expect(payload.cr664_taskname).toBe(
+        'Follow up on document review: Personal Financial Statement',
+      );
+      expect(payload.cr664_completed).toBe(false);
+      // Self-assign + deal bind are required by the schema. Both
+      // must be present and point at the banker / deal.
+      expect(payload['cr664_AssignedTo@odata.bind']).toBe(
+        '/systemusers(sys-user-1)',
+      );
+      expect(payload['cr664_Deal@odata.bind']).toBe(
+        '/cr664_loandeals(deal-77)',
+      );
+    });
+
+    it('audit row carries document-related linkage + the follow-up note', async () => {
+      taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
+      auditCreate.mockReturnValueOnce(successAudit('aud-1'));
+      timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
+      await createDocumentReviewTask(reviewTaskInput());
+      const audit = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+      expect(audit.cr664_auditeventname).toBe('DealTask Created');
+      expect(audit.cr664_entityid).toBe('task-new-1');
+      expect(audit.cr664_relatedentitytype).toBe('cr664_documentchecklist');
+      expect(audit.cr664_relatedentityid).toBe('doc-1');
+      expect(audit['cr664_LoanDeal@odata.bind']).toBe(
+        '/cr664_loandeals(deal-77)',
+      );
+      expect(audit.cr664_fieldname).toBe('cr664_taskname');
+      expect(audit.cr664_beforestate).toBe('No follow-up review task');
+      expect(audit.cr664_afterstate).toBe('Follow-up review task created');
+      const notes = audit.cr664_notes as string;
+      expect(notes).toContain('Personal Financial Statement');
+      expect(notes).toContain('Defer review until Friday');
+      expect(notes).toContain('M. Paller');
+    });
+
+    it('timeline row uses TaskCreated event type + bare correlation subtype', async () => {
+      taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
+      auditCreate.mockReturnValueOnce(successAudit('aud-1'));
+      timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
+      await createDocumentReviewTask(reviewTaskInput());
+      const tl = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+      expect(tl.cr664_eventtype).toBe(788190004); // TaskCreated
+      const audit = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+      expect(tl.cr664_eventsubtype).toBe(
+        `correlation:${audit.cr664_correlationid as string}`,
+      );
+      const summary = tl.cr664_summary as string;
+      expect(summary).toContain('Personal Financial Statement');
+      // Phase 45 conservative copy: no "review failed" / "escalation"
+      // / "compliance" / "approved" / "accepted" / "cleared" wording.
+      expect(summary).not.toMatch(/\breview failed\b/i);
+      expect(summary).not.toMatch(/\bescalation\b/i);
+      expect(summary).not.toMatch(/\bcompliance\b/i);
+      expect(summary).not.toMatch(/\bapproved\b/i);
+      expect(summary).not.toMatch(/\baccepted\b/i);
+      expect(summary).not.toMatch(/\bcleared\b/i);
+    });
+
+    it('emits ONE task-create, ONE audit, and ONE timeline row', async () => {
+      taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
+      auditCreate.mockReturnValueOnce(successAudit('aud-1'));
+      timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
+      await createDocumentReviewTask(reviewTaskInput());
+      expect(taskCreate).toHaveBeenCalledTimes(1);
+      expect(auditCreate).toHaveBeenCalledTimes(1);
+      expect(timelineCreate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('input validation', () => {
+    it('rejects an empty follow-up note before any write', async () => {
+      const result = await createDocumentReviewTask(
+        reviewTaskInput({ followUpNote: '   ' }),
+      );
+      expect(result.kind).toBe('unknown');
+      expect(taskCreate).not.toHaveBeenCalled();
+      expect(auditCreate).not.toHaveBeenCalled();
+      expect(timelineCreate).not.toHaveBeenCalled();
+    });
+
+    it('rejects an empty document name before any write', async () => {
+      const result = await createDocumentReviewTask(
+        reviewTaskInput({ documentName: '   ' }),
+      );
+      expect(result.kind).toBe('unknown');
+      expect(taskCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('task-create-failed branch', () => {
+    it('returns task-create-failed when the task service returns success:false', async () => {
+      taskCreate.mockReturnValueOnce(failedCreate('schema rejected payload'));
+      // The best-effort failure audit row is fire-and-forget;
+      // mock it as success so the assertion focuses on the outcome.
+      auditCreate.mockReturnValueOnce(successAudit('aud-failed'));
+      const result = await createDocumentReviewTask(reviewTaskInput());
+      expect(result.kind).toBe('task-create-failed');
+      if (result.kind === 'task-create-failed') {
+        expect(result.taskError).toBe('schema rejected payload');
+      }
+      expect(timelineCreate).not.toHaveBeenCalled();
+    });
+
+    it('returns task-create-failed when the task service throws', async () => {
+      taskCreate.mockImplementationOnce(() => {
+        throw new Error('network error');
+      });
+      auditCreate.mockReturnValueOnce(successAudit('aud-failed'));
+      const result = await createDocumentReviewTask(reviewTaskInput());
+      expect(result.kind).toBe('task-create-failed');
+      if (result.kind === 'task-create-failed') {
+        expect(result.taskError).toContain('network error');
+      }
+      expect(timelineCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('governance-partial branch', () => {
+    it('reports governance-partial when audit fails but timeline succeeds', async () => {
+      taskCreate.mockReturnValueOnce(successCreate('task-new-2'));
+      auditCreate.mockReturnValueOnce(failedAudit('audit boom'));
+      timelineCreate.mockReturnValueOnce(successTimeline('tl-2'));
+      const result = await createDocumentReviewTask(reviewTaskInput());
+      expect(result.kind).toBe('governance-partial');
+      if (result.kind === 'governance-partial') {
+        expect(result.taskId).toBe('task-new-2');
+        expect(result.auditError).toBe('audit boom');
+        expect(result.timelineError).toBeUndefined();
+      }
+    });
+
+    it('reports governance-partial when timeline fails but audit succeeds', async () => {
+      taskCreate.mockReturnValueOnce(successCreate('task-new-3'));
+      auditCreate.mockReturnValueOnce(successAudit('aud-3'));
+      timelineCreate.mockReturnValueOnce(failedTimeline('timeline boom'));
+      const result = await createDocumentReviewTask(reviewTaskInput());
+      expect(result.kind).toBe('governance-partial');
+      if (result.kind === 'governance-partial') {
+        expect(result.taskId).toBe('task-new-3');
+        expect(result.timelineError).toBe('timeline boom');
+        expect(result.auditError).toBeUndefined();
+      }
+    });
+
+    it('reports governance-partial when BOTH audit and timeline fail', async () => {
+      taskCreate.mockReturnValueOnce(successCreate('task-new-4'));
+      auditCreate.mockReturnValueOnce(failedAudit('audit boom'));
+      timelineCreate.mockReturnValueOnce(failedTimeline('timeline boom'));
+      const result = await createDocumentReviewTask(reviewTaskInput());
+      expect(result.kind).toBe('governance-partial');
+      if (result.kind === 'governance-partial') {
+        expect(result.auditError).toBe('audit boom');
+        expect(result.timelineError).toBe('timeline boom');
+      }
+    });
+  });
+
+  describe('correlation discipline (Phase 46 invariants)', () => {
+    it('audit + timeline share ONE correlation id from prefix "rt"', async () => {
+      taskCreate.mockReturnValueOnce(successCreate('task-new-5'));
+      auditCreate.mockReturnValueOnce(successAudit('aud-5'));
+      timelineCreate.mockReturnValueOnce(successTimeline('tl-5'));
+      await createDocumentReviewTask(reviewTaskInput());
+      const audit = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+      const tl = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+      const cid = audit.cr664_correlationid as string;
+      expect(typeof cid).toBe('string');
+      expect(cid.length).toBeGreaterThan(0);
+      expect(tl.cr664_eventsubtype).toBe(`correlation:${cid}`);
+    });
   });
 });

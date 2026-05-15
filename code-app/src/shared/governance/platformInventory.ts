@@ -115,6 +115,13 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsAudit: true,
     emitsTimeline: true,
   },
+  {
+    id: 'deal-document-review-task-create',
+    label: 'Create document review follow-up task',
+    phase: 70,
+    emitsAudit: true,
+    emitsTimeline: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------

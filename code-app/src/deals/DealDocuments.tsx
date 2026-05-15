@@ -23,10 +23,15 @@ import {
   type PrepareDocumentRequestHandoffOutcome,
   type HandoffMethod,
 } from './prepareDocumentRequestHandoff';
+import {
+  createDocumentReviewTask,
+  type CreateDocumentReviewTaskOutcome,
+} from './dealTaskActions';
 import { EMAIL_MODE } from './emailDelivery/emailMode';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
+import { CreateDocumentReviewTaskModal } from './CreateDocumentReviewTaskModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import {
@@ -42,7 +47,7 @@ interface DealDocumentsProps {
 }
 
 export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
-  const { deal, documents, refresh } = useDealData();
+  const { deal, documents, tasks, refresh } = useDealData();
   const banker = useOptionalBanker();
   const [pendingRequestDoc, setPendingRequestDoc] = useState<DealDocument | null>(
     null,
@@ -53,6 +58,10 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
   const [pendingReviewDoc, setPendingReviewDoc] = useState<DealDocument | null>(
     null,
   );
+  // Phase 70: pending-review row "Create review task" surface.
+  const [pendingReviewTaskDoc, setPendingReviewTaskDoc] =
+    useState<DealDocument | null>(null);
+  const openTasks = tasks.kind === 'ready' ? tasks.data.open : [];
 
   async function handleRequestConfirm(note: string): Promise<RequestDocumentOutcome> {
     if (!pendingRequestDoc || !banker?.systemUserId) {
@@ -158,6 +167,27 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     return outcome;
   }
 
+  async function handleCreateReviewTaskConfirm(
+    note: string,
+  ): Promise<CreateDocumentReviewTaskOutcome> {
+    if (!pendingReviewTaskDoc || !banker?.systemUserId) {
+      return {
+        kind: 'unknown',
+        message: 'Cannot submit: missing document or system user id.',
+      };
+    }
+    const outcome = await createDocumentReviewTask({
+      dealId: deal.id,
+      documentId: pendingReviewTaskDoc.id,
+      documentName: pendingReviewTaskDoc.name,
+      systemUserId: banker.systemUserId,
+      bankerName: banker.fullName,
+      followUpNote: note,
+    });
+    refresh('after-document-review-task-create');
+    return outcome;
+  }
+
   const canWrite = !readOnly && !!banker?.systemUserId;
 
   return (
@@ -175,6 +205,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           onRequest={(doc) => setPendingRequestDoc(doc)}
           onReceive={(doc) => setPendingReceiveDoc(doc)}
           onReview={(doc) => setPendingReviewDoc(doc)}
+          onCreateReviewTask={(doc) => setPendingReviewTaskDoc(doc)}
         />
       </Card>
       {!readOnly && pendingRequestDoc && (
@@ -199,6 +230,15 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           reviewerName={banker.fullName}
           onConfirm={handleReviewConfirm}
           onClose={() => setPendingReviewDoc(null)}
+        />
+      )}
+      {!readOnly && pendingReviewTaskDoc && (
+        <CreateDocumentReviewTaskModal
+          doc={pendingReviewTaskDoc}
+          openTasks={openTasks}
+          bankerName={banker?.fullName}
+          onConfirm={handleCreateReviewTaskConfirm}
+          onClose={() => setPendingReviewTaskDoc(null)}
         />
       )}
     </>
@@ -233,12 +273,14 @@ function Body({
   onRequest,
   onReceive,
   onReview,
+  onCreateReviewTask,
 }: {
   documents: AsyncResult<DealDocumentsResult>;
   canWrite: boolean;
   onRequest: (doc: DealDocument) => void;
   onReceive: (doc: DealDocument) => void;
   onReview: (doc: DealDocument) => void;
+  onCreateReviewTask: (doc: DealDocument) => void;
 }) {
   if (documents.kind === 'loading') return <p style={styles.muted}>Loading documents…</p>;
   if (documents.kind === 'failed')
@@ -259,6 +301,7 @@ function Body({
         onRequest={onRequest}
         onReceive={onReceive}
         onReview={onReview}
+        onCreateReviewTask={onCreateReviewTask}
       />
       <Group
         groupLabel="Received"
@@ -269,6 +312,7 @@ function Body({
         onRequest={onRequest}
         onReceive={onReceive}
         onReview={onReview}
+        onCreateReviewTask={onCreateReviewTask}
       />
       <Group
         groupLabel="Reviewed"
@@ -279,6 +323,7 @@ function Body({
         onRequest={onRequest}
         onReceive={onReceive}
         onReview={onReview}
+        onCreateReviewTask={onCreateReviewTask}
       />
     </div>
   );
@@ -293,6 +338,7 @@ function Group({
   onRequest,
   onReceive,
   onReview,
+  onCreateReviewTask,
 }: {
   groupLabel: string;
   documents: DealDocument[];
@@ -302,6 +348,7 @@ function Group({
   onRequest: (doc: DealDocument) => void;
   onReceive: (doc: DealDocument) => void;
   onReview: (doc: DealDocument) => void;
+  onCreateReviewTask: (doc: DealDocument) => void;
 }) {
   return (
     <div style={styles.group}>
@@ -322,6 +369,7 @@ function Group({
               onRequest={onRequest}
               onReceive={onReceive}
               onReview={onReview}
+              onCreateReviewTask={onCreateReviewTask}
             />
           ))}
         </ul>
@@ -337,6 +385,7 @@ function DocumentRow({
   onRequest,
   onReceive,
   onReview,
+  onCreateReviewTask,
 }: {
   doc: DealDocument;
   status: DocumentStatus;
@@ -344,6 +393,7 @@ function DocumentRow({
   onRequest: (doc: DealDocument) => void;
   onReceive: (doc: DealDocument) => void;
   onReview: (doc: DealDocument) => void;
+  onCreateReviewTask: (doc: DealDocument) => void;
 }) {
   const overdue = status === 'outstanding' && isOverdue(doc.dueDate);
   const sev: SeverityKey =
@@ -359,9 +409,21 @@ function DocumentRow({
   // group so received/reviewed rows can never show the button.
   // Phase 51: Mark-received button shows on the same outstanding rows.
   // Phase 55: Mark-reviewed button shows on received rows.
+  // Phase 70: Create-review-task button shows on received rows that
+  // carry the pending-review signal — complements the Phase 55
+  // Mark-reviewed button when the banker needs to schedule the
+  // review rather than perform it inline.
   const showRequest = canWrite && status === 'outstanding';
   const showReceive = canWrite && status === 'outstanding';
   const showReview = canWrite && status === 'received';
+  const pendingReview =
+    status === 'received' &&
+    isReceivedDocumentPendingReview({
+      receivedDate: doc.receivedDate,
+      reviewer: doc.reviewer,
+      nowMs: Date.now(),
+    });
+  const showCreateReviewTask = canWrite && pendingReview;
 
   return (
     <li style={styles.row}>
@@ -405,7 +467,7 @@ function DocumentRow({
           )}
         </div>
       </div>
-      {(showRequest || showReceive || showReview) && (
+      {(showRequest || showReceive || showReview || showCreateReviewTask) && (
         <div style={styles.rowActions}>
           {showRequest && (
             <button
@@ -435,6 +497,16 @@ function DocumentRow({
               aria-label={`Mark document ${doc.name} reviewed`}
             >
               Mark reviewed
+            </button>
+          )}
+          {showCreateReviewTask && (
+            <button
+              type="button"
+              onClick={() => onCreateReviewTask(doc)}
+              style={styles.reviewTaskButton}
+              aria-label={`Create review task for document ${doc.name}`}
+            >
+              Create review task
             </button>
           )}
         </div>
@@ -587,6 +659,22 @@ const styles: Record<string, React.CSSProperties> = {
     background: palette.surface,
     color: palette.primary,
     border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
+  reviewTaskButton: {
+    // Phase 70: secondary outline matching the reviewButton family but
+    // visually distinct enough to read as a "schedule a follow-up"
+    // sibling action rather than an alternate path to Mark Reviewed.
+    background: palette.surfaceAlt,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
     borderRadius: radius.sm,
     padding: `${spacing.xxs} ${spacing.sm}`,
     fontSize: typography.size.xs,

@@ -16,8 +16,13 @@ import {
   type MarkDocumentReceivedOutcome,
   type MarkDocumentReviewedOutcome,
 } from '../deals/documentActions';
+import {
+  createDocumentReviewTask,
+  type CreateDocumentReviewTaskOutcome,
+} from '../deals/dealTaskActions';
 import { ReceiveDocumentModal } from '../deals/ReceiveDocumentModal';
 import { ReviewDocumentModal } from '../deals/ReviewDocumentModal';
+import { CreateDocumentReviewTaskModal } from '../deals/CreateDocumentReviewTaskModal';
 import type { DealDocument } from '../deals/dealDocumentQueries';
 import { LoadingState } from '../shared/LoadingState';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
@@ -63,6 +68,11 @@ export function MyWorkQueue() {
   const [pendingReceive, setPendingReceive] =
     useState<{ dealId: string; meta: WorkQueueDocumentMetadata } | null>(null);
   const [pendingReview, setPendingReview] =
+    useState<{ dealId: string; meta: WorkQueueDocumentMetadata } | null>(null);
+  // Phase 70: create-review-task action from a pending-review row.
+  // The work queue doesn't carry per-deal task data, so the modal's
+  // duplicate-task hint is necessarily skipped here (openTasks=[]).
+  const [pendingReviewTask, setPendingReviewTask] =
     useState<{ dealId: string; meta: WorkQueueDocumentMetadata } | null>(null);
 
   const reload = useCallback(() => {
@@ -137,6 +147,34 @@ export function MyWorkQueue() {
     return outcome;
   }
 
+  async function handleCreateReviewTaskConfirm(
+    note: string,
+  ): Promise<CreateDocumentReviewTaskOutcome> {
+    if (!pendingReviewTask || !systemUserId) {
+      return {
+        kind: 'unknown',
+        message: 'Cannot submit: missing document or system user id.',
+      };
+    }
+    const outcome = await createDocumentReviewTask({
+      dealId: pendingReviewTask.dealId,
+      documentId: pendingReviewTask.meta.documentId,
+      documentName: pendingReviewTask.meta.documentName,
+      systemUserId,
+      bankerName: fullName,
+      followUpNote: note,
+    });
+    if (outcome.kind === 'success' || outcome.kind === 'governance-partial') {
+      // Refresh the work queue so any future pending-review rows
+      // reflect the latest state. The pending-review row itself
+      // does NOT drop out of the queue (Phase 70 does not stamp
+      // cr664_reviewer — that's still Phase 55's job); the
+      // reload just keeps state coherent.
+      reload();
+    }
+    return outcome;
+  }
+
   // Banker-only by construction (MyWorkQueue lives under
   // BankerProvider; Phase 48 isolation guard prevents other roles
   // from importing it). systemUserId presence is the per-banker
@@ -188,6 +226,9 @@ export function MyWorkQueue() {
   const reviewModalDoc = pendingReview
     ? toDealDocumentShape(pendingReview.meta, 'received')
     : null;
+  const reviewTaskModalDoc = pendingReviewTask
+    ? toDealDocumentShape(pendingReviewTask.meta, 'received')
+    : null;
 
   return (
     <>
@@ -214,6 +255,9 @@ export function MyWorkQueue() {
               }
               onReview={(meta) =>
                 setPendingReview({ dealId: item.dealId, meta })
+              }
+              onCreateReviewTask={(meta) =>
+                setPendingReviewTask({ dealId: item.dealId, meta })
               }
             />
           ))}
@@ -247,6 +291,20 @@ export function MyWorkQueue() {
           onClose={() => setPendingReview(null)}
         />
       )}
+      {reviewTaskModalDoc && pendingReviewTask && (
+        <CreateDocumentReviewTaskModal
+          doc={reviewTaskModalDoc}
+          // Phase 70: the work-queue surface doesn't carry per-deal
+          // open-tasks data; duplicate-task hinting is skipped here
+          // by passing an empty list. The hint surfaces when the
+          // same action is invoked from the Deal Workspace, where
+          // openTasks is loaded by DealDataProvider.
+          openTasks={[]}
+          bankerName={fullName}
+          onConfirm={handleCreateReviewTaskConfirm}
+          onClose={() => setPendingReviewTask(null)}
+        />
+      )}
     </>
   );
 }
@@ -258,6 +316,7 @@ function Row({
   onOpen,
   onReceive,
   onReview,
+  onCreateReviewTask,
 }: {
   item: WorkQueueItem;
   canReceive: boolean;
@@ -265,6 +324,7 @@ function Row({
   onOpen: () => void;
   onReceive: (meta: WorkQueueDocumentMetadata) => void;
   onReview: (meta: WorkQueueDocumentMetadata) => void;
+  onCreateReviewTask: (meta: WorkQueueDocumentMetadata) => void;
 }) {
   const sev = severityToKey(item.severity);
   const showReceive =
@@ -275,6 +335,10 @@ function Row({
     canReview &&
     item.type === 'pending-review-document' &&
     item.documentMetadata !== undefined;
+  // Phase 70: same gate + row type as the Mark-reviewed action; the
+  // two surfaces sit side-by-side on a pending-review-document row
+  // so the banker can either review now OR schedule a follow-up.
+  const showCreateReviewTask = showReview;
   return (
     <li
       style={styles.row}
@@ -358,6 +422,27 @@ function Row({
           >
             Mark reviewed
           </button>
+          {showCreateReviewTask && (
+            <button
+              type="button"
+              onClick={(e) => {
+                // Stop the row's onClick — Create review task should
+                // not also navigate. Phase 70: this is the
+                // schedule-a-follow-up sibling to Mark reviewed.
+                e.stopPropagation();
+                onCreateReviewTask(item.documentMetadata!);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                }
+              }}
+              style={styles.reviewTaskButton}
+              aria-label={`Create review task for document ${item.title}`}
+            >
+              Create review task
+            </button>
+          )}
         </div>
       )}
     </li>
@@ -467,6 +552,21 @@ const styles: Record<string, React.CSSProperties> = {
     background: palette.surface,
     color: palette.primary,
     border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
+  reviewTaskButton: {
+    // Phase 70 sibling to receiveButton — visually neutral so it
+    // doesn't compete with the primary "Mark reviewed" action.
+    background: palette.surfaceAlt,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
     borderRadius: radius.sm,
     padding: `${spacing.xxs} ${spacing.sm}`,
     fontSize: typography.size.xs,

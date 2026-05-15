@@ -56,6 +56,10 @@ const ACTION_BY_WRITE_ID: Readonly<Record<string, ActionMapping>> = Object.freez
     file: 'src/deals/prepareDocumentRequestHandoff.ts',
     prefix: 'oh',
   },
+  'deal-document-review-task-create': {
+    file: 'src/deals/dealTaskActions.ts',
+    prefix: 'rt',
+  },
   'credit-memo-draft-save': { file: 'src/deals/creditMemoActions.ts', prefix: 'cm' },
   'alert-resolve': { file: 'src/admin/alertActions.ts', prefix: 'al' },
   'alert-dismiss': { file: 'src/admin/alertActions.ts', prefix: 'al' },

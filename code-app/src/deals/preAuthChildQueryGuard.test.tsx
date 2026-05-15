@@ -61,7 +61,11 @@ vi.mock('./activityQueries', () => ({ loadDealActivity }));
 // Action modules + per-card modals transitively import the SDK; stub
 // the imports at the path level so neither the deal cards nor the
 // DealDataProvider can drag the SDK into the test runtime.
-vi.mock('./dealTaskActions', () => ({ completeTask: vi.fn() }));
+vi.mock('./dealTaskActions', () => ({
+  completeTask: vi.fn(),
+  // Phase 70: createDocumentReviewTask is now imported by DealDocuments.
+  createDocumentReviewTask: vi.fn(),
+}));
 vi.mock('./documentActions', () => ({ requestDocument: vi.fn() }));
 // Phase 62: the deal-card chain now imports sendDocumentRequestEmail
 // transitively (Phase 61). Mock it so the SDK service chain it pulls
@@ -79,6 +83,10 @@ vi.mock('./RequestDocumentModal', () => ({ RequestDocumentModal: () => null }));
 vi.mock('./CreditMemoDraftModal', () => ({ CreditMemoDraftModal: () => null }));
 vi.mock('./DraftBorrowerUpdateModal', () => ({
   DraftBorrowerUpdateModal: () => null,
+}));
+// Phase 70: DealDocuments now imports CreateDocumentReviewTaskModal.
+vi.mock('./CreateDocumentReviewTaskModal', () => ({
+  CreateDocumentReviewTaskModal: () => null,
 }));
 // DealDataProvider's own useEffect would fire the load* calls on
 // mount. We never expect it to mount in any test here (denied /

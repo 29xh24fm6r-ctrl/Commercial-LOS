@@ -31,6 +31,16 @@ vi.mock('../deals/documentActions', () => ({
   markDocumentReviewed: vi.fn(),
 }));
 
+// Phase 70: MyWorkQueue now imports createDocumentReviewTask +
+// CreateDocumentReviewTaskModal. Both pull in the SDK transitively;
+// stub them at the module boundary so the test runtime stays clean.
+vi.mock('../deals/dealTaskActions', () => ({
+  createDocumentReviewTask: vi.fn(),
+}));
+vi.mock('../deals/CreateDocumentReviewTaskModal', () => ({
+  CreateDocumentReviewTaskModal: () => null,
+}));
+
 vi.mock('./BankerContext', () => ({
   useBanker: vi.fn(),
 }));

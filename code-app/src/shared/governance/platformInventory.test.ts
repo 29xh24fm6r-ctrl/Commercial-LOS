@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the ten shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63)', () => {
+  it('contains the eleven shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70)', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -34,6 +34,7 @@ describe('platformInventory — governed writes', () => {
         'deal-document-request-email',
         'deal-document-request-handoff',
         'deal-document-review',
+        'deal-document-review-task-create',
         'deal-task-complete',
       ].sort(),
     );
@@ -49,6 +50,7 @@ describe('platformInventory — governed writes', () => {
         'deal-document-request',
         'deal-document-request-email',
         'deal-document-request-handoff',
+        'deal-document-review-task-create',
         'deal-document-receive',
         'deal-document-review',
         'credit-memo-draft-save',
@@ -246,13 +248,41 @@ describe('platformInventory — Phase 67 handoff classification', () => {
     expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
   });
 
-  it('GOVERNED_WRITES count is still 10 (Phase 67 did not add a new governed write)', () => {
-    expect(GOVERNED_WRITES.length).toBe(10);
+  it('GOVERNED_WRITES count: Phase 67 did not add a new governed write — Phase 70 later added the 11th (review task)', () => {
+    expect(GOVERNED_WRITES.length).toBe(11);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {
     const repoRoot = resolve(__dirname, '..', '..', '..');
     const docPath = resolve(repoRoot, 'docs/PHASE_67_PACKET_EMAIL_HANDOFF.md');
+    expect(existsSync(docPath)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 70 — Stale Pending-Review Escalation (governed task creation)
+//
+// The 11th GOVERNED_WRITES entry: banker-initiated follow-up task
+// for a pending-review document, with audit + timeline coordination.
+// These tests pin the new write at the inventory layer; the
+// inventory-driven discipline sweeps (Phases 46–50) pick it up
+// automatically via their mappings.
+// ---------------------------------------------------------------------------
+
+describe('platformInventory — Phase 70 review-task governed write', () => {
+  it('deal-document-review-task-create is shipped in GOVERNED_WRITES', () => {
+    const entry = GOVERNED_WRITES.find(
+      (w) => w.id === 'deal-document-review-task-create',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(70);
+    expect(entry!.emitsAudit).toBe(true);
+    expect(entry!.emitsTimeline).toBe(true);
+  });
+
+  it('the Phase 70 doc exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(repoRoot, 'docs/PHASE_70_STALE_REVIEW_ESCALATION.md');
     expect(existsSync(docPath)).toBe(true);
   });
 });

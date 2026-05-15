@@ -28,7 +28,11 @@ vi.mock('./DealDataProvider', () => ({
 // query module at the path level so the chain short-circuits before
 // the SDK is reached. We never invoke these in readOnly mode anyway —
 // readOnly blocks the trigger button and the modal mount.
-vi.mock('./dealTaskActions', () => ({ completeTask: vi.fn() }));
+vi.mock('./dealTaskActions', () => ({
+  completeTask: vi.fn(),
+  // Phase 70: createDocumentReviewTask is now imported by DealDocuments.
+  createDocumentReviewTask: vi.fn(),
+}));
 vi.mock('./documentActions', () => ({ requestDocument: vi.fn() }));
 // Phase 62: the deal-card chain now imports sendDocumentRequestEmail
 // transitively (Phase 61). Mock it so the SDK service chain it pulls
@@ -49,6 +53,10 @@ vi.mock('./CompleteTaskModal', () => ({ CompleteTaskModal: () => null }));
 vi.mock('./RequestDocumentModal', () => ({ RequestDocumentModal: () => null }));
 vi.mock('./CreditMemoDraftModal', () => ({ CreditMemoDraftModal: () => null }));
 vi.mock('./DraftBorrowerUpdateModal', () => ({ DraftBorrowerUpdateModal: () => null }));
+// Phase 70: DealDocuments now imports CreateDocumentReviewTaskModal.
+vi.mock('./CreateDocumentReviewTaskModal', () => ({
+  CreateDocumentReviewTaskModal: () => null,
+}));
 // useBootstrap is consumed by CreditMemo. Stub the module path so the
 // bootstrap chain doesn't fire either.
 vi.mock('../bootstrap/BootstrapContext', () => ({

@@ -47,6 +47,7 @@ export type DealDataKey =
   | 'after-document-request-handoff'
   | 'after-document-receive'
   | 'after-document-review'
+  | 'after-document-review-task-create'
   | 'after-credit-memo-draft-saved';
 
 export interface DealData {
@@ -239,6 +240,15 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // the NoteLogged timeline event with the
         // documentchecklist:reviewed subtype appears.
         reloadDocuments();
+        reloadActivity();
+        break;
+      case 'after-document-review-task-create':
+        // Phase 70: a new self-assigned deal task was created from
+        // a pending-review-document signal. Tasks must refresh so
+        // the task appears in the open-tasks list; activity must
+        // refresh so the TaskCreated timeline event surfaces. The
+        // document checklist row is unchanged.
+        reloadTasks();
         reloadActivity();
         break;
       case 'after-credit-memo-draft-saved':

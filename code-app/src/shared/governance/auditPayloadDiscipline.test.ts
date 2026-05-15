@@ -80,6 +80,11 @@ const AUDIT_BY_WRITE_ID: Readonly<Record<string, AuditMapping>> = Object.freeze(
     eventName: 'DocumentRequest Outlook Handoff',
     linksToDeal: true,
   },
+  'deal-document-review-task-create': {
+    file: 'src/deals/dealTaskActions.ts',
+    eventName: 'DealTask Created',
+    linksToDeal: true,
+  },
   'credit-memo-draft-save': {
     file: 'src/deals/creditMemoActions.ts',
     eventName: 'CreditMemo Draft Saved',
