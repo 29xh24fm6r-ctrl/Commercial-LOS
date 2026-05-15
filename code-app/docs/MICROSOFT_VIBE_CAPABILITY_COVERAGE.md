@@ -181,12 +181,12 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.14 Cross-document consistency checks
 
 - **Vibe expected.** Compare numbers across PFS, tax returns, memo, etc.; flag mismatches.
-- **Current state.** **Not started.**
-- **Gap.** Everything.
-- **Blocker.** Lane C + Lane F — needs binary documents OR a fully structured representation; needs an analysis engine.
-- **Safe next step.** Lane A could ship a structured-data-only version: derive a "memo consistency check" that compares the saved credit memo draft's stated fields against the deal's structured fields (amount, stage, customer type) without AI. Small but meaningful.
-- **Schema / admin work needed?** No (for the structured-only version).
-- **Build now / later / deferred.** Now (the structured-only slice) / later (the binary slice).
+- **Current state.** **Partially operational** (advanced by Phase 73). Phase 73 shipped a deterministic structured-data consistency review on the Credit Memo card: six pure check types (`deal-name-reference`, `client-name-reference`, `stage-reference`, `loan-amount-reference`, `loan-amount-mismatch`, `collateral-section-empty`) compare the saved memo draft's `textPreview` against the deal's structured fields. Local-only (`LOCAL_ONLY_FLOWS.credit-memo-consistency-check`); no Dataverse write; no AI; no approval / credit decision; no automatic blocking.
+- **Gap.** Binary-document parsing (PFS, tax returns, term sheet) — needs upload + extraction. AI-driven semantic matching. Cross-document comparisons (memo vs. checklist receipts).
+- **Blocker.** Lane C (binary upload schema) for the document slice; Lane F (AI) for semantic matching.
+- **Safe next step.** Maintain. Future phase could extend checks to additional structured fields (guarantor structure, pricing margin) without schema work.
+- **Schema / admin work needed?** No for further structured-field checks; yes for binary parsing.
+- **Build now / later / deferred.** Phase 73 closed the structured-data slice. Binary / AI slices remain later.
 
 ### 1.15 Regenerate-on-change discipline
 

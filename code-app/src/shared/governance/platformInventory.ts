@@ -379,6 +379,24 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'governed write — see GOVERNED_WRITES.credit-memo-draft-save).',
   },
   {
+    id: 'credit-memo-consistency-check',
+    label: 'Credit memo consistency review (deterministic, read-only)',
+    phase: 73,
+    note:
+      'Deterministic local/read-only comparison between the saved ' +
+      'credit memo draft and the deal\'s structured fields. No ' +
+      'Dataverse write. No audit row. No timeline event. No AI. No ' +
+      'approval / credit decision. No automatic blocking. No ' +
+      'official validation state. The check inspects only the ' +
+      'memo textPreview already loaded by DealDataProvider against ' +
+      'structured deal fields (name, clientName, stage, amount, ' +
+      'collateralSummary) and surfaces banker-review findings ' +
+      'inside the Credit Memo card. Implementation: ' +
+      'src/shared/creditMemoConsistency/checkCreditMemoConsistency.ts ' +
+      '(pure function). See ' +
+      'docs/PHASE_73_CREDIT_MEMO_CONSISTENCY_CHECK.md.',
+  },
+  {
     id: 'activity-since-last-visit',
     label: 'Activity since last visit (per-deal local marker)',
     phase: 72,

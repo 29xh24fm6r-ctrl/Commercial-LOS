@@ -190,7 +190,7 @@ describe('platformInventory — executive transitional fallback', () => {
 });
 
 describe('platformInventory — local-only flows', () => {
-  it('lists borrower update draft, credit memo local preview, Phase 66 borrower-safe status packet, and Phase 72 activity-since-last-visit', () => {
+  it('lists borrower update draft, credit memo local preview, Phase 66 borrower-safe status packet, Phase 72 activity-since-last-visit, and Phase 73 credit-memo consistency check', () => {
     const ids = new Set(LOCAL_ONLY_FLOWS.map((f) => f.id));
     expect(ids.has('borrower-update-draft')).toBe(true);
     expect(ids.has('credit-memo-local-preview')).toBe(true);
@@ -198,6 +198,9 @@ describe('platformInventory — local-only flows', () => {
     expect(ids.has('borrower-safe-status-packet')).toBe(true);
     // Phase 72 — activity-since-last-visit (local browser marker).
     expect(ids.has('activity-since-last-visit')).toBe(true);
+    // Phase 73 — credit-memo consistency review (deterministic
+    // read-only; no AI; no decisioning).
+    expect(ids.has('credit-memo-consistency-check')).toBe(true);
   });
 
   it('every local-only flow note explicitly states no Dataverse write', () => {
@@ -243,6 +246,33 @@ describe('platformInventory — local-only flows', () => {
     const docPath = resolve(
       repoRoot,
       'docs/PHASE_72_ACTIVITY_SINCE_LAST_VISIT.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('credit-memo-consistency-check (Phase 73) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'credit-memo-consistency-check',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(73);
+    // The note must explicitly disclaim every category the brief
+    // forbids: no Dataverse write, no AI, no approval / credit
+    // decision, no audit / timeline emission, no validation state.
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no AI/i);
+    expect(entry!.note).toMatch(/no approval/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no automatic blocking/i);
+    expect(entry!.note).toMatch(/PHASE_73_CREDIT_MEMO_CONSISTENCY_CHECK\.md/);
+  });
+
+  it('the Phase 73 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_73_CREDIT_MEMO_CONSISTENCY_CHECK.md',
     );
     expect(existsSync(docPath)).toBe(true);
   });

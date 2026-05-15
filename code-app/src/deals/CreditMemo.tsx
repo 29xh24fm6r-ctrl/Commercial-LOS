@@ -19,6 +19,11 @@ import {
   deriveCreditMemoFreshness,
   type CreditMemoFreshnessResult,
 } from './creditMemoFreshness';
+import {
+  checkCreditMemoConsistency,
+  type ConsistencyCheckResult,
+  type ConsistencyFinding,
+} from '../shared/creditMemoConsistency/checkCreditMemoConsistency';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -60,6 +65,16 @@ export function CreditMemo({ readOnly = false }: CreditMemoProps = {}) {
           creditMemo: memosData,
           activity: activityData,
         })
+      : undefined;
+
+  // Phase 73: deterministic consistency review. Pure derivation over
+  // the already-loaded credit-memo + deal data. Empty findings array
+  // is a valid state ("nothing flagged"); the consumer renders
+  // distinct empty-states for hasDraftToCompare=false vs.
+  // hasDraftToCompare=true && findings.length === 0.
+  const consistency: ConsistencyCheckResult | undefined =
+    creditMemo.kind === 'ready' && memosData
+      ? checkCreditMemoConsistency(deal, memosData)
       : undefined;
 
   const handleSave = useCallback(
@@ -124,6 +139,7 @@ export function CreditMemo({ readOnly = false }: CreditMemoProps = {}) {
           </p>
         )}
         {freshness && <FreshnessBlock freshness={freshness} />}
+        {consistency && <ConsistencyReviewBlock consistency={consistency} />}
         <Body creditMemo={creditMemo} />
       </Card>
       {!readOnly && showDraft && (
@@ -182,6 +198,123 @@ function FreshnessBlock({ freshness }: { freshness: CreditMemoFreshnessResult })
         This check does not modify the memo.
       </p>
     </div>
+  );
+}
+
+function ConsistencyReviewBlock({
+  consistency,
+}: {
+  consistency: ConsistencyCheckResult;
+}) {
+  // Phase 73: deterministic, read-only review-assist. Three states:
+  //   1. No saved memo draft to compare against → guidance copy.
+  //   2. Memo draft present, no findings from available structured
+  //      fields → "No consistency findings" copy.
+  //   3. Findings present → bulleted list with conservative copy.
+  //
+  // The block never claims validation, never claims approval,
+  // never claims completeness. The footnote spells out exactly
+  // what the check is and what it is not.
+  if (!consistency.hasDraftToCompare) {
+    return (
+      <div
+        style={styles.consistencyBox}
+        role="status"
+        aria-label="Consistency review"
+      >
+        <div style={styles.consistencyHeader}>
+          <Badge variant="neutral" appearance="outline">
+            Consistency review
+          </Badge>
+        </div>
+        <p style={styles.consistencyEmpty}>
+          Consistency review available after a memo draft is saved.
+        </p>
+        <p style={styles.consistencyFootnote}>
+          Deterministic comparison between the saved memo draft and the
+          deal's structured fields. Not AI. Not an approval or credit
+          decision. Not a substitute for banker review.
+        </p>
+      </div>
+    );
+  }
+  if (consistency.findings.length === 0) {
+    return (
+      <div
+        style={styles.consistencyBox}
+        role="status"
+        aria-label="Consistency review"
+      >
+        <div style={styles.consistencyHeader}>
+          <Badge variant="clear">Consistency review</Badge>
+          <span style={styles.consistencyTimestamp}>
+            No findings from available structured fields
+          </span>
+        </div>
+        <p style={styles.consistencyEmpty}>
+          No consistency findings from available structured fields.
+        </p>
+        <p style={styles.consistencyFootnote}>
+          Deterministic check, limited to available structured fields.
+          Not AI. Not an approval or credit decision. Not a substitute
+          for banker review.
+        </p>
+      </div>
+    );
+  }
+  const needsReviewCount = consistency.findings.filter(
+    (f) => f.severity === 'needs-review',
+  ).length;
+  const informationalCount =
+    consistency.findings.length - needsReviewCount;
+  return (
+    <div
+      style={styles.consistencyBox}
+      role="status"
+      aria-label="Consistency review"
+    >
+      <div style={styles.consistencyHeader}>
+        <Badge variant={needsReviewCount > 0 ? 'atRisk' : 'info'}>
+          Consistency review
+        </Badge>
+        <span style={styles.consistencyTimestamp}>
+          {needsReviewCount > 0
+            ? `${needsReviewCount} may need review`
+            : `${informationalCount} informational`}
+          {needsReviewCount > 0 && informationalCount > 0
+            ? ` · ${informationalCount} informational`
+            : ''}
+        </span>
+      </div>
+      <ul style={styles.consistencyFindingList}>
+        {consistency.findings.map((f) => (
+          <FindingRow key={f.id} finding={f} />
+        ))}
+      </ul>
+      <p style={styles.consistencyFootnote}>
+        Deterministic check, limited to available structured fields. Not AI.
+        Not an approval or credit decision. Not a substitute for banker
+        review.
+      </p>
+    </div>
+  );
+}
+
+function FindingRow({ finding }: { finding: ConsistencyFinding }) {
+  const sev: SeverityKey =
+    finding.severity === 'needs-review' ? 'atRisk' : 'info';
+  return (
+    <li style={styles.consistencyFinding}>
+      <div style={styles.consistencyFindingHead}>
+        <Badge variant={sev} appearance="outline">
+          {finding.severity === 'needs-review'
+            ? 'May need review'
+            : 'Informational'}
+        </Badge>
+        <span style={styles.consistencyFindingField}>{finding.fieldLabel}</span>
+      </div>
+      <p style={styles.consistencyFindingMessage}>{finding.message}</p>
+    </li>
   );
 }
 
@@ -508,6 +641,75 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 2,
   },
   freshnessFootnote: {
+    margin: 0,
+    fontSize: typography.size.xs,
+    color: palette.textSubtle,
+    fontStyle: 'italic',
+  },
+  // Phase 73 — consistency review styles. Same family as freshness
+  // (same surfaceAlt fill, same divider border) so the two review
+  // blocks read as a connected pair under the card header.
+  consistencyBox: {
+    margin: 0,
+    padding: `${spacing.xs} ${spacing.md}`,
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+  },
+  consistencyHeader: {
+    display: 'flex',
+    gap: spacing.sm,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  consistencyTimestamp: {
+    fontSize: typography.size.sm,
+    color: palette.textMuted,
+  },
+  consistencyEmpty: {
+    margin: 0,
+    fontSize: typography.size.sm,
+    color: palette.text,
+    lineHeight: typography.lineHeight.snug,
+  },
+  consistencyFindingList: {
+    margin: 0,
+    paddingLeft: 0,
+    listStyle: 'none',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.xs,
+  },
+  consistencyFinding: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    padding: `${spacing.xs} ${spacing.sm}`,
+    background: palette.surface,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
+  },
+  consistencyFindingHead: {
+    display: 'flex',
+    gap: spacing.xs,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  consistencyFindingField: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
+  },
+  consistencyFindingMessage: {
+    margin: 0,
+    fontSize: typography.size.sm,
+    color: palette.text,
+    lineHeight: typography.lineHeight.snug,
+  },
+  consistencyFootnote: {
     margin: 0,
     fontSize: typography.size.xs,
     color: palette.textSubtle,

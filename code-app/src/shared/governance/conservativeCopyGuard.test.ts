@@ -170,6 +170,7 @@ const RULES: readonly CopyRule[] = [
     allowedFiles: [
       'src/deals/creditMemoDraft.ts',
       'src/deals/CreditMemoDraftModal.tsx',
+      'src/deals/CreditMemo.tsx',
       'src/shared/governance/platformInventory.ts',
       'docs/STABILIZATION_CHECKLIST.md',
       'docs/RELEASE_NOTES_PHASES_1_40.md',
@@ -180,6 +181,8 @@ const RULES: readonly CopyRule[] = [
         'Phase 24 truthful negation: "No AI was used to produce this draft."',
       'src/deals/CreditMemoDraftModal.tsx':
         'Phase 24 banner: "Generated locally ... No AI was used."',
+      'src/deals/CreditMemo.tsx':
+        'Phase 73 truthful negation: ConsistencyReviewBlock states "Not AI" as a non-capability disclaimer next to the deterministic structured-field check.',
       'src/shared/governance/platformInventory.ts':
         'NOT_WIRED entry "ai-generation" plus reason text describing the deliberate non-capability.',
       'docs/STABILIZATION_CHECKLIST.md':
