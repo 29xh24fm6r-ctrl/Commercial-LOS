@@ -7,6 +7,7 @@ import { DealsByStage } from '../manager/DealsByStage';
 import { AtRiskBlockedDeals } from '../manager/AtRiskBlockedDeals';
 import { BankerWorkloadSummary } from '../manager/BankerWorkloadSummary';
 import { ClosingForecast } from '../manager/ClosingForecast';
+import { ManagerActivitySummary } from '../manager/ActivitySummary';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function ManagerWorkspace() {
@@ -52,6 +53,7 @@ function ManagerWorkspaceContent() {
         </div>
         <AtRiskBlockedDeals />
         <BankerWorkloadSummary />
+        <ManagerActivitySummary />
       </main>
     </div>
   );

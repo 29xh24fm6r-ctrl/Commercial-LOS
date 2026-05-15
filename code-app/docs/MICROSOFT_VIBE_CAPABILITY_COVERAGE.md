@@ -231,12 +231,12 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.19 Performance scoring
 
 - **Vibe expected.** Banker / team / deal scoring against KPI thresholds; rolled up to manager and exec.
-- **Current state.** **Partially operational.** KPI threshold configuration exists (`cr664_kpithresholdconfigurations`); profitability snapshots feed executive surfaces; Phase 15 transitional fallback marks `PipelineByStage` and `MonthlyClosingForecast` as transitional.
-- **Gap.** Per-banker / per-team scoring beyond what already surfaces; granular threshold visualizations.
-- **Blocker.** Schema (per-banker rollup tables don't exist) OR derivation work (compute in-app from existing deals).
-- **Safe next step.** Lane A: derive per-banker pipeline rollup from existing `cr664_loandeals` rows. Read-only; safe; useful.
-- **Schema / admin work needed?** No (derivation).
-- **Build now / later / deferred.** Now.
+- **Current state.** **Partially operational** (advanced by Phase 71). KPI threshold configuration exists (`cr664_kpithresholdconfigurations`); profitability snapshots feed executive surfaces; Phase 15 transitional fallback marks `PipelineByStage` and `MonthlyClosingForecast` as transitional. Phase 71 added deterministic per-banker / per-team derived analytics (stage aging + pipeline mix on manager workspace; per-banker workload breakdown on team workspace). The Phase 71 surfaces explicitly disclaim "score" / "ranking" / "predictive" language.
+- **Gap.** Connector-backed performance signals (Teams presence; activity logs from external systems); AI-derived insight.
+- **Blocker.** Lane E (Teams) for some signals; Lane F (AI) for insight.
+- **Safe next step.** Maintain. Future phase could extend the Phase 71 derivation with more dimensions (e.g. velocity, win rate) once Phase 56-era close/won tracking lands.
+- **Schema / admin work needed?** No for further derivation; Lane B/E/F for the connector-backed slice.
+- **Build now / later / deferred.** Phase 71 closed the largest in-repo slice. Further extensions are later.
 
 ### 1.20 Alert queue
 
@@ -261,12 +261,12 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.22 Manager workspace
 
 - **Vibe expected.** Manager sees their team's deals; can review without editing.
-- **Current state.** **Operational** (Phase 36). Team-scoped read-only via `loadDealForManager`. Four write-capable cards render with `readOnly=true`.
-- **Gap.** Manager analytics (per-banker scoring, team-wide trend lines) are not yet shipped.
-- **Blocker.** Same as 1.19.
-- **Safe next step.** Lane A: derive team analytics from existing data.
-- **Schema / admin work needed?** No.
-- **Build now / later / deferred.** Now (analytics extension).
+- **Current state.** **Operational** (Phase 36 + Phase 71). Team-scoped read-only via `loadDealForManager`. Four write-capable cards render with `readOnly=true`. Phase 71 added the `ManagerActivitySummary` card surfacing stage aging + pipeline mix derivation.
+- **Gap.** Trend lines over time (would need time-series storage); banker velocity / win-rate (would need historic stage transition data).
+- **Blocker.** Schema-side (no time-series store) for the missing slices.
+- **Safe next step.** Maintain. Further team-wide signals can be added incrementally to the analytics module.
+- **Schema / admin work needed?** No for what's shipped; yes for time-series.
+- **Build now / later / deferred.** Phase 71 closed the primary in-repo gap. Later for time-series.
 
 ### 1.23 Team workspace
 

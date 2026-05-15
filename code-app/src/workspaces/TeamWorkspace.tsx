@@ -8,6 +8,7 @@ import { BottlenecksAgingByStage } from '../team/BottlenecksAgingByStage';
 import { TeamDocumentNeeds } from '../team/TeamDocumentNeeds';
 import { TeamTaskLoad } from '../team/TeamTaskLoad';
 import { SharedClosingCalendar } from '../team/SharedClosingCalendar';
+import { TeamBankerActivityBreakdown } from '../team/TeamBankerActivityBreakdown';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function TeamWorkspace() {
@@ -56,6 +57,7 @@ function TeamWorkspaceContent() {
           <TeamTaskLoad />
         </div>
         <SharedActiveDeals />
+        <TeamBankerActivityBreakdown />
       </main>
     </div>
   );
