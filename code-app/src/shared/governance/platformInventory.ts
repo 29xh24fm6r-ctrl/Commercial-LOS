@@ -379,6 +379,24 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'governed write — see GOVERNED_WRITES.credit-memo-draft-save).',
   },
   {
+    id: 'activity-since-last-visit',
+    label: 'Activity since last visit (per-deal local marker)',
+    phase: 72,
+    note:
+      'Local browser marker only — no Dataverse write. Per-deal ' +
+      'last-viewed timestamp lives in localStorage; the Activity ' +
+      'Timeline card derives "N new since your last visit" against ' +
+      'that marker and highlights individual events newer than it. ' +
+      'No cross-device sync; no notification delivery; no audit ' +
+      'row; no timeline event; no AI involvement; no Teams / Outlook ' +
+      'tie-in. A banker who reviews on desktop, then opens on ' +
+      'mobile, will see every event as new on mobile (each browser ' +
+      'has its own localStorage). Implementation: ' +
+      'src/shared/lastVisit/lastVisit.ts (pure derivation + storage ' +
+      'helpers) + src/shared/lastVisit/useLastVisit.ts (React hook). ' +
+      'See docs/PHASE_72_ACTIVITY_SINCE_LAST_VISIT.md.',
+  },
+  {
     id: 'borrower-safe-status-packet',
     label: 'Borrower-safe status packet',
     phase: 66,

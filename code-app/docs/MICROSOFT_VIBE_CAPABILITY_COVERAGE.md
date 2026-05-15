@@ -221,12 +221,12 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.18 Activity intelligence
 
 - **Vibe expected.** Smart summaries of deal activity; "what changed since you last looked"; trend lines.
-- **Current state.** **Partially operational.** Phase 25+ timeline ledger exists. No summarization, no intelligence layer.
-- **Gap.** Summarization, trend extraction.
-- **Blocker.** Lane F (AI) — OR rule-based summaries (Lane A) which would be honest but lighter than the Vibe vision.
-- **Safe next step.** Lane A: a derived "activity since last visit" summary on the deal workspace using existing timeline data + a banker-side last-seen timestamp (local storage or a minimal schema column). Low risk.
-- **Schema / admin work needed?** No (local-storage version).
-- **Build now / later / deferred.** Now (rule-based) / later (AI-driven).
+- **Current state.** **Partially operational** (advanced by Phase 72). Phase 25+ timeline ledger exists. Phase 72 shipped a rule-based "activity since last visit" surface on the Activity Timeline card: per-deal local-browser marker + deterministic derivation; a "N new since your last visit" subtitle + per-row "New" badge. Local-only (`LOCAL_ONLY_FLOWS.activity-since-last-visit`); no Dataverse write; no AI; no cross-device sync.
+- **Gap.** AI summarization; trend extraction; cross-device sync.
+- **Blocker.** Lane F (AI) for summarization / trend; schema + tenant work (user-preference entity) for cross-device sync.
+- **Safe next step.** Maintain the Phase 72 marker. Future phase could add an explicit "Mark viewed" button or extend the marker to other surfaces (My Work Queue, BorrowerCommunication, etc.). AI summarization stays Lane F.
+- **Schema / admin work needed?** No for further local-only extensions; yes for cross-device sync.
+- **Build now / later / deferred.** Phase 72 closed the largest in-repo slice. Further extensions later.
 
 ### 1.19 Performance scoring
 

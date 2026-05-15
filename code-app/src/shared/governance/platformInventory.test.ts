@@ -190,12 +190,14 @@ describe('platformInventory — executive transitional fallback', () => {
 });
 
 describe('platformInventory — local-only flows', () => {
-  it('lists borrower update draft, credit memo local preview, and Phase 66 borrower-safe status packet', () => {
+  it('lists borrower update draft, credit memo local preview, Phase 66 borrower-safe status packet, and Phase 72 activity-since-last-visit', () => {
     const ids = new Set(LOCAL_ONLY_FLOWS.map((f) => f.id));
     expect(ids.has('borrower-update-draft')).toBe(true);
     expect(ids.has('credit-memo-local-preview')).toBe(true);
     // Phase 66 — borrower-safe status packet (no portal claim).
     expect(ids.has('borrower-safe-status-packet')).toBe(true);
+    // Phase 72 — activity-since-last-visit (local browser marker).
+    expect(ids.has('activity-since-last-visit')).toBe(true);
   });
 
   it('every local-only flow note explicitly states no Dataverse write', () => {
@@ -217,6 +219,32 @@ describe('platformInventory — local-only flows', () => {
     // Phase 67 handoff-extension doc by path.
     expect(entry!.note).toMatch(/PHASE_66_BORROWER_SAFE_STATUS_PACKET\.md/);
     expect(entry!.note).toMatch(/PHASE_67_PACKET_EMAIL_HANDOFF\.md/);
+  });
+
+  it('activity-since-last-visit (Phase 72) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'activity-since-last-visit',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(72);
+    // The note must disclaim: no Dataverse write, no cross-device
+    // sync, no audit/timeline emission, no notification delivery.
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no cross-device sync/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no notification delivery/i);
+    expect(entry!.note).toMatch(/no AI/i);
+    expect(entry!.note).toMatch(/PHASE_72_ACTIVITY_SINCE_LAST_VISIT\.md/);
+  });
+
+  it('the Phase 72 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_72_ACTIVITY_SINCE_LAST_VISIT.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
   });
 
   it('borrower-safe status packet (Phase 67) explicitly states no audit / timeline / Dataverse write for the handoff', () => {

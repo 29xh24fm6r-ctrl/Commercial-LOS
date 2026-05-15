@@ -1,26 +1,64 @@
+import { useMemo } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
 import type { TimelineEvent, TimelineEventTypeKey } from './activityQueries';
+import { summarizeActivitySinceLastVisit } from '../shared/lastVisit/lastVisit';
+import { useLastVisit } from '../shared/lastVisit/useLastVisit';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 export function ActivityTimeline() {
-  const { activity } = useDealData();
+  const { deal, activity } = useDealData();
+  // Phase 72: per-deal last-visit marker (local-browser only, no
+  // Dataverse write). The hook snapshots the prior marker on mount
+  // and schedules a fresh marker write after a short settle so the
+  // banker sees the "N new since your last visit" badge before it
+  // clears for the next visit.
+  const { priorLastVisitMs, isInitialized } = useLastVisit(deal.id);
+  const sinceLastVisit = useMemo(() => {
+    if (!isInitialized) return undefined;
+    if (activity.kind !== 'ready') return undefined;
+    return summarizeActivitySinceLastVisit(activity.data, priorLastVisitMs);
+  }, [activity, priorLastVisitMs, isInitialized]);
+
   return (
     <Card>
-      <CardHeader title="Activity Timeline" subtitle={subtitleFor(activity)} />
-      <Body activity={activity} />
+      <CardHeader
+        title="Activity Timeline"
+        subtitle={subtitleFor(activity, sinceLastVisit, priorLastVisitMs)}
+      />
+      <Body activity={activity} sinceLastVisit={sinceLastVisit} />
     </Card>
   );
 }
 
-function subtitleFor(activity: AsyncResult<TimelineEvent[]>): string | undefined {
+function subtitleFor(
+  activity: AsyncResult<TimelineEvent[]>,
+  sinceLastVisit: ReturnType<typeof summarizeActivitySinceLastVisit> | undefined,
+  priorLastVisitMs: number | undefined,
+): string | undefined {
   if (activity.kind !== 'ready') return undefined;
   if (activity.data.length === 0) return undefined;
-  return `${activity.data.length} event${activity.data.length === 1 ? '' : 's'}, newest first`;
+  const base = `${activity.data.length} event${activity.data.length === 1 ? '' : 's'}, newest first`;
+  // First visit on this browser: no prior marker to compare. Be
+  // explicit so the banker knows the badge will appear next time.
+  if (priorLastVisitMs === undefined) {
+    return `${base} · first visit on this browser`;
+  }
+  if (!sinceLastVisit) return base;
+  if (sinceLastVisit.newCount === 0) {
+    return `${base} · No new activity since your last visit`;
+  }
+  return `${base} · ${sinceLastVisit.newCount} new since your last visit (locally tracked, this browser)`;
 }
 
-function Body({ activity }: { activity: AsyncResult<TimelineEvent[]> }) {
+function Body({
+  activity,
+  sinceLastVisit,
+}: {
+  activity: AsyncResult<TimelineEvent[]>;
+  sinceLastVisit: ReturnType<typeof summarizeActivitySinceLastVisit> | undefined;
+}) {
   if (activity.kind === 'loading') return <p style={styles.muted}>Loading activity…</p>;
   if (activity.kind === 'failed')
     return <ErrorBlock title="Could not load activity" detail={activity.message} />;
@@ -32,19 +70,34 @@ function Body({ activity }: { activity: AsyncResult<TimelineEvent[]> }) {
   return (
     <ol style={styles.list}>
       {events.map((e) => (
-        <EventRow key={e.id} event={e} />
+        <EventRow
+          key={e.id}
+          event={e}
+          isNewSinceLastVisit={
+            sinceLastVisit ? sinceLastVisit.isNew(e.eventAt) : false
+          }
+        />
       ))}
     </ol>
   );
 }
 
-function EventRow({ event }: { event: TimelineEvent }) {
+function EventRow({
+  event,
+  isNewSinceLastVisit,
+}: {
+  event: TimelineEvent;
+  isNewSinceLastVisit: boolean;
+}) {
   const sev = severityFor(event.eventTypeKey);
   const actor = event.isSystemGenerated ? 'System' : event.actorName ?? 'Unknown user';
   const sourceLabel = friendlyEntityLabel(event.relatedEntityType);
 
   return (
-    <li style={styles.row}>
+    <li
+      style={isNewSinceLastVisit ? { ...styles.row, ...styles.rowNew } : styles.row}
+      data-new-since-last-visit={isNewSinceLastVisit ? 'true' : undefined}
+    >
       <div style={styles.lane}>
         <StatusDot variant={sev} />
       </div>
@@ -66,6 +119,15 @@ function EventRow({ event }: { event: TimelineEvent }) {
             >
               {event.eventSubType}
             </span>
+          )}
+          {isNewSinceLastVisit && (
+            <Badge
+              variant="info"
+              appearance="outline"
+              title="New since your last visit on this browser. Locally tracked; not synced across devices."
+            >
+              New
+            </Badge>
           )}
         </div>
         {event.summary && <p style={styles.summary}>{event.summary}</p>}
@@ -226,6 +288,17 @@ const styles: Record<string, React.CSSProperties> = {
     gap: spacing.sm,
     paddingTop: spacing.xs,
     paddingBottom: spacing.sm,
+  },
+  // Phase 72: subtle left-border accent on rows newer than the
+  // banker's prior last visit. No new color (info palette already
+  // exists), no layout shift — the border is inside the existing
+  // padding so the row width is unchanged.
+  rowNew: {
+    borderLeft: `3px solid ${palette.primary}`,
+    paddingLeft: spacing.xs,
+    marginLeft: -spacing.xs,
+    background: palette.surfaceAlt,
+    borderRadius: radius.sm,
   },
   lane: { display: 'flex', justifyContent: 'center', paddingTop: 6 },
   body: { display: 'flex', flexDirection: 'column', gap: 4 },
