@@ -415,6 +415,30 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'See docs/PHASE_72_ACTIVITY_SINCE_LAST_VISIT.md.',
   },
   {
+    id: 'relationship-note-draft',
+    label: 'Banker relationship-note draft (local-only)',
+    phase: 78,
+    note:
+      'Local-only banker note drafting + copy-to-clipboard. No ' +
+      'Dataverse write. No audit row. No timeline event. No ' +
+      'governed write entry. No cross-device persistence. Modal ' +
+      'state lives only in React state for the lifetime of the ' +
+      'modal; closing without copying drops the draft. The banker ' +
+      'types a relationship note (required) plus optional ' +
+      'follow-up + open-asks blocks; the modal renders a formatted ' +
+      'preview ending with the verbatim disclaimer "Local draft. ' +
+      'Not saved to the system. Paste into the appropriate system ' +
+      'of record." Copy uses navigator.clipboard.writeText; the ' +
+      'card never persists, transmits, or interprets the text. ' +
+      'Surfaced from the Phase 76 RelationshipMemory card (Banker ' +
+      'Command Center) AND the Phase 77 RelationshipContext card ' +
+      '(Banker Deal Workspace) — both banker-only. Implementation: ' +
+      'src/shared/relationship/relationshipNoteDraft.ts (pure ' +
+      'formatter) + src/banker/RelationshipNoteDraftModal.tsx ' +
+      '(local-only modal). See ' +
+      'docs/PHASE_78_RELATIONSHIP_NOTES_LOCAL_ONLY.md.',
+  },
+  {
     id: 'borrower-safe-status-packet',
     label: 'Borrower-safe status packet',
     phase: 66,

@@ -190,7 +190,7 @@ describe('platformInventory — executive transitional fallback', () => {
 });
 
 describe('platformInventory — local-only flows', () => {
-  it('lists borrower update draft, credit memo local preview, Phase 66 borrower-safe status packet, Phase 72 activity-since-last-visit, and Phase 73 credit-memo consistency check', () => {
+  it('lists borrower update draft, credit memo local preview, Phase 66 borrower-safe status packet, Phase 72 activity-since-last-visit, Phase 73 credit-memo consistency check, and Phase 78 relationship-note draft', () => {
     const ids = new Set(LOCAL_ONLY_FLOWS.map((f) => f.id));
     expect(ids.has('borrower-update-draft')).toBe(true);
     expect(ids.has('credit-memo-local-preview')).toBe(true);
@@ -201,6 +201,9 @@ describe('platformInventory — local-only flows', () => {
     // Phase 73 — credit-memo consistency review (deterministic
     // read-only; no AI; no decisioning).
     expect(ids.has('credit-memo-consistency-check')).toBe(true);
+    // Phase 78 — banker relationship-note draft (local-only;
+    // copy-to-clipboard; no Dataverse write; no audit/timeline).
+    expect(ids.has('relationship-note-draft')).toBe(true);
   });
 
   it('every local-only flow note explicitly states no Dataverse write', () => {
@@ -273,6 +276,36 @@ describe('platformInventory — local-only flows', () => {
     const docPath = resolve(
       repoRoot,
       'docs/PHASE_73_CREDIT_MEMO_CONSISTENCY_CHECK.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('relationship-note-draft (Phase 78) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'relationship-note-draft',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(78);
+    // The note must explicitly disclaim every category the brief
+    // forbids: no Dataverse write, no audit row, no timeline event,
+    // no governed write entry, no cross-device persistence.
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no governed write/i);
+    expect(entry!.note).toMatch(/no cross-device persistence/i);
+    // The note must cite the verbatim disclaimer the modal renders.
+    expect(entry!.note).toMatch(
+      /Local draft\. Not saved to the system\. Paste into the appropriate system of record\./,
+    );
+    expect(entry!.note).toMatch(/PHASE_78_RELATIONSHIP_NOTES_LOCAL_ONLY\.md/);
+  });
+
+  it('the Phase 78 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_78_RELATIONSHIP_NOTES_LOCAL_ONLY.md',
     );
     expect(existsSync(docPath)).toBe(true);
   });

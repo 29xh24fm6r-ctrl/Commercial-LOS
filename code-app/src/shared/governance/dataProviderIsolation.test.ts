@@ -271,13 +271,20 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
   },
   {
     file: 'deals/RelationshipContext.tsx',
-    allowedFrom: ['../banker/BankerContext', '../banker/workQueueQueries'],
+    allowedFrom: [
+      '../banker/BankerContext',
+      '../banker/workQueueQueries',
+      '../banker/RelationshipNoteDraftModal',
+    ],
     reason:
       'Phase 77 banker-only Deal Workspace card. Consumes useOptionalBanker ' +
       'to enforce role boundary (returns null outside BankerProvider) and ' +
       'reuses the Phase 32 banker-scoped loadBankerWorkQueueData loader to ' +
       'fetch the same already-authorized data Phase 75/76 use — no new ' +
-      'query shape, no permission widening.',
+      'query shape, no permission widening. Phase 78 added the import of ' +
+      'RelationshipNoteDraftModal so the same banker-only local-only note ' +
+      'draft surface appears on both the Banker Workspace Relationship ' +
+      'Memory card and the Deal Workspace Relationship Context card.',
   },
 ];
 

@@ -10,6 +10,7 @@ import {
   type RelationshipDealSnapshot,
   type RelationshipMemoryEntry,
 } from '../shared/relationship/relationshipMemory';
+import { RelationshipNoteDraftModal } from './RelationshipNoteDraftModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -102,12 +103,19 @@ export function RelationshipMemory() {
 }
 
 function Ready({ data }: { data: BankerWorkQueueData }) {
+  const { fullName } = useBanker();
   const now = useMemo(() => new Date(), []);
   const entries = useMemo(
     () => deriveRelationshipMemory(data, now),
     [data, now],
   );
   const nowMs = now.getTime();
+  // Phase 78: local-only relationship-note draft. State lives in
+  // React only; closing the modal drops the draft. No Dataverse
+  // write, no audit, no timeline.
+  const [draftFor, setDraftFor] = useState<RelationshipMemoryEntry | null>(
+    null,
+  );
 
   if (entries.length === 0) {
     return (
@@ -125,34 +133,58 @@ function Ready({ data }: { data: BankerWorkQueueData }) {
   }
 
   return (
-    <Card>
-      <CardHeader
-        title="Relationship Memory"
-        subtitle={`${entries.length} client${entries.length === 1 ? '' : 's'} — derived from visible records. Client-name grouped.`}
-      />
-      <ul style={styles.list} aria-label="Relationship memory clients">
-        {entries.map((entry) => (
-          <ClientRow key={entry.clientNameKey} entry={entry} nowMs={nowMs} />
-        ))}
-      </ul>
-      <p style={styles.disclaimer}>
-        Derived from visible records. Client-name grouped, so two deals
-        naming the borrower differently ("Acme, LLC" vs "Acme LLC")
-        appear as separate entries. This is a relationship snapshot, not
-        a verified relationship graph, not a household linkage, not a
-        relationship score. No predictive claim. Open the relevant deal
-        to act.
-      </p>
-    </Card>
+    <>
+      <Card>
+        <CardHeader
+          title="Relationship Memory"
+          subtitle={`${entries.length} client${entries.length === 1 ? '' : 's'} — derived from visible records. Client-name grouped.`}
+        />
+        <ul style={styles.list} aria-label="Relationship memory clients">
+          {entries.map((entry) => (
+            <ClientRow
+              key={entry.clientNameKey}
+              entry={entry}
+              nowMs={nowMs}
+              onDraftNote={() => setDraftFor(entry)}
+            />
+          ))}
+        </ul>
+        <p style={styles.disclaimer}>
+          Derived from visible records. Client-name grouped, so two deals
+          naming the borrower differently ("Acme, LLC" vs "Acme LLC")
+          appear as separate entries. This is a relationship snapshot, not
+          a verified relationship graph, not a household linkage, not a
+          relationship score. No predictive claim. Open the relevant deal
+          to act.
+        </p>
+      </Card>
+      {draftFor && (
+        <RelationshipNoteDraftModal
+          clientName={
+            draftFor.isClientNameMissing
+              ? '(no borrower name on record)'
+              : draftFor.clientNameDisplay
+          }
+          bankerName={fullName}
+          deals={draftFor.deals.map((d) => ({
+            dealName: d.dealName,
+            stage: d.stage,
+          }))}
+          onClose={() => setDraftFor(null)}
+        />
+      )}
+    </>
   );
 }
 
 function ClientRow({
   entry,
   nowMs,
+  onDraftNote,
 }: {
   entry: RelationshipMemoryEntry;
   nowMs: number;
+  onDraftNote: () => void;
 }) {
   const navigate = useNavigate();
   const displayName = entry.isClientNameMissing
@@ -266,6 +298,17 @@ function ClientRow({
           />
         ))}
       </ul>
+
+      <div style={styles.rowActions}>
+        <button
+          type="button"
+          onClick={onDraftNote}
+          style={styles.draftNoteButton}
+          aria-label={`Draft relationship note for ${entry.isClientNameMissing ? 'this client (no borrower name on record)' : entry.clientNameDisplay}`}
+        >
+          Draft relationship note
+        </button>
+      </div>
     </li>
   );
 }
@@ -441,6 +484,24 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: typography.letterSpacing.label,
   },
   dealPillName: { color: palette.text },
+  rowActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    paddingTop: spacing.xxs,
+  },
+  draftNoteButton: {
+    background: palette.surface,
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
   disclaimer: {
     margin: 0,
     paddingTop: spacing.sm,

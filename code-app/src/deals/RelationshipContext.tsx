@@ -12,6 +12,7 @@ import {
   type RelationshipDealSnapshot,
   type RelationshipMemoryEntry,
 } from '../shared/relationship/relationshipMemory';
+import { RelationshipNoteDraftModal } from '../banker/RelationshipNoteDraftModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -113,16 +114,25 @@ export function RelationshipContext() {
     );
   }
 
-  return <Ready dealId={deal.id} clientName={deal.clientName} data={state.data} />;
+  return (
+    <Ready
+      dealId={deal.id}
+      clientName={deal.clientName}
+      bankerName={banker?.fullName}
+      data={state.data}
+    />
+  );
 }
 
 function Ready({
   dealId,
   clientName,
+  bankerName,
   data,
 }: {
   dealId: string;
   clientName: string | undefined;
+  bankerName: string | undefined;
   data: BankerWorkQueueData;
 }) {
   const now = useMemo(() => new Date(), []);
@@ -130,6 +140,12 @@ function Ready({
     () => deriveCrossDealContext(data, dealId, clientName, now),
     [data, dealId, clientName, now],
   );
+  // Phase 78: local-only relationship-note draft. State lives in
+  // React only; closing the modal drops the draft. No write, no
+  // audit, no timeline. Modal opens with deals scoped to the
+  // current client (excluding the current deal — same set the
+  // card already renders).
+  const [draftOpen, setDraftOpen] = useState(false);
 
   if (result.kind === 'no-client-name') {
     return (
@@ -153,21 +169,44 @@ function Ready({
 
   if (result.kind === 'no-other-deals') {
     return (
-      <Card>
-        <CardHeader
-          title="Relationship context"
-          subtitle={`No other visible deals for ${result.clientNameDisplay}.`}
-        />
-        <p style={styles.muted}>
-          No other visible deals for this client from current records.
-          Client-name grouped, so a sibling deal naming the borrower
-          differently ("Acme, LLC" vs "Acme LLC") would not appear here.
-        </p>
-        <p style={styles.disclaimer}>
-          Derived from visible records. Client-name grouped. May not
-          include all related borrowers. No predictive claim.
-        </p>
-      </Card>
+      <>
+        <Card>
+          <CardHeader
+            title="Relationship context"
+            subtitle={`No other visible deals for ${result.clientNameDisplay}.`}
+          />
+          <p style={styles.muted}>
+            No other visible deals for this client from current records.
+            Client-name grouped, so a sibling deal naming the borrower
+            differently ("Acme, LLC" vs "Acme LLC") would not appear here.
+          </p>
+          <div style={styles.rowActions}>
+            <button
+              type="button"
+              onClick={() => setDraftOpen(true)}
+              style={styles.draftNoteButton}
+              aria-label={`Draft relationship note for ${result.clientNameDisplay}`}
+            >
+              Draft relationship note
+            </button>
+          </div>
+          <p style={styles.disclaimer}>
+            Derived from visible records. Client-name grouped. May not
+            include all related borrowers. No predictive claim.
+          </p>
+        </Card>
+        {draftOpen && (
+          <RelationshipNoteDraftModal
+            clientName={result.clientNameDisplay}
+            bankerName={bankerName}
+            // The sibling list is empty in this branch; the modal
+            // gracefully omits the Active deals block when no deals
+            // are supplied.
+            deals={[]}
+            onClose={() => setDraftOpen(false)}
+          />
+        )}
+      </>
     );
   }
 
@@ -175,11 +214,12 @@ function Ready({
   const nowMs = now.getTime();
 
   return (
-    <Card>
-      <CardHeader
-        title="Relationship context"
-        subtitle={`${entry.activeDealCount} other visible deal${entry.activeDealCount === 1 ? '' : 's'} for ${entry.clientNameDisplay} — derived from visible records.`}
-      />
+    <>
+      <Card>
+        <CardHeader
+          title="Relationship context"
+          subtitle={`${entry.activeDealCount} other visible deal${entry.activeDealCount === 1 ? '' : 's'} for ${entry.clientNameDisplay} — derived from visible records.`}
+        />
       <div style={styles.section}>
         <div style={styles.timelineRow}>
           <span style={styles.metaLabel}>Latest activity (other deals):</span>{' '}
@@ -259,6 +299,17 @@ function Ready({
 
         <DealPillList entry={entry} />
 
+        <div style={styles.rowActions}>
+          <button
+            type="button"
+            onClick={() => setDraftOpen(true)}
+            style={styles.draftNoteButton}
+            aria-label={`Draft relationship note for ${entry.clientNameDisplay}`}
+          >
+            Draft relationship note
+          </button>
+        </div>
+
         <p style={styles.disclaimer}>
           Derived from visible records. Client-name grouped — sibling
           deals naming the borrower differently ("Acme, LLC" vs "Acme
@@ -268,7 +319,19 @@ function Ready({
           predictive claim.
         </p>
       </div>
-    </Card>
+      </Card>
+      {draftOpen && (
+        <RelationshipNoteDraftModal
+          clientName={entry.clientNameDisplay}
+          bankerName={bankerName}
+          deals={entry.deals.map((d) => ({
+            dealName: d.dealName,
+            stage: d.stage,
+          }))}
+          onClose={() => setDraftOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -404,6 +467,24 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: typography.letterSpacing.label,
   },
   dealPillName: { color: palette.text },
+  rowActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    paddingTop: spacing.xxs,
+  },
+  draftNoteButton: {
+    background: palette.surface,
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+  },
   disclaimer: {
     margin: 0,
     paddingTop: spacing.sm,
