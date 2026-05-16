@@ -289,6 +289,67 @@ export function deriveRelationshipMemory(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 77 — cross-deal context helper.
+//
+// Given a deal id + clientName already loaded by the Deal Workspace, this
+// function asks: "of the banker's other already-authorized deals, which
+// belong to the same client name, and what aggregate attention signals do
+// they carry?". The current deal is excluded from the result by id so its
+// own counts never leak into the cross-deal aggregates.
+//
+// Three result shapes:
+//   - 'no-client-name'   : the current deal has no clientName on record;
+//                          the card renders a conservative empty-state.
+//   - 'no-other-deals'   : the client name resolves to a known group,
+//                          but the only deal in it is the current one.
+//   - 'has-other-deals'  : the matching RelationshipMemoryEntry — with
+//                          the current deal already removed and the
+//                          aggregates recomputed against the remaining
+//                          deals only.
+//
+// Implementation note: the function filters the current deal out of the
+// input and re-runs the existing derivation. Re-running keeps the
+// aggregates honest (they reflect ONLY other deals) without duplicating
+// the derivation logic.
+// ---------------------------------------------------------------------------
+
+export type CrossDealContextResult =
+  | { kind: 'no-client-name' }
+  | { kind: 'no-other-deals'; clientNameDisplay: string }
+  | { kind: 'has-other-deals'; entry: RelationshipMemoryEntry };
+
+export function deriveCrossDealContext(
+  input: RelationshipMemoryInput,
+  currentDealId: string,
+  currentClientName: string | undefined,
+  now: Date,
+): CrossDealContextResult {
+  const targetKey = normalizeClientName(currentClientName);
+  if (targetKey === MISSING_CLIENT_NAME_KEY) {
+    return { kind: 'no-client-name' };
+  }
+
+  // Filter the current deal out of the input. Child collections
+  // (tasks / documents / memos) are keyed by dealId; removing the
+  // current deal from `input.deals` naturally drops its children from
+  // every per-deal aggregate inside deriveRelationshipMemory.
+  const filtered: RelationshipMemoryInput = {
+    deals: input.deals.filter((d) => d.id !== currentDealId),
+    tasks: input.tasks,
+    outstandingDocuments: input.outstandingDocuments,
+    pendingReviewDocuments: input.pendingReviewDocuments,
+    memos: input.memos,
+  };
+  const entries = deriveRelationshipMemory(filtered, now);
+  const match = entries.find((e) => e.clientNameKey === targetKey);
+  if (!match || match.activeDealCount === 0) {
+    const display = currentClientName?.trim() ?? '';
+    return { kind: 'no-other-deals', clientNameDisplay: display };
+  }
+  return { kind: 'has-other-deals', entry: match };
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

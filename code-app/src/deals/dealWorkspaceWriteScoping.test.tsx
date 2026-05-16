@@ -96,6 +96,16 @@ vi.mock('./DraftBorrowerUpdateModal', () => ({
   DraftBorrowerUpdateModal: () => null,
 }));
 
+// Phase 77 RelationshipContext is a read-only card on the banker deal
+// workspace that pulls the SDK-backed banker work-queue loader. This
+// test is about write scoping, so the card is stubbed to keep the
+// SDK service chain (Cr664_loandealsService et al.) out of the module
+// graph — the workspace gating invariants this file pins are
+// orthogonal to relationship-context rendering.
+vi.mock('./RelationshipContext', () => ({
+  RelationshipContext: () => null,
+}));
+
 // Stub role identity providers so the workspaces have valid context
 // without firing the real bootstrap / identity chain.
 vi.mock('../banker/BankerProvider', () => ({

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
+  deriveCrossDealContext,
   deriveRelationshipMemory,
   MISSING_CLIENT_NAME_KEY,
   type RelationshipDealInput,
@@ -309,6 +310,128 @@ describe('Phase 76 — deriveRelationshipMemory', () => {
       const r = deriveRelationshipMemory(input, NOW);
       expect(r[0]!.clientNameDisplay).toBe('Zenith');
       expect(r[1]!.isClientNameMissing).toBe(true);
+    });
+  });
+
+  describe('Phase 77 — deriveCrossDealContext', () => {
+    it('returns no-client-name when the current deal has no clientName', () => {
+      const input = emptyInput();
+      input.deals = [
+        dealInput({ id: 'd1', clientName: 'Acme' }),
+        dealInput({ id: 'd-current', clientName: undefined }),
+      ];
+      const r = deriveCrossDealContext(input, 'd-current', undefined, NOW);
+      expect(r.kind).toBe('no-client-name');
+    });
+
+    it('returns no-client-name when the current deal\'s clientName is blank', () => {
+      const input = emptyInput();
+      input.deals = [dealInput({ id: 'd-current', clientName: '   ' })];
+      const r = deriveCrossDealContext(input, 'd-current', '   ', NOW);
+      expect(r.kind).toBe('no-client-name');
+    });
+
+    it('returns no-other-deals when the current deal is the only one for this client', () => {
+      const input = emptyInput();
+      input.deals = [
+        dealInput({ id: 'd-current', clientName: 'Acme' }),
+        dealInput({ id: 'd-other-client', clientName: 'Beta' }),
+      ];
+      const r = deriveCrossDealContext(input, 'd-current', 'Acme', NOW);
+      expect(r.kind).toBe('no-other-deals');
+      if (r.kind === 'no-other-deals') {
+        expect(r.clientNameDisplay).toBe('Acme');
+      }
+    });
+
+    it('returns has-other-deals with the current deal excluded from the entry deals', () => {
+      const input = emptyInput();
+      input.deals = [
+        dealInput({ id: 'd-current', name: 'Current Deal', clientName: 'Acme' }),
+        dealInput({ id: 'd-sib1', name: 'Sibling 1', clientName: 'Acme' }),
+        dealInput({ id: 'd-sib2', name: 'Sibling 2', clientName: 'acme' }),
+      ];
+      const r = deriveCrossDealContext(input, 'd-current', 'Acme', NOW);
+      expect(r.kind).toBe('has-other-deals');
+      if (r.kind === 'has-other-deals') {
+        expect(r.entry.activeDealCount).toBe(2);
+        const names = r.entry.deals.map((d) => d.dealName);
+        expect(names).not.toContain('Current Deal');
+        expect(names).toEqual(expect.arrayContaining(['Sibling 1', 'Sibling 2']));
+      }
+    });
+
+    it('recomputes aggregates so the current deal\'s child counts do NOT leak in', () => {
+      const input = emptyInput();
+      input.deals = [
+        dealInput({
+          id: 'd-current',
+          clientName: 'Acme',
+          stageEntryDate: isoDaysAgo(60),
+          targetCloseDate: isoDaysFromNow(5),
+        }),
+        dealInput({
+          id: 'd-sib',
+          clientName: 'Acme',
+          stageEntryDate: isoDaysAgo(5),
+          targetCloseDate: isoDaysFromNow(40),
+        }),
+      ];
+      // Both deals have an overdue task; the current deal also has
+      // a draft memo. After filtering the current deal out, only the
+      // sibling's overdue task should remain, and zero draft memos.
+      input.tasks = [
+        { dealId: 'd-current', dueDate: isoDaysAgo(3) },
+        { dealId: 'd-sib', dueDate: isoDaysAgo(1) },
+      ];
+      input.outstandingDocuments = [
+        { dealId: 'd-current' },
+        { dealId: 'd-current' },
+        { dealId: 'd-sib' },
+      ];
+      input.memos = [
+        { dealId: 'd-current', statusKey: 'draft' },
+        { dealId: 'd-sib', statusKey: 'final' },
+      ];
+      const r = deriveCrossDealContext(input, 'd-current', 'Acme', NOW);
+      expect(r.kind).toBe('has-other-deals');
+      if (r.kind === 'has-other-deals') {
+        expect(r.entry.openTaskCount).toBe(1);
+        expect(r.entry.overdueTaskCount).toBe(1);
+        expect(r.entry.outstandingDocumentCount).toBe(1);
+        expect(r.entry.draftMemoCount).toBe(0);
+        // The current deal had stageEntryDate 60d ago (at-risk), the
+        // sibling had 5d ago — after filtering, stageAtRisk should be 0.
+        expect(r.entry.stageAtRiskCount).toBe(0);
+        // The current deal had targetClose 5d out (closing soon),
+        // the sibling 40d out — after filtering, closingSoon should
+        // be 0.
+        expect(r.entry.closingSoonCount).toBe(0);
+      }
+    });
+
+    it('normalizes the current client name so case + whitespace variants resolve to the same group', () => {
+      const input = emptyInput();
+      input.deals = [
+        dealInput({ id: 'd-current', clientName: 'Acme, LLC' }),
+        dealInput({ id: 'd-sib', clientName: '  acme,    llc ' }),
+      ];
+      const r = deriveCrossDealContext(input, 'd-current', '  ACME,  LLC ', NOW);
+      expect(r.kind).toBe('has-other-deals');
+      if (r.kind === 'has-other-deals') {
+        expect(r.entry.activeDealCount).toBe(1);
+        expect(r.entry.deals[0]!.dealId).toBe('d-sib');
+      }
+    });
+
+    it('returns no-other-deals when the current client name matches no other deals', () => {
+      const input = emptyInput();
+      input.deals = [
+        dealInput({ id: 'd-current', clientName: 'Acme' }),
+        dealInput({ id: 'd-other', clientName: 'Beta' }),
+      ];
+      const r = deriveCrossDealContext(input, 'd-current', 'Acme', NOW);
+      expect(r.kind).toBe('no-other-deals');
     });
   });
 

@@ -269,6 +269,16 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
     allowedFrom: ['../banker/BankerContext'],
     reason: 'Same useOptionalBanker pattern as DealTasks.',
   },
+  {
+    file: 'deals/RelationshipContext.tsx',
+    allowedFrom: ['../banker/BankerContext', '../banker/workQueueQueries'],
+    reason:
+      'Phase 77 banker-only Deal Workspace card. Consumes useOptionalBanker ' +
+      'to enforce role boundary (returns null outside BankerProvider) and ' +
+      'reuses the Phase 32 banker-scoped loadBankerWorkQueueData loader to ' +
+      'fetch the same already-authorized data Phase 75/76 use — no new ' +
+      'query shape, no permission widening.',
+  },
 ];
 
 describe('Phase 48 — src/deals/ cross-role imports are limited to documented exceptions', () => {

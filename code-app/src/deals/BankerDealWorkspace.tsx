@@ -5,6 +5,7 @@ import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
 import { DealSummary } from './DealSummary';
+import { RelationshipContext } from './RelationshipContext';
 import { DealBlockers } from './DealBlockers';
 import { DealStageProgressionCard } from './DealStageProgressionCard';
 import { DealTasks } from './DealTasks';
@@ -90,6 +91,7 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
           <DealBlockers />
           <DealStageProgressionCard />
           <DealSummary />
+          <RelationshipContext />
           <DealTasks />
           <DealDocuments />
           <CreditMemo />
