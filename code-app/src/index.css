@@ -1,14 +1,191 @@
+/* ---------------------------------------------------------------------------
+ * Phase 79: theme-token foundation.
+ *
+ * Every banker-visible color the app paints flows through one of the
+ * --cc-* CSS variables declared below. The light-mode values are
+ * declared in :root; the dark-mode values are declared in BOTH the
+ * `prefers-color-scheme: dark` media query (so OS preference applies
+ * automatically) AND the [data-theme="dark"] attribute selector (so a
+ * future explicit theme toggle can override OS preference). The
+ * [data-theme="light"] attribute selector re-asserts the light values
+ * for the inverse override.
+ *
+ * No new product workflow. No Dataverse write. No new user-preference
+ * persistence in this phase — the brief explicitly gated that as a
+ * future phase. Phase 79 ships the visual token foundation only.
+ *
+ * Semantic color discipline (unchanged from Phase 4):
+ *   blocked  -> red, true blockers only
+ *   atRisk   -> amber, overdue / stalled
+ *   clear    -> green, complete / received
+ *   neutral  -> gray, draft / pending / system
+ *   info     -> blue, banker action / communication
+ *   primary  -> navy / blue-violet, brand chrome
+ * ------------------------------------------------------------------------- */
+
 :root {
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
 
+  /* Surfaces */
+  --cc-page-bg: #f1f3f7;
+  --cc-surface: #ffffff;
+  --cc-surface-alt: #f7f8fb;
+  --cc-surface-subtle: #fbfcfd;
+
+  /* Borders / dividers */
+  --cc-border: #dde1e8;
+  --cc-border-strong: #c6cdd9;
+  --cc-divider: #eaecf2;
+
+  /* Text */
+  --cc-text: #1a1f2e;
+  --cc-text-muted: #5b6478;
+  --cc-text-subtle: #828c9e;
+  --cc-text-inverse: #ffffff;
+  --cc-link: #1f4ea6;
+
+  /* Brand / primary (navy — commercial banking) */
+  --cc-primary: #1f4ea6;
+  --cc-primary-dim: #3e6fbf;
+  --cc-primary-bg: #e8eef9;
+  --cc-primary-fg: #143780;
+
+  /* Status — blocked (red, true blockers only) */
+  --cc-blocked: #b22c3a;
+  --cc-blocked-bg: #fcebed;
+  --cc-blocked-fg: #7e1f29;
+
+  /* Status — at-risk (amber) */
+  --cc-at-risk: #a8680c;
+  --cc-at-risk-bg: #fdf2db;
+  --cc-at-risk-fg: #6b3f00;
+
+  /* Status — clear (green) */
+  --cc-clear: #1b7a3c;
+  --cc-clear-bg: #e3f3e8;
+  --cc-clear-fg: #10532a;
+
+  /* Neutral status (draft / pending / system) */
+  --cc-neutral: #5a6478;
+  --cc-neutral-bg: #eef0f4;
+  --cc-neutral-fg: #404655;
+
+  /* Info / banker outreach */
+  --cc-info: #2c5fb8;
+  --cc-info-bg: #e6edf8;
+  --cc-info-fg: #1c3f7e;
+
+  /* Focus ring used by .cc-row-hover / .cc-link / future focusables */
+  --cc-focus-ring: #2c5fb8;
+
   font-family: var(--font-sans);
   font-size: 15px;
-  color: #1a1f2e;
-  background: #f1f3f7;
+  color: var(--cc-text);
+  background: var(--cc-page-bg);
   color-scheme: light;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* Dark theme — applied when (a) the OS preference is dark, OR (b) the
+ * root element carries data-theme="dark" (explicit override). Color
+ * choices preserve the semantic palette: red stays red, amber stays
+ * amber, etc., but brightened / desaturated for legibility on dark
+ * surfaces. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --cc-page-bg: #0e1018;
+    --cc-surface: #181c27;
+    --cc-surface-alt: #1f2432;
+    --cc-surface-subtle: #14171f;
+
+    --cc-border: #2a3142;
+    --cc-border-strong: #3b4357;
+    --cc-divider: #232938;
+
+    --cc-text: #e8ebf2;
+    --cc-text-muted: #9ba4b6;
+    --cc-text-subtle: #74809a;
+    --cc-text-inverse: #1a1f2e;
+    --cc-link: #7faaf0;
+
+    --cc-primary: #5b8df0;
+    --cc-primary-dim: #7caaf2;
+    --cc-primary-bg: #1e2a45;
+    --cc-primary-fg: #b9cdef;
+
+    --cc-blocked: #e87b86;
+    --cc-blocked-bg: #3a1820;
+    --cc-blocked-fg: #f0b7be;
+
+    --cc-at-risk: #e0a85a;
+    --cc-at-risk-bg: #3a2b10;
+    --cc-at-risk-fg: #f0d09a;
+
+    --cc-clear: #5fc585;
+    --cc-clear-bg: #16321f;
+    --cc-clear-fg: #b7e5c5;
+
+    --cc-neutral: #8c95a7;
+    --cc-neutral-bg: #232938;
+    --cc-neutral-fg: #c1c8d6;
+
+    --cc-info: #7faaf0;
+    --cc-info-bg: #1d2a44;
+    --cc-info-fg: #b9cdef;
+
+    --cc-focus-ring: #7faaf0;
+    color-scheme: dark;
+  }
+}
+
+/* Explicit data-theme="dark" override — wins over OS preference. Used
+ * by a future settings UI; in Phase 79 the attribute is unset by
+ * default, so this block is dormant until a consumer sets it. */
+:root[data-theme='dark'] {
+  --cc-page-bg: #0e1018;
+  --cc-surface: #181c27;
+  --cc-surface-alt: #1f2432;
+  --cc-surface-subtle: #14171f;
+
+  --cc-border: #2a3142;
+  --cc-border-strong: #3b4357;
+  --cc-divider: #232938;
+
+  --cc-text: #e8ebf2;
+  --cc-text-muted: #9ba4b6;
+  --cc-text-subtle: #74809a;
+  --cc-text-inverse: #1a1f2e;
+  --cc-link: #7faaf0;
+
+  --cc-primary: #5b8df0;
+  --cc-primary-dim: #7caaf2;
+  --cc-primary-bg: #1e2a45;
+  --cc-primary-fg: #b9cdef;
+
+  --cc-blocked: #e87b86;
+  --cc-blocked-bg: #3a1820;
+  --cc-blocked-fg: #f0b7be;
+
+  --cc-at-risk: #e0a85a;
+  --cc-at-risk-bg: #3a2b10;
+  --cc-at-risk-fg: #f0d09a;
+
+  --cc-clear: #5fc585;
+  --cc-clear-bg: #16321f;
+  --cc-clear-fg: #b7e5c5;
+
+  --cc-neutral: #8c95a7;
+  --cc-neutral-bg: #232938;
+  --cc-neutral-fg: #c1c8d6;
+
+  --cc-info: #7faaf0;
+  --cc-info-bg: #1d2a44;
+  --cc-info-fg: #b9cdef;
+
+  --cc-focus-ring: #7faaf0;
+  color-scheme: dark;
 }
 
 * {
@@ -18,7 +195,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #f1f3f7;
+  background: var(--cc-page-bg);
 }
 
 #root {
@@ -33,22 +210,23 @@ body {
 
 /* Utility classes for things React inline styles can't express
    (pseudo-classes, hover, focus-visible). Used by tables and clickable
-   rows in the banker workspace. */
+   rows in the banker workspace. All colors flow through the --cc-*
+   tokens so dark mode follows automatically. */
 
 .cc-row-hover {
   transition: background-color 120ms ease;
 }
 .cc-row-hover:hover {
-  background-color: #f1f4fa;
+  background-color: var(--cc-surface-alt);
 }
 .cc-row-hover:focus-visible {
-  outline: 2px solid #2c5fb8;
+  outline: 2px solid var(--cc-focus-ring);
   outline-offset: -2px;
-  background-color: #f1f4fa;
+  background-color: var(--cc-surface-alt);
 }
 
 .cc-link {
-  color: #1f4ea6;
+  color: var(--cc-link);
   text-decoration: none;
   font-weight: 500;
 }
@@ -56,7 +234,7 @@ body {
   text-decoration: underline;
 }
 .cc-link:focus-visible {
-  outline: 2px solid #2c5fb8;
+  outline: 2px solid var(--cc-focus-ring);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -66,22 +244,22 @@ body {
 .cc-th {
   text-align: left;
   padding: 0.6rem 0.9rem;
-  background: #f7f8fb;
-  border-bottom: 1px solid #dde1e8;
+  background: var(--cc-surface-alt);
+  border-bottom: 1px solid var(--cc-border);
   font-weight: 600;
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #5b6478;
+  color: var(--cc-text-muted);
   white-space: nowrap;
 }
 
 .cc-td {
   padding: 0.65rem 0.9rem;
-  border-bottom: 1px solid #eaecf2;
+  border-bottom: 1px solid var(--cc-divider);
   white-space: nowrap;
   vertical-align: middle;
-  color: #1a1f2e;
+  color: var(--cc-text);
   font-size: 0.92rem;
 }
 

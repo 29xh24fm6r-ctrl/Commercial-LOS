@@ -14,57 +14,65 @@
  *   neutral  -> gray, draft / pending / background
  *   info     -> blue, banker actions / communication
  *   primary  -> navy, brand / chrome accent
+ *
+ * Phase 79: palette values are CSS-variable references (var(--cc-*))
+ * rather than hex literals. The variables themselves live in
+ * src/index.css with light + dark declarations, so existing inline
+ * styles (style={{ color: palette.text }}) follow the active theme
+ * automatically without any consumer change. The variable identifiers
+ * are also pinned by themeTokens.test.ts so future renames stay
+ * coordinated.
  */
 
 export const palette = {
   // Surfaces
-  pageBg: '#f1f3f7',
-  surface: '#ffffff',
-  surfaceAlt: '#f7f8fb',
-  surfaceSubtle: '#fbfcfd',
+  pageBg: 'var(--cc-page-bg)',
+  surface: 'var(--cc-surface)',
+  surfaceAlt: 'var(--cc-surface-alt)',
+  surfaceSubtle: 'var(--cc-surface-subtle)',
 
   // Borders / dividers
-  border: '#dde1e8',
-  borderStrong: '#c6cdd9',
-  divider: '#eaecf2',
+  border: 'var(--cc-border)',
+  borderStrong: 'var(--cc-border-strong)',
+  divider: 'var(--cc-divider)',
 
   // Text
-  text: '#1a1f2e',
-  textMuted: '#5b6478',
-  textSubtle: '#828c9e',
-  textInverse: '#ffffff',
-  link: '#1f4ea6',
+  text: 'var(--cc-text)',
+  textMuted: 'var(--cc-text-muted)',
+  textSubtle: 'var(--cc-text-subtle)',
+  textInverse: 'var(--cc-text-inverse)',
+  link: 'var(--cc-link)',
 
   // Brand / primary (navy — commercial banking)
-  primary: '#1f4ea6',
-  primaryDim: '#3e6fbf',
-  primaryBg: '#e8eef9',
-  primaryFg: '#143780',
+  primary: 'var(--cc-primary)',
+  primaryDim: 'var(--cc-primary-dim)',
+  primaryBg: 'var(--cc-primary-bg)',
+  primaryFg: 'var(--cc-primary-fg)',
 
   // Status — blocked (red, true blockers only)
-  blocked: '#b22c3a',
-  blockedBg: '#fcebed',
-  blockedFg: '#7e1f29',
+  blocked: 'var(--cc-blocked)',
+  blockedBg: 'var(--cc-blocked-bg)',
+  blockedFg: 'var(--cc-blocked-fg)',
 
   // Status — at-risk (amber)
-  atRisk: '#a8680c',
-  atRiskBg: '#fdf2db',
-  atRiskFg: '#6b3f00',
+  atRisk: 'var(--cc-at-risk)',
+  atRiskBg: 'var(--cc-at-risk-bg)',
+  atRiskFg: 'var(--cc-at-risk-fg)',
 
   // Status — clear (green)
-  clear: '#1b7a3c',
-  clearBg: '#e3f3e8',
-  clearFg: '#10532a',
+  clear: 'var(--cc-clear)',
+  clearBg: 'var(--cc-clear-bg)',
+  clearFg: 'var(--cc-clear-fg)',
 
   // Neutral status (draft / pending / system)
-  neutral: '#5a6478',
-  neutralBg: '#eef0f4',
-  neutralFg: '#404655',
+  neutral: 'var(--cc-neutral)',
+  neutralBg: 'var(--cc-neutral-bg)',
+  neutralFg: 'var(--cc-neutral-fg)',
 
   // Info / banker outreach
-  info: '#2c5fb8',
-  infoBg: '#e6edf8',
-  infoFg: '#1c3f7e',
+  info: 'var(--cc-info)',
+  infoBg: 'var(--cc-info-bg)',
+  infoFg: 'var(--cc-info-fg)',
 } as const;
 
 export const spacing = {
