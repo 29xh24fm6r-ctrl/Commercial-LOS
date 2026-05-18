@@ -286,6 +286,20 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
       'draft surface appears on both the Banker Workspace Relationship ' +
       'Memory card and the Deal Workspace Relationship Context card.',
   },
+  {
+    file: 'deals/TeamsChatHandoff.tsx',
+    allowedFrom: ['../banker/BankerContext'],
+    reason:
+      'Phase 86 banker-only Deal Workspace card. Consumes useOptionalBanker ' +
+      'to source the signed-in banker email for the Teams chat deep-link ' +
+      'and to enforce the role boundary (returns null outside ' +
+      'BankerProvider, which renders the disabled "Teams chat handoff ' +
+      'unavailable" state). UPN is NEVER inferred from borrower / client ' +
+      'name; same useOptionalBanker pattern as DealTasks / DealDocuments / ' +
+      'CreditMemo / BorrowerCommunication / RelationshipContext. Card is ' +
+      'mounted only in BankerDealWorkspace; the manager/team deal-route ' +
+      'branches do not render it.',
+  },
 ];
 
 describe('Phase 48 — src/deals/ cross-role imports are limited to documented exceptions', () => {

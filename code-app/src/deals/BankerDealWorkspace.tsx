@@ -14,6 +14,7 @@ import { DealDocuments } from './DealDocuments';
 import { CreditMemo } from './CreditMemo';
 import { ActivityTimeline } from './ActivityTimeline';
 import { BorrowerCommunication } from './BorrowerCommunication';
+import { TeamsChatHandoff } from './TeamsChatHandoff';
 import { DealDataProvider } from './DealDataProvider';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
@@ -117,6 +118,12 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
           </div>
           <div data-deal-card="borrower-communication">
             <BorrowerCommunication />
+          </div>
+          {/* Phase 86: no-admin Teams chat handoff. Opens the
+              banker's own Teams client. No write, no audit, no
+              timeline, no Graph. */}
+          <div data-deal-card="teams-chat-handoff">
+            <TeamsChatHandoff />
           </div>
         </DealDataProvider>
       </main>

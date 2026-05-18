@@ -483,6 +483,37 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'docs/PHASE_66_BORROWER_SAFE_STATUS_PACKET.md for the packet shape ' +
       'and docs/PHASE_67_PACKET_EMAIL_HANDOFF.md for the handoff workflow.',
   },
+  {
+    id: 'teams-chat-handoff',
+    label: 'Microsoft Teams chat handoff',
+    phase: 86,
+    note:
+      'No-admin deep-link handoff to the banker\'s own Microsoft ' +
+      'Teams client. Clicking the "Open Teams chat" button on the ' +
+      'Banker Deal Workspace opens the well-known Microsoft URL ' +
+      'https://teams.microsoft.com/l/chat/0/0 with the signed-in ' +
+      'banker\'s verified email as the users= param and the deal ' +
+      'name as the topic. The recipient and message can be edited ' +
+      'inside the Teams client; the app never sends a message. ' +
+      'No Dataverse write. No audit row. No timeline event. No ' +
+      'calendar sync. No notification delivery. No meeting created. ' +
+      'No Graph call. No access-token acquisition. No tenant API ' +
+      'is contacted. The Teams SDK (@microsoft/teams-js) is loaded ' +
+      'only to probe whether the app is running inside Teams; the ' +
+      'result is diagnostic only and the handoff works regardless. ' +
+      'The UPN is sourced exclusively from useOptionalBanker().email ' +
+      '(the Phase 4 bootstrap chain matches the Entra UPN to a ' +
+      'cr664_users row); it is NEVER inferred from borrower / ' +
+      'client name or any free-text field. When no verified email ' +
+      'is available, the card renders a disabled "Teams chat ' +
+      'handoff unavailable" state. Implementation: ' +
+      'src/shared/teams/teamsEnvironment.ts (pure deep-link builder ' +
+      '+ best-effort SDK probe) + src/deals/TeamsChatHandoff.tsx ' +
+      '(banker-only Deal Workspace card). Does NOT imply a full ' +
+      'Teams integration; the broader Lane E gaps documented in ' +
+      'docs/PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT.md remain ' +
+      'untouched. See docs/PHASE_86_TEAMS_SDK_CHAT_HANDOFF.md.',
+  },
 ];
 
 // ---------------------------------------------------------------------------

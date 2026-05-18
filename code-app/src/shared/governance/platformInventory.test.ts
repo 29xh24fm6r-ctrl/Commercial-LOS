@@ -207,6 +207,9 @@ describe('platformInventory — local-only flows', () => {
     // Phase 83 — Autopilot suggestion ledger (local-only
     // opened/dismissed state across Phase 80/81/82 surfaces).
     expect(ids.has('autopilot-suggestion-ledger')).toBe(true);
+    // Phase 86 — Microsoft Teams chat handoff (deep-link only;
+    // no Graph; no Dataverse write; no audit/timeline; no notif).
+    expect(ids.has('teams-chat-handoff')).toBe(true);
   });
 
   it('every local-only flow note explicitly states no Dataverse write', () => {
@@ -337,6 +340,50 @@ describe('platformInventory — local-only flows', () => {
       'docs/PHASE_83_AUTOPILOT_SUGGESTION_LEDGER.md',
     );
     expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('teams-chat-handoff (Phase 86) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find((f) => f.id === 'teams-chat-handoff');
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(86);
+    // Brief mandates each of these disclaimers.
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no calendar sync/i);
+    expect(entry!.note).toMatch(/no notification delivery/i);
+    expect(entry!.note).toMatch(/no meeting created/i);
+    expect(entry!.note).toMatch(/no Graph call/i);
+    expect(entry!.note).toMatch(/no access-token acquisition/i);
+    // UPN MUST come only from a verified user-context field; never
+    // inferred from borrower / client name.
+    expect(entry!.note).toMatch(/never inferred from borrower/i);
+    // App must NEVER claim to send a message.
+    expect(entry!.note).toMatch(/the app never sends a message/i);
+    // Must reference the deep-link host AND the implementation files.
+    expect(entry!.note).toMatch(
+      /https:\/\/teams\.microsoft\.com\/l\/chat\/0\/0/,
+    );
+    expect(entry!.note).toMatch(/src\/shared\/teams\/teamsEnvironment\.ts/);
+    expect(entry!.note).toMatch(/src\/deals\/TeamsChatHandoff\.tsx/);
+    expect(entry!.note).toMatch(/PHASE_86_TEAMS_SDK_CHAT_HANDOFF\.md/);
+    // The note MUST honestly state it is NOT a full Teams integration.
+    expect(entry!.note).toMatch(/Does NOT imply a full.*Teams integration/i);
+    expect(entry!.note).toMatch(/PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT\.md/);
+  });
+
+  it('the Phase 86 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_86_TEAMS_SDK_CHAT_HANDOFF.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('teams-chat-handoff is NOT in GOVERNED_WRITES (Phase 86 is a handoff, not a write)', () => {
+    const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(ids.has('teams-chat-handoff')).toBe(false);
   });
 
   it('borrower-safe status packet (Phase 67) explicitly states no audit / timeline / Dataverse write for the handoff', () => {
