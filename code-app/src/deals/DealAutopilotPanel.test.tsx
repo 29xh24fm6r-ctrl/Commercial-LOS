@@ -1,0 +1,408 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { DealData } from './DealDataProvider';
+import type { DealDetail } from './dealQueries';
+
+/**
+ * Phase 80 — DealAutopilotPanel rendering tests.
+ *
+ * Pins:
+ *   - loading state while any required data slot is non-ready;
+ *   - empty state copy (must NOT say "all clear" / "no risk");
+ *   - populated state with priority badges + reasons + Basis line +
+ *     suggestedActionLabel button;
+ *   - click handler scrolls the targeted data-deal-card wrapper into
+ *     view (and does NOT mutate any deal state);
+ *   - conservative disclaimer renders verbatim ("Autopilot suggests,
+ *     banker decides. ... never creates tasks, sends emails, advances
+ *     the stage, marks documents reviewed, or calls AI.");
+ *   - rendered DOM does not contain forbidden vocabulary
+ *     (AI-generated / autopilot executed / automatically / approved /
+ *     decisioned / guaranteed / system will complete / prediction).
+ *
+ * SDK + consistency check are mocked at the module boundary; the
+ * derivation primitive is exercised in dealAutopilot.test.ts. This
+ * file verifies the panel's wiring + rendered invariants.
+ */
+
+vi.mock('./DealDataProvider', () => ({
+  useDealData: vi.fn(),
+}));
+
+vi.mock('../shared/creditMemoConsistency/checkCreditMemoConsistency', () => ({
+  checkCreditMemoConsistency: vi.fn(),
+}));
+
+import { useDealData } from './DealDataProvider';
+import { checkCreditMemoConsistency } from '../shared/creditMemoConsistency/checkCreditMemoConsistency';
+import { DealAutopilotPanel } from './DealAutopilotPanel';
+
+const useDealDataMock = vi.mocked(useDealData);
+const checkMock = vi.mocked(checkCreditMemoConsistency);
+
+const NOW = new Date('2026-05-18T12:00:00Z');
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function isoDaysAgo(d: number): string {
+  return new Date(NOW.getTime() - d * MS_PER_DAY).toISOString();
+}
+function isoDaysFromNow(d: number): string {
+  return new Date(NOW.getTime() + d * MS_PER_DAY).toISOString();
+}
+
+function deal(o: Partial<DealDetail> = {}): DealDetail {
+  return {
+    id: 'd-current',
+    name: 'Acme RLOC',
+    clientName: 'Acme Manufacturing',
+    stage: 'Underwriting',
+    status: 'Active',
+    amount: 4_000_000,
+    bankerName: 'M. Paller',
+    targetCloseDate: isoDaysFromNow(60),
+    productType: 'RLOC',
+    loanStructure: 'Senior Secured',
+    customerType: 'C&I',
+    industry: 'Manufacturing',
+    guarantorStructure: undefined,
+    pricingType: undefined,
+    spreadIndex: undefined,
+    spreadMargin: undefined,
+    collateralSummary: undefined,
+    createdOn: undefined,
+    stageEntryDate: isoDaysAgo(5),
+    isClosed: false,
+    ...o,
+  };
+}
+
+function readyData(over: Partial<DealData> = {}): DealData {
+  // Default "healthy deal" baseline:
+  //   - stage entered 5 days ago (not at-risk)
+  //   - target close 60 days out (not closing soon)
+  //   - one recent timeline event (so stale-activity signal does not
+  //     auto-fire on the empty-state test)
+  //   - no open tasks / documents / memos / consistency findings.
+  return {
+    deal: deal(),
+    tasks: { kind: 'ready', data: { open: [], completed: [] } },
+    documents: {
+      kind: 'ready',
+      data: { outstanding: [], received: [], reviewed: [] },
+    },
+    creditMemo: { kind: 'ready', data: { memos: [], sections: [] } },
+    activity: {
+      kind: 'ready',
+      data: [
+        {
+          id: 'a-recent',
+          eventAt: isoDaysAgo(1),
+          eventType: 'NoteLogged',
+          eventTypeKey: 'NoteLogged',
+          eventSubType: undefined,
+          title: 'Recent banker note',
+          summary: undefined,
+          actorName: 'M. Paller',
+          isSystemGenerated: false,
+          relatedEntityType: undefined,
+          relatedEntityId: undefined,
+        },
+      ],
+    },
+    refresh: () => undefined,
+    ...over,
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Default: consistency check finds no findings.
+  checkMock.mockReturnValue({ hasDraftToCompare: false, findings: [] });
+});
+
+describe('DealAutopilotPanel — Phase 80', () => {
+  it('renders the loading state when any required slot is non-ready', () => {
+    useDealDataMock.mockReturnValue(
+      readyData({ tasks: { kind: 'loading' } }),
+    );
+    render(<DealAutopilotPanel />);
+    expect(
+      screen.getByRole('heading', { name: /next best actions/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Loading deal signals/i)).toBeInTheDocument();
+  });
+
+  it('renders the empty state when no signal fires', () => {
+    useDealDataMock.mockReturnValue(readyData());
+    render(<DealAutopilotPanel />);
+    expect(
+      screen.getByText(
+        /No next-best-action suggestions from current records\./i,
+      ),
+    ).toBeInTheDocument();
+    // Must NOT say "all clear" or "no risk".
+    const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/\ball\s+clear\b/i);
+    expect(text).not.toMatch(/\bno\s+risk\b/i);
+  });
+
+  it('renders an overdue-task suggestion with a HIGH priority badge', () => {
+    useDealDataMock.mockReturnValue(
+      readyData({
+        tasks: {
+          kind: 'ready',
+          data: {
+            open: [
+              {
+                id: 't1',
+                title: 'Send Q2 financials',
+                dueDate: isoDaysAgo(2),
+                modifiedOn: undefined,
+                completed: false,
+                assigneeName: undefined,
+              },
+            ],
+            completed: [],
+          },
+        },
+      }),
+    );
+    render(<DealAutopilotPanel />);
+    const list = screen.getByRole('list', {
+      name: /next best actions for this deal/i,
+    });
+    const item = within(list).getByText(/1 overdue task\b/i);
+    expect(item).toBeInTheDocument();
+    expect(
+      within(list).getByLabelText(/high priority suggestion/i),
+    ).toBeInTheDocument();
+    expect(
+      within(list).getByText(/Basis:.*openTasks\.dueDate/),
+    ).toBeInTheDocument();
+  });
+
+  it('clicking the suggested-action button scrolls the matching data-deal-card into view (and does NOT mutate deal state)', async () => {
+    useDealDataMock.mockReturnValue(
+      readyData({
+        documents: {
+          kind: 'ready',
+          data: {
+            outstanding: [
+              {
+                id: 'doc1',
+                name: 'PFS',
+                dueDate: undefined,
+                requestDate: undefined,
+                receivedDate: undefined,
+                reviewer: undefined,
+                uploaded: false,
+                modifiedOn: undefined,
+                status: 'outstanding',
+              },
+            ],
+            received: [],
+            reviewed: [],
+          },
+        },
+      }),
+    );
+
+    // Render a host that includes the data-deal-card="documents"
+    // wrapper alongside the panel — mirrors how BankerDealWorkspace
+    // wires this up.
+    const docsWrapper = document.createElement('div');
+    docsWrapper.setAttribute('data-deal-card', 'documents');
+    document.body.appendChild(docsWrapper);
+    const scrollSpy = vi.fn();
+    docsWrapper.scrollIntoView = scrollSpy;
+
+    render(<DealAutopilotPanel />);
+    const user = userEvent.setup();
+    const button = screen.getByRole('button', {
+      name: /Open Documents — banker chooses what to do/i,
+    });
+    await user.click(button);
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    // The wrapper picks up tabindex -1 so it can receive focus.
+    expect(docsWrapper.getAttribute('tabindex')).toBe('-1');
+
+    document.body.removeChild(docsWrapper);
+  });
+
+  it('renders the conservative disclaimer verbatim ("Autopilot suggests, banker decides")', () => {
+    useDealDataMock.mockReturnValue(
+      readyData({
+        tasks: {
+          kind: 'ready',
+          data: {
+            open: [
+              {
+                id: 't1',
+                title: 'X',
+                dueDate: isoDaysAgo(1),
+                modifiedOn: undefined,
+                completed: false,
+                assigneeName: undefined,
+              },
+            ],
+            completed: [],
+          },
+        },
+      }),
+    );
+    render(<DealAutopilotPanel />);
+    expect(
+      screen.getByText(/Autopilot suggests, banker decides\./i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/never creates tasks, sends emails/i),
+    ).toBeInTheDocument();
+  });
+
+  it('rendered DOM never contains AI / automation / decisioning / prediction vocabulary', () => {
+    useDealDataMock.mockReturnValue(
+      readyData({
+        tasks: {
+          kind: 'ready',
+          data: {
+            open: [
+              {
+                id: 't1',
+                title: 'X',
+                dueDate: isoDaysAgo(1),
+                modifiedOn: undefined,
+                completed: false,
+                assigneeName: undefined,
+              },
+            ],
+            completed: [],
+          },
+        },
+        documents: {
+          kind: 'ready',
+          data: {
+            outstanding: [
+              {
+                id: 'doc1',
+                name: 'PFS',
+                dueDate: undefined,
+                requestDate: undefined,
+                receivedDate: undefined,
+                reviewer: undefined,
+                uploaded: false,
+                modifiedOn: undefined,
+                status: 'outstanding',
+              },
+            ],
+            received: [],
+            reviewed: [],
+          },
+        },
+      }),
+    );
+    const { container } = render(<DealAutopilotPanel />);
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/\bAI[ -]?generated\b/i);
+    expect(text).not.toMatch(/\bautopilot\s+executed\b/i);
+    expect(text).not.toMatch(/\b(is|was|has been|will be)\s+approved\b/i);
+    expect(text).not.toMatch(/\bdecisioned\b/i);
+    expect(text).not.toMatch(/\bguaranteed\b/i);
+    expect(text).not.toMatch(/\bsystem\s+will\s+complete\b/i);
+    expect(text).not.toMatch(/\bprediction\b/i);
+    // "Nothing happens automatically" is allowed (explicit negation);
+    // "happens automatically" without "Nothing" is not. The disclaimer
+    // contains the negation form, so the regex matches "automatically"
+    // — narrow the assertion to the positive claim form. The wording
+    // we want to forbid is "executes automatically" / "runs
+    // automatically" / "completes automatically".
+    expect(text).not.toMatch(
+      /\b(executes|runs|completes|approves|decides)\s+automatically\b/i,
+    );
+  });
+
+  it('rolls up to at most three suggestions even when every signal fires', () => {
+    useDealDataMock.mockReturnValue(
+      readyData({
+        deal: deal({
+          targetCloseDate: isoDaysFromNow(5),
+          stageEntryDate: isoDaysAgo(45),
+        }),
+        tasks: {
+          kind: 'ready',
+          data: {
+            open: [
+              {
+                id: 't1',
+                title: 'A',
+                dueDate: isoDaysAgo(2),
+                modifiedOn: undefined,
+                completed: false,
+                assigneeName: undefined,
+              },
+            ],
+            completed: [],
+          },
+        },
+        documents: {
+          kind: 'ready',
+          data: {
+            outstanding: [
+              {
+                id: 'd1',
+                name: 'PFS',
+                dueDate: undefined,
+                requestDate: undefined,
+                receivedDate: undefined,
+                reviewer: undefined,
+                uploaded: false,
+                modifiedOn: undefined,
+                status: 'outstanding',
+              },
+            ],
+            received: [
+              {
+                id: 'd2',
+                name: 'Tax',
+                dueDate: undefined,
+                requestDate: undefined,
+                receivedDate: isoDaysAgo(10),
+                reviewer: undefined,
+                uploaded: false,
+                modifiedOn: undefined,
+                status: 'received',
+              },
+            ],
+            reviewed: [],
+          },
+        },
+        activity: {
+          kind: 'ready',
+          data: [
+            {
+              id: 'a1',
+              eventAt: isoDaysAgo(20),
+              eventType: 'NoteLogged',
+              eventTypeKey: 'NoteLogged',
+              eventSubType: undefined,
+              title: 'Phone call',
+              summary: undefined,
+              actorName: 'M. Paller',
+              isSystemGenerated: false,
+              relatedEntityType: undefined,
+              relatedEntityId: undefined,
+            },
+          ],
+        },
+      }),
+    );
+    render(<DealAutopilotPanel />);
+    const list = screen.getByRole('list', {
+      name: /next best actions for this deal/i,
+    });
+    const items = within(list).getAllByRole('listitem');
+    expect(items.length).toBeLessThanOrEqual(3);
+    expect(items.length).toBe(3);
+  });
+});

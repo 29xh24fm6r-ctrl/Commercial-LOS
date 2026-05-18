@@ -5,6 +5,7 @@ import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
 import { DealSummary } from './DealSummary';
+import { DealAutopilotPanel } from './DealAutopilotPanel';
 import { RelationshipContext } from './RelationshipContext';
 import { DealBlockers } from './DealBlockers';
 import { DealStageProgressionCard } from './DealStageProgressionCard';
@@ -89,14 +90,34 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
         <DealDataProvider deal={deal}>
           <DealHeader />
           <DealBlockers />
-          <DealStageProgressionCard />
+          {/* Phase 80: stage-progression card is the scroll target
+              for the autopilot "stage-aging" suggestion. */}
+          <div data-deal-card="stage-progression">
+            <DealStageProgressionCard />
+          </div>
           <DealSummary />
+          {/* Phase 80: Deal Autopilot Lite — Next Best Actions panel.
+              Deterministic suggestions only; banker decides. */}
+          <DealAutopilotPanel />
           <RelationshipContext />
-          <DealTasks />
-          <DealDocuments />
-          <CreditMemo />
-          <ActivityTimeline />
-          <BorrowerCommunication />
+          {/* Phase 80: data-deal-card anchors used by the autopilot
+              panel's scrollIntoView. The wrappers preserve the
+              existing card layout — no styling change. */}
+          <div data-deal-card="tasks">
+            <DealTasks />
+          </div>
+          <div data-deal-card="documents">
+            <DealDocuments />
+          </div>
+          <div data-deal-card="credit-memo">
+            <CreditMemo />
+          </div>
+          <div data-deal-card="activity-timeline">
+            <ActivityTimeline />
+          </div>
+          <div data-deal-card="borrower-communication">
+            <BorrowerCommunication />
+          </div>
         </DealDataProvider>
       </main>
     </div>

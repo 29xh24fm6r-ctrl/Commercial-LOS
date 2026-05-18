@@ -106,6 +106,14 @@ vi.mock('./RelationshipContext', () => ({
   RelationshipContext: () => null,
 }));
 
+// Phase 80 DealAutopilotPanel is a read-only suggestion surface that
+// consumes the shared consistency-check module. This test cares only
+// about write scoping; stubbing the panel keeps the test's module
+// graph focused on the governed-write surfaces.
+vi.mock('./DealAutopilotPanel', () => ({
+  DealAutopilotPanel: () => null,
+}));
+
 // Stub role identity providers so the workspaces have valid context
 // without firing the real bootstrap / identity chain.
 vi.mock('../banker/BankerProvider', () => ({

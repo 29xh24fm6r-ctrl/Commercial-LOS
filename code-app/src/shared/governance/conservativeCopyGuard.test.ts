@@ -171,6 +171,7 @@ const RULES: readonly CopyRule[] = [
       'src/deals/creditMemoDraft.ts',
       'src/deals/CreditMemoDraftModal.tsx',
       'src/deals/CreditMemo.tsx',
+      'src/deals/DealAutopilotPanel.tsx',
       'src/shared/governance/platformInventory.ts',
       'docs/STABILIZATION_CHECKLIST.md',
       'docs/RELEASE_NOTES_PHASES_1_40.md',
@@ -183,6 +184,8 @@ const RULES: readonly CopyRule[] = [
         'Phase 24 banner: "Generated locally ... No AI was used."',
       'src/deals/CreditMemo.tsx':
         'Phase 73 truthful negation: ConsistencyReviewBlock states "Not AI" as a non-capability disclaimer next to the deterministic structured-field check.',
+      'src/deals/DealAutopilotPanel.tsx':
+        'Phase 80 truthful negation: the autopilot disclaimer states "never ... calls AI" so the banker is told explicitly that the suggestion list is deterministic — not a Copilot output.',
       'src/shared/governance/platformInventory.ts':
         'NOT_WIRED entry "ai-generation" plus reason text describing the deliberate non-capability.',
       'docs/STABILIZATION_CHECKLIST.md':
