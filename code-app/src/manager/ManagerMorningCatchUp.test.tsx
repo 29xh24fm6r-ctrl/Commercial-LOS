@@ -35,15 +35,25 @@ vi.mock('./ManagerDataProvider', () => ({
   useManagerData: vi.fn(),
 }));
 
+vi.mock('./ManagerContext', () => ({
+  useManager: vi.fn(),
+}));
+
 const navigateSpy = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateSpy,
 }));
 
 import { useManagerData } from './ManagerDataProvider';
+import { useManager } from './ManagerContext';
 import { ManagerMorningCatchUp } from './ManagerMorningCatchUp';
+import {
+  CATCH_UP_LAST_SEEN_STORAGE_KEY_PREFIX,
+  setCatchUpLastSeenMs,
+} from '../shared/lastVisit/catchUpLastSeen';
 
 const useManagerDataMock = vi.mocked(useManagerData);
+const useManagerMock = vi.mocked(useManager);
 
 const NOW = new Date();
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -89,6 +99,14 @@ function ready(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
+  useManagerMock.mockReturnValue({
+    bankerId: 'manager-banker-1',
+    fullName: 'M. Manager',
+    email: 'mgr@bank.test',
+    teamId: 'team-1',
+    teamName: 'Acme Team',
+  });
 });
 
 describe('ManagerMorningCatchUp — Phase 88', () => {
@@ -365,5 +383,147 @@ describe('ManagerMorningCatchUp — Phase 88', () => {
     // "decisioned" — explicit overclaim term forbidden across all
     // autopilot/activity-intelligence surfaces.
     expect(text).not.toMatch(/\bdecisioned\b/i);
+  });
+
+  // -----------------------------------------------------------------
+  // Phase 90 — local last-seen marker overlay
+  // -----------------------------------------------------------------
+
+  describe('Phase 90 — since-last-visit overlay', () => {
+    function dealWithStageAging(): TeamDeal {
+      return deal({
+        id: 'd-1',
+        name: 'Aging Deal',
+        stageEntryDate: isoDaysAgo(45),
+      });
+    }
+
+    it('first visit (no prior marker) shows "First visit on this browser" copy', () => {
+      useManagerDataMock.mockReturnValue(ready([dealWithStageAging()]));
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByText(/First visit on this browser/i),
+      ).toBeInTheDocument();
+    });
+
+    it('returning visit with no new items shows the "No new items since your last visit" line', () => {
+      // Marker fresher than the only item's anchor (45d ago).
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 1 * 24 * 60 * 60 * 1000,
+      );
+      useManagerDataMock.mockReturnValue(ready([dealWithStageAging()]));
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByText(/No new items since your last visit on this browser/i),
+      ).toBeInTheDocument();
+    });
+
+    it('returning visit with new items shows the count line + per-item "New" badge', () => {
+      // Marker 7d ago; overdue-task anchor 2d ago → new.
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      const taskRow: TeamScopedTask = {
+        id: 't1',
+        title: 'Send Q2 financials',
+        completed: false,
+        dueDate: isoDaysAgo(2),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-1',
+        dealName: 'Hot Deal',
+      };
+      useManagerDataMock.mockReturnValue(
+        ready([deal({ id: 'd-1', name: 'Hot Deal' })], [taskRow]),
+      );
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByText(/1 new since your last visit on this browser/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(/New since your last visit on this browser/i),
+      ).toBeInTheDocument();
+    });
+
+    it('does NOT render a "New" badge on items older than the prior marker', () => {
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 1 * 24 * 60 * 60 * 1000,
+      );
+      useManagerDataMock.mockReturnValue(ready([dealWithStageAging()]));
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.queryByLabelText(/New since your last visit on this browser/i),
+      ).toBeNull();
+    });
+
+    it('falls back to "Last-seen marker unavailable" when the manager has no teamId', () => {
+      useManagerMock.mockReturnValue({
+        bankerId: 'manager-banker-1',
+        fullName: 'M. Manager',
+        email: 'mgr@bank.test',
+        teamId: '',
+        teamName: '',
+      });
+      useManagerDataMock.mockReturnValue(ready([]));
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByText(/Last-seen marker unavailable for this browser/i),
+      ).toBeInTheDocument();
+    });
+
+    it('manager scope uses the team-scoped storage key (manager:<bankerId>:<teamId>)', () => {
+      // Pre-seed under the correct manager+team key and a different
+      // key; verify the right marker is consumed.
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 1 * 24 * 60 * 60 * 1000,
+      );
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-2',
+        Date.now() - 100 * 24 * 60 * 60 * 1000,
+      );
+      useManagerDataMock.mockReturnValue(ready([dealWithStageAging()]));
+      render(<ManagerMorningCatchUp />);
+      // The team-1 marker is 1d ago → "no new" copy.
+      expect(
+        screen.getByText(/No new items since your last visit on this browser/i),
+      ).toBeInTheDocument();
+      // Verify the prefix constant is the one Phase 90 ships.
+      expect(CATCH_UP_LAST_SEEN_STORAGE_KEY_PREFIX).toBe(
+        'cc:lastVisit:catchUp:',
+      );
+    });
+
+    it('the since-last-visit line never uses notification / sync / pushed / official-record vocabulary', () => {
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      const taskRow: TeamScopedTask = {
+        id: 't1',
+        title: 'X',
+        completed: false,
+        dueDate: isoDaysAgo(2),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-1',
+        dealName: 'D',
+      };
+      useManagerDataMock.mockReturnValue(
+        ready([deal({ id: 'd-1', name: 'D' })], [taskRow]),
+      );
+      const { container } = render(<ManagerMorningCatchUp />);
+      const text = container.textContent ?? '';
+      expect(text).not.toMatch(/\bunread\b/i);
+      expect(text).not.toMatch(/\bnotification\b/i);
+      expect(text).not.toMatch(
+        /\b(is|was|has been)\s+(synced|pushed|delivered)\b/i,
+      );
+      expect(text).not.toMatch(/\bofficial\s+(record|state|status)\b/i);
+      expect(text).not.toMatch(/\breal[- ]?time\b/i);
+    });
   });
 });

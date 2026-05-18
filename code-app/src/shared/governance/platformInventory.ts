@@ -484,6 +484,37 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'and docs/PHASE_67_PACKET_EMAIL_HANDOFF.md for the handoff workflow.',
   },
   {
+    id: 'catch-up-last-seen-markers',
+    label: 'Morning catch-up last-seen markers',
+    phase: 90,
+    note:
+      'Local-only "since your last visit on this browser" overlay on ' +
+      'the Phase 88 manager and Phase 89 banker morning catch-up ' +
+      'cards. Reuses the Phase 72 lastVisit pattern with a separate ' +
+      'storage namespace (`cc:lastVisit:catchUp:`) so the per-deal ' +
+      'Phase 72 markers and the Phase 90 catch-up markers cannot ' +
+      'collide. The marker is scoped per-user-per-surface — banker ' +
+      'scope key is `banker:<bankerId>`; manager scope key is ' +
+      '`manager:<bankerId>:<teamId>`. When the identity is ' +
+      'unavailable the card renders an honest "Last-seen marker ' +
+      'unavailable for this browser" fallback and skips the marker ' +
+      'write. The card surfaces a "N new since your last visit on ' +
+      'this browser" line, "First visit on this browser" copy on ' +
+      'first visit, and a per-item "New" badge on items whose ' +
+      'anchor timestamp is strictly greater than the prior marker ' +
+      'AND in the past (future-anchored items like closing-soon ' +
+      'never trigger the "New" badge). The marker is bumped to ' +
+      '`now` after a 2-second settle — same predictable timing ' +
+      'Phase 72 uses. No Dataverse write. No audit row. No timeline ' +
+      'event. No cross-device sync. No notification delivery. Does ' +
+      'NOT create official unread state. The marker is plain text ' +
+      '(millisecond Unix epoch). Implementation: ' +
+      'src/shared/lastVisit/catchUpLastSeen.ts (pure storage + ' +
+      'derivation) + src/shared/lastVisit/useCatchUpLastSeen.ts ' +
+      '(React hook). See ' +
+      'docs/PHASE_90_CATCH_UP_LAST_SEEN_MARKERS.md.',
+  },
+  {
     id: 'teams-chat-handoff',
     label: 'Microsoft Teams chat handoff',
     phase: 86,

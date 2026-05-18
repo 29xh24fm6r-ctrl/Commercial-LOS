@@ -210,6 +210,10 @@ describe('platformInventory — local-only flows', () => {
     // Phase 86 — Microsoft Teams chat handoff (deep-link only;
     // no Graph; no Dataverse write; no audit/timeline; no notif).
     expect(ids.has('teams-chat-handoff')).toBe(true);
+    // Phase 90 — Catch-up last-seen markers (local-only "new since
+    // your last visit" overlay on the Phase 88 manager + Phase 89
+    // banker morning catch-up cards).
+    expect(ids.has('catch-up-last-seen-markers')).toBe(true);
   });
 
   it('every local-only flow note explicitly states no Dataverse write', () => {
@@ -384,6 +388,45 @@ describe('platformInventory — local-only flows', () => {
   it('teams-chat-handoff is NOT in GOVERNED_WRITES (Phase 86 is a handoff, not a write)', () => {
     const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
     expect(ids.has('teams-chat-handoff')).toBe(false);
+  });
+
+  it('catch-up-last-seen-markers (Phase 90) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'catch-up-last-seen-markers',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(90);
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no cross-device sync/i);
+    expect(entry!.note).toMatch(/no notification delivery/i);
+    expect(entry!.note).toMatch(/Does NOT create official unread state/i);
+    // Marker keying contract.
+    expect(entry!.note).toMatch(/`banker:<bankerId>`/);
+    expect(entry!.note).toMatch(/`manager:<bankerId>:<teamId>`/);
+    // Storage namespace separation from Phase 72.
+    expect(entry!.note).toMatch(/cc:lastVisit:catchUp:/);
+    // Implementation pointers + doc path.
+    expect(entry!.note).toMatch(/src\/shared\/lastVisit\/catchUpLastSeen\.ts/);
+    expect(entry!.note).toMatch(/src\/shared\/lastVisit\/useCatchUpLastSeen\.ts/);
+    expect(entry!.note).toMatch(
+      /PHASE_90_CATCH_UP_LAST_SEEN_MARKERS\.md/,
+    );
+  });
+
+  it('the Phase 90 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_90_CATCH_UP_LAST_SEEN_MARKERS.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('catch-up-last-seen-markers is NOT in GOVERNED_WRITES', () => {
+    const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(ids.has('catch-up-last-seen-markers')).toBe(false);
   });
 
   it('borrower-safe status packet (Phase 67) explicitly states no audit / timeline / Dataverse write for the handoff', () => {

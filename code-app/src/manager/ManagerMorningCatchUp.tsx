@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useManager } from './ManagerContext';
 import { useManagerData, type AsyncResult } from './ManagerDataProvider';
 import type {
   TeamDeal,
@@ -12,6 +13,11 @@ import {
   type ManagerCatchUpItem,
   type ManagerCatchUpPriority,
 } from '../shared/activity/managerMorningCatchUp';
+import {
+  buildCatchUpScope,
+  summarizeCatchUpSinceLastSeen,
+} from '../shared/lastVisit/catchUpLastSeen';
+import { useCatchUpLastSeen } from '../shared/lastVisit/useCatchUpLastSeen';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -53,7 +59,19 @@ const PRIORITY_LABEL: Record<ManagerCatchUpPriority, string> = {
 };
 
 export function ManagerMorningCatchUp() {
+  const { bankerId, teamId } = useManager();
   const { teamPipeline, teamTasks, teamDocuments, teamMemos } = useManagerData();
+
+  // Phase 90: local-only "since last visit" marker scoped to
+  // (manager identity + team). Different banker viewing the same
+  // team gets a different scope key; same banker switching teams
+  // also gets a different scope key.
+  const scope = useMemo(
+    () => buildCatchUpScope({ surface: 'manager', userId: bankerId, teamId }),
+    [bankerId, teamId],
+  );
+  const lastSeen = useCatchUpLastSeen(scope);
+
   return (
     <Card>
       <CardHeader
@@ -65,6 +83,9 @@ export function ManagerMorningCatchUp() {
         teamTasks={teamTasks}
         teamDocuments={teamDocuments}
         teamMemos={teamMemos}
+        priorLastSeenMs={lastSeen.priorLastSeenMs}
+        isInitialized={lastSeen.isInitialized}
+        isUnscoped={lastSeen.isUnscoped}
       />
     </Card>
   );
@@ -75,11 +96,17 @@ function Body({
   teamTasks,
   teamDocuments,
   teamMemos,
+  priorLastSeenMs,
+  isInitialized,
+  isUnscoped,
 }: {
   teamPipeline: AsyncResult<TeamDeal[]>;
   teamTasks: AsyncResult<TeamScopedTask[]>;
   teamDocuments: AsyncResult<TeamScopedDocument[]>;
   teamMemos: AsyncResult<TeamScopedMemo[]>;
+  priorLastSeenMs: number | undefined;
+  isInitialized: boolean;
+  isUnscoped: boolean;
 }) {
   const now = useMemo(() => new Date(), []);
 
@@ -151,10 +178,22 @@ function Body({
     return <p style={styles.muted}>Loading catch-up…</p>;
   }
 
+  // Phase 90: derive "since last visit" overlay. When the scope is
+  // unavailable (no bankerId/teamId resolved yet) OR the snapshot has
+  // not initialized, fall through with isFirstVisit semantics — the
+  // badge simply doesn't render until we have a reliable comparison
+  // base.
+  const sinceLastSeen = summarizeCatchUpSinceLastSeen(
+    items,
+    isInitialized && !isUnscoped ? priorLastSeenMs : undefined,
+    now,
+  );
+
   if (items.length === 0) {
     return (
       <>
         <p style={styles.muted}>No catch-up items from current records.</p>
+        {renderSinceLastVisitLine(sinceLastSeen, isUnscoped, /*populated*/ false)}
         <p style={styles.disclaimer}>
           Derived from current manager-visible records. Nothing happens
           automatically. Not AI-generated.
@@ -165,9 +204,14 @@ function Body({
 
   return (
     <div style={styles.section}>
+      {renderSinceLastVisitLine(sinceLastSeen, isUnscoped, /*populated*/ true)}
       <ul style={styles.list} aria-label="Manager morning catch-up items">
         {items.map((item) => (
-          <FeedItemRow key={item.id} item={item} />
+          <FeedItemRow
+            key={item.id}
+            item={item}
+            isNew={sinceLastSeen.isNew(item.occurredAt)}
+          />
         ))}
       </ul>
       <p style={styles.signalCoverage}>
@@ -180,13 +224,65 @@ function Body({
         automatically. Not AI-generated. No AI or automated decisions.
         Manager visibility is scoped to the manager's team pipeline;
         deals outside that scope are not evaluated and not surfaced
-        here.
+        here. "New since your last visit" is tracked on this browser
+        only; it is not synced and does not change deal status.
       </p>
     </div>
   );
 }
 
-function FeedItemRow({ item }: { item: ManagerCatchUpItem }) {
+function renderSinceLastVisitLine(
+  summary: { newCount: number; isFirstVisit: boolean },
+  isUnscoped: boolean,
+  populated: boolean,
+): ReactElement | null {
+  if (isUnscoped) {
+    return (
+      <p
+        style={populated ? styles.sinceLine : styles.sinceLineEmpty}
+        aria-label="Catch-up last-seen status"
+      >
+        Last-seen marker unavailable for this browser.
+      </p>
+    );
+  }
+  if (summary.isFirstVisit) {
+    return (
+      <p
+        style={populated ? styles.sinceLine : styles.sinceLineEmpty}
+        aria-label="Catch-up last-seen status"
+      >
+        First visit on this browser.
+      </p>
+    );
+  }
+  if (summary.newCount === 0) {
+    return (
+      <p
+        style={populated ? styles.sinceLine : styles.sinceLineEmpty}
+        aria-label="Catch-up last-seen status"
+      >
+        No new items since your last visit on this browser.
+      </p>
+    );
+  }
+  return (
+    <p
+      style={populated ? styles.sinceLine : styles.sinceLineEmpty}
+      aria-label="Catch-up last-seen status"
+    >
+      {summary.newCount} new since your last visit on this browser.
+    </p>
+  );
+}
+
+function FeedItemRow({
+  item,
+  isNew,
+}: {
+  item: ManagerCatchUpItem;
+  isNew: boolean;
+}) {
   const navigate = useNavigate();
   const severity = PRIORITY_TO_SEVERITY[item.priority];
   return (
@@ -200,13 +296,24 @@ function FeedItemRow({ item }: { item: ManagerCatchUpItem }) {
         >
           {item.dealName}
         </button>
-        <Badge
-          variant={severity}
-          appearance="outline"
-          aria-label={`${PRIORITY_LABEL[item.priority]} priority`}
-        >
-          {PRIORITY_LABEL[item.priority]}
-        </Badge>
+        <div style={styles.rowBadges}>
+          {isNew && (
+            <Badge
+              variant="info"
+              appearance="soft"
+              aria-label="New since your last visit on this browser"
+            >
+              New
+            </Badge>
+          )}
+          <Badge
+            variant={severity}
+            appearance="outline"
+            aria-label={`${PRIORITY_LABEL[item.priority]} priority`}
+          >
+            {PRIORITY_LABEL[item.priority]}
+          </Badge>
+        </div>
       </div>
       <p style={styles.rowTitle}>{item.title}</p>
       <p style={styles.rowReason}>{item.reason}</p>
@@ -319,6 +426,25 @@ const styles: Record<string, React.CSSProperties> = {
     paddingTop: 2,
   },
   metaLabel: { color: palette.textSubtle },
+  rowBadges: {
+    display: 'flex',
+    gap: spacing.xs,
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  sinceLine: {
+    margin: 0,
+    fontSize: typography.size.sm,
+    color: palette.textMuted,
+    fontStyle: 'italic',
+  },
+  sinceLineEmpty: {
+    margin: 0,
+    fontSize: typography.size.sm,
+    color: palette.textMuted,
+    fontStyle: 'italic',
+    paddingTop: spacing.xs,
+  },
   signalCoverage: {
     margin: 0,
     fontSize: typography.size.xs,
