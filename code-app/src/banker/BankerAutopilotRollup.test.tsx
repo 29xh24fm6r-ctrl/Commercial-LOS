@@ -314,4 +314,135 @@ describe('BankerAutopilotRollup — Phase 82', () => {
       /\b(executes|runs|completes|approves|decides)\s+automatically\b/i,
     );
   });
+
+  // ----- Phase 83: local suggestion ledger integration -----
+
+  describe('Phase 83 — local suggestion ledger', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    function oneHighDealData() {
+      const data = emptyData();
+      data.deals = [
+        {
+          id: 'd-target',
+          name: 'Target Deal',
+          clientName: 'Target Co',
+          stage: 'Underwriting',
+          status: 'Active',
+          amount: 1_000_000,
+          targetCloseDate: isoDaysFromNow(90),
+          lastActivityOn: isoDaysAgo(1),
+          stageEntryDate: isoDaysAgo(45),
+          isClosed: false,
+        },
+      ];
+      return data;
+    }
+
+    it('renders a "Dismiss locally" button on each populated row', async () => {
+      loadMock.mockResolvedValue(oneHighDealData());
+      render(<BankerAutopilotRollup />);
+      expect(
+        await screen.findByRole('button', {
+          name: /Dismiss suggestion for Target Deal locally/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking Dismiss locally marks the row dismissed with a Restore button', async () => {
+      loadMock.mockResolvedValue(oneHighDealData());
+      render(<BankerAutopilotRollup />);
+      const user = userEvent.setup();
+      const dismissBtn = await screen.findByRole('button', {
+        name: /Dismiss suggestion for Target Deal locally/i,
+      });
+      await user.click(dismissBtn);
+      expect(screen.getByText(/Dismissed locally/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /Restore suggestion for Target Deal/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking Restore re-shows the Dismiss locally button', async () => {
+      loadMock.mockResolvedValue(oneHighDealData());
+      render(<BankerAutopilotRollup />);
+      const user = userEvent.setup();
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Dismiss suggestion for Target Deal locally/i,
+        }),
+      );
+      await user.click(
+        screen.getByRole('button', {
+          name: /Restore suggestion for Target Deal/i,
+        }),
+      );
+      expect(screen.queryByText(/Dismissed locally/i)).toBeNull();
+      expect(
+        screen.getByRole('button', {
+          name: /Dismiss suggestion for Target Deal locally/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking the deal-name button records "opened" and navigates', async () => {
+      loadMock.mockResolvedValue(oneHighDealData());
+      render(<BankerAutopilotRollup />);
+      const user = userEvent.setup();
+      const dealBtn = await screen.findByRole('button', {
+        name: /Open deal Target Deal/i,
+      });
+      await user.click(dealBtn);
+      // Navigation fired.
+      expect(navigateSpy).toHaveBeenCalledWith('/deals/d-target');
+      // "Opened locally" tag now appears.
+      expect(
+        screen.getAllByText(/Opened locally/i).length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+
+    it('extends the conservative disclaimer with the local-tracking copy', async () => {
+      // oneHighDealData() actually fires a MEDIUM stage-aging signal
+      // (stageEntryDate 45d ago). Wait for any priority chip to anchor.
+      loadMock.mockResolvedValue(oneHighDealData());
+      render(<BankerAutopilotRollup />);
+      await screen.findByLabelText(/Medium priority: 1 deal/i);
+      expect(
+        screen.getByText(/tracked on this browser only/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/do not change deal status/i),
+      ).toBeInTheDocument();
+    });
+
+    it('rehydrates a pre-existing dismissed entry from localStorage on mount', async () => {
+      // Pre-seed the ledger BEFORE render.
+      localStorage.setItem(
+        'cc:autopilotSuggestionLedger:v1',
+        JSON.stringify({
+          'banker-rollup|d-target|stage-aging': {
+            key: 'banker-rollup|d-target|stage-aging',
+            surface: 'banker-rollup',
+            suggestionId: 'stage-aging',
+            dealId: 'd-target',
+            action: 'dismissed',
+            recordedAt: '2026-05-17T10:00:00.000Z',
+            titleSnapshot: '45 days in current stage',
+          },
+        }),
+      );
+      loadMock.mockResolvedValue(oneHighDealData());
+      render(<BankerAutopilotRollup />);
+      await screen.findByText(/Dismissed locally/i);
+      expect(
+        screen.getByRole('button', {
+          name: /Restore suggestion for Target Deal/i,
+        }),
+      ).toBeInTheDocument();
+    });
+  });
 });

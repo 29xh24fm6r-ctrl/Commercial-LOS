@@ -415,6 +415,27 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'See docs/PHASE_72_ACTIVITY_SINCE_LAST_VISIT.md.',
   },
   {
+    id: 'autopilot-suggestion-ledger',
+    label: 'Autopilot suggestion ledger (local-only)',
+    phase: 83,
+    note:
+      'Local browser-only "opened" / "dismissed" state for the ' +
+      'Phase 80 per-deal Autopilot panel, the Phase 81 manager ' +
+      'rollup, and the Phase 82 banker rollup. Tracked in ' +
+      'localStorage under the namespaced slot ' +
+      'cc:autopilotSuggestionLedger:v1. No Dataverse write. No ' +
+      'audit row. No timeline event. No governed write. No ' +
+      'cross-device sync. Not a workflow-resolution event — ' +
+      'dismissing a suggestion does NOT mark the underlying deal ' +
+      'item resolved / completed / closed / synced / officially ' +
+      'acknowledged. The same rule fires on the next render; the ' +
+      'ledger only changes how that suggestion is rendered ' +
+      '(Dismissed locally · tracked on this browser · Restore). ' +
+      'Pure helpers in src/shared/autopilot/suggestionLedger.ts; ' +
+      'React hook in src/shared/autopilot/useSuggestionLedger.ts. ' +
+      'See docs/PHASE_83_AUTOPILOT_SUGGESTION_LEDGER.md.',
+  },
+  {
     id: 'relationship-note-draft',
     label: 'Banker relationship-note draft (local-only)',
     phase: 78,

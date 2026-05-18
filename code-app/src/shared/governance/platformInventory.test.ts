@@ -204,6 +204,9 @@ describe('platformInventory — local-only flows', () => {
     // Phase 78 — banker relationship-note draft (local-only;
     // copy-to-clipboard; no Dataverse write; no audit/timeline).
     expect(ids.has('relationship-note-draft')).toBe(true);
+    // Phase 83 — Autopilot suggestion ledger (local-only
+    // opened/dismissed state across Phase 80/81/82 surfaces).
+    expect(ids.has('autopilot-suggestion-ledger')).toBe(true);
   });
 
   it('every local-only flow note explicitly states no Dataverse write', () => {
@@ -306,6 +309,32 @@ describe('platformInventory — local-only flows', () => {
     const docPath = resolve(
       repoRoot,
       'docs/PHASE_78_RELATIONSHIP_NOTES_LOCAL_ONLY.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('autopilot-suggestion-ledger (Phase 83) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'autopilot-suggestion-ledger',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(83);
+    // Brief mandates each of these disclaimers verbatim.
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no governed write/i);
+    expect(entry!.note).toMatch(/no cross-device sync/i);
+    expect(entry!.note).toMatch(/not a workflow.resolution/i);
+    expect(entry!.note).toMatch(/cc:autopilotSuggestionLedger:v1/);
+    expect(entry!.note).toMatch(/PHASE_83_AUTOPILOT_SUGGESTION_LEDGER\.md/);
+  });
+
+  it('the Phase 83 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_83_AUTOPILOT_SUGGESTION_LEDGER.md',
     );
     expect(existsSync(docPath)).toBe(true);
   });

@@ -405,4 +405,164 @@ describe('DealAutopilotPanel — Phase 80', () => {
     expect(items.length).toBeLessThanOrEqual(3);
     expect(items.length).toBe(3);
   });
+
+  // ----- Phase 83: local suggestion ledger integration -----
+
+  describe('Phase 83 — local suggestion ledger', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    function oneOverdueTaskData(): DealData {
+      return readyData({
+        tasks: {
+          kind: 'ready',
+          data: {
+            open: [
+              {
+                id: 't1',
+                title: 'Send Q2 financials',
+                dueDate: isoDaysAgo(2),
+                modifiedOn: undefined,
+                completed: false,
+                assigneeName: undefined,
+              },
+            ],
+            completed: [],
+          },
+        },
+      });
+    }
+
+    it('renders a "Dismiss locally" button on each populated suggestion row', () => {
+      useDealDataMock.mockReturnValue(oneOverdueTaskData());
+      render(<DealAutopilotPanel />);
+      expect(
+        screen.getByRole('button', {
+          name: /Dismiss suggestion .* locally/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking Dismiss locally marks the row dismissed (with tag + Restore button)', async () => {
+      useDealDataMock.mockReturnValue(oneOverdueTaskData());
+      render(<DealAutopilotPanel />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Dismiss suggestion .* locally/i,
+        }),
+      );
+      expect(screen.getByText(/Dismissed locally/i)).toBeInTheDocument();
+      // "tracked on this browser" appears in both the row tag and the
+      // bottom disclaimer; assert at least one.
+      expect(
+        screen.getAllByText(/tracked on this browser/i).length,
+      ).toBeGreaterThanOrEqual(1);
+      // The action button disappears; Restore replaces the dismiss row.
+      expect(
+        screen.queryByRole('button', {
+          name: /Dismiss suggestion .* locally/i,
+        }),
+      ).toBeNull();
+      expect(
+        screen.getByRole('button', { name: /Restore suggestion/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking Restore re-shows the action button and removes the dismissed tag', async () => {
+      useDealDataMock.mockReturnValue(oneOverdueTaskData());
+      render(<DealAutopilotPanel />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Dismiss suggestion .* locally/i,
+        }),
+      );
+      await user.click(
+        screen.getByRole('button', { name: /Restore suggestion/i }),
+      );
+      expect(screen.queryByText(/Dismissed locally/i)).toBeNull();
+      // Action button is back.
+      expect(
+        screen.getByRole('button', {
+          name: /Open Tasks — banker chooses what to do/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking the action button records "opened" and shows the Opened locally tag', async () => {
+      useDealDataMock.mockReturnValue(oneOverdueTaskData());
+      render(<DealAutopilotPanel />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Open Tasks — banker chooses what to do/i,
+        }),
+      );
+      // "Opened locally" appears in both the row tag and the bottom
+      // disclaimer text; assert at least one.
+      expect(
+        screen.getAllByText(/Opened locally/i).length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+
+    it('extends the conservative disclaimer with the local-tracking copy', () => {
+      useDealDataMock.mockReturnValue(oneOverdueTaskData());
+      render(<DealAutopilotPanel />);
+      expect(
+        screen.getByText(/tracked on this browser only/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/do not change deal status/i),
+      ).toBeInTheDocument();
+    });
+
+    it('the rendered DOM never claims the local action resolved / synced / officialized anything', async () => {
+      useDealDataMock.mockReturnValue(oneOverdueTaskData());
+      const { container } = render(<DealAutopilotPanel />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Dismiss suggestion .* locally/i,
+        }),
+      );
+      const text = container.textContent ?? '';
+      // Forbidden affirmative claims around dismissed semantics.
+      expect(text).not.toMatch(/\b(is|was|has been)\s+resolved\b/i);
+      expect(text).not.toMatch(/\b(is|was|has been)\s+completed\b/i);
+      expect(text).not.toMatch(/\b(is|was|has been)\s+closed\b/i);
+      expect(text).not.toMatch(/\b(is|was|has been)\s+synced\b/i);
+      expect(text).not.toMatch(/\bofficial\s+(record|state|status)\b/i);
+      expect(text).not.toMatch(/\bsystem\s+acknowledged\b/i);
+      expect(text).not.toMatch(/\bAI[ -]?learned\b/i);
+      expect(text).not.toMatch(/\bworkflow\s+updated\b/i);
+    });
+
+    it('a dismissed entry in localStorage at mount surfaces as dismissed (rehydration)', () => {
+      // Pre-seed the ledger with a dismissed entry for the deal's
+      // overdue-tasks suggestion.
+      localStorage.setItem(
+        'cc:autopilotSuggestionLedger:v1',
+        JSON.stringify({
+          'deal-panel|d-current|overdue-tasks': {
+            key: 'deal-panel|d-current|overdue-tasks',
+            surface: 'deal-panel',
+            suggestionId: 'overdue-tasks',
+            dealId: 'd-current',
+            action: 'dismissed',
+            recordedAt: '2026-05-17T10:00:00.000Z',
+            titleSnapshot: '1 overdue task',
+          },
+        }),
+      );
+      useDealDataMock.mockReturnValue(oneOverdueTaskData());
+      render(<DealAutopilotPanel />);
+      expect(screen.getByText(/Dismissed locally/i)).toBeInTheDocument();
+      // Restore button is the row's only action.
+      expect(
+        screen.getByRole('button', { name: /Restore suggestion/i }),
+      ).toBeInTheDocument();
+    });
+  });
 });

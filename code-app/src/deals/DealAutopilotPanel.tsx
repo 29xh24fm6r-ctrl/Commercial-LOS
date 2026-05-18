@@ -7,6 +7,8 @@ import {
   type AutopilotPriority,
   type NextBestAction,
 } from '../shared/autopilot/dealAutopilot';
+import { useSuggestionLedger } from '../shared/autopilot/useSuggestionLedger';
+import type { SuggestionLedgerEntry } from '../shared/autopilot/suggestionLedger';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -30,8 +32,16 @@ import { palette, radius, spacing, typography, type SeverityKey } from '../share
  *   - advances stage,
  *   - calls AI,
  *   - writes to Dataverse,
- *   - emits an audit row or timeline event,
- *   - persists a suggestion ledger.
+ *   - emits an audit row or timeline event.
+ *
+ * Phase 83 — local suggestion ledger:
+ *   The panel calls useSuggestionLedger() so it can track per-
+ *   suggestion "opened" + "dismissed" state in browser localStorage.
+ *   Clicking the action button auto-records "opened"; an inline
+ *   "Dismiss locally" button records "dismissed". A dismissed
+ *   suggestion is visually muted with a "Dismissed locally" tag and
+ *   a "Restore" button. The state is local-only, not synced, never
+ *   resolves business workflow — the disclaimer states this.
  */
 
 const PRIORITY_TO_SEVERITY: Record<AutopilotPriority, SeverityKey> = {
@@ -154,6 +164,7 @@ export function DealAutopilotPanel() {
     );
   }
 
+  const ledger = useSuggestionLedger();
   return (
     <Card>
       <CardHeader
@@ -161,22 +172,67 @@ export function DealAutopilotPanel() {
         subtitle="Derived from current deal records. Nothing happens automatically."
       />
       <ul style={styles.list} aria-label="Next best actions for this deal">
-        {suggestions.map((s) => (
-          <SuggestionRow key={s.id} suggestion={s} />
-        ))}
+        {suggestions.map((s) => {
+          const ledgerKey = `deal-panel|${deal.id}|${s.id}`;
+          const entry = ledger.entries[ledgerKey];
+          return (
+            <SuggestionRow
+              key={s.id}
+              suggestion={s}
+              dealId={deal.id}
+              ledgerEntry={entry}
+              onDismiss={() =>
+                ledger.recordDismissed({
+                  surface: 'deal-panel',
+                  suggestionId: s.id,
+                  dealId: deal.id,
+                  titleSnapshot: s.title,
+                })
+              }
+              onRestore={() => ledger.clear(ledgerKey)}
+              onOpened={() =>
+                ledger.recordOpened({
+                  surface: 'deal-panel',
+                  suggestionId: s.id,
+                  dealId: deal.id,
+                  titleSnapshot: s.title,
+                })
+              }
+            />
+          );
+        })}
       </ul>
       <p style={styles.disclaimer}>
         Autopilot suggests, banker decides. This panel is read-only; it
         never creates tasks, sends emails, advances the stage, marks
         documents reviewed, or calls AI. Suggestions are derived from
-        current deal records only.
+        current deal records only. "Dismiss locally" and "Opened locally"
+        are tracked on this browser only; they do not change deal status.
       </p>
     </Card>
   );
 }
 
-function SuggestionRow({ suggestion }: { suggestion: NextBestAction }) {
+function SuggestionRow({
+  suggestion,
+  dealId,
+  ledgerEntry,
+  onDismiss,
+  onRestore,
+  onOpened,
+}: {
+  suggestion: NextBestAction;
+  dealId: string;
+  ledgerEntry: SuggestionLedgerEntry | undefined;
+  onDismiss: () => void;
+  onRestore: () => void;
+  onOpened: () => void;
+}) {
   function handleOpen() {
+    // Record locally that the banker opened this suggestion. Local
+    // ledger only — does not write to Dataverse, does not emit an
+    // audit row, does not create a task.
+    onOpened();
     // Scroll the target card into view. The card is identified by a
     // data-deal-card attribute on a wrapping div in
     // BankerDealWorkspace. If the wrapper is missing (e.g. during a
@@ -202,9 +258,13 @@ function SuggestionRow({ suggestion }: { suggestion: NextBestAction }) {
     }
   }
   const severity = PRIORITY_TO_SEVERITY[suggestion.priority];
-  const descId = `autopilot-reason-${suggestion.id}`;
+  const descId = `autopilot-reason-${dealId}-${suggestion.id}`;
+  const isDismissed = ledgerEntry?.action === 'dismissed';
+  const isOpened = ledgerEntry?.action === 'opened';
   return (
-    <li style={styles.row}>
+    <li
+      style={isDismissed ? { ...styles.row, ...styles.rowDismissed } : styles.row}
+    >
       <div style={styles.rowHead}>
         <span style={styles.rowTitle}>{suggestion.title}</span>
         <Badge
@@ -218,22 +278,62 @@ function SuggestionRow({ suggestion }: { suggestion: NextBestAction }) {
       <p id={descId} style={styles.rowReason}>
         {suggestion.reason}
       </p>
-      <div style={styles.rowFoot}>
-        <button
-          type="button"
-          onClick={handleOpen}
-          style={styles.openButton}
-          aria-describedby={descId}
-          aria-label={`${suggestion.suggestedActionLabel} — banker chooses what to do`}
-        >
-          {suggestion.suggestedActionLabel}
-        </button>
-        <span style={styles.basisLine}>
-          Basis: {suggestion.sourceSignals.join(', ')}
-        </span>
-      </div>
+      {isDismissed ? (
+        <div style={styles.rowFoot}>
+          <span style={styles.dismissedTag}>
+            Dismissed locally · {formatLedgerDate(ledgerEntry.recordedAt)} ·
+            tracked on this browser
+          </span>
+          <button
+            type="button"
+            onClick={onRestore}
+            style={styles.ledgerSecondaryButton}
+            aria-label={`Restore suggestion ${suggestion.title}`}
+          >
+            Restore
+          </button>
+        </div>
+      ) : (
+        <div style={styles.rowFoot}>
+          <button
+            type="button"
+            onClick={handleOpen}
+            style={styles.openButton}
+            aria-describedby={descId}
+            aria-label={`${suggestion.suggestedActionLabel} — banker chooses what to do`}
+          >
+            {suggestion.suggestedActionLabel}
+          </button>
+          {isOpened && (
+            <span style={styles.openedTag}>
+              Opened locally · {formatLedgerDate(ledgerEntry.recordedAt)}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onDismiss}
+            style={styles.ledgerSecondaryButton}
+            aria-label={`Dismiss suggestion ${suggestion.title} locally`}
+          >
+            Dismiss locally
+          </button>
+          <span style={styles.basisLine}>
+            Basis: {suggestion.sourceSignals.join(', ')}
+          </span>
+        </div>
+      )}
     </li>
   );
+}
+
+function formatLedgerDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 const styles: Record<string, React.CSSProperties> = {
@@ -302,6 +402,30 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: typography.size.xs,
     color: palette.textSubtle,
     fontFamily: typography.mono,
+  },
+  rowDismissed: {
+    opacity: 0.6,
+  },
+  dismissedTag: {
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
+    fontStyle: 'italic',
+  },
+  openedTag: {
+    fontSize: typography.size.xs,
+    color: palette.clearFg,
+    fontStyle: 'italic',
+  },
+  ledgerSecondaryButton: {
+    background: 'transparent',
+    color: palette.textMuted,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.medium,
+    cursor: 'pointer',
+    fontFamily: typography.family,
   },
   disclaimer: {
     margin: 0,

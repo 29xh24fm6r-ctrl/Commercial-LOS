@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ManagerData } from './ManagerDataProvider';
@@ -289,5 +289,100 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
     expect(text).not.toMatch(
       /\b(executes|runs|completes|approves|decides)\s+automatically\b/i,
     );
+  });
+
+  // ----- Phase 83: local suggestion ledger integration -----
+
+  describe('Phase 83 — local suggestion ledger', () => {
+    function flagged() {
+      return [
+        deal({
+          id: 'd-flagged',
+          name: 'Flagged Deal',
+          stageEntryDate: isoDaysAgo(45),
+          modifiedOn: isoDaysAgo(1),
+        }),
+      ];
+    }
+
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('renders a "Dismiss locally" button on each populated row', () => {
+      useManagerDataMock.mockReturnValue(ready(flagged()));
+      render(<ManagerAutopilotRollup />);
+      expect(
+        screen.getByRole('button', {
+          name: /Dismiss suggestion for Flagged Deal locally/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking Dismiss locally marks the row dismissed with a Restore button', async () => {
+      useManagerDataMock.mockReturnValue(ready(flagged()));
+      render(<ManagerAutopilotRollup />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Dismiss suggestion for Flagged Deal locally/i,
+        }),
+      );
+      expect(screen.getByText(/Dismissed locally/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /Restore suggestion for Flagged Deal/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking the deal-name records "opened" and navigates', async () => {
+      useManagerDataMock.mockReturnValue(ready(flagged()));
+      render(<ManagerAutopilotRollup />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', { name: /Open deal Flagged Deal/i }),
+      );
+      expect(navigateSpy).toHaveBeenCalledWith('/deals/d-flagged');
+      expect(
+        screen.getAllByText(/Opened locally/i).length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+
+    it('extends the conservative disclaimer with the local-tracking copy', () => {
+      useManagerDataMock.mockReturnValue(ready(flagged()));
+      render(<ManagerAutopilotRollup />);
+      expect(
+        screen.getByText(/tracked on this browser only/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/do not change deal status/i),
+      ).toBeInTheDocument();
+    });
+
+    it('rehydrates a pre-existing dismissed entry from localStorage on mount', () => {
+      localStorage.setItem(
+        'cc:autopilotSuggestionLedger:v1',
+        JSON.stringify({
+          'manager-rollup|d-flagged|stage-aging': {
+            key: 'manager-rollup|d-flagged|stage-aging',
+            surface: 'manager-rollup',
+            suggestionId: 'stage-aging',
+            dealId: 'd-flagged',
+            action: 'dismissed',
+            recordedAt: '2026-05-17T10:00:00.000Z',
+            titleSnapshot: '45 days in current stage',
+          },
+        }),
+      );
+      useManagerDataMock.mockReturnValue(ready(flagged()));
+      render(<ManagerAutopilotRollup />);
+      expect(screen.getByText(/Dismissed locally/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /Restore suggestion for Flagged Deal/i,
+        }),
+      ).toBeInTheDocument();
+    });
   });
 });

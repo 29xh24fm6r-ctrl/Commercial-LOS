@@ -10,6 +10,8 @@ import {
   type BankerRollupDeal,
 } from '../shared/autopilot/bankerAutopilotRollup';
 import type { AutopilotPriority } from '../shared/autopilot/dealAutopilot';
+import { useSuggestionLedger } from '../shared/autopilot/useSuggestionLedger';
+import type { SuggestionLedgerEntry } from '../shared/autopilot/suggestionLedger';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -121,6 +123,7 @@ export function BankerAutopilotRollup() {
 
 function Ready({ data }: { data: BankerWorkQueueData }) {
   const now = useMemo(() => new Date(), []);
+  const ledger = useSuggestionLedger();
   const rollup = useMemo(
     () =>
       deriveBankerAutopilotRollup(
@@ -246,9 +249,33 @@ function Ready({ data }: { data: BankerWorkQueueData }) {
           style={styles.list}
           aria-label="My top deals with next-best-action signals"
         >
-          {rollup.topDeals.map((d) => (
-            <RollupRow key={d.dealId} row={d} />
-          ))}
+          {rollup.topDeals.map((d) => {
+            const ledgerKey = `banker-rollup|${d.dealId}|${d.topSuggestion.id}`;
+            return (
+              <RollupRow
+                key={d.dealId}
+                row={d}
+                ledgerEntry={ledger.entries[ledgerKey]}
+                onDismiss={() =>
+                  ledger.recordDismissed({
+                    surface: 'banker-rollup',
+                    suggestionId: d.topSuggestion.id,
+                    dealId: d.dealId,
+                    titleSnapshot: d.topSuggestion.title,
+                  })
+                }
+                onRestore={() => ledger.clear(ledgerKey)}
+                onOpened={() =>
+                  ledger.recordOpened({
+                    surface: 'banker-rollup',
+                    suggestionId: d.topSuggestion.id,
+                    dealId: d.dealId,
+                    titleSnapshot: d.topSuggestion.title,
+                  })
+                }
+              />
+            );
+          })}
         </ul>
 
         <p style={styles.signalCoverage}>
@@ -262,22 +289,48 @@ function Ready({ data }: { data: BankerWorkQueueData }) {
           Derived from current records. Nothing happens automatically.
           No AI or automated decisions. Open a deal to act — the Phase
           80 per-deal panel and the existing card actions are the only
-          places a write happens.
+          places a write happens. "Dismiss locally" and "Opened locally"
+          are tracked on this browser only; they do not change deal
+          status.
         </p>
       </div>
     </Card>
   );
 }
 
-function RollupRow({ row }: { row: BankerRollupDeal }) {
+function RollupRow({
+  row,
+  ledgerEntry,
+  onDismiss,
+  onRestore,
+  onOpened,
+}: {
+  row: BankerRollupDeal;
+  ledgerEntry: SuggestionLedgerEntry | undefined;
+  onDismiss: () => void;
+  onRestore: () => void;
+  onOpened: () => void;
+}) {
   const navigate = useNavigate();
   const severity = PRIORITY_TO_SEVERITY[row.highestPriority];
+  const isDismissed = ledgerEntry?.action === 'dismissed';
+  const isOpened = ledgerEntry?.action === 'opened';
   return (
-    <li style={styles.row}>
+    <li
+      style={
+        isDismissed ? { ...styles.row, ...styles.rowDismissed } : styles.row
+      }
+    >
       <div style={styles.rowHead}>
         <button
           type="button"
-          onClick={() => navigate(`/deals/${row.dealId}`)}
+          onClick={() => {
+            // Opening a deal from the rollup counts as "opened" in
+            // the local ledger. Same intent the per-deal panel uses
+            // when the banker clicks the action button.
+            onOpened();
+            navigate(`/deals/${row.dealId}`);
+          }}
           style={styles.dealNameButton}
           aria-label={`Open deal ${row.dealName}`}
         >
@@ -319,8 +372,52 @@ function RollupRow({ row }: { row: BankerRollupDeal }) {
           {formatTargetClose(row.targetCloseDate)}
         </span>
       </div>
+      <div style={styles.ledgerRow}>
+        {isDismissed ? (
+          <>
+            <span style={styles.dismissedTag}>
+              Dismissed locally · {formatLedgerDate(ledgerEntry.recordedAt)}
+              {' '}· tracked on this browser
+            </span>
+            <button
+              type="button"
+              onClick={onRestore}
+              style={styles.ledgerSecondaryButton}
+              aria-label={`Restore suggestion for ${row.dealName}`}
+            >
+              Restore
+            </button>
+          </>
+        ) : (
+          <>
+            {isOpened && (
+              <span style={styles.openedTag}>
+                Opened locally · {formatLedgerDate(ledgerEntry.recordedAt)}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={onDismiss}
+              style={styles.ledgerSecondaryButton}
+              aria-label={`Dismiss suggestion for ${row.dealName} locally`}
+            >
+              Dismiss locally
+            </button>
+          </>
+        )}
+      </div>
     </li>
   );
+}
+
+function formatLedgerDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 function CountChip({
@@ -446,6 +543,35 @@ const styles: Record<string, React.CSSProperties> = {
     paddingTop: 2,
   },
   metaLabel: { color: palette.textSubtle },
+  rowDismissed: { opacity: 0.6 },
+  ledgerRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingTop: spacing.xxs,
+  },
+  dismissedTag: {
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
+    fontStyle: 'italic',
+  },
+  openedTag: {
+    fontSize: typography.size.xs,
+    color: palette.clearFg,
+    fontStyle: 'italic',
+  },
+  ledgerSecondaryButton: {
+    background: 'transparent',
+    color: palette.textMuted,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.medium,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
   signalCoverage: {
     margin: 0,
     fontSize: typography.size.xs,
