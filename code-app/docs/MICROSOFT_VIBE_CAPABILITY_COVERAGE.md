@@ -111,32 +111,32 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.7 Microsoft Teams integration
 
 - **Vibe expected.** Deals visible inside Teams; banker presence; thread-in-deal pattern.
-- **Current state.** **Not started.** No Teams entry in any inventory.
-- **Gap.** Everything.
+- **Current state.** **Not started.** No Teams entry in any inventory. **Phase 85 audited the upstream dependencies in depth** and confirmed: no `@microsoft/teams-js` package, no Graph client package, no MSAL-browser, no `MicrosoftTeams*Service` in `src/generated/services/`, no Teams app manifest in the repo, no path to acquire a Graph access token client-side. The `@microsoft/power-apps` SDK's `IHostContext` exposes only `sessionId` — there is no Teams host detection surface. Phase 85's capability matrix identified one feasible no-admin handoff slice (a Phase-63-style "open Teams chat with the assigned banker" deep-link from the Deal Workspace) and explicitly ruled out push notifications, calendar sync, meeting create, presence, channel posting, and Graph user lookup as connector/admin-blocked. See [docs/PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT.md](PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT.md) §2 (17-row capability matrix), §3 (10 explicit blockers), §4 (smallest honest slice), §6 (recommended Phase 86).
+- **Gap.** Everything except the one no-admin chat-deep-link slice Phase 85 identified.
 - **Blocker.** Connector + tenant-admin (Teams app registration; Graph permissions for deal context). Lane E.
-- **Safe next step.** None in-repo. The Lane E roadmap below sketches the unblock dependencies.
-- **Schema / admin work needed?** Yes (tenant + connector + Graph).
-- **Build now / later / deferred.** Later (after Outlook connector + portal-adjacent decisions).
+- **Safe next step.** The single no-admin handoff slice in Phase 85 §4 Candidate A: a "Chat with assigned banker in Teams" Deal Workspace card that opens the well-known `https://teams.microsoft.com/l/chat/0/0?users=<UPN>` deep-link. Honest label: "Opens your Teams client. The app does not post to, read from, or sync with Teams." Phase-63-style LOCAL_ONLY pattern; no audit, no timeline, no integration claim. Everything else stays Lane E.
+- **Schema / admin work needed?** No for the no-admin handoff slice; yes (tenant + connector + Graph) for every other Teams capability.
+- **Build now / later / deferred.** Now (handoff slice — Phase 86 candidate). Later (the Lane E lane after Outlook connector + portal-adjacent decisions).
 
 ### 1.8 Teams calendar sync
 
 - **Vibe expected.** Banker calendar events for deal milestones; close-date reminders; SLA alerts.
-- **Current state.** **Not started.**
+- **Current state.** **Not started.** Phase 85 reaffirmed: calendar read/write requires the Office 365 Outlook connector (the same connector pinned at `NOT_WIRED.outlook-connector-live-send` with `blockerKind: 'connector'`) OR Graph `Calendars.Read*` permissions with admin consent. The repo's `SharedClosingCalendar.tsx` is a deterministic per-deal bucketing by `targetCloseDate` rendered as a calendar-style card — it is NOT a calendar integration and does not write to or read from any external calendar.
 - **Gap.** Everything.
-- **Blocker.** Same as 1.7 (Teams + Graph calendar permissions).
-- **Safe next step.** Lane E.
+- **Blocker.** Same as 1.7 (Teams + Graph calendar permissions); registering the Office 365 Outlook connector for the Code App is the single upstream action that simultaneously unblocks 1.6 (Outlook email LIVE) and the calendar half of 1.8.
+- **Safe next step.** Lane E (no in-repo motion until connector lands).
 - **Schema / admin work needed?** Yes.
 - **Build now / later / deferred.** Later.
 
 ### 1.9 Teams notifications
 
 - **Vibe expected.** Push notifications to bankers when a deal needs action (received doc, escalated alert, etc.).
-- **Current state.** **Not started.**
-- **Gap.** Everything.
-- **Blocker.** Lane E.
-- **Safe next step.** Lane E.
-- **Schema / admin work needed?** Yes.
-- **Build now / later / deferred.** Later.
+- **Current state.** **Not started for push-to-Teams.** Phase 85 reaffirmed: writing to a user's Teams activity feed requires Graph `TeamsActivity.Send` with admin-consented permissions; channel/chat posting requires `ChannelMessage.Send` / `Chat.ReadWrite`. Neither is wired and faking a "notification sent to Teams" UI is **explicitly forbidden** (Phase 85 §2 rows 2.6 / 2.7). **In-app notification panels ARE partly served** today by the Phase 80 per-deal Next Best Actions panel, the Phase 82 banker rollup, and the Phase 84 team rollup — these are deterministic local surfaces, honestly labelled "Nothing happens automatically" and not claimed as Teams pushes. There is no path between the in-app autopilot signals and a Teams push without the upstream connector / Graph work.
+- **Gap.** Push-to-Teams remains blocked; the in-app notification half is partly addressed by the autopilot triad.
+- **Blocker.** Lane E (Teams app registration + Graph `TeamsActivity.Send` admin consent).
+- **Safe next step.** Lane E. A future no-schema enhancement could add a centralized in-app notification panel that consolidates Phase 80/82/84 signals — but that is a presentation refactor of capability §1.17, not a new Teams capability.
+- **Schema / admin work needed?** Yes (admin consent + connector + possibly a `cr664_notificationpreferences*` schema for per-user opt-in across devices).
+- **Build now / later / deferred.** Later for push-to-Teams. Now-feasible (already partly delivered) for in-app notification panels via the autopilot rollups.
 
 ### 1.10 Credit memo workflow
 
@@ -420,12 +420,17 @@ The hardest lane. Full unblock checklist in [PHASE_65](PHASE_65_BORROWER_PORTAL_
 
 ### Lane E — Needs Teams integration
 
+Full audit in [PHASE_85](PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT.md). The Lane E shopping list:
+
 1. Teams app registration in tenant.
-2. Graph permissions for deal context.
+2. Graph permissions for deal context (admin consent + delegated grants: `User.Read.All`, `Presence.Read.All`, `Chat.ReadWrite`, `ChannelMessage.Send`, `Calendars.ReadWrite`, `OnlineMeetings.ReadWrite`, `TeamsActivity.Send`).
 3. Teams calendar sync (Graph calendar).
 4. Teams notifications (deal-state callbacks).
 5. Teams embedded workflow (deals visible inside Teams chat).
 6. Voice / meeting capture (Lane E + Lane F).
+7. `@microsoft/teams-js` + `@microsoft/microsoft-graph-client` + `@azure/msal-browser` package additions; Teams app `manifest.json` in repo; sideload to Teams Admin Center.
+
+One **no-admin slice** identified by Phase 85 §4 Candidate A IS in-repo feasible without any of the above: the Teams chat deep-link handoff card (Phase 63 pattern applied to Teams). Phase 86 candidate.
 
 ### Lane F — Needs Copilot / AI integration
 
