@@ -44,9 +44,15 @@ vi.mock('./ManagerDataProvider', () => ({
   useManagerData: vi.fn(),
 }));
 
+vi.mock('./ManagerContext', () => ({
+  useManager: vi.fn(),
+}));
+
 import { useManagerData } from './ManagerDataProvider';
+import { useManager } from './ManagerContext';
 
 const useManagerDataMock = vi.mocked(useManagerData);
+const useManagerMock = vi.mocked(useManager);
 
 function deal(o: Partial<TeamDeal> = {}): TeamDeal {
   return {
@@ -77,6 +83,15 @@ function ready(deals: TeamDeal[]): ManagerData {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
+  // Default manager identity → preference scope is available.
+  useManagerMock.mockReturnValue({
+    bankerId: 'manager-banker-1',
+    fullName: 'M. Manager',
+    email: 'mgr@bank.test',
+    teamId: 'team-1',
+    teamName: 'Acme Team',
+  });
 });
 
 describe('Phase 92 — deriveBankerFilterOptions (pure)', () => {
@@ -424,7 +439,7 @@ describe('Phase 92 — ManagerBankerFilterControl', () => {
     ).toBeInTheDocument();
   });
 
-  it('control never uses forbidden vocabulary', () => {
+  it('control never uses forbidden vocabulary as a positive claim', () => {
     useManagerDataMock.mockReturnValue(ready([]));
     const { container } = render(
       <ManagerBankerFilterProvider>
@@ -438,7 +453,9 @@ describe('Phase 92 — ManagerBankerFilterControl', () => {
     expect(text).not.toMatch(/\bscore\b/i);
     expect(text).not.toMatch(/surveillance/i);
     expect(text).not.toMatch(/audit\s+view/i);
-    expect(text).not.toMatch(/\bsynced\b/i);
+    // Phase 93 intentionally surfaces "Not synced across devices."
+    // as a truthful negation. Forbid only affirmative tense.
+    expect(text).not.toMatch(/\b(is|was|has been)\s+synced\b/i);
   });
 });
 
@@ -467,6 +484,299 @@ describe('Phase 92 — module hygiene', () => {
     expect(CODE).not.toMatch(/performance\s+ranking/i);
     expect(CODE).not.toMatch(/\bunderperforming\b/i);
     expect(CODE).not.toMatch(/official\s+(assignment|view|record|status)/i);
-    expect(CODE).not.toMatch(/\bsynced\b/i);
+    // Phase 93 source intentionally contains "Not synced across
+    // devices." as a truthful negation in the helper text. Forbid
+    // only affirmative-tense forms — same pattern Phase 90 uses.
+    expect(CODE).not.toMatch(/\b(is|was|has been)\s+synced\b/i);
+  });
+});
+
+// -------------------------------------------------------------------
+// Phase 93 — saved manager filter preference (provider integration)
+// -------------------------------------------------------------------
+
+describe('Phase 93 — saved manager filter preference', () => {
+  function Probe() {
+    const f = useManagerBankerFilter();
+    return (
+      <div data-testid="probe">
+        {f.selection.kind}|
+        {f.selection.kind === 'banker' ? f.selection.name : ''}|
+        {String(f.isPreferenceScoped)}
+      </div>
+    );
+  }
+
+  it('exposes isPreferenceScoped=true when manager identity is complete', () => {
+    useManagerDataMock.mockReturnValue(
+      ready([
+        deal({ id: 'd1', assignedBankerId: 'b-1', assignedBankerName: 'Alice' }),
+      ]),
+    );
+    render(
+      <ManagerBankerFilterProvider>
+        <Probe />
+      </ManagerBankerFilterProvider>,
+    );
+    const txt = screen.getByTestId('probe').textContent ?? '';
+    expect(txt.endsWith('|true')).toBe(true);
+  });
+
+  it('exposes isPreferenceScoped=false when bankerId is missing', () => {
+    useManagerMock.mockReturnValue({
+      bankerId: '',
+      fullName: 'M. Manager',
+      email: 'mgr@bank.test',
+      teamId: 'team-1',
+      teamName: 'Acme Team',
+    });
+    useManagerDataMock.mockReturnValue(ready([]));
+    render(
+      <ManagerBankerFilterProvider>
+        <Probe />
+      </ManagerBankerFilterProvider>,
+    );
+    expect(screen.getByTestId('probe').textContent).toMatch(/\|false$/);
+  });
+
+  it('exposes isPreferenceScoped=false when teamId is missing', () => {
+    useManagerMock.mockReturnValue({
+      bankerId: 'manager-banker-1',
+      fullName: 'M. Manager',
+      email: 'mgr@bank.test',
+      teamId: '',
+      teamName: '',
+    });
+    useManagerDataMock.mockReturnValue(ready([]));
+    render(
+      <ManagerBankerFilterProvider>
+        <Probe />
+      </ManagerBankerFilterProvider>,
+    );
+    expect(screen.getByTestId('probe').textContent).toMatch(/\|false$/);
+  });
+
+  it('persists the selection to localStorage when the user picks a banker', async () => {
+    useManagerDataMock.mockReturnValue(
+      ready([
+        deal({ id: 'd1', assignedBankerId: 'b-1', assignedBankerName: 'Alice' }),
+      ]),
+    );
+    render(
+      <ManagerBankerFilterProvider>
+        <ManagerBankerFilterControl />
+      </ManagerBankerFilterProvider>,
+    );
+    const user = userEvent.setup();
+    await user.selectOptions(
+      screen.getByLabelText(/Focus on banker/i),
+      'banker-id:b-1',
+    );
+    const raw = localStorage.getItem('cc:managerFilterSelection:v1');
+    expect(raw).not.toBeNull();
+    const parsed = JSON.parse(raw!);
+    const entry = parsed['manager:manager-banker-1:team-1'];
+    expect(entry).toBeDefined();
+    expect(entry.kind).toBe('banker');
+    expect(entry.bankerId).toBe('b-1');
+    expect(entry.bankerName).toBe('Alice');
+  });
+
+  it('restores a saved banker selection on mount once teamPipeline is ready', async () => {
+    // Pre-seed a saved preference for the current (manager, team).
+    localStorage.setItem(
+      'cc:managerFilterSelection:v1',
+      JSON.stringify({
+        'manager:manager-banker-1:team-1': {
+          scopeId: 'manager:manager-banker-1:team-1',
+          kind: 'banker',
+          bankerId: 'b-1',
+          bankerName: 'Alice',
+          recordedAt: '2026-05-17T10:00:00.000Z',
+        },
+      }),
+    );
+    useManagerDataMock.mockReturnValue(
+      ready([
+        deal({ id: 'd1', assignedBankerId: 'b-1', assignedBankerName: 'Alice' }),
+      ]),
+    );
+    render(
+      <ManagerBankerFilterProvider>
+        <Probe />
+      </ManagerBankerFilterProvider>,
+    );
+    // After the restore-on-ready effect runs, the selection reflects
+    // the saved preference.
+    await screen.findByText(/banker\|Alice\|/);
+  });
+
+  it('falls back to "All team" when the saved banker no longer exists in the options', async () => {
+    localStorage.setItem(
+      'cc:managerFilterSelection:v1',
+      JSON.stringify({
+        'manager:manager-banker-1:team-1': {
+          scopeId: 'manager:manager-banker-1:team-1',
+          kind: 'banker',
+          bankerId: 'b-vanished',
+          bankerName: 'Phantom',
+          recordedAt: '2026-05-17T10:00:00.000Z',
+        },
+      }),
+    );
+    useManagerDataMock.mockReturnValue(
+      ready([
+        deal({ id: 'd1', assignedBankerId: 'b-1', assignedBankerName: 'Alice' }),
+      ]),
+    );
+    render(
+      <ManagerBankerFilterProvider>
+        <Probe />
+      </ManagerBankerFilterProvider>,
+    );
+    await screen.findByText(/^all\|\|true$/);
+  });
+
+  it('falls back to "All team" when "unassigned" is saved but no unassigned option exists', async () => {
+    localStorage.setItem(
+      'cc:managerFilterSelection:v1',
+      JSON.stringify({
+        'manager:manager-banker-1:team-1': {
+          scopeId: 'manager:manager-banker-1:team-1',
+          kind: 'unassigned',
+          bankerId: undefined,
+          bankerName: undefined,
+          recordedAt: '2026-05-17T10:00:00.000Z',
+        },
+      }),
+    );
+    useManagerDataMock.mockReturnValue(
+      ready([
+        deal({ id: 'd1', assignedBankerId: 'b-1', assignedBankerName: 'Alice' }),
+      ]),
+    );
+    render(
+      <ManagerBankerFilterProvider>
+        <Probe />
+      </ManagerBankerFilterProvider>,
+    );
+    await screen.findByText(/^all\|\|true$/);
+  });
+
+  it('does NOT restore when scope is unavailable (no bankerId)', async () => {
+    useManagerMock.mockReturnValue({
+      bankerId: '',
+      fullName: 'M. Manager',
+      email: 'mgr@bank.test',
+      teamId: 'team-1',
+      teamName: 'Acme Team',
+    });
+    // Even if a stale entry sits in storage, the provider can't
+    // resolve a scope, so it leaves the default 'all' in place.
+    localStorage.setItem(
+      'cc:managerFilterSelection:v1',
+      JSON.stringify({
+        'manager:someone-else:team-1': {
+          scopeId: 'manager:someone-else:team-1',
+          kind: 'banker',
+          bankerId: 'b-1',
+          bankerName: 'Alice',
+          recordedAt: '2026-05-17T10:00:00.000Z',
+        },
+      }),
+    );
+    useManagerDataMock.mockReturnValue(
+      ready([
+        deal({ id: 'd1', assignedBankerId: 'b-1', assignedBankerName: 'Alice' }),
+      ]),
+    );
+    render(
+      <ManagerBankerFilterProvider>
+        <Probe />
+      </ManagerBankerFilterProvider>,
+    );
+    expect(screen.getByTestId('probe').textContent).toMatch(/^all\|\|false$/);
+  });
+
+  it('does NOT save when scope is unavailable (no teamId)', async () => {
+    useManagerMock.mockReturnValue({
+      bankerId: 'manager-banker-1',
+      fullName: 'M. Manager',
+      email: 'mgr@bank.test',
+      teamId: '',
+      teamName: '',
+    });
+    useManagerDataMock.mockReturnValue(
+      ready([
+        deal({ id: 'd1', assignedBankerId: 'b-1', assignedBankerName: 'Alice' }),
+      ]),
+    );
+    render(
+      <ManagerBankerFilterProvider>
+        <ManagerBankerFilterControl />
+      </ManagerBankerFilterProvider>,
+    );
+    const user = userEvent.setup();
+    await user.selectOptions(
+      screen.getByLabelText(/Focus on banker/i),
+      'banker-id:b-1',
+    );
+    // No write happened.
+    expect(
+      localStorage.getItem('cc:managerFilterSelection:v1'),
+    ).toBeNull();
+  });
+
+  it('control renders "Saved on this browser · Not synced across devices." when scoped', () => {
+    useManagerDataMock.mockReturnValue(ready([]));
+    render(
+      <ManagerBankerFilterProvider>
+        <ManagerBankerFilterControl />
+      </ManagerBankerFilterProvider>,
+    );
+    expect(
+      screen.getByText(/Saved on this browser/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Not synced across devices/i),
+    ).toBeInTheDocument();
+  });
+
+  it('control renders the "resets on refresh" helper when scope is unavailable', () => {
+    useManagerMock.mockReturnValue({
+      bankerId: '',
+      fullName: 'M. Manager',
+      email: 'mgr@bank.test',
+      teamId: 'team-1',
+      teamName: 'Acme Team',
+    });
+    useManagerDataMock.mockReturnValue(ready([]));
+    render(
+      <ManagerBankerFilterProvider>
+        <ManagerBankerFilterControl />
+      </ManagerBankerFilterProvider>,
+    );
+    expect(
+      screen.getByText(
+        /This filter resets on refresh \(no stable identity available\)/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Saved on this browser/i)).toBeNull();
+  });
+
+  it('helper text never claims profile / official / tenant settings', () => {
+    useManagerDataMock.mockReturnValue(ready([]));
+    const { container } = render(
+      <ManagerBankerFilterProvider>
+        <ManagerBankerFilterControl />
+      </ManagerBankerFilterProvider>,
+    );
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/\bsaved\s+to\s+profile\b/i);
+    expect(text).not.toMatch(/\bofficial\s+preference\b/i);
+    expect(text).not.toMatch(/\btenant\s+setting\b/i);
+    expect(text).not.toMatch(/\bmanager\s+setting\b/i);
+    expect(text).not.toMatch(/\bremembered\s+by\s+the\s+system\b/i);
+    expect(text).not.toMatch(/\b(is|was|has been)\s+synced\b/i);
   });
 });

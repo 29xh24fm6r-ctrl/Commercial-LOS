@@ -217,6 +217,9 @@ describe('platformInventory — local-only flows', () => {
     // Phase 91 — Catch-up item ledger (per-item local dismiss /
     // snooze state on the same two cards).
     expect(ids.has('catch-up-item-ledger')).toBe(true);
+    // Phase 93 — Manager banker-filter preference (local browser
+    // memory of the Phase 92 filter selection).
+    expect(ids.has('manager-filter-preference')).toBe(true);
   });
 
   it('every local-only flow note explicitly states no Dataverse write', () => {
@@ -472,6 +475,48 @@ describe('platformInventory — local-only flows', () => {
   it('catch-up-item-ledger is NOT in GOVERNED_WRITES (local-only)', () => {
     const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
     expect(ids.has('catch-up-item-ledger')).toBe(false);
+  });
+
+  it('manager-filter-preference (Phase 93) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'manager-filter-preference',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(93);
+    // Local-only contract.
+    expect(entry!.note).toMatch(/No Dataverse write/i);
+    expect(entry!.note).toMatch(/No audit row/i);
+    expect(entry!.note).toMatch(/No timeline event/i);
+    expect(entry!.note).toMatch(/No cross-device sync/i);
+    expect(entry!.note).toMatch(/No notification delivery/i);
+    // NOT an official setting.
+    expect(entry!.note).toMatch(/NOT.*official.*manager.*profile setting/i);
+    // Storage namespace + key shape.
+    expect(entry!.note).toMatch(/cc:managerFilterSelection:v1/);
+    expect(entry!.note).toMatch(/manager:<bankerId>:<teamId>/);
+    // Validation behavior.
+    expect(entry!.note).toMatch(/validated against the current.*filter options/i);
+    expect(entry!.note).toMatch(/fall back silently to All team/i);
+    // Implementation pointers + doc.
+    expect(entry!.note).toMatch(
+      /src\/manager\/managerBankerFilterPreference\.ts/,
+    );
+    expect(entry!.note).toMatch(/src\/manager\/ManagerBankerFilter\.tsx/);
+    expect(entry!.note).toMatch(/PHASE_93_MANAGER_FILTER_PREFERENCE\.md/);
+  });
+
+  it('the Phase 93 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_93_MANAGER_FILTER_PREFERENCE.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('manager-filter-preference is NOT in GOVERNED_WRITES (local-only)', () => {
+    const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(ids.has('manager-filter-preference')).toBe(false);
   });
 
   it('borrower-safe status packet (Phase 67) explicitly states no audit / timeline / Dataverse write for the handoff', () => {

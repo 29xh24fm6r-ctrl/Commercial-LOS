@@ -2,12 +2,21 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { useManager } from './ManagerContext';
 import { useManagerData } from './ManagerDataProvider';
 import type { TeamDeal } from './managerQueries';
+import {
+  buildManagerFilterPreferenceScope,
+  getManagerFilterPreference,
+  saveManagerFilterPreference,
+  validateRestoredPreference,
+} from './managerBankerFilterPreference';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
@@ -199,6 +208,12 @@ export interface ManagerBankerFilterView {
   matchesDeal(deal: Pick<TeamDeal, 'assignedBankerId' | 'assignedBankerName'>): boolean;
   /** Accessibility label describing the current selection. */
   selectionLabel: string;
+  /** Phase 93: true when a stable (manager, team) scope is
+   *  available and the selection is being persisted to
+   *  localStorage on every change. When false the provider
+   *  operates as in-memory only (no save, no restore). The control
+   *  uses this flag to tailor its helper text. */
+  isPreferenceScoped: boolean;
 }
 
 const ManagerBankerFilterContext =
@@ -220,15 +235,53 @@ export function ManagerBankerFilterProvider({
 }: {
   children: ReactNode;
 }) {
+  const { bankerId, teamId } = useManager();
   const { teamPipeline } = useManagerData();
-  const [selection, setSelection] = useState<ManagerBankerFilterSelection>({
-    kind: 'all',
-  });
+  const [selection, setSelectionState] = useState<ManagerBankerFilterSelection>(
+    { kind: 'all' },
+  );
 
   const options = useMemo(() => {
     const deals = teamPipeline.kind === 'ready' ? teamPipeline.data : [];
     return deriveBankerFilterOptions(deals);
   }, [teamPipeline]);
+
+  // Phase 93: compute the preference scope. When undefined the
+  // provider behaves as in-memory only (Phase 92 behavior).
+  const preferenceScope = useMemo(
+    () => buildManagerFilterPreferenceScope({ userId: bankerId, teamId }),
+    [bankerId, teamId],
+  );
+
+  // Phase 93: restore the saved preference once, as soon as options
+  // are populated. The validate step guarantees the restored
+  // selection matches one of the current options (or falls back to
+  // 'all'). Restoration runs at most once per scope to avoid
+  // re-clobbering the user's explicit picks.
+  const restoredScopeRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (preferenceScope == null) return;
+    if (restoredScopeRef.current === preferenceScope) return;
+    if (teamPipeline.kind !== 'ready') return;
+    const saved = getManagerFilterPreference(preferenceScope);
+    const validated = validateRestoredPreference(saved, options);
+    restoredScopeRef.current = preferenceScope;
+    setSelectionState(validated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferenceScope, teamPipeline.kind]);
+
+  // Phase 93: write-through setter. Updates React state AND (when a
+  // scope is available) persists the selection. Storage write is
+  // best-effort; failures are swallowed inside the helper.
+  const setSelection = useCallback(
+    (next: ManagerBankerFilterSelection) => {
+      setSelectionState(next);
+      if (preferenceScope != null) {
+        saveManagerFilterPreference(preferenceScope, next, new Date());
+      }
+    },
+    [preferenceScope],
+  );
 
   const matchesDeal = useCallback(
     (deal: Pick<TeamDeal, 'assignedBankerId' | 'assignedBankerName'>) =>
@@ -243,8 +296,9 @@ export function ManagerBankerFilterProvider({
       options,
       matchesDeal,
       selectionLabel: selectionLabel(selection),
+      isPreferenceScoped: preferenceScope != null,
     }),
-    [selection, options, matchesDeal],
+    [selection, setSelection, options, matchesDeal, preferenceScope],
   );
 
   return (
@@ -280,7 +334,8 @@ export function useManagerBankerFilter(): ManagerBankerFilterView {
  * helper text states the local-only posture explicitly.
  */
 export function ManagerBankerFilterControl() {
-  const { selection, setSelection, options } = useManagerBankerFilter();
+  const { selection, setSelection, options, isPreferenceScoped } =
+    useManagerBankerFilter();
   const currentValue = selectionToOptionValue(selection);
   return (
     <div style={styles.wrap} aria-label="Manager banker filter">
@@ -305,7 +360,10 @@ export function ManagerBankerFilterControl() {
       <span style={styles.helper}>
         Local view filter. No data is hidden from the team; this
         narrows the autopilot rollup and morning catch-up cards
-        only. No data is changed.
+        only. No data is changed.{' '}
+        {isPreferenceScoped
+          ? 'Saved on this browser · Not synced across devices.'
+          : 'This filter resets on refresh (no stable identity available).'}
       </span>
     </div>
   );

@@ -484,6 +484,35 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'and docs/PHASE_67_PACKET_EMAIL_HANDOFF.md for the handoff workflow.',
   },
   {
+    id: 'manager-filter-preference',
+    label: 'Manager banker-filter preference',
+    phase: 93,
+    note:
+      'Local browser-only memory of the Phase 92 manager banker- ' +
+      'filter selection. Sibling to the Phase 90 last-seen markers ' +
+      'and Phase 91 catch-up item ledger; uses a separate storage ' +
+      'slot (`cc:managerFilterSelection:v1`) keyed by ' +
+      '`manager:<bankerId>:<teamId>` so each (manager, team) ' +
+      'pair has its own slot. Stored fields: kind (`all` | ' +
+      '`banker` | `unassigned`), bankerId (when known), bankerName ' +
+      'snapshot, recordedAt ISO. No PII, no deal content, no ' +
+      'pipeline data. On provider mount the saved preference is ' +
+      'validated against the current banker-filter options — stale ' +
+      'selections (the banker no longer has deals; "unassigned" ' +
+      'has no matching deals) fall back silently to All team. The ' +
+      'preference is written on every selection change. No ' +
+      'Dataverse write. No audit row. No timeline event. No ' +
+      'cross-device sync. No notification delivery. This is NOT ' +
+      'an official manager profile setting — it is a view ' +
+      'convenience scoped to one browser. The card disclaimer ' +
+      'states this verbatim ("Saved on this browser · Not synced ' +
+      'across devices."). Implementation: ' +
+      'src/manager/managerBankerFilterPreference.ts (pure storage ' +
+      '+ validation helpers) + integration in ' +
+      'src/manager/ManagerBankerFilter.tsx. See ' +
+      'docs/PHASE_93_MANAGER_FILTER_PREFERENCE.md.',
+  },
+  {
     id: 'catch-up-item-ledger',
     label: 'Morning catch-up item ledger',
     phase: 91,

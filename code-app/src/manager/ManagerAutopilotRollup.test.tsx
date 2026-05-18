@@ -70,6 +70,7 @@ function filterView(
     options: [],
     matchesDeal: (deal) => dealMatchesBankerFilter(deal, selection),
     selectionLabel: computeSelectionLabel(selection),
+    isPreferenceScoped: false,
   };
 }
 
