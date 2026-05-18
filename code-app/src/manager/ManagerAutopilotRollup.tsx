@@ -8,6 +8,10 @@ import type {
   TeamScopedTask,
 } from './managerQueries';
 import {
+  useManagerBankerFilter,
+  type ManagerBankerFilterView,
+} from './ManagerBankerFilter';
+import {
   deriveManagerAutopilotRollup,
   type ManagerRollupDeal,
   type ManagerRollupDocumentInput,
@@ -65,17 +69,26 @@ const PRIORITY_LABEL: Record<AutopilotPriority, string> = {
 
 export function ManagerAutopilotRollup() {
   const { teamPipeline, teamTasks, teamDocuments, teamMemos } = useManagerData();
+  const filter = useManagerBankerFilter();
   return (
     <Card>
       <CardHeader
         title="Team next-best-action signals"
         subtitle="Derived from current records. Nothing happens automatically."
+        trailing={
+          filter.selection.kind !== 'all' ? (
+            <span style={styles.filterTag} aria-label={filter.selectionLabel}>
+              {filter.selectionLabel}
+            </span>
+          ) : null
+        }
       />
       <Body
         teamPipeline={teamPipeline}
         teamTasks={teamTasks}
         teamDocuments={teamDocuments}
         teamMemos={teamMemos}
+        filter={filter}
       />
     </Card>
   );
@@ -86,11 +99,13 @@ function Body({
   teamTasks,
   teamDocuments,
   teamMemos,
+  filter,
 }: {
   teamPipeline: AsyncResult<TeamDeal[]>;
   teamTasks: AsyncResult<TeamScopedTask[]>;
   teamDocuments: AsyncResult<TeamScopedDocument[]>;
   teamMemos: AsyncResult<TeamScopedMemo[]>;
+  filter: ManagerBankerFilterView;
 }) {
   const now = useMemo(() => new Date(), []);
   const ledger = useSuggestionLedger();
@@ -104,9 +119,16 @@ function Body({
     ) {
       return null;
     }
+    // Phase 92: apply the manager banker filter BEFORE running the
+    // deterministic rollup. The filter narrows the deal universe;
+    // children are then narrowed to the surviving deal-ids so the
+    // derivation operates on a coherent subset (no orphan task /
+    // document / memo rows that point at a hidden deal).
+    const filteredDeals = teamPipeline.data.filter(filter.matchesDeal);
+    const visibleDealIds = new Set(filteredDeals.map((d) => d.id));
     return deriveManagerAutopilotRollup(
       {
-        deals: teamPipeline.data.map((d) => ({
+        deals: filteredDeals.map((d) => ({
           id: d.id,
           name: d.name,
           stage: d.stage,
@@ -115,33 +137,39 @@ function Body({
           modifiedOn: d.modifiedOn,
           assignedBankerName: d.assignedBankerName,
         })),
-        tasks: teamTasks.data.map((t) => ({
-          id: t.id,
-          dealId: t.dealId,
-          title: t.title,
-          dueDate: t.dueDate,
-          completed: t.completed,
-        })),
-        documents: teamDocuments.data.map(
-          (doc): ManagerRollupDocumentInput => ({
-            id: doc.id,
-            dealId: doc.dealId,
-            name: doc.name,
-            receivedDate: doc.receivedDate,
-            reviewer: doc.reviewer,
-            uploaded: doc.uploaded,
-            status: doc.status,
-          }),
-        ),
-        memos: teamMemos.data.map((m) => ({
-          id: m.id,
-          dealId: m.dealId,
-          statusKey: m.statusKey,
-        })),
+        tasks: teamTasks.data
+          .filter((t) => t.dealId && visibleDealIds.has(t.dealId))
+          .map((t) => ({
+            id: t.id,
+            dealId: t.dealId,
+            title: t.title,
+            dueDate: t.dueDate,
+            completed: t.completed,
+          })),
+        documents: teamDocuments.data
+          .filter((doc) => doc.dealId && visibleDealIds.has(doc.dealId))
+          .map(
+            (doc): ManagerRollupDocumentInput => ({
+              id: doc.id,
+              dealId: doc.dealId,
+              name: doc.name,
+              receivedDate: doc.receivedDate,
+              reviewer: doc.reviewer,
+              uploaded: doc.uploaded,
+              status: doc.status,
+            }),
+          ),
+        memos: teamMemos.data
+          .filter((m) => m.dealId && visibleDealIds.has(m.dealId))
+          .map((m) => ({
+            id: m.id,
+            dealId: m.dealId,
+            statusKey: m.statusKey,
+          })),
       },
       now,
     );
-  }, [teamPipeline, teamTasks, teamDocuments, teamMemos, now]);
+  }, [teamPipeline, teamTasks, teamDocuments, teamMemos, now, filter]);
 
   // Surface failed slots BEFORE the loading state so a transient
   // service failure is visible to the manager rather than hidden
@@ -186,6 +214,23 @@ function Body({
         <p style={styles.muted}>
           No active deals on the team yet. Signals will populate as deals
           enter the pipeline.
+        </p>
+        <p style={styles.disclaimer}>
+          Derived from current records. Nothing happens automatically. No
+          AI or automated decisions.
+        </p>
+      </>
+    );
+  }
+
+  // Phase 92: the unfiltered pipeline has deals, but the active
+  // banker filter excluded all of them — render a filter-aware
+  // empty state.
+  if (rollup.totalDealsScanned === 0) {
+    return (
+      <>
+        <p style={styles.muted}>
+          {emptyForFilterCopy(filter.selection)}
         </p>
         <p style={styles.disclaimer}>
           Derived from current records. Nothing happens automatically. No
@@ -394,6 +439,18 @@ function RollupRow({
   );
 }
 
+function emptyForFilterCopy(
+  selection: ManagerBankerFilterView['selection'],
+): string {
+  if (selection.kind === 'banker') {
+    return `No deals match the current filter (focused on ${selection.name}).`;
+  }
+  if (selection.kind === 'unassigned') {
+    return 'No deals match the current filter (focused on Unassigned).';
+  }
+  return 'No active deals on the team yet. Signals will populate as deals enter the pipeline.';
+}
+
 function formatLedgerDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
@@ -446,6 +503,15 @@ function formatTargetClose(iso: string | undefined): string {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  filterTag: {
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
+    fontStyle: 'italic',
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+  },
   section: { display: 'flex', flexDirection: 'column', gap: spacing.md },
   muted: {
     margin: 0,

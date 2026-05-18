@@ -39,6 +39,16 @@ vi.mock('./ManagerContext', () => ({
   useManager: vi.fn(),
 }));
 
+vi.mock('./ManagerBankerFilter', async () => {
+  const actual = await vi.importActual<typeof import('./ManagerBankerFilter')>(
+    './ManagerBankerFilter',
+  );
+  return {
+    ...actual,
+    useManagerBankerFilter: vi.fn(),
+  };
+});
+
 const navigateSpy = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateSpy,
@@ -46,6 +56,13 @@ vi.mock('react-router-dom', () => ({
 
 import { useManagerData } from './ManagerDataProvider';
 import { useManager } from './ManagerContext';
+import {
+  dealMatchesBankerFilter,
+  selectionLabel as computeSelectionLabel,
+  useManagerBankerFilter,
+  type ManagerBankerFilterSelection,
+  type ManagerBankerFilterView,
+} from './ManagerBankerFilter';
 import { ManagerMorningCatchUp } from './ManagerMorningCatchUp';
 import {
   CATCH_UP_LAST_SEEN_STORAGE_KEY_PREFIX,
@@ -59,6 +76,19 @@ import {
 
 const useManagerDataMock = vi.mocked(useManagerData);
 const useManagerMock = vi.mocked(useManager);
+const useManagerBankerFilterMock = vi.mocked(useManagerBankerFilter);
+
+function filterView(
+  selection: ManagerBankerFilterSelection = { kind: 'all' },
+): ManagerBankerFilterView {
+  return {
+    selection,
+    setSelection: vi.fn(),
+    options: [],
+    matchesDeal: (deal) => dealMatchesBankerFilter(deal, selection),
+    selectionLabel: computeSelectionLabel(selection),
+  };
+}
 
 const NOW = new Date();
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -112,6 +142,9 @@ beforeEach(() => {
     teamId: 'team-1',
     teamName: 'Acme Team',
   });
+  // Phase 92: default to "all team" so every Phase 88/90/91 test
+  // continues to see the same data set it was authored against.
+  useManagerBankerFilterMock.mockReturnValue(filterView({ kind: 'all' }));
 });
 
 describe('ManagerMorningCatchUp — Phase 88', () => {
@@ -688,6 +721,136 @@ describe('ManagerMorningCatchUp — Phase 88', () => {
 
     it('the ledger storage key is `cc:catchUpItemLedger:v1` (disjoint from Phase 83)', () => {
       expect(CATCH_UP_ITEM_LEDGER_STORAGE_KEY).toBe('cc:catchUpItemLedger:v1');
+    });
+  });
+
+  // -----------------------------------------------------------------
+  // Phase 92 — per-banker filter
+  // -----------------------------------------------------------------
+
+  describe('Phase 92 — per-banker filter', () => {
+    function twoBankerDeals() {
+      return [
+        deal({
+          id: 'd-alice',
+          name: 'Alice Deal',
+          assignedBankerId: 'b-alice',
+          assignedBankerName: 'Alice',
+          stageEntryDate: isoDaysAgo(45),
+        }),
+        deal({
+          id: 'd-bob',
+          name: 'Bob Deal',
+          assignedBankerId: 'b-bob',
+          assignedBankerName: 'Bob',
+          stageEntryDate: isoDaysAgo(45),
+        }),
+      ];
+    }
+
+    it('default "all" view shows catch-up items for every banker', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      render(<ManagerMorningCatchUp />);
+      const list = screen.getByRole('list', {
+        name: /Manager morning catch-up items/i,
+      });
+      const items = within(list).getAllByRole('listitem');
+      expect(items.length).toBe(2);
+      expect(screen.queryByText(/^Filtered to /i)).toBeNull();
+    });
+
+    it('filtering to one banker hides the other banker\'s items', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'banker', id: 'b-alice', name: 'Alice' }),
+      );
+      render(<ManagerMorningCatchUp />);
+      const list = screen.getByRole('list', {
+        name: /Manager morning catch-up items/i,
+      });
+      const items = within(list).getAllByRole('listitem');
+      expect(items.length).toBe(1);
+      expect(items[0]!.textContent).toContain('Alice Deal');
+      expect(items[0]!.textContent).not.toContain('Bob Deal');
+    });
+
+    it('renders the "Filtered to <Banker>" tag in the header when filtered', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'banker', id: 'b-alice', name: 'Alice' }),
+      );
+      render(<ManagerMorningCatchUp />);
+      expect(screen.getByText(/Filtered to Alice/i)).toBeInTheDocument();
+    });
+
+    it('renders a filter-aware empty state ("No catch-up items for X") when no items survive', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({
+          kind: 'banker',
+          id: 'b-nobody',
+          name: 'Phantom Banker',
+        }),
+      );
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByText(
+          /No catch-up items for Phantom Banker from current records\./i,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('child rows are filtered to the visible deal universe', () => {
+      const aliceTask: TeamScopedTask = {
+        id: 't-alice',
+        title: 'Send Q2 financials',
+        completed: false,
+        dueDate: isoDaysAgo(2),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-alice',
+        dealName: 'Alice Deal',
+      };
+      const bobTask: TeamScopedTask = {
+        id: 't-bob',
+        title: 'Send Q3 financials',
+        completed: false,
+        dueDate: isoDaysAgo(2),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-bob',
+        dealName: 'Bob Deal',
+      };
+      useManagerDataMock.mockReturnValue(
+        ready(twoBankerDeals(), [aliceTask, bobTask]),
+      );
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'banker', id: 'b-bob', name: 'Bob' }),
+      );
+      render(<ManagerMorningCatchUp />);
+      const list = screen.getByRole('list', {
+        name: /Manager morning catch-up items/i,
+      });
+      const text =
+        within(list).getAllByRole('listitem').map((i) => i.textContent).join('|') ?? '';
+      // Bob's overdue-task surfaces; Alice's never reaches the
+      // derivation.
+      expect(text).toContain('Bob Deal');
+      expect(text).not.toContain('Alice Deal');
+    });
+
+    it('the filter tag never uses forbidden vocabulary', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'banker', id: 'b-alice', name: 'Alice' }),
+      );
+      const { container } = render(<ManagerMorningCatchUp />);
+      const text = container.textContent ?? '';
+      expect(text).not.toMatch(/official\s+(assignment|view)/i);
+      expect(text).not.toMatch(/performance\s+ranking/i);
+      expect(text).not.toMatch(/underperforming/i);
+      expect(text).not.toMatch(/surveillance/i);
+      expect(text).not.toMatch(/audit\s+view/i);
     });
   });
 });

@@ -9,6 +9,10 @@ import type {
   TeamScopedTask,
 } from './managerQueries';
 import {
+  useManagerBankerFilter,
+  type ManagerBankerFilterView,
+} from './ManagerBankerFilter';
+import {
   deriveManagerMorningCatchUp,
   type ManagerCatchUpItem,
   type ManagerCatchUpPriority,
@@ -77,11 +81,20 @@ export function ManagerMorningCatchUp() {
   );
   const lastSeen = useCatchUpLastSeen(scope);
 
+  const filter = useManagerBankerFilter();
+
   return (
     <Card>
       <CardHeader
         title="Morning catch-up"
         subtitle="Derived from current manager-visible records. Nothing happens automatically."
+        trailing={
+          filter.selection.kind !== 'all' ? (
+            <span style={styles.filterTag} aria-label={filter.selectionLabel}>
+              {filter.selectionLabel}
+            </span>
+          ) : null
+        }
       />
       <BodyWithLedger
         teamPipeline={teamPipeline}
@@ -91,6 +104,7 @@ export function ManagerMorningCatchUp() {
         priorLastSeenMs={lastSeen.priorLastSeenMs}
         isInitialized={lastSeen.isInitialized}
         isUnscoped={lastSeen.isUnscoped}
+        filter={filter}
       />
     </Card>
   );
@@ -104,6 +118,7 @@ function BodyWithLedger(props: {
   priorLastSeenMs: number | undefined;
   isInitialized: boolean;
   isUnscoped: boolean;
+  filter: ManagerBankerFilterView;
 }) {
   const ledger = useCatchUpItemLedger();
   return <Body {...props} ledger={ledger} />;
@@ -118,6 +133,7 @@ function Body({
   isInitialized,
   isUnscoped,
   ledger,
+  filter,
 }: {
   teamPipeline: AsyncResult<TeamDeal[]>;
   teamTasks: AsyncResult<TeamScopedTask[]>;
@@ -127,6 +143,7 @@ function Body({
   isInitialized: boolean;
   isUnscoped: boolean;
   ledger: ReturnType<typeof useCatchUpItemLedger>;
+  filter: ManagerBankerFilterView;
 }) {
   const now = useMemo(() => new Date(), []);
 
@@ -139,9 +156,15 @@ function Body({
     ) {
       return null;
     }
+    // Phase 92: apply the manager banker filter before derivation.
+    // Children (tasks, documents, memos) are narrowed to the
+    // surviving deal-ids so the morning-catch-up derivation
+    // operates on a coherent subset.
+    const filteredDeals = teamPipeline.data.filter(filter.matchesDeal);
+    const visibleDealIds = new Set(filteredDeals.map((d) => d.id));
     return deriveManagerMorningCatchUp(
       {
-        deals: teamPipeline.data.map((d) => ({
+        deals: filteredDeals.map((d) => ({
           id: d.id,
           name: d.name,
           stage: d.stage,
@@ -150,30 +173,36 @@ function Body({
           stageEntryDate: d.stageEntryDate,
           modifiedOn: d.modifiedOn,
         })),
-        tasks: teamTasks.data.map((t) => ({
-          id: t.id,
-          dealId: t.dealId,
-          title: t.title,
-          dueDate: t.dueDate,
-          completed: t.completed,
-        })),
-        documents: teamDocuments.data.map((doc) => ({
-          id: doc.id,
-          dealId: doc.dealId,
-          name: doc.name,
-          receivedDate: doc.receivedDate,
-          reviewer: doc.reviewer,
-          status: doc.status,
-        })),
-        memos: teamMemos.data.map((m) => ({
-          id: m.id,
-          dealId: m.dealId,
-          statusKey: m.statusKey,
-        })),
+        tasks: teamTasks.data
+          .filter((t) => t.dealId && visibleDealIds.has(t.dealId))
+          .map((t) => ({
+            id: t.id,
+            dealId: t.dealId,
+            title: t.title,
+            dueDate: t.dueDate,
+            completed: t.completed,
+          })),
+        documents: teamDocuments.data
+          .filter((doc) => doc.dealId && visibleDealIds.has(doc.dealId))
+          .map((doc) => ({
+            id: doc.id,
+            dealId: doc.dealId,
+            name: doc.name,
+            receivedDate: doc.receivedDate,
+            reviewer: doc.reviewer,
+            status: doc.status,
+          })),
+        memos: teamMemos.data
+          .filter((m) => m.dealId && visibleDealIds.has(m.dealId))
+          .map((m) => ({
+            id: m.id,
+            dealId: m.dealId,
+            statusKey: m.statusKey,
+          })),
       },
       now,
     );
-  }, [teamPipeline, teamTasks, teamDocuments, teamMemos, now]);
+  }, [teamPipeline, teamTasks, teamDocuments, teamMemos, now, filter]);
 
   // Surface failed slots BEFORE the loading state so a transient
   // service failure is visible (same pattern Phase 84/87 carry).
@@ -223,9 +252,10 @@ function Body({
   );
 
   if (visibleItems.length === 0) {
+    const emptyCopy = filterAwareEmptyCopy(filter.selection);
     return (
       <>
-        <p style={styles.muted}>No catch-up items from current records.</p>
+        <p style={styles.muted}>{emptyCopy}</p>
         {renderSinceLastVisitLine(sinceLastSeen, isUnscoped, /*populated*/ false)}
         <p style={styles.disclaimer}>
           Derived from current manager-visible records. Nothing happens
@@ -290,6 +320,18 @@ function Body({
       </p>
     </div>
   );
+}
+
+function filterAwareEmptyCopy(
+  selection: ManagerBankerFilterView['selection'],
+): string {
+  if (selection.kind === 'banker') {
+    return `No catch-up items for ${selection.name} from current records.`;
+  }
+  if (selection.kind === 'unassigned') {
+    return 'No catch-up items for Unassigned from current records.';
+  }
+  return 'No catch-up items from current records.';
 }
 
 function renderSinceLastVisitLine(
@@ -479,6 +521,15 @@ function formatAnchor(iso: string): string {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  filterTag: {
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
+    fontStyle: 'italic',
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+  },
   section: { display: 'flex', flexDirection: 'column', gap: spacing.md },
   muted: {
     margin: 0,

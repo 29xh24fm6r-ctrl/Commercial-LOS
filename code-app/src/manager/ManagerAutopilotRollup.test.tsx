@@ -33,15 +33,45 @@ vi.mock('./ManagerDataProvider', () => ({
   useManagerData: vi.fn(),
 }));
 
+vi.mock('./ManagerBankerFilter', async () => {
+  const actual = await vi.importActual<typeof import('./ManagerBankerFilter')>(
+    './ManagerBankerFilter',
+  );
+  return {
+    ...actual,
+    useManagerBankerFilter: vi.fn(),
+  };
+});
+
 const navigateSpy = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateSpy,
 }));
 
 import { useManagerData } from './ManagerDataProvider';
+import {
+  dealMatchesBankerFilter,
+  selectionLabel as computeSelectionLabel,
+  useManagerBankerFilter,
+  type ManagerBankerFilterSelection,
+  type ManagerBankerFilterView,
+} from './ManagerBankerFilter';
 import { ManagerAutopilotRollup } from './ManagerAutopilotRollup';
 
 const useManagerDataMock = vi.mocked(useManagerData);
+const useManagerBankerFilterMock = vi.mocked(useManagerBankerFilter);
+
+function filterView(
+  selection: ManagerBankerFilterSelection = { kind: 'all' },
+): ManagerBankerFilterView {
+  return {
+    selection,
+    setSelection: vi.fn(),
+    options: [],
+    matchesDeal: (deal) => dealMatchesBankerFilter(deal, selection),
+    selectionLabel: computeSelectionLabel(selection),
+  };
+}
 
 const NOW = new Date();
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -86,6 +116,13 @@ function deal(overrides: Partial<TeamDeal> = {}): TeamDeal {
 }
 
 describe('ManagerAutopilotRollup — Phase 81', () => {
+  beforeEach(() => {
+    // Phase 92: every Phase 81/83/87 test was written against the
+    // unfiltered "all team" view. Default the filter mock to that
+    // selection so the existing assertions continue to hold.
+    useManagerBankerFilterMock.mockReturnValue(filterView({ kind: 'all' }));
+  });
+
   it('renders the card header + verbatim subtitle', () => {
     useManagerDataMock.mockReturnValue(ready([deal()]));
     render(<ManagerAutopilotRollup />);
@@ -624,6 +661,189 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
       expect(text).not.toMatch(/\breal[- ]?time\b/i);
       expect(text).not.toMatch(/\bautomated\s+intervention\b/i);
       expect(text).not.toMatch(/\bofficial\s+score\b/i);
+    });
+  });
+
+  // -----------------------------------------------------------------
+  // Phase 92 — per-banker filter
+  // -----------------------------------------------------------------
+
+  describe('Phase 92 — per-banker filter', () => {
+    function twoBankerDeals() {
+      return [
+        deal({
+          id: 'd-alice',
+          name: 'Alice Deal',
+          assignedBankerId: 'b-alice',
+          assignedBankerName: 'Alice',
+          stageEntryDate: isoDaysAgo(45), // surfaces stage-aging
+          modifiedOn: isoDaysAgo(1),
+        }),
+        deal({
+          id: 'd-bob',
+          name: 'Bob Deal',
+          assignedBankerId: 'b-bob',
+          assignedBankerName: 'Bob',
+          stageEntryDate: isoDaysAgo(45), // surfaces stage-aging
+          modifiedOn: isoDaysAgo(1),
+        }),
+      ];
+    }
+
+    it('default "all" view shows deals from every banker', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(filterView({ kind: 'all' }));
+      render(<ManagerAutopilotRollup />);
+      const list = screen.getByRole('list', {
+        name: /Top team deals with next-best-action signals/i,
+      });
+      const items = within(list).getAllByRole('listitem');
+      expect(items.length).toBe(2);
+      // The "Filtered to …" header tag should NOT appear when the
+      // selection is 'all'.
+      expect(screen.queryByText(/^Filtered to /i)).toBeNull();
+    });
+
+    it('filtering to one banker hides the other banker\'s deals', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'banker', id: 'b-alice', name: 'Alice' }),
+      );
+      render(<ManagerAutopilotRollup />);
+      const list = screen.getByRole('list', {
+        name: /Top team deals with next-best-action signals/i,
+      });
+      const items = within(list).getAllByRole('listitem');
+      expect(items.length).toBe(1);
+      expect(items[0]!.textContent).toContain('Alice Deal');
+      expect(items[0]!.textContent).not.toContain('Bob Deal');
+    });
+
+    it('renders a "Filtered to <Banker>" tag in the header when filtered', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'banker', id: 'b-alice', name: 'Alice' }),
+      );
+      render(<ManagerAutopilotRollup />);
+      expect(screen.getByText(/Filtered to Alice/i)).toBeInTheDocument();
+    });
+
+    it('the priority chip count reflects the filtered universe, not the whole team', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'banker', id: 'b-alice', name: 'Alice' }),
+      );
+      render(<ManagerAutopilotRollup />);
+      // Only Alice's deal flags → exactly 1 medium.
+      expect(
+        screen.getByLabelText(/Medium priority: 1 deal\b/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Scanned 1 team deal/i),
+      ).toBeInTheDocument();
+    });
+
+    it('child rows are filtered to the visible deal universe', () => {
+      // Two deals, two tasks (one per deal). Only Bob's task should
+      // contribute to the rollup when filtering to Bob.
+      const aliceTask: TeamScopedTask = {
+        id: 't-alice',
+        title: 'Send Q2 financials',
+        completed: false,
+        dueDate: isoDaysAgo(2),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-alice',
+        dealName: 'Alice Deal',
+      };
+      const bobTask: TeamScopedTask = {
+        id: 't-bob',
+        title: 'Send Q3 financials',
+        completed: false,
+        dueDate: isoDaysAgo(2),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-bob',
+        dealName: 'Bob Deal',
+      };
+      useManagerDataMock.mockReturnValue(
+        ready(twoBankerDeals(), [aliceTask, bobTask]),
+      );
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'banker', id: 'b-bob', name: 'Bob' }),
+      );
+      render(<ManagerAutopilotRollup />);
+      const list = screen.getByRole('list', {
+        name: /Top team deals with next-best-action signals/i,
+      });
+      const items = within(list).getAllByRole('listitem');
+      expect(items.length).toBe(1);
+      // Bob's overdue task fires HIGH on his deal.
+      expect(items[0]!.textContent).toContain('Bob Deal');
+      expect(
+        screen.getByLabelText(/High priority: 1 deal\b/i),
+      ).toBeInTheDocument();
+    });
+
+    it('renders an empty state with "focused on <Banker>" copy when the filter excludes every deal', () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({
+          kind: 'banker',
+          id: 'b-nobody',
+          name: 'Phantom Banker',
+        }),
+      );
+      render(<ManagerAutopilotRollup />);
+      expect(
+        screen.getByText(
+          /No deals match the current filter \(focused on Phantom Banker\)\./i,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('the unassigned filter selection is honored (deals with no banker only)', () => {
+      const deals = [
+        deal({
+          id: 'd-alice',
+          name: 'Alice Deal',
+          assignedBankerId: 'b-alice',
+          assignedBankerName: 'Alice',
+          stageEntryDate: isoDaysAgo(45),
+        }),
+        deal({
+          id: 'd-orphan',
+          name: 'Orphan Deal',
+          assignedBankerId: undefined,
+          assignedBankerName: undefined,
+          stageEntryDate: isoDaysAgo(45),
+        }),
+      ];
+      useManagerDataMock.mockReturnValue(ready(deals));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'unassigned' }),
+      );
+      render(<ManagerAutopilotRollup />);
+      const list = screen.getByRole('list', {
+        name: /Top team deals with next-best-action signals/i,
+      });
+      const items = within(list).getAllByRole('listitem');
+      expect(items.length).toBe(1);
+      expect(items[0]!.textContent).toContain('Orphan Deal');
+    });
+
+    it("the filter tag never uses forbidden vocabulary", () => {
+      useManagerDataMock.mockReturnValue(ready(twoBankerDeals()));
+      useManagerBankerFilterMock.mockReturnValue(
+        filterView({ kind: 'banker', id: 'b-alice', name: 'Alice' }),
+      );
+      const { container } = render(<ManagerAutopilotRollup />);
+      const text = container.textContent ?? '';
+      expect(text).not.toMatch(/official\s+(assignment|view)/i);
+      expect(text).not.toMatch(/performance\s+ranking/i);
+      expect(text).not.toMatch(/underperforming/i);
+      expect(text).not.toMatch(/surveillance/i);
+      expect(text).not.toMatch(/audit\s+view/i);
     });
   });
 });

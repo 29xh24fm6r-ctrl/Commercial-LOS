@@ -5,6 +5,10 @@ import { TeamPipelineSummary } from '../manager/TeamPipelineSummary';
 import { TeamWorkQueue } from '../manager/TeamWorkQueue';
 import { ManagerAutopilotRollup } from '../manager/ManagerAutopilotRollup';
 import { ManagerMorningCatchUp } from '../manager/ManagerMorningCatchUp';
+import {
+  ManagerBankerFilterControl,
+  ManagerBankerFilterProvider,
+} from '../manager/ManagerBankerFilter';
 import { DealsByStage } from '../manager/DealsByStage';
 import { AtRiskBlockedDeals } from '../manager/AtRiskBlockedDeals';
 import { BankerWorkloadSummary } from '../manager/BankerWorkloadSummary';
@@ -16,7 +20,9 @@ export function ManagerWorkspace() {
   return (
     <ManagerProvider>
       <ManagerDataProvider>
-        <ManagerWorkspaceContent />
+        <ManagerBankerFilterProvider>
+          <ManagerWorkspaceContent />
+        </ManagerBankerFilterProvider>
       </ManagerDataProvider>
     </ManagerProvider>
   );
@@ -48,6 +54,7 @@ function ManagerWorkspaceContent() {
       </header>
       <main style={styles.main}>
         <TeamWorkQueue />
+        <ManagerBankerFilterControl />
         <ManagerMorningCatchUp />
         <ManagerAutopilotRollup />
         <TeamPipelineSummary />
