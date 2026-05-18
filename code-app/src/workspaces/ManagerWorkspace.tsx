@@ -3,6 +3,7 @@ import { ManagerDataProvider } from '../manager/ManagerDataProvider';
 import { useManager } from '../manager/ManagerContext';
 import { TeamPipelineSummary } from '../manager/TeamPipelineSummary';
 import { TeamWorkQueue } from '../manager/TeamWorkQueue';
+import { ManagerAutopilotRollup } from '../manager/ManagerAutopilotRollup';
 import { DealsByStage } from '../manager/DealsByStage';
 import { AtRiskBlockedDeals } from '../manager/AtRiskBlockedDeals';
 import { BankerWorkloadSummary } from '../manager/BankerWorkloadSummary';
@@ -46,6 +47,7 @@ function ManagerWorkspaceContent() {
       </header>
       <main style={styles.main}>
         <TeamWorkQueue />
+        <ManagerAutopilotRollup />
         <TeamPipelineSummary />
         <div style={styles.twoCol}>
           <DealsByStage />
