@@ -37,7 +37,8 @@ export type SuggestionLedgerAction = 'opened' | 'dismissed';
 export type SuggestionLedgerSurface =
   | 'deal-panel'
   | 'banker-rollup'
-  | 'manager-rollup';
+  | 'manager-rollup'
+  | 'team-rollup';
 
 export interface SuggestionLedgerEntry {
   /** Deterministic key (surface|dealId|suggestionId). */
@@ -119,7 +120,12 @@ function isLedgerEntry(v: unknown): v is SuggestionLedgerEntry {
   ) {
     return false;
   }
-  if (o.surface !== 'deal-panel' && o.surface !== 'banker-rollup' && o.surface !== 'manager-rollup') {
+  if (
+    o.surface !== 'deal-panel' &&
+    o.surface !== 'banker-rollup' &&
+    o.surface !== 'manager-rollup' &&
+    o.surface !== 'team-rollup'
+  ) {
     return false;
   }
   return true;

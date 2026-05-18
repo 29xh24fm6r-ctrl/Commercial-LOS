@@ -143,6 +143,19 @@ describe('Phase 83 — recordSuggestionAction + getSuggestionLedgerEntry', () =>
       'manager-rollup||some-future-cross-deal-suggestion',
     );
   });
+
+  it('accepts the Phase 84 team-rollup surface (parity with banker/manager rollups)', () => {
+    const entry = recordSuggestionAction({
+      surface: 'team-rollup',
+      suggestionId: 'stage-aging',
+      dealId: 'd-1',
+      action: 'dismissed',
+      now: NOW,
+    });
+    expect(entry.surface).toBe('team-rollup');
+    expect(entry.key).toBe('team-rollup|d-1|stage-aging');
+    expect(getSuggestionLedgerEntry(entry.key)?.action).toBe('dismissed');
+  });
 });
 
 describe('Phase 83 — clear helpers', () => {

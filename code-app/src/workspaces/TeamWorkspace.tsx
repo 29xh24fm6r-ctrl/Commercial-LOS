@@ -9,6 +9,7 @@ import { TeamDocumentNeeds } from '../team/TeamDocumentNeeds';
 import { TeamTaskLoad } from '../team/TeamTaskLoad';
 import { SharedClosingCalendar } from '../team/SharedClosingCalendar';
 import { TeamBankerActivityBreakdown } from '../team/TeamBankerActivityBreakdown';
+import { TeamAutopilotRollup } from '../team/TeamAutopilotRollup';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function TeamWorkspace() {
@@ -47,6 +48,7 @@ function TeamWorkspaceContent() {
       </header>
       <main style={styles.main}>
         <SharedWorkQueue />
+        <TeamAutopilotRollup />
         <TeamPipelineSummary />
         <div style={styles.twoCol}>
           <BottlenecksAgingByStage />

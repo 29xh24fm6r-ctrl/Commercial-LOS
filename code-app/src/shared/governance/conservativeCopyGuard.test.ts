@@ -174,6 +174,7 @@ const RULES: readonly CopyRule[] = [
       'src/deals/DealAutopilotPanel.tsx',
       'src/manager/ManagerAutopilotRollup.tsx',
       'src/banker/BankerAutopilotRollup.tsx',
+      'src/team/TeamAutopilotRollup.tsx',
       'src/shared/governance/platformInventory.ts',
       'docs/STABILIZATION_CHECKLIST.md',
       'docs/RELEASE_NOTES_PHASES_1_40.md',
@@ -192,6 +193,8 @@ const RULES: readonly CopyRule[] = [
         'Phase 81 truthful negation: the manager rollup disclaimer states "No AI or automated decisions" so the manager sees the same Phase 80 non-capability declaration on the team-level surface.',
       'src/banker/BankerAutopilotRollup.tsx':
         'Phase 82 truthful negation: the banker rollup disclaimer states "No AI or automated decisions" so the banker sees the same Phase 80 non-capability declaration on the personal Command Center rollup.',
+      'src/team/TeamAutopilotRollup.tsx':
+        'Phase 84 truthful negation: the team rollup disclaimer states "No AI or automated decisions" so the team member sees the same Phase 80 non-capability declaration on the shared-pipeline rollup.',
       'src/shared/governance/platformInventory.ts':
         'NOT_WIRED entry "ai-generation" plus reason text describing the deliberate non-capability.',
       'docs/STABILIZATION_CHECKLIST.md':
