@@ -176,6 +176,7 @@ const RULES: readonly CopyRule[] = [
       'src/banker/BankerAutopilotRollup.tsx',
       'src/team/TeamAutopilotRollup.tsx',
       'src/manager/ManagerMorningCatchUp.tsx',
+      'src/banker/BankerMorningCatchUp.tsx',
       'src/shared/governance/platformInventory.ts',
       'docs/STABILIZATION_CHECKLIST.md',
       'docs/RELEASE_NOTES_PHASES_1_40.md',
@@ -198,6 +199,8 @@ const RULES: readonly CopyRule[] = [
         'Phase 84 truthful negation: the team rollup disclaimer states "No AI or automated decisions" so the team member sees the same Phase 80 non-capability declaration on the shared-pipeline rollup.',
       'src/manager/ManagerMorningCatchUp.tsx':
         'Phase 88 truthful negation: the morning catch-up card disclaimer states "Not AI-generated. No AI or automated decisions." — same non-capability declaration Phase 80/81/82/84 use, surfaced on the new manager activity-feed surface.',
+      'src/banker/BankerMorningCatchUp.tsx':
+        'Phase 89 truthful negation: the banker morning catch-up card disclaimer states "Not AI-generated. No AI or automated decisions." — banker-side counterpart of the Phase 88 manager surface; same non-capability declaration.',
       'src/shared/governance/platformInventory.ts':
         'NOT_WIRED entry "ai-generation" plus reason text describing the deliberate non-capability.',
       'docs/STABILIZATION_CHECKLIST.md':

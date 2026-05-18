@@ -3,6 +3,7 @@ import { useBanker } from '../banker/BankerContext';
 import { PersonalPipeline } from '../banker/PersonalPipeline';
 import { PersonalActivitySummary } from '../banker/PersonalActivitySummary';
 import { BankerAutopilotRollup } from '../banker/BankerAutopilotRollup';
+import { BankerMorningCatchUp } from '../banker/BankerMorningCatchUp';
 import { RelationshipMemory } from '../banker/RelationshipMemory';
 import { MyWorkQueue } from '../banker/MyWorkQueue';
 import { palette, spacing, typography } from '../shared/theme';
@@ -35,6 +36,7 @@ function BankerWorkspaceContent() {
       </header>
       <main style={styles.main}>
         <PersonalActivitySummary />
+        <BankerMorningCatchUp />
         <BankerAutopilotRollup />
         <MyWorkQueue />
         <RelationshipMemory />
