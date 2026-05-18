@@ -484,6 +484,35 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'and docs/PHASE_67_PACKET_EMAIL_HANDOFF.md for the handoff workflow.',
   },
   {
+    id: 'catch-up-item-ledger',
+    label: 'Morning catch-up item ledger',
+    phase: 91,
+    note:
+      'Local browser-only dismissed / snoozed state for individual ' +
+      'items on the Phase 88 manager and Phase 89 banker morning ' +
+      'catch-up cards. Sibling to the Phase 83 autopilot suggestion ' +
+      'ledger; uses a separate storage slot ' +
+      '(`cc:catchUpItemLedger:v1`) and a different action enum ' +
+      '(`dismissed` | `snoozed`). Snoozed entries carry a ' +
+      'snoozeUntil ISO timestamp; the default window is 24 hours ' +
+      '(CATCH_UP_DEFAULT_SNOOZE_HOURS). The ledger entry only ' +
+      'changes how an item is rendered on the card — the ' +
+      'underlying deterministic catch-up derivation continues to ' +
+      'evaluate against current records. Dismiss / snooze does ' +
+      'NOT resolve, complete, or close any business item; does ' +
+      'NOT mark a task or document as handled; does NOT change ' +
+      'deal status. No Dataverse write. No audit row. No timeline ' +
+      'event. No cross-device sync. No notification delivery. ' +
+      'Does NOT create official acknowledged / unread state. ' +
+      'Snoozed items reappear naturally after snoozeUntil passes; ' +
+      'dismissed items can be restored via the per-row Restore ' +
+      'affordance. Implementation: ' +
+      'src/shared/activity/catchUpItemLedger.ts (pure storage + ' +
+      'predicates) + src/shared/activity/useCatchUpItemLedger.ts ' +
+      '(React hook). See ' +
+      'docs/PHASE_91_CATCH_UP_ITEM_LEDGER.md.',
+  },
+  {
     id: 'catch-up-last-seen-markers',
     label: 'Morning catch-up last-seen markers',
     phase: 90,

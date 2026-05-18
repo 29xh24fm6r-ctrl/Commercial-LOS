@@ -214,6 +214,9 @@ describe('platformInventory — local-only flows', () => {
     // your last visit" overlay on the Phase 88 manager + Phase 89
     // banker morning catch-up cards).
     expect(ids.has('catch-up-last-seen-markers')).toBe(true);
+    // Phase 91 — Catch-up item ledger (per-item local dismiss /
+    // snooze state on the same two cards).
+    expect(ids.has('catch-up-item-ledger')).toBe(true);
   });
 
   it('every local-only flow note explicitly states no Dataverse write', () => {
@@ -427,6 +430,48 @@ describe('platformInventory — local-only flows', () => {
   it('catch-up-last-seen-markers is NOT in GOVERNED_WRITES', () => {
     const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
     expect(ids.has('catch-up-last-seen-markers')).toBe(false);
+  });
+
+  it('catch-up-item-ledger (Phase 91) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'catch-up-item-ledger',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(91);
+    // Local-only contract.
+    expect(entry!.note).toMatch(/No Dataverse write/i);
+    expect(entry!.note).toMatch(/No audit row/i);
+    expect(entry!.note).toMatch(/No timeline event/i);
+    expect(entry!.note).toMatch(/No cross-device sync/i);
+    expect(entry!.note).toMatch(/No notification delivery/i);
+    // Does NOT resolve business state.
+    expect(entry!.note).toMatch(/does NOT resolve.*close.*business item/i);
+    expect(entry!.note).toMatch(/does NOT change deal status/i);
+    expect(entry!.note).toMatch(/Does NOT create official acknowledged/i);
+    // Storage namespace separation from Phase 83.
+    expect(entry!.note).toMatch(/cc:catchUpItemLedger:v1/);
+    // Action enum.
+    expect(entry!.note).toMatch(/`dismissed`\s*\|\s*`snoozed`/);
+    // Implementation pointers + doc path.
+    expect(entry!.note).toMatch(/src\/shared\/activity\/catchUpItemLedger\.ts/);
+    expect(entry!.note).toMatch(
+      /src\/shared\/activity\/useCatchUpItemLedger\.ts/,
+    );
+    expect(entry!.note).toMatch(/PHASE_91_CATCH_UP_ITEM_LEDGER\.md/);
+  });
+
+  it('the Phase 91 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_91_CATCH_UP_ITEM_LEDGER.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('catch-up-item-ledger is NOT in GOVERNED_WRITES (local-only)', () => {
+    const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(ids.has('catch-up-item-ledger')).toBe(false);
   });
 
   it('borrower-safe status packet (Phase 67) explicitly states no audit / timeline / Dataverse write for the handoff', () => {

@@ -18,6 +18,11 @@ import {
   summarizeCatchUpSinceLastSeen,
 } from '../shared/lastVisit/catchUpLastSeen';
 import { useCatchUpLastSeen } from '../shared/lastVisit/useCatchUpLastSeen';
+import {
+  buildCatchUpLedgerKey,
+  type CatchUpLedgerEntry,
+} from '../shared/activity/catchUpItemLedger';
+import { useCatchUpItemLedger } from '../shared/activity/useCatchUpItemLedger';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -78,7 +83,7 @@ export function ManagerMorningCatchUp() {
         title="Morning catch-up"
         subtitle="Derived from current manager-visible records. Nothing happens automatically."
       />
-      <Body
+      <BodyWithLedger
         teamPipeline={teamPipeline}
         teamTasks={teamTasks}
         teamDocuments={teamDocuments}
@@ -91,6 +96,19 @@ export function ManagerMorningCatchUp() {
   );
 }
 
+function BodyWithLedger(props: {
+  teamPipeline: AsyncResult<TeamDeal[]>;
+  teamTasks: AsyncResult<TeamScopedTask[]>;
+  teamDocuments: AsyncResult<TeamScopedDocument[]>;
+  teamMemos: AsyncResult<TeamScopedMemo[]>;
+  priorLastSeenMs: number | undefined;
+  isInitialized: boolean;
+  isUnscoped: boolean;
+}) {
+  const ledger = useCatchUpItemLedger();
+  return <Body {...props} ledger={ledger} />;
+}
+
 function Body({
   teamPipeline,
   teamTasks,
@@ -99,6 +117,7 @@ function Body({
   priorLastSeenMs,
   isInitialized,
   isUnscoped,
+  ledger,
 }: {
   teamPipeline: AsyncResult<TeamDeal[]>;
   teamTasks: AsyncResult<TeamScopedTask[]>;
@@ -107,6 +126,7 @@ function Body({
   priorLastSeenMs: number | undefined;
   isInitialized: boolean;
   isUnscoped: boolean;
+  ledger: ReturnType<typeof useCatchUpItemLedger>;
 }) {
   const now = useMemo(() => new Date(), []);
 
@@ -178,18 +198,31 @@ function Body({
     return <p style={styles.muted}>Loading catch-up…</p>;
   }
 
+  // Phase 91: filter snoozed items (with active snoozeUntil) out of
+  // the visible feed; keep dismissed items so the user can Restore.
+  const visibleItems = items.filter((item) => {
+    const entry = ledger.entries[
+      buildCatchUpLedgerKey({ surface: 'manager-catch-up', itemKey: item.id })
+    ];
+    if (entry?.action === 'snoozed') {
+      const untilMs = Date.parse(entry.snoozeUntil ?? '');
+      if (Number.isFinite(untilMs) && untilMs > now.getTime()) return false;
+    }
+    return true;
+  });
+
   // Phase 90: derive "since last visit" overlay. When the scope is
   // unavailable (no bankerId/teamId resolved yet) OR the snapshot has
   // not initialized, fall through with isFirstVisit semantics — the
   // badge simply doesn't render until we have a reliable comparison
   // base.
   const sinceLastSeen = summarizeCatchUpSinceLastSeen(
-    items,
+    visibleItems,
     isInitialized && !isUnscoped ? priorLastSeenMs : undefined,
     now,
   );
 
-  if (items.length === 0) {
+  if (visibleItems.length === 0) {
     return (
       <>
         <p style={styles.muted}>No catch-up items from current records.</p>
@@ -206,13 +239,39 @@ function Body({
     <div style={styles.section}>
       {renderSinceLastVisitLine(sinceLastSeen, isUnscoped, /*populated*/ true)}
       <ul style={styles.list} aria-label="Manager morning catch-up items">
-        {items.map((item) => (
-          <FeedItemRow
-            key={item.id}
-            item={item}
-            isNew={sinceLastSeen.isNew(item.occurredAt)}
-          />
-        ))}
+        {visibleItems.map((item) => {
+          const ledgerKey = buildCatchUpLedgerKey({
+            surface: 'manager-catch-up',
+            itemKey: item.id,
+          });
+          return (
+            <FeedItemRow
+              key={item.id}
+              item={item}
+              isNew={sinceLastSeen.isNew(item.occurredAt)}
+              ledgerEntry={ledger.entries[ledgerKey]}
+              onDismiss={() =>
+                ledger.recordDismissed({
+                  surface: 'manager-catch-up',
+                  itemKey: item.id,
+                  itemKind: item.kind,
+                  dealId: item.dealId,
+                  titleSnapshot: item.title,
+                })
+              }
+              onSnooze={() =>
+                ledger.recordSnoozed({
+                  surface: 'manager-catch-up',
+                  itemKey: item.id,
+                  itemKind: item.kind,
+                  dealId: item.dealId,
+                  titleSnapshot: item.title,
+                })
+              }
+              onRestore={() => ledger.clear(ledgerKey)}
+            />
+          );
+        })}
       </ul>
       <p style={styles.signalCoverage}>
         Catch-up uses manager-visible records (deals, open tasks,
@@ -226,6 +285,8 @@ function Body({
         deals outside that scope are not evaluated and not surfaced
         here. "New since your last visit" is tracked on this browser
         only; it is not synced and does not change deal status.
+        "Dismiss locally" and "Snooze locally" are tracked on this
+        browser only; they do not change deal status.
       </p>
     </div>
   );
@@ -279,14 +340,25 @@ function renderSinceLastVisitLine(
 function FeedItemRow({
   item,
   isNew,
+  ledgerEntry,
+  onDismiss,
+  onSnooze,
+  onRestore,
 }: {
   item: ManagerCatchUpItem;
   isNew: boolean;
+  ledgerEntry: CatchUpLedgerEntry | undefined;
+  onDismiss: () => void;
+  onSnooze: () => void;
+  onRestore: () => void;
 }) {
   const navigate = useNavigate();
   const severity = PRIORITY_TO_SEVERITY[item.priority];
+  const isDismissedRow = ledgerEntry?.action === 'dismissed';
   return (
-    <li style={styles.row}>
+    <li
+      style={isDismissedRow ? { ...styles.row, ...styles.rowDismissed } : styles.row}
+    >
       <div style={styles.rowHead}>
         <button
           type="button"
@@ -297,7 +369,7 @@ function FeedItemRow({
           {item.dealName}
         </button>
         <div style={styles.rowBadges}>
-          {isNew && (
+          {isNew && !isDismissedRow && (
             <Badge
               variant="info"
               appearance="soft"
@@ -335,8 +407,55 @@ function FeedItemRow({
           </span>
         )}
       </div>
+      <div style={styles.ledgerRow}>
+        {isDismissedRow ? (
+          <>
+            <span style={styles.dismissedTag}>
+              Dismissed locally · {formatLedgerDate(ledgerEntry.recordedAt)}
+              {' '}· tracked on this browser
+            </span>
+            <button
+              type="button"
+              onClick={onRestore}
+              style={styles.ledgerSecondaryButton}
+              aria-label={`Restore catch-up item for ${item.dealName}`}
+            >
+              Restore
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onDismiss}
+              style={styles.ledgerSecondaryButton}
+              aria-label={`Dismiss catch-up item for ${item.dealName} locally`}
+            >
+              Dismiss locally
+            </button>
+            <button
+              type="button"
+              onClick={onSnooze}
+              style={styles.ledgerSecondaryButton}
+              aria-label={`Snooze catch-up item for ${item.dealName} 24 hours locally`}
+            >
+              Snooze 24h
+            </button>
+          </>
+        )}
+      </div>
     </li>
   );
+}
+
+function formatLedgerDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 function ErrorBlock({ title, detail }: { title: string; detail: string }) {
@@ -431,6 +550,30 @@ const styles: Record<string, React.CSSProperties> = {
     gap: spacing.xs,
     alignItems: 'center',
     flexShrink: 0,
+  },
+  rowDismissed: { opacity: 0.6 },
+  ledgerRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingTop: spacing.xxs,
+  },
+  dismissedTag: {
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
+    fontStyle: 'italic',
+  },
+  ledgerSecondaryButton: {
+    background: 'transparent',
+    color: palette.textMuted,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.medium,
+    cursor: 'pointer',
+    fontFamily: typography.family,
   },
   sinceLine: {
     margin: 0,

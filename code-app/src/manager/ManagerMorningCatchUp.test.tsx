@@ -51,6 +51,11 @@ import {
   CATCH_UP_LAST_SEEN_STORAGE_KEY_PREFIX,
   setCatchUpLastSeenMs,
 } from '../shared/lastVisit/catchUpLastSeen';
+import {
+  CATCH_UP_ITEM_LEDGER_STORAGE_KEY,
+  recordCatchUpItemDismissed,
+  recordCatchUpItemSnoozed,
+} from '../shared/activity/catchUpItemLedger';
 
 const useManagerDataMock = vi.mocked(useManagerData);
 const useManagerMock = vi.mocked(useManager);
@@ -524,6 +529,165 @@ describe('ManagerMorningCatchUp — Phase 88', () => {
       );
       expect(text).not.toMatch(/\bofficial\s+(record|state|status)\b/i);
       expect(text).not.toMatch(/\breal[- ]?time\b/i);
+    });
+  });
+
+  // -----------------------------------------------------------------
+  // Phase 91 — local catch-up item ledger (dismiss / snooze / restore)
+  // -----------------------------------------------------------------
+
+  describe('Phase 91 — local catch-up item ledger', () => {
+    function readyWithOverdue(): ReturnType<typeof ready> {
+      const taskRow: TeamScopedTask = {
+        id: 't1',
+        title: 'Send Q2 financials',
+        completed: false,
+        dueDate: isoDaysAgo(2),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-1',
+        dealName: 'Hot Deal',
+      };
+      return ready([deal({ id: 'd-1', name: 'Hot Deal' })], [taskRow]);
+    }
+
+    it('renders Dismiss locally + Snooze 24h buttons on non-dismissed items', () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdue());
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByRole('button', {
+          name: /Dismiss catch-up item for Hot Deal locally/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /Snooze catch-up item for Hot Deal 24 hours locally/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking Dismiss locally marks the row dismissed + reveals a Restore button', async () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdue());
+      render(<ManagerMorningCatchUp />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Dismiss catch-up item for Hot Deal locally/i,
+        }),
+      );
+      expect(screen.getByText(/Dismissed locally/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /Restore catch-up item for Hot Deal/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking Restore brings back the Dismiss/Snooze controls', async () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdue());
+      render(<ManagerMorningCatchUp />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Dismiss catch-up item for Hot Deal locally/i,
+        }),
+      );
+      await user.click(
+        screen.getByRole('button', {
+          name: /Restore catch-up item for Hot Deal/i,
+        }),
+      );
+      expect(
+        screen.getByRole('button', {
+          name: /Dismiss catch-up item for Hot Deal locally/i,
+        }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Dismissed locally/i)).toBeNull();
+    });
+
+    it('clicking Snooze 24h hides the item from the visible feed', async () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdue());
+      render(<ManagerMorningCatchUp />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Snooze catch-up item for Hot Deal 24 hours locally/i,
+        }),
+      );
+      expect(
+        screen.getByText(/No catch-up items from current records/i),
+      ).toBeInTheDocument();
+    });
+
+    it('rehydrates a pre-existing dismissed entry from localStorage on mount', () => {
+      recordCatchUpItemDismissed({
+        surface: 'manager-catch-up',
+        itemKey: 'overdue-task:d-1:t1',
+        itemKind: 'overdue-task',
+        dealId: 'd-1',
+        titleSnapshot: 'Overdue task',
+        now: new Date('2026-05-17T10:00:00Z'),
+      });
+      useManagerDataMock.mockReturnValue(readyWithOverdue());
+      render(<ManagerMorningCatchUp />);
+      expect(screen.getByText(/Dismissed locally/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /Restore catch-up item for Hot Deal/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('rehydrates a pre-existing active snooze from localStorage (hides the item)', () => {
+      const futureUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      recordCatchUpItemSnoozed({
+        surface: 'manager-catch-up',
+        itemKey: 'overdue-task:d-1:t1',
+        itemKind: 'overdue-task',
+        dealId: 'd-1',
+        now: new Date(),
+        snoozeUntil: futureUntil,
+      });
+      useManagerDataMock.mockReturnValue(readyWithOverdue());
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByText(/No catch-up items from current records/i),
+      ).toBeInTheDocument();
+    });
+
+    it('the disclaimer states local-only tracking + does-not-change-deal-status invariant', () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdue());
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByText(
+          /"Dismiss locally" and "Snooze locally" are tracked on this browser only/i,
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/they do not change deal status/i),
+      ).toBeInTheDocument();
+    });
+
+    it('the ledger row never says resolved / completed / closed / acknowledged / workflow-updated', async () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdue());
+      render(<ManagerMorningCatchUp />);
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Dismiss catch-up item for Hot Deal locally/i,
+        }),
+      );
+      const body = document.body.textContent ?? '';
+      expect(body).not.toMatch(/\b(is|was|has been|will be)\s+resolved\b/i);
+      expect(body).not.toMatch(/\b(is|was|has been|will be)\s+completed\b/i);
+      expect(body).not.toMatch(/\b(is|was|has been|will be)\s+closed\b/i);
+      expect(body).not.toMatch(/\backnowledged\b/i);
+      expect(body).not.toMatch(/\bworkflow\s+updated\b/i);
+      expect(body).not.toMatch(/\bsystem\s+handled\b/i);
+    });
+
+    it('the ledger storage key is `cc:catchUpItemLedger:v1` (disjoint from Phase 83)', () => {
+      expect(CATCH_UP_ITEM_LEDGER_STORAGE_KEY).toBe('cc:catchUpItemLedger:v1');
     });
   });
 });
