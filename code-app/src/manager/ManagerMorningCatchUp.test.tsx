@@ -854,4 +854,153 @@ describe('ManagerMorningCatchUp — Phase 88', () => {
       expect(text).not.toMatch(/audit\s+view/i);
     });
   });
+
+  // -----------------------------------------------------------------
+  // Phase 94 — Mark all seen affordance
+  // -----------------------------------------------------------------
+
+  describe('Phase 94 — Mark all seen', () => {
+    function dataWithOverdueTask() {
+      const taskRow: TeamScopedTask = {
+        id: 't1',
+        title: 'Send Q2 financials',
+        completed: false,
+        dueDate: isoDaysAgo(2),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-1',
+        dealName: 'Hot Deal',
+      };
+      return ready([deal({ id: 'd-1', name: 'Hot Deal' })], [taskRow]);
+    }
+
+    it('does NOT render when newCount===0 (no new items)', () => {
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 1 * 24 * 60 * 60 * 1000, // marker fresher than the task anchor
+      );
+      useManagerDataMock.mockReturnValue(dataWithOverdueTask());
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.queryByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('does NOT render on first visit (no prior marker)', () => {
+      useManagerDataMock.mockReturnValue(dataWithOverdueTask());
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.queryByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('does NOT render when scope is unscoped (no teamId)', () => {
+      useManagerMock.mockReturnValue({
+        bankerId: 'manager-banker-1',
+        fullName: 'M. Manager',
+        email: 'mgr@bank.test',
+        teamId: '',
+        teamName: '',
+      });
+      useManagerDataMock.mockReturnValue(dataWithOverdueTask());
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.queryByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('renders when there are new items + scope is available', () => {
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      useManagerDataMock.mockReturnValue(dataWithOverdueTask());
+      render(<ManagerMorningCatchUp />);
+      const btn = screen.getByRole('button', {
+        name: /Mark all catch-up items seen on this browser/i,
+      });
+      expect(btn.textContent).toBe('Mark all seen');
+      expect(
+        screen.getByText(/Clears local new-item markers only/i),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking clears the "N new" count line + "New" badges immediately', async () => {
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      useManagerDataMock.mockReturnValue(dataWithOverdueTask());
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByText(/1 new since your last visit on this browser/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(/New since your last visit on this browser/i),
+      ).toBeInTheDocument();
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      );
+      expect(
+        screen.getByText(/No new items since your last visit on this browser/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText(/New since your last visit on this browser/i),
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('persists the new marker to localStorage on click', async () => {
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      useManagerDataMock.mockReturnValue(dataWithOverdueTask());
+      render(<ManagerMorningCatchUp />);
+      const before = Date.now();
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      );
+      const raw = localStorage.getItem(
+        'cc:lastVisit:catchUp:manager:manager-banker-1:team-1',
+      );
+      expect(raw).not.toBeNull();
+      expect(Number(raw)).toBeGreaterThanOrEqual(before);
+    });
+
+    it('the Mark-all-seen row never uses forbidden vocabulary', () => {
+      setCatchUpLastSeenMs(
+        'manager:manager-banker-1:team-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      useManagerDataMock.mockReturnValue(dataWithOverdueTask());
+      const { container } = render(<ManagerMorningCatchUp />);
+      const text = container.textContent ?? '';
+      expect(text).not.toMatch(/\bunread\b/i);
+      expect(text).not.toMatch(/\backnowledged\b/i);
+      expect(text).not.toMatch(/\bresolved\b/i);
+      expect(text).not.toMatch(/\b(is|was|has been|will be)\s+completed\b/i);
+      expect(text).not.toMatch(/\bofficial\s+(record|state|status|read)\b/i);
+      expect(text).not.toMatch(/\bworkflow\s+updated\b/i);
+      expect(text).not.toMatch(/\bnotification\s+cleared\b/i);
+      expect(text).not.toMatch(/\b(is|was|has been)\s+synced\b/i);
+      expect(text).not.toMatch(/\bmarked\s+as\s+read\b/i);
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CATCH_UP_MARKER_UPDATE_DELAY_MS,
   getCatchUpLastSeenMs,
@@ -38,8 +38,10 @@ import {
 
 export interface UseCatchUpLastSeenResult {
   /** The marker that was stored BEFORE the current visit. Frozen
-   *  on mount; never changes thereafter. `undefined` means first
-   *  visit on this browser, OR the scope was null (no identity). */
+   *  on mount; the only thing that mutates it is the Phase 94
+   *  `markAllSeen()` call (manual "Mark all seen" click).
+   *  `undefined` means first visit on this browser, OR the scope
+   *  was null (no identity). */
   priorLastSeenMs: number | undefined;
   /** True once the prior marker has been read and the snapshot is
    *  ready. The card can hide the badge until this is true to avoid
@@ -50,6 +52,12 @@ export interface UseCatchUpLastSeenResult {
    *  from "first visit" so the disclaimer can explain the missing
    *  marker honestly. */
   isUnscoped: boolean;
+  /** Phase 94: bump the marker to `now` immediately. Updates the
+   *  in-memory snapshot (so the catch-up "since last visit"
+   *  derivation re-renders with newCount=0 right away) AND writes
+   *  to localStorage (so the next visit's prior-marker reflects
+   *  this). No-op when `scope` is null. */
+  markAllSeen(now?: Date): void;
 }
 
 export function useCatchUpLastSeen(
@@ -59,7 +67,14 @@ export function useCatchUpLastSeen(
   const nowFn = options.now ?? (() => Date.now());
   const delayMs = options.delayMs ?? CATCH_UP_MARKER_UPDATE_DELAY_MS;
 
-  const [snapshot, setSnapshot] = useState<UseCatchUpLastSeenResult>(() => ({
+  // Internal snapshot — narrower than the public result because
+  // markAllSeen is attached separately below (it's a stable
+  // callback, not a piece of state).
+  const [snapshot, setSnapshot] = useState<{
+    priorLastSeenMs: number | undefined;
+    isInitialized: boolean;
+    isUnscoped: boolean;
+  }>(() => ({
     priorLastSeenMs: undefined,
     isInitialized: false,
     isUnscoped: scope == null,
@@ -102,5 +117,24 @@ export function useCatchUpLastSeen(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentScopeId]);
 
-  return snapshot;
+  // Phase 94: imperative "mark all seen" — bumps both the
+  // in-memory snapshot AND localStorage to `now`. No-op when the
+  // scope is null. Stable across renders.
+  const markAllSeen = useCallback(
+    (now?: Date) => {
+      if (currentScopeId == null) return;
+      const ms = (now ?? new Date()).getTime();
+      if (!Number.isFinite(ms) || ms <= 0) return;
+      setCatchUpLastSeenMs(currentScopeId, ms);
+      setSnapshot((prev) => ({
+        ...prev,
+        priorLastSeenMs: Math.floor(ms),
+        isInitialized: true,
+        isUnscoped: false,
+      }));
+    },
+    [currentScopeId],
+  );
+
+  return { ...snapshot, markAllSeen };
 }

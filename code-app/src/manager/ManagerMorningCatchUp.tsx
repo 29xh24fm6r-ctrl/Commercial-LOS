@@ -104,6 +104,7 @@ export function ManagerMorningCatchUp() {
         priorLastSeenMs={lastSeen.priorLastSeenMs}
         isInitialized={lastSeen.isInitialized}
         isUnscoped={lastSeen.isUnscoped}
+        markAllSeen={lastSeen.markAllSeen}
         filter={filter}
       />
     </Card>
@@ -118,6 +119,7 @@ function BodyWithLedger(props: {
   priorLastSeenMs: number | undefined;
   isInitialized: boolean;
   isUnscoped: boolean;
+  markAllSeen: (now?: Date) => void;
   filter: ManagerBankerFilterView;
 }) {
   const ledger = useCatchUpItemLedger();
@@ -132,6 +134,7 @@ function Body({
   priorLastSeenMs,
   isInitialized,
   isUnscoped,
+  markAllSeen,
   ledger,
   filter,
 }: {
@@ -142,6 +145,7 @@ function Body({
   priorLastSeenMs: number | undefined;
   isInitialized: boolean;
   isUnscoped: boolean;
+  markAllSeen: (now?: Date) => void;
   ledger: ReturnType<typeof useCatchUpItemLedger>;
   filter: ManagerBankerFilterView;
 }) {
@@ -256,7 +260,7 @@ function Body({
     return (
       <>
         <p style={styles.muted}>{emptyCopy}</p>
-        {renderSinceLastVisitLine(sinceLastSeen, isUnscoped, /*populated*/ false)}
+        {renderSinceLastVisitLine(sinceLastSeen, isUnscoped, /*populated*/ false, markAllSeen)}
         <p style={styles.disclaimer}>
           Derived from current manager-visible records. Nothing happens
           automatically. Not AI-generated.
@@ -267,7 +271,7 @@ function Body({
 
   return (
     <div style={styles.section}>
-      {renderSinceLastVisitLine(sinceLastSeen, isUnscoped, /*populated*/ true)}
+      {renderSinceLastVisitLine(sinceLastSeen, isUnscoped, /*populated*/ true, markAllSeen)}
       <ul style={styles.list} aria-label="Manager morning catch-up items">
         {visibleItems.map((item) => {
           const ledgerKey = buildCatchUpLedgerKey({
@@ -338,6 +342,7 @@ function renderSinceLastVisitLine(
   summary: { newCount: number; isFirstVisit: boolean },
   isUnscoped: boolean,
   populated: boolean,
+  markAllSeen: (now?: Date) => void,
 ): ReactElement | null {
   if (isUnscoped) {
     return (
@@ -369,13 +374,30 @@ function renderSinceLastVisitLine(
       </p>
     );
   }
+  // Phase 94: surface a "Mark all seen" button next to the count
+  // line. Click bumps the local marker to `now` immediately,
+  // dropping every "New" badge + count back to zero. Local-only:
+  // no Dataverse write, no audit, no notification, no sync.
   return (
-    <p
-      style={populated ? styles.sinceLine : styles.sinceLineEmpty}
+    <div
+      style={populated ? styles.sinceLineRow : styles.sinceLineRowEmpty}
       aria-label="Catch-up last-seen status"
     >
-      {summary.newCount} new since your last visit on this browser.
-    </p>
+      <span style={styles.sinceLineText}>
+        {summary.newCount} new since your last visit on this browser.
+      </span>
+      <button
+        type="button"
+        onClick={() => markAllSeen()}
+        style={styles.markAllSeenButton}
+        aria-label="Mark all catch-up items seen on this browser"
+      >
+        Mark all seen
+      </button>
+      <span style={styles.markAllSeenHint}>
+        Clears local new-item markers only
+      </span>
+    </div>
   );
 }
 
@@ -638,6 +660,42 @@ const styles: Record<string, React.CSSProperties> = {
     color: palette.textMuted,
     fontStyle: 'italic',
     paddingTop: spacing.xs,
+  },
+  sinceLineRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+    margin: 0,
+  },
+  sinceLineRowEmpty: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+    margin: 0,
+    paddingTop: spacing.xs,
+  },
+  sinceLineText: {
+    fontSize: typography.size.sm,
+    color: palette.textMuted,
+    fontStyle: 'italic',
+  },
+  markAllSeenButton: {
+    background: 'transparent',
+    color: palette.textMuted,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.medium,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  markAllSeenHint: {
+    fontSize: typography.size.xs,
+    color: palette.textSubtle,
+    fontStyle: 'italic',
   },
   signalCoverage: {
     margin: 0,

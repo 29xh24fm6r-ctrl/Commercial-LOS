@@ -818,4 +818,276 @@ describe('BankerMorningCatchUp — Phase 89', () => {
       expect(CATCH_UP_ITEM_LEDGER_STORAGE_KEY).toBe('cc:catchUpItemLedger:v1');
     });
   });
+
+  // -----------------------------------------------------------------
+  // Phase 94 — Mark all seen affordance
+  // -----------------------------------------------------------------
+
+  describe('Phase 94 — Mark all seen', () => {
+    function dataWithOverdueTask(): BankerWorkQueueData {
+      return dataWith({
+        deals: [
+          {
+            id: 'd-1',
+            name: 'Hot Deal',
+            clientName: undefined,
+            stage: 'Underwriting',
+            status: 'Active',
+            amount: undefined,
+            targetCloseDate: isoDaysFromNow(60),
+            lastActivityOn: isoDaysAgo(1),
+            stageEntryDate: isoDaysAgo(5),
+            isClosed: false,
+          },
+        ],
+        tasks: [
+          {
+            id: 't1',
+            dealId: 'd-1',
+            title: 'Send Q2 financials',
+            dueDate: isoDaysAgo(2),
+            modifiedOn: undefined,
+            completed: false,
+          },
+        ],
+      });
+    }
+
+    it('does NOT render when there are no new items (newCount===0)', async () => {
+      // Pre-seed a fresh marker so the only item (45d-ago stage-aging
+      // would-be item) does not count as new. Actually use the
+      // overdue-task scenario: pre-seed marker AFTER the task's
+      // due date so it's not "new".
+      setCatchUpLastSeenMs(
+        'banker:banker-1',
+        Date.now() - 1 * 24 * 60 * 60 * 1000, // yesterday
+      );
+      loadMock.mockResolvedValue(dataWithOverdueTask());
+      render(<BankerMorningCatchUp />);
+      await waitFor(() =>
+        expect(
+          screen.getByRole('list', { name: /Banker morning catch-up items/i }),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('does NOT render on first visit (no prior marker)', async () => {
+      loadMock.mockResolvedValue(dataWithOverdueTask());
+      render(<BankerMorningCatchUp />);
+      await waitFor(() =>
+        expect(
+          screen.getByText(/First visit on this browser/i),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('does NOT render when scope is unscoped (no bankerId)', async () => {
+      useBankerMock.mockReturnValue({
+        bankerId: '',
+        fullName: 'M. Paller',
+        email: 'm@bank.test',
+        systemUserId: 'sys-1',
+        writeDisabledReason: undefined,
+      });
+      loadMock.mockResolvedValue(dataWithOverdueTask());
+      render(<BankerMorningCatchUp />);
+      await waitFor(() =>
+        expect(
+          screen.getByText(/Last-seen marker unavailable/i),
+        ).toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('renders when there are new items + scope is available', async () => {
+      // Pre-seed marker 7d ago; overdue-task anchor is 2d ago → new.
+      setCatchUpLastSeenMs(
+        'banker:banker-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      loadMock.mockResolvedValue(dataWithOverdueTask());
+      render(<BankerMorningCatchUp />);
+      const btn = await screen.findByRole('button', {
+        name: /Mark all catch-up items seen on this browser/i,
+      });
+      expect(btn).toBeInTheDocument();
+      expect(btn.textContent).toBe('Mark all seen');
+      expect(
+        screen.getByText(/Clears local new-item markers only/i),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking clears the "N new" count line and "New" badges immediately', async () => {
+      setCatchUpLastSeenMs(
+        'banker:banker-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      loadMock.mockResolvedValue(dataWithOverdueTask());
+      render(<BankerMorningCatchUp />);
+      await screen.findByText(/1 new since your last visit on this browser/i);
+      expect(
+        screen.getByLabelText(/New since your last visit on this browser/i),
+      ).toBeInTheDocument();
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      );
+      // After click: count line flips to "No new items"; per-item
+      // "New" badge disappears; the Mark-all-seen button itself
+      // disappears (because newCount === 0).
+      expect(
+        screen.getByText(/No new items since your last visit on this browser/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText(/New since your last visit on this browser/i),
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('persists the new marker to localStorage on click', async () => {
+      setCatchUpLastSeenMs(
+        'banker:banker-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      loadMock.mockResolvedValue(dataWithOverdueTask());
+      render(<BankerMorningCatchUp />);
+      await screen.findByText(/1 new since your last visit on this browser/i);
+      const before = Date.now();
+      const user = userEvent.setup();
+      await user.click(
+        screen.getByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      );
+      // The Phase 90 marker for this scope is now >= the click time.
+      const raw = localStorage.getItem('cc:lastVisit:catchUp:banker:banker-1');
+      expect(raw).not.toBeNull();
+      const stored = Number(raw);
+      expect(stored).toBeGreaterThanOrEqual(before);
+    });
+
+    it('does NOT clear the Phase 91 dismiss/snooze ledger', async () => {
+      // Dismiss the only catch-up item, THEN mark all seen. The
+      // dismiss entry should survive — Phase 94 only touches the
+      // last-seen marker.
+      const initialMarker = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      setCatchUpLastSeenMs('banker:banker-1', initialMarker);
+      // Add a second deal so something stays visible after dismiss.
+      loadMock.mockResolvedValue(
+        dataWith({
+          deals: [
+            {
+              id: 'd-1',
+              name: 'Hot Deal',
+              clientName: undefined,
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: undefined,
+              targetCloseDate: isoDaysFromNow(60),
+              lastActivityOn: isoDaysAgo(1),
+              stageEntryDate: isoDaysAgo(5),
+              isClosed: false,
+            },
+            {
+              id: 'd-2',
+              name: 'Other Deal',
+              clientName: undefined,
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: undefined,
+              targetCloseDate: isoDaysFromNow(60),
+              lastActivityOn: isoDaysAgo(1),
+              stageEntryDate: isoDaysAgo(5),
+              isClosed: false,
+            },
+          ],
+          tasks: [
+            {
+              id: 't1',
+              dealId: 'd-1',
+              title: 'Send Q2 financials',
+              dueDate: isoDaysAgo(2),
+              modifiedOn: undefined,
+              completed: false,
+            },
+            {
+              id: 't2',
+              dealId: 'd-2',
+              title: 'Send Q3 financials',
+              dueDate: isoDaysAgo(2),
+              modifiedOn: undefined,
+              completed: false,
+            },
+          ],
+        }),
+      );
+      render(<BankerMorningCatchUp />);
+      const user = userEvent.setup();
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Dismiss catch-up item for Hot Deal locally/i,
+        }),
+      );
+      // Now the Mark-all-seen button is visible (Other Deal item is
+      // still "new"). Click it.
+      await user.click(
+        screen.getByRole('button', {
+          name: /Mark all catch-up items seen on this browser/i,
+        }),
+      );
+      // Hot Deal's dismiss entry survives unchanged.
+      const ledger = localStorage.getItem('cc:catchUpItemLedger:v1');
+      expect(ledger).not.toBeNull();
+      const parsed = JSON.parse(ledger!);
+      const entry =
+        parsed['banker-catch-up|overdue-task:d-1:t1'];
+      expect(entry).toBeDefined();
+      expect(entry.action).toBe('dismissed');
+    });
+
+    it('the Mark-all-seen row never uses forbidden vocabulary', async () => {
+      setCatchUpLastSeenMs(
+        'banker:banker-1',
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+      );
+      loadMock.mockResolvedValue(dataWithOverdueTask());
+      const { container } = render(<BankerMorningCatchUp />);
+      await screen.findByRole('button', {
+        name: /Mark all catch-up items seen on this browser/i,
+      });
+      const text = container.textContent ?? '';
+      expect(text).not.toMatch(/\bunread\b/i);
+      expect(text).not.toMatch(/\backnowledged\b/i);
+      expect(text).not.toMatch(/\bresolved\b/i);
+      expect(text).not.toMatch(/\b(is|was|has been|will be)\s+completed\b/i);
+      expect(text).not.toMatch(/\bofficial\s+(record|state|status|read)\b/i);
+      expect(text).not.toMatch(/\bworkflow\s+updated\b/i);
+      expect(text).not.toMatch(/\bnotification\s+cleared\b/i);
+      expect(text).not.toMatch(/\b(is|was|has been)\s+synced\b/i);
+      // Specifically forbid "(is|was|has been) read" as a positive
+      // claim — but the existing "as read" idiom in the brief's
+      // forbidden list does NOT appear in our copy.
+      expect(text).not.toMatch(/\bmarked\s+as\s+read\b/i);
+    });
+  });
 });

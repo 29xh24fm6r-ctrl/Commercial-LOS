@@ -563,14 +563,21 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'AND in the past (future-anchored items like closing-soon ' +
       'never trigger the "New" badge). The marker is bumped to ' +
       '`now` after a 2-second settle — same predictable timing ' +
-      'Phase 72 uses. No Dataverse write. No audit row. No timeline ' +
-      'event. No cross-device sync. No notification delivery. Does ' +
-      'NOT create official unread state. The marker is plain text ' +
-      '(millisecond Unix epoch). Implementation: ' +
+      'Phase 72 uses. Phase 94 added a manual "Mark all seen" ' +
+      'button to both catch-up cards that bumps the marker to `now` ' +
+      'immediately (and writes it to localStorage) so the "N new" ' +
+      'count + per-item "New" badges clear without waiting the ' +
+      '2-second settle; the button surfaces only when the marker ' +
+      'scope is available AND there are new items. No Dataverse ' +
+      'write. No audit row. No timeline event. No cross-device ' +
+      'sync. No notification delivery. Does NOT create official ' +
+      'unread state. The marker is plain text (millisecond Unix ' +
+      'epoch). Implementation: ' +
       'src/shared/lastVisit/catchUpLastSeen.ts (pure storage + ' +
       'derivation) + src/shared/lastVisit/useCatchUpLastSeen.ts ' +
-      '(React hook). See ' +
-      'docs/PHASE_90_CATCH_UP_LAST_SEEN_MARKERS.md.',
+      '(React hook with the Phase 94 `markAllSeen` action). See ' +
+      'docs/PHASE_90_CATCH_UP_LAST_SEEN_MARKERS.md and ' +
+      'docs/PHASE_94_CATCH_UP_MARK_ALL_SEEN.md.',
   },
   {
     id: 'teams-chat-handoff',

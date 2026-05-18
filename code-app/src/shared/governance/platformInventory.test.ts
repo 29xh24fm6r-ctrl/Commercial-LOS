@@ -435,6 +435,31 @@ describe('platformInventory — local-only flows', () => {
     expect(ids.has('catch-up-last-seen-markers')).toBe(false);
   });
 
+  it('catch-up-last-seen-markers (Phase 90) note mentions the Phase 94 "Mark all seen" affordance', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'catch-up-last-seen-markers',
+    );
+    expect(entry).toBeDefined();
+    // Phase 94 extended the existing note rather than adding a
+    // new LOCAL_ONLY_FLOWS entry — the disclaimers are identical.
+    expect(entry!.note).toMatch(/Phase 94.*Mark all seen/i);
+    expect(entry!.note).toMatch(/bumps the marker to `now` immediately/i);
+    expect(entry!.note).toMatch(/PHASE_94_CATCH_UP_MARK_ALL_SEEN\.md/);
+    // Pre-Phase 94 invariants still hold.
+    expect(entry!.note).toMatch(/No Dataverse write/i);
+    expect(entry!.note).toMatch(/No cross-device sync/i);
+    expect(entry!.note).toMatch(/Does NOT create official unread state/i);
+  });
+
+  it('the Phase 94 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_94_CATCH_UP_MARK_ALL_SEEN.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
   it('catch-up-item-ledger (Phase 91) is a LOCAL_ONLY flow with the right disclaimers', () => {
     const entry = LOCAL_ONLY_FLOWS.find(
       (f) => f.id === 'catch-up-item-ledger',

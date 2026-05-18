@@ -179,4 +179,135 @@ describe('Phase 90 — useCatchUpLastSeen', () => {
     render(<Harness scope={mScope} now={() => 1} delayMs={1_000_000} />);
     expect(readSnapshot().prior).toBe('200');
   });
+
+  // -----------------------------------------------------------------
+  // Phase 94 — markAllSeen
+  // -----------------------------------------------------------------
+
+  describe('Phase 94 — markAllSeen', () => {
+    function MarkAllSeenHarness({
+      scope,
+      now,
+      onReady,
+    }: {
+      scope: CatchUpScope | null;
+      now: () => number;
+      onReady?: (markAllSeen: (now?: Date) => void) => void;
+    }) {
+      const r = useCatchUpLastSeen(scope, { now, delayMs: 1_000_000 });
+      // Expose markAllSeen to the test via a ref callback.
+      if (onReady) onReady(r.markAllSeen);
+      return (
+        <div data-testid="snapshot">
+          {String(r.isInitialized)}|{r.priorLastSeenMs ?? 'undefined'}|
+          {String(r.isUnscoped)}
+        </div>
+      );
+    }
+
+    it('bumps the in-memory snapshot to `now` when scope is available', () => {
+      let trigger: ((n?: Date) => void) | null = null;
+      const scope = buildCatchUpScope({ surface: 'banker', userId: 'b-9' });
+      render(
+        <MarkAllSeenHarness
+          scope={scope}
+          now={() => 1}
+          onReady={(fn) => {
+            trigger = fn;
+          }}
+        />,
+      );
+      // Before click: first visit (no prior marker).
+      expect(readSnapshot().prior).toBe('undefined');
+      const stamp = new Date(1_700_000_999_999);
+      act(() => {
+        trigger!(stamp);
+      });
+      // Snapshot updated synchronously to the new marker.
+      expect(readSnapshot().prior).toBe('1700000999999');
+    });
+
+    it('writes the new marker to localStorage so the next visit reflects it', () => {
+      let trigger: ((n?: Date) => void) | null = null;
+      const scope = buildCatchUpScope({ surface: 'banker', userId: 'b-10' });
+      render(
+        <MarkAllSeenHarness
+          scope={scope}
+          now={() => 1}
+          onReady={(fn) => {
+            trigger = fn;
+          }}
+        />,
+      );
+      act(() => {
+        trigger!(new Date(1_700_000_999_999));
+      });
+      expect(getCatchUpLastSeenMs('banker:b-10')).toBe(1_700_000_999_999);
+    });
+
+    it('no-ops when scope is null (unscoped)', () => {
+      let trigger: ((n?: Date) => void) | null = null;
+      render(
+        <MarkAllSeenHarness
+          scope={null}
+          now={() => 1}
+          onReady={(fn) => {
+            trigger = fn;
+          }}
+        />,
+      );
+      act(() => {
+        trigger!(new Date(1_700_000_999_999));
+      });
+      // Snapshot remains the unscoped default; storage was not
+      // written under any scope.
+      const after = readSnapshot();
+      expect(after.prior).toBe('undefined');
+      expect(after.isUnscoped).toBe('true');
+      expect(localStorage.length).toBe(0);
+    });
+
+    it('uses Date.now() when no explicit `now` is passed', () => {
+      let trigger: ((n?: Date) => void) | null = null;
+      const scope = buildCatchUpScope({ surface: 'banker', userId: 'b-11' });
+      render(
+        <MarkAllSeenHarness
+          scope={scope}
+          now={() => 1}
+          onReady={(fn) => {
+            trigger = fn;
+          }}
+        />,
+      );
+      const before = Date.now();
+      act(() => {
+        trigger!();
+      });
+      const stored = getCatchUpLastSeenMs('banker:b-11');
+      expect(stored).toBeDefined();
+      // The default-Date stamp is within the (before .. now) window.
+      expect(stored!).toBeGreaterThanOrEqual(before);
+      expect(stored!).toBeLessThanOrEqual(Date.now() + 50);
+    });
+
+    it('floors fractional millisecond input to integer storage', () => {
+      let trigger: ((n?: Date) => void) | null = null;
+      const scope = buildCatchUpScope({ surface: 'banker', userId: 'b-12' });
+      render(
+        <MarkAllSeenHarness
+          scope={scope}
+          now={() => 1}
+          onReady={(fn) => {
+            trigger = fn;
+          }}
+        />,
+      );
+      act(() => {
+        trigger!(new Date(1_700_000_999_999.7));
+      });
+      // Date(...).getTime() already returns integer ms — but the
+      // helper also floors defensively.
+      expect(getCatchUpLastSeenMs('banker:b-12')).toBe(1_700_000_999_999);
+    });
+  });
 });
