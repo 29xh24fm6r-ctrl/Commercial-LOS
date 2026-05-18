@@ -3,7 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ManagerData } from './ManagerDataProvider';
-import type { TeamDeal } from './managerQueries';
+import type {
+  TeamDeal,
+  TeamScopedDocument,
+  TeamScopedMemo,
+  TeamScopedTask,
+} from './managerQueries';
 
 /**
  * Phase 81 — ManagerAutopilotRollup card tests.
@@ -48,10 +53,18 @@ function isoDaysFromNow(d: number): string {
   return new Date(NOW.getTime() + d * MS_PER_DAY).toISOString();
 }
 
-function ready(deals: TeamDeal[]): ManagerData {
+function ready(
+  deals: TeamDeal[],
+  tasks: TeamScopedTask[] = [],
+  documents: TeamScopedDocument[] = [],
+  memos: TeamScopedMemo[] = [],
+): ManagerData {
   return {
     teamPipeline: { kind: 'ready', data: deals },
     teamBankers: { kind: 'ready', data: [] },
+    teamTasks: { kind: 'ready', data: tasks },
+    teamDocuments: { kind: 'ready', data: documents },
+    teamMemos: { kind: 'ready', data: memos },
   };
 }
 
@@ -92,6 +105,21 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
     useManagerDataMock.mockReturnValue({
       teamPipeline: { kind: 'loading' },
       teamBankers: { kind: 'ready', data: [] },
+      teamTasks: { kind: 'ready', data: [] },
+      teamDocuments: { kind: 'ready', data: [] },
+      teamMemos: { kind: 'ready', data: [] },
+    });
+    render(<ManagerAutopilotRollup />);
+    expect(screen.getByText(/Loading team signals/i)).toBeInTheDocument();
+  });
+
+  it('renders the loading state when any Phase 87 child-data slot is non-ready', () => {
+    useManagerDataMock.mockReturnValue({
+      teamPipeline: { kind: 'ready', data: [deal()] },
+      teamBankers: { kind: 'ready', data: [] },
+      teamTasks: { kind: 'loading' },
+      teamDocuments: { kind: 'ready', data: [] },
+      teamMemos: { kind: 'ready', data: [] },
     });
     render(<ManagerAutopilotRollup />);
     expect(screen.getByText(/Loading team signals/i)).toBeInTheDocument();
@@ -101,6 +129,9 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
     useManagerDataMock.mockReturnValue({
       teamPipeline: { kind: 'failed', message: 'service unavailable' },
       teamBankers: { kind: 'ready', data: [] },
+      teamTasks: { kind: 'ready', data: [] },
+      teamDocuments: { kind: 'ready', data: [] },
+      teamMemos: { kind: 'ready', data: [] },
     });
     render(<ManagerAutopilotRollup />);
     expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -108,6 +139,21 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
       screen.getByText(/Could not load team signals/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/service unavailable/i)).toBeInTheDocument();
+  });
+
+  it('renders the failed state when a Phase 87 child-data slot fails', () => {
+    useManagerDataMock.mockReturnValue({
+      teamPipeline: { kind: 'ready', data: [deal()] },
+      teamBankers: { kind: 'ready', data: [] },
+      teamTasks: { kind: 'failed', message: 'tasks service unavailable' },
+      teamDocuments: { kind: 'ready', data: [] },
+      teamMemos: { kind: 'ready', data: [] },
+    });
+    render(<ManagerAutopilotRollup />);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(
+      screen.getByText(/tasks service unavailable/i),
+    ).toBeInTheDocument();
   });
 
   it('renders the no-deals empty state when teamPipeline is ready but empty', () => {
@@ -238,7 +284,7 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
     expect(navigateSpy).toHaveBeenCalledWith('/deals/d-target');
   });
 
-  it('renders the signal-coverage disclaimer and the conservative disclaimer', () => {
+  it('renders the Phase 87 signal-coverage disclaimer + the conservative disclaimer', () => {
     useManagerDataMock.mockReturnValue(
       ready([
         deal({
@@ -250,11 +296,16 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
       ]),
     );
     render(<ManagerAutopilotRollup />);
+    // Phase 87 broadens the coverage paragraph beyond "deal-record
+    // signals only" — it now enumerates the manager-scoped records
+    // and continues to disclaim memo-consistency-findings.
     expect(
-      screen.getByText(/Manager rollup uses deal-record signals only/i),
+      screen.getByText(
+        /Manager rollup uses the available manager-scoped records/i,
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/banker's deal workspace/i),
+      screen.getByText(/Memo consistency findings appear on each deal/i),
     ).toBeInTheDocument();
     // The bottom disclaimer.
     expect(
@@ -383,6 +434,196 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
           name: /Restore suggestion for Flagged Deal/i,
         }),
       ).toBeInTheDocument();
+    });
+  });
+
+  // -----------------------------------------------------------------
+  // Phase 87 — broader signal coverage (overdue tasks, pending review,
+  // outstanding documents, draft memos)
+  // -----------------------------------------------------------------
+
+  describe('Phase 87 — manager-scoped child data signals', () => {
+    function quietDeal(overrides: Partial<TeamDeal> = {}): TeamDeal {
+      return deal({
+        id: 'd-h',
+        name: 'Hot Deal',
+        targetCloseDate: isoDaysFromNow(60),
+        stageEntryDate: isoDaysAgo(5),
+        modifiedOn: isoDaysAgo(1),
+        assignedBankerName: 'B. One',
+        ...overrides,
+      });
+    }
+
+    it('overdue tasks fire HIGH priority on the manager rollup', () => {
+      const task: TeamScopedTask = {
+        id: 't1',
+        title: 'Send Q2 financials',
+        completed: false,
+        dueDate: isoDaysAgo(2),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-h',
+        dealName: 'Hot Deal',
+      };
+      useManagerDataMock.mockReturnValue(ready([quietDeal()], [task]));
+      render(<ManagerAutopilotRollup />);
+      expect(
+        screen.getByLabelText(/High priority: 1 deal\b/i),
+      ).toBeInTheDocument();
+      const list = screen.getByRole('list', {
+        name: /Top team deals with next-best-action signals/i,
+      });
+      const items = within(list).getAllByRole('listitem');
+      expect(items.length).toBe(1);
+      expect(items[0]!.textContent).toContain('Hot Deal');
+      expect(items[0]!.textContent).toContain('1 overdue task');
+    });
+
+    it('pending-review documents (status=received, no reviewer) fire HIGH priority', () => {
+      const doc: TeamScopedDocument = {
+        id: 'doc1',
+        name: 'PFS',
+        dueDate: undefined,
+        requestDate: undefined,
+        receivedDate: isoDaysAgo(10),
+        reviewer: undefined,
+        uploaded: false,
+        modifiedOn: undefined,
+        status: 'received',
+        dealId: 'd-h',
+        dealName: 'Hot Deal',
+      };
+      useManagerDataMock.mockReturnValue(ready([quietDeal()], [], [doc]));
+      render(<ManagerAutopilotRollup />);
+      expect(
+        screen.getByLabelText(/High priority: 1 deal\b/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/document may require review/i),
+      ).toBeInTheDocument();
+    });
+
+    it('outstanding documents fire MEDIUM priority', () => {
+      const doc: TeamScopedDocument = {
+        id: 'doc-od',
+        name: 'PFS',
+        dueDate: undefined,
+        requestDate: undefined,
+        receivedDate: undefined,
+        reviewer: undefined,
+        uploaded: false,
+        modifiedOn: undefined,
+        status: 'outstanding',
+        dealId: 'd-h',
+        dealName: 'Hot Deal',
+      };
+      useManagerDataMock.mockReturnValue(ready([quietDeal()], [], [doc]));
+      render(<ManagerAutopilotRollup />);
+      expect(
+        screen.getByLabelText(/Medium priority: 1 deal\b/i),
+      ).toBeInTheDocument();
+    });
+
+    it('draft memos fire LOW priority on the manager rollup', () => {
+      const memo: TeamScopedMemo = {
+        id: 'm1',
+        name: 'Draft memo',
+        statusKey: 'draft',
+        generatedAt: isoDaysAgo(2),
+        modifiedOn: undefined,
+        dealId: 'd-h',
+        dealName: 'Hot Deal',
+      };
+      useManagerDataMock.mockReturnValue(ready([quietDeal()], [], [], [memo]));
+      render(<ManagerAutopilotRollup />);
+      expect(
+        screen.getByLabelText(/Low priority: 1 deal\b/i),
+      ).toBeInTheDocument();
+    });
+
+    it('reviewed documents do NOT fire pending-review (Phase 80 rule still requires no reviewer)', () => {
+      const reviewedDoc: TeamScopedDocument = {
+        id: 'doc-r',
+        name: 'PFS',
+        dueDate: undefined,
+        requestDate: undefined,
+        receivedDate: isoDaysAgo(30),
+        reviewer: 'M. Paller',
+        uploaded: true,
+        modifiedOn: undefined,
+        status: 'reviewed',
+        dealId: 'd-h',
+        dealName: 'Hot Deal',
+      };
+      useManagerDataMock.mockReturnValue(
+        ready([quietDeal()], [], [reviewedDoc]),
+      );
+      render(<ManagerAutopilotRollup />);
+      // No signals fire → no-signals empty state.
+      expect(
+        screen.getByText(
+          /No next-best-action suggestions from current records\./i,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it("does NOT claim memo-consistency-findings coverage on the manager surface", () => {
+      const memo: TeamScopedMemo = {
+        id: 'm1',
+        name: 'Draft memo',
+        statusKey: 'draft',
+        generatedAt: isoDaysAgo(2),
+        modifiedOn: undefined,
+        dealId: 'd-h',
+        dealName: 'Hot Deal',
+      };
+      useManagerDataMock.mockReturnValue(ready([quietDeal()], [], [], [memo]));
+      const { container } = render(<ManagerAutopilotRollup />);
+      const text = container.textContent ?? '';
+      // The signal-coverage paragraph explicitly states memo
+      // consistency findings DO NOT fire on this rollup.
+      expect(text).toMatch(/Memo consistency findings appear on each deal/i);
+      expect(text).toMatch(/they do not fire on this rollup/i);
+    });
+
+    it("does NOT use the Phase 81 disclaimer language 'deal-record signals only'", () => {
+      // Phase 87 broadens the signal set; the old disclaimer would be
+      // misleading. Forbid the legacy phrase from the populated DOM.
+      useManagerDataMock.mockReturnValue(
+        ready([
+          deal({
+            id: 'h1',
+            name: 'High Acme',
+            targetCloseDate: isoDaysFromNow(5),
+            modifiedOn: isoDaysAgo(20),
+          }),
+        ]),
+      );
+      const { container } = render(<ManagerAutopilotRollup />);
+      const text = container.textContent ?? '';
+      expect(text).not.toMatch(/deal-record signals only/i);
+    });
+
+    it("does NOT use over-confident phrasing in the new copy ('full coverage' / 'complete' / 'guaranteed' / 'real-time')", () => {
+      useManagerDataMock.mockReturnValue(
+        ready([
+          deal({
+            id: 'h1',
+            name: 'High Acme',
+            targetCloseDate: isoDaysFromNow(5),
+            modifiedOn: isoDaysAgo(20),
+          }),
+        ]),
+      );
+      const { container } = render(<ManagerAutopilotRollup />);
+      const text = container.textContent ?? '';
+      expect(text).not.toMatch(/\bfull\s+coverage\b/i);
+      expect(text).not.toMatch(/\bcomplete\s+insight\b/i);
+      expect(text).not.toMatch(/\bguaranteed\b/i);
+      expect(text).not.toMatch(/\breal[- ]?time\b/i);
+      expect(text).not.toMatch(/\bautomated\s+intervention\b/i);
+      expect(text).not.toMatch(/\bofficial\s+score\b/i);
     });
   });
 });

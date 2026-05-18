@@ -1,42 +1,48 @@
 /**
- * Phase 81: deterministic manager-side rollup over the Phase 80
- * "Next Best Actions" derivation.
+ * Phase 81 → Phase 87: deterministic manager-side rollup over the
+ * Phase 80 "Next Best Actions" derivation.
  *
- * Calls the Phase 80 `deriveNextBestActions` once per deal in the
- * manager's already-authorized team pipeline, aggregates the
- * priority counts, and ranks the top N deals for the manager card.
+ * Phase 81 shipped this rollup with deal-record fields only —
+ * teamPipeline (TeamDeal[]) carried no per-deal tasks / documents /
+ * memos, so the per-deal call to `deriveNextBestActions` passed
+ * empty arrays for those collections and only 4 of 8 signals fired
+ * on the manager surface.
  *
- * IMPORTANT — signal coverage on the manager surface:
+ * Phase 87 closes the signal-coverage gap by accepting manager-
+ * authorized child data (tasks / documents with status / memos)
+ * loaded through ManagerDataProvider's new slots. The new inputs are
+ * **optional** to preserve every Phase 81 caller — if a caller still
+ * passes only `{ deals: [...] }`, the rollup behaves exactly as it
+ * did under Phase 81. When the new collections are supplied, the
+ * derivation buckets them by dealId and feeds the real per-deal
+ * collections into the Phase 80 derivation.
  *
- *   The manager workspace's `teamPipeline` (TeamDeal[]) carries
- *   deal-record fields only — targetCloseDate, stageEntryDate,
- *   modifiedOn, etc. It does NOT carry per-deal open tasks,
- *   outstanding documents, received documents, or credit memos.
+ * Signal coverage after Phase 87:
  *
- *   Therefore, the per-deal call to deriveNextBestActions passes
- *   empty arrays for those collections and `deal.modifiedOn` as the
- *   mostRecentActivityIso proxy. Five of the eight Phase 80 signals
- *   are silenced on the manager surface (overdue-tasks,
- *   pending-review-documents, outstanding-documents,
- *   memo-consistency-findings, draft-memo). The three that fire are:
- *     - closing-soon-stale-activity (HIGH)
- *     - closing-soon (MEDIUM)
- *     - stage-aging (MEDIUM)
- *     - stale-activity (LOW)
+ *   ✓ closing-soon-stale-activity (HIGH)
+ *   ✓ closing-soon              (MEDIUM)
+ *   ✓ stage-aging               (MEDIUM)
+ *   ✓ stale-activity            (LOW)        — existing under Phase 81
+ *   ✓ overdue-tasks             (HIGH)       — Phase 87
+ *   ✓ pending-review-documents  (HIGH)       — Phase 87
+ *   ✓ outstanding-documents     (MEDIUM)     — Phase 87
+ *   ✓ draft-memo                (LOW)        — Phase 87
+ *   ✗ memo-consistency-findings (MEDIUM)     — still silenced. Requires
+ *     per-deal CreditMemoData with sections; the manager memo loader
+ *     pulls status only. Same gap the banker/team rollups carry.
  *
- *   This limitation is honestly surfaced by the card disclaimer and
- *   documented in docs/PHASE_81_MANAGER_AUTOPILOT_ROLLUP.md. A
- *   future phase could load manager-scoped child data and broaden
- *   the coverage; Phase 81 ships the deal-record floor.
+ * Net: 7 of 8 Phase 80 signals fire on the Phase 87 manager rollup —
+ * matching the banker (Phase 82) and team (Phase 84) rollups.
  *
- * What this is NOT (mirrors the Phase 80 contract):
+ * What this is NOT (mirrors the Phase 80 / 81 contract):
  *   - Not AI / Copilot / model invocation.
  *   - Not automated execution. The card never clicks an action
  *     button, never creates a task, never sends an email.
  *   - Not a credit decision, not an approval.
- *   - Not a permission widener — deals not in `teamPipeline` are
- *     not visible here; the manager's authorization scope is the
- *     authoritative boundary.
+ *   - Not a permission widener — the input is the manager's
+ *     authorized team pipeline + the team-scoped child rows loaded
+ *     through `cr664_Deal/_cr664_team_value eq <teamId>`. Deals
+ *     outside the manager's team are not visible here.
  */
 
 import {
@@ -70,8 +76,55 @@ export interface ManagerRollupDealInput {
   assignedBankerName: string | undefined;
 }
 
+// Phase 87: manager-scoped child rows. Match the team-side row shapes
+// by structural typing (same lookups, same fields) so this module
+// does not need to import from src/manager/ or src/team/. The team-
+// scoped server-side filter that loads these rows is described in
+// `src/manager/managerQueries.ts` (loadManagerTeamTasks / Documents /
+// Memos), which deliberately duplicates the team workspace's filter
+// pattern to keep the two role data layers isolated (Phase 48).
+
+export interface ManagerRollupTaskInput {
+  id: string;
+  /** Rows with no dealId cannot be attributed to a deal; the
+   *  derivation drops them. */
+  dealId: string | undefined;
+  title: string;
+  dueDate: string | undefined;
+  completed: boolean;
+}
+
+export interface ManagerRollupDocumentInput {
+  id: string;
+  dealId: string | undefined;
+  name: string;
+  receivedDate: string | undefined;
+  reviewer: string | undefined;
+  uploaded?: boolean;
+  /** Pre-derived status discriminant. The derivation splits
+   *  'outstanding' into Phase 80's outstandingDocuments bucket and
+   *  'received' into Phase 80's receivedDocuments bucket; 'reviewed'
+   *  rows are dropped because the Phase 80 pending-review filter
+   *  already requires "no reviewer" and the rule does not re-fire on
+   *  rows that already have one. */
+  status: 'outstanding' | 'received' | 'reviewed';
+}
+
+export interface ManagerRollupMemoInput {
+  id: string;
+  dealId: string | undefined;
+  statusKey: 'draft' | 'final' | 'stale' | undefined;
+}
+
 export interface ManagerRollupInput {
   deals: readonly ManagerRollupDealInput[];
+  /** Phase 87 — optional. Empty / missing collections preserve the
+   *  Phase 81 behavior (deal-record signals only). When supplied,
+   *  the derivation fires the four additional signals listed in the
+   *  module docblock. */
+  tasks?: readonly ManagerRollupTaskInput[];
+  documents?: readonly ManagerRollupDocumentInput[];
+  memos?: readonly ManagerRollupMemoInput[];
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +168,23 @@ export function deriveManagerAutopilotRollup(
   input: ManagerRollupInput,
   now: Date,
 ): ManagerAutopilotRollup {
+  // Phase 87: bucket children by deal id once. Orphan rows (no
+  // dealId) are dropped — the manager rollup never invents a parent
+  // for a row that arrived without one.
+  const tasksByDeal = bucketBy(input.tasks ?? [], (t) => t.dealId);
+  const outDocsByDeal = bucketBy(
+    (input.documents ?? []).filter((d) => d.status === 'outstanding'),
+    (d) => d.dealId,
+  );
+  const pendingReviewDocsByDeal = bucketBy(
+    (input.documents ?? []).filter((d) => d.status === 'received'),
+    (d) => d.dealId,
+  );
+  // 'reviewed' documents are intentionally dropped — Phase 80's
+  // pending-review signal already filters on "no reviewer" and the
+  // rule does not re-fire on rows that already carry one.
+  const memosByDeal = bucketBy(input.memos ?? [], (m) => m.dealId);
+
   const flagged: ManagerRollupDeal[] = [];
   let highCount = 0;
   let mediumCount = 0;
@@ -130,10 +200,37 @@ export function deriveManagerAutopilotRollup(
           targetCloseDate: d.targetCloseDate,
           stageEntryDate: d.stageEntryDate,
         },
-        openTasks: [],
-        outstandingDocuments: [],
-        receivedDocuments: [],
-        memos: [],
+        openTasks: (tasksByDeal.get(d.id) ?? []).map((t) => ({
+          id: t.id,
+          title: t.title,
+          dueDate: t.dueDate,
+          completed: t.completed,
+        })),
+        outstandingDocuments: (outDocsByDeal.get(d.id) ?? []).map((doc) => ({
+          id: doc.id,
+          name: doc.name,
+          receivedDate: doc.receivedDate,
+          reviewer: doc.reviewer,
+          uploaded: doc.uploaded,
+        })),
+        receivedDocuments: (pendingReviewDocsByDeal.get(d.id) ?? []).map(
+          (doc) => ({
+            id: doc.id,
+            name: doc.name,
+            receivedDate: doc.receivedDate,
+            reviewer: doc.reviewer,
+            uploaded: doc.uploaded,
+          }),
+        ),
+        memos: (memosByDeal.get(d.id) ?? []).map((m) => ({
+          id: m.id,
+          statusKey: m.statusKey,
+        })),
+        // Memo consistency findings require the full CreditMemoData
+        // (memos + sections). The manager memo loader pulls status
+        // only — same gap the banker (Phase 82) and team (Phase 84)
+        // rollups carry. The full check fires on the per-deal Phase
+        // 80 panel inside the deal workspace.
         memoConsistencyFindingsCount: 0,
         mostRecentActivityIso: d.modifiedOn,
       },
@@ -198,6 +295,21 @@ function compareRollupDeals(a: ManagerRollupDeal, b: ManagerRollupDeal): number 
   const bClose = bMs ?? Number.POSITIVE_INFINITY;
   if (aClose !== bClose) return aClose - bClose;
   return a.dealName.localeCompare(b.dealName);
+}
+
+function bucketBy<T, K>(
+  items: readonly T[],
+  keyFn: (t: T) => K,
+): Map<K, T[]> {
+  const m = new Map<K, T[]>();
+  for (const item of items) {
+    const k = keyFn(item);
+    if (k == null) continue;
+    const arr = m.get(k) ?? [];
+    arr.push(item);
+    m.set(k, arr);
+  }
+  return m;
 }
 
 function parseIso(iso: string | undefined): number | null {

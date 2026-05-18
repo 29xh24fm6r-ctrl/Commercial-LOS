@@ -17,6 +17,9 @@ function ready(deals: TeamDeal[]): ManagerData {
   return {
     teamPipeline: { kind: 'ready', data: deals },
     teamBankers: { kind: 'ready', data: [] },
+    teamTasks: { kind: 'ready', data: [] },
+    teamDocuments: { kind: 'ready', data: [] },
+    teamMemos: { kind: 'ready', data: [] },
   };
 }
 
@@ -71,6 +74,9 @@ describe('ManagerActivitySummary — Phase 71', () => {
     useManagerDataMock.mockReturnValue({
       teamPipeline: { kind: 'loading' },
       teamBankers: { kind: 'loading' },
+      teamTasks: { kind: 'loading' },
+      teamDocuments: { kind: 'loading' },
+      teamMemos: { kind: 'loading' },
     });
     render(<ManagerActivitySummary />);
     expect(screen.getByText(/Loading activity summary/i)).toBeInTheDocument();
@@ -80,6 +86,9 @@ describe('ManagerActivitySummary — Phase 71', () => {
     useManagerDataMock.mockReturnValue({
       teamPipeline: { kind: 'failed', message: 'service unavailable' },
       teamBankers: { kind: 'ready', data: [] },
+      teamTasks: { kind: 'ready', data: [] },
+      teamDocuments: { kind: 'ready', data: [] },
+      teamMemos: { kind: 'ready', data: [] },
     });
     render(<ManagerActivitySummary />);
     expect(

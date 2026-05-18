@@ -1,5 +1,8 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
+import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
+import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
+import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
 
 /**
  * Schema reality (verified before coding — see Entity XML inspection
@@ -160,6 +163,203 @@ export async function loadTeamBankers(teamId: string): Promise<TeamBanker[]> {
       email: b.cr664_email,
       roleType: b.cr664_roletypename,
       active: b.cr664_activeflag !== false,
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 87 — manager-scoped child data (tasks, documents, memos)
+//
+// These three loaders broaden manager Autopilot rollup signal coverage
+// from Phase 81's 4-of-8 signals (deal-record fields only) to the same
+// 7-of-8 the banker (Phase 82) and team (Phase 84) rollups carry. The
+// missing 8th signal (memo-consistency-findings) needs the full
+// CreditMemoData with sections — the manager memo loader only pulls
+// status.
+//
+// Authorization boundary:
+//   Each loader scopes children by their PARENT deal's team FK
+//   (cr664_Deal/_cr664_team_value eq <teamId>). The manager's teamId
+//   is resolved once by loadManagerIdentity through the banker-row
+//   lookup; this preserves the same boundary loadTeamPipeline already
+//   uses. Rows whose parent deal is NOT on the manager's team will
+//   not satisfy the OData filter and never reach the client.
+//
+//   The pattern duplicates the team workspace's child-data filter
+//   (src/team/teamQueries.ts loadTeamTasks / loadTeamDocuments /
+//   loadTeamMemos) by design — Phase 48 isolation prohibits
+//   src/manager/ from importing src/team/ and vice versa. The
+//   duplication is one OData filter pattern, justified by the role-
+//   isolation invariant, and pinned by tests.
+//
+//   No bypass: the manager NEVER calls loadDealTasks / loadDealDocuments
+//   / loadDealCreditMemo from src/deals/ (those are banker-scoped,
+//   per-deal loaders authorized by loadDealForBanker).
+// ---------------------------------------------------------------------------
+
+export interface TeamScopedTask {
+  id: string;
+  title: string;
+  completed: boolean;
+  dueDate: string | undefined;
+  assigneeName: string | undefined;
+  modifiedOn: string | undefined;
+  dealId: string | undefined;
+  dealName: string | undefined;
+}
+
+/**
+ * Open (non-terminal) tasks whose parent deal sits on the manager's
+ * team. Uses the OData navigation-property filter on the parent's
+ * team lookup; same approach `loadTeamTasks` uses on the team
+ * workspace.
+ */
+export async function loadManagerTeamTasks(
+  teamId: string,
+): Promise<TeamScopedTask[]> {
+  const result = await Cr664_dealtask1sService.getAll({
+    filter: [
+      `cr664_Deal/_cr664_team_value eq ${teamId}`,
+      `statecode eq 0`,
+    ].join(' and '),
+    orderBy: ['cr664_duedate asc'],
+  });
+  if (!result.success) {
+    throw new Error(result.error?.message ?? 'Failed to load team tasks');
+  }
+  return (result.data ?? []).map(
+    (t): TeamScopedTask => ({
+      id: t.cr664_dealtask1id,
+      title: t.cr664_taskname,
+      completed: t.cr664_completed === true,
+      dueDate: t.cr664_duedate,
+      assigneeName: t.cr664_assignedtoname,
+      modifiedOn: t.modifiedon,
+      dealId: t._cr664_deal_value,
+      dealName: t.cr664_dealname,
+    }),
+  );
+}
+
+export type TeamScopedDocumentStatus = 'outstanding' | 'received' | 'reviewed';
+
+export interface TeamScopedDocument {
+  id: string;
+  name: string;
+  dueDate: string | undefined;
+  requestDate: string | undefined;
+  receivedDate: string | undefined;
+  reviewer: string | undefined;
+  uploaded: boolean;
+  modifiedOn: string | undefined;
+  status: TeamScopedDocumentStatus;
+  dealId: string | undefined;
+  dealName: string | undefined;
+}
+
+function deriveDocStatus(opts: {
+  reviewer: string | undefined;
+  receivedDate: string | undefined;
+  uploaded: boolean;
+}): TeamScopedDocumentStatus {
+  if (opts.reviewer && opts.reviewer.trim().length > 0) return 'reviewed';
+  if (opts.receivedDate || opts.uploaded) return 'received';
+  return 'outstanding';
+}
+
+/**
+ * Document checklist rows whose parent deal sits on the manager's
+ * team. The `status` field is derived client-side from the same
+ * (reviewer / receivedDate / uploaded) inputs `loadTeamDocuments`
+ * uses — the rollup derivation buckets by status.
+ */
+export async function loadManagerTeamDocuments(
+  teamId: string,
+): Promise<TeamScopedDocument[]> {
+  const result = await Cr664_documentchecklistsService.getAll({
+    filter: [
+      `cr664_Deal/_cr664_team_value eq ${teamId}`,
+      `statecode eq 0`,
+    ].join(' and '),
+    orderBy: ['cr664_duedate asc'],
+  });
+  if (!result.success) {
+    throw new Error(result.error?.message ?? 'Failed to load team documents');
+  }
+  return (result.data ?? []).map((d): TeamScopedDocument => {
+    const uploaded = d.cr664_uploadstatus === true;
+    return {
+      id: d.cr664_documentchecklistid,
+      name: d.cr664_documentname,
+      dueDate: d.cr664_duedate,
+      requestDate: d.cr664_requestdate,
+      receivedDate: d.cr664_receiveddate,
+      reviewer: d.cr664_reviewer,
+      uploaded,
+      modifiedOn: d.modifiedon,
+      status: deriveDocStatus({
+        reviewer: d.cr664_reviewer,
+        receivedDate: d.cr664_receiveddate,
+        uploaded,
+      }),
+      dealId: d._cr664_deal_value,
+      dealName: d.cr664_dealname,
+    };
+  });
+}
+
+export type TeamScopedMemoStatusKey = 'draft' | 'final' | 'stale';
+
+export interface TeamScopedMemo {
+  id: string;
+  name: string;
+  statusKey: TeamScopedMemoStatusKey | undefined;
+  generatedAt: string;
+  modifiedOn: string | undefined;
+  dealId: string | undefined;
+  dealName: string | undefined;
+}
+
+const MEMO_STATUS_MAP: Record<number, TeamScopedMemoStatusKey> = {
+  788190000: 'draft',
+  788190001: 'final',
+  788190002: 'stale',
+};
+
+function lookupMemoStatus(v: unknown): TeamScopedMemoStatusKey | undefined {
+  if (typeof v === 'number') return MEMO_STATUS_MAP[v];
+  if (typeof v === 'string' && /^\d+$/.test(v)) return MEMO_STATUS_MAP[Number(v)];
+  return undefined;
+}
+
+/**
+ * Credit memo rows whose parent deal sits on the manager's team.
+ * Status only — sections are NOT loaded (memo-consistency-findings
+ * signal therefore remains silenced on the manager surface; same
+ * gap banker/team rollups carry).
+ */
+export async function loadManagerTeamMemos(
+  teamId: string,
+): Promise<TeamScopedMemo[]> {
+  const result = await Cr664_creditmemo1sService.getAll({
+    filter: [
+      `cr664_Deal/_cr664_team_value eq ${teamId}`,
+      `statecode eq 0`,
+    ].join(' and '),
+    orderBy: ['cr664_generatedat desc'],
+  });
+  if (!result.success) {
+    throw new Error(result.error?.message ?? 'Failed to load team memos');
+  }
+  return (result.data ?? []).map(
+    (m): TeamScopedMemo => ({
+      id: m.cr664_creditmemo1id,
+      name: m.cr664_memoname,
+      statusKey: lookupMemoStatus(m.cr664_status),
+      generatedAt: m.cr664_generatedat,
+      modifiedOn: m.modifiedon,
+      dealId: m._cr664_deal_value,
+      dealName: m.cr664_dealname,
     }),
   );
 }

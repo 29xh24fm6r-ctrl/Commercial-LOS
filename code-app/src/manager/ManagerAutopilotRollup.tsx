@@ -1,10 +1,16 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useManagerData, type AsyncResult } from './ManagerDataProvider';
-import type { TeamDeal } from './managerQueries';
+import type {
+  TeamDeal,
+  TeamScopedDocument,
+  TeamScopedMemo,
+  TeamScopedTask,
+} from './managerQueries';
 import {
   deriveManagerAutopilotRollup,
   type ManagerRollupDeal,
+  type ManagerRollupDocumentInput,
 } from '../shared/autopilot/managerAutopilotRollup';
 import type { AutopilotPriority } from '../shared/autopilot/dealAutopilot';
 import { useSuggestionLedger } from '../shared/autopilot/useSuggestionLedger';
@@ -14,23 +20,31 @@ import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
- * Phase 81: manager-side Autopilot rollup card.
+ * Phase 81 → Phase 87: manager-side Autopilot rollup card.
  *
- * Reuses the Phase 80 derivation (`deriveNextBestActions`) against
- * the manager's authorized team pipeline and surfaces:
- *   - priority counts (H / M / L) across deals with signals,
- *   - top 5 deals ranked by priority → suggestion count → nearest
- *     close → name,
- *   - per-row top suggestion title, priority badge, banker, close
- *     date,
- *   - read-only deal-name link (manager deal navigation already
- *     exists at /deals/<id>, scoped to teamPipeline visibility),
- *   - honest signal-coverage disclaimer (deal-record signals only).
+ * Phase 81 shipped this card with deal-record signal coverage only
+ * (4 of 8 Phase 80 signals). Phase 87 broadens coverage to 7 of 8
+ * by consuming the manager-authorized child data ManagerDataProvider
+ * now loads (teamTasks / teamDocuments / teamMemos), filtered by the
+ * parent deal's team FK.
+ *
+ * Signal coverage on the Phase 87 card:
+ *   ✓ overdue-tasks             (HIGH)   — Phase 87
+ *   ✓ pending-review-documents  (HIGH)   — Phase 87
+ *   ✓ closing-soon-stale-activity (HIGH) — already in Phase 81
+ *   ✓ closing-soon              (MEDIUM) — already in Phase 81
+ *   ✓ stage-aging               (MEDIUM) — already in Phase 81
+ *   ✓ outstanding-documents     (MEDIUM) — Phase 87
+ *   ✓ draft-memo                (LOW)    — Phase 87
+ *   ✓ stale-activity            (LOW)    — already in Phase 81
+ *   ✗ memo-consistency-findings (MEDIUM) — still silenced; requires
+ *     per-deal CreditMemoData with sections. Same gap banker/team
+ *     rollups carry. Available on the per-deal Phase 80 panel.
  *
  * Banker / team / executive workspaces unchanged. The card mounts
- * only inside ManagerWorkspace and uses useManagerData() — so
- * even if it were mounted from a non-manager workspace by accident
- * the data provider context would not be present.
+ * only inside ManagerWorkspace and uses useManagerData() — so even
+ * if it were mounted from a non-manager workspace by accident the
+ * data provider context would not be present.
  *
  * No Dataverse write. No audit. No timeline. No AI. No automation.
  * `isAutomated: false` is enforced on every NextBestAction by the
@@ -50,23 +64,46 @@ const PRIORITY_LABEL: Record<AutopilotPriority, string> = {
 };
 
 export function ManagerAutopilotRollup() {
-  const { teamPipeline } = useManagerData();
+  const { teamPipeline, teamTasks, teamDocuments, teamMemos } = useManagerData();
   return (
     <Card>
       <CardHeader
         title="Team next-best-action signals"
         subtitle="Derived from current records. Nothing happens automatically."
       />
-      <Body teamPipeline={teamPipeline} />
+      <Body
+        teamPipeline={teamPipeline}
+        teamTasks={teamTasks}
+        teamDocuments={teamDocuments}
+        teamMemos={teamMemos}
+      />
     </Card>
   );
 }
 
-function Body({ teamPipeline }: { teamPipeline: AsyncResult<TeamDeal[]> }) {
+function Body({
+  teamPipeline,
+  teamTasks,
+  teamDocuments,
+  teamMemos,
+}: {
+  teamPipeline: AsyncResult<TeamDeal[]>;
+  teamTasks: AsyncResult<TeamScopedTask[]>;
+  teamDocuments: AsyncResult<TeamScopedDocument[]>;
+  teamMemos: AsyncResult<TeamScopedMemo[]>;
+}) {
   const now = useMemo(() => new Date(), []);
   const ledger = useSuggestionLedger();
+
   const rollup = useMemo(() => {
-    if (teamPipeline.kind !== 'ready') return null;
+    if (
+      teamPipeline.kind !== 'ready' ||
+      teamTasks.kind !== 'ready' ||
+      teamDocuments.kind !== 'ready' ||
+      teamMemos.kind !== 'ready'
+    ) {
+      return null;
+    }
     return deriveManagerAutopilotRollup(
       {
         deals: teamPipeline.data.map((d) => ({
@@ -78,22 +115,71 @@ function Body({ teamPipeline }: { teamPipeline: AsyncResult<TeamDeal[]> }) {
           modifiedOn: d.modifiedOn,
           assignedBankerName: d.assignedBankerName,
         })),
+        tasks: teamTasks.data.map((t) => ({
+          id: t.id,
+          dealId: t.dealId,
+          title: t.title,
+          dueDate: t.dueDate,
+          completed: t.completed,
+        })),
+        documents: teamDocuments.data.map(
+          (doc): ManagerRollupDocumentInput => ({
+            id: doc.id,
+            dealId: doc.dealId,
+            name: doc.name,
+            receivedDate: doc.receivedDate,
+            reviewer: doc.reviewer,
+            uploaded: doc.uploaded,
+            status: doc.status,
+          }),
+        ),
+        memos: teamMemos.data.map((m) => ({
+          id: m.id,
+          dealId: m.dealId,
+          statusKey: m.statusKey,
+        })),
       },
       now,
     );
-  }, [teamPipeline, now]);
+  }, [teamPipeline, teamTasks, teamDocuments, teamMemos, now]);
 
-  if (teamPipeline.kind === 'loading') {
-    return <p style={styles.muted}>Loading team signals…</p>;
-  }
+  // Surface failed slots BEFORE the loading state so a transient
+  // service failure is visible to the manager rather than hidden
+  // behind a perpetual "Loading…" placeholder (same pattern Phase 84
+  // applies on the team rollup card).
   if (teamPipeline.kind === 'failed') {
+    return (
+      <ErrorBlock title="Could not load team signals" detail={teamPipeline.message} />
+    );
+  }
+  if (teamTasks.kind === 'failed') {
+    return (
+      <ErrorBlock title="Could not load team signals" detail={teamTasks.message} />
+    );
+  }
+  if (teamDocuments.kind === 'failed') {
     return (
       <ErrorBlock
         title="Could not load team signals"
-        detail={teamPipeline.message}
+        detail={teamDocuments.message}
       />
     );
   }
+  if (teamMemos.kind === 'failed') {
+    return (
+      <ErrorBlock title="Could not load team signals" detail={teamMemos.message} />
+    );
+  }
+
+  if (
+    teamPipeline.kind === 'loading' ||
+    teamTasks.kind === 'loading' ||
+    teamDocuments.kind === 'loading' ||
+    teamMemos.kind === 'loading'
+  ) {
+    return <p style={styles.muted}>Loading team signals…</p>;
+  }
+
   if (rollup == null || teamPipeline.data.length === 0) {
     return (
       <>
@@ -116,10 +202,11 @@ function Body({ teamPipeline }: { teamPipeline: AsyncResult<TeamDeal[]> }) {
           No next-best-action suggestions from current records.
         </p>
         <p style={styles.signalCoverage}>
-          Manager rollup uses deal-record signals only (closing-soon,
-          stage-aging, modifiedon staleness). Per-deal task / document /
-          memo signals appear in the banker's deal workspace; they do not
-          fire on the manager surface today.
+          Manager rollup uses the available manager-scoped records on
+          your team's pipeline (deals, open tasks, document checklist
+          rows, credit memos). Memo consistency findings appear on each
+          deal's Next Best Actions panel inside the Deal Workspace; they
+          do not fire on this rollup.
         </p>
         <p style={styles.disclaimer}>
           Derived from current records. Nothing happens automatically. No
@@ -184,10 +271,11 @@ function Body({ teamPipeline }: { teamPipeline: AsyncResult<TeamDeal[]> }) {
       </ul>
 
       <p style={styles.signalCoverage}>
-        Manager rollup uses deal-record signals only (closing-soon,
-        stage-aging, modifiedon staleness). Per-deal task / document /
-        memo signals appear in the banker's deal workspace; they do
-        not fire on the manager surface today.
+        Manager rollup uses the available manager-scoped records on your
+        team's pipeline (deals, open tasks, document checklist rows,
+        credit memos). Memo consistency findings appear on each deal's
+        Next Best Actions panel inside the Deal Workspace; they do not
+        fire on this rollup.
       </p>
       <p style={styles.disclaimer}>
         Derived from current records. Nothing happens automatically.
