@@ -218,6 +218,10 @@ describe('platformInventory — local-only flows', () => {
     // not mutate Phase 90 last-seen or Phase 91 dismiss/snooze
     // ledger).
     expect(ids.has('catch-up-teams-summary-handoff')).toBe(true);
+    // Phase 99 — Microsoft Teams activity-timeline copy handoff
+    // (per-deal copy-to-clipboard; no Graph; no Dataverse write;
+    // does not mutate Phase 72 last-visit marker).
+    expect(ids.has('activity-timeline-teams-summary-handoff')).toBe(true);
     // Phase 90 — Catch-up last-seen markers (local-only "new since
     // your last visit" overlay on the Phase 88 manager + Phase 89
     // banker morning catch-up cards).
@@ -554,6 +558,57 @@ describe('platformInventory — local-only flows', () => {
   it('catch-up-teams-summary-handoff is NOT in GOVERNED_WRITES (Phase 98 is a handoff, not a write)', () => {
     const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
     expect(ids.has('catch-up-teams-summary-handoff')).toBe(false);
+  });
+
+  it('activity-timeline-teams-summary-handoff (Phase 99) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'activity-timeline-teams-summary-handoff',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(99);
+    // Brief mandates each of these disclaimers.
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no Graph call/i);
+    expect(entry!.note).toMatch(/no calendar sync/i);
+    expect(entry!.note).toMatch(/no notification delivery/i);
+    expect(entry!.note).toMatch(/no access-token acquisition/i);
+    // The three required UI phrases the brief pins.
+    expect(entry!.note).toMatch(/Copy Teams summary/);
+    expect(entry!.note).toMatch(/Paste into Teams/);
+    expect(entry!.note).toMatch(/You send the message manually/);
+    // Phase 99 brief pins the last-visit non-mutation guarantee.
+    expect(entry!.note).toMatch(/Phase 72 last-visit marker/i);
+    expect(entry!.note).toMatch(/Activity is NOT marked seen by copying/i);
+    expect(entry!.note).toMatch(/deal state is unchanged/i);
+    // Implementation references for traceability.
+    expect(entry!.note).toMatch(
+      /src\/deals\/activityTimelineTeamsSummary\.ts/,
+    );
+    expect(entry!.note).toMatch(/src\/deals\/ActivityTimeline\.tsx/);
+    expect(entry!.note).toMatch(
+      /PHASE_99_ACTIVITY_TIMELINE_TEAMS_HANDOFF\.md/,
+    );
+    // Honest about the broader Lane E gap.
+    expect(entry!.note).toMatch(/Does NOT imply a full.*Teams integration/i);
+    expect(entry!.note).toMatch(
+      /PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT\.md/,
+    );
+  });
+
+  it('the Phase 99 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_99_ACTIVITY_TIMELINE_TEAMS_HANDOFF.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('activity-timeline-teams-summary-handoff is NOT in GOVERNED_WRITES (Phase 99 is a handoff, not a write)', () => {
+    const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(ids.has('activity-timeline-teams-summary-handoff')).toBe(false);
   });
 
   it('catch-up-last-seen-markers (Phase 90) is a LOCAL_ONLY flow with the right disclaimers', () => {

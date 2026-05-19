@@ -580,6 +580,59 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'docs/PHASE_94_CATCH_UP_MARK_ALL_SEEN.md.',
   },
   {
+    id: 'activity-timeline-teams-summary-handoff',
+    label: 'Microsoft Teams activity-timeline copy handoff',
+    phase: 99,
+    note:
+      'No-admin copy-to-clipboard Teams handoff for the per-deal ' +
+      'Activity Timeline card on the Banker Deal Workspace. A pure ' +
+      'formatter (src/deals/activityTimelineTeamsSummary.ts) ' +
+      'produces a plain-text digest the banker pastes into ' +
+      'Microsoft Teams (any chat or channel). The digest includes ' +
+      'the deal name + "activity digest" + YYYY-MM-DD UTC date, the ' +
+      'total timeline event count, the Phase 72 since-last-visit ' +
+      'context (when the marker has initialized — "First visit on ' +
+      'this browser." or "N new activity item(s) since your last ' +
+      'visit on this browser." or "No new activity since your last ' +
+      'visit on this browser."), and up to ' +
+      'ACTIVITY_TIMELINE_TEAMS_SUMMARY_MAX_ITEMS (8) most recent ' +
+      'events as ' +
+      '"- <YYYY-MM-DD HH:mm UTC> · <Event type[/SubType]>: <Title> ' +
+      '— <summary> (<sourceLabel> · by <actor>)[ · new]" rows. The ' +
+      'caller maps cr664_relatedentitytype to a banker-friendly ' +
+      'source label via the existing friendlyEntityLabel helper ' +
+      'before passing each item to the formatter — no raw cr664_* ' +
+      'logical names ever reach the paste. The app does not post ' +
+      'to Teams, send anything, sync with Teams, raise a Teams ' +
+      'notification, create a meeting, or call Graph. No Dataverse ' +
+      'write. No audit row. No timeline event. No calendar sync. ' +
+      'No notification delivery. No Graph call. No access-token ' +
+      'acquisition. The Teams SDK is NOT loaded by this flow. ' +
+      'Crucially, copying the digest does NOT mutate the Phase 72 ' +
+      'last-visit marker — the marker is owned by `useLastVisit(' +
+      'deal.id)` and its auto-bump runs on its own schedule; the ' +
+      'copy click never invokes a setter or writes the marker ' +
+      'localStorage slot directly. A localStorage byte-snapshot ' +
+      'test (ActivityTimeline.test.tsx) pins this. Activity is NOT ' +
+      'marked seen by copying; the deal state is unchanged. The UI ' +
+      'carries the verbatim phrases "Copy Teams summary", "Paste ' +
+      'into Teams", and "You send the message manually". The ' +
+      'output and the source never say sent / posted / delivered / ' +
+      'notified / synced / Teams integrated / Graph connected / ' +
+      'approved / denied / rejected / credit decision / risk score ' +
+      '/ performance score / AI-generated / Copilot as a positive ' +
+      'claim. The formatter output never echoes internal audit ' +
+      'IDs, cr664_* logical names, _value lookup suffixes, raw ' +
+      'timeline payload JSON, correlation ids, secrets, tokens, or ' +
+      'connector state. Implementation: ' +
+      'src/deals/activityTimelineTeamsSummary.ts (pure formatter) ' +
+      '+ inline `<ActivityTimelineTeamsCopyButton />` in ' +
+      'src/deals/ActivityTimeline.tsx. Does NOT imply a full Teams ' +
+      'integration; the broader Lane E gaps documented in ' +
+      'docs/PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT.md remain ' +
+      'untouched. See docs/PHASE_99_ACTIVITY_TIMELINE_TEAMS_HANDOFF.md.',
+  },
+  {
     id: 'catch-up-teams-summary-handoff',
     label: 'Microsoft Teams morning-catch-up copy handoff',
     phase: 98,

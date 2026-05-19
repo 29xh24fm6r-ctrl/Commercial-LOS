@@ -1,8 +1,13 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
 import type { TimelineEvent, TimelineEventTypeKey } from './activityQueries';
 import { summarizeActivitySinceLastVisit } from '../shared/lastVisit/lastVisit';
 import { useLastVisit } from '../shared/lastVisit/useLastVisit';
+import {
+  buildActivityTimelineTeamsSummary,
+  ACTIVITY_TIMELINE_TEAMS_SUMMARY_MAX_ITEMS,
+  type ActivityTimelineTeamsSummaryItem,
+} from './activityTimelineTeamsSummary';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -28,7 +33,151 @@ export function ActivityTimeline() {
         subtitle={subtitleFor(activity, sinceLastVisit, priorLastVisitMs)}
       />
       <Body activity={activity} sinceLastVisit={sinceLastVisit} />
+      {activity.kind === 'ready' && activity.data.length > 0 && (
+        <ActivityTimelineTeamsCopyButton
+          dealName={deal.name}
+          events={activity.data}
+          isInitialized={isInitialized}
+          priorLastVisitMs={priorLastVisitMs}
+          sinceLastVisit={sinceLastVisit}
+        />
+      )}
     </Card>
+  );
+}
+
+/**
+ * Phase 99: "Copy Teams summary" inline component for the per-deal
+ * Activity Timeline. Pure render + clipboard write.
+ *
+ * Critically, the click does NOT touch the Phase 72 last-visit
+ * marker. `useLastVisit(deal.id)` is owned by the parent and its
+ * auto-bump effect runs on its own schedule — copying the digest
+ * does not invoke any setter, does not call markAllSeen (no such
+ * action exists for the per-deal timeline), and does not write
+ * directly to the marker's localStorage slot. A localStorage
+ * snapshot test pins this in the ActivityTimeline.test.tsx file.
+ */
+type ActivityCopyState =
+  | { kind: 'idle' }
+  | { kind: 'copied' }
+  | { kind: 'copy-failed' };
+
+function ActivityTimelineTeamsCopyButton({
+  dealName,
+  events,
+  isInitialized,
+  priorLastVisitMs,
+  sinceLastVisit,
+}: {
+  dealName: string;
+  events: readonly TimelineEvent[];
+  isInitialized: boolean;
+  priorLastVisitMs: number | undefined;
+  sinceLastVisit:
+    | ReturnType<typeof summarizeActivitySinceLastVisit>
+    | undefined;
+}) {
+  const [copyState, setCopyState] = useState<ActivityCopyState>({
+    kind: 'idle',
+  });
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, []);
+
+  const summary = useMemo(() => {
+    const top = events.slice(0, ACTIVITY_TIMELINE_TEAMS_SUMMARY_MAX_ITEMS);
+    const items: ActivityTimelineTeamsSummaryItem[] = top.map((e) => ({
+      eventAt: e.eventAt,
+      title: e.title,
+      summary: e.summary,
+      eventType: e.eventType,
+      eventSubType: e.eventSubType,
+      sourceLabel: friendlyEntityLabel(e.relatedEntityType),
+      actor: e.isSystemGenerated
+        ? 'System'
+        : (e.actorName ?? '').trim().length > 0
+          ? e.actorName!
+          : 'Unknown user',
+      isNewSinceLastVisit: sinceLastVisit
+        ? sinceLastVisit.isNew(e.eventAt)
+        : false,
+    }));
+    // Phase 72 marker scope discipline: the since-last-visit line
+    // is rendered ONLY when the marker has initialized AND a prior
+    // marker exists. First visit on this browser → `priorLastVisitMs
+    // === undefined`; the summary surfaces "First visit on this
+    // browser." Subsequent visits surface the "N new since" line.
+    const lastSeen = isInitialized
+      ? priorLastVisitMs === undefined
+        ? { firstVisit: true as const, newCount: 0 }
+        : {
+            firstVisit: false as const,
+            newCount: sinceLastVisit?.newCount ?? 0,
+          }
+      : undefined;
+    return buildActivityTimelineTeamsSummary({
+      dealName,
+      totalItemCount: events.length,
+      lastSeen,
+      items,
+      generatedAt: new Date(),
+    });
+  }, [dealName, events, isInitialized, priorLastVisitMs, sinceLastVisit]);
+
+  async function handleCopy() {
+    try {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.clipboard?.writeText
+      ) {
+        await navigator.clipboard.writeText(summary);
+        setCopyState({ kind: 'copied' });
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = setTimeout(() => {
+          setCopyState({ kind: 'idle' });
+        }, 4000);
+        return;
+      }
+      setCopyState({ kind: 'copy-failed' });
+    } catch {
+      setCopyState({ kind: 'copy-failed' });
+    }
+  }
+
+  return (
+    <div
+      style={styles.copyRow}
+      aria-label="Copy Teams summary action row"
+    >
+      <button
+        type="button"
+        onClick={handleCopy}
+        style={styles.copyButton}
+        aria-label={`Copy Teams summary for ${dealName} activity timeline`}
+      >
+        Copy Teams summary
+      </button>
+      {copyState.kind === 'copied' && (
+        <span style={styles.copySuccessTag} role="status">
+          Copied to clipboard. Paste into Teams.
+        </span>
+      )}
+      {copyState.kind === 'copy-failed' && (
+        <span style={styles.copyFailTag} role="alert">
+          Clipboard unavailable. Select timeline text and copy manually.
+        </span>
+      )}
+      <p style={styles.copyDisclaimer}>
+        Local copy only. Not posted to Teams. Paste into Teams. You
+        send the message manually. Copying does not mark activity
+        seen or change deal status.
+      </p>
+    </div>
   );
 }
 
@@ -362,4 +511,41 @@ const styles: Record<string, React.CSSProperties> = {
   },
   errorDetail: { color: palette.text, fontSize: typography.size.sm },
   errorHint: { color: palette.textMuted, fontSize: typography.size.xs, fontStyle: 'italic' },
+  copyRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    marginTop: spacing.sm,
+    borderTop: `1px dashed ${palette.divider}`,
+  },
+  copyButton: {
+    background: palette.surfaceAlt,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  copySuccessTag: {
+    fontSize: typography.size.xs,
+    color: palette.clearFg,
+    fontStyle: 'italic',
+  },
+  copyFailTag: {
+    fontSize: typography.size.xs,
+    color: palette.blockedFg,
+    fontStyle: 'italic',
+  },
+  copyDisclaimer: {
+    margin: 0,
+    flex: '1 0 100%',
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
+    lineHeight: typography.lineHeight.snug,
+  },
 };
