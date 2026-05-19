@@ -11,6 +11,8 @@ import {
   type RelationshipMemoryEntry,
 } from '../shared/relationship/relationshipMemory';
 import { buildRelationshipMemoryTeamsSummary } from '../shared/relationship/relationshipMemoryTeamsSummary';
+import { SummaryOutlookHandoffButtons } from '../shared/email/SummaryOutlookHandoffButtons';
+import { relationshipMemoryOutlookSubject } from '../shared/email/summaryOutlookHandoff';
 import { RelationshipNoteDraftModal } from './RelationshipNoteDraftModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
@@ -311,7 +313,45 @@ function ClientRow({
         </button>
         <RelationshipMemoryTeamsCopyButton entry={entry} />
       </div>
+      <RelationshipMemoryOutlookHandoff entry={entry} />
     </li>
+  );
+}
+
+/**
+ * Phase 101: Outlook handoff sibling for each Phase 100 Relationship
+ * Memory row. Emits the same plain-text snapshot the Phase 100 Teams
+ * copy button does, wrapped in the verbatim Phase 101 subject
+ * "Relationship snapshot — <Client Name>" (or "(no borrower name
+ * on record)" placeholder when missing). Does NOT save relationship
+ * notes, open the Phase 78 draft modal, or mutate the Phase 83 /
+ * 90 / 91 ledgers.
+ */
+function RelationshipMemoryOutlookHandoff({
+  entry,
+}: {
+  entry: RelationshipMemoryEntry;
+}) {
+  const body = useMemo(
+    () =>
+      buildRelationshipMemoryTeamsSummary({
+        entry,
+        generatedAt: new Date(),
+      }),
+    [entry],
+  );
+  const ariaName = entry.isClientNameMissing
+    ? '(no borrower name on record)'
+    : entry.clientNameDisplay;
+  return (
+    <SummaryOutlookHandoffButtons
+      subject={relationshipMemoryOutlookSubject(
+        entry.clientNameDisplay,
+        entry.isClientNameMissing,
+      )}
+      body={body}
+      ariaContext={`${ariaName} relationship snapshot`}
+    />
   );
 }
 

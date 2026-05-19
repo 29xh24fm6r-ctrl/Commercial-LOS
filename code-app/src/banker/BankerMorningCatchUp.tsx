@@ -21,6 +21,8 @@ import {
 } from '../shared/activity/catchUpItemLedger';
 import { useCatchUpItemLedger } from '../shared/activity/useCatchUpItemLedger';
 import { buildCatchUpTeamsSummary } from '../shared/activity/catchUpTeamsSummary';
+import { SummaryOutlookHandoffButtons } from '../shared/email/SummaryOutlookHandoffButtons';
+import { morningCatchUpOutlookSubject } from '../shared/email/summaryOutlookHandoff';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -305,6 +307,14 @@ function Body({
         isUnscoped={isUnscoped}
         now={now}
       />
+      <CatchUpOutlookHandoff
+        surface="banker"
+        visibleItems={visibleItems}
+        sinceLastSeen={sinceLastSeen}
+        isInitialized={isInitialized}
+        isUnscoped={isUnscoped}
+        now={now}
+      />
       <p style={styles.signalCoverage}>
         Catch-up uses your current pipeline records (deals, open tasks,
         outstanding and pending-review documents, memos). Items observed
@@ -433,6 +443,68 @@ function CatchUpTeamsCopyButton({
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * Phase 101: Outlook handoff sibling to the Phase 98 Teams copy
+ * button. Pure render + clipboard write + mailto launch. Reuses the
+ * same `buildCatchUpTeamsSummary` body the Teams button emits — the
+ * subject is the verbatim Phase 101 brief copy "Morning catch-up
+ * summary". Does NOT mutate the Phase 90 last-seen marker, the
+ * Phase 91 ledger, or invoke the Phase 94 mark-all-seen action.
+ */
+function CatchUpOutlookHandoff({
+  surface,
+  visibleItems,
+  sinceLastSeen,
+  isInitialized,
+  isUnscoped,
+  now,
+}: {
+  surface: 'banker';
+  visibleItems: readonly BankerCatchUpItem[];
+  sinceLastSeen: { newCount: number; isFirstVisit: boolean };
+  isInitialized: boolean;
+  isUnscoped: boolean;
+  now: Date;
+}) {
+  const body = useMemo(() => {
+    return buildCatchUpTeamsSummary({
+      surface,
+      visibleItemCount: visibleItems.length,
+      lastSeen:
+        isInitialized && !isUnscoped
+          ? {
+              firstVisit: sinceLastSeen.isFirstVisit,
+              newCount: sinceLastSeen.newCount,
+            }
+          : undefined,
+      items: visibleItems.map((item) => ({
+        dealId: item.dealId,
+        dealName: item.dealName,
+        ownerName: item.ownerName,
+        priority: item.priority,
+        title: item.title,
+        reason: item.reason,
+      })),
+      generatedAt: now,
+    });
+  }, [
+    surface,
+    visibleItems,
+    sinceLastSeen.isFirstVisit,
+    sinceLastSeen.newCount,
+    isInitialized,
+    isUnscoped,
+    now,
+  ]);
+  return (
+    <SummaryOutlookHandoffButtons
+      subject={morningCatchUpOutlookSubject()}
+      body={body}
+      ariaContext="banker morning catch-up"
+    />
   );
 }
 

@@ -1394,6 +1394,24 @@ describe('BankerMorningCatchUp — Phase 89', () => {
       expect(ledgerAfter).toBe(ledgerBefore);
     });
 
+    it('renders the Phase 101 Outlook handoff buttons alongside the Teams copy button', async () => {
+      loadMock.mockResolvedValue(dataWithItems());
+      render(<BankerMorningCatchUp />);
+      await screen.findByRole('button', {
+        name: /Copy Teams summary for banker morning catch-up/i,
+      });
+      expect(
+        screen.getByRole('button', {
+          name: /Open in Outlook for banker morning catch-up/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /Copy email for banker morning catch-up/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
     it('clipped output never claims sent / posted / delivered / notified / synced / Teams integrated', async () => {
       loadMock.mockResolvedValue(dataWithItems());
       const user = userEvent.setup();

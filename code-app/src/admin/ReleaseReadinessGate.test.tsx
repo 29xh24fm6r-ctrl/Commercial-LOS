@@ -215,10 +215,14 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     expect(
       within(inv).getByText('Borrower-safe status packet'),
     ).toBeInTheDocument();
-    // The Phase 67 in-modal handoff is mentioned by the flow's note.
+    // The Phase 67 in-modal handoff is mentioned by the flow's
+    // note. Phase 101 added a second `mailto`-bearing inventory
+    // entry (`outlook-summary-handoff`), so we use getAllByText
+    // and assert that at least one match exists rather than
+    // pinning a single occurrence.
     expect(
-      within(inv).getByText(/mailto/i),
-    ).toBeInTheDocument();
+      within(inv).getAllByText(/mailto/i).length,
+    ).toBeGreaterThanOrEqual(1);
     // The "Local-only · no Dataverse write" pin appears at least once
     // per flow.
     const pins = within(inv).getAllByText(

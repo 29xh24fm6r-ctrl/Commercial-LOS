@@ -8,6 +8,8 @@ import {
   ACTIVITY_TIMELINE_TEAMS_SUMMARY_MAX_ITEMS,
   type ActivityTimelineTeamsSummaryItem,
 } from './activityTimelineTeamsSummary';
+import { SummaryOutlookHandoffButtons } from '../shared/email/SummaryOutlookHandoffButtons';
+import { activityTimelineOutlookSubject } from '../shared/email/summaryOutlookHandoff';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -34,15 +36,90 @@ export function ActivityTimeline() {
       />
       <Body activity={activity} sinceLastVisit={sinceLastVisit} />
       {activity.kind === 'ready' && activity.data.length > 0 && (
-        <ActivityTimelineTeamsCopyButton
-          dealName={deal.name}
-          events={activity.data}
-          isInitialized={isInitialized}
-          priorLastVisitMs={priorLastVisitMs}
-          sinceLastVisit={sinceLastVisit}
-        />
+        <>
+          <ActivityTimelineTeamsCopyButton
+            dealName={deal.name}
+            events={activity.data}
+            isInitialized={isInitialized}
+            priorLastVisitMs={priorLastVisitMs}
+            sinceLastVisit={sinceLastVisit}
+          />
+          <ActivityTimelineOutlookHandoff
+            dealName={deal.name}
+            events={activity.data}
+            isInitialized={isInitialized}
+            priorLastVisitMs={priorLastVisitMs}
+            sinceLastVisit={sinceLastVisit}
+          />
+        </>
       )}
     </Card>
+  );
+}
+
+/**
+ * Phase 101: Outlook handoff sibling to the Phase 99 Teams copy
+ * button. Emits the same plain-text digest the Teams button does,
+ * wrapped in the verbatim Phase 101 subject "Deal activity summary
+ * — <Deal Name>". Does NOT mutate the Phase 72 last-visit marker
+ * — the marker is owned by `useLastVisit(deal.id)` on the parent.
+ */
+function ActivityTimelineOutlookHandoff({
+  dealName,
+  events,
+  isInitialized,
+  priorLastVisitMs,
+  sinceLastVisit,
+}: {
+  dealName: string;
+  events: readonly TimelineEvent[];
+  isInitialized: boolean;
+  priorLastVisitMs: number | undefined;
+  sinceLastVisit:
+    | ReturnType<typeof summarizeActivitySinceLastVisit>
+    | undefined;
+}) {
+  const body = useMemo(() => {
+    const top = events.slice(0, ACTIVITY_TIMELINE_TEAMS_SUMMARY_MAX_ITEMS);
+    const items: ActivityTimelineTeamsSummaryItem[] = top.map((e) => ({
+      eventAt: e.eventAt,
+      title: e.title,
+      summary: e.summary,
+      eventType: e.eventType,
+      eventSubType: e.eventSubType,
+      sourceLabel: friendlyEntityLabel(e.relatedEntityType),
+      actor: e.isSystemGenerated
+        ? 'System'
+        : (e.actorName ?? '').trim().length > 0
+          ? e.actorName!
+          : 'Unknown user',
+      isNewSinceLastVisit: sinceLastVisit
+        ? sinceLastVisit.isNew(e.eventAt)
+        : false,
+    }));
+    const lastSeen = isInitialized
+      ? priorLastVisitMs === undefined
+        ? { firstVisit: true as const, newCount: 0 }
+        : {
+            firstVisit: false as const,
+            newCount: sinceLastVisit?.newCount ?? 0,
+          }
+      : undefined;
+    return buildActivityTimelineTeamsSummary({
+      dealName,
+      totalItemCount: events.length,
+      lastSeen,
+      items,
+      generatedAt: new Date(),
+    });
+  }, [dealName, events, isInitialized, priorLastVisitMs, sinceLastVisit]);
+
+  return (
+    <SummaryOutlookHandoffButtons
+      subject={activityTimelineOutlookSubject(dealName)}
+      body={body}
+      ariaContext={`${dealName} activity timeline`}
+    />
   );
 }
 

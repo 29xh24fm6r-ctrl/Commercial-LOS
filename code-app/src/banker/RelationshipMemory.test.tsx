@@ -608,6 +608,64 @@ describe('RelationshipMemory — Phase 100 Copy Teams summary', () => {
     expect(text).not.toMatch(/Graph\s+connected/i);
   });
 
+  it('renders the Phase 101 Outlook handoff buttons per row alongside the Teams copy button', async () => {
+    loadMock.mockResolvedValue(dataWithAcme());
+    render(<RelationshipMemory />);
+    await screen.findByText('Acme Manufacturing');
+    expect(
+      screen.getByRole('button', {
+        name: /Copy Teams summary for Acme Manufacturing/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /Open in Outlook for Acme Manufacturing relationship snapshot/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /Copy email for Acme Manufacturing relationship snapshot/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('clicking Open in Outlook sets window.location.href to a mailto URL with the Phase 101 relationship-snapshot subject', async () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { href: '' },
+      writable: true,
+    });
+    loadMock.mockResolvedValue(dataWithAcme());
+    const user = userEvent.setup();
+    render(<RelationshipMemory />);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Open in Outlook for Acme Manufacturing relationship snapshot/i,
+      }),
+    );
+    expect(window.location.href).toMatch(/^mailto:\?/);
+    expect(window.location.href).toContain(
+      'subject=Relationship%20snapshot%20%E2%80%94%20Acme%20Manufacturing',
+    );
+  });
+
+  it('Outlook handoff click does NOT open the Phase 78 relationship-note draft modal', async () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { href: '' },
+      writable: true,
+    });
+    loadMock.mockResolvedValue(dataWithAcme());
+    const user = userEvent.setup();
+    render(<RelationshipMemory />);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Open in Outlook for Acme Manufacturing relationship snapshot/i,
+      }),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('the copied output never claims household / verified / full relationship profile / AI-generated / relationship score', async () => {
     loadMock.mockResolvedValue(dataWithAcme());
     const user = userEvent.setup();

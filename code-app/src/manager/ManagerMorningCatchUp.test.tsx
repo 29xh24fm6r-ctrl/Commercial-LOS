@@ -1189,6 +1189,26 @@ describe('ManagerMorningCatchUp — Phase 88', () => {
       ).toBeInTheDocument();
     });
 
+    it('renders the Phase 101 Outlook handoff buttons alongside the Teams copy button', () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdueTask());
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.getByRole('button', {
+          name: /Copy Teams summary for manager morning catch-up/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /Open in Outlook for manager morning catch-up/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /Copy email for manager morning catch-up/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
     it('the manager copy output never claims sent / posted / delivered / notified / synced / Teams integrated', async () => {
       useManagerDataMock.mockReturnValue(readyWithOverdueTask());
       const user = userEvent.setup();

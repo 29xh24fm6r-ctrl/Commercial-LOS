@@ -580,6 +580,66 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'docs/PHASE_94_CATCH_UP_MARK_ALL_SEEN.md.',
   },
   {
+    id: 'outlook-summary-handoff',
+    label: 'Microsoft Outlook summary copy / mailto handoff',
+    phase: 101,
+    note:
+      'No-admin Outlook handoff parity for the same summary surfaces ' +
+      'that carry the Phase 98 / 99 / 100 Teams handoff: ' +
+      'BankerMorningCatchUp, ManagerMorningCatchUp, ActivityTimeline ' +
+      '(per deal), and RelationshipMemory (per client row). A small ' +
+      'wrapper (src/shared/email/summaryOutlookHandoff.ts) reuses the ' +
+      'Phase 63 buildMailtoUrl + buildHandoffClipboardText primitives ' +
+      'verbatim — no new mailto encoding logic. A reusable React ' +
+      'component (src/shared/email/SummaryOutlookHandoffButtons.tsx) ' +
+      'renders an "Open in Outlook" + "Copy email" pair on every ' +
+      'consuming card. "Open in Outlook" sets window.location.href ' +
+      'to an RFC 6068 mailto URL so the OS hands the URL to the ' +
+      'user\'s default mail client; "Copy email" writes the Phase 63 ' +
+      'clipboard payload ("To: …\\nSubject: …\\n\\n<body>") via ' +
+      'navigator.clipboard.writeText. The body reuses the Phase 98 / ' +
+      '99 / 100 plain-text formatter output unchanged. Subjects use ' +
+      'the verbatim Phase 101 brief copy: "Morning catch-up summary" ' +
+      'for catch-up surfaces, "Deal activity summary — <Deal Name>" ' +
+      'for the per-deal Activity Timeline, "Relationship snapshot — ' +
+      '<Client Name>" (or "(no borrower name on record)" placeholder ' +
+      'when missing) for the relationship-memory row. The app does ' +
+      'NOT send email. No Office 365 Outlook connector is registered ' +
+      'or invoked. No Graph. No MSAL. No token acquisition. No ' +
+      'notification delivery. No calendar sync. No Dataverse write. ' +
+      'No audit row. No timeline event. No governed-write entry. ' +
+      'Recipient is OPTIONAL and EMPTY by default — the brief ' +
+      'explicitly forbids inferring a recipient from client name or ' +
+      'any deal field; bankers type the recipient in their Outlook ' +
+      'client after the mailto opens. The mailto URL has no ' +
+      'characters between "mailto:" and the leading "?" when no ' +
+      'recipient is provided. The UI carries the verbatim phrases ' +
+      '"Open in Outlook", "Copy email", "You send from Outlook", and ' +
+      '"Local handoff only". The rendered disclaimer and the source ' +
+      'never positively claim that the app sent, delivered, synced, ' +
+      'notified, was Outlook-connected, was connector-backed, ' +
+      'transmitted any message automatically, or was Graph-connected. ' +
+      'Crucially, the click does ' +
+      'NOT mutate the Phase 72 per-deal last-visit marker, the Phase ' +
+      '90 catch-up last-seen markers, the Phase 91 dismiss / snooze ' +
+      'ledger, the Phase 83 Autopilot suggestion ledger, or the ' +
+      'Phase 78 relationship-note draft state. localStorage byte-' +
+      'snapshot tests pin the non-mutation guarantees on every ' +
+      'surface. Implementation: ' +
+      'src/shared/email/summaryOutlookHandoff.ts (helper + subject ' +
+      'builders) + src/shared/email/SummaryOutlookHandoffButtons.tsx ' +
+      '(reusable button pair) + inline wrappers in ' +
+      'src/banker/BankerMorningCatchUp.tsx, ' +
+      'src/manager/ManagerMorningCatchUp.tsx, ' +
+      'src/deals/ActivityTimeline.tsx, and ' +
+      'src/banker/RelationshipMemory.tsx. Does NOT imply a live ' +
+      'Outlook connector — the broader Lane E + connector gaps ' +
+      'documented in docs/PHASE_61_OUTLOOK_EMAIL_DELIVERY.md, ' +
+      'docs/PHASE_63_EMAIL_HANDOFF_FALLBACK.md, and ' +
+      'NOT_WIRED.outlook-connector-live-send remain untouched. See ' +
+      'docs/PHASE_101_OUTLOOK_SUMMARY_HANDOFF.md.',
+  },
+  {
     id: 'relationship-memory-teams-summary-handoff',
     label: 'Microsoft Teams relationship-memory copy handoff',
     phase: 100,

@@ -449,6 +449,93 @@ describe('ActivityTimeline — Phase 99 Copy Teams summary', () => {
     expect(body).not.toMatch(/Graph\s+connected/i);
   });
 
+  it('renders the Phase 101 Outlook handoff buttons alongside the Teams copy button', () => {
+    useDealDataMock.mockReturnValue(ready([event('e1', T_NEW_1)]));
+    render(<ActivityTimeline />);
+    expect(
+      screen.getByRole('button', {
+        name: /Copy Teams summary for Acme Working Capital activity timeline/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /Open in Outlook for Acme Working Capital activity timeline/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /Copy email for Acme Working Capital activity timeline/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('clicking Open in Outlook sets window.location.href to a mailto URL with the Phase 101 activity-digest subject', async () => {
+    // window.location.href is read-only in jsdom; install a settable
+    // mock so we can inspect the value after the click.
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { href: '' },
+      writable: true,
+    });
+    useDealDataMock.mockReturnValue(ready([event('e1', T_NEW_1)]));
+    const user = userEvent.setup();
+    render(<ActivityTimeline />);
+    await user.click(
+      screen.getByRole('button', {
+        name: /Open in Outlook for Acme Working Capital activity timeline/i,
+      }),
+    );
+    expect(window.location.href).toMatch(/^mailto:\?/);
+    expect(window.location.href).toContain(
+      'subject=Deal%20activity%20summary%20%E2%80%94%20Acme%20Working%20Capital',
+    );
+  });
+
+  it('does NOT render Outlook handoff buttons when the timeline is empty', () => {
+    useDealDataMock.mockReturnValue(ready([]));
+    render(<ActivityTimeline />);
+    expect(
+      screen.queryByRole('button', { name: /Open in Outlook/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /Copy email/i }),
+    ).toBeNull();
+  });
+
+  it('clicking Open in Outlook does NOT mutate the Phase 72 last-visit marker', async () => {
+    // window.location.href mock.
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { href: '' },
+      writable: true,
+    });
+    localStorage.setItem(
+      `${LAST_VISIT_STORAGE_KEY_PREFIX}${baseDeal.id}`,
+      String(Date.parse(T_PRIOR)),
+    );
+    useDealDataMock.mockReturnValue(ready([event('e1', T_NEW_1)]));
+    const user = userEvent.setup();
+    render(<ActivityTimeline />);
+    // Capture the marker AFTER Phase 72's mount-time effects but
+    // BEFORE the Phase 101 click.
+    await screen.findByRole('button', {
+      name: /Open in Outlook for Acme Working Capital activity timeline/i,
+    });
+    const before = localStorage.getItem(
+      `${LAST_VISIT_STORAGE_KEY_PREFIX}${baseDeal.id}`,
+    );
+    await user.click(
+      screen.getByRole('button', {
+        name: /Open in Outlook for Acme Working Capital activity timeline/i,
+      }),
+    );
+    expect(
+      localStorage.getItem(
+        `${LAST_VISIT_STORAGE_KEY_PREFIX}${baseDeal.id}`,
+      ),
+    ).toBe(before);
+  });
+
   it('the copied output never claims sent / posted / delivered / notified / synced / Teams integrated', async () => {
     useDealDataMock.mockReturnValue(
       ready([event('e1', T_NEW_1), event('e2', T_NEW_2)]),

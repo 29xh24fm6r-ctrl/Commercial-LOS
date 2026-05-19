@@ -227,6 +227,10 @@ describe('platformInventory — local-only flows', () => {
     // Dataverse write; client-name grouped only; not a relationship
     // graph).
     expect(ids.has('relationship-memory-teams-summary-handoff')).toBe(true);
+    // Phase 101 — Microsoft Outlook summary copy/mailto handoff for
+    // the same four surfaces (banker + manager catch-up, activity
+    // timeline, relationship memory). No connector send; no Graph.
+    expect(ids.has('outlook-summary-handoff')).toBe(true);
     // Phase 90 — Catch-up last-seen markers (local-only "new since
     // your last visit" overlay on the Phase 88 manager + Phase 89
     // banker morning catch-up cards).
@@ -673,6 +677,79 @@ describe('platformInventory — local-only flows', () => {
   it('relationship-memory-teams-summary-handoff is NOT in GOVERNED_WRITES (Phase 100 is a handoff, not a write)', () => {
     const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
     expect(ids.has('relationship-memory-teams-summary-handoff')).toBe(false);
+  });
+
+  it('outlook-summary-handoff (Phase 101) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'outlook-summary-handoff',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(101);
+    // Brief mandates each of these disclaimers.
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no Graph/i);
+    expect(entry!.note).toMatch(/no calendar sync/i);
+    expect(entry!.note).toMatch(/no notification delivery/i);
+    expect(entry!.note).toMatch(/no token acquisition/i);
+    // The four required UI phrases the brief pins.
+    expect(entry!.note).toMatch(/Open in Outlook/);
+    expect(entry!.note).toMatch(/Copy email/);
+    expect(entry!.note).toMatch(/You send from Outlook/);
+    expect(entry!.note).toMatch(/Local handoff only/);
+    // Phase 101 brief pins the recipient-empty-by-default rule.
+    expect(entry!.note).toMatch(/Recipient is OPTIONAL and EMPTY by default/i);
+    expect(entry!.note).toMatch(/forbids inferring a recipient/i);
+    // Phase 101 brief pins the four-surface non-mutation guarantee.
+    expect(entry!.note).toMatch(/Phase 72 per-deal last-visit marker/i);
+    expect(entry!.note).toMatch(/Phase 90 catch-up last-seen markers/i);
+    expect(entry!.note).toMatch(/Phase 91 dismiss \/ snooze ledger/i);
+    expect(entry!.note).toMatch(/Phase 83 Autopilot suggestion ledger/i);
+    expect(entry!.note).toMatch(/Phase 78 relationship-note draft/i);
+    // Forbidden positive-claim list pinned in the inventory note.
+    // Phrased in negation form to avoid the conservative-copy guard
+    // pattern that forbids the literal "email delivered" / "email
+    // sent" substrings (the guard scans inventory note text
+    // verbatim and cannot tell list-of-negations from positive
+    // claims).
+    expect(entry!.note).toMatch(/never positively claim/i);
+    expect(entry!.note).toMatch(/Outlook-connected/i);
+    expect(entry!.note).toMatch(/connector-backed/i);
+    expect(entry!.note).toMatch(/transmitted any message automatically/i);
+    expect(entry!.note).toMatch(/Graph-connected/i);
+    // Implementation references for traceability — helper + button
+    // component + every consuming surface.
+    expect(entry!.note).toMatch(
+      /src\/shared\/email\/summaryOutlookHandoff\.ts/,
+    );
+    expect(entry!.note).toMatch(
+      /src\/shared\/email\/SummaryOutlookHandoffButtons\.tsx/,
+    );
+    expect(entry!.note).toMatch(/src\/banker\/BankerMorningCatchUp\.tsx/);
+    expect(entry!.note).toMatch(
+      /src\/manager\/ManagerMorningCatchUp\.tsx/,
+    );
+    expect(entry!.note).toMatch(/src\/deals\/ActivityTimeline\.tsx/);
+    expect(entry!.note).toMatch(/src\/banker\/RelationshipMemory\.tsx/);
+    expect(entry!.note).toMatch(/PHASE_101_OUTLOOK_SUMMARY_HANDOFF\.md/);
+    // Honest about the broader Lane E + connector gap.
+    expect(entry!.note).toMatch(/Does NOT imply a live Outlook connector/i);
+    expect(entry!.note).toMatch(/NOT_WIRED\.outlook-connector-live-send/);
+  });
+
+  it('the Phase 101 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_101_OUTLOOK_SUMMARY_HANDOFF.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('outlook-summary-handoff is NOT in GOVERNED_WRITES (Phase 101 is a handoff, not a write)', () => {
+    const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(ids.has('outlook-summary-handoff')).toBe(false);
   });
 
   it('catch-up-last-seen-markers (Phase 90) is a LOCAL_ONLY flow with the right disclaimers', () => {
