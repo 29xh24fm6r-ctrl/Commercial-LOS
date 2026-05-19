@@ -15,6 +15,17 @@ for capability status; specific governance metadata still lives
 in
 [platformInventory.ts](../src/shared/governance/platformInventory.ts).
 
+**Phase 103 checkpoint (current).** After Phases 70–102 shipped the
+full Lane A buildable list (analytics + activity intelligence +
+relationship memory + autopilot + Teams handoffs + Outlook
+handoffs + manager parity), this map's Lane A roadmap is
+**substantially complete**. The remaining Vibe gaps are gated on
+upstream unlocks (Lanes B / C / D / E / F / G). See
+[PHASE_103_PRODUCT_CHECKPOINT.md](PHASE_103_PRODUCT_CHECKPOINT.md)
+for the build-now / defer / stop decision per lane and the
+explicit "do not build more in-repo right now" list. Until an
+upstream trigger lands, in-repo Lane A feature work is paused.
+
 **How to read this map.** Each capability has:
 - a one-line description of what Vibe expected
 - a "Current state" — what actually ships today
@@ -372,6 +383,14 @@ without upstream blockers; Lanes B–G are gated on the respective
 upstream change.
 
 ### Lane A — No-admin app-side work available NOW
+
+**Phase 103 status: substantially complete.** Every Lane A
+candidate listed below shipped between Phases 70 and 102. Further
+Lane A work is paused until a real product need surfaces or an
+upstream lane unlocks. See
+[PHASE_103_PRODUCT_CHECKPOINT.md](PHASE_103_PRODUCT_CHECKPOINT.md)
+§4 for the per-candidate phase mapping and §5 for the explicit
+"do not build more in-repo right now" list.
 
 The shortest path to incremental Vibe coverage without any
 upstream dependency. Ranked by current operational leverage:

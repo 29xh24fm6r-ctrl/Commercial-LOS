@@ -1,5 +1,24 @@
 # Stabilization Checklist — Commercial Lending Code App
 
+> ⚠️ **STALE — last refreshed at Phase 55.** This checklist's counts
+> (test suite size, governed-write count, bundle size, status table
+> rows) are from Phase 55 and have NOT been kept current through
+> Phases 56–102. The authoritative sources are now:
+>
+> - **Capability state per Vibe scope** —
+>   [docs/MICROSOFT_VIBE_CAPABILITY_COVERAGE.md](MICROSOFT_VIBE_CAPABILITY_COVERAGE.md)
+> - **Build/decide checkpoint at Phase 103** —
+>   [docs/PHASE_103_PRODUCT_CHECKPOINT.md](PHASE_103_PRODUCT_CHECKPOINT.md)
+>   (current counts: 2178 tests / 11 governed writes / 15
+>   LOCAL_ONLY_FLOWS / 10 NOT_WIRED / 1 DELIBERATELY_BLOCKED)
+> - **Per-flow governance metadata** —
+>   [src/shared/governance/platformInventory.ts](../src/shared/governance/platformInventory.ts)
+>
+> The body below is preserved for historical context (architectural
+> invariants, role-isolation pins, governance discipline). Read the
+> three sources above for the current state. A dedicated checklist
+> refresh is a candidate for a future docs-only phase.
+
 **Phase: 55 (latest)**
 **Test suite: 750 tests passing across 45 files**
 **Bundle: ~651 kB minified / ~159 kB gzipped**
