@@ -7,6 +7,7 @@ import type {
   TeamDeal,
   TeamScopedDocument,
   TeamScopedMemo,
+  TeamScopedMemoSection,
   TeamScopedTask,
 } from './managerQueries';
 
@@ -89,6 +90,7 @@ function ready(
   tasks: TeamScopedTask[] = [],
   documents: TeamScopedDocument[] = [],
   memos: TeamScopedMemo[] = [],
+  memoSections: TeamScopedMemoSection[] = [],
 ): ManagerData {
   return {
     teamPipeline: { kind: 'ready', data: deals },
@@ -96,6 +98,7 @@ function ready(
     teamTasks: { kind: 'ready', data: tasks },
     teamDocuments: { kind: 'ready', data: documents },
     teamMemos: { kind: 'ready', data: memos },
+    teamMemoSections: { kind: 'ready', data: memoSections },
   };
 }
 
@@ -112,6 +115,7 @@ function deal(overrides: Partial<TeamDeal> = {}): TeamDeal {
     modifiedOn: isoDaysAgo(1),
     assignedBankerId: 'b-1',
     assignedBankerName: 'M. Paller',
+    collateralSummary: undefined,
     ...overrides,
   };
 }
@@ -146,6 +150,7 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
       teamTasks: { kind: 'ready', data: [] },
       teamDocuments: { kind: 'ready', data: [] },
       teamMemos: { kind: 'ready', data: [] },
+      teamMemoSections: { kind: 'ready', data: [] },
     });
     render(<ManagerAutopilotRollup />);
     expect(screen.getByText(/Loading team signals/i)).toBeInTheDocument();
@@ -158,6 +163,7 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
       teamTasks: { kind: 'loading' },
       teamDocuments: { kind: 'ready', data: [] },
       teamMemos: { kind: 'ready', data: [] },
+      teamMemoSections: { kind: 'ready', data: [] },
     });
     render(<ManagerAutopilotRollup />);
     expect(screen.getByText(/Loading team signals/i)).toBeInTheDocument();
@@ -170,6 +176,7 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
       teamTasks: { kind: 'ready', data: [] },
       teamDocuments: { kind: 'ready', data: [] },
       teamMemos: { kind: 'ready', data: [] },
+      teamMemoSections: { kind: 'ready', data: [] },
     });
     render(<ManagerAutopilotRollup />);
     expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -186,6 +193,7 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
       teamTasks: { kind: 'failed', message: 'tasks service unavailable' },
       teamDocuments: { kind: 'ready', data: [] },
       teamMemos: { kind: 'ready', data: [] },
+      teamMemoSections: { kind: 'ready', data: [] },
     });
     render(<ManagerAutopilotRollup />);
     expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -570,6 +578,7 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
         statusKey: 'draft',
         generatedAt: isoDaysAgo(2),
         modifiedOn: undefined,
+        textPreview: undefined,
         dealId: 'd-h',
         dealName: 'Hot Deal',
       };
@@ -613,6 +622,7 @@ describe('ManagerAutopilotRollup — Phase 81', () => {
         statusKey: 'draft',
         generatedAt: isoDaysAgo(2),
         modifiedOn: undefined,
+        textPreview: undefined,
         dealId: 'd-h',
         dealName: 'Hot Deal',
       };

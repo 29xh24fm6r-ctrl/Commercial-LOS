@@ -1,6 +1,7 @@
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
+import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
 import { loadBankerPipeline, type PipelineDeal } from './dealQueries';
 import { timed } from '../shared/observability/perfRegistry';
 
@@ -54,6 +55,30 @@ export interface WorkQueueMemoRow {
   statusKey: WorkQueueMemoStatusKey | undefined;
   generatedAt: string;
   modifiedOn: string | undefined;
+  /** Phase 95: trimmed preview of the memo body
+   *  (cr664_memotext, capped at PREVIEW_MAX_CHARS). Forwarded into
+   *  the Phase 73 consistency check so the Phase 80
+   *  memo-consistency-findings signal can fire on the banker rollup
+   *  and morning-catch-up surfaces. Independent of the Phase 27
+   *  Deal Detail memo loader's preview field — same shape, separate
+   *  load path. */
+  textPreview: string | undefined;
+}
+
+/**
+ * Phase 95: per-deal credit memo draft section
+ * (cr664_creditmemodraftsection) loaded for the banker work queue.
+ * Mirrors `CreditMemoSectionItem` (src/deals/creditMemoQueries.ts)
+ * by structural typing but is loaded by a banker-scoped query, not
+ * the Phase 27 Deal Detail loader, so the same section list isn't
+ * fetched twice when the banker has the deal workspace open.
+ */
+export interface WorkQueueMemoSectionRow {
+  id: string;
+  dealId: string;
+  sectionKey: string;
+  sectionLabel: string;
+  textPreview: string | undefined;
 }
 
 export interface BankerWorkQueueData {
@@ -72,6 +97,32 @@ export interface BankerWorkQueueData {
   pendingReviewDocuments: WorkQueueDocumentRow[];
   /** Credit memos across the banker's deals — every status. */
   memos: WorkQueueMemoRow[];
+  /** Phase 95: per-deal credit memo draft sections across the
+   *  banker's deals. Forwarded into the Phase 73 consistency check
+   *  so the rollup + catch-up surfaces can fire the
+   *  memo-consistency-findings signal. */
+  memoSections: WorkQueueMemoSectionRow[];
+}
+
+const PREVIEW_MAX_CHARS = 240;
+
+function preview(text: string | undefined): string | undefined {
+  if (!text) return undefined;
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length <= PREVIEW_MAX_CHARS) return trimmed;
+  return trimmed.slice(0, PREVIEW_MAX_CHARS).trimEnd() + '…';
+}
+
+function humanizeSectionKey(key: string): string {
+  const spaced = key
+    .replace(/[-_]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2');
+  return spaced
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
 }
 
 const MEMO_STATUS_MAP: Record<number, WorkQueueMemoStatusKey> = {
@@ -198,8 +249,40 @@ async function loadMemosForDeals(
       statusKey: lookupMemoStatus(m.cr664_status),
       generatedAt: m.cr664_generatedat,
       modifiedOn: m.modifiedon,
+      textPreview: preview(m.cr664_memotext),
     }))
     .filter((m) => m.dealId !== '');
+}
+
+/**
+ * Phase 95: per-deal memo draft sections (cr664_creditmemodraftsection)
+ * across the banker's deals, used by the Phase 73 consistency check
+ * on the rollup + morning-catch-up surfaces. Server-scoped by the
+ * banker's authorized deal id list — no broader scope is opened.
+ */
+async function loadMemoSectionsForDeals(
+  dealIds: readonly string[],
+): Promise<WorkQueueMemoSectionRow[]> {
+  if (dealIds.length === 0) return [];
+  const filter = `(${dealIdFilter(dealIds)}) and statecode eq 0`;
+  const result = await Cr664_creditmemodraftsectionsService.getAll({
+    filter,
+    orderBy: ['cr664_sectionkey asc'],
+  });
+  if (!result.success) {
+    throw new Error(
+      result.error?.message ?? 'Failed to load banker memo sections',
+    );
+  }
+  return (result.data ?? [])
+    .map((s) => ({
+      id: s.cr664_creditmemodraftsectionid,
+      dealId: s._cr664_deal_value ?? '',
+      sectionKey: s.cr664_sectionkey,
+      sectionLabel: humanizeSectionKey(s.cr664_sectionkey),
+      textPreview: preview(s.cr664_drafttext),
+    }))
+    .filter((s) => s.dealId !== '');
 }
 
 export async function loadBankerWorkQueueData(
@@ -216,12 +299,13 @@ export async function loadBankerWorkQueueData(
       outstandingDocuments: [],
       pendingReviewDocuments: [],
       memos: [],
+      memoSections: [],
     };
   }
 
   // Step 2: child queries scoped to those deal ids, in parallel.
   const dealIds = deals.map((d) => d.id);
-  const [tasks, documents, memos] = await Promise.all([
+  const [tasks, documents, memos, memoSections] = await Promise.all([
     timed(PERF_GROUP, 'loadOpenTasksForDeals', () =>
       loadOpenTasksForDeals(dealIds),
     ),
@@ -229,6 +313,9 @@ export async function loadBankerWorkQueueData(
       loadDocumentsAwaitingActionForDeals(dealIds),
     ),
     timed(PERF_GROUP, 'loadMemosForDeals', () => loadMemosForDeals(dealIds)),
+    timed(PERF_GROUP, 'loadMemoSectionsForDeals', () =>
+      loadMemoSectionsForDeals(dealIds),
+    ),
   ]);
 
   return {
@@ -237,5 +324,6 @@ export async function loadBankerWorkQueueData(
     outstandingDocuments: documents.outstanding,
     pendingReviewDocuments: documents.pendingReview,
     memos,
+    memoSections,
   };
 }

@@ -16,6 +16,14 @@ export interface PipelineDeal {
   /** True when the deal is terminal (closed-won / closed-lost) or
    *  Dataverse statecode = Inactive. */
   isClosed: boolean;
+  /** Phase 95: read-only collateral summary projected from
+   *  cr664_collateralsummary. Surfaced on the pipeline projection so
+   *  the Phase 73 deterministic consistency check can run on the
+   *  banker autopilot rollup and morning-catch-up surfaces (it
+   *  compares memo draft text against the collateral summary field).
+   *  No new screen renders this on the pipeline list — it is only
+   *  forwarded into the rollup derivation. */
+  collateralSummary: string | undefined;
 }
 
 function toPipelineDeal(d: Cr664_loandeals): PipelineDeal {
@@ -33,6 +41,7 @@ function toPipelineDeal(d: Cr664_loandeals): PipelineDeal {
       d.cr664_closedflag === true ||
       d.cr664_isterminalstatus === true ||
       d.statecode === 1,
+    collateralSummary: d.cr664_collateralsummary,
   };
 }
 

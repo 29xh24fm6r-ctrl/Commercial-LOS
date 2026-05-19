@@ -22,8 +22,11 @@ import {
  *     closing-soon-stale-activity (HIGH), closing-soon (MEDIUM),
  *     stage-aging (MEDIUM), outstanding-documents (MEDIUM),
  *     draft-memo (LOW), stale-activity (LOW);
- *   - memo-consistency-findings does NOT fire (intentionally
- *     silenced because memoConsistencyFindingsCount is passed as 0);
+ *   - Phase 95: memo-consistency-findings (MEDIUM) fires when the
+ *     caller supplies memo textPreview + per-deal sections AND the
+ *     Phase 73 deterministic check returns findings. Pre-Phase-95
+ *     callers (no memoSections / no memo textPreview) stay quiet —
+ *     the count comes back 0 and the signal does not surface;
  *   - priority counts roll up per-deal under each deal's TOP
  *     priority;
  *   - ranking: priority → suggestion count → nearest close → name;
@@ -264,8 +267,8 @@ describe('Phase 82 — deriveBankerAutopilotRollup', () => {
     });
   });
 
-  describe('memo-consistency-findings is intentionally silenced on the banker rollup', () => {
-    it('does not fire even when a draft memo exists', () => {
+  describe('Phase 95 — memo-consistency-findings on the banker rollup', () => {
+    it('stays quiet when the caller does not supply memo textPreview or sections (pre-Phase-95 contract)', () => {
       const r = deriveBankerAutopilotRollup(
         {
           deals: [
@@ -280,13 +283,97 @@ describe('Phase 82 — deriveBankerAutopilotRollup', () => {
           tasks: [],
           outstandingDocuments: [],
           pendingReviewDocuments: [],
+          // memo row carries statusKey only, no textPreview → Phase 73
+          // check has nothing to compare and the rollup count stays 0.
           memos: [{ id: 'm1', dealId: 'da', statusKey: 'draft' }],
         },
         NOW,
       );
       const top = r.topDeals[0]!;
-      // Draft-memo (LOW) fires; memo-consistency-findings does not
-      // (input.memoConsistencyFindingsCount is hardcoded to 0).
+      // Only draft-memo (LOW) fires.
+      expect(top.topSuggestion.id).toBe('draft-memo');
+    });
+
+    it('fires memo-consistency-findings (MEDIUM) when memo text + structured deal fields disagree', () => {
+      const r = deriveBankerAutopilotRollup(
+        {
+          deals: [
+            dealInput({
+              id: 'da',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              amount: 4_500_000,
+              collateralSummary: 'A/R, inventory',
+              targetCloseDate: isoDaysFromNow(90),
+              stageEntryDate: isoDaysAgo(5),
+              lastActivityOn: isoDaysAgo(1),
+            }),
+          ],
+          tasks: [],
+          outstandingDocuments: [],
+          pendingReviewDocuments: [],
+          memos: [
+            {
+              id: 'm1',
+              dealId: 'da',
+              statusKey: 'draft',
+              textPreview: 'Some unrelated memo body with no deal references.',
+            },
+          ],
+          memoSections: [],
+        },
+        NOW,
+      );
+      const top = r.topDeals[0]!;
+      // memo-consistency-findings (MEDIUM) outranks draft-memo (LOW)
+      // as the top suggestion.
+      expect(top.topSuggestion.id).toBe('memo-consistency-findings');
+      expect(top.highestPriority).toBe('medium');
+    });
+
+    it('does not fire when memo text + sections are clean against the structured deal fields', () => {
+      const r = deriveBankerAutopilotRollup(
+        {
+          deals: [
+            dealInput({
+              id: 'da',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              amount: 4_500_000,
+              collateralSummary: 'A/R, inventory',
+              stage: 'Underwriting',
+              targetCloseDate: isoDaysFromNow(90),
+              stageEntryDate: isoDaysAgo(5),
+              lastActivityOn: isoDaysAgo(1),
+            }),
+          ],
+          tasks: [],
+          outstandingDocuments: [],
+          pendingReviewDocuments: [],
+          memos: [
+            {
+              id: 'm1',
+              dealId: 'da',
+              statusKey: 'draft',
+              textPreview:
+                'Acme Working Capital — Acme Manufacturing, LLC. Underwriting. Loan amount $4,500,000. Senior secured against A/R, inventory.',
+            },
+          ],
+          memoSections: [
+            {
+              id: 's1',
+              dealId: 'da',
+              sectionLabel: 'Collateral',
+              textPreview: 'A/R, inventory',
+            },
+          ],
+        },
+        NOW,
+      );
+      // The only suggestion that fires is draft-memo (LOW) — the
+      // consistency check returned no findings, so the rollup count
+      // stays 0.
+      const top = r.topDeals[0]!;
       expect(top.topSuggestion.id).toBe('draft-memo');
     });
   });

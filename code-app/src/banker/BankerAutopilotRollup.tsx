@@ -36,15 +36,17 @@ import { palette, radius, spacing, typography, type SeverityKey } from '../share
  * loader the work queue + relationship memory + personal activity
  * summary already use. No new query shape.
  *
- * Signal coverage on the banker rollup is honestly narrower than
- * the Phase 80 per-deal panel by ONE signal:
+ * Signal coverage on the banker rollup matches the Phase 80 per-deal
+ * panel after Phase 95:
  *   ✓ overdue-tasks, pending-review-documents,
  *     closing-soon-stale-activity, closing-soon, stage-aging,
  *     outstanding-documents, draft-memo, stale-activity
- *   ✗ memo-consistency-findings — requires full CreditMemoData
- *     (sections), which the banker work-queue loader does not
- *     fetch. The signal still fires on the Phase 80 panel inside
- *     each deal workspace.
+ *   ✓ memo-consistency-findings — Phase 95 added memo textPreview
+ *     and per-deal sections to the banker work-queue loader so the
+ *     Phase 73 deterministic consistency check can run on the
+ *     rollup. Compares memo text against structured deal fields
+ *     (deal name, client name, stage, amount, collateral summary);
+ *     no AI, no document parsing.
  *
  * No Dataverse write. No audit. No timeline. No AI. No automation.
  */
@@ -136,6 +138,8 @@ function Ready({ data }: { data: BankerWorkQueueData }) {
             targetCloseDate: d.targetCloseDate,
             stageEntryDate: d.stageEntryDate,
             lastActivityOn: d.lastActivityOn,
+            amount: d.amount,
+            collateralSummary: d.collateralSummary,
           })),
           tasks: data.tasks.map((t) => ({
             id: t.id,
@@ -164,6 +168,13 @@ function Ready({ data }: { data: BankerWorkQueueData }) {
             id: m.id,
             dealId: m.dealId,
             statusKey: m.statusKey,
+            textPreview: m.textPreview,
+          })),
+          memoSections: data.memoSections.map((s) => ({
+            id: s.id,
+            dealId: s.dealId,
+            sectionLabel: s.sectionLabel,
+            textPreview: s.textPreview,
           })),
         },
         now,

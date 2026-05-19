@@ -3,6 +3,7 @@ import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsSer
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
+import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
 
 /**
  * Team Workspace queries. Live operational data — Team Workspace is
@@ -90,6 +91,10 @@ export interface TeamDealRow {
   modifiedOn: string | undefined;
   assignedBankerId: string | undefined;
   assignedBankerName: string | undefined;
+  /** Phase 95: collateral summary forwarded into the Phase 73
+   *  consistency check on the team rollup surface. Not rendered on
+   *  any list/screen — only the rollup derivation reads it. */
+  collateralSummary: string | undefined;
 }
 
 export async function loadTeamDeals(teamId: string): Promise<TeamDealRow[]> {
@@ -117,6 +122,7 @@ export async function loadTeamDeals(teamId: string): Promise<TeamDealRow[]> {
       modifiedOn: d.modifiedon,
       assignedBankerId: d._cr664_assignedbanker_value,
       assignedBankerName: d.cr664_assignedbankername,
+      collateralSummary: d.cr664_collateralsummary,
     }),
   );
 }
@@ -246,6 +252,43 @@ export interface TeamMemoRow {
   modifiedOn: string | undefined;
   dealId: string | undefined;
   dealName: string | undefined;
+  /** Phase 95: trimmed memo preview used by the Phase 73 consistency
+   *  check on the rollup + morning-catch-up surfaces. */
+  textPreview: string | undefined;
+}
+
+/**
+ * Phase 95: per-deal credit memo draft section row scoped by team.
+ * Mirrors `CreditMemoSectionItem` (label + preview only) by
+ * structural typing.
+ */
+export interface TeamMemoSectionRow {
+  id: string;
+  dealId: string | undefined;
+  sectionKey: string;
+  sectionLabel: string;
+  textPreview: string | undefined;
+}
+
+const TEAM_MEMO_TEXT_PREVIEW_MAX_CHARS = 240;
+
+function teamMemoTextPreview(text: string | undefined): string | undefined {
+  if (!text) return undefined;
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length <= TEAM_MEMO_TEXT_PREVIEW_MAX_CHARS) return trimmed;
+  return trimmed.slice(0, TEAM_MEMO_TEXT_PREVIEW_MAX_CHARS).trimEnd() + '…';
+}
+
+function humanizeSectionKeyTeam(key: string): string {
+  const spaced = key
+    .replace(/[-_]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2');
+  return spaced
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
 }
 
 const MEMO_STATUS_MAP: Record<number, TeamMemoStatusKey> = {
@@ -265,6 +308,11 @@ function lookupMemoStatusTeam(v: unknown): TeamMemoStatusKey | undefined {
  * Same navigation-property filter pattern that loadTeamTasks /
  * loadTeamDocuments use. No banker / deal-id scoping needed — the
  * team FK on the parent deal is enough.
+ *
+ * Phase 95: the row now carries `textPreview` (cr664_memotext capped
+ * at 240 chars) so the Phase 73 consistency check can run on the
+ * team rollup surface. Sections are loaded separately by
+ * `loadTeamMemoSections`.
  */
 export async function loadTeamMemos(teamId: string): Promise<TeamMemoRow[]> {
   const result = await Cr664_creditmemo1sService.getAll({
@@ -286,6 +334,38 @@ export async function loadTeamMemos(teamId: string): Promise<TeamMemoRow[]> {
       modifiedOn: m.modifiedon,
       dealId: m._cr664_deal_value,
       dealName: m.cr664_dealname,
+      textPreview: teamMemoTextPreview(m.cr664_memotext),
+    }),
+  );
+}
+
+/**
+ * Phase 95: credit memo draft section rows scoped by team. Same
+ * navigation-property filter as `loadTeamMemos`. Only a 240-char
+ * preview is shipped, not the full draft text.
+ */
+export async function loadTeamMemoSections(
+  teamId: string,
+): Promise<TeamMemoSectionRow[]> {
+  const result = await Cr664_creditmemodraftsectionsService.getAll({
+    filter: [
+      `cr664_Deal/_cr664_team_value eq ${teamId}`,
+      `statecode eq 0`,
+    ].join(' and '),
+    orderBy: ['cr664_sectionkey asc'],
+  });
+  if (!result.success) {
+    throw new Error(
+      result.error?.message ?? 'Failed to load team memo sections',
+    );
+  }
+  return (result.data ?? []).map(
+    (s): TeamMemoSectionRow => ({
+      id: s.cr664_creditmemodraftsectionid,
+      dealId: s._cr664_deal_value,
+      sectionKey: s.cr664_sectionkey,
+      sectionLabel: humanizeSectionKeyTeam(s.cr664_sectionkey),
+      textPreview: teamMemoTextPreview(s.cr664_drafttext),
     }),
   );
 }

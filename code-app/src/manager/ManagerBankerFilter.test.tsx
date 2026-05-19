@@ -67,6 +67,7 @@ function deal(o: Partial<TeamDeal> = {}): TeamDeal {
     modifiedOn: undefined,
     assignedBankerId: 'banker-1',
     assignedBankerName: 'M. Paller',
+    collateralSummary: undefined,
     ...o,
   };
 }
@@ -78,6 +79,7 @@ function ready(deals: TeamDeal[]): ManagerData {
     teamTasks: { kind: 'ready', data: [] },
     teamDocuments: { kind: 'ready', data: [] },
     teamMemos: { kind: 'ready', data: [] },
+    teamMemoSections: { kind: 'ready', data: [] },
   };
 }
 
@@ -351,6 +353,7 @@ describe('Phase 92 — ManagerBankerFilterProvider', () => {
       teamTasks: { kind: 'ready', data: [] },
       teamDocuments: { kind: 'ready', data: [] },
       teamMemos: { kind: 'ready', data: [] },
+      teamMemoSections: { kind: 'ready', data: [] },
     });
     render(
       <ManagerBankerFilterProvider>

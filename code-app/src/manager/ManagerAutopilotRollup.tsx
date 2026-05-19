@@ -5,6 +5,7 @@ import type {
   TeamDeal,
   TeamScopedDocument,
   TeamScopedMemo,
+  TeamScopedMemoSection,
   TeamScopedTask,
 } from './managerQueries';
 import {
@@ -24,26 +25,24 @@ import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
- * Phase 81 → Phase 87: manager-side Autopilot rollup card.
+ * Phase 81 → Phase 87 → Phase 95: manager-side Autopilot rollup card.
  *
  * Phase 81 shipped this card with deal-record signal coverage only
- * (4 of 8 Phase 80 signals). Phase 87 broadens coverage to 7 of 8
- * by consuming the manager-authorized child data ManagerDataProvider
- * now loads (teamTasks / teamDocuments / teamMemos), filtered by the
- * parent deal's team FK.
+ * (4 of 8 Phase 80 signals). Phase 87 broadened coverage to 7 of 8.
+ * Phase 95 adds the 8th — memo-consistency-findings — by loading
+ * memo textPreview + per-deal sections from the manager-scoped
+ * loaders so the Phase 73 deterministic consistency check can run.
  *
- * Signal coverage on the Phase 87 card:
- *   ✓ overdue-tasks             (HIGH)   — Phase 87
- *   ✓ pending-review-documents  (HIGH)   — Phase 87
- *   ✓ closing-soon-stale-activity (HIGH) — already in Phase 81
- *   ✓ closing-soon              (MEDIUM) — already in Phase 81
- *   ✓ stage-aging               (MEDIUM) — already in Phase 81
- *   ✓ outstanding-documents     (MEDIUM) — Phase 87
- *   ✓ draft-memo                (LOW)    — Phase 87
- *   ✓ stale-activity            (LOW)    — already in Phase 81
- *   ✗ memo-consistency-findings (MEDIUM) — still silenced; requires
- *     per-deal CreditMemoData with sections. Same gap banker/team
- *     rollups carry. Available on the per-deal Phase 80 panel.
+ * Signal coverage on the Phase 95 card:
+ *   ✓ overdue-tasks             (HIGH)
+ *   ✓ pending-review-documents  (HIGH)
+ *   ✓ closing-soon-stale-activity (HIGH)
+ *   ✓ closing-soon              (MEDIUM)
+ *   ✓ stage-aging               (MEDIUM)
+ *   ✓ outstanding-documents     (MEDIUM)
+ *   ✓ memo-consistency-findings (MEDIUM) — Phase 95
+ *   ✓ draft-memo                (LOW)
+ *   ✓ stale-activity            (LOW)
  *
  * Banker / team / executive workspaces unchanged. The card mounts
  * only inside ManagerWorkspace and uses useManagerData() — so even
@@ -68,7 +67,13 @@ const PRIORITY_LABEL: Record<AutopilotPriority, string> = {
 };
 
 export function ManagerAutopilotRollup() {
-  const { teamPipeline, teamTasks, teamDocuments, teamMemos } = useManagerData();
+  const {
+    teamPipeline,
+    teamTasks,
+    teamDocuments,
+    teamMemos,
+    teamMemoSections,
+  } = useManagerData();
   const filter = useManagerBankerFilter();
   return (
     <Card>
@@ -88,6 +93,7 @@ export function ManagerAutopilotRollup() {
         teamTasks={teamTasks}
         teamDocuments={teamDocuments}
         teamMemos={teamMemos}
+        teamMemoSections={teamMemoSections}
         filter={filter}
       />
     </Card>
@@ -99,12 +105,14 @@ function Body({
   teamTasks,
   teamDocuments,
   teamMemos,
+  teamMemoSections,
   filter,
 }: {
   teamPipeline: AsyncResult<TeamDeal[]>;
   teamTasks: AsyncResult<TeamScopedTask[]>;
   teamDocuments: AsyncResult<TeamScopedDocument[]>;
   teamMemos: AsyncResult<TeamScopedMemo[]>;
+  teamMemoSections: AsyncResult<TeamScopedMemoSection[]>;
   filter: ManagerBankerFilterView;
 }) {
   const now = useMemo(() => new Date(), []);
@@ -115,7 +123,8 @@ function Body({
       teamPipeline.kind !== 'ready' ||
       teamTasks.kind !== 'ready' ||
       teamDocuments.kind !== 'ready' ||
-      teamMemos.kind !== 'ready'
+      teamMemos.kind !== 'ready' ||
+      teamMemoSections.kind !== 'ready'
     ) {
       return null;
     }
@@ -136,6 +145,9 @@ function Body({
           stageEntryDate: d.stageEntryDate,
           modifiedOn: d.modifiedOn,
           assignedBankerName: d.assignedBankerName,
+          clientName: d.clientName,
+          amount: d.amount,
+          collateralSummary: d.collateralSummary,
         })),
         tasks: teamTasks.data
           .filter((t) => t.dealId && visibleDealIds.has(t.dealId))
@@ -165,11 +177,28 @@ function Body({
             id: m.id,
             dealId: m.dealId,
             statusKey: m.statusKey,
+            textPreview: m.textPreview,
+          })),
+        memoSections: teamMemoSections.data
+          .filter((s) => s.dealId && visibleDealIds.has(s.dealId))
+          .map((s) => ({
+            id: s.id,
+            dealId: s.dealId,
+            sectionLabel: s.sectionLabel,
+            textPreview: s.textPreview,
           })),
       },
       now,
     );
-  }, [teamPipeline, teamTasks, teamDocuments, teamMemos, now, filter]);
+  }, [
+    teamPipeline,
+    teamTasks,
+    teamDocuments,
+    teamMemos,
+    teamMemoSections,
+    now,
+    filter,
+  ]);
 
   // Surface failed slots BEFORE the loading state so a transient
   // service failure is visible to the manager rather than hidden
@@ -198,12 +227,21 @@ function Body({
       <ErrorBlock title="Could not load team signals" detail={teamMemos.message} />
     );
   }
+  if (teamMemoSections.kind === 'failed') {
+    return (
+      <ErrorBlock
+        title="Could not load team signals"
+        detail={teamMemoSections.message}
+      />
+    );
+  }
 
   if (
     teamPipeline.kind === 'loading' ||
     teamTasks.kind === 'loading' ||
     teamDocuments.kind === 'loading' ||
-    teamMemos.kind === 'loading'
+    teamMemos.kind === 'loading' ||
+    teamMemoSections.kind === 'loading'
   ) {
     return <p style={styles.muted}>Loading team signals…</p>;
   }
@@ -249,9 +287,7 @@ function Body({
         <p style={styles.signalCoverage}>
           Manager rollup uses the available manager-scoped records on
           your team's pipeline (deals, open tasks, document checklist
-          rows, credit memos). Memo consistency findings appear on each
-          deal's Next Best Actions panel inside the Deal Workspace; they
-          do not fire on this rollup.
+          rows, credit memos, and memo draft sections).
         </p>
         <p style={styles.disclaimer}>
           Derived from current records. Nothing happens automatically. No

@@ -177,6 +177,9 @@ function Body({
         targetCloseDate: d.targetCloseDate,
         stageEntryDate: d.stageEntryDate,
         lastActivityOn: d.lastActivityOn,
+        clientName: d.clientName,
+        amount: d.amount,
+        collateralSummary: d.collateralSummary,
       })),
       tasks: state.data.tasks.map((t) => ({
         id: t.id,
@@ -203,6 +206,13 @@ function Body({
         id: m.id,
         dealId: m.dealId,
         statusKey: m.statusKey,
+        textPreview: m.textPreview,
+      })),
+      memoSections: state.data.memoSections.map((s) => ({
+        id: s.id,
+        dealId: s.dealId,
+        sectionLabel: s.sectionLabel,
+        textPreview: s.textPreview,
       })),
       bankerName,
     },

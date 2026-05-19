@@ -91,6 +91,7 @@ function workQueueData(overrides: Partial<BankerWorkQueueData> = {}): BankerWork
         lastActivityOn: undefined,
         stageEntryDate: new Date().toISOString(),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ],
     tasks: [],
@@ -109,6 +110,7 @@ function workQueueData(overrides: Partial<BankerWorkQueueData> = {}): BankerWork
     ],
     pendingReviewDocuments: [],
     memos: [],
+    memoSections: [],
     ...overrides,
   };
 }

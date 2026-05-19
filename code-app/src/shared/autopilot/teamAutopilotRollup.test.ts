@@ -21,7 +21,9 @@ import {
  *     received → pendingReviewDocuments, reviewed → dropped);
  *   - tasks / memos with no `dealId` are dropped;
  *   - 7 Phase 80 signals can fire on the team rollup (the full
- *     banker set minus memo-consistency-findings);
+ *     banker set, with memo-consistency-findings firing only when
+ *     the caller supplies memo textPreview + per-deal sections
+ *     under Phase 95);
  *   - cap at TOP_N_TEAM_ROLLUP_DEALS = 5 (parity with
  *     manager / banker rollups);
  *   - module hygiene: no SDK / role imports; no AI / automation /
@@ -239,6 +241,72 @@ describe('Phase 84 — deriveTeamAutopilotRollup', () => {
       );
       expect(r.topDeals[0]!.topSuggestion.id).toBe('draft-memo');
       expect(r.topDeals[0]!.highestPriority).toBe('low');
+    });
+
+    it('Phase 95 — memo-consistency-findings fires MEDIUM when memo textPreview disagrees with structured deal fields', () => {
+      const r = deriveTeamAutopilotRollup(
+        {
+          deals: [
+            dealInput({
+              id: 'd-mc',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              amount: 4_500_000,
+              targetCloseDate: isoDaysFromNow(90),
+              stageEntryDate: isoDaysAgo(5),
+              modifiedOn: isoDaysAgo(1),
+            }),
+          ],
+          tasks: [],
+          documents: [],
+          memos: [
+            {
+              id: 'm1',
+              dealId: 'd-mc',
+              statusKey: 'draft',
+              textPreview: 'Some unrelated memo body with no deal references.',
+            },
+          ],
+          memoSections: [],
+        },
+        NOW,
+      );
+      const top = r.topDeals[0]!;
+      expect(top.topSuggestion.id).toBe('memo-consistency-findings');
+      expect(top.highestPriority).toBe('medium');
+    });
+
+    it('Phase 95 — drops orphan memo section rows (dealId === undefined)', () => {
+      const r = deriveTeamAutopilotRollup(
+        {
+          deals: [
+            dealInput({
+              id: 'd-mc',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              amount: 4_500_000,
+              targetCloseDate: isoDaysFromNow(90),
+              stageEntryDate: isoDaysAgo(5),
+              modifiedOn: isoDaysAgo(1),
+            }),
+          ],
+          tasks: [],
+          documents: [],
+          memos: [],
+          memoSections: [
+            {
+              id: 's-orphan',
+              dealId: undefined,
+              sectionLabel: 'Risk',
+              textPreview: 'orphan section',
+            },
+          ],
+        },
+        NOW,
+      );
+      // No memos or attributable sections → consistency check has
+      // nothing to compare; no signals fire.
+      expect(r.dealsWithSuggestions).toBe(0);
     });
   });
 

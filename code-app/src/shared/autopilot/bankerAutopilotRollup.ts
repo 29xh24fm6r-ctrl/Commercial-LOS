@@ -50,6 +50,7 @@ import {
   type AutopilotPriority,
   type NextBestAction,
 } from './dealAutopilot';
+import { countConsistencyFindingsForDeal } from '../creditMemoConsistency/checkCreditMemoConsistency';
 
 /** Cap on top-ranked deals surfaced by the banker rollup. Same cap
  *  the manager rollup uses (Phase 81). Keeps the card compact. */
@@ -75,6 +76,16 @@ export interface BankerRollupDealInput {
    *  consumes), but it is the only activity field carried by
    *  the banker pipeline row today. */
   lastActivityOn: string | undefined;
+  /** Phase 95: loan amount + collateral summary fields the Phase 73
+   *  deterministic consistency check reads. Both are optional —
+   *  the check short-circuits when a field is absent. Loaded by the
+   *  Phase 4 `loadDealForBanker` + carried on PipelineDeal already
+   *  for amount; collateralSummary is only available on per-deal
+   *  DealDetail, so the banker rollup leaves it undefined. The
+   *  collateral check therefore stays silent on the rollup surface
+   *  (intentional; the per-deal Phase 80 panel still fires it). */
+  amount?: number | undefined;
+  collateralSummary?: string | undefined;
 }
 
 export interface BankerRollupTaskInput {
@@ -98,6 +109,24 @@ export interface BankerRollupMemoInput {
   id: string;
   dealId: string;
   statusKey: 'draft' | 'final' | 'stale' | undefined;
+  /** Phase 95: memo text preview (capped at the same 240-char
+   *  preview the Phase 80 panel uses). Optional — when undefined
+   *  the memo contributes no haystack text to the consistency
+   *  check and any per-deal section text alone may be enough to
+   *  trigger findings. */
+  textPreview?: string | undefined;
+}
+
+/**
+ * Phase 95: per-deal memo section row used by the consistency
+ * check. Mirrors `CreditMemoSectionItem` by structural typing so
+ * `src/shared/` modules don't need to import from `src/deals/`.
+ */
+export interface BankerRollupMemoSectionInput {
+  id: string;
+  dealId: string;
+  sectionLabel: string;
+  textPreview: string | undefined;
 }
 
 export interface BankerRollupInput {
@@ -113,6 +142,14 @@ export interface BankerRollupInput {
    *  on receivedDate so we pass the full list. */
   pendingReviewDocuments: readonly BankerRollupDocumentInput[];
   memos: readonly BankerRollupMemoInput[];
+  /** Phase 95: optional per-deal memo sections. When supplied the
+   *  derivation runs the Phase 73 consistency check per deal and
+   *  passes the findings count into `deriveNextBestActions`. When
+   *  omitted (or empty) the count stays at 0 and the
+   *  memo-consistency-findings signal is silent — matches the
+   *  pre-Phase-95 behavior, so existing tests continue to pass
+   *  unchanged. */
+  memoSections?: readonly BankerRollupMemoSectionInput[];
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +192,12 @@ export function deriveBankerAutopilotRollup(
     (d) => d.dealId,
   );
   const memosByDeal = bucketBy(input.memos, (m) => m.dealId);
+  // Phase 95: bucket memo sections by deal so the per-deal
+  // consistency check has both halves of the haystack.
+  const sectionsByDeal = bucketBy(
+    input.memoSections ?? [],
+    (s) => s.dealId,
+  );
 
   const flagged: BankerRollupDeal[] = [];
   let highCount = 0;
@@ -195,12 +238,29 @@ export function deriveBankerAutopilotRollup(
           id: m.id,
           statusKey: m.statusKey,
         })),
-        // Memo consistency findings require the full CreditMemoData
-        // (memos + sections), not just the WorkQueueMemoRow shape.
-        // The banker work-queue loader does not pull sections, so
-        // this signal is intentionally silent on the rollup surface.
-        // The full check fires on the Phase 80 per-deal panel.
-        memoConsistencyFindingsCount: 0,
+        // Phase 95: when the caller supplies memo sections (Phase 95
+        // wired loader) AND memo textPreview, run the Phase 73
+        // consistency check per deal and pass the findings count.
+        // When sections are absent (pre-Phase-95 callers, or roles
+        // where the loader isn't yet wired) the count stays 0 and
+        // the memo-consistency-findings signal remains silent —
+        // exact previous behavior.
+        memoConsistencyFindingsCount: countConsistencyFindingsForDeal(
+          {
+            name: d.name,
+            clientName: d.clientName,
+            stage: d.stage,
+            amount: d.amount,
+            collateralSummary: d.collateralSummary,
+          },
+          (memosByDeal.get(d.id) ?? []).map((m) => ({
+            textPreview: m.textPreview,
+          })),
+          (sectionsByDeal.get(d.id) ?? []).map((s) => ({
+            sectionLabel: s.sectionLabel,
+            textPreview: s.textPreview,
+          })),
+        ),
         mostRecentActivityIso: d.lastActivityOn,
       },
       now,

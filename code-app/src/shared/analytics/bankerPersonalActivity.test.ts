@@ -36,6 +36,7 @@ function deal(overrides: Partial<PipelineDeal>): PipelineDeal {
     lastActivityOn: undefined,
     stageEntryDate: undefined,
     isClosed: false,
+    collateralSummary: undefined,
     ...overrides,
   };
 }
@@ -47,6 +48,7 @@ function emptyData(): BankerWorkQueueData {
     outstandingDocuments: [],
     pendingReviewDocuments: [],
     memos: [],
+    memoSections: [],
   };
 }
 
@@ -210,10 +212,10 @@ describe('Phase 75 — deriveBankerPersonalActivity', () => {
     it('counts only memos whose statusKey is "draft"', () => {
       const data = emptyData();
       data.memos = [
-        { id: 'm1', dealId: 'd1', name: 'X', statusKey: 'draft', generatedAt: '2026-04-01', modifiedOn: undefined },
-        { id: 'm2', dealId: 'd1', name: 'Y', statusKey: 'final', generatedAt: '2026-04-01', modifiedOn: undefined },
-        { id: 'm3', dealId: 'd1', name: 'Z', statusKey: 'stale', generatedAt: '2026-04-01', modifiedOn: undefined },
-        { id: 'm4', dealId: 'd1', name: 'W', statusKey: undefined, generatedAt: '2026-04-01', modifiedOn: undefined },
+        { id: 'm1', dealId: 'd1', name: 'X', statusKey: 'draft', generatedAt: '2026-04-01', modifiedOn: undefined, textPreview: undefined },
+        { id: 'm2', dealId: 'd1', name: 'Y', statusKey: 'final', generatedAt: '2026-04-01', modifiedOn: undefined, textPreview: undefined },
+        { id: 'm3', dealId: 'd1', name: 'Z', statusKey: 'stale', generatedAt: '2026-04-01', modifiedOn: undefined, textPreview: undefined },
+        { id: 'm4', dealId: 'd1', name: 'W', statusKey: undefined, generatedAt: '2026-04-01', modifiedOn: undefined, textPreview: undefined },
       ];
       const r = deriveBankerPersonalActivity(data, NOW);
       expect(r.draftMemoCount).toBe(1);

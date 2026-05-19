@@ -58,6 +58,7 @@ function emptyData(): BankerWorkQueueData {
     outstandingDocuments: [],
     pendingReviewDocuments: [],
     memos: [],
+    memoSections: [],
   };
 }
 
@@ -117,6 +118,7 @@ describe('BankerAutopilotRollup — Phase 82', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: isoDaysAgo(3),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -147,6 +149,7 @@ describe('BankerAutopilotRollup — Phase 82', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: isoDaysAgo(3),
         isClosed: false,
+        collateralSummary: undefined,
       },
       // MEDIUM: stage-aging only.
       {
@@ -160,6 +163,7 @@ describe('BankerAutopilotRollup — Phase 82', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: isoDaysAgo(45),
         isClosed: false,
+        collateralSummary: undefined,
       },
       // LOW: stale-activity only.
       {
@@ -173,6 +177,7 @@ describe('BankerAutopilotRollup — Phase 82', () => {
         lastActivityOn: isoDaysAgo(30),
         stageEntryDate: isoDaysAgo(2),
         isClosed: false,
+        collateralSummary: undefined,
       },
       // Quiet deal — should NOT appear in topDeals.
       {
@@ -186,6 +191,7 @@ describe('BankerAutopilotRollup — Phase 82', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: isoDaysAgo(2),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     data.tasks = [
@@ -240,6 +246,7 @@ describe('BankerAutopilotRollup — Phase 82', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: isoDaysAgo(45),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -266,6 +273,7 @@ describe('BankerAutopilotRollup — Phase 82', () => {
         lastActivityOn: isoDaysAgo(20),
         stageEntryDate: isoDaysAgo(2),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -295,6 +303,7 @@ describe('BankerAutopilotRollup — Phase 82', () => {
         lastActivityOn: isoDaysAgo(20),
         stageEntryDate: isoDaysAgo(2),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -336,6 +345,7 @@ describe('BankerAutopilotRollup — Phase 82', () => {
           lastActivityOn: isoDaysAgo(1),
           stageEntryDate: isoDaysAgo(45),
           isClosed: false,
+          collateralSummary: undefined,
         },
       ];
       return data;

@@ -559,10 +559,10 @@ describe('Phase 81 — deriveManagerAutopilotRollup', () => {
       expect(r.dealsWithSuggestions).toBe(0);
     });
 
-    it('memo-consistency-findings remains silenced on the manager surface (no sections loaded)', () => {
-      // Supply a draft memo (which fires draft-memo) but assert
-      // memo-consistency-findings is NOT among the suggestions on
-      // the rollup — the manager memo loader pulls status only.
+    it('memo-consistency-findings stays quiet when the caller does not pass memo textPreview or sections (pre-Phase-95 contract)', () => {
+      // Supply a draft memo (which fires draft-memo) but no
+      // textPreview and no sections — the Phase 73 check has nothing
+      // to compare and the rollup count stays 0.
       const r = deriveManagerAutopilotRollup(
         {
           deals: [
@@ -583,6 +583,78 @@ describe('Phase 81 — deriveManagerAutopilotRollup', () => {
       expect(r.topDeals[0]!.topSuggestion.id).not.toBe(
         'memo-consistency-findings',
       );
+    });
+
+    it('Phase 95 — memo-consistency-findings fires MEDIUM when memo textPreview disagrees with structured deal fields', () => {
+      const r = deriveManagerAutopilotRollup(
+        {
+          deals: [
+            dealInput({
+              id: 'd-mc',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              amount: 4_500_000,
+              collateralSummary: 'A/R, inventory',
+              targetCloseDate: isoDaysFromNow(60),
+              stageEntryDate: isoDaysAgo(5),
+              modifiedOn: isoDaysAgo(1),
+            }),
+          ],
+          memos: [
+            memoInput({
+              id: 'm1',
+              dealId: 'd-mc',
+              statusKey: 'draft',
+              textPreview: 'Some unrelated memo body with no deal references.',
+            }),
+          ],
+          memoSections: [],
+        },
+        NOW,
+      );
+      const top = r.topDeals[0]!;
+      expect(top.topSuggestion.id).toBe('memo-consistency-findings');
+      expect(top.highestPriority).toBe('medium');
+    });
+
+    it('Phase 95 — does not fire when memo + sections agree with the structured deal fields', () => {
+      const r = deriveManagerAutopilotRollup(
+        {
+          deals: [
+            dealInput({
+              id: 'd-mc',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              amount: 4_500_000,
+              collateralSummary: 'A/R, inventory',
+              stage: 'Underwriting',
+              targetCloseDate: isoDaysFromNow(60),
+              stageEntryDate: isoDaysAgo(5),
+              modifiedOn: isoDaysAgo(1),
+            }),
+          ],
+          memos: [
+            memoInput({
+              id: 'm1',
+              dealId: 'd-mc',
+              statusKey: 'draft',
+              textPreview:
+                'Acme Working Capital — Acme Manufacturing, LLC. Underwriting. Loan amount $4,500,000. Senior secured against A/R, inventory.',
+            }),
+          ],
+          memoSections: [
+            {
+              id: 's1',
+              dealId: 'd-mc',
+              sectionLabel: 'Collateral',
+              textPreview: 'A/R, inventory',
+            },
+          ],
+        },
+        NOW,
+      );
+      const top = r.topDeals[0]!;
+      expect(top.topSuggestion.id).toBe('draft-memo');
     });
 
     it('attributes child rows to the correct deal when the manager team has multiple deals', () => {

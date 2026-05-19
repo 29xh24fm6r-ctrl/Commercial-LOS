@@ -6,6 +6,7 @@ import type {
   TeamDeal,
   TeamScopedDocument,
   TeamScopedMemo,
+  TeamScopedMemoSection,
   TeamScopedTask,
 } from './managerQueries';
 import {
@@ -69,7 +70,13 @@ const PRIORITY_LABEL: Record<ManagerCatchUpPriority, string> = {
 
 export function ManagerMorningCatchUp() {
   const { bankerId, teamId } = useManager();
-  const { teamPipeline, teamTasks, teamDocuments, teamMemos } = useManagerData();
+  const {
+    teamPipeline,
+    teamTasks,
+    teamDocuments,
+    teamMemos,
+    teamMemoSections,
+  } = useManagerData();
 
   // Phase 90: local-only "since last visit" marker scoped to
   // (manager identity + team). Different banker viewing the same
@@ -101,6 +108,7 @@ export function ManagerMorningCatchUp() {
         teamTasks={teamTasks}
         teamDocuments={teamDocuments}
         teamMemos={teamMemos}
+        teamMemoSections={teamMemoSections}
         priorLastSeenMs={lastSeen.priorLastSeenMs}
         isInitialized={lastSeen.isInitialized}
         isUnscoped={lastSeen.isUnscoped}
@@ -116,6 +124,7 @@ function BodyWithLedger(props: {
   teamTasks: AsyncResult<TeamScopedTask[]>;
   teamDocuments: AsyncResult<TeamScopedDocument[]>;
   teamMemos: AsyncResult<TeamScopedMemo[]>;
+  teamMemoSections: AsyncResult<TeamScopedMemoSection[]>;
   priorLastSeenMs: number | undefined;
   isInitialized: boolean;
   isUnscoped: boolean;
@@ -131,6 +140,7 @@ function Body({
   teamTasks,
   teamDocuments,
   teamMemos,
+  teamMemoSections,
   priorLastSeenMs,
   isInitialized,
   isUnscoped,
@@ -142,6 +152,7 @@ function Body({
   teamTasks: AsyncResult<TeamScopedTask[]>;
   teamDocuments: AsyncResult<TeamScopedDocument[]>;
   teamMemos: AsyncResult<TeamScopedMemo[]>;
+  teamMemoSections: AsyncResult<TeamScopedMemoSection[]>;
   priorLastSeenMs: number | undefined;
   isInitialized: boolean;
   isUnscoped: boolean;
@@ -156,7 +167,8 @@ function Body({
       teamPipeline.kind !== 'ready' ||
       teamTasks.kind !== 'ready' ||
       teamDocuments.kind !== 'ready' ||
-      teamMemos.kind !== 'ready'
+      teamMemos.kind !== 'ready' ||
+      teamMemoSections.kind !== 'ready'
     ) {
       return null;
     }
@@ -176,6 +188,9 @@ function Body({
           targetCloseDate: d.targetCloseDate,
           stageEntryDate: d.stageEntryDate,
           modifiedOn: d.modifiedOn,
+          clientName: d.clientName,
+          amount: d.amount,
+          collateralSummary: d.collateralSummary,
         })),
         tasks: teamTasks.data
           .filter((t) => t.dealId && visibleDealIds.has(t.dealId))
@@ -202,11 +217,28 @@ function Body({
             id: m.id,
             dealId: m.dealId,
             statusKey: m.statusKey,
+            textPreview: m.textPreview,
+          })),
+        memoSections: teamMemoSections.data
+          .filter((s) => s.dealId && visibleDealIds.has(s.dealId))
+          .map((s) => ({
+            id: s.id,
+            dealId: s.dealId,
+            sectionLabel: s.sectionLabel,
+            textPreview: s.textPreview,
           })),
       },
       now,
     );
-  }, [teamPipeline, teamTasks, teamDocuments, teamMemos, now, filter]);
+  }, [
+    teamPipeline,
+    teamTasks,
+    teamDocuments,
+    teamMemos,
+    teamMemoSections,
+    now,
+    filter,
+  ]);
 
   // Surface failed slots BEFORE the loading state so a transient
   // service failure is visible (same pattern Phase 84/87 carry).
@@ -225,6 +257,14 @@ function Body({
   }
   if (teamMemos.kind === 'failed') {
     return <ErrorBlock title="Could not load catch-up" detail={teamMemos.message} />;
+  }
+  if (teamMemoSections.kind === 'failed') {
+    return (
+      <ErrorBlock
+        title="Could not load catch-up"
+        detail={teamMemoSections.message}
+      />
+    );
   }
 
   if (items == null) {

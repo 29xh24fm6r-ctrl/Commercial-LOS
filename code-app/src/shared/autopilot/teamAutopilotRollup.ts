@@ -41,6 +41,7 @@ import {
   type BankerAutopilotRollup,
   type BankerRollupDeal,
   type BankerRollupDocumentInput,
+  type BankerRollupMemoSectionInput,
 } from './bankerAutopilotRollup';
 
 /** Cap on top-ranked deals surfaced by the team rollup. Same cap as
@@ -68,6 +69,11 @@ export interface TeamRollupDealInput {
    *  card so the team member can see ownership without leaving the
    *  workspace. */
   assignedBankerName: string | undefined;
+  /** Phase 95: loan amount field the Phase 73 consistency check
+   *  reads. Optional. Forwarded into the banker derivation.
+   *  `collateralSummary` is intentionally NOT on the team rollup
+   *  surface (only DealDetail carries it). */
+  amount?: number | undefined;
 }
 
 export interface TeamRollupTaskInput {
@@ -99,6 +105,20 @@ export interface TeamRollupMemoInput {
   id: string;
   dealId: string | undefined;
   statusKey: 'draft' | 'final' | 'stale' | undefined;
+  /** Phase 95: memo text preview. Optional. */
+  textPreview?: string | undefined;
+}
+
+/**
+ * Phase 95: per-deal memo section row used by the consistency
+ * check. Structurally identical to the manager / banker rollup
+ * section input shape.
+ */
+export interface TeamRollupMemoSectionInput {
+  id: string;
+  dealId: string | undefined;
+  sectionLabel: string;
+  textPreview: string | undefined;
 }
 
 export interface TeamRollupInput {
@@ -106,6 +126,11 @@ export interface TeamRollupInput {
   tasks: readonly TeamRollupTaskInput[];
   documents: readonly TeamRollupDocumentInput[];
   memos: readonly TeamRollupMemoInput[];
+  /** Phase 95 — optional. When supplied the team rollup forwards
+   *  memo sections (and memo `textPreview`) to the banker
+   *  derivation, which runs the Phase 73 consistency check per
+   *  deal. When omitted, behavior matches Phase 84. */
+  memoSections?: readonly TeamRollupMemoSectionInput[];
 }
 
 /** Per-row output — alias of the Phase 82 banker row, since both
@@ -152,6 +177,20 @@ export function deriveTeamAutopilotRollup(
     // would be wasted work. Skip.
   }
 
+  // Phase 95: reshape optional memo sections for the banker derivation.
+  // The team workspace stores section rows with `dealId: string | undefined`
+  // (matching TeamMemoSectionRow), so rows without a dealId cannot be
+  // attributed to a deal and are dropped — same approach taken for tasks
+  // and memos above.
+  const memoSections: BankerRollupMemoSectionInput[] = (input.memoSections ?? [])
+    .filter((s) => s.dealId != null)
+    .map((s) => ({
+      id: s.id,
+      dealId: s.dealId!,
+      sectionLabel: s.sectionLabel,
+      textPreview: s.textPreview,
+    }));
+
   return deriveBankerAutopilotRollup(
     {
       deals: input.deals.map((d) => ({
@@ -162,6 +201,7 @@ export function deriveTeamAutopilotRollup(
         targetCloseDate: d.targetCloseDate,
         stageEntryDate: d.stageEntryDate,
         lastActivityOn: d.modifiedOn,
+        amount: d.amount,
       })),
       tasks: input.tasks
         .filter((t) => t.dealId != null)
@@ -180,7 +220,9 @@ export function deriveTeamAutopilotRollup(
           id: m.id,
           dealId: m.dealId!,
           statusKey: m.statusKey,
+          textPreview: m.textPreview,
         })),
+      memoSections,
     },
     now,
   );

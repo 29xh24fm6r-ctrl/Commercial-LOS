@@ -22,6 +22,7 @@ function deal(overrides: Partial<PipelineDeal>): PipelineDeal {
     lastActivityOn: '2026-05-10T00:00:00Z',
     stageEntryDate: '2026-05-01T00:00:00Z', // 12 days before NOW
     isClosed: false,
+    collateralSummary: undefined,
     ...overrides,
   };
 }
@@ -61,6 +62,7 @@ function memo(overrides: Partial<WorkQueueMemoRow>): WorkQueueMemoRow {
     statusKey: 'draft',
     generatedAt: '2026-05-10T00:00:00Z',
     modifiedOn: '2026-05-10T00:00:00Z',
+    textPreview: undefined,
     ...overrides,
   };
 }
@@ -72,6 +74,7 @@ function emptyData(): BankerWorkQueueData {
     outstandingDocuments: [],
     pendingReviewDocuments: [],
     memos: [],
+    memoSections: [],
   };
 }
 
@@ -89,7 +92,7 @@ describe('deriveBankerWorkQueue — empty / no signals', () => {
     // no documents, no memos. Nothing should fire.
     const d = deal({});
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     expect(items).toEqual([]);
@@ -109,6 +112,7 @@ describe('deriveBankerWorkQueue — empty / no signals', () => {
         outstandingDocuments: [doc({ dueDate: '2026-01-01T00:00:00Z' })],
         pendingReviewDocuments: [],
         memos: [],
+        memoSections: [],
       },
       now: NOW,
     });
@@ -125,7 +129,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
       title: 'Confirm collateral',
     });
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     const item = find(items, 'overdue-task');
@@ -143,7 +147,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
       dueDate: '2026-04-01T00:00:00Z',
     });
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [od], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [od], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     const item = find(items, 'overdue-document');
@@ -155,7 +159,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
   it('flags a deal as blocked when past target close by 7+ days', () => {
     const d = deal({ targetCloseDate: '2026-05-01T00:00:00Z' }); // 12d before NOW
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     const item = find(items, 'blocked-deal');
@@ -167,7 +171,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
   it('flags a deal as at-risk past close when within the blocked threshold', () => {
     const d = deal({ targetCloseDate: '2026-05-10T00:00:00Z' }); // 3d before NOW
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     const item = items.find(
@@ -182,7 +186,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
   it('does NOT double-up: blocked deal does not also push the at-risk-past-close item', () => {
     const d = deal({ targetCloseDate: '2026-05-01T00:00:00Z' });
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     expect(items.filter((i) => i.id.endsWith('::blocked-deal')).length).toBe(1);
@@ -192,7 +196,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
   it('flags at-risk on stale stage (in current stage > 30 days)', () => {
     const d = deal({ stageEntryDate: '2026-03-01T00:00:00Z' }); // 73d before NOW
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     const item = items.find(
@@ -207,7 +211,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
     const d = deal({});
     const m = memo({ statusKey: 'stale', name: 'Acme v1' });
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [m] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [m], memoSections: [] },
       now: NOW,
     });
     const item = find(items, 'memo-review');
@@ -222,7 +226,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
     const m = memo({ statusKey: 'final', name: 'Acme Final' });
     const t = task({ dueDate: '2026-04-01T00:00:00Z' });
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [m] },
+      data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [m], memoSections: [] },
       now: NOW,
     });
     const item = items.find((i) => i.id.endsWith('::memo-review-newer-events'));
@@ -234,7 +238,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
     const d = deal({});
     const m = memo({ statusKey: 'final' });
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [m] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [m], memoSections: [] },
       now: NOW,
     });
     expect(items.find((i) => i.id.includes('memo-review'))).toBeUndefined();
@@ -243,7 +247,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
   it('flags closing soon for deals targeting close within 14 days', () => {
     const d = deal({ targetCloseDate: '2026-05-20T00:00:00Z' }); // 7d after NOW
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     const item = find(items, 'closing-soon');
@@ -255,7 +259,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
   it('does NOT flag closing soon for deals targeting close more than 14 days out', () => {
     const d = deal({ targetCloseDate: '2026-06-30T00:00:00Z' });
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     expect(find(items, 'closing-soon')).toBeUndefined();
@@ -267,7 +271,7 @@ describe('deriveBankerWorkQueue — sort order (severity tier wins)', () => {
     const d = deal({ targetCloseDate: '2026-05-01T00:00:00Z' }); // blocked (12d past)
     const t = task({ dueDate: '2025-12-01T00:00:00Z' }); // ~160 days overdue
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     // The blocked-deal item must be first regardless of task age.
@@ -278,7 +282,7 @@ describe('deriveBankerWorkQueue — sort order (severity tier wins)', () => {
     const d = deal({ stageEntryDate: '2026-03-01T00:00:00Z' }); // stale stage at-risk
     const t = task({ dueDate: '2026-05-10T00:00:00Z' }); // 3d overdue
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     const firstOverdueIdx = items.findIndex((i) => i.severity === 'overdue');
@@ -301,7 +305,7 @@ describe('deriveBankerWorkQueue — sort order (severity tier wins)', () => {
       targetCloseDate: '2026-05-20T00:00:00Z',
     });
     const items = deriveBankerWorkQueue({
-      data: { deals: [a, b], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [a, b], tasks: [], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     const firstAtRisk = items.findIndex((i) => i.severity === 'at-risk');
@@ -315,7 +319,7 @@ describe('deriveBankerWorkQueue — sort order (severity tier wins)', () => {
     const t1 = task({ id: 't1', dealId: 'd1', dueDate: '2026-05-01T00:00:00Z', title: 'A task' }); // 12d overdue
     const t2 = task({ id: 't2', dealId: 'd2', dueDate: '2026-05-10T00:00:00Z', title: 'Z task' }); // 3d overdue
     const items = deriveBankerWorkQueue({
-      data: { deals: [d1, d2], tasks: [t1, t2], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d1, d2], tasks: [t1, t2], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     const idx1 = items.findIndex((i) => i.title === 'A task');
@@ -337,7 +341,7 @@ describe('deriveBankerWorkQueue — scoping integrity', () => {
       dueDate: '2026-04-01T00:00:00Z',
     });
     const items = deriveBankerWorkQueue({
-      data: { deals: [d], tasks: [orphan], outstandingDocuments: [], pendingReviewDocuments: [], memos: [] },
+      data: { deals: [d], tasks: [orphan], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
     expect(items).toEqual([]);
@@ -357,6 +361,7 @@ describe('deriveBankerWorkQueue — scoping integrity', () => {
         outstandingDocuments: [orphanDoc],
         pendingReviewDocuments: [],
         memos: [],
+        memoSections: [],
       },
       now: NOW,
     });
@@ -388,6 +393,7 @@ describe('deriveBankerWorkQueue — pending-review-document (Phase 54)', () => {
         outstandingDocuments: [],
         pendingReviewDocuments: [pending],
         memos: [],
+        memoSections: [],
       },
       now: NOW,
     });
@@ -416,6 +422,7 @@ describe('deriveBankerWorkQueue — pending-review-document (Phase 54)', () => {
         outstandingDocuments: [],
         pendingReviewDocuments: [recent],
         memos: [],
+        memoSections: [],
       },
       now: NOW,
     });
@@ -439,6 +446,7 @@ describe('deriveBankerWorkQueue — pending-review-document (Phase 54)', () => {
         // against a malformed input too.
         pendingReviewDocuments: [reviewed],
         memos: [],
+        memoSections: [],
       },
       now: NOW,
     });
@@ -461,6 +469,7 @@ describe('deriveBankerWorkQueue — pending-review-document (Phase 54)', () => {
         // the derivation must not surface it if it is.
         pendingReviewDocuments: [outstanding],
         memos: [],
+        memoSections: [],
       },
       now: NOW,
     });
@@ -480,6 +489,7 @@ describe('deriveBankerWorkQueue — pending-review-document (Phase 54)', () => {
         outstandingDocuments: [],
         pendingReviewDocuments: [pending],
         memos: [],
+        memoSections: [],
       },
       now: NOW,
     });
@@ -501,6 +511,7 @@ describe('deriveBankerWorkQueue — pending-review-document (Phase 54)', () => {
         outstandingDocuments: [],
         pendingReviewDocuments: [orphan],
         memos: [],
+        memoSections: [],
       },
       now: NOW,
     });
@@ -528,6 +539,7 @@ describe('deriveBankerWorkQueue — pending-review-document (Phase 54)', () => {
         outstandingDocuments: [],
         pendingReviewDocuments: [newer, older],
         memos: [],
+        memoSections: [],
       },
       now: NOW,
     });

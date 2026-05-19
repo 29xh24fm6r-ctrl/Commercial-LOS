@@ -34,6 +34,7 @@ function dealRow(overrides: Partial<TeamDealRow> = {}): TeamDealRow {
     modifiedOn: undefined,
     assignedBankerId: 'banker-1',
     assignedBankerName: 'M. Paller',
+    collateralSummary: undefined,
     ...overrides,
   };
 }

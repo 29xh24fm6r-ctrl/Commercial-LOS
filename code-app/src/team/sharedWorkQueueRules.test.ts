@@ -25,6 +25,7 @@ function deal(overrides: Partial<TeamDealRow>): TeamDealRow {
     modifiedOn: '2026-05-10T00:00:00Z',
     assignedBankerId: 'banker-1',
     assignedBankerName: 'M. Paller',
+    collateralSummary: undefined,
     ...overrides,
   };
 }
@@ -67,6 +68,7 @@ function memo(overrides: Partial<TeamMemoRow>): TeamMemoRow {
     statusKey: 'draft',
     generatedAt: '2026-05-10T00:00:00Z',
     modifiedOn: '2026-05-10T00:00:00Z',
+    textPreview: undefined,
     dealId: 'deal-1',
     dealName: 'Acme Inc — Working Capital',
     ...overrides,

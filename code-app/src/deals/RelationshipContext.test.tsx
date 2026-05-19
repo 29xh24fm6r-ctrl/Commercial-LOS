@@ -68,6 +68,7 @@ function emptyData(): BankerWorkQueueData {
     outstandingDocuments: [],
     pendingReviewDocuments: [],
     memos: [],
+    memoSections: [],
   };
 }
 
@@ -191,6 +192,7 @@ describe('RelationshipContext — Phase 77', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
       {
         id: 'd-other-client',
@@ -203,6 +205,7 @@ describe('RelationshipContext — Phase 77', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -231,6 +234,7 @@ describe('RelationshipContext — Phase 77', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: isoDaysAgo(40),
         isClosed: false,
+        collateralSummary: undefined,
       },
       {
         id: 'd-sib',
@@ -247,6 +251,7 @@ describe('RelationshipContext — Phase 77', () => {
         lastActivityOn: isoDaysAgo(3),
         stageEntryDate: isoDaysAgo(5),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     data.tasks = [
@@ -263,7 +268,7 @@ describe('RelationshipContext — Phase 77', () => {
     ];
     data.memos = [
       // Draft memo on the CURRENT deal should NOT count.
-      { id: 'm1', dealId: 'd-current', name: 'X', statusKey: 'draft', generatedAt: '2026-04-01', modifiedOn: undefined },
+      { id: 'm1', dealId: 'd-current', name: 'X', statusKey: 'draft', generatedAt: '2026-04-01', modifiedOn: undefined, textPreview: undefined },
     ];
     loadMock.mockResolvedValue(data);
     render(<RelationshipContext />);
@@ -308,6 +313,7 @@ describe('RelationshipContext — Phase 77', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
       {
         id: 'd-target',
@@ -320,6 +326,7 @@ describe('RelationshipContext — Phase 77', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -350,6 +357,7 @@ describe('RelationshipContext — Phase 77', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
       {
         id: 'd-sib',
@@ -362,6 +370,7 @@ describe('RelationshipContext — Phase 77', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);

@@ -6,11 +6,13 @@ import {
   loadManagerTeamTasks,
   loadManagerTeamDocuments,
   loadManagerTeamMemos,
+  loadManagerTeamMemoSections,
   type TeamDeal,
   type TeamBanker,
   type TeamScopedTask,
   type TeamScopedDocument,
   type TeamScopedMemo,
+  type TeamScopedMemoSection,
 } from './managerQueries';
 
 export type AsyncResult<T> =
@@ -31,6 +33,12 @@ export interface ManagerData {
   teamTasks: AsyncResult<TeamScopedTask[]>;
   teamDocuments: AsyncResult<TeamScopedDocument[]>;
   teamMemos: AsyncResult<TeamScopedMemo[]>;
+  /** Phase 95 — per-deal credit memo draft sections across the
+   *  manager's team. Used by the rollup + morning-catch-up cards to
+   *  run the Phase 73 consistency check and emit the
+   *  memo-consistency-findings signal. Loaded in parallel with the
+   *  other Phase 87 child slots. */
+  teamMemoSections: AsyncResult<TeamScopedMemoSection[]>;
 }
 
 const ManagerDataContext = createContext<ManagerData | null>(null);
@@ -73,6 +81,9 @@ export function ManagerDataProvider({ children }: { children: React.ReactNode })
   const [teamMemos, setTeamMemos] = useState<AsyncResult<TeamScopedMemo[]>>({
     kind: 'loading',
   });
+  const [teamMemoSections, setTeamMemoSections] = useState<
+    AsyncResult<TeamScopedMemoSection[]>
+  >({ kind: 'loading' });
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +92,7 @@ export function ManagerDataProvider({ children }: { children: React.ReactNode })
     setTeamTasks({ kind: 'loading' });
     setTeamDocuments({ kind: 'loading' });
     setTeamMemos({ kind: 'loading' });
+    setTeamMemoSections({ kind: 'loading' });
 
     function bind<T>(
       loader: () => Promise<T>,
@@ -102,6 +114,7 @@ export function ManagerDataProvider({ children }: { children: React.ReactNode })
     bind(() => loadManagerTeamTasks(teamId), setTeamTasks);
     bind(() => loadManagerTeamDocuments(teamId), setTeamDocuments);
     bind(() => loadManagerTeamMemos(teamId), setTeamMemos);
+    bind(() => loadManagerTeamMemoSections(teamId), setTeamMemoSections);
 
     return () => {
       cancelled = true;
@@ -116,6 +129,7 @@ export function ManagerDataProvider({ children }: { children: React.ReactNode })
         teamTasks,
         teamDocuments,
         teamMemos,
+        teamMemoSections,
       }}
     >
       {children}

@@ -5,10 +5,12 @@ import {
   loadTeamTasks,
   loadTeamDocuments,
   loadTeamMemos,
+  loadTeamMemoSections,
   type TeamDealRow,
   type TeamTaskRow,
   type TeamDocumentRow,
   type TeamMemoRow,
+  type TeamMemoSectionRow,
 } from './teamQueries';
 
 export type AsyncResult<T> =
@@ -21,6 +23,10 @@ export interface TeamData {
   tasks: AsyncResult<TeamTaskRow[]>;
   documents: AsyncResult<TeamDocumentRow[]>;
   memos: AsyncResult<TeamMemoRow[]>;
+  /** Phase 95 — per-deal credit memo draft sections scoped to the
+   *  team. Used by the TeamAutopilotRollup to run the Phase 73
+   *  consistency check + emit the memo-consistency-findings signal. */
+  memoSections: AsyncResult<TeamMemoSectionRow[]>;
 }
 
 const TeamDataContext = createContext<TeamData | null>(null);
@@ -45,6 +51,9 @@ export function TeamDataProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<AsyncResult<TeamTaskRow[]>>({ kind: 'loading' });
   const [documents, setDocuments] = useState<AsyncResult<TeamDocumentRow[]>>({ kind: 'loading' });
   const [memos, setMemos] = useState<AsyncResult<TeamMemoRow[]>>({ kind: 'loading' });
+  const [memoSections, setMemoSections] = useState<
+    AsyncResult<TeamMemoSectionRow[]>
+  >({ kind: 'loading' });
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +61,7 @@ export function TeamDataProvider({ children }: { children: React.ReactNode }) {
     setTasks({ kind: 'loading' });
     setDocuments({ kind: 'loading' });
     setMemos({ kind: 'loading' });
+    setMemoSections({ kind: 'loading' });
 
     function bind<T>(setter: (r: AsyncResult<T>) => void, promise: Promise<T>): void {
       promise
@@ -69,6 +79,7 @@ export function TeamDataProvider({ children }: { children: React.ReactNode }) {
     bind(setTasks, loadTeamTasks(teamId));
     bind(setDocuments, loadTeamDocuments(teamId));
     bind(setMemos, loadTeamMemos(teamId));
+    bind(setMemoSections, loadTeamMemoSections(teamId));
 
     return () => {
       cancelled = true;
@@ -76,7 +87,7 @@ export function TeamDataProvider({ children }: { children: React.ReactNode }) {
   }, [teamId]);
 
   return (
-    <TeamDataContext.Provider value={{ deals, tasks, documents, memos }}>
+    <TeamDataContext.Provider value={{ deals, tasks, documents, memos, memoSections }}>
       {children}
     </TeamDataContext.Provider>
   );

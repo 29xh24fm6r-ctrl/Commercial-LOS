@@ -20,6 +20,7 @@ function ready(deals: TeamDeal[]): ManagerData {
     teamTasks: { kind: 'ready', data: [] },
     teamDocuments: { kind: 'ready', data: [] },
     teamMemos: { kind: 'ready', data: [] },
+    teamMemoSections: { kind: 'ready', data: [] },
   };
 }
 
@@ -36,6 +37,7 @@ function deal(overrides: Partial<TeamDeal> = {}): TeamDeal {
     modifiedOn: undefined,
     assignedBankerId: 'banker-1',
     assignedBankerName: 'M. Paller',
+    collateralSummary: undefined,
     ...overrides,
   };
 }
@@ -77,6 +79,7 @@ describe('ManagerActivitySummary — Phase 71', () => {
       teamTasks: { kind: 'loading' },
       teamDocuments: { kind: 'loading' },
       teamMemos: { kind: 'loading' },
+      teamMemoSections: { kind: 'loading' },
     });
     render(<ManagerActivitySummary />);
     expect(screen.getByText(/Loading activity summary/i)).toBeInTheDocument();
@@ -89,6 +92,7 @@ describe('ManagerActivitySummary — Phase 71', () => {
       teamTasks: { kind: 'ready', data: [] },
       teamDocuments: { kind: 'ready', data: [] },
       teamMemos: { kind: 'ready', data: [] },
+      teamMemoSections: { kind: 'ready', data: [] },
     });
     render(<ManagerActivitySummary />);
     expect(

@@ -9,6 +9,7 @@ import {
   type ManagerCatchUpDocumentInput,
   type ManagerCatchUpInput,
   type ManagerCatchUpMemoInput,
+  type ManagerCatchUpMemoSectionInput,
   type ManagerCatchUpTaskInput,
 } from './managerMorningCatchUp';
 
@@ -435,6 +436,165 @@ describe('Phase 88 — deriveManagerMorningCatchUp', () => {
         NOW,
       );
       expect(feed).toEqual([]);
+    });
+  });
+
+  describe('Phase 95 — memo-consistency-findings item', () => {
+    function dealWithStructuredFields(
+      o: Partial<ManagerCatchUpDealInput> = {},
+    ): ManagerCatchUpDealInput {
+      return deal({
+        clientName: 'Acme Manufacturing, LLC',
+        amount: 4_500_000,
+        collateralSummary: 'A/R, inventory',
+        ...o,
+      });
+    }
+
+    it('fires MEDIUM once per deal when the consistency check returns one or more findings', () => {
+      // Memo text omits deal name, client name, and amount → three
+      // findings from Phase 73.
+      const feed = deriveManagerMorningCatchUp(
+        {
+          deals: [dealWithStructuredFields({ id: 'd-mc', name: 'Acme Working Capital' })],
+          tasks: [],
+          documents: [],
+          memos: [
+            memo({
+              id: 'm-1',
+              dealId: 'd-mc',
+              statusKey: 'draft',
+              textPreview: 'Some unrelated memo content with no deal references.',
+            }),
+          ],
+          memoSections: [],
+        },
+        NOW,
+      );
+      const mc = feed.find((i) => i.kind === 'memo-consistency-findings');
+      expect(mc).toBeDefined();
+      expect(mc!.priority).toBe('medium');
+      expect(mc!.source).toBe('memo');
+      expect(mc!.dealId).toBe('d-mc');
+      expect(mc!.id).toBe('memo-consistency-findings:d-mc');
+      expect(mc!.title).toMatch(/consistency finding/);
+      expect(mc!.reason).toMatch(/banker review recommended/);
+    });
+
+    it('renders singular title when exactly one finding', () => {
+      // Only omit the deal name → exactly one finding.
+      const feed = deriveManagerMorningCatchUp(
+        {
+          deals: [dealWithStructuredFields({ id: 'd-mc', name: 'Acme Working Capital' })],
+          tasks: [],
+          documents: [],
+          memos: [
+            memo({
+              id: 'm-1',
+              dealId: 'd-mc',
+              statusKey: 'draft',
+              textPreview:
+                'Borrower: Acme Manufacturing, LLC. Underwriting. Loan amount $4,500,000. Collateral A/R, inventory.',
+            }),
+          ],
+          memoSections: [],
+        },
+        NOW,
+      );
+      const mc = feed.find((i) => i.kind === 'memo-consistency-findings');
+      expect(mc).toBeDefined();
+      expect(mc!.title).toBe('Memo consistency finding');
+    });
+
+    it('does NOT fire when no memos and no sections exist for the deal', () => {
+      const feed = deriveManagerMorningCatchUp(
+        {
+          deals: [dealWithStructuredFields({ id: 'd-mc' })],
+          tasks: [],
+          documents: [],
+          memos: [],
+          memoSections: [],
+        },
+        NOW,
+      );
+      expect(feed.find((i) => i.kind === 'memo-consistency-findings')).toBeUndefined();
+    });
+
+    it('does NOT fire when memos are clean (no findings)', () => {
+      const feed = deriveManagerMorningCatchUp(
+        {
+          deals: [dealWithStructuredFields({ id: 'd-mc', name: 'Acme Working Capital', stage: 'Underwriting' })],
+          tasks: [],
+          documents: [],
+          memos: [
+            memo({
+              id: 'm-1',
+              dealId: 'd-mc',
+              statusKey: 'draft',
+              textPreview:
+                'Acme Working Capital — Acme Manufacturing, LLC. Underwriting. Loan amount $4,500,000. Senior secured against A/R, inventory.',
+            }),
+          ],
+          memoSections: [
+            { id: 's-1', dealId: 'd-mc', sectionLabel: 'Collateral', textPreview: 'A/R, inventory' },
+          ],
+        },
+        NOW,
+      );
+      expect(feed.find((i) => i.kind === 'memo-consistency-findings')).toBeUndefined();
+    });
+
+    it('does NOT fire when memoSections is omitted and no memos exist (pre-Phase-95 callers stay quiet)', () => {
+      const feed = deriveManagerMorningCatchUp(
+        {
+          deals: [dealWithStructuredFields({ id: 'd-mc' })],
+          tasks: [],
+          documents: [],
+          memos: [],
+        },
+        NOW,
+      );
+      expect(feed.find((i) => i.kind === 'memo-consistency-findings')).toBeUndefined();
+    });
+
+    it('emits the item once per deal even when multiple memo + section rows exist for the same deal', () => {
+      const feed = deriveManagerMorningCatchUp(
+        {
+          deals: [dealWithStructuredFields({ id: 'd-mc', name: 'Acme Working Capital' })],
+          tasks: [],
+          documents: [],
+          memos: [
+            memo({ id: 'm-1', dealId: 'd-mc', statusKey: 'draft', textPreview: 'unrelated content one' }),
+            memo({ id: 'm-2', dealId: 'd-mc', statusKey: 'draft', textPreview: 'unrelated content two' }),
+          ],
+          memoSections: [
+            { id: 's-1', dealId: 'd-mc', sectionLabel: 'Risk', textPreview: 'unrelated section content' },
+          ],
+        },
+        NOW,
+      );
+      const mcItems = feed.filter((i) => i.kind === 'memo-consistency-findings');
+      expect(mcItems).toHaveLength(1);
+    });
+
+    it('drops orphan section rows (no dealId)', () => {
+      const orphan: ManagerCatchUpMemoSectionInput = {
+        id: 's-orph',
+        dealId: undefined,
+        sectionLabel: 'Risk',
+        textPreview: 'unrelated',
+      };
+      const feed = deriveManagerMorningCatchUp(
+        {
+          deals: [dealWithStructuredFields({ id: 'd-mc' })],
+          tasks: [],
+          documents: [],
+          memos: [],
+          memoSections: [orphan],
+        },
+        NOW,
+      );
+      expect(feed.find((i) => i.kind === 'memo-consistency-findings')).toBeUndefined();
     });
   });
 

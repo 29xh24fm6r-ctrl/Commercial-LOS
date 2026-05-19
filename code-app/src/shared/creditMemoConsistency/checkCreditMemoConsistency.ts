@@ -25,11 +25,33 @@
  *     about.
  */
 
-import type { DealDetail } from '../../deals/dealQueries';
-import type {
-  CreditMemoData,
-  CreditMemoSectionItem,
-} from '../../deals/creditMemoQueries';
+/**
+ * Phase 95: narrower structural input types so callers in
+ * `src/shared/autopilot/` and `src/shared/activity/` can run the
+ * Phase 73 checker without importing the full `DealDetail` /
+ * `CreditMemoData` shapes from `src/deals/`. The original Phase 73
+ * callers (Phase 80 panel + Phase 73 review block) continue to work
+ * unchanged because `DealDetail` / `CreditMemoData` structurally
+ * satisfy these narrower types.
+ */
+export interface ConsistencyCheckDealInput {
+  name: string;
+  clientName: string | undefined;
+  stage: string | undefined;
+  amount: number | undefined;
+  collateralSummary: string | undefined;
+}
+export interface ConsistencyCheckMemoInput {
+  textPreview: string | undefined;
+}
+export interface ConsistencyCheckSectionInput {
+  sectionLabel: string;
+  textPreview: string | undefined;
+}
+export interface ConsistencyCheckMemoData {
+  memos: readonly ConsistencyCheckMemoInput[];
+  sections: readonly ConsistencyCheckSectionInput[];
+}
 
 // ---------------------------------------------------------------------------
 // Finding model (Phase 73 brief)
@@ -79,13 +101,37 @@ export interface ConsistencyCheckResult {
   findings: readonly ConsistencyFinding[];
 }
 
+/**
+ * Phase 95: per-deal findings count, exposed as a rollup convenience
+ * over `checkCreditMemoConsistency`. Returns 0 when neither memos
+ * nor sections carry text — there is nothing to compare against.
+ *
+ * Used by `bankerAutopilotRollup` / `managerAutopilotRollup` /
+ * `teamAutopilotRollup` / `managerMorningCatchUp` to compute the
+ * `memoConsistencyFindingsCount` per deal before passing it into
+ * `deriveNextBestActions`. The catch-up surface also uses the count
+ * to emit a `memo-consistency-findings` item when > 0.
+ *
+ * Counts ALL findings (both severities) — matches the Phase 80
+ * panel's existing `result.findings.length` semantic.
+ */
+export function countConsistencyFindingsForDeal(
+  deal: ConsistencyCheckDealInput,
+  memos: readonly ConsistencyCheckMemoInput[],
+  sections: readonly ConsistencyCheckSectionInput[],
+): number {
+  if (memos.length === 0 && sections.length === 0) return 0;
+  const result = checkCreditMemoConsistency(deal, { memos, sections });
+  return result.findings.length;
+}
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
 export function checkCreditMemoConsistency(
-  deal: DealDetail,
-  creditMemo: CreditMemoData,
+  deal: ConsistencyCheckDealInput,
+  creditMemo: ConsistencyCheckMemoData,
 ): ConsistencyCheckResult {
   const haystack = collectMemoText(creditMemo);
   if (haystack.length === 0) {
@@ -107,7 +153,7 @@ export function checkCreditMemoConsistency(
 // Text aggregation
 // ---------------------------------------------------------------------------
 
-function collectMemoText(creditMemo: CreditMemoData): string {
+function collectMemoText(creditMemo: ConsistencyCheckMemoData): string {
   const parts: string[] = [];
   for (const m of creditMemo.memos) {
     if (m.textPreview && m.textPreview.trim().length > 0) {
@@ -132,7 +178,7 @@ function collectMemoText(creditMemo: CreditMemoData): string {
  * match (under 4 chars). Reliability over completeness.
  */
 function checkDealNameReference(
-  deal: DealDetail,
+  deal: ConsistencyCheckDealInput,
   haystackLower: string,
   out: ConsistencyFinding[],
 ): void {
@@ -156,7 +202,7 @@ function checkDealNameReference(
  * clientName is missing or short.
  */
 function checkClientNameReference(
-  deal: DealDetail,
+  deal: ConsistencyCheckDealInput,
   haystackLower: string,
   out: ConsistencyFinding[],
 ): void {
@@ -181,7 +227,7 @@ function checkClientNameReference(
  * referenced explicitly; absence is mild signal worth surfacing.
  */
 function checkStageReference(
-  deal: DealDetail,
+  deal: ConsistencyCheckDealInput,
   haystackLower: string,
   out: ConsistencyFinding[],
 ): void {
@@ -214,7 +260,7 @@ function checkStageReference(
  * loan — the $50 isn't claiming to BE the loan amount.
  */
 function checkLoanAmount(
-  deal: DealDetail,
+  deal: ConsistencyCheckDealInput,
   haystack: string,
   out: ConsistencyFinding[],
 ): void {
@@ -271,8 +317,8 @@ function checkLoanAmount(
  * text preview while the deal record's collateralSummary has content.
  */
 function checkCollateralSectionEmpty(
-  deal: DealDetail,
-  sections: readonly CreditMemoSectionItem[],
+  deal: ConsistencyCheckDealInput,
+  sections: readonly ConsistencyCheckSectionInput[],
   out: ConsistencyFinding[],
 ): void {
   const collateral = deal.collateralSummary?.trim();

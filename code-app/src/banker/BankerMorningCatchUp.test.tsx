@@ -67,6 +67,7 @@ function emptyData(): BankerWorkQueueData {
     outstandingDocuments: [],
     pendingReviewDocuments: [],
     memos: [],
+    memoSections: [],
   };
 }
 
@@ -163,6 +164,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(5),
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
         tasks: [
@@ -213,6 +215,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(45), // stage-aging
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
         tasks: [
@@ -233,6 +236,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             statusKey: 'draft',
             generatedAt: isoDaysAgo(2),
             modifiedOn: undefined,
+            textPreview: undefined,
           },
         ],
       }),
@@ -267,6 +271,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(5),
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
         tasks: [
@@ -308,6 +313,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(45), // surfaces stage-aging so card is populated
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
       }),
@@ -337,6 +343,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(5),
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
       }),
@@ -362,6 +369,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(45),
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
       }),
@@ -387,6 +395,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(45),
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
       }),
@@ -432,6 +441,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(stageEntry),
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
       });
@@ -493,6 +503,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
               lastActivityOn: isoDaysAgo(1),
               stageEntryDate: isoDaysAgo(5),
               isClosed: false,
+              collateralSummary: undefined,
             },
           ],
           tasks: [
@@ -618,6 +629,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(5),
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
         tasks: [
@@ -838,6 +850,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
             lastActivityOn: isoDaysAgo(1),
             stageEntryDate: isoDaysAgo(5),
             isClosed: false,
+            collateralSummary: undefined,
           },
         ],
         tasks: [
@@ -1007,6 +1020,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
               lastActivityOn: isoDaysAgo(1),
               stageEntryDate: isoDaysAgo(5),
               isClosed: false,
+              collateralSummary: undefined,
             },
             {
               id: 'd-2',
@@ -1019,6 +1033,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
               lastActivityOn: isoDaysAgo(1),
               stageEntryDate: isoDaysAgo(5),
               isClosed: false,
+              collateralSummary: undefined,
             },
           ],
           tasks: [

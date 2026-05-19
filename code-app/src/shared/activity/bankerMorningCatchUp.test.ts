@@ -248,6 +248,100 @@ describe('Phase 89 — deriveBankerMorningCatchUp', () => {
     });
   });
 
+  describe('Phase 95 — memo-consistency-findings forwarding', () => {
+    it('fires MEDIUM when banker deal + memo text trigger Phase 73 findings', () => {
+      const feed = deriveBankerMorningCatchUp(
+        {
+          deals: [
+            deal({
+              id: 'd-mc',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              amount: 4_500_000,
+              collateralSummary: 'A/R, inventory',
+            }),
+          ],
+          tasks: [],
+          outstandingDocuments: [],
+          pendingReviewDocuments: [],
+          memos: [
+            memo({
+              id: 'm1',
+              dealId: 'd-mc',
+              statusKey: 'draft',
+              textPreview: 'Some unrelated memo text without deal references.',
+            }),
+          ],
+          memoSections: [],
+          bankerName: 'M. Paller',
+        },
+        NOW,
+      );
+      const mc = feed.find((i) => i.kind === 'memo-consistency-findings');
+      expect(mc).toBeDefined();
+      expect(mc!.priority).toBe('medium');
+      expect(mc!.source).toBe('memo');
+      expect(mc!.ownerName).toBe('M. Paller');
+    });
+
+    it('does NOT fire when memos + sections are clean against the structured fields', () => {
+      const feed = deriveBankerMorningCatchUp(
+        {
+          deals: [
+            deal({
+              id: 'd-mc',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              amount: 4_500_000,
+              collateralSummary: 'A/R, inventory',
+              stage: 'Underwriting',
+            }),
+          ],
+          tasks: [],
+          outstandingDocuments: [],
+          pendingReviewDocuments: [],
+          memos: [
+            memo({
+              id: 'm1',
+              dealId: 'd-mc',
+              statusKey: 'draft',
+              textPreview:
+                'Acme Working Capital — Acme Manufacturing, LLC. Underwriting. Loan amount $4,500,000. Senior secured against A/R, inventory.',
+            }),
+          ],
+          memoSections: [
+            { id: 's1', dealId: 'd-mc', sectionLabel: 'Collateral', textPreview: 'A/R, inventory' },
+          ],
+          bankerName: 'M. Paller',
+        },
+        NOW,
+      );
+      expect(feed.find((i) => i.kind === 'memo-consistency-findings')).toBeUndefined();
+    });
+
+    it('stays quiet (no memo-consistency item) when callers omit memoSections + memos (pre-Phase-95 contract)', () => {
+      const feed = deriveBankerMorningCatchUp(
+        {
+          deals: [
+            deal({
+              id: 'd-mc',
+              clientName: 'Acme Manufacturing, LLC',
+              amount: 4_500_000,
+              collateralSummary: 'A/R, inventory',
+            }),
+          ],
+          tasks: [],
+          outstandingDocuments: [],
+          pendingReviewDocuments: [],
+          memos: [],
+          bankerName: 'M. Paller',
+        },
+        NOW,
+      );
+      expect(feed.find((i) => i.kind === 'memo-consistency-findings')).toBeUndefined();
+    });
+  });
+
   describe('deal-driven items', () => {
     it('closing-soon fires HIGH when target close is within 14 days', () => {
       const feed = deriveBankerMorningCatchUp(

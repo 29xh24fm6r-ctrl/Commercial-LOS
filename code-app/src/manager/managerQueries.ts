@@ -3,6 +3,7 @@ import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsSer
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
+import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
 
 /**
  * Schema reality (verified before coding — see Entity XML inspection
@@ -88,6 +89,11 @@ export interface TeamDeal {
   modifiedOn: string | undefined;
   assignedBankerId: string | undefined;
   assignedBankerName: string | undefined;
+  /** Phase 95: collateral summary, forwarded into the Phase 73
+   *  consistency check on the manager rollup + morning-catch-up
+   *  surfaces. Not rendered on any list/screen — only the rollup
+   *  derivation reads it. */
+  collateralSummary: string | undefined;
 }
 
 /**
@@ -126,6 +132,7 @@ export async function loadTeamPipeline(teamId: string): Promise<TeamDeal[]> {
       modifiedOn: d.modifiedon,
       assignedBankerId: d._cr664_assignedbanker_value,
       assignedBankerName: d.cr664_assignedbankername,
+      collateralSummary: d.cr664_collateralsummary,
     }),
   );
 }
@@ -171,11 +178,10 @@ export async function loadTeamBankers(teamId: string): Promise<TeamBanker[]> {
 // Phase 87 — manager-scoped child data (tasks, documents, memos)
 //
 // These three loaders broaden manager Autopilot rollup signal coverage
-// from Phase 81's 4-of-8 signals (deal-record fields only) to the same
-// 7-of-8 the banker (Phase 82) and team (Phase 84) rollups carry. The
-// missing 8th signal (memo-consistency-findings) needs the full
-// CreditMemoData with sections — the manager memo loader only pulls
-// status.
+// from Phase 81's 4-of-8 signals (deal-record fields only). With
+// Phase 95 adding a sections loader + memo textPreview, the manager
+// rollup now matches the full Phase 80 signal set (8 of 8 including
+// memo-consistency-findings).
 //
 // Authorization boundary:
 //   Each loader scopes children by their PARENT deal's team FK
@@ -196,6 +202,27 @@ export async function loadTeamBankers(teamId: string): Promise<TeamBanker[]> {
 //   / loadDealCreditMemo from src/deals/ (those are banker-scoped,
 //   per-deal loaders authorized by loadDealForBanker).
 // ---------------------------------------------------------------------------
+
+const MEMO_TEXT_PREVIEW_MAX_CHARS = 240;
+
+function memoTextPreview(text: string | undefined): string | undefined {
+  if (!text) return undefined;
+  const trimmed = text.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length <= MEMO_TEXT_PREVIEW_MAX_CHARS) return trimmed;
+  return trimmed.slice(0, MEMO_TEXT_PREVIEW_MAX_CHARS).trimEnd() + '…';
+}
+
+function humanizeSectionKey(key: string): string {
+  const spaced = key
+    .replace(/[-_]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2');
+  return spaced
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
 
 export interface TeamScopedTask {
   id: string;
@@ -318,6 +345,22 @@ export interface TeamScopedMemo {
   modifiedOn: string | undefined;
   dealId: string | undefined;
   dealName: string | undefined;
+  /** Phase 95: trimmed preview of the memo body (cr664_memotext)
+   *  used by the Phase 73 consistency check on the rollup +
+   *  morning-catch-up surfaces. */
+  textPreview: string | undefined;
+}
+
+/**
+ * Phase 95: per-deal credit memo draft section row for the manager
+ * surface. Mirrors `CreditMemoSectionItem` by structural typing.
+ */
+export interface TeamScopedMemoSection {
+  id: string;
+  dealId: string | undefined;
+  sectionKey: string;
+  sectionLabel: string;
+  textPreview: string | undefined;
 }
 
 const MEMO_STATUS_MAP: Record<number, TeamScopedMemoStatusKey> = {
@@ -334,9 +377,10 @@ function lookupMemoStatus(v: unknown): TeamScopedMemoStatusKey | undefined {
 
 /**
  * Credit memo rows whose parent deal sits on the manager's team.
- * Status only — sections are NOT loaded (memo-consistency-findings
- * signal therefore remains silenced on the manager surface; same
- * gap banker/team rollups carry).
+ * Phase 95: the row now carries `textPreview` (cr664_memotext capped
+ * at 240 chars) so the Phase 73 consistency check can run on the
+ * manager rollup + morning-catch-up surfaces. Sections are loaded
+ * separately by `loadManagerTeamMemoSections`.
  */
 export async function loadManagerTeamMemos(
   teamId: string,
@@ -360,6 +404,42 @@ export async function loadManagerTeamMemos(
       modifiedOn: m.modifiedon,
       dealId: m._cr664_deal_value,
       dealName: m.cr664_dealname,
+      textPreview: memoTextPreview(m.cr664_memotext),
+    }),
+  );
+}
+
+/**
+ * Phase 95: credit memo draft section rows whose parent deal sits
+ * on the manager's team. Same scope pattern the memos / tasks /
+ * documents loaders use (parent-deal team navigation filter). The
+ * full draft text isn't shipped — only a 240-char preview — to keep
+ * the payload small. The Phase 73 consistency check is text-based
+ * but compares against short structured deal field values, so the
+ * truncated preview is sufficient for its checks.
+ */
+export async function loadManagerTeamMemoSections(
+  teamId: string,
+): Promise<TeamScopedMemoSection[]> {
+  const result = await Cr664_creditmemodraftsectionsService.getAll({
+    filter: [
+      `cr664_Deal/_cr664_team_value eq ${teamId}`,
+      `statecode eq 0`,
+    ].join(' and '),
+    orderBy: ['cr664_sectionkey asc'],
+  });
+  if (!result.success) {
+    throw new Error(
+      result.error?.message ?? 'Failed to load team memo sections',
+    );
+  }
+  return (result.data ?? []).map(
+    (s): TeamScopedMemoSection => ({
+      id: s.cr664_creditmemodraftsectionid,
+      dealId: s._cr664_deal_value,
+      sectionKey: s.cr664_sectionkey,
+      sectionLabel: humanizeSectionKey(s.cr664_sectionkey),
+      textPreview: memoTextPreview(s.cr664_drafttext),
     }),
   );
 }

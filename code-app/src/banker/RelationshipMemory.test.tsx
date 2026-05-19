@@ -63,6 +63,7 @@ function emptyData(): BankerWorkQueueData {
     outstandingDocuments: [],
     pendingReviewDocuments: [],
     memos: [],
+    memoSections: [],
   };
 }
 
@@ -122,6 +123,7 @@ describe('RelationshipMemory — Phase 76', () => {
         lastActivityOn: isoDaysAgo(2),
         stageEntryDate: isoDaysAgo(10),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     data.tasks = [
@@ -135,7 +137,7 @@ describe('RelationshipMemory — Phase 76', () => {
       { id: 'doc2', dealId: 'd1', name: 'Tax', dueDate: undefined, requestDate: undefined, receivedDate: isoDaysAgo(10), reviewer: undefined, uploaded: false, modifiedOn: undefined },
     ];
     data.memos = [
-      { id: 'm1', dealId: 'd1', name: 'X', statusKey: 'draft', generatedAt: '2026-04-01', modifiedOn: undefined },
+      { id: 'm1', dealId: 'd1', name: 'X', statusKey: 'draft', generatedAt: '2026-04-01', modifiedOn: undefined, textPreview: undefined },
     ];
     loadMock.mockResolvedValue(data);
 
@@ -176,6 +178,7 @@ describe('RelationshipMemory — Phase 76', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -197,6 +200,7 @@ describe('RelationshipMemory — Phase 76', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: isoDaysAgo(5),
         isClosed: false,
+        collateralSummary: undefined,
       },
       {
         id: 'd2',
@@ -209,6 +213,7 @@ describe('RelationshipMemory — Phase 76', () => {
         lastActivityOn: isoDaysAgo(7),
         stageEntryDate: isoDaysAgo(40),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -240,6 +245,7 @@ describe('RelationshipMemory — Phase 76', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -266,6 +272,7 @@ describe('RelationshipMemory — Phase 76', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -327,6 +334,7 @@ describe('RelationshipMemory — Phase 76', () => {
         lastActivityOn: isoDaysAgo(1),
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
       // Loud client (overdue task).
       {
@@ -340,6 +348,7 @@ describe('RelationshipMemory — Phase 76', () => {
         lastActivityOn: isoDaysAgo(10),
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     data.tasks = [{ id: 't-loud', dealId: 'd-loud', title: 'overdue', dueDate: isoDaysAgo(2), modifiedOn: undefined, completed: false }];

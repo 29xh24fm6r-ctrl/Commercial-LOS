@@ -6,6 +6,7 @@ import type {
   TeamTaskRow,
   TeamDocumentRow,
   TeamMemoRow,
+  TeamMemoSectionRow,
 } from './teamQueries';
 import {
   deriveTeamAutopilotRollup,
@@ -32,15 +33,12 @@ import { palette, radius, spacing, typography, type SeverityKey } from '../share
  * `useTeamData()` — the same data the rest of the team workspace
  * cards already share. No new query shape.
  *
- * Signal coverage: 7 of 8 Phase 80 signals fire on the team
- * surface (same as the banker rollup; richer than the manager
- * rollup which only has deal-record data):
+ * Signal coverage: all 8 Phase 80 signals fire on the team surface
+ * after Phase 95 (parity with the banker + manager rollups):
  *   ✓ overdue-tasks, pending-review-documents,
  *     closing-soon-stale-activity, closing-soon, stage-aging,
- *     outstanding-documents, draft-memo, stale-activity
- *   ✗ memo-consistency-findings — requires per-deal
- *     CreditMemoData with sections; team memo rows carry status
- *     only.
+ *     outstanding-documents, draft-memo, stale-activity,
+ *     memo-consistency-findings (Phase 95).
  *
  * Phase 83 suggestion ledger:
  *   Uses surface `team-rollup`. Same dismiss / restore /
@@ -61,14 +59,20 @@ const PRIORITY_LABEL: Record<AutopilotPriority, string> = {
 };
 
 export function TeamAutopilotRollup() {
-  const { deals, tasks, documents, memos } = useTeamData();
+  const { deals, tasks, documents, memos, memoSections } = useTeamData();
   return (
     <Card>
       <CardHeader
         title="Team next-best-action signals"
         subtitle="Derived from current records. Nothing happens automatically."
       />
-      <Body deals={deals} tasks={tasks} documents={documents} memos={memos} />
+      <Body
+        deals={deals}
+        tasks={tasks}
+        documents={documents}
+        memos={memos}
+        memoSections={memoSections}
+      />
     </Card>
   );
 }
@@ -78,11 +82,13 @@ function Body({
   tasks,
   documents,
   memos,
+  memoSections,
 }: {
   deals: AsyncResult<TeamDealRow[]>;
   tasks: AsyncResult<TeamTaskRow[]>;
   documents: AsyncResult<TeamDocumentRow[]>;
   memos: AsyncResult<TeamMemoRow[]>;
+  memoSections: AsyncResult<TeamMemoSectionRow[]>;
 }) {
   const ledger = useSuggestionLedger();
   const now = useMemo(() => new Date(), []);
@@ -102,7 +108,8 @@ function Body({
       deals.kind !== 'ready' ||
       tasks.kind !== 'ready' ||
       documents.kind !== 'ready' ||
-      memos.kind !== 'ready'
+      memos.kind !== 'ready' ||
+      memoSections.kind !== 'ready'
     ) {
       return null;
     }
@@ -117,6 +124,7 @@ function Body({
           stageEntryDate: d.stageEntryDate,
           modifiedOn: d.modifiedOn,
           assignedBankerName: d.assignedBankerName,
+          amount: d.amount,
         })),
         tasks: tasks.data.map((t) => ({
           id: t.id,
@@ -138,11 +146,18 @@ function Body({
           id: m.id,
           dealId: m.dealId,
           statusKey: m.statusKey,
+          textPreview: m.textPreview,
+        })),
+        memoSections: memoSections.data.map((s) => ({
+          id: s.id,
+          dealId: s.dealId,
+          sectionLabel: s.sectionLabel,
+          textPreview: s.textPreview,
         })),
       },
       now,
     );
-  }, [deals, tasks, documents, memos, now]);
+  }, [deals, tasks, documents, memos, memoSections, now]);
 
   // Surface failed slots BEFORE the loading state so a transient
   // service failure is visible to the team member rather than hidden
@@ -179,12 +194,21 @@ function Body({
       />
     );
   }
+  if (memoSections.kind === 'failed') {
+    return (
+      <ErrorBlock
+        title="Could not load team signals"
+        detail={memoSections.message}
+      />
+    );
+  }
 
   const dataReady =
     deals.kind === 'ready' &&
     tasks.kind === 'ready' &&
     documents.kind === 'ready' &&
-    memos.kind === 'ready';
+    memos.kind === 'ready' &&
+    memoSections.kind === 'ready';
 
   if (!dataReady) {
     return <p style={styles.muted}>Loading team signals…</p>;
@@ -213,9 +237,7 @@ function Body({
         </p>
         <p style={styles.signalCoverage}>
           Team rollup uses your team workspace data (deals, tasks,
-          documents with status, memos). Memo consistency findings
-          appear on each deal's Next Best Actions panel inside the Deal
-          Workspace; they do not fire on this rollup.
+          documents with status, memos, and memo draft sections).
         </p>
         <p style={styles.disclaimer}>
           Derived from current records. Nothing happens automatically.

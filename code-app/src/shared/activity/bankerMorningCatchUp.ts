@@ -41,6 +41,7 @@ import {
   TOP_N_CATCH_UP_ITEMS,
   type ManagerCatchUpItem,
   type ManagerCatchUpKind,
+  type ManagerCatchUpMemoSectionInput,
   type ManagerCatchUpPriority,
   type ManagerCatchUpSource,
 } from './managerMorningCatchUp';
@@ -75,6 +76,12 @@ export interface BankerCatchUpDealInput {
    *  `lastActivityOn`. The adapter forwards it to the Phase 88
    *  primitive's `modifiedOn` field. */
   lastActivityOn: string | undefined;
+  /** Phase 95 — optional. Forwarded to the Phase 88 primitive's
+   *  Phase 73 consistency check. Optional so pre-Phase-95 callers
+   *  compile unchanged. */
+  clientName?: string | undefined;
+  amount?: number | undefined;
+  collateralSummary?: string | undefined;
 }
 
 export interface BankerCatchUpTaskInput {
@@ -97,6 +104,20 @@ export interface BankerCatchUpMemoInput {
   id: string;
   dealId: string;
   statusKey: 'draft' | 'final' | 'stale' | undefined;
+  /** Phase 95 — optional memo text preview, forwarded to the
+   *  Phase 88 primitive's Phase 73 consistency check. */
+  textPreview?: string | undefined;
+}
+
+/**
+ * Phase 95: per-deal memo section row, forwarded to the Phase 88
+ * primitive's Phase 73 consistency check.
+ */
+export interface BankerCatchUpMemoSectionInput {
+  id: string;
+  dealId: string;
+  sectionLabel: string;
+  textPreview: string | undefined;
 }
 
 export interface BankerCatchUpInput {
@@ -112,6 +133,8 @@ export interface BankerCatchUpInput {
    *  stamps `status: 'received'` when reshaping. */
   pendingReviewDocuments: readonly BankerCatchUpDocumentInput[];
   memos: readonly BankerCatchUpMemoInput[];
+  /** Phase 95 — optional. Forwarded to the Phase 88 primitive. */
+  memoSections?: readonly BankerCatchUpMemoSectionInput[];
   /** The signed-in banker's full name. Surfaced as ownerName on
    *  every item so the card can render "Banker: …" meta. Always
    *  defined for the banker workspace (BankerProvider guarantees
@@ -128,6 +151,14 @@ export function deriveBankerMorningCatchUp(
   input: BankerCatchUpInput,
   now: Date,
 ): BankerCatchUpItem[] {
+  const memoSections: ManagerCatchUpMemoSectionInput[] = (input.memoSections ?? []).map(
+    (s) => ({
+      id: s.id,
+      dealId: s.dealId,
+      sectionLabel: s.sectionLabel,
+      textPreview: s.textPreview,
+    }),
+  );
   return deriveManagerMorningCatchUp(
     {
       deals: input.deals.map((d) => ({
@@ -143,6 +174,9 @@ export function deriveBankerMorningCatchUp(
         targetCloseDate: d.targetCloseDate,
         stageEntryDate: d.stageEntryDate,
         modifiedOn: d.lastActivityOn,
+        clientName: d.clientName,
+        amount: d.amount,
+        collateralSummary: d.collateralSummary,
       })),
       tasks: input.tasks.map((t) => ({
         id: t.id,
@@ -173,7 +207,9 @@ export function deriveBankerMorningCatchUp(
         id: m.id,
         dealId: m.dealId,
         statusKey: m.statusKey,
+        textPreview: m.textPreview,
       })),
+      memoSections,
     },
     now,
   );

@@ -50,6 +50,7 @@ import {
   type AutopilotPriority,
   type NextBestAction,
 } from './dealAutopilot';
+import { countConsistencyFindingsForDeal } from '../creditMemoConsistency/checkCreditMemoConsistency';
 
 /** Cap on top-ranked deals surfaced by the rollup. The brief allows
  *  5 or 10; 5 keeps the card visually compact without scrolling. */
@@ -74,6 +75,17 @@ export interface ManagerRollupDealInput {
    *  only activity signal carried by team-pipeline records today. */
   modifiedOn: string | undefined;
   assignedBankerName: string | undefined;
+  /** Phase 95: optional client name + loan amount the consistency
+   *  check reads. `clientName` is already present on TeamDeal;
+   *  `amount` is too. Both are passed through structurally so the
+   *  Phase 73 checker can run per deal. Optional so pre-Phase 95
+   *  callers (every existing test) continue to compile. */
+  clientName?: string | undefined;
+  amount?: number | undefined;
+  /** Phase 95: not available on manager-scoped TeamDeal (only on
+   *  per-deal DealDetail). Passed as undefined; the collateral
+   *  check stays silent on the manager rollup. */
+  collateralSummary?: string | undefined;
 }
 
 // Phase 87: manager-scoped child rows. Match the team-side row shapes
@@ -114,6 +126,21 @@ export interface ManagerRollupMemoInput {
   id: string;
   dealId: string | undefined;
   statusKey: 'draft' | 'final' | 'stale' | undefined;
+  /** Phase 95: memo text preview (capped at the same 240-char
+   *  preview the Phase 80 panel uses). Optional. */
+  textPreview?: string | undefined;
+}
+
+/**
+ * Phase 95: per-deal memo section row used by the consistency
+ * check. Mirrors `CreditMemoSectionItem` structurally so the
+ * shared module doesn't import from `src/deals/`.
+ */
+export interface ManagerRollupMemoSectionInput {
+  id: string;
+  dealId: string | undefined;
+  sectionLabel: string;
+  textPreview: string | undefined;
 }
 
 export interface ManagerRollupInput {
@@ -125,6 +152,12 @@ export interface ManagerRollupInput {
   tasks?: readonly ManagerRollupTaskInput[];
   documents?: readonly ManagerRollupDocumentInput[];
   memos?: readonly ManagerRollupMemoInput[];
+  /** Phase 95 — optional. When supplied, the derivation runs the
+   *  Phase 73 consistency check per deal and unlocks the eighth
+   *  signal (memo-consistency-findings) on the manager rollup.
+   *  When omitted, the count stays 0 and the signal is silent —
+   *  exact pre-Phase 95 behavior. */
+  memoSections?: readonly ManagerRollupMemoSectionInput[];
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +217,12 @@ export function deriveManagerAutopilotRollup(
   // pending-review signal already filters on "no reviewer" and the
   // rule does not re-fire on rows that already carry one.
   const memosByDeal = bucketBy(input.memos ?? [], (m) => m.dealId);
+  // Phase 95: bucket memo sections by deal so the per-deal
+  // consistency check has both halves of the haystack.
+  const sectionsByDeal = bucketBy(
+    input.memoSections ?? [],
+    (s) => s.dealId,
+  );
 
   const flagged: ManagerRollupDeal[] = [];
   let highCount = 0;
@@ -226,12 +265,29 @@ export function deriveManagerAutopilotRollup(
           id: m.id,
           statusKey: m.statusKey,
         })),
-        // Memo consistency findings require the full CreditMemoData
-        // (memos + sections). The manager memo loader pulls status
-        // only — same gap the banker (Phase 82) and team (Phase 84)
-        // rollups carry. The full check fires on the per-deal Phase
-        // 80 panel inside the deal workspace.
-        memoConsistencyFindingsCount: 0,
+        // Phase 95: when the caller supplies memo sections (Phase
+        // 95 wired loader: `loadManagerTeamMemoSections`) AND memo
+        // `textPreview`, run the Phase 73 consistency check per
+        // deal and pass the findings count into the autopilot
+        // signal evaluation. When sections are absent (every
+        // pre-Phase-95 test) the count stays 0 — exact previous
+        // behavior, no test churn.
+        memoConsistencyFindingsCount: countConsistencyFindingsForDeal(
+          {
+            name: d.name,
+            clientName: d.clientName,
+            stage: d.stage,
+            amount: d.amount,
+            collateralSummary: d.collateralSummary,
+          },
+          (memosByDeal.get(d.id) ?? []).map((m) => ({
+            textPreview: m.textPreview,
+          })),
+          (sectionsByDeal.get(d.id) ?? []).map((s) => ({
+            sectionLabel: s.sectionLabel,
+            textPreview: s.textPreview,
+          })),
+        ),
         mostRecentActivityIso: d.modifiedOn,
       },
       now,

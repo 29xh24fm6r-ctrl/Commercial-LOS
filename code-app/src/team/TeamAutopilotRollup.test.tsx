@@ -8,6 +8,7 @@ import type {
   TeamTaskRow,
   TeamDocumentRow,
   TeamMemoRow,
+  TeamMemoSectionRow,
 } from './teamQueries';
 
 /**
@@ -60,12 +61,14 @@ function ready(
   tasks: TeamTaskRow[] = [],
   documents: TeamDocumentRow[] = [],
   memos: TeamMemoRow[] = [],
+  memoSections: TeamMemoSectionRow[] = [],
 ): TeamData {
   return {
     deals: { kind: 'ready', data: deals },
     tasks: { kind: 'ready', data: tasks },
     documents: { kind: 'ready', data: documents },
     memos: { kind: 'ready', data: memos },
+    memoSections: { kind: 'ready', data: memoSections },
   };
 }
 
@@ -82,6 +85,7 @@ function dealRow(overrides: Partial<TeamDealRow> = {}): TeamDealRow {
     modifiedOn: isoDaysAgo(1),
     assignedBankerId: 'b-1',
     assignedBankerName: 'M. Paller',
+    collateralSummary: undefined,
     ...overrides,
   };
 }
@@ -113,6 +117,7 @@ describe('TeamAutopilotRollup — Phase 84', () => {
       tasks: { kind: 'ready', data: [] },
       documents: { kind: 'ready', data: [] },
       memos: { kind: 'ready', data: [] },
+      memoSections: { kind: 'ready', data: [] },
     });
     render(<TeamAutopilotRollup />);
     expect(screen.getByText(/Loading team signals/i)).toBeInTheDocument();
@@ -124,6 +129,7 @@ describe('TeamAutopilotRollup — Phase 84', () => {
       tasks: { kind: 'ready', data: [] },
       documents: { kind: 'ready', data: [] },
       memos: { kind: 'ready', data: [] },
+      memoSections: { kind: 'ready', data: [] },
     });
     render(<TeamAutopilotRollup />);
     expect(screen.getByRole('alert')).toBeInTheDocument();

@@ -59,6 +59,7 @@ function emptyData(): BankerWorkQueueData {
     outstandingDocuments: [],
     pendingReviewDocuments: [],
     memos: [],
+    memoSections: [],
   };
 }
 
@@ -123,6 +124,7 @@ describe('PersonalActivitySummary — Phase 75', () => {
         lastActivityOn: undefined,
         stageEntryDate: isoDaysAgo(45), // stage at risk
         isClosed: false,
+        collateralSummary: undefined,
       },
       {
         id: 'd2',
@@ -135,6 +137,7 @@ describe('PersonalActivitySummary — Phase 75', () => {
         lastActivityOn: undefined,
         stageEntryDate: isoDaysAgo(10),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     data.tasks = [
@@ -148,7 +151,7 @@ describe('PersonalActivitySummary — Phase 75', () => {
       { id: 'doc2', dealId: 'd1', name: 'Tax', dueDate: undefined, requestDate: undefined, receivedDate: isoDaysAgo(10), reviewer: undefined, uploaded: false, modifiedOn: undefined },
     ];
     data.memos = [
-      { id: 'm1', dealId: 'd1', name: 'X', statusKey: 'draft', generatedAt: '2026-04-01', modifiedOn: undefined },
+      { id: 'm1', dealId: 'd1', name: 'X', statusKey: 'draft', generatedAt: '2026-04-01', modifiedOn: undefined, textPreview: undefined },
     ];
     loadMock.mockResolvedValue(data);
 
@@ -206,6 +209,7 @@ describe('PersonalActivitySummary — Phase 75', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
       {
         id: 'd2',
@@ -218,6 +222,7 @@ describe('PersonalActivitySummary — Phase 75', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -247,6 +252,7 @@ describe('PersonalActivitySummary — Phase 75', () => {
         lastActivityOn: undefined,
         stageEntryDate: undefined,
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);
@@ -273,10 +279,11 @@ describe('PersonalActivitySummary — Phase 75', () => {
         lastActivityOn: undefined,
         stageEntryDate: isoDaysAgo(10),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     data.memos = [
-      { id: 'm1', dealId: 'd1', name: 'X', statusKey: 'final', generatedAt: '2026-04-01', modifiedOn: undefined },
+      { id: 'm1', dealId: 'd1', name: 'X', statusKey: 'final', generatedAt: '2026-04-01', modifiedOn: undefined, textPreview: undefined },
     ];
     loadMock.mockResolvedValue(data);
     render(<PersonalActivitySummary />);
@@ -298,6 +305,7 @@ describe('PersonalActivitySummary — Phase 75', () => {
         lastActivityOn: undefined,
         stageEntryDate: isoDaysAgo(5),
         isClosed: false,
+        collateralSummary: undefined,
       },
     ];
     loadMock.mockResolvedValue(data);

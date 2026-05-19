@@ -43,6 +43,7 @@ import {
   CLOSING_SOON_DAYS,
   STAGE_AGING_AT_RISK_DAYS,
 } from '../analytics/derivedAnalytics';
+import { countConsistencyFindingsForDeal } from '../creditMemoConsistency/checkCreditMemoConsistency';
 import { PENDING_REVIEW_AT_RISK_DAYS } from '../workQueue/primitives';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -85,7 +86,8 @@ export type ManagerCatchUpKind =
   | 'closing-soon'
   | 'stale-activity'
   | 'missing-stage'
-  | 'missing-assigned-banker';
+  | 'missing-assigned-banker'
+  | 'memo-consistency-findings';
 
 export type ManagerCatchUpSource = 'task' | 'document' | 'memo' | 'deal';
 
@@ -133,6 +135,15 @@ export interface ManagerCatchUpDealInput {
   stageEntryDate: string | undefined;
   /** Standard Dataverse modifiedon — used as the activity proxy. */
   modifiedOn: string | undefined;
+  /** Phase 95 — optional. Client name, loan amount, and collateral
+   *  summary are the structured deal fields the Phase 73 consistency
+   *  check compares against the saved memo draft. Optional so all
+   *  pre-Phase-95 callers (manager workspace included) continue to
+   *  compile unchanged; when omitted, the memo-consistency item
+   *  cannot fire because the check has nothing to compare. */
+  clientName?: string | undefined;
+  amount?: number | undefined;
+  collateralSummary?: string | undefined;
 }
 
 export interface ManagerCatchUpTaskInput {
@@ -159,6 +170,22 @@ export interface ManagerCatchUpMemoInput {
   id: string;
   dealId: string | undefined;
   statusKey: 'draft' | 'final' | 'stale' | undefined;
+  /** Phase 95 — optional memo text preview. Forwarded into the
+   *  Phase 73 consistency check. Optional so pre-Phase-95 callers
+   *  continue to compile unchanged. */
+  textPreview?: string | undefined;
+}
+
+/**
+ * Phase 95: per-deal memo section row used by the Phase 73
+ * consistency check. Mirrors `CreditMemoSectionItem` by structural
+ * typing — labels + previews only, no structural HTML.
+ */
+export interface ManagerCatchUpMemoSectionInput {
+  id: string;
+  dealId: string | undefined;
+  sectionLabel: string;
+  textPreview: string | undefined;
 }
 
 export interface ManagerCatchUpInput {
@@ -166,6 +193,11 @@ export interface ManagerCatchUpInput {
   tasks: readonly ManagerCatchUpTaskInput[];
   documents: readonly ManagerCatchUpDocumentInput[];
   memos: readonly ManagerCatchUpMemoInput[];
+  /** Phase 95 — optional. When supplied, the catch-up derivation
+   *  runs the Phase 73 consistency check per deal and emits a
+   *  memo-consistency-findings item when the check returns one or
+   *  more findings. When omitted, behavior matches Phase 88. */
+  memoSections?: readonly ManagerCatchUpMemoSectionInput[];
 }
 
 // ---------------------------------------------------------------------------
@@ -328,6 +360,65 @@ export function deriveManagerMorningCatchUp(
         derivedAt,
       }));
     }
+  }
+
+  // ----- Phase 95: memo-consistency-findings ---------------------
+  // For each deal with memo content (memo textPreview OR per-deal
+  // sections), run the Phase 73 deterministic consistency check
+  // against the deal's structured fields and surface one item per
+  // deal when findings > 0. MEDIUM priority — same severity as the
+  // memo-consistency-findings signal Phase 80 emits on Deal
+  // Autopilot. Reuses Phase 73 logic via
+  // countConsistencyFindingsForDeal so the rule set stays in one
+  // place.
+  const memosByDeal = new Map<string, ManagerCatchUpMemoInput[]>();
+  for (const m of input.memos) {
+    if (!m.dealId) continue;
+    const arr = memosByDeal.get(m.dealId) ?? [];
+    arr.push(m);
+    memosByDeal.set(m.dealId, arr);
+  }
+  const sectionsByDeal = new Map<string, ManagerCatchUpMemoSectionInput[]>();
+  for (const s of input.memoSections ?? []) {
+    if (!s.dealId) continue;
+    const arr = sectionsByDeal.get(s.dealId) ?? [];
+    arr.push(s);
+    sectionsByDeal.set(s.dealId, arr);
+  }
+  for (const deal of input.deals) {
+    const dealMemos = memosByDeal.get(deal.id) ?? [];
+    const dealSections = sectionsByDeal.get(deal.id) ?? [];
+    if (dealMemos.length === 0 && dealSections.length === 0) continue;
+    const findingsCount = countConsistencyFindingsForDeal(
+      {
+        name: deal.name,
+        clientName: deal.clientName,
+        stage: deal.stage,
+        amount: deal.amount,
+        collateralSummary: deal.collateralSummary,
+      },
+      dealMemos.map((m) => ({ textPreview: m.textPreview })),
+      dealSections.map((s) => ({
+        sectionLabel: s.sectionLabel,
+        textPreview: s.textPreview,
+      })),
+    );
+    if (findingsCount === 0) continue;
+    items.push(makeItem({
+      id: `memo-consistency-findings:${deal.id}`,
+      deal,
+      kind: 'memo-consistency-findings',
+      priority: 'medium',
+      title:
+        findingsCount === 1
+          ? 'Memo consistency finding'
+          : `${findingsCount} memo consistency findings`,
+      reason:
+        'Deterministic check found differences between the saved memo draft and structured deal fields; banker review recommended.',
+      occurredAt: deal.modifiedOn,
+      source: 'memo',
+      derivedAt,
+    }));
   }
 
   // ----- deal-driven items ---------------------------------------

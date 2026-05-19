@@ -26,6 +26,7 @@ function deal(overrides: Partial<TeamDeal>): TeamDeal {
     modifiedOn: '2026-05-10T00:00:00Z',
     assignedBankerId: 'banker-1',
     assignedBankerName: 'M. Paller',
+    collateralSummary: undefined,
     ...overrides,
   };
 }
