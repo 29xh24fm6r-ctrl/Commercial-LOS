@@ -177,6 +177,7 @@ const RULES: readonly CopyRule[] = [
       'src/team/TeamAutopilotRollup.tsx',
       'src/manager/ManagerMorningCatchUp.tsx',
       'src/banker/BankerMorningCatchUp.tsx',
+      'src/manager/ManagerRelationshipMemory.tsx',
       'src/shared/governance/platformInventory.ts',
       'docs/STABILIZATION_CHECKLIST.md',
       'docs/RELEASE_NOTES_PHASES_1_40.md',
@@ -201,6 +202,8 @@ const RULES: readonly CopyRule[] = [
         'Phase 88 truthful negation: the morning catch-up card disclaimer states "Not AI-generated. No AI or automated decisions." — same non-capability declaration Phase 80/81/82/84 use, surfaced on the new manager activity-feed surface.',
       'src/banker/BankerMorningCatchUp.tsx':
         'Phase 89 truthful negation: the banker morning catch-up card disclaimer states "Not AI-generated. No AI or automated decisions." — banker-side counterpart of the Phase 88 manager surface; same non-capability declaration.',
+      'src/manager/ManagerRelationshipMemory.tsx':
+        'Phase 102 truthful negation: the manager relationship-memory card disclaimer states "No AI or automated decisions" — same non-capability declaration the Phase 76/81/82/84/88/89 surfaces use, surfaced on the manager-scoped relationship-memory parity card.',
       'src/shared/governance/platformInventory.ts':
         'NOT_WIRED entry "ai-generation" plus reason text describing the deliberate non-capability.',
       'docs/STABILIZATION_CHECKLIST.md':

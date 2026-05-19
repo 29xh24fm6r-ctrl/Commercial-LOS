@@ -5,6 +5,7 @@ import { TeamPipelineSummary } from '../manager/TeamPipelineSummary';
 import { TeamWorkQueue } from '../manager/TeamWorkQueue';
 import { ManagerAutopilotRollup } from '../manager/ManagerAutopilotRollup';
 import { ManagerMorningCatchUp } from '../manager/ManagerMorningCatchUp';
+import { ManagerRelationshipMemory } from '../manager/ManagerRelationshipMemory';
 import {
   ManagerBankerFilterControl,
   ManagerBankerFilterProvider,
@@ -57,6 +58,7 @@ function ManagerWorkspaceContent() {
         <ManagerBankerFilterControl />
         <ManagerMorningCatchUp />
         <ManagerAutopilotRollup />
+        <ManagerRelationshipMemory />
         <TeamPipelineSummary />
         <div style={styles.twoCol}>
           <DealsByStage />
