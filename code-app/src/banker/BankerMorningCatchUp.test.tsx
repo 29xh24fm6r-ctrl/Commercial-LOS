@@ -1105,4 +1105,323 @@ describe('BankerMorningCatchUp — Phase 89', () => {
       expect(text).not.toMatch(/\bmarked\s+as\s+read\b/i);
     });
   });
+
+  describe('Phase 98 — Copy Teams summary', () => {
+    function dataWithItems() {
+      return dataWith({
+        deals: [
+          {
+            id: 'd-1',
+            name: 'Acme Working Capital',
+            clientName: 'Acme Manufacturing, LLC',
+            stage: 'Underwriting',
+            status: 'Active',
+            amount: 4_500_000,
+            targetCloseDate: isoDaysFromNow(60),
+            lastActivityOn: isoDaysAgo(1),
+            stageEntryDate: isoDaysAgo(5),
+            isClosed: false,
+            collateralSummary: undefined,
+          },
+        ],
+        tasks: [
+          {
+            id: 't-1',
+            dealId: 'd-1',
+            title: 'Send Q2 financials',
+            dueDate: isoDaysAgo(3),
+            modifiedOn: undefined,
+            completed: false,
+          },
+        ],
+      });
+    }
+
+    it('renders a "Copy Teams summary" button in the populated state', async () => {
+      loadMock.mockResolvedValue(dataWithItems());
+      render(<BankerMorningCatchUp />);
+      const btn = await screen.findByRole('button', {
+        name: /Copy Teams summary for banker morning catch-up/i,
+      });
+      expect(btn).toBeEnabled();
+      expect(btn.textContent).toContain('Copy Teams summary');
+    });
+
+    it('does NOT render the Copy button when the empty-state is shown', async () => {
+      loadMock.mockResolvedValue(emptyData());
+      render(<BankerMorningCatchUp />);
+      await screen.findByText(/No catch-up items from current records/i);
+      expect(
+        screen.queryByRole('button', {
+          name: /Copy Teams summary for banker morning catch-up/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('clicking Copy Teams summary writes the formatted summary to the clipboard', async () => {
+      loadMock.mockResolvedValue(dataWithItems());
+      const user = userEvent.setup();
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      });
+      render(<BankerMorningCatchUp />);
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Copy Teams summary for banker morning catch-up/i,
+        }),
+      );
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalledTimes(1);
+      });
+      const written = writeText.mock.calls[0]![0] as string;
+      expect(written).toMatch(/^Banker morning catch-up — \d{4}-\d{2}-\d{2}\n/);
+      expect(written).toContain('Acme Working Capital');
+      expect(written).toContain(
+        'Local copy only. Not posted to Teams. Paste into Teams. ' +
+          'You send the message manually.',
+      );
+    });
+
+    it('shows "Copied to clipboard. Paste into Teams." status after a successful copy', async () => {
+      loadMock.mockResolvedValue(dataWithItems());
+      const user = userEvent.setup();
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      });
+      render(<BankerMorningCatchUp />);
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Copy Teams summary for banker morning catch-up/i,
+        }),
+      );
+      const status = await screen.findByText(
+        /Copied to clipboard\. Paste into Teams\./i,
+      );
+      expect(status.closest('[role="status"]')).not.toBeNull();
+    });
+
+    it('shows "Clipboard unavailable. Select and copy manually." alert when clipboard is missing', async () => {
+      loadMock.mockResolvedValue(dataWithItems());
+      const user = userEvent.setup();
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: undefined,
+      });
+      render(<BankerMorningCatchUp />);
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Copy Teams summary for banker morning catch-up/i,
+        }),
+      );
+      const alert = await screen.findByRole('alert');
+      expect(alert.textContent).toMatch(
+        /Clipboard unavailable\. Select and copy manually\./i,
+      );
+    });
+
+    it('clicking Copy does NOT mark items seen (Phase 90 marker untouched) or dismiss / snooze any item', async () => {
+      loadMock.mockResolvedValue(dataWithItems());
+      const user = userEvent.setup();
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      });
+      // Pre-seed a known last-seen marker far enough in the past
+      // that the visible item would naturally count as new.
+      const markerMs = Date.now() - 10 * MS_PER_DAY;
+      setCatchUpLastSeenMs(`banker:banker-1`, markerMs);
+      // Pre-seed the ledger as empty so we can detect any unwanted
+      // dismiss / snooze write.
+      localStorage.removeItem(CATCH_UP_ITEM_LEDGER_STORAGE_KEY);
+
+      render(<BankerMorningCatchUp />);
+      // Wait for the populated render to settle (the Phase 90
+      // 2-second settle would otherwise bump the marker — Phase 98
+      // is about the COPY click NOT bumping things).
+      await screen.findByRole('button', {
+        name: /Copy Teams summary for banker morning catch-up/i,
+      });
+
+      const markerBefore = localStorage.getItem(
+        `${CATCH_UP_LAST_SEEN_STORAGE_KEY_PREFIX}banker:banker-1`,
+      );
+      const ledgerBefore = localStorage.getItem(
+        CATCH_UP_ITEM_LEDGER_STORAGE_KEY,
+      );
+
+      await user.click(
+        screen.getByRole('button', {
+          name: /Copy Teams summary for banker morning catch-up/i,
+        }),
+      );
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalledTimes(1);
+      });
+
+      const markerAfter = localStorage.getItem(
+        `${CATCH_UP_LAST_SEEN_STORAGE_KEY_PREFIX}banker:banker-1`,
+      );
+      const ledgerAfter = localStorage.getItem(
+        CATCH_UP_ITEM_LEDGER_STORAGE_KEY,
+      );
+      // The marker is whatever the Phase 90 effect already wrote
+      // (or the pre-seeded value). The copy click MUST NOT change
+      // it.
+      expect(markerAfter).toBe(markerBefore);
+      // The ledger MUST stay null (no dismiss / snooze entries
+      // created by copying).
+      expect(ledgerAfter).toBe(ledgerBefore);
+    });
+
+    it('a pre-existing dismissed item remains dismissed after copy (ledger entries are not cleared)', async () => {
+      loadMock.mockResolvedValue(dataWithItems());
+      // Pre-seed a dismiss entry for the visible item.
+      recordCatchUpItemDismissed({
+        surface: 'banker-catch-up',
+        itemKey: 'overdue-task:d-1:t-1',
+        itemKind: 'overdue-task',
+        dealId: 'd-1',
+        titleSnapshot: 'Overdue task',
+        now: new Date(),
+      });
+      const user = userEvent.setup();
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      });
+      render(<BankerMorningCatchUp />);
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Copy Teams summary for banker morning catch-up/i,
+        }),
+      );
+      // The dismissed row stays muted with its Restore affordance.
+      expect(
+        screen.getByRole('button', {
+          name: /Restore catch-up item for Acme Working Capital/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('a pre-existing snoozed item remains snoozed after copy (snoozeUntil unchanged)', async () => {
+      // Two-deal fixture: snooze one item, leave one visible so the
+      // Copy button renders. The snoozed item must NOT come back
+      // and the ledger entry MUST stay byte-identical after the
+      // copy click.
+      loadMock.mockResolvedValue(
+        dataWith({
+          deals: [
+            {
+              id: 'd-1',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 4_500_000,
+              targetCloseDate: isoDaysFromNow(60),
+              lastActivityOn: isoDaysAgo(1),
+              stageEntryDate: isoDaysAgo(5),
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+            {
+              id: 'd-2',
+              name: 'Beta Corp',
+              clientName: 'Beta',
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 1_000_000,
+              targetCloseDate: isoDaysFromNow(60),
+              lastActivityOn: isoDaysAgo(1),
+              stageEntryDate: isoDaysAgo(5),
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+          ],
+          tasks: [
+            {
+              id: 't-1',
+              dealId: 'd-1',
+              title: 'Send Q2 financials',
+              dueDate: isoDaysAgo(3),
+              modifiedOn: undefined,
+              completed: false,
+            },
+            {
+              id: 't-2',
+              dealId: 'd-2',
+              title: 'Send tax returns',
+              dueDate: isoDaysAgo(2),
+              modifiedOn: undefined,
+              completed: false,
+            },
+          ],
+        }),
+      );
+      const now = new Date();
+      recordCatchUpItemSnoozed({
+        surface: 'banker-catch-up',
+        itemKey: 'overdue-task:d-1:t-1',
+        itemKind: 'overdue-task',
+        dealId: 'd-1',
+        titleSnapshot: 'Overdue task',
+        now,
+        snoozeUntil: new Date(now.getTime() + MS_PER_DAY),
+      });
+      const ledgerBefore = localStorage.getItem(
+        CATCH_UP_ITEM_LEDGER_STORAGE_KEY,
+      );
+      const user = userEvent.setup();
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      });
+      render(<BankerMorningCatchUp />);
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Copy Teams summary for banker morning catch-up/i,
+        }),
+      );
+      const ledgerAfter = localStorage.getItem(
+        CATCH_UP_ITEM_LEDGER_STORAGE_KEY,
+      );
+      // The exact same snooze entry is still in the ledger; the
+      // copy click never wrote.
+      expect(ledgerAfter).toBe(ledgerBefore);
+    });
+
+    it('clipped output never claims sent / posted / delivered / notified / synced / Teams integrated', async () => {
+      loadMock.mockResolvedValue(dataWithItems());
+      const user = userEvent.setup();
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      });
+      render(<BankerMorningCatchUp />);
+      await user.click(
+        await screen.findByRole('button', {
+          name: /Copy Teams summary for banker morning catch-up/i,
+        }),
+      );
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalled();
+      });
+      const text = writeText.mock.calls[0]![0] as string;
+      // Strip the negation-laden disclaimer line before checking
+      // forbidden positive claims.
+      const body = text.replace(/— Local copy only\.[^\n]+/g, '');
+      expect(body).not.toMatch(/\bsent\b/i);
+      expect(body).not.toMatch(/\bposted\b/i);
+      expect(body).not.toMatch(/\bdelivered\b/i);
+      expect(body).not.toMatch(/\bnotified\b/i);
+      expect(body).not.toMatch(/\bsynced\b/i);
+      expect(body).not.toMatch(/Teams\s+integrated/i);
+      expect(body).not.toMatch(/Graph\s+connected/i);
+    });
+  });
 });

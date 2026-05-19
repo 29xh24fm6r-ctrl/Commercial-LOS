@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBanker } from './BankerContext';
 import {
@@ -20,6 +20,7 @@ import {
   type CatchUpLedgerEntry,
 } from '../shared/activity/catchUpItemLedger';
 import { useCatchUpItemLedger } from '../shared/activity/useCatchUpItemLedger';
+import { buildCatchUpTeamsSummary } from '../shared/activity/catchUpTeamsSummary';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -296,6 +297,14 @@ function Body({
           );
         })}
       </ul>
+      <CatchUpTeamsCopyButton
+        surface="banker"
+        visibleItems={visibleItems}
+        sinceLastSeen={sinceLastSeen}
+        isInitialized={isInitialized}
+        isUnscoped={isUnscoped}
+        now={now}
+      />
       <p style={styles.signalCoverage}>
         Catch-up uses your current pipeline records (deals, open tasks,
         outstanding and pending-review documents, memos). Items observed
@@ -309,7 +318,120 @@ function Body({
         is tracked on this browser only; it is not synced and does not
         change deal status. "Dismiss locally" and "Snooze locally" are
         tracked on this browser only; they do not change deal status.
+        Copying the Teams summary is local-only — it does not post to
+        Teams, mark items seen, dismiss them, or snooze them.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Phase 98: "Copy Teams summary" inline component.
+ *
+ * Pure render + clipboard write. The component reads from the
+ * already-derived visibleItems + sinceLastSeen aggregates — it does
+ * NOT load any new data, does NOT call into the Phase 90 last-seen
+ * hooks, does NOT touch the Phase 91 ledger, and does NOT invoke
+ * markAllSeen. Copying changes nothing other than the local copy
+ * state inside this component.
+ */
+type CopyState =
+  | { kind: 'idle' }
+  | { kind: 'copied' }
+  | { kind: 'copy-failed' };
+
+function CatchUpTeamsCopyButton({
+  surface,
+  visibleItems,
+  sinceLastSeen,
+  isInitialized,
+  isUnscoped,
+  now,
+}: {
+  surface: 'banker';
+  visibleItems: readonly BankerCatchUpItem[];
+  sinceLastSeen: { newCount: number; isFirstVisit: boolean };
+  isInitialized: boolean;
+  isUnscoped: boolean;
+  now: Date;
+}) {
+  const [copyState, setCopyState] = useState<CopyState>({ kind: 'idle' });
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, []);
+
+  const summary = useMemo(() => {
+    return buildCatchUpTeamsSummary({
+      surface,
+      visibleItemCount: visibleItems.length,
+      lastSeen:
+        isInitialized && !isUnscoped
+          ? {
+              firstVisit: sinceLastSeen.isFirstVisit,
+              newCount: sinceLastSeen.newCount,
+            }
+          : undefined,
+      items: visibleItems.map((item) => ({
+        dealId: item.dealId,
+        dealName: item.dealName,
+        ownerName: item.ownerName,
+        priority: item.priority,
+        title: item.title,
+        reason: item.reason,
+      })),
+      generatedAt: now,
+    });
+  }, [
+    surface,
+    visibleItems,
+    sinceLastSeen.isFirstVisit,
+    sinceLastSeen.newCount,
+    isInitialized,
+    isUnscoped,
+    now,
+  ]);
+
+  async function handleCopy() {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(summary);
+        setCopyState({ kind: 'copied' });
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = setTimeout(() => {
+          setCopyState({ kind: 'idle' });
+        }, 4000);
+        return;
+      }
+      setCopyState({ kind: 'copy-failed' });
+    } catch {
+      setCopyState({ kind: 'copy-failed' });
+    }
+  }
+
+  return (
+    <div style={styles.copyRow} aria-label="Copy Teams summary action row">
+      <button
+        type="button"
+        onClick={handleCopy}
+        style={styles.copyButton}
+        aria-label="Copy Teams summary for banker morning catch-up"
+      >
+        Copy Teams summary
+      </button>
+      {copyState.kind === 'copied' && (
+        <span style={styles.copySuccessTag} role="status">
+          Copied to clipboard. Paste into Teams.
+        </span>
+      )}
+      {copyState.kind === 'copy-failed' && (
+        <span style={styles.copyFailTag} role="alert">
+          Clipboard unavailable. Select and copy manually.
+        </span>
+      )}
     </div>
   );
 }
@@ -692,6 +814,34 @@ const styles: Record<string, React.CSSProperties> = {
   errorHint: {
     color: palette.textMuted,
     fontSize: typography.size.xs,
+    fontStyle: 'italic',
+  },
+  copyRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  copyButton: {
+    background: palette.surfaceAlt,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  copySuccessTag: {
+    fontSize: typography.size.xs,
+    color: palette.clearFg,
+    fontStyle: 'italic',
+  },
+  copyFailTag: {
+    fontSize: typography.size.xs,
+    color: palette.blockedFg,
     fontStyle: 'italic',
   },
 };

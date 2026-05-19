@@ -580,6 +580,51 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'docs/PHASE_94_CATCH_UP_MARK_ALL_SEEN.md.',
   },
   {
+    id: 'catch-up-teams-summary-handoff',
+    label: 'Microsoft Teams morning-catch-up copy handoff',
+    phase: 98,
+    note:
+      'No-admin copy-to-clipboard Teams handoff for the Phase 88 ' +
+      'manager and Phase 89 banker morning-catch-up cards. A pure ' +
+      'formatter (src/shared/activity/catchUpTeamsSummary.ts) ' +
+      'produces a plain-text summary the user can paste into ' +
+      'Microsoft Teams (any chat or channel). The summary includes ' +
+      'a banker / manager surface label, a YYYY-MM-DD UTC date, the ' +
+      'visible-item count, the Phase 90 since-last-visit context ' +
+      '(when the marker scope is available on this browser), and up ' +
+      'to CATCH_UP_TEAMS_SUMMARY_MAX_ITEMS (8) top items as ' +
+      '"- [PRIORITY] DealName — Title: Reason" rows. The manager ' +
+      'surface additionally appends "(Banker: <ownerName>)" so the ' +
+      'manager can see ownership at a glance; the banker surface ' +
+      'omits that suffix (the signed-in banker is the implicit ' +
+      'owner). The app does not post to Teams, send anything, sync ' +
+      'with Teams, raise a Teams notification, create a meeting, or ' +
+      'call Graph. No Dataverse write. No audit row. No timeline ' +
+      'event. No calendar sync. No notification delivery. No Graph ' +
+      'call. No access-token acquisition. The Teams SDK is NOT ' +
+      'loaded by this flow. Crucially, copying the summary does ' +
+      'NOT mutate the Phase 90 last-seen marker, the Phase 91 ' +
+      'dismiss / snooze ledger, or the Phase 94 mark-all-seen ' +
+      'state — items are not marked seen, dismissed, snoozed, or ' +
+      'resolved by the copy click. The UI carries the verbatim ' +
+      'phrases "Copy Teams summary", "Paste into Teams", and "You ' +
+      'send the message manually". The output and the source never ' +
+      'say sent / posted / delivered / notified / synced / Teams ' +
+      'integrated / Graph connected / approved / denied / rejected ' +
+      '/ credit decision / risk score / performance score / ' +
+      'AI-generated / Copilot as a positive claim. The formatter ' +
+      'output never echoes internal audit IDs, cr664_* logical ' +
+      'names, raw timeline payloads, full memo body text, secrets, ' +
+      'tokens, or connector state. Implementation: ' +
+      'src/shared/activity/catchUpTeamsSummary.ts (pure formatter) ' +
+      '+ inline `<CatchUpTeamsCopyButton />` in ' +
+      'src/banker/BankerMorningCatchUp.tsx and ' +
+      'src/manager/ManagerMorningCatchUp.tsx. Does NOT imply a full ' +
+      'Teams integration; the broader Lane E gaps documented in ' +
+      'docs/PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT.md remain ' +
+      'untouched. See docs/PHASE_98_CATCH_UP_TEAMS_SUMMARY_HANDOFF.md.',
+  },
+  {
     id: 'teams-deal-summary-handoff',
     label: 'Microsoft Teams deal-summary copy handoff',
     phase: 96,

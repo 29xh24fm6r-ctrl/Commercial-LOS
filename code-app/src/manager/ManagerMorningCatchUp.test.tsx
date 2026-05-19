@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ManagerData } from './ManagerDataProvider';
 import type {
@@ -1010,6 +1010,211 @@ describe('ManagerMorningCatchUp — Phase 88', () => {
       expect(text).not.toMatch(/\bnotification\s+cleared\b/i);
       expect(text).not.toMatch(/\b(is|was|has been)\s+synced\b/i);
       expect(text).not.toMatch(/\bmarked\s+as\s+read\b/i);
+    });
+  });
+
+  describe('Phase 98 — Copy Teams summary', () => {
+    function readyWithOverdueTask(): ReturnType<typeof ready> {
+      const taskRow: TeamScopedTask = {
+        id: 't1',
+        title: 'Send Q2 financials',
+        completed: false,
+        dueDate: isoDaysAgo(3),
+        assigneeName: undefined,
+        modifiedOn: undefined,
+        dealId: 'd-1',
+        dealName: 'Hot Deal',
+      };
+      return ready(
+        [
+          deal({
+            id: 'd-1',
+            name: 'Hot Deal',
+            assignedBankerName: 'B. Other',
+          }),
+        ],
+        [taskRow],
+      );
+    }
+
+    it('renders a "Copy Teams summary" button in the populated state', () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdueTask());
+      render(<ManagerMorningCatchUp />);
+      const btn = screen.getByRole('button', {
+        name: /Copy Teams summary for manager morning catch-up/i,
+      });
+      expect(btn).toBeEnabled();
+      expect(btn.textContent).toContain('Copy Teams summary');
+    });
+
+    it('does NOT render the Copy button when the empty-state is shown', () => {
+      useManagerDataMock.mockReturnValue(ready([]));
+      render(<ManagerMorningCatchUp />);
+      expect(
+        screen.queryByRole('button', {
+          name: /Copy Teams summary for manager morning catch-up/i,
+        }),
+      ).toBeNull();
+    });
+
+    it('clicking Copy Teams summary writes the formatted summary to the clipboard', async () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdueTask());
+      const user = userEvent.setup();
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      });
+      render(<ManagerMorningCatchUp />);
+      await user.click(
+        screen.getByRole('button', {
+          name: /Copy Teams summary for manager morning catch-up/i,
+        }),
+      );
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalledTimes(1);
+      });
+      const written = writeText.mock.calls[0]![0] as string;
+      expect(written).toMatch(/^Manager morning catch-up — \d{4}-\d{2}-\d{2}\n/);
+      expect(written).toContain('Hot Deal');
+      // Manager surface appends the owner banker name on each line.
+      expect(written).toContain('(Banker: B. Other)');
+      expect(written).toContain(
+        'Local copy only. Not posted to Teams. Paste into Teams. ' +
+          'You send the message manually.',
+      );
+    });
+
+    it('shows "Copied to clipboard. Paste into Teams." status after a successful copy', async () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdueTask());
+      const user = userEvent.setup();
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      });
+      render(<ManagerMorningCatchUp />);
+      await user.click(
+        screen.getByRole('button', {
+          name: /Copy Teams summary for manager morning catch-up/i,
+        }),
+      );
+      const status = await screen.findByText(
+        /Copied to clipboard\. Paste into Teams\./i,
+      );
+      expect(status.closest('[role="status"]')).not.toBeNull();
+    });
+
+    it('shows "Clipboard unavailable. Select and copy manually." alert when clipboard is missing', async () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdueTask());
+      const user = userEvent.setup();
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: undefined,
+      });
+      render(<ManagerMorningCatchUp />);
+      await user.click(
+        screen.getByRole('button', {
+          name: /Copy Teams summary for manager morning catch-up/i,
+        }),
+      );
+      const alert = await screen.findByRole('alert');
+      expect(alert.textContent).toMatch(
+        /Clipboard unavailable\. Select and copy manually\./i,
+      );
+    });
+
+    it('clicking Copy does NOT bump the Phase 90 last-seen marker', async () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdueTask());
+      const markerMs = Date.now() - 10 * MS_PER_DAY;
+      // Manager scope key is `manager:<bankerId>:<teamId>` —
+      // matches the useManager mock above (bankerId/teamId).
+      setCatchUpLastSeenMs('manager:manager-banker-1:team-1', markerMs);
+      const user = userEvent.setup();
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      });
+      render(<ManagerMorningCatchUp />);
+      const markerBefore = localStorage.getItem(
+        `${CATCH_UP_LAST_SEEN_STORAGE_KEY_PREFIX}manager:manager-banker-1:team-1`,
+      );
+      const ledgerBefore = localStorage.getItem(
+        CATCH_UP_ITEM_LEDGER_STORAGE_KEY,
+      );
+      await user.click(
+        screen.getByRole('button', {
+          name: /Copy Teams summary for manager morning catch-up/i,
+        }),
+      );
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalledTimes(1);
+      });
+      const markerAfter = localStorage.getItem(
+        `${CATCH_UP_LAST_SEEN_STORAGE_KEY_PREFIX}manager:manager-banker-1:team-1`,
+      );
+      const ledgerAfter = localStorage.getItem(
+        CATCH_UP_ITEM_LEDGER_STORAGE_KEY,
+      );
+      expect(markerAfter).toBe(markerBefore);
+      expect(ledgerAfter).toBe(ledgerBefore);
+    });
+
+    it('a pre-existing dismissed item remains dismissed after copy', async () => {
+      recordCatchUpItemDismissed({
+        surface: 'manager-catch-up',
+        itemKey: 'overdue-task:d-1:t1',
+        itemKind: 'overdue-task',
+        dealId: 'd-1',
+        titleSnapshot: 'Overdue task',
+        now: new Date(),
+      });
+      useManagerDataMock.mockReturnValue(readyWithOverdueTask());
+      const user = userEvent.setup();
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      });
+      render(<ManagerMorningCatchUp />);
+      await user.click(
+        screen.getByRole('button', {
+          name: /Copy Teams summary for manager morning catch-up/i,
+        }),
+      );
+      // Dismissed row still shows its Restore affordance.
+      expect(
+        screen.getByRole('button', {
+          name: /Restore catch-up item for Hot Deal/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('the manager copy output never claims sent / posted / delivered / notified / synced / Teams integrated', async () => {
+      useManagerDataMock.mockReturnValue(readyWithOverdueTask());
+      const user = userEvent.setup();
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      });
+      render(<ManagerMorningCatchUp />);
+      await user.click(
+        screen.getByRole('button', {
+          name: /Copy Teams summary for manager morning catch-up/i,
+        }),
+      );
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalled();
+      });
+      const text = writeText.mock.calls[0]![0] as string;
+      const body = text.replace(/— Local copy only\.[^\n]+/g, '');
+      expect(body).not.toMatch(/\bsent\b/i);
+      expect(body).not.toMatch(/\bposted\b/i);
+      expect(body).not.toMatch(/\bdelivered\b/i);
+      expect(body).not.toMatch(/\bnotified\b/i);
+      expect(body).not.toMatch(/\bsynced\b/i);
+      expect(body).not.toMatch(/Teams\s+integrated/i);
+      expect(body).not.toMatch(/Graph\s+connected/i);
     });
   });
 });
