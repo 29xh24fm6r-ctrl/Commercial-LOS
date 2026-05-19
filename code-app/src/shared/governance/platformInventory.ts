@@ -599,7 +599,20 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'from records the banker already sees on the Deal Workspace ' +
       '(deal facts + open task count + outstanding/pending-review ' +
       'document counts + Phase 73 memo-consistency findings count + ' +
-      'optional top Next Best Action). It never echoes internal ' +
+      'optional top Next Best Action). Phase 97 adds an optional ' +
+      'one-line relationship-context note derived from the SAME ' +
+      'Phase 76/77 primitive `<RelationshipContext />` already uses: ' +
+      'loadBankerWorkQueueData(bankerId) -> deriveCrossDealContext. ' +
+      'The note is rendered by a pure formatter ' +
+      '(src/shared/relationship/relationshipContextNote.ts) and is ' +
+      'OMITTED when there is no useful content (no client name on ' +
+      'record OR no other visible deals share the client-name ' +
+      'group). The note carries the verbatim "client-name grouped" + ' +
+      '"From visible records; may not include all related borrowers" ' +
+      'limitation markers and NEVER says household / verified / ' +
+      'complete / full relationship profile / relationship score / ' +
+      'risk score / all borrower exposure / AI-generated / ' +
+      'relationship graph. It never echoes internal ' +
       'audit IDs, raw timeline payloads, full credit memo body text, ' +
       'borrower-sensitive private fields, secrets, tokens, or ' +
       'connector state. The UI carries the verbatim phrases "Copy ' +
@@ -609,10 +622,14 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'positive claim. Implementation: ' +
       'src/deals/teamsDealSummary.ts (pure formatter) + ' +
       'src/deals/TeamsDealSummaryHandoff.tsx (banker-only Deal ' +
-      'Workspace card). Does NOT imply a full Teams integration; ' +
-      'the broader Lane E gaps documented in ' +
+      'Workspace card) + Phase 97: ' +
+      'src/shared/relationship/relationshipContextNote.ts ' +
+      '(pure relationship-note formatter, reuses the Phase 76/77 ' +
+      'deriveCrossDealContext primitive). Does NOT imply a full ' +
+      'Teams integration; the broader Lane E gaps documented in ' +
       'docs/PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT.md remain ' +
-      'untouched. See docs/PHASE_96_TEAMS_DEAL_SUMMARY_HANDOFF.md.',
+      'untouched. See docs/PHASE_96_TEAMS_DEAL_SUMMARY_HANDOFF.md ' +
+      'and docs/PHASE_97_TEAMS_SUMMARY_RELATIONSHIP_CONTEXT.md.',
   },
   {
     id: 'teams-chat-handoff',

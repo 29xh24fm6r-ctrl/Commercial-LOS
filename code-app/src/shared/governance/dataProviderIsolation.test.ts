@@ -302,7 +302,10 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
   },
   {
     file: 'deals/TeamsDealSummaryHandoff.tsx',
-    allowedFrom: ['../banker/BankerContext'],
+    allowedFrom: [
+      '../banker/BankerContext',
+      '../banker/workQueueQueries',
+    ],
     reason:
       'Phase 96 banker-only Deal Workspace card. Consumes useOptionalBanker ' +
       'to source the signed-in banker full name for the "Prepared by …" ' +
@@ -311,8 +314,12 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
       'falls back to the verbatim "the assigned banker" string rather than ' +
       'fabricating a name). Banker name is NEVER inferred from borrower / ' +
       'client name. Same useOptionalBanker pattern as TeamsChatHandoff. ' +
-      'Card is mounted only in BankerDealWorkspace; the manager/team deal- ' +
-      'route branches do not render it.',
+      'Phase 97 additionally imports loadBankerWorkQueueData to derive a ' +
+      'one-line cross-deal relationship-context note via the Phase 76/77 ' +
+      'deriveCrossDealContext primitive — same loader the sibling Phase 77 ' +
+      'RelationshipContext card uses on the same page. Card is mounted ' +
+      'only in BankerDealWorkspace; the manager/team deal-route branches ' +
+      'do not render it.',
   },
 ];
 

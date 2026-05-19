@@ -39,12 +39,25 @@ vi.mock('../banker/BankerContext', () => ({
   useOptionalBanker: vi.fn(),
 }));
 
+// Phase 97 wires loadBankerWorkQueueData for the relationship-context
+// note. Mock at the module boundary so the SDK transitive import is
+// not pulled into this test environment (same pattern Phase 77's
+// RelationshipContext.test.tsx uses).
+vi.mock('../banker/workQueueQueries', () => ({
+  loadBankerWorkQueueData: vi.fn(),
+}));
+
 import { useDealData } from './DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
+import {
+  loadBankerWorkQueueData,
+  type BankerWorkQueueData,
+} from '../banker/workQueueQueries';
 import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
 
 const useDealDataMock = vi.mocked(useDealData);
 const useOptionalBankerMock = vi.mocked(useOptionalBanker);
+const loadBankerWorkQueueDataMock = vi.mocked(loadBankerWorkQueueData);
 
 function deal(o: Partial<DealDetail> = {}): DealDetail {
   return {
@@ -138,9 +151,24 @@ function bankerIdentity(over: Partial<BankerIdentity> = {}): BankerIdentity {
   };
 }
 
+function emptyWorkQueue(over: Partial<BankerWorkQueueData> = {}): BankerWorkQueueData {
+  return {
+    deals: [],
+    tasks: [],
+    outstandingDocuments: [],
+    pendingReviewDocuments: [],
+    memos: [],
+    memoSections: [],
+    ...over,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   useOptionalBankerMock.mockReturnValue(bankerIdentity());
+  // Default: the banker pipeline resolves to an empty work queue.
+  // Tests that exercise the relationship-line path override this.
+  loadBankerWorkQueueDataMock.mockResolvedValue(emptyWorkQueue());
 });
 
 describe('TeamsDealSummaryHandoff — Phase 96', () => {
@@ -312,6 +340,290 @@ describe('TeamsDealSummaryHandoff — Phase 96', () => {
     expect(body).toMatch(/Copy Teams summary/);
     expect(body).toMatch(/Paste into Teams/);
     expect(body).toMatch(/You send the message manually/);
+  });
+
+  describe('Phase 97 — relationship context line wiring', () => {
+    it('includes the relationship line when other visible deals share the client-name group', async () => {
+      useDealDataMock.mockReturnValue(dealData());
+      loadBankerWorkQueueDataMock.mockResolvedValue(
+        emptyWorkQueue({
+          deals: [
+            // Current deal (excluded from the relationship aggregate).
+            {
+              id: 'd-1',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 4_500_000,
+              targetCloseDate: '2026-09-30T00:00:00Z',
+              lastActivityOn: undefined,
+              stageEntryDate: '2026-05-01T00:00:00Z',
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+            // Sibling deal on the same client-name group.
+            {
+              id: 'd-2',
+              name: 'Acme Equipment Loan',
+              clientName: 'Acme Manufacturing, LLC',
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 750_000,
+              targetCloseDate: '2026-09-15T00:00:00Z',
+              lastActivityOn: undefined,
+              stageEntryDate: '2026-04-01T00:00:00Z',
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+          ],
+          tasks: [
+            {
+              id: 't-1',
+              dealId: 'd-2',
+              title: 'Send tax returns',
+              dueDate: undefined,
+              modifiedOn: undefined,
+              completed: false,
+            },
+          ],
+          outstandingDocuments: [
+            {
+              id: 'od-1',
+              dealId: 'd-2',
+              name: 'PFS',
+              dueDate: undefined,
+              requestDate: undefined,
+              receivedDate: undefined,
+              reviewer: undefined,
+              uploaded: false,
+              modifiedOn: undefined,
+            },
+          ],
+        }),
+      );
+      render(<TeamsDealSummaryHandoff />);
+      const preview = await screen.findByTestId('teams-deal-summary-preview');
+      await waitFor(() => {
+        expect(preview.textContent).toContain(
+          'Relationship: 1 other visible deal for Acme Manufacturing, LLC (client-name grouped).',
+        );
+      });
+      expect(preview.textContent).toContain(
+        'Across those deals: 1 open task and 1 outstanding document.',
+      );
+      expect(preview.textContent).toContain(
+        'From visible records; may not include all related borrowers.',
+      );
+    });
+
+    it('omits the relationship line when no other visible deals share the client-name group', async () => {
+      useDealDataMock.mockReturnValue(dealData());
+      loadBankerWorkQueueDataMock.mockResolvedValue(
+        emptyWorkQueue({
+          deals: [
+            {
+              id: 'd-1',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 4_500_000,
+              targetCloseDate: '2026-09-30T00:00:00Z',
+              lastActivityOn: undefined,
+              stageEntryDate: '2026-05-01T00:00:00Z',
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+          ],
+        }),
+      );
+      render(<TeamsDealSummaryHandoff />);
+      const preview = await screen.findByTestId('teams-deal-summary-preview');
+      // The Phase 96 happy-path assertions still hold; the
+      // Relationship: line must NOT render.
+      await waitFor(() => {
+        expect(preview.textContent).toContain(
+          'Deal summary — Acme Working Capital',
+        );
+      });
+      expect(preview.textContent).not.toMatch(/^Relationship:/m);
+      expect(preview.textContent).not.toContain('client-name grouped');
+    });
+
+    it('omits the relationship line when the current deal has no client name on record', async () => {
+      useDealDataMock.mockReturnValue(
+        dealData({ deal: deal({ clientName: undefined }) }),
+      );
+      loadBankerWorkQueueDataMock.mockResolvedValue(
+        emptyWorkQueue({
+          deals: [
+            {
+              id: 'd-1',
+              name: 'Acme Working Capital',
+              clientName: undefined,
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 4_500_000,
+              targetCloseDate: '2026-09-30T00:00:00Z',
+              lastActivityOn: undefined,
+              stageEntryDate: '2026-05-01T00:00:00Z',
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+          ],
+        }),
+      );
+      render(<TeamsDealSummaryHandoff />);
+      const preview = await screen.findByTestId('teams-deal-summary-preview');
+      await waitFor(() => {
+        expect(preview.textContent).toContain('Client: Not provided');
+      });
+      expect(preview.textContent).not.toMatch(/^Relationship:/m);
+    });
+
+    it('omits the relationship line when the banker pipeline load fails (no error surfaced to the user)', async () => {
+      useDealDataMock.mockReturnValue(dealData());
+      loadBankerWorkQueueDataMock.mockRejectedValueOnce(
+        new Error('service unavailable'),
+      );
+      render(<TeamsDealSummaryHandoff />);
+      const preview = await screen.findByTestId('teams-deal-summary-preview');
+      await waitFor(() => {
+        expect(preview.textContent).toContain(
+          'Deal summary — Acme Working Capital',
+        );
+      });
+      // The summary itself renders. The Relationship line is omitted.
+      expect(preview.textContent).not.toMatch(/^Relationship:/m);
+      // Failure must not surface as an alert — Phase 97 brief calls
+      // for graceful degradation; the rest of the summary is the
+      // useful product.
+      expect(
+        screen.queryByText(/Could not load relationship context/i),
+      ).toBeNull();
+    });
+
+    it('omits the relationship line when no banker context is mounted (no UPN → no pipeline load)', async () => {
+      useDealDataMock.mockReturnValue(dealData());
+      useOptionalBankerMock.mockReturnValue(null);
+      render(<TeamsDealSummaryHandoff />);
+      const preview = await screen.findByTestId('teams-deal-summary-preview');
+      expect(preview.textContent).not.toMatch(/^Relationship:/m);
+      // No banker means no banker-pipeline load.
+      expect(loadBankerWorkQueueDataMock).not.toHaveBeenCalled();
+    });
+
+    it('the rendered relationship line never claims household / verified / score / AI / graph', async () => {
+      useDealDataMock.mockReturnValue(dealData());
+      loadBankerWorkQueueDataMock.mockResolvedValue(
+        emptyWorkQueue({
+          deals: [
+            {
+              id: 'd-1',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 4_500_000,
+              targetCloseDate: '2026-09-30T00:00:00Z',
+              lastActivityOn: undefined,
+              stageEntryDate: '2026-05-01T00:00:00Z',
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+            {
+              id: 'd-2',
+              name: 'Acme Equipment Loan',
+              clientName: 'Acme Manufacturing, LLC',
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 750_000,
+              targetCloseDate: '2026-09-15T00:00:00Z',
+              lastActivityOn: undefined,
+              stageEntryDate: '2026-04-01T00:00:00Z',
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+          ],
+        }),
+      );
+      render(<TeamsDealSummaryHandoff />);
+      const preview = await screen.findByTestId('teams-deal-summary-preview');
+      await waitFor(() => {
+        expect(preview.textContent).toMatch(/^Relationship:/m);
+      });
+      const text = preview.textContent ?? '';
+      expect(text).not.toMatch(/\bhousehold\b/i);
+      expect(text).not.toMatch(/\bverified\b/i);
+      expect(text).not.toMatch(/relationship\s+score/i);
+      expect(text).not.toMatch(/risk\s+score/i);
+      expect(text).not.toMatch(/AI[- ]?generated/i);
+      expect(text).not.toMatch(/relationship\s+graph/i);
+      expect(text).not.toMatch(/complete\s+history/i);
+      expect(text).not.toMatch(/full\s+relationship\s+profile/i);
+    });
+
+    it('the copied clipboard text includes the relationship line when present', async () => {
+      useDealDataMock.mockReturnValue(dealData());
+      loadBankerWorkQueueDataMock.mockResolvedValue(
+        emptyWorkQueue({
+          deals: [
+            {
+              id: 'd-1',
+              name: 'Acme Working Capital',
+              clientName: 'Acme Manufacturing, LLC',
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 4_500_000,
+              targetCloseDate: '2026-09-30T00:00:00Z',
+              lastActivityOn: undefined,
+              stageEntryDate: '2026-05-01T00:00:00Z',
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+            {
+              id: 'd-2',
+              name: 'Acme Equipment Loan',
+              clientName: 'Acme Manufacturing, LLC',
+              stage: 'Underwriting',
+              status: 'Active',
+              amount: 750_000,
+              targetCloseDate: '2026-09-15T00:00:00Z',
+              lastActivityOn: undefined,
+              stageEntryDate: '2026-04-01T00:00:00Z',
+              isClosed: false,
+              collateralSummary: undefined,
+            },
+          ],
+        }),
+      );
+      const user = userEvent.setup();
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      });
+      render(<TeamsDealSummaryHandoff />);
+      // Wait for the relationship line to populate in the preview.
+      await waitFor(() => {
+        const preview = screen.getByTestId('teams-deal-summary-preview');
+        expect(preview.textContent).toMatch(/^Relationship:/m);
+      });
+      await user.click(
+        screen.getByRole('button', { name: /Copy Teams summary/i }),
+      );
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalledTimes(1);
+      });
+      const writtenText = writeText.mock.calls[0]![0] as string;
+      expect(writtenText).toContain(
+        'Relationship: 1 other visible deal for Acme Manufacturing, LLC',
+      );
+      expect(writtenText).toContain(
+        'From visible records; may not include all related borrowers.',
+      );
+    });
   });
 
   it('counts pending-review documents as received docs with no reviewer', () => {

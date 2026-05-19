@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDealData } from './DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
+import {
+  loadBankerWorkQueueData,
+  type BankerWorkQueueData,
+} from '../banker/workQueueQueries';
 import {
   buildTeamsDealSummary,
   type TeamsDealSummaryInput,
@@ -11,12 +15,14 @@ import {
   deriveNextBestActions,
   type AutopilotInput,
 } from '../shared/autopilot/dealAutopilot';
+import { deriveCrossDealContext } from '../shared/relationship/relationshipMemory';
+import { buildRelationshipContextNote } from '../shared/relationship/relationshipContextNote';
 import { Card, CardHeader } from '../shared/Card';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
- * Phase 96: local-only "Copy Teams summary" handoff card on the
- * Banker Deal Workspace.
+ * Phase 96 → Phase 97: local-only "Copy Teams summary" handoff card
+ * on the Banker Deal Workspace.
  *
  * Renders a plain-text deal summary the banker can copy and paste
  * into Microsoft Teams (any chat or channel). The app does not post
@@ -26,6 +32,17 @@ import { palette, radius, spacing, typography } from '../shared/theme';
  * generates the message body the banker pastes after the Teams
  * composer opens.
  *
+ * Phase 97 adds an optional relationship-context line to the
+ * generated summary. The line is derived from the SAME Phase 76/77
+ * primitive `<RelationshipContext />` already uses on this same
+ * Deal Workspace — `deriveCrossDealContext` over
+ * `loadBankerWorkQueueData(bankerId)`. The note is rendered by the
+ * pure `buildRelationshipContextNote` formatter, which returns
+ * `undefined` when there is no useful content (no client name on
+ * record OR no other visible deals); Phase 96's formatter then
+ * omits the entire "Relationship: " line. No new derivation logic
+ * is introduced — Phase 97 is wiring + a one-line formatter.
+ *
  * What this is NOT (intentional non-capabilities):
  *   - Not a Teams integration. The app does not post to Teams, read
  *     from Teams, or sync with Teams.
@@ -34,6 +51,10 @@ import { palette, radius, spacing, typography } from '../shared/theme';
  *   - Not a Graph caller. No token acquisition, no Graph API calls.
  *   - Not a Dataverse write. No audit row, no timeline event, no
  *     governed-write entry.
+ *   - Not a relationship graph. The relationship line is
+ *     client-name grouped, same limitation Phase 76/77 carries.
+ *   - Not an AI / Copilot surface. The relationship note is
+ *     deterministic.
  *
  * Local-only inventory entry: LOCAL_ONLY_FLOWS.teams-deal-summary-handoff.
  */
@@ -43,11 +64,56 @@ type CopyState =
   | { kind: 'copied' }
   | { kind: 'copy-failed' };
 
+type RelationshipState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'ready'; data: BankerWorkQueueData }
+  | { kind: 'failed' };
+
 export function TeamsDealSummaryHandoff() {
   const { deal, tasks, documents, creditMemo, activity } = useDealData();
   const banker = useOptionalBanker();
   const [copyState, setCopyState] = useState<CopyState>({ kind: 'idle' });
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Phase 97: load the banker work queue (the same banker-authorized
+  // two-step pipeline `<RelationshipContext />` already uses) so we
+  // can derive a one-line cross-deal context note. When the loader
+  // is unavailable (no bankerId) or it fails, we silently fall back
+  // to omitting the relationship line — the rest of the summary
+  // still renders unchanged. NEVER throws into Teams handoff paths.
+  const bankerId = banker?.bankerId;
+  const [relationshipState, setRelationshipState] = useState<RelationshipState>(
+    { kind: 'idle' },
+  );
+
+  const reloadRelationship = useCallback(() => {
+    if (!bankerId) {
+      setRelationshipState({ kind: 'idle' });
+      return () => undefined;
+    }
+    let cancelled = false;
+    setRelationshipState({ kind: 'loading' });
+    loadBankerWorkQueueData(bankerId)
+      .then((data) => {
+        if (!cancelled) setRelationshipState({ kind: 'ready', data });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Phase 97 explicitly does NOT surface this as an error to
+        // the banker — the relationship line is optional. The card
+        // continues to render with the rest of the summary.
+        setRelationshipState({ kind: 'failed' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bankerId]);
+
+  useEffect(() => {
+    const cleanup = reloadRelationship();
+    return cleanup;
+  }, [reloadRelationship]);
 
   // Stable "now" so derivation + the generated-on date line line up
   // for the lifetime of this render. The banker rarely keeps a deal
@@ -150,6 +216,23 @@ export function TeamsDealSummaryHandoff() {
     };
   }, [tasks, documents]);
 
+  // Phase 97: derive the one-line relationship context note from
+  // the Phase 76/77 cross-deal primitive. When the banker pipeline
+  // isn't loaded yet OR the deal has no client name OR no other
+  // visible deals share the client-name group, the note is
+  // `undefined` and Phase 96's formatter omits the entire
+  // "Relationship: " line.
+  const relationshipContextNote = useMemo(() => {
+    if (relationshipState.kind !== 'ready') return undefined;
+    const result = deriveCrossDealContext(
+      relationshipState.data,
+      deal.id,
+      deal.clientName,
+      now,
+    );
+    return buildRelationshipContextNote(result, { now });
+  }, [relationshipState, deal.id, deal.clientName, now]);
+
   const summary = useMemo(() => {
     if (!dataReady) return undefined;
     const input: TeamsDealSummaryInput = {
@@ -165,12 +248,7 @@ export function TeamsDealSummaryHandoff() {
       memoConsistencyFindingCount: memoConsistencyFindingsCount,
       topSuggestion,
       bankerName: banker?.fullName ?? undefined,
-      // Phase 96 keeps the relationship line opt-in. The Banker
-      // Deal Workspace already renders RelationshipContext as a
-      // separate card; this summary intentionally does not
-      // duplicate that surface. A future phase could thread a
-      // short one-line note in via DealDataProvider.
-      relationshipContextNote: undefined,
+      relationshipContextNote,
       generatedAt: now,
     };
     return buildTeamsDealSummary(input);
@@ -181,6 +259,7 @@ export function TeamsDealSummaryHandoff() {
     memoConsistencyFindingsCount,
     topSuggestion,
     banker?.fullName,
+    relationshipContextNote,
     now,
   ]);
 

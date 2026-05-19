@@ -447,6 +447,52 @@ describe('platformInventory — local-only flows', () => {
     expect(ids.has('teams-deal-summary-handoff')).toBe(false);
   });
 
+  it('teams-deal-summary-handoff note carries the Phase 97 relationship-context references', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'teams-deal-summary-handoff',
+    );
+    expect(entry).toBeDefined();
+    // Phase 97 references the new pure formatter + reuses the
+    // Phase 76/77 derivation; both must show up in the inventory
+    // note so future readers can trace the wiring.
+    expect(entry!.note).toMatch(
+      /src\/shared\/relationship\/relationshipContextNote\.ts/,
+    );
+    expect(entry!.note).toMatch(/deriveCrossDealContext/);
+    // Phase 97 limitation-marker pins.
+    expect(entry!.note).toMatch(/client-name grouped/i);
+    expect(entry!.note).toMatch(
+      /may not include all related borrowers/i,
+    );
+    // Phase 97 forbidden-claim pins.
+    expect(entry!.note).toMatch(/never says household/i);
+    expect(entry!.note).toMatch(/relationship score/i);
+    expect(entry!.note).toMatch(/relationship graph/i);
+    // Phase 97 doc reference.
+    expect(entry!.note).toMatch(
+      /PHASE_97_TEAMS_SUMMARY_RELATIONSHIP_CONTEXT\.md/,
+    );
+  });
+
+  it('the Phase 97 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_97_TEAMS_SUMMARY_RELATIONSHIP_CONTEXT.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('Phase 97 does not introduce a new GOVERNED_WRITES entry', () => {
+    const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
+    // The Phase 97 brief explicitly forbids a new governed write.
+    // The Phase 96 entry id remains the only Teams-summary inventory
+    // row and it is still LOCAL_ONLY, not GOVERNED.
+    expect(ids.has('teams-deal-summary-handoff')).toBe(false);
+    expect(ids.has('teams-deal-summary-relationship-context')).toBe(false);
+    expect(ids.has('relationship-context-note')).toBe(false);
+  });
+
   it('catch-up-last-seen-markers (Phase 90) is a LOCAL_ONLY flow with the right disclaimers', () => {
     const entry = LOCAL_ONLY_FLOWS.find(
       (f) => f.id === 'catch-up-last-seen-markers',

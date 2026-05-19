@@ -114,6 +114,15 @@ vi.mock('./DealAutopilotPanel', () => ({
   DealAutopilotPanel: () => null,
 }));
 
+// Phase 97: TeamsDealSummaryHandoff now imports loadBankerWorkQueueData
+// to thread the cross-deal relationship note into the Phase 96 Teams
+// summary. Same SDK-chain reason as RelationshipContext above —
+// stubbed here to keep this test's module graph focused on the
+// governed-write surfaces.
+vi.mock('./TeamsDealSummaryHandoff', () => ({
+  TeamsDealSummaryHandoff: () => null,
+}));
+
 // Stub role identity providers so the workspaces have valid context
 // without firing the real bootstrap / identity chain.
 vi.mock('../banker/BankerProvider', () => ({
