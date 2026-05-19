@@ -15,6 +15,7 @@ import { CreditMemo } from './CreditMemo';
 import { ActivityTimeline } from './ActivityTimeline';
 import { BorrowerCommunication } from './BorrowerCommunication';
 import { TeamsChatHandoff } from './TeamsChatHandoff';
+import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
 import { DealDataProvider } from './DealDataProvider';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
@@ -124,6 +125,14 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
               timeline, no Graph. */}
           <div data-deal-card="teams-chat-handoff">
             <TeamsChatHandoff />
+          </div>
+          {/* Phase 96: copy-to-Teams deal summary. Generates a
+              plain-text deal summary the banker copies and pastes
+              into Microsoft Teams (any chat or channel). The app
+              does not post to Teams, send anything, sync, notify,
+              or call Graph. */}
+          <div data-deal-card="teams-deal-summary-handoff">
+            <TeamsDealSummaryHandoff />
           </div>
         </DealDataProvider>
       </main>

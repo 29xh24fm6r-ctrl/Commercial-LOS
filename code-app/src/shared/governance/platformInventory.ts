@@ -580,6 +580,41 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'docs/PHASE_94_CATCH_UP_MARK_ALL_SEEN.md.',
   },
   {
+    id: 'teams-deal-summary-handoff',
+    label: 'Microsoft Teams deal-summary copy handoff',
+    phase: 96,
+    note:
+      'No-admin copy-to-clipboard Teams handoff. The Banker Deal ' +
+      'Workspace renders a `<TeamsDealSummaryHandoff />` card with a ' +
+      'plain-text deal summary the banker can copy and paste into ' +
+      'Microsoft Teams (any chat or channel). The app does not post ' +
+      'to Teams, send anything, sync with Teams, raise a Teams ' +
+      'notification, create a meeting, or call Graph. No Dataverse ' +
+      'write. No audit row. No timeline event. No calendar sync. ' +
+      'No notification delivery. No Graph call. No access-token ' +
+      'acquisition. No tenant API is contacted. The Teams SDK is ' +
+      'NOT loaded by this flow (the sibling Phase 86 chat-handoff ' +
+      'card loads it for a diagnostic-only probe; Phase 96 is purely ' +
+      'a string formatter + clipboard write). The summary is built ' +
+      'from records the banker already sees on the Deal Workspace ' +
+      '(deal facts + open task count + outstanding/pending-review ' +
+      'document counts + Phase 73 memo-consistency findings count + ' +
+      'optional top Next Best Action). It never echoes internal ' +
+      'audit IDs, raw timeline payloads, full credit memo body text, ' +
+      'borrower-sensitive private fields, secrets, tokens, or ' +
+      'connector state. The UI carries the verbatim phrases "Copy ' +
+      'Teams summary", "Paste into Teams", and "You send the message ' +
+      'manually". The app never says sent / posted / delivered / ' +
+      'notified / synced / Teams integrated / Graph connected as a ' +
+      'positive claim. Implementation: ' +
+      'src/deals/teamsDealSummary.ts (pure formatter) + ' +
+      'src/deals/TeamsDealSummaryHandoff.tsx (banker-only Deal ' +
+      'Workspace card). Does NOT imply a full Teams integration; ' +
+      'the broader Lane E gaps documented in ' +
+      'docs/PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT.md remain ' +
+      'untouched. See docs/PHASE_96_TEAMS_DEAL_SUMMARY_HANDOFF.md.',
+  },
+  {
     id: 'teams-chat-handoff',
     label: 'Microsoft Teams chat handoff',
     phase: 86,

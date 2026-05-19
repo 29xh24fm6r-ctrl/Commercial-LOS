@@ -210,6 +210,9 @@ describe('platformInventory — local-only flows', () => {
     // Phase 86 — Microsoft Teams chat handoff (deep-link only;
     // no Graph; no Dataverse write; no audit/timeline; no notif).
     expect(ids.has('teams-chat-handoff')).toBe(true);
+    // Phase 96 — Microsoft Teams deal-summary copy handoff
+    // (copy-to-clipboard only; no Graph; no Dataverse write).
+    expect(ids.has('teams-deal-summary-handoff')).toBe(true);
     // Phase 90 — Catch-up last-seen markers (local-only "new since
     // your last visit" overlay on the Phase 88 manager + Phase 89
     // banker morning catch-up cards).
@@ -394,6 +397,54 @@ describe('platformInventory — local-only flows', () => {
   it('teams-chat-handoff is NOT in GOVERNED_WRITES (Phase 86 is a handoff, not a write)', () => {
     const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
     expect(ids.has('teams-chat-handoff')).toBe(false);
+  });
+
+  it('teams-deal-summary-handoff (Phase 96) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'teams-deal-summary-handoff',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(96);
+    // Brief mandates each of these disclaimers.
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no Graph call/i);
+    expect(entry!.note).toMatch(/no calendar sync/i);
+    expect(entry!.note).toMatch(/no notification delivery/i);
+    expect(entry!.note).toMatch(/no access-token acquisition/i);
+    // The three required UI phrases the brief pins.
+    expect(entry!.note).toMatch(/Copy Teams summary/);
+    expect(entry!.note).toMatch(/Paste into Teams/);
+    expect(entry!.note).toMatch(/You send the message manually/);
+    // The note must explicitly say the app never claims any of the
+    // forbidden positive-claim verbs.
+    expect(entry!.note).toMatch(
+      /never says sent \/ posted \/ delivered \/ notified \/ synced \/ Teams integrated \/ Graph connected/i,
+    );
+    // Implementation references for traceability.
+    expect(entry!.note).toMatch(/src\/deals\/teamsDealSummary\.ts/);
+    expect(entry!.note).toMatch(/src\/deals\/TeamsDealSummaryHandoff\.tsx/);
+    expect(entry!.note).toMatch(/PHASE_96_TEAMS_DEAL_SUMMARY_HANDOFF\.md/);
+    // Honest about the broader Lane E gap.
+    expect(entry!.note).toMatch(/Does NOT imply a full.*Teams integration/i);
+    expect(entry!.note).toMatch(
+      /PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT\.md/,
+    );
+  });
+
+  it('the Phase 96 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_96_TEAMS_DEAL_SUMMARY_HANDOFF.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('teams-deal-summary-handoff is NOT in GOVERNED_WRITES (Phase 96 is a handoff, not a write)', () => {
+    const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(ids.has('teams-deal-summary-handoff')).toBe(false);
   });
 
   it('catch-up-last-seen-markers (Phase 90) is a LOCAL_ONLY flow with the right disclaimers', () => {

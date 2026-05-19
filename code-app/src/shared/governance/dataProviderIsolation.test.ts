@@ -300,6 +300,20 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
       'mounted only in BankerDealWorkspace; the manager/team deal-route ' +
       'branches do not render it.',
   },
+  {
+    file: 'deals/TeamsDealSummaryHandoff.tsx',
+    allowedFrom: ['../banker/BankerContext'],
+    reason:
+      'Phase 96 banker-only Deal Workspace card. Consumes useOptionalBanker ' +
+      'to source the signed-in banker full name for the "Prepared by …" ' +
+      'line in the copy-to-Teams summary, and to enforce the role boundary ' +
+      '(returns null outside BankerProvider, in which case the formatter ' +
+      'falls back to the verbatim "the assigned banker" string rather than ' +
+      'fabricating a name). Banker name is NEVER inferred from borrower / ' +
+      'client name. Same useOptionalBanker pattern as TeamsChatHandoff. ' +
+      'Card is mounted only in BankerDealWorkspace; the manager/team deal- ' +
+      'route branches do not render it.',
+  },
 ];
 
 describe('Phase 48 — src/deals/ cross-role imports are limited to documented exceptions', () => {
