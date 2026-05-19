@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBanker } from './BankerContext';
 import {
@@ -10,6 +10,7 @@ import {
   type RelationshipDealSnapshot,
   type RelationshipMemoryEntry,
 } from '../shared/relationship/relationshipMemory';
+import { buildRelationshipMemoryTeamsSummary } from '../shared/relationship/relationshipMemoryTeamsSummary';
 import { RelationshipNoteDraftModal } from './RelationshipNoteDraftModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
@@ -308,8 +309,107 @@ function ClientRow({
         >
           Draft relationship note
         </button>
+        <RelationshipMemoryTeamsCopyButton entry={entry} />
       </div>
     </li>
+  );
+}
+
+/**
+ * Phase 100: inline "Copy Teams summary" button per relationship
+ * row. Pure render + clipboard write.
+ *
+ * Critically:
+ *   - The click does NOT mutate the Phase 78 relationship-note
+ *     draft state (the modal's `draftFor` slot owned by the parent
+ *     `Ready` component is never touched).
+ *   - The click does NOT mutate the Phase 83 Autopilot suggestion
+ *     ledger (`cc:autopilotSuggestionLedger:v1`), the Phase 90
+ *     last-seen markers (`cc:lastVisit:catchUp:*`), the Phase 91
+ *     dismiss / snooze ledger (`cc:catchUpItemLedger:v1`), or any
+ *     other local state the banker workspace tracks. The component
+ *     reads from the already-derived `RelationshipMemoryEntry`
+ *     aggregate.
+ *   - The click does NOT load or refetch any data. The aggregate is
+ *     passed in by the parent.
+ *   - The summary string lives only in this component's `useMemo`
+ *     cache + (on click) the browser clipboard.
+ */
+type RelationshipMemoryCopyState =
+  | { kind: 'idle' }
+  | { kind: 'copied' }
+  | { kind: 'copy-failed' };
+
+function RelationshipMemoryTeamsCopyButton({
+  entry,
+}: {
+  entry: RelationshipMemoryEntry;
+}) {
+  const [copyState, setCopyState] = useState<RelationshipMemoryCopyState>({
+    kind: 'idle',
+  });
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, []);
+
+  const summary = useMemo(
+    () =>
+      buildRelationshipMemoryTeamsSummary({
+        entry,
+        generatedAt: new Date(),
+      }),
+    [entry],
+  );
+
+  const ariaName = entry.isClientNameMissing
+    ? 'this client (no borrower name on record)'
+    : entry.clientNameDisplay;
+
+  async function handleCopy() {
+    try {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.clipboard?.writeText
+      ) {
+        await navigator.clipboard.writeText(summary);
+        setCopyState({ kind: 'copied' });
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = setTimeout(() => {
+          setCopyState({ kind: 'idle' });
+        }, 4000);
+        return;
+      }
+      setCopyState({ kind: 'copy-failed' });
+    } catch {
+      setCopyState({ kind: 'copy-failed' });
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleCopy}
+        style={styles.copyTeamsButton}
+        aria-label={`Copy Teams summary for ${ariaName}`}
+      >
+        Copy Teams summary
+      </button>
+      {copyState.kind === 'copied' && (
+        <span style={styles.copySuccessTag} role="status">
+          Copied to clipboard. Paste into Teams.
+        </span>
+      )}
+      {copyState.kind === 'copy-failed' && (
+        <span style={styles.copyFailTag} role="alert">
+          Clipboard unavailable. Select and copy manually.
+        </span>
+      )}
+    </>
   );
 }
 
@@ -534,6 +634,27 @@ const styles: Record<string, React.CSSProperties> = {
   errorHint: {
     color: palette.textMuted,
     fontSize: typography.size.xs,
+    fontStyle: 'italic',
+  },
+  copyTeamsButton: {
+    background: palette.surfaceAlt,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  copySuccessTag: {
+    fontSize: typography.size.xs,
+    color: palette.clearFg,
+    fontStyle: 'italic',
+  },
+  copyFailTag: {
+    fontSize: typography.size.xs,
+    color: palette.blockedFg,
     fontStyle: 'italic',
   },
 };

@@ -372,3 +372,269 @@ describe('RelationshipMemory — Phase 76', () => {
     expect(allClientHeaders[0]).toMatch(/Loud Inc/);
   });
 });
+
+describe('RelationshipMemory — Phase 100 Copy Teams summary', () => {
+  function dataWithAcme(): BankerWorkQueueData {
+    const data = emptyData();
+    data.deals = [
+      {
+        id: 'd1',
+        name: 'Acme RLOC',
+        clientName: 'Acme Manufacturing',
+        stage: 'Underwriting',
+        status: 'Active',
+        amount: 3_000_000,
+        targetCloseDate: isoDaysFromNow(8),
+        lastActivityOn: isoDaysAgo(2),
+        stageEntryDate: isoDaysAgo(10),
+        isClosed: false,
+        collateralSummary: undefined,
+      },
+    ];
+    data.tasks = [
+      {
+        id: 't1',
+        dealId: 'd1',
+        title: 'Send Q2 financials',
+        dueDate: isoDaysAgo(2),
+        modifiedOn: undefined,
+        completed: false,
+      },
+    ];
+    data.outstandingDocuments = [
+      {
+        id: 'doc1',
+        dealId: 'd1',
+        name: 'PFS',
+        dueDate: undefined,
+        requestDate: undefined,
+        receivedDate: undefined,
+        reviewer: undefined,
+        uploaded: false,
+        modifiedOn: undefined,
+      },
+    ];
+    return data;
+  }
+
+  it('renders a "Copy Teams summary" button per relationship row in the populated state', async () => {
+    loadMock.mockResolvedValue(dataWithAcme());
+    render(<RelationshipMemory />);
+    await screen.findByText('Acme Manufacturing');
+    const btn = screen.getByRole('button', {
+      name: /Copy Teams summary for Acme Manufacturing/i,
+    });
+    expect(btn).toBeEnabled();
+    expect(btn.textContent).toContain('Copy Teams summary');
+  });
+
+  it('does NOT render the Copy button in the empty / loading / failed states', async () => {
+    // Empty
+    loadMock.mockResolvedValue(emptyData());
+    const { unmount } = render(<RelationshipMemory />);
+    await screen.findByText(/No active deals assigned to you/i);
+    expect(
+      screen.queryByRole('button', { name: /Copy Teams summary for/i }),
+    ).toBeNull();
+    unmount();
+
+    // Loading
+    loadMock.mockReturnValue(new Promise(() => {}));
+    const { unmount: unmount2 } = render(<RelationshipMemory />);
+    expect(
+      screen.queryByRole('button', { name: /Copy Teams summary for/i }),
+    ).toBeNull();
+    unmount2();
+
+    // Failed
+    loadMock.mockRejectedValue(new Error('boom'));
+    render(<RelationshipMemory />);
+    await screen.findByText(/Could not load relationship memory/i);
+    expect(
+      screen.queryByRole('button', { name: /Copy Teams summary for/i }),
+    ).toBeNull();
+  });
+
+  it('clicking Copy Teams summary writes the formatted snapshot to the clipboard', async () => {
+    loadMock.mockResolvedValue(dataWithAcme());
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    render(<RelationshipMemory />);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Copy Teams summary for Acme Manufacturing/i,
+      }),
+    );
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    const written = writeText.mock.calls[0]![0] as string;
+    expect(written).toMatch(
+      /^Relationship snapshot — Acme Manufacturing — \d{4}-\d{2}-\d{2}\nClient-name grouped\.\n/,
+    );
+    expect(written).toContain('1 active deal · Pipeline $3,000,000');
+    expect(written).toContain('- Acme RLOC — Underwriting');
+    expect(written).toContain(
+      'Local copy only. Not posted to Teams. Paste into Teams. ' +
+        'You send the message manually.',
+    );
+    expect(written).toContain(
+      'Not a relationship graph, not a household linkage, ' +
+        'not a relationship score.',
+    );
+  });
+
+  it('shows "Copied to clipboard. Paste into Teams." status after a successful copy', async () => {
+    loadMock.mockResolvedValue(dataWithAcme());
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    render(<RelationshipMemory />);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Copy Teams summary for Acme Manufacturing/i,
+      }),
+    );
+    const status = await screen.findByText(
+      /Copied to clipboard\. Paste into Teams\./i,
+    );
+    expect(status.closest('[role="status"]')).not.toBeNull();
+  });
+
+  it('shows "Clipboard unavailable. Select and copy manually." alert when clipboard is missing', async () => {
+    loadMock.mockResolvedValue(dataWithAcme());
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: undefined,
+    });
+    render(<RelationshipMemory />);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Copy Teams summary for Acme Manufacturing/i,
+      }),
+    );
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(
+      /Clipboard unavailable\. Select and copy manually\./i,
+    );
+  });
+
+  it('clicking Copy does NOT open the Phase 78 relationship-note draft modal', async () => {
+    loadMock.mockResolvedValue(dataWithAcme());
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    render(<RelationshipMemory />);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Copy Teams summary for Acme Manufacturing/i,
+      }),
+    );
+    // The draft modal is rendered with role="dialog". After clicking
+    // the Copy button (which is NOT the Draft button) the modal MUST
+    // NOT appear — Phase 78 draft state is untouched.
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('clicking Copy does NOT mutate any local-only ledger localStorage slot', async () => {
+    loadMock.mockResolvedValue(dataWithAcme());
+    // Pre-seed the Phase 83 + Phase 90 + Phase 91 slots so we can
+    // assert the copy click leaves them byte-identical.
+    localStorage.setItem(
+      'cc:autopilotSuggestionLedger:v1',
+      JSON.stringify({ pinned: 'value' }),
+    );
+    localStorage.setItem(
+      'cc:catchUpItemLedger:v1',
+      JSON.stringify({ pinned: 'value' }),
+    );
+    localStorage.setItem(
+      'cc:lastVisit:catchUp:banker:banker-1',
+      String(Date.now() - 100_000),
+    );
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    render(<RelationshipMemory />);
+    const beforeAutopilot = localStorage.getItem(
+      'cc:autopilotSuggestionLedger:v1',
+    );
+    const beforeCatchUp = localStorage.getItem('cc:catchUpItemLedger:v1');
+    const beforeLastSeen = localStorage.getItem(
+      'cc:lastVisit:catchUp:banker:banker-1',
+    );
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Copy Teams summary for Acme Manufacturing/i,
+      }),
+    );
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      localStorage.getItem('cc:autopilotSuggestionLedger:v1'),
+    ).toBe(beforeAutopilot);
+    expect(localStorage.getItem('cc:catchUpItemLedger:v1')).toBe(
+      beforeCatchUp,
+    );
+    expect(
+      localStorage.getItem('cc:lastVisit:catchUp:banker:banker-1'),
+    ).toBe(beforeLastSeen);
+  });
+
+  it('the rendered DOM never claims sent / posted / delivered / notified / synced / Teams integrated / Graph connected', async () => {
+    loadMock.mockResolvedValue(dataWithAcme());
+    render(<RelationshipMemory />);
+    await screen.findByText('Acme Manufacturing');
+    const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/\bsent\b/i);
+    expect(text).not.toMatch(/\bposted\b/i);
+    expect(text).not.toMatch(/\bdelivered\b/i);
+    expect(text).not.toMatch(/\bnotified\b/i);
+    expect(text).not.toMatch(/\bsynced\b/i);
+    expect(text).not.toMatch(/Teams\s+integrated/i);
+    expect(text).not.toMatch(/Graph\s+connected/i);
+  });
+
+  it('the copied output never claims household / verified / full relationship profile / AI-generated / relationship score', async () => {
+    loadMock.mockResolvedValue(dataWithAcme());
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    render(<RelationshipMemory />);
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Copy Teams summary for Acme Manufacturing/i,
+      }),
+    );
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalled();
+    });
+    const text = writeText.mock.calls[0]![0] as string;
+    // Strip the negation-laden disclaimer before checking positive
+    // claims.
+    const body = text.replace(/— Local copy only\.[^]*$/, '');
+    expect(body).not.toMatch(/\bhousehold\b/i);
+    expect(body).not.toMatch(/\bverified\b/i);
+    expect(body).not.toMatch(/full\s+relationship\s+profile/i);
+    expect(body).not.toMatch(/relationship\s+score/i);
+    expect(body).not.toMatch(/AI[- ]?generated/i);
+    expect(body).not.toMatch(/\bCopilot\b/i);
+    expect(body).not.toMatch(/official\s+relationship\s+graph/i);
+  });
+});

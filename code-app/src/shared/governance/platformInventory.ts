@@ -580,6 +580,67 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'docs/PHASE_94_CATCH_UP_MARK_ALL_SEEN.md.',
   },
   {
+    id: 'relationship-memory-teams-summary-handoff',
+    label: 'Microsoft Teams relationship-memory copy handoff',
+    phase: 100,
+    note:
+      'No-admin copy-to-clipboard Teams handoff for each row of the ' +
+      'Phase 76 Relationship Memory Lite card on the Banker Command ' +
+      'Center. A pure formatter ' +
+      '(src/shared/relationship/relationshipMemoryTeamsSummary.ts) ' +
+      'turns one RelationshipMemoryEntry into a plain-text snapshot ' +
+      'the banker pastes into Microsoft Teams. The snapshot includes ' +
+      'the client display name + "Relationship snapshot" + YYYY-MM-DD ' +
+      'UTC date + verbatim "Client-name grouped." line, active deal ' +
+      'count + optional pipeline amount ("(N missing $)" when some ' +
+      'deals lack amount), the Phase 76 timeline anchors ("Last ' +
+      'activity: N days ago." + "Nearest upcoming close: in N days ' +
+      '(YYYY-MM-DD)."), conditional Asks block (open document ' +
+      'requests + open tasks with optional overdue parenthetical), ' +
+      'conditional Attention block (pending review + closing soon + ' +
+      'stage attention + draft memos), and up to ' +
+      'RELATIONSHIP_MEMORY_TEAMS_SUMMARY_MAX_DEALS (8) active deal ' +
+      'lines as "- dealName — stage" with a "- … and N more" ' +
+      'overflow line. The formatter reuses the Phase 76 ' +
+      'RelationshipMemoryEntry / RelationshipDealSnapshot shapes ' +
+      'unchanged; no new derivation logic is introduced. The app ' +
+      'does not post to Teams, send anything, sync with Teams, raise ' +
+      'a Teams notification, create a meeting, or call Graph. No ' +
+      'Dataverse write. No audit row. No timeline event. No calendar ' +
+      'sync. No notification delivery. No Graph call. No access-' +
+      'token acquisition. The Teams SDK is NOT loaded by this flow. ' +
+      'Crucially, copying the snapshot does NOT save relationship ' +
+      'notes, open the Phase 78 RelationshipNoteDraftModal, mutate ' +
+      'the Phase 83 Autopilot suggestion ledger ' +
+      '(cc:autopilotSuggestionLedger:v1), the Phase 90 last-seen ' +
+      'markers (cc:lastVisit:catchUp:*), or the Phase 91 dismiss / ' +
+      'snooze ledger (cc:catchUpItemLedger:v1). A localStorage byte-' +
+      'snapshot test pins this. Copying does NOT create an official ' +
+      'relationship record, does NOT imply a verified borrower / ' +
+      'entity graph, and does NOT infer householding. The UI carries ' +
+      'the verbatim phrases "Copy Teams summary", "Paste into Teams", ' +
+      'and "You send the message manually". The rendered snapshot ' +
+      'carries the verbatim limitation markers "Client-name ' +
+      'grouped.", "may not include all related borrowers", "Not a ' +
+      'relationship graph", "not a household linkage", and "not a ' +
+      'relationship score". The output and the source never say ' +
+      'sent / posted / delivered / notified / synced / Teams ' +
+      'integrated / Graph connected / approved / denied / rejected / ' +
+      'credit decision / risk score / performance score / AI-' +
+      'generated / Copilot / household / verified / complete history ' +
+      '/ full relationship profile / official relationship graph as ' +
+      'a positive claim. The formatter output never echoes internal ' +
+      'audit IDs, cr664_* logical names, _value lookup suffixes, raw ' +
+      'timeline payload JSON, correlation ids, memo body text, ' +
+      'secrets, tokens, or connector state. Implementation: ' +
+      'src/shared/relationship/relationshipMemoryTeamsSummary.ts ' +
+      '(pure formatter) + inline `<RelationshipMemoryTeamsCopyButton ' +
+      '/>` in src/banker/RelationshipMemory.tsx. Does NOT imply a ' +
+      'full Teams integration; the broader Lane E gaps documented ' +
+      'in docs/PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT.md remain ' +
+      'untouched. See docs/PHASE_100_RELATIONSHIP_MEMORY_TEAMS_HANDOFF.md.',
+  },
+  {
     id: 'activity-timeline-teams-summary-handoff',
     label: 'Microsoft Teams activity-timeline copy handoff',
     phase: 99,

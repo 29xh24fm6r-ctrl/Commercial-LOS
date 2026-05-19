@@ -222,6 +222,11 @@ describe('platformInventory — local-only flows', () => {
     // (per-deal copy-to-clipboard; no Graph; no Dataverse write;
     // does not mutate Phase 72 last-visit marker).
     expect(ids.has('activity-timeline-teams-summary-handoff')).toBe(true);
+    // Phase 100 — Microsoft Teams relationship-memory copy handoff
+    // (per-client snapshot copy-to-clipboard; no Graph; no
+    // Dataverse write; client-name grouped only; not a relationship
+    // graph).
+    expect(ids.has('relationship-memory-teams-summary-handoff')).toBe(true);
     // Phase 90 — Catch-up last-seen markers (local-only "new since
     // your last visit" overlay on the Phase 88 manager + Phase 89
     // banker morning catch-up cards).
@@ -609,6 +614,65 @@ describe('platformInventory — local-only flows', () => {
   it('activity-timeline-teams-summary-handoff is NOT in GOVERNED_WRITES (Phase 99 is a handoff, not a write)', () => {
     const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
     expect(ids.has('activity-timeline-teams-summary-handoff')).toBe(false);
+  });
+
+  it('relationship-memory-teams-summary-handoff (Phase 100) is a LOCAL_ONLY flow with the right disclaimers', () => {
+    const entry = LOCAL_ONLY_FLOWS.find(
+      (f) => f.id === 'relationship-memory-teams-summary-handoff',
+    );
+    expect(entry).toBeDefined();
+    expect(entry!.phase).toBe(100);
+    // Brief mandates each of these disclaimers.
+    expect(entry!.note).toMatch(/no Dataverse write/i);
+    expect(entry!.note).toMatch(/no audit row/i);
+    expect(entry!.note).toMatch(/no timeline event/i);
+    expect(entry!.note).toMatch(/no Graph call/i);
+    expect(entry!.note).toMatch(/no calendar sync/i);
+    expect(entry!.note).toMatch(/no notification delivery/i);
+    expect(entry!.note).toMatch(/no access-token acquisition/i);
+    // The three required UI phrases the brief pins.
+    expect(entry!.note).toMatch(/Copy Teams summary/);
+    expect(entry!.note).toMatch(/Paste into Teams/);
+    expect(entry!.note).toMatch(/You send the message manually/);
+    // Phase 100 brief pins the relationship-memory non-mutation
+    // and the relationship-graph + householding negations.
+    expect(entry!.note).toMatch(/Client-name grouped/i);
+    expect(entry!.note).toMatch(/may not include all related borrowers/i);
+    expect(entry!.note).toMatch(/Not a relationship graph/i);
+    expect(entry!.note).toMatch(/not a household linkage/i);
+    expect(entry!.note).toMatch(/not a relationship score/i);
+    expect(entry!.note).toMatch(/does NOT save relationship notes/i);
+    expect(entry!.note).toMatch(
+      /does NOT create an official relationship record/i,
+    );
+    expect(entry!.note).toMatch(/does NOT infer householding/i);
+    // Implementation references for traceability.
+    expect(entry!.note).toMatch(
+      /src\/shared\/relationship\/relationshipMemoryTeamsSummary\.ts/,
+    );
+    expect(entry!.note).toMatch(/src\/banker\/RelationshipMemory\.tsx/);
+    expect(entry!.note).toMatch(
+      /PHASE_100_RELATIONSHIP_MEMORY_TEAMS_HANDOFF\.md/,
+    );
+    // Honest about the broader Lane E gap.
+    expect(entry!.note).toMatch(/Does NOT imply a full.*Teams integration/i);
+    expect(entry!.note).toMatch(
+      /PHASE_85_TEAMS_INTEGRATION_READINESS_AUDIT\.md/,
+    );
+  });
+
+  it('the Phase 100 doc actually exists on disk', () => {
+    const repoRoot = resolve(__dirname, '..', '..', '..');
+    const docPath = resolve(
+      repoRoot,
+      'docs/PHASE_100_RELATIONSHIP_MEMORY_TEAMS_HANDOFF.md',
+    );
+    expect(existsSync(docPath)).toBe(true);
+  });
+
+  it('relationship-memory-teams-summary-handoff is NOT in GOVERNED_WRITES (Phase 100 is a handoff, not a write)', () => {
+    const ids = new Set(GOVERNED_WRITES.map((w) => w.id));
+    expect(ids.has('relationship-memory-teams-summary-handoff')).toBe(false);
   });
 
   it('catch-up-last-seen-markers (Phase 90) is a LOCAL_ONLY flow with the right disclaimers', () => {
