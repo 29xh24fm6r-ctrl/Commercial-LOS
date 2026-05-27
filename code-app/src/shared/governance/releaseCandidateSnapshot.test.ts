@@ -329,6 +329,28 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // write / email-lane changes. 13 new Phase 125E invariant
     // tests in phase125ERecomposition.test.tsx.
     'docs/PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md',
+    // Phase 125F — Lending OS shell restoration. Restores the
+    // original Lending OS reference shell ACROSS the banker home
+    // AND the per-deal cockpit (unified chrome). Extracts a
+    // shared LendingOSLayout (dark sidebar with grouped nav,
+    // current-workspace pill, identity card). Adds GreetingHeader
+    // (personal "Good afternoon, X" greeting + honest task /
+    // meeting count + disabled-placeholder search / Log Activity
+    // / + New Deal). Flattens the KPI grid into 10 tonal tiles
+    // (BankerKpiGrid) with cockpit-icon halos; WEIGHTED / WIN
+    // RATE / HIGH PROB / YTD CLOSED render italic "Not yet wired"
+    // with Phase 118 bucket-C tooltips. Adds tab count badges,
+    // renames "Closing soon" rail to "Today's Schedule" with an
+    // honest calendar disclaimer. Disabled-placeholder sidebar
+    // entries for Schedule / Contacts / Vendors / Settings /
+    // Help & Support carry aria-disabled + tooltips. Wraps
+    // BankerDealWorkspace inside LendingOSLayout so the dark
+    // sidebar persists when a banker clicks a deal. Phase 48
+    // cross-role-import allowlist extended. Phase 125 hook hoist
+    // preserved. Composition-only — no Dataverse / loader /
+    // governed-write / email-lane changes. 13 new Phase 125F
+    // invariant tests + BankerShell.test.tsx rewrite.
+    'docs/PHASE_125F_LENDING_OS_SHELL_RESTORATION.md',
     // Phase 126 — Relationships + Signals visual restoration.
     // RelationshipMemory client rows gain a primary-accent left
     // stripe + bumped client-name typography. BankerAutopilotRollup

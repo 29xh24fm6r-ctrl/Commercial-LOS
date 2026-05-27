@@ -240,11 +240,14 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
   },
   {
     file: 'deals/BankerDealWorkspace.tsx',
-    allowedFrom: ['../banker/BankerContext'],
+    allowedFrom: ['../banker/BankerContext', '../banker/LendingOSLayout'],
     reason:
-      'Banker-only workspace consumes the banker identity context. Manager and team ' +
-      'have their own workspace hosts (ManagerDealWorkspace / TeamDealWorkspace) ' +
-      'in their respective role directories.',
+      'Banker-only workspace consumes the banker identity context. Phase 125F also ' +
+      'wraps the deal cockpit inside the shared LendingOSLayout shell so the dark ' +
+      'left sidebar persists across the banker home AND the per-deal page (unified ' +
+      'Lending OS chrome). Manager and team have their own workspace hosts ' +
+      '(ManagerDealWorkspace / TeamDealWorkspace) in their respective role ' +
+      'directories and are not affected by the shell wrap.',
   },
   {
     file: 'deals/DealTasks.tsx',

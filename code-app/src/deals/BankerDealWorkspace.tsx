@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useBanker } from '../banker/BankerContext';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
+import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
 import { DealMetricDeck } from './DealMetricDeck';
@@ -25,6 +26,15 @@ import { palette, radius, spacing, typography } from '../shared/theme';
 
 interface BankerDealWorkspaceProps {
   dealId: string;
+  /**
+   * Phase 125F — the bootstrap-resolved workspace name passed
+   * through by the DealRoute dispatcher so the Lending OS shell
+   * sidebar can render the current-workspace pill consistently
+   * with the BankerShell home page. Optional with a "Banker
+   * Workspace" fallback so existing call-sites and tests don't
+   * have to change.
+   */
+  workspaceName?: string;
 }
 
 /**
@@ -53,8 +63,11 @@ interface BankerDealWorkspaceProps {
  * useEffect). No new hooks. No conditional hooks. Phase 110
  * communication lock honored — no new email-lane import.
  */
-export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
-  const { bankerId } = useBanker();
+export function BankerDealWorkspace({
+  dealId,
+  workspaceName = 'Banker Workspace',
+}: BankerDealWorkspaceProps) {
+  const { bankerId, fullName, email } = useBanker();
   const [state, setState] = useState<DealLoadResult | { kind: 'loading' }>({ kind: 'loading' });
 
   useEffect(() => {
@@ -74,40 +87,57 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
     };
   }, [dealId, bankerId]);
 
-  if (state.kind === 'loading') return <LoadingState message="Loading deal…" />;
+  // Phase 125F — the deal cockpit now renders inside the
+  // Lending OS shell so the dark sidebar persists across the
+  // banker home + the per-deal page. Loading / denied / not-
+  // found / failed states all render inside the shell too so
+  // the banker never loses navigation context.
+  const shellWrap = (body: React.ReactNode) => (
+    <LendingOSLayout
+      activeNav="active-deals"
+      fullName={fullName}
+      email={email}
+      workspaceName={workspaceName}
+    >
+      {body}
+    </LendingOSLayout>
+  );
+
+  if (state.kind === 'loading')
+    return shellWrap(<LoadingState message="Loading deal…" />);
 
   if (state.kind === 'denied') {
-    return (
+    return shellWrap(
       <ErrorState
         title="Access denied"
         detail="This deal is not assigned to you."
         hint="Return to your workspace and open a deal from your pipeline."
-      />
+      />,
     );
   }
 
   if (state.kind === 'not-found') {
-    return (
+    return shellWrap(
       <ErrorState
         title="Deal not found"
         detail="No deal exists with that id, or it has been removed."
         hint="Return to your workspace."
-      />
+      />,
     );
   }
 
   if (state.kind === 'failed') {
-    return (
+    return shellWrap(
       <ErrorState
         title="Could not load deal"
         detail={state.message}
         hint="Refresh to retry."
-      />
+      />,
     );
   }
 
   const { deal } = state;
-  return (
+  return shellWrap(
     <div style={styles.page} data-cockpit-shell="banker-deal">
       <nav style={styles.crumbs} aria-label="Breadcrumb">
         <Link to={WORKSPACE_ROUTES.banker} className="cc-link" style={styles.back}>
@@ -194,7 +224,7 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
           </div>
         </DealDataProvider>
       </main>
-    </div>
+    </div>,
   );
 }
 

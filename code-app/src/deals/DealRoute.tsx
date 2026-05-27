@@ -26,7 +26,7 @@ import { ErrorState } from '../shared/ErrorState';
  * governance decision.
  */
 export function DealRoute() {
-  const { route } = useBootstrap();
+  const { route, workspaceName } = useBootstrap();
   const { dealId } = useParams<{ dealId: string }>();
 
   if (!dealId) {
@@ -42,7 +42,7 @@ export function DealRoute() {
   if (route === WORKSPACE_ROUTES.banker) {
     return (
       <BankerProvider>
-        <BankerDealWorkspace dealId={dealId} />
+        <BankerDealWorkspace dealId={dealId} workspaceName={workspaceName} />
       </BankerProvider>
     );
   }
