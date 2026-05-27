@@ -264,6 +264,17 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Phase 125G — smooth scroll for the DealCockpitNav anchor strip.
+   * Users who prefer reduced motion get the default (instant) jump. */
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -338,4 +349,57 @@ body {
 .cc-td-num {
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/* Phase 125G — deal metric-deck tile grid stable layout.
+ *
+ * 6 tonal tiles + the completeness ring on the left. The tiles
+ * lay out as a stable 3×2 grid on desktop (≥ 980px) and 2×3
+ * on narrower screens, so the deck never falls into a 5+1
+ * orphan row.
+ */
+.cc-metric-deck-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+@media (max-width: 980px) {
+  .cc-metric-deck-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .cc-metric-deck-tiles {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Phase 125G — banker KPI grid stable layout.
+ *
+ * Replaces the Phase 125F `auto-fit, minmax(178px, 1fr)` rule that
+ * could land a lone tile on its own row at intermediate widths
+ * (the "9 + 1" awkwardness the user flagged). The fixed-column
+ * breakpoints below guarantee balanced rows:
+ *
+ *   ≥ 1241px → 5 columns × 2 rows  (10 tiles, no orphan)
+ *   ≤ 1240px → 4 columns × 3 rows  (10 → row 4-4-2; still balanced
+ *                                    because no single tile is
+ *                                    orphaned on its own row)
+ *   ≤  760px → 2 columns × 5 rows
+ */
+.cc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
+}
+@media (max-width: 1240px) {
+  .cc-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .cc-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

@@ -77,7 +77,12 @@ const NOT_YET_WIRED_TOOLTIP_HIGH_PROB =
 export function BankerKpiGrid({ state, now }: BankerKpiGridProps) {
   if (state.kind === 'loading') {
     return (
-      <section style={styles.grid} aria-label="Workload KPIs (loading)">
+      <section
+        className="cc-kpi-grid"
+        style={styles.grid}
+        aria-label="Workload KPIs (loading)"
+        data-banker-kpi-grid="phase-125g"
+      >
         {Array.from({ length: 10 }).map((_, i) => (
           <KpiTile key={i} spec={loadingSpec(i)} />
         ))}
@@ -86,7 +91,12 @@ export function BankerKpiGrid({ state, now }: BankerKpiGridProps) {
   }
   if (state.kind === 'failed') {
     return (
-      <section style={styles.grid} aria-label="Workload KPIs (failed)">
+      <section
+        className="cc-kpi-grid"
+        style={styles.grid}
+        aria-label="Workload KPIs (failed)"
+        data-banker-kpi-grid="phase-125g"
+      >
         <div style={styles.failed} role="alert">
           <div style={styles.failedTitle}>Could not load workload snapshot</div>
           <div style={styles.failedDetail}>{state.message}</div>
@@ -189,7 +199,12 @@ export function BankerKpiGrid({ state, now }: BankerKpiGridProps) {
     },
   ];
   return (
-    <section style={styles.grid} aria-label="Workload KPIs">
+    <section
+      className="cc-kpi-grid"
+      style={styles.grid}
+      aria-label="Workload KPIs"
+      data-banker-kpi-grid="phase-125g"
+    >
       {specs.map((s) => (
         <KpiTile key={s.id} spec={s} />
       ))}
@@ -268,9 +283,8 @@ const TONE_TOKENS: Record<KpiTone, { accent: string; bg: string; fg: string }> =
 
 const styles: Record<string, CSSProperties> = {
   grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(178px, 1fr))',
-    gap: spacing.md,
+    // Grid template handled by `.cc-kpi-grid` in src/index.css —
+    // Phase 125G stable 5×2 / 4×3 / 2×5 breakpoints.
     padding: `${spacing.lg} ${spacing.xxl}`,
   },
   tile: {

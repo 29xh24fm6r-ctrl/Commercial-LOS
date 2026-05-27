@@ -532,6 +532,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.xs,
+    // Phase 125G — consistent minimum widget height so the rail
+    // reads as a row of equal-height operating widgets rather
+    // than ragged cards keyed to their content length.
+    minHeight: 160,
   },
   railHeader: {
     display: 'flex',

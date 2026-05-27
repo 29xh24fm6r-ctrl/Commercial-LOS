@@ -74,7 +74,7 @@ export function DealMetricDeck() {
           aria-label={`Deal profile completeness: ${metrics.profileCompletenessPct} percent (${metrics.populatedFieldCount} of ${metrics.totalFieldCount} fields populated)`}
         />
       </div>
-      <div style={styles.tiles}>
+      <div className="cc-metric-deck-tiles" data-metric-deck-tiles="phase-125g">
         <LargeMetricTile
           label="Loan amount"
           value={formatCurrency(metrics.loanAmount)}
@@ -269,11 +269,14 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${palette.panelBorder}`,
     borderRadius: radius.lg,
     boxShadow: shadow.elevated,
-    padding: `${spacing.md} ${spacing.lg}`,
+    // Phase 125G — tighter vertical padding so the deck is a
+    // bit shorter and the Stage Map peeks above the fold on
+    // typical viewports.
+    padding: `${spacing.sm} ${spacing.lg} ${spacing.md}`,
     marginBottom: spacing.lg,
     display: 'grid',
     gridTemplateColumns: 'auto minmax(0, 1fr)',
-    columnGap: spacing.lg,
+    columnGap: spacing.xl,
     rowGap: spacing.sm,
     alignItems: 'center',
   },
@@ -281,14 +284,12 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: `0 ${spacing.xs}`,
+    padding: `0 ${spacing.sm}`,
+    borderRight: `1px solid ${palette.divider}`,
   },
-  tiles: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-    gap: spacing.sm,
-    minWidth: 0,
-  },
+  // Phase 125G — `tiles` style is now handled by the
+  // .cc-metric-deck-tiles class in src/index.css so the grid
+  // template can use real media-query breakpoints.
   footerRow: {
     gridColumn: '1 / -1',
     display: 'flex',

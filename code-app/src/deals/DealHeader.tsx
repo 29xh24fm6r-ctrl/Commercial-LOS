@@ -36,6 +36,13 @@ export function DealHeader() {
         <div style={styles.eyebrowRow}>
           <span style={styles.eyebrowDot} aria-hidden="true" />
           <span style={styles.eyebrow}>Commercial Lending Cockpit</span>
+          {/* Phase 125G — Deal Cockpit lockup pill. Reinforces the
+              cockpit framing alongside the institutional eyebrow,
+              and pairs visually with the deal-id chip on the
+              right. */}
+          <span style={styles.lockupPill} aria-hidden="true">
+            Deal Cockpit
+          </span>
           <span style={styles.idChip} aria-label={`Deal id ${deal.id}`}>
             #{deal.id.slice(0, 8)}
           </span>
@@ -147,11 +154,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   eyebrowDot: {
     display: 'inline-block',
-    width: 8,
-    height: 8,
+    width: 10,
+    height: 10,
     borderRadius: '50%',
     background: HERO_ACCENT,
-    boxShadow: `0 0 0 4px rgba(96, 165, 250, 0.18)`,
+    // Phase 125G — brighter cobalt glow + outer halo
+    boxShadow: `0 0 0 5px rgba(96, 165, 250, 0.25), 0 0 14px rgba(96, 165, 250, 0.6)`,
   },
   eyebrow: {
     fontSize: typography.size.xs,
@@ -169,6 +177,20 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${GLASS_CELL_BORDER}`,
     padding: `2px ${spacing.sm}`,
     borderRadius: radius.sm,
+  },
+  // Phase 125G — Deal Cockpit lockup pill (the "Deal Cockpit"
+  // text next to the eyebrow). Brighter cobalt-tinted glass
+  // pill so the cockpit framing reads at a glance.
+  lockupPill: {
+    fontSize: typography.size.xs,
+    color: '#cfe1ff',
+    background: 'rgba(96, 165, 250, 0.18)',
+    border: `1px solid rgba(96, 165, 250, 0.35)`,
+    padding: `2px ${spacing.sm}`,
+    borderRadius: radius.pill,
+    fontWeight: typography.weight.bold,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase' as const,
   },
   name: {
     margin: 0,

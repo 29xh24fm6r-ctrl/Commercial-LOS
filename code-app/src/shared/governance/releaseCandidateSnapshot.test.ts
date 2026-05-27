@@ -351,6 +351,25 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // governed-write / email-lane changes. 13 new Phase 125F
     // invariant tests + BankerShell.test.tsx rewrite.
     'docs/PHASE_125F_LENDING_OS_SHELL_RESTORATION.md',
+    // Phase 125G — Lending OS cockpit fit-and-finish. Polish
+    // pass after Phase 125F. Six targeted changes: (1) stable
+    // .cc-kpi-grid CSS class for the banker KPI grid (5×2 /
+    // 4×3 / 2×5 explicit breakpoints — no orphan tile);
+    // (2) stable .cc-metric-deck-tiles class for the deal
+    // metric deck (3×2 / 2×3 / 1) + tighter padding + ring
+    // divider; (3) new DealCockpitNav 8-anchor strip under
+    // the deck with smooth-scroll links to every cockpit
+    // module (anchor IDs declared on each module's outer
+    // wrapper in BankerDealWorkspace); (4) AttentionConsole
+    // missing-field chips grouped by category (Economics /
+    // Parties / Timing / Stage & status / Structure);
+    // (5) DealHeader "Deal Cockpit" lockup pill + brighter
+    // eyebrow accent; (6) right-rail widget minHeight for
+    // consistent height. Composition-only — no Dataverse /
+    // loader / governed-write / email-lane changes. Phase
+    // 125 hook hoist preserved. 16 new Phase 125G invariant
+    // tests.
+    'docs/PHASE_125G_LENDING_OS_COCKPIT_FIT_AND_FINISH.md',
     // Phase 126 — Relationships + Signals visual restoration.
     // RelationshipMemory client rows gain a primary-accent left
     // stripe + bumped client-name typography. BankerAutopilotRollup

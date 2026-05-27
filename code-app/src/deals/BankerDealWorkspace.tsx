@@ -5,6 +5,7 @@ import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
+import { DealCockpitNav } from './DealCockpitNav';
 import { DealMetricDeck } from './DealMetricDeck';
 import { DealWorkstreamPanel } from './DealWorkstreamPanel';
 import { DealSummary } from './DealSummary';
@@ -159,6 +160,11 @@ export function BankerDealWorkspace({
               has a fixed instrument panel at the top of every
               deal. */}
           <DealMetricDeck />
+          {/* Phase 125G — anchor strip directly under the metric
+              deck so the banker immediately sees that the page
+              contains an Attention Console, Stage Map, Action
+              Console, etc., and can jump to any of them. */}
+          <DealCockpitNav />
           <div
             style={styles.cockpit}
             role="group"
@@ -174,29 +180,51 @@ export function BankerDealWorkspace({
                   primary operating panel; render it first so the
                   banker sees attention items + missing data
                   immediately after the metric deck. */}
-              <DealBlockers />
+              <div id="attention-console" data-cockpit-anchor="attention-console">
+                <DealBlockers />
+              </div>
               {/* Phase 125E — Stage Map is the second-most-
                   prominent module: where is this deal? */}
-              <div data-deal-card="stage-progression">
+              <div
+                id="stage-map"
+                data-deal-card="stage-progression"
+                data-cockpit-anchor="stage-map"
+              >
                 <DealStageProgressionCard />
               </div>
               {/* Phase 125E — Action Console. Deterministic
                   next-best actions. Banker decides. */}
-              <DealAutopilotPanel />
+              <div id="action-console" data-cockpit-anchor="action-console">
+                <DealAutopilotPanel />
+              </div>
               {/* Phase 125D — Workstream Panel: horizontal mini bars
                   for tasks / documents / memo / communication. */}
-              <DealWorkstreamPanel />
-              <RelationshipContext />
-              <div data-deal-card="credit-memo">
+              <div id="workstreams" data-cockpit-anchor="workstreams">
+                <DealWorkstreamPanel />
+              </div>
+              <div id="relationship" data-cockpit-anchor="relationship">
+                <RelationshipContext />
+              </div>
+              <div
+                id="credit-memo"
+                data-deal-card="credit-memo"
+                data-cockpit-anchor="credit-memo"
+              >
                 <CreditMemo />
               </div>
-              <div data-deal-card="activity-timeline">
+              <div
+                id="activity-timeline"
+                data-deal-card="activity-timeline"
+                data-cockpit-anchor="activity-timeline"
+              >
                 <ActivityTimeline />
               </div>
               {/* Phase 125E — Deal Summary demoted to the bottom
                   of the cockpit. It's a reference table, not the
                   main attraction. */}
-              <DealSummary />
+              <div id="deal-summary" data-cockpit-anchor="deal-summary">
+                <DealSummary />
+              </div>
             </section>
             <section
               style={styles.colRight}

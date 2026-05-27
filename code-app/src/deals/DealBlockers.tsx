@@ -133,13 +133,7 @@ export function DealBlockers() {
               Missing data — {metrics.missingFieldLabels.length} of {metrics.totalFieldCount} fields
             </span>
           </div>
-          <div style={styles.missingChipRow}>
-            {metrics.missingFieldLabels.map((label) => (
-              <span key={label} style={styles.missingChip}>
-                {label}
-              </span>
-            ))}
-          </div>
+          <MissingFieldGroups labels={metrics.missingFieldLabels} />
         </div>
       )}
 
@@ -211,6 +205,83 @@ function SignalRow({ signal }: { signal: BlockerSignal }) {
         <div style={styles.signalDetail}>{signal.detail}</div>
       </div>
     </li>
+  );
+}
+
+/**
+ * Phase 125G — group missing-field labels by category so the
+ * Attention Console reads as a checklist of well-known buckets
+ * (Economics / Parties / Timing / Stage & status / Structure)
+ * instead of one wide single-line chip run.
+ *
+ * The category mapping is intentional and stable. Every label
+ * here matches a label in PROFILE_COMPLETENESS_FIELDS (see
+ * `src/deals/dealCockpitMetrics.ts`); a future phase that adds
+ * a new tracked field should also add it to one of these
+ * groups so the chips don't fall into the "Other" fallback.
+ */
+const MISSING_FIELD_GROUPS: ReadonlyArray<{
+  id: string;
+  label: string;
+  fields: ReadonlyArray<string>;
+}> = [
+  { id: 'economics', label: 'Economics', fields: ['Loan amount', 'Pricing type'] },
+  { id: 'parties', label: 'Parties', fields: ['Client', 'Banker'] },
+  { id: 'timing', label: 'Timing', fields: ['Target close'] },
+  { id: 'stage-status', label: 'Stage & status', fields: ['Stage', 'Status'] },
+  {
+    id: 'structure',
+    label: 'Structure',
+    fields: [
+      'Product type',
+      'Loan structure',
+      'Customer type',
+      'Industry',
+      'Guarantor structure',
+      'Collateral',
+    ],
+  },
+];
+
+function MissingFieldGroups({ labels }: { labels: ReadonlyArray<string> }) {
+  const remaining = new Set(labels);
+  const groups = MISSING_FIELD_GROUPS.map((g) => {
+    const matched = g.fields.filter((f) => remaining.has(f));
+    for (const f of matched) remaining.delete(f);
+    return { ...g, matched };
+  }).filter((g) => g.matched.length > 0);
+  const other = Array.from(remaining);
+  return (
+    <div style={styles.missingGroupStack} data-missing-field-groups="phase-125g">
+      {groups.map((g) => (
+        <div
+          key={g.id}
+          style={styles.missingGroup}
+          data-missing-field-group={g.id}
+        >
+          <div style={styles.missingGroupLabel}>{g.label}</div>
+          <div style={styles.missingChipRow}>
+            {g.matched.map((label) => (
+              <span key={label} style={styles.missingChip}>
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+      {other.length > 0 && (
+        <div style={styles.missingGroup} data-missing-field-group="other">
+          <div style={styles.missingGroupLabel}>Other</div>
+          <div style={styles.missingChipRow}>
+            {other.map((label) => (
+              <span key={label} style={styles.missingChip}>
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -331,6 +402,26 @@ const styles: Record<string, React.CSSProperties> = {
     color: palette.atRiskFg,
     textTransform: 'uppercase' as const,
     letterSpacing: typography.letterSpacing.label,
+  },
+  missingGroupStack: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: spacing.xs,
+  },
+  missingGroup: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 4,
+    paddingTop: 4,
+    paddingBottom: 4,
+    borderTop: `1px dashed ${palette.atRisk}`,
+  },
+  missingGroupLabel: {
+    fontSize: typography.size.xs,
+    textTransform: 'uppercase' as const,
+    letterSpacing: typography.letterSpacing.label,
+    color: palette.atRiskFg,
+    fontWeight: typography.weight.bold,
   },
   missingChipRow: {
     display: 'flex',

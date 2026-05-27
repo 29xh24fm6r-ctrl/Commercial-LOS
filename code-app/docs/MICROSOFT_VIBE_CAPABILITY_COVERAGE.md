@@ -171,6 +171,21 @@ changes. Phases 118 + 121 + 122 + 122A are documentation /
 Dataverse-config only; Phases 119 + 120 + 123 + 124 + 125 +
 125B + 125C + 125D + 125E + 126 are implementation with
 regression tests.
+[PHASE_125G_LENDING_OS_COCKPIT_FIT_AND_FINISH.md](PHASE_125G_LENDING_OS_COCKPIT_FIT_AND_FINISH.md)
+is the targeted polish pass after Phase 125F restored the
+Lending OS shell. Six changes: stable .cc-kpi-grid /
+.cc-metric-deck-tiles CSS breakpoints (no orphan tile), the
+DealCockpitNav 8-anchor strip under the deck with
+smooth-scroll links, Attention Console missing-field chip
+grouping by category (Economics / Parties / Timing / Stage &
+status / Structure), DealHeader "Deal Cockpit" lockup pill +
+brighter accent, right-rail widget consistent height. No
+data / loader / governed-write / email-lane changes.
+[PHASE_125F_LENDING_OS_SHELL_RESTORATION.md](PHASE_125F_LENDING_OS_SHELL_RESTORATION.md)
+is the restorative phase that brought the original Lending OS
+dark-sidebar shell + greeting header + flat 10-tile KPI deck
++ 8-tab work area + right rail back into shape and wrapped
+the per-deal cockpit inside the same shell.
 [PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md](PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md)
 is the corrective recomposition pass that replaces the Phase
 125D layout: command hero with identity slots (no metric

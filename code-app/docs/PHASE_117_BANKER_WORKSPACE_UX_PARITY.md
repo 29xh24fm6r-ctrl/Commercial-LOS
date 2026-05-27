@@ -120,6 +120,27 @@ Related canonical sources:
 >   Tasks + Documents card headers. Page background flips to
 >   the slate panel backdrop. Phase 125 hook hoist preserved.
 >   No data / loader / governed-write / email-lane changes.
+> - [PHASE_125G_LENDING_OS_COCKPIT_FIT_AND_FINISH.md](PHASE_125G_LENDING_OS_COCKPIT_FIT_AND_FINISH.md) —
+>   Fit-and-finish polish after Phase 125F. Stable
+>   .cc-kpi-grid / .cc-metric-deck-tiles CSS breakpoints (no
+>   orphan tile), DealCockpitNav 8-anchor strip under the
+>   deck with smooth-scroll links, Attention Console missing-
+>   field chip grouping (Economics / Parties / Timing / Stage
+>   & status / Structure), DealHeader "Deal Cockpit" lockup
+>   pill + brighter accent, right-rail consistent widget
+>   height. No data / loader / governed-write changes.
+> - [PHASE_125F_LENDING_OS_SHELL_RESTORATION.md](PHASE_125F_LENDING_OS_SHELL_RESTORATION.md) —
+>   Restorative phase that brought the original Lending OS
+>   shell back. New LendingOSLayout (dark sidebar, grouped
+>   nav, disabled placeholders for unwired routes),
+>   GreetingHeader (personal greeting + honest task/meeting
+>   count + disabled-placeholder search / Log Activity / New
+>   Deal), flat 10-tile BankerKpiGrid with cockpit-icon halos
+>   + four "Not yet wired" placeholder tiles for
+>   schema-gated metrics, 8-tab bar with count badges,
+>   Today's Schedule rename, wraps BankerDealWorkspace inside
+>   the same shell. No data / loader / governed-write
+>   changes.
 > - [PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md](PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md) —
 >   Corrective recomposition pass. Phase 125D's primitives
 >   passed but the deployed result still read as stacked
