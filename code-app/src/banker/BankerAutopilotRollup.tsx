@@ -14,7 +14,7 @@ import { useSuggestionLedger } from '../shared/autopilot/useSuggestionLedger';
 import type { SuggestionLedgerEntry } from '../shared/autopilot/suggestionLedger';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
-import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
+import { palette, radius, severityPalette, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
  * Phase 82: banker-side Autopilot rollup card on the Banker Command
@@ -324,13 +324,16 @@ function RollupRow({
 }) {
   const navigate = useNavigate();
   const severity = PRIORITY_TO_SEVERITY[row.highestPriority];
+  const accentColor = severityPalette[severity].bar;
   const isDismissed = ledgerEntry?.action === 'dismissed';
   const isOpened = ledgerEntry?.action === 'opened';
   return (
     <li
-      style={
-        isDismissed ? { ...styles.row, ...styles.rowDismissed } : styles.row
-      }
+      style={{
+        ...styles.row,
+        borderLeft: `3px solid ${accentColor}`,
+        ...(isDismissed ? styles.rowDismissed : null),
+      }}
     >
       <div style={styles.rowHead}>
         <button
@@ -478,7 +481,12 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     color: palette.textMuted,
     fontSize: typography.size.sm,
-    fontStyle: 'italic',
+    lineHeight: 1.4,
+    padding: `${spacing.md} ${spacing.lg}`,
+    background: palette.surfaceAlt,
+    border: `1px dashed ${palette.borderStrong}`,
+    borderRadius: radius.md,
+    textAlign: 'center' as const,
   },
   countsRow: {
     display: 'flex',
@@ -500,13 +508,13 @@ const styles: Record<string, React.CSSProperties> = {
     gap: spacing.sm,
   },
   row: {
-    padding: `${spacing.sm} ${spacing.md}`,
-    background: palette.surfaceAlt,
-    border: `1px solid ${palette.divider}`,
-    borderRadius: radius.sm,
+    padding: `${spacing.md} ${spacing.lg}`,
+    background: palette.surface,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.md,
     display: 'flex',
     flexDirection: 'column',
-    gap: 4,
+    gap: spacing.xs,
   },
   rowHead: {
     display: 'flex',

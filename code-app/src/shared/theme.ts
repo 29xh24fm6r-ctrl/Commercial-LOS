@@ -73,6 +73,50 @@ export const palette = {
   info: 'var(--cc-info)',
   infoBg: 'var(--cc-info-bg)',
   infoFg: 'var(--cc-info-fg)',
+
+  // ──── Phase 125C — premium-cockpit accent palette ────
+  // Cobalt — richer electric-blue accent for primary action
+  // emphasis (next-best-action priority chips, stage-progression
+  // current-stage highlight).
+  cobalt: 'var(--cc-cobalt)',
+  cobaltBg: 'var(--cc-cobalt-bg)',
+  cobaltFg: 'var(--cc-cobalt-fg)',
+
+  // Teal — advanced-intelligence accent for derivation /
+  // autopilot surfaces (signals derived from work-queue data).
+  teal: 'var(--cc-teal)',
+  tealBg: 'var(--cc-teal-bg)',
+  tealFg: 'var(--cc-teal-fg)',
+
+  // Cyan — light analytical accent reserved for mini-chart
+  // axes / progress-bar rails / readiness meters.
+  cyan: 'var(--cc-cyan)',
+  cyanBg: 'var(--cc-cyan-bg)',
+  cyanFg: 'var(--cc-cyan-fg)',
+
+  // Violet — premium-tier accent reserved for elevated /
+  // command-center modules (right-rail glass overlay, hero
+  // glow tints).
+  violet: 'var(--cc-violet)',
+  violetBg: 'var(--cc-violet-bg)',
+  violetFg: 'var(--cc-violet-fg)',
+
+  // ──── Phase 125D — Bloomberg / Apple cockpit surfaces ────
+  // Slate "cockpit backdrop" — a slightly darker, cooler tone
+  // than the page bg, used to wrap the deal cockpit shell so
+  // KPI tiles + cards visually anchor on a slate platform
+  // instead of floating in white space.
+  panelBg: 'var(--cc-panel-bg)',
+  panelBorder: 'var(--cc-panel-border)',
+  // KPI deck — the horizontal metric-tile strip below the
+  // command hero. Slightly elevated over panelBg with its own
+  // hairline border so it reads as a "deck" you scan first.
+  deckBg: 'var(--cc-deck-bg)',
+  deckTile: 'var(--cc-deck-tile)',
+  // Glass panel — slightly translucent surface for stage-map
+  // / action-console headers. Reads as a subtle inner panel
+  // sitting on top of a Card.
+  glassPanel: 'var(--cc-glass-panel)',
 } as const;
 
 export const spacing = {
@@ -137,6 +181,23 @@ export const typography = {
 export const shadow = {
   card: '0 1px 2px rgba(20, 26, 42, 0.04), 0 1px 1px rgba(20, 26, 42, 0.03)',
   rise: '0 4px 12px rgba(20, 26, 42, 0.08)',
+  /** Phase 123 — premium banker shell: elevated KPI/hero tiles. Slightly
+   *  deeper than `card`, lighter than `rise`. Suitable for tiles that
+   *  want to read as "primary attention" without becoming popovers. */
+  elevated: '0 2px 4px rgba(20, 26, 42, 0.06), 0 4px 10px rgba(20, 26, 42, 0.05)',
+  /** Phase 123 — command-center hero band. Bigger spread, deeper tone.
+   *  Reserved for the header band and the right-rail brand frame so
+   *  they read as the shell's anchor surfaces. */
+  hero: '0 8px 24px rgba(20, 26, 42, 0.10), 0 2px 4px rgba(20, 26, 42, 0.06)',
+  /** Phase 125C — soft cobalt glow for premium liquid-glass surfaces.
+   *  Used on the deal hero band's inner shadow + the right-rail
+   *  glass overlay. Subtle by design — keeps the cockpit feel
+   *  without becoming a popover. */
+  glow: '0 0 0 1px rgba(96, 165, 250, 0.18) inset, 0 12px 28px rgba(15, 23, 42, 0.16)',
+  /** Phase 125D — small inset lift for KPI deck tiles. Used by
+   *  the MetricTile primitive to feel like a slate panel that's
+   *  embedded in the deck, not a stacked card. */
+  deck: '0 1px 0 rgba(255, 255, 255, 0.55) inset, 0 1px 3px rgba(15, 23, 42, 0.08)',
 } as const;
 
 /**

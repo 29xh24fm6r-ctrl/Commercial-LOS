@@ -42,14 +42,16 @@ import { PersonalActivitySummary } from './PersonalActivitySummary';
 const loadMock = vi.mocked(loadBankerWorkQueueData);
 const useBankerMock = vi.mocked(useBanker);
 
-const NOW = new Date('2026-05-15T12:00:00Z');
-
 function isoDaysAgo(days: number): string {
-  return new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
 }
 
 function isoDaysFromNow(days: number): string {
-  return new Date(NOW.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
 }
 
 function emptyData(): BankerWorkQueueData {
@@ -65,9 +67,10 @@ function emptyData(): BankerWorkQueueData {
 
 beforeEach(() => {
   // The component captures `now` via `useMemo(() => new Date(), [])`.
-  // We rely on the real clock (current date is 2026-05-15) so the
-  // isoDaysAgo / isoDaysFromNow helpers — anchored to NOW above —
-  // line up with the component's own clock. NO fake timers: they
+  // The isoDaysAgo / isoDaysFromNow helpers also call `new Date()` so
+  // they always align with whatever the real runtime clock is when
+  // the test fires (no fixed NOW anchor — that approach drifts every
+  // time the calendar passes the anchor date). NO fake timers: they
   // freeze setTimeout, which findByText / waitFor poll on.
   vi.clearAllMocks();
   useBankerMock.mockReturnValue({

@@ -9,36 +9,72 @@ import {
   type BorrowerUpdateTemplate,
   type ProhibitedTermHit,
 } from './borrowerUpdateDraft';
+import { isLikelyValidEmail } from './emailDelivery/outlookEmailAdapters';
+import { EMAIL_MODE } from './emailDelivery/emailMode';
+import type {
+  SendBorrowerUpdateEmailInput,
+  SendBorrowerUpdateEmailOutcome,
+} from './sendBorrowerUpdateEmail';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
- * Phase 23: borrower update DRAFT modal. Local-only fallback path —
- * no Dataverse write, no email send, no Outlook/Graph. The banker
- * picks a template, edits the generated subject/body if needed,
- * writes a required note explaining why the update is going out, then
- * Copies the body to the clipboard for manual paste into their own
- * mail client.
+ * Phase 23 / 105: borrower update modal.
  *
- * The modal exists inside an already-authorized DealDataProvider tree,
- * so the deal/tasks/documents passed in are banker-scoped.
+ *   Phase 23 (original): local-only draft. Generate from a template,
+ *   edit, Copy to clipboard, paste into the banker's own mail client.
+ *   No Dataverse write.
+ *
+ *   Phase 105 (this file): adds an optional LIVE Send path that calls
+ *   the new sendBorrowerUpdateEmail governed write. The Copy path is
+ *   preserved unchanged — bankers can still operate fully offline.
+ *   When the banker types a recipient and clicks Send, the action
+ *   layer emits ONE audit row + ONE BorrowerUpdateSent timeline row
+ *   (the schema designer reserved 788190014 for exactly this moment;
+ *   see ../deals/borrowerUpdateDraft.ts header).
+ *
+ *   No attachments. No Cc / Bcc / From override / ReplyTo /
+ *   Sensitivity. The recipient is typed by hand (cr664_borrowers has
+ *   no email column). The banker note is REQUIRED for both Copy and
+ *   Send so the audit row carries a banker-supplied reason verbatim.
  */
 
-interface DraftBorrowerUpdateModalProps {
+export interface DraftBorrowerUpdateModalProps {
   deal: DealDetail;
   outstandingDocuments: DealDocument[];
   openTasks: DealTask[];
   bankerName: string | undefined;
+  /** Phase 105: when provided, the modal shows a Send button. The
+   *  parent passes a callback that invokes sendBorrowerUpdateEmail
+   *  (banker workspace) — keeping the modal free of Dataverse SDK
+   *  imports and easy to test. When undefined (e.g. older callers
+   *  not yet updated), the modal renders Copy-only behavior. */
+  onSendEmail?: (input: SendBorrowerUpdateEmailInput) => Promise<SendBorrowerUpdateEmailOutcome>;
+  /** Phase 105: dealId is passed through to the send action. */
+  dealId: string;
+  /** Phase 105: systemUserId is required for the audit/timeline
+   *  ChangedBy/EventBy lookups. When undefined (write-disabled banker
+   *  state) the Send button is disabled with an explanatory message. */
+  systemUserId: string | undefined;
+  writeDisabledReason: string | undefined;
   onClose: () => void;
 }
 
 type CopyState = 'idle' | 'copied' | 'failed';
+type SendState =
+  | { kind: 'idle' }
+  | { kind: 'sending' }
+  | { kind: 'done'; outcome: SendBorrowerUpdateEmailOutcome };
 
 export function DraftBorrowerUpdateModal({
   deal,
   outstandingDocuments,
   openTasks,
   bankerName,
+  onSendEmail,
+  dealId,
+  systemUserId,
+  writeDisabledReason,
   onClose,
 }: DraftBorrowerUpdateModalProps) {
   const [template, setTemplate] = useState<BorrowerUpdateTemplate>('general-status');
@@ -50,24 +86,22 @@ export function DraftBorrowerUpdateModal({
         openTasks,
         bankerName,
       }),
-    // We rebuild only when template changes, not on every doc/task ref
-    // bump — switching templates is the explicit reset signal.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [template],
   );
   const [subject, setSubject] = useState(initial.subject);
   const [body, setBody] = useState(initial.body);
   const [reason, setReason] = useState('');
+  const [recipient, setRecipient] = useState('');
   const [copy, setCopy] = useState<CopyState>('idle');
+  const [send, setSend] = useState<SendState>({ kind: 'idle' });
   const noteRef = useRef<HTMLTextAreaElement>(null);
 
-  // When the banker picks a different template, replace subject/body
-  // with the new generated text. Their note/reason persists because it
-  // describes WHY they're sending — that doesn't change per template.
   useEffect(() => {
     setSubject(initial.subject);
     setBody(initial.body);
     setCopy('idle');
+    setSend({ kind: 'idle' });
   }, [initial]);
 
   useEffect(() => {
@@ -92,7 +126,25 @@ export function DraftBorrowerUpdateModal({
 
   const reasonOk = reason.trim().length > 0;
   const safetyOk = prohibitedHits.length === 0;
-  const canCopy = reasonOk && safetyOk && body.trim().length > 0;
+  const recipientOk = isLikelyValidEmail(recipient);
+  const subjectOk = subject.trim().length > 0;
+  const bodyOk = body.trim().length > 0;
+
+  // Copy gating preserves the Phase 23 contract: banker note + body +
+  // safety check. Recipient is NOT required to Copy (the banker may
+  // be using Copy precisely because they want to paste into a mail
+  // client that already has the recipient picked).
+  const canCopy = reasonOk && safetyOk && bodyOk;
+
+  // Send gating adds the recipient + systemUserId + onSendEmail
+  // availability requirements.
+  const canSend =
+    canCopy &&
+    subjectOk &&
+    recipientOk &&
+    systemUserId !== undefined &&
+    onSendEmail !== undefined &&
+    send.kind !== 'sending';
 
   async function handleCopy() {
     if (!canCopy) return;
@@ -109,6 +161,31 @@ export function DraftBorrowerUpdateModal({
     }
   }
 
+  async function handleSend() {
+    if (!canSend || !onSendEmail || systemUserId === undefined) return;
+    setSend({ kind: 'sending' });
+    try {
+      const outcome = await onSendEmail({
+        dealId,
+        systemUserId,
+        recipient: recipient.trim(),
+        subject,
+        body,
+        bankerNote: reason,
+        template,
+      });
+      setSend({ kind: 'done', outcome });
+    } catch (err: unknown) {
+      setSend({
+        kind: 'done',
+        outcome: {
+          kind: 'unknown',
+          message: err instanceof Error ? err.message : String(err),
+        },
+      });
+    }
+  }
+
   return (
     <div
       role="dialog"
@@ -121,24 +198,57 @@ export function DraftBorrowerUpdateModal({
           <div>
             <div style={styles.eyebrow}>Deal Workspace · Borrower Communication</div>
             <h2 id="draft-borrower-update-title" style={styles.title}>
-              Draft Borrower Update
+              Borrower Update
             </h2>
           </div>
-          <Badge variant="neutral" appearance="outline">
-            Draft only
-          </Badge>
+          <ModeBadge />
         </header>
 
-        <p style={styles.localOnlyBanner} role="status">
-          <strong>Draft not saved to system.</strong> No email is sent. Copy the
-          message and paste it into your mail client to send manually. External
-          delivery, audit, and timeline logging are a later phase.
+        <p style={styles.modeBanner} role="status">
+          {EMAIL_MODE === 'LIVE' ? (
+            <>
+              <strong>Mode: LIVE.</strong> Clicking Send will hand the
+              message to Outlook through the registered connector. The
+              app reports <em>Outlook accepted</em> — meaning the
+              connector took the request for handoff. Acceptance is
+              not proof that the recipient received the message. Copy
+              remains available for an offline workflow.
+            </>
+          ) : (
+            <>
+              <strong>Mode: DRY_RUN.</strong> Send is wired end-to-end
+              (audit + BorrowerUpdateSent timeline + outcome union) but
+              the adapter synthesizes acceptance locally — nothing
+              leaves the client. Copy works exactly as before.
+            </>
+          )}
         </p>
 
         <section style={styles.toSection}>
-          <Fact label="To" value={deal.clientName ?? '— (no borrower contact on this deal)'} />
+          <Fact label="Borrower (client)" value={deal.clientName ?? '— (no borrower name on record)'} />
           <Fact label="Deal" value={deal.name} />
           <Fact label="Stage" value={deal.stage ?? '—'} />
+        </section>
+
+        <section style={styles.fieldBlock}>
+          <label style={styles.label} htmlFor="draft-recipient">
+            Recipient email{' '}
+            <span style={styles.optionalForCopy}>required for Send · optional for Copy</span>
+          </label>
+          <input
+            id="draft-recipient"
+            type="email"
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder="borrower@example.com"
+            style={styles.input}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <p style={styles.helperLine}>
+            Borrower email is not stored on the deal — type it from the
+            relationship record or prior correspondence.
+          </p>
         </section>
 
         <section style={styles.fieldBlock}>
@@ -199,8 +309,9 @@ export function DraftBorrowerUpdateModal({
               ))}
             </ul>
             <p style={styles.guardDetail}>
-              Remove or soften these terms before copying. Commitment language is
-              not permitted unless the deal stage/status explicitly supports it.
+              Remove or soften these terms before copying or sending.
+              Commitment language is not permitted unless the deal
+              stage/status explicitly supports it.
             </p>
           </div>
         )}
@@ -227,8 +338,9 @@ export function DraftBorrowerUpdateModal({
               Copied to clipboard
             </div>
             <p style={styles.outcomeDetail}>
-              The draft was copied. Paste it into your mail client to send manually.
-              Nothing was logged to this deal's activity ledger.
+              The draft was copied. Paste it into your mail client to
+              send manually. Nothing was logged to this deal's activity
+              ledger.
             </p>
           </div>
         )}
@@ -238,9 +350,20 @@ export function DraftBorrowerUpdateModal({
               Could not access clipboard
             </div>
             <p style={styles.outcomeDetail}>
-              Select the body text manually and copy it (Ctrl+C / Cmd+C). The browser
-              clipboard API was unavailable.
+              Select the body text manually and copy it (Ctrl+C /
+              Cmd+C). The browser clipboard API was unavailable.
             </p>
+          </div>
+        )}
+
+        <SendOutcomePanel send={send} />
+
+        {writeDisabledReason && systemUserId === undefined && (
+          <div style={{ ...styles.outcomeBox, background: palette.neutralBg, borderColor: palette.divider }}>
+            <div style={{ ...styles.outcomeTitle, color: palette.text }}>
+              Send is disabled
+            </div>
+            <p style={styles.outcomeDetail}>{writeDisabledReason}</p>
           </div>
         )}
 
@@ -252,13 +375,107 @@ export function DraftBorrowerUpdateModal({
             type="button"
             onClick={handleCopy}
             disabled={!canCopy}
-            style={canCopy ? styles.primaryButton : styles.primaryButtonDisabled}
+            style={canCopy ? styles.secondaryActionButton : styles.secondaryActionButtonDisabled}
             aria-label="Copy draft to clipboard"
           >
             Copy draft
           </button>
+          {onSendEmail !== undefined && (
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!canSend}
+              style={canSend ? styles.primaryButton : styles.primaryButtonDisabled}
+              aria-label="Send borrower update through Outlook"
+            >
+              {send.kind === 'sending' ? 'Sending…' : 'Send'}
+            </button>
+          )}
         </footer>
       </div>
+    </div>
+  );
+}
+
+function ModeBadge() {
+  // LIVE is the only mode that performs an actual network send today.
+  // DRY_RUN is tinted neutral so the banker cannot mistake it for a
+  // real send. Mirrors the RequestDocumentModal mode-badge shape.
+  const isLive = EMAIL_MODE === 'LIVE';
+  return (
+    <Badge
+      variant={isLive ? 'clear' : 'neutral'}
+      appearance="outline"
+      aria-label={`Email delivery mode: ${EMAIL_MODE}`}
+    >
+      Mode: {EMAIL_MODE}
+    </Badge>
+  );
+}
+
+function SendOutcomePanel({ send }: { send: SendState }) {
+  if (send.kind !== 'done') return null;
+  const o = send.outcome;
+  if (o.kind === 'success') {
+    return (
+      <div style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}>
+        <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>
+          {o.mode === 'LIVE'
+            ? `Outlook accepted borrower update to ${o.maskedRecipient}`
+            : `DRY_RUN: borrower update prepared for ${o.maskedRecipient}`}
+        </div>
+        <p style={styles.outcomeDetail}>
+          {o.mode === 'LIVE'
+            ? 'The connector accepted the request for handoff. The audit row carries the full recipient; the timeline row shows the masked form. This is acceptance — not a delivery confirmation.'
+            : 'Nothing left the client. The audit + BorrowerUpdateSent timeline rows were emitted so the workflow is exercised end-to-end. To send for real, flip VITE_EMAIL_MODE=LIVE.'}
+        </p>
+      </div>
+    );
+  }
+  if (o.kind === 'send-failed') {
+    const tone = o.transient ? palette.atRisk : palette.blocked;
+    const fg = o.transient ? palette.atRiskFg : palette.blockedFg;
+    const bg = o.transient ? palette.atRiskBg : palette.blockedBg;
+    return (
+      <div style={{ ...styles.outcomeBox, background: bg, borderColor: tone }}>
+        <div style={{ ...styles.outcomeTitle, color: fg }}>
+          {o.transient ? 'Outlook send failed — transient' : 'Outlook send failed — permanent'}
+        </div>
+        <p style={styles.outcomeDetail}>{o.sendError}</p>
+        <p style={styles.outcomeDetail}>
+          {o.transient
+            ? 'You may retry. The failure is captured on the audit ledger.'
+            : 'Do not retry as-is. Review the recipient address and template, or fall back to Copy + paste in your mail client.'}
+        </p>
+      </div>
+    );
+  }
+  if (o.kind === 'governance-partial') {
+    return (
+      <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+        <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
+          CRITICAL — partial governance write
+        </div>
+        <p style={styles.outcomeDetail}>
+          Outlook accepted the borrower update to {o.maskedRecipient},
+          but the audit and/or timeline row could not be persisted.{' '}
+          <strong>Do not retry — the message may already be on its way.</strong>
+        </p>
+        {o.auditError && (
+          <p style={styles.outcomeDetail}>Audit row error: {o.auditError}</p>
+        )}
+        {o.timelineError && (
+          <p style={styles.outcomeDetail}>Timeline row error: {o.timelineError}</p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}>
+      <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
+        Could not send
+      </div>
+      <p style={styles.outcomeDetail}>{o.message}</p>
     </div>
   );
 }
@@ -320,7 +537,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: palette.text,
     letterSpacing: typography.letterSpacing.heading,
   },
-  localOnlyBanner: {
+  modeBanner: {
     margin: 0,
     padding: `${spacing.xs} ${spacing.md}`,
     background: palette.neutralBg,
@@ -362,6 +579,14 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: 'none',
     letterSpacing: 0,
     fontWeight: typography.weight.regular,
+  },
+  optionalForCopy: {
+    marginLeft: spacing.xxs,
+    color: palette.textSubtle,
+    textTransform: 'none',
+    letterSpacing: 0,
+    fontWeight: typography.weight.regular,
+    fontSize: typography.size.xs,
   },
   helperLine: { margin: 0, fontSize: typography.size.xs, color: palette.textSubtle },
   select: {
@@ -449,6 +674,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'flex-end',
     paddingTop: spacing.sm,
     borderTop: `1px solid ${palette.divider}`,
+    flexWrap: 'wrap',
   },
   primaryButton: {
     background: palette.primary,
@@ -465,6 +691,28 @@ const styles: Record<string, React.CSSProperties> = {
     background: palette.borderStrong,
     color: palette.textInverse,
     border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    cursor: 'not-allowed',
+    fontFamily: typography.family,
+  },
+  secondaryActionButton: {
+    background: palette.surface,
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  secondaryActionButtonDisabled: {
+    background: palette.surface,
+    color: palette.borderStrong,
+    border: `1px solid ${palette.borderStrong}`,
     borderRadius: radius.sm,
     padding: `${spacing.xs} ${spacing.md}`,
     fontSize: typography.size.md,

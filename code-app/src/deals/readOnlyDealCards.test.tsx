@@ -40,6 +40,10 @@ vi.mock('./documentActions', () => ({ requestDocument: vi.fn() }));
 vi.mock('./sendDocumentRequestEmail', () => ({
   sendDocumentRequestEmail: vi.fn(),
 }));
+// Phase 105: same isolation for the Outlook borrower-update send.
+vi.mock('./sendBorrowerUpdateEmail', () => ({
+  sendBorrowerUpdateEmail: vi.fn(),
+}));
 // Phase 63: same isolation for the Outlook-handoff governed write.
 vi.mock('./prepareDocumentRequestHandoff', () => ({
   prepareDocumentRequestHandoff: vi.fn(),

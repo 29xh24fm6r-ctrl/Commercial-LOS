@@ -56,6 +56,10 @@ const ACTION_BY_WRITE_ID: Readonly<Record<string, ActionMapping>> = Object.freez
     file: 'src/deals/prepareDocumentRequestHandoff.ts',
     prefix: 'oh',
   },
+  'deal-borrower-update-email': {
+    file: 'src/deals/sendBorrowerUpdateEmail.ts',
+    prefix: 'bue',
+  },
   'deal-document-review-task-create': {
     file: 'src/deals/dealTaskActions.ts',
     prefix: 'rt',

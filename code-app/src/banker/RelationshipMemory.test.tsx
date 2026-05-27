@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BankerWorkQueueData } from './workQueueQueries';
@@ -47,13 +49,15 @@ import { RelationshipMemory } from './RelationshipMemory';
 const loadMock = vi.mocked(loadBankerWorkQueueData);
 const useBankerMock = vi.mocked(useBanker);
 
-const NOW = new Date('2026-05-15T12:00:00Z');
-
 function isoDaysAgo(days: number): string {
-  return new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
 }
 function isoDaysFromNow(days: number): string {
-  return new Date(NOW.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
 }
 
 function emptyData(): BankerWorkQueueData {
@@ -694,5 +698,45 @@ describe('RelationshipMemory — Phase 100 Copy Teams summary', () => {
     expect(body).not.toMatch(/AI[- ]?generated/i);
     expect(body).not.toMatch(/\bCopilot\b/i);
     expect(body).not.toMatch(/official\s+relationship\s+graph/i);
+  });
+});
+
+describe('Phase 126 — RelationshipMemory.tsx static-source pins (visual restoration phase)', () => {
+  // Phase 126 was a visual upgrade only: framed dashed-border empty
+  // state + premium card row with primary-color accent stripe +
+  // bumped client-name typography. No new loader / governed write /
+  // email-lane import was introduced. These pins assert that the
+  // visual restoration did NOT regress the Phase 110 communication
+  // lane lock on this source file.
+  const SRC = readFileSync(
+    resolve(__dirname, 'RelationshipMemory.tsx'),
+    'utf8',
+  );
+
+  it('does NOT import Office365OutlookService directly (Phase 110 lock)', () => {
+    expect(SRC).not.toMatch(/from\s+['"][^'"]*Office365OutlookService['"]/);
+  });
+
+  it('does NOT call SendEmailV2 (Phase 110 single-callsite invariant)', () => {
+    expect(SRC).not.toMatch(/SendEmailV2\s*\(/);
+  });
+
+  it('does NOT import any sendXEmail governed-write action', () => {
+    expect(SRC).not.toMatch(/from\s+['"][^'"]*sendDocumentRequestEmail['"]/);
+    expect(SRC).not.toMatch(/from\s+['"][^'"]*sendBorrowerUpdateEmail['"]/);
+  });
+
+  it('does NOT introduce fabricated-AI claim vocabulary in the rendered copy', () => {
+    // The visual upgrade did not add any new copy. Spot-check that
+    // no fabricated-AI claim string was introduced. Negation
+    // disclaimers ("not a relationship score", "No predictive
+    // claim") remain in the source as honest framing of what the
+    // card is NOT — those are allowed.
+    expect(SRC).not.toMatch(/\bAI\s+score\b/i);
+    expect(SRC).not.toMatch(/\bapproval\s+probability\b/i);
+    expect(SRC).not.toMatch(/\bapproval\s+odds\b/i);
+    expect(SRC).not.toMatch(/\bborrower\s+sentiment\b/i);
+    expect(SRC).not.toMatch(/\blender\s+match\b/i);
+    expect(SRC).not.toMatch(/\bpredicted\s+close\s+date\b/i);
   });
 });

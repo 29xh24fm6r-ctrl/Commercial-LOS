@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BankerWorkQueueData } from './workQueueQueries';
@@ -454,5 +456,48 @@ describe('BankerAutopilotRollup — Phase 82', () => {
         }),
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe('Phase 126 — BankerAutopilotRollup.tsx static-source pins (visual restoration phase)', () => {
+  // Phase 126 upgraded this card visually only: framed dashed-
+  // border empty / no-suggestions states + severity-tinted left
+  // accent stripe on each rollup row. No new loader / governed
+  // write / email-lane import was introduced. These pins assert
+  // the visual restoration did NOT regress the Phase 110
+  // communication-lane lock on this source file, and did NOT
+  // introduce fabricated-AI claim vocabulary in the source.
+  const SRC = readFileSync(
+    resolve(__dirname, 'BankerAutopilotRollup.tsx'),
+    'utf8',
+  );
+
+  it('does NOT import Office365OutlookService directly (Phase 110 lock)', () => {
+    expect(SRC).not.toMatch(/from\s+['"][^'"]*Office365OutlookService['"]/);
+  });
+
+  it('does NOT call SendEmailV2 (Phase 110 single-callsite invariant)', () => {
+    expect(SRC).not.toMatch(/SendEmailV2\s*\(/);
+  });
+
+  it('does NOT import any sendXEmail governed-write action', () => {
+    expect(SRC).not.toMatch(/from\s+['"][^'"]*sendDocumentRequestEmail['"]/);
+    expect(SRC).not.toMatch(/from\s+['"][^'"]*sendBorrowerUpdateEmail['"]/);
+  });
+
+  it('does NOT introduce fabricated-AI / predictive / approval-odds claim vocabulary', () => {
+    // The visual upgrade did not add any new copy. Spot-check
+    // that no fabricated-AI claim string was introduced. Negation
+    // disclaimers in the source ("No AI or automated decisions",
+    // "Nothing happens automatically") remain — those are
+    // allowed; this regex set only catches the FABRICATED-CLAIM
+    // form.
+    expect(SRC).not.toMatch(/\bAI\s+score\b/i);
+    expect(SRC).not.toMatch(/\bapproval\s+probability\b/i);
+    expect(SRC).not.toMatch(/\bapproval\s+odds\b/i);
+    expect(SRC).not.toMatch(/\bborrower\s+sentiment\b/i);
+    expect(SRC).not.toMatch(/\blender\s+match\b/i);
+    expect(SRC).not.toMatch(/\bpredicted\s+close\s+date\b/i);
+    expect(SRC).not.toMatch(/\brisk\s+rating\b/i);
   });
 });

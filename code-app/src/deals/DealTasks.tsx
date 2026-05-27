@@ -6,6 +6,7 @@ import { completeTask, type CompleteTaskOutcome } from './dealTaskActions';
 import { CompleteTaskModal } from './CompleteTaskModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
+import { CountBadge } from '../shared/cockpitPrimitives';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 interface DealTasksProps {
@@ -41,10 +42,25 @@ export function DealTasks({ readOnly = false }: DealTasksProps = {}) {
   const subtitle = subtitleFor(tasks);
   const canWrite = !readOnly && !!banker?.systemUserId;
 
+  // Phase 125D — right-rail count badge: open-task count with a
+  // tone driven by overdue presence. Renders only when the slot
+  // has resolved (otherwise the count would be a fake "0").
+  const openCount = tasks.kind === 'ready' ? tasks.data.open.length : undefined;
+  const overdueCount =
+    tasks.kind === 'ready' ? tasks.data.open.filter(isOverdue).length : 0;
+  const headerTrailing =
+    openCount !== undefined ? (
+      <CountBadge
+        count={openCount}
+        tone={overdueCount > 0 ? 'atRisk' : openCount === 0 ? 'clear' : 'info'}
+        aria-label={`${openCount} open task${openCount === 1 ? '' : 's'}${overdueCount > 0 ? `, ${overdueCount} overdue` : ''}`}
+      />
+    ) : undefined;
+
   return (
     <>
       <Card>
-        <CardHeader title="Tasks / Next Actions" subtitle={subtitle} />
+        <CardHeader title="Tasks / Next Actions" subtitle={subtitle} trailing={headerTrailing} />
         {!readOnly && banker?.writeDisabledReason && (
           <p style={styles.writeDisabledBanner} role="status">
             <strong>Complete disabled:</strong> {banker.writeDisabledReason}
@@ -257,8 +273,13 @@ const styles: Record<string, React.CSSProperties> = {
   muted: {
     margin: 0,
     color: palette.textMuted,
-    fontSize: typography.size.md,
-    fontStyle: 'italic',
+    fontSize: typography.size.sm,
+    lineHeight: 1.4,
+    padding: `${spacing.md} ${spacing.lg}`,
+    background: palette.surfaceAlt,
+    border: `1px dashed ${palette.borderStrong}`,
+    borderRadius: radius.md,
+    textAlign: 'center' as const,
   },
   writeDisabledBanner: {
     margin: 0,

@@ -48,7 +48,8 @@ export type DealDataKey =
   | 'after-document-receive'
   | 'after-document-review'
   | 'after-document-review-task-create'
-  | 'after-credit-memo-draft-saved';
+  | 'after-credit-memo-draft-saved'
+  | 'after-borrower-update-email';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -257,6 +258,15 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // rows appear; activity must refresh so the NoteLogged
         // timeline event appears.
         reloadCreditMemo();
+        reloadActivity();
+        break;
+      case 'after-borrower-update-email':
+        // Phase 108: targeted reload after the Phase-105 borrower-
+        // update Outlook send. Same shape as the Phase-104 document-
+        // request reload — no document checklist or task row
+        // changed; only the activity timeline picks up the new
+        // BorrowerUpdateSent (788190014) event. The deal record
+        // itself is unchanged.
         reloadActivity();
         break;
     }

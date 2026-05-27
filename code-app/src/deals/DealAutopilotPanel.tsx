@@ -11,6 +11,7 @@ import { useSuggestionLedger } from '../shared/autopilot/useSuggestionLedger';
 import type { SuggestionLedgerEntry } from '../shared/autopilot/suggestionLedger';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
+import { SeverityMeter } from '../shared/cockpitPrimitives';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
@@ -56,8 +57,38 @@ const PRIORITY_LABEL: Record<AutopilotPriority, string> = {
   low: 'Low',
 };
 
+/**
+ * Phase 125C — premium priority chip color system.
+ *
+ * The Phase 80 `Badge variant={severity}` rendering is preserved
+ * for the priority pill so all existing test selectors and
+ * accessibility labels keep working. Phase 125C adds an inline
+ * left-stripe color on each rollup row based on the priority,
+ * pulling from the new cockpit accent palette (cobalt for
+ * medium / teal for low / atRisk for high). This gives the
+ * banker glanceable priority differentiation in the rendered
+ * list without changing the badge or the derivation.
+ */
+const PRIORITY_TO_STRIPE_TOKEN: Record<AutopilotPriority, string> = {
+  high: 'var(--cc-at-risk)',
+  medium: 'var(--cc-cobalt)',
+  low: 'var(--cc-teal)',
+};
+
 export function DealAutopilotPanel() {
   const { deal, tasks, documents, creditMemo, activity } = useDealData();
+  // Phase 125 hotfix — hoisted ABOVE every early return so the
+  // hook count is identical across initial-loading, no-suggestions,
+  // and populated renders. The pre-hotfix version called this
+  // hook AFTER the two early returns below, which produced React
+  // error #310 ("Rendered more hooks during this render than
+  // during the previous render") on the first deal that flipped
+  // from `dataReady=false` to `suggestions.length > 0` — exactly
+  // the path the Phase 121 seeded deal (`TEST — Deal Phase 121`,
+  // closing in 7d) exercises in production. The ledger is still
+  // only USED in the populated branch; calling it unconditionally
+  // is the correct React Hooks contract.
+  const ledger = useSuggestionLedger();
 
   // Wait until every input is ready before computing. The panel is
   // advisory; rendering against partial data could produce confusing
@@ -164,12 +195,26 @@ export function DealAutopilotPanel() {
     );
   }
 
-  const ledger = useSuggestionLedger();
+  // Phase 125D — priority-bucket counts for the ActionConsole
+  // header. The buckets always render (zero counts included) so
+  // the console reads as a fixed instrument strip, not as a
+  // collection of variable widgets.
+  const highCount = suggestions.filter((s) => s.priority === 'high').length;
+  const mediumCount = suggestions.filter((s) => s.priority === 'medium').length;
+  const lowCount = suggestions.filter((s) => s.priority === 'low').length;
+
   return (
     <Card>
       <CardHeader
-        title="Next best actions"
-        subtitle="Derived from current deal records. Nothing happens automatically."
+        title="Action Console"
+        subtitle="Deterministic next-best actions — derived from authorized records. Banker decides."
+      />
+      <SeverityMeter
+        buckets={[
+          { severity: 'atRisk', count: highCount, label: 'High' },
+          { severity: 'info', count: mediumCount, label: 'Medium' },
+          { severity: 'clear', count: lowCount, label: 'Low' },
+        ]}
       />
       <ul style={styles.list} aria-label="Next best actions for this deal">
         {suggestions.map((s) => {
@@ -258,12 +303,20 @@ function SuggestionRow({
     }
   }
   const severity = PRIORITY_TO_SEVERITY[suggestion.priority];
+  const stripeColor = PRIORITY_TO_STRIPE_TOKEN[suggestion.priority];
   const descId = `autopilot-reason-${dealId}-${suggestion.id}`;
   const isDismissed = ledgerEntry?.action === 'dismissed';
   const isOpened = ledgerEntry?.action === 'opened';
   return (
     <li
-      style={isDismissed ? { ...styles.row, ...styles.rowDismissed } : styles.row}
+      style={{
+        ...styles.row,
+        // Phase 125C — premium priority differentiation: cobalt for
+        // medium, teal for low, at-risk red for high. Read-only
+        // accent stripe; never changes data or derivation.
+        borderLeft: `3px solid ${stripeColor}`,
+        ...(isDismissed ? styles.rowDismissed : null),
+      }}
     >
       <div style={styles.rowHead}>
         <span style={styles.rowTitle}>{suggestion.title}</span>

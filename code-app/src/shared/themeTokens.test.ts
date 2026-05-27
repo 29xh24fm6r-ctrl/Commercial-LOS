@@ -174,9 +174,10 @@ describe('Phase 79 — theme tokens', () => {
     it('introduces no new GOVERNED_WRITES entry (theme tokens are visual-only)', async () => {
       const inventory = await import('./governance/platformInventory');
       const ids = new Set(inventory.GOVERNED_WRITES.map((w) => w.id));
-      // The 11 governed writes that existed at the end of Phase 70
-      // remain unchanged. No "theme-preference-save" or similar entry
-      // was introduced in Phase 79.
+      // No "theme-preference-save" or similar entry was introduced in
+      // Phase 79 — theme tokens are visual-only and require no
+      // governed write. (The GOVERNED_WRITES inventory has grown
+      // since Phase 79; this test pins what's NOT added, not a count.)
       expect(ids.has('theme-preference-save')).toBe(false);
       expect(ids.has('user-preference-save')).toBe(false);
     });

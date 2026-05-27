@@ -1,22 +1,39 @@
 /**
- * Phase 61: Outlook send adapter implementations.
+ * Phase 61/104: Outlook send adapter implementations.
  *
  * Two adapters today:
  *
  *   - dryRunAdapter: validates inputs locally, never touches the
  *     network, returns 'accepted' with `providerMessageId: undefined`.
- *     This is the operational default until the Office 365 Outlook
- *     connector is registered for the Code App.
+ *     This is the operational default until the operator flips
+ *     `VITE_EMAIL_MODE=LIVE` (Phase 61 EMAIL_MODE discipline).
  *
- *   - liveAdapter: today returns a permanent-failure with a clear
- *     "connector not yet registered" reason. The Office 365 Outlook
- *     connector (which would generate Office365_*Service in
- *     src/generated/services/) is NOT yet registered for this Code
- *     App; until it is, LIVE sends cannot leave the client. When the
- *     connector lands, replace the stub body of `liveAdapter.send`
- *     with the typed connector call (SendEmailV2 or equivalent) — no
- *     other changes are needed: the OutlookEmailPort contract and
- *     OutlookSendResult union are stable.
+ *   - liveAdapter: as of Phase 104, calls the typed
+ *     Office365OutlookService.SendEmailV2 connector method. The
+ *     connector is registered for this Code App and the SDK is
+ *     regenerated; the LIVE path now exits the browser for the
+ *     document-request email flow only (the only governed write that
+ *     consumes this adapter today — see GOVERNED_WRITES.deal-document-
+ *     request-email). Outcome classification:
+ *       success                       → 'accepted' (providerMessageId
+ *                                       undefined; SendEmailV2 returns
+ *                                       void).
+ *       408 / 429 / 5xx / no status   → 'transient-failure' (the caller
+ *                                       may surface a "try again"
+ *                                       affordance).
+ *       other 4xx                     → 'permanent-failure' (do not
+ *                                       retry without operator action).
+ *       thrown / non-IOperationResult → 'transient-failure' (the
+ *                                       runtime did not produce a
+ *                                       structured outcome; conservative
+ *                                       to treat as transient and let
+ *                                       the audit row carry the message
+ *                                       verbatim).
+ *
+ * The adapter never claims delivery. The action layer uses
+ * "send request accepted" copy; "accepted" here means the connector
+ * acknowledged the request for handoff — not that the borrower
+ * received the message.
  *
  * Recipient shape check (`isLikelyValidEmail`):
  *   - Local-only structural check (one `@`, a local part with at
@@ -28,18 +45,14 @@
  *     network call slot.
  */
 
+import { Office365OutlookService } from '../../generated/services/Office365OutlookService';
+import type { ClientSendHtmlMessage } from '../../generated/models/Office365OutlookModel';
 import { EMAIL_MODE } from './emailMode';
 import type {
   OutlookEmailInput,
   OutlookEmailPort,
   OutlookSendResult,
 } from './outlookEmailPort';
-
-const LIVE_CONNECTOR_NOT_REGISTERED =
-  'Office 365 Outlook connector is not yet registered for this Code App. ' +
-  'LIVE mode is wired end-to-end (audit + timeline + outcome union); ' +
-  'the missing piece is the connector registration + SDK regeneration. ' +
-  'See docs/PHASE_61_OUTLOOK_EMAIL_DELIVERY.md for the unblock checklist.';
 
 export function isLikelyValidEmail(value: string): boolean {
   const v = value.trim();
@@ -82,6 +95,38 @@ export const dryRunAdapter: OutlookEmailPort = {
   },
 };
 
+// Phase 104: 408 / 429 are transient by HTTP convention; 5xx is transient;
+// any other 4xx is treated as permanent. No status (e.g. network drop) is
+// transient so the banker can retry.
+function classifyHttpStatus(
+  status: number | undefined,
+): 'transient-failure' | 'permanent-failure' {
+  if (status === undefined) return 'transient-failure';
+  if (status === 408 || status === 429) return 'transient-failure';
+  if (status >= 500 && status <= 599) return 'transient-failure';
+  if (status >= 400 && status <= 499) return 'permanent-failure';
+  return 'transient-failure';
+}
+
+function describeError(error: unknown): {
+  message: string;
+  status: number | undefined;
+} {
+  if (error && typeof error === 'object') {
+    const e = error as { message?: unknown; status?: unknown };
+    const message =
+      typeof e.message === 'string' && e.message.length > 0
+        ? e.message
+        : 'Outlook connector reported a failure without a message.';
+    const status = typeof e.status === 'number' ? e.status : undefined;
+    return { message, status };
+  }
+  return {
+    message: 'Outlook connector reported a non-structured failure.',
+    status: undefined,
+  };
+}
+
 export const liveAdapter: OutlookEmailPort = {
   mode: 'LIVE',
   async send(input: OutlookEmailInput): Promise<OutlookSendResult> {
@@ -91,30 +136,24 @@ export const liveAdapter: OutlookEmailPort = {
         reason: `Recipient does not look like an email address: ${input.recipient}`,
       };
     }
-    // PHASE 61 LIVE STUB:
-    //   The Office 365 Outlook connector is not yet registered for
-    //   this Code App, so no typed Office365_*Service is generated in
-    //   src/generated/services/. Returning a permanent-failure with a
-    //   clear reason is the honest contract: the request itself has
-    //   been recorded by the prior governed write, and the audit row
-    //   for THIS write captures the LIVE attempt + failure precisely.
-    //
-    //   Unblock path (single file change once the SDK regenerates):
-    //     import { Office365EmailService } from
-    //       '../../generated/services/Office365EmailService';
-    //     const result = await Office365EmailService.sendEmailV2({
-    //       to: input.recipient,
-    //       subject: input.subject,
-    //       body: input.body,
-    //       importance: 'Normal',
-    //     });
-    //     return result.success
-    //       ? { kind: 'accepted', providerMessageId: result.data?.id }
-    //       : classifyTransportError(result.error);
-    return {
-      kind: 'permanent-failure',
-      reason: LIVE_CONNECTOR_NOT_REGISTERED,
+    const message: ClientSendHtmlMessage = {
+      To: input.recipient,
+      Subject: input.subject,
+      Body: input.body,
+      Importance: 'Normal',
     };
+    try {
+      const result = await Office365OutlookService.SendEmailV2(message);
+      if (result.success) {
+        return { kind: 'accepted', providerMessageId: undefined };
+      }
+      const { message: reason, status } = describeError(result.error);
+      const kind = classifyHttpStatus(status);
+      return { kind, reason };
+    } catch (err) {
+      const { message: reason } = describeError(err);
+      return { kind: 'transient-failure', reason };
+    }
   },
 };
 

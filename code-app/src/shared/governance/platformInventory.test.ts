@@ -29,6 +29,7 @@ describe('platformInventory — governed writes', () => {
         'alert-resolve',
         'credit-memo-draft-save',
         'data-quality-flag-resolve',
+        'deal-borrower-update-email',
         'deal-document-receive',
         'deal-document-request',
         'deal-document-request-email',
@@ -53,6 +54,7 @@ describe('platformInventory — governed writes', () => {
         'deal-document-review-task-create',
         'deal-document-receive',
         'deal-document-review',
+        'deal-borrower-update-email',
         'credit-memo-draft-save',
       ].includes(w.id),
     );
@@ -70,6 +72,9 @@ describe('platformInventory — governed writes', () => {
     const forbidden = [
       'stage-progression-advance',
       'credit-memo-finalize',
+      // Phase 105 shipped 'deal-borrower-update-email' — the legacy
+      // 'borrower-email-send' name was never used and must not
+      // accidentally appear as a sibling id.
       'borrower-email-send',
       'document-upload',
       'ai-generation',
@@ -93,7 +98,10 @@ describe('platformInventory — deliberately blocked', () => {
 describe('platformInventory — not wired', () => {
   it('lists every brief-mandated capability that is not built', () => {
     const ids = new Set(NOT_WIRED.map((n) => n.id));
-    expect(ids.has('email-delivery')).toBe(true);
+    // Phase 105: email-delivery NOT_WIRED was removed when the
+    // borrower-update LIVE Send path landed (GOVERNED_WRITES.deal-
+    // borrower-update-email via Office365OutlookService.SendEmailV2).
+    expect(ids.has('email-delivery')).toBe(false);
     expect(ids.has('document-upload')).toBe(true);
     expect(ids.has('ai-generation')).toBe(true);
     expect(ids.has('test-coverage-build-verification')).toBe(true);
@@ -138,10 +146,14 @@ describe('platformInventory — not wired', () => {
 
   it('specific not-wired entries map to specific blockerKinds (Phase 68 anchor)', () => {
     const byId = new Map(NOT_WIRED.map((n) => [n.id, n]));
-    // Connector-blocked
-    expect(byId.get('outlook-connector-live-send')?.blockerKind).toBe(
-      'connector',
-    );
+    // Phase 104: outlook-connector-live-send removed when document-
+    // request LIVE landed. Phase 105: email-delivery (borrower-update)
+    // removed when its LIVE send landed too. Both Outlook governance
+    // rows are now closed; the only remaining email-flavored NOT_WIRED
+    // rows live inside the borrower-portal compound entry, which
+    // documents the broader cross-tenant / inbound / automation gaps.
+    expect(byId.get('outlook-connector-live-send')).toBeUndefined();
+    expect(byId.get('email-delivery')).toBeUndefined();
     // Schema-blocked
     expect(byId.get('document-upload')?.blockerKind).toBe('schema');
     expect(byId.get('stage-reference-data-source')?.blockerKind).toBe(
@@ -149,7 +161,6 @@ describe('platformInventory — not wired', () => {
     );
     expect(byId.get('stage-ordering-contract')?.blockerKind).toBe('schema');
     // Governance / deferred design decision
-    expect(byId.get('email-delivery')?.blockerKind).toBe('governance');
     expect(byId.get('ai-generation')?.blockerKind).toBe('governance');
     expect(byId.get('executive-deal-drillthrough')?.blockerKind).toBe(
       'governance',
@@ -162,15 +173,8 @@ describe('platformInventory — not wired', () => {
       'observability',
     );
     // Compound: borrower-portal stacks auth + invitation + role +
-    // schema + secure-message + connector blockers
+    // schema + secure-message + automation blockers
     expect(byId.get('borrower-portal')?.blockerKind).toBe('compound');
-  });
-
-  it('email-delivery reason explicitly mentions no Outlook / no Graph and the Phase-23 local-only stance', () => {
-    const email = NOT_WIRED.find((n) => n.id === 'email-delivery')!;
-    expect(email.reason).toMatch(/outlook|graph/i);
-    expect(email.reason).toMatch(/local-only|copy-to-clipboard/i);
-    expect(email.reason).toMatch(/BorrowerUpdateSent/);
   });
 
   it('test-coverage-build-verification reason explicitly says no in-process signal', () => {
@@ -734,8 +738,14 @@ describe('platformInventory — local-only flows', () => {
     expect(entry!.note).toMatch(/src\/banker\/RelationshipMemory\.tsx/);
     expect(entry!.note).toMatch(/PHASE_101_OUTLOOK_SUMMARY_HANDOFF\.md/);
     // Honest about the broader Lane E + connector gap.
-    expect(entry!.note).toMatch(/Does NOT imply a live Outlook connector/i);
-    expect(entry!.note).toMatch(/NOT_WIRED\.outlook-connector-live-send/);
+    expect(entry!.note).toMatch(/Does NOT use the Outlook connector/i);
+    // Phase 104 + Phase 105: connector is now LIVE for both
+    // document-request and borrower-update email. Summary handoffs
+    // (catch-up / activity / relationship) remain copy-to-clipboard
+    // by design — the note explains both LIVE swaps and pins the
+    // remaining surfaces as Lane-E copy-only.
+    expect(entry!.note).toMatch(/Phase 104 wired LIVE document-request email/);
+    expect(entry!.note).toMatch(/Phase 105 wired LIVE borrower-update email/);
   });
 
   it('the Phase 101 doc actually exists on disk', () => {
@@ -929,8 +939,8 @@ describe('platformInventory — Phase 67 handoff classification', () => {
     expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
   });
 
-  it('GOVERNED_WRITES count: Phase 67 did not add a new governed write — Phase 70 later added the 11th (review task)', () => {
-    expect(GOVERNED_WRITES.length).toBe(11);
+  it('GOVERNED_WRITES count: Phase 67 did not add a new governed write — Phase 70 added the 11th (review task); Phase 105 added the 12th (borrower-update email)', () => {
+    expect(GOVERNED_WRITES.length).toBe(12);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {

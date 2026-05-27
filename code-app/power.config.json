@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "appId": null,
+  "appId": "63858e09-3d0b-47c9-b1d2-65cef742fda4",
   "appDisplayName": "Commercial Lending LOS (Rebuild)",
   "region": "prod",
   "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
@@ -9,7 +9,17 @@
   "buildEntryPoint": "index.html",
   "localAppUrl": "http://localhost:3000",
   "logoPath": "Default",
-  "connectionReferences": {},
+  "connectionReferences": {
+    "586e00e0-a566-4c27-9ad8-17ea650a6b39": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_office365",
+      "displayName": "Office 365 Outlook",
+      "dataSources": [
+        "office365"
+      ],
+      "dataSets": {},
+      "xrmConnectionReferenceLogicalName": "new_Office365OutlookCommercialLOS"
+    }
+  },
   "databaseReferences": {
     "default.cds": {
       "dataSources": {

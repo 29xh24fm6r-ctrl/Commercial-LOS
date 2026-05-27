@@ -122,6 +122,13 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsAudit: true,
     emitsTimeline: true,
   },
+  {
+    id: 'deal-borrower-update-email',
+    label: 'Borrower update — Outlook send',
+    phase: 105,
+    emitsAudit: true,
+    emitsTimeline: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -198,35 +205,6 @@ export interface NotWiredEntry {
 
 export const NOT_WIRED: readonly NotWiredEntry[] = [
   {
-    id: 'email-delivery',
-    label: 'Borrower update email delivery (Outlook/Graph)',
-    reason:
-      'Phase 23 borrower-update remains local-only Copy-to-clipboard. The ' +
-      'banker generates a borrower-safe update preview and pastes it into ' +
-      'their own mail client; no Outlook/Graph integration is invoked for ' +
-      'that flow and no BorrowerUpdateSent timeline event is ever emitted. ' +
-      'Phase 61 wired document-request email delivery as a SEPARATE governed ' +
-      'flow (deal-document-request-email in GOVERNED_WRITES) — borrower-' +
-      'update delivery would be a distinct future phase with its own ' +
-      'outcome union and audit/timeline coordination.',
-    blockerKind: 'governance',
-  },
-  {
-    id: 'outlook-connector-live-send',
-    label: 'Outlook connector LIVE send (Office 365 connector registration)',
-    reason:
-      'Phase 61 wires the document-request email-send governed write end ' +
-      'to end (audit + timeline + outcome union + masked recipient + ' +
-      'DRY_RUN/LIVE mode discipline). DRY_RUN operates fully today: the ' +
-      'adapter validates inputs and synthesizes "accepted" without a ' +
-      'network call. LIVE today returns a permanent-failure with a clear ' +
-      '"Office 365 Outlook connector not yet registered" reason — the ' +
-      'connector needs to be registered for this Code App and the SDK ' +
-      'regenerated, at which point the LIVE adapter swaps in the typed ' +
-      'Office365_*Service call. See docs/PHASE_61_OUTLOOK_EMAIL_DELIVERY.md.',
-    blockerKind: 'connector',
-  },
-  {
     id: 'document-upload',
     label: 'Document upload (binary file)',
     reason:
@@ -301,8 +279,8 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'confirmed six concurrent hard blockers, every one of which sits ' +
       'outside this repo: ' +
       '(1) no external auth provider — runBootstrap() requires a Bank-' +
-      'tenant Entra UPN matched to a cr664_users row, and borrowers are not ' +
-      'on the Bank tenant; ' +
+      'tenant Entra UPN matched to a cr664_platformuser row (Phase 115 ' +
+      'identity entry point), and borrowers are not on the Bank tenant; ' +
       '(2) no invitation-token / magic-link table — src/generated/services ' +
       'contains no Invitation*, Token*, MagicLink*, OneTime*, or Consent* ' +
       'service; ' +
@@ -318,15 +296,18 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'scope has no BorrowerSafe value (BankerAndManager/Team/' +
       'ExecutiveSafe/AdminOnly only), so a borrower-readable activity ' +
       'stream has no schema slot; ' +
-      '(6) no connector-backed email delivery — the Office 365 Outlook ' +
-      'connector is unregistered (NOT_WIRED.outlook-connector-live-send), ' +
-      'so even outbound borrower notifications cannot be automated; ' +
-      'Phase 63 HANDOFF mode is banker-initiated only and is not a ' +
-      'notification surface. The operational substitute for borrower ' +
-      'communication today is the Phase 63 deal-document-request-handoff ' +
-      'governed write (the banker drafts in-app and sends from their own ' +
-      'Outlook client). See docs/PHASE_64_BORROWER_PORTAL_AUDIT.md for ' +
-      'the full capability matrix and unblock checklist; ' +
+      '(6) no automated borrower-notification path — Phase 104 wired ' +
+      'LIVE document-request email and Phase 105 wired LIVE borrower- ' +
+      'update email through the Office 365 Outlook connector ' +
+      '(Office365OutlookService.SendEmailV2), but both are banker- ' +
+      'initiated send paths (the banker types recipient + subject + ' +
+      'body + banker note, then clicks Send). There is no automation ' +
+      'that posts a notification on the borrower\'s behalf — no ' +
+      'scheduled trigger, no event-driven push, no inbound-mail sync. ' +
+      'The platform never independently notifies a borrower. Phase 63 ' +
+      'HANDOFF mode is also banker-initiated and is not a notification ' +
+      'surface. See docs/PHASE_64_BORROWER_PORTAL_AUDIT.md for the ' +
+      'full capability matrix and unblock checklist; ' +
       'docs/PHASE_65_BORROWER_PORTAL_DEFERRAL.md for the standing ' +
       'deferral rationale.',
     blockerKind: 'compound',
@@ -363,11 +344,18 @@ export interface LocalOnlyFlow {
 export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
   {
     id: 'borrower-update-draft',
-    label: 'Borrower update draft',
+    label: 'Borrower update draft (Copy fallback)',
     phase: 23,
     note:
-      'Generate-and-copy only. No Dataverse write. No BorrowerUpdateSent ' +
-      'timeline event emitted. Banker manually pastes into a mail client.',
+      'Generate-and-copy preview of a borrower-safe update. No Dataverse ' +
+      'write on the Copy path. No timeline event emitted by Copy alone. ' +
+      'The banker pastes into their own mail client. Phase 105 added a ' +
+      'parallel LIVE Send path via the new GOVERNED_WRITES.deal-borrower-' +
+      'update-email governed write (audit + BorrowerUpdateSent timeline ' +
+      '788190014, masked recipient, Outlook accepted copy — not ' +
+      'delivered) but the Copy path remains as the operational fallback ' +
+      'when EMAIL_MODE is DRY_RUN or when the banker explicitly chooses ' +
+      'Copy over Send. Clicking Copy still emits NO Dataverse write.',
   },
   {
     id: 'credit-memo-local-preview',
@@ -632,11 +620,16 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'src/banker/BankerMorningCatchUp.tsx, ' +
       'src/manager/ManagerMorningCatchUp.tsx, ' +
       'src/deals/ActivityTimeline.tsx, and ' +
-      'src/banker/RelationshipMemory.tsx. Does NOT imply a live ' +
-      'Outlook connector — the broader Lane E + connector gaps ' +
-      'documented in docs/PHASE_61_OUTLOOK_EMAIL_DELIVERY.md, ' +
+      'src/banker/RelationshipMemory.tsx. Does NOT use the Outlook ' +
+      'connector — Phase 101 summary handoffs are copy-to-clipboard ' +
+      'regardless of EMAIL_MODE (LIVE vs DRY_RUN). Phase 104 wired ' +
+      'LIVE document-request email through SendEmailV2 and Phase 105 ' +
+      'wired LIVE borrower-update email through the same connector, ' +
+      'but the catch-up / activity / relationship summary surfaces ' +
+      'still do not call SendEmailV2 — they remain copy-to-clipboard ' +
+      'handoffs by design. See ' +
+      'docs/PHASE_61_OUTLOOK_EMAIL_DELIVERY.md, ' +
       'docs/PHASE_63_EMAIL_HANDOFF_FALLBACK.md, and ' +
-      'NOT_WIRED.outlook-connector-live-send remain untouched. See ' +
       'docs/PHASE_101_OUTLOOK_SUMMARY_HANDOFF.md.',
   },
   {

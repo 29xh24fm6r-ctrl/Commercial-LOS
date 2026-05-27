@@ -77,6 +77,10 @@ describe('Phase 75 — deriveBankerPersonalActivity', () => {
         outstandingDocumentCount: 0,
         pendingReviewDocumentCount: 0,
         draftMemoCount: 0,
+        // Phase 119 — restored original Banker Workspace dashboard tiles
+        inUnderwritingCount: 0,
+        staleActivityCount: 0,
+        urgentItemCount: 0,
       });
     });
   });
@@ -219,6 +223,106 @@ describe('Phase 75 — deriveBankerPersonalActivity', () => {
       ];
       const r = deriveBankerPersonalActivity(data, NOW);
       expect(r.draftMemoCount).toBe(1);
+    });
+  });
+
+  describe('Phase 119 — In Underwriting count', () => {
+    it('counts active deals whose stage matches "Underwriting" case-insensitively', () => {
+      const data = emptyData();
+      data.deals = [
+        deal({ id: 'd1', stage: 'Underwriting' }),
+        deal({ id: 'd2', stage: 'underwriting' }),
+        deal({ id: 'd3', stage: 'UNDERWRITING' }),
+        deal({ id: 'd4', stage: 'Approval' }),
+        deal({ id: 'd5', stage: undefined }),
+      ];
+      const r = deriveBankerPersonalActivity(data, NOW);
+      expect(r.inUnderwritingCount).toBe(3);
+    });
+
+    it('returns zero when no deal is in the Underwriting stage', () => {
+      const data = emptyData();
+      data.deals = [
+        deal({ id: 'd1', stage: 'Application' }),
+        deal({ id: 'd2', stage: 'Closing' }),
+      ];
+      const r = deriveBankerPersonalActivity(data, NOW);
+      expect(r.inUnderwritingCount).toBe(0);
+    });
+
+    it('does not fabricate a count when stage is missing — honest empty', () => {
+      const data = emptyData();
+      data.deals = [
+        deal({ id: 'd1', stage: undefined }),
+        deal({ id: 'd2', stage: '' }),
+      ];
+      const r = deriveBankerPersonalActivity(data, NOW);
+      expect(r.inUnderwritingCount).toBe(0);
+    });
+  });
+
+  describe('Phase 119 — Stale 14d+ count', () => {
+    it('counts active deals where lastActivityOn is at least 14 days ago', () => {
+      const data = emptyData();
+      data.deals = [
+        deal({ id: 'd1', lastActivityOn: isoDaysAgo(14) }),
+        deal({ id: 'd2', lastActivityOn: isoDaysAgo(30) }),
+        deal({ id: 'd3', lastActivityOn: isoDaysAgo(13) }),
+        deal({ id: 'd4', lastActivityOn: isoDaysFromNow(1) }),
+      ];
+      const r = deriveBankerPersonalActivity(data, NOW);
+      expect(r.staleActivityCount).toBe(2);
+    });
+
+    it('does not count deals with missing or unparseable lastActivityOn', () => {
+      const data = emptyData();
+      data.deals = [
+        deal({ id: 'd1', lastActivityOn: undefined }),
+        deal({ id: 'd2', lastActivityOn: 'not-an-iso' }),
+      ];
+      const r = deriveBankerPersonalActivity(data, NOW);
+      expect(r.staleActivityCount).toBe(0);
+    });
+  });
+
+  describe('Phase 119 — Urgent items count', () => {
+    it('sums overdue tasks + overdue outstanding docs + past-target-close deals', () => {
+      const data = emptyData();
+      data.deals = [
+        deal({ id: 'd1', targetCloseDate: isoDaysAgo(2) }),
+        deal({ id: 'd2', targetCloseDate: isoDaysAgo(10) }),
+        deal({ id: 'd3', targetCloseDate: isoDaysFromNow(5) }),
+      ];
+      data.tasks = [
+        { id: 't1', dealId: 'd1', title: 'Past', dueDate: isoDaysAgo(1), modifiedOn: undefined, completed: false },
+        { id: 't2', dealId: 'd1', title: 'Future', dueDate: isoDaysFromNow(2), modifiedOn: undefined, completed: false },
+      ];
+      data.outstandingDocuments = [
+        { id: 'doc1', dealId: 'd1', name: 'Past', dueDate: isoDaysAgo(3), requestDate: undefined, receivedDate: undefined, reviewer: undefined, uploaded: false, modifiedOn: undefined },
+        { id: 'doc2', dealId: 'd1', name: 'No due', dueDate: undefined, requestDate: undefined, receivedDate: undefined, reviewer: undefined, uploaded: false, modifiedOn: undefined },
+        { id: 'doc3', dealId: 'd1', name: 'Received', dueDate: isoDaysAgo(5), requestDate: undefined, receivedDate: isoDaysAgo(2), reviewer: undefined, uploaded: false, modifiedOn: undefined },
+      ];
+      const r = deriveBankerPersonalActivity(data, NOW);
+      // 2 past-close deals + 1 overdue task + 1 overdue outstanding
+      // doc (doc3 is filtered out because receivedDate is set) = 4
+      expect(r.pastTargetCloseCount).toBe(2);
+      expect(r.overdueTaskCount).toBe(1);
+      expect(r.urgentItemCount).toBe(4);
+    });
+
+    it('returns zero when nothing is overdue', () => {
+      const data = emptyData();
+      data.deals = [
+        deal({ id: 'd1', targetCloseDate: isoDaysFromNow(10) }),
+      ];
+      data.tasks = [
+        { id: 't1', dealId: 'd1', title: 'Future', dueDate: isoDaysFromNow(5), modifiedOn: undefined, completed: false },
+      ];
+      data.outstandingDocuments = [
+        { id: 'doc1', dealId: 'd1', name: 'Future', dueDate: isoDaysFromNow(3), requestDate: undefined, receivedDate: undefined, reviewer: undefined, uploaded: false, modifiedOn: undefined },
+      ];
+      const r = deriveBankerPersonalActivity(data, NOW);
+      expect(r.urgentItemCount).toBe(0);
     });
   });
 

@@ -34,6 +34,7 @@ import { ReviewDocumentModal } from './ReviewDocumentModal';
 import { CreateDocumentReviewTaskModal } from './CreateDocumentReviewTaskModal';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
+import { CountBadge } from '../shared/cockpitPrimitives';
 import {
   PENDING_REVIEW_AT_RISK_DAYS,
   isReceivedDocumentPendingReview,
@@ -190,10 +191,24 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
 
   const canWrite = !readOnly && !!banker?.systemUserId;
 
+  // Phase 125D — right-rail count badge: outstanding-doc count
+  // with a tone driven by presence (any outstanding doc reads
+  // as at-risk amber; zero outstanding reads as clear green).
+  const outstandingCount =
+    documents.kind === 'ready' ? documents.data.outstanding.length : undefined;
+  const headerTrailing =
+    outstandingCount !== undefined ? (
+      <CountBadge
+        count={outstandingCount}
+        tone={outstandingCount === 0 ? 'clear' : 'atRisk'}
+        aria-label={`${outstandingCount} outstanding document${outstandingCount === 1 ? '' : 's'}`}
+      />
+    ) : undefined;
+
   return (
     <>
       <Card>
-        <CardHeader title="Documents" subtitle={subtitleFor(documents)} />
+        <CardHeader title="Documents" subtitle={subtitleFor(documents)} trailing={headerTrailing} />
         {!readOnly && banker?.writeDisabledReason && (
           <p style={styles.writeDisabledBanner} role="status">
             <strong>Request disabled:</strong> {banker.writeDisabledReason}
@@ -565,8 +580,13 @@ const styles: Record<string, React.CSSProperties> = {
   muted: {
     margin: 0,
     color: palette.textMuted,
-    fontSize: typography.size.md,
-    fontStyle: 'italic',
+    fontSize: typography.size.sm,
+    lineHeight: 1.4,
+    padding: `${spacing.md} ${spacing.lg}`,
+    background: palette.surfaceAlt,
+    border: `1px dashed ${palette.borderStrong}`,
+    borderRadius: radius.md,
+    textAlign: 'center' as const,
   },
   writeDisabledBanner: {
     margin: 0,

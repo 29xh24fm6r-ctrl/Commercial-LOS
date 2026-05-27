@@ -8,7 +8,55 @@ export const WORKSPACE_ROUTES = {
 
 export type WorkspaceKey = keyof typeof WORKSPACE_ROUTES;
 
-const MATCHERS: Array<[WorkspaceKey, RegExp]> = [
+/**
+ * Phase 116: explicit aliases for the live environment's Platform
+ * Workspace names. Matched BEFORE the substring regex matchers below
+ * (case-insensitive, whitespace-trimmed) so the contract between
+ * Code App and live data is exact, not approximate.
+ *
+ * The six canonical names ship in the deployed environment landed by
+ * Phase 113 + Phase 115. Each name appears exactly as the
+ * make.powerapps.com Platform Workspace grid displays it.
+ *
+ * Portfolio Management routes to the Manager Command Center because
+ * the manager workspace's card stack (TeamWorkQueue, banker filter,
+ * pipeline summary, deals-by-stage, closing forecast, at-risk /
+ * blocked deals, banker workload, manager activity summary, autopilot
+ * rollup, morning catch-up) is the closest functional fit for a
+ * portfolio-oversight role. The Banker model's
+ * `cr664_roletype: PortfolioManager` enum value (788190002) confirms
+ * portfolio managers participate in banker-style workflows; at the
+ * workspace level, the Manager Command Center is where their
+ * team-scoped oversight UX lives today. See
+ * docs/PHASE_116_FIRST_LIVE_LAUNCH_STABILIZATION.md §2 for the
+ * full decision record.
+ */
+const EXPLICIT_ALIASES: Readonly<Record<string, WorkspaceKey>> = Object.freeze({
+  'Admin Control Center': 'admin',
+  'Banker Workspace': 'banker',
+  'Manager Command Center': 'manager',
+  'Team Workspace': 'team',
+  'Executive Dashboard': 'executive',
+  'Portfolio Management': 'manager',
+});
+
+/**
+ * Lower-case lookup table built from EXPLICIT_ALIASES at module
+ * load. We materialize it once so case-insensitive lookup is O(1)
+ * and the exact-name contract above stays human-readable.
+ */
+const EXPLICIT_ALIASES_LOWER: ReadonlyMap<string, WorkspaceKey> = new Map(
+  Object.entries(EXPLICIT_ALIASES).map(([name, key]) => [name.toLowerCase(), key]),
+);
+
+/**
+ * Substring regex fallback. Catches workspace names that don't
+ * appear in EXPLICIT_ALIASES but contain a role keyword
+ * (e.g. "Senior Banker Office" → banker; "Audit Admin Surface"
+ * → admin). The fallback is intentionally conservative — only the
+ * five role keywords from Phases 4 / 32 match.
+ */
+const MATCHERS: ReadonlyArray<readonly [WorkspaceKey, RegExp]> = [
   ['banker', /\bbanker\b/i],
   ['team', /\bteam\b/i],
   ['manager', /\bmanager\b/i],
@@ -16,10 +64,28 @@ const MATCHERS: Array<[WorkspaceKey, RegExp]> = [
   ['admin', /\badmin\b/i],
 ];
 
-export function resolveWorkspaceRoute(workspaceName: string | undefined): string | null {
+export function resolveWorkspaceRoute(
+  workspaceName: string | undefined,
+): string | null {
   if (!workspaceName) return null;
+  const trimmed = workspaceName.trim();
+  if (trimmed.length === 0) return null;
+
+  // Phase 116: explicit alias map first (case-insensitive,
+  // exact-name). This is the contract with the live env's Platform
+  // Workspace seed data.
+  const aliasKey = EXPLICIT_ALIASES_LOWER.get(trimmed.toLowerCase());
+  if (aliasKey) return WORKSPACE_ROUTES[aliasKey];
+
+  // Substring regex fallback (Phases 4 / 32). Preserves resolution
+  // for any workspace name that contains a role keyword but isn't
+  // an explicit alias.
   for (const [key, re] of MATCHERS) {
-    if (re.test(workspaceName)) return WORKSPACE_ROUTES[key];
+    if (re.test(trimmed)) return WORKSPACE_ROUTES[key];
   }
+
+  // Fail closed. AuthGate's UnresolvedWorkspaceError path renders
+  // the unmapped name honestly — no default workspace, no silent
+  // demotion.
   return null;
 }

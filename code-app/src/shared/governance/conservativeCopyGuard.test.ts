@@ -172,6 +172,8 @@ const RULES: readonly CopyRule[] = [
       'src/deals/CreditMemoDraftModal.tsx',
       'src/deals/CreditMemo.tsx',
       'src/deals/DealAutopilotPanel.tsx',
+      'src/deals/DealBlockers.tsx',
+      'src/deals/DealWorkstreamPanel.tsx',
       'src/manager/ManagerAutopilotRollup.tsx',
       'src/banker/BankerAutopilotRollup.tsx',
       'src/team/TeamAutopilotRollup.tsx',
@@ -192,6 +194,10 @@ const RULES: readonly CopyRule[] = [
         'Phase 73 truthful negation: ConsistencyReviewBlock states "Not AI" as a non-capability disclaimer next to the deterministic structured-field check.',
       'src/deals/DealAutopilotPanel.tsx':
         'Phase 80 truthful negation: the autopilot disclaimer states "never ... calls AI" so the banker is told explicitly that the suggestion list is deterministic — not a Copilot output.',
+      'src/deals/DealBlockers.tsx':
+        'Phase 125D truthful negation: the Attention Console subtitle states "never AI" so the banker is told explicitly that the severity-bucketed signal list is derived from authorized records, not from a Copilot inference.',
+      'src/deals/DealWorkstreamPanel.tsx':
+        'Phase 125D truthful negation: the Workstream Panel subtitle states "never AI, never predictive" and the footer disclaims "no AI completion estimates" so the banker is told explicitly that the four workstream bars are derived counts only, not model output.',
       'src/manager/ManagerAutopilotRollup.tsx':
         'Phase 81 truthful negation: the manager rollup disclaimer states "No AI or automated decisions" so the manager sees the same Phase 80 non-capability declaration on the team-level surface.',
       'src/banker/BankerAutopilotRollup.tsx':

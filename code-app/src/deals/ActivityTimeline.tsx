@@ -501,8 +501,13 @@ const styles: Record<string, React.CSSProperties> = {
   muted: {
     margin: 0,
     color: palette.textMuted,
-    fontSize: typography.size.md,
-    fontStyle: 'italic',
+    fontSize: typography.size.sm,
+    lineHeight: 1.4,
+    padding: `${spacing.md} ${spacing.lg}`,
+    background: palette.surfaceAlt,
+    border: `1px dashed ${palette.borderStrong}`,
+    borderRadius: radius.md,
+    textAlign: 'center' as const,
   },
   list: {
     listStyle: 'none',

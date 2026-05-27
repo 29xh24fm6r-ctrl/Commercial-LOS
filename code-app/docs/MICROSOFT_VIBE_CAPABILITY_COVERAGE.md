@@ -15,11 +15,170 @@ for capability status; specific governance metadata still lives
 in
 [platformInventory.ts](../src/shared/governance/platformInventory.ts).
 
-**Phase 103 checkpoint (current).** After Phases 70–102 shipped the
-full Lane A buildable list (analytics + activity intelligence +
+**Phase 111 release-candidate snapshot (current authoritative
+read).** After Phase 110 release-locked the banker-triggered
+Outlook communication lane (Phases 104–110), the project has a
+defensible release-candidate posture across all surfaces. See
+[PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md](PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md)
+for the consolidated counts (12 governed writes / 16 LOCAL_ONLY_FLOWS /
+8 NOT_WIRED / 1 DELIBERATELY_BLOCKED at end of Phase 110), the
+operator release checklist, the seven-lane delta vs. Phase 103, and
+the recommended-vs-stopping next-phase guidance. The earlier
+checkpoint at
+[PHASE_103_PRODUCT_CHECKPOINT.md](PHASE_103_PRODUCT_CHECKPOINT.md)
+is preserved for historical context.
+
+**Phase 112 operator validation script.** The human-executable
+step-by-step release-candidate validation lives at
+[PHASE_112_OPERATOR_RC_VALIDATION_SCRIPT.md](PHASE_112_OPERATOR_RC_VALIDATION_SCRIPT.md).
+Eleven sections (A–K) walk an admin or release-operator through
+pre-flight, app launch, release-readiness/inventory, admin email
+diagnostics, banker document-request flow, banker borrower-update
+flow, negative checks, an evidence-capture template, failure
+handling, what the script does NOT validate, and cross-references.
+Run it in the deployed environment after every build before
+promotion. The Phase 111 snapshot tells you what should be true;
+Phase 112 tells the operator how to verify it.
+
+**Phase 113–121 first-live-launch sequence.** Real deployment
+proved the app could publish (Phase 113), bootstrap identity
+correctly against the seeded `cr664_platformuser` table (Phase
+115), recognize the six live Platform Workspace names including
+`Portfolio Management → manager route` (Phase 116), and present
+a product-grade Banker Workspace shell with dark sidebar + KPI
+grid + tabs + right rail (Phase 117). The Phase 117 shell
+preserves every prior invariant: no email-lane change, no fake
+routes (Contacts / Due Diligence / Alerts tabs deliberately
+omitted), no `New Deal` / `Log Activity` buttons (no governed
+write supports either), and the read-only banner surfaces when
+`BankerIdentity.writeDisabledReason` is populated.
+[PHASE_118_ORIGINAL_UI_UX_INVENTORY.md](PHASE_118_ORIGINAL_UI_UX_INVENTORY.md)
+classifies the missing original-product UI surfaces (A through F
+buckets — already-implemented-not-composed, implemented-needs-
+seed, loader-missing, write-missing, deliberately-blocked, pure
+polish) so restoration phases can be sequenced against
+governance reality.
+[PHASE_119_RESTORE_ORIGINAL_BANKER_WORKSPACE_UI_UX_PART_1.md](PHASE_119_RESTORE_ORIGINAL_BANKER_WORKSPACE_UI_UX_PART_1.md)
+implements the first restoration slice (bucket-A wave 1: stage-
+grouped pipeline + 3 new KPI tiles + My-Tasks right-rail panel).
+[PHASE_120_RESTORE_ORIGINAL_BANKER_WORKSPACE_UI_UX_PART_2.md](PHASE_120_RESTORE_ORIGINAL_BANKER_WORKSPACE_UI_UX_PART_2.md)
+ships the second restoration slice (bucket-A wave 2: Activity
+tab + Due Diligence tab + per-row stale badges + sidebar-footer
+workspace switcher). After Phase 120 the tab bar surfaces 7 tabs
+(Overview / Pipeline / Action Queue / Due Diligence / Activity /
+Relationships / Signals); Contacts and Alerts remain absent, and
+no `New Deal` / `Log Activity` buttons are surfaced.
+[PHASE_121_LIVE_BANKER_DATA_SEED.md](PHASE_121_LIVE_BANKER_DATA_SEED.md)
+captures the manual seed reference runbook;
+[PHASE_121_OPERATOR_SEED_CHECKLIST.md](PHASE_121_OPERATOR_SEED_CHECKLIST.md)
+is the streamlined operator click-through with pre-verified
+live IDs. Phase 121 shipped with **reduced scope**: Stage
+Reference, Status Reference, Borrower, and Deal rows were
+seeded successfully, while Task + Document seeds were skipped
+due to Dataverse lookup/config blockers (the
+`cr664_dealtask1.cr664_AssignedTo` form/quick-find view
+misconfiguration + the `cr664_documentchecklist.cr664_Deal`
+legacy-vs-modern target mismatch).
+[PHASE_122_RETARGET_DEAL_LOOKUPS.md](PHASE_122_RETARGET_DEAL_LOOKUPS.md)
+scopes the Dataverse-configuration phase that retargets the
+modern operational child-table Deal lookups to `cr664_loandeal`,
+unblocking the deferred Phase 121 document seeds. Phase 122 is
+**not a React phase** — the production app already binds
+correctly to `/cr664_loandeals(...)`; Phase 122 makes the live
+schema match what the app already assumes.
+[PHASE_122A_OGB_LOS_ORIGINAL_UI_UX_RECOVERY_AUDIT.md](PHASE_122A_OGB_LOS_ORIGINAL_UI_UX_RECOVERY_AUDIT.md)
+is the visual-recovery audit. Headline finding: no archived
+richer UI exists in the repo. The audit produces a forward-
+looking visual-restoration backlog with buckets A / B / C / D
+and proposes Phases 123–129.
+[PHASE_123_PREMIUM_BANKER_COMMAND_CENTER_VISUAL_SHELL.md](PHASE_123_PREMIUM_BANKER_COMMAND_CENTER_VISUAL_SHELL.md)
+ships the first wave: a premium command-center hero header,
+the KPI grid reorganized into Pipeline / Work items / Attention
+groups with hero treatment for Active deals + Pipeline, a
+premium tab bar, accent-striped right-rail panels, polished
+sidebar + workspace switcher pill, and framed empty states
+across PersonalPipeline / Activity / Due Diligence / My Tasks
+rail.
+[PHASE_124_RICH_PIPELINE_STAGE_BOARD.md](PHASE_124_RICH_PIPELINE_STAGE_BOARD.md)
+rebuilds the Pipeline tab as a horizontal stage-board with one
+lane per canonical non-terminal STAGE_CATALOG stage + custom
+lanes for live operator-named stages + Stage-unknown fallback.
+Premium deal cards replace the per-stage flat tables; lane
+headers carry deal-count pills + compact-currency amount
+summaries (omitted honestly when all deals in a lane lack
+amounts). Terminal stages are deliberately excluded because the
+loader already filters out `cr664_isterminalstatus = true`.
+[PHASE_125_DEAL_WORKSPACE_COCKPIT.md](PHASE_125_DEAL_WORKSPACE_COCKPIT.md)
+extends the cockpit feel into the per-deal workspace: DealHeader
+becomes a hero band with primary accent stripe + hero name +
+amount hero block + relative target-close countdown + honest
+"Not set" copy for missing fields, DealBlockers +
+DealStageProgressionCard signal/reason rows get severity-tinted
+framed treatment, and the DealTasks / DealDocuments / CreditMemo
+/ ActivityTimeline / BorrowerCommunication honest-empty states
+match the framed dashed-border treatment shipped in Phases 123 +
+124.
+[PHASE_125B_DEAL_WORKSPACE_VISUAL_REDESIGN.md](PHASE_125B_DEAL_WORKSPACE_VISUAL_REDESIGN.md)
+implements the design-pass-first redesign of that deal workspace:
+navy hero band with a glass metric strip + two-column cockpit
+grid (intelligence left, attention right) + honest "Not set"
+chips for missing stage / status. Preserves the Phase 125 hook
+hoist verbatim.
+[PHASE_125C_PREMIUM_DEAL_COCKPIT_VISUAL_UPGRADE.md](PHASE_125C_PREMIUM_DEAL_COCKPIT_VISUAL_UPGRADE.md)
+is the premium polish pass on top of Phase 125B: adds the
+cobalt / teal / cyan / violet accent families to the Phase 79
+theme tokens, a horizontal canonical-stage pill rail to
+DealStageProgressionCard (with a custom-stage fallback for
+the Phase 121 sparse seed), a layered hero glow to DealHeader,
+inline-SVG severity glyphs (warning triangle / alert circle /
+info circle) replacing the small color-dot indicator on
+DealBlockers + Stage Progression signal rows, a cobalt
+liquid-glass overlay backdrop to the right-rail attention
+column, and a refreshed DealAutopilotPanel priority stripe
+palette (cobalt / teal / at-risk). Phase 125 hook hoist
+preserved.
+[PHASE_125D_BLOOMBERG_APPLE_DEAL_COCKPIT.md](PHASE_125D_BLOOMBERG_APPLE_DEAL_COCKPIT.md)
+is the Bloomberg-Terminal-meets-Apple-Enterprise cockpit
+redesign on top of Phase 125C. Adds the slate cockpit-surface
+theme tokens (panelBg / deckBg / deckTile / glassPanel /
+panelBorder), a pure-function deriveDealCockpitMetrics() that
+produces every KPI deck / workstream-bar / right-rail count-
+badge value, and six new shared visual primitives (MetricTile,
+CompletenessRing, WorkstreamBar, CountBadge, SeverityMeter,
+GlassPanel). Introduces a DealMetricDeck KPI strip (8 tonal
+tiles + completeness ring + missing-fields readout) and a
+DealWorkstreamPanel (4 progress bars). Promotes DealBlockers
+→ Attention Console (severity-meter header), DealStageProgressionCard
+→ connected-node Stage Map (numbered nodes + tonal
+connectors + glass command strip), and DealAutopilotPanel →
+Action Console (priority-meter header). Refreshes DealSummary
+into three tonal grouped sections (identity / pricing /
+structure). Adds count badges to right-rail Tasks + Documents
+card headers. Page background flips to the slate cockpit
+platform. Phase 125 hook hoist preserved.
+[PHASE_126_RELATIONSHIPS_SIGNALS_VISUAL_RESTORATION.md](PHASE_126_RELATIONSHIPS_SIGNALS_VISUAL_RESTORATION.md)
+upgrades the Relationships + Signals tabs into premium
+intelligence surfaces: per-client RelationshipMemory rows gain
+a primary-accent left stripe + bumped client-name typography,
+BankerAutopilotRollup rows gain a severity-tinted left stripe
+driven by row priority, and both cards' empty states match the
+framed dashed-border treatment. All Phase 76 / 78 / 82 / 83 /
+100 / 101 derivations + local ledgers + clipboard / mailto
+handoffs preserved verbatim; new static-source pins assert the
+Phase 110 communication-lane lock holds on both files.
+Composition-only — no Dataverse / loader / governed-write
+changes. Phases 118 + 121 + 122 + 122A are documentation /
+Dataverse-config only; Phases 119 + 120 + 123 + 124 + 125 +
+125B + 125C + 125D + 126 are implementation with regression
+tests. No phase changes the
+loan-deal / banker / borrower schema, fabricates React data,
+adds automation, or exercises the email lane.
+
+**Phase 103 checkpoint (historical).** After Phases 70–102 shipped
+the full Lane A buildable list (analytics + activity intelligence +
 relationship memory + autopilot + Teams handoffs + Outlook
-handoffs + manager parity), this map's Lane A roadmap is
-**substantially complete**. The remaining Vibe gaps are gated on
+handoffs + manager parity), this map's Lane A roadmap was
+**substantially complete**. The remaining Vibe gaps were gated on
 upstream unlocks (Lanes B / C / D / E / F / G). See
 [PHASE_103_PRODUCT_CHECKPOINT.md](PHASE_103_PRODUCT_CHECKPOINT.md)
 for the build-now / defer / stop decision per lane and the
@@ -92,12 +251,12 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.4 Borrower communication
 
 - **Vibe expected.** Outbound updates, status checks, doc requests, two-way thread.
-- **Current state.** **Local-only workaround + DRY_RUN / handoff only.** Phase 23 borrower-update draft (clipboard copy), Phase 24 credit-memo preview, Phase 61 document-request email (DRY_RUN/LIVE-stub), Phase 63 document-request handoff (mailto + clipboard), Phase 66/67 borrower-safe status packet + handoff. Banker initiates everything.
-- **Gap.** No automated outbound; no inbound (responses arrive in the banker's own Outlook inbox); no two-way thread; no borrower-facing portal (`NOT_WIRED.borrower-portal`).
-- **Blocker.** Connector (Outlook), auth/security (borrower identity), schema (`BorrowerSafe` visibility scope; secure-message entity).
-- **Safe next step.** Lane B: Outlook connector registration unblocks Phase 61 LIVE mode and `NOT_WIRED.email-delivery` simultaneously. Two governance rows close with one upstream action.
-- **Schema / admin work needed?** Yes (connector for LIVE; schema for portal-grade communication).
-- **Build now / later / deferred.** Lane B = soon (connector). Two-way thread = deferred (compound blocker).
+- **Current state.** **Banker-initiated LIVE outbound across both major write paths; no automation, no inbound, no portal.** Phase 23 borrower-update draft (Copy fallback), Phase 24 credit-memo preview, Phase 61/104 document-request email (DRY_RUN + LIVE through `SendEmailV2`), Phase 63 document-request handoff (mailto + clipboard), Phase 66/67 borrower-safe status packet + handoff, **Phase 105** borrower-update email (DRY_RUN + LIVE through `SendEmailV2`, governed write `deal-borrower-update-email`, audit + `BorrowerUpdateSent` timeline 788190014, masked recipient, "Outlook accepted" copy — never "delivered"). Both LIVE send paths are fully banker-initiated (banker types recipient + body + banker note + clicks Send).
+- **Gap.** No automated outbound (no scheduled trigger, no event-driven push). No inbound — responses arrive in the banker's own Outlook inbox and are not synced into the deal timeline. No two-way thread. No borrower-facing portal (`NOT_WIRED.borrower-portal`).
+- **Blocker.** Automation, inbound mail, and portal remain governance + schema + cross-tenant identity problems (see `NOT_WIRED.borrower-portal` blockers (1)–(6)). The LIVE outbound half is closed.
+- **Safe next step.** Maintain. Both LIVE outbound write surfaces are shipped and governed. Inbound mail would be a separate phase with its own audit/timeline coordination; automation would be a separate phase with a governance review for "the app independently messaging borrowers."
+- **Schema / admin work needed?** No (for outbound LIVE — already shipped). Yes (governance + schema) for inbound and portal-grade two-way thread.
+- **Build now / later / deferred.** Phase 105 closed the borrower-update LIVE half. Inbound + automation + two-way thread deferred (compound blocker).
 
 ### 1.5 Borrower portal / concierge
 
@@ -112,12 +271,12 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.6 Outlook email integration
 
 - **Vibe expected.** Send borrower updates and document requests from the app; log sent/received emails on the deal timeline.
-- **Current state.** **DRY_RUN / handoff only — handoff parity expanded by Phase 101.** Phase 61 governed send with `DRY_RUN | LIVE | HANDOFF` mode split. DRY_RUN simulates locally; LIVE is a permanent-failure stub (Phase 62); HANDOFF (Phase 63) is the operational default — banker's own Outlook does the actual send. **Phase 101** added Outlook handoff parity to the four summary surfaces that already carry the Phase 98 / 99 / 100 Teams handoff: Banker MorningCatchUp, Manager MorningCatchUp, per-deal ActivityTimeline, per-client RelationshipMemory rows. A small helper (`src/shared/email/summaryOutlookHandoff.ts`) wraps the Phase 63 `buildMailtoUrl` + `buildHandoffClipboardText` primitives verbatim and exposes three banker-safe subject builders (`Morning catch-up summary`, `Deal activity summary — <Deal Name>`, `Relationship snapshot — <Client Name>`). A reusable React component (`src/shared/email/SummaryOutlookHandoffButtons.tsx`) renders "Open in Outlook" + "Copy email" buttons; the body is the same plain-text formatter output the sibling Teams copy button uses. The recipient is optional and empty by default — the brief explicitly forbids inferring a recipient from client name. Inventoried as `LOCAL_ONLY_FLOWS.outlook-summary-handoff`. The click never mutates the Phase 72 last-visit marker, the Phase 78 note-draft state, the Phase 83 / 90 / 91 ledgers, or any Dataverse row.
-- **Gap.** LIVE-mode connector-backed send. Inbound email logging.
-- **Blocker.** Connector — Office 365 Outlook connector not registered for this Code App.
-- **Safe next step.** Lane B: the single highest-leverage upstream action. The Phase 62 §2 swap is documented and ready; one PR after the connector registers. Phase 101 closed the Lane A handoff parity gap.
-- **Schema / admin work needed?** Yes (admin — connector registration).
-- **Build now / later / deferred.** Phase 101 closed the no-admin Outlook handoff parity slice. Soon (Lane B) for connector-backed send.
+- **Current state.** **Lane B email is RELEASE-LOCKED through Phase 110.** Two governed LIVE send paths wired (document-request via Phase 104, borrower-update via Phase 105), operator-safety regression-pinned (Phase 106), activity-evidence regression-pinned (Phase 107), post-send activity refresh wired (Phase 108), operator smoke-test harness shipped (Phase 109), and the full lane sealed by a consolidated 134-assertion release-lock test file (Phase 110, [docs/PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md](PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md)). Catch-up / activity / relationship summary surfaces remain copy-to-clipboard by design. Any future communication-lane work (inbound mail, automation, portal messaging, delivery tracking, shared mailbox, Phase 101 LIVE delivery) is explicitly out of scope and forbidden at CI time by the Phase 110 lock. Phase 61 shipped the `DRY_RUN | LIVE | HANDOFF` mode split for document-request; Phase 63 added the HANDOFF (mailto + clipboard) path. **Phase 104** registered the Office 365 Outlook connector and swapped the LIVE stub in `outlookEmailAdapters.ts` to call `Office365OutlookService.SendEmailV2`. **Phase 105** added a parallel borrower-update LIVE send path: new governed write `deal-borrower-update-email` (12th `GOVERNED_WRITES` entry) reusing the same adapter, emits audit + `BorrowerUpdateSent` (788190014) timeline rows with masked recipient and "Outlook accepted" copy. **Phase 106** is a verification + docs phase that proves at CI time that flipping `VITE_EMAIL_MODE=LIVE` is operator-safe for *exactly* those two writes. The new pin file `src/shared/governance/emailLiveReleaseReadiness.test.ts` (41 assertions across six invariants) enforces: `NOT_WIRED.email-delivery` is absent; `Office365OutlookService` is imported by exactly one production file; only `SendEmailV2` is called (no calendar/contact/batch/subscription); the four Phase 101 summary handoffs and their helper/button file do NOT import the connector regardless of `EMAIL_MODE`; the LIVE adapter sets only `To` / `Subject` / `Body` / `Importance: 'Normal'`; no automation / scheduler / inbound-mail / borrower-portal-import surface exists; and the action layers contain no "delivered" / "email was sent" claims. Both LIVE paths use the minimal `ClientSendHtmlMessage` — no attachments, Cc, Bcc, From (shared mailbox), ReplyTo, or Sensitivity. Outcome classification on both: success → `accepted`; 408 / 429 / 5xx / no-status / thrown rejection → `transient-failure`; other 4xx → `permanent-failure`. The Phase 23 Copy fallback remains in `DraftBorrowerUpdateModal` for offline workflows and DRY_RUN. **Phase 101** Outlook summary handoffs (Banker MorningCatchUp, Manager MorningCatchUp, per-deal ActivityTimeline, per-client RelationshipMemory) do NOT call `SendEmailV2` regardless of `EMAIL_MODE` — those four surfaces remain copy-to-clipboard handoffs by design, now structurally guarded by the Phase 106 pin file. Inventoried as `LOCAL_ONLY_FLOWS.outlook-summary-handoff`.
+- **Gap.** Catch-up / activity / relationship summary LIVE send (deliberately not built — Phase 101 stays copy-to-clipboard). Inbound email logging. Two-way thread. Automated borrower-notification triggers.
+- **Blocker.** No remaining connector blocker for outbound send. Inbound + automation are separate governance + schema phases.
+- **Safe next step.** Maintain. Phase 104 + Phase 105 closed the highest-leverage Lane B items. The remaining surfaces are deliberate scope freezes per the Phase 103 product checkpoint — no additional sibling Outlook send variants should land just because the pattern exists.
+- **Schema / admin work needed?** No (for both LIVE send paths — shipped). Yes (governance) for inbound email logging and automated triggers.
+- **Build now / later / deferred.** Phase 104 shipped LIVE document-request send. Phase 105 shipped LIVE borrower-update send. Summary-handoff LIVE deliberately not built (Phase 101 copy-to-clipboard is the operating model). Inbound + automation deferred.
 
 ### 1.7 Microsoft Teams integration
 
@@ -132,9 +291,9 @@ When a Phase brief is silent on a capability, treat this map's
 ### 1.8 Teams calendar sync
 
 - **Vibe expected.** Banker calendar events for deal milestones; close-date reminders; SLA alerts.
-- **Current state.** **Not started.** Phase 85 reaffirmed: calendar read/write requires the Office 365 Outlook connector (the same connector pinned at `NOT_WIRED.outlook-connector-live-send` with `blockerKind: 'connector'`) OR Graph `Calendars.Read*` permissions with admin consent. The repo's `SharedClosingCalendar.tsx` is a deterministic per-deal bucketing by `targetCloseDate` rendered as a calendar-style card — it is NOT a calendar integration and does not write to or read from any external calendar.
+- **Current state.** **Not started.** Phase 85 reaffirmed: calendar read/write requires the Office 365 Outlook connector OR Graph `Calendars.Read*` permissions with admin consent. The connector itself was registered in Phase 104 (which wired `SendEmailV2` for document-request email), but calendar APIs are a separate set of connector operations + governance decisions and remain unwired. The repo's `SharedClosingCalendar.tsx` is a deterministic per-deal bucketing by `targetCloseDate` rendered as a calendar-style card — it is NOT a calendar integration and does not write to or read from any external calendar.
 - **Gap.** Everything.
-- **Blocker.** Same as 1.7 (Teams + Graph calendar permissions); registering the Office 365 Outlook connector for the Code App is the single upstream action that simultaneously unblocks 1.6 (Outlook email LIVE) and the calendar half of 1.8.
+- **Blocker.** Same as 1.7 (Teams + Graph calendar permissions). Phase 104 registered the Outlook connector for `SendEmailV2` only; the calendar half of 1.8 needs separate calendar-operation registration and governance.
 - **Safe next step.** Lane E (no in-repo motion until connector lands).
 - **Schema / admin work needed?** Yes.
 - **Build now / later / deferred.** Later.
@@ -404,16 +563,41 @@ upstream dependency. Ranked by current operational leverage:
 7. **Capability Inventory mirror in `STABILIZATION_CHECKLIST.md`.** Phase 68 ships the in-app view; mirror the same data in the standing docs for external readers.
 8. **Banker-only relationship notes card (LOCAL_ONLY).** A Phase-23-style draft surface — banker maintains notes off-app; the app surfaces a structured editor + Copy. Stop-gap for capability §1.16.
 
-### Lane B — Needs Outlook connector registration
+### Lane B — Outlook connector registration (**RELEASE-LOCKED through Phase 110**)
 
-Single upstream action (Power Platform admin: register the
-Office 365 Outlook connector for this Code App). Closes multiple
-governance rows simultaneously.
+Upstream action (Power Platform admin: register the Office 365
+Outlook connector for this Code App) — **completed for `SendEmailV2`**
+in Phase 104. Both outbound governed writes have shipped. The full
+lane is consolidated and release-locked by Phase 110; see
+[docs/PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md](PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md).
 
-1. Phase 62 §2 swap — flip `liveAdapter.send` from permanent-failure to typed `Office365EmailService.sendEmailV2` call.
-2. `NOT_WIRED.outlook-connector-live-send` removal.
-3. `NOT_WIRED.email-delivery` (borrower update outbound) — additional governed-write phase using the same adapter.
-4. Inbound email logging (timeline `EmailLogged` events from connector callbacks; would also require Power Automate or a connector callback pattern — possibly Lane B + Lane E hybrid).
+**Closed at release (Phases 104–110):**
+
+1. ~~Phase 62 §2 swap — flip `liveAdapter.send` from permanent-failure to typed `Office365OutlookService.SendEmailV2` call.~~ **Done in Phase 104.** See [docs/PHASE_104_OUTLOOK_LIVE_SEND.md](PHASE_104_OUTLOOK_LIVE_SEND.md).
+2. ~~`NOT_WIRED.outlook-connector-live-send` removal.~~ **Done in Phase 104.**
+3. ~~`NOT_WIRED.email-delivery` (borrower-update outbound) — separate governed-write phase using the same adapter.~~ **Done in Phase 105.** See [docs/PHASE_105_BORROWER_UPDATE_LIVE_SEND.md](PHASE_105_BORROWER_UPDATE_LIVE_SEND.md). New governed write `deal-borrower-update-email`; `BorrowerUpdateSent` (788190014) timeline event type used. `NOT_WIRED.email-delivery` retired.
+4. ~~Operator-safety regression pin for `VITE_EMAIL_MODE=LIVE`.~~ **Done in Phase 106.** See [docs/PHASE_106_EMAIL_MODE_RELEASE_READINESS.md](PHASE_106_EMAIL_MODE_RELEASE_READINESS.md). Six invariants pinned at CI.
+5. ~~Activity-evidence regression pin for the two completed governed writes.~~ **Done in Phase 107.** See [docs/PHASE_107_COMMUNICATION_ACTIVITY_LEDGER.md](PHASE_107_COMMUNICATION_ACTIVITY_LEDGER.md). 49 governance-evidence assertions + 12 narrow `<BorrowerCommunication />` rendering assertions.
+6. ~~Post-send activity refresh for the borrower-update path.~~ **Done in Phase 108.** See [docs/PHASE_108_BORROWER_UPDATE_REFRESH.md](PHASE_108_BORROWER_UPDATE_REFRESH.md). New `'after-borrower-update-email'` `DealDataKey` + parent-side wrapper in `BorrowerCommunication.tsx`. No new send path.
+7. ~~Operator smoke-test harness for LIVE Outlook email mode.~~ **Done in Phase 109.** See [docs/PHASE_109_EMAIL_LIVE_SMOKE_TEST.md](PHASE_109_EMAIL_LIVE_SMOKE_TEST.md). New `<EmailLiveDiagnostics />` admin card; explicit operator-triggered smoke send reusing `getEmailAdapter()` (no new `SendEmailV2` callsite). No governed write, no audit row, no timeline row.
+8. ~~Final release lock — consolidated boundary evidence + future-work scoping.~~ **Done in Phase 110.** See [docs/PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md](PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md). 134-assertion lock file at `src/shared/governance/communicationLaneReleaseLock.test.ts` enforces modal-layer adapter isolation, smoke-test Dataverse isolation, broader payload-field + wording pins across the communication lane, and lane-wide forbidden-pattern scans for shared mailbox / Graph / calendar / inbound / subscription / scheduled / delivery-tracking surfaces.
+
+---
+
+**Lane B future-work candidates (NOT roadmap; forbidden at CI time
+by the Phase 110 lock).** Each item below requires its own brief,
+its own governance review, and its own pin file before any
+in-repo motion. Listing is reverse-priority order — these are
+ranked by how disruptive they would be to the current honest
+posture, not by how desirable they are.
+
+9. Borrower portal messaging — two-way thread; borrower-readable inbox; status updates. Requires Lane D compound (external-user auth + secure-message schema + invitation/magic-link table). Would land in a NEW Code App, not this repo (workspace-isolation invariant).
+10. Inbound email logging — `EmailLogged` rows from connector callbacks; borrower replies appear on the deal timeline. Requires Power Automate or callback pattern + governance review for "incoming-mail visibility scope". Hybrid Lane B + Lane E phase.
+11. Automated outbound triggers — scheduled or event-driven borrower notifications (reminders for outstanding documents, pending review, stale stage). Requires governance review for "the app independently sending borrower mail" + a scheduler. New governed write per trigger + new audit shape for "system-initiated send".
+12. Delivery / read tracking — operators see whether a recipient opened / received the message. Requires connector callback for delivery receipts + governance review for tracking-pixel discipline. New schema column + new outcome enum value.
+13. Shared mailbox support — send-from a team mailbox instead of the banker's UPN. Requires tenant config + connector permission grant + governance review for "who is the audit `ChangedBy`". Currently forbidden field (`From`) on the Phase 110 payload pin.
+14. Phase 101 email LIVE delivery — catch-up / activity / relationship summaries sent through `SendEmailV2` instead of copy-to-clipboard. Requires governance review for "summary surfaces don't have a typed governed write today" + either four new governed writes or one generic "summary email send" with a strict source-classification field.
+15. Optional calendar-half connector registration — separate connector operations + governance step to unblock the calendar half of capability §1.8.
 
 ### Lane C — Needs File column / upload schema
 
@@ -481,7 +665,7 @@ Synthesizing the lanes above:
 3. **Phase 72 — Activity-since-last-visit (rule-based).** Lane A. Closes the activity-intelligence gap without AI.
 4. **Phase 73 — Structured-data credit-memo consistency check.** Lane A. Closes the cross-document-consistency gap without AI.
 5. **Phase 74 — Accessibility audit + targeted fixes.** Lane A. The only Vibe capability that hasn't been a phase brief yet; lowest political risk.
-6. **(Awaiting upstream — track but don't start)** — Outlook connector registration (Lane B); File column (Lane C); stage reference schema (Lane G). Each unblocks an existing `NOT_WIRED` / `DELIBERATELY_BLOCKED` entry with a known in-repo follow-up phase already documented.
+6. **(Awaiting upstream — track but don't start)** — File column (Lane C); stage reference schema (Lane G). Each unblocks an existing `NOT_WIRED` / `DELIBERATELY_BLOCKED` entry with a known in-repo follow-up phase already documented. Lane B is now mostly closed — Phase 104 wired LIVE document-request send and Phase 105 wired LIVE borrower-update send. Residual Lane B (inbound mail / automation / calendar) needs governance review before any in-repo motion.
 7. **(Long-horizon — track but don't start)** — Borrower portal (Lane D); Teams (Lane E); Copilot (Lane F).
 
 The priority order weighs (a) value to bankers, (b) in-repo feasibility today, and (c) the size of the Vibe-coverage gap closed. Phases 70–74 are all Lane A and could be done in any order; the order above sorts by how much Vibe coverage each adds per unit of work.

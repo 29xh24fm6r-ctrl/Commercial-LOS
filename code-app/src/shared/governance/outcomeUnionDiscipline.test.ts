@@ -103,6 +103,13 @@ const OUTCOME_BY_WRITE_ID: Readonly<Record<string, OutcomeMapping>> =
       failurePattern: 'governance-partial',
       successCarriesIds: true,
     },
+    'deal-borrower-update-email': {
+      file: 'src/deals/sendBorrowerUpdateEmail.ts',
+      typeName: 'SendBorrowerUpdateEmailOutcome',
+      primaryFailedKind: 'send-failed',
+      failurePattern: 'governance-partial',
+      successCarriesIds: true,
+    },
     'deal-document-review-task-create': {
       file: 'src/deals/dealTaskActions.ts',
       typeName: 'CreateDocumentReviewTaskOutcome',

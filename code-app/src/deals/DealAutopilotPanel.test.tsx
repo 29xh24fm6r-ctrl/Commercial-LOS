@@ -566,3 +566,128 @@ describe('DealAutopilotPanel — Phase 80', () => {
     });
   });
 });
+
+describe('DealAutopilotPanel — Phase 125 hotfix (deal-click crash, React error #310)', () => {
+  /**
+   * Phase 125 deploy surfaced a latent hooks-order bug in this
+   * card: `useSuggestionLedger()` was called AFTER two early
+   * returns (`if (!dataReady) return …` + `if (suggestions.length
+   * === 0) return …`). That meant:
+   *
+   *   - initial loading render: 4 hooks (useDealData + 3 useMemos),
+   *     returns early.
+   *   - re-render once child loaders resolve AND the deal yields
+   *     at least one autopilot suggestion: 5 hooks (the 4 above
+   *     + the new useSuggestionLedger call past the early returns).
+   *
+   * React detects the count mismatch and throws error #310. In
+   * production the deal workspace blanks out.
+   *
+   * The Phase 121 seeded deal (`TEST — Deal Phase 121`, target
+   * close 7d out) is exactly the path that flips from
+   * dataReady=false to suggestions.length > 0. The hotfix hoists
+   * `useSuggestionLedger()` ABOVE every early return. This block
+   * pins the regression so the bug cannot return.
+   */
+
+  function sparseDealClosingSoon(): DealDetail {
+    // Mirrors the seeded TEST — Deal Phase 121 shape: sparse
+    // summary fields, target close inside 14 days. The closing-
+    // soon target alone is enough to make `deriveNextBestActions`
+    // produce ≥1 suggestion, which is the bug-triggering branch.
+    return deal({
+      id: 'd-sparse',
+      name: 'TEST — Deal Phase 121',
+      clientName: 'TEST — Borrower Phase 121',
+      bankerName: 'Matthew Paller',
+      stage: 'TEST — Stage Phase 121',
+      status: 'TEST — Status Phase 121',
+      amount: 2_500_000,
+      targetCloseDate: isoDaysFromNow(7),
+      stageEntryDate: isoDaysAgo(1),
+      productType: undefined,
+      loanStructure: undefined,
+      customerType: undefined,
+      industry: undefined,
+      guarantorStructure: undefined,
+      pricingType: undefined,
+      spreadIndex: undefined,
+      spreadMargin: undefined,
+      collateralSummary: undefined,
+      createdOn: undefined,
+    });
+  }
+
+  it('does NOT crash with React error #310 when the panel transitions from loading → ready+populated', () => {
+    // Render 1: loading state (one slot non-ready). With the
+    // pre-hotfix code this rendered 4 hooks before returning
+    // early at `if (!dataReady) return …`.
+    useDealDataMock.mockReturnValue(
+      readyData({
+        deal: sparseDealClosingSoon(),
+        tasks: { kind: 'loading' },
+      }),
+    );
+    const { rerender } = render(<DealAutopilotPanel />);
+    expect(screen.getByText(/Loading deal signals/i)).toBeInTheDocument();
+
+    // Render 2: every slot ready, sparse seeded deal closing in
+    // 7 days. `deriveNextBestActions` produces a closing-soon
+    // suggestion → suggestions.length > 0 → execution flows past
+    // both early returns. Pre-hotfix this is where `useSuggestionLedger()`
+    // would have been called as the 5th hook, mismatching the
+    // previous render's 4-hook chain → React error #310.
+    useDealDataMock.mockReturnValue(
+      readyData({
+        deal: sparseDealClosingSoon(),
+        tasks: { kind: 'ready', data: { open: [], completed: [] } },
+        documents: {
+          kind: 'ready',
+          data: { outstanding: [], received: [], reviewed: [] },
+        },
+        creditMemo: { kind: 'ready', data: { memos: [], sections: [] } },
+        activity: { kind: 'ready', data: [] },
+      }),
+    );
+    rerender(<DealAutopilotPanel />);
+
+    // The panel should now render the populated branch without
+    // throwing. We don't pin the exact suggestion text — the
+    // primitive is exercised in dealAutopilot.test.ts. We pin
+    // that SOMETHING from the populated branch renders + the
+    // forbidden communication vocabulary stays absent.
+    expect(
+      screen.getByRole('list', { name: /next best actions for this deal/i }),
+    ).toBeInTheDocument();
+    const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/\bdelivered\b/i);
+    expect(text).not.toMatch(/\bemail\s+(sent|delivered)\b/i);
+    expect(text).not.toMatch(/\bborrower\s+(?:was|has\s+been)\s+notified\b/i);
+  });
+
+  it('does NOT crash when the panel transitions from loading → ready+empty', () => {
+    // Companion to the above: the path that flips loading → ready
+    // but produces ZERO suggestions also has to remain hook-order
+    // stable. Pre-hotfix, this path returned early before the
+    // useSuggestionLedger() call so the bug did NOT fire here —
+    // but pinning both transitions guards against any future
+    // refactor that re-introduces the conditional-hook pattern.
+    useDealDataMock.mockReturnValue(
+      readyData({
+        deal: deal({ targetCloseDate: isoDaysFromNow(60) }),
+        tasks: { kind: 'loading' },
+      }),
+    );
+    const { rerender } = render(<DealAutopilotPanel />);
+    expect(screen.getByText(/Loading deal signals/i)).toBeInTheDocument();
+
+    useDealDataMock.mockReturnValue(readyData());
+    rerender(<DealAutopilotPanel />);
+
+    expect(
+      screen.getByText(
+        /No next-best-action suggestions from current records\./i,
+      ),
+    ).toBeInTheDocument();
+  });
+});

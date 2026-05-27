@@ -4,6 +4,8 @@ import { useBanker } from '../banker/BankerContext';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
+import { DealMetricDeck } from './DealMetricDeck';
+import { DealWorkstreamPanel } from './DealWorkstreamPanel';
 import { DealSummary } from './DealSummary';
 import { DealAutopilotPanel } from './DealAutopilotPanel';
 import { RelationshipContext } from './RelationshipContext';
@@ -19,12 +21,38 @@ import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
 import { DealDataProvider } from './DealDataProvider';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
-import { palette, spacing, typography } from '../shared/theme';
+import { palette, radius, spacing, typography } from '../shared/theme';
 
 interface BankerDealWorkspaceProps {
   dealId: string;
 }
 
+/**
+ * Phase 125B — Deal Workspace Command Center layout.
+ *
+ * Two-column cockpit grid below the navy hero band:
+ *
+ *   ┌─────────────────────────────────────────────────────────┐
+ *   │ DealHeader (full-width navy hero band)                  │
+ *   ├──────────────────────────┬──────────────────────────────┤
+ *   │ LEFT  ~65% — intelligence│ RIGHT ~35% — attention / work│
+ *   │                          │                              │
+ *   │ DealSummary              │ DealBlockers                 │
+ *   │ DealStageProgressionCard │ DealTasks                    │
+ *   │ DealAutopilotPanel       │ DealDocuments                │
+ *   │ RelationshipContext      │ BorrowerCommunication        │
+ *   │ CreditMemo               │ TeamsChatHandoff             │
+ *   │ ActivityTimeline         │ TeamsDealSummaryHandoff      │
+ *   └──────────────────────────┴──────────────────────────────┘
+ *
+ * Every `data-deal-card` anchor from the pre-125B layout is
+ * preserved verbatim so DealAutopilotPanel's scrollIntoView
+ * targeting continues to work.
+ *
+ * Hook surface unchanged from Phase 125 (useBanker + useState +
+ * useEffect). No new hooks. No conditional hooks. Phase 110
+ * communication lock honored — no new email-lane import.
+ */
 export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
   const { bankerId } = useBanker();
   const [state, setState] = useState<DealLoadResult | { kind: 'loading' }>({ kind: 'loading' });
@@ -80,7 +108,7 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
 
   const { deal } = state;
   return (
-    <div style={styles.page}>
+    <div style={styles.page} data-cockpit-shell="banker-deal">
       <nav style={styles.crumbs} aria-label="Breadcrumb">
         <Link to={WORKSPACE_ROUTES.banker} className="cc-link" style={styles.back}>
           ← Banker Command Center
@@ -90,49 +118,76 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
       </nav>
       <main style={styles.main}>
         <DealDataProvider deal={deal}>
-          <DealHeader />
-          <DealBlockers />
-          {/* Phase 80: stage-progression card is the scroll target
-              for the autopilot "stage-aging" suggestion. */}
-          <div data-deal-card="stage-progression">
-            <DealStageProgressionCard />
-          </div>
-          <DealSummary />
-          {/* Phase 80: Deal Autopilot Lite — Next Best Actions panel.
-              Deterministic suggestions only; banker decides. */}
-          <DealAutopilotPanel />
-          <RelationshipContext />
-          {/* Phase 80: data-deal-card anchors used by the autopilot
-              panel's scrollIntoView. The wrappers preserve the
-              existing card layout — no styling change. */}
-          <div data-deal-card="tasks">
-            <DealTasks />
-          </div>
-          <div data-deal-card="documents">
-            <DealDocuments />
-          </div>
-          <div data-deal-card="credit-memo">
-            <CreditMemo />
-          </div>
-          <div data-deal-card="activity-timeline">
-            <ActivityTimeline />
-          </div>
-          <div data-deal-card="borrower-communication">
-            <BorrowerCommunication />
-          </div>
-          {/* Phase 86: no-admin Teams chat handoff. Opens the
-              banker's own Teams client. No write, no audit, no
-              timeline, no Graph. */}
-          <div data-deal-card="teams-chat-handoff">
-            <TeamsChatHandoff />
-          </div>
-          {/* Phase 96: copy-to-Teams deal summary. Generates a
-              plain-text deal summary the banker copies and pastes
-              into Microsoft Teams (any chat or channel). The app
-              does not post to Teams, send anything, sync, notify,
-              or call Graph. */}
-          <div data-deal-card="teams-deal-summary-handoff">
-            <TeamsDealSummaryHandoff />
+          {/* Phase 125D — Command Hero zone. Navy gradient band +
+              glass metric strip carried over from Phase 125B/C. */}
+          <section data-cockpit-zone="command-hero" aria-label="Command hero">
+            <DealHeader />
+          </section>
+          {/* Phase 125D — Metric Deck zone. Bloomberg-style KPI
+              strip + profile-completeness ring + missing-fields
+              meter. Always renders below the hero so the banker
+              has a fixed instrument panel at the top of every
+              deal. */}
+          <DealMetricDeck />
+          <div
+            style={styles.cockpit}
+            role="group"
+            aria-label="Deal cockpit"
+            data-cockpit-zone="grid"
+          >
+            <section
+              style={styles.colLeft}
+              aria-label="Deal intelligence and detail"
+              data-cockpit-zone="intelligence-column"
+            >
+              {/* Phase 125D — Attention Console zone. Severity
+                  meter + count tiles + signal rows. */}
+              <DealBlockers />
+              {/* Phase 80: stage-progression card is the scroll target
+                  for the autopilot "stage-aging" suggestion. */}
+              <div data-deal-card="stage-progression">
+                <DealStageProgressionCard />
+              </div>
+              {/* Phase 80: Deal Autopilot Lite — Next Best Actions panel.
+                  Phase 125D promotes this to the "Action Console" zone
+                  with a priority-tile strip header. Deterministic
+                  suggestions only; banker decides. */}
+              <DealAutopilotPanel />
+              {/* Phase 125D — Workstream Panel: horizontal mini bars
+                  for tasks / documents / memo / communication. */}
+              <DealWorkstreamPanel />
+              <DealSummary />
+              <RelationshipContext />
+              <div data-deal-card="credit-memo">
+                <CreditMemo />
+              </div>
+              <div data-deal-card="activity-timeline">
+                <ActivityTimeline />
+              </div>
+            </section>
+            <section
+              style={styles.colRight}
+              aria-label="Attention and work surfaces"
+              data-cockpit-zone="right-rail-dashboard"
+            >
+              <div data-deal-card="tasks">
+                <DealTasks />
+              </div>
+              <div data-deal-card="documents">
+                <DealDocuments />
+              </div>
+              <div data-deal-card="borrower-communication">
+                <BorrowerCommunication />
+              </div>
+              {/* Phase 86: no-admin Teams chat handoff. */}
+              <div data-deal-card="teams-chat-handoff">
+                <TeamsChatHandoff />
+              </div>
+              {/* Phase 96: copy-to-Teams deal summary. */}
+              <div data-deal-card="teams-deal-summary-handoff">
+                <TeamsDealSummaryHandoff />
+              </div>
+            </section>
           </div>
         </DealDataProvider>
       </main>
@@ -144,7 +199,12 @@ const styles: Record<string, React.CSSProperties> = {
   page: {
     fontFamily: typography.family,
     minHeight: '100vh',
-    background: palette.pageBg,
+    // Phase 125D — slate cockpit backdrop. The page now reads as
+    // a cockpit "platform" the deal panels sit on top of, instead
+    // of a stack of white cards floating against the pageBg. Cards
+    // keep their own surface; the slate panel gives the cockpit
+    // dimensional anchoring.
+    background: palette.panelBg,
     color: palette.text,
   },
   crumbs: {
@@ -163,12 +223,39 @@ const styles: Record<string, React.CSSProperties> = {
   crumbCurrent: {
     color: palette.textMuted,
     fontWeight: typography.weight.medium,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    overflow: 'hidden' as const,
+    textOverflow: 'ellipsis' as const,
+    whiteSpace: 'nowrap' as const,
     maxWidth: 360,
   },
   main: {
     padding: `${spacing.md} ${spacing.xxl} ${spacing.xxl}`,
+  },
+  cockpit: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1.85fr) minmax(0, 1fr)',
+    gap: spacing.lg,
+    alignItems: 'start',
+  },
+  colLeft: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: spacing.lg,
+    minWidth: 0,
+  },
+  colRight: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: spacing.lg,
+    minWidth: 0,
+    // Phase 125C → 125D — subtle cobalt liquid-glass overlay
+    // behind the right-rail "dashboard". Phase 125D bumps the
+    // top tint slightly so the right rail reads as a distinct
+    // operating-cockpit dashboard against the slate page bg.
+    background:
+      'linear-gradient(180deg, rgba(96, 165, 250, 0.07) 0%, rgba(248, 250, 252, 0.0) 35%)',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    paddingTop: 0,
   },
 };

@@ -5,8 +5,11 @@ import {
   type ProgressionEligibilityStatus,
 } from './stageProgressionGuard';
 import { stageProgressionAvailability } from '../shared/governance/stageProgressionAvailability';
+import { STAGE_CATALOG } from '../shared/stages/stageCatalog';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
-import { Badge, StatusDot } from '../shared/Badge';
+import { Badge } from '../shared/Badge';
+import { SeverityGlyph } from '../shared/SeverityGlyph';
+import { GlassPanel } from '../shared/cockpitPrimitives';
 import {
   palette,
   severityPalette,
@@ -50,7 +53,7 @@ export function DealStageProgressionCard() {
   return (
     <Card accentColor={accent}>
       <CardHeader
-        title="Stage Progression Guard"
+        title="Stage Map"
         subtitle={
           eligibility.currentStage
             ? `Current stage: ${eligibility.currentStage}`
@@ -58,6 +61,8 @@ export function DealStageProgressionCard() {
         }
         trailing={<Badge variant={sev}>{statusLabel(eligibility.status)}</Badge>}
       />
+
+      <StageMap currentStage={eligibility.currentStage} />
 
       {eligibility.reasons.length === 0 ? (
         <p style={styles.cleanMessage}>
@@ -91,14 +96,147 @@ export function DealStageProgressionCard() {
   );
 }
 
+/**
+ * Phase 125D — Stage Map.
+ *
+ * Replaces the Phase 125C horizontal pill rail with a connected-
+ * node "stage map": each canonical non-terminal STAGE_CATALOG
+ * stage is rendered as a circular node with a horizontal
+ * connector line between consecutive nodes. The connector
+ * between two "past" nodes paints green (canonical-order
+ * completion); the connector adjacent to the current node
+ * blends past-green into cobalt; future connectors paint as
+ * muted dashed neutrals. The current node is sized up and
+ * given a cobalt ring + bold label.
+ *
+ * Custom-stage fallback (Phase 121 sparse-seed path: live
+ * `cr664_dealstagereference` carries an operator-named stage
+ * that doesn't match the canonical catalog) renders the map
+ * with every node in muted-future tone + a "custom stage —
+ * not in canonical sequence" footnote, so the banker still
+ * sees the canonical landmarks without the cockpit fabricating
+ * progression state.
+ *
+ * Visual contract:
+ *   - Number badge inside each node so the canonical order is
+ *     glanceable (1..9).
+ *   - Stage label below the node (uppercase, tiny letter-
+ *     spacing) so the map reads as a labeled axis.
+ *   - aria-current="step" remains on the current node.
+ *   - No animation; the cockpit is read, not played.
+ *   - No fabricated progression, no AI estimate, no predicted
+ *     close date.
+ */
+function StageMap({ currentStage }: { currentStage: string | undefined }) {
+  const lanes = STAGE_CATALOG.filter((s) => !s.isTerminal);
+  const normalizedCurrent = currentStage?.trim().toLowerCase();
+  const currentIndex = lanes.findIndex(
+    (s) =>
+      s.id === normalizedCurrent ||
+      s.label.toLowerCase() === normalizedCurrent,
+  );
+  const isCustomStage = normalizedCurrent && currentIndex < 0;
+  return (
+    <div style={styles.mapWrap} data-stage-map="cockpit">
+      <ol style={styles.map} aria-label="Canonical stage progression map">
+        {lanes.map((s, i) => {
+          const tone: 'past' | 'current' | 'future' =
+            currentIndex < 0
+              ? 'future'
+              : i < currentIndex
+                ? 'past'
+                : i === currentIndex
+                  ? 'current'
+                  : 'future';
+          // Connector tone: between this node and the previous
+          // one. The connector colors paint past = green,
+          // past→current = green-to-cobalt gradient, future =
+          // dashed neutral. (No connector before the first
+          // node.)
+          const connectorTone: 'past' | 'current' | 'future' | 'none' =
+            i === 0
+              ? 'none'
+              : currentIndex < 0
+                ? 'future'
+                : i < currentIndex
+                  ? 'past'
+                  : i === currentIndex
+                    ? 'current'
+                    : 'future';
+          return (
+            <li
+              key={s.id}
+              style={styles.mapItem}
+              aria-current={tone === 'current' ? 'step' : undefined}
+              aria-label={`${s.label} (${tone})`}
+              data-stage-node={tone}
+            >
+              {connectorTone !== 'none' && (
+                <span
+                  aria-hidden="true"
+                  data-stage-connector={connectorTone}
+                  style={
+                    connectorTone === 'past'
+                      ? styles.connectorPast
+                      : connectorTone === 'current'
+                        ? styles.connectorCurrent
+                        : styles.connectorFuture
+                  }
+                />
+              )}
+              <span
+                style={
+                  tone === 'current'
+                    ? styles.nodeCurrent
+                    : tone === 'past'
+                      ? styles.nodePast
+                      : styles.nodeFuture
+                }
+              >
+                {i + 1}
+              </span>
+              <span
+                style={
+                  tone === 'current'
+                    ? styles.nodeLabelCurrent
+                    : styles.nodeLabel
+                }
+              >
+                {s.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {isCustomStage && (
+        <div style={styles.railCustomNote}>
+          Current: <strong>{currentStage}</strong> (custom stage —
+          not in canonical sequence)
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NextActionBlock({ eligibility }: { eligibility: ProgressionEligibilityResult }) {
   const sev = statusToSeverity(eligibility.status);
   const p = severityPalette[sev];
+  // Phase 125D — wrap the next-action guidance in a "command
+  // strip": a GlassPanel with a thicker severity-tinted left
+  // edge so the strip reads as a cockpit guidance bar, not as
+  // a faint instructional note.
   return (
-    <div style={{ ...styles.nextActionBox, borderColor: p.bar, background: p.bg }}>
-      <div style={{ ...styles.nextActionLabel, color: p.fg }}>Next action guidance</div>
+    <GlassPanel
+      style={{
+        borderLeft: `4px solid ${p.bar}`,
+        background: p.bg,
+      }}
+    >
+      <div style={{ ...styles.nextActionLabel, color: p.fg }}>
+        Next action guidance
+      </div>
       <p style={styles.nextActionText}>{eligibility.nextActionGuidance}</p>
-    </div>
+    </GlassPanel>
   );
 }
 
@@ -106,8 +244,13 @@ function ReasonRow({ reason }: { reason: ProgressionEligibilityResult['reasons']
   const sev: SeverityKey = reason.severity === 'blocked' ? 'blocked' : 'atRisk';
   const p = severityPalette[sev];
   return (
-    <li style={styles.signal}>
-      <StatusDot variant={sev} />
+    <li
+      style={{
+        ...styles.signal,
+        borderLeft: `3px solid ${p.bar}`,
+      }}
+    >
+      <SeverityGlyph severity={sev} />
       <div style={styles.signalBody}>
         <div style={{ ...styles.signalLabel, color: p.fg }}>{reason.label}</div>
       </div>
@@ -145,21 +288,15 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: spacing.sm,
     alignItems: 'flex-start',
-    paddingTop: 6,
+    padding: `${spacing.sm} ${spacing.md}`,
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
   },
   signalBody: { display: 'flex', flexDirection: 'column', gap: 2 },
   signalLabel: {
     fontSize: typography.size.base,
     fontWeight: typography.weight.semibold,
-  },
-  nextActionBox: {
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderRadius: 6,
-    padding: `${spacing.xs} ${spacing.md}`,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
   },
   nextActionLabel: {
     fontSize: typography.size.xs,
@@ -191,6 +328,122 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     fontSize: typography.size.xs,
     color: palette.textMuted,
+    lineHeight: typography.lineHeight.snug,
+  },
+  // Phase 125D — connected-node Stage Map.
+  mapWrap: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: spacing.xs,
+  },
+  map: {
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    rowGap: spacing.md,
+    columnGap: 0,
+    alignItems: 'flex-start',
+  },
+  mapItem: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: 4,
+    position: 'relative' as const,
+    flex: '1 1 80px',
+    minWidth: 64,
+  },
+  connectorPast: {
+    position: 'absolute' as const,
+    left: '-50%',
+    right: '50%',
+    top: 14,
+    height: 2,
+    background: palette.clear,
+  },
+  connectorCurrent: {
+    position: 'absolute' as const,
+    left: '-50%',
+    right: '50%',
+    top: 14,
+    height: 2,
+    background: `linear-gradient(90deg, ${palette.clear}, ${palette.cobalt})`,
+  },
+  connectorFuture: {
+    position: 'absolute' as const,
+    left: '-50%',
+    right: '50%',
+    top: 14,
+    height: 2,
+    borderTop: `2px dashed ${palette.border}`,
+  },
+  nodePast: {
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    background: palette.clearBg,
+    color: palette.clearFg,
+    border: `1px solid ${palette.clear}`,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    fontVariantNumeric: 'tabular-nums' as const,
+    zIndex: 1,
+  },
+  nodeCurrent: {
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    background: palette.cobalt,
+    color: palette.textInverse,
+    border: `2px solid ${palette.cobalt}`,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    fontVariantNumeric: 'tabular-nums' as const,
+    boxShadow: `0 0 0 4px ${palette.cobaltBg}`,
+    zIndex: 1,
+  },
+  nodeFuture: {
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    background: palette.surfaceAlt,
+    color: palette.textSubtle,
+    border: `1px dashed ${palette.border}`,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    fontVariantNumeric: 'tabular-nums' as const,
+    zIndex: 1,
+  },
+  nodeLabel: {
+    fontSize: typography.size.xs,
+    textTransform: 'uppercase' as const,
+    letterSpacing: typography.letterSpacing.label,
+    color: palette.textMuted,
+    textAlign: 'center' as const,
+  },
+  nodeLabelCurrent: {
+    fontSize: typography.size.xs,
+    textTransform: 'uppercase' as const,
+    letterSpacing: typography.letterSpacing.label,
+    color: palette.cobaltFg,
+    fontWeight: typography.weight.bold,
+    textAlign: 'center' as const,
+  },
+  railCustomNote: {
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
+    fontStyle: 'italic' as const,
     lineHeight: typography.lineHeight.snug,
   },
 };

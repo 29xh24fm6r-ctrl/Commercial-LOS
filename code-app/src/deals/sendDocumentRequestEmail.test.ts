@@ -6,6 +6,14 @@ vi.mock('../generated/services/Cr664_auditeventsService', () => ({
 vi.mock('../generated/services/Cr664_dealtimelineeventsService', () => ({
   Cr664_dealtimelineeventsService: { create: vi.fn() },
 }));
+// Phase 104: outlookEmailAdapters now transitively imports the
+// Office 365 Outlook connector service. Stub the boundary so the
+// real @microsoft/power-apps SDK is not loaded — these tests
+// inject their own adapter via deps.adapter and never need the
+// LIVE path. The shape of the stub matches Office365OutlookService.
+vi.mock('../generated/services/Office365OutlookService', () => ({
+  Office365OutlookService: { SendEmailV2: vi.fn() },
+}));
 
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';

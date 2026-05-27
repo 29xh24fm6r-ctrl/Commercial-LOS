@@ -87,6 +87,13 @@ vi.mock('../generated/services/Cr664_auditeventsService', () => ({
 vi.mock('../generated/services/Cr664_dealtimelineeventsService', () => ({
   Cr664_dealtimelineeventsService: { create: timelineCreateMock },
 }));
+// Phase 104: outlookEmailAdapters transitively imports the Office 365
+// Outlook connector service. Mock the boundary so the real
+// @microsoft/power-apps SDK is not loaded by this test (this file
+// scopes WRITE surfaces; the LIVE adapter path is not exercised).
+vi.mock('../generated/services/Office365OutlookService', () => ({
+  Office365OutlookService: { SendEmailV2: vi.fn() },
+}));
 
 // Per-card modal stubs (these also can't be allowed to fire).
 vi.mock('./CompleteTaskModal', () => ({ CompleteTaskModal: () => null }));

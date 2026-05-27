@@ -1,9 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useDealData, type AsyncResult } from './DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
 import type { TimelineEvent, TimelineEventTypeKey } from './activityQueries';
 import { DraftBorrowerUpdateModal } from './DraftBorrowerUpdateModal';
 import { BorrowerSafeStatusPacketModal } from './BorrowerSafeStatusPacketModal';
+import {
+  sendBorrowerUpdateEmail,
+  type SendBorrowerUpdateEmailInput,
+} from './sendBorrowerUpdateEmail';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -33,10 +37,33 @@ interface BorrowerCommunicationProps {
 export function BorrowerCommunication({
   readOnly = false,
 }: BorrowerCommunicationProps = {}) {
-  const { deal, activity, documents, tasks } = useDealData();
+  const { deal, activity, documents, tasks, refresh } = useDealData();
   const banker = useOptionalBanker();
   const filtered = useFilteredActivity(activity);
   const [showDraft, setShowDraft] = useState(false);
+
+  // Phase 108: wrap sendBorrowerUpdateEmail so the activity ledger
+  // reloads after the action returns. Mirrors the Phase-104 document-
+  // request pattern in DealDocuments.tsx (refresh fires once per
+  // attempt, after await, regardless of outcome — the action handles
+  // its own audit + timeline coordination, and the activity surface
+  // should reflect whatever did land). Validation failures that
+  // happen BEFORE the action call short-circuit and do NOT refresh.
+  const handleSendBorrowerUpdate = useCallback(
+    async (input: SendBorrowerUpdateEmailInput) => {
+      if (!banker?.systemUserId) {
+        return {
+          kind: 'unknown' as const,
+          message:
+            'Cannot send: missing system user id. The modal Send button should already be disabled in this state.',
+        };
+      }
+      const outcome = await sendBorrowerUpdateEmail(input);
+      refresh('after-borrower-update-email');
+      return outcome;
+    },
+    [banker?.systemUserId, refresh],
+  );
   // Phase 66: borrower-safe status packet (local preview + copy).
   // Local-only flow — no write. Surfaced alongside the Phase-23
   // draft action when a banker is authorized to view the deal.
@@ -94,6 +121,10 @@ export function BorrowerCommunication({
           outstandingDocuments={outstandingDocs}
           openTasks={openTasks}
           bankerName={banker?.fullName}
+          dealId={deal.id}
+          systemUserId={banker?.systemUserId}
+          writeDisabledReason={banker?.writeDisabledReason}
+          onSendEmail={handleSendBorrowerUpdate}
           onClose={() => setShowDraft(false)}
         />
       )}
@@ -207,8 +238,13 @@ const styles: Record<string, React.CSSProperties> = {
   muted: {
     margin: 0,
     color: palette.textMuted,
-    fontSize: typography.size.md,
-    fontStyle: 'italic',
+    fontSize: typography.size.sm,
+    lineHeight: 1.4,
+    padding: `${spacing.md} ${spacing.lg}`,
+    background: palette.surfaceAlt,
+    border: `1px dashed ${palette.borderStrong}`,
+    borderRadius: radius.md,
+    textAlign: 'center' as const,
   },
   list: {
     listStyle: 'none',

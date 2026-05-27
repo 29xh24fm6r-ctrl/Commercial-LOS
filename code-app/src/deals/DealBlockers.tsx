@@ -7,8 +7,10 @@ import {
 } from './blockerRules';
 import { deriveCreditMemoFreshness } from './creditMemoFreshness';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
-import { Badge, StatusDot } from '../shared/Badge';
-import { palette, severityPalette, spacing, typography, type SeverityKey } from '../shared/theme';
+import { Badge } from '../shared/Badge';
+import { SeverityGlyph } from '../shared/SeverityGlyph';
+import { GlassPanel, SeverityMeter } from '../shared/cockpitPrimitives';
+import { palette, radius, severityPalette, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
  * Read-only blocker card. Consumes the deal data provider so signals
@@ -65,18 +67,40 @@ export function DealBlockers() {
   const statusKey = statusToSeverity(status);
   const accent = severityPalette[statusKey].bar;
 
+  // Phase 125D — severity-bucket counts for the AttentionConsole
+  // meter strip. Honest: zero counts still render (so the meter
+  // consistently shows three tiles) — only the tonal styling and
+  // the count value change.
+  const blockedCount = signals.filter((s) => s.severity === 'blocked').length;
+  const atRiskCount = signals.filter((s) => s.severity === 'at-risk').length;
+  const clearCount = status === 'clear' ? 1 : 0;
+
   return (
     <Card accentColor={accent}>
       <CardHeader
-        title="Deal Blockers"
+        title="Attention Console"
+        subtitle="Severity-bucketed signals from authorized records — never AI."
         trailing={<Badge variant={statusKey}>{statusLabel(status)}</Badge>}
       />
 
+      {/* Phase 125D — severity meter strip. Always 3 tiles
+          (blocked / at-risk / clear) so the console reads as
+          a fixed instrument bar. */}
+      <SeverityMeter
+        buckets={[
+          { severity: 'blocked', count: blockedCount, label: 'Blocked' },
+          { severity: 'atRisk', count: atRiskCount, label: 'At-risk' },
+          { severity: 'clear', count: clearCount, label: 'Clear' },
+        ]}
+      />
+
       {status === 'clear' && (
-        <p style={styles.cleanMessage}>
-          {closedDealNote ??
-            'No blockers detected from authorized deal, task, or document records.'}
-        </p>
+        <GlassPanel>
+          <p style={styles.cleanMessage}>
+            {closedDealNote ??
+              'No blockers detected from authorized deal, task, or document records.'}
+          </p>
+        </GlassPanel>
       )}
 
       {signals.length > 0 && (
@@ -99,8 +123,13 @@ function SignalRow({ signal }: { signal: BlockerSignal }) {
   const sev = severityToKey(signal.severity);
   const p = severityPalette[sev];
   return (
-    <li style={styles.signal}>
-      <StatusDot variant={sev} />
+    <li
+      style={{
+        ...styles.signal,
+        borderLeft: `3px solid ${p.bar}`,
+      }}
+    >
+      <SeverityGlyph severity={sev} />
       <div style={styles.signalBody}>
         <div style={{ ...styles.signalLabel, color: p.fg }}>{signal.label}</div>
         <div style={styles.signalDetail}>{signal.detail}</div>
@@ -145,7 +174,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: spacing.sm,
     alignItems: 'flex-start',
-    paddingTop: 6,
+    padding: `${spacing.sm} ${spacing.md}`,
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
   },
   signalBody: { display: 'flex', flexDirection: 'column', gap: 2 },
   signalLabel: {

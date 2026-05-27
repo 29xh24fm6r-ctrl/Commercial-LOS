@@ -1,15 +1,28 @@
 # Phase 62 — Outlook Connector LIVE Send (verification + unblock plan)
 
-**Status:** **NOT unblocked yet.** Office 365 Outlook connector is still
-not registered for this Code App. LIVE `sendDocumentRequestEmail`
-continues to return a permanent-failure with the "connector not
-registered" reason. DRY_RUN remains the operational default and is
-unchanged.
+**Status:** **§2 swap executed in Phase 104.** The Office 365 Outlook
+connector has since been registered for this Code App; the typed
+`Office365OutlookService` exists in
+[src/generated/services/](../src/generated/services/Office365OutlookService.ts);
+the Phase 61 LIVE stub has been replaced with a typed
+`SendEmailV2` call (document-request email only). The Phase 62
+regression-pin test file
+([src/shared/governance/outlookLiveStubPin.test.ts](../src/shared/governance/outlookLiveStubPin.test.ts))
+was deleted in the same change, per its in-file note. The §2 plan
+below is preserved as historical context — the actual swap shipped
+in [docs/PHASE_104_OUTLOOK_LIVE_SEND.md](PHASE_104_OUTLOOK_LIVE_SEND.md).
+DRY_RUN behavior is unchanged.
 
-This phase is the **honest verification** that the Phase 61
-scaffolding holds and that the upstream blocker is precisely
+**At the time this phase shipped (Phase 62):** Office 365 Outlook
+connector was not registered for this Code App. LIVE
+`sendDocumentRequestEmail` returned a permanent-failure with the
+"connector not registered" reason. The narrative below describes the
+state Phase 62 verified — see Phase 104 for the executed swap.
+
+This phase was the **honest verification** that the Phase 61
+scaffolding held and that the upstream blocker was precisely
 identified. No production code changes; one regression-pin test
-added so an accidental half-implementation cannot land silently.
+added so an accidental half-implementation could not land silently.
 
 Related canonical sources:
 - [PHASE_61_OUTLOOK_EMAIL_DELIVERY.md](PHASE_61_OUTLOOK_EMAIL_DELIVERY.md) — the full email-delivery design

@@ -35,6 +35,26 @@ import {
 } from './derivedAnalytics';
 import { PENDING_REVIEW_AT_RISK_DAYS } from '../workQueue/primitives';
 
+/**
+ * Phase 119 — restored original Banker Workspace dashboard tiles.
+ * Last-activity staleness threshold matches the original product's
+ * "Stale 14d+" KPI tile label. Independent from STAGE_AGING_AT_RISK_DAYS
+ * (30 days against stage-entry) — this one anchors against modifiedon.
+ *
+ * Phase 120 — exported so the PersonalPipeline per-row stale badge
+ * shares the same threshold as the KPI tile (consistency invariant:
+ * if a tile says "1 stale", the pipeline shows exactly one badged row).
+ */
+export const STALE_ACTIVITY_DAYS = 14;
+
+/**
+ * Phase 119 — canonical stage label the original product's
+ * "In Underwriting" KPI tile counted against. Matched
+ * case-insensitively so live-env variations like "Underwriting" /
+ * "underwriting" / "UNDERWRITING" all count.
+ */
+const UNDERWRITING_STAGE_LABEL = 'underwriting';
+
 // ---------------------------------------------------------------------------
 // Structural input shapes — both `BankerWorkQueueData` from
 // src/banker/workQueueQueries.ts AND its nested row types satisfy
@@ -46,6 +66,13 @@ export interface PersonalActivityDeal {
   amount: number | undefined;
   targetCloseDate: string | undefined;
   stageEntryDate: string | undefined;
+  /** Phase 119: deal stage name (denormalized from cr664_StageReference
+   *  via the Dataverse *name convention). Used by the In-Underwriting
+   *  count. */
+  stage: string | undefined;
+  /** Phase 119: last activity timestamp (modifiedon). Used by the
+   *  Stale 14d+ count. */
+  lastActivityOn: string | undefined;
 }
 
 export interface PersonalActivityTask {
@@ -55,6 +82,10 @@ export interface PersonalActivityTask {
 export interface PersonalActivityDocument {
   receivedDate: string | undefined;
   uploaded?: boolean;
+  /** Phase 119: needed by the Urgent-items count to recognize overdue
+   *  outstanding documents. Optional so existing callers structurally
+   *  compatible without this field still type-check. */
+  dueDate?: string | undefined;
 }
 
 export interface PersonalActivityMemo {
@@ -120,6 +151,23 @@ export interface BankerPersonalActivity {
   /** Credit memos in 'draft' status across the banker's active deals.
    *  No completion / approval claim — just the open-draft count. */
   draftMemoCount: number;
+
+  // ----- Phase 119: restored original Banker Workspace dashboard tiles -----
+  /** Active deals whose stage name matches the canonical "Underwriting"
+   *  label (case-insensitive). Zero when the live env has no deal in
+   *  that stage — honest, never fabricated. */
+  inUnderwritingCount: number;
+  /** Active deals whose lastActivityOn is older than STALE_ACTIVITY_DAYS.
+   *  Deals with no parseable lastActivityOn are skipped honestly (not
+   *  silently counted as stale). */
+  staleActivityCount: number;
+  /** Count of urgent items requiring attention right now:
+   *   - overdue tasks (open, dueDate in the past)
+   *   - overdue outstanding documents (no receivedDate, dueDate in the past)
+   *   - deals past their target close date
+   *  The three sub-counts are intentionally summed — a deal can have
+   *  multiple overdue items and each one contributes one urgency unit. */
+  urgentItemCount: number;
 }
 
 export function deriveBankerPersonalActivity(
@@ -137,6 +185,8 @@ export function deriveBankerPersonalActivity(
   let pastTargetCloseCount = 0;
   let stageAtRiskCount = 0;
   let missingStageEntryDateCount = 0;
+  let inUnderwritingCount = 0;
+  let staleActivityCount = 0;
 
   for (const d of deals) {
     accumulateDealSignals(d, nowMs, (signal) => {
@@ -161,12 +211,27 @@ export function deriveBankerPersonalActivity(
           break;
       }
     });
+    if (typeof d.stage === 'string' &&
+        d.stage.trim().toLowerCase() === UNDERWRITING_STAGE_LABEL) {
+      inUnderwritingCount++;
+    }
+    const activityMs = parseIso(d.lastActivityOn);
+    if (activityMs != null) {
+      const daysSinceActivity = Math.floor((nowMs - activityMs) / MS_PER_DAY);
+      if (daysSinceActivity >= STALE_ACTIVITY_DAYS) {
+        staleActivityCount++;
+      }
+    }
   }
 
   const openTaskCount = data.tasks.length;
   const overdueTaskCount = countOverdueTasks(data.tasks, nowMs);
 
   const outstandingDocumentCount = data.outstandingDocuments.length;
+  const overdueOutstandingDocumentCount = countOverdueOutstandingDocuments(
+    data.outstandingDocuments,
+    nowMs,
+  );
   const pendingReviewDocumentCount = countPendingReviewDocuments(
     data.pendingReviewDocuments,
     nowMs,
@@ -175,6 +240,9 @@ export function deriveBankerPersonalActivity(
   const draftMemoCount = data.memos.filter(
     (m) => m.statusKey === 'draft',
   ).length;
+
+  const urgentItemCount =
+    overdueTaskCount + overdueOutstandingDocumentCount + pastTargetCloseCount;
 
   return {
     activeDeals,
@@ -189,7 +257,23 @@ export function deriveBankerPersonalActivity(
     outstandingDocumentCount,
     pendingReviewDocumentCount,
     draftMemoCount,
+    inUnderwritingCount,
+    staleActivityCount,
+    urgentItemCount,
   };
+}
+
+function countOverdueOutstandingDocuments(
+  docs: readonly PersonalActivityDocument[],
+  nowMs: number,
+): number {
+  let n = 0;
+  for (const d of docs) {
+    if (d.receivedDate) continue;
+    const due = parseIso(d.dueDate);
+    if (due != null && due < nowMs) n++;
+  }
+  return n;
 }
 
 type DealSignal =

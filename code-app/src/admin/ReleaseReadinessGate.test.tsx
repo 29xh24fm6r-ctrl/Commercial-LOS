@@ -192,11 +192,11 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     ).toBeInTheDocument();
   });
 
-  it('reports the current count of governed writes (count is 11 at Phase 70)', () => {
+  it('reports the current count of governed writes (count is 12 at Phase 105 — Phase 70 added the 11th, Phase 105 added the 12th)', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
-    expect(GOVERNED_WRITES.length).toBe(11);
+    expect(GOVERNED_WRITES.length).toBe(12);
     expect(
       within(inv).getByText(`Governed writes (${GOVERNED_WRITES.length})`),
     ).toBeInTheDocument();
@@ -231,15 +231,21 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     expect(pins.length).toBe(LOCAL_ONLY_FLOWS.length);
   });
 
-  it('groups NOT_WIRED entries by blockerKind (connector / schema / compound / governance / observability)', () => {
+  it('groups NOT_WIRED entries by blockerKind (schema / compound / governance / observability remain after Phase 104)', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
     // Each kind that has at least one entry surfaces its sub-group
-    // header. At Phase 68 the inventory carries all five.
+    // header. Phase 104 removed the last connector-blocked entry
+    // (outlook-connector-live-send) by wiring the document-request
+    // LIVE send through SendEmailV2; the "Connector not registered"
+    // sub-header therefore no longer renders. The BLOCKER_KIND_LABEL
+    // entry for 'connector' is still defined in ReleaseReadinessGate
+    // so a future connector blocker (e.g. calendar half of
+    // capability 1.8) will resurface the header automatically.
     expect(
-      within(inv).getByText(/Connector not registered \(upstream blocked\)/i),
-    ).toBeInTheDocument();
+      within(inv).queryByText(/Connector not registered \(upstream blocked\)/i),
+    ).toBeNull();
     expect(
       within(inv).getByText(/Schema column missing \(upstream blocked\)/i),
     ).toBeInTheDocument();
@@ -274,16 +280,38 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     expect(within(inv).getByText(entry!.label)).toBeInTheDocument();
   });
 
-  it('surfaces outlook-connector-live-send as a connector-blocker (still NOT_WIRED)', () => {
-    useAdminDataMock.mockReturnValue(makeAdminData());
-    render(<ReleaseReadinessGate />);
-    const inv = getInventorySection();
+  it('no longer surfaces outlook-connector-live-send — Phase 104 swap removed it from NOT_WIRED', () => {
+    // The Phase 61 LIVE stub was a connector-blocker until the Office
+    // 365 Outlook connector was registered for this Code App. With
+    // Phase 104 the document-request email LIVE path is wired through
+    // Office365OutlookService.SendEmailV2 and the NOT_WIRED entry was
+    // removed. Phase 105 retired NOT_WIRED.email-delivery as well
+    // (the second governed-write LIVE send for borrower-update).
     const entry = NOT_WIRED.find(
       (e) => e.id === 'outlook-connector-live-send',
     );
-    expect(entry).toBeDefined();
-    expect(entry!.blockerKind).toBe('connector');
-    expect(within(inv).getByText(entry!.label)).toBeInTheDocument();
+    expect(entry).toBeUndefined();
+  });
+
+  // Phase 106: prove the rendered Capability Inventory contains no
+  // email-delivery-shaped row. The data-layer pin lives in
+  // platformInventory.test.ts and emailLiveReleaseReadiness.test.ts;
+  // this is the DOM-level confirmation that the gate's rendered
+  // output stays honest with the inventory.
+  it('Phase 106: ReleaseReadinessGate no longer renders any "Borrower update email delivery" / "email-delivery" row', () => {
+    useAdminDataMock.mockReturnValue(makeAdminData());
+    render(<ReleaseReadinessGate />);
+    const inv = getInventorySection();
+    // The Phase 23 NOT_WIRED row label was "Borrower update email
+    // delivery (Outlook/Graph)". After Phase 105 it must not appear
+    // anywhere in the rendered inventory.
+    expect(
+      within(inv).queryByText(/Borrower update email delivery/i),
+    ).toBeNull();
+    // And no row labeled "email-delivery" (the internal id) either —
+    // verbatim string match, not a regex (so we don't accidentally
+    // match prose like "LIVE email delivery").
+    expect(within(inv).queryByText('email-delivery')).toBeNull();
   });
 
   it('lists every DELIBERATELY_BLOCKED entry with reason text', () => {
@@ -340,7 +368,7 @@ describe('ReleaseReadinessGate — Phase 68 conservative-copy ban list', () => {
     expect(everyText).not.toMatch(/\bupload available\b/i);
   });
 
-  it('uses the Phase 68 canonical labels verbatim ("handoff", "local-only", "not wired", "upstream", "connector not registered", "schema column missing")', () => {
+  it('uses the Phase 68 canonical labels verbatim ("handoff", "local-only", "not wired", "upstream", "schema column missing")', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const everyText = document.body.textContent ?? '';
@@ -348,12 +376,15 @@ describe('ReleaseReadinessGate — Phase 68 conservative-copy ban list', () => {
     // gate. "Not wired" appears as a pin and as the overall
     // status; "upstream blocked" appears in the sub-group headings;
     // "handoff" appears in the LOCAL_ONLY note for the Phase 67
-    // borrower-safe status packet.
+    // borrower-safe status packet. Phase 104 removed the last
+    // connector-blocked NOT_WIRED entry, so the "Connector not
+    // registered" sub-header no longer renders; the
+    // BLOCKER_KIND_LABEL constant in ReleaseReadinessGate still
+    // defines that label for any future connector blocker.
     expect(everyText).toMatch(/handoff/i);
     expect(everyText).toMatch(/local-only/i);
     expect(everyText).toMatch(/not wired/i);
     expect(everyText).toMatch(/upstream/i);
-    expect(everyText).toMatch(/connector not registered/i);
     expect(everyText).toMatch(/schema column missing/i);
   });
 });

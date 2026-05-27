@@ -75,6 +75,30 @@
   --cc-info-bg: #e6edf8;
   --cc-info-fg: #1c3f7e;
 
+  /* Phase 125C — premium-cockpit accent palette */
+  --cc-cobalt: #2563eb;
+  --cc-cobalt-bg: #dbeafe;
+  --cc-cobalt-fg: #1d4ed8;
+
+  --cc-teal: #0d9488;
+  --cc-teal-bg: #ccfbf1;
+  --cc-teal-fg: #0f766e;
+
+  --cc-cyan: #0891b2;
+  --cc-cyan-bg: #cffafe;
+  --cc-cyan-fg: #0e7490;
+
+  --cc-violet: #7c3aed;
+  --cc-violet-bg: #ede9fe;
+  --cc-violet-fg: #5b21b6;
+
+  /* Phase 125D — cockpit surfaces (Bloomberg / Apple deal cockpit) */
+  --cc-panel-bg: #eef2f7;
+  --cc-panel-border: #d8dee8;
+  --cc-deck-bg: #f8fafc;
+  --cc-deck-tile: #ffffff;
+  --cc-glass-panel: rgba(248, 250, 252, 0.78);
+
   /* Focus ring used by .cc-row-hover / .cc-link / future focusables */
   --cc-focus-ring: #2c5fb8;
 
@@ -135,6 +159,30 @@
     --cc-info-bg: #1d2a44;
     --cc-info-fg: #b9cdef;
 
+    /* Phase 125C — premium-cockpit accent palette (dark) */
+    --cc-cobalt: #6da6f8;
+    --cc-cobalt-bg: #1d2a45;
+    --cc-cobalt-fg: #c0d4f5;
+
+    --cc-teal: #3bbfae;
+    --cc-teal-bg: #0f2b29;
+    --cc-teal-fg: #b1ead7;
+
+    --cc-cyan: #46b9d6;
+    --cc-cyan-bg: #0c2530;
+    --cc-cyan-fg: #b8e2ef;
+
+    --cc-violet: #a78bfa;
+    --cc-violet-bg: #221636;
+    --cc-violet-fg: #d4c4f7;
+
+    /* Phase 125D — cockpit surfaces (dark) */
+    --cc-panel-bg: #0c1018;
+    --cc-panel-border: #232938;
+    --cc-deck-bg: #14171f;
+    --cc-deck-tile: #1b1f2b;
+    --cc-glass-panel: rgba(31, 36, 50, 0.72);
+
     --cc-focus-ring: #7faaf0;
     color-scheme: dark;
   }
@@ -183,6 +231,30 @@
   --cc-info: #7faaf0;
   --cc-info-bg: #1d2a44;
   --cc-info-fg: #b9cdef;
+
+  /* Phase 125C — premium-cockpit accent palette (dark) */
+  --cc-cobalt: #6da6f8;
+  --cc-cobalt-bg: #1d2a45;
+  --cc-cobalt-fg: #c0d4f5;
+
+  --cc-teal: #3bbfae;
+  --cc-teal-bg: #0f2b29;
+  --cc-teal-fg: #b1ead7;
+
+  --cc-cyan: #46b9d6;
+  --cc-cyan-bg: #0c2530;
+  --cc-cyan-fg: #b8e2ef;
+
+  --cc-violet: #a78bfa;
+  --cc-violet-bg: #221636;
+  --cc-violet-fg: #d4c4f7;
+
+  /* Phase 125D — cockpit surfaces (dark) */
+  --cc-panel-bg: #0c1018;
+  --cc-panel-border: #232938;
+  --cc-deck-bg: #14171f;
+  --cc-deck-tile: #1b1f2b;
+  --cc-glass-panel: rgba(31, 36, 50, 0.72);
 
   --cc-focus-ring: #7faaf0;
   color-scheme: dark;
