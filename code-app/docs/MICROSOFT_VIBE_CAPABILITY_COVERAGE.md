@@ -169,8 +169,19 @@ Phase 110 communication-lane lock holds on both files.
 Composition-only — no Dataverse / loader / governed-write
 changes. Phases 118 + 121 + 122 + 122A are documentation /
 Dataverse-config only; Phases 119 + 120 + 123 + 124 + 125 +
-125B + 125C + 125D + 126 are implementation with regression
-tests. No phase changes the
+125B + 125C + 125D + 125E + 126 are implementation with
+regression tests.
+[PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md](PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md)
+is the corrective recomposition pass that replaces the Phase
+125D layout: command hero with identity slots (no metric
+strip), 6 large tonal KPI tiles + completeness ring, big
+Attention Console with severity meter + missing-data
+checklist, large connected-node Stage Map (44/52px nodes),
+icon-led WidgetHeader on every right-rail widget with count
+badges + mini progress bars, Deal Summary demoted to the
+bottom of the cockpit. Adds 16 inline-SVG cockpit icons +
+LargeMetricTile + WidgetHeader primitives. Phase 125 hook
+hoist preserved. No phase changes the
 loan-deal / banker / borrower schema, fabricates React data,
 adds automation, or exercises the email lane.
 

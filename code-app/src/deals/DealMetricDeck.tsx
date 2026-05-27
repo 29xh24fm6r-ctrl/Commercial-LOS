@@ -3,44 +3,44 @@ import { useDealData } from './DealDataProvider';
 import { deriveDealCockpitMetrics } from './dealCockpitMetrics';
 import {
   CompletenessRing,
-  MetricTile,
+  LargeMetricTile,
 } from '../shared/cockpitPrimitives';
+import {
+  AlertIcon,
+  CalendarIcon,
+  ChecklistIcon,
+  DocumentsIcon,
+  DollarIcon,
+  PipelineIcon,
+} from '../shared/cockpitIcons';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 
 /**
- * Phase 125D — Deal Metric Deck.
+ * Phase 125E — Deal Metric Deck (recomposed).
  *
- * The KPI strip that sits between the navy command hero and the
- * two-column cockpit grid. The deck is the banker's "Bloomberg
- * status bar" — eight tightly-spaced tiles that always render in
- * the same order so the banker scans them as a fixed instrument
- * panel, not as freeform widgets.
+ * Replaces the Phase 125D 8-tile compact strip with **six large
+ * tonal tiles + a prominent profile-completeness ring on the
+ * left**. Each tile is ~140px tall, carries a CockpitIcon halo
+ * + display-scale value typography, and lives on a slate deck
+ * surface so the deck reads as the cockpit's primary instrument
+ * panel — not as a row of decorative chips.
  *
- * Composition:
+ *   ┌───────────────────────────────────────────────────────────┐
+ *   │  ┌─────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐ │
+ *   │  │  ◯  │  │  $   │  │  ⚠   │  │  ▤   │  │  ✓   │  │  📄  │ │
+ *   │  │ 0%  │  │$2.5M │  │  13  │  │  0   │  │  0   │  │  0   │ │
+ *   │  │     │  │Loan  │  │Miss. │  │Block.│  │Tasks │  │ Docs │ │
+ *   │  └─────┘  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘ │
+ *   │                                                           │
+ *   │  + Target close tile (violet, second row when fits)       │
+ *   └───────────────────────────────────────────────────────────┘
  *
- *   ┌──────────────────────────────────────────────────────────┐
- *   │                                                          │
- *   │  ╭──╮  ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐  │
- *   │  │██│  │Amt │ │TClo│ │D-Stg│ │Blkr│ │Tasks│ │Docs│ │Memo│  │
- *   │  ╰──╯  └────┘ └────┘ └────┘ └────┘ └────┘ └────┘ └────┘  │
- *   │ Ring   8 KPI tiles                                       │
- *   │                                                          │
- *   │  Missing fields: Industry · Guarantor · Pricing          │
- *   └──────────────────────────────────────────────────────────┘
- *
- * Every value is derived from authorized records via
+ * Values are derived from authorized records via
  * `deriveDealCockpitMetrics`. Missing values render as italic
- * "Not set" inside the tile (never as fabricated defaults). The
- * completeness percentage is a count of populated profile fields
- * — NOT a credit score, NOT an approval probability, NOT a
- * predictive close-date estimate.
- *
- * Governance:
- *   - Pure render; consumes the same DealDataProvider slot the
- *     rest of the workspace uses.
- *   - No new hooks beyond useDealData + useMemo for the metrics
- *     derivation (memoized for render stability).
- *   - Never writes; never sends; never advances stage.
+ * "Not set" inside the tile; never a fabricated default. The
+ * completeness percentage is a populated-field ratio — NOT a
+ * credit score, NOT an approval probability, NOT a predictive
+ * close-date estimate.
  */
 export function DealMetricDeck() {
   const { deal, tasks, documents, creditMemo, activity } = useDealData();
@@ -69,85 +69,104 @@ export function DealMetricDeck() {
       <div style={styles.ringWrap}>
         <CompletenessRing
           percent={metrics.profileCompletenessPct}
-          caption={`${metrics.populatedFieldCount} / ${metrics.totalFieldCount} fields`}
+          size={104}
+          caption={`PROFILE · ${metrics.populatedFieldCount} of ${metrics.totalFieldCount}`}
           aria-label={`Deal profile completeness: ${metrics.profileCompletenessPct} percent (${metrics.populatedFieldCount} of ${metrics.totalFieldCount} fields populated)`}
         />
       </div>
       <div style={styles.tiles}>
-        <MetricTile
+        <LargeMetricTile
           label="Loan amount"
           value={formatCurrency(metrics.loanAmount)}
+          sub="Authorized cr664_loandeal record"
           tone="info"
+          icon={<DollarIcon />}
         />
-        <MetricTile
-          label="Target close"
-          value={formatTargetCloseDate(metrics.targetCloseIso)}
-          sub={formatRelativeDays(metrics.daysToClose)}
-          tone={tonalForDaysToClose(metrics.daysToClose)}
+        <LargeMetricTile
+          label="Missing fields"
+          value={formatNonNegativeCount(metrics.missingFieldLabels.length)}
+          sub={
+            metrics.missingFieldLabels.length === 0
+              ? 'Every tracked field populated'
+              : `of ${metrics.totalFieldCount} tracked`
+          }
+          tone={metrics.missingFieldLabels.length === 0 ? 'clear' : 'atRisk'}
+          icon={<ChecklistIcon />}
         />
-        <MetricTile
-          label="Days in stage"
-          value={formatDaysCount(metrics.daysInStage)}
-          tone={tonalForDaysInStage(metrics.daysInStage)}
-        />
-        <MetricTile
+        <LargeMetricTile
           label="Blockers"
-          value={formatNonNegativeCount(metrics.docOutstandingCount + metrics.taskOverdueCount)}
-          sub={blockersSubLabel(metrics)}
+          value={formatNonNegativeCount(
+            metrics.taskOverdueCount + metrics.docOutstandingCount,
+          )}
+          sub={blockerSubLabel(metrics)}
           tone={tonalForBlockers(metrics)}
+          icon={<AlertIcon />}
           aria-label={`Blockers: ${metrics.taskOverdueCount} overdue tasks, ${metrics.docOutstandingCount} outstanding documents`}
         />
-        <MetricTile
-          label="Tasks"
+        <LargeMetricTile
+          label="Tasks open"
           value={formatNonNegativeCount(metrics.taskOpenCount)}
           sub={
             metrics.taskOverdueCount > 0
-              ? `${metrics.taskOverdueCount} overdue`
+              ? `${metrics.taskOverdueCount} overdue · ${metrics.taskCompletedCount} completed`
               : metrics.taskOpenCount === 0
-                ? 'none open'
-                : 'all on schedule'
+                ? `${metrics.taskCompletedCount} completed`
+                : `${metrics.taskCompletedCount} completed`
           }
-          tone={metrics.taskOverdueCount > 0 ? 'atRisk' : 'neutral'}
+          tone={metrics.taskOverdueCount > 0 ? 'atRisk' : metrics.taskOpenCount === 0 ? 'clear' : 'info'}
+          icon={<PipelineIcon />}
         />
-        <MetricTile
+        <LargeMetricTile
           label="Documents"
           value={formatNonNegativeCount(metrics.docOutstandingCount)}
           sub={
             metrics.docOutstandingCount === 0
-              ? 'none outstanding'
-              : `${metrics.docReceivedCount} received`
+              ? `${metrics.docReceivedCount} received · ${metrics.docReviewedCount} reviewed`
+              : `${metrics.docOutstandingCount} outstanding · ${metrics.docReceivedCount} received`
           }
-          tone={metrics.docOutstandingCount > 0 ? 'atRisk' : 'neutral'}
+          tone={metrics.docOutstandingCount > 0 ? 'atRisk' : 'clear'}
+          icon={<DocumentsIcon />}
         />
-        <MetricTile
-          label="Credit memo"
-          value={memoStateLabel(metrics.memoState)}
-          sub={
-            metrics.memoCount === 0
-              ? 'no memo records'
-              : `${metrics.memoCount} version${metrics.memoCount === 1 ? '' : 's'}`
-          }
-          tone={memoStateTone(metrics.memoState)}
-        />
-        <MetricTile
-          label="Last touched"
-          value={formatLastTouched(metrics.daysSinceLastTouched)}
-          sub={
-            metrics.lastTouchedIso === undefined
-              ? 'no activity recorded'
-              : `${metrics.rightRail.communicationEvents} comms event${metrics.rightRail.communicationEvents === 1 ? '' : 's'}`
-          }
-          tone={tonalForLastTouched(metrics.daysSinceLastTouched)}
+        <LargeMetricTile
+          label="Target close"
+          value={formatTargetCloseDate(metrics.targetCloseIso)}
+          sub={formatRelativeDays(metrics.daysToClose) ?? 'No date set'}
+          tone={tonalForDaysToClose(metrics.daysToClose)}
+          icon={<CalendarIcon />}
         />
       </div>
-      <div style={styles.missingRow}>
-        <span style={styles.missingLabel}>MISSING FIELDS</span>
-        {metrics.missingFieldLabels.length === 0 ? (
-          <span style={styles.missingNone}>None — every tracked field is populated.</span>
-        ) : (
-          <span style={styles.missingList}>
-            {metrics.missingFieldLabels.join(' · ')}
-          </span>
+      <div style={styles.footerRow}>
+        <span style={styles.footerLabel}>LAST TOUCHED</span>
+        <span style={styles.footerValue}>
+          {metrics.lastTouchedIso === undefined
+            ? 'No activity recorded'
+            : formatLastTouched(metrics.daysSinceLastTouched)}
+        </span>
+        <span style={styles.footerSep} aria-hidden="true">·</span>
+        <span style={styles.footerLabel}>COMMS</span>
+        <span style={styles.footerValue}>
+          {metrics.rightRail.communicationEvents}{' '}
+          event{metrics.rightRail.communicationEvents === 1 ? '' : 's'}
+        </span>
+        <span style={styles.footerSep} aria-hidden="true">·</span>
+        <span style={styles.footerLabel}>MEMO</span>
+        <span style={styles.footerValue}>{memoStateLabel(metrics.memoState)}</span>
+        {metrics.missingFieldLabels.length > 0 && (
+          <>
+            <span style={styles.footerSepBreak} aria-hidden="true">·</span>
+            <span style={styles.footerMissingLabel}>MISSING:</span>
+            <span style={styles.footerMissingList}>
+              {metrics.missingFieldLabels.join(' · ')}
+            </span>
+          </>
+        )}
+        {metrics.missingFieldLabels.length === 0 && (
+          <>
+            <span style={styles.footerSepBreak} aria-hidden="true">·</span>
+            <span style={styles.footerMissingNone}>
+              None — every tracked field is populated.
+            </span>
+          </>
         )}
       </div>
     </section>
@@ -182,34 +201,28 @@ function formatRelativeDays(days: number | undefined): string | undefined {
   return `in ${days}d`;
 }
 
-function formatDaysCount(days: number | undefined): string | undefined {
-  if (days === undefined) return undefined;
-  if (days < 0) return '—';
-  if (days === 0) return 'today';
-  return `${days}d`;
-}
-
 function formatNonNegativeCount(n: number): string {
   return Math.max(0, n).toString();
 }
 
-function blockersSubLabel(
+function blockerSubLabel(
   m: ReturnType<typeof deriveDealCockpitMetrics>,
 ): string {
+  if (m.taskOverdueCount + m.docOutstandingCount === 0) return 'No attention items';
   const parts: string[] = [];
-  if (m.taskOverdueCount > 0) parts.push(`${m.taskOverdueCount} overdue task${m.taskOverdueCount === 1 ? '' : 's'}`);
+  if (m.taskOverdueCount > 0)
+    parts.push(`${m.taskOverdueCount} overdue task${m.taskOverdueCount === 1 ? '' : 's'}`);
   if (m.docOutstandingCount > 0)
-    parts.push(`${m.docOutstandingCount} doc${m.docOutstandingCount === 1 ? '' : 's'} outstanding`);
-  if (parts.length === 0) return 'no attention items';
+    parts.push(`${m.docOutstandingCount} doc${m.docOutstandingCount === 1 ? '' : 's'}`);
   return parts.join(' · ');
 }
 
 function memoStateLabel(
   state: ReturnType<typeof deriveDealCockpitMetrics>['memoState'],
-): string | undefined {
+): string {
   switch (state) {
     case 'none':
-      return undefined;
+      return 'Not set';
     case 'final':
       return 'Final';
     case 'borrower-safe':
@@ -223,25 +236,8 @@ function memoStateLabel(
   }
 }
 
-function memoStateTone(
-  state: ReturnType<typeof deriveDealCockpitMetrics>['memoState'],
-): 'info' | 'clear' | 'atRisk' | 'blocked' | 'neutral' {
-  switch (state) {
-    case 'final':
-      return 'clear';
-    case 'borrower-safe':
-      return 'info';
-    case 'draft':
-      return 'neutral';
-    case 'stale':
-      return 'atRisk';
-    default:
-      return 'neutral';
-  }
-}
-
-function formatLastTouched(days: number | undefined): string | undefined {
-  if (days === undefined) return undefined;
+function formatLastTouched(days: number | undefined): string {
+  if (days === undefined) return 'No activity';
   if (days <= 0) return 'today';
   if (days === 1) return '1d ago';
   if (days < 30) return `${days}d ago`;
@@ -250,19 +246,11 @@ function formatLastTouched(days: number | undefined): string | undefined {
 
 function tonalForDaysToClose(
   days: number | undefined,
-): 'info' | 'atRisk' | 'blocked' | 'neutral' {
+): 'info' | 'atRisk' | 'blocked' | 'neutral' | 'violet' {
   if (days === undefined) return 'neutral';
   if (days < 0) return 'blocked';
   if (days <= 14) return 'atRisk';
-  return 'info';
-}
-
-function tonalForDaysInStage(
-  days: number | undefined,
-): 'info' | 'atRisk' | 'neutral' {
-  if (days === undefined) return 'neutral';
-  if (days >= 30) return 'atRisk';
-  return 'info';
+  return 'violet';
 }
 
 function tonalForBlockers(
@@ -275,25 +263,17 @@ function tonalForBlockers(
   return 'atRisk';
 }
 
-function tonalForLastTouched(
-  days: number | undefined,
-): 'info' | 'atRisk' | 'neutral' {
-  if (days === undefined) return 'neutral';
-  if (days >= 14) return 'atRisk';
-  return 'info';
-}
-
 const styles: Record<string, React.CSSProperties> = {
   deck: {
     background: palette.deckBg,
     border: `1px solid ${palette.panelBorder}`,
-    borderRadius: radius.md,
-    boxShadow: shadow.deck,
-    padding: spacing.md,
+    borderRadius: radius.lg,
+    boxShadow: shadow.elevated,
+    padding: `${spacing.md} ${spacing.lg}`,
     marginBottom: spacing.lg,
     display: 'grid',
     gridTemplateColumns: 'auto minmax(0, 1fr)',
-    columnGap: spacing.md,
+    columnGap: spacing.lg,
     rowGap: spacing.sm,
     alignItems: 'center',
   },
@@ -305,37 +285,60 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tiles: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
-    gap: spacing.xs,
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: spacing.sm,
     minWidth: 0,
   },
-  missingRow: {
+  footerRow: {
     gridColumn: '1 / -1',
     display: 'flex',
-    gap: spacing.xs,
-    alignItems: 'baseline',
     flexWrap: 'wrap' as const,
-    borderTop: `1px dashed ${palette.divider}`,
+    alignItems: 'baseline',
+    gap: `${spacing.xs} ${spacing.sm}`,
+    borderTop: `1px solid ${palette.divider}`,
     paddingTop: spacing.xs,
     minWidth: 0,
+    fontSize: typography.size.sm,
   },
-  missingLabel: {
+  footerLabel: {
     fontSize: typography.size.xs,
     textTransform: 'uppercase' as const,
     letterSpacing: typography.letterSpacing.label,
     color: palette.textSubtle,
-    fontWeight: typography.weight.semibold,
+    fontWeight: typography.weight.bold,
     flexShrink: 0,
   },
-  missingNone: {
+  footerValue: {
     fontSize: typography.size.sm,
-    color: palette.clearFg,
-    fontStyle: 'italic' as const,
+    color: palette.text,
+    fontWeight: typography.weight.semibold,
   },
-  missingList: {
+  footerSep: {
+    color: palette.textSubtle,
+    fontSize: typography.size.sm,
+  },
+  footerSepBreak: {
+    color: palette.textSubtle,
+    fontSize: typography.size.sm,
+    flexBasis: '100%',
+    display: 'none',
+  },
+  footerMissingLabel: {
+    fontSize: typography.size.xs,
+    textTransform: 'uppercase' as const,
+    letterSpacing: typography.letterSpacing.label,
+    color: palette.atRiskFg,
+    fontWeight: typography.weight.bold,
+  },
+  footerMissingList: {
     fontSize: typography.size.sm,
     color: palette.text,
     minWidth: 0,
     flex: 1,
+  },
+  footerMissingNone: {
+    fontSize: typography.size.sm,
+    color: palette.clearFg,
+    fontStyle: 'italic' as const,
   },
 };

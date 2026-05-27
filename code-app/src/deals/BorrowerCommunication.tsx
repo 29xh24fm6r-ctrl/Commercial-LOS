@@ -8,8 +8,10 @@ import {
   sendBorrowerUpdateEmail,
   type SendBorrowerUpdateEmailInput,
 } from './sendBorrowerUpdateEmail';
-import { Card, CardHeader } from '../shared/Card';
+import { Card } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
+import { WidgetHeader } from '../shared/cockpitPrimitives';
+import { MailIcon } from '../shared/cockpitIcons';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
@@ -84,12 +86,20 @@ export function BorrowerCommunication({
       ? documents.data
       : { outstanding: [], received: [], reviewed: [] };
 
+  // Phase 125E — communication events count from the timeline.
+  const commEventCount =
+    activity.kind === 'ready' ? filtered.length : undefined;
+
   return (
     <>
       <Card>
-        <CardHeader
+        <WidgetHeader
           title="Borrower Communication"
-          subtitle="Email, call, and borrower update events from the deal timeline."
+          subtitle="Email, call, and update events from the deal timeline."
+          icon={<MailIcon />}
+          iconTone="info"
+          count={commEventCount}
+          countTone={commEventCount === 0 ? 'neutral' : 'info'}
           trailing={
             readOnly ? undefined : (
               <div style={styles.actionRow}>

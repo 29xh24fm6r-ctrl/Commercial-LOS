@@ -6,22 +6,25 @@ import { render, screen } from '@testing-library/react';
 import type { DealDetail } from './dealQueries';
 
 /**
- * Phase 125 — DealHeader cockpit hero band tests.
+ * Phase 125E — DealHeader command-hero tests.
+ *
+ * The Phase 125E command hero is no longer responsible for the
+ * Loan amount / Target close metric strip — those values now live
+ * in the DealMetricDeck below the hero. The hero focuses on deal
+ * identity (eyebrow + name + client / banker / stage slots) and
+ * a single Status chip.
  *
  * Pins:
  *   - the hero header renders the deal name as an <h1>;
- *   - the loan-amount hero block surfaces a formatted amount when
- *     present, and an honest "Not set" italic state when missing
- *     (never a silent "—" or fabricated value);
- *   - the eyebrow row renders "Deal · Commercial Lending" + the
- *     stage chip + the status chip when both are present;
- *   - target-close, client, banker each surface "Not set" when
- *     missing — honest absence, never fabricated;
+ *   - eyebrow lockup reads "Commercial Lending Cockpit";
+ *   - status chip renders "Status · <name>" when present and
+ *     "Status · Not set" when missing — honest absence;
+ *   - identity slots (Client / Banker / Stage) render the value or
+ *     a "Not set" / "Not assigned" italic state when missing;
  *   - the rendered DOM does NOT carry the Phase-110-forbidden
  *     communication vocabulary;
  *   - the source file does NOT import any email-lane action /
- *     Office365OutlookService binding (Phase 110 communication
- *     lock invariant).
+ *     Office365OutlookService binding (Phase 110 lock).
  */
 
 vi.mock('./DealDataProvider', () => ({
@@ -37,23 +40,14 @@ function deal(overrides: Partial<DealDetail> = {}): DealDetail {
   return {
     id: 'd1',
     name: 'TEST — Deal Phase 121',
-    clientId: 'c1',
     clientName: 'TEST — Borrower Phase 121',
-    bankerId: 'b1',
     bankerName: 'Matthew Paller',
-    teamId: undefined,
-    teamName: undefined,
     stage: 'Underwriting',
     status: 'Active',
     amount: 2_500_000,
     targetCloseDate: '2026-06-03',
-    actualCloseDate: undefined,
-    closedFlag: false,
-    isTerminalStatus: false,
-    isInflightStatus: true,
     stageEntryDate: '2026-05-20',
     createdOn: '2026-05-20',
-    modifiedOn: '2026-05-26',
     industry: undefined,
     customerType: undefined,
     productType: undefined,
@@ -63,6 +57,7 @@ function deal(overrides: Partial<DealDetail> = {}): DealDetail {
     spreadIndex: undefined,
     spreadMargin: undefined,
     collateralSummary: undefined,
+    isClosed: false,
     ...overrides,
   } as DealDetail;
 }
@@ -74,14 +69,11 @@ function setUp(d: DealDetail) {
     documents: { kind: 'loading' },
     creditMemo: { kind: 'loading' },
     activity: { kind: 'loading' },
-    reloadTasks: vi.fn(),
-    reloadDocuments: vi.fn(),
-    reloadCreditMemo: vi.fn(),
-    reloadActivity: vi.fn(),
+    refresh: vi.fn(),
   } as unknown as ReturnType<typeof useDealData>);
 }
 
-describe('Phase 125 — DealHeader cockpit hero band', () => {
+describe('Phase 125E — DealHeader command hero band', () => {
   it('renders the deal name as an <h1>', () => {
     setUp(deal());
     render(<DealHeader />);
@@ -90,59 +82,49 @@ describe('Phase 125 — DealHeader cockpit hero band', () => {
     expect(heading.textContent).toBe('TEST — Deal Phase 121');
   });
 
-  it('renders the eyebrow lockup "Commercial Lending Deal"', () => {
+  it('renders the eyebrow lockup "Commercial Lending Cockpit"', () => {
     setUp(deal());
     render(<DealHeader />);
-    expect(screen.getByText(/Commercial Lending Deal/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Commercial Lending Cockpit/i),
+    ).toBeInTheDocument();
   });
 
-  it('renders the stage chip and status chip when both are present (Phase 125B markup: "Stage · <name>" / "Status · <name>")', () => {
-    setUp(deal({ stage: 'Underwriting', status: 'Active' }));
+  it('renders the status chip "Status · <name>" when status is present', () => {
+    setUp(deal({ status: 'Active' }));
     render(<DealHeader />);
-    expect(screen.getByText(/Stage · Underwriting/i)).toBeInTheDocument();
     expect(screen.getByText(/Status · Active/i)).toBeInTheDocument();
   });
 
-  it('renders honest "Stage · Not set" / "Status · Not set" chips when those fields are missing', () => {
-    setUp(deal({ stage: undefined, status: undefined }));
+  it('renders honest "Status · Not set" chip when status is missing', () => {
+    setUp(deal({ status: undefined }));
     render(<DealHeader />);
-    expect(screen.getByText(/Stage · Not set/i)).toBeInTheDocument();
     expect(screen.getByText(/Status · Not set/i)).toBeInTheDocument();
   });
 
-  it('renders the formatted loan amount when the deal has an amount', () => {
-    setUp(deal({ amount: 2_500_000 }));
+  it('renders the Client / Banker / Stage identity slots with values when present', () => {
+    setUp(deal());
     render(<DealHeader />);
-    expect(screen.getByText('Loan amount')).toBeInTheDocument();
-    // Currency formatting is locale-dependent; pin the dollar sign + magnitude.
-    expect(screen.getByText(/\$2,500,000/)).toBeInTheDocument();
+    expect(screen.getByText('Client')).toBeInTheDocument();
+    expect(screen.getByText('TEST — Borrower Phase 121')).toBeInTheDocument();
+    expect(screen.getByText('Banker')).toBeInTheDocument();
+    expect(screen.getByText('Matthew Paller')).toBeInTheDocument();
+    expect(screen.getByText('Stage')).toBeInTheDocument();
+    expect(screen.getByText('Underwriting')).toBeInTheDocument();
   });
 
-  it('surfaces an honest "Not set" amount when the deal has no amount (no fabricated $0)', () => {
-    setUp(deal({ amount: undefined }));
-    render(<DealHeader />);
-
-    // The amount hero block still renders its label, but the value
-    // is the italic "Not set" copy — never $0.
-    expect(screen.getByText('Loan amount')).toBeInTheDocument();
-    expect(screen.getByText('Not set')).toBeInTheDocument();
-    expect(screen.queryByText(/^\$0$/)).toBeNull();
-  });
-
-  it('surfaces "Not set" for missing client / banker / target close (honest absence)', () => {
+  it('renders italic "Not set" / "Not assigned" in identity slots when fields are missing (honest absence)', () => {
     setUp(
       deal({
         clientName: undefined,
         bankerName: undefined,
-        targetCloseDate: undefined,
+        stage: undefined,
       }),
     );
     render(<DealHeader />);
-
-    // All three Fact rows render "Not set" instead of an empty
-    // dash filler.
-    const notSetMatches = screen.getAllByText('Not set');
-    expect(notSetMatches.length).toBeGreaterThanOrEqual(3);
+    // Client → Not set, Banker → Not assigned, Stage → Not set.
+    expect(screen.getAllByText('Not set').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Not assigned')).toBeInTheDocument();
   });
 
   it('does NOT render the forbidden Phase-110 communication-lane vocabulary', () => {
@@ -155,7 +137,7 @@ describe('Phase 125 — DealHeader cockpit hero band', () => {
   });
 });
 
-describe('Phase 125 — DealHeader.tsx static-source pins', () => {
+describe('Phase 125E — DealHeader.tsx static-source pins', () => {
   const SRC = readFileSync(resolve(__dirname, 'DealHeader.tsx'), 'utf8');
 
   it('does NOT import Office365OutlookService (Phase 110 lock)', () => {

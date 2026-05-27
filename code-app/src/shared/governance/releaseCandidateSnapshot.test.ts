@@ -309,6 +309,26 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // / email-lane changes. 37 new Phase 125D invariant tests
     // across three new files.
     'docs/PHASE_125D_BLOOMBERG_APPLE_DEAL_COCKPIT.md',
+    // Phase 125E — Full deal cockpit recomposition. Replaces
+    // the Phase 125D layout with a recomposed visual hierarchy:
+    // command hero (no metric strip — identity slots only) +
+    // 6 large tonal KPI tiles + completeness ring + a big
+    // Attention Console (severity meter + missing-data
+    // checklist + signal rows) + a large connected-node
+    // Stage Map (44/52px nodes + thick connectors + cobalt
+    // halo) + an icon-led Action Console + workstream bars +
+    // detail cards with WidgetHeader (icon halo + count badge
+    // + mini progress bar) on every right-rail widget. Deal
+    // Summary demoted to the bottom of the left column as a
+    // compact key/value table. New shared primitives:
+    // cockpitIcons.tsx (16 inline-SVG glyphs + IconChip
+    // halo wrapper), LargeMetricTile + WidgetHeader added
+    // to cockpitPrimitives.tsx. New typography.size.display
+    // scale token. Phase 125 hook hoist preserved.
+    // Composition-only — no Dataverse / loader / governed-
+    // write / email-lane changes. 13 new Phase 125E invariant
+    // tests in phase125ERecomposition.test.tsx.
+    'docs/PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md',
     // Phase 126 — Relationships + Signals visual restoration.
     // RelationshipMemory client rows gain a primary-accent left
     // stripe + bumped client-name typography. BankerAutopilotRollup

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useDealData } from './DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
-import { Card, CardHeader } from '../shared/Card';
+import { Card } from '../shared/Card';
+import { WidgetHeader } from '../shared/cockpitPrimitives';
+import { TeamsIcon } from '../shared/cockpitIcons';
 import {
   buildTeamsChatDeepLink,
   initializeTeamsContext,
@@ -93,9 +95,11 @@ export function TeamsChatHandoff() {
 
   return (
     <Card>
-      <CardHeader
+      <WidgetHeader
         title="Open Teams chat"
-        subtitle="Handoff to your Microsoft Teams client. The app does not post to, read from, or sync with Teams."
+        subtitle="Handoff to your Microsoft Teams client."
+        icon={<TeamsIcon />}
+        iconTone="violet"
       />
       {deepLink ? (
         <div style={styles.body}>

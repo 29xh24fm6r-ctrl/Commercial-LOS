@@ -142,7 +142,7 @@ describe('TeamsChatHandoff — Phase 86', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Handoff to your Microsoft Teams client\. The app does not post to, read from, or sync with Teams\./i,
+        /Handoff to your Microsoft Teams client\./i,
       ),
     ).toBeInTheDocument();
   });

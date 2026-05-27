@@ -10,7 +10,9 @@ import {
 } from './activityTimelineTeamsSummary';
 import { SummaryOutlookHandoffButtons } from '../shared/email/SummaryOutlookHandoffButtons';
 import { activityTimelineOutlookSubject } from '../shared/email/summaryOutlookHandoff';
-import { Card, CardHeader } from '../shared/Card';
+import { Card } from '../shared/Card';
+import { WidgetHeader } from '../shared/cockpitPrimitives';
+import { ActivityIcon } from '../shared/cockpitIcons';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
@@ -28,11 +30,17 @@ export function ActivityTimeline() {
     return summarizeActivitySinceLastVisit(activity.data, priorLastVisitMs);
   }, [activity, priorLastVisitMs, isInitialized]);
 
+  const activityCount = activity.kind === 'ready' ? activity.data.length : undefined;
+
   return (
     <Card>
-      <CardHeader
+      <WidgetHeader
         title="Activity Timeline"
         subtitle={subtitleFor(activity, sinceLastVisit, priorLastVisitMs)}
+        icon={<ActivityIcon />}
+        iconTone="teal"
+        count={activityCount}
+        countTone={activityCount === 0 ? 'neutral' : 'info'}
       />
       <Body activity={activity} sinceLastVisit={sinceLastVisit} />
       {activity.kind === 'ready' && activity.data.length > 0 && (

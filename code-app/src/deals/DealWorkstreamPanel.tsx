@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { useDealData } from './DealDataProvider';
 import { deriveDealCockpitMetrics } from './dealCockpitMetrics';
-import { Card, CardHeader, CardFooter } from '../shared/Card';
-import { WorkstreamBar } from '../shared/cockpitPrimitives';
+import { Card } from '../shared/Card';
+import { WidgetHeader, WorkstreamBar } from '../shared/cockpitPrimitives';
+import { PipelineIcon } from '../shared/cockpitIcons';
 import { palette, spacing, typography } from '../shared/theme';
 
 /**
@@ -65,9 +66,11 @@ export function DealWorkstreamPanel() {
 
   return (
     <Card>
-      <CardHeader
-        title="Workstreams"
-        subtitle="Derived from authorized records — never AI, never predictive."
+      <WidgetHeader
+        title="Workstream Progress"
+        subtitle="Derived counts — never AI, never predictive."
+        icon={<PipelineIcon />}
+        iconTone="teal"
       />
       <div style={styles.grid}>
         <WorkstreamBar
@@ -138,12 +141,6 @@ export function DealWorkstreamPanel() {
           }
         />
       </div>
-      <CardFooter>
-        <span>
-          Each bar reflects authorized record counts only — no fabricated
-          forecasts, no AI completion estimates, no approval-odds claim.
-        </span>
-      </CardFooter>
     </Card>
   );
 }

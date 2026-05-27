@@ -128,8 +128,10 @@ describe('DealAutopilotPanel — Phase 80', () => {
       readyData({ tasks: { kind: 'loading' } }),
     );
     render(<DealAutopilotPanel />);
+    // Phase 125E renamed the card title to "Action Console" but
+    // kept the loading subtitle.
     expect(
-      screen.getByRole('heading', { name: /next best actions/i }),
+      screen.getByRole('heading', { name: /Action Console/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Loading deal signals/i)).toBeInTheDocument();
   });
@@ -231,7 +233,7 @@ describe('DealAutopilotPanel — Phase 80', () => {
     document.body.removeChild(docsWrapper);
   });
 
-  it('renders the conservative disclaimer verbatim ("Autopilot suggests, banker decides")', () => {
+  it('renders the conservative disclaimer (Phase 125E shortened: "Read-only. Never creates tasks...")', () => {
     useDealDataMock.mockReturnValue(
       readyData({
         tasks: {
@@ -253,11 +255,11 @@ describe('DealAutopilotPanel — Phase 80', () => {
       }),
     );
     render(<DealAutopilotPanel />);
+    // Phase 125E trimmed the disclaimer to a single sentence:
+    // "Read-only. Never creates tasks, sends emails, advances the
+    //  stage, or calls AI."
     expect(
-      screen.getByText(/Autopilot suggests, banker decides\./i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/never creates tasks, sends emails/i),
+      screen.getByText(/Read-only\.\s*Never creates tasks, sends emails/i),
     ).toBeInTheDocument();
   });
 
@@ -507,14 +509,13 @@ describe('DealAutopilotPanel — Phase 80', () => {
       ).toBeGreaterThanOrEqual(1);
     });
 
-    it('extends the conservative disclaimer with the local-tracking copy', () => {
+    it('extends the conservative disclaimer with the local-tracking copy (Phase 125E shortened)', () => {
       useDealDataMock.mockReturnValue(oneOverdueTaskData());
       render(<DealAutopilotPanel />);
+      // Phase 125E shortened the disclaimer to a single sentence:
+      // "...'Opened' / 'Dismiss locally' are tracked on this browser only."
       expect(
         screen.getByText(/tracked on this browser only/i),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/do not change deal status/i),
       ).toBeInTheDocument();
     });
 

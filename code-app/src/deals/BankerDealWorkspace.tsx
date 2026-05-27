@@ -140,23 +140,22 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
               aria-label="Deal intelligence and detail"
               data-cockpit-zone="intelligence-column"
             >
-              {/* Phase 125D — Attention Console zone. Severity
-                  meter + count tiles + signal rows. */}
+              {/* Phase 125E — Attention Console is the cockpit's
+                  primary operating panel; render it first so the
+                  banker sees attention items + missing data
+                  immediately after the metric deck. */}
               <DealBlockers />
-              {/* Phase 80: stage-progression card is the scroll target
-                  for the autopilot "stage-aging" suggestion. */}
+              {/* Phase 125E — Stage Map is the second-most-
+                  prominent module: where is this deal? */}
               <div data-deal-card="stage-progression">
                 <DealStageProgressionCard />
               </div>
-              {/* Phase 80: Deal Autopilot Lite — Next Best Actions panel.
-                  Phase 125D promotes this to the "Action Console" zone
-                  with a priority-tile strip header. Deterministic
-                  suggestions only; banker decides. */}
+              {/* Phase 125E — Action Console. Deterministic
+                  next-best actions. Banker decides. */}
               <DealAutopilotPanel />
               {/* Phase 125D — Workstream Panel: horizontal mini bars
                   for tasks / documents / memo / communication. */}
               <DealWorkstreamPanel />
-              <DealSummary />
               <RelationshipContext />
               <div data-deal-card="credit-memo">
                 <CreditMemo />
@@ -164,6 +163,10 @@ export function BankerDealWorkspace({ dealId }: BankerDealWorkspaceProps) {
               <div data-deal-card="activity-timeline">
                 <ActivityTimeline />
               </div>
+              {/* Phase 125E — Deal Summary demoted to the bottom
+                  of the cockpit. It's a reference table, not the
+                  main attraction. */}
+              <DealSummary />
             </section>
             <section
               style={styles.colRight}

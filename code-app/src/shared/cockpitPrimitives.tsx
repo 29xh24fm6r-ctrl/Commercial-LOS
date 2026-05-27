@@ -8,6 +8,7 @@ import {
   typography,
   type SeverityKey,
 } from './theme';
+import { IconChip } from './cockpitIcons';
 
 /**
  * Phase 125D — Cockpit visual primitives.
@@ -521,4 +522,338 @@ const glassPanelStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: spacing.xs,
+};
+
+// ---------------------------------------------------------------------------
+// (7) LargeMetricTile — Phase 125E centerpiece KPI tile.
+// ---------------------------------------------------------------------------
+
+export interface LargeMetricTileProps {
+  /** Tiny uppercase label (e.g. "LOAN AMOUNT"). */
+  label: string;
+  /** Bold primary value. Pass `undefined` for honest "Not set". */
+  value: string | undefined;
+  /** Optional second-line sub value. */
+  sub?: string | undefined;
+  /** Optional icon (pass a CockpitIcon glyph). */
+  icon?: ReactNode;
+  /**
+   * Severity tone — drives the icon halo color + the left accent
+   * bar. 'info' = cobalt (default), 'clear' = green (healthy),
+   * 'atRisk' = amber, 'blocked' = red, 'neutral' = no accent.
+   * Phase 125E also accepts 'violet' / 'teal' to color the long-
+   * tail cockpit accents (target-close violet, etc.).
+   */
+  tone?: SeverityKey | 'violet' | 'teal';
+  /** Optional accessible name override. */
+  'aria-label'?: string;
+}
+
+export function LargeMetricTile({
+  label,
+  value,
+  sub,
+  icon,
+  tone = 'info',
+  'aria-label': ariaLabel,
+}: LargeMetricTileProps) {
+  const accent = TONE_ACCENT[tone];
+  const isMissing = value === undefined;
+  return (
+    <div
+      role="group"
+      data-large-metric-tile={tone}
+      aria-label={ariaLabel ?? `${label}: ${value ?? 'not set'}`}
+      style={{
+        ...largeTileStyle,
+        borderTop: `4px solid ${accent}`,
+      }}
+    >
+      <div style={largeTileHeadStyle}>
+        {icon && (
+          <IconChip
+            tone={tone === 'violet' || tone === 'teal' ? tone : (tone as SeverityKey)}
+            size={36}
+          >
+            {icon}
+          </IconChip>
+        )}
+        <span style={largeTileLabelStyle}>{label}</span>
+      </div>
+      <div style={isMissing ? largeTileValueMissingStyle : largeTileValueStyle}>
+        {value ?? 'Not set'}
+      </div>
+      {sub !== undefined && (
+        <div style={largeTileSubStyle}>{sub}</div>
+      )}
+    </div>
+  );
+}
+
+const TONE_ACCENT: Record<string, string> = {
+  blocked: palette.blocked,
+  atRisk: palette.atRisk,
+  clear: palette.clear,
+  neutral: palette.borderStrong,
+  info: palette.cobalt,
+  violet: palette.violet,
+  teal: palette.teal,
+};
+
+const largeTileStyle: CSSProperties = {
+  background: palette.deckTile,
+  border: `1px solid ${palette.border}`,
+  borderRadius: radius.md,
+  padding: `${spacing.md} ${spacing.md} ${spacing.md}`,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: spacing.xs,
+  minHeight: 140,
+  boxShadow: shadow.elevated,
+  minWidth: 0,
+};
+
+const largeTileHeadStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: spacing.xs,
+  minWidth: 0,
+};
+
+const largeTileLabelStyle: CSSProperties = {
+  fontSize: typography.size.xs,
+  textTransform: 'uppercase',
+  letterSpacing: typography.letterSpacing.label,
+  color: palette.textMuted,
+  fontWeight: typography.weight.bold,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
+
+const largeTileValueStyle: CSSProperties = {
+  margin: 0,
+  fontSize: typography.size.display,
+  fontWeight: typography.weight.bold,
+  color: palette.text,
+  fontVariantNumeric: 'tabular-nums',
+  letterSpacing: typography.letterSpacing.hero,
+  lineHeight: 1.05,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
+
+const largeTileValueMissingStyle: CSSProperties = {
+  ...largeTileValueStyle,
+  color: palette.textSubtle,
+  fontStyle: 'italic',
+  fontSize: typography.size.xxl,
+  fontWeight: typography.weight.regular,
+};
+
+const largeTileSubStyle: CSSProperties = {
+  fontSize: typography.size.sm,
+  color: palette.textMuted,
+  lineHeight: typography.lineHeight.snug,
+  marginTop: 'auto',
+};
+
+// ---------------------------------------------------------------------------
+// (8) WidgetHeader — Phase 125E right-rail operational widget header.
+//
+// Bold icon + title + optional count badge + optional mini progress bar.
+// Replaces CardHeader for the right-rail cards so each one reads as a
+// distinct operational widget instead of a paragraph-style card.
+// ---------------------------------------------------------------------------
+
+export interface WidgetHeaderProps {
+  /** Title text. */
+  title: string;
+  /**
+   * Optional one-line subtitle. Phase 125E intentionally keeps
+   * widget subtitles short — the widget signals state with the
+   * count + bar; the subtitle is supportive text only.
+   */
+  subtitle?: string;
+  /** Icon (a CockpitIcon glyph). */
+  icon?: ReactNode;
+  /**
+   * Icon tone — drives the halo color. 'info' = cobalt (default),
+   * 'clear' = green, 'atRisk' = amber, 'blocked' = red, 'neutral'
+   * = gray, and the new 'violet' / 'teal' accents for advanced
+   * surfaces.
+   */
+  iconTone?: SeverityKey | 'violet' | 'teal';
+  /** Count badge displayed on the right. Pass undefined to omit. */
+  count?: number;
+  /**
+   * Count badge tone. Defaults to neutral. Pass 'atRisk' for an
+   * amber pill (overdue tasks / outstanding docs), 'clear' for
+   * green (zero outstanding), etc.
+   */
+  countTone?: SeverityKey;
+  /**
+   * Optional progress bar shown beneath the title row. Provide
+   * `progress.done / progress.total`; the bar paints `done/total`
+   * filled in the supplied tone (or info-cobalt by default).
+   * Pass `total === 0` to render a muted "empty" rail.
+   */
+  progress?: {
+    done: number;
+    total: number;
+    tone?: SeverityKey;
+    /**
+     * Optional accessible label for the progress bar. Defaults to
+     * "<title> progress".
+     */
+    'aria-label'?: string;
+  };
+  /** Right-aligned slot for action buttons / extra badges. */
+  trailing?: ReactNode;
+}
+
+export function WidgetHeader({
+  title,
+  subtitle,
+  icon,
+  iconTone = 'info',
+  count,
+  countTone = 'neutral',
+  progress,
+  trailing,
+}: WidgetHeaderProps) {
+  return (
+    <header data-widget-header style={widgetHeaderStyle}>
+      <div style={widgetHeaderRowStyle}>
+        {icon && (
+          <IconChip
+            tone={iconTone === 'violet' || iconTone === 'teal' ? iconTone : (iconTone as SeverityKey)}
+            size={36}
+          >
+            {icon}
+          </IconChip>
+        )}
+        <div style={widgetTitleBlockStyle}>
+          <h3 style={widgetTitleStyle}>{title}</h3>
+          {subtitle && <p style={widgetSubtitleStyle}>{subtitle}</p>}
+        </div>
+        <div style={widgetTrailingStyle}>
+          {count !== undefined && (
+            <CountBadge
+              count={count}
+              tone={countTone}
+              aria-label={`${title}: ${count}`}
+            />
+          )}
+          {trailing}
+        </div>
+      </div>
+      {progress && (
+        <WidgetProgressBar
+          done={progress.done}
+          total={progress.total}
+          tone={progress.tone}
+          ariaLabel={progress['aria-label'] ?? `${title} progress`}
+        />
+      )}
+    </header>
+  );
+}
+
+function WidgetProgressBar({
+  done,
+  total,
+  tone,
+  ariaLabel,
+}: {
+  done: number;
+  total: number;
+  tone?: SeverityKey;
+  ariaLabel: string;
+}) {
+  const safeTotal = Math.max(0, Math.floor(total));
+  const safeDone = Math.max(0, Math.min(safeTotal, Math.floor(done)));
+  const ratio = safeTotal === 0 ? 0 : safeDone / safeTotal;
+  const inferred: SeverityKey =
+    safeTotal === 0 ? 'neutral' : safeDone >= safeTotal ? 'clear' : safeDone === 0 ? 'atRisk' : 'info';
+  const finalTone: SeverityKey = tone ?? inferred;
+  const fill = severityPalette[finalTone].bar;
+  return (
+    <div
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={safeTotal || 1}
+      aria-valuenow={safeDone}
+      aria-label={ariaLabel}
+      style={widgetBarTrackStyle}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          ...widgetBarFillStyle,
+          width: `${Math.round(ratio * 100)}%`,
+          background: fill,
+        }}
+      />
+    </div>
+  );
+}
+
+const widgetHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: spacing.xs,
+};
+
+const widgetHeaderRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: spacing.sm,
+  minWidth: 0,
+};
+
+const widgetTitleBlockStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
+  minWidth: 0,
+  flex: 1,
+};
+
+const widgetTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: typography.size.lg,
+  fontWeight: typography.weight.bold,
+  color: palette.text,
+  letterSpacing: typography.letterSpacing.heading,
+  lineHeight: typography.lineHeight.tight,
+};
+
+const widgetSubtitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: typography.size.sm,
+  color: palette.textMuted,
+  lineHeight: typography.lineHeight.snug,
+};
+
+const widgetTrailingStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: spacing.xs,
+  flexShrink: 0,
+};
+
+const widgetBarTrackStyle: CSSProperties = {
+  position: 'relative',
+  height: 6,
+  borderRadius: radius.pill,
+  overflow: 'hidden',
+  background: palette.divider,
+};
+
+const widgetBarFillStyle: CSSProperties = {
+  height: '100%',
+  borderRadius: radius.pill,
+  transition: 'width 200ms ease',
 };

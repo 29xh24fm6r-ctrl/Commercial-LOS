@@ -133,13 +133,14 @@ describe('Phase 125D — DealMetricDeck (populated deal)', () => {
     expect(ring?.getAttribute('aria-label')).toMatch(/100 percent/i);
   });
 
-  it('renders KPI metric tiles with tonal accents (data-metric-tile attribute)', () => {
+  it('renders KPI metric tiles with tonal accents (data-large-metric-tile attribute)', () => {
     useDealDataMock.mockReturnValue(ready(fullDeal()));
     const { container } = render(<DealMetricDeck />);
-    const tiles = container.querySelectorAll('[data-metric-tile]');
-    // 8 tiles in the deck: amount / target / days-in-stage /
-    // blockers / tasks / docs / memo / last-touched.
-    expect(tiles.length).toBe(8);
+    const tiles = container.querySelectorAll('[data-large-metric-tile]');
+    // Phase 125E — 6 large tonal tiles + the completeness ring on
+    // the left: loan amount / missing / blockers / tasks / docs /
+    // target close.
+    expect(tiles.length).toBe(6);
   });
 
   it('shows the "no missing fields" copy when every tracked field is populated', () => {
@@ -163,15 +164,18 @@ describe('Phase 125D — DealMetricDeck (populated deal)', () => {
 // (2) DealMetricDeck — sparse seed
 // ---------------------------------------------------------------------------
 describe('Phase 125D — DealMetricDeck (sparse Phase 121-style seed)', () => {
-  it('renders italic "Not set" inside every tile that has no value', () => {
+  it('renders italic "Not set" inside tiles whose value is missing', () => {
     useDealDataMock.mockReturnValue(ready(sparseDeal()));
     const { container } = render(<DealMetricDeck />);
     const notSet = container.querySelectorAll(
-      '[data-metric-tile] :where([style*="italic"])',
+      '[data-large-metric-tile] :where([style*="italic"])',
     );
-    // At least Loan amount, Target close, Credit memo, Last
-    // touched all read "Not set" for a sparse deal.
-    expect(notSet.length).toBeGreaterThanOrEqual(4);
+    // Phase 125E — the deck collapsed to 6 tiles; the
+    // count-driven tiles (Missing fields / Blockers / Tasks /
+    // Documents) always render a numeric value, so only Loan
+    // amount + Target close render italic "Not set" on the
+    // sparse seed.
+    expect(notSet.length).toBeGreaterThanOrEqual(2);
   });
 
   it('lists every tracked profile field as missing in the meter readout', () => {

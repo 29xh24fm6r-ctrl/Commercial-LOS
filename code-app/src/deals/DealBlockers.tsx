@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useDealData } from './DealDataProvider';
 import {
   deriveBlockers,
@@ -6,21 +7,40 @@ import {
   type BlockerStatus,
 } from './blockerRules';
 import { deriveCreditMemoFreshness } from './creditMemoFreshness';
-import { Card, CardHeader, CardFooter } from '../shared/Card';
+import { deriveDealCockpitMetrics } from './dealCockpitMetrics';
+import { Card, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { SeverityGlyph } from '../shared/SeverityGlyph';
-import { GlassPanel, SeverityMeter } from '../shared/cockpitPrimitives';
+import { WidgetHeader } from '../shared/cockpitPrimitives';
+import { AlertIcon, ChecklistIcon } from '../shared/cockpitIcons';
 import { palette, radius, severityPalette, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
- * Read-only blocker card. Consumes the deal data provider so signals
- * can fold in task and document state without issuing duplicate
- * queries. Deal-only signals still render immediately; task/document
- * signals appear once those child queries resolve.
+ * Phase 125E — Attention Console (recomposed).
  *
- * Phase 26: a credit-memo freshness signal is folded in when the
- * derived freshness state is at-risk or blocked. The signal is
- * derived-only — DealBlockers never updates any memo's status.
+ * The Attention Console is the cockpit's primary operating panel:
+ *
+ *   ┌────────────────────────────────────────────────────────────┐
+ *   │ ┌──┐ Attention Console               [ POTENTIAL BLOCKER ] │
+ *   │ │⚠ │ Severity-bucketed signals — derived from records.    │
+ *   │ └──┘                                                       │
+ *   │ ┌───────────┐ ┌───────────┐ ┌───────────┐                  │
+ *   │ │  0        │ │  1        │ │  3        │                  │
+ *   │ │ BLOCKED   │ │ AT-RISK   │ │ CLEAR     │                  │
+ *   │ └───────────┘ └───────────┘ └───────────┘                  │
+ *   │                                                            │
+ *   │ ┌──┐ Missing data — 3 of 13 fields                         │
+ *   │ │▤ │ [ Loan amount ] [ Target close ] [ Banker ]           │
+ *   │ └──┘                                                       │
+ *   │                                                            │
+ *   │ ╭─── ⚠ Credit memo may be stale ───────────────────────╮   │
+ *   │ │ Re-derive memo before the next stage review.        │   │
+ *   │ ╰─────────────────────────────────────────────────────╯   │
+ *   └────────────────────────────────────────────────────────────┘
+ *
+ * Honest absence rules unchanged: zero counts still render as
+ * muted tiles so the meter stays a fixed instrument. No fabricated
+ * blockers, no AI prediction, no approval-odds claim.
  */
 export function DealBlockers() {
   const { deal, tasks, documents, creditMemo, activity } = useDealData();
@@ -50,8 +70,6 @@ export function DealBlockers() {
       });
     }
   }
-  // Promote overall severity if the memo freshness signal is more
-  // severe than the existing blocker status.
   const combinedStatus: BlockerStatus = memoSignals.some(
     (s) => s.severity === 'blocked',
   )
@@ -67,40 +85,69 @@ export function DealBlockers() {
   const statusKey = statusToSeverity(status);
   const accent = severityPalette[statusKey].bar;
 
-  // Phase 125D — severity-bucket counts for the AttentionConsole
-  // meter strip. Honest: zero counts still render (so the meter
-  // consistently shows three tiles) — only the tonal styling and
-  // the count value change.
   const blockedCount = signals.filter((s) => s.severity === 'blocked').length;
   const atRiskCount = signals.filter((s) => s.severity === 'at-risk').length;
-  const clearCount = status === 'clear' ? 1 : 0;
+  const clearCount = signals.filter((s) => s.severity === 'info').length + (status === 'clear' ? 1 : 0);
+
+  // Pull missing-field labels from the same deriveDealCockpitMetrics
+  // the deck uses so the Attention Console + the deck always agree.
+  const now = useMemo(() => new Date(), []);
+  const metrics = useMemo(
+    () =>
+      deriveDealCockpitMetrics(
+        {
+          deal,
+          tasks: tasksData,
+          documents: documentsData,
+          creditMemo: memoData,
+          activity: activityData,
+        },
+        now,
+      ),
+    [deal, tasksData, documentsData, memoData, activityData, now],
+  );
 
   return (
     <Card accentColor={accent}>
-      <CardHeader
+      <WidgetHeader
         title="Attention Console"
-        subtitle="Severity-bucketed signals from authorized records — never AI."
+        subtitle="Severity-bucketed signals — derived from authorized records."
+        icon={<AlertIcon />}
+        iconTone={statusKey}
         trailing={<Badge variant={statusKey}>{statusLabel(status)}</Badge>}
       />
 
-      {/* Phase 125D — severity meter strip. Always 3 tiles
-          (blocked / at-risk / clear) so the console reads as
-          a fixed instrument bar. */}
-      <SeverityMeter
-        buckets={[
-          { severity: 'blocked', count: blockedCount, label: 'Blocked' },
-          { severity: 'atRisk', count: atRiskCount, label: 'At-risk' },
-          { severity: 'clear', count: clearCount, label: 'Clear' },
-        ]}
-      />
+      <div style={styles.bigMeter} role="group" aria-label="Severity counts">
+        <BigSeverityTile severity="blocked" label="Blocked" count={blockedCount} />
+        <BigSeverityTile severity="atRisk" label="At-risk" count={atRiskCount} />
+        <BigSeverityTile severity="clear" label="Clear" count={clearCount} />
+      </div>
+
+      {metrics.missingFieldLabels.length > 0 && (
+        <div style={styles.missingDataBlock} aria-label="Missing data checklist">
+          <div style={styles.missingDataHead}>
+            <span style={styles.missingDataIcon} aria-hidden="true">
+              <ChecklistIcon />
+            </span>
+            <span style={styles.missingDataLabel}>
+              Missing data — {metrics.missingFieldLabels.length} of {metrics.totalFieldCount} fields
+            </span>
+          </div>
+          <div style={styles.missingChipRow}>
+            {metrics.missingFieldLabels.map((label) => (
+              <span key={label} style={styles.missingChip}>
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {status === 'clear' && (
-        <GlassPanel>
-          <p style={styles.cleanMessage}>
-            {closedDealNote ??
-              'No blockers detected from authorized deal, task, or document records.'}
-          </p>
-        </GlassPanel>
+        <p style={styles.cleanMessage}>
+          {closedDealNote ??
+            'No blockers detected from authorized records.'}
+        </p>
       )}
 
       {signals.length > 0 && (
@@ -113,9 +160,37 @@ export function DealBlockers() {
 
       <CardFooter>
         <span>Derived from authorized deal, task, document, and credit-memo records.</span>
-        <span>Approval and alert checks will be added later.</span>
       </CardFooter>
     </Card>
+  );
+}
+
+function BigSeverityTile({
+  severity,
+  label,
+  count,
+}: {
+  severity: SeverityKey;
+  label: string;
+  count: number;
+}) {
+  const p = severityPalette[severity];
+  const isZero = count === 0;
+  return (
+    <div
+      data-severity-meter-tile={severity}
+      data-big-severity-tile={severity}
+      style={{
+        ...styles.bigTile,
+        background: isZero ? palette.surfaceAlt : p.bg,
+        color: isZero ? palette.textSubtle : p.fg,
+        borderColor: isZero ? palette.divider : p.bar,
+      }}
+      aria-label={`${label}: ${count}`}
+    >
+      <span style={styles.bigTileCount}>{count}</span>
+      <span style={styles.bigTileLabel}>{label}</span>
+    </div>
   );
 }
 
@@ -126,7 +201,8 @@ function SignalRow({ signal }: { signal: BlockerSignal }) {
     <li
       style={{
         ...styles.signal,
-        borderLeft: `3px solid ${p.bar}`,
+        borderLeft: `4px solid ${p.bar}`,
+        background: p.bg,
       }}
     >
       <SeverityGlyph severity={sev} />
@@ -159,8 +235,13 @@ function statusLabel(s: BlockerStatus): string {
 const styles: Record<string, React.CSSProperties> = {
   cleanMessage: {
     margin: 0,
-    color: palette.textMuted,
+    padding: `${spacing.sm} ${spacing.md}`,
+    background: palette.clearBg,
+    color: palette.clearFg,
     fontSize: typography.size.base,
+    border: `1px solid ${palette.clear}`,
+    borderRadius: radius.sm,
+    fontWeight: typography.weight.medium,
   },
   list: {
     listStyle: 'none',
@@ -175,18 +256,96 @@ const styles: Record<string, React.CSSProperties> = {
     gap: spacing.sm,
     alignItems: 'flex-start',
     padding: `${spacing.sm} ${spacing.md}`,
-    background: palette.surfaceAlt,
-    border: `1px solid ${palette.border}`,
+    border: `1px solid ${palette.divider}`,
     borderRadius: radius.sm,
   },
   signalBody: { display: 'flex', flexDirection: 'column', gap: 2 },
   signalLabel: {
     fontSize: typography.size.base,
-    fontWeight: typography.weight.semibold,
+    fontWeight: typography.weight.bold,
   },
   signalDetail: {
-    fontSize: typography.size.md,
-    color: palette.textMuted,
+    fontSize: typography.size.sm,
+    color: palette.text,
     lineHeight: typography.lineHeight.snug,
+  },
+
+  // Phase 125E — big severity meter tiles (the centerpiece of the
+  // Attention Console). Three tiles always render. Each tile is
+  // ~88px tall with a display-scale count value.
+  bigMeter: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+    gap: spacing.sm,
+  },
+  bigTile: {
+    border: '1px solid',
+    borderRadius: radius.md,
+    padding: `${spacing.md} ${spacing.md}`,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 4,
+    minHeight: 96,
+    minWidth: 0,
+  },
+  bigTileCount: {
+    fontSize: typography.size.display,
+    fontWeight: typography.weight.bold,
+    fontVariantNumeric: 'tabular-nums' as const,
+    lineHeight: 1,
+  },
+  bigTileLabel: {
+    fontSize: typography.size.xs,
+    textTransform: 'uppercase' as const,
+    letterSpacing: typography.letterSpacing.label,
+    fontWeight: typography.weight.bold,
+    marginTop: 'auto',
+  },
+
+  // Missing-data checklist (chip strip) — Phase 125E shows the
+  // banker exactly which deal-summary fields still need to be
+  // filled, surfaced as chips so it reads as a fast checklist.
+  missingDataBlock: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: spacing.xs,
+    padding: `${spacing.sm} ${spacing.md}`,
+    background: palette.atRiskBg,
+    border: `1px solid ${palette.atRisk}`,
+    borderLeft: `4px solid ${palette.atRisk}`,
+    borderRadius: radius.sm,
+  },
+  missingDataHead: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  missingDataIcon: {
+    color: palette.atRiskFg,
+    display: 'inline-flex',
+    alignItems: 'center',
+  },
+  missingDataLabel: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    color: palette.atRiskFg,
+    textTransform: 'uppercase' as const,
+    letterSpacing: typography.letterSpacing.label,
+  },
+  missingChipRow: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: 4,
+  },
+  missingChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: `2px ${spacing.sm}`,
+    background: palette.surface,
+    color: palette.atRiskFg,
+    border: `1px solid ${palette.atRisk}`,
+    borderRadius: radius.pill,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
   },
 };

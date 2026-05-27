@@ -1,152 +1,127 @@
 import { useDealData } from './DealDataProvider';
+import { BankerIcon, ClientIcon, StageIcon } from '../shared/cockpitIcons';
 import { radius, shadow, spacing, typography } from '../shared/theme';
 
 /**
- * Phase 125B — Deal Workspace Command Center hero.
+ * Phase 125E — Command Hero (recomposed).
  *
- * Premium navy hero band that anchors the deal workspace as a
- * commercial-lending command center, not a Dataverse record page.
- * Layout:
+ * Larger, more dramatic navy command band that anchors the cockpit.
+ * The Phase 125B glass metric strip is gone — those values now live
+ * in the DealMetricDeck below the hero, so the hero can focus on
+ * deal identity and quick navigation.
  *
- *   ┌──────────────────────────────────────────────────────────┐
- *   │  ● Commercial Lending Deal                                │
- *   │  TEST — Deal Phase 121                                    │
- *   │  Stage chip · Status chip                                 │
- *   │  Derived from authorized deal records.                    │
- *   ├──────────────────────────────────────────────────────────┤
- *   │  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐              │
- *   │  │ AMOUNT │ │ CLIENT │ │ T-CLOSE│ │ BANKER │ glass cells │
- *   │  └────────┘ └────────┘ └────────┘ └────────┘              │
- *   └──────────────────────────────────────────────────────────┘
+ *   ┌──────────────────────────────────────────────────────────────┐
+ *   │  ● COMMERCIAL LENDING COCKPIT                                │
+ *   │                                                              │
+ *   │  TEST — Deal Phase 121                                       │
+ *   │                                                              │
+ *   │  ┌──┐ Client            ┌──┐ Banker             ┌──┐ Stage   │
+ *   │  │👥│ Acme Manufacturing│👤│ M. Paller          │▤ │ Underw. │
+ *   │  └──┘                   └──┘                     └──┘         │
+ *   │                                                              │
+ *   │  [ Stage · Underwriting ] [ Status · Active ]   #d-current  │
+ *   └──────────────────────────────────────────────────────────────┘
  *
- * Honest absence rules unchanged from Phase 125:
- *   - amount missing → italic "Not set" inside the metric cell
- *   - target close missing → italic "Not set"
- *   - client / banker missing → italic "Not set"
- *
- * Hook surface unchanged from Phase 125 (single `useDealData()`).
- * No new hooks, no conditional hooks, no early returns. Phase 110
- * communication lock honored — no email-lane import in this file.
+ * Honest absence rules unchanged: missing values render as italic
+ * "Not set" / "Not assigned" inside their identity slot. No fake
+ * data, no fabricated metrics, no AI claim.
  */
 export function DealHeader() {
   const { deal } = useDealData();
-  const targetCloseLabel = formatTargetCloseRelative(deal.targetCloseDate);
 
   return (
-    <header style={styles.hero} aria-label="Deal header">
+    <header style={styles.hero} aria-label="Deal command hero">
       <div style={styles.heroOverlay} aria-hidden="true" />
       <div style={styles.heroContent}>
         <div style={styles.eyebrowRow}>
           <span style={styles.eyebrowDot} aria-hidden="true" />
-          <span style={styles.eyebrow}>Commercial Lending Deal</span>
+          <span style={styles.eyebrow}>Commercial Lending Cockpit</span>
+          <span style={styles.idChip} aria-label={`Deal id ${deal.id}`}>
+            #{deal.id.slice(0, 8)}
+          </span>
         </div>
 
         <h1 style={styles.name}>{deal.name}</h1>
 
+        <div style={styles.identityRow} aria-label="Deal identity">
+          <IdentitySlot
+            icon={<ClientIcon />}
+            label="Client"
+            value={deal.clientName}
+          />
+          <IdentitySlot
+            icon={<BankerIcon />}
+            label="Banker"
+            value={deal.bankerName}
+            missingLabel="Not assigned"
+          />
+          <IdentitySlot
+            icon={<StageIcon />}
+            label="Stage"
+            value={deal.stage}
+          />
+        </div>
+
         <div style={styles.chipRow}>
-          <span
-            style={deal.stage ? styles.chip : styles.chipMissing}
-            aria-label={`Stage: ${deal.stage ?? 'not set'}`}
-          >
-            {deal.stage ? `Stage · ${deal.stage}` : 'Stage · Not set'}
-          </span>
           <span
             style={deal.status ? styles.chip : styles.chipMissing}
             aria-label={`Status: ${deal.status ?? 'not set'}`}
           >
             {deal.status ? `Status · ${deal.status}` : 'Status · Not set'}
           </span>
+          {deal.isClosed && (
+            <span style={styles.chipClosed} aria-label="Deal closed">
+              Closed
+            </span>
+          )}
         </div>
-
-        <p style={styles.governance}>
-          Derived from authorized deal records. Conservative copy: no
-          performance ranking, no predictive claim, no compensation
-          impact.
-        </p>
-
-        <dl style={styles.metricStrip} aria-label="Deal metrics">
-          <MetricCell
-            label="Loan amount"
-            value={
-              deal.amount != null && Number.isFinite(deal.amount)
-                ? formatCurrency(deal.amount)
-                : undefined
-            }
-            isHero
-          />
-          <MetricCell label="Client" value={deal.clientName} />
-          <MetricCell label="Target close" value={targetCloseLabel} />
-          <MetricCell label="Assigned banker" value={deal.bankerName} />
-        </dl>
       </div>
     </header>
   );
 }
 
-function MetricCell({
+function IdentitySlot({
+  icon,
   label,
   value,
-  isHero,
+  missingLabel,
 }: {
+  icon: React.ReactNode;
   label: string;
   value: string | undefined;
-  isHero?: boolean;
+  missingLabel?: string;
 }) {
   return (
-    <div style={styles.metricCell}>
-      <dt style={styles.metricLabel}>{label}</dt>
-      <dd style={value ? (isHero ? styles.metricValueHero : styles.metricValue) : styles.metricValueMissing}>
-        {value ?? 'Not set'}
-      </dd>
+    <div style={styles.identitySlot}>
+      <span style={styles.identityIcon} aria-hidden="true">
+        {icon}
+      </span>
+      <span style={styles.identityBody}>
+        <span style={styles.identityLabel}>{label}</span>
+        <span style={value ? styles.identityValue : styles.identityValueMissing}>
+          {value ?? missingLabel ?? 'Not set'}
+        </span>
+      </span>
     </div>
   );
 }
 
-function formatCurrency(amount: number): string {
-  return amount.toLocaleString(undefined, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  });
-}
-
-function formatTargetCloseRelative(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
-  const absolute = d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-  const days = Math.round((d.getTime() - Date.now()) / 86_400_000);
-  if (days < 0) return `${absolute} (${Math.abs(days)}d past)`;
-  if (days === 0) return `${absolute} (today)`;
-  if (days === 1) return `${absolute} (tomorrow)`;
-  if (days < 30) return `${absolute} (in ${days}d)`;
-  return absolute;
-}
-
 const NAVY_HERO_BG =
-  'linear-gradient(135deg, #0f172a 0%, #14213d 55%, #1f3461 100%)';
+  'linear-gradient(135deg, #0b1224 0%, #14213d 55%, #1f3461 100%)';
 const NAVY_HERO_OVERLAY =
-  'radial-gradient(circle at 85% -10%, rgba(96, 165, 250, 0.18), transparent 55%)';
-const GLASS_CELL_BG = 'rgba(255, 255, 255, 0.06)';
-const GLASS_CELL_BORDER = 'rgba(255, 255, 255, 0.14)';
+  'radial-gradient(circle at 85% -10%, rgba(96, 165, 250, 0.22), transparent 55%)';
 const HERO_TEXT = '#f1f5fa';
 const HERO_TEXT_MUTED = 'rgba(241, 245, 250, 0.72)';
 const HERO_TEXT_SUBTLE = 'rgba(241, 245, 250, 0.52)';
 const HERO_ACCENT = '#60a5fa';
+const GLASS_CELL_BG = 'rgba(255, 255, 255, 0.06)';
+const GLASS_CELL_BORDER = 'rgba(255, 255, 255, 0.14)';
 
 const styles: Record<string, React.CSSProperties> = {
   hero: {
     position: 'relative' as const,
     background: NAVY_HERO_BG,
-    borderRadius: radius.md,
-    // Phase 125C — layered depth: cobalt inset glow (Phase 125C
-    // theme `shadow.glow` token) + the deeper Phase 123 `shadow.hero`
-    // outer shadow. The combination gives the navy band more
-    // dimensional presence without becoming a popover.
+    borderRadius: radius.lg,
     boxShadow: `${shadow.glow}, ${shadow.hero}`,
     overflow: 'hidden' as const,
     marginBottom: spacing.lg,
@@ -168,29 +143,97 @@ const styles: Record<string, React.CSSProperties> = {
   eyebrowRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   eyebrowDot: {
     display: 'inline-block',
-    width: 6,
-    height: 6,
-    borderRadius: radius.pill,
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
     background: HERO_ACCENT,
+    boxShadow: `0 0 0 4px rgba(96, 165, 250, 0.18)`,
   },
   eyebrow: {
     fontSize: typography.size.xs,
     letterSpacing: typography.letterSpacing.label,
     textTransform: 'uppercase' as const,
     color: HERO_ACCENT,
-    fontWeight: typography.weight.semibold,
+    fontWeight: typography.weight.bold,
+  },
+  idChip: {
+    marginLeft: 'auto',
+    fontSize: typography.size.xs,
+    color: HERO_TEXT_SUBTLE,
+    fontFamily: typography.mono,
+    background: GLASS_CELL_BG,
+    border: `1px solid ${GLASS_CELL_BORDER}`,
+    padding: `2px ${spacing.sm}`,
+    borderRadius: radius.sm,
   },
   name: {
     margin: 0,
-    fontSize: typography.size.hero,
+    fontSize: typography.size.display,
     fontWeight: typography.weight.bold,
     color: HERO_TEXT,
     letterSpacing: typography.letterSpacing.hero,
-    lineHeight: typography.lineHeight.tight,
+    lineHeight: 1.05,
+  },
+  identityRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  identitySlot: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: `${spacing.xs} ${spacing.sm}`,
+    background: GLASS_CELL_BG,
+    border: `1px solid ${GLASS_CELL_BORDER}`,
+    borderRadius: radius.md,
+    minWidth: 0,
+  },
+  identityIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    background: 'rgba(96, 165, 250, 0.14)',
+    color: HERO_ACCENT,
+    flexShrink: 0,
+  },
+  identityBody: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 0,
+    minWidth: 0,
+  },
+  identityLabel: {
+    fontSize: typography.size.xs,
+    textTransform: 'uppercase' as const,
+    letterSpacing: typography.letterSpacing.label,
+    color: HERO_TEXT_SUBTLE,
+    fontWeight: typography.weight.semibold,
+  },
+  identityValue: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: HERO_TEXT,
+    whiteSpace: 'nowrap' as const,
+    overflow: 'hidden' as const,
+    textOverflow: 'ellipsis' as const,
+  },
+  identityValueMissing: {
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.regular,
+    color: HERO_TEXT_SUBTLE,
+    fontStyle: 'italic' as const,
+    whiteSpace: 'nowrap' as const,
+    overflow: 'hidden' as const,
+    textOverflow: 'ellipsis' as const,
   },
   chipRow: {
     display: 'flex',
@@ -222,62 +265,20 @@ const styles: Record<string, React.CSSProperties> = {
     fontStyle: 'italic' as const,
     letterSpacing: typography.letterSpacing.label,
   },
-  governance: {
-    margin: 0,
-    fontSize: typography.size.sm,
-    color: HERO_TEXT_MUTED,
-    lineHeight: typography.lineHeight.snug,
-    maxWidth: 640,
-  },
-  metricStrip: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-    gap: spacing.sm,
-    margin: 0,
-    paddingTop: spacing.sm,
-  },
-  metricCell: {
-    background: GLASS_CELL_BG,
-    border: `1px solid ${GLASS_CELL_BORDER}`,
-    borderRadius: radius.sm,
-    padding: `${spacing.sm} ${spacing.md}`,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 4,
-    minHeight: 76,
-    justifyContent: 'space-between',
-  },
-  metricLabel: {
+  chipClosed: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    background: 'rgba(248, 113, 113, 0.18)',
+    color: '#fecaca',
+    border: '1px solid rgba(248, 113, 113, 0.38)',
+    borderRadius: radius.pill,
     fontSize: typography.size.xs,
-    letterSpacing: typography.letterSpacing.label,
-    textTransform: 'uppercase' as const,
-    color: HERO_TEXT_SUBTLE,
-    fontWeight: typography.weight.semibold,
-    margin: 0,
-  },
-  metricValue: {
-    margin: 0,
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.semibold,
-    color: HERO_TEXT,
-    fontVariantNumeric: 'tabular-nums' as const,
-    letterSpacing: typography.letterSpacing.heading,
-    lineHeight: typography.lineHeight.tight,
-  },
-  metricValueHero: {
-    margin: 0,
-    fontSize: typography.size.xl,
     fontWeight: typography.weight.bold,
-    color: HERO_TEXT,
-    fontVariantNumeric: 'tabular-nums' as const,
-    letterSpacing: typography.letterSpacing.hero,
-    lineHeight: typography.lineHeight.tight,
-  },
-  metricValueMissing: {
-    margin: 0,
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.regular,
-    color: HERO_TEXT_SUBTLE,
-    fontStyle: 'italic' as const,
+    letterSpacing: typography.letterSpacing.label,
   },
 };
+
+// Silence "imported but never read" on HERO_TEXT_MUTED — kept as
+// a named constant for future hero subtitle treatment (Phase 126+).
+void HERO_TEXT_MUTED;

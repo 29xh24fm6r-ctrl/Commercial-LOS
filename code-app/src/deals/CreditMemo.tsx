@@ -24,8 +24,10 @@ import {
   type ConsistencyCheckResult,
   type ConsistencyFinding,
 } from '../shared/creditMemoConsistency/checkCreditMemoConsistency';
-import { Card, CardHeader } from '../shared/Card';
+import { Card } from '../shared/Card';
 import { Badge } from '../shared/Badge';
+import { WidgetHeader } from '../shared/cockpitPrimitives';
+import { MemoIcon } from '../shared/cockpitIcons';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 interface CreditMemoProps {
@@ -113,12 +115,20 @@ export function CreditMemo({ readOnly = false }: CreditMemoProps = {}) {
     [banker?.systemUserId, bootstrap.workspaceId, deal.id, deal.name, memosData, refresh],
   );
 
+  // Phase 125E — memo widget count (number of memo versions).
+  const memoCount =
+    creditMemo.kind === 'ready' ? creditMemo.data.memos.length : undefined;
+
   return (
     <>
       <Card>
-        <CardHeader
+        <WidgetHeader
           title="Credit Memo"
           subtitle={subtitleFor(creditMemo)}
+          icon={<MemoIcon />}
+          iconTone="violet"
+          count={memoCount}
+          countTone="neutral"
           trailing={
             readOnly ? undefined : (
               <button

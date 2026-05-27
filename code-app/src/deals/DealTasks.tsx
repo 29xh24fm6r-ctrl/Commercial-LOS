@@ -4,9 +4,10 @@ import { useOptionalBanker } from '../banker/BankerContext';
 import type { DealTask, DealTasksResult } from './dealTaskQueries';
 import { completeTask, type CompleteTaskOutcome } from './dealTaskActions';
 import { CompleteTaskModal } from './CompleteTaskModal';
-import { Card, CardHeader } from '../shared/Card';
+import { Card } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
-import { CountBadge } from '../shared/cockpitPrimitives';
+import { WidgetHeader } from '../shared/cockpitPrimitives';
+import { ChecklistIcon } from '../shared/cockpitIcons';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 interface DealTasksProps {
@@ -42,25 +43,40 @@ export function DealTasks({ readOnly = false }: DealTasksProps = {}) {
   const subtitle = subtitleFor(tasks);
   const canWrite = !readOnly && !!banker?.systemUserId;
 
-  // Phase 125D — right-rail count badge: open-task count with a
-  // tone driven by overdue presence. Renders only when the slot
-  // has resolved (otherwise the count would be a fake "0").
-  const openCount = tasks.kind === 'ready' ? tasks.data.open.length : undefined;
+  // Phase 125E — right-rail operational widget. Open count drives
+  // the tonal CountBadge in the WidgetHeader; tasks completed /
+  // total drives the mini progress bar so the widget reads as
+  // alive at a glance.
+  const openCount = tasks.kind === 'ready' ? tasks.data.open.length : 0;
+  const completedCount =
+    tasks.kind === 'ready' ? tasks.data.completed.length : 0;
   const overdueCount =
     tasks.kind === 'ready' ? tasks.data.open.filter(isOverdue).length : 0;
-  const headerTrailing =
-    openCount !== undefined ? (
-      <CountBadge
-        count={openCount}
-        tone={overdueCount > 0 ? 'atRisk' : openCount === 0 ? 'clear' : 'info'}
-        aria-label={`${openCount} open task${openCount === 1 ? '' : 's'}${overdueCount > 0 ? `, ${overdueCount} overdue` : ''}`}
-      />
-    ) : undefined;
+  const totalTasks = openCount + completedCount;
+  const headerCountTone: SeverityKey =
+    overdueCount > 0 ? 'atRisk' : openCount === 0 ? 'clear' : 'info';
 
   return (
     <>
       <Card>
-        <CardHeader title="Tasks / Next Actions" subtitle={subtitle} trailing={headerTrailing} />
+        <WidgetHeader
+          title="Tasks"
+          subtitle={subtitle}
+          icon={<ChecklistIcon />}
+          iconTone={headerCountTone}
+          count={tasks.kind === 'ready' ? openCount : undefined}
+          countTone={headerCountTone}
+          progress={
+            tasks.kind === 'ready'
+              ? {
+                  done: completedCount,
+                  total: totalTasks,
+                  tone: overdueCount > 0 ? 'atRisk' : undefined,
+                  'aria-label': `Tasks ${completedCount} of ${totalTasks} completed`,
+                }
+              : undefined
+          }
+        />
         {!readOnly && banker?.writeDisabledReason && (
           <p style={styles.writeDisabledBanner} role="status">
             <strong>Complete disabled:</strong> {banker.writeDisabledReason}

@@ -159,6 +159,11 @@ export const typography = {
     xl: '1.25rem',
     xxl: '1.55rem',
     hero: '1.85rem',
+    /** Phase 125E — display-scale value typography for big KPI
+     *  tiles and the command-hero deal name. The cockpit reads
+     *  at-a-distance only when the primary value is at this
+     *  scale; the previous hero size was too compact. */
+    display: '2.4rem',
   },
   weight: {
     regular: 400,

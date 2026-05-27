@@ -32,9 +32,10 @@ import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
 import { CreateDocumentReviewTaskModal } from './CreateDocumentReviewTaskModal';
-import { Card, CardHeader } from '../shared/Card';
+import { Card } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
-import { CountBadge } from '../shared/cockpitPrimitives';
+import { WidgetHeader } from '../shared/cockpitPrimitives';
+import { DocumentsIcon } from '../shared/cockpitIcons';
 import {
   PENDING_REVIEW_AT_RISK_DAYS,
   isReceivedDocumentPendingReview,
@@ -191,24 +192,39 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
 
   const canWrite = !readOnly && !!banker?.systemUserId;
 
-  // Phase 125D — right-rail count badge: outstanding-doc count
-  // with a tone driven by presence (any outstanding doc reads
-  // as at-risk amber; zero outstanding reads as clear green).
+  // Phase 125E — right-rail operational widget. Outstanding count
+  // drives the tonal CountBadge; received+reviewed / total drives
+  // the mini progress bar.
   const outstandingCount =
-    documents.kind === 'ready' ? documents.data.outstanding.length : undefined;
-  const headerTrailing =
-    outstandingCount !== undefined ? (
-      <CountBadge
-        count={outstandingCount}
-        tone={outstandingCount === 0 ? 'clear' : 'atRisk'}
-        aria-label={`${outstandingCount} outstanding document${outstandingCount === 1 ? '' : 's'}`}
-      />
-    ) : undefined;
+    documents.kind === 'ready' ? documents.data.outstanding.length : 0;
+  const receivedCount =
+    documents.kind === 'ready' ? documents.data.received.length : 0;
+  const reviewedCount =
+    documents.kind === 'ready' ? documents.data.reviewed.length : 0;
+  const totalDocs = outstandingCount + receivedCount + reviewedCount;
+  const doneDocs = receivedCount + reviewedCount;
+  const docTone = outstandingCount === 0 ? 'clear' : 'atRisk';
 
   return (
     <>
       <Card>
-        <CardHeader title="Documents" subtitle={subtitleFor(documents)} trailing={headerTrailing} />
+        <WidgetHeader
+          title="Documents"
+          subtitle={subtitleFor(documents)}
+          icon={<DocumentsIcon />}
+          iconTone={docTone}
+          count={documents.kind === 'ready' ? outstandingCount : undefined}
+          countTone={docTone}
+          progress={
+            documents.kind === 'ready'
+              ? {
+                  done: doneDocs,
+                  total: totalDocs,
+                  'aria-label': `Documents ${doneDocs} of ${totalDocs} received or reviewed`,
+                }
+              : undefined
+          }
+        />
         {!readOnly && banker?.writeDisabledReason && (
           <p style={styles.writeDisabledBanner} role="status">
             <strong>Request disabled:</strong> {banker.writeDisabledReason}

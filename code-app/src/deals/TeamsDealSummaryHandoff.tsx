@@ -17,7 +17,9 @@ import {
 } from '../shared/autopilot/dealAutopilot';
 import { deriveCrossDealContext } from '../shared/relationship/relationshipMemory';
 import { buildRelationshipContextNote } from '../shared/relationship/relationshipContextNote';
-import { Card, CardHeader } from '../shared/Card';
+import { Card } from '../shared/Card';
+import { WidgetHeader } from '../shared/cockpitPrimitives';
+import { TeamsIcon } from '../shared/cockpitIcons';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
@@ -290,9 +292,11 @@ export function TeamsDealSummaryHandoff() {
   if (!dataReady) {
     return (
       <Card>
-        <CardHeader
+        <WidgetHeader
           title="Copy Teams summary"
-          subtitle="Generates a deal summary you can paste into a Teams chat or channel."
+          subtitle="Generates a Teams-ready deal summary."
+          icon={<TeamsIcon />}
+          iconTone="violet"
         />
         <p style={styles.muted}>Loading deal data…</p>
       </Card>
@@ -301,9 +305,11 @@ export function TeamsDealSummaryHandoff() {
 
   return (
     <Card>
-      <CardHeader
+      <WidgetHeader
         title="Copy Teams summary"
-        subtitle="Generates a deal summary you can paste into a Teams chat or channel. The app does not post to Teams."
+        subtitle="Generates a Teams-ready deal summary. The app does not post."
+        icon={<TeamsIcon />}
+        iconTone="violet"
       />
       <div style={styles.body}>
         <p style={styles.lead}>

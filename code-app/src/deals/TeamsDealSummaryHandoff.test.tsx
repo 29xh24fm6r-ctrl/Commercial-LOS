@@ -180,7 +180,7 @@ describe('TeamsDealSummaryHandoff — Phase 96', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Generates a deal summary you can paste into a Teams chat or channel/i,
+        /Generates a Teams-ready deal summary/i,
       ),
     ).toBeInTheDocument();
   });

@@ -306,26 +306,24 @@ describe('Phase 125B — BankerDealWorkspace cockpit', () => {
     }
   });
 
-  it('renders the navy hero band with honest "Not set" copy for a fully sparse deal', async () => {
+  it('renders the navy command hero with honest "Not set" copy for a fully sparse deal', async () => {
     loadDealForBankerMock.mockResolvedValue(sparseDeal());
     renderWorkspace();
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     });
 
-    // The hero band is an <header aria-label="Deal header"> in
-    // DealHeader. Scope assertions to that surface so we don't
-    // accidentally match copy that may surface inside child
-    // cards (those are mocked here, but scoping keeps the test
-    // defensively correct).
-    const hero = screen.getByLabelText('Deal header');
-    expect(within(hero).getByText(/Commercial Lending Deal/i)).toBeInTheDocument();
-    expect(within(hero).getByText(/Stage · Not set/i)).toBeInTheDocument();
+    // Phase 125E — the hero <header> is labeled "Deal command hero".
+    // It now carries identity slots (Client / Banker / Stage) + a
+    // single Status chip; the loan amount / target close moved into
+    // the DealMetricDeck below the hero.
+    const hero = screen.getByLabelText('Deal command hero');
+    expect(within(hero).getByText(/Commercial Lending Cockpit/i)).toBeInTheDocument();
     expect(within(hero).getByText(/Status · Not set/i)).toBeInTheDocument();
-    // 4 "Not set" italic values in the metric strip (amount,
-    // client, target close, banker — all undefined on the sparse
-    // deal).
-    expect(within(hero).getAllByText('Not set').length).toBeGreaterThanOrEqual(4);
+    // The identity slots paint "Not set" / "Not assigned" for missing
+    // client / banker / stage on the sparse seed.
+    expect(within(hero).getAllByText('Not set').length).toBeGreaterThanOrEqual(2);
+    expect(within(hero).getByText('Not assigned')).toBeInTheDocument();
   });
 
   it('does NOT render any forbidden Phase-110 communication-lane vocabulary in the integration view', async () => {

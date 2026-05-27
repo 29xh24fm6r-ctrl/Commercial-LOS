@@ -120,6 +120,23 @@ Related canonical sources:
 >   Tasks + Documents card headers. Page background flips to
 >   the slate panel backdrop. Phase 125 hook hoist preserved.
 >   No data / loader / governed-write / email-lane changes.
+> - [PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md](PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md) —
+>   Corrective recomposition pass. Phase 125D's primitives
+>   passed but the deployed result still read as stacked
+>   cards. Phase 125E rebuilds the page composition:
+>   command hero w/ identity slots (no metric strip), 6
+>   LARGE tonal KPI tiles + completeness ring, big
+>   Attention Console (severity meter + missing-data
+>   checklist), large connected-node Stage Map (44/52px),
+>   icon-led WidgetHeader on every right-rail widget
+>   (Tasks / Documents / Borrower Comm / Memo / Activity /
+>   Teams handoffs) with count badges + mini progress bars.
+>   Deal Summary demoted to the BOTTOM of the left column.
+>   New shared cockpitIcons (16 inline-SVG glyphs) +
+>   LargeMetricTile + WidgetHeader primitives + a
+>   display-scale typography token. Phase 125 hook hoist
+>   preserved. No data / loader / governed-write / email-
+>   lane changes.
 > - [PHASE_126_RELATIONSHIPS_SIGNALS_VISUAL_RESTORATION.md](PHASE_126_RELATIONSHIPS_SIGNALS_VISUAL_RESTORATION.md) —
 >   Relationships + Signals tab visual restoration. Per-client
 >   RelationshipMemory rows gain a 3px primary accent left

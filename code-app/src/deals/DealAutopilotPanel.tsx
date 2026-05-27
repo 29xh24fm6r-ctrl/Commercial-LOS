@@ -9,9 +9,10 @@ import {
 } from '../shared/autopilot/dealAutopilot';
 import { useSuggestionLedger } from '../shared/autopilot/useSuggestionLedger';
 import type { SuggestionLedgerEntry } from '../shared/autopilot/suggestionLedger';
-import { Card, CardHeader } from '../shared/Card';
+import { Card } from '../shared/Card';
 import { Badge } from '../shared/Badge';
-import { SeverityMeter } from '../shared/cockpitPrimitives';
+import { SeverityMeter, WidgetHeader } from '../shared/cockpitPrimitives';
+import { SparkleIcon } from '../shared/cockpitIcons';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
@@ -167,9 +168,11 @@ export function DealAutopilotPanel() {
   if (!dataReady) {
     return (
       <Card>
-        <CardHeader
-          title="Next best actions"
+        <WidgetHeader
+          title="Action Console"
           subtitle="Loading deal signals…"
+          icon={<SparkleIcon />}
+          iconTone="info"
         />
         <p style={styles.muted}>Loading…</p>
       </Card>
@@ -179,17 +182,19 @@ export function DealAutopilotPanel() {
   if (suggestions.length === 0) {
     return (
       <Card>
-        <CardHeader
-          title="Next best actions"
-          subtitle="Derived from current deal records. Nothing happens automatically."
+        <WidgetHeader
+          title="Action Console"
+          subtitle="Deterministic next-best actions — banker decides."
+          icon={<SparkleIcon />}
+          iconTone="info"
+          trailing={<Badge variant="clear">All clear</Badge>}
         />
         <p style={styles.muted}>
           No next-best-action suggestions from current records.
         </p>
         <p style={styles.disclaimer}>
-          Autopilot suggests, banker decides. This panel is read-only;
-          it never creates tasks, sends emails, advances the stage,
-          marks documents reviewed, or calls AI.
+          Read-only. Never creates tasks, sends emails, advances the
+          stage, or calls AI.
         </p>
       </Card>
     );
@@ -205,9 +210,16 @@ export function DealAutopilotPanel() {
 
   return (
     <Card>
-      <CardHeader
+      <WidgetHeader
         title="Action Console"
-        subtitle="Deterministic next-best actions — derived from authorized records. Banker decides."
+        subtitle="Deterministic next-best actions — banker decides."
+        icon={<SparkleIcon />}
+        iconTone={highCount > 0 ? 'atRisk' : 'info'}
+        trailing={
+          <Badge variant={highCount > 0 ? 'atRisk' : 'info'}>
+            {suggestions.length} action{suggestions.length === 1 ? '' : 's'}
+          </Badge>
+        }
       />
       <SeverityMeter
         buckets={[
@@ -248,11 +260,9 @@ export function DealAutopilotPanel() {
         })}
       </ul>
       <p style={styles.disclaimer}>
-        Autopilot suggests, banker decides. This panel is read-only; it
-        never creates tasks, sends emails, advances the stage, marks
-        documents reviewed, or calls AI. Suggestions are derived from
-        current deal records only. "Dismiss locally" and "Opened locally"
-        are tracked on this browser only; they do not change deal status.
+        Read-only. Never creates tasks, sends emails, advances the stage,
+        or calls AI. "Opened" / "Dismiss locally" are tracked on this
+        browser only.
       </p>
     </Card>
   );

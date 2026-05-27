@@ -6,10 +6,11 @@ import {
 } from './stageProgressionGuard';
 import { stageProgressionAvailability } from '../shared/governance/stageProgressionAvailability';
 import { STAGE_CATALOG } from '../shared/stages/stageCatalog';
-import { Card, CardHeader, CardFooter } from '../shared/Card';
+import { Card, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { SeverityGlyph } from '../shared/SeverityGlyph';
-import { GlassPanel } from '../shared/cockpitPrimitives';
+import { GlassPanel, WidgetHeader } from '../shared/cockpitPrimitives';
+import { StageIcon } from '../shared/cockpitIcons';
 import {
   palette,
   severityPalette,
@@ -52,13 +53,15 @@ export function DealStageProgressionCard() {
 
   return (
     <Card accentColor={accent}>
-      <CardHeader
+      <WidgetHeader
         title="Stage Map"
         subtitle={
           eligibility.currentStage
             ? `Current stage: ${eligibility.currentStage}`
             : 'Current stage: —'
         }
+        icon={<StageIcon />}
+        iconTone="info"
         trailing={<Badge variant={sev}>{statusLabel(eligibility.status)}</Badge>}
       />
 
@@ -330,11 +333,15 @@ const styles: Record<string, React.CSSProperties> = {
     color: palette.textMuted,
     lineHeight: typography.lineHeight.snug,
   },
-  // Phase 125D — connected-node Stage Map.
+  // Phase 125E — large connected-node Stage Map. Bigger nodes
+  // (44px), thicker connectors (3px), display-scale numbers, and
+  // a bigger current-node halo so the map reads as a true
+  // graphical cockpit module — not a thin pill rail.
   mapWrap: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: spacing.xs,
+    gap: spacing.sm,
+    padding: `${spacing.sm} 0`,
   },
   map: {
     listStyle: 'none',
@@ -350,78 +357,80 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
     position: 'relative' as const,
-    flex: '1 1 80px',
-    minWidth: 64,
+    flex: '1 1 96px',
+    minWidth: 76,
   },
   connectorPast: {
     position: 'absolute' as const,
     left: '-50%',
     right: '50%',
-    top: 14,
-    height: 2,
+    top: 22,
+    height: 3,
     background: palette.clear,
+    borderRadius: 1.5,
   },
   connectorCurrent: {
     position: 'absolute' as const,
     left: '-50%',
     right: '50%',
-    top: 14,
-    height: 2,
+    top: 22,
+    height: 3,
     background: `linear-gradient(90deg, ${palette.clear}, ${palette.cobalt})`,
+    borderRadius: 1.5,
   },
   connectorFuture: {
     position: 'absolute' as const,
     left: '-50%',
     right: '50%',
-    top: 14,
-    height: 2,
+    top: 22,
+    height: 3,
     borderTop: `2px dashed ${palette.border}`,
   },
   nodePast: {
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
     borderRadius: '50%',
     background: palette.clearBg,
     color: palette.clearFg,
-    border: `1px solid ${palette.clear}`,
+    border: `2px solid ${palette.clear}`,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: typography.size.xs,
+    fontSize: typography.size.md,
     fontWeight: typography.weight.bold,
     fontVariantNumeric: 'tabular-nums' as const,
     zIndex: 1,
   },
   nodeCurrent: {
-    width: 32,
-    height: 32,
+    width: 52,
+    height: 52,
     borderRadius: '50%',
     background: palette.cobalt,
     color: palette.textInverse,
-    border: `2px solid ${palette.cobalt}`,
+    border: `3px solid ${palette.cobalt}`,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: typography.size.sm,
+    fontSize: typography.size.lg,
     fontWeight: typography.weight.bold,
     fontVariantNumeric: 'tabular-nums' as const,
-    boxShadow: `0 0 0 4px ${palette.cobaltBg}`,
+    boxShadow: `0 0 0 6px ${palette.cobaltBg}, 0 8px 22px rgba(37, 99, 235, 0.32)`,
     zIndex: 1,
   },
   nodeFuture: {
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
     borderRadius: '50%',
     background: palette.surfaceAlt,
     color: palette.textSubtle,
-    border: `1px dashed ${palette.border}`,
+    border: `2px dashed ${palette.border}`,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.semibold,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     fontVariantNumeric: 'tabular-nums' as const,
     zIndex: 1,
   },
@@ -431,9 +440,10 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: typography.letterSpacing.label,
     color: palette.textMuted,
     textAlign: 'center' as const,
+    fontWeight: typography.weight.semibold,
   },
   nodeLabelCurrent: {
-    fontSize: typography.size.xs,
+    fontSize: typography.size.sm,
     textTransform: 'uppercase' as const,
     letterSpacing: typography.letterSpacing.label,
     color: palette.cobaltFg,
