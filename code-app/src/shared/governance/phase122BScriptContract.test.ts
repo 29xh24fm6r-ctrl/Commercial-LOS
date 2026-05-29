@@ -167,6 +167,132 @@ describe('Phase 122B — script declares the correct rollback-export pair', () =
   });
 });
 
+describe('Phase 122B — script inspects dependencies before any pseudo-column delete', () => {
+  it('declares inspectPseudoColumnDependencies()', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+inspectPseudoColumnDependencies/);
+  });
+
+  it('queries the RetrieveDependenciesForDelete Web API endpoint (GET only)', () => {
+    // The unbound function call shape per the Dataverse Web API docs.
+    expect(SCRIPT).toMatch(
+      /RetrieveDependenciesForDelete\(ComponentType=@p1,ObjectId=@p2\)/,
+    );
+    // Pin: must be a GET, not a POST.
+    expect(SCRIPT).toMatch(
+      /retrieveDependenciesForDelete[\s\S]*?method:\s*'GET'/,
+    );
+  });
+
+  it('resolves attribute MetadataId before each dependency probe', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+getAttributeMetadataId/);
+    expect(SCRIPT).toMatch(/\$select=MetadataId/);
+  });
+
+  it('component type 2 = Attribute is pinned', () => {
+    expect(SCRIPT).toMatch(/COMPONENT_TYPE_ATTRIBUTE\s*=\s*2/);
+  });
+
+  it('component-type name table covers the common dependency types', () => {
+    // Each of these is a realistic dependent component an attribute can
+    // be referenced by. The operator's printed remediation hint relies
+    // on this table mapping numeric codes to readable names.
+    expect(SCRIPT).toMatch(/SystemForm/);
+    expect(SCRIPT).toMatch(/SavedQuery/);
+    expect(SCRIPT).toMatch(/EntityRelationship/);
+    expect(SCRIPT).toMatch(/Workflow/);
+    expect(SCRIPT).toMatch(/FieldSecurityProfile/);
+  });
+
+  it('dependency inspection runs BEFORE any destructive step in commit mode', () => {
+    // The commit branch must call inspectPseudoColumnDependencies AFTER
+    // rollback verification and BEFORE the "Proceeding to destructive
+    // steps" marker that gates the remaining-steps loop.
+    const commitGuard = SCRIPT.indexOf('// === Safety gates for commit mode ===');
+    expect(commitGuard).toBeGreaterThan(-1);
+    const commitSlice = SCRIPT.slice(commitGuard);
+    const inspectCallIdx = commitSlice.indexOf('await inspectPseudoColumnDependencies(');
+    const destructiveMarkerIdx = commitSlice.indexOf('Proceeding to destructive steps');
+    expect(inspectCallIdx).toBeGreaterThan(-1);
+    expect(destructiveMarkerIdx).toBeGreaterThan(-1);
+    expect(inspectCallIdx).toBeLessThan(destructiveMarkerIdx);
+  });
+
+  it('dependencies cause fail-closed before destructive steps', () => {
+    expect(SCRIPT).toMatch(/depResult\.blocked/);
+    expect(SCRIPT).toMatch(/Refusing to delete any pseudo-column/i);
+    expect(SCRIPT).toMatch(/No destructive step has run/i);
+  });
+
+  it('short-circuits on the first table with a dependency', () => {
+    // Per the task: "Do not continue to later tables after a dependency
+    // is found." The inspection loop must therefore `break` once a
+    // blocker is recorded, not collect every table's dependencies.
+    const fnStart = SCRIPT.indexOf('async function inspectPseudoColumnDependencies');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnSlice = SCRIPT.slice(fnStart);
+    // Match `blockers.push(...);\n    // ...break\n    break;` pattern —
+    // i.e. at least one `break;` after a `blockers.push(` inside the loop.
+    expect(fnSlice).toMatch(/blockers\.push\([\s\S]*?break;/);
+  });
+
+  it('prints dependent component type, object id, and remediation hint', () => {
+    expect(SCRIPT).toMatch(/dependentcomponenttype/);
+    expect(SCRIPT).toMatch(/dependentcomponentobjectid/);
+    expect(SCRIPT).toMatch(/remediation:/);
+    expect(SCRIPT).toMatch(/function\s+remediationHintForComponentType/);
+  });
+
+  it('no force-delete / bypass path exists anywhere in the script', () => {
+    // The script must never attempt to bypass Dataverse safety checks.
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+    // The bail message explicitly promises no force-delete is attempted.
+    expect(SCRIPT).toMatch(/will NOT attempt a force-delete/i);
+  });
+});
+
+describe('Phase 122B — script exposes a read-only --inspect-dependencies mode', () => {
+  it('parses --inspect-dependencies as a flag', () => {
+    expect(SCRIPT).toMatch(/'--inspect-dependencies'/);
+    expect(SCRIPT).toMatch(/flags\.inspectDependencies\s*=\s*true/);
+  });
+
+  it('--inspect-dependencies is mutually exclusive with --commit', () => {
+    expect(SCRIPT).toMatch(/--commit and --inspect-dependencies are mutually exclusive/);
+  });
+
+  it('inspect-dependencies branch returns before the commit branch is reachable', () => {
+    // The inspect handler must `return;` so the commit branch below it
+    // is never entered in the same invocation.
+    const inspectGuardIdx = SCRIPT.indexOf('if (FLAGS.inspectDependencies)');
+    expect(inspectGuardIdx).toBeGreaterThan(-1);
+    const commitGuardInMain = SCRIPT.indexOf(
+      '// === Safety gates for commit mode ===',
+    );
+    expect(commitGuardInMain).toBeGreaterThan(inspectGuardIdx);
+    // The inspect block must `return;` before the commit guard.
+    const between = SCRIPT.slice(inspectGuardIdx, commitGuardInMain);
+    expect(between).toMatch(/return;/);
+  });
+
+  it('inspect-dependencies mode performs NO write operations', () => {
+    // Easiest pin: inside the inspect handler block we must not see
+    // any reference to FLAGS.commit / DELETE / POST that would couple
+    // it to destructive flow.
+    const inspectGuardIdx = SCRIPT.indexOf('if (FLAGS.inspectDependencies)');
+    expect(inspectGuardIdx).toBeGreaterThan(-1);
+    const commitGuardInMain = SCRIPT.indexOf(
+      '// === Safety gates for commit mode ===',
+    );
+    const block = SCRIPT.slice(inspectGuardIdx, commitGuardInMain);
+    expect(block).not.toMatch(/executeStep\(/);
+    expect(block).not.toMatch(/method:\s*'POST'/);
+    expect(block).not.toMatch(/method:\s*'DELETE'/);
+  });
+});
+
 describe('Phase 122B — rollback gate fires at the correct phase', () => {
   it('pre-execution rollback check fires ONLY when --skip-rollback-export is passed', () => {
     // Auto-export is the default; if the pre-check ran on the auto-export
@@ -187,12 +313,24 @@ describe('Phase 122B — rollback gate fires at the correct phase', () => {
     expect(SCRIPT).toMatch(/mkdirSync\(\s*ROLLBACK_DIR/);
   });
 
-  it('post-export verification fires after the rollback-export-loanopsexport step', () => {
-    // After the second rollback export runs, the script must re-check
-    // that both zips landed on disk before any destructive step. This
-    // closes the loop on a silent pac exit-0-with-no-file.
-    expect(SCRIPT).toMatch(/step\.id\s*===\s*'rollback-export-loanopsexport'/);
+  it('post-export verification runs after Phase 1 rollback steps complete', () => {
+    // The commit branch runs rollback-export steps in a dedicated
+    // Phase 1 loop, then calls `ensureRollbackArtifactsExist` to verify
+    // both zips landed on disk, then proceeds to Phase 2 (dependency
+    // inspection). The verify marker proves the post-condition check
+    // exists between the two phases.
     expect(SCRIPT).toMatch(/Rollback artifacts verified on disk/);
+    // Pin the structural marker that Phase 1 + verify run before any
+    // destructive step.
+    const commitGuard = SCRIPT.indexOf('// === Safety gates for commit mode ===');
+    expect(commitGuard).toBeGreaterThan(-1);
+    const slice = SCRIPT.slice(commitGuard);
+    const phase1FilterIdx = slice.indexOf("startsWith('rollback-export-')");
+    const verifyIdx = slice.indexOf('Rollback artifacts verified on disk');
+    const proceedIdx = slice.indexOf('Proceeding to destructive steps');
+    expect(phase1FilterIdx).toBeGreaterThan(-1);
+    expect(verifyIdx).toBeGreaterThan(phase1FilterIdx);
+    expect(proceedIdx).toBeGreaterThan(verifyIdx);
   });
 });
 

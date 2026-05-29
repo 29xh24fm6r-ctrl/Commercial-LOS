@@ -47,7 +47,8 @@ environment). It has three modes:
 | --- | --- | --- |
 | Default (dry-run) | `node scripts/phase122-lookup-repair.mjs` | Read-only audit + plan emission; nothing is written. |
 | Explicit dry-run | `node scripts/phase122-lookup-repair.mjs --dry-run` | Same as default. |
-| Commit | `node scripts/phase122-lookup-repair.mjs --commit` | Refuses to run unless every safety gate passes (publisher prefix, rollback artifacts, bearer-token env var, zero non-NULL pseudo-column rows, no stop conditions in plan). |
+| Inspect dependencies | `node scripts/phase122-lookup-repair.mjs --inspect-dependencies` | Read-only audit + plan + per-pseudo-column `RetrieveDependenciesForDelete` probe. No write. Short-circuits at the first column that has a dependent component. Requires a bearer token (same priority order as `--commit`). |
+| Commit | `node scripts/phase122-lookup-repair.mjs --commit` | Refuses to run unless every safety gate passes (publisher prefix, rollback artifacts, dependency inspection clear, zero non-NULL pseudo-column rows, no stop conditions in plan). |
 
 ### 2.1 Hard-pinned constants
 
@@ -117,6 +118,11 @@ The script refuses to write if **any** of these fail:
 - Either rollback zip is not on disk **after** the auto-export steps
   run (mid-plan post-condition; protects against pac exiting 0 with
   no file produced).
+- **Any pseudo-column scheduled for deletion has at least one dependent
+  component** (form, view, workflow, relationship, field-security
+  profile, report, etc. — see §5A for the full inspection contract and
+  remediation path). The script refuses to attempt a force-delete or
+  any bypass.
 - A Dataverse bearer token cannot be obtained from any of three sources
   (see §2.4): `DATAVERSE_BEARER_TOKEN` env var → cached device-code
   token → fresh device-code flow.
@@ -334,6 +340,106 @@ partial relationship registrations, etc.):
 
 ---
 
+## 5A. Pseudo-column dependency inspection
+
+The operator's 2026-05-29 commit attempt against the live env failed
+at the first destructive step:
+
+```text
+DELETE cr664_documentchecklist.cr664_deal
+  → 0x8004f01f
+  → "The Attribute component cannot be deleted because it is
+     referenced by 1 other components."
+```
+
+Dataverse refuses to delete an Attribute that any other component
+(form, view, workflow, relationship, field-security profile, report,
+etc.) still references. The remediation Microsoft documents is to
+call `RetrieveDependenciesForDeleteRequest`, identify the dependent
+component, remove or repoint that reference, and only then re-attempt
+the delete.
+
+### 5A.1 What the script does
+
+In both `--commit` mode and the read-only `--inspect-dependencies`
+mode, the script:
+
+1. For every plan step that would `DELETE` a pseudo-column, resolves
+   the attribute's `MetadataId` via
+   `GET /api/data/v9.2/EntityDefinitions(LogicalName='<table>')/Attributes(LogicalName='<attribute>')?$select=MetadataId`.
+2. Calls the read-only dependency probe
+   `GET /api/data/v9.2/RetrieveDependenciesForDelete(ComponentType=@p1,ObjectId=@p2)?@p1=2&@p2=<MetadataId>`
+   (component type `2` = Attribute).
+3. Prints every dependent component with:
+   - human-readable component type (`SystemForm`, `SavedQuery (View)`,
+     `EntityRelationship`, `Workflow`, `FieldSecurityProfile`,
+     `Report`, …),
+   - `dependentcomponentobjectid` GUID,
+   - `dependentcomponentbasesolutionid` GUID,
+   - a concrete remediation hint specific to the component type.
+4. **Short-circuits** at the first column with a dependency — the
+   script does **not** continue to inspect later tables (per the
+   safety requirement: do not proceed past the first blocker).
+5. In `--commit` mode, exits **before** any destructive step runs
+   (exit code `5`). No DELETE, no POST, no force-delete attempt.
+
+### 5A.2 Remediation by component type
+
+| Reported type | Where to fix it |
+| --- | --- |
+| `SystemForm` (24 / 60) | Maker Portal → table → Forms → open each form, remove the field reference, save + publish. |
+| `SavedQuery (View)` (26) | Maker Portal → table → Views → open each view, remove the column, save + publish. |
+| `EntityRelationship` (10) | Maker Portal → table → Relationships → delete the relationship pointing at the pseudo-column (the new `cr664_Deal` Lookup replaces it). |
+| `Workflow` / `ConvertRule` / `HierarchyRule` (20 / 35 / 36) | Maker Portal → Process / Business Rules → edit the definition to drop the pseudo-column reference, then activate the new version. |
+| `FieldSecurityProfile` (95) | Maker Portal → Security → Field Security Profiles → remove the column from the profile. |
+| `Report` / `ReportEntity` / `ReportCategory` / `ReportVisibility` (90 / 91 / 92 / 93) | Open the report definition → remove the field reference → re-publish. |
+| Anything else | Open Maker Portal solution explorer, search the component by id, repoint or remove its reference to the pseudo-column. |
+
+### 5A.3 How to run inspection by itself
+
+```powershell
+node scripts/phase122-lookup-repair.mjs --inspect-dependencies
+```
+
+This mode acquires a bearer token via the same three-source priority
+order as `--commit` (env var → cached device-code → fresh device-code),
+runs the audit + plan, then runs the dependency probe and prints the
+result. No write of any kind to Dataverse. Exits `0` if every pseudo-
+column is dependency-free, exits `5` if any dependency exists.
+
+A typical loop on a freshly-built env is:
+
+```text
+node scripts/phase122-lookup-repair.mjs --inspect-dependencies
+   ✗ cr664_documentchecklist.cr664_deal has 1 dependent component
+       - SystemForm  (componentobjectid: <guid>)
+         remediation: open the form designer → remove the field reference.
+
+# operator opens form designer, removes the field, saves + publishes
+
+node scripts/phase122-lookup-repair.mjs --inspect-dependencies
+   ✓ cr664_documentchecklist.cr664_deal — no dependent components
+   ✓ cr664_dealtask1.cr664_deal — no dependent components
+   ... etc
+
+node scripts/phase122-lookup-repair.mjs --commit
+```
+
+### 5A.4 What this does NOT do
+
+- The script does **not** attempt a force-delete. There is no header
+  or query parameter (`BypassBusinessLogicExecution`, `?Force=true`,
+  `SuppressDuplicateDetection`, etc.) anywhere in the source — pinned
+  by `phase122BScriptContract` static-source tests.
+- The script does **not** edit the dependent components on the
+  operator's behalf. Removing a field from a form, view, workflow,
+  etc. is a deliberate decision the operator makes in Maker Portal.
+- The script does **not** continue to inspect later tables after the
+  first blocker — the operator gets the first actionable blocker and
+  fixes it before re-running.
+
+---
+
 ## 6. Expected output (full example)
 
 The latest dry-run run produced exactly this against the live env
@@ -378,6 +484,7 @@ also marked in the runbook JSON with `kind: "stop-condition"`:
 | `could not acquire bearer token` | All three token sources failed (env var empty/malformed, no valid cache, device-code prompt declined or timed out). | Re-run and complete the device-code prompt in §4.1, or pre-set `DATAVERSE_BEARER_TOKEN` per §4.2, then retry. |
 | Rollback artifact missing (pre-execution) | `--skip-rollback-export` was passed but at least one zip is not at the expected path. | Re-run without `--skip-rollback-export` to let the script export automatically, OR run the `pac solution export` commands in §4.3 first. |
 | Rollback artifact missing (post-export) | Auto-export step exited cleanly but no zip landed on disk. | Investigate the pac output for the export step; rerun once the export reliably produces a file. No destructive step has run yet. |
+| `<table>.<attribute> has N dependent component(s)` | Maker-Portal-visible component (form / view / workflow / relationship / field-security profile / report) still references the pseudo-column. Dataverse error `0x8004f01f` would fire on the DELETE. | Follow the per-type remediation in §5A.2 (typically: remove the field reference in the form/view designer, save + publish). Re-run `--inspect-dependencies` to confirm clean, then `--commit`. |
 
 ---
 

@@ -68,6 +68,43 @@ const NEW_ASSIGNEDTO_COLUMN_SCHEMA_NAME = 'cr664_AssignedTo';
 
 const DV_BEARER_TOKEN_ENV_VAR = 'DATAVERSE_BEARER_TOKEN';
 
+// Component type codes used by the Dataverse dependency API.
+// Source: solutioncomponent EntityMetadata `componenttype` global option set.
+// We pin Attribute (2) since every pseudo-column the script wants to
+// delete is an Attribute; the other entries are used only for the
+// human-readable rendering of dependent component types.
+const COMPONENT_TYPE_ATTRIBUTE = 2;
+const COMPONENT_TYPE_NAMES = Object.freeze({
+  1: 'Entity',
+  2: 'Attribute',
+  3: 'Relationship',
+  9: 'OptionSet',
+  10: 'EntityRelationship',
+  14: 'EntityKey',
+  16: 'Privilege',
+  18: 'Role',
+  20: 'Workflow',
+  24: 'SystemForm',
+  26: 'SavedQuery (View)',
+  29: 'WebResource',
+  31: 'SiteMap',
+  35: 'ConvertRule',
+  36: 'HierarchyRule',
+  37: 'MobileOfflineProfile',
+  60: 'SystemForm',
+  61: 'WebResource',
+  62: 'PluginAssembly',
+  65: 'PluginType',
+  66: 'SdkMessageProcessingStep',
+  70: 'ServiceEndpoint',
+  90: 'Report',
+  91: 'ReportEntity',
+  92: 'ReportCategory',
+  93: 'ReportVisibility',
+  95: 'FieldSecurityProfile',
+  150: 'ConnectionRole',
+});
+
 // No-admin OAuth2 device-code fallback constants.
 // PUBLIC_CLIENT_ID is the Microsoft Azure PowerShell public client —
 // a multi-tenant first-party app registration that supports the
@@ -91,19 +128,37 @@ const DV_BEARER_TOKEN_CACHE_PATH = resolve(OUTPUT_DIR, '.token-cache.json');
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const flags = { dryRun: true, commit: false, skipRollback: false, help: false };
+  const flags = {
+    dryRun: true,
+    commit: false,
+    skipRollback: false,
+    inspectDependencies: false,
+    help: false,
+  };
   for (const arg of argv.slice(2)) {
     if (arg === '--dry-run') flags.dryRun = true;
     else if (arg === '--commit') {
       flags.commit = true;
       flags.dryRun = false;
     } else if (arg === '--skip-rollback-export') flags.skipRollback = true;
-    else if (arg === '--help' || arg === '-h') flags.help = true;
+    else if (arg === '--inspect-dependencies') {
+      // Read-only mode: audit + plan + dependency probes only. No
+      // rollback exports, no DELETE, no POST. Token still required
+      // because dependency probes hit the Web API.
+      flags.inspectDependencies = true;
+      flags.dryRun = false;
+    } else if (arg === '--help' || arg === '-h') flags.help = true;
     else {
       console.error(`Unknown argument: ${arg}`);
-      console.error('Usage: node scripts/phase122-lookup-repair.mjs [--dry-run | --commit] [--help]');
+      console.error(
+        'Usage: node scripts/phase122-lookup-repair.mjs [--dry-run | --commit | --inspect-dependencies] [--help]',
+      );
       process.exit(2);
     }
+  }
+  if (flags.commit && flags.inspectDependencies) {
+    console.error('Refusing to run: --commit and --inspect-dependencies are mutually exclusive.');
+    process.exit(2);
   }
   return flags;
 }
@@ -119,7 +174,11 @@ if (FLAGS.help) {
 // Header
 // ---------------------------------------------------------------------------
 
-const MODE = FLAGS.commit ? 'COMMIT' : 'DRY-RUN';
+const MODE = FLAGS.commit
+  ? 'COMMIT'
+  : FLAGS.inspectDependencies
+    ? 'INSPECT-DEPENDENCIES'
+    : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -717,6 +776,206 @@ async function resolveEnvUrl() {
 }
 
 // ---------------------------------------------------------------------------
+// Dependency inspection — pre-destructive read-only safety gate.
+//
+// Dataverse refuses to delete an Attribute that any other component
+// (form, view, workflow, relationship, field-security profile, etc.)
+// still references — error code `0x8004f01f` from the operator's
+// 2026-05-29 run on cr664_documentchecklist.cr664_deal proved the
+// case for this script. The remediation Microsoft documents is to
+// call `RetrieveDependenciesForDeleteRequest`, identify the dependent
+// component, remove/repoint that reference, and only then re-attempt
+// the delete.
+//
+// This block adds three pieces:
+//   1. `getAttributeMetadataId()` — resolves a table+attribute pair to
+//      its MetadataId (= the AttributeId that the dependency API expects).
+//   2. `retrieveDependenciesForDelete()` — issues the read-only
+//      RetrieveDependenciesForDelete Web API function and returns the
+//      raw dependency rows.
+//   3. `inspectPseudoColumnDependencies()` — walks the plan's pending
+//      pseudo-column delete steps in order, short-circuits at the
+//      first column with non-empty dependencies (per the task's
+//      "do not continue to later tables after a dependency is found"
+//      requirement), and prints each dependency with its component
+//      type and IDs.
+//
+// All three use HTTP GET only. None of them is reachable from dry-run
+// (token is acquired only in commit and inspect-dependencies modes).
+// ---------------------------------------------------------------------------
+
+async function getAttributeMetadataId(table, attribute, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/EntityDefinitions(LogicalName='${table}')` +
+    `/Attributes(LogicalName='${attribute}')?$select=MetadataId,SchemaName`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `GET attribute metadata → ${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    if (!json.MetadataId) {
+      return { ok: false, error: 'attribute metadata response missing MetadataId' };
+    }
+    return { ok: true, metadataId: json.MetadataId, schemaName: json.SchemaName };
+  } catch (err) {
+    return { ok: false, error: `attribute metadata network error: ${err.message}` };
+  }
+}
+
+async function retrieveDependenciesForDelete(componentType, objectId, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/RetrieveDependenciesForDelete(ComponentType=@p1,ObjectId=@p2)` +
+    `?@p1=${componentType}&@p2=${objectId}`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `RetrieveDependenciesForDelete → ${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    return { ok: true, dependencies: Array.isArray(json.value) ? json.value : [] };
+  } catch (err) {
+    return { ok: false, error: `RetrieveDependenciesForDelete network error: ${err.message}` };
+  }
+}
+
+async function inspectPseudoColumnDependencies(plan, token, envUrl) {
+  console.log('');
+  console.log('Phase D — Inspecting Dataverse dependencies for each pseudo-column delete step…');
+  console.log('');
+  const deleteSteps = plan.filter(
+    (s) =>
+      s.kind === 'webapi' &&
+      s.method === 'DELETE' &&
+      typeof s.url === 'string' &&
+      s.url.includes('/Attributes('),
+  );
+  if (deleteSteps.length === 0) {
+    console.log('  No pseudo-column delete steps in plan. Skipping dependency inspection.');
+    return { blocked: false, blockers: [], inspected: 0 };
+  }
+
+  const blockers = [];
+  let inspected = 0;
+  for (const step of deleteSteps) {
+    const m = step.url.match(
+      /EntityDefinitions\(LogicalName='([^']+)'\)\/Attributes\(LogicalName='([^']+)'\)/,
+    );
+    if (!m) {
+      console.log(`  ! Could not parse table/attribute from step ${step.id}; skipping.`);
+      continue;
+    }
+    const [, table, attribute] = m;
+    inspected += 1;
+    console.log(`  · ${table}.${attribute}`);
+
+    const idResult = await getAttributeMetadataId(table, attribute, token, envUrl);
+    if (!idResult.ok) {
+      console.log(`      ✗ Could not resolve MetadataId: ${idResult.error}`);
+      blockers.push({
+        table,
+        attribute,
+        reason: 'metadata-id-unresolvable',
+        details: idResult.error,
+      });
+      // Treat unresolvable metadata as a blocker — the operator must
+      // investigate manually. Per the task spec, do not continue to
+      // later tables once any blocker is found.
+      break;
+    }
+    const depResult = await retrieveDependenciesForDelete(
+      COMPONENT_TYPE_ATTRIBUTE,
+      idResult.metadataId,
+      token,
+      envUrl,
+    );
+    if (!depResult.ok) {
+      console.log(`      ✗ Dependency probe failed: ${depResult.error}`);
+      blockers.push({
+        table,
+        attribute,
+        metadataId: idResult.metadataId,
+        reason: 'dependency-probe-failed',
+        details: depResult.error,
+      });
+      break;
+    }
+    if (depResult.dependencies.length === 0) {
+      console.log('      ✓ no dependent components — safe to delete');
+      continue;
+    }
+    console.log(
+      `      ✗ ${depResult.dependencies.length} dependent component(s) — DELETE will fail (0x8004f01f):`,
+    );
+    for (const dep of depResult.dependencies) {
+      const typeCode = dep.dependentcomponenttype;
+      const typeName = COMPONENT_TYPE_NAMES[typeCode] ?? `Type#${typeCode}`;
+      const objectId = dep.dependentcomponentobjectid ?? '(no id)';
+      const baseSolutionId = dep.dependentcomponentbasesolutionid ?? '(no solution id)';
+      console.log(`        - ${typeName}`);
+      console.log(`            componentobjectid:    ${objectId}`);
+      console.log(`            basesolutionid:       ${baseSolutionId}`);
+      console.log(`            remediation: ${remediationHintForComponentType(typeCode)}`);
+    }
+    blockers.push({
+      table,
+      attribute,
+      metadataId: idResult.metadataId,
+      reason: 'dependent-components',
+      dependencies: depResult.dependencies,
+    });
+    // Per the task spec: do not continue to later tables after a
+    // dependency is found.
+    break;
+  }
+  console.log('');
+  return { blocked: blockers.length > 0, blockers, inspected };
+}
+
+function remediationHintForComponentType(typeCode) {
+  switch (typeCode) {
+    case 24:
+    case 60:
+      return 'open the form in Maker Portal → form designer → remove the field reference, then save + publish.';
+    case 26:
+      return 'open the view in Maker Portal → view designer → remove the column, then save + publish.';
+    case 10:
+      return 'open Maker Portal → table → Relationships → delete or repoint the relationship to the new cr664_Deal column.';
+    case 20:
+    case 35:
+    case 36:
+      return 'open the workflow / business rule in Maker Portal → replace the field reference, then activate the new version.';
+    case 95:
+      return 'open the field-security profile that grants access to this column → remove the field, then re-save.';
+    case 90:
+    case 91:
+    case 92:
+    case 93:
+      return 'open the report definition → remove or repoint the field reference, then re-publish the report.';
+    default:
+      return 'investigate the component via Maker Portal solution explorer + repoint or remove its reference to the pseudo-column.';
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -796,6 +1055,24 @@ async function main() {
     process.exit(3);
   }
 
+  // === Inspect-dependencies mode (read-only) ===
+  if (FLAGS.inspectDependencies) {
+    const envUrl = await resolveEnvUrl();
+    const token = await acquireBearerToken(envUrl);
+    const depResult = await inspectPseudoColumnDependencies(plan, token, envUrl);
+    if (depResult.blocked) {
+      console.error('');
+      console.error(`✗ ${depResult.blockers.length} pseudo-column(s) have dependencies that block delete.`);
+      console.error('  See the per-column breakdown above. Resolve the dependencies in Maker Portal,');
+      console.error('  then re-run `node scripts/phase122-lookup-repair.mjs --inspect-dependencies`');
+      console.error('  to confirm the blocker is cleared before attempting `--commit`.');
+      process.exit(5);
+    }
+    console.log(`✓ Inspected ${depResult.inspected} pseudo-column delete step(s); none have dependencies.`);
+    console.log('  You can safely run `node scripts/phase122-lookup-repair.mjs --commit`.');
+    return;
+  }
+
   // === Safety gates for commit mode ===
   if (FLAGS.commit) {
     refuseIfForbiddenPrefix(publisherAudit);
@@ -809,7 +1086,7 @@ async function main() {
     //     would create a chicken-and-egg failure where the gate trips
     //     before the export step has a chance to run. Instead we
     //     verify the zips post-export, before any destructive step
-    //     proceeds (see the in-loop check below).
+    //     proceeds (see the explicit verify call below).
     if (FLAGS.skipRollback) {
       ensureRollbackArtifactsExist(
         '`--skip-rollback-export` was passed but the operator has not ' +
@@ -830,31 +1107,60 @@ async function main() {
     console.log('');
     const ctx = { token, envUrl };
 
-    // Rollback-on-disk verification flag. Pre-verified when the operator
-    // opted into manual export with `--skip-rollback-export`; otherwise
-    // verified mid-plan after the auto-export steps complete.
-    let rollbackVerifiedOnDisk = FLAGS.skipRollback;
-
-    for (const step of plan) {
+    // ----- Phase 1: rollback export steps (auto-export path only) -----
+    const rollbackSteps = plan.filter((s) =>
+      typeof s.id === 'string' && s.id.startsWith('rollback-export-'),
+    );
+    for (const step of rollbackSteps) {
       const r = await executeStep(step, ctx);
       if (!r.ok) {
         console.error(`Step "${step.label}" failed: ${r.error}`);
         process.exit(4);
       }
+    }
 
-      // Post-export verification: once both rollback exports have run,
-      // confirm both zips actually landed on disk (pac could exit 0 on
-      // an environment that silently produced no file). Refuse to
-      // proceed to any destructive step otherwise.
-      if (!rollbackVerifiedOnDisk && step.id === 'rollback-export-loanopsexport') {
-        ensureRollbackArtifactsExist(
-          'Rollback export step exited cleanly but the expected zip is ' +
-            'not on disk. Refusing to proceed to destructive steps.',
-        );
-        rollbackVerifiedOnDisk = true;
-        console.log('');
-        console.log('✓ Rollback artifacts verified on disk; proceeding to destructive steps.');
-        console.log('');
+    // ----- Phase 1 verify: zips actually on disk -----
+    ensureRollbackArtifactsExist(
+      FLAGS.skipRollback
+        ? 'Rollback artifact disappeared between pre-execution check and now.'
+        : 'Rollback export step exited cleanly but the expected zip is not on disk. ' +
+            'Refusing to proceed to dependency inspection or any destructive step.',
+    );
+    console.log('');
+    console.log('✓ Rollback artifacts verified on disk.');
+
+    // ----- Phase 2: dependency inspection (read-only) -----
+    const depResult = await inspectPseudoColumnDependencies(plan, token, envUrl);
+    if (depResult.blocked) {
+      console.error('');
+      console.error('✗ Safety gate: one or more pseudo-columns have dependent components.');
+      console.error('  Refusing to delete any pseudo-column or create any new lookup.');
+      console.error('  No destructive step has run.');
+      console.error('');
+      console.error('  Remediation path:');
+      console.error('    1. For each dependency listed above, remove or repoint the');
+      console.error('       reference in Maker Portal (see the inline `remediation:` hint');
+      console.error('       printed under each dependent component).');
+      console.error('    2. Re-run `node scripts/phase122-lookup-repair.mjs --inspect-dependencies`');
+      console.error('       to confirm the dependency is gone.');
+      console.error('    3. Re-run `node scripts/phase122-lookup-repair.mjs --commit`.');
+      console.error('');
+      console.error('  The script will NOT attempt a force-delete or any other bypass.');
+      process.exit(5);
+    }
+    console.log(`✓ Inspected ${depResult.inspected} pseudo-column delete step(s); none have dependencies.`);
+    console.log('  Proceeding to destructive steps.');
+    console.log('');
+
+    // ----- Phase 3: remaining (destructive + verify) steps -----
+    const remainingSteps = plan.filter(
+      (s) => !(typeof s.id === 'string' && s.id.startsWith('rollback-export-')),
+    );
+    for (const step of remainingSteps) {
+      const r = await executeStep(step, ctx);
+      if (!r.ok) {
+        console.error(`Step "${step.label}" failed: ${r.error}`);
+        process.exit(4);
       }
     }
     console.log('');
@@ -870,13 +1176,16 @@ async function main() {
   console.log(
     '  1. Review the plan above + the runbook JSON at ' + RUNBOOK_PATH + '.',
   );
-  console.log('  2. To let the script execute it, run:');
+  console.log('  2. Inspect Dataverse dependency state for each pseudo-column the');
+  console.log('     plan would delete (recommended before --commit):');
+  console.log('       node scripts/phase122-lookup-repair.mjs --inspect-dependencies');
+  console.log('  3. To let the script execute the plan:');
   console.log('       node scripts/phase122-lookup-repair.mjs --commit');
   console.log('     Commit mode acquires a token via this priority order:');
   console.log(`       a. ${DV_BEARER_TOKEN_ENV_VAR} env var (if set + JWT-shaped).`);
   console.log('       b. Cached device-code token from a previous run.');
   console.log('       c. OAuth2 device-code flow (no admin install — prompts in terminal).');
-  console.log('  3. OR copy/paste the commands from the runbook JSON manually.');
+  console.log('  4. OR copy/paste the commands from the runbook JSON manually.');
   console.log('');
   console.log('Hard non-goals (this script):');
   console.log(`  - never creates a column with the "${FORBIDDEN_PUBLISHER_PREFIX}_" prefix`);
@@ -898,21 +1207,42 @@ function printHelp() {
   console.log(`Phase 122B — Dataverse lookup repair (dry-run default)
 
 Usage:
-  node scripts/phase122-lookup-repair.mjs                 # dry-run (default)
-  node scripts/phase122-lookup-repair.mjs --dry-run       # explicit dry-run
-  node scripts/phase122-lookup-repair.mjs --commit        # execute writes after every safety gate passes
+  node scripts/phase122-lookup-repair.mjs                          # dry-run (default)
+  node scripts/phase122-lookup-repair.mjs --dry-run                # explicit dry-run
+  node scripts/phase122-lookup-repair.mjs --inspect-dependencies   # read-only dependency probe
+  node scripts/phase122-lookup-repair.mjs --commit                 # execute writes after every safety gate passes
   node scripts/phase122-lookup-repair.mjs --help
+
+Modes:
+  --dry-run / (default)
+      Audit live env + emit plan to .phase122/phase122-runbook.json.
+      Nothing else.
+  --inspect-dependencies
+      Same as dry-run PLUS: for each pseudo-column the plan would
+      delete, query the Dataverse RetrieveDependenciesForDelete API
+      and print every dependent component. Short-circuits at the
+      first column with dependencies. Read-only (GET only). Acquires
+      a bearer token via the same priority order as --commit.
+  --commit
+      Run the plan against the live env. Refuses to run unless every
+      safety gate (publisher prefix, rollback artifacts, dependency
+      inspection, no stop conditions) passes.
 
 Safety gates for --commit:
   - solution ${SOLUTION_FOR_CR664} must have publisher prefix "${CR664_PUBLISHER_PREFIX}"
     (refuses if it shows "${FORBIDDEN_PUBLISHER_PREFIX}" or anything else)
   - rollback artifacts at .phase122/rollback/*_PRE_PHASE_122B.zip must exist
+    on disk after Phase 1 (auto-export by default; pre-supplied when
+    --skip-rollback-export is passed)
   - a Dataverse bearer token must be obtainable from at least ONE of:
       a. ${DV_BEARER_TOKEN_ENV_VAR} env var (operator pre-acquired),
       b. cached device-code token from a previous run, or
       c. an interactive OAuth2 device-code flow (no admin install).
   - no plan step may be a stop-condition
   - any column scheduled for deletion must have ZERO non-NULL rows
+  - dependency inspection (Phase 2) must report ZERO dependent
+    components for every pseudo-column the plan would delete. The
+    script refuses to attempt a force-delete or any bypass header.
 `);
 }
 
