@@ -651,14 +651,14 @@ function writeTokenCache(obj) {
   }
 }
 
-function ensureRollbackArtifactsExist() {
+function ensureRollbackArtifactsExist(reasonHint) {
   for (const sln of [SOLUTION_FOR_REFERENCE, SOLUTION_FOR_CR664]) {
     const path = resolve(ROLLBACK_DIR, `${sln}_PRE_PHASE_122B.zip`);
     if (!existsSync(path)) {
       bail(
-        `Safety gate: rollback artifact missing — ${path}. Run dry-run with ` +
-          `--commit dropped first, OR pre-export the solution manually via Maker Portal, OR ` +
-          `let the script export it (rerun without --skip-rollback-export).`,
+        `Safety gate: rollback artifact missing — ${path}.${
+          reasonHint ? ' ' + reasonHint : ''
+        }`,
       );
     }
   }
@@ -799,17 +799,62 @@ async function main() {
   // === Safety gates for commit mode ===
   if (FLAGS.commit) {
     refuseIfForbiddenPrefix(publisherAudit);
-    if (!FLAGS.skipRollback) ensureRollbackArtifactsExist();
+
+    // Rollback gate (pre-execution):
+    //   - When the operator passes `--skip-rollback-export`, they have
+    //     promised to pre-export both solution zips. Refuse to commit
+    //     if either zip is missing on disk.
+    //   - In the default (auto-export) mode the plan's first two steps
+    //     export the zips themselves. We do NOT pre-check here — that
+    //     would create a chicken-and-egg failure where the gate trips
+    //     before the export step has a chance to run. Instead we
+    //     verify the zips post-export, before any destructive step
+    //     proceeds (see the in-loop check below).
+    if (FLAGS.skipRollback) {
+      ensureRollbackArtifactsExist(
+        '`--skip-rollback-export` was passed but the operator has not ' +
+          'pre-exported the solution zips. Either drop `--skip-rollback-export` ' +
+          'and let the script export them automatically, or run the manual ' +
+          '`pac solution export` commands listed in ' +
+          'docs/PHASE_122B_AUTOMATED_LOOKUP_REPAIR.md §4.3 first.',
+      );
+    } else {
+      // Auto-export path: make sure the destination directory exists
+      // so `pac solution export --path .phase122/rollback/...zip` lands.
+      mkdirSync(ROLLBACK_DIR, { recursive: true });
+    }
+
     const envUrl = await resolveEnvUrl();
     const token = await acquireBearerToken(envUrl);
-    console.log('All safety gates passed. Beginning commit execution…');
+    console.log('All pre-execution safety gates passed. Beginning commit execution…');
     console.log('');
     const ctx = { token, envUrl };
+
+    // Rollback-on-disk verification flag. Pre-verified when the operator
+    // opted into manual export with `--skip-rollback-export`; otherwise
+    // verified mid-plan after the auto-export steps complete.
+    let rollbackVerifiedOnDisk = FLAGS.skipRollback;
+
     for (const step of plan) {
       const r = await executeStep(step, ctx);
       if (!r.ok) {
         console.error(`Step "${step.label}" failed: ${r.error}`);
         process.exit(4);
+      }
+
+      // Post-export verification: once both rollback exports have run,
+      // confirm both zips actually landed on disk (pac could exit 0 on
+      // an environment that silently produced no file). Refuse to
+      // proceed to any destructive step otherwise.
+      if (!rollbackVerifiedOnDisk && step.id === 'rollback-export-loanopsexport') {
+        ensureRollbackArtifactsExist(
+          'Rollback export step exited cleanly but the expected zip is ' +
+            'not on disk. Refusing to proceed to destructive steps.',
+        );
+        rollbackVerifiedOnDisk = true;
+        console.log('');
+        console.log('✓ Rollback artifacts verified on disk; proceeding to destructive steps.');
+        console.log('');
       }
     }
     console.log('');

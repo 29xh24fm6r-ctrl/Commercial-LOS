@@ -109,10 +109,14 @@ NEW_ASSIGNEDTO_COLUMN_SCHEMA  = cr664_AssignedTo
 The script refuses to write if **any** of these fail:
 
 - `LoanOpsExport` publisher prefix is not `cr664`.
-- Rollback artifact at
+- Rollback artifacts at
   `.phase122/rollback/{CommercialLendingLOS,LoanOpsExport}_PRE_PHASE_122B.zip`
-  doesn't exist (unless `--skip-rollback-export` is passed AND the
-  operator has captured a checkpoint externally).
+  are missing **when `--skip-rollback-export` is passed**. In the
+  default (auto-export) mode the plan's first two steps create these
+  zips automatically — the script does not require them to pre-exist.
+- Either rollback zip is not on disk **after** the auto-export steps
+  run (mid-plan post-condition; protects against pac exiting 0 with
+  no file produced).
 - A Dataverse bearer token cannot be obtained from any of three sources
   (see §2.4): `DATAVERSE_BEARER_TOKEN` env var → cached device-code
   token → fresh device-code flow.
@@ -259,6 +263,41 @@ $env:DATAVERSE_BEARER_TOKEN = $token
 node scripts/phase122-lookup-repair.mjs --commit
 ```
 
+### 4.3 Manual rollback export (only when using `--skip-rollback-export`)
+
+By default the script auto-exports both rollback zips as the first
+two plan steps — the operator does **not** need to run any `pac`
+commands beforehand. The `.phase122/rollback/` directory is created
+automatically.
+
+The only reason to pre-export manually is if the operator wants to
+skip the script's export step (e.g. they have a freshly cut backup
+from elsewhere). In that case, supply `--skip-rollback-export` and
+pre-populate the two zips at the exact paths the script verifies:
+
+```powershell
+# Create the destination dir.
+New-Item -ItemType Directory -Path .phase122\rollback -Force | Out-Null
+
+# Export both solutions to the expected file names.
+pac solution export `
+  --name CommercialLendingLOS `
+  --path .phase122/rollback/CommercialLendingLOS_PRE_PHASE_122B.zip `
+  --managed false
+
+pac solution export `
+  --name LoanOpsExport `
+  --path .phase122/rollback/LoanOpsExport_PRE_PHASE_122B.zip `
+  --managed false
+
+# Now run commit with the skip flag.
+node scripts/phase122-lookup-repair.mjs --commit --skip-rollback-export
+```
+
+If either zip is missing the pre-execution gate fires immediately
+with the exact path it was looking for, so a typo in the file name
+is caught before any destructive step runs.
+
 Execution order matters — the script enforces it:
 
 1. Solution rollback exports.
@@ -337,7 +376,8 @@ also marked in the runbook JSON with `kind: "stop-condition"`:
 | `<table>.cr664_deal has N non-NULL row(s)` (N > 0) | Someone populated the pseudo-column after §10 audit. | Export the populated rows to CSV; explicitly decide whether the data should be migrated to the new column or dropped. Re-run dry-run after deciding. |
 | `non-NULL row count could not be probed` | FetchXML returned unexpected output. | Investigate manually; do not let the script delete an unverified column. |
 | `could not acquire bearer token` | All three token sources failed (env var empty/malformed, no valid cache, device-code prompt declined or timed out). | Re-run and complete the device-code prompt in §4.1, or pre-set `DATAVERSE_BEARER_TOKEN` per §4.2, then retry. |
-| Rollback artifact missing | First `--commit` ever, or `--skip-rollback-export` used without external checkpoint. | Re-run without `--skip-rollback-export`, or capture a manual export and place the zip at the expected path. |
+| Rollback artifact missing (pre-execution) | `--skip-rollback-export` was passed but at least one zip is not at the expected path. | Re-run without `--skip-rollback-export` to let the script export automatically, OR run the `pac solution export` commands in §4.3 first. |
+| Rollback artifact missing (post-export) | Auto-export step exited cleanly but no zip landed on disk. | Investigate the pac output for the export step; rerun once the export reliably produces a file. No destructive step has run yet. |
 
 ---
 

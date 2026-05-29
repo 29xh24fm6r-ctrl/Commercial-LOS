@@ -161,9 +161,38 @@ describe('Phase 122B — script declares the correct rollback-export pair', () =
     expect(SCRIPT).toMatch(/Rollback export — LoanOpsExport/);
   });
 
-  it('ensureRollbackArtifactsExist() checks both rollback zips before commit', () => {
+  it('ensureRollbackArtifactsExist() checks both rollback zips', () => {
     expect(SCRIPT).toMatch(/function\s+ensureRollbackArtifactsExist/);
     expect(SCRIPT).toMatch(/PRE_PHASE_122B\.zip/);
+  });
+});
+
+describe('Phase 122B — rollback gate fires at the correct phase', () => {
+  it('pre-execution rollback check fires ONLY when --skip-rollback-export is passed', () => {
+    // Auto-export is the default; if the pre-check ran on the auto-export
+    // path it would trip on the missing zip before the export step had
+    // a chance to create it (chicken-and-egg). The guard must therefore
+    // be `if (FLAGS.skipRollback)`, NOT `if (!FLAGS.skipRollback)`.
+    expect(SCRIPT).toMatch(
+      /if\s*\(\s*FLAGS\.skipRollback\s*\)\s*\{[\s\S]*?ensureRollbackArtifactsExist/,
+    );
+    // The inverted (broken) form must NOT appear anywhere in the source.
+    expect(SCRIPT).not.toMatch(
+      /if\s*\(\s*!\s*FLAGS\.skipRollback\s*\)\s*ensureRollbackArtifactsExist/,
+    );
+  });
+
+  it('auto-export path creates the .phase122/rollback directory first', () => {
+    // pac solution export --path X/Y.zip needs Y's parent to exist.
+    expect(SCRIPT).toMatch(/mkdirSync\(\s*ROLLBACK_DIR/);
+  });
+
+  it('post-export verification fires after the rollback-export-loanopsexport step', () => {
+    // After the second rollback export runs, the script must re-check
+    // that both zips landed on disk before any destructive step. This
+    // closes the loop on a silent pac exit-0-with-no-file.
+    expect(SCRIPT).toMatch(/step\.id\s*===\s*'rollback-export-loanopsexport'/);
+    expect(SCRIPT).toMatch(/Rollback artifacts verified on disk/);
   });
 });
 
