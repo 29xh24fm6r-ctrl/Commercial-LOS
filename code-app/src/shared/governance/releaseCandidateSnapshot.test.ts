@@ -210,6 +210,21 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // /cr664_loandeals(...); Phase 122 makes the live schema
     // match. Unblocks the deferred Phase 121 Steps 6 + 7.
     'docs/PHASE_122_RETARGET_DEAL_LOOKUPS.md',
+    // Phase 122B — Automated Dataverse lookup repair. Replaces the
+    // manual Maker Portal click-path with a Node script
+    // (scripts/phase122-lookup-repair.mjs) that audits the live
+    // env, prints a full plan with exact Web API payloads, and
+    // refuses to execute live writes unless every safety gate
+    // passes (LoanOpsExport publisher prefix = cr664, rollback
+    // artifacts exist, DATAVERSE_BEARER_TOKEN env var set, no
+    // plan step is a stop-condition, zero non-NULL rows on every
+    // pseudo-column scheduled for deletion). Default is dry-run;
+    // --commit explicitly required for writes. 29 new static-
+    // source pins on the script's safety guards + constants in
+    // phase122BScriptContract.test.ts. Continues to honor the
+    // Phase 122 react-side contract pins (22 cases) and Phase
+    // 110 communication lock.
+    'docs/PHASE_122B_AUTOMATED_LOOKUP_REPAIR.md',
     // Phase 122A — OGB LOS original UI/UX recovery audit.
     // Documentation-only. Headline finding: no archived richer
     // UI exists in the repo; the Phase 117/119/120 shell IS the

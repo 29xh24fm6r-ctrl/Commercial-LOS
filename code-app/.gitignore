@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Phase 122B — repair-script artifacts (runbook JSON + rollback zips).
+# The script regenerates these on every dry-run; committing them
+# would leak live Dataverse env URLs + timestamps.
+.phase122/

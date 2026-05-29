@@ -1,0 +1,319 @@
+# Phase 122B — Automated Dataverse Lookup Repair
+
+**Status:** **Dry-run script delivered + audit re-confirmed.** This phase
+replaces the error-prone Maker Portal click-path from Phase 122 §10
+with a Node script that audits the live environment, prints a full
+plan with exact Web API payloads, and refuses to execute live writes
+unless every safety gate passes.
+
+**No app code change. No live writes performed in this commit.**
+
+Related canonical sources:
+- [PHASE_122_RETARGET_DEAL_LOOKUPS.md](PHASE_122_RETARGET_DEAL_LOOKUPS.md) — the parent phase; §10 documents the publisher-prefix finding that motivated this script.
+- [PHASE_121_OPERATOR_SEED_CHECKLIST.md](PHASE_121_OPERATOR_SEED_CHECKLIST.md) — the seed runbook whose Steps 5 + 6 unblock once the script's plan executes.
+- [PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md](PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md) — email-lane lock honored.
+
+---
+
+## 1. Why manual Maker Portal was stopped
+
+Phase 122 §10 documented that the `CommercialLendingLOS` solution's
+publisher prefix is `new`, not `cr664`. Manually adding a column from
+inside that solution would create a `new_Deal` column — which would
+not satisfy the React contract (`cr664_Deal@odata.bind` +
+`_cr664_deal_value`) and would leave junk in the schema that someone
+later has to clean up.
+
+Additionally, all 5 candidate child tables already carry a
+pre-existing non-standard `cr664_deal` (lowercase d) pseudo-column
+that would collide case-insensitively with a new standard
+`cr664_Deal` Lookup. The manual path requires multiple deletes +
+multiple lookup creations from the correct (cr664-prefix) solution
+context — a dozen-plus clicks each with a different stop condition.
+
+The script automates the audit + plan + (optional) execution with
+guardrails on every step.
+
+---
+
+## 2. The script
+
+[scripts/phase122-lookup-repair.mjs](../scripts/phase122-lookup-repair.mjs)
+is an ESM Node script that depends only on the Node 20+ standard
+library and the `pac` CLI (already authenticated against the target
+environment). It has three modes:
+
+| Mode | Command | Behavior |
+| --- | --- | --- |
+| Default (dry-run) | `node scripts/phase122-lookup-repair.mjs` | Read-only audit + plan emission; nothing is written. |
+| Explicit dry-run | `node scripts/phase122-lookup-repair.mjs --dry-run` | Same as default. |
+| Commit | `node scripts/phase122-lookup-repair.mjs --commit` | Refuses to run unless every safety gate passes (publisher prefix, rollback artifacts, bearer-token env var, zero non-NULL pseudo-column rows, no stop conditions in plan). |
+
+### 2.1 Hard-pinned constants
+
+The script reads these from `phase122-lookup-repair.mjs` directly:
+
+```text
+TARGET_ENVIRONMENT_ID         = 5f2d77a5-de50-edeb-9d74-5b2400a2320d
+SOLUTION_FOR_CR664            = LoanOpsExport
+SOLUTION_FOR_REFERENCE        = CommercialLendingLOS
+CR664_PUBLISHER_UNIQUE_NAME   = Crc0077
+CR664_PUBLISHER_PREFIX        = cr664
+FORBIDDEN_PUBLISHER_PREFIX    = new
+
+CANDIDATE_CHILD_TABLES        = cr664_documentchecklist
+                                cr664_dealtask1
+                                cr664_creditmemo1
+                                cr664_creditmemodraftsection
+                                cr664_dealtimelineevent
+
+LOOKUP_TARGET_LOAN_DEAL       = cr664_loandeal
+LOOKUP_TARGET_SYSTEMUSER      = systemuser
+
+PSEUDO_DEAL_COLUMN            = cr664_deal          (lowercase d)
+PSEUDO_ASSIGNEDTO_COLUMN      = cr664_assignedto
+NEW_DEAL_COLUMN_SCHEMA_NAME   = cr664_Deal          (capital D)
+NEW_ASSIGNEDTO_COLUMN_SCHEMA  = cr664_AssignedTo
+```
+
+### 2.2 What the script does in each phase
+
+1. **Auth sanity check** — verifies `pac auth list` reports an active session.
+2. **Phase A — Publisher audit** — single FetchXML query joins the
+   `solution` and `publisher` tables, parses out each target
+   solution's customization prefix. Refuses to proceed in commit
+   mode if `LoanOpsExport`'s prefix is not `cr664`.
+3. **Phase B — Table audit** — for each candidate child table,
+   probes whether `cr664_deal` (pseudo) exists, whether
+   `_cr664_deal_value` (standard FK) exists, and counts the rows
+   that have a non-NULL `cr664_deal`. Same shape for
+   `cr664_dealtask1.cr664_assignedto`.
+4. **Plan emission** — builds an ordered list of steps:
+   - Solution exports for rollback (unless `--skip-rollback-export`)
+   - Pseudo-column deletions (only where row count is 0)
+   - New Lookup column creations via `POST /api/data/v9.2/RelationshipDefinitions`
+   - `pac solution publish`
+   - Verification `pac env fetch` probes for `_cr664_deal_value` and `_cr664_assignedto_value`
+5. **Runbook artifact** — writes the full plan as JSON to
+   `.phase122/phase122-runbook.json` so it can be copy/pasted or
+   inspected separately.
+6. **Commit execution (only if `--commit`)** — walks the plan one
+   step at a time. Shells out to `pac` for solution
+   exports / publish / verification probes; uses `fetch()` with
+   `Bearer ${DATAVERSE_BEARER_TOKEN}` + `MSCRM.SolutionUniqueName:
+   LoanOpsExport` header for the Web API metadata writes. Stops
+   immediately on the first failure.
+
+### 2.3 Safety gates (commit mode)
+
+The script refuses to write if **any** of these fail:
+
+- `LoanOpsExport` publisher prefix is not `cr664`.
+- Rollback artifact at
+  `.phase122/rollback/{CommercialLendingLOS,LoanOpsExport}_PRE_PHASE_122B.zip`
+  doesn't exist (unless `--skip-rollback-export` is passed AND the
+  operator has captured a checkpoint externally).
+- `DATAVERSE_BEARER_TOKEN` env var is not set.
+- Any plan step is a `stop-condition` (e.g. a pseudo-column has
+  non-NULL rows).
+- Any pseudo-column whose non-NULL row count couldn't be probed.
+
+---
+
+## 3. Dry-run instructions
+
+```text
+# Windows PowerShell (the env in this repo)
+cd C:\Users\MatthewPaller\projects\powerapp-project\code-app
+node scripts/phase122-lookup-repair.mjs --dry-run
+```
+
+Expected output, top-to-bottom:
+
+```text
+======================================================================
+Phase 122B — Dataverse lookup repair script — mode: DRY-RUN
+======================================================================
+Environment id (pinned):  5f2d77a5-de50-edeb-9d74-5b2400a2320d
+Solution for cr664_ work: LoanOpsExport
+Cross-list reference:     CommercialLendingLOS
+Required prefix:          cr664
+Forbidden prefix:         new
+
+Phase A — Auditing publishers + solution → publisher join…
+  Publisher join:
+    - LoanOpsExport: prefix=cr664
+    - CommercialLendingLOS: prefix=new
+
+Phase B — Auditing candidate child tables for column state…
+  · cr664_documentchecklist
+  · cr664_dealtask1
+  · cr664_creditmemo1
+  · cr664_creditmemodraftsection
+  · cr664_dealtimelineevent
+
+Table audit summary:
+  <one block per table>
+
+📋 Plan written to .../.phase122/phase122-runbook.json
+
+Phase C — Planned actions:
+  · [1] Rollback export — CommercialLendingLOS
+  · [2] Rollback export — LoanOpsExport
+  🔧 [3-8] Delete pseudo-column cr664_<table>.cr664_deal
+  🔧 [9-13] Create cr664_Deal Lookup on cr664_<table> → cr664_loandeal
+  🔧 [14] Create cr664_AssignedTo Lookup on cr664_dealtask1 → systemuser
+  · [15] Publish all customizations
+  🧪 [16-21] Verify _cr664_deal_value / _cr664_assignedto_value resolves
+
+Dry-run complete. Nothing was written to Dataverse.
+```
+
+The runbook JSON at `.phase122/phase122-runbook.json` is the
+authoritative artifact — every Web API payload is materialized
+there for manual review or copy/paste execution.
+
+---
+
+## 4. Commit instructions
+
+> ⚠ **Read §3's dry-run output carefully before continuing.** Confirm:
+> (a) `LoanOpsExport: prefix=cr664`
+> (b) every pseudo-column shows `non-NULL row count: 0`
+> (c) every planned `Create cr664_Deal Lookup …` step targets `cr664_loandeal`, not `cr664_deal`
+
+```text
+# 1. Acquire a Dataverse bearer token.
+#    Requires `az` CLI logged in against the same tenant.
+$envUrl = (pac org who | Select-String "https://" | ForEach-Object { $_.Matches.Value } | Select-Object -First 1)
+$token = az account get-access-token --resource $envUrl --query accessToken -o tsv
+$env:DATAVERSE_BEARER_TOKEN = $token
+
+# 2. Run the script in commit mode.
+node scripts/phase122-lookup-repair.mjs --commit
+```
+
+Execution order matters — the script enforces it:
+
+1. Solution rollback exports.
+2. Pseudo-column deletions (zero-row check enforced).
+3. Lookup column + relationship creations (each is one POST to
+   `RelationshipDefinitions` with `MSCRM.SolutionUniqueName:
+   LoanOpsExport` header → the column lands under the `cr664_`
+   publisher).
+4. `pac solution publish`.
+5. Verification probes — `pac env fetch` for each new
+   `_cr664_deal_value` / `_cr664_assignedto_value`.
+
+Any failure halts the script with exit code 4 and prints the failing
+step. The runbook JSON remains on disk for forensics.
+
+---
+
+## 5. Rollback
+
+If something goes wrong in commit mode (incomplete columns,
+partial relationship registrations, etc.):
+
+1. **Import the rollback solutions back over the broken state.** The
+   script wrote `.phase122/rollback/CommercialLendingLOS_PRE_PHASE_122B.zip`
+   and `.phase122/rollback/LoanOpsExport_PRE_PHASE_122B.zip` in
+   Step 1 of commit mode. Re-import either solution via
+   `pac solution import --path <zip>` to restore the pre-122B
+   schema state.
+2. **Delete any TEST rows seeded after the script ran** — Advanced
+   Find by `cr664_dealname` starts-with `TEST —` and created-on
+   after the script's `generatedAt` timestamp in the runbook JSON.
+3. **Re-run the dry-run** to confirm the env is back to the
+   pre-122B baseline.
+
+---
+
+## 6. Expected output (full example)
+
+The latest dry-run run produced exactly this against the live env
+on 2026-05-29 (truncated for brevity):
+
+```text
+Publisher join:
+  - LoanOpsExport: prefix=cr664
+  - CommercialLendingLOS: prefix=new
+
+Table audit summary:
+  cr664_documentchecklist:
+    pseudo cr664_deal exists:       true
+    standard _cr664_deal_value:     false
+    non-NULL row count:             0
+  cr664_dealtask1:
+    pseudo cr664_deal exists:       true
+    standard _cr664_deal_value:     false
+    non-NULL row count:             0
+    pseudo cr664_assignedto:        true
+    standard _cr664_assignedto_v:   false
+    AssignedTo non-NULL count:      0
+  ... (3 more tables, same shape)
+```
+
+The plan deterministically emits 21 steps (2 rollback exports, 6
+pseudo-column deletes, 6 Lookup column creations, 1 publish, 6
+verifications).
+
+---
+
+## 7. Stop conditions
+
+The script refuses to commit if any of the following holds. Each is
+also marked in the runbook JSON with `kind: "stop-condition"`:
+
+| Condition | Cause | Operator action |
+| --- | --- | --- |
+| `LoanOpsExport: prefix != cr664` | Publisher join changed since §10 audit; or wrong env. | Re-audit publisher state via §10.2 of Phase 122. |
+| `<table>.cr664_deal has N non-NULL row(s)` (N > 0) | Someone populated the pseudo-column after §10 audit. | Export the populated rows to CSV; explicitly decide whether the data should be migrated to the new column or dropped. Re-run dry-run after deciding. |
+| `non-NULL row count could not be probed` | FetchXML returned unexpected output. | Investigate manually; do not let the script delete an unverified column. |
+| `DATAVERSE_BEARER_TOKEN not set` | Token not exported into env. | Acquire token (§4 step 1) and retry. |
+| Rollback artifact missing | First `--commit` ever, or `--skip-rollback-export` used without external checkpoint. | Re-run without `--skip-rollback-export`, or capture a manual export and place the zip at the expected path. |
+
+---
+
+## 8. Post-repair seed steps
+
+After the script reports `Commit execution complete`, resume the
+Phase 121 seed at Step 5 + Step 6:
+
+- **TEST — Outstanding Document Phase 122**, linked to `TEST — Deal Phase 121`
+  via the new `cr664_Deal` lookup. `cr664_uploadstatus = false`,
+  no `cr664_receiveddate`, no `cr664_reviewer`.
+- **TEST — Pending Review Document Phase 122**, linked similarly.
+  `cr664_uploadstatus = true`, `cr664_receiveddate = <today>`,
+  no `cr664_reviewer`.
+- **TEST — Task Phase 122**, linked via the new `cr664_AssignedTo`
+  → Matthew Paller, `cr664_completed = false`, `cr664_duedate =
+  <today + 7d>`.
+
+Then validate in the deployed cockpit per Phase 122 §10.5.9
+(Outstanding Docs tile = 1, Tasks Open tile = 1, Documents widget =
+1 outstanding, etc.).
+
+---
+
+## 9. Hard non-goals (pinned by tests + script defaults)
+
+| Non-goal | Where pinned |
+| --- | --- |
+| Default to dry-run | `FLAGS.dryRun = true` initial value + static-source test |
+| `--commit` required for writes | Conditional plan execution guarded by `FLAGS.commit` + static-source test |
+| Never create a `new_`-prefixed column | `refuseIfForbiddenPrefix` safety gate + `FORBIDDEN_PUBLISHER_PREFIX` constant + static-source test |
+| Never bind to legacy `/cr664_deals(<id>)` | `LOOKUP_TARGET_LOAN_DEAL = 'cr664_loandeal'` constant + static-source test |
+| Never delete a column with non-NULL rows | `populated > 0` → `kind: stop-condition` branch + static-source test |
+| Include AssignedTo systemuser repair | `LOOKUP_TARGET_SYSTEMUSER` constant + `NEW_ASSIGNEDTO_COLUMN_SCHEMA_NAME` step + static-source test |
+| No React code change | Script is `scripts/*.mjs`; the Phase 122 React-side contract pin (22 cases) still asserts `/cr664_loandeals(…)` everywhere in `src/` |
+
+---
+
+## 10. Cross-references
+
+- `scripts/phase122-lookup-repair.mjs` (new) — the script.
+- `src/shared/governance/phase122BScriptContract.test.ts` (new) — 10 static-source pins on the script's safety guards + constants.
+- `docs/PHASE_122_RETARGET_DEAL_LOOKUPS.md` §10 — the publisher-prefix finding this script implements the remediation for.
+- `docs/PHASE_121_OPERATOR_SEED_CHECKLIST.md` — the seed checklist whose Steps 5 + 6 unblock after the script's plan executes.
+- `.phase122/phase122-runbook.json` — generated artifact (gitignored); the authoritative plan for whichever run last produced it.
