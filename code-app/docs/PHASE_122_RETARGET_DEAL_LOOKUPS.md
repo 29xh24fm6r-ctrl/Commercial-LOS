@@ -501,3 +501,326 @@ the loader query path, not the schema.
   operator work happens BEFORE that push if possible so the
   populated state can be validated against the new shell on
   the same deployment.
+
+---
+
+## 10. Publisher-prefix finding (2026-05-29) — operator attempt blocked, corrected runbook
+
+### 10.1 What happened
+
+Operator opened Maker Portal → CommercialLendingLOS → Document
+Checklist → Columns → + New column with Display name `Deal` /
+Data type `Lookup` / Related table `Loan Deal`. Maker Portal
+proposed the schema name **`new_Deal`**, not `cr664_Deal`. The
+operator did NOT save and stopped to investigate. The operator
+also reported that the Document Checklist column grid behind
+the side panel **already visibly carries a `Deal *` column**.
+
+### 10.2 Audit (read-only) of the publisher state
+
+Probed via `pac env fetch -x "<fetch><entity name='publisher'>…"`:
+
+| Publisher (`uniquename`) | Friendly name | Prefix | Notes |
+| --- | --- | --- | --- |
+| `Crc0077` | CDS Default Publisher | **`cr664`** | Owns the entire `cr664_*` namespace |
+| `DefaultPublisherorg3a57b8d4` | Default Publisher for org3a57b8d4 | **`new`** | Dataverse fallback publisher |
+| `OGB` | Old_Glory_Bank_BLG | `ogb` | OGB-prefix tables |
+| `microsoftfirstparty` / `microsoftdynamics` / etc. | (Microsoft built-ins) | various | Not relevant |
+
+And solution → publisher join:
+
+| Solution (`uniquename`) | Publisher | Prefix |
+| --- | --- | --- |
+| **`CommercialLendingLOS`** | **Default Publisher for org3a57b8d4** | **`new`** |
+| `Crc9cb1` (Common Data Services Default Solution) | CDS Default Publisher | `cr664` |
+| `LoanOpsExport` | CDS Default Publisher | `cr664` |
+| `OGBBusinessLendingCore` | Old_Glory_Bank_BLG | `ogb` |
+
+**Root cause:** `CommercialLendingLOS` is owned by the Default
+Publisher (`new` prefix). Any new column added inside that
+solution will be named in the `new_` namespace. The `cr664_`
+namespace is owned by a **different** publisher (`Crc0077`),
+which owns `Crc9cb1` and `LoanOpsExport`.
+
+### 10.3 Audit (read-only) of the existing "Deal *" column
+
+Probed each of the 5 operational child tables via FetchXML
+attribute existence. Every table reports the same shape:
+
+| Table | `cr664_deal` exists? | `cr664_dealname` exists? | `_cr664_deal_value` exists? | Filter behavior |
+| --- | --- | --- | --- | --- |
+| `cr664_documentchecklist` | ✅ | ✅ | ❌ | `cr664_deal eq <guid>` accepts GUID values; rejects non-GUID string with `System.FormatException` |
+| `cr664_dealtask1` | ✅ | ✅ | ❌ | same |
+| `cr664_creditmemo1` | ✅ | ✅ | ❌ | same |
+| `cr664_creditmemodraftsection` | ✅ | ✅ | ❌ | same |
+| `cr664_dealtimelineevent` | ✅ | ✅ | ❌ | same |
+
+Plus on `cr664_dealtask1`:
+
+| Attribute | Exists? |
+| --- | --- |
+| `cr664_assignedto` | ✅ |
+| `cr664_assignedtoname` | ✅ |
+| `_cr664_assignedto_value` | ❌ |
+
+**Interpretation:** the existing `cr664_deal` (and
+`cr664_assignedto`) columns are **NOT standard relational
+Lookup columns**. A standard Dataverse Lookup column exposes
+itself in OData as `_<schemaname>_value` (the FK GUID
+attribute) + `<schemaname>name` (the formatted-name display
+attribute). The `_value` attribute is missing here, which
+means:
+
+- The columns were created as some non-standard variant —
+  most likely a **UniqueIdentifier**-typed scalar column,
+  or a legacy XRM-API-created lookup that bypasses the
+  normal OData FK-naming convention.
+- The Maker Portal Form Designer for these tables is
+  separately wired to render `cr664_deal` as a lookup-style
+  picker pointing at the legacy `cr664_deal` table — but
+  that's a form-control configuration, not the column's
+  underlying type.
+- The "`Deal *`" the operator sees in the column grid is
+  THIS pseudo-lookup column. The asterisk likely means
+  "required" — but both existing rows on
+  `cr664_documentchecklist` carry NULL in this column,
+  suggesting either (a) the required flag was added after
+  the rows were created, or (b) the asterisk has a
+  different meaning in the column grid view.
+
+**This explains why the cockpit appears "honestly empty":**
+the app's loaders filter by `_cr664_deal_value eq <loanDealId>`,
+but `_cr664_deal_value` does not exist on the live tables.
+Every loader query throws "attribute doesn't exist" against
+the live env. The honest-empty UI is masking a hard query
+failure.
+
+### 10.4 Answers to the operator's questions
+
+**Q1: Is the existing visible "Deal *" column on Document
+Checklist the legacy wrong lookup?**
+
+Not exactly. It's a **non-standard** column named `cr664_deal`
+on the table itself. It accepts GUID values but doesn't have
+the OData FK representation a normal Lookup has. The picker
+the operator saw offering Woody Woodson rows in Phase 121 was
+a form-side configuration of a lookup control wired to legacy
+`cr664_deal`, not a property of the underlying column type.
+
+**Q2: What is its actual schema name and target table?**
+
+- Schema name: **`cr664_deal`** (no `_value` suffix, not the
+  standard Lookup column naming pattern).
+- "Target table" is **not constrained at the column level**.
+  The column accepts any GUID. The form-level lookup picker
+  was probably pointed at legacy `cr664_deal`.
+
+**Q3: Why does Maker Portal create new columns with prefix
+`new_` in this solution?**
+
+Because the **`CommercialLendingLOS` solution's publisher is
+"Default Publisher for org3a57b8d4"** (customization prefix
+`new`). New columns added inside a solution use that solution's
+publisher's prefix. The `cr664_` prefix belongs to a different
+publisher (`CDS Default Publisher` / `Crc0077`).
+
+**Q4: Can we create `cr664_Deal` through the correct publisher
+/ solution path?**
+
+Yes — three options, ranked by safety:
+
+- **Path B (RECOMMENDED): Add the column from a solution that
+  IS owned by the `cr664` publisher.** Either `Crc9cb1`
+  (Common Data Services Default Solution) or `LoanOpsExport`.
+  In Maker Portal:
+  1. Solutions → `Common Data Services Default Solution`
+     (or `LoanOpsExport`) → Tables → click "+ Add existing
+     table" → pick `Document Checklist` (the `cr664_documentchecklist`
+     table already exists; you're just registering it inside
+     this solution).
+  2. Once the table is in the solution, click into it → Columns →
+     "+ New column". Maker Portal will now propose the `cr664_`
+     prefix because the solution's publisher is `Crc0077`.
+  3. Display name `Deal`, Schema name `cr664_Deal` (verbatim),
+     Data type Lookup, Related table `Loan Deal`, Required:
+     Optional, Searchable: ✅. Save. Publish.
+  4. Repeat for the other 4 child tables.
+  Trade-off: the new columns will be "owned" by the
+  `Crc9cb1` (or `LoanOpsExport`) solution; if you want them
+  to also export with CommercialLendingLOS, add them as
+  existing components to CommercialLendingLOS too (this is
+  a no-op cross-listing, not a duplication).
+
+- **Path A: Reassign CommercialLendingLOS's publisher to the
+  `cr664` publisher.** Maker Portal → Solutions →
+  CommercialLendingLOS → Edit → Publisher → switch to `CDS
+  Default Publisher`. Trade-off: changing a solution's publisher
+  may be blocked depending on the solution layer's state and
+  the operator's admin permissions; if the solution is managed,
+  the change cannot be made without recreating the solution.
+  This path is **NOT recommended** unless Path B is blocked.
+
+- **Path C (Phase 122B contract migration): Update the React
+  contract to `new_Deal`.** This would require regenerating
+  the 5 TypeScript models, rewriting every `'cr664_Deal@odata.bind'`
+  bind URL field to `'new_Deal@odata.bind'`, rewriting every
+  `_cr664_deal_value` filter string to `_new_deal_value`,
+  and re-running every test that asserts on the contract.
+  Trade-off: it bakes a default-publisher dependency into the
+  codebase that's brittle to environment changes (the `new_`
+  prefix is the Dataverse fallback, not a meaningful owner).
+  **STRONGLY DISCOURAGED.** Use only if Path A AND Path B
+  are both blocked.
+
+**Q5: Should Phase 122B update the contract, or should the
+publisher / solution be corrected first?**
+
+**Fix the publisher first (Path B).** The cost-comparison
+favors it strongly:
+
+| Cost dimension | Path B (fix publisher) | Path C (migrate contract) |
+| --- | --- | --- |
+| React code changes | 0 | ~5 model files + ~3 action files + ~5 loader files + tests |
+| Generated-model regenerations | 0 (the existing `cr664_Deal@odata.bind` model is correct) | 5 model files re-emitted |
+| Bind URL string rewrites | 0 | ~10 occurrences across 3 files |
+| Filter-string rewrites | 0 | ~6 occurrences across 5 files |
+| Test-file changes | 0 | The Phase 122 contract pin (22 cases) would invert direction |
+| Reversibility | High — column deletion is straightforward | Low — re-pinning a new contract is a full git revert |
+| Environment-portability risk | None | Locks the app to the default-publisher prefix; brittle across environments |
+
+**Q6:** Honored — no live writes performed in this audit.
+
+### 10.5 Corrected operator runbook (replaces §9.4 where they conflict)
+
+> **Stop:** read §10.6 (the existing-`cr664_deal`-column
+> conflict) BEFORE adding any new column. The existing
+> `cr664_deal` pseudo-column will collide with the new
+> `cr664_Deal` standard Lookup unless it's handled first.
+
+**§10.5.1 — Solution-export rollback checkpoint** (unchanged
+from §9.4.1). Export the full `CommercialLendingLOS` solution
+AND the `Crc9cb1` Common Data Services Default Solution. Save
+both as `*_PRE_PHASE_122.zip`.
+
+**§10.5.2 — Decide which `cr664_` solution will hold the new
+columns.** Recommended: `LoanOpsExport` (smaller surface, less
+risk of collision). Confirm via Maker Portal that you can
+edit `LoanOpsExport` and it's owned by `CDS Default Publisher`.
+
+**§10.5.3 — Handle the existing `cr664_deal` pseudo-column.**
+The current `cr664_deal` column on each of the 5 child tables
+is a non-standard column that will block creation of a
+standard `cr664_Deal` Lookup with the same schema name. For
+each of `cr664_documentchecklist`, `cr664_dealtask1`,
+`cr664_creditmemo1`, `cr664_creditmemodraftsection`,
+`cr664_dealtimelineevent`:
+
+1. Add the table as existing component to your `cr664_`-prefix
+   solution (`LoanOpsExport`).
+2. Click into the table → Columns → find the existing
+   `cr664_deal` column. Inspect its **Data type** in the
+   right-side details panel:
+   - If it's **Lookup** with target `cr664_deal` (legacy):
+     the original Phase 122 retarget hypothesis was right and
+     this column needs to be deleted-then-recreated as a
+     `cr664_loandeal` target.
+   - If it's **Unique Identifier** or some other scalar type:
+     the column is a legacy artifact and needs to be deleted
+     to make room for a real Lookup.
+   - If it's **Lookup** with target `cr664_loandeal` already:
+     **STOP** — the `_cr664_deal_value` OData attribute
+     should then exist; the audit said it didn't, which would
+     be inconsistent. Report and re-audit before proceeding.
+3. **Before deleting**: confirm no live rows have a populated
+   value (the audit showed both Document Checklist rows have
+   `cr664_deal` IS NULL; re-confirm with `pac env fetch -x
+   "<fetch count='5'><entity name='cr664_documentchecklist'>
+   <attribute name='cr664_deal'/><filter><condition
+   attribute='cr664_deal' operator='not-null'/></filter>
+   </entity></fetch>"`). If any rows ARE populated, capture
+   the GUID values into a CSV before deletion so the data
+   can be re-attached after the new column lands.
+4. Delete the existing `cr664_deal` column. Publish customizations.
+
+Repeat for all 5 tables. Also do the equivalent for
+`cr664_dealtask1.cr664_assignedto` before adding the new
+`cr664_AssignedTo` Lookup.
+
+**§10.5.4 — Add the standard `cr664_Deal` Lookup column.**
+Inside your `cr664_`-prefix solution (`LoanOpsExport`), for
+each of the 5 tables:
+
+1. Columns → + New column.
+2. Display name: `Deal`. Schema name: **`cr664_Deal`** (verbatim
+   capitalization). Data type: **Lookup**. Related table:
+   `Loan Deal` (`cr664_loandeal`). Required: Optional.
+   Searchable: ✅.
+3. Save the column.
+
+Maker Portal should now propose the **`cr664_`** prefix
+because the solution's publisher is `Crc0077`. If it still
+proposes `new_`, **STOP** — Path B is blocked. Re-audit which
+solution you're in (the publisher join in §10.2 is
+authoritative).
+
+Repeat for all 5 tables. Publish all customizations.
+
+**§10.5.5 — Add `cr664_AssignedTo` Lookup to `cr664_dealtask1`.**
+Same flow as §10.5.4 but with:
+
+- Display name: `Assigned to`. Schema name: **`cr664_AssignedTo`**.
+- Data type: **Lookup**. Related table: `User` (`systemuser`).
+
+**§10.5.6 — Verify via `pac env fetch`.** Each table should
+now report `_cr664_deal_value` as a known attribute:
+
+```bash
+pac env fetch -x "<fetch count='1'><entity name='cr664_documentchecklist'><attribute name='cr664_documentchecklistid'/><attribute name='_cr664_deal_value'/></entity></fetch>"
+```
+
+Expected: no "doesn't contain attribute" error. Repeat for the
+other 4 tables and for `_cr664_assignedto_value` on `cr664_dealtask1`.
+
+**§10.5.7 — Cross-list new columns into CommercialLendingLOS
+(optional).** If you want the new columns to also be present
+in the CommercialLendingLOS solution export, open
+CommercialLendingLOS → Tables → for each table click "+ Add
+existing" → pick the table → Add columns → select the new
+`cr664_Deal` (and `cr664_AssignedTo` on `cr664_dealtask1`) →
+Save. **Do not** re-create them inside CommercialLendingLOS;
+you would get a duplicate `new_` column.
+
+**§10.5.8 — Re-run Phase 121 seed steps 5 + 6** (unchanged
+from §9.4.6).
+
+**§10.5.9 — Validate in the deployed cockpit** (unchanged
+from §9.4.7).
+
+### 10.6 Why §10.5.3 cannot be skipped
+
+If the operator tries to add `cr664_Deal` (capital D) as a
+new Lookup while the existing `cr664_deal` (lower d) column
+is still present, Dataverse will either:
+
+- Reject the new column because the schema-name collision is
+  case-insensitive in the column-name validator, OR
+- Allow it and create both, leaving the table with two
+  similarly-named columns. OData will then return errors or
+  surprising behaviors on `_cr664_deal_value` queries because
+  the existing column may shadow the new one.
+
+§10.5.3 forces the operator to confront the existing column
+explicitly. If it turns out to be a legitimate Lookup that
+just targets the wrong table, then the original Phase 122
+"retarget" framing applies (§3 of this doc) — delete-then-
+recreate-with-correct-target. If it's a non-standard
+UniqueIdentifier scalar column, it's an artifact that has
+never carried real data and can be deleted with confidence.
+
+### 10.7 No live writes performed in this audit
+
+All probes in §10.1–§10.4 were read-only `pac env fetch`
+calls. No publisher was created or modified. No solution was
+edited. No column was added or deleted. The corrected runbook
+in §10.5 is a recommendation; the operator chooses when to
+execute it.
