@@ -304,3 +304,200 @@ surfaces.
 - [PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md](PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md) — the email-lane lock this phase honors.
 - `src/deals/documentActions.ts`, `dealTaskActions.ts`, `creditMemoActions.ts` — the production bindings this phase makes match.
 - `src/banker/workQueueQueries.ts`, `dealQueries.ts` — the loader contracts that already assume the modern target.
+
+---
+
+## 9. Execution audit (2026-05-27) — actual live state probed via `pac env fetch`
+
+This section is the **execution audit** that confirmed Phase
+122's premise and sharpened the operator runbook. Everything
+below is what the read-only probe found, with the explicit
+revision to §2 in light of it.
+
+### 9.1 What `pac env fetch` returned
+
+Audited against `mpaller@oldglorybank.com` /
+`org3a57b8d4.crm.dynamics.com` on 2026-05-27. For each of the
+five candidate child tables, the probe attempted
+`<attribute name='_cr664_deal_value'/>` in a FetchXML query.
+Result:
+
+| Table | `_cr664_deal_value` exists in live schema? |
+| --- | --- |
+| `cr664_documentchecklist` | **NO** — FetchXML error `"…doesn't contain attribute with Name = '_cr664_deal_value'…"` |
+| `cr664_dealtask1` | **NO** — same error |
+| `cr664_creditmemo1` | **NO** — same error |
+| `cr664_creditmemodraftsection` | **NO** — same error |
+| `cr664_dealtimelineevent` | **NO** — same error |
+
+Live row counts at audit time:
+
+- `cr664_loandeal`: 1 row (`TEST — Deal Phase 121`, banker = Matthew Paller).
+- `cr664_deal` (legacy): ≥ 1 row (`Woodsons Wood Shop` / `Woody Woodson`).
+- `cr664_documentchecklist`: 2 rows (`Paller Holdings Expansion`, `paller holdings part 2`) — **no Deal FK populated on either**.
+- `cr664_dealtask1`: 0 rows.
+- `cr664_creditmemo1`: ≥ 4 seed rows (`Memo for Deal #1`…`#5`) with `workspace_xxx` text fields, **no Deal FK**.
+- `cr664_creditmemodraftsection`: 0 rows.
+- `cr664_dealtimelineevent`: 0 rows.
+
+`systemuser` row for Matthew Paller is present and enabled
+(`e056f0e7-4a13-f111-8406-6045bd07ee56`). The AssignedTo
+sub-blocker is **not** a missing-user issue.
+
+Similarly, `cr664_dealtask1._cr664_assignedto_value` returns
+the same "attribute doesn't exist" error.
+
+### 9.2 Revised hypothesis (sharpening §2)
+
+Phase 121's manual-seed observation was that the Document
+Checklist Deal lookup in Maker Portal "only offered Woody
+Woodson rows", interpreted as *"the lookup currently targets
+legacy `cr664_deal`."*
+
+The audit shows the truth is sharper:
+
+> **The Deal lookup column does not exist on any of the 5
+> operational child tables in the live Dataverse**, despite
+> being declared in the generated TypeScript models. The
+> Maker Portal picker the user saw was likely a form-side
+> reference to a *legacy* `cr664_deal` form field, not the
+> live `cr664_documentchecklist.cr664_Deal` column. The same
+> is true for `cr664_dealtask1.cr664_AssignedTo`.
+
+The fix is therefore **add the missing lookup columns** to
+the live tables — not retarget an existing lookup. The §3
+runbook below is updated accordingly. (Original §3 retarget
+language is preserved in case some tables turn out to have
+an orphaned column that needs delete-then-recreate; the
+operator should report and stop if so.)
+
+### 9.3 Static-source contract tests (this commit)
+
+[src/shared/governance/phase122LoanDealLookupContract.test.ts](../src/shared/governance/phase122LoanDealLookupContract.test.ts)
+— 22 cases pinning the modern bind URL contract:
+
+| Block | Pins |
+| --- | --- |
+| Operational writes (3 files × 2 cases) | every `cr664_(Deal\|LoanDeal)@odata.bind` URL is `/cr664_loandeals(...)`; no `/cr664_deals(` anywhere. |
+| Operational loaders (5 files × 2 cases) | every loader filters by `_cr664_deal_value`; no `Cr664_dealsService` imports. |
+| Generated models (5 cases) | each of the 5 operational child models exposes the `"cr664_Deal@odata.bind"` + `_cr664_deal_value` bind/FK pair. |
+| Cross-cutting recursive (1 case) | full `src/deals/` + `src/banker/` scan finds zero `/cr664_deals(` substrings. |
+
+Status: ✅ All 22 cases pass on master. The React-side contract
+is locked; any future regression to a legacy bind URL will
+fail CI.
+
+### 9.4 Operator runbook (revised)
+
+The operator runbook moves from "retarget an existing lookup"
+to **"add the missing lookup columns"**. Detail:
+
+**§9.4.1 Rollback checkpoint** — Maker Portal → Solutions →
+CommercialLendingLOS → Export → Unmanaged → save
+`CommercialLendingLOS_PRE_PHASE_122.zip` BEFORE any change.
+
+**§9.4.2 Add the Deal lookup column to each of the 5 operational
+child tables.** For each of `cr664_documentchecklist`,
+`cr664_dealtask1`, `cr664_creditmemo1`,
+`cr664_creditmemodraftsection`, `cr664_dealtimelineevent`:
+
+1. Open the table in the CommercialLendingLOS solution.
+2. Columns → + New column.
+3. Display name: `Deal`. Schema name: `cr664_Deal` (must match
+   the generated model verbatim). Data type: Lookup. Related
+   table: `Loan Deal` (`cr664_loandeal`). Required: Optional.
+   Searchable: ✅.
+4. Save.
+5. If `cr664_Deal` schema name is rejected because an
+   orphaned column with the same name already exists, **STOP
+   and report**. The operator and reviewer can then decide
+   whether to delete-then-recreate (and whether to take a row
+   backup first).
+
+After all 5 columns, **Publish all customizations**.
+
+**§9.4.3 Add the AssignedTo lookup column to `cr664_dealtask1`.**
+Same flow:
+
+- Display name: `Assigned to`. Schema name: `cr664_AssignedTo`.
+- Data type: Lookup. Related table: `User` (`systemuser`).
+- Required: Optional. Searchable: ✅.
+- Save + publish.
+
+**§9.4.4 Verify via `pac env fetch`.**
+
+```bash
+pac env fetch -x "<fetch count='1'><entity name='cr664_documentchecklist'><attribute name='cr664_documentchecklistid'/><attribute name='_cr664_deal_value'/></entity></fetch>"
+```
+
+Expected: column appears in the column list (empty values on
+existing rows are fine). Repeat for the other 4 tables. For
+AssignedTo on `cr664_dealtask1`:
+
+```bash
+pac env fetch -x "<fetch count='1'><entity name='cr664_dealtask1'><attribute name='cr664_dealtask1id'/><attribute name='_cr664_assignedto_value'/></entity></fetch>"
+```
+
+**§9.4.5 Model regeneration — only if schema names deviated.**
+If §9.4.2 + §9.4.3 used the canonical schema names
+(`cr664_Deal` / `cr664_AssignedTo`), the existing TypeScript
+models already match — **no regeneration needed**. If the
+operator was forced to use a different schema name, STOP
+before regenerating; that becomes a scoped Phase 122B
+("model + bind-URL field-name sync").
+
+**§9.4.6 Re-run Phase 121 seed steps 5 + 6.** Per
+`docs/PHASE_121_OPERATOR_SEED_CHECKLIST.md`:
+
+- **TEST — Outstanding Document Phase 122**, linked to
+  `TEST — Deal Phase 121`, `cr664_uploadstatus = false`,
+  no `cr664_receiveddate`, no `cr664_reviewer`.
+- **TEST — Pending Review Document Phase 122**, linked to
+  `TEST — Deal Phase 121`, `cr664_uploadstatus = true`,
+  `cr664_receiveddate = <today>`, no `cr664_reviewer`.
+- **TEST — Task Phase 122**, linked to `TEST — Deal Phase 121`,
+  `cr664_AssignedTo = Matthew Paller`, `cr664_completed = false`,
+  `cr664_duedate = <today + 7d>`. **Skip honestly** if the
+  AssignedTo column is still missing — do not substitute another
+  user.
+
+**§9.4.7 Validate in the deployed cockpit.** After seed +
+browser refresh:
+
+- Banker dashboard: Outstanding Docs tile = 1 · Pending
+  Reviews tile = 1 · Tasks Open tile = 1 (or 0 if task seed
+  was deferred).
+- Deal cockpit (TEST — Deal Phase 121): Attention Console
+  shows blocker-state items; Documents widget reads
+  `1 outstanding`; Workstream Documents bar shows `0 / 1`
+  with `1 outstanding` detail.
+
+If any value stays at 0 after refresh, capture the network
+panel's OData request URL and report — the issue is then on
+the loader query path, not the schema.
+
+### 9.5 Acceptance criteria (this commit)
+
+- [x] All audit probes recorded in §9.1.
+- [x] 22 static-source contract tests added and passing.
+- [x] Operator runbook clarified to "add missing columns" rather
+      than "retarget existing lookup" (with fallback if an
+      orphan column blocks the canonical schema name).
+- [x] Rollback checkpoint procedure documented (§9.4.1).
+- [x] AssignedTo sub-blocker root cause identified — missing
+      column, not missing user.
+- [x] No React code change.
+- [x] No bind URL change to legacy `/cr664_deals(...)`.
+- [x] No fake data; no governed-write or email-lane changes.
+
+### 9.6 What this commit does NOT do
+
+- It does **not** execute §9.4.2 / §9.4.3 / §9.4.6 / §9.4.7 —
+  those are operator-side Maker Portal + seed + visual-validation
+  steps that require a human in `make.powerapps.com`.
+- It does **not** deploy to the environment (no `pac code
+  push`). The shell + cockpit work from Phase 125B–G is still
+  held for combined deploy per the user's directive; Phase 122
+  operator work happens BEFORE that push if possible so the
+  populated state can be validated against the new shell on
+  the same deployment.
