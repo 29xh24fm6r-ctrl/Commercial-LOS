@@ -182,16 +182,86 @@ describe('Phase 122B — script never edits React app code', () => {
   });
 });
 
-describe('Phase 122B — script bearer-token gate', () => {
+describe('Phase 122B — script bearer-token gate (env var + no-admin fallback)', () => {
   it('declares DV_BEARER_TOKEN_ENV_VAR = "DATAVERSE_BEARER_TOKEN"', () => {
     expect(SCRIPT).toMatch(
       /DV_BEARER_TOKEN_ENV_VAR\s*=\s*'DATAVERSE_BEARER_TOKEN'/,
     );
   });
 
-  it('refuseIfNoBearerToken() bails when the env var is empty', () => {
-    expect(SCRIPT).toMatch(/function\s+refuseIfNoBearerToken/);
-    expect(SCRIPT).toMatch(/env var is not set/);
+  it('declares acquireBearerToken() that reads the env var', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+acquireBearerToken/);
+    expect(SCRIPT).toMatch(/process\.env\[DV_BEARER_TOKEN_ENV_VAR\]/);
+  });
+
+  it('env-var token wins over the device-code fallback', () => {
+    // Inside acquireBearerToken's body, the env-var read must appear
+    // BEFORE the device-code call. We pin this by slicing the source
+    // from the function declaration onward and checking the relative
+    // ordering of the two markers.
+    const fnStart = SCRIPT.indexOf('async function acquireBearerToken');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart);
+    const envReadIdx = body.indexOf('process.env[DV_BEARER_TOKEN_ENV_VAR]');
+    const dcCallIdx = body.indexOf('acquireTokenViaDeviceCode(');
+    expect(envReadIdx).toBeGreaterThan(-1);
+    expect(dcCallIdx).toBeGreaterThan(-1);
+    expect(envReadIdx).toBeLessThan(dcCallIdx);
+  });
+
+  it('declares acquireTokenViaDeviceCode() — OAuth2 device-code (no admin install)', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+acquireTokenViaDeviceCode/);
+    expect(SCRIPT).toMatch(/oauth2\/v2\.0\/devicecode/);
+    expect(SCRIPT).toMatch(/oauth2\/v2\.0\/token/);
+    expect(SCRIPT).toMatch(/grant-type:device_code/);
+  });
+
+  it('uses a Microsoft public client ID — no app registration needed', () => {
+    // PUBLIC_CLIENT_ID must be a GUID-shaped constant. We pin shape
+    // only so a swap to another well-known public client (e.g. Azure
+    // CLI's `04b07795-...`) does not break this pin.
+    expect(SCRIPT).toMatch(
+      /PUBLIC_CLIENT_ID\s*=\s*['"][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}['"]/,
+    );
+  });
+
+  it('commit fails closed when every token source fails', () => {
+    expect(SCRIPT).toMatch(/could not acquire bearer token/);
+    // The bail message must enumerate all three sources tried.
+    // `.` without the `s` flag does not cross newlines, but the source
+    // wraps the message across template-literal concatenation lines —
+    // use `[\s\S]*` so the ordering pin tolerates the line break.
+    expect(SCRIPT).toMatch(/env var[\s\S]*cached[\s\S]*device-code/i);
+  });
+
+  it('dry-run path does NOT call acquireBearerToken()', () => {
+    // The only `await acquireBearerToken(` call site must live inside
+    // the `if (FLAGS.commit)` block — i.e. after that guard and before
+    // the "Dry-run complete" terminal message.
+    const ifCommitIdx = SCRIPT.indexOf('if (FLAGS.commit)');
+    expect(ifCommitIdx).toBeGreaterThan(-1);
+    const dryRunMsgIdx = SCRIPT.indexOf('Dry-run complete');
+    expect(dryRunMsgIdx).toBeGreaterThan(-1);
+    const callRegex = /\bawait\s+acquireBearerToken\(/g;
+    let calls = 0;
+    let m;
+    while ((m = callRegex.exec(SCRIPT)) !== null) {
+      calls += 1;
+      expect(m.index).toBeGreaterThan(ifCommitIdx);
+      expect(m.index).toBeLessThan(dryRunMsgIdx);
+    }
+    expect(calls).toBeGreaterThan(0);
+  });
+
+  it('token cache is written under .phase122/ (already gitignored)', () => {
+    expect(SCRIPT).toMatch(/DV_BEARER_TOKEN_CACHE_PATH/);
+    expect(SCRIPT).toMatch(/\.token-cache\.json/);
+    expect(SCRIPT).toMatch(/function\s+readTokenCache/);
+    expect(SCRIPT).toMatch(/function\s+writeTokenCache/);
+  });
+
+  it('isJwtShape() validates that any token source returns a JWT-shaped string', () => {
+    expect(SCRIPT).toMatch(/function\s+isJwtShape/);
   });
 });
 

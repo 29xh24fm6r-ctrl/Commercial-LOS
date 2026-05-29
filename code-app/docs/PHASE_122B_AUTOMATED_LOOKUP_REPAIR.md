@@ -113,10 +113,39 @@ The script refuses to write if **any** of these fail:
   `.phase122/rollback/{CommercialLendingLOS,LoanOpsExport}_PRE_PHASE_122B.zip`
   doesn't exist (unless `--skip-rollback-export` is passed AND the
   operator has captured a checkpoint externally).
-- `DATAVERSE_BEARER_TOKEN` env var is not set.
+- A Dataverse bearer token cannot be obtained from any of three sources
+  (see §2.4): `DATAVERSE_BEARER_TOKEN` env var → cached device-code
+  token → fresh device-code flow.
 - Any plan step is a `stop-condition` (e.g. a pseudo-column has
   non-NULL rows).
 - Any pseudo-column whose non-NULL row count couldn't be probed.
+
+### 2.4 Bearer-token acquisition (no admin install required)
+
+The operator laptop running this script does **not** need to have
+Azure CLI, `@azure/identity`, `@azure/msal-node`, or any other admin-
+installed dependency. The script tries these sources in order — the
+first that yields a JWT-shaped token wins:
+
+1. **`DATAVERSE_BEARER_TOKEN` env var.** If the operator already has
+   a token from any source (Postman, `az` CLI on a different machine,
+   browser DevTools), set it before launching the script and it is
+   used as-is.
+2. **Cached device-code token** at `.phase122/.token-cache.json`. The
+   script writes this file (gitignored) at the end of any successful
+   device-code login so subsequent runs within ~1 hour don't re-prompt.
+3. **Interactive OAuth2 device-code flow.** If the first two are
+   unavailable, the script prints a verification URL + user code to
+   the terminal. The operator opens the URL in any browser (including
+   a phone), enters the code, and signs in with their tenant
+   credentials. The script polls the Microsoft identity endpoint
+   until the token is issued, then caches it.
+
+The device-code flow uses the well-known Microsoft Azure PowerShell
+public client (`1950a258-227b-4e31-a9cf-717495945fc2`) — a multi-tenant
+first-party app registration that supports device-code and is accepted
+as a Dataverse client. Nothing about it requires admin rights on the
+operator's machine.
 
 ---
 
@@ -182,9 +211,46 @@ there for manual review or copy/paste execution.
 > (b) every pseudo-column shows `non-NULL row count: 0`
 > (c) every planned `Create cr664_Deal Lookup …` step targets `cr664_loandeal`, not `cr664_deal`
 
+### 4.1 Option A — No-admin device-code flow (recommended)
+
+This is the default path for laptops where Azure CLI cannot be
+installed (e.g. no local admin rights). Nothing needs to be installed
+beyond `pac` (already present) and Node 20+.
+
+```powershell
+# Just run the script in commit mode — token is acquired in-process.
+node scripts/phase122-lookup-repair.mjs --commit
+```
+
+When the script reaches the bearer-token gate it will print:
+
 ```text
-# 1. Acquire a Dataverse bearer token.
-#    Requires `az` CLI logged in against the same tenant.
+🔐 Microsoft sign-in required (no admin install needed).
+
+   1. Open this URL in any browser:  https://microsoft.com/devicelogin
+   2. Enter this code:               ABCD-EFGH
+   3. Sign in as the operator with Dataverse maker rights.
+
+   Code expires in 15 minute(s). Polling…
+```
+
+Open the URL in any browser (including a phone), enter the code, sign
+in, and the script picks up the token automatically and continues.
+The token is then cached under `.phase122/.token-cache.json` (mode
+`0600`, gitignored) so subsequent runs within the token lifetime
+don't re-prompt.
+
+### 4.2 Option B — Pre-acquired token via env var
+
+If the operator already has a Dataverse access token (from another
+machine that has `az` CLI, from Postman, from browser DevTools, etc.),
+they can hand it to the script via env var. This skips the device-code
+prompt entirely.
+
+```powershell
+# 1. Acquire a Dataverse bearer token however you can.
+#    (Example below uses az CLI; this is OPTIONAL — Option A works
+#    without az.)
 $envUrl = (pac org who | Select-String "https://" | ForEach-Object { $_.Matches.Value } | Select-Object -First 1)
 $token = az account get-access-token --resource $envUrl --query accessToken -o tsv
 $env:DATAVERSE_BEARER_TOKEN = $token
@@ -270,7 +336,7 @@ also marked in the runbook JSON with `kind: "stop-condition"`:
 | `LoanOpsExport: prefix != cr664` | Publisher join changed since §10 audit; or wrong env. | Re-audit publisher state via §10.2 of Phase 122. |
 | `<table>.cr664_deal has N non-NULL row(s)` (N > 0) | Someone populated the pseudo-column after §10 audit. | Export the populated rows to CSV; explicitly decide whether the data should be migrated to the new column or dropped. Re-run dry-run after deciding. |
 | `non-NULL row count could not be probed` | FetchXML returned unexpected output. | Investigate manually; do not let the script delete an unverified column. |
-| `DATAVERSE_BEARER_TOKEN not set` | Token not exported into env. | Acquire token (§4 step 1) and retry. |
+| `could not acquire bearer token` | All three token sources failed (env var empty/malformed, no valid cache, device-code prompt declined or timed out). | Re-run and complete the device-code prompt in §4.1, or pre-set `DATAVERSE_BEARER_TOKEN` per §4.2, then retry. |
 | Rollback artifact missing | First `--commit` ever, or `--skip-rollback-export` used without external checkpoint. | Re-run without `--skip-rollback-export`, or capture a manual export and place the zip at the expected path. |
 
 ---
@@ -313,7 +379,8 @@ Then validate in the deployed cockpit per Phase 122 §10.5.9
 ## 10. Cross-references
 
 - `scripts/phase122-lookup-repair.mjs` (new) — the script.
-- `src/shared/governance/phase122BScriptContract.test.ts` (new) — 10 static-source pins on the script's safety guards + constants.
+- `src/shared/governance/phase122BScriptContract.test.ts` (new) — static-source pins on the script's safety guards + constants (including the no-admin bearer-token gate).
 - `docs/PHASE_122_RETARGET_DEAL_LOOKUPS.md` §10 — the publisher-prefix finding this script implements the remediation for.
 - `docs/PHASE_121_OPERATOR_SEED_CHECKLIST.md` — the seed checklist whose Steps 5 + 6 unblock after the script's plan executes.
 - `.phase122/phase122-runbook.json` — generated artifact (gitignored); the authoritative plan for whichever run last produced it.
+- `.phase122/.token-cache.json` — gitignored device-code token cache (mode `0600`); written by the script after a successful device-code login so subsequent commit-mode runs don't re-prompt within the token lifetime.

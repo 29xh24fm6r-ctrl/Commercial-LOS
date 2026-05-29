@@ -31,7 +31,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -68,6 +68,15 @@ const NEW_ASSIGNEDTO_COLUMN_SCHEMA_NAME = 'cr664_AssignedTo';
 
 const DV_BEARER_TOKEN_ENV_VAR = 'DATAVERSE_BEARER_TOKEN';
 
+// No-admin OAuth2 device-code fallback constants.
+// PUBLIC_CLIENT_ID is the Microsoft Azure PowerShell public client —
+// a multi-tenant first-party app registration that supports the
+// device-code flow and is accepted as a Dataverse client. It needs no
+// admin install: the script just hits login.microsoftonline.com over
+// HTTPS with native fetch().
+const PUBLIC_CLIENT_ID = '1950a258-227b-4e31-a9cf-717495945fc2';
+const DEVICE_CODE_TENANT = 'organizations';
+
 // Output paths
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -75,6 +84,7 @@ const REPO_ROOT = resolve(__dirname, '..');
 const OUTPUT_DIR = resolve(REPO_ROOT, '.phase122');
 const RUNBOOK_PATH = resolve(OUTPUT_DIR, 'phase122-runbook.json');
 const ROLLBACK_DIR = resolve(REPO_ROOT, '.phase122', 'rollback');
+const DV_BEARER_TOKEN_CACHE_PATH = resolve(OUTPUT_DIR, '.token-cache.json');
 
 // ---------------------------------------------------------------------------
 // Argument parsing — DEFAULT is dry-run. Any unknown flag is rejected.
@@ -466,16 +476,179 @@ function refuseIfForbiddenPrefix(publisherAudit) {
   }
 }
 
-function refuseIfNoBearerToken() {
-  const token = process.env[DV_BEARER_TOKEN_ENV_VAR];
-  if (!token || token.trim().length === 0) {
+/**
+ * Acquire a Dataverse bearer token without requiring an admin install.
+ *
+ * Priority order (the FIRST that yields a token wins):
+ *   1. `DATAVERSE_BEARER_TOKEN` env var — used directly if shaped like a JWT.
+ *   2. Cached device-code token from a previous run (gitignored cache file).
+ *   3. Interactive OAuth2 device-code flow via login.microsoftonline.com.
+ *
+ * If every source fails, the commit-mode safety gate fires and the
+ * script exits. Dry-run mode never reaches this code path.
+ */
+async function acquireBearerToken(envUrl) {
+  const fromEnv = process.env[DV_BEARER_TOKEN_ENV_VAR];
+  if (fromEnv && fromEnv.trim().length > 0) {
+    const trimmed = fromEnv.trim();
+    if (!isJwtShape(trimmed)) {
+      bail(
+        `Safety gate: ${DV_BEARER_TOKEN_ENV_VAR} env var is set but does not look like a ` +
+          `JWT (header.body.signature). Refusing to use a malformed token.`,
+      );
+    }
+    console.log(`Token source: ${DV_BEARER_TOKEN_ENV_VAR} env var.`);
+    return trimmed;
+  }
+
+  const cached = readTokenCache();
+  if (
+    cached &&
+    typeof cached.token === 'string' &&
+    isJwtShape(cached.token) &&
+    typeof cached.expiresAt === 'number' &&
+    cached.expiresAt > Date.now() + 60_000 &&
+    cached.scopeEnvUrl === envUrl
+  ) {
+    console.log(
+      `Token source: cached device-code token (valid until ${new Date(cached.expiresAt).toISOString()}).`,
+    );
+    return cached.token;
+  }
+
+  console.log(
+    `No ${DV_BEARER_TOKEN_ENV_VAR} env var and no valid cached token. Falling back ` +
+      'to OAuth2 device-code flow (no-admin, no install).',
+  );
+  const result = await acquireTokenViaDeviceCode(envUrl);
+  if (!result.ok) {
     bail(
-      `Safety gate: ${DV_BEARER_TOKEN_ENV_VAR} env var is not set. Commit mode requires a ` +
-        `Dataverse bearer token. Acquire one via \`az account get-access-token --resource ` +
-        `https://<env>.crm.dynamics.com\` and export it as ${DV_BEARER_TOKEN_ENV_VAR}.`,
+      `Safety gate: could not acquire bearer token. Tried env var, cached token, and ` +
+        `device-code flow (${DV_BEARER_TOKEN_ENV_VAR} was empty). Last error: ${result.error}`,
     );
   }
-  return token;
+  writeTokenCache({
+    token: result.token,
+    expiresAt: result.expiresAt,
+    scopeEnvUrl: envUrl,
+    acquiredAt: Date.now(),
+  });
+  console.log('Token source: fresh device-code flow.');
+  return result.token;
+}
+
+/**
+ * OAuth 2.0 device-code flow against Microsoft identity v2.0.
+ * Implemented with native fetch() — no @azure/identity / @azure/msal-node
+ * / az CLI required. The operator gets a code + URL, signs in in any
+ * browser (including a phone), and the script polls until the token
+ * is issued.
+ */
+async function acquireTokenViaDeviceCode(envUrl) {
+  const scope = `${envUrl}/.default offline_access openid profile`;
+  const dcUrl = `https://login.microsoftonline.com/${DEVICE_CODE_TENANT}/oauth2/v2.0/devicecode`;
+  const tokenUrl = `https://login.microsoftonline.com/${DEVICE_CODE_TENANT}/oauth2/v2.0/token`;
+
+  let dcResp;
+  try {
+    dcResp = await fetch(dcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: PUBLIC_CLIENT_ID, scope }).toString(),
+    });
+  } catch (err) {
+    return { ok: false, error: `device-code request network error: ${err.message}` };
+  }
+  if (!dcResp.ok) {
+    const text = await dcResp.text();
+    return { ok: false, error: `device-code request failed: ${dcResp.status} ${text}` };
+  }
+  const dc = await dcResp.json();
+
+  console.log('');
+  console.log('━'.repeat(64));
+  console.log('🔐 Microsoft sign-in required (no admin install needed).');
+  console.log('');
+  console.log(`   1. Open this URL in any browser:  ${dc.verification_uri}`);
+  console.log(`   2. Enter this code:               ${dc.user_code}`);
+  console.log('   3. Sign in as the operator with Dataverse maker rights.');
+  console.log('');
+  console.log(`   Code expires in ${Math.round(dc.expires_in / 60)} minute(s). Polling…`);
+  console.log('━'.repeat(64));
+  console.log('');
+
+  const deadline = Date.now() + dc.expires_in * 1000;
+  let intervalMs = (dc.interval || 5) * 1000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, intervalMs));
+    let tokResp;
+    try {
+      tokResp = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          client_id: PUBLIC_CLIENT_ID,
+          device_code: dc.device_code,
+        }).toString(),
+      });
+    } catch (err) {
+      return { ok: false, error: `device-code token poll network error: ${err.message}` };
+    }
+    const tokJson = await tokResp.json().catch(() => ({}));
+    if (tokResp.ok && typeof tokJson.access_token === 'string') {
+      return {
+        ok: true,
+        token: tokJson.access_token,
+        expiresAt: Date.now() + (tokJson.expires_in || 3600) * 1000,
+      };
+    }
+    if (tokJson.error === 'authorization_pending') continue;
+    if (tokJson.error === 'slow_down') {
+      intervalMs += 5000;
+      continue;
+    }
+    return {
+      ok: false,
+      error: `device-code token poll failed: ${tokJson.error ?? 'unknown'} — ${
+        tokJson.error_description ?? ''
+      }`.trim(),
+    };
+  }
+  return { ok: false, error: 'device-code expired before user authenticated' };
+}
+
+function isJwtShape(s) {
+  return (
+    typeof s === 'string' &&
+    /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(s.trim())
+  );
+}
+
+function readTokenCache() {
+  try {
+    if (!existsSync(DV_BEARER_TOKEN_CACHE_PATH)) return null;
+    const raw = readFileSync(DV_BEARER_TOKEN_CACHE_PATH, 'utf8');
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj.token !== 'string' || typeof obj.expiresAt !== 'number') {
+      return null;
+    }
+    return obj;
+  } catch {
+    return null;
+  }
+}
+
+function writeTokenCache(obj) {
+  try {
+    mkdirSync(OUTPUT_DIR, { recursive: true });
+    writeFileSync(DV_BEARER_TOKEN_CACHE_PATH, JSON.stringify(obj), {
+      encoding: 'utf8',
+      mode: 0o600,
+    });
+  } catch (e) {
+    console.warn(`Warning: could not write token cache: ${e.message}`);
+  }
 }
 
 function ensureRollbackArtifactsExist() {
@@ -627,10 +800,11 @@ async function main() {
   if (FLAGS.commit) {
     refuseIfForbiddenPrefix(publisherAudit);
     if (!FLAGS.skipRollback) ensureRollbackArtifactsExist();
-    const token = refuseIfNoBearerToken();
+    const envUrl = await resolveEnvUrl();
+    const token = await acquireBearerToken(envUrl);
     console.log('All safety gates passed. Beginning commit execution…');
     console.log('');
-    const ctx = { token };
+    const ctx = { token, envUrl };
     for (const step of plan) {
       const r = await executeStep(step, ctx);
       if (!r.ok) {
@@ -651,13 +825,12 @@ async function main() {
   console.log(
     '  1. Review the plan above + the runbook JSON at ' + RUNBOOK_PATH + '.',
   );
-  console.log('  2. If you want the script to execute it:');
-  console.log(
-    '       a. Acquire a Dataverse bearer token (e.g. `az account get-access-token ' +
-      '--resource https://<env>.crm.dynamics.com`).',
-  );
-  console.log(`       b. Export it as ${DV_BEARER_TOKEN_ENV_VAR}.`);
-  console.log('       c. Run `node scripts/phase122-lookup-repair.mjs --commit`.');
+  console.log('  2. To let the script execute it, run:');
+  console.log('       node scripts/phase122-lookup-repair.mjs --commit');
+  console.log('     Commit mode acquires a token via this priority order:');
+  console.log(`       a. ${DV_BEARER_TOKEN_ENV_VAR} env var (if set + JWT-shaped).`);
+  console.log('       b. Cached device-code token from a previous run.');
+  console.log('       c. OAuth2 device-code flow (no admin install — prompts in terminal).');
   console.log('  3. OR copy/paste the commands from the runbook JSON manually.');
   console.log('');
   console.log('Hard non-goals (this script):');
@@ -689,7 +862,10 @@ Safety gates for --commit:
   - solution ${SOLUTION_FOR_CR664} must have publisher prefix "${CR664_PUBLISHER_PREFIX}"
     (refuses if it shows "${FORBIDDEN_PUBLISHER_PREFIX}" or anything else)
   - rollback artifacts at .phase122/rollback/*_PRE_PHASE_122B.zip must exist
-  - ${DV_BEARER_TOKEN_ENV_VAR} env var must be set
+  - a Dataverse bearer token must be obtainable from at least ONE of:
+      a. ${DV_BEARER_TOKEN_ENV_VAR} env var (operator pre-acquired),
+      b. cached device-code token from a previous run, or
+      c. an interactive OAuth2 device-code flow (no admin install).
   - no plan step may be a stop-condition
   - any column scheduled for deletion must have ZERO non-NULL rows
 `);
