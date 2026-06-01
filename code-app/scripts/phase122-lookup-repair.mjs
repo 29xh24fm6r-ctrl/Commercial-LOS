@@ -165,6 +165,7 @@ function parseArgs(argv) {
     inspectViewId: null,
     cleanupViewId: null,
     commitViewCleanup: false,
+    printRelationshipPayload: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -265,6 +266,12 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg === '--commit-view-cleanup') {
       flags.commitViewCleanup = true;
+    } else if (arg === '--print-relationship-payload') {
+      // Pure diagnostic: print the buildLookupRelationshipPayload
+      // output for every plan step that POSTs to RelationshipDefinitions,
+      // then exit. No pac auth, no Web API call, no write.
+      flags.printRelationshipPayload = true;
+      flags.dryRun = false;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -2926,6 +2933,57 @@ async function runViewCleanup(viewId, qualifiedAttribute, token, envUrl, doCommi
 // ---------------------------------------------------------------------------
 
 async function main() {
+  // === Pure diagnostic: print the lookup-creation payload(s) ===
+  // No pac auth, no Web API call, no write. Useful when an operator
+  // wants to eyeball the exact RelationshipDefinitions POST body
+  // before re-running --commit after a payload-shape fix.
+  if (FLAGS.printRelationshipPayload) {
+    console.log('Phase 122B — Relationship-create payload preview');
+    console.log('');
+    console.log('NOTE: these are the JSON bodies POSTed to');
+    console.log('      /api/data/v9.2/RelationshipDefinitions');
+    console.log('      with header `MSCRM.SolutionUniqueName: ' + SOLUTION_FOR_CR664 + '`.');
+    console.log('');
+    for (const t of CANDIDATE_CHILD_TABLES) {
+      console.log('-'.repeat(70));
+      console.log(`-- ${t} → ${LOOKUP_TARGET_LOAN_DEAL}  (${NEW_DEAL_COLUMN_SCHEMA_NAME})`);
+      console.log('-'.repeat(70));
+      console.log(
+        JSON.stringify(
+          buildLookupRelationshipPayload({
+            referencingEntity: t,
+            schemaName: NEW_DEAL_COLUMN_SCHEMA_NAME,
+            displayLabel: 'Deal',
+            target: LOOKUP_TARGET_LOAN_DEAL,
+          }),
+          null,
+          2,
+        ),
+      );
+      console.log('');
+    }
+    console.log('-'.repeat(70));
+    console.log(
+      `-- cr664_dealtask1 → ${LOOKUP_TARGET_SYSTEMUSER}  (${NEW_ASSIGNEDTO_COLUMN_SCHEMA_NAME})`,
+    );
+    console.log('-'.repeat(70));
+    console.log(
+      JSON.stringify(
+        buildLookupRelationshipPayload({
+          referencingEntity: 'cr664_dealtask1',
+          schemaName: NEW_ASSIGNEDTO_COLUMN_SCHEMA_NAME,
+          displayLabel: 'Assigned to',
+          target: LOOKUP_TARGET_SYSTEMUSER,
+        }),
+        null,
+        2,
+      ),
+    );
+    console.log('');
+    console.log('No pac call, no Web API call, no write.');
+    return;
+  }
+
   assertPacAuth();
 
   // === Broad SystemForm inspection (read-only) ===
@@ -3352,6 +3410,13 @@ Modes:
       carry semantic meaning the operator must judge in Maker Portal.
       On commit, PATCHes the SavedQuery + PublishXml + re-runs the
       dependency probe for <table>.<column>.
+
+  --print-relationship-payload
+      Pure diagnostic. Prints the exact JSON body the script would
+      POST to /api/data/v9.2/RelationshipDefinitions for every
+      planned cr664_Deal + cr664_AssignedTo Lookup. No pac call, no
+      Web API call, no write. Useful for eyeballing payload shape
+      after a 400-response (e.g. the 2026-06-08 IsCustomizable bug).
   --commit
       Run the plan against the live env. Refuses to run unless every
       safety gate (publisher prefix, rollback artifacts, dependency

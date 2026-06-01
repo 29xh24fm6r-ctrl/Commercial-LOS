@@ -1344,6 +1344,128 @@ describe('Phase 122B — --cleanup-form accepts optional --attribute <table>.<co
   });
 });
 
+describe('Phase 122B — --print-relationship-payload diagnostic mode', () => {
+  it('parses --print-relationship-payload as a flag', () => {
+    expect(SCRIPT).toMatch(/'--print-relationship-payload'/);
+    expect(SCRIPT).toMatch(/flags\.printRelationshipPayload\s*=\s*true/);
+  });
+
+  it('the print handler runs at the TOP of main() — before assertPacAuth', () => {
+    // Pure diagnostic: should not require pac auth or any Web API
+    // call. Pin the source ordering: the printRelationshipPayload
+    // guard appears BEFORE the `assertPacAuth()` call in main().
+    const mainStart = SCRIPT.indexOf('async function main()');
+    expect(mainStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(mainStart, mainStart + 4000);
+    const printGuardIdx = body.indexOf('if (FLAGS.printRelationshipPayload)');
+    const authIdx = body.indexOf('assertPacAuth();');
+    expect(printGuardIdx).toBeGreaterThan(-1);
+    expect(authIdx).toBeGreaterThan(-1);
+    expect(printGuardIdx).toBeLessThan(authIdx);
+  });
+
+  it('print handler emits payloads for all 5 candidate tables + the AssignedTo lookup', () => {
+    const mainStart = SCRIPT.indexOf('async function main()');
+    const body = SCRIPT.slice(mainStart, mainStart + 4000);
+    expect(body).toMatch(/Phase 122B — Relationship-create payload preview/);
+    // Loops over CANDIDATE_CHILD_TABLES to print each cr664_Deal lookup.
+    expect(body).toMatch(/for\s*\(const\s+t\s+of\s+CANDIDATE_CHILD_TABLES\)/);
+    expect(body).toMatch(/NEW_DEAL_COLUMN_SCHEMA_NAME/);
+    // Plus the AssignedTo lookup.
+    expect(body).toMatch(/NEW_ASSIGNEDTO_COLUMN_SCHEMA_NAME/);
+    // The handler returns BEFORE any pac call.
+    expect(body).toMatch(/No pac call, no Web API call, no write/);
+    expect(body).toMatch(/return;/);
+  });
+
+  it('print mode is read-only — no fetch / spawnSync calls in its block', () => {
+    const mainStart = SCRIPT.indexOf('async function main()');
+    expect(mainStart).toBeGreaterThan(-1);
+    const block = SCRIPT.slice(
+      mainStart,
+      SCRIPT.indexOf('assertPacAuth();', mainStart),
+    );
+    // The print block sits entirely above assertPacAuth(). It must
+    // not invoke fetch, spawnSync, executeStep, etc.
+    expect(block).not.toMatch(/await\s+fetch\(/);
+    expect(block).not.toMatch(/spawnSync\(/);
+    expect(block).not.toMatch(/executeStep\(/);
+  });
+});
+
+describe('Phase 122B — current-state resume: pseudo-columns present', () => {
+  // The operator's 2026-06-08 dry-run reported pseudo columns
+  // present again. The script must not assume the previous round
+  // of DELETEs persisted — buildPlan re-audits on every run and
+  // emits DELETE steps whenever pseudoExists is true.
+
+  it('buildPlan unconditionally re-audits before emitting DELETEs', () => {
+    // main() runs auditTable() on every commit invocation. Pin the
+    // call site so a regression can't silently cache prior state.
+    expect(SCRIPT).toMatch(/CANDIDATE_CHILD_TABLES\.map\(auditTable\)/);
+  });
+
+  it('emits a DELETE step when pseudoDealColumnExists is true and rows are zero', () => {
+    // The path: enter the loop, pass the skip-guard, pass the
+    // populated > 0 stop-condition, push a `method: 'DELETE'` step
+    // targeting Attributes(LogicalName='cr664_deal').
+    const buildPlanStart = SCRIPT.indexOf('function buildPlan');
+    expect(buildPlanStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(buildPlanStart, buildPlanStart + 8000);
+    expect(body).toMatch(/method:\s*'DELETE'/);
+    expect(body).toMatch(
+      /\/api\/data\/v9\.2\/EntityDefinitions\(LogicalName='\$\{t\}'\)\/Attributes\(LogicalName='\$\{PSEUDO_DEAL_COLUMN\}'\)/,
+    );
+  });
+
+  it('inspectPseudoColumnDependencies fires before any destructive DELETE', () => {
+    // When pseudo cols are present (operator's current state), the
+    // dependency-inspection gate must re-run, not skip. Pin the
+    // call-site ordering: inspect → "Proceeding to destructive steps"
+    // marker → destructive loop.
+    const commitGuard = SCRIPT.indexOf('// === Safety gates for commit mode ===');
+    expect(commitGuard).toBeGreaterThan(-1);
+    const slice = SCRIPT.slice(commitGuard);
+    const inspectIdx = slice.indexOf('await inspectPseudoColumnDependencies(');
+    const destructiveIdx = slice.indexOf('Proceeding to destructive steps');
+    expect(inspectIdx).toBeGreaterThan(-1);
+    expect(destructiveIdx).toBeGreaterThan(inspectIdx);
+  });
+
+  it('rollback reuse still active for the resumed --commit', () => {
+    // shouldSkipRollbackExportStep is invoked before each rollback
+    // step — operator's existing zips are reused, not re-exported.
+    expect(SCRIPT).toMatch(/shouldSkipRollbackExportStep\(step\)/);
+  });
+});
+
+describe('Phase 122B — partial-state resume: pseudo-columns already absent', () => {
+  // Re-pin the symmetric path so the dual contract is locked
+  // alongside the current-state path above.
+
+  it('skips DELETE step when pseudoDealColumnExists is false', () => {
+    expect(SCRIPT).toMatch(/if\s*\(!a\s*\|\|\s*!a\.pseudoDealColumnExists\)\s*continue/);
+  });
+
+  it('emits noop step when standardLookupFkExists is true (no double-create)', () => {
+    expect(SCRIPT).toMatch(/if\s*\(a\?\.standardLookupFkExists\)/);
+    expect(SCRIPT).toMatch(/kind:\s*'noop'/);
+  });
+});
+
+describe('Phase 122B — AssignedTo lookup remains targeted at systemuser', () => {
+  it('LOOKUP_TARGET_SYSTEMUSER is the constant; no other target appears in the AssignedTo step', () => {
+    expect(SCRIPT).toMatch(/LOOKUP_TARGET_SYSTEMUSER\s*=\s*'systemuser'/);
+    // The AssignedTo create step uses LOOKUP_TARGET_SYSTEMUSER as
+    // its `target:` argument — no hardcoded alternative.
+    expect(SCRIPT).toMatch(
+      /target:\s*LOOKUP_TARGET_SYSTEMUSER/,
+    );
+    // Negative: no Targets: ['systemuserid'] / etc.
+    expect(SCRIPT).not.toMatch(/target:\s*'systemuserid'/i);
+  });
+});
+
 describe('Phase 122B — lookup relationship payload uses Web-API-correct shape', () => {
   // Behavioral mirror of buildLookupRelationshipPayload's output.
   // The mirror IS what the script must produce; the static-source

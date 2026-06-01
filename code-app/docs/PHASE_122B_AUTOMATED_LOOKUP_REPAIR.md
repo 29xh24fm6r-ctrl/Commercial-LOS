@@ -1116,17 +1116,68 @@ node scripts/phase122-lookup-repair.mjs --commit
 
 ### 5F.4 Inspecting the payload before re-running
 
-The runbook JSON written on every dry-run (`.phase122/phase122-runbook.json`)
-contains the full materialized POST body for each `kind: 'webapi'`
-step. Operators who want to eyeball the payload before resuming
-`--commit` can:
+Two complementary paths.
+
+**1. The dedicated diagnostic mode** (added 2026-06-08 after the
+operator's payload incident):
+
+```powershell
+node scripts/phase122-lookup-repair.mjs --print-relationship-payload
+```
+
+Prints the exact JSON body the script would POST to
+`/api/data/v9.2/RelationshipDefinitions` for every planned
+cr664_Deal + cr664_AssignedTo Lookup — five bodies for the canonical
+child tables plus one for the AssignedTo lookup on cr664_dealtask1.
+No pac call, no Web API call, no write. The print handler runs at
+the top of `main()` before `assertPacAuth()` so the operator doesn't
+need to be logged in to preview.
+
+**2. The runbook JSON** written on every dry-run
+(`.phase122/phase122-runbook.json`) contains the full materialized
+POST body for each `kind: 'webapi'` step in plan order. Useful when
+the operator wants to see the payloads alongside the rest of the
+plan context:
 
 ```powershell
 node scripts/phase122-lookup-repair.mjs --dry-run
-# Then look at the JSON file:
 type .phase122\phase122-runbook.json | findstr /n IsCustomizable
 # (expected: zero matches — the fix removed it)
 ```
+
+### 5F.5 Current-state vs partial-state resume
+
+The operator's 2026-06-08 dry-run reported pseudo cr664_deal columns
+present **again** after the first failed `--commit` round. The script
+must never assume the previous run's DELETEs persisted; `buildPlan`
+re-audits the live env on every invocation and emits whichever subset
+of steps the current state requires.
+
+| Audit reports | Plan step emitted |
+| --- | --- |
+| `pseudoDealColumnExists: true` + zero rows | DELETE the pseudo-column. |
+| `pseudoDealColumnExists: true` + non-zero rows | `kind: 'stop-condition'` — refuse to commit. |
+| `pseudoDealColumnExists: false` | No DELETE step — loop continues. |
+| `pseudoAssignedToColumnExists: true` + zero rows | DELETE the AssignedTo pseudo-column. |
+| `pseudoAssignedToColumnExists: false` | AssignedTo DELETE branch skipped entirely. |
+| `standardLookupFkExists: false` | CREATE step emitted with the fixed payload. |
+| `standardLookupFkExists: true` | `kind: 'noop'` — "Already correct" step (no double-create). |
+| `standardAssignedToFkExists: true` | AssignedTo CREATE step skipped. |
+
+The dependency inspection gate fires on every commit invocation —
+when pseudo columns are present (e.g. the current-state resume) the
+inspector re-queries Dataverse to make sure no SystemForm / SavedQuery
+blocker has reappeared since the previous round. Rollback zips that
+already exist on disk are reused (Phase 1 idempotency), so the
+resumed run does not re-export them.
+
+Everything that prevented junk columns in earlier rounds remains in
+force: `refuseIfForbiddenPrefix` still bails on a `new` prefix,
+`LOOKUP_TARGET_LOAN_DEAL = 'cr664_loandeal'` is unchanged, and no
+bypass header (`BypassBusinessLogicExecution`,
+`BypassCustomPluginExecution`, `SuppressDuplicateDetection`,
+`?Force=true`) appears anywhere — pinned by negative static-source
+tests.
 
 ---
 
