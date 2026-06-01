@@ -49,7 +49,8 @@ environment). It has three modes:
 | Explicit dry-run | `node scripts/phase122-lookup-repair.mjs --dry-run` | Same as default. |
 | Inspect dependencies | `node scripts/phase122-lookup-repair.mjs --inspect-dependencies` | Read-only audit + plan + per-pseudo-column `RetrieveDependenciesForDelete` probe. No write. Short-circuits at the first column that has a dependent component. Requires a bearer token (same priority order as `--commit`). |
 | Cleanup form (dry-run) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid>` | Read-only. Fetches the SystemForm by GUID, prints every `<cell>` in its persisted formxml that references the `cr664_deal` pseudo-column. No write. See §5B. |
-| Cleanup form (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> --commit-form-cleanup` | Splices the matched cells out of the formxml, PATCHes the SystemForm, publishes it, then re-runs `RetrieveDependenciesForDelete` on that table's pseudo-column to confirm the blocker is cleared. See §5B. |
+| Cleanup form (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> --commit-form-cleanup` | Splices the matched cells out of the formxml, PATCHes the SystemForm, publishes it, then re-runs `RetrieveDependenciesForDelete` on that table's pseudo-column to confirm the blocker is cleared. See §5B. Refuses to write if no direct field cell exists but indirect references are present. |
+| Inspect form (read-only) | `node scripts/phase122-lookup-repair.mjs --inspect-form <form-guid> --attribute <table>.<column>` | Read-only broad inspection. Walks the SystemForm's persisted XML and groups every reference to the qualified attribute into per-category findings (direct cell / subgrid / quick-view / TargetEntityType / RelationshipName / NavBar / bare logical name). No write. See §5C. |
 | Commit | `node scripts/phase122-lookup-repair.mjs --commit` | Refuses to run unless every safety gate passes (publisher prefix, rollback artifacts, dependency inspection clear, zero non-NULL pseudo-column rows, no stop conditions in plan). |
 
 ### 2.1 Hard-pinned constants
@@ -539,6 +540,109 @@ node scripts/phase122-lookup-repair.mjs --inspect-dependencies
 # 5. Finally run the main plan.
 node scripts/phase122-lookup-repair.mjs --commit
 ```
+
+---
+
+## 5C. Indirect SystemForm dependencies (`--inspect-form`)
+
+The operator's 2026-06-01 cleanup dry-run against form
+`653f9d5e-767f-4363-9eb8-13b2b1f24ceb` revealed a mismatch:
+
+```text
+Dependency inspection says:
+  cr664_documentchecklist.cr664_deal  →  blocked by SystemForm 653f9d5e-…
+
+Cleanup-form dry-run on that form says:
+  Form name:           Information
+  Entity (objecttype): cr664_deal     ← legacy Loan Deal form, NOT a Document Checklist form
+  Form type code:      2
+  No cr664_deal references found in this form XML.
+```
+
+The dependency is **not** a direct field control named `cr664_deal` on
+a Document Checklist form. It is a legacy `cr664_deal` form referencing
+`cr664_documentchecklist.cr664_deal` indirectly — most likely via a
+subgrid showing related Document Checklist records, a NavBar pane that
+surfaces related-records navigation, or a relationship-bound
+parameter.
+
+The cleanup path cannot safely auto-remove subgrids / NavBar / quick-
+view / relationship-bound elements because removing them often removes
+legitimate UX. The script therefore:
+
+1. **Refuses to write** in `--cleanup-form --commit-form-cleanup` mode
+   when no direct field cell exists but indirect references do.
+2. Prints the exact form name / entity / type code so the operator
+   knows which form to open in Maker Portal.
+3. Exposes a separate read-only mode for the comprehensive per-
+   category breakdown.
+
+### 5C.1 The read-only mode
+
+```powershell
+node scripts/phase122-lookup-repair.mjs `
+  --inspect-form 653f9d5e-767f-4363-9eb8-13b2b1f24ceb `
+  --attribute cr664_documentchecklist.cr664_deal
+```
+
+Walks the form's persisted XML and groups every reference to
+`cr664_documentchecklist.cr664_deal` into:
+
+| Category | What it means | XML pattern |
+| --- | --- | --- |
+| `Direct <cell>` | A field control bound directly to the attribute. | `<cell>…<control datafieldname="cr664_deal" …></cell>` |
+| Subgrid control | A subgrid showing related records of the table. | `<control classid="{E7A81278-…}">…<TargetEntityType>{table}</TargetEntityType>…</control>` |
+| Quick-view control | A read-only embedded form pulling data from the table. | `<control classid="{069810AB-…}">…<TargetEntityType>{table}</TargetEntityType>…</control>` |
+| `<TargetEntityType>` | An element pointing at the table (component of subgrids / quick-views / navigation). | `<TargetEntityType>{table}</TargetEntityType>` |
+| `<RelationshipName>` | A relationship binding whose name mentions the table or attribute. | `<RelationshipName>…{table}…</RelationshipName>` |
+| `<NavBar*>` | A side-nav item that surfaces records via a relationship. | `<NavBarByRelationshipItem RelationshipName="…" …/>` |
+| Bare logical-name | Catch-all: any other occurrence of the attribute logical name. | `\bcr664_deal\b` anywhere not already covered above |
+
+The mode also flags the parent-entity-vs-attribute-table mismatch
+explicitly when the form's `objecttypecode` differs from the supplied
+`<table>` — that mismatch is the signal that the dependency is
+indirect.
+
+### 5C.2 Read-only contract
+
+`--inspect-form` is bounded to `GET` operations only:
+
+- `GET /api/data/v9.2/systemforms(<id>)?$select=formxml,name,objecttypecode,type,description`
+
+Never `PATCH`, `POST`, or `PublishXml`. Pinned by a static-source
+contract test that the `runFormInspect()` function body contains no
+`patchSystemFormXml(`, `publishSystemForm(`, `method: 'PATCH'`,
+`method: 'POST'`, or `method: 'DELETE'`.
+
+### 5C.3 When the cleanup path refuses to write
+
+If `--cleanup-form <id>` (with or without `--commit-form-cleanup`)
+finds no direct field cell but at least one indirect reference, it
+prints:
+
+```text
+⚠ No DIRECT field control for cr664_deal was found on this form,
+  but N INDIRECT reference(s) were detected:
+
+  - related table "cr664_documentchecklist": K indirect ref(s)
+      subgrid control(s):   …
+      <TargetEntityType>:   …
+      <RelationshipName>:   …
+        - cr664_deal_cr664_documentchecklist
+
+  Required operator action — Maker Portal:
+    Form name:        Information
+    Form entity:      cr664_deal
+    Form type code:   2
+    Open the form designer for the entity above and remove the
+    subgrid / related-records / navigation control that pulls
+    in Document Checklist (or whichever child table is named
+    in the indirect references above). Save + publish.
+```
+
+The script does not retry, force, or fall back to bypass headers. The
+operator handles indirect refs in Maker Portal, then re-runs
+`--inspect-dependencies` to confirm the form is no longer a blocker.
 
 ---
 

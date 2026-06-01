@@ -135,6 +135,8 @@ function parseArgs(argv) {
     inspectDependencies: false,
     cleanupFormId: null,
     commitFormCleanup: false,
+    inspectFormId: null,
+    inspectFormAttribute: null,
     help: false,
   };
   const args = argv.slice(2);
@@ -166,6 +168,26 @@ function parseArgs(argv) {
       i += 1; // consume the GUID
     } else if (arg === '--commit-form-cleanup') {
       flags.commitFormCleanup = true;
+    } else if (arg === '--inspect-form') {
+      // Broad read-only inspection of one SystemForm scoped to one
+      // qualified attribute (table.column). Pairs with --attribute
+      // for the qualified name. Never writes. Never publishes.
+      const next = args[i + 1];
+      if (!next) bailParseArgs('--inspect-form requires a SystemForm GUID');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(next)) {
+        bailParseArgs(`--inspect-form expects a GUID; got "${next}"`);
+      }
+      flags.inspectFormId = next.toLowerCase();
+      flags.dryRun = false;
+      i += 1;
+    } else if (arg === '--attribute') {
+      const next = args[i + 1];
+      if (!next) bailParseArgs('--attribute requires a "<table>.<column>" value');
+      if (!/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/i.test(next)) {
+        bailParseArgs(`--attribute expects "<table>.<column>"; got "${next}"`);
+      }
+      flags.inspectFormAttribute = next.toLowerCase();
+      i += 1;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -174,14 +196,21 @@ function parseArgs(argv) {
     flags.commit,
     flags.inspectDependencies,
     flags.cleanupFormId !== null,
+    flags.inspectFormId !== null,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, and --cleanup-form are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, and --inspect-form are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
     bailParseArgs('--commit-form-cleanup has no effect without --cleanup-form <id>.');
+  }
+  if (flags.inspectFormId !== null && flags.inspectFormAttribute === null) {
+    bailParseArgs('--inspect-form requires --attribute <table>.<column>');
+  }
+  if (flags.inspectFormAttribute !== null && flags.inspectFormId === null) {
+    bailParseArgs('--attribute is only valid alongside --inspect-form <id>');
   }
   return flags;
 }
@@ -190,7 +219,8 @@ function bailParseArgs(msg) {
   console.error(msg);
   console.error(
     'Usage: node scripts/phase122-lookup-repair.mjs ' +
-      '[--dry-run | --commit | --inspect-dependencies | --cleanup-form <id> [--commit-form-cleanup]] ' +
+      '[--dry-run | --commit | --inspect-dependencies | --cleanup-form <id> [--commit-form-cleanup] | ' +
+      '--inspect-form <id> --attribute <table>.<column>] ' +
       '[--help]',
   );
   process.exit(2);
@@ -215,7 +245,9 @@ const MODE = FLAGS.commit
       ? FLAGS.commitFormCleanup
         ? 'COMMIT-FORM-CLEANUP'
         : 'CLEANUP-FORM (dry-run)'
-      : 'DRY-RUN';
+      : FLAGS.inspectFormId !== null
+        ? 'INSPECT-FORM'
+        : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -1174,13 +1206,50 @@ async function runFormCleanup(formId, token, envUrl, doCommit) {
   }
   console.log(`   formxml length:      ${form.formxml.length} chars`);
 
-  // 2. Locate references
+  // 2. Locate DIRECT references (i.e. `<cell>` whose inner control has
+  //    datafieldname="cr664_deal" — the only kind of reference this
+  //    cleanup path can remove safely).
   const refs = findCr664DealReferences(form.formxml);
   console.log('');
   if (refs.length === 0) {
-    console.log(`   ✓ No ${PSEUDO_DEAL_COLUMN} references found in this form's XML.`);
-    console.log('     Nothing to remove. The form is already clean for this field.');
-    return { ok: true, removed: 0 };
+    // No direct field control. Before reporting "nothing to remove",
+    // scan more broadly for INDIRECT references — subgrids targeting a
+    // candidate child table, relationship names involving the
+    // pseudo-column, NavBar entries, etc. The dependency Dataverse
+    // recorded against this form may live in one of those, and the
+    // cleanup path is NOT equipped to remove them automatically.
+    const indirect = scanIndirectReferencesForCandidateTables(form.formxml);
+    if (indirect.total === 0) {
+      console.log(`   ✓ No ${PSEUDO_DEAL_COLUMN} references (direct or indirect) found in this form's XML.`);
+      console.log('     Nothing to remove. The form is already clean for this field.');
+      return { ok: true, removed: 0 };
+    }
+    console.log(`   ⚠ No DIRECT field control for ${PSEUDO_DEAL_COLUMN} was found on this form,`);
+    console.log(`     but ${indirect.total} INDIRECT reference(s) were detected:`);
+    console.log('');
+    printIndirectFindingsSummary(indirect);
+    console.log('');
+    console.log('   This cleanup path will NOT auto-remove subgrid / relationship /');
+    console.log('   NavBar bindings. Reasons: the script cannot guarantee that');
+    console.log('   removing a subgrid is the intended operator decision, and');
+    console.log('   relationship-bound elements often carry hidden meaning beyond');
+    console.log('   the surfaced child reference.');
+    console.log('');
+    console.log('   Required operator action — Maker Portal:');
+    console.log(`     Form name:        ${form.name ?? '(unknown)'}`);
+    console.log(`     Form entity:      ${form.objecttypecode ?? '(unknown)'}`);
+    console.log(`     Form type code:   ${form.type ?? '(unknown)'}`);
+    console.log('     Open the form designer for the entity above and remove the');
+    console.log('     subgrid / related-records / navigation control that pulls');
+    console.log('     in Document Checklist (or whichever child table is named');
+    console.log('     in the indirect references above). Save + publish.');
+    console.log('');
+    console.log('   For a comprehensive per-category breakdown of every indirect');
+    console.log('   reference, run:');
+    console.log(`     node scripts/phase122-lookup-repair.mjs --inspect-form ${formId} \\`);
+    console.log('       --attribute <candidate-table>.cr664_deal');
+    console.log('');
+    return { ok: true, removed: 0, blockedByIndirect: true, indirect };
   }
   console.log(`   Found ${refs.length} ${PSEUDO_DEAL_COLUMN} reference(s):`);
   for (const [i, ref] of refs.entries()) {
@@ -1265,11 +1334,422 @@ async function runFormCleanup(formId, token, envUrl, doCommit) {
 }
 
 // ---------------------------------------------------------------------------
+// Broad SystemForm inspection — read-only.
+//
+// The cleanup path above only handles DIRECT field controls (a <cell>
+// whose inner <control> has datafieldname="cr664_deal"). Dataverse
+// also records SystemForm dependencies that come from INDIRECT
+// references: subgrid controls that bind to a related child table,
+// NavBar items that surface a related-records pane, relationship-
+// bound parameters, etc. Those cannot be safely auto-removed because
+// they often carry hidden semantic meaning the operator must judge.
+//
+// This block adds a comprehensive read-only inspector that walks the
+// form XML and groups every possible reference into categories so the
+// operator knows exactly which control to remove in Maker Portal.
+//
+// Nothing in this section issues a PATCH, POST, or PublishXml call.
+// ---------------------------------------------------------------------------
+
+// The Dataverse "Subgrid" control classid is fixed across orgs.
+const SUBGRID_CONTROL_CLASSID = '{E7A81278-8635-4d9e-8D4D-59480B391C5B}';
+// Quick view form control classid (read-only embedded form).
+const QUICKVIEW_CONTROL_CLASSID = '{069810AB-2C8A-4B53-AD30-A1FB60AA2F26}';
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractContext(formXml, start, length, padding) {
+  const from = Math.max(0, start - padding);
+  const to = Math.min(formXml.length, start + length + padding);
+  return formXml.slice(from, to);
+}
+
+/**
+ * Walk a form's persisted XML and group every reference to the given
+ * table + attribute (`table` = e.g. "cr664_documentchecklist",
+ * `attribute` = e.g. "cr664_deal") into categories. Used by both
+ * `--inspect-form` (read-only inspection) and the cleanup path's
+ * "no direct cells but indirect refs" diagnostics branch.
+ *
+ * Returns a structured object — never throws, never writes.
+ */
+function findFormReferences(formXml, table, attribute) {
+  const empty = {
+    direct: [],
+    subgrids: [],
+    quickViews: [],
+    targetEntities: [],
+    relationships: [],
+    navBar: [],
+    bareAttributeName: [],
+  };
+  if (typeof formXml !== 'string' || formXml.length === 0) return empty;
+  if (typeof table !== 'string' || typeof attribute !== 'string') return empty;
+
+  const tableEsc = escapeRegExp(table);
+  const attrEsc = escapeRegExp(attribute);
+  const findings = {
+    direct: [],
+    subgrids: [],
+    quickViews: [],
+    targetEntities: [],
+    relationships: [],
+    navBar: [],
+    bareAttributeName: [],
+  };
+
+  // 1. Direct field cells: <cell>…<control datafieldname="<attribute>" …></cell>
+  const datafieldRe = new RegExp(`datafieldname="${attrEsc}"`, 'i');
+  const idAttrRe = new RegExp(`\\bid="${attrEsc}"`, 'i');
+  const cellRegex = /<cell\b[^>]*>[\s\S]*?<\/cell>/gi;
+  let m;
+  while ((m = cellRegex.exec(formXml)) !== null) {
+    if (datafieldRe.test(m[0]) || idAttrRe.test(m[0])) {
+      findings.direct.push({
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        snippet: m[0],
+      });
+    }
+  }
+
+  // 2. Subgrid controls whose body references the table.
+  const subgridClassidEsc = escapeRegExp(SUBGRID_CONTROL_CLASSID);
+  const subgridControlRegex = new RegExp(
+    `<control\\b[^>]*classid="${subgridClassidEsc}"[\\s\\S]*?<\\/control>`,
+    'gi',
+  );
+  const tableRefRegex = new RegExp(`\\b${tableEsc}\\b`, 'i');
+  while ((m = subgridControlRegex.exec(formXml)) !== null) {
+    if (tableRefRegex.test(m[0])) {
+      findings.subgrids.push({
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        snippet: m[0],
+      });
+    }
+  }
+
+  // 3. Quick view form controls whose body references the table.
+  const quickViewClassidEsc = escapeRegExp(QUICKVIEW_CONTROL_CLASSID);
+  const quickViewRegex = new RegExp(
+    `<control\\b[^>]*classid="${quickViewClassidEsc}"[\\s\\S]*?<\\/control>`,
+    'gi',
+  );
+  while ((m = quickViewRegex.exec(formXml)) !== null) {
+    if (tableRefRegex.test(m[0])) {
+      findings.quickViews.push({
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        snippet: m[0],
+      });
+    }
+  }
+
+  // 4. <TargetEntityType>cr664_documentchecklist</TargetEntityType>
+  const tetRegex = new RegExp(
+    `<TargetEntityType>\\s*${tableEsc}\\s*<\\/TargetEntityType>`,
+    'gi',
+  );
+  while ((m = tetRegex.exec(formXml)) !== null) {
+    findings.targetEntities.push({
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      snippet: extractContext(formXml, m.index, m[0].length, 200),
+    });
+  }
+
+  // 5. Relationship names mentioning the table OR the attribute.
+  const relationshipRegex = /<RelationshipName>([^<]+)<\/RelationshipName>/gi;
+  while ((m = relationshipRegex.exec(formXml)) !== null) {
+    const name = m[1];
+    if (tableRefRegex.test(name) || new RegExp(`\\b${attrEsc}\\b`, 'i').test(name)) {
+      findings.relationships.push({
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        name,
+        snippet: extractContext(formXml, m.index, m[0].length, 200),
+      });
+    }
+  }
+
+  // 6. NavBar / NavBarByRelationshipItem nodes that reference the
+  //    table or attribute.
+  const navBarRegex = /<NavBar[\s\S]*?<\/NavBar>/gi;
+  while ((m = navBarRegex.exec(formXml)) !== null) {
+    if (
+      tableRefRegex.test(m[0]) ||
+      new RegExp(`\\b${attrEsc}\\b`, 'i').test(m[0])
+    ) {
+      findings.navBar.push({
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        snippet: m[0],
+      });
+    }
+  }
+  const navItemRegex = /<NavBarByRelationshipItem\b[^>]*\/?>/gi;
+  while ((m = navItemRegex.exec(formXml)) !== null) {
+    if (
+      tableRefRegex.test(m[0]) ||
+      new RegExp(`\\b${attrEsc}\\b`, 'i').test(m[0])
+    ) {
+      findings.navBar.push({
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        snippet: m[0],
+      });
+    }
+  }
+
+  // 7. Catch-all: bare logical-name occurrences of the attribute
+  //    anywhere in the form XML that are NOT already covered above.
+  const seenOffsets = new Set();
+  for (const e of [
+    ...findings.direct,
+    ...findings.subgrids,
+    ...findings.quickViews,
+    ...findings.targetEntities,
+    ...findings.relationships,
+    ...findings.navBar,
+  ]) {
+    for (let k = e.startIndex; k < e.endIndex; k += 1) seenOffsets.add(k);
+  }
+  const bareRegex = new RegExp(`\\b${attrEsc}\\b`, 'gi');
+  while ((m = bareRegex.exec(formXml)) !== null) {
+    if (seenOffsets.has(m.index)) continue;
+    findings.bareAttributeName.push({
+      startIndex: m.index,
+      endIndex: m.index + m[0].length,
+      context: extractContext(formXml, m.index, m[0].length, 120),
+    });
+    if (findings.bareAttributeName.length >= 25) break;
+  }
+
+  return findings;
+}
+
+function totalFindings(findings) {
+  return (
+    findings.direct.length +
+    findings.subgrids.length +
+    findings.quickViews.length +
+    findings.targetEntities.length +
+    findings.relationships.length +
+    findings.navBar.length +
+    findings.bareAttributeName.length
+  );
+}
+
+/**
+ * Scan one form's XML against every CANDIDATE_CHILD_TABLES + the
+ * cr664_deal attribute, looking for INDIRECT references only (i.e.
+ * everything `findFormReferences` reports except `direct`). Used by
+ * the cleanup path's "no direct cells found" diagnostics branch.
+ */
+function scanIndirectReferencesForCandidateTables(formXml) {
+  const perTable = [];
+  let total = 0;
+  for (const table of CANDIDATE_CHILD_TABLES) {
+    const f = findFormReferences(formXml, table, PSEUDO_DEAL_COLUMN);
+    const indirectTotal =
+      f.subgrids.length +
+      f.quickViews.length +
+      f.targetEntities.length +
+      f.relationships.length +
+      f.navBar.length;
+    if (indirectTotal > 0) {
+      perTable.push({ table, findings: f, indirectTotal });
+      total += indirectTotal;
+    }
+  }
+  return { total, perTable };
+}
+
+function printIndirectFindingsSummary(indirect) {
+  for (const entry of indirect.perTable) {
+    console.log(`     - related table "${entry.table}": ${entry.indirectTotal} indirect ref(s)`);
+    if (entry.findings.subgrids.length) {
+      console.log(`         subgrid control(s):   ${entry.findings.subgrids.length}`);
+    }
+    if (entry.findings.quickViews.length) {
+      console.log(`         quick-view control(s):${entry.findings.quickViews.length}`);
+    }
+    if (entry.findings.targetEntities.length) {
+      console.log(`         <TargetEntityType>:   ${entry.findings.targetEntities.length}`);
+    }
+    if (entry.findings.relationships.length) {
+      console.log(`         <RelationshipName>:   ${entry.findings.relationships.length}`);
+      for (const r of entry.findings.relationships.slice(0, 3)) {
+        console.log(`           - ${r.name}`);
+      }
+    }
+    if (entry.findings.navBar.length) {
+      console.log(`         <NavBar*>:            ${entry.findings.navBar.length}`);
+    }
+  }
+}
+
+/**
+ * Read-only orchestrator for `--inspect-form <id> --attribute <t>.<c>`.
+ *
+ * Never writes. Never publishes. Calls only readSystemFormXml() +
+ * (optionally) the dependency probe for context. The output is a
+ * structured per-category breakdown of every reference the script can
+ * detect — direct field controls, subgrid controls, quick-view
+ * controls, TargetEntityType elements, relationship names, NavBar
+ * items, and bare attribute-name occurrences.
+ */
+async function runFormInspect(formId, qualifiedAttribute, token, envUrl) {
+  console.log('');
+  console.log('Phase I — Broad SystemForm inspection (read-only)');
+  console.log(`   Form id:        ${formId}`);
+  console.log(`   Attribute:      ${qualifiedAttribute}`);
+  console.log('');
+
+  const [table, attribute] = qualifiedAttribute.split('.');
+  if (!table || !attribute) {
+    bail(`--attribute must be "<table>.<column>"; got "${qualifiedAttribute}"`);
+  }
+
+  const formResult = await readSystemFormXml(formId, token, envUrl);
+  if (!formResult.ok) {
+    bail(`Form read failed: ${formResult.error}`);
+  }
+  const form = formResult.form;
+  console.log(`   Form name:           ${form.name ?? '(unknown)'}`);
+  console.log(`   Entity (objecttype): ${form.objecttypecode ?? '(unknown)'}`);
+  console.log(`   Form type code:      ${form.type ?? '(unknown)'}`);
+  console.log(`   formxml length:      ${form.formxml?.length ?? 0} chars`);
+
+  if (
+    form.objecttypecode &&
+    typeof form.objecttypecode === 'string' &&
+    form.objecttypecode.toLowerCase() !== table.toLowerCase()
+  ) {
+    console.log('');
+    console.log(
+      `   ⚠ Form's parent entity (${form.objecttypecode}) DIFFERS from the`,
+    );
+    console.log(
+      `     attribute's table (${table}). The dependency is therefore`,
+    );
+    console.log(
+      '     INDIRECT — typically a subgrid, quick-view, or NavBar item on',
+    );
+    console.log(
+      '     the form pointing at the related child table.',
+    );
+  }
+
+  const findings = findFormReferences(form.formxml ?? '', table, attribute);
+  console.log('');
+  console.log('   Findings:');
+  printFindingsSection(
+    `Direct <cell> with datafieldname="${attribute}" or id="${attribute}"`,
+    findings.direct,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `Subgrid controls (classid ${SUBGRID_CONTROL_CLASSID}) referencing "${table}"`,
+    findings.subgrids,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `Quick-view controls referencing "${table}"`,
+    findings.quickViews,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `<TargetEntityType>${table}</TargetEntityType> elements`,
+    findings.targetEntities,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `<RelationshipName> values containing "${table}" or "${attribute}"`,
+    findings.relationships,
+    (e) => `${e.name}  (chars ${e.startIndex}-${e.endIndex})`,
+  );
+  printFindingsSection(
+    `<NavBar*> entries referencing "${table}" or "${attribute}"`,
+    findings.navBar,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `Bare logical-name occurrences of "${attribute}" (catch-all)`,
+    findings.bareAttributeName,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.context)}`,
+  );
+
+  console.log('');
+  const total = totalFindings(findings);
+  if (total === 0) {
+    console.log(`   ✓ No references to ${table}.${attribute} found in this form's XML.`);
+    console.log('     The dependency Dataverse recorded against this form may');
+    console.log('     have already been removed, or it may live in a sibling form.');
+    console.log('     Re-run `--inspect-dependencies` to refresh the dependency state.');
+    return { ok: true, findings };
+  }
+  if (findings.direct.length > 0) {
+    console.log(`   → ${findings.direct.length} direct field control(s) found —`);
+    console.log('     these CAN be removed automatically. Run:');
+    console.log(`       node scripts/phase122-lookup-repair.mjs --cleanup-form ${formId} \\`);
+    console.log('         --commit-form-cleanup');
+  } else {
+    console.log('   ⚠ No direct field control found, only INDIRECT references.');
+    console.log('     The script will NOT auto-remove subgrid / quick-view /');
+    console.log('     relationship / NavBar bindings. Required operator action:');
+    console.log('');
+    console.log(`       Open Maker Portal → table ${form.objecttypecode ?? '(unknown)'}`);
+    console.log(`       → Forms → "${form.name ?? '(unknown)'}" (type code ${form.type ?? '(unknown)'})`);
+    console.log('       → Remove the subgrid / related-records / NavBar control');
+    console.log(`         that surfaces ${table}, then Save + Publish.`);
+  }
+  console.log('');
+  return { ok: true, findings };
+}
+
+function printFindingsSection(label, entries, formatLine) {
+  if (entries.length === 0) {
+    console.log(`     - ${label}: none.`);
+    return;
+  }
+  console.log(`     - ${label}: ${entries.length}`);
+  for (const [i, e] of entries.entries()) {
+    console.log(`       [${i + 1}] ${formatLine(e)}`);
+  }
+}
+
+function compactSnippet(s, max = 280) {
+  const c = String(s ?? '').replace(/\s+/g, ' ');
+  return c.length > max ? c.slice(0, max) + '…' : c;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 async function main() {
   assertPacAuth();
+
+  // === Broad SystemForm inspection (read-only) ===
+  // Independent of every other mode. Reads one form, walks its formxml
+  // against one qualified attribute, prints per-category findings.
+  // Never writes.
+  if (FLAGS.inspectFormId !== null) {
+    const envUrl = await resolveEnvUrl();
+    const token = await acquireBearerToken(envUrl);
+    const result = await runFormInspect(
+      FLAGS.inspectFormId,
+      FLAGS.inspectFormAttribute,
+      token,
+      envUrl,
+    );
+    if (!result.ok) process.exit(7);
+    return;
+  }
 
   // === Targeted SystemForm cleanup ===
   // This mode is independent of the audit/plan/commit flow. It edits
@@ -1542,6 +2022,21 @@ Modes:
       form, publish it via PublishXml, and re-probe the dependency
       to confirm the blocker is cleared. Independent of the audit /
       plan / commit flow — never deletes the pseudo-column itself.
+
+      If no direct field control is found but the form has INDIRECT
+      references (subgrid, quick-view, relationship name, NavBar) to
+      a candidate child table, the script REFUSES to write and points
+      the operator at --inspect-form for a full breakdown.
+
+  --inspect-form <form-guid> --attribute <table>.<column>
+      Read-only broad inspection of one SystemForm. Walks the form's
+      persisted XML and groups every reference to the supplied
+      qualified attribute into per-category findings (direct field
+      cell, subgrid control, quick-view control, TargetEntityType,
+      RelationshipName, NavBar item, bare logical-name occurrence).
+      Useful when --cleanup-form reports no direct field but the
+      dependency probe still names this form. Never writes; never
+      publishes.
   --commit
       Run the plan against the live env. Refuses to run unless every
       safety gate (publisher prefix, rollback artifacts, dependency

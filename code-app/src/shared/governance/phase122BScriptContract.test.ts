@@ -262,7 +262,7 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
     // Now part of the broader three-way mutex with --cleanup-form.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, and --cleanup-form are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, and --inspect-form are mutually exclusive/,
     );
   });
 
@@ -321,9 +321,9 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
     );
   });
 
-  it('cleanup-form is mutually exclusive with --commit and --inspect-dependencies', () => {
+  it('cleanup-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, and --cleanup-form are mutually exclusive\./,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, and --inspect-form are mutually exclusive\./,
     );
   });
 
@@ -403,6 +403,137 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
     expect(auditMarkerIdx).toBeGreaterThan(cleanupGuardIdx);
     const between = SCRIPT.slice(cleanupGuardIdx, auditMarkerIdx);
     expect(between).toMatch(/return;/);
+  });
+});
+
+describe('Phase 122B — broad SystemForm inspection for indirect dependencies', () => {
+  it('parses --inspect-form <GUID> --attribute <table>.<column>', () => {
+    expect(SCRIPT).toMatch(/'--inspect-form'/);
+    expect(SCRIPT).toMatch(/flags\.inspectFormId\s*=/);
+    expect(SCRIPT).toMatch(/'--attribute'/);
+    expect(SCRIPT).toMatch(/flags\.inspectFormAttribute\s*=/);
+  });
+
+  it('--attribute requires a "<table>.<column>" shape', () => {
+    expect(SCRIPT).toMatch(/--attribute expects "<table>\.<column>"/);
+    // The validator regex enforces dotted, table-then-column form.
+    expect(SCRIPT).toMatch(
+      /\[a-z\]\[a-z0-9_\]\*\\\.\[a-z\]\[a-z0-9_\]\*/,
+    );
+  });
+
+  it('--inspect-form is mutually exclusive with every other mode', () => {
+    expect(SCRIPT).toMatch(
+      /Modes --commit, --inspect-dependencies, --cleanup-form, and --inspect-form are mutually exclusive/,
+    );
+  });
+
+  it('--inspect-form requires --attribute (no implicit attribute)', () => {
+    expect(SCRIPT).toMatch(
+      /--inspect-form requires --attribute <table>\.<column>/,
+    );
+  });
+
+  it('--attribute without --inspect-form is rejected', () => {
+    expect(SCRIPT).toMatch(/--attribute is only valid alongside --inspect-form/);
+  });
+
+  it('declares findFormReferences() that returns per-category findings', () => {
+    expect(SCRIPT).toMatch(/function\s+findFormReferences/);
+    // Pin each category the operator depends on.
+    for (const key of [
+      'direct',
+      'subgrids',
+      'quickViews',
+      'targetEntities',
+      'relationships',
+      'navBar',
+      'bareAttributeName',
+    ]) {
+      expect(SCRIPT).toMatch(new RegExp(`\\b${key}\\b`));
+    }
+  });
+
+  it('matches subgrid controls by the canonical Dataverse classid', () => {
+    expect(SCRIPT).toMatch(
+      /SUBGRID_CONTROL_CLASSID\s*=\s*'\{E7A81278-8635-4d9e-8D4D-59480B391C5B\}'/,
+    );
+  });
+
+  it('matches quick-view controls by the canonical Dataverse classid', () => {
+    expect(SCRIPT).toMatch(/QUICKVIEW_CONTROL_CLASSID\s*=\s*'\{[0-9A-Fa-f-]+\}'/);
+  });
+
+  it('inspects <TargetEntityType>, <RelationshipName>, and <NavBar*> elements', () => {
+    expect(SCRIPT).toMatch(/<TargetEntityType>/);
+    expect(SCRIPT).toMatch(/<RelationshipName>/);
+    expect(SCRIPT).toMatch(/<NavBar/);
+    expect(SCRIPT).toMatch(/<NavBarByRelationshipItem/);
+  });
+
+  it('declares runFormInspect() as the read-only orchestrator', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+runFormInspect/);
+  });
+
+  it('runFormInspect performs NO write — never calls PATCH or PublishXml', () => {
+    const fnStart = SCRIPT.indexOf('async function runFormInspect');
+    expect(fnStart).toBeGreaterThan(-1);
+    // Find the end of runFormInspect — next top-level helper.
+    const nextDeclIdx = SCRIPT.indexOf('function printFindingsSection', fnStart);
+    expect(nextDeclIdx).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, nextDeclIdx);
+    expect(body).not.toMatch(/patchSystemFormXml\(/);
+    expect(body).not.toMatch(/publishSystemForm\(/);
+    expect(body).not.toMatch(/method:\s*'PATCH'/);
+    expect(body).not.toMatch(/method:\s*'POST'/);
+    expect(body).not.toMatch(/method:\s*'DELETE'/);
+  });
+
+  it('flags parent-entity-vs-attribute-table mismatch explicitly', () => {
+    // When the SystemForm's objecttypecode is different from the
+    // attribute's table, the script must call that out for the
+    // operator (the dependency is indirect — subgrid / NavBar / etc.).
+    expect(SCRIPT).toMatch(/DIFFERS from the/);
+    expect(SCRIPT).toMatch(/attribute's table/);
+  });
+
+  it('inspect-form branch in main() returns before any write-capable mode is reachable', () => {
+    const inspectFormGuardIdx = SCRIPT.indexOf('if (FLAGS.inspectFormId !== null)');
+    expect(inspectFormGuardIdx).toBeGreaterThan(-1);
+    const cleanupGuardIdx = SCRIPT.indexOf(
+      'if (FLAGS.cleanupFormId !== null)',
+      inspectFormGuardIdx,
+    );
+    expect(cleanupGuardIdx).toBeGreaterThan(inspectFormGuardIdx);
+    const between = SCRIPT.slice(inspectFormGuardIdx, cleanupGuardIdx);
+    expect(between).toMatch(/return;/);
+  });
+});
+
+describe('Phase 122B — cleanup refuses to write when only indirect refs exist', () => {
+  it('runFormCleanup short-circuits with a Maker Portal hint when no direct cells but indirect refs found', () => {
+    const fnStart = SCRIPT.indexOf('async function runFormCleanup');
+    expect(fnStart).toBeGreaterThan(-1);
+    expect(SCRIPT).toMatch(/scanIndirectReferencesForCandidateTables/);
+    expect(SCRIPT).toMatch(/blockedByIndirect:\s*true/);
+    expect(SCRIPT).toMatch(/Required operator action — Maker Portal/);
+  });
+
+  it('cleanup refusal path runs BEFORE any patch / publish call inside runFormCleanup', () => {
+    const fnStart = SCRIPT.indexOf('async function runFormCleanup');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart);
+    const indirectScanIdx = body.indexOf('scanIndirectReferencesForCandidateTables(');
+    const patchCallIdx = body.indexOf('patchSystemFormXml(');
+    expect(indirectScanIdx).toBeGreaterThan(-1);
+    expect(patchCallIdx).toBeGreaterThan(-1);
+    expect(indirectScanIdx).toBeLessThan(patchCallIdx);
+  });
+
+  it('cleanup remains fail-closed: no bypass headers introduced by the indirect-refs branch', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
   });
 });
 
