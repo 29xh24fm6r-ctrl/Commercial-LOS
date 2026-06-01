@@ -614,8 +614,9 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
     // subgrid/reference remains".
     expect(SCRIPT).toMatch(/Re-inspecting form for residual/);
     expect(SCRIPT).toMatch(/findFormReferences\(/);
-    // Non-zero exit on residual refs.
-    expect(SCRIPT).toMatch(/process\.exit\(8\)/);
+    // Non-zero exit on residual refs is now routed through bail() so
+    // the libuv handle-closing assertion can't fire mid-fetch.
+    expect(SCRIPT).toMatch(/bail\([\s\S]*?residual[\s\S]*?,\s*8/);
   });
 
   it('subgrid-cleanup branch in main() returns before the commit branch is reachable', () => {
@@ -635,6 +636,120 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
     expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
     expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
     expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+});
+
+describe('Phase 122B — subgrid relationship-name validation is case-insensitive and underscore-tolerant', () => {
+  // Behavioral mirror of the script's normalize-then-substring check.
+  // Kept in sync with the script via the static-source pins below.
+  function relationshipReferencesPseudoColumn(relationshipName: string, pseudoColumn: string): boolean {
+    return relationshipName.toLowerCase().includes(pseudoColumn.toLowerCase());
+  }
+
+  it('passes for cr664_DocumentChecklist_cr664_Deal_cr664_Deal (mixed-case D, underscore-sandwiched)', () => {
+    expect(
+      relationshipReferencesPseudoColumn(
+        'cr664_DocumentChecklist_cr664_Deal_cr664_Deal',
+        'cr664_deal',
+      ),
+    ).toBe(true);
+  });
+
+  it('passes for lowercase cr664_deal in a relationship name', () => {
+    expect(
+      relationshipReferencesPseudoColumn(
+        'cr664_dealtimelineevent_cr664_deal',
+        'cr664_deal',
+      ),
+    ).toBe(true);
+  });
+
+  it('fails for a relationship name with no deal reference at all', () => {
+    expect(
+      relationshipReferencesPseudoColumn(
+        'cr664_DocumentChecklist_cr664_Owner_cr664_Owner',
+        'cr664_deal',
+      ),
+    ).toBe(false);
+  });
+
+  it('fails for empty / missing relationship names', () => {
+    expect(relationshipReferencesPseudoColumn('', 'cr664_deal')).toBe(false);
+  });
+
+  it('script implements the same normalize-then-substring logic for the subgrid relationship gate', () => {
+    // Pin the exact substring the script uses inside
+    // validateSubgridCellForCleanup. If a maintainer reverts to the
+    // brittle `\\b…\\b` regex, this pin fails immediately.
+    expect(SCRIPT).toMatch(
+      /relationshipName\.toLowerCase\(\)\.includes\(PSEUDO_DEAL_COLUMN\)/,
+    );
+    // Negative pin: the old word-boundary regex must not reappear
+    // anywhere near the relationship validation.
+    const fnStart = SCRIPT.indexOf('function validateSubgridCellForCleanup');
+    expect(fnStart).toBeGreaterThan(-1);
+    const nextDecl = SCRIPT.indexOf('async function runSubgridCleanup', fnStart);
+    expect(nextDecl).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, nextDecl);
+    expect(body).not.toMatch(/\\\\b\$\{escapeRegExp\(PSEUDO_DEAL_COLUMN\)\}\\\\b/);
+  });
+
+  it('findFormReferences also normalizes the relationship-name check', () => {
+    // Same fix in the broader inspection function — operator-facing
+    // inspect-form output must surface mixed-case deal tokens.
+    const fnStart = SCRIPT.indexOf('function findFormReferences');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart, fnStart + 6000);
+    // The fixed implementation lowercases both sides and uses
+    // `String#includes` rather than `\\b…\\b` regex.
+    expect(body).toMatch(/nameLower\.includes\(tableLower\)/);
+    expect(body).toMatch(/nameLower\.includes\(attrLower\)/);
+  });
+});
+
+describe('Phase 122B — bail uses BailError + process.exitCode (no abrupt process.exit on Windows libuv)', () => {
+  it('declares BailError class', () => {
+    expect(SCRIPT).toMatch(/class\s+BailError\s+extends\s+Error/);
+    expect(SCRIPT).toMatch(/this\.isBail\s*=\s*true/);
+    expect(SCRIPT).toMatch(/this\.exitCode\s*=\s*exitCode/);
+  });
+
+  it('bail() throws a BailError instead of calling process.exit directly', () => {
+    // Locate the bail function body and assert it throws rather than
+    // immediately terminating the process — process.exit() while a
+    // fetch keep-alive socket is still closing triggers a libuv
+    // assertion on Windows.
+    const bailFnIdx = SCRIPT.indexOf('function bail(');
+    expect(bailFnIdx).toBeGreaterThan(-1);
+    const slice = SCRIPT.slice(bailFnIdx, bailFnIdx + 400);
+    expect(slice).toMatch(/throw new BailError/);
+    expect(slice).not.toMatch(/process\.exit\(/);
+  });
+
+  it('main().catch handles BailError and sets process.exitCode (no abrupt exit)', () => {
+    const catchIdx = SCRIPT.indexOf('main().catch(');
+    expect(catchIdx).toBeGreaterThan(-1);
+    const slice = SCRIPT.slice(catchIdx);
+    expect(slice).toMatch(/err\.isBail/);
+    expect(slice).toMatch(/process\.exitCode\s*=/);
+    // Note: process.exit(99) was replaced by process.exitCode = 99
+    // for the unexpected-error fallback path — same reason as above.
+    expect(slice).toMatch(/process\.exitCode\s*=\s*99/);
+  });
+
+  it('residual-refs failure in runSubgridCleanup also routes through bail()', () => {
+    // The "residual subgrid still present" path used to call
+    // process.exit(8) directly; now it goes via bail(..., 8) so the
+    // event loop drains cleanly.
+    const fnIdx = SCRIPT.indexOf('async function runSubgridCleanup');
+    expect(fnIdx).toBeGreaterThan(-1);
+    const slice = SCRIPT.slice(fnIdx);
+    expect(slice).toMatch(/bail\([\s\S]*?residual[\s\S]*?,\s*8/);
+    // The old `process.exit(8)` inside the same function body must
+    // not reappear.
+    const nextDecl = slice.indexOf('\nasync function ', 1);
+    const fnBody = nextDecl === -1 ? slice : slice.slice(0, nextDecl);
+    expect(fnBody).not.toMatch(/process\.exit\(8\)/);
   });
 });
 

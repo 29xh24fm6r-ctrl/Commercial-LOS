@@ -1505,10 +1505,21 @@ function findFormReferences(formXml, table, attribute) {
   }
 
   // 5. Relationship names mentioning the table OR the attribute.
+  //    Use normalize-then-substring matching: relationship names
+  //    typically embed the entity / attribute logical name as part of
+  //    a longer underscore-joined token (e.g.
+  //    `cr664_DocumentChecklist_cr664_Deal_cr664_Deal`). The `\b`
+  //    word-boundary trick does NOT work here because JS regex
+  //    classifies `_` as a word character, so `\bcr664_deal\b` won't
+  //    match when the token sits between underscores. Lowercase once
+  //    and use `String#includes` instead.
   const relationshipRegex = /<RelationshipName>([^<]+)<\/RelationshipName>/gi;
+  const tableLower = String(table).toLowerCase();
+  const attrLower = String(attribute).toLowerCase();
   while ((m = relationshipRegex.exec(formXml)) !== null) {
     const name = m[1];
-    if (tableRefRegex.test(name) || new RegExp(`\\b${attrEsc}\\b`, 'i').test(name)) {
+    const nameLower = name.toLowerCase();
+    if (nameLower.includes(tableLower) || nameLower.includes(attrLower)) {
       findings.relationships.push({
         startIndex: m.index,
         endIndex: m.index + m[0].length,
@@ -1880,6 +1891,16 @@ function validateSubgridCellForCleanup(cellSnippet, controlId) {
   }
 
   // 4. <RelationshipName> must reference PSEUDO_DEAL_COLUMN.
+  //
+  // Implementation note: this used to be `\bcr664_deal\b` with the
+  // case-insensitive flag, but JS regex treats `_` as a word
+  // character — so `\bcr664_deal\b` does NOT match when the token is
+  // sandwiched between underscores in a relationship name like
+  // `cr664_DocumentChecklist_cr664_Deal_cr664_Deal`. Operator hit a
+  // false-negative on 2026-06-01. Switch to normalize-then-substring:
+  // lowercase the relationship name once and check for the lowercase
+  // pseudo-column. Same intent, no false negatives on mixed-case
+  // tokens between underscores.
   const relMatch = /<RelationshipName>([^<]+)<\/RelationshipName>/i.exec(cellSnippet);
   if (!relMatch) {
     return {
@@ -1888,8 +1909,7 @@ function validateSubgridCellForCleanup(cellSnippet, controlId) {
     };
   }
   const relationshipName = relMatch[1].trim();
-  const pseudoColRe = new RegExp(`\\b${escapeRegExp(PSEUDO_DEAL_COLUMN)}\\b`, 'i');
-  if (!pseudoColRe.test(relationshipName)) {
+  if (!relationshipName.toLowerCase().includes(PSEUDO_DEAL_COLUMN)) {
     return {
       ok: false,
       error:
@@ -1997,8 +2017,11 @@ async function runSubgridCleanup(formId, controlId, token, envUrl, doCommit) {
   );
   const refetch = await readSystemFormXml(formId, token, envUrl);
   if (!refetch.ok) {
-    console.error(`   ⚠ Could not re-fetch form: ${refetch.error}`);
-    process.exit(8);
+    bail(
+      `Could not re-fetch form after cleanup: ${refetch.error}. ` +
+        `PATCH already applied; operator should re-fetch manually.`,
+      8,
+    );
   }
   const residual = findFormReferences(
     refetch.form.formxml ?? '',
@@ -2037,7 +2060,10 @@ async function runSubgridCleanup(formId, controlId, token, envUrl, doCommit) {
   console.error('   The targeted subgrid was removed, but more references remain.');
   console.error('   Re-run --cleanup-subgrid for each remaining control id, or fix the');
   console.error('   residual references in Maker Portal, then re-inspect.');
-  process.exit(8);
+  bail(
+    `${residualIndirect} residual ${validation.targetEntity} reference(s) remain on form ${formId} after targeted cleanup.`,
+    8,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -2319,9 +2345,30 @@ async function main() {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function bail(msg) {
-  console.error(`✗ ${msg}`);
-  process.exit(1);
+/**
+ * Bail error type. Throwing this from anywhere inside main() lets the
+ * event loop drain naturally instead of triggering `process.exit()`
+ * mid-flight. On Windows we hit a libuv assertion
+ *
+ *   Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)
+ *
+ * when calling `process.exit(1)` while a `fetch` keep-alive socket
+ * was still closing. The clean fix is to throw a typed error, catch
+ * it at the main()-level handler, and set `process.exitCode` — the
+ * runtime then exits after the event loop drains, no abrupt
+ * termination.
+ */
+class BailError extends Error {
+  constructor(message, exitCode = 1) {
+    super(message);
+    this.name = 'BailError';
+    this.isBail = true;
+    this.exitCode = exitCode;
+  }
+}
+
+function bail(msg, exitCode = 1) {
+  throw new BailError(`✗ ${msg}`, exitCode);
 }
 
 function printHelp() {
@@ -2410,8 +2457,18 @@ Safety gates for --commit:
 // ---------------------------------------------------------------------------
 
 main().catch((err) => {
+  // BailError is the script's own typed failure marker — print the
+  // message and set process.exitCode so the runtime exits cleanly
+  // after the event loop drains. Avoid process.exit() here: with
+  // fetch keep-alive sockets still closing it can trip a libuv
+  // assertion (`!(handle->flags & UV_HANDLE_CLOSING)`) on Windows.
+  if (err && err.isBail) {
+    if (err.message) console.error(err.message);
+    process.exitCode = typeof err.exitCode === 'number' ? err.exitCode : 1;
+    return;
+  }
   console.error('Uncaught error:', err);
-  process.exit(99);
+  process.exitCode = 99;
 });
 
 // Silence import-not-used lint when execSync isn't used at runtime
