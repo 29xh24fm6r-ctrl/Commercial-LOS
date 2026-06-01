@@ -262,7 +262,7 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
     // Now part of the broader three-way mutex with --cleanup-form.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive/,
     );
   });
 
@@ -323,7 +323,7 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
 
   it('cleanup-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive\./,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive\./,
     );
   });
 
@@ -424,7 +424,7 @@ describe('Phase 122B — broad SystemForm inspection for indirect dependencies',
 
   it('--inspect-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive/,
     );
   });
 
@@ -538,7 +538,7 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
 
   it('5-way mutex includes --cleanup-subgrid', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive/,
     );
   });
 
@@ -913,6 +913,277 @@ describe('Phase 122B — residual relationship cleanup keeps the no-force-delete
     expect(SCRIPT).toMatch(
       /form\.formxml\.slice\(0,\s*match\.start\)\s*\+\s*form\.formxml\.slice\(match\.end\)/,
     );
+  });
+});
+
+describe('Phase 122B — SavedQuery (view) inspection + targeted cleanup', () => {
+  it('parses --inspect-view <GUID> --attribute and --cleanup-view <GUID> --attribute', () => {
+    expect(SCRIPT).toMatch(/'--inspect-view'/);
+    expect(SCRIPT).toMatch(/'--cleanup-view'/);
+    expect(SCRIPT).toMatch(/flags\.inspectViewId\s*=/);
+    expect(SCRIPT).toMatch(/flags\.cleanupViewId\s*=/);
+  });
+
+  it('--commit-view-cleanup gates the write path', () => {
+    expect(SCRIPT).toMatch(/'--commit-view-cleanup'/);
+    expect(SCRIPT).toMatch(/flags\.commitViewCleanup\s*=\s*true/);
+    expect(SCRIPT).toMatch(
+      /--commit-view-cleanup has no effect without --cleanup-view/,
+    );
+  });
+
+  it('--inspect-view and --cleanup-view both require --attribute', () => {
+    expect(SCRIPT).toMatch(/--inspect-view requires --attribute <table>\.<column>/);
+    expect(SCRIPT).toMatch(/--cleanup-view requires --attribute <table>\.<column>/);
+  });
+
+  it('--attribute is now also valid alongside --inspect-view / --cleanup-view', () => {
+    // Updated error message: --attribute can pair with any of the
+    // three attribute-scoped modes (inspect-form, inspect-view,
+    // cleanup-view), and the validator must mention all three.
+    expect(SCRIPT).toMatch(/--attribute is only valid alongside/);
+    expect(SCRIPT).toMatch(/--inspect-form/);
+    expect(SCRIPT).toMatch(/--inspect-view/);
+    expect(SCRIPT).toMatch(/--cleanup-view/);
+  });
+
+  it('7-way mutex includes --inspect-view and --cleanup-view', () => {
+    expect(SCRIPT).toMatch(
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive/,
+    );
+  });
+
+  it('declares readSavedQuery() — GET /api/data/v9.2/savedqueries(<id>) read-only', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+readSavedQuery/);
+    expect(SCRIPT).toMatch(/\/api\/data\/v9\.2\/savedqueries\(/);
+    expect(SCRIPT).toMatch(
+      /\$select=savedqueryid,name,returnedtypecode,fetchxml,layoutxml/,
+    );
+    const fnStart = SCRIPT.indexOf('async function readSavedQuery');
+    expect(fnStart).toBeGreaterThan(-1);
+    const nextDecl = SCRIPT.indexOf('function parseViewReferences', fnStart);
+    const body = SCRIPT.slice(fnStart, nextDecl);
+    expect(body).toMatch(/method:\s*'GET'/);
+    expect(body).not.toMatch(/method:\s*'PATCH'/);
+    expect(body).not.toMatch(/method:\s*'POST'/);
+    expect(body).not.toMatch(/method:\s*'DELETE'/);
+  });
+
+  it('declares parseViewReferences() with all six categories', () => {
+    expect(SCRIPT).toMatch(/function\s+parseViewReferences/);
+    // Six finding categories the operator depends on.
+    for (const key of [
+      'layoutCells',
+      'fetchTopLevelAttributes',
+      'fetchLinkAttributes',
+      'filterConditions',
+      'orderClauses',
+      'linkEntityFromTo',
+    ]) {
+      expect(SCRIPT).toMatch(new RegExp(`\\b${key}\\b`));
+    }
+  });
+
+  it('distinguishes top-level <attribute> from link-entity-nested <attribute>', () => {
+    // The parser pre-computes link-entity character ranges and tags
+    // each <attribute> hit accordingly.
+    const fnStart = SCRIPT.indexOf('function parseViewReferences');
+    const body = SCRIPT.slice(fnStart, fnStart + 6000);
+    expect(body).toMatch(/<link-entity\\b/);
+    expect(body).toMatch(/linkEntityRanges/);
+    expect(body).toMatch(/fetchLinkAttributes\.push/);
+    expect(body).toMatch(/fetchTopLevelAttributes\.push/);
+  });
+
+  it('detects filter, order, and link-entity from|to references', () => {
+    // The regexes are built via `new RegExp(\`<condition\\b…\`)` so the
+    // literal source bytes are `<condition\\b` (template literal: two
+    // backslashes + b). Match those literal bytes here.
+    expect(SCRIPT).toMatch(/<condition\\\\b/);
+    expect(SCRIPT).toMatch(/<order\\\\b/);
+    expect(SCRIPT).toMatch(/from\|to/);
+  });
+
+  it('declares classifyViewCleanupSafety() with no-references / safe / unsafe states', () => {
+    expect(SCRIPT).toMatch(/function\s+classifyViewCleanupSafety/);
+    const fnStart = SCRIPT.indexOf('function classifyViewCleanupSafety');
+    const body = SCRIPT.slice(fnStart, fnStart + 2000);
+    expect(body).toMatch(/'no-references'/);
+    expect(body).toMatch(/'safe'/);
+    expect(body).toMatch(/'unsafe'/);
+    // unsafe is triggered by any of filterConditions / orderClauses /
+    // fetchLinkAttributes / linkEntityFromTo.
+    expect(body).toMatch(/findings\.filterConditions\.length\s*>\s*0/);
+    expect(body).toMatch(/findings\.orderClauses\.length\s*>\s*0/);
+    expect(body).toMatch(/findings\.fetchLinkAttributes\.length\s*>\s*0/);
+    expect(body).toMatch(/findings\.linkEntityFromTo\.length\s*>\s*0/);
+  });
+
+  it('removeSafeViewReferences only touches layoutCells + fetchTopLevelAttributes', () => {
+    expect(SCRIPT).toMatch(/function\s+removeSafeViewReferences/);
+    const fnStart = SCRIPT.indexOf('function removeSafeViewReferences');
+    const nextDecl = SCRIPT.indexOf('async function patchSavedQuery', fnStart);
+    const body = SCRIPT.slice(fnStart, nextDecl);
+    // Splice bounds for both XMLs.
+    expect(body).toMatch(/newLayoutXml\.slice\(0,\s*c\.startIndex\)\s*\+\s*newLayoutXml\.slice\(c\.endIndex\)/);
+    expect(body).toMatch(/newFetchXml\.slice\(0,\s*a\.startIndex\)\s*\+\s*newFetchXml\.slice\(a\.endIndex\)/);
+    // Must NOT touch any of the unsafe categories.
+    expect(body).not.toMatch(/filterConditions/);
+    expect(body).not.toMatch(/orderClauses/);
+    expect(body).not.toMatch(/fetchLinkAttributes/);
+    expect(body).not.toMatch(/linkEntityFromTo/);
+  });
+
+  it('PATCH savedqueries + PublishXml — declared and bounded to one SavedQuery', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+patchSavedQuery/);
+    expect(SCRIPT).toMatch(/method:\s*'PATCH'/);
+    expect(SCRIPT).toMatch(/async\s+function\s+publishSavedQuery/);
+    // The PublishXml parameter envelope scopes to
+    // <savedqueries><savedquery>{${viewId}}</savedquery></savedqueries>
+    // — note the literal `{` before the template `${viewId}`.
+    expect(SCRIPT).toMatch(/<savedqueries><savedquery>\{\$\{/);
+  });
+
+  it('cleanup-view refuses to write when classification is unsafe', () => {
+    const fnStart = SCRIPT.indexOf('async function runViewCleanup');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart);
+    // Refusal branch must include classification === 'unsafe' check
+    // AND no PATCH/Publish call below it without classification
+    // becoming 'safe'.
+    expect(body).toMatch(/classification === 'unsafe'/);
+    expect(body).toMatch(/Refusing to auto-clean/);
+    expect(body).toMatch(/refusedAsUnsafe:\s*true/);
+    // Pin ordering: the unsafe-refusal early return appears BEFORE
+    // any PATCH call inside runViewCleanup.
+    const unsafeIdx = body.indexOf("classification === 'unsafe'");
+    const patchIdx = body.indexOf('patchSavedQuery(');
+    expect(unsafeIdx).toBeGreaterThan(-1);
+    expect(patchIdx).toBeGreaterThan(-1);
+    expect(unsafeIdx).toBeLessThan(patchIdx);
+  });
+
+  it('dry-run is the default — write path guarded by doCommit', () => {
+    const fnStart = SCRIPT.indexOf('async function runViewCleanup');
+    const body = SCRIPT.slice(fnStart);
+    expect(body).toMatch(/if\s*\(\s*!doCommit\s*\)/);
+    expect(body).toMatch(/Re-run with `--commit-view-cleanup`/);
+    const dryIdx = body.indexOf('Re-run with `--commit-view-cleanup`');
+    const patchIdx = body.indexOf('patchSavedQuery(');
+    expect(dryIdx).toBeGreaterThan(-1);
+    expect(patchIdx).toBeGreaterThan(-1);
+    expect(dryIdx).toBeLessThan(patchIdx);
+  });
+
+  it('re-runs RetrieveDependenciesForDelete after view PATCH+publish', () => {
+    const fnStart = SCRIPT.indexOf('async function runViewCleanup');
+    const body = SCRIPT.slice(fnStart);
+    expect(body).toMatch(/Re-running RetrieveDependenciesForDelete/);
+    // The re-probe must come AFTER patchSavedQuery + publishSavedQuery.
+    const patchIdx = body.indexOf('patchSavedQuery(');
+    const probeIdx = body.indexOf('retrieveDependenciesForDelete(');
+    expect(patchIdx).toBeGreaterThan(-1);
+    expect(probeIdx).toBeGreaterThan(patchIdx);
+  });
+
+  it('view modes wired into main() and return before subgrid-cleanup branch', () => {
+    const inspectViewGuardIdx = SCRIPT.indexOf('if (FLAGS.inspectViewId !== null)');
+    const cleanupViewGuardIdx = SCRIPT.indexOf(
+      'if (FLAGS.cleanupViewId !== null)',
+      inspectViewGuardIdx,
+    );
+    const subgridGuardIdx = SCRIPT.indexOf(
+      'if (FLAGS.cleanupSubgridFormId !== null)',
+      cleanupViewGuardIdx,
+    );
+    expect(inspectViewGuardIdx).toBeGreaterThan(-1);
+    expect(cleanupViewGuardIdx).toBeGreaterThan(inspectViewGuardIdx);
+    expect(subgridGuardIdx).toBeGreaterThan(cleanupViewGuardIdx);
+    // Both view branches return before the subgrid branch is reached.
+    const inspectViewBlock = SCRIPT.slice(inspectViewGuardIdx, cleanupViewGuardIdx);
+    const cleanupViewBlock = SCRIPT.slice(cleanupViewGuardIdx, subgridGuardIdx);
+    expect(inspectViewBlock).toMatch(/return;/);
+    expect(cleanupViewBlock).toMatch(/return;/);
+  });
+
+  it('no force-delete / bypass path introduced by the view-cleanup mode', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+});
+
+describe('Phase 122B — view cleanup safety classifier behavior', () => {
+  // Behavioral mirror of classifyViewCleanupSafety, kept in sync with
+  // the script via the static-source pins above.
+  function classify(findings: {
+    layoutCells: unknown[];
+    fetchTopLevelAttributes: unknown[];
+    fetchLinkAttributes: unknown[];
+    filterConditions: unknown[];
+    orderClauses: unknown[];
+    linkEntityFromTo: unknown[];
+  }): 'no-references' | 'safe' | 'unsafe' {
+    const unsafe =
+      findings.fetchLinkAttributes.length > 0 ||
+      findings.filterConditions.length > 0 ||
+      findings.orderClauses.length > 0 ||
+      findings.linkEntityFromTo.length > 0;
+    const safeRefs =
+      findings.layoutCells.length + findings.fetchTopLevelAttributes.length;
+    if (unsafe) return 'unsafe';
+    if (safeRefs === 0) return 'no-references';
+    return 'safe';
+  }
+  const empty = {
+    layoutCells: [],
+    fetchTopLevelAttributes: [],
+    fetchLinkAttributes: [],
+    filterConditions: [],
+    orderClauses: [],
+    linkEntityFromTo: [],
+  };
+
+  it('classifies an empty findings set as no-references', () => {
+    expect(classify(empty)).toBe('no-references');
+  });
+
+  it('classifies layout-cell-only as safe', () => {
+    expect(classify({ ...empty, layoutCells: [{}] })).toBe('safe');
+  });
+
+  it('classifies top-level fetch attribute only as safe', () => {
+    expect(classify({ ...empty, fetchTopLevelAttributes: [{}] })).toBe('safe');
+  });
+
+  it('classifies layout + top-level fetch attribute combined as safe', () => {
+    expect(
+      classify({ ...empty, layoutCells: [{}], fetchTopLevelAttributes: [{}] }),
+    ).toBe('safe');
+  });
+
+  it('classifies a filter condition as unsafe', () => {
+    expect(classify({ ...empty, filterConditions: [{}] })).toBe('unsafe');
+  });
+
+  it('classifies a sort/order clause as unsafe', () => {
+    expect(classify({ ...empty, orderClauses: [{}] })).toBe('unsafe');
+  });
+
+  it('classifies a link-entity-nested attribute as unsafe', () => {
+    expect(classify({ ...empty, fetchLinkAttributes: [{}] })).toBe('unsafe');
+  });
+
+  it('classifies a link-entity from|to binding as unsafe', () => {
+    expect(classify({ ...empty, linkEntityFromTo: [{}] })).toBe('unsafe');
+  });
+
+  it('classifies layout-cell + filter (mixed safe and unsafe) as unsafe', () => {
+    // Any unsafe element wins — never auto-clean partially.
+    expect(
+      classify({ ...empty, layoutCells: [{}], filterConditions: [{}] }),
+    ).toBe('unsafe');
   });
 });
 

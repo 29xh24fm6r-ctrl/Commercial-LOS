@@ -162,6 +162,9 @@ function parseArgs(argv) {
     cleanupSubgridFormId: null,
     cleanupSubgridControlId: null,
     commitSubgridCleanup: false,
+    inspectViewId: null,
+    cleanupViewId: null,
+    commitViewCleanup: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -238,6 +241,30 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg === '--commit-subgrid-cleanup') {
       flags.commitSubgridCleanup = true;
+    } else if (arg === '--inspect-view') {
+      // Read-only inspection of one SavedQuery (Dataverse view). Pairs
+      // with --attribute. Never writes.
+      const next = args[i + 1];
+      if (!next) bailParseArgs('--inspect-view requires a SavedQuery GUID');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(next)) {
+        bailParseArgs(`--inspect-view expects a GUID; got "${next}"`);
+      }
+      flags.inspectViewId = next.toLowerCase();
+      flags.dryRun = false;
+      i += 1;
+    } else if (arg === '--cleanup-view') {
+      // Targeted SavedQuery cleanup. Read-only by default; writes
+      // require --commit-view-cleanup. Pairs with --attribute.
+      const next = args[i + 1];
+      if (!next) bailParseArgs('--cleanup-view requires a SavedQuery GUID');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(next)) {
+        bailParseArgs(`--cleanup-view expects a GUID; got "${next}"`);
+      }
+      flags.cleanupViewId = next.toLowerCase();
+      flags.dryRun = false;
+      i += 1;
+    } else if (arg === '--commit-view-cleanup') {
+      flags.commitViewCleanup = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -248,20 +275,39 @@ function parseArgs(argv) {
     flags.cleanupFormId !== null,
     flags.inspectFormId !== null,
     flags.cleanupSubgridFormId !== null,
+    flags.inspectViewId !== null,
+    flags.cleanupViewId !== null,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
     bailParseArgs('--commit-form-cleanup has no effect without --cleanup-form <id>.');
   }
+  // --attribute is a shared "<table>.<column>" qualifier reused by
+  // --inspect-form, --inspect-view, and --cleanup-view. The field
+  // name `inspectFormAttribute` predates the broader reuse — kept
+  // for back-compat with existing static-source pins.
   if (flags.inspectFormId !== null && flags.inspectFormAttribute === null) {
     bailParseArgs('--inspect-form requires --attribute <table>.<column>');
   }
-  if (flags.inspectFormAttribute !== null && flags.inspectFormId === null) {
-    bailParseArgs('--attribute is only valid alongside --inspect-form <id>');
+  if (flags.inspectViewId !== null && flags.inspectFormAttribute === null) {
+    bailParseArgs('--inspect-view requires --attribute <table>.<column>');
+  }
+  if (flags.cleanupViewId !== null && flags.inspectFormAttribute === null) {
+    bailParseArgs('--cleanup-view requires --attribute <table>.<column>');
+  }
+  if (
+    flags.inspectFormAttribute !== null &&
+    flags.inspectFormId === null &&
+    flags.inspectViewId === null &&
+    flags.cleanupViewId === null
+  ) {
+    bailParseArgs(
+      '--attribute is only valid alongside --inspect-form, --inspect-view, or --cleanup-view',
+    );
   }
   if (flags.cleanupSubgridFormId !== null && flags.cleanupSubgridControlId === null) {
     bailParseArgs('--cleanup-subgrid requires --control-id <id>');
@@ -272,6 +318,9 @@ function parseArgs(argv) {
   if (flags.commitSubgridCleanup && flags.cleanupSubgridFormId === null) {
     bailParseArgs('--commit-subgrid-cleanup has no effect without --cleanup-subgrid <id>.');
   }
+  if (flags.commitViewCleanup && flags.cleanupViewId === null) {
+    bailParseArgs('--commit-view-cleanup has no effect without --cleanup-view <id>.');
+  }
   return flags;
 }
 
@@ -279,9 +328,12 @@ function bailParseArgs(msg) {
   console.error(msg);
   console.error(
     'Usage: node scripts/phase122-lookup-repair.mjs ' +
-      '[--dry-run | --commit | --inspect-dependencies | --cleanup-form <id> [--commit-form-cleanup] | ' +
+      '[--dry-run | --commit | --inspect-dependencies | ' +
+      '--cleanup-form <id> [--commit-form-cleanup] | ' +
       '--inspect-form <id> --attribute <table>.<column> | ' +
-      '--cleanup-subgrid <id> --control-id <id> [--commit-subgrid-cleanup]] ' +
+      '--cleanup-subgrid <id> --control-id <id> [--commit-subgrid-cleanup] | ' +
+      '--inspect-view <id> --attribute <table>.<column> | ' +
+      '--cleanup-view <id> --attribute <table>.<column> [--commit-view-cleanup]] ' +
       '[--help]',
   );
   process.exit(2);
@@ -312,7 +364,13 @@ const MODE = FLAGS.commit
           ? FLAGS.commitSubgridCleanup
             ? 'COMMIT-SUBGRID-CLEANUP'
             : 'CLEANUP-SUBGRID (dry-run)'
-          : 'DRY-RUN';
+          : FLAGS.inspectViewId !== null
+            ? 'INSPECT-VIEW'
+            : FLAGS.cleanupViewId !== null
+              ? FLAGS.commitViewCleanup
+                ? 'COMMIT-VIEW-CLEANUP'
+                : 'CLEANUP-VIEW (dry-run)'
+              : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -323,7 +381,12 @@ console.log(`Required prefix:          ${CR664_PUBLISHER_PREFIX}`);
 console.log(`Forbidden prefix:         ${FORBIDDEN_PUBLISHER_PREFIX}`);
 console.log('');
 
-if (FLAGS.commit || FLAGS.commitFormCleanup || FLAGS.commitSubgridCleanup) {
+if (
+  FLAGS.commit ||
+  FLAGS.commitFormCleanup ||
+  FLAGS.commitSubgridCleanup ||
+  FLAGS.commitViewCleanup
+) {
   console.log('⚠  WRITE MODE — script may perform live Dataverse writes if every');
   console.log('   safety gate passes. Press Ctrl+C now to abort.');
   console.log('');
@@ -2258,6 +2321,501 @@ async function runSubgridCleanup(formId, controlId, token, envUrl, doCommit) {
 }
 
 // ---------------------------------------------------------------------------
+// SavedQuery (view) inspection + targeted cleanup.
+//
+// A SavedQuery is a Dataverse view. It carries two XML payloads:
+//   - `fetchxml`  — the FetchXML query (attributes, filters, sorts,
+//                   link-entity joins).
+//   - `layoutxml` — the grid column layout (which attributes appear in
+//                   the rendered list view, with widths + labels).
+//
+// Dependency-component type 26 = SavedQuery. When the dependency
+// probe reports a SavedQuery blocker, the operator can:
+//   1. Read the view and see exactly which references to the
+//      attribute exist, classified by kind (layout cell, fetch
+//      attribute, filter condition, sort/order, link-entity binding).
+//   2. Safely auto-clean ONLY when the references are limited to
+//      displayed layout cells and/or plain fetch attributes on the
+//      view's primary entity. Anything else (filter, sort, link-
+//      entity) carries hidden semantic meaning and must be removed by
+//      the operator in Maker Portal.
+// ---------------------------------------------------------------------------
+
+const COMPONENT_TYPE_SAVED_QUERY = 26;
+
+async function readSavedQuery(viewId, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/savedqueries(${viewId})` +
+    `?$select=savedqueryid,name,returnedtypecode,fetchxml,layoutxml,querytype`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `GET savedqueries(${viewId}) → ${res.status}: ${text}` };
+    }
+    const view = await res.json();
+    return { ok: true, view };
+  } catch (err) {
+    return { ok: false, error: `savedqueries network error: ${err.message}` };
+  }
+}
+
+/**
+ * Walk a view's fetchxml + layoutxml and group every reference to the
+ * supplied attribute into seven categories. Returns offsets relative
+ * to the XML payload that contains them, so the cleanup path can
+ * splice safely.
+ */
+function parseViewReferences(fetchxml, layoutxml, attribute) {
+  const empty = {
+    layoutCells: [],
+    fetchTopLevelAttributes: [],
+    fetchLinkAttributes: [],
+    filterConditions: [],
+    orderClauses: [],
+    linkEntityFromTo: [],
+  };
+  if (typeof attribute !== 'string' || attribute.length === 0) return empty;
+  const attrEsc = escapeRegExp(attribute);
+  const findings = {
+    layoutCells: [],
+    fetchTopLevelAttributes: [],
+    fetchLinkAttributes: [],
+    filterConditions: [],
+    orderClauses: [],
+    linkEntityFromTo: [],
+  };
+
+  // --- layoutxml: <cell name="<attr>" .../>  or  <cell …>…</cell>
+  if (typeof layoutxml === 'string' && layoutxml.length > 0) {
+    const cellSelfClose = new RegExp(
+      `<cell\\b[^>]*\\bname="${attrEsc}"[^>]*\\/>`,
+      'gi',
+    );
+    const cellWithBody = new RegExp(
+      `<cell\\b[^>]*\\bname="${attrEsc}"[^>]*>[\\s\\S]*?<\\/cell>`,
+      'gi',
+    );
+    for (const re of [cellSelfClose, cellWithBody]) {
+      let m;
+      while ((m = re.exec(layoutxml)) !== null) {
+        findings.layoutCells.push({
+          startIndex: m.index,
+          endIndex: m.index + m[0].length,
+          snippet: m[0],
+        });
+      }
+    }
+  }
+
+  // --- fetchxml: attributes — distinguish top-level (on the primary
+  //               entity) from link-entity-nested attributes.
+  if (typeof fetchxml === 'string' && fetchxml.length > 0) {
+    const linkEntityRanges = [];
+    const linkRegex = /<link-entity\b[\s\S]*?<\/link-entity>/gi;
+    let lm;
+    while ((lm = linkRegex.exec(fetchxml)) !== null) {
+      linkEntityRanges.push([lm.index, lm.index + lm[0].length]);
+    }
+    const attrRegex = new RegExp(
+      `<attribute\\b[^>]*\\bname="${attrEsc}"[^>]*\\/?>`,
+      'gi',
+    );
+    let am;
+    while ((am = attrRegex.exec(fetchxml)) !== null) {
+      const inLink = linkEntityRanges.some(
+        ([s, e]) => am.index >= s && am.index < e,
+      );
+      const entry = {
+        startIndex: am.index,
+        endIndex: am.index + am[0].length,
+        snippet: am[0],
+      };
+      if (inLink) findings.fetchLinkAttributes.push(entry);
+      else findings.fetchTopLevelAttributes.push(entry);
+    }
+
+    // --- filter conditions: <condition attribute="<attr>" .../>
+    const condRegex = new RegExp(
+      `<condition\\b[^>]*\\battribute="${attrEsc}"[^>]*\\/?>`,
+      'gi',
+    );
+    let cm;
+    while ((cm = condRegex.exec(fetchxml)) !== null) {
+      findings.filterConditions.push({
+        startIndex: cm.index,
+        endIndex: cm.index + cm[0].length,
+        snippet: cm[0],
+      });
+    }
+
+    // --- order: <order attribute="<attr>" .../>
+    const orderRegex = new RegExp(
+      `<order\\b[^>]*\\battribute="${attrEsc}"[^>]*\\/?>`,
+      'gi',
+    );
+    let om;
+    while ((om = orderRegex.exec(fetchxml)) !== null) {
+      findings.orderClauses.push({
+        startIndex: om.index,
+        endIndex: om.index + om[0].length,
+        snippet: om[0],
+      });
+    }
+
+    // --- link-entity from/to: <link-entity ... from|to="<attr>" ...>
+    const linkAttrRegex = new RegExp(
+      `<link-entity\\b[^>]*\\b(?:from|to)="${attrEsc}"[^>]*>`,
+      'gi',
+    );
+    let lam;
+    while ((lam = linkAttrRegex.exec(fetchxml)) !== null) {
+      findings.linkEntityFromTo.push({
+        startIndex: lam.index,
+        endIndex: lam.index + lam[0].length,
+        snippet: lam[0],
+      });
+    }
+  }
+
+  return findings;
+}
+
+/**
+ * Classify a parseViewReferences result into:
+ *   'no-references' — nothing to remove.
+ *   'safe'          — only layout cells and/or top-level fetch
+ *                     attributes are present; the script can splice
+ *                     them out automatically.
+ *   'unsafe'        — at least one filter condition, sort/order,
+ *                     link-entity binding, or link-entity-nested
+ *                     attribute is present; the script refuses and
+ *                     prints manual remediation.
+ */
+function classifyViewCleanupSafety(findings) {
+  const unsafe =
+    findings.fetchLinkAttributes.length > 0 ||
+    findings.filterConditions.length > 0 ||
+    findings.orderClauses.length > 0 ||
+    findings.linkEntityFromTo.length > 0;
+  const safeRefs =
+    findings.layoutCells.length + findings.fetchTopLevelAttributes.length;
+  if (unsafe) return 'unsafe';
+  if (safeRefs === 0) return 'no-references';
+  return 'safe';
+}
+
+function removeSafeViewReferences(fetchxml, layoutxml, findings) {
+  let newLayoutXml = layoutxml ?? '';
+  // Splice layout cells in reverse offset order.
+  const cells = [...findings.layoutCells].sort((a, b) => b.startIndex - a.startIndex);
+  for (const c of cells) {
+    newLayoutXml = newLayoutXml.slice(0, c.startIndex) + newLayoutXml.slice(c.endIndex);
+  }
+  let newFetchXml = fetchxml ?? '';
+  const attrs = [...findings.fetchTopLevelAttributes].sort(
+    (a, b) => b.startIndex - a.startIndex,
+  );
+  for (const a of attrs) {
+    newFetchXml = newFetchXml.slice(0, a.startIndex) + newFetchXml.slice(a.endIndex);
+  }
+  return { newFetchXml, newLayoutXml };
+}
+
+async function patchSavedQuery(viewId, fetchxml, layoutxml, token, envUrl) {
+  const url = `${envUrl}/api/data/v9.2/savedqueries(${viewId})`;
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fetchxml, layoutxml }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `PATCH savedqueries(${viewId}) → ${res.status}: ${text}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PATCH savedqueries network error: ${err.message}` };
+  }
+}
+
+async function publishSavedQuery(viewId, entityName, token, envUrl) {
+  const url = `${envUrl}/api/data/v9.2/PublishXml`;
+  const entityXml = entityName
+    ? `<entities><entity>${entityName}</entity></entities>`
+    : '';
+  const parameterXml =
+    `<importexportxml>` +
+    entityXml +
+    `<savedqueries><savedquery>{${viewId}}</savedquery></savedqueries>` +
+    `</importexportxml>`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ParameterXml: parameterXml }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `PublishXml(view) → ${res.status}: ${text}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PublishXml(view) network error: ${err.message}` };
+  }
+}
+
+async function runViewInspect(viewId, qualifiedAttribute, token, envUrl) {
+  console.log('');
+  console.log('Phase V — SavedQuery (view) inspection (read-only)');
+  console.log(`   View id:   ${viewId}`);
+  console.log(`   Attribute: ${qualifiedAttribute}`);
+  console.log('');
+
+  const [table, attribute] = qualifiedAttribute.split('.');
+  if (!table || !attribute) {
+    bail(`--attribute must be "<table>.<column>"; got "${qualifiedAttribute}"`);
+  }
+
+  const viewResult = await readSavedQuery(viewId, token, envUrl);
+  if (!viewResult.ok) bail(`SavedQuery read failed: ${viewResult.error}`);
+  const view = viewResult.view;
+  console.log(`   View name:           ${view.name ?? '(unknown)'}`);
+  console.log(`   returnedtypecode:    ${view.returnedtypecode ?? '(unknown)'}`);
+  console.log(`   querytype:           ${view.querytype ?? '(unknown)'}`);
+  console.log(`   fetchxml length:     ${view.fetchxml?.length ?? 0} chars`);
+  console.log(`   layoutxml length:    ${view.layoutxml?.length ?? 0} chars`);
+
+  if (
+    view.returnedtypecode &&
+    typeof view.returnedtypecode === 'string' &&
+    view.returnedtypecode.toLowerCase() !== table.toLowerCase()
+  ) {
+    console.log('');
+    console.log(
+      `   ⚠ View's returnedtypecode (${view.returnedtypecode}) DIFFERS from the`,
+    );
+    console.log(
+      `     attribute's table (${table}). The attribute can only appear here`,
+    );
+    console.log(
+      '     via a link-entity binding — refuse-classification will fire.',
+    );
+  }
+
+  const findings = parseViewReferences(view.fetchxml, view.layoutxml, attribute);
+  console.log('');
+  console.log(`   References to ${attribute}:`);
+  printFindingsSection(
+    `Displayed <cell name="${attribute}" …> in layoutxml`,
+    findings.layoutCells,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `Top-level <attribute name="${attribute}" …> in fetchxml (primary entity)`,
+    findings.fetchTopLevelAttributes,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `<attribute name="${attribute}" …> inside a <link-entity>`,
+    findings.fetchLinkAttributes,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `<condition attribute="${attribute}" …> (filter)`,
+    findings.filterConditions,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `<order attribute="${attribute}" …>`,
+    findings.orderClauses,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+  printFindingsSection(
+    `<link-entity … from|to="${attribute}" …>`,
+    findings.linkEntityFromTo,
+    (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
+  );
+
+  console.log('');
+  const classification = classifyViewCleanupSafety(findings);
+  if (classification === 'no-references') {
+    console.log(`   ✓ No references to ${attribute} found in this view's XML.`);
+  } else if (classification === 'safe') {
+    console.log('   → Safe to auto-clean (only displayed cells / top-level fetch attributes).');
+    console.log('     Run:');
+    console.log(`       node scripts/phase122-lookup-repair.mjs --cleanup-view ${viewId} \\`);
+    console.log(`         --attribute ${qualifiedAttribute}`);
+    console.log('     then add --commit-view-cleanup to write.');
+  } else {
+    console.log('   ⚠ NOT safely auto-removable — filter / sort / link-entity refs are present.');
+    console.log('     The script will refuse --cleanup-view. Remediation:');
+    console.log(`       Open Maker Portal → table ${view.returnedtypecode} → Views`);
+    console.log(`       → "${view.name}" → edit fetchxml/sort/filter as appropriate.`);
+  }
+  console.log('');
+  return { ok: true, findings, classification };
+}
+
+async function runViewCleanup(viewId, qualifiedAttribute, token, envUrl, doCommit) {
+  console.log('');
+  console.log('Phase V — Targeted SavedQuery (view) cleanup');
+  console.log(`   View id:    ${viewId}`);
+  console.log(`   Attribute:  ${qualifiedAttribute}`);
+  console.log(`   Mode:       ${doCommit ? 'COMMIT-VIEW-CLEANUP (will write)' : 'dry-run (no write)'}`);
+  console.log('');
+
+  const [table, attribute] = qualifiedAttribute.split('.');
+  if (!table || !attribute) {
+    bail(`--attribute must be "<table>.<column>"; got "${qualifiedAttribute}"`);
+  }
+
+  const viewResult = await readSavedQuery(viewId, token, envUrl);
+  if (!viewResult.ok) bail(`SavedQuery read failed: ${viewResult.error}`);
+  const view = viewResult.view;
+  console.log(`   View name:           ${view.name ?? '(unknown)'}`);
+  console.log(`   returnedtypecode:    ${view.returnedtypecode ?? '(unknown)'}`);
+
+  const findings = parseViewReferences(view.fetchxml, view.layoutxml, attribute);
+  const classification = classifyViewCleanupSafety(findings);
+
+  if (classification === 'no-references') {
+    console.log('');
+    console.log(`   ✓ No references to ${attribute} in this view. Nothing to remove.`);
+    return { ok: true, removed: 0 };
+  }
+
+  if (classification === 'unsafe') {
+    console.log('');
+    console.log(`   ⚠ Refusing to auto-clean — the view contains UNSAFE references:`);
+    if (findings.fetchLinkAttributes.length) {
+      console.log(`       <attribute> inside <link-entity>: ${findings.fetchLinkAttributes.length}`);
+    }
+    if (findings.filterConditions.length) {
+      console.log(`       <condition attribute="${attribute}">: ${findings.filterConditions.length}`);
+    }
+    if (findings.orderClauses.length) {
+      console.log(`       <order attribute="${attribute}">:     ${findings.orderClauses.length}`);
+    }
+    if (findings.linkEntityFromTo.length) {
+      console.log(`       <link-entity from|to="${attribute}">: ${findings.linkEntityFromTo.length}`);
+    }
+    console.log('');
+    console.log('   Required operator action — Maker Portal:');
+    console.log(`     Table:  ${view.returnedtypecode}`);
+    console.log(`     View:   "${view.name}"`);
+    console.log('     Open the view editor and remove the filter / sort / join that');
+    console.log(`     references ${attribute}. Save + publish.`);
+    console.log('');
+    console.log('   The script will NOT modify view semantics it cannot prove safe.');
+    return { ok: true, removed: 0, refusedAsUnsafe: true };
+  }
+
+  // classification === 'safe'
+  console.log('');
+  console.log(`   Safely removable references found:`);
+  if (findings.layoutCells.length) {
+    console.log(`     - layoutxml cells: ${findings.layoutCells.length}`);
+    for (const [i, c] of findings.layoutCells.entries()) {
+      console.log(`         [${i + 1}] chars ${c.startIndex}-${c.endIndex}: ${compactSnippet(c.snippet, 200)}`);
+    }
+  }
+  if (findings.fetchTopLevelAttributes.length) {
+    console.log(`     - fetchxml top-level <attribute>: ${findings.fetchTopLevelAttributes.length}`);
+    for (const [i, a] of findings.fetchTopLevelAttributes.entries()) {
+      console.log(`         [${i + 1}] chars ${a.startIndex}-${a.endIndex}: ${compactSnippet(a.snippet, 200)}`);
+    }
+  }
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no PATCH or PublishXml issued.');
+    console.log('   Re-run with `--commit-view-cleanup` to actually remove the reference(s).');
+    return { ok: true, removed: 0, planned: findings.layoutCells.length + findings.fetchTopLevelAttributes.length };
+  }
+
+  const { newFetchXml, newLayoutXml } = removeSafeViewReferences(
+    view.fetchxml,
+    view.layoutxml,
+    findings,
+  );
+  console.log('');
+  console.log(
+    `   ⚙ Splicing ${findings.layoutCells.length} layout cell(s) + ` +
+      `${findings.fetchTopLevelAttributes.length} top-level fetch attribute(s) ` +
+      `out of the SavedQuery body.`,
+  );
+
+  console.log(`   ⚙ PATCH savedqueries(${viewId}) …`);
+  const patchResult = await patchSavedQuery(viewId, newFetchXml, newLayoutXml, token, envUrl);
+  if (!patchResult.ok) bail(`PATCH savedqueries(${viewId}) failed: ${patchResult.error}`);
+  console.log('   ✓ PATCH succeeded.');
+
+  console.log(`   ⚙ Publishing view via PublishXml …`);
+  const pubResult = await publishSavedQuery(
+    viewId,
+    view.returnedtypecode,
+    token,
+    envUrl,
+  );
+  if (!pubResult.ok) bail(`PublishXml(view) failed: ${pubResult.error}`);
+  console.log('   ✓ Publish succeeded.');
+
+  // Re-run dependency probe for the attribute the view was blocking.
+  console.log('');
+  console.log(
+    `   ⚙ Re-running RetrieveDependenciesForDelete for ${table}.${attribute} …`,
+  );
+  const idResult = await getAttributeMetadataId(table, attribute, token, envUrl);
+  if (idResult.ok) {
+    const depResult = await retrieveDependenciesForDelete(
+      COMPONENT_TYPE_ATTRIBUTE,
+      idResult.metadataId,
+      token,
+      envUrl,
+    );
+    if (!depResult.ok) {
+      console.log(`     ⚠ Re-probe failed: ${depResult.error}`);
+    } else if (depResult.dependencies.length === 0) {
+      console.log(`     ✓ ${table}.${attribute} has ZERO dependent components.`);
+      console.log('       This view is no longer blocking the pseudo-column delete.');
+    } else {
+      console.log(
+        `     ⚠ ${table}.${attribute} still has ${depResult.dependencies.length} dependent component(s).`,
+      );
+      console.log('       Run `--inspect-dependencies` for the full breakdown.');
+    }
+  }
+  console.log('');
+  console.log('✓ View cleanup commit complete.');
+  return {
+    ok: true,
+    removed: findings.layoutCells.length + findings.fetchTopLevelAttributes.length,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -2295,6 +2853,35 @@ async function main() {
       FLAGS.commitFormCleanup,
     );
     if (!result.ok) process.exit(6);
+    return;
+  }
+
+  // === Read-only SavedQuery (view) inspection ===
+  if (FLAGS.inspectViewId !== null) {
+    const envUrl = await resolveEnvUrl();
+    const token = await acquireBearerToken(envUrl);
+    const result = await runViewInspect(
+      FLAGS.inspectViewId,
+      FLAGS.inspectFormAttribute,
+      token,
+      envUrl,
+    );
+    if (!result.ok) process.exit(11);
+    return;
+  }
+
+  // === Targeted SavedQuery (view) cleanup ===
+  if (FLAGS.cleanupViewId !== null) {
+    const envUrl = await resolveEnvUrl();
+    const token = await acquireBearerToken(envUrl);
+    const result = await runViewCleanup(
+      FLAGS.cleanupViewId,
+      FLAGS.inspectFormAttribute,
+      token,
+      envUrl,
+      FLAGS.commitViewCleanup,
+    );
+    if (!result.ok) process.exit(12);
     return;
   }
 
@@ -2628,6 +3215,24 @@ Modes:
       exits non-zero if any residual reference to that target table
       remains on the form. Useful for hidden subgrids that the form
       designer does not surface for removal.
+
+  --inspect-view <view-guid> --attribute <table>.<column>
+      Read-only inspection of one SavedQuery (Dataverse view). Walks
+      fetchxml + layoutxml and groups every reference to the supplied
+      attribute into per-category findings (displayed layoutxml cell,
+      top-level fetchxml <attribute>, link-entity-nested <attribute>,
+      <condition>, <order>, <link-entity from|to>). Classifies the
+      overall view state as no-references / safe / unsafe. Never
+      writes; never publishes.
+
+  --cleanup-view <view-guid> --attribute <table>.<column>
+      Targeted removal of safely-removable attribute references in a
+      SavedQuery. Read-only by default; pair with
+      --commit-view-cleanup to execute. Refuses (no write) when the
+      view contains filter / sort / link-entity references — those
+      carry semantic meaning the operator must judge in Maker Portal.
+      On commit, PATCHes the SavedQuery + PublishXml + re-runs the
+      dependency probe for <table>.<column>.
   --commit
       Run the plan against the live env. Refuses to run unless every
       safety gate (publisher prefix, rollback artifacts, dependency

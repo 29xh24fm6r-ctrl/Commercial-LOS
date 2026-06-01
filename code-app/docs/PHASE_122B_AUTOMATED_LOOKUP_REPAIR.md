@@ -53,6 +53,9 @@ environment). It has three modes:
 | Inspect form (read-only) | `node scripts/phase122-lookup-repair.mjs --inspect-form <form-guid> --attribute <table>.<column>` | Read-only broad inspection. Walks the SystemForm's persisted XML and groups every reference to the qualified attribute into per-category findings (direct cell / subgrid / quick-view / TargetEntityType / RelationshipName / NavBar / bare logical name). No write. See §5C. |
 | Cleanup subgrid (dry-run) | `node scripts/phase122-lookup-repair.mjs --cleanup-subgrid <form-guid> --control-id <id>` | Read-only. Validates that exactly one `<cell>` on the form contains a `<control id="<id>">`, that it is a subgrid (classid match), that its `<TargetEntityType>` is in `CANDIDATE_CHILD_TABLES`, and that its `<RelationshipName>` references `cr664_deal`. Prints the enclosing `<cell>` snippet. No write. See §5D. |
 | Cleanup subgrid (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-subgrid <form-guid> --control-id <id> --commit-subgrid-cleanup` | Same validation as above; on success splices ONLY the matched `<cell>` from the formxml, PATCHes the SystemForm, publishes, then re-fetches and exits non-zero if any residual reference to the validated target table remains on the form. See §5D. |
+| Inspect view (read-only) | `node scripts/phase122-lookup-repair.mjs --inspect-view <view-guid> --attribute <table>.<column>` | Read-only. Reads one SavedQuery, parses fetchxml + layoutxml, classifies every reference to the attribute into per-category findings, reports overall safety as `no-references` / `safe` / `unsafe`. No write. See §5E. |
+| Cleanup view (dry-run) | `node scripts/phase122-lookup-repair.mjs --cleanup-view <view-guid> --attribute <table>.<column>` | Read-only preview. Same parsing as inspect-view, plus a "what would be removed" report for safely-removable references (layout cells + top-level fetch attributes only). Refuses non-write-classification (filter/sort/link-entity → manual remediation). No write. See §5E. |
+| Cleanup view (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-view <view-guid> --attribute <table>.<column> --commit-view-cleanup` | Splices the safe references out of fetchxml + layoutxml, PATCHes the SavedQuery, publishes, then re-runs `RetrieveDependenciesForDelete` on `<table>.<column>`. Refuses any unsafe view. See §5E. |
 | Commit | `node scripts/phase122-lookup-repair.mjs --commit` | Refuses to run unless every safety gate passes (publisher prefix, rollback artifacts, dependency inspection clear, zero non-NULL pseudo-column rows, no stop conditions in plan). |
 
 ### 2.1 Hard-pinned constants
@@ -839,6 +842,145 @@ before each `pac export` and:
 The post-export `ensureRollbackArtifactsExist` verification still runs
 after the loop — skip-on-existing only avoids the pac command, not the
 mid-plan "both zips on disk" gate.
+
+---
+
+## 5E. SavedQuery (view) dependency cleanup (`--inspect-view` / `--cleanup-view`)
+
+After the form-side cleanup loop on `cr664_dealtask1.cr664_deal` cleared
+every SystemForm blocker, the dependency probe surfaced one last
+blocker on the operator's 2026-06-04 run:
+
+```text
+cr664_dealtask1.cr664_deal
+  ✗ 1 dependent component:
+    - SavedQuery (View)
+    - componentobjectid: a8897de2-8053-4f02-868a-a5f0b8d5629c
+```
+
+A Dataverse view (`SavedQuery`) holds two XML payloads — `fetchxml`
+(the FetchXML query) and `layoutxml` (the grid column layout). A
+reference to the attribute can appear in many ways, only some of which
+the script can safely auto-remove.
+
+### 5E.1 The read-only mode
+
+```powershell
+node scripts/phase122-lookup-repair.mjs `
+  --inspect-view a8897de2-8053-4f02-868a-a5f0b8d5629c `
+  --attribute cr664_dealtask1.cr664_deal
+```
+
+The script reads the SavedQuery and classifies every reference to the
+attribute into six categories:
+
+| Category | Where it lives | Auto-cleanable? |
+| --- | --- | --- |
+| Displayed `<cell name="…">` | `layoutxml` | ✓ safe |
+| Top-level `<attribute name="…">` | `fetchxml` (directly under `<entity>`) | ✓ safe |
+| `<attribute name="…">` inside `<link-entity>` | `fetchxml` (nested) | ✗ unsafe |
+| `<condition attribute="…">` | `fetchxml` filters | ✗ unsafe |
+| `<order attribute="…">` | `fetchxml` sorts | ✗ unsafe |
+| `<link-entity from\|to="…">` | `fetchxml` joins | ✗ unsafe |
+
+The overall classification is reported as one of:
+
+- **`no-references`** — nothing to do.
+- **`safe`** — only displayed cells and/or top-level fetch attributes;
+  the script can auto-remove them.
+- **`unsafe`** — at least one filter, sort, link-entity binding, or
+  link-entity-nested attribute is present. The script refuses to
+  auto-clean and points the operator at the Maker Portal view editor.
+
+When the view is `safe`, the inspector prints the exact `--cleanup-view`
+command to run.
+
+### 5E.2 Cleanup (dry-run)
+
+```powershell
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-view a8897de2-8053-4f02-868a-a5f0b8d5629c `
+  --attribute cr664_dealtask1.cr664_deal
+```
+
+Runs the same parse-and-classify logic, plus a "what would be removed"
+preview that lists each layout cell and each top-level fetch attribute
+the commit step would splice. No write.
+
+### 5E.3 Cleanup (commit)
+
+```powershell
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-view a8897de2-8053-4f02-868a-a5f0b8d5629c `
+  --attribute cr664_dealtask1.cr664_deal `
+  --commit-view-cleanup
+```
+
+Reads the view, classifies, then on `safe`:
+
+1. Splices every matched layout `<cell>` and every top-level
+   `<attribute>` out of the SavedQuery body (bounded to the matched
+   offsets — no broader rewrite, no filter / sort / link-entity
+   touched).
+2. `PATCH /api/data/v9.2/savedqueries(<id>)` with
+   `{ fetchxml: <new>, layoutxml: <new> }`.
+3. `POST /api/data/v9.2/PublishXml` with
+   `<savedqueries><savedquery>{<id>}</savedquery></savedqueries>`
+   (scoped to that exact view + its parent entity).
+4. Re-runs `RetrieveDependenciesForDelete` for `<table>.<column>`.
+   Reports the post-cleanup dependent-component count.
+
+If the view is `unsafe`, the script refuses to write and prints the
+exact Maker Portal action the operator must take instead.
+
+### 5E.4 What this mode does NOT do
+
+- Does **not** remove anything other than the attribute the operator
+  named — even in the `safe` path, only `<cell name="<attr>">` and
+  top-level `<attribute name="<attr>">` are removed.
+- Does **not** rewrite filter conditions / sort clauses / link-entity
+  joins. Those carry semantic meaning the operator must judge in
+  Maker Portal.
+- Does **not** delete the SavedQuery itself.
+- Does **not** use any bypass header (`BypassBusinessLogicExecution`,
+  `BypassCustomPluginExecution`, `SuppressDuplicateDetection`,
+  `?Force=true`) — pinned by negative static-source tests.
+- Does **not** touch the React app.
+
+### 5E.5 Typical full sequence
+
+```powershell
+# 1. Inspect dependencies. If a SavedQuery is named, jump to step 2.
+node scripts/phase122-lookup-repair.mjs --inspect-dependencies
+
+# 2. Inspect the view to classify the references.
+node scripts/phase122-lookup-repair.mjs `
+  --inspect-view a8897de2-… `
+  --attribute cr664_dealtask1.cr664_deal
+
+# 3a. If 'safe' — preview, then commit.
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-view a8897de2-… `
+  --attribute cr664_dealtask1.cr664_deal
+
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-view a8897de2-… `
+  --attribute cr664_dealtask1.cr664_deal `
+  --commit-view-cleanup
+
+# 3b. If 'unsafe' — open Maker Portal → table → Views → the named
+#     view → remove the filter/sort/link in the editor → save+publish.
+
+# 4. Confirm the dependency cleared.
+node scripts/phase122-lookup-repair.mjs --inspect-dependencies
+
+# 5. Finally, the main commit.
+node scripts/phase122-lookup-repair.mjs --commit
+```
+
+The main `--commit` continues to fail closed until the dependency
+probe reports zero blockers — the SavedQuery cleanup mode does not
+relax any other safety gate.
 
 ---
 
