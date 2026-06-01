@@ -303,10 +303,11 @@ function parseArgs(argv) {
     flags.inspectFormAttribute !== null &&
     flags.inspectFormId === null &&
     flags.inspectViewId === null &&
-    flags.cleanupViewId === null
+    flags.cleanupViewId === null &&
+    flags.cleanupFormId === null
   ) {
     bailParseArgs(
-      '--attribute is only valid alongside --inspect-form, --inspect-view, or --cleanup-view',
+      '--attribute is only valid alongside --inspect-form, --inspect-view, --cleanup-form, or --cleanup-view',
     );
   }
   if (flags.cleanupSubgridFormId !== null && flags.cleanupSubgridControlId === null) {
@@ -1310,6 +1311,49 @@ function removeCr664DealReferences(formXml) {
   return { removed: refs.length, newXml: xml };
 }
 
+/**
+ * Generic version of findCr664DealReferences that accepts any
+ * attribute logical name (e.g. `cr664_assignedto`). Used by
+ * --cleanup-form when the operator passes --attribute <table>.<col>;
+ * the legacy findCr664DealReferences continues to handle the default
+ * cr664_deal target so the original static-source pins remain stable.
+ *
+ * Same enclosing-cell semantics as the legacy helper: matches every
+ * <cell>…</cell> whose body has `datafieldname="<attribute>"` or
+ * `id="<attribute>"`. Refuses to match anything that doesn't have an
+ * attribute string supplied.
+ */
+function findDirectFieldCellReferences(formXml, attributeName) {
+  if (typeof formXml !== 'string' || formXml.length === 0) return [];
+  if (typeof attributeName !== 'string' || attributeName.length === 0) return [];
+  const refs = [];
+  const cellRegex = /<cell\b[^>]*>[\s\S]*?<\/cell>/gi;
+  const attrEsc = escapeRegExp(attributeName);
+  const datafieldRe = new RegExp(`datafieldname="${attrEsc}"`, 'i');
+  const idAttrRe = new RegExp(`\\bid="${attrEsc}"`, 'i');
+  let m;
+  while ((m = cellRegex.exec(formXml)) !== null) {
+    if (datafieldRe.test(m[0]) || idAttrRe.test(m[0])) {
+      refs.push({
+        startIndex: m.index,
+        endIndex: m.index + m[0].length,
+        snippet: m[0],
+      });
+    }
+  }
+  return refs;
+}
+
+function removeDirectFieldCellReferences(formXml, attributeName) {
+  const refs = findDirectFieldCellReferences(formXml, attributeName);
+  if (refs.length === 0) return { removed: 0, newXml: formXml };
+  let xml = formXml;
+  for (let i = refs.length - 1; i >= 0; i -= 1) {
+    xml = xml.slice(0, refs[i].startIndex) + xml.slice(refs[i].endIndex);
+  }
+  return { removed: refs.length, newXml: xml };
+}
+
 async function patchSystemFormXml(formId, formxml, token, envUrl) {
   const url = `${envUrl}/api/data/v9.2/systemforms(${formId})`;
   try {
@@ -1363,11 +1407,34 @@ async function publishSystemForm(formId, entityName, token, envUrl) {
   }
 }
 
-async function runFormCleanup(formId, token, envUrl, doCommit) {
+async function runFormCleanup(formId, qualifiedAttribute, token, envUrl, doCommit) {
+  // qualifiedAttribute is optional. When null/undefined the cleanup
+  // targets the default PSEUDO_DEAL_COLUMN (cr664_deal) — preserves
+  // the original --cleanup-form contract. When supplied as
+  // "<table>.<column>" the cleanup targets the operator-specified
+  // column instead, and the post-commit re-probe runs against that
+  // exact qualified attribute.
+  const usingCustomAttribute =
+    typeof qualifiedAttribute === 'string' && qualifiedAttribute.length > 0;
+  let targetTable = null;
+  let targetAttribute = PSEUDO_DEAL_COLUMN;
+  if (usingCustomAttribute) {
+    const parts = qualifiedAttribute.split('.');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      bail(`--attribute must be "<table>.<column>"; got "${qualifiedAttribute}"`);
+    }
+    [targetTable, targetAttribute] = parts;
+  }
+
   console.log('');
   console.log('Phase F — Targeted SystemForm cleanup');
-  console.log(`   Form id: ${formId}`);
-  console.log(`   Mode:    ${doCommit ? 'COMMIT-FORM-CLEANUP (will write)' : 'dry-run (no write)'}`);
+  console.log(`   Form id:    ${formId}`);
+  console.log(
+    `   Target:     ${usingCustomAttribute
+      ? `${targetTable}.${targetAttribute} (operator-supplied)`
+      : `${PSEUDO_DEAL_COLUMN} (default)`}`,
+  );
+  console.log(`   Mode:       ${doCommit ? 'COMMIT-FORM-CLEANUP (will write)' : 'dry-run (no write)'}`);
   console.log('');
 
   // 1. Read the form
@@ -1384,18 +1451,31 @@ async function runFormCleanup(formId, token, envUrl, doCommit) {
   }
   console.log(`   formxml length:      ${form.formxml.length} chars`);
 
-  // 2. Locate DIRECT references (i.e. `<cell>` whose inner control has
-  //    datafieldname="cr664_deal" — the only kind of reference this
-  //    cleanup path can remove safely).
-  const refs = findCr664DealReferences(form.formxml);
+  // 2. Locate DIRECT references (a <cell> whose inner control has
+  //    datafieldname or id equal to the target attribute). This
+  //    cleanup path removes ONLY direct field cells — subgrid /
+  //    NavBar / view dependencies must be handled via the dedicated
+  //    --cleanup-subgrid / --cleanup-view modes.
+  const refs = findDirectFieldCellReferences(form.formxml, targetAttribute);
   console.log('');
   if (refs.length === 0) {
-    // No direct field control. Before reporting "nothing to remove",
-    // scan more broadly for INDIRECT references — subgrids targeting a
-    // candidate child table, relationship names involving the
-    // pseudo-column, NavBar entries, etc. The dependency Dataverse
-    // recorded against this form may live in one of those, and the
-    // cleanup path is NOT equipped to remove them automatically.
+    if (usingCustomAttribute) {
+      // When --attribute is supplied, the cleanup is strictly scoped
+      // to that single attribute. We do NOT run the cr664_deal-
+      // specific indirect-refs diagnostic (which scans against
+      // CANDIDATE_CHILD_TABLES). Instead we tell the operator how to
+      // diagnose indirect refs for the SAME attribute.
+      console.log(`   ✓ No direct <cell> with datafieldname/id="${targetAttribute}" found on this form.`);
+      console.log('     The targeted cleanup mode handles ONLY direct field controls.');
+      console.log('     For indirect references (subgrid / NavBar / relationship), use:');
+      console.log(`       node scripts/phase122-lookup-repair.mjs --inspect-form ${formId} \\`);
+      console.log(`         --attribute ${qualifiedAttribute}`);
+      console.log('     For SavedQuery (view) dependencies, use:');
+      console.log(`       node scripts/phase122-lookup-repair.mjs --inspect-view <view-guid> \\`);
+      console.log(`         --attribute ${qualifiedAttribute}`);
+      return { ok: true, removed: 0 };
+    }
+    // Default cr664_deal path: keep the existing indirect-refs diagnostic.
     const indirect = scanIndirectReferencesForCandidateTables(form.formxml);
     if (indirect.total === 0) {
       console.log(`   ✓ No ${PSEUDO_DEAL_COLUMN} references (direct or indirect) found in this form's XML.`);
@@ -1429,7 +1509,7 @@ async function runFormCleanup(formId, token, envUrl, doCommit) {
     console.log('');
     return { ok: true, removed: 0, blockedByIndirect: true, indirect };
   }
-  console.log(`   Found ${refs.length} ${PSEUDO_DEAL_COLUMN} reference(s):`);
+  console.log(`   Found ${refs.length} direct ${targetAttribute} reference(s):`);
   for (const [i, ref] of refs.entries()) {
     const compact = ref.snippet.replace(/\s+/g, ' ');
     const preview = compact.length > 400 ? compact.slice(0, 400) + '…' : compact;
@@ -1444,8 +1524,12 @@ async function runFormCleanup(formId, token, envUrl, doCommit) {
     return { ok: true, removed: 0, planned: refs.length };
   }
 
-  // 3. Splice the cells out of the formxml.
-  const { removed, newXml } = removeCr664DealReferences(form.formxml);
+  // 3. Splice the cells out of the formxml (only the cells matching
+  //    targetAttribute — nothing else).
+  const { removed, newXml } = removeDirectFieldCellReferences(
+    form.formxml,
+    targetAttribute,
+  );
   console.log('');
   console.log(`   ⚙ Removing ${removed} reference(s) from formxml (-${form.formxml.length - newXml.length} chars).`);
 
@@ -1469,14 +1553,18 @@ async function runFormCleanup(formId, token, envUrl, doCommit) {
     console.log('   ⚠ Form has no objecttypecode; skipping PublishXml. Operator should publish manually if needed.');
   }
 
-  // 6. Re-running RetrieveDependenciesForDelete to confirm the blocker
-  //    on this form's entity.PSEUDO_DEAL_COLUMN is gone.
+  // 6. Re-running RetrieveDependenciesForDelete on the SUPPLIED
+  //    table.column when --attribute was provided, otherwise on the
+  //    form's parent entity + the default pseudo-column. This is the
+  //    only way to confirm the form was the actual blocker.
+  const probeTable = targetTable ?? form.objecttypecode;
+  const probeAttribute = targetAttribute;
   console.log('');
-  console.log(`   ⚙ Re-running RetrieveDependenciesForDelete for ${form.objecttypecode ?? '(unknown)'}.${PSEUDO_DEAL_COLUMN} …`);
-  if (form.objecttypecode) {
+  console.log(`   ⚙ Re-running RetrieveDependenciesForDelete for ${probeTable ?? '(unknown)'}.${probeAttribute} …`);
+  if (probeTable) {
     const idResult = await getAttributeMetadataId(
-      form.objecttypecode,
-      PSEUDO_DEAL_COLUMN,
+      probeTable,
+      probeAttribute,
       token,
       envUrl,
     );
@@ -1492,11 +1580,11 @@ async function runFormCleanup(formId, token, envUrl, doCommit) {
       if (!depResult.ok) {
         console.log(`     ⚠ Re-probe failed: ${depResult.error}`);
       } else if (depResult.dependencies.length === 0) {
-        console.log(`     ✓ ${form.objecttypecode}.${PSEUDO_DEAL_COLUMN} has ZERO dependent components.`);
+        console.log(`     ✓ ${probeTable}.${probeAttribute} has ZERO dependent components.`);
         console.log('       This form is no longer blocking the pseudo-column delete.');
       } else {
         console.log(
-          `     ⚠ ${form.objecttypecode}.${PSEUDO_DEAL_COLUMN} still has ${depResult.dependencies.length} dependent component(s):`,
+          `     ⚠ ${probeTable}.${probeAttribute} still has ${depResult.dependencies.length} dependent component(s):`,
         );
         for (const dep of depResult.dependencies) {
           const typeName = COMPONENT_TYPE_NAMES[dep.dependentcomponenttype] ?? `Type#${dep.dependentcomponenttype}`;
@@ -2848,6 +2936,7 @@ async function main() {
     const token = await acquireBearerToken(envUrl);
     const result = await runFormCleanup(
       FLAGS.cleanupFormId,
+      FLAGS.inspectFormAttribute, // optional — null defaults to cr664_deal
       token,
       envUrl,
       FLAGS.commitFormCleanup,
@@ -3179,19 +3268,31 @@ Modes:
       and print every dependent component. Short-circuits at the
       first column with dependencies. Read-only (GET only). Acquires
       a bearer token via the same priority order as --commit.
-  --cleanup-form <form-guid>
-      Targets one SystemForm by GUID. Read-only by default: prints
-      every <cell> in the form's persisted XML whose control
-      references the cr664_deal pseudo-column. Pair with
-      --commit-form-cleanup to splice those cells out, PATCH the
-      form, publish it via PublishXml, and re-probe the dependency
-      to confirm the blocker is cleared. Independent of the audit /
-      plan / commit flow — never deletes the pseudo-column itself.
+  --cleanup-form <form-guid> [--attribute <table>.<column>]
+      Targets one SystemForm by GUID. Without --attribute the cleanup
+      targets the default cr664_deal pseudo-column (back-compat).
+      With --attribute, the cleanup targets the supplied column
+      logical name instead — useful for clearing form dependencies on
+      sibling attributes (e.g. cr664_assignedto) discovered after the
+      cr664_deal cleanup loop closes.
 
-      If no direct field control is found but the form has INDIRECT
-      references (subgrid, quick-view, relationship name, NavBar) to
-      a candidate child table, the script REFUSES to write and points
-      the operator at --inspect-form for a full breakdown.
+      Read-only by default: prints every <cell> whose control
+      references the target attribute. Pair with --commit-form-cleanup
+      to splice those cells out, PATCH the form, publish via
+      PublishXml, and re-probe the dependency to confirm the blocker
+      cleared. Never deletes the pseudo-column itself.
+
+      The post-commit re-probe runs against:
+        - the supplied table.column when --attribute was passed; or
+        - the form's parent entity + cr664_deal in the default case.
+
+      Without --attribute, when no direct field control is found but
+      the form has INDIRECT references (subgrid, quick-view,
+      relationship name, NavBar) to a candidate child table, the
+      script REFUSES to write and points the operator at
+      --inspect-form for a full breakdown. With --attribute, the
+      cleanup mode is strictly direct-cell only — no indirect-refs
+      diagnostic; use --inspect-form for that.
 
   --inspect-form <form-guid> --attribute <table>.<column>
       Read-only broad inspection of one SystemForm. Walks the form's

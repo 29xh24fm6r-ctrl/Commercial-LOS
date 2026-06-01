@@ -1187,6 +1187,163 @@ describe('Phase 122B — view cleanup safety classifier behavior', () => {
   });
 });
 
+describe('Phase 122B — --cleanup-form accepts optional --attribute <table>.<column>', () => {
+  // Behavioral mirror of findDirectFieldCellReferences. Lower-cased
+  // pattern matches mirror the script's case-insensitive regex.
+  function findDirectRefs(
+    formXml: string,
+    attributeName: string,
+  ): { startIndex: number; endIndex: number; snippet: string }[] {
+    if (!formXml || !attributeName) return [];
+    const refs: { startIndex: number; endIndex: number; snippet: string }[] = [];
+    const cellRegex = /<cell\b[^>]*>[\s\S]*?<\/cell>/gi;
+    const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const attrEsc = escape(attributeName);
+    const datafieldRe = new RegExp(`datafieldname="${attrEsc}"`, 'i');
+    const idAttrRe = new RegExp(`\\bid="${attrEsc}"`, 'i');
+    let m: RegExpExecArray | null;
+    while ((m = cellRegex.exec(formXml)) !== null) {
+      if (datafieldRe.test(m[0]) || idAttrRe.test(m[0])) {
+        refs.push({
+          startIndex: m.index,
+          endIndex: m.index + m[0].length,
+          snippet: m[0],
+        });
+      }
+    }
+    return refs;
+  }
+
+  const cr664AssignedToForm = [
+    '<form>',
+    '  <tabs><tab><columns><column><sections><section><rows>',
+    '    <row>',
+    '      <cell id="cr664_someotherfield">',
+    '        <control id="cr664_someotherfield" datafieldname="cr664_someotherfield" />',
+    '      </cell>',
+    '      <cell id="cr664_assignedto">',
+    '        <control id="cr664_assignedto" datafieldname="cr664_assignedto" />',
+    '      </cell>',
+    '    </row>',
+    '  </rows></section></sections></column></columns></tab></tabs>',
+    '</form>',
+  ].join('\n');
+
+  it('finds only the cr664_assignedto cell when --attribute cr664_assignedto is supplied', () => {
+    const refs = findDirectRefs(cr664AssignedToForm, 'cr664_assignedto');
+    expect(refs.length).toBe(1);
+    expect(refs[0].snippet).toMatch(/datafieldname="cr664_assignedto"/);
+    expect(refs[0].snippet).not.toMatch(/cr664_someotherfield/);
+  });
+
+  it('finds nothing for an attribute that does not appear in the form', () => {
+    const refs = findDirectRefs(cr664AssignedToForm, 'cr664_doesnotexist');
+    expect(refs.length).toBe(0);
+  });
+
+  it('finds the cr664_deal cell when called with the default target', () => {
+    const dealForm = cr664AssignedToForm.replace(/cr664_assignedto/g, 'cr664_deal');
+    const refs = findDirectRefs(dealForm, 'cr664_deal');
+    expect(refs.length).toBe(1);
+  });
+
+  it('script declares both legacy and generic finders side-by-side', () => {
+    // Legacy literal-regex helper kept verbatim — pins the original
+    // `datafieldname="cr664_deal"` source bytes.
+    expect(SCRIPT).toMatch(/function\s+findCr664DealReferences/);
+    expect(SCRIPT).toMatch(/datafieldname="cr664_deal"/i);
+    // New generic helper takes attributeName and builds the regex at
+    // runtime via escapeRegExp.
+    expect(SCRIPT).toMatch(/function\s+findDirectFieldCellReferences/);
+    expect(SCRIPT).toMatch(/function\s+removeDirectFieldCellReferences/);
+    expect(SCRIPT).toMatch(/escapeRegExp\(attributeName\)/);
+  });
+
+  it('CLI validation now accepts --attribute alongside --cleanup-form', () => {
+    // Reject-message must list --cleanup-form as a legal partner.
+    expect(SCRIPT).toMatch(
+      /--attribute is only valid alongside --inspect-form, --inspect-view, --cleanup-form, or --cleanup-view/,
+    );
+  });
+
+  it('runFormCleanup accepts qualifiedAttribute parameter (defaults to PSEUDO_DEAL_COLUMN)', () => {
+    expect(SCRIPT).toMatch(
+      /async\s+function\s+runFormCleanup\(formId,\s*qualifiedAttribute,\s*token,\s*envUrl,\s*doCommit\)/,
+    );
+    // Default branch when no qualifiedAttribute is supplied: target =
+    // PSEUDO_DEAL_COLUMN.
+    expect(SCRIPT).toMatch(/let\s+targetAttribute\s*=\s*PSEUDO_DEAL_COLUMN/);
+    // Custom-attribute branch: split "<table>.<column>".
+    expect(SCRIPT).toMatch(/qualifiedAttribute\.split\('\.'\)/);
+  });
+
+  it('main() threads FLAGS.inspectFormAttribute into runFormCleanup', () => {
+    const cleanupGuardIdx = SCRIPT.indexOf('if (FLAGS.cleanupFormId !== null)');
+    expect(cleanupGuardIdx).toBeGreaterThan(-1);
+    // Look at the runFormCleanup call site INSIDE the cleanup-form
+    // branch (not the inspect-view or cleanup-view ones above).
+    const callIdx = SCRIPT.indexOf('await runFormCleanup(', cleanupGuardIdx);
+    expect(callIdx).toBeGreaterThan(cleanupGuardIdx);
+    const callSlice = SCRIPT.slice(callIdx, callIdx + 400);
+    expect(callSlice).toMatch(/FLAGS\.inspectFormAttribute/);
+  });
+
+  it('runFormCleanup uses the generic finder/remover for the actual cleanup', () => {
+    const fnStart = SCRIPT.indexOf('async function runFormCleanup');
+    expect(fnStart).toBeGreaterThan(-1);
+    // Use a large bounded slice — the function body is well under 12k
+    // chars and the next top-level helper sits past that.
+    const body = SCRIPT.slice(fnStart, fnStart + 12000);
+    expect(body).toMatch(/findDirectFieldCellReferences\(form\.formxml,\s*targetAttribute\)/);
+    expect(body).toMatch(/removeDirectFieldCellReferences\([\s\S]*?form\.formxml,[\s\S]*?targetAttribute/);
+  });
+
+  it('runFormCleanup re-probes the operator-supplied table.column when present', () => {
+    const fnStart = SCRIPT.indexOf('async function runFormCleanup');
+    const body = SCRIPT.slice(fnStart, fnStart + 12000);
+    // Probe table falls back to form.objecttypecode only when
+    // targetTable wasn't supplied.
+    expect(body).toMatch(/const\s+probeTable\s*=\s*targetTable\s*\?\?\s*form\.objecttypecode/);
+    // Re-probe runs against probeTable / probeAttribute, not the
+    // hardcoded PSEUDO_DEAL_COLUMN.
+    expect(body).toMatch(/getAttributeMetadataId\(\s*\n?\s*probeTable,\s*\n?\s*probeAttribute/);
+  });
+
+  it('--attribute path skips the cr664_deal-specific indirect-refs diagnostic', () => {
+    const fnStart = SCRIPT.indexOf('async function runFormCleanup');
+    const body = SCRIPT.slice(fnStart, fnStart + 12000);
+    // The custom-attribute branch returns early with a "no direct
+    // field control" message AND points the operator at --inspect-form
+    // for indirect refs. It does NOT call
+    // scanIndirectReferencesForCandidateTables.
+    expect(body).toMatch(/usingCustomAttribute/);
+    expect(body).toMatch(/The targeted cleanup mode handles ONLY direct field controls/);
+    // Pin ordering: when usingCustomAttribute is true, the return
+    // statement appears BEFORE the call to
+    // scanIndirectReferencesForCandidateTables.
+    const usingCustomCheckIdx = body.indexOf('if (usingCustomAttribute)');
+    const indirectCallIdx = body.indexOf('scanIndirectReferencesForCandidateTables(');
+    expect(usingCustomCheckIdx).toBeGreaterThan(-1);
+    expect(indirectCallIdx).toBeGreaterThan(-1);
+    expect(usingCustomCheckIdx).toBeLessThan(indirectCallIdx);
+  });
+
+  it('still bounds the splice to match.start/match.end — no broad rewrite introduced', () => {
+    // removeDirectFieldCellReferences uses the same slice-based splice
+    // as removeCr664DealReferences. Pin both shapes.
+    expect(SCRIPT).toMatch(
+      /xml\.slice\(0,\s*refs\[i\]\.startIndex\)\s*\+\s*xml\.slice\(refs\[i\]\.endIndex\)/,
+    );
+  });
+
+  it('no force-delete / bypass header introduced by the attribute-aware path', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+});
+
 describe('Phase 122B — cleanup refuses to write when only indirect refs exist', () => {
   it('runFormCleanup short-circuits with a Maker Portal hint when no direct cells but indirect refs found', () => {
     const fnStart = SCRIPT.indexOf('async function runFormCleanup');

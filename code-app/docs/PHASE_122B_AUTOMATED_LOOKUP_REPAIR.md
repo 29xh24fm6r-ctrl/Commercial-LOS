@@ -48,8 +48,8 @@ environment). It has three modes:
 | Default (dry-run) | `node scripts/phase122-lookup-repair.mjs` | Read-only audit + plan emission; nothing is written. |
 | Explicit dry-run | `node scripts/phase122-lookup-repair.mjs --dry-run` | Same as default. |
 | Inspect dependencies | `node scripts/phase122-lookup-repair.mjs --inspect-dependencies` | Read-only audit + plan + per-pseudo-column `RetrieveDependenciesForDelete` probe. No write. Short-circuits at the first column that has a dependent component. Requires a bearer token (same priority order as `--commit`). |
-| Cleanup form (dry-run) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid>` | Read-only. Fetches the SystemForm by GUID, prints every `<cell>` in its persisted formxml that references the `cr664_deal` pseudo-column. No write. See §5B. |
-| Cleanup form (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> --commit-form-cleanup` | Splices the matched cells out of the formxml, PATCHes the SystemForm, publishes it, then re-runs `RetrieveDependenciesForDelete` on that table's pseudo-column to confirm the blocker is cleared. See §5B. Refuses to write if no direct field cell exists but indirect references are present. |
+| Cleanup form (dry-run) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> [--attribute <table>.<column>]` | Read-only. Fetches the SystemForm by GUID, prints every `<cell>` in its persisted formxml that references the target column. Default target is `cr664_deal`; `--attribute cr664_dealtask1.cr664_assignedto` (for example) targets the supplied column instead. No write. See §5B. |
+| Cleanup form (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> [--attribute <table>.<column>] --commit-form-cleanup` | Splices the matched cells out of the formxml, PATCHes the SystemForm, publishes, then re-runs `RetrieveDependenciesForDelete` on the supplied `<table>.<column>` (or the form's parent entity + cr664_deal when no `--attribute`) to confirm the blocker cleared. See §5B. Refuses to write (without `--attribute`) if no direct field cell exists but indirect references are present. |
 | Inspect form (read-only) | `node scripts/phase122-lookup-repair.mjs --inspect-form <form-guid> --attribute <table>.<column>` | Read-only broad inspection. Walks the SystemForm's persisted XML and groups every reference to the qualified attribute into per-category findings (direct cell / subgrid / quick-view / TargetEntityType / RelationshipName / NavBar / bare logical name). No write. See §5C. |
 | Cleanup subgrid (dry-run) | `node scripts/phase122-lookup-repair.mjs --cleanup-subgrid <form-guid> --control-id <id>` | Read-only. Validates that exactly one `<cell>` on the form contains a `<control id="<id>">`, that it is a subgrid (classid match), that its `<TargetEntityType>` is in `CANDIDATE_CHILD_TABLES`, and that its `<RelationshipName>` references `cr664_deal`. Prints the enclosing `<cell>` snippet. No write. See §5D. |
 | Cleanup subgrid (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-subgrid <form-guid> --control-id <id> --commit-subgrid-cleanup` | Same validation as above; on success splices ONLY the matched `<cell>` from the formxml, PATCHes the SystemForm, publishes, then re-fetches and exits non-zero if any residual reference to the validated target table remains on the form. See §5D. |
@@ -545,6 +545,52 @@ node scripts/phase122-lookup-repair.mjs --inspect-dependencies
 # 5. Finally run the main plan.
 node scripts/phase122-lookup-repair.mjs --commit
 ```
+
+### 5B.5 Cleaning a sibling attribute (e.g. cr664_assignedto)
+
+After the cr664_deal cleanup loop closes, the dependency probe may
+surface a sibling-attribute blocker — e.g. on `cr664_dealtask1.cr664_assignedto`
+the operator's 2026-06-08 run reported a form blocker at
+`9ac369d2-3faa-471b-acb8-15659bd5d886`. The cleanup mode now takes
+an optional `--attribute <table>.<column>` flag to target any column,
+with identical safety semantics.
+
+```powershell
+# 1. Confirm the form has a direct field control for the column.
+node scripts/phase122-lookup-repair.mjs `
+  --inspect-form 9ac369d2-3faa-471b-acb8-15659bd5d886 `
+  --attribute cr664_dealtask1.cr664_assignedto
+
+# 2. Preview the surgical removal.
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-form 9ac369d2-3faa-471b-acb8-15659bd5d886 `
+  --attribute cr664_dealtask1.cr664_assignedto
+
+# 3. Execute. PATCH + publish + re-probe RetrieveDependenciesForDelete
+#    on cr664_dealtask1.cr664_assignedto (NOT the default cr664_deal).
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-form 9ac369d2-3faa-471b-acb8-15659bd5d886 `
+  --attribute cr664_dealtask1.cr664_assignedto `
+  --commit-form-cleanup
+```
+
+Differences from the default cr664_deal path:
+
+- Cleanup removes only `<cell>` elements whose control id or
+  `datafieldname` equals the supplied column logical name. Sibling
+  fields are untouched.
+- Post-commit `RetrieveDependenciesForDelete` runs against the
+  supplied `<table>.<column>` — the script does not assume the form's
+  parent entity is the same as the attribute's table.
+- The cr664_deal-specific **indirect-refs diagnostic** (subgrid /
+  NavBar / relationship-name scan across `CANDIDATE_CHILD_TABLES`)
+  is **skipped** when `--attribute` is supplied. For indirect refs
+  on a sibling attribute, use `--inspect-form` separately — it
+  already takes a qualified `--attribute` argument.
+- All other safety properties are unchanged: dry-run by default,
+  explicit `--commit-form-cleanup` required for writes, splice
+  bounded to matched cells, no force-delete / bypass headers, no
+  React-app changes.
 
 ---
 
