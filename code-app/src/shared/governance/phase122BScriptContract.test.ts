@@ -262,7 +262,7 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
     // Now part of the broader three-way mutex with --cleanup-form.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, and --inspect-form are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive/,
     );
   });
 
@@ -323,7 +323,7 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
 
   it('cleanup-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, and --inspect-form are mutually exclusive\./,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive\./,
     );
   });
 
@@ -424,7 +424,7 @@ describe('Phase 122B — broad SystemForm inspection for indirect dependencies',
 
   it('--inspect-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, and --inspect-form are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive/,
     );
   });
 
@@ -507,6 +507,134 @@ describe('Phase 122B — broad SystemForm inspection for indirect dependencies',
     expect(cleanupGuardIdx).toBeGreaterThan(inspectFormGuardIdx);
     const between = SCRIPT.slice(inspectFormGuardIdx, cleanupGuardIdx);
     expect(between).toMatch(/return;/);
+  });
+});
+
+describe('Phase 122B — targeted subgrid cleanup by control id', () => {
+  it('parses --cleanup-subgrid <GUID> --control-id <id>', () => {
+    expect(SCRIPT).toMatch(/'--cleanup-subgrid'/);
+    expect(SCRIPT).toMatch(/'--control-id'/);
+    expect(SCRIPT).toMatch(/flags\.cleanupSubgridFormId\s*=/);
+    expect(SCRIPT).toMatch(/flags\.cleanupSubgridControlId\s*=/);
+  });
+
+  it('--control-id refuses non-identifier-shape values', () => {
+    expect(SCRIPT).toMatch(/--control-id expects an identifier-shape value/);
+    expect(SCRIPT).toMatch(/\[A-Za-z\]\[A-Za-z0-9_\]/);
+  });
+
+  it('--commit-subgrid-cleanup gates the write path', () => {
+    expect(SCRIPT).toMatch(/'--commit-subgrid-cleanup'/);
+    expect(SCRIPT).toMatch(/flags\.commitSubgridCleanup\s*=\s*true/);
+    expect(SCRIPT).toMatch(
+      /--commit-subgrid-cleanup has no effect without --cleanup-subgrid/,
+    );
+  });
+
+  it('--cleanup-subgrid + --control-id must both appear (no orphans)', () => {
+    expect(SCRIPT).toMatch(/--cleanup-subgrid requires --control-id/);
+    expect(SCRIPT).toMatch(/--control-id is only valid alongside --cleanup-subgrid/);
+  });
+
+  it('5-way mutex includes --cleanup-subgrid', () => {
+    expect(SCRIPT).toMatch(
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive/,
+    );
+  });
+
+  it('declares findCellContainingControl() — locates the enclosing <cell>', () => {
+    expect(SCRIPT).toMatch(/function\s+findCellContainingControl/);
+    // Match the enclosing <cell> element. Pin the regex literal bytes
+    // that the implementation uses, without over-specifying the
+    // surrounding control-id pattern (which embeds the operator-
+    // supplied id via escapeRegExp).
+    expect(SCRIPT).toMatch(/<cell\\b/);
+    expect(SCRIPT).toMatch(/escapeRegExp\(controlId\)/);
+  });
+
+  it('declares validateSubgridCellForCleanup() with all four gates', () => {
+    expect(SCRIPT).toMatch(/function\s+validateSubgridCellForCleanup/);
+    // Gate 1: classid must match SUBGRID_CONTROL_CLASSID.
+    expect(SCRIPT).toMatch(/SUBGRID_CONTROL_CLASSID/);
+    expect(SCRIPT).toMatch(/is not a subgrid \(classid mismatch\)/);
+    // Gate 2: TargetEntityType must be in CANDIDATE_CHILD_TABLES.
+    expect(SCRIPT).toMatch(/CANDIDATE_CHILD_TABLES\.includes\(targetEntity\)/);
+    // Gate 3: RelationshipName must reference cr664_deal.
+    expect(SCRIPT).toMatch(/does not reference \$\{PSEUDO_DEAL_COLUMN\}/);
+  });
+
+  it('refuses zero-match OR multi-match for the supplied control id', () => {
+    // Zero matches → bail (script must not invent a target).
+    expect(SCRIPT).toMatch(/No <cell> contains a control with id="\$\{controlId\}"/);
+    // Multi-match → bail (single-control surgical removal).
+    expect(SCRIPT).toMatch(
+      /<cell> elements contain a control with id="\$\{controlId\}"/,
+    );
+  });
+
+  it('declares runSubgridCleanup() as the orchestrator', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+runSubgridCleanup/);
+  });
+
+  it('dry-run is the default — write path guarded by doCommit', () => {
+    // Pin ordering: the dry-run early return must appear BEFORE any
+    // PATCH or PublishXml call inside runSubgridCleanup.
+    const fnStart = SCRIPT.indexOf('async function runSubgridCleanup');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart);
+    const dryReturnIdx = body.indexOf('Re-run with `--commit-subgrid-cleanup`');
+    const patchCallIdx = body.indexOf('patchSystemFormXml(');
+    expect(dryReturnIdx).toBeGreaterThan(-1);
+    expect(patchCallIdx).toBeGreaterThan(-1);
+    expect(dryReturnIdx).toBeLessThan(patchCallIdx);
+  });
+
+  it('removes ONLY the matched <cell> — no broader splicing', () => {
+    // The splice is bounded to `slice(0, match.start) +
+    // slice(match.end)`. Anything else (slicing across multiple
+    // matches, removing an entire tab/section, etc.) is forbidden.
+    expect(SCRIPT).toMatch(
+      /form\.formxml\.slice\(0,\s*match\.start\)\s*\+\s*form\.formxml\.slice\(match\.end\)/,
+    );
+    expect(SCRIPT).toMatch(/Splicing one <cell> out of formxml/);
+  });
+
+  it('PATCH + PublishXml fire only after every validation gate passes', () => {
+    const fnStart = SCRIPT.indexOf('async function runSubgridCleanup');
+    const body = SCRIPT.slice(fnStart);
+    const validationIdx = body.indexOf('validateSubgridCellForCleanup(');
+    const patchIdx = body.indexOf('patchSystemFormXml(');
+    expect(validationIdx).toBeGreaterThan(-1);
+    expect(patchIdx).toBeGreaterThan(-1);
+    expect(validationIdx).toBeLessThan(patchIdx);
+  });
+
+  it('re-fetches the form and checks for residual refs after commit', () => {
+    // Per task req 7: "fail if any cr664_documentchecklist
+    // subgrid/reference remains".
+    expect(SCRIPT).toMatch(/Re-inspecting form for residual/);
+    expect(SCRIPT).toMatch(/findFormReferences\(/);
+    // Non-zero exit on residual refs.
+    expect(SCRIPT).toMatch(/process\.exit\(8\)/);
+  });
+
+  it('subgrid-cleanup branch in main() returns before the commit branch is reachable', () => {
+    const subgridGuardIdx = SCRIPT.indexOf('if (FLAGS.cleanupSubgridFormId !== null)');
+    expect(subgridGuardIdx).toBeGreaterThan(-1);
+    const commitGuardIdx = SCRIPT.indexOf(
+      '// === Safety gates for commit mode ===',
+      subgridGuardIdx,
+    );
+    expect(commitGuardIdx).toBeGreaterThan(subgridGuardIdx);
+    const between = SCRIPT.slice(subgridGuardIdx, commitGuardIdx);
+    expect(between).toMatch(/return;/);
+  });
+
+  it('no force-delete / bypass path was introduced by the subgrid-cleanup mode', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
   });
 });
 

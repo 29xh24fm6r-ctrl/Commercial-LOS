@@ -51,6 +51,8 @@ environment). It has three modes:
 | Cleanup form (dry-run) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid>` | Read-only. Fetches the SystemForm by GUID, prints every `<cell>` in its persisted formxml that references the `cr664_deal` pseudo-column. No write. See §5B. |
 | Cleanup form (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> --commit-form-cleanup` | Splices the matched cells out of the formxml, PATCHes the SystemForm, publishes it, then re-runs `RetrieveDependenciesForDelete` on that table's pseudo-column to confirm the blocker is cleared. See §5B. Refuses to write if no direct field cell exists but indirect references are present. |
 | Inspect form (read-only) | `node scripts/phase122-lookup-repair.mjs --inspect-form <form-guid> --attribute <table>.<column>` | Read-only broad inspection. Walks the SystemForm's persisted XML and groups every reference to the qualified attribute into per-category findings (direct cell / subgrid / quick-view / TargetEntityType / RelationshipName / NavBar / bare logical name). No write. See §5C. |
+| Cleanup subgrid (dry-run) | `node scripts/phase122-lookup-repair.mjs --cleanup-subgrid <form-guid> --control-id <id>` | Read-only. Validates that exactly one `<cell>` on the form contains a `<control id="<id>">`, that it is a subgrid (classid match), that its `<TargetEntityType>` is in `CANDIDATE_CHILD_TABLES`, and that its `<RelationshipName>` references `cr664_deal`. Prints the enclosing `<cell>` snippet. No write. See §5D. |
+| Cleanup subgrid (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-subgrid <form-guid> --control-id <id> --commit-subgrid-cleanup` | Same validation as above; on success splices ONLY the matched `<cell>` from the formxml, PATCHes the SystemForm, publishes, then re-fetches and exits non-zero if any residual reference to the validated target table remains on the form. See §5D. |
 | Commit | `node scripts/phase122-lookup-repair.mjs --commit` | Refuses to run unless every safety gate passes (publisher prefix, rollback artifacts, dependency inspection clear, zero non-NULL pseudo-column rows, no stop conditions in plan). |
 
 ### 2.1 Hard-pinned constants
@@ -643,6 +645,116 @@ prints:
 The script does not retry, force, or fall back to bypass headers. The
 operator handles indirect refs in Maker Portal, then re-runs
 `--inspect-dependencies` to confirm the form is no longer a blocker.
+
+---
+
+## 5D. Targeted hidden-subgrid cleanup (`--cleanup-subgrid`)
+
+The operator's 2026-06-01 `--inspect-form` against form
+`653f9d5e-767f-4363-9eb8-13b2b1f24ceb` surfaced an exact, removable
+target:
+
+```text
+Subgrid_new_5
+  classid:           {E7A81278-8635-4D9E-8D4D-59480B391C5B}
+  TargetEntityType:  cr664_documentchecklist
+  RelationshipName:  cr664_DocumentChecklist_cr664_Deal_cr664_Deal
+```
+
+The form designer in Maker Portal does not expose this subgrid for
+direct removal (it's a hidden / legacy element). The script can remove
+it surgically by control id — with multi-stage validation that
+prevents the same code path from removing anything else.
+
+### 5D.1 Dry-run preview
+
+```powershell
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-subgrid 653f9d5e-767f-4363-9eb8-13b2b1f24ceb `
+  --control-id Subgrid_new_5
+```
+
+The script reads the form, locates the enclosing `<cell>` for the
+supplied control id, and runs four validation gates before printing
+the snippet that would be removed:
+
+| # | Gate | Reason |
+| - | --- | --- |
+| 1 | Exactly **one** `<cell>` contains a control with that id. | Zero matches → bail. >1 matches → bail. The script never invents a target. |
+| 2 | The control's `classid` is `{E7A81278-8635-4D9E-8D4D-59480B391C5B}` (subgrid). | Refuses to remove any other control kind. |
+| 3 | The control's `<TargetEntityType>` is in `CANDIDATE_CHILD_TABLES`. | Refuses subgrids surfacing tables outside Phase 122 scope. |
+| 4 | The control's `<RelationshipName>` contains `cr664_deal` (case-insensitive). | Refuses subgrids whose binding doesn't involve the pseudo-column being freed. |
+
+If every gate passes, the script prints the validated facts and the
+enclosing-cell snippet. It does **not** write.
+
+### 5D.2 Commit
+
+```powershell
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-subgrid 653f9d5e-767f-4363-9eb8-13b2b1f24ceb `
+  --control-id Subgrid_new_5 `
+  --commit-subgrid-cleanup
+```
+
+Validation runs again. On success the script:
+
+1. Splices **only the matched `<cell>`** out of the formxml (bounded
+   to `formxml.slice(0, match.start) + formxml.slice(match.end)` —
+   no broader removal is possible).
+2. `PATCH systemforms(<form-id>)` with the new formxml.
+3. `POST PublishXml` scoped to that exact `<systemform>` on its
+   parent entity.
+4. Re-fetches the form and runs
+   `findFormReferences(newFormXml, <validated-target-entity>, cr664_deal)`.
+5. If **any** residual indirect reference (subgrid, quick-view,
+   TargetEntityType, RelationshipName, NavBar) to the target table
+   remains on the form, the script exits non-zero (exit code `8`).
+   The operator runs `--cleanup-subgrid` again for each remaining
+   control id (or fixes residue in Maker Portal) before the main
+   pseudo-column delete can proceed.
+
+### 5D.3 What this mode does NOT do
+
+- Does **not** remove the pseudo-column itself (that happens in
+  `--commit`).
+- Does **not** remove any cell other than the one matched by the
+  exact control id supplied by the operator.
+- Does **not** remove non-subgrid controls — gate 2 refuses them.
+- Does **not** remove subgrids whose target is outside
+  `CANDIDATE_CHILD_TABLES` — gate 3 refuses them.
+- Does **not** remove subgrids whose relationship name doesn't
+  reference `cr664_deal` — gate 4 refuses them.
+- Does **not** use any bypass header (`BypassBusinessLogicExecution`,
+  `BypassCustomPluginExecution`, `SuppressDuplicateDetection`,
+  `?Force=true`) — pinned by negative static-source tests.
+- Does **not** touch React app code.
+
+### 5D.4 Typical sequence
+
+```powershell
+# 1. Identify the residual blocker by control id.
+node scripts/phase122-lookup-repair.mjs `
+  --inspect-form 653f9d5e-767f-4363-9eb8-13b2b1f24ceb `
+  --attribute cr664_documentchecklist.cr664_deal
+
+# 2. Preview the surgical removal. No write.
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-subgrid 653f9d5e-767f-4363-9eb8-13b2b1f24ceb `
+  --control-id Subgrid_new_5
+
+# 3. Execute. PATCH + publish + residual re-check.
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-subgrid 653f9d5e-767f-4363-9eb8-13b2b1f24ceb `
+  --control-id Subgrid_new_5 `
+  --commit-subgrid-cleanup
+
+# 4. Confirm at the dependency layer.
+node scripts/phase122-lookup-repair.mjs --inspect-dependencies
+
+# 5. Finally, run the main plan.
+node scripts/phase122-lookup-repair.mjs --commit
+```
 
 ---
 

@@ -137,6 +137,9 @@ function parseArgs(argv) {
     commitFormCleanup: false,
     inspectFormId: null,
     inspectFormAttribute: null,
+    cleanupSubgridFormId: null,
+    cleanupSubgridControlId: null,
+    commitSubgridCleanup: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -188,6 +191,31 @@ function parseArgs(argv) {
       }
       flags.inspectFormAttribute = next.toLowerCase();
       i += 1;
+    } else if (arg === '--cleanup-subgrid') {
+      // Targeted removal of one subgrid cell from one SystemForm,
+      // identified by control id. Dry-run by default; writes require
+      // --commit-subgrid-cleanup.
+      const next = args[i + 1];
+      if (!next) bailParseArgs('--cleanup-subgrid requires a SystemForm GUID');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(next)) {
+        bailParseArgs(`--cleanup-subgrid expects a GUID; got "${next}"`);
+      }
+      flags.cleanupSubgridFormId = next.toLowerCase();
+      flags.dryRun = false;
+      i += 1;
+    } else if (arg === '--control-id') {
+      const next = args[i + 1];
+      if (!next) bailParseArgs('--control-id requires a control id string');
+      // Dataverse control ids are identifier-shaped (letter, then
+      // letters/digits/underscore). Refuse anything wider — protects
+      // against accidentally treating an XML fragment as an id.
+      if (!/^[A-Za-z][A-Za-z0-9_]{0,99}$/.test(next)) {
+        bailParseArgs(`--control-id expects an identifier-shape value; got "${next}"`);
+      }
+      flags.cleanupSubgridControlId = next;
+      i += 1;
+    } else if (arg === '--commit-subgrid-cleanup') {
+      flags.commitSubgridCleanup = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -197,10 +225,11 @@ function parseArgs(argv) {
     flags.inspectDependencies,
     flags.cleanupFormId !== null,
     flags.inspectFormId !== null,
+    flags.cleanupSubgridFormId !== null,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, --cleanup-form, and --inspect-form are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, and --cleanup-subgrid are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
@@ -212,6 +241,15 @@ function parseArgs(argv) {
   if (flags.inspectFormAttribute !== null && flags.inspectFormId === null) {
     bailParseArgs('--attribute is only valid alongside --inspect-form <id>');
   }
+  if (flags.cleanupSubgridFormId !== null && flags.cleanupSubgridControlId === null) {
+    bailParseArgs('--cleanup-subgrid requires --control-id <id>');
+  }
+  if (flags.cleanupSubgridControlId !== null && flags.cleanupSubgridFormId === null) {
+    bailParseArgs('--control-id is only valid alongside --cleanup-subgrid <id>');
+  }
+  if (flags.commitSubgridCleanup && flags.cleanupSubgridFormId === null) {
+    bailParseArgs('--commit-subgrid-cleanup has no effect without --cleanup-subgrid <id>.');
+  }
   return flags;
 }
 
@@ -220,7 +258,8 @@ function bailParseArgs(msg) {
   console.error(
     'Usage: node scripts/phase122-lookup-repair.mjs ' +
       '[--dry-run | --commit | --inspect-dependencies | --cleanup-form <id> [--commit-form-cleanup] | ' +
-      '--inspect-form <id> --attribute <table>.<column>] ' +
+      '--inspect-form <id> --attribute <table>.<column> | ' +
+      '--cleanup-subgrid <id> --control-id <id> [--commit-subgrid-cleanup]] ' +
       '[--help]',
   );
   process.exit(2);
@@ -247,7 +286,11 @@ const MODE = FLAGS.commit
         : 'CLEANUP-FORM (dry-run)'
       : FLAGS.inspectFormId !== null
         ? 'INSPECT-FORM'
-        : 'DRY-RUN';
+        : FLAGS.cleanupSubgridFormId !== null
+          ? FLAGS.commitSubgridCleanup
+            ? 'COMMIT-SUBGRID-CLEANUP'
+            : 'CLEANUP-SUBGRID (dry-run)'
+          : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -258,7 +301,7 @@ console.log(`Required prefix:          ${CR664_PUBLISHER_PREFIX}`);
 console.log(`Forbidden prefix:         ${FORBIDDEN_PUBLISHER_PREFIX}`);
 console.log('');
 
-if (FLAGS.commit || FLAGS.commitFormCleanup) {
+if (FLAGS.commit || FLAGS.commitFormCleanup || FLAGS.commitSubgridCleanup) {
   console.log('⚠  WRITE MODE — script may perform live Dataverse writes if every');
   console.log('   safety gate passes. Press Ctrl+C now to abort.');
   console.log('');
@@ -1728,6 +1771,276 @@ function compactSnippet(s, max = 280) {
 }
 
 // ---------------------------------------------------------------------------
+// Targeted subgrid cleanup — opt-in by control id.
+//
+// Operator's 2026-06-01 inspect-form run identified that the residual
+// blocker on form 653f9d5e-… is a hidden subgrid (control id
+// "Subgrid_new_5") bound to cr664_documentchecklist via the
+// relationship cr664_DocumentChecklist_cr664_Deal_cr664_Deal. The
+// form designer didn't expose it for direct removal. This mode lets
+// the operator surgically remove ONE subgrid identified by its
+// control id, with multi-stage validation before any write.
+//
+// Validation gates (every one must pass before write):
+//   1. Form must exist and have formxml.
+//   2. EXACTLY ONE <cell> in the form must contain a <control>
+//      whose `id` attribute matches the supplied control id.
+//      Zero matches → bail. >1 matches → bail (refuse for safety).
+//   3. The control's classid must equal SUBGRID_CONTROL_CLASSID
+//      (case-insensitive). Refuses any other control kind.
+//   4. The control's <TargetEntityType> must be one of
+//      CANDIDATE_CHILD_TABLES. Refuses subgrids that surface
+//      tables outside the Phase 122 scope.
+//   5. The control's <RelationshipName> must reference
+//      PSEUDO_DEAL_COLUMN (cr664_deal). Refuses subgrids whose
+//      binding relationship doesn't involve the pseudo-column the
+//      script is trying to free up.
+//
+// In commit mode, after PATCH + PublishXml the script re-fetches the
+// form and runs findFormReferences against the TargetEntityType that
+// was validated. If ANY residual indirect reference to that table
+// remains on the form, the script exits non-zero — the operator must
+// re-run --cleanup-subgrid (or fix in Maker Portal) before the
+// pseudo-column can be deleted.
+// ---------------------------------------------------------------------------
+
+function findCellContainingControl(formXml, controlId) {
+  if (
+    typeof formXml !== 'string' ||
+    formXml.length === 0 ||
+    typeof controlId !== 'string' ||
+    controlId.length === 0
+  ) {
+    return { matches: [] };
+  }
+  const matches = [];
+  const cellRegex = /<cell\b[^>]*>[\s\S]*?<\/cell>/gi;
+  const controlIdRe = new RegExp(
+    `<control\\b[^>]*\\bid="${escapeRegExp(controlId)}"`,
+    'i',
+  );
+  let m;
+  while ((m = cellRegex.exec(formXml)) !== null) {
+    if (controlIdRe.test(m[0])) {
+      matches.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        snippet: m[0],
+      });
+    }
+  }
+  return { matches };
+}
+
+function validateSubgridCellForCleanup(cellSnippet, controlId) {
+  // 1. Opening <control id="..."> tag exists in this cell.
+  const openTagRe = new RegExp(
+    `<control\\b[^>]*\\bid="${escapeRegExp(controlId)}"[^>]*>`,
+    'i',
+  );
+  const openTagMatch = openTagRe.exec(cellSnippet);
+  if (!openTagMatch) {
+    return {
+      ok: false,
+      error: `could not locate opening <control id="${controlId}"> tag inside the matched cell`,
+    };
+  }
+  const openTag = openTagMatch[0];
+
+  // 2. classid must equal SUBGRID_CONTROL_CLASSID (case-insensitive).
+  const subgridClassidRe = new RegExp(
+    `classid="${escapeRegExp(SUBGRID_CONTROL_CLASSID)}"`,
+    'i',
+  );
+  if (!subgridClassidRe.test(openTag)) {
+    return {
+      ok: false,
+      error:
+        `control "${controlId}" is not a subgrid (classid mismatch). ` +
+        `Refusing to remove a non-subgrid element.`,
+    };
+  }
+
+  // 3. <TargetEntityType> must be in CANDIDATE_CHILD_TABLES.
+  const tetMatch = /<TargetEntityType>([^<]+)<\/TargetEntityType>/i.exec(cellSnippet);
+  if (!tetMatch) {
+    return {
+      ok: false,
+      error: `subgrid "${controlId}" has no <TargetEntityType> element. Refusing.`,
+    };
+  }
+  const targetEntity = tetMatch[1].trim();
+  if (!CANDIDATE_CHILD_TABLES.includes(targetEntity)) {
+    return {
+      ok: false,
+      error:
+        `subgrid TargetEntityType "${targetEntity}" is not in the candidate child-table list ` +
+        `(${CANDIDATE_CHILD_TABLES.join(', ')}). Refusing to remove subgrids outside Phase 122 scope.`,
+    };
+  }
+
+  // 4. <RelationshipName> must reference PSEUDO_DEAL_COLUMN.
+  const relMatch = /<RelationshipName>([^<]+)<\/RelationshipName>/i.exec(cellSnippet);
+  if (!relMatch) {
+    return {
+      ok: false,
+      error: `subgrid "${controlId}" has no <RelationshipName> element. Refusing.`,
+    };
+  }
+  const relationshipName = relMatch[1].trim();
+  const pseudoColRe = new RegExp(`\\b${escapeRegExp(PSEUDO_DEAL_COLUMN)}\\b`, 'i');
+  if (!pseudoColRe.test(relationshipName)) {
+    return {
+      ok: false,
+      error:
+        `relationship name "${relationshipName}" does not reference ${PSEUDO_DEAL_COLUMN}. ` +
+        `Refusing — this subgrid is not bound to the pseudo-column the script is trying to free.`,
+    };
+  }
+
+  return { ok: true, targetEntity, relationshipName };
+}
+
+async function runSubgridCleanup(formId, controlId, token, envUrl, doCommit) {
+  console.log('');
+  console.log('Phase S — Targeted subgrid cleanup (by control id)');
+  console.log(`   Form id:     ${formId}`);
+  console.log(`   Control id:  ${controlId}`);
+  console.log(`   Mode:        ${doCommit ? 'COMMIT-SUBGRID-CLEANUP (will write)' : 'dry-run (no write)'}`);
+  console.log('');
+
+  // 1. Read the form.
+  const formResult = await readSystemFormXml(formId, token, envUrl);
+  if (!formResult.ok) bail(`Form read failed: ${formResult.error}`);
+  const form = formResult.form;
+  console.log(`   Form name:           ${form.name ?? '(unknown)'}`);
+  console.log(`   Entity (objecttype): ${form.objecttypecode ?? '(unknown)'}`);
+  console.log(`   Form type code:      ${form.type ?? '(unknown)'}`);
+  if (typeof form.formxml !== 'string' || form.formxml.length === 0) {
+    bail(`Form ${formId} has empty formxml — nothing to inspect.`);
+  }
+  console.log(`   formxml length:      ${form.formxml.length} chars`);
+
+  // 2. Find the enclosing <cell> for the supplied control id. Refuse
+  //    if zero or more than one match — both indicate an unsafe
+  //    state for surgical removal.
+  const matches = findCellContainingControl(form.formxml, controlId).matches;
+  if (matches.length === 0) {
+    bail(
+      `No <cell> contains a control with id="${controlId}" on form ${formId}. ` +
+        `Refusing — the script will not invent a target.`,
+    );
+  }
+  if (matches.length > 1) {
+    bail(
+      `${matches.length} <cell> elements contain a control with id="${controlId}" — ` +
+        `refusing for safety. A single-control surgical removal must have exactly one match.`,
+    );
+  }
+  const match = matches[0];
+
+  // 3. Validate every safety property of the matched control: classid,
+  //    TargetEntityType (must be a candidate child table),
+  //    RelationshipName (must reference cr664_deal).
+  const validation = validateSubgridCellForCleanup(match.snippet, controlId);
+  if (!validation.ok) {
+    bail(`Subgrid validation failed: ${validation.error}`);
+  }
+
+  console.log('');
+  console.log('   ✓ Subgrid identified and validated:');
+  console.log(`       control id:        ${controlId}`);
+  console.log(`       classid:           ${SUBGRID_CONTROL_CLASSID}`);
+  console.log(`       TargetEntityType:  ${validation.targetEntity}`);
+  console.log(`       RelationshipName:  ${validation.relationshipName}`);
+  console.log('');
+  console.log(`   Enclosing <cell> @ chars ${match.start}-${match.end} (${match.snippet.length} chars):`);
+  console.log(`     ${compactSnippet(match.snippet, 400)}`);
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no PATCH or PublishXml issued.');
+    console.log('   Re-run with `--commit-subgrid-cleanup` to actually remove the cell.');
+    return { ok: true, removed: 0, planned: 1, targetEntity: validation.targetEntity };
+  }
+
+  // 4. Splice exactly that one cell out of the formxml — nothing else.
+  const newXml = form.formxml.slice(0, match.start) + form.formxml.slice(match.end);
+  console.log('');
+  console.log(
+    `   ⚙ Splicing one <cell> out of formxml (-${form.formxml.length - newXml.length} chars).`,
+  );
+
+  // 5. PATCH the form.
+  console.log(`   ⚙ PATCH systemforms(${formId}) …`);
+  const patchResult = await patchSystemFormXml(formId, newXml, token, envUrl);
+  if (!patchResult.ok) {
+    bail(`PATCH systemforms(${formId}) failed: ${patchResult.error}`);
+  }
+  console.log('   ✓ PATCH succeeded.');
+
+  // 6. PublishXml scoped to this exact form on its parent entity.
+  if (form.objecttypecode) {
+    console.log(`   ⚙ Publishing form via PublishXml (entity=${form.objecttypecode}) …`);
+    const pubResult = await publishSystemForm(formId, form.objecttypecode, token, envUrl);
+    if (!pubResult.ok) {
+      bail(`PublishXml failed: ${pubResult.error}`);
+    }
+    console.log('   ✓ Publish succeeded.');
+  }
+
+  // 7. Re-fetch the form and run findFormReferences for the validated
+  //    target entity. Fail (exit 8) if any residual reference remains.
+  console.log('');
+  console.log(
+    `   ⚙ Re-inspecting form for residual ${validation.targetEntity} subgrid/reference(s) …`,
+  );
+  const refetch = await readSystemFormXml(formId, token, envUrl);
+  if (!refetch.ok) {
+    console.error(`   ⚠ Could not re-fetch form: ${refetch.error}`);
+    process.exit(8);
+  }
+  const residual = findFormReferences(
+    refetch.form.formxml ?? '',
+    validation.targetEntity,
+    PSEUDO_DEAL_COLUMN,
+  );
+  const residualIndirect =
+    residual.subgrids.length +
+    residual.quickViews.length +
+    residual.targetEntities.length +
+    residual.relationships.length +
+    residual.navBar.length;
+  if (residualIndirect === 0) {
+    console.log(
+      `   ✓ No remaining ${validation.targetEntity} subgrid/reference on this form.`,
+    );
+    console.log('');
+    console.log('✓ Targeted subgrid cleanup complete.');
+    return { ok: true, removed: 1, targetEntity: validation.targetEntity };
+  }
+  console.error('');
+  console.error(
+    `   ✗ ${residualIndirect} residual ${validation.targetEntity} reference(s) remain on this form:`,
+  );
+  printIndirectFindingsSummary({
+    total: residualIndirect,
+    perTable: [
+      {
+        table: validation.targetEntity,
+        findings: residual,
+        indirectTotal: residualIndirect,
+      },
+    ],
+  });
+  console.error('');
+  console.error('   The targeted subgrid was removed, but more references remain.');
+  console.error('   Re-run --cleanup-subgrid for each remaining control id, or fix the');
+  console.error('   residual references in Maker Portal, then re-inspect.');
+  process.exit(8);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -1765,6 +2078,25 @@ async function main() {
       FLAGS.commitFormCleanup,
     );
     if (!result.ok) process.exit(6);
+    return;
+  }
+
+  // === Targeted subgrid cleanup (by control id) ===
+  // Operator identifies one specific subgrid via its control id; the
+  // script removes ONLY the enclosing <cell> after every validation
+  // gate (classid, TargetEntityType, RelationshipName) passes. Never
+  // deletes the pseudo-column itself.
+  if (FLAGS.cleanupSubgridFormId !== null) {
+    const envUrl = await resolveEnvUrl();
+    const token = await acquireBearerToken(envUrl);
+    const result = await runSubgridCleanup(
+      FLAGS.cleanupSubgridFormId,
+      FLAGS.cleanupSubgridControlId,
+      token,
+      envUrl,
+      FLAGS.commitSubgridCleanup,
+    );
+    if (!result.ok) process.exit(9);
     return;
   }
 
@@ -2037,6 +2369,19 @@ Modes:
       Useful when --cleanup-form reports no direct field but the
       dependency probe still names this form. Never writes; never
       publishes.
+
+  --cleanup-subgrid <form-guid> --control-id <id>
+      Targeted removal of ONE subgrid identified by its control id.
+      Read-only by default; pair with --commit-subgrid-cleanup to
+      execute. Validates (a) exactly one <cell> on the form contains
+      that control, (b) the control's classid is the subgrid classid,
+      (c) the TargetEntityType is in CANDIDATE_CHILD_TABLES, and
+      (d) the RelationshipName references cr664_deal. If any gate
+      fails the script bails. On commit, splices ONLY the matched
+      <cell>, PATCHes the form, publishes, then re-inspects and
+      exits non-zero if any residual reference to that target table
+      remains on the form. Useful for hidden subgrids that the form
+      designer does not surface for removal.
   --commit
       Run the plan against the live env. Refuses to run unless every
       safety gate (publisher prefix, rollback artifacts, dependency
