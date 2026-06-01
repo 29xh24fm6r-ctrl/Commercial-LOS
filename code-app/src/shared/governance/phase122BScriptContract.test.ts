@@ -260,7 +260,10 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   });
 
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
-    expect(SCRIPT).toMatch(/--commit and --inspect-dependencies are mutually exclusive/);
+    // Now part of the broader three-way mutex with --cleanup-form.
+    expect(SCRIPT).toMatch(
+      /Modes --commit, --inspect-dependencies, and --cleanup-form are mutually exclusive/,
+    );
   });
 
   it('inspect-dependencies branch returns before the commit branch is reachable', () => {
@@ -290,6 +293,116 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
     expect(block).not.toMatch(/executeStep\(/);
     expect(block).not.toMatch(/method:\s*'POST'/);
     expect(block).not.toMatch(/method:\s*'DELETE'/);
+  });
+});
+
+describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
+  it('parses --cleanup-form <GUID>', () => {
+    expect(SCRIPT).toMatch(/'--cleanup-form'/);
+    expect(SCRIPT).toMatch(/flags\.cleanupFormId\s*=/);
+  });
+
+  it('--cleanup-form refuses any value that is not a GUID', () => {
+    // The argument validator must reject non-GUID input before
+    // anything else fires.
+    expect(SCRIPT).toMatch(
+      /\[0-9a-f\]\{8\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{4\}-\[0-9a-f\]\{12\}/,
+    );
+    expect(SCRIPT).toMatch(/--cleanup-form expects a GUID/);
+  });
+
+  it('--commit-form-cleanup gates the write path', () => {
+    expect(SCRIPT).toMatch(/'--commit-form-cleanup'/);
+    expect(SCRIPT).toMatch(/flags\.commitFormCleanup\s*=\s*true/);
+    // Without --cleanup-form the write flag is a no-op and the script
+    // refuses to start.
+    expect(SCRIPT).toMatch(
+      /--commit-form-cleanup has no effect without --cleanup-form/,
+    );
+  });
+
+  it('cleanup-form is mutually exclusive with --commit and --inspect-dependencies', () => {
+    expect(SCRIPT).toMatch(
+      /Modes --commit, --inspect-dependencies, and --cleanup-form are mutually exclusive\./,
+    );
+  });
+
+  it('without --commit-form-cleanup the cleanup path is a no-op dry-run', () => {
+    // The write branch inside runFormCleanup must be guarded by
+    // `if (!doCommit)` returning before any PATCH or PublishXml call.
+    expect(SCRIPT).toMatch(/if\s*\(\s*!doCommit\s*\)/);
+    expect(SCRIPT).toMatch(/Dry-run only — no PATCH or PublishXml issued/);
+    // Ordering: the dry-run return must appear BEFORE the PATCH call site
+    // inside runFormCleanup.
+    const fnStart = SCRIPT.indexOf('async function runFormCleanup');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart);
+    const dryReturnIdx = body.indexOf('Dry-run only — no PATCH or PublishXml issued');
+    const patchCallIdx = body.indexOf('patchSystemFormXml(');
+    expect(dryReturnIdx).toBeGreaterThan(-1);
+    expect(patchCallIdx).toBeGreaterThan(-1);
+    expect(dryReturnIdx).toBeLessThan(patchCallIdx);
+  });
+
+  it('reads the form first via GET systemforms(<id>)?$select=formxml', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+readSystemFormXml/);
+    expect(SCRIPT).toMatch(/\$select=formxml/);
+    expect(SCRIPT).toMatch(/method:\s*'GET'/);
+  });
+
+  it('locates ONLY cr664_deal references in the formxml', () => {
+    expect(SCRIPT).toMatch(/function\s+findCr664DealReferences/);
+    expect(SCRIPT).toMatch(/datafieldname="cr664_deal"/i);
+  });
+
+  it('removes the cr664_deal cell (whole <cell> element) — not surrounding fields', () => {
+    expect(SCRIPT).toMatch(/function\s+removeCr664DealReferences/);
+    // The removal target is bounded by <cell>…</cell>, not the whole
+    // form or any larger container.
+    expect(SCRIPT).toMatch(/<cell\\b/);
+    expect(SCRIPT).toMatch(/<\\\/cell>/);
+  });
+
+  it('writes go via PATCH systemforms(<id>) and POST PublishXml — no other entity touched', () => {
+    expect(SCRIPT).toMatch(/PATCH systemforms/);
+    expect(SCRIPT).toMatch(/\/api\/data\/v9\.2\/PublishXml/);
+    expect(SCRIPT).toMatch(/method:\s*'PATCH'/);
+  });
+
+  it('uses the form GUID supplied on the command line — no hardcoded form id', () => {
+    expect(SCRIPT).toMatch(/FLAGS\.cleanupFormId/);
+    // Negative pin: the script must NOT bake in the operator's specific
+    // blocking form GUID. The cleanup mode targets whichever GUID the
+    // operator supplies.
+    expect(SCRIPT).not.toMatch(/653f9d5e-767f-4363-9eb8-13b2b1f24ceb/i);
+  });
+
+  it('re-runs RetrieveDependenciesForDelete after a write to confirm the blocker cleared', () => {
+    expect(SCRIPT).toMatch(/Re-running RetrieveDependenciesForDelete/);
+    // Pin ordering: the re-probe must come AFTER the PATCH/Publish
+    // calls inside runFormCleanup.
+    const fnStart = SCRIPT.indexOf('async function runFormCleanup');
+    const body = SCRIPT.slice(fnStart);
+    const patchIdx = body.indexOf('patchSystemFormXml(');
+    const reprobeIdx = body.indexOf('Re-running RetrieveDependenciesForDelete');
+    expect(patchIdx).toBeGreaterThan(-1);
+    expect(reprobeIdx).toBeGreaterThan(patchIdx);
+  });
+
+  it('no force-delete / bypass path was introduced by the cleanup mode', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+
+  it('cleanup-form branch in main() returns before audit/plan or commit code is reachable', () => {
+    const cleanupGuardIdx = SCRIPT.indexOf('if (FLAGS.cleanupFormId !== null)');
+    expect(cleanupGuardIdx).toBeGreaterThan(-1);
+    const auditMarkerIdx = SCRIPT.indexOf('// === Phase A: audit ===');
+    expect(auditMarkerIdx).toBeGreaterThan(cleanupGuardIdx);
+    const between = SCRIPT.slice(cleanupGuardIdx, auditMarkerIdx);
+    expect(between).toMatch(/return;/);
   });
 });
 
@@ -402,21 +515,23 @@ describe('Phase 122B — script bearer-token gate (env var + no-admin fallback)'
   });
 
   it('dry-run path does NOT call acquireBearerToken()', () => {
-    // The only `await acquireBearerToken(` call site must live inside
-    // the `if (FLAGS.commit)` block — i.e. after that guard and before
-    // the "Dry-run complete" terminal message.
-    const ifCommitIdx = SCRIPT.indexOf('if (FLAGS.commit)');
-    expect(ifCommitIdx).toBeGreaterThan(-1);
-    const dryRunMsgIdx = SCRIPT.indexOf('Dry-run complete');
-    expect(dryRunMsgIdx).toBeGreaterThan(-1);
+    // The dry-run summary block (only reached when no mode flag is
+    // set) must not acquire a token. Every `await acquireBearerToken(`
+    // call site must live inside one of the mode-gated branches
+    // (cleanup-form, inspect-dependencies, commit) — all of which run
+    // BEFORE the dry-run summary block.
+    const dryRunStart = SCRIPT.indexOf('// === Dry-run summary ===');
+    expect(dryRunStart).toBeGreaterThan(-1);
+    const mainCatchIdx = SCRIPT.indexOf('main().catch(', dryRunStart);
+    expect(mainCatchIdx).toBeGreaterThan(dryRunStart);
+    const dryRunBlock = SCRIPT.slice(dryRunStart, mainCatchIdx);
+    expect(dryRunBlock).not.toMatch(/await\s+acquireBearerToken\(/);
+
+    // And: at least one call site exists earlier in main() (the mode-
+    // gated branches).
     const callRegex = /\bawait\s+acquireBearerToken\(/g;
     let calls = 0;
-    let m;
-    while ((m = callRegex.exec(SCRIPT)) !== null) {
-      calls += 1;
-      expect(m.index).toBeGreaterThan(ifCommitIdx);
-      expect(m.index).toBeLessThan(dryRunMsgIdx);
-    }
+    while (callRegex.exec(SCRIPT) !== null) calls += 1;
     expect(calls).toBeGreaterThan(0);
   });
 

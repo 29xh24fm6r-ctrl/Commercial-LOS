@@ -133,9 +133,13 @@ function parseArgs(argv) {
     commit: false,
     skipRollback: false,
     inspectDependencies: false,
+    cleanupFormId: null,
+    commitFormCleanup: false,
     help: false,
   };
-  for (const arg of argv.slice(2)) {
+  const args = argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
     if (arg === '--dry-run') flags.dryRun = true;
     else if (arg === '--commit') {
       flags.commit = true;
@@ -147,20 +151,49 @@ function parseArgs(argv) {
       // because dependency probes hit the Web API.
       flags.inspectDependencies = true;
       flags.dryRun = false;
+    } else if (arg === '--cleanup-form') {
+      // Read-only by default; writing requires the explicit
+      // --commit-form-cleanup flag.  Targets a single SystemForm GUID
+      // supplied as the next argument — the operator is the source of
+      // the form id, never the script.
+      const next = args[i + 1];
+      if (!next) bailParseArgs('--cleanup-form requires a SystemForm GUID');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(next)) {
+        bailParseArgs(`--cleanup-form expects a GUID; got "${next}"`);
+      }
+      flags.cleanupFormId = next.toLowerCase();
+      flags.dryRun = false;
+      i += 1; // consume the GUID
+    } else if (arg === '--commit-form-cleanup') {
+      flags.commitFormCleanup = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
-    else {
-      console.error(`Unknown argument: ${arg}`);
-      console.error(
-        'Usage: node scripts/phase122-lookup-repair.mjs [--dry-run | --commit | --inspect-dependencies] [--help]',
-      );
-      process.exit(2);
-    }
+    else bailParseArgs(`Unknown argument: ${arg}`);
   }
-  if (flags.commit && flags.inspectDependencies) {
-    console.error('Refusing to run: --commit and --inspect-dependencies are mutually exclusive.');
-    process.exit(2);
+
+  const exclusiveModes = [
+    flags.commit,
+    flags.inspectDependencies,
+    flags.cleanupFormId !== null,
+  ].filter(Boolean);
+  if (exclusiveModes.length > 1) {
+    bailParseArgs(
+      'Modes --commit, --inspect-dependencies, and --cleanup-form are mutually exclusive.',
+    );
+  }
+  if (flags.commitFormCleanup && flags.cleanupFormId === null) {
+    bailParseArgs('--commit-form-cleanup has no effect without --cleanup-form <id>.');
   }
   return flags;
+}
+
+function bailParseArgs(msg) {
+  console.error(msg);
+  console.error(
+    'Usage: node scripts/phase122-lookup-repair.mjs ' +
+      '[--dry-run | --commit | --inspect-dependencies | --cleanup-form <id> [--commit-form-cleanup]] ' +
+      '[--help]',
+  );
+  process.exit(2);
 }
 
 const FLAGS = parseArgs(process.argv);
@@ -178,7 +211,11 @@ const MODE = FLAGS.commit
   ? 'COMMIT'
   : FLAGS.inspectDependencies
     ? 'INSPECT-DEPENDENCIES'
-    : 'DRY-RUN';
+    : FLAGS.cleanupFormId !== null
+      ? FLAGS.commitFormCleanup
+        ? 'COMMIT-FORM-CLEANUP'
+        : 'CLEANUP-FORM (dry-run)'
+      : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -189,8 +226,8 @@ console.log(`Required prefix:          ${CR664_PUBLISHER_PREFIX}`);
 console.log(`Forbidden prefix:         ${FORBIDDEN_PUBLISHER_PREFIX}`);
 console.log('');
 
-if (FLAGS.commit) {
-  console.log('⚠  COMMIT MODE — script may perform live Dataverse writes if every');
+if (FLAGS.commit || FLAGS.commitFormCleanup) {
+  console.log('⚠  WRITE MODE — script may perform live Dataverse writes if every');
   console.log('   safety gate passes. Press Ctrl+C now to abort.');
   console.log('');
 }
@@ -976,11 +1013,280 @@ function remediationHintForComponentType(typeCode) {
 }
 
 // ---------------------------------------------------------------------------
+// SystemForm cleanup — targeted, opt-in, dry-run-by-default
+//
+// Form designer often won't surface a "remove field" affordance for a
+// field that was added as a non-standard control. The script can do
+// it directly via the Dataverse Web API:
+//
+//   1. GET  /api/data/v9.2/systemforms(<id>)?$select=formxml,name,...
+//      → returns the form's persisted XML body.
+//   2. Locate every <cell> whose inner control has
+//      datafieldname="cr664_deal" — these are the references the
+//      pseudo-column is blocked by.
+//   3. Without --commit-form-cleanup: PRINT each match. No write.
+//   4. With --commit-form-cleanup:    splice each matching <cell>
+//      element out of the formxml, then PATCH the form, then publish
+//      it via the PublishXml action.
+//   5. Re-run RetrieveDependenciesForDelete against the same
+//      table.cr664_deal to confirm the blocker is gone.
+//
+// The script operates on the SystemForm GUID the operator supplies on
+// the command line — it never picks one itself, and it never removes
+// any other field. The cr664_deal pseudo-column name comes from the
+// PSEUDO_DEAL_COLUMN constant pinned at the top of this file.
+// ---------------------------------------------------------------------------
+
+async function readSystemFormXml(formId, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/systemforms(${formId})` +
+    `?$select=formxml,name,objecttypecode,type,description`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `GET systemforms(${formId}) → ${res.status}: ${text}` };
+    }
+    const form = await res.json();
+    return { ok: true, form };
+  } catch (err) {
+    return { ok: false, error: `systemforms network error: ${err.message}` };
+  }
+}
+
+function findCr664DealReferences(formXml) {
+  // Match every <cell>…</cell> whose contents reference cr664_deal as
+  // a control datafieldname or control id. We deliberately match the
+  // enclosing <cell> (not just the <control>) because removing only
+  // the inner <control> leaves an orphan cell that Dataverse renders
+  // as a blank slot. Removing the whole <cell> mirrors what the form
+  // designer does when you click "Remove" on a field.
+  if (typeof formXml !== 'string' || formXml.length === 0) return [];
+  const refs = [];
+  const cellRegex = /<cell\b[^>]*>[\s\S]*?<\/cell>/gi;
+  let m;
+  while ((m = cellRegex.exec(formXml)) !== null) {
+    const snippet = m[0];
+    if (
+      /datafieldname="cr664_deal"/i.test(snippet) ||
+      /\bid="cr664_deal"/i.test(snippet)
+    ) {
+      refs.push({
+        startIndex: m.index,
+        endIndex: m.index + snippet.length,
+        snippet,
+      });
+    }
+  }
+  return refs;
+}
+
+function removeCr664DealReferences(formXml) {
+  const refs = findCr664DealReferences(formXml);
+  if (refs.length === 0) return { removed: 0, newXml: formXml };
+  let xml = formXml;
+  // Splice from the back forward so earlier indices remain valid.
+  for (let i = refs.length - 1; i >= 0; i -= 1) {
+    xml = xml.slice(0, refs[i].startIndex) + xml.slice(refs[i].endIndex);
+  }
+  return { removed: refs.length, newXml: xml };
+}
+
+async function patchSystemFormXml(formId, formxml, token, envUrl) {
+  const url = `${envUrl}/api/data/v9.2/systemforms(${formId})`;
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ formxml }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `PATCH systemforms(${formId}) → ${res.status}: ${text}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PATCH systemforms network error: ${err.message}` };
+  }
+}
+
+async function publishSystemForm(formId, entityName, token, envUrl) {
+  const url = `${envUrl}/api/data/v9.2/PublishXml`;
+  const parameterXml =
+    `<importexportxml>` +
+    `<entities><entity>${entityName}</entity></entities>` +
+    `<systemforms><systemform>{${formId}}</systemform></systemforms>` +
+    `</importexportxml>`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ParameterXml: parameterXml }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `PublishXml → ${res.status}: ${text}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PublishXml network error: ${err.message}` };
+  }
+}
+
+async function runFormCleanup(formId, token, envUrl, doCommit) {
+  console.log('');
+  console.log('Phase F — Targeted SystemForm cleanup');
+  console.log(`   Form id: ${formId}`);
+  console.log(`   Mode:    ${doCommit ? 'COMMIT-FORM-CLEANUP (will write)' : 'dry-run (no write)'}`);
+  console.log('');
+
+  // 1. Read the form
+  const formResult = await readSystemFormXml(formId, token, envUrl);
+  if (!formResult.ok) {
+    bail(`Form read failed: ${formResult.error}`);
+  }
+  const form = formResult.form;
+  console.log(`   Form name:           ${form.name ?? '(unknown)'}`);
+  console.log(`   Entity (objecttype): ${form.objecttypecode ?? '(unknown)'}`);
+  console.log(`   Form type code:      ${form.type ?? '(unknown)'}`);
+  if (typeof form.formxml !== 'string' || form.formxml.length === 0) {
+    bail(`Form ${formId} has empty formxml — nothing to inspect.`);
+  }
+  console.log(`   formxml length:      ${form.formxml.length} chars`);
+
+  // 2. Locate references
+  const refs = findCr664DealReferences(form.formxml);
+  console.log('');
+  if (refs.length === 0) {
+    console.log(`   ✓ No ${PSEUDO_DEAL_COLUMN} references found in this form's XML.`);
+    console.log('     Nothing to remove. The form is already clean for this field.');
+    return { ok: true, removed: 0 };
+  }
+  console.log(`   Found ${refs.length} ${PSEUDO_DEAL_COLUMN} reference(s):`);
+  for (const [i, ref] of refs.entries()) {
+    const compact = ref.snippet.replace(/\s+/g, ' ');
+    const preview = compact.length > 400 ? compact.slice(0, 400) + '…' : compact;
+    console.log(`     [${i + 1}] cell @ chars ${ref.startIndex}-${ref.endIndex} (${ref.snippet.length} chars)`);
+    console.log(`         ${preview}`);
+  }
+
+  if (!doCommit) {
+    console.log('');
+    console.log(`   Dry-run only — no PATCH or PublishXml issued.`);
+    console.log('   Re-run with `--commit-form-cleanup` to actually remove the reference(s).');
+    return { ok: true, removed: 0, planned: refs.length };
+  }
+
+  // 3. Splice the cells out of the formxml.
+  const { removed, newXml } = removeCr664DealReferences(form.formxml);
+  console.log('');
+  console.log(`   ⚙ Removing ${removed} reference(s) from formxml (-${form.formxml.length - newXml.length} chars).`);
+
+  // 4. PATCH the form.
+  console.log(`   ⚙ PATCH systemforms(${formId}) …`);
+  const patchResult = await patchSystemFormXml(formId, newXml, token, envUrl);
+  if (!patchResult.ok) {
+    bail(`PATCH systemforms(${formId}) failed: ${patchResult.error}`);
+  }
+  console.log('   ✓ PATCH succeeded.');
+
+  // 5. Publish via PublishXml so the form-designer side reflects the change.
+  if (form.objecttypecode) {
+    console.log(`   ⚙ Publishing form via PublishXml (entity=${form.objecttypecode}) …`);
+    const pubResult = await publishSystemForm(formId, form.objecttypecode, token, envUrl);
+    if (!pubResult.ok) {
+      bail(`PublishXml failed: ${pubResult.error}`);
+    }
+    console.log('   ✓ Publish succeeded.');
+  } else {
+    console.log('   ⚠ Form has no objecttypecode; skipping PublishXml. Operator should publish manually if needed.');
+  }
+
+  // 6. Re-running RetrieveDependenciesForDelete to confirm the blocker
+  //    on this form's entity.PSEUDO_DEAL_COLUMN is gone.
+  console.log('');
+  console.log(`   ⚙ Re-running RetrieveDependenciesForDelete for ${form.objecttypecode ?? '(unknown)'}.${PSEUDO_DEAL_COLUMN} …`);
+  if (form.objecttypecode) {
+    const idResult = await getAttributeMetadataId(
+      form.objecttypecode,
+      PSEUDO_DEAL_COLUMN,
+      token,
+      envUrl,
+    );
+    if (!idResult.ok) {
+      console.log(`     ⚠ Could not resolve MetadataId for re-probe: ${idResult.error}`);
+    } else {
+      const depResult = await retrieveDependenciesForDelete(
+        COMPONENT_TYPE_ATTRIBUTE,
+        idResult.metadataId,
+        token,
+        envUrl,
+      );
+      if (!depResult.ok) {
+        console.log(`     ⚠ Re-probe failed: ${depResult.error}`);
+      } else if (depResult.dependencies.length === 0) {
+        console.log(`     ✓ ${form.objecttypecode}.${PSEUDO_DEAL_COLUMN} has ZERO dependent components.`);
+        console.log('       This form is no longer blocking the pseudo-column delete.');
+      } else {
+        console.log(
+          `     ⚠ ${form.objecttypecode}.${PSEUDO_DEAL_COLUMN} still has ${depResult.dependencies.length} dependent component(s):`,
+        );
+        for (const dep of depResult.dependencies) {
+          const typeName = COMPONENT_TYPE_NAMES[dep.dependentcomponenttype] ?? `Type#${dep.dependentcomponenttype}`;
+          console.log(`         - ${typeName} (id=${dep.dependentcomponentobjectid ?? '(no id)'})`);
+        }
+        console.log('       Run `--inspect-dependencies` for the full picture.');
+      }
+    }
+  }
+  console.log('');
+  console.log('✓ Form cleanup commit complete.');
+  return { ok: true, removed };
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 async function main() {
   assertPacAuth();
+
+  // === Targeted SystemForm cleanup ===
+  // This mode is independent of the audit/plan/commit flow. It edits
+  // one form and re-probes that form's parent table for residual
+  // dependencies. No rollback export, no destructive Attribute delete.
+  if (FLAGS.cleanupFormId !== null) {
+    const envUrl = await resolveEnvUrl();
+    const token = await acquireBearerToken(envUrl);
+    const result = await runFormCleanup(
+      FLAGS.cleanupFormId,
+      token,
+      envUrl,
+      FLAGS.commitFormCleanup,
+    );
+    if (!result.ok) process.exit(6);
+    return;
+  }
 
   // === Phase A: audit ===
   const publisherAudit = auditPublishers();
@@ -1179,6 +1485,9 @@ async function main() {
   console.log('  2. Inspect Dataverse dependency state for each pseudo-column the');
   console.log('     plan would delete (recommended before --commit):');
   console.log('       node scripts/phase122-lookup-repair.mjs --inspect-dependencies');
+  console.log('  2a. If a form blocks the delete, clean it up (read-only preview first):');
+  console.log('       node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid>');
+  console.log('       node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> --commit-form-cleanup');
   console.log('  3. To let the script execute the plan:');
   console.log('       node scripts/phase122-lookup-repair.mjs --commit');
   console.log('     Commit mode acquires a token via this priority order:');
@@ -1207,10 +1516,12 @@ function printHelp() {
   console.log(`Phase 122B — Dataverse lookup repair (dry-run default)
 
 Usage:
-  node scripts/phase122-lookup-repair.mjs                          # dry-run (default)
-  node scripts/phase122-lookup-repair.mjs --dry-run                # explicit dry-run
-  node scripts/phase122-lookup-repair.mjs --inspect-dependencies   # read-only dependency probe
-  node scripts/phase122-lookup-repair.mjs --commit                 # execute writes after every safety gate passes
+  node scripts/phase122-lookup-repair.mjs                                                       # dry-run (default)
+  node scripts/phase122-lookup-repair.mjs --dry-run                                             # explicit dry-run
+  node scripts/phase122-lookup-repair.mjs --inspect-dependencies                                # read-only dependency probe
+  node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid>                            # read-only form cleanup preview
+  node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> --commit-form-cleanup      # execute the form cleanup
+  node scripts/phase122-lookup-repair.mjs --commit                                              # execute writes after every safety gate passes
   node scripts/phase122-lookup-repair.mjs --help
 
 Modes:
@@ -1223,6 +1534,14 @@ Modes:
       and print every dependent component. Short-circuits at the
       first column with dependencies. Read-only (GET only). Acquires
       a bearer token via the same priority order as --commit.
+  --cleanup-form <form-guid>
+      Targets one SystemForm by GUID. Read-only by default: prints
+      every <cell> in the form's persisted XML whose control
+      references the cr664_deal pseudo-column. Pair with
+      --commit-form-cleanup to splice those cells out, PATCH the
+      form, publish it via PublishXml, and re-probe the dependency
+      to confirm the blocker is cleared. Independent of the audit /
+      plan / commit flow — never deletes the pseudo-column itself.
   --commit
       Run the plan against the live env. Refuses to run unless every
       safety gate (publisher prefix, rollback artifacts, dependency

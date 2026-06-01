@@ -48,6 +48,8 @@ environment). It has three modes:
 | Default (dry-run) | `node scripts/phase122-lookup-repair.mjs` | Read-only audit + plan emission; nothing is written. |
 | Explicit dry-run | `node scripts/phase122-lookup-repair.mjs --dry-run` | Same as default. |
 | Inspect dependencies | `node scripts/phase122-lookup-repair.mjs --inspect-dependencies` | Read-only audit + plan + per-pseudo-column `RetrieveDependenciesForDelete` probe. No write. Short-circuits at the first column that has a dependent component. Requires a bearer token (same priority order as `--commit`). |
+| Cleanup form (dry-run) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid>` | Read-only. Fetches the SystemForm by GUID, prints every `<cell>` in its persisted formxml that references the `cr664_deal` pseudo-column. No write. See §5B. |
+| Cleanup form (commit) | `node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> --commit-form-cleanup` | Splices the matched cells out of the formxml, PATCHes the SystemForm, publishes it, then re-runs `RetrieveDependenciesForDelete` on that table's pseudo-column to confirm the blocker is cleared. See §5B. |
 | Commit | `node scripts/phase122-lookup-repair.mjs --commit` | Refuses to run unless every safety gate passes (publisher prefix, rollback artifacts, dependency inspection clear, zero non-NULL pseudo-column rows, no stop conditions in plan). |
 
 ### 2.1 Hard-pinned constants
@@ -437,6 +439,106 @@ node scripts/phase122-lookup-repair.mjs --commit
 - The script does **not** continue to inspect later tables after the
   first blocker — the operator gets the first actionable blocker and
   fixes it before re-running.
+
+---
+
+## 5B. Targeted SystemForm cleanup
+
+The form designer in Maker Portal does not always expose a clear
+"Remove" affordance for a field — especially when the column on the
+form is a non-standard pre-existing pseudo-column rather than a
+freshly-bound Lookup. The operator's 2026-06-01 attempt to clean form
+`653f9d5e-767f-4363-9eb8-13b2b1f24ceb` ran into exactly this: the
+right-hand panel showed `Table column: Deal / Label: Deal` but no
+delete control surfaced.
+
+The script's `--cleanup-form` mode performs the cleanup directly
+against the Dataverse Web API. It is targeted, opt-in, and dry-run by
+default — the operator passes the form GUID they want cleaned, and a
+second explicit flag is required before any write happens.
+
+### 5B.1 Dry-run preview
+
+```powershell
+node scripts/phase122-lookup-repair.mjs --cleanup-form 653f9d5e-767f-4363-9eb8-13b2b1f24ceb
+```
+
+The script:
+
+1. Acquires a bearer token (same priority order as `--commit`: env var
+   → cached → device-code).
+2. GETs `systemforms(<id>)?$select=formxml,name,objecttypecode,type`.
+3. Prints the form's name, parent entity (`objecttypecode`), form type
+   code, and formxml length.
+4. Locates every `<cell>…</cell>` whose inner `<control>` has
+   `datafieldname="cr664_deal"` (case-insensitive) or `id="cr664_deal"`,
+   and prints each match with its character offset and a compact
+   single-line snippet.
+5. Stops there — **no write**. The output ends with `Dry-run only —
+   no PATCH or PublishXml issued.`
+
+The dry-run is what to run first. The snippet shows exactly what the
+script would remove; the operator can sanity-check the cell content
+before authorising the write.
+
+### 5B.2 Commit
+
+```powershell
+node scripts/phase122-lookup-repair.mjs --cleanup-form 653f9d5e-767f-4363-9eb8-13b2b1f24ceb --commit-form-cleanup
+```
+
+This re-reads the form, splices each matched `<cell>` out of the
+formxml (the whole cell, not just the inner `<control>` — otherwise
+Dataverse renders an orphan slot), then:
+
+1. `PATCH systemforms(<id>)` with `{ formxml: <newxml> }`.
+2. `POST PublishXml` with
+   `<importexportxml><entities><entity>{objecttypecode}</entity></entities><systemforms><systemform>{<id>}</systemform></systemforms></importexportxml>`.
+3. Re-runs `RetrieveDependenciesForDelete` against the form's parent
+   table's `cr664_deal` pseudo-column. Reports the post-cleanup
+   dependent-component count.
+
+If the count is zero, the script confirms the form is no longer
+blocking the pseudo-column delete. If there are still dependencies
+(other forms / views / workflows / etc.), the script points the
+operator at `--inspect-dependencies` for the full breakdown.
+
+### 5B.3 What the cleanup mode does NOT do
+
+- Does **not** delete the pseudo-column itself. That happens in the
+  main `--commit` flow once `--inspect-dependencies` reports clean.
+- Does **not** touch any field other than the one whose `datafieldname`
+  is `cr664_deal`. The remove pattern is bounded to the matching
+  `<cell>` element.
+- Does **not** pick a form. The operator supplies the GUID. The script
+  refuses any non-GUID argument.
+- Does **not** attempt a force-delete or any bypass. No
+  `BypassBusinessLogicExecution`, `BypassCustomPluginExecution`,
+  `SuppressDuplicateDetection`, or `?Force=true` anywhere in the
+  source — pinned by negative static-source tests.
+- Does **not** modify the React app. Same Phase 122 hard non-goal.
+
+### 5B.4 Typical full sequence
+
+```powershell
+# 1. Inspect dependencies for every pseudo-column the plan would delete.
+node scripts/phase122-lookup-repair.mjs --inspect-dependencies
+#  → ✗ cr664_documentchecklist.cr664_deal has 1 dependent SystemForm
+#       (componentobjectid: 653f9d5e-767f-4363-9eb8-13b2b1f24ceb)
+
+# 2. Preview the form cleanup. No write.
+node scripts/phase122-lookup-repair.mjs --cleanup-form 653f9d5e-767f-4363-9eb8-13b2b1f24ceb
+
+# 3. Execute the cleanup. Splices the cell, patches the form, publishes,
+#    re-probes the pseudo-column.
+node scripts/phase122-lookup-repair.mjs --cleanup-form 653f9d5e-767f-4363-9eb8-13b2b1f24ceb --commit-form-cleanup
+
+# 4. Re-inspect to confirm no other blockers remain.
+node scripts/phase122-lookup-repair.mjs --inspect-dependencies
+
+# 5. Finally run the main plan.
+node scripts/phase122-lookup-repair.mjs --commit
+```
 
 ---
 
