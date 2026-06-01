@@ -1030,6 +1030,106 @@ relax any other safety gate.
 
 ---
 
+## 5F. Lookup-relationship payload shape + partial-commit resume
+
+The operator's 2026-06-08 `--commit` run succeeded through all six
+pseudo-column DELETE steps and stopped on the first
+RelationshipDefinitions POST with:
+
+```text
+Step "Create cr664_Deal Lookup on cr664_documentchecklist → cr664_loandeal" failed:
+  Web API POST /api/data/v9.2/RelationshipDefinitions → 400
+  InnerException:
+    ODataException: An unexpected 'StartObject' node was found for
+    property named 'IsCustomizable'. A 'PrimitiveValue' node was
+    expected.
+```
+
+### 5F.1 The payload bug
+
+`buildLookupRelationshipPayload` was nesting `IsCustomizable` inside
+`AssociatedMenuConfiguration` as the `BooleanManagedProperty` object
+shape (`{ Value: true, CanBeChanged: true, ManagedPropertyLogicalName:
+'iscustomizable' }`). Per the Dataverse Web API docs, `IsCustomizable`
+is **not a property of `AssociatedMenuConfiguration`** at all — it
+belongs at the top-level relationship metadata as a primitive boolean
+(or omitted, which is what Microsoft's quickstart sample does). The
+fix removes it from `AssociatedMenuConfiguration` entirely.
+
+The rest of the payload is unchanged. In particular:
+- `Lookup.RequiredLevel` remains an `AttributeRequiredLevelManagedProperty`
+  object — that one is correctly typed and accepted.
+- `CascadeConfiguration` keeps its primitive-string `Behavior` values
+  (`'NoCascade'` / `'RemoveLink'`).
+- Schema-naming and target-entity invariants (`cr664_loandeal`,
+  `cr664_Deal`, `cr664_AssignedTo`) are unchanged.
+
+### 5F.2 Partial-commit resume — already idempotent
+
+The operator's session left this state:
+
+- 5 cr664_deal pseudo-columns deleted across the 5 candidate tables.
+- 1 cr664_assignedto pseudo-column deleted on cr664_dealtask1.
+- 6 corresponding standard FKs **not yet created** (the first POST
+  failed and the script halted before the rest).
+- Rollback zips on disk.
+
+`buildPlan` is audit-driven — every step it emits is conditioned on
+what the live env reports. Re-running `--commit` against the partial
+state produces a smaller plan:
+
+| Live state on re-run | Plan step emitted |
+| --- | --- |
+| `pseudoDealColumnExists: false` | **No DELETE step.** Loop continues. |
+| `pseudoAssignedToColumnExists: false` | **No AssignedTo DELETE step.** Whole branch skipped. |
+| `standardLookupFkExists: false` | CREATE step emitted normally. |
+| `standardLookupFkExists: true` | Emits a `kind: 'noop'` step labelled `Already correct — <table>._cr664_deal_value exists; cr664_Deal Lookup is present.` |
+| `standardAssignedToFkExists: true` | Skips the AssignedTo CREATE entirely. |
+
+So the operator's resume is:
+
+```powershell
+# 1. Re-run the dry-run to confirm the live state.
+node scripts/phase122-lookup-repair.mjs --dry-run
+#  → audit shows pseudo cr664_deal exists: false (all 6 already deleted)
+#  → plan emits only CREATE + publish + verify steps
+
+# 2. Re-run commit. Rollback zips already on disk are reused (Phase 1
+#    idempotency); dependency inspection passes (no DELETE steps so
+#    nothing to inspect); CREATE steps run with the fixed payload.
+node scripts/phase122-lookup-repair.mjs --commit
+```
+
+### 5F.3 What this fix does NOT do
+
+- Does **not** restore the pseudo-columns. The operator's first round
+  of DELETEs is preserved verbatim — the audit simply reflects the
+  new live state.
+- Does **not** weaken any safety gate. `refuseIfForbiddenPrefix`,
+  `inspectPseudoColumnDependencies`, `ensureRollbackArtifactsExist`,
+  and the stop-condition refusal all still fire on every commit run.
+- Does **not** add a force-delete / bypass header anywhere
+  (`BypassBusinessLogicExecution`, `BypassCustomPluginExecution`,
+  `SuppressDuplicateDetection`, `?Force=true`) — pinned by negative
+  static-source tests.
+- Does **not** touch React app code.
+
+### 5F.4 Inspecting the payload before re-running
+
+The runbook JSON written on every dry-run (`.phase122/phase122-runbook.json`)
+contains the full materialized POST body for each `kind: 'webapi'`
+step. Operators who want to eyeball the payload before resuming
+`--commit` can:
+
+```powershell
+node scripts/phase122-lookup-repair.mjs --dry-run
+# Then look at the JSON file:
+type .phase122\phase122-runbook.json | findstr /n IsCustomizable
+# (expected: zero matches — the fix removed it)
+```
+
+---
+
 ## 6. Expected output (full example)
 
 The latest dry-run run produced exactly this against the live env

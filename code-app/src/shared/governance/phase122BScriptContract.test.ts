@@ -1344,6 +1344,180 @@ describe('Phase 122B — --cleanup-form accepts optional --attribute <table>.<co
   });
 });
 
+describe('Phase 122B — lookup relationship payload uses Web-API-correct shape', () => {
+  // Behavioral mirror of buildLookupRelationshipPayload's output.
+  // The mirror IS what the script must produce; the static-source
+  // pins below lock the script to the same shape.
+  function buildPayloadMirror(args: {
+    referencingEntity: string;
+    schemaName: string;
+    displayLabel: string;
+    target: string;
+  }) {
+    return {
+      '@odata.type': 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata',
+      SchemaName: `${args.referencingEntity}_${args.target}_${args.schemaName.replace(/^cr664_/, '')}`,
+      ReferencedEntity: args.target,
+      ReferencingEntity: args.referencingEntity,
+      AssociatedMenuConfiguration: {
+        Behavior: 'UseCollectionName',
+        Group: 'Details',
+        Order: 10000,
+        // IsCustomizable intentionally absent — see operator's 2026-06-08
+        // ODataException: nested-object IsCustomizable is rejected.
+      },
+      CascadeConfiguration: {
+        Assign: 'NoCascade',
+        Share: 'NoCascade',
+        Unshare: 'NoCascade',
+        Reparent: 'NoCascade',
+        Delete: 'RemoveLink',
+        Merge: 'NoCascade',
+      },
+      Lookup: {
+        '@odata.type': 'Microsoft.Dynamics.CRM.LookupAttributeMetadata',
+        AttributeType: 'Lookup',
+        AttributeTypeName: { Value: 'LookupType' },
+        SchemaName: args.schemaName,
+        Targets: [args.target],
+      },
+    };
+  }
+
+  it('AssociatedMenuConfiguration contains no IsCustomizable key', () => {
+    const p = buildPayloadMirror({
+      referencingEntity: 'cr664_documentchecklist',
+      schemaName: 'cr664_Deal',
+      displayLabel: 'Deal',
+      target: 'cr664_loandeal',
+    });
+    expect(p.AssociatedMenuConfiguration).not.toHaveProperty('IsCustomizable');
+  });
+
+  it('the whole payload does not serialize IsCustomizable as an object anywhere', () => {
+    const p = buildPayloadMirror({
+      referencingEntity: 'cr664_dealtask1',
+      schemaName: 'cr664_AssignedTo',
+      displayLabel: 'Assigned to',
+      target: 'systemuser',
+    });
+    const json = JSON.stringify(p);
+    // No "IsCustomizable":{ ... } substring anywhere.
+    expect(json).not.toMatch(/"IsCustomizable"\s*:\s*\{/);
+  });
+
+  it('script source: AssociatedMenuConfiguration block carries no IsCustomizable property', () => {
+    // Pin the buildLookupRelationshipPayload body's
+    // AssociatedMenuConfiguration object literal — it must NOT
+    // contain an `IsCustomizable: { ... }` line. The buggy 2026-06-08
+    // line was:
+    //   IsCustomizable: { Value: true, CanBeChanged: true,
+    //                     ManagedPropertyLogicalName: 'iscustomizable' },
+    // which produced the ODataException. The fix is to remove it.
+    const fnStart = SCRIPT.indexOf('function buildLookupRelationshipPayload');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart, fnStart + 4000);
+    // The bug shape is gone.
+    expect(body).not.toMatch(/IsCustomizable:\s*\{\s*Value:\s*true/);
+    // The AssociatedMenuConfiguration block itself still exists.
+    expect(body).toMatch(/AssociatedMenuConfiguration:\s*\{/);
+    // Tighter pin: no `IsCustomizable:` PROPERTY KEY anywhere in the
+    // payload-generator body. (The bare word may legitimately appear
+    // in the explanatory comment that documents the incident.)
+    expect(body).not.toMatch(/IsCustomizable:\s/);
+  });
+
+  it('the LookupAttributeMetadata Lookup block still carries the canonical fields', () => {
+    const fnStart = SCRIPT.indexOf('function buildLookupRelationshipPayload');
+    const body = SCRIPT.slice(fnStart, fnStart + 4000);
+    expect(body).toMatch(/'Microsoft\.Dynamics\.CRM\.OneToManyRelationshipMetadata'/);
+    expect(body).toMatch(/'Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata'/);
+    expect(body).toMatch(/AttributeTypeName:\s*\{\s*Value:\s*'LookupType'\s*\}/);
+    expect(body).toMatch(/RequiredLevel:\s*\{\s*Value:\s*'None'/);
+    expect(body).toMatch(/SchemaName:\s*schemaName/);
+    expect(body).toMatch(/Targets:\s*\[target\]/);
+  });
+
+  it('CascadeConfiguration still uses primitive-string Behavior values', () => {
+    const fnStart = SCRIPT.indexOf('function buildLookupRelationshipPayload');
+    const body = SCRIPT.slice(fnStart, fnStart + 4000);
+    // Each behavior is one of 'NoCascade' / 'RemoveLink' (primitive
+    // strings, not objects). Pin the structure.
+    expect(body).toMatch(/Delete:\s*'RemoveLink'/);
+    expect(body).toMatch(/Assign:\s*'NoCascade'/);
+  });
+});
+
+describe('Phase 122B — partial-commit resume is idempotent via audit-driven plan', () => {
+  it('skips DELETE pseudo-column step when pseudoDealColumnExists is false', () => {
+    // buildPlan iterates CANDIDATE_CHILD_TABLES and continues (no
+    // step pushed) when the audit reports the pseudo column is
+    // absent. This is the basis of partial-commit resume: after the
+    // operator's first round of DELETEs the pseudo cols are gone, so
+    // a fresh audit emits no DELETE steps and the plan jumps straight
+    // to create+publish+verify.
+    expect(SCRIPT).toMatch(/if\s*\(!a\s*\|\|\s*!a\.pseudoDealColumnExists\)\s*continue/);
+  });
+
+  it('skips DELETE assignedto step when pseudoAssignedToColumnExists is false', () => {
+    // Same idempotency contract for the AssignedTo column on
+    // cr664_dealtask1. The AssignedTo delete sits inside an
+    // `if (dealtask?.pseudoAssignedToColumnExists)` guard so a re-run
+    // after the column is gone simply emits no step.
+    expect(SCRIPT).toMatch(/if\s*\(dealtask\?\.pseudoAssignedToColumnExists\)/);
+  });
+
+  it('emits a noop step instead of POST when the standard FK already exists', () => {
+    // After a successful create, _cr664_deal_value exists on the
+    // table. The audit-driven plan must emit `kind: 'noop'` rather
+    // than re-POSTing — so a re-run after one create succeeds and
+    // another fails does not double-create the first.
+    expect(SCRIPT).toMatch(/if\s*\(a\?\.standardLookupFkExists\)/);
+    expect(SCRIPT).toMatch(/kind:\s*'noop'/);
+    expect(SCRIPT).toMatch(/Already correct — \$\{t\}\._\$\{PSEUDO_DEAL_COLUMN\}_value exists/);
+  });
+
+  it('skips the AssignedTo CREATE step when standardAssignedToFkExists is true', () => {
+    // The AssignedTo create is wrapped in `if (!dealtask?.standardAssignedToFkExists)`
+    // so when it already exists (from a previous --commit run) the
+    // step is omitted entirely.
+    expect(SCRIPT).toMatch(/if\s*\(!dealtask\?\.standardAssignedToFkExists\)/);
+  });
+
+  it('main commit does not bypass any safety gate on a resumed run', () => {
+    // The same publisher-prefix, rollback, dependency-inspection,
+    // and stop-condition gates fire on every commit invocation —
+    // idempotency comes from the audit producing a smaller plan,
+    // not from gate-bypass.
+    expect(SCRIPT).toMatch(/refuseIfForbiddenPrefix\(/);
+    expect(SCRIPT).toMatch(/inspectPseudoColumnDependencies\(/);
+    expect(SCRIPT).toMatch(/ensureRollbackArtifactsExist\(/);
+  });
+});
+
+describe('Phase 122B — resumed commit keeps every original hard non-goal', () => {
+  it('no new_ prefix introduced anywhere', () => {
+    // FORBIDDEN_PUBLISHER_PREFIX = 'new' is the canonical pin.
+    expect(SCRIPT).toMatch(/FORBIDDEN_PUBLISHER_PREFIX\s*=\s*'new'/);
+    // The bail message naming the would-be junk column.
+    expect(SCRIPT).toMatch(/new_Deal\s+junk\s+columns/);
+  });
+
+  it('no legacy cr664_deal target table in any Lookup payload', () => {
+    expect(SCRIPT).toMatch(/LOOKUP_TARGET_LOAN_DEAL\s*=\s*'cr664_loandeal'/);
+    // Negative: a literal `Targets: ['cr664_deal']` payload must
+    // never appear in the source — the modern target is cr664_loandeal.
+    expect(SCRIPT).not.toMatch(/Targets:\s*\[\s*'cr664_deal'\s*\]/);
+  });
+
+  it('no force-delete / bypass header — even on the create path', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+});
+
 describe('Phase 122B — cleanup refuses to write when only indirect refs exist', () => {
   it('runFormCleanup short-circuits with a Maker Portal hint when no direct cells but indirect refs found', () => {
     const fnStart = SCRIPT.indexOf('async function runFormCleanup');

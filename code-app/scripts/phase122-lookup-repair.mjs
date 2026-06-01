@@ -520,6 +520,25 @@ function auditTable(table) {
 // ---------------------------------------------------------------------------
 
 function buildLookupRelationshipPayload({ referencingEntity, schemaName, displayLabel, target }) {
+  // Payload shape per the Dataverse Web API "Create a one-to-many
+  // relationship" quickstart. Two things to be careful about — both
+  // surfaced by the operator's 2026-06-08 partial-commit failure:
+  //
+  //   1. `IsCustomizable` does NOT belong on AssociatedMenuConfiguration.
+  //      The 2026-06-08 attempt POSTed it nested under that property,
+  //      shaped as { Value: true, CanBeChanged: true,
+  //                  ManagedPropertyLogicalName: 'iscustomizable' }.
+  //      The endpoint replied with
+  //        ODataException: An unexpected 'StartObject' node was found
+  //        for property named 'IsCustomizable'. A 'PrimitiveValue'
+  //        node was expected.
+  //      The fix is to remove `IsCustomizable` from
+  //      AssociatedMenuConfiguration entirely. Microsoft's example
+  //      payload for the same operation does not include it there.
+  //
+  //   2. The Lookup attribute's `RequiredLevel` is correctly typed as
+  //      an `AttributeRequiredLevelManagedProperty` object — that one
+  //      is documented and accepted. Don't touch it.
   return {
     '@odata.type': 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata',
     SchemaName: `${referencingEntity}_${target}_${schemaName.replace(/^cr664_/, '')}`,
@@ -529,7 +548,6 @@ function buildLookupRelationshipPayload({ referencingEntity, schemaName, display
       Behavior: 'UseCollectionName',
       Group: 'Details',
       Order: 10000,
-      IsCustomizable: { Value: true, CanBeChanged: true, ManagedPropertyLogicalName: 'iscustomizable' },
     },
     CascadeConfiguration: {
       Assign: 'NoCascade',
