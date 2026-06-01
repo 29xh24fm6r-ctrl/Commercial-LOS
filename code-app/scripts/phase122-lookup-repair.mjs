@@ -31,7 +31,7 @@
  */
 
 import { execSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,6 +53,28 @@ const CANDIDATE_CHILD_TABLES = Object.freeze([
   'cr664_creditmemodraftsection',
   'cr664_dealtimelineevent',
 ]);
+
+// Legacy cr664_deal child tables surfaced by the operator's 2026-06-01
+// residual-refs check on form 653f9d5e-…. These are not part of the
+// canonical Phase 122 5-table scope, but they are bound to the same
+// cr664_deal pseudo-column via relationships whose names end in
+// `_cr664_Deal_cr664_Deal`, so subgrids targeting them count as
+// removable for the same cleanup loop.
+const LEGACY_CR664_DEAL_CHILD_TABLES = Object.freeze([
+  'cr664_vendorperformance',
+  'cr664_approvaltracking',
+  'cr664_dealstagehistory',
+]);
+
+const ALLOWED_SUBGRID_TARGET_TABLES = Object.freeze([
+  ...CANDIDATE_CHILD_TABLES,
+  ...LEGACY_CR664_DEAL_CHILD_TABLES,
+]);
+
+function isAllowedSubgridTarget(targetEntity) {
+  const lower = String(targetEntity ?? '').toLowerCase();
+  return ALLOWED_SUBGRID_TARGET_TABLES.includes(lower);
+}
 
 const LOOKUP_TARGET_LOAN_DEAL = 'cr664_loandeal';
 const LOOKUP_TARGET_SYSTEMUSER = 'systemuser';
@@ -835,6 +857,56 @@ function ensureRollbackArtifactsExist(reasonHint) {
   }
 }
 
+/**
+ * Idempotency gate for the rollback-export steps.
+ *
+ * `pac solution export --path X.zip` fails (exit code != 0) when X.zip
+ * already exists. On the operator's repeat --commit run after the
+ * first round of PATCH + PublishXml, the previously-exported zips are
+ * still on disk and the export step would crash before the script
+ * could reach its destructive Attribute deletes.
+ *
+ * This helper:
+ *   - Returns `true` (skip) when the destination zip already exists
+ *     on disk AND is non-empty. The existing file is treated as a
+ *     valid checkpoint — the script never overwrites it silently.
+ *   - Bails (throws BailError) when the destination zip exists but is
+ *     0 bytes. That is almost certainly a corrupt partial export from
+ *     an interrupted previous run; operator should delete it before
+ *     re-running.
+ *   - Returns `false` (run the export) when nothing is on disk yet.
+ */
+function shouldSkipRollbackExportStep(step) {
+  const pathMatch = typeof step.command === 'string'
+    ? step.command.match(/--path\s+(\S+)/)
+    : null;
+  if (!pathMatch) return false;
+  const destPath = pathMatch[1];
+  if (!existsSync(destPath)) return false;
+  let stats;
+  try {
+    stats = statSync(destPath);
+  } catch (err) {
+    console.log(
+      `   ⚠ Could not stat existing rollback artifact at ${destPath}: ${err.message}. ` +
+        `Will retry the pac export.`,
+    );
+    return false;
+  }
+  if (stats.size === 0) {
+    bail(
+      `Existing rollback artifact at ${destPath} is 0 bytes — refusing to overwrite ` +
+        `it silently. Delete the empty/corrupt file manually before re-running, or ` +
+        `rename it with a timestamp suffix to preserve it.`,
+    );
+  }
+  console.log(
+    `   ⏭ Reusing existing rollback artifact at ${destPath} (${stats.size} bytes). ` +
+      `Skipping pac export to avoid silent overwrite (idempotent re-run).`,
+  );
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Commit execution (Web API + pac shellouts)
 // ---------------------------------------------------------------------------
@@ -1410,6 +1482,60 @@ function extractContext(formXml, start, length, padding) {
 }
 
 /**
+ * Given an arbitrary offset inside the formxml (e.g. the start index
+ * of a matched <RelationshipName>…</RelationshipName> element), walk
+ * outward and report:
+ *   - the enclosing <cell …> id (if the cell carries an id attribute);
+ *   - the enclosing <control …> id, classid, and <TargetEntityType>
+ *     pulled from that control's body.
+ *
+ * Used by findFormReferences to enrich relationship hits with the
+ * exact handles the operator needs to call --cleanup-subgrid against.
+ * Returns {cellId, control} where each may be null if not found.
+ */
+function findEnclosingControlForRelationship(formXml, hitIndex) {
+  if (typeof formXml !== 'string' || formXml.length === 0) {
+    return { cellId: null, control: null };
+  }
+  const cellRegex = /<cell\b[^>]*>[\s\S]*?<\/cell>/gi;
+  let enclosingCell = null;
+  let m;
+  while ((m = cellRegex.exec(formXml)) !== null) {
+    if (m.index <= hitIndex && hitIndex < m.index + m[0].length) {
+      enclosingCell = { start: m.index, end: m.index + m[0].length, snippet: m[0] };
+      break;
+    }
+  }
+  if (!enclosingCell) return { cellId: null, control: null };
+
+  const cellIdMatch = /<cell\b[^>]*\bid="([^"]+)"/i.exec(enclosingCell.snippet);
+  const cellId = cellIdMatch ? cellIdMatch[1] : null;
+
+  // Within the cell, find the <control>…</control> block (subgrids /
+  // quick-views always have a body — they're never self-closing) that
+  // contains the hit position.
+  const relInCell = hitIndex - enclosingCell.start;
+  const controlRegex = /<control\b[^>]*>[\s\S]*?<\/control>/gi;
+  let control = null;
+  let cm;
+  while ((cm = controlRegex.exec(enclosingCell.snippet)) !== null) {
+    if (cm.index <= relInCell && relInCell < cm.index + cm[0].length) {
+      const ctrlSnippet = cm[0];
+      const ctrlIdMatch = /<control\b[^>]*\bid="([^"]+)"/i.exec(ctrlSnippet);
+      const classidMatch = /classid="([^"]+)"/i.exec(ctrlSnippet);
+      const tetMatch = /<TargetEntityType>([^<]+)<\/TargetEntityType>/i.exec(ctrlSnippet);
+      control = {
+        id: ctrlIdMatch ? ctrlIdMatch[1] : null,
+        classid: classidMatch ? classidMatch[1] : null,
+        targetEntity: tetMatch ? tetMatch[1].trim() : null,
+      };
+      break;
+    }
+  }
+  return { cellId, control };
+}
+
+/**
  * Walk a form's persisted XML and group every reference to the given
  * table + attribute (`table` = e.g. "cr664_documentchecklist",
  * `attribute` = e.g. "cr664_deal") into categories. Used by both
@@ -1520,10 +1646,15 @@ function findFormReferences(formXml, table, attribute) {
     const name = m[1];
     const nameLower = name.toLowerCase();
     if (nameLower.includes(tableLower) || nameLower.includes(attrLower)) {
+      const enclosing = findEnclosingControlForRelationship(formXml, m.index);
       findings.relationships.push({
         startIndex: m.index,
         endIndex: m.index + m[0].length,
         name,
+        enclosingCellId: enclosing.cellId,
+        enclosingControlId: enclosing.control?.id ?? null,
+        enclosingControlClassid: enclosing.control?.classid ?? null,
+        enclosingControlTargetEntity: enclosing.control?.targetEntity ?? null,
         snippet: extractContext(formXml, m.index, m[0].length, 200),
       });
     }
@@ -1721,10 +1852,10 @@ async function runFormInspect(formId, qualifiedAttribute, token, envUrl) {
     findings.targetEntities,
     (e) => `chars ${e.startIndex}-${e.endIndex}: ${compactSnippet(e.snippet)}`,
   );
-  printFindingsSection(
+  printRelationshipFindings(
     `<RelationshipName> values containing "${table}" or "${attribute}"`,
     findings.relationships,
-    (e) => `${e.name}  (chars ${e.startIndex}-${e.endIndex})`,
+    formId,
   );
   printFindingsSection(
     `<NavBar*> entries referencing "${table}" or "${attribute}"`,
@@ -1773,6 +1904,64 @@ function printFindingsSection(label, entries, formatLine) {
   console.log(`     - ${label}: ${entries.length}`);
   for (const [i, e] of entries.entries()) {
     console.log(`       [${i + 1}] ${formatLine(e)}`);
+  }
+}
+
+/**
+ * Pretty-print relationship findings with enclosing control context.
+ * For each <RelationshipName> hit prints the relationship name, the
+ * enclosing <cell> id (if any), the enclosing <control> id + classid +
+ * <TargetEntityType>, and — when the script can prove the enclosing
+ * control is a removable subgrid — the exact dry-run cleanup command
+ * the operator would copy-paste.
+ */
+function printRelationshipFindings(label, entries, formId) {
+  if (entries.length === 0) {
+    console.log(`     - ${label}: none.`);
+    return;
+  }
+  console.log(`     - ${label}: ${entries.length}`);
+  for (const [i, e] of entries.entries()) {
+    console.log(`       [${i + 1}] ${e.name}  (chars ${e.startIndex}-${e.endIndex})`);
+    console.log(`           enclosing cell id:    ${e.enclosingCellId ?? '(none)'}`);
+    console.log(`           enclosing control id: ${e.enclosingControlId ?? '(none)'}`);
+    if (e.enclosingControlClassid) {
+      const isSubgrid =
+        e.enclosingControlClassid.toLowerCase() === SUBGRID_CONTROL_CLASSID.toLowerCase();
+      console.log(
+        `           classid:              ${e.enclosingControlClassid}${isSubgrid ? '  (subgrid)' : ''}`,
+      );
+    }
+    if (e.enclosingControlTargetEntity) {
+      console.log(`           TargetEntityType:     ${e.enclosingControlTargetEntity}`);
+    }
+    const isSafelyRemovable =
+      typeof e.enclosingControlId === 'string' &&
+      e.enclosingControlId.length > 0 &&
+      typeof e.enclosingControlClassid === 'string' &&
+      e.enclosingControlClassid.toLowerCase() === SUBGRID_CONTROL_CLASSID.toLowerCase() &&
+      typeof e.enclosingControlTargetEntity === 'string' &&
+      isAllowedSubgridTarget(e.enclosingControlTargetEntity);
+    if (isSafelyRemovable) {
+      console.log('           ► Safely removable by control id. Dry-run:');
+      console.log(
+        `               node scripts/phase122-lookup-repair.mjs \\`,
+      );
+      console.log(
+        `                 --cleanup-subgrid ${formId} \\`,
+      );
+      console.log(
+        `                 --control-id ${e.enclosingControlId}`,
+      );
+    } else if (e.enclosingControlId) {
+      console.log(
+        '           ⓘ Not auto-removable from this code path (classid or',
+      );
+      console.log(
+        '             target-entity gate fails). Inspect the control in',
+      );
+      console.log('             Maker Portal.');
+    }
   }
 }
 
@@ -1881,12 +2070,14 @@ function validateSubgridCellForCleanup(cellSnippet, controlId) {
     };
   }
   const targetEntity = tetMatch[1].trim();
-  if (!CANDIDATE_CHILD_TABLES.includes(targetEntity)) {
+  if (!isAllowedSubgridTarget(targetEntity)) {
     return {
       ok: false,
       error:
-        `subgrid TargetEntityType "${targetEntity}" is not in the candidate child-table list ` +
-        `(${CANDIDATE_CHILD_TABLES.join(', ')}). Refusing to remove subgrids outside Phase 122 scope.`,
+        `subgrid TargetEntityType "${targetEntity}" is not in the allowed-target list ` +
+        `(canonical: ${CANDIDATE_CHILD_TABLES.join(', ')}; ` +
+        `legacy: ${LEGACY_CR664_DEAL_CHILD_TABLES.join(', ')}). ` +
+        `Refusing to remove subgrids outside Phase 122 scope.`,
     };
   }
 
@@ -2252,10 +2443,18 @@ async function main() {
     const ctx = { token, envUrl };
 
     // ----- Phase 1: rollback export steps (auto-export path only) -----
+    // Idempotency: pac solution export fails if the destination zip
+    // already exists. On a repeat --commit run after a previous PATCH-
+    // and-publish ran, the zips from the earlier run are still on disk
+    // and a naive re-export would crash before the script could reach
+    // its destructive step. The skip-helper below treats an existing
+    // non-empty rollback zip as a valid checkpoint (we never silently
+    // overwrite it) and bails honestly on a zero-byte file.
     const rollbackSteps = plan.filter((s) =>
       typeof s.id === 'string' && s.id.startsWith('rollback-export-'),
     );
     for (const step of rollbackSteps) {
+      if (shouldSkipRollbackExportStep(step)) continue;
       const r = await executeStep(step, ctx);
       if (!r.ok) {
         console.error(`Step "${step.label}" failed: ${r.error}`);

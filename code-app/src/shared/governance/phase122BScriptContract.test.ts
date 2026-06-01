@@ -557,8 +557,9 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
     // Gate 1: classid must match SUBGRID_CONTROL_CLASSID.
     expect(SCRIPT).toMatch(/SUBGRID_CONTROL_CLASSID/);
     expect(SCRIPT).toMatch(/is not a subgrid \(classid mismatch\)/);
-    // Gate 2: TargetEntityType must be in CANDIDATE_CHILD_TABLES.
-    expect(SCRIPT).toMatch(/CANDIDATE_CHILD_TABLES\.includes\(targetEntity\)/);
+    // Gate 2: TargetEntityType must be allowed by isAllowedSubgridTarget
+    // (which covers CANDIDATE_CHILD_TABLES ∪ LEGACY_CR664_DEAL_CHILD_TABLES).
+    expect(SCRIPT).toMatch(/isAllowedSubgridTarget\(targetEntity\)/);
     // Gate 3: RelationshipName must reference cr664_deal.
     expect(SCRIPT).toMatch(/does not reference \$\{PSEUDO_DEAL_COLUMN\}/);
   });
@@ -750,6 +751,168 @@ describe('Phase 122B — bail uses BailError + process.exitCode (no abrupt proce
     const nextDecl = slice.indexOf('\nasync function ', 1);
     const fnBody = nextDecl === -1 ? slice : slice.slice(0, nextDecl);
     expect(fnBody).not.toMatch(/process\.exit\(8\)/);
+  });
+});
+
+describe('Phase 122B — subgrid target allow-list covers canonical + legacy child tables', () => {
+  // Behavioral mirror of the script's isAllowedSubgridTarget.
+  const CANONICAL = [
+    'cr664_documentchecklist',
+    'cr664_dealtask1',
+    'cr664_creditmemo1',
+    'cr664_creditmemodraftsection',
+    'cr664_dealtimelineevent',
+  ];
+  const LEGACY = [
+    'cr664_vendorperformance',
+    'cr664_approvaltracking',
+    'cr664_dealstagehistory',
+  ];
+  function isAllowedSubgridTarget(t: string): boolean {
+    const lower = String(t ?? '').toLowerCase();
+    return CANONICAL.includes(lower) || LEGACY.includes(lower);
+  }
+
+  it('accepts every canonical child table (case-insensitive)', () => {
+    for (const t of CANONICAL) {
+      expect(isAllowedSubgridTarget(t)).toBe(true);
+      expect(isAllowedSubgridTarget(t.toUpperCase())).toBe(true);
+    }
+  });
+
+  it('accepts every legacy operator-surfaced child table', () => {
+    for (const t of LEGACY) {
+      expect(isAllowedSubgridTarget(t)).toBe(true);
+      // Mixed-case variant the operator actually hit:
+      const mixed = t
+        .split('_')
+        .map((seg, i) => (i === 0 ? seg : seg.charAt(0).toUpperCase() + seg.slice(1)))
+        .join('_');
+      expect(isAllowedSubgridTarget(mixed)).toBe(true);
+    }
+  });
+
+  it('rejects unrelated tables including the parent cr664_loandeal', () => {
+    expect(isAllowedSubgridTarget('account')).toBe(false);
+    expect(isAllowedSubgridTarget('cr664_loandeal')).toBe(false);
+    expect(isAllowedSubgridTarget('')).toBe(false);
+  });
+
+  it('script declares LEGACY_CR664_DEAL_CHILD_TABLES with the three operator-surfaced names', () => {
+    expect(SCRIPT).toMatch(/LEGACY_CR664_DEAL_CHILD_TABLES\s*=\s*Object\.freeze\(\[/);
+    expect(SCRIPT).toMatch(/'cr664_vendorperformance'/);
+    expect(SCRIPT).toMatch(/'cr664_approvaltracking'/);
+    expect(SCRIPT).toMatch(/'cr664_dealstagehistory'/);
+  });
+
+  it('script declares ALLOWED_SUBGRID_TARGET_TABLES as the union of canonical + legacy', () => {
+    expect(SCRIPT).toMatch(
+      /ALLOWED_SUBGRID_TARGET_TABLES\s*=\s*Object\.freeze\(\[[\s\S]*?\.\.\.CANDIDATE_CHILD_TABLES[\s\S]*?\.\.\.LEGACY_CR664_DEAL_CHILD_TABLES/,
+    );
+  });
+
+  it('isAllowedSubgridTarget() is the function used by gate 3', () => {
+    expect(SCRIPT).toMatch(/function\s+isAllowedSubgridTarget/);
+    expect(SCRIPT).toMatch(/isAllowedSubgridTarget\(targetEntity\)/);
+  });
+});
+
+describe('Phase 122B — inspect-form prints enclosing control id for residual relationships', () => {
+  it('declares findEnclosingControlForRelationship()', () => {
+    expect(SCRIPT).toMatch(/function\s+findEnclosingControlForRelationship/);
+  });
+
+  it('findFormReferences relationship entries carry enclosing cell + control fields', () => {
+    const fnStart = SCRIPT.indexOf('function findFormReferences');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart, fnStart + 8000);
+    expect(body).toMatch(/enclosingCellId:/);
+    expect(body).toMatch(/enclosingControlId:/);
+    expect(body).toMatch(/enclosingControlClassid:/);
+    expect(body).toMatch(/enclosingControlTargetEntity:/);
+  });
+
+  it('inspect-form output prints the enclosing context + safe-to-remove cleanup command', () => {
+    expect(SCRIPT).toMatch(/function\s+printRelationshipFindings/);
+    expect(SCRIPT).toMatch(/enclosing cell id:/);
+    expect(SCRIPT).toMatch(/enclosing control id:/);
+    expect(SCRIPT).toMatch(/TargetEntityType:/);
+    expect(SCRIPT).toMatch(/Safely removable by control id/);
+    // The printed cleanup command must reference the form id and the
+    // surfaced control id verbatim.
+    expect(SCRIPT).toMatch(/--cleanup-subgrid \$\{formId\}/);
+    expect(SCRIPT).toMatch(/--control-id \$\{e\.enclosingControlId\}/);
+  });
+
+  it('does NOT print a cleanup command when the enclosing control is not a safely-removable subgrid', () => {
+    // The print function gates the cleanup-command branch behind
+    // isAllowedSubgridTarget + subgrid classid + enclosingControlId
+    // truthy. Pin the gate condition.
+    expect(SCRIPT).toMatch(/isSafelyRemovable\s*=[\s\S]*?isAllowedSubgridTarget/);
+  });
+});
+
+describe('Phase 122B — rollback export is idempotent across repeated --commit runs', () => {
+  it('declares shouldSkipRollbackExportStep()', () => {
+    expect(SCRIPT).toMatch(/function\s+shouldSkipRollbackExportStep/);
+  });
+
+  it('the helper reuses an existing non-empty rollback zip', () => {
+    const fnIdx = SCRIPT.indexOf('function shouldSkipRollbackExportStep');
+    expect(fnIdx).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnIdx, fnIdx + 2000);
+    expect(body).toMatch(/existsSync\(/);
+    expect(body).toMatch(/statSync\(/);
+    expect(body).toMatch(/stats\.size === 0/);
+    expect(body).toMatch(/Reusing existing rollback artifact/);
+  });
+
+  it('the helper bails on a 0-byte rollback zip — never silently overwrites', () => {
+    const fnIdx = SCRIPT.indexOf('function shouldSkipRollbackExportStep');
+    const body = SCRIPT.slice(fnIdx, fnIdx + 2000);
+    expect(body).toMatch(/bail\(/);
+    expect(body).toMatch(/refusing to overwrite/);
+  });
+
+  it('Phase 1 rollback loop guards each step via the skip helper', () => {
+    // Pin: the rollback-step for-loop checks shouldSkipRollbackExportStep
+    // BEFORE calling executeStep, so an existing zip short-circuits the
+    // pac export.
+    const phase1Idx = SCRIPT.indexOf('Phase 1: rollback export steps');
+    expect(phase1Idx).toBeGreaterThan(-1);
+    const slice = SCRIPT.slice(phase1Idx, phase1Idx + 1500);
+    expect(slice).toMatch(/shouldSkipRollbackExportStep\(step\)/);
+    expect(slice).toMatch(/continue/);
+    // The skip check must precede the executeStep call inside the loop.
+    const skipIdx = slice.indexOf('shouldSkipRollbackExportStep(step)');
+    const execIdx = slice.indexOf('await executeStep(step');
+    expect(skipIdx).toBeGreaterThan(-1);
+    expect(execIdx).toBeGreaterThan(-1);
+    expect(skipIdx).toBeLessThan(execIdx);
+  });
+
+  it('post-export verification (ensureRollbackArtifactsExist) still runs after the skip-aware loop', () => {
+    // The post-condition gate ("both zips on disk before destructive
+    // steps") must still fire — skip-on-existing only avoids the pac
+    // command, not the verification.
+    const phase1Idx = SCRIPT.indexOf('Phase 1: rollback export steps');
+    const verifyIdx = SCRIPT.indexOf('Rollback artifacts verified on disk', phase1Idx);
+    expect(verifyIdx).toBeGreaterThan(phase1Idx);
+  });
+});
+
+describe('Phase 122B — residual relationship cleanup keeps the no-force-delete contract', () => {
+  it('no bypass headers anywhere in the source after this change', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+
+  it('no broad removal: the splice in runSubgridCleanup remains bounded to match.start/match.end', () => {
+    expect(SCRIPT).toMatch(
+      /form\.formxml\.slice\(0,\s*match\.start\)\s*\+\s*form\.formxml\.slice\(match\.end\)/,
+    );
   });
 });
 

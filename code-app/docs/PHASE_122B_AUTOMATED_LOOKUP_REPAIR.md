@@ -756,6 +756,90 @@ node scripts/phase122-lookup-repair.mjs --inspect-dependencies
 node scripts/phase122-lookup-repair.mjs --commit
 ```
 
+### 5D.5 Residual relationships and the cleanup loop
+
+After the first targeted `--cleanup-subgrid --commit-subgrid-cleanup`
+run, the script's post-condition re-fetch on the operator's 2026-06-01
+session reported three remaining residual relationships on the same
+form:
+
+```text
+cr664_VendorPerformance_cr664_Deal_cr664_Deal
+cr664_ApprovalTracking_cr664_Deal_cr664_Deal
+cr664_DealStageHistory_cr664_Deal_cr664_Deal
+```
+
+Each one corresponds to a separate hidden subgrid on the
+`cr664_deal` form bound through its own relationship. The script's
+`--inspect-form` output now identifies the enclosing control id /
+classid / `<TargetEntityType>` for every `<RelationshipName>` hit,
+and — when the enclosing control is a removable subgrid pointing at a
+table in the allow-list — prints the exact `--cleanup-subgrid` dry-run
+command:
+
+```text
+- <RelationshipName> values containing "cr664_documentchecklist" or "cr664_deal": 3
+  [1] cr664_VendorPerformance_cr664_Deal_cr664_Deal  (chars …-…)
+      enclosing cell id:    (none)
+      enclosing control id: Subgrid_new_7
+      classid:              {E7A81278-8635-4D9E-8D4D-59480B391C5B}  (subgrid)
+      TargetEntityType:     cr664_vendorperformance
+      ► Safely removable by control id. Dry-run:
+          node scripts/phase122-lookup-repair.mjs \
+            --cleanup-subgrid 653f9d5e-767f-4363-9eb8-13b2b1f24ceb \
+            --control-id Subgrid_new_7
+  [2] cr664_ApprovalTracking_cr664_Deal_cr664_Deal …
+  [3] cr664_DealStageHistory_cr664_Deal_cr664_Deal  …
+```
+
+The allowed-target list is the union of `CANDIDATE_CHILD_TABLES`
+(the canonical Phase 122 5-table scope) and a new
+`LEGACY_CR664_DEAL_CHILD_TABLES` constant containing the three
+operator-surfaced names above. Anything outside both lists is
+refused by gate 3 — the cleanup path will never touch a subgrid
+pointing at, say, `account` or `cr664_loandeal` (the parent table).
+
+The full operator loop for residual relationships looks like:
+
+```powershell
+# Iteration 1 — identify every removable subgrid.
+node scripts/phase122-lookup-repair.mjs `
+  --inspect-form 653f9d5e-767f-4363-9eb8-13b2b1f24ceb `
+  --attribute cr664_documentchecklist.cr664_deal
+
+# Iteration 2..N — for each surfaced control id, dry-run then commit.
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-subgrid 653f9d5e-... --control-id Subgrid_new_7
+node scripts/phase122-lookup-repair.mjs `
+  --cleanup-subgrid 653f9d5e-... --control-id Subgrid_new_7 `
+  --commit-subgrid-cleanup
+
+# Repeat for Subgrid_new_8, Subgrid_new_9, … until residual is 0.
+
+# Final confirm.
+node scripts/phase122-lookup-repair.mjs --inspect-dependencies
+```
+
+### 5D.6 Rollback-export idempotency on repeated `--commit`
+
+A `--commit` re-run after a previous round of cleanup leaves the
+rollback zips already on disk. `pac solution export --path X.zip`
+fails when X.zip exists, which would crash the script before it
+reached any destructive step.
+
+The Phase 1 rollback loop now calls `shouldSkipRollbackExportStep`
+before each `pac export` and:
+
+| State on disk | Behavior |
+| --- | --- |
+| Zip does NOT exist | Run the export normally. |
+| Zip exists, size > 0 | Skip the export (log `⏭ Reusing existing rollback artifact …`). The existing checkpoint is treated as valid. The script does **not** overwrite it. |
+| Zip exists, size == 0 | Bail with a clear message — the file is almost certainly a corrupt partial export. Operator must delete it (or rename it with a timestamp suffix) before re-running. |
+
+The post-export `ensureRollbackArtifactsExist` verification still runs
+after the loop — skip-on-existing only avoids the pac command, not the
+mid-plan "both zips on disk" gate.
+
 ---
 
 ## 6. Expected output (full example)
