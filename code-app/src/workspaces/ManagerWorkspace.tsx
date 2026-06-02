@@ -1,6 +1,7 @@
 import { ManagerProvider } from '../manager/ManagerProvider';
 import { ManagerDataProvider } from '../manager/ManagerDataProvider';
 import { useManager } from '../manager/ManagerContext';
+import { ManagerBloombergControlPanel } from '../manager/ManagerBloombergControlPanel';
 import { TeamPipelineSummary } from '../manager/TeamPipelineSummary';
 import { TeamWorkQueue } from '../manager/TeamWorkQueue';
 import { ManagerAutopilotRollup } from '../manager/ManagerAutopilotRollup';
@@ -54,6 +55,14 @@ function ManagerWorkspaceContent() {
         </div>
       </header>
       <main style={styles.main}>
+        {/* Phase 124A — Manager Bloomberg Control Panel mounts as
+            the FIRST cockpit at the top of the manager workspace.
+            Reads the same ManagerDataProvider slots existing cards
+            consume; renders pipeline command strip + exception tape
+            + banker workload + top deals projected through the
+            shared Phase-123A deal-intelligence VM. Existing cards
+            below are unchanged in this phase. */}
+        <ManagerBloombergControlPanel />
         <TeamWorkQueue />
         <ManagerBankerFilterControl />
         <ManagerMorningCatchUp />
