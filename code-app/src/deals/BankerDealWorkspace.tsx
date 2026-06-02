@@ -21,6 +21,8 @@ import { BorrowerCommunication } from './BorrowerCommunication';
 import { TeamsChatHandoff } from './TeamsChatHandoff';
 import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
 import { DealDataProvider } from './DealDataProvider';
+import { DealIntelligenceProvider } from '../shared/dealIntelligenceContext';
+import { DealIntelligenceBeacon } from '../shared/DealIntelligenceBeacon';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -149,6 +151,12 @@ export function BankerDealWorkspace({
       </nav>
       <main style={styles.main}>
         <DealDataProvider deal={deal}>
+          <DealIntelligenceProvider>
+          {/* Phase 123B — pilot cockpit beacon. Renders nothing
+              visible; pins the shared deal-intelligence view-model
+              into the DOM via data-vm-* attributes so the cockpit
+              has one observable contract for the shared deriver. */}
+          <DealIntelligenceBeacon />
           {/* Phase 125D — Command Hero zone. Navy gradient band +
               glass metric strip carried over from Phase 125B/C. */}
           <section data-cockpit-zone="command-hero" aria-label="Command hero">
@@ -250,6 +258,7 @@ export function BankerDealWorkspace({
               </div>
             </section>
           </div>
+          </DealIntelligenceProvider>
         </DealDataProvider>
       </main>
     </div>,
