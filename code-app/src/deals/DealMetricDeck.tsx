@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useDealData } from './DealDataProvider';
 import { deriveDealCockpitMetrics } from './dealCockpitMetrics';
+import { useOptionalDealIntelligence } from '../shared/dealIntelligenceContext';
 import {
   CompletenessRing,
   LargeMetricTile,
@@ -60,6 +61,26 @@ export function DealMetricDeck() {
     [deal, tasks, documents, creditMemo, activity, now],
   );
 
+  // Phase 123C — completeness numbers + missing-field labels prefer
+  // the shared Deal Intelligence VM when the BankerDealWorkspace's
+  // DealIntelligenceProvider is mounted; fall back to the locally-
+  // computed cockpit metrics otherwise (so this card stays usable
+  // without the provider, e.g. in its existing standalone tests).
+  // The values are byte-equivalent today — the VM consumes the same
+  // deriveDealCockpitMetrics output — so the swap is structural, not
+  // visual. The other tiles (Loan amount / Blockers / Tasks /
+  // Documents / Target close) remain on `metrics` per Phase 123C
+  // scope; they will be wired in a later phase.
+  const vm = useOptionalDealIntelligence();
+  const populatedFieldCount =
+    vm?.completeness.populatedFieldCount ?? metrics.populatedFieldCount;
+  const totalFieldCount =
+    vm?.completeness.totalFieldCount ?? metrics.totalFieldCount;
+  const profileCompletenessPct =
+    vm?.completeness.completenessPct ?? metrics.profileCompletenessPct;
+  const missingFieldLabels =
+    vm?.completeness.missingFieldLabels ?? metrics.missingFieldLabels;
+
   return (
     <section
       data-cockpit-zone="metric-deck"
@@ -68,10 +89,10 @@ export function DealMetricDeck() {
     >
       <div style={styles.ringWrap}>
         <CompletenessRing
-          percent={metrics.profileCompletenessPct}
+          percent={profileCompletenessPct}
           size={104}
-          caption={`PROFILE · ${metrics.populatedFieldCount} of ${metrics.totalFieldCount}`}
-          aria-label={`Deal profile completeness: ${metrics.profileCompletenessPct} percent (${metrics.populatedFieldCount} of ${metrics.totalFieldCount} fields populated)`}
+          caption={`PROFILE · ${populatedFieldCount} of ${totalFieldCount}`}
+          aria-label={`Deal profile completeness: ${profileCompletenessPct} percent (${populatedFieldCount} of ${totalFieldCount} fields populated)`}
         />
       </div>
       <div className="cc-metric-deck-tiles" data-metric-deck-tiles="phase-125g">
@@ -84,13 +105,13 @@ export function DealMetricDeck() {
         />
         <LargeMetricTile
           label="Missing fields"
-          value={formatNonNegativeCount(metrics.missingFieldLabels.length)}
+          value={formatNonNegativeCount(missingFieldLabels.length)}
           sub={
-            metrics.missingFieldLabels.length === 0
+            missingFieldLabels.length === 0
               ? 'Every tracked field populated'
-              : `of ${metrics.totalFieldCount} tracked`
+              : `of ${totalFieldCount} tracked`
           }
-          tone={metrics.missingFieldLabels.length === 0 ? 'clear' : 'atRisk'}
+          tone={missingFieldLabels.length === 0 ? 'clear' : 'atRisk'}
           icon={<ChecklistIcon />}
         />
         <LargeMetricTile
@@ -151,16 +172,16 @@ export function DealMetricDeck() {
         <span style={styles.footerSep} aria-hidden="true">·</span>
         <span style={styles.footerLabel}>MEMO</span>
         <span style={styles.footerValue}>{memoStateLabel(metrics.memoState)}</span>
-        {metrics.missingFieldLabels.length > 0 && (
+        {missingFieldLabels.length > 0 && (
           <>
             <span style={styles.footerSepBreak} aria-hidden="true">·</span>
             <span style={styles.footerMissingLabel}>MISSING:</span>
             <span style={styles.footerMissingList}>
-              {metrics.missingFieldLabels.join(' · ')}
+              {missingFieldLabels.join(' · ')}
             </span>
           </>
         )}
-        {metrics.missingFieldLabels.length === 0 && (
+        {missingFieldLabels.length === 0 && (
           <>
             <span style={styles.footerSepBreak} aria-hidden="true">·</span>
             <span style={styles.footerMissingNone}>

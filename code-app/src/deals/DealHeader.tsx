@@ -1,4 +1,5 @@
 import { useDealData } from './DealDataProvider';
+import { useOptionalDealIntelligence } from '../shared/dealIntelligenceContext';
 import { BankerIcon, ClientIcon, StageIcon } from '../shared/cockpitIcons';
 import { radius, shadow, spacing, typography } from '../shared/theme';
 
@@ -28,6 +29,21 @@ import { radius, shadow, spacing, typography } from '../shared/theme';
  */
 export function DealHeader() {
   const { deal } = useDealData();
+  // Phase 123C — prefer the shared Deal Intelligence VM when the
+  // BankerDealWorkspace's DealIntelligenceProvider is mounted; fall
+  // back to the deal record otherwise so this component stays usable
+  // standalone (e.g. in its existing per-card tests). VM values are
+  // byte-equivalent to deal.* today because Phase 122 hydration is the
+  // same loader source; the wiring change is structural — the cockpit
+  // now routes through the shared deriver for the visible labels.
+  const vm = useOptionalDealIntelligence();
+  const dealId = vm?.dealId ?? deal.id;
+  const dealName = vm?.dealName ?? deal.name;
+  const clientName = vm?.clientName ?? deal.clientName;
+  const bankerName = vm?.bankerName ?? deal.bankerName;
+  const stageName = vm?.stageName ?? deal.stage;
+  const statusName = vm?.statusName ?? deal.status;
+  const isClosed = vm ? vm.closure === 'closed' : deal.isClosed;
 
   return (
     <header style={styles.hero} aria-label="Deal command hero">
@@ -43,40 +59,40 @@ export function DealHeader() {
           <span style={styles.lockupPill} aria-hidden="true">
             Deal Cockpit
           </span>
-          <span style={styles.idChip} aria-label={`Deal id ${deal.id}`}>
-            #{deal.id.slice(0, 8)}
+          <span style={styles.idChip} aria-label={`Deal id ${dealId}`}>
+            #{dealId.slice(0, 8)}
           </span>
         </div>
 
-        <h1 style={styles.name}>{deal.name}</h1>
+        <h1 style={styles.name}>{dealName}</h1>
 
         <div style={styles.identityRow} aria-label="Deal identity">
           <IdentitySlot
             icon={<ClientIcon />}
             label="Client"
-            value={deal.clientName}
+            value={clientName}
           />
           <IdentitySlot
             icon={<BankerIcon />}
             label="Banker"
-            value={deal.bankerName}
+            value={bankerName}
             missingLabel="Not assigned"
           />
           <IdentitySlot
             icon={<StageIcon />}
             label="Stage"
-            value={deal.stage}
+            value={stageName}
           />
         </div>
 
         <div style={styles.chipRow}>
           <span
-            style={deal.status ? styles.chip : styles.chipMissing}
-            aria-label={`Status: ${deal.status ?? 'not set'}`}
+            style={statusName ? styles.chip : styles.chipMissing}
+            aria-label={`Status: ${statusName ?? 'not set'}`}
           >
-            {deal.status ? `Status · ${deal.status}` : 'Status · Not set'}
+            {statusName ? `Status · ${statusName}` : 'Status · Not set'}
           </span>
-          {deal.isClosed && (
+          {isClosed && (
             <span style={styles.chipClosed} aria-label="Deal closed">
               Closed
             </span>
