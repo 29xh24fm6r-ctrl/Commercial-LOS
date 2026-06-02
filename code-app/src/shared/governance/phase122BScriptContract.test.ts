@@ -262,7 +262,7 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
     // Now part of the broader three-way mutex with --cleanup-form.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
     );
   });
 
@@ -323,7 +323,7 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
 
   it('cleanup-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive\./,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive\./,
     );
   });
 
@@ -424,7 +424,7 @@ describe('Phase 122B — broad SystemForm inspection for indirect dependencies',
 
   it('--inspect-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
     );
   });
 
@@ -538,7 +538,7 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
 
   it('5-way mutex includes --cleanup-subgrid', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
     );
   });
 
@@ -949,7 +949,7 @@ describe('Phase 122B — SavedQuery (view) inspection + targeted cleanup', () =>
 
   it('7-way mutex includes --inspect-view and --cleanup-view', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
     );
   });
 
@@ -1550,6 +1550,308 @@ describe('Phase 122B — commit still skips create when a true lookup already ex
   });
 });
 
+describe('Phase 122E Pt 2 — --seed-product-references guarded write mode', () => {
+  it('parses --seed-product-references + --commit-seed-product-references + reuses --deal-name', () => {
+    expect(SCRIPT).toMatch(/'--seed-product-references'/);
+    expect(SCRIPT).toMatch(/'--commit-seed-product-references'/);
+    expect(SCRIPT).toMatch(/flags\.seedProductReferences\s*=\s*true/);
+    expect(SCRIPT).toMatch(/flags\.commitSeedProductReferences\s*=\s*true/);
+  });
+
+  it('--deal-name is required when --seed-product-references is set', () => {
+    expect(SCRIPT).toMatch(/--seed-product-references requires --deal-name/);
+  });
+
+  it('--commit-seed-product-references is rejected without --seed-product-references', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-product-references has no effect without --seed-product-references/,
+    );
+  });
+
+  it('--deal-name is valid alongside EITHER seed mode (client OR product-references)', () => {
+    expect(SCRIPT).toMatch(
+      /--deal-name is only valid alongside --seed-client-relationship or --seed-product-references/,
+    );
+  });
+
+  it('10-way mutex extended to include --seed-product-references', () => {
+    expect(SCRIPT).toMatch(
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
+    );
+  });
+
+  it('PRODUCT_REFERENCE_SEEDS pins the three operator-approved (name, code) pairs', () => {
+    expect(SCRIPT).toMatch(/PRODUCT_REFERENCE_SEEDS\s*=\s*Object\.freeze/);
+    // Product Type
+    expect(SCRIPT).toMatch(/name:\s*'SBA 7\(a\)'/);
+    expect(SCRIPT).toMatch(/code:\s*'SBA_7A'/);
+    // Loan Structure
+    expect(SCRIPT).toMatch(/name:\s*'Term Loan'/);
+    expect(SCRIPT).toMatch(/code:\s*'TERM_LOAN'/);
+    // Pricing Type
+    expect(SCRIPT).toMatch(/name:\s*'Variable'/);
+    expect(SCRIPT).toMatch(/code:\s*'VARIABLE'/);
+    // Bind keys (Loan Deal SchemaName casing).
+    expect(SCRIPT).toMatch(/cr664_ProductTypeReference@odata\.bind/);
+    expect(SCRIPT).toMatch(/cr664_LoanStructureTypeReference@odata\.bind/);
+    expect(SCRIPT).toMatch(/cr664_PricingTypeReference@odata\.bind/);
+  });
+
+  it('PRODUCT_REFERENCE_TABLE_LOGICAL + ENTITY_SET pin the audit-confirmed target table', () => {
+    expect(SCRIPT).toMatch(
+      /PRODUCT_REFERENCE_TABLE_LOGICAL\s*=\s*'cr664_producttypereference'/,
+    );
+    expect(SCRIPT).toMatch(
+      /PRODUCT_REFERENCE_ENTITY_SET\s*=\s*'cr664_producttypereferences'/,
+    );
+  });
+
+  it('resolveProductReference probes by code FIRST then by name; both probes refuse multi-match', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+resolveProductReference/);
+    const fnStart = SCRIPT.indexOf('async function resolveProductReference');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnEnd = SCRIPT.indexOf('async function runSeedProductReferences', fnStart);
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    // Probe order: code → name.
+    const byCodeIdx = body.indexOf('findProductReferenceByCode(');
+    const byNameIdx = body.indexOf('findProductReferenceByName(');
+    expect(byCodeIdx).toBeGreaterThan(-1);
+    expect(byNameIdx).toBeGreaterThan(-1);
+    expect(byCodeIdx).toBeLessThan(byNameIdx);
+    // Both probes bail with "Refusing as ambiguous" on >1 match.
+    expect(body).toMatch(/cr664_code = "\$\{seed\.code\}"[\s\S]*?Refusing as ambiguous/);
+    expect(body).toMatch(/cr664_name = "\$\{seed\.name\}"[\s\S]*?Refusing as ambiguous/);
+  });
+
+  it('findProductReferenceByCode + findProductReferenceByName are read-only GETs', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+findProductReferenceByCode/);
+    expect(SCRIPT).toMatch(/async\s+function\s+findProductReferenceByName/);
+    // OData filters use the audit-confirmed primary-name + code columns.
+    expect(SCRIPT).toMatch(/cr664_code eq '\$\{/);
+    expect(SCRIPT).toMatch(/cr664_name eq '\$\{/);
+    // Select covers the PK + the two ApplicationRequired columns +
+    // activeflag (for the warning when reusing inactive rows).
+    expect(SCRIPT).toMatch(
+      /cr664_producttypereferenceid,cr664_name,cr664_code,cr664_activeflag/,
+    );
+  });
+
+  it('createProductReference POSTs only the three ApplicationRequired columns', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+createProductReference/);
+    const fnStart = SCRIPT.indexOf('async function createProductReference');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnEnd = SCRIPT.indexOf(
+      'async function patchLoanDealProductReferences',
+      fnStart,
+    );
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    expect(body).toMatch(/method:\s*'POST'/);
+    expect(body).toMatch(/cr664_name:\s*seedName/);
+    expect(body).toMatch(/cr664_code:\s*seedCode/);
+    expect(body).toMatch(/cr664_activeflag:\s*true/);
+    // Negative: no other column in the POST body.
+    expect(body).not.toMatch(/cr664_dealname/i);
+    expect(body).not.toMatch(/cr664_clientname/i);
+    expect(body).not.toMatch(/cr664_borrowertype/i);
+    expect(body).not.toMatch(/cr664_amount/i);
+    expect(body).not.toMatch(/cr664_industry/i);
+  });
+
+  it('patchLoanDealProductReferences body sets ONLY the three product-reference binds', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+patchLoanDealProductReferences/);
+    const fnStart = SCRIPT.indexOf('async function patchLoanDealProductReferences');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnEnd = SCRIPT.indexOf('async function readLoanDealProductReferences', fnStart);
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    expect(body).toMatch(/method:\s*'PATCH'/);
+    // Body is the caller-supplied bindPairs record — the function
+    // itself is purely a wrapper. The HARD non-goal is enforced at
+    // the call site in runSeedProductReferences: bindBody is built
+    // only from the three product-reference binds.
+    expect(body).toMatch(/body:\s*JSON\.stringify\(bindPairs\)/);
+    // Negative: this helper does NOT contain any reference to the
+    // other Loan Deal columns the spec forbids touching.
+    expect(body).not.toMatch(/cr664_Client@odata\.bind/);
+    expect(body).not.toMatch(/cr664_StageReference@odata\.bind/);
+    expect(body).not.toMatch(/cr664_StatusReference@odata\.bind/);
+    expect(body).not.toMatch(/cr664_AssignedBanker@odata\.bind/);
+    expect(body).not.toMatch(/cr664_customertype/);
+    expect(body).not.toMatch(/cr664_industry/);
+    expect(body).not.toMatch(/cr664_guarantorstructure/);
+    expect(body).not.toMatch(/cr664_collateralsummary/);
+  });
+
+  it('the runSeedProductReferences orchestrator builds the PATCH bindBody from ONLY the three bind keys', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+runSeedProductReferences/);
+    const fnStart = SCRIPT.indexOf('async function runSeedProductReferences');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnEnd = SCRIPT.indexOf('function countNonNull', fnStart);
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    // The bindBody object is keyed by p.seed.bind (which comes from
+    // PRODUCT_REFERENCE_SEEDS.*.bind — already pinned above as the
+    // three product-reference @odata.bind keys). Negative-pin against
+    // any other column finding its way into the PATCH body.
+    expect(body).toMatch(/bindBody\[p\.seed\.bind\]\s*=/);
+    expect(body).not.toMatch(/bindBody\[['"]cr664_Client@odata\.bind/);
+    expect(body).not.toMatch(/bindBody\[['"]cr664_StageReference@odata\.bind/);
+    expect(body).not.toMatch(/bindBody\[['"]cr664_StatusReference@odata\.bind/);
+    expect(body).not.toMatch(/bindBody\[['"]cr664_AssignedBanker@odata\.bind/);
+  });
+
+  it('dry-run is the default — write path guarded by doCommit', () => {
+    const fnStart = SCRIPT.indexOf('async function runSeedProductReferences');
+    const body = SCRIPT.slice(fnStart);
+    expect(body).toMatch(/if\s*\(!doCommit\)/);
+    expect(body).toMatch(
+      /Re-run with `--commit-seed-product-references` to execute/,
+    );
+    // Pin ordering: the dry-run early return appears BEFORE any
+    // createProductReference or patchLoanDealProductReferences call.
+    const dryReturnIdx = body.indexOf(
+      'Re-run with `--commit-seed-product-references`',
+    );
+    const createIdx = body.indexOf('createProductReference(');
+    const patchIdx = body.indexOf('patchLoanDealProductReferences(');
+    expect(dryReturnIdx).toBeGreaterThan(-1);
+    expect(createIdx).toBeGreaterThan(-1);
+    expect(patchIdx).toBeGreaterThan(-1);
+    expect(dryReturnIdx).toBeLessThan(createIdx);
+    expect(dryReturnIdx).toBeLessThan(patchIdx);
+  });
+
+  it('idempotent: no PATCH when all three links already point at the resolved ids', () => {
+    const fnStart = SCRIPT.indexOf('async function runSeedProductReferences');
+    const body = SCRIPT.slice(fnStart);
+    // The orchestrator computes anyNeedsCreate + anyNeedsLink and
+    // short-circuits with "No-op success" when both are false.
+    expect(body).toMatch(/anyNeedsCreate/);
+    expect(body).toMatch(/anyNeedsLink/);
+    expect(body).toMatch(/alreadyLinked:\s*true/);
+    expect(body).toMatch(/No-op success/);
+  });
+
+  it('refuses zero-match deal AND >1 deal matches', () => {
+    const fnStart = SCRIPT.indexOf('async function runSeedProductReferences');
+    const body = SCRIPT.slice(fnStart);
+    expect(body).toMatch(/No cr664_loandeals row with cr664_dealname/);
+    expect(body).toMatch(/cr664_loandeals rows match cr664_dealname/);
+  });
+
+  it('refuses duplicate rows on the reference table (both probes)', () => {
+    // Duplicate-row refusal is in resolveProductReference.
+    const fnStart = SCRIPT.indexOf('async function resolveProductReference');
+    const body = SCRIPT.slice(fnStart, fnStart + 4000);
+    expect(body).toMatch(/Refusing as ambiguous/);
+    // Both code-probe and name-probe paths produce the refusal.
+    const codeRefusalIdx = body.indexOf('cr664_code');
+    const nameRefusalIdx = body.indexOf('cr664_name');
+    expect(codeRefusalIdx).toBeGreaterThan(-1);
+    expect(nameRefusalIdx).toBeGreaterThan(codeRefusalIdx);
+  });
+
+  it('never mutates an existing reference row (no PATCH/UPDATE on cr664_producttypereferences)', () => {
+    const fnStart = SCRIPT.indexOf('async function runSeedProductReferences');
+    const fnEnd = SCRIPT.indexOf('function countNonNull', fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    // The orchestrator must never PATCH the reference table; only
+    // POST (create) and the loan-deal PATCH are allowed.
+    expect(body).not.toMatch(
+      /PATCH[\s\S]{0,200}cr664_producttypereferences\(/,
+    );
+    // When reusing a row whose stored fields differ from the seed,
+    // the orchestrator prints a "Reusing AS-IS (no mutation)" warning.
+    expect(body).toMatch(/Reusing AS-IS \(no mutation\)/);
+  });
+
+  it('verification re-reads the deal with FormattedValue annotations and prints the three lookup ids', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+readLoanDealProductReferences/);
+    const fnStart = SCRIPT.indexOf('async function readLoanDealProductReferences');
+    const fnEnd = SCRIPT.indexOf('async function resolveProductReference', fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    expect(body).toMatch(
+      /Prefer:\s*'odata\.include-annotations="OData\.Community\.Display\.V1\.FormattedValue"'/,
+    );
+    expect(body).toMatch(/_cr664_producttypereference_value/);
+    expect(body).toMatch(/_cr664_loanstructuretypereference_value/);
+    expect(body).toMatch(/_cr664_pricingtypereference_value/);
+  });
+
+  it('verification step prints the FormattedValue display for each of the three lookups', () => {
+    const fnStart = SCRIPT.indexOf('async function runSeedProductReferences');
+    const body = SCRIPT.slice(fnStart);
+    expect(body).toMatch(
+      /currentFkKey\}@OData\.Community\.Display\.V1\.FormattedValue/,
+    );
+  });
+
+  it('seed-product branch is wired into main() and returns BEFORE the broad audit/commit branches', () => {
+    const guardIdx = SCRIPT.indexOf('if (FLAGS.seedProductReferences)');
+    expect(guardIdx).toBeGreaterThan(-1);
+    const auditMarkerIdx = SCRIPT.indexOf('// === Phase A: audit ===', guardIdx);
+    expect(auditMarkerIdx).toBeGreaterThan(guardIdx);
+    const between = SCRIPT.slice(guardIdx, auditMarkerIdx);
+    expect(between).toMatch(/return;/);
+  });
+
+  it('no force-delete / bypass headers introduced by the new mode', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+
+  it('MODE banner adds SEED-PRODUCT-REFERENCES (dry-run) + COMMIT-SEED-PRODUCT-REFERENCES', () => {
+    expect(SCRIPT).toMatch(/'COMMIT-SEED-PRODUCT-REFERENCES'/);
+    expect(SCRIPT).toMatch(/'SEED-PRODUCT-REFERENCES \(dry-run\)'/);
+  });
+
+  it('write-mode warning header fires on --commit-seed-product-references', () => {
+    expect(SCRIPT).toMatch(/FLAGS\.commitSeedProductReferences/);
+  });
+});
+
+describe('Phase 122E Pt 2 — seed graph values (behavioral mirror)', () => {
+  // Behavioral mirror of PRODUCT_REFERENCE_SEEDS. The seed names +
+  // codes are operator-spec; the test re-states them so a future
+  // drift between the doc and the script trips a clear failure.
+  const seeds: Array<{ label: string; name: string; code: string }> = [
+    { label: 'Product type',   name: 'SBA 7(a)',  code: 'SBA_7A' },
+    { label: 'Loan structure', name: 'Term Loan', code: 'TERM_LOAN' },
+    { label: 'Pricing type',   name: 'Variable',  code: 'VARIABLE' },
+  ];
+
+  it('the three seeds map to the three Loan Deal product-reference bind keys', () => {
+    const bindKeys = [
+      'cr664_ProductTypeReference@odata.bind',
+      'cr664_LoanStructureTypeReference@odata.bind',
+      'cr664_PricingTypeReference@odata.bind',
+    ];
+    for (const key of bindKeys) {
+      expect(SCRIPT).toContain(key);
+    }
+  });
+
+  it('each seed exposes (label, name, code) — no extra columns leak into the spec', () => {
+    for (const s of seeds) {
+      expect(typeof s.name).toBe('string');
+      expect(typeof s.code).toBe('string');
+      expect(typeof s.label).toBe('string');
+      // The seeds intentionally do NOT carry activeflag — the orchestrator
+      // hardcodes `cr664_activeflag: true` in createProductReference.
+    }
+  });
+
+  it('each seed code is a non-empty identifier-shape string', () => {
+    for (const s of seeds) {
+      expect(s.code).toMatch(/^[A-Z][A-Z0-9_]*$/);
+    }
+  });
+});
+
 describe('Phase 122E Pt 1 — --inspect-attributes targeted attribute audit', () => {
   it('parses --inspect-attributes with a comma-separated list of <table>.<attribute>', () => {
     expect(SCRIPT).toMatch(/'--inspect-attributes'/);
@@ -1626,7 +1928,7 @@ describe('Phase 122E Pt 1 — --inspect-attributes targeted attribute audit', ()
     // Asserted via the central mutex pin updated elsewhere in this file,
     // but re-check the specific string for clarity.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
     );
   });
 });

@@ -110,6 +110,38 @@ const BORROWER_TYPE_LABELS = Object.freeze({
   788190004: 'Trust',
   788190005: 'Non-Profit',
 });
+
+// Phase 122E Pt 2 — fixed seed graph for the three cockpit-missing
+// optional Loan Deal reference lookups. Pt 1 audit confirmed all
+// three point at the SAME target table (cr664_producttypereference)
+// with three ApplicationRequired columns:
+//   cr664_name        String
+//   cr664_code        String
+//   cr664_activeflag  Boolean
+// The names/codes below are the operator-approved values; the script
+// POSTs nothing else.
+const PRODUCT_REFERENCE_TABLE_LOGICAL = 'cr664_producttypereference';
+const PRODUCT_REFERENCE_ENTITY_SET = 'cr664_producttypereferences';
+const PRODUCT_REFERENCE_SEEDS = Object.freeze({
+  productType: Object.freeze({
+    label: 'Product type',
+    bind: 'cr664_ProductTypeReference@odata.bind',
+    name: 'SBA 7(a)',
+    code: 'SBA_7A',
+  }),
+  loanStructure: Object.freeze({
+    label: 'Loan structure',
+    bind: 'cr664_LoanStructureTypeReference@odata.bind',
+    name: 'Term Loan',
+    code: 'TERM_LOAN',
+  }),
+  pricingType: Object.freeze({
+    label: 'Pricing type',
+    bind: 'cr664_PricingTypeReference@odata.bind',
+    name: 'Variable',
+    code: 'VARIABLE',
+  }),
+});
 const COMPONENT_TYPE_NAMES = Object.freeze({
   1: 'Entity',
   2: 'Attribute',
@@ -188,6 +220,8 @@ function parseArgs(argv) {
     seedClientName: null,
     seedBorrowerType: null,
     commitSeedClient: false,
+    seedProductReferences: false,
+    commitSeedProductReferences: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -388,6 +422,15 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg === '--commit-seed-client') {
       flags.commitSeedClient = true;
+    } else if (arg === '--seed-product-references') {
+      // Phase 122E Pt 2 — guarded seed of the three optional Product /
+      // Loan Structure / Pricing Type reference lookups on the Loan
+      // Deal. Reuses --deal-name. Writes require
+      // --commit-seed-product-references.
+      flags.seedProductReferences = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-product-references') {
+      flags.commitSeedProductReferences = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -402,10 +445,11 @@ function parseArgs(argv) {
     flags.cleanupViewId !== null,
     flags.seedClientRelationship,
     flags.inspectAttributeItems !== null,
+    flags.seedProductReferences,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
@@ -461,9 +505,6 @@ function parseArgs(argv) {
       bailParseArgs('--seed-client-relationship requires --borrower-type <integer>');
     }
   } else {
-    if (flags.seedDealName) {
-      bailParseArgs('--deal-name is only valid alongside --seed-client-relationship');
-    }
     if (flags.seedClientName) {
       bailParseArgs('--client-name is only valid alongside --seed-client-relationship');
     }
@@ -473,6 +514,28 @@ function parseArgs(argv) {
     if (flags.commitSeedClient) {
       bailParseArgs('--commit-seed-client has no effect without --seed-client-relationship.');
     }
+  }
+  // --seed-product-references cross-flag validation. --deal-name is
+  // shared with --seed-client-relationship since both write to the
+  // same Loan Deal row; it is valid alongside either seed mode but
+  // not in any other context.
+  if (flags.seedProductReferences) {
+    if (!flags.seedDealName) {
+      bailParseArgs('--seed-product-references requires --deal-name <text>');
+    }
+  } else if (flags.commitSeedProductReferences) {
+    bailParseArgs(
+      '--commit-seed-product-references has no effect without --seed-product-references.',
+    );
+  }
+  if (
+    flags.seedDealName &&
+    !flags.seedClientRelationship &&
+    !flags.seedProductReferences
+  ) {
+    bailParseArgs(
+      '--deal-name is only valid alongside --seed-client-relationship or --seed-product-references',
+    );
   }
   return flags;
 }
@@ -533,7 +596,11 @@ const MODE = FLAGS.commit
                       ? FLAGS.commitSeedClient
                         ? 'COMMIT-SEED-CLIENT'
                         : 'SEED-CLIENT-RELATIONSHIP (dry-run)'
-                      : 'DRY-RUN';
+                      : FLAGS.seedProductReferences
+                        ? FLAGS.commitSeedProductReferences
+                          ? 'COMMIT-SEED-PRODUCT-REFERENCES'
+                          : 'SEED-PRODUCT-REFERENCES (dry-run)'
+                        : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -549,7 +616,8 @@ if (
   FLAGS.commitFormCleanup ||
   FLAGS.commitSubgridCleanup ||
   FLAGS.commitViewCleanup ||
-  FLAGS.commitSeedClient
+  FLAGS.commitSeedClient ||
+  FLAGS.commitSeedProductReferences
 ) {
   console.log('⚠  WRITE MODE — script may perform live Dataverse writes if every');
   console.log('   safety gate passes. Press Ctrl+C now to abort.');
@@ -1642,6 +1710,481 @@ async function runSeedClientRelationship(
   console.log('');
   console.log('✓ Seed commit complete.');
   return { ok: true, clientId, needCreate };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 122E Pt 2 — guarded Product / Loan Structure / Pricing reference seed.
+//
+// Three optional reference lookups on cr664_loandeal all target the
+// SAME table (cr664_producttypereference) per Pt 1's audit:
+//
+//   cr664_loandeal.cr664_producttypereference        → cr664_producttypereference
+//   cr664_loandeal.cr664_loanstructuretypereference  → cr664_producttypereference
+//   cr664_loandeal.cr664_pricingtypereference        → cr664_producttypereference
+//
+// The target table has three ApplicationRequired columns:
+//   cr664_name        String   (primary name)
+//   cr664_code        String
+//   cr664_activeflag  Boolean
+//
+// This mode resolves-or-creates one row per seed (see
+// PRODUCT_REFERENCE_SEEDS above) and PATCHes the deal with up to
+// three @odata.bind values. Idempotent at both levels:
+//   - Per row: look up by cr664_code first, then by cr664_name. If
+//     found, reuse. If duplicates exist by either probe, bail.
+//   - Per deal: if all three deal lookups already point at the
+//     resolved row ids, no PATCH is sent.
+//
+// Existing reference rows are NEVER mutated, even if their stored
+// activeflag / name / code differs from PRODUCT_REFERENCE_SEEDS.
+// The script honors operator state; explicit follow-up PATCHes
+// belong to a different mode.
+// ---------------------------------------------------------------------------
+
+async function findProductReferenceByCode(code, token, envUrl) {
+  const filter = `cr664_code eq '${odataEscapeStringLiteral(code)}'`;
+  const select = 'cr664_producttypereferenceid,cr664_name,cr664_code,cr664_activeflag';
+  const url =
+    `${envUrl}/api/data/v9.2/${PRODUCT_REFERENCE_ENTITY_SET}` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+async function findProductReferenceByName(name, token, envUrl) {
+  const filter = `cr664_name eq '${odataEscapeStringLiteral(name)}'`;
+  const select = 'cr664_producttypereferenceid,cr664_name,cr664_code,cr664_activeflag';
+  const url =
+    `${envUrl}/api/data/v9.2/${PRODUCT_REFERENCE_ENTITY_SET}` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+async function createProductReference(seedName, seedCode, token, envUrl) {
+  const url = `${envUrl}/api/data/v9.2/${PRODUCT_REFERENCE_ENTITY_SET}`;
+  // POST body contains ONLY the three audit-confirmed required columns.
+  // Nothing else — Phase 122E Pt 2 spec.
+  const body = {
+    cr664_name: seedName,
+    cr664_code: seedCode,
+    cr664_activeflag: true,
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return {
+        ok: false,
+        error: `POST ${PRODUCT_REFERENCE_ENTITY_SET} → ${res.status}: ${text}`,
+      };
+    }
+    const json = await res.json();
+    if (!json.cr664_producttypereferenceid) {
+      return {
+        ok: false,
+        error: 'POST succeeded but response is missing cr664_producttypereferenceid',
+      };
+    }
+    return { ok: true, id: json.cr664_producttypereferenceid, record: json };
+  } catch (err) {
+    return { ok: false, error: `POST network error: ${err.message}` };
+  }
+}
+
+async function patchLoanDealProductReferences(dealId, bindPairs, token, envUrl) {
+  // bindPairs is a record like:
+  //   {
+  //     'cr664_ProductTypeReference@odata.bind':       '/cr664_producttypereferences(<id>)',
+  //     'cr664_LoanStructureTypeReference@odata.bind': '/cr664_producttypereferences(<id>)',
+  //     'cr664_PricingTypeReference@odata.bind':       '/cr664_producttypereferences(<id>)',
+  //   }
+  // Only the keys that need to change are included by the caller.
+  // The body MUST NOT contain anything else — Phase 122E Pt 2 spec
+  // forbids touching Client / Stage / Status / Banker / Customer /
+  // Industry / Guarantor / Collateral.
+  const url = `${envUrl}/api/data/v9.2/cr664_loandeals(${dealId})`;
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(bindPairs),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `PATCH cr664_loandeals(${dealId}) → ${res.status}: ${text}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PATCH network error: ${err.message}` };
+  }
+}
+
+async function readLoanDealProductReferences(dealId, token, envUrl) {
+  const select = [
+    'cr664_loandealid',
+    'cr664_dealname',
+    '_cr664_producttypereference_value',
+    '_cr664_loanstructuretypereference_value',
+    '_cr664_pricingtypereference_value',
+  ].join(',');
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_loandeals(${dealId})` +
+    `?$select=${encodeURIComponent(select)}`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        Prefer: 'odata.include-annotations="OData.Community.Display.V1.FormattedValue"',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    return { ok: true, record: json };
+  } catch (err) {
+    return { ok: false, error: `re-read network error: ${err.message}` };
+  }
+}
+
+/**
+ * Resolve one PRODUCT_REFERENCE_SEEDS entry to an existing row id
+ * (matched by cr664_code first, then cr664_name) or flag it for
+ * creation. Refuses duplicate matches by either probe as ambiguous.
+ */
+async function resolveProductReference(seed, token, envUrl) {
+  const byCode = await findProductReferenceByCode(seed.code, token, envUrl);
+  if (!byCode.ok) return { ok: false, error: byCode.error };
+  if (byCode.records.length > 1) {
+    return {
+      ok: false,
+      error:
+        `${byCode.records.length} ${PRODUCT_REFERENCE_ENTITY_SET} rows match ` +
+        `cr664_code = "${seed.code}". Refusing as ambiguous.`,
+    };
+  }
+  if (byCode.records.length === 1) {
+    return {
+      ok: true,
+      found: true,
+      source: 'code',
+      id: byCode.records[0].cr664_producttypereferenceid,
+      record: byCode.records[0],
+    };
+  }
+
+  const byName = await findProductReferenceByName(seed.name, token, envUrl);
+  if (!byName.ok) return { ok: false, error: byName.error };
+  if (byName.records.length > 1) {
+    return {
+      ok: false,
+      error:
+        `${byName.records.length} ${PRODUCT_REFERENCE_ENTITY_SET} rows match ` +
+        `cr664_name = "${seed.name}". Refusing as ambiguous.`,
+    };
+  }
+  if (byName.records.length === 1) {
+    return {
+      ok: true,
+      found: true,
+      source: 'name',
+      id: byName.records[0].cr664_producttypereferenceid,
+      record: byName.records[0],
+    };
+  }
+
+  return { ok: true, found: false, source: 'none' };
+}
+
+async function runSeedProductReferences({ dealName, doCommit }, token, envUrl) {
+  console.log('');
+  console.log('Phase P — Product / Loan Structure / Pricing reference seed');
+  console.log(`   Deal name:   ${dealName}`);
+  console.log(`   Target table: ${PRODUCT_REFERENCE_TABLE_LOGICAL}`);
+  console.log(
+    `   Mode:        ${doCommit ? 'COMMIT-SEED-PRODUCT-REFERENCES (will write)' : 'dry-run (no write)'}`,
+  );
+  console.log('');
+
+  // 1. Resolve the deal.
+  const dealResult = await findLoanDealByName(dealName, token, envUrl);
+  if (!dealResult.ok) {
+    bail(`Could not resolve deal "${dealName}": ${dealResult.error}`);
+  }
+  if (dealResult.records.length === 0) {
+    bail(
+      `No cr664_loandeals row with cr664_dealname = "${dealName}". ` +
+        `Refusing — the script will not invent a deal.`,
+    );
+  }
+  if (dealResult.records.length > 1) {
+    bail(
+      `${dealResult.records.length} cr664_loandeals rows match cr664_dealname = ` +
+        `"${dealName}". Refusing — the operator must pick one explicitly.`,
+    );
+  }
+  const deal = dealResult.records[0];
+  const dealId = deal.cr664_loandealid;
+  console.log(`   ✓ Deal found: cr664_loandealid=${dealId}`);
+
+  // Re-read the deal so we know the CURRENT lookup state per field —
+  // findLoanDealByName only selects _cr664_client_value, which is
+  // useful for Phase 122D but not Phase 122E. The single GET below
+  // covers all three product-reference FKs in one round trip.
+  const currentRead = await readLoanDealProductReferences(dealId, token, envUrl);
+  if (!currentRead.ok) {
+    bail(`Could not re-read deal for product-reference state: ${currentRead.error}`);
+  }
+  const currentDeal = currentRead.record;
+  console.log(`   Current Loan Deal product-reference state:`);
+  console.log(
+    `     _cr664_producttypereference_value:        ${currentDeal._cr664_producttypereference_value ?? '(unset)'}`,
+  );
+  console.log(
+    `     _cr664_loanstructuretypereference_value:  ${currentDeal._cr664_loanstructuretypereference_value ?? '(unset)'}`,
+  );
+  console.log(
+    `     _cr664_pricingtypereference_value:        ${currentDeal._cr664_pricingtypereference_value ?? '(unset)'}`,
+  );
+  console.log('');
+
+  // 2. Resolve each seed row.
+  const seedEntries = [
+    {
+      ...PRODUCT_REFERENCE_SEEDS.productType,
+      currentFkKey: '_cr664_producttypereference_value',
+    },
+    {
+      ...PRODUCT_REFERENCE_SEEDS.loanStructure,
+      currentFkKey: '_cr664_loanstructuretypereference_value',
+    },
+    {
+      ...PRODUCT_REFERENCE_SEEDS.pricingType,
+      currentFkKey: '_cr664_pricingtypereference_value',
+    },
+  ];
+
+  console.log('   Per-seed resolution:');
+  const resolved = [];
+  for (const seed of seedEntries) {
+    const res = await resolveProductReference(seed, token, envUrl);
+    if (!res.ok) bail(`Resolve "${seed.code}" failed: ${res.error}`);
+    if (res.found) {
+      console.log(
+        `     ✓ ${seed.label}: reusing existing row matched by ${res.source}` +
+          ` (cr664_producttypereferenceid=${res.id})`,
+      );
+      const existingActive = res.record?.cr664_activeflag;
+      const existingName = res.record?.cr664_name;
+      const existingCode = res.record?.cr664_code;
+      if (existingActive === false) {
+        console.log(
+          `         ⚠ Existing row has cr664_activeflag=false; reusing AS-IS (no mutation).`,
+        );
+      }
+      if (existingName !== seed.name || existingCode !== seed.code) {
+        console.log(
+          `         ⚠ Existing row name/code differs from seed (` +
+            `name="${existingName}", code="${existingCode}"). ` +
+            `Reusing AS-IS (no mutation).`,
+        );
+      }
+    } else {
+      console.log(
+        `     ⚙ ${seed.label}: no existing row found — will create on commit ` +
+          `(cr664_name="${seed.name}", cr664_code="${seed.code}", cr664_activeflag=true)`,
+      );
+    }
+    resolved.push({ seed, ...res });
+  }
+  console.log('');
+
+  // 3. Idempotency: build the diff between current FK values and
+  //    resolved (existing or to-be-created) ids. For not-yet-created
+  //    rows the id will be filled in during commit; for the dry-run
+  //    diff we mark them as "<new>".
+  const linkPlan = [];
+  for (const r of resolved) {
+    const currentFk = currentDeal[r.seed.currentFkKey] ?? null;
+    const desiredId = r.found ? r.id : '<new>';
+    const needsLink = r.found ? currentFk !== r.id : true;
+    linkPlan.push({
+      seed: r.seed,
+      currentFk,
+      desiredId,
+      needsLink,
+      resolved: r,
+    });
+  }
+  const anyNeedsLink = linkPlan.some((p) => p.needsLink);
+  const anyNeedsCreate = resolved.some((r) => !r.found);
+
+  console.log('   Link diff (current → desired):');
+  for (const p of linkPlan) {
+    const arrow = p.needsLink ? '→' : '=';
+    console.log(
+      `     ${p.needsLink ? '⚙' : '✓'} ${p.seed.label.padEnd(18)}` +
+        ` ${String(p.currentFk ?? '(unset)').padEnd(38)} ${arrow} ${p.desiredId}`,
+    );
+  }
+  console.log('');
+
+  if (!anyNeedsCreate && !anyNeedsLink) {
+    console.log(
+      '   ✓ All three product-reference lookups already point at the resolved rows.',
+    );
+    console.log('   No-op success.');
+    return { ok: true, alreadyLinked: true };
+  }
+
+  // 4. Plan summary.
+  console.log('   Planned actions:');
+  let stepNum = 1;
+  for (const r of resolved) {
+    if (!r.found) {
+      console.log(
+        `     [${stepNum}] POST /api/data/v9.2/${PRODUCT_REFERENCE_ENTITY_SET}`,
+      );
+      console.log(
+        `         body: { "cr664_name": "${r.seed.name}", ` +
+          `"cr664_code": "${r.seed.code}", "cr664_activeflag": true }`,
+      );
+      stepNum += 1;
+    }
+  }
+  if (anyNeedsLink) {
+    console.log(
+      `     [${stepNum}] PATCH /api/data/v9.2/cr664_loandeals(${dealId})`,
+    );
+    console.log('         body keys (only differing binds are sent):');
+    for (const p of linkPlan) {
+      if (!p.needsLink) continue;
+      const targetId = p.resolved.found ? p.resolved.id : '<newly-created>';
+      console.log(
+        `           "${p.seed.bind}": ` +
+          `"/${PRODUCT_REFERENCE_ENTITY_SET}(${targetId})"`,
+      );
+    }
+    console.log(
+      '         PATCH body sets ONLY the three product-reference binds — no other column.',
+    );
+  }
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no POST or PATCH issued.');
+    console.log('   Re-run with `--commit-seed-product-references` to execute the plan above.');
+    return { ok: true, planned: true, needCreate: anyNeedsCreate, needLink: anyNeedsLink };
+  }
+
+  // 5. Commit. Create missing rows.
+  for (const r of resolved) {
+    if (r.found) continue;
+    console.log('');
+    console.log(
+      `   ⚙ POST /api/data/v9.2/${PRODUCT_REFERENCE_ENTITY_SET} (${r.seed.label}) …`,
+    );
+    const createResult = await createProductReference(
+      r.seed.name,
+      r.seed.code,
+      token,
+      envUrl,
+    );
+    if (!createResult.ok) bail(`Create "${r.seed.code}" failed: ${createResult.error}`);
+    r.id = createResult.id;
+    r.found = true;
+    r.source = 'created';
+    console.log(`   ✓ Created cr664_producttypereferenceid=${r.id}`);
+  }
+
+  // 6. Build PATCH body containing only the differing binds.
+  const bindBody = {};
+  for (const p of linkPlan) {
+    if (!p.needsLink) continue;
+    const targetId = p.resolved.id;
+    bindBody[p.seed.bind] = `/${PRODUCT_REFERENCE_ENTITY_SET}(${targetId})`;
+  }
+  if (Object.keys(bindBody).length > 0) {
+    console.log('');
+    console.log(`   ⚙ PATCH cr664_loandeals(${dealId}) …`);
+    const patchResult = await patchLoanDealProductReferences(
+      dealId,
+      bindBody,
+      token,
+      envUrl,
+    );
+    if (!patchResult.ok) {
+      bail(`PATCH loan deal failed: ${patchResult.error}`);
+    }
+    console.log('   ✓ PATCH succeeded.');
+  } else {
+    console.log('   (no PATCH needed — existing links already match the resolved ids.)');
+  }
+
+  // 7. Verify.
+  console.log('');
+  console.log('   ⚙ Re-reading the deal to verify the three lookups …');
+  const verifyResult = await readLoanDealProductReferences(dealId, token, envUrl);
+  if (!verifyResult.ok) {
+    console.log(`     ⚠ Could not re-read deal: ${verifyResult.error}`);
+  } else {
+    const v = verifyResult.record;
+    for (const p of linkPlan) {
+      const verifiedId = v[p.seed.currentFkKey];
+      const formatted =
+        v[`${p.seed.currentFkKey}@OData.Community.Display.V1.FormattedValue`];
+      console.log(`     ${p.seed.label}:`);
+      console.log(`       FK value:      ${verifiedId ?? '(unset!)'}`);
+      console.log(`       formatted:     ${formatted ?? '(no formatted value)'}`);
+      const expectedId = p.resolved.id;
+      if (verifiedId === expectedId) {
+        console.log('       ✓ link verified.');
+      } else {
+        console.log(
+          '       ⚠ verification mismatch — re-read shows a different id ' +
+            'than the one the script wrote.',
+        );
+      }
+    }
+  }
+
+  console.log('');
+  console.log('Summary:');
+  for (const r of resolved) {
+    const action =
+      r.source === 'created'
+        ? 'created'
+        : r.source === 'code'
+          ? 'reused (matched by code)'
+          : r.source === 'name'
+            ? 'reused (matched by name)'
+            : 'unknown';
+    console.log(`   ${r.seed.label.padEnd(18)} ${action}  id=${r.id}`);
+  }
+  console.log('');
+  console.log('✓ Product-references seed commit complete.');
+  return { ok: true, resolved };
 }
 
 function countNonNull(table, attribute) {
@@ -4306,6 +4849,23 @@ async function main() {
     return;
   }
 
+  // === Product / Loan Structure / Pricing reference seed (Phase 122E Pt 2) ===
+  // Dry-run by default; writes require --commit-seed-product-references.
+  // Idempotent: reuses existing rows matched by cr664_code (then
+  // cr664_name), and skips the PATCH when all three deal lookups
+  // already point at the resolved ids.
+  if (FLAGS.seedProductReferences) {
+    await runSeedProductReferences(
+      {
+        dealName: FLAGS.seedDealName,
+        doCommit: FLAGS.commitSeedProductReferences,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
   // === Broad SystemForm inspection (read-only) ===
   if (FLAGS.inspectFormId !== null) {
     const result = await runFormInspect(
@@ -4771,6 +5331,20 @@ Modes:
       Designed for OPTIONAL reference lookups that --inspect-table
       doesn't detail-print (e.g. cr664_loandeal.cr664_producttypereference).
       Pure GETs, no write of any kind.
+
+  --seed-product-references --deal-name <text>
+      [--commit-seed-product-references]
+      Phase 122E Pt 2 — guarded seed of the three optional Product /
+      Loan Structure / Pricing reference lookups on a Loan Deal. All
+      three target the same cr664_producttypereference table per the
+      Pt 1 audit. Dry-run by default. Idempotent per row (find by
+      cr664_code → find by cr664_name → create) and per deal (no
+      PATCH if all three lookups already point at the resolved ids).
+      The POST body sets ONLY cr664_name + cr664_code +
+      cr664_activeflag; the PATCH body sets ONLY the three
+      product-reference @odata.bind values — no other Loan Deal
+      column is touched. Bails ambiguously on duplicate rows by
+      either probe.
 
   --seed-client-relationship
       --deal-name <text> --client-name <text> --borrower-type <int>

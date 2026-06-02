@@ -1,8 +1,7 @@
 # Phase 122E — Final Loan Deal reference lookups
 
-**Status:** **Pt 1 audit tool delivered. Live schema inspection pending
-operator run.** This phase targets the three remaining cockpit-missing
-fields on TEST — Deal Phase 121:
+**Status:** **Pt 1 audit + Pt 2 seed mode delivered.** This phase targets
+the three remaining cockpit-missing fields on TEST — Deal Phase 121:
 
 - Product type (`cr664_producttypereference`)
 - Loan structure (`cr664_loanstructuretypereference`)
@@ -183,6 +182,133 @@ node scripts/phase122-lookup-repair.mjs `
 | Do not deeply recurse | The mode walks exactly **one** level deep (parent attribute → target table's required columns). Nested Lookups print their Targets[] but the script does NOT then fetch the metadata of those sub-targets. The operator re-runs `--inspect-attributes` against any sub-target they need to explore. |
 | Do not use pac env fetch | All metadata queries hit Dataverse Web API endpoints exclusively. |
 | Do not seed anything | Pt 2 is a future commit. |
+
+## 8. Pt 2 — `--seed-product-references` execution mode
+
+Pt 1's `--inspect-attributes` audit confirmed:
+
+- All three Loan Deal lookups point at the SAME target table —
+  `cr664_producttypereference` (EntitySet `cr664_producttypereferences`).
+- Three ApplicationRequired columns on that target:
+  - `cr664_name` (String — primary name)
+  - `cr664_code` (String)
+  - `cr664_activeflag` (Boolean)
+
+Pt 2 adds a guarded write mode that resolves-or-creates one row per
+seed and PATCHes the deal with up to three `@odata.bind` values.
+
+### 8.1 Seed rows
+
+| Seed | `cr664_name` | `cr664_code` | `cr664_activeflag` | Loan Deal bind |
+| --- | --- | --- | --- | --- |
+| Product Type | `SBA 7(a)` | `SBA_7A` | `true` | `cr664_ProductTypeReference@odata.bind` |
+| Loan Structure | `Term Loan` | `TERM_LOAN` | `true` | `cr664_LoanStructureTypeReference@odata.bind` |
+| Pricing Type | `Variable` | `VARIABLE` | `true` | `cr664_PricingTypeReference@odata.bind` |
+
+The seed values are pinned in `PRODUCT_REFERENCE_SEEDS` at the top of
+the script. Both the script and the static-source pins use these
+exact strings — a future drift trips a clear failure.
+
+### 8.2 Commands
+
+```powershell
+# Dry-run preview — no write of any kind.
+node scripts/phase122-lookup-repair.mjs `
+  --seed-product-references `
+  --deal-name "TEST — Deal Phase 121"
+
+# Execute. Creates the three reference rows (or reuses any that
+# already exist) and PATCHes the deal.
+node scripts/phase122-lookup-repair.mjs `
+  --seed-product-references `
+  --deal-name "TEST — Deal Phase 121" `
+  --commit-seed-product-references
+```
+
+### 8.3 What the mode does
+
+1. **Resolves the deal** by `cr664_dealname`. Refuses zero matches
+   (no auto-create) AND >1 matches (ambiguous).
+2. **Reads the deal's current product-reference state** in one GET
+   (`_cr664_producttypereference_value`,
+   `_cr664_loanstructuretypereference_value`,
+   `_cr664_pricingtypereference_value`). Used by the idempotency
+   check below.
+3. **Resolves each seed row** in order:
+   - GET by `cr664_code`. If exactly one match → reuse. If >1 match →
+     bail ("Refusing as ambiguous").
+   - Otherwise GET by `cr664_name`. Same single-match-or-bail rule.
+   - Otherwise mark for creation.
+4. **Idempotency diff**: compares each Loan Deal current FK value
+   against the resolved seed id. Builds a `linkPlan` of which links
+   need to change.
+5. **Short-circuit**: if no row needs creation AND no link needs to
+   change, prints "No-op success" and exits. Re-running the commit is
+   therefore a no-op.
+6. **Dry-run** prints the planned actions verbatim — exact POST
+   bodies, exact PATCH body keys — and exits unless
+   `--commit-seed-product-references` is also passed.
+7. **Commit** path:
+   - POSTs to `/api/data/v9.2/cr664_producttypereferences` for each
+     row that doesn't yet exist. The POST body contains ONLY
+     `cr664_name` + `cr664_code` + `cr664_activeflag: true`. No other
+     column.
+   - PATCHes `/api/data/v9.2/cr664_loandeals(<id>)` with a body
+     containing ONLY the differing product-reference `@odata.bind`
+     keys. No other Loan Deal column is touched.
+8. **Verify**: re-reads the deal with `Prefer:
+   odata.include-annotations="OData.Community.Display.V1.FormattedValue"`,
+   prints each FK + formatted display, and confirms each verified id
+   matches the resolved id.
+
+### 8.4 Idempotency contract
+
+| State | Behavior |
+| --- | --- |
+| All three rows missing + deal lookups unset | 3 POSTs + 1 PATCH (3 binds) |
+| All three rows already present + deal links correct | No-op success |
+| All three rows present + deal links empty | 0 POSTs + 1 PATCH (3 binds) |
+| Some rows missing, some present, some links differing | POST only missing rows; PATCH only differing binds |
+| A row exists with `cr664_activeflag=false` | Reuse AS-IS + warn (no mutation) |
+| A row exists with name/code differing from spec | Reuse AS-IS + warn (no mutation) |
+| Multiple rows by `cr664_code` OR `cr664_name` | Bail ("Refusing as ambiguous") |
+| Zero deal matches | Bail (no auto-create) |
+| >1 deal matches | Bail (ambiguous) |
+
+### 8.5 What this mode does NOT do
+
+- Does **not** mutate any existing `cr664_producttypereference` row.
+  Even when `cr664_activeflag`, `cr664_name`, or `cr664_code` of an
+  existing row differs from the seed spec, the row is reused AS-IS
+  with a warning. Explicit follow-up PATCHes belong to a different
+  mode.
+- Does **not** touch any Loan Deal column other than the three
+  product-reference `@odata.bind` keys. Client / Stage / Status /
+  Banker / Customer Type / Industry / Guarantor Structure /
+  Collateral Summary all stay exactly as Phase 122C/Phase 122D Pt 2
+  left them — pinned by negative static-source tests.
+- Does **not** invent a display value. The cockpit reads each lookup
+  through Phase 122C's loader fix; the formatted display is whatever
+  Dataverse returns for the resolved row's primary name.
+- Does **not** use any bypass header
+  (`BypassBusinessLogicExecution`, `BypassCustomPluginExecution`,
+  `SuppressDuplicateDetection`, `?Force=true`) — re-asserted by
+  negative pins.
+- Does **not** use `pac env fetch`.
+- Does **not** touch React app code.
+
+### 8.6 Acceptance criteria mapping
+
+| Acceptance criterion | How it's satisfied |
+| --- | --- |
+| `npm test -- src/shared/governance/phase122BScriptContract.test.ts` passes | 26 new pins for Pt 2 (parse, mutex, seed values, resolve order, dry-run gate, POST body shape, PATCH body shape, no-other-column negatives, no-mutate-existing, duplicate refusal, verify with annotations, no bypass headers). 270 / 270 total pins pass. |
+| `npm run build` passes | Verified clean. |
+| Dry-run prints planned create/reuse + PATCH | The orchestrator prints every step with its exact POST/PATCH body before any write. |
+| Commit creates/reuses all three reference rows and links the TEST deal | POST for each missing row + PATCH with the differing binds. |
+| Re-run commit is a no-op success | The idempotency short-circuit detects when everything matches and prints "No-op success" before any write. |
+| Code App cockpit shows 0 missing fields | Phase 122C's loader reads each lookup display from `_<lookup>_value@…FormattedValue`. Once the PATCH lands, the three product-reference lookups hydrate and the cockpit shows 0/13 missing fields. |
+
+---
 
 ## 7. Cross-references
 
