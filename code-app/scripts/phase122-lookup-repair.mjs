@@ -96,6 +96,20 @@ const DV_BEARER_TOKEN_ENV_VAR = 'DATAVERSE_BEARER_TOKEN';
 // delete is an Attribute; the other entries are used only for the
 // human-readable rendering of dependent component types.
 const COMPONENT_TYPE_ATTRIBUTE = 2;
+
+// Phase 122D Pt 2 — cr664_clientrelationship.cr664_borrowertype OptionSet.
+// Pinned from the Pt 1 audit output the operator captured:
+//   Required column: cr664_borrowertype  type=Picklist  ApplicationRequired
+// The integer value the script POSTs MUST be one of these keys; the
+// label is informational (printed in dry-run output / verify log).
+const BORROWER_TYPE_LABELS = Object.freeze({
+  788190000: 'Individual',
+  788190001: 'LLC',
+  788190002: 'Corporation',
+  788190003: 'Partnership',
+  788190004: 'Trust',
+  788190005: 'Non-Profit',
+});
 const COMPONENT_TYPE_NAMES = Object.freeze({
   1: 'Entity',
   2: 'Attribute',
@@ -168,6 +182,11 @@ function parseArgs(argv) {
     printRelationshipPayload: false,
     verifyLookups: false,
     inspectTableName: null,
+    seedClientRelationship: false,
+    seedDealName: null,
+    seedClientName: null,
+    seedBorrowerType: null,
+    commitSeedClient: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -299,6 +318,41 @@ function parseArgs(argv) {
       flags.inspectTableName = next.toLowerCase();
       flags.dryRun = false;
       i += 1;
+    } else if (arg === '--seed-client-relationship') {
+      // Phase 122D Pt 2 — guarded TEST Client / Relationship seed.
+      // Dry-run by default; writes require --commit-seed-client.
+      // Requires --deal-name, --client-name, --borrower-type.
+      flags.seedClientRelationship = true;
+      flags.dryRun = false;
+    } else if (arg === '--deal-name') {
+      const next = args[i + 1];
+      if (!next || next.length === 0) {
+        bailParseArgs('--deal-name requires a non-empty Loan Deal primary-name value');
+      }
+      flags.seedDealName = next;
+      i += 1;
+    } else if (arg === '--client-name') {
+      const next = args[i + 1];
+      if (!next || next.length === 0) {
+        bailParseArgs('--client-name requires a non-empty Client / Relationship primary-name value');
+      }
+      flags.seedClientName = next;
+      i += 1;
+    } else if (arg === '--borrower-type') {
+      const next = args[i + 1];
+      const parsed = Number(next);
+      if (!Number.isInteger(parsed) || !BORROWER_TYPE_LABELS[parsed]) {
+        const valid = Object.keys(BORROWER_TYPE_LABELS)
+          .map((k) => `${k}=${BORROWER_TYPE_LABELS[k]}`)
+          .join(', ');
+        bailParseArgs(
+          `--borrower-type expects one of {${valid}}; got "${next}"`,
+        );
+      }
+      flags.seedBorrowerType = parsed;
+      i += 1;
+    } else if (arg === '--commit-seed-client') {
+      flags.commitSeedClient = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -311,10 +365,11 @@ function parseArgs(argv) {
     flags.cleanupSubgridFormId !== null,
     flags.inspectViewId !== null,
     flags.cleanupViewId !== null,
+    flags.seedClientRelationship,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
@@ -355,6 +410,33 @@ function parseArgs(argv) {
   }
   if (flags.commitViewCleanup && flags.cleanupViewId === null) {
     bailParseArgs('--commit-view-cleanup has no effect without --cleanup-view <id>.');
+  }
+  // --seed-client-relationship cross-flag validation. All three inputs
+  // are required when the mode is selected. None of them is meaningful
+  // without the mode.
+  if (flags.seedClientRelationship) {
+    if (!flags.seedDealName) {
+      bailParseArgs('--seed-client-relationship requires --deal-name <text>');
+    }
+    if (!flags.seedClientName) {
+      bailParseArgs('--seed-client-relationship requires --client-name <text>');
+    }
+    if (flags.seedBorrowerType === null) {
+      bailParseArgs('--seed-client-relationship requires --borrower-type <integer>');
+    }
+  } else {
+    if (flags.seedDealName) {
+      bailParseArgs('--deal-name is only valid alongside --seed-client-relationship');
+    }
+    if (flags.seedClientName) {
+      bailParseArgs('--client-name is only valid alongside --seed-client-relationship');
+    }
+    if (flags.seedBorrowerType !== null) {
+      bailParseArgs('--borrower-type is only valid alongside --seed-client-relationship');
+    }
+    if (flags.commitSeedClient) {
+      bailParseArgs('--commit-seed-client has no effect without --seed-client-relationship.');
+    }
   }
   return flags;
 }
@@ -409,7 +491,11 @@ const MODE = FLAGS.commit
                 ? 'VERIFY-LOOKUPS'
                 : FLAGS.inspectTableName !== null
                   ? 'INSPECT-TABLE'
-                  : 'DRY-RUN';
+                  : FLAGS.seedClientRelationship
+                    ? FLAGS.commitSeedClient
+                      ? 'COMMIT-SEED-CLIENT'
+                      : 'SEED-CLIENT-RELATIONSHIP (dry-run)'
+                    : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -424,7 +510,8 @@ if (
   FLAGS.commit ||
   FLAGS.commitFormCleanup ||
   FLAGS.commitSubgridCleanup ||
-  FLAGS.commitViewCleanup
+  FLAGS.commitViewCleanup ||
+  FLAGS.commitSeedClient
 ) {
   console.log('⚠  WRITE MODE — script may perform live Dataverse writes if every');
   console.log('   safety gate passes. Press Ctrl+C now to abort.');
@@ -957,6 +1044,367 @@ async function runInspectTable(tableLogicalName, token, envUrl) {
     'Read-only inspection. No write of any kind has been issued against this env.',
   );
   return { ok: true, table: t, required, recommended, optional };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 122D Pt 2 — guarded TEST Client / Relationship seed.
+//
+// Loan Deal.cr664_Client points at cr664_clientrelationship. The Pt 1
+// audit confirmed the table's required columns are:
+//   cr664_clientname        String     ApplicationRequired
+//   cr664_borrowertype      Picklist   ApplicationRequired
+// plus system-managed cr664_clientrelationshipid / ownerid / owneridtype.
+//
+// This mode:
+//   1. Resolves the target Loan Deal by primary name (cr664_dealname).
+//   2. Resolves the target Client / Relationship by primary name
+//      (cr664_clientname). If found, reuse. If not, plan a POST that
+//      creates it with the operator-supplied client name + borrower
+//      type integer.
+//   3. If the deal's _cr664_client_value already equals the resolved
+//      client id, the run is a no-op success — idempotent.
+//   4. Otherwise: dry-run prints the planned actions and exits.
+//      Commit mode (--commit-seed-client) executes the POST (if
+//      needed) and PATCHes the deal's cr664_Client@odata.bind. After
+//      writing it re-reads the deal and verifies the link.
+//
+// Hard safety: dry-run by default; --commit-seed-client required for
+// any write. The PATCH body sets ONLY cr664_Client@odata.bind — no
+// other column is touched, so Product Type / Loan Structure / Pricing
+// Type stay legitimately blank.
+// ---------------------------------------------------------------------------
+
+function odataEscapeStringLiteral(value) {
+  return String(value).replace(/'/g, "''");
+}
+
+async function fetchODataList(url, token) {
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    return { ok: true, records: Array.isArray(json.value) ? json.value : [] };
+  } catch (err) {
+    return { ok: false, error: `network error: ${err.message}` };
+  }
+}
+
+async function findLoanDealByName(dealName, token, envUrl) {
+  const filter =
+    `cr664_dealname eq '${odataEscapeStringLiteral(dealName)}'`;
+  const select =
+    'cr664_loandealid,cr664_dealname,_cr664_client_value';
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_loandeals` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+async function findClientRelationshipByName(clientName, token, envUrl) {
+  const filter =
+    `cr664_clientname eq '${odataEscapeStringLiteral(clientName)}'`;
+  const select =
+    'cr664_clientrelationshipid,cr664_clientname,cr664_borrowertype';
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_clientrelationships` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+async function createClientRelationship(clientName, borrowerType, token, envUrl) {
+  const url = `${envUrl}/api/data/v9.2/cr664_clientrelationships`;
+  const body = {
+    cr664_clientname: clientName,
+    cr664_borrowertype: borrowerType,
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        // Ask Dataverse to return the created row so we can pluck the
+        // primary id without a follow-up GET.
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `POST cr664_clientrelationships → ${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    if (!json.cr664_clientrelationshipid) {
+      return {
+        ok: false,
+        error: 'POST succeeded but response is missing cr664_clientrelationshipid',
+      };
+    }
+    return { ok: true, id: json.cr664_clientrelationshipid, record: json };
+  } catch (err) {
+    return { ok: false, error: `POST network error: ${err.message}` };
+  }
+}
+
+async function patchLoanDealClient(dealId, clientId, token, envUrl) {
+  // PATCH ONLY cr664_Client@odata.bind. Do NOT include any other
+  // column in the body — Phase 122C's loader-side hydration relies on
+  // Dataverse returning the existing Product Type / Loan Structure /
+  // Pricing Type / etc. unchanged on the next GET.
+  const url = `${envUrl}/api/data/v9.2/cr664_loandeals(${dealId})`;
+  const body = {
+    'cr664_Client@odata.bind': `/cr664_clientrelationships(${clientId})`,
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `PATCH cr664_loandeals(${dealId}) → ${res.status}: ${text}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PATCH network error: ${err.message}` };
+  }
+}
+
+async function readLoanDealClientLink(dealId, token, envUrl) {
+  // Re-read the deal with annotations so the formatted Client lookup
+  // value is available on verify.
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_loandeals(${dealId})` +
+    `?$select=cr664_loandealid,cr664_dealname,_cr664_client_value`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        Prefer: 'odata.include-annotations="OData.Community.Display.V1.FormattedValue"',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    return { ok: true, record: json };
+  } catch (err) {
+    return { ok: false, error: `re-read network error: ${err.message}` };
+  }
+}
+
+async function runSeedClientRelationship(
+  { dealName, clientName, borrowerType, doCommit },
+  token,
+  envUrl,
+) {
+  console.log('');
+  console.log('Phase S — TEST Client / Relationship seed');
+  console.log(`   Deal name:     ${dealName}`);
+  console.log(`   Client name:   ${clientName}`);
+  console.log(
+    `   Borrower type: ${borrowerType} (${BORROWER_TYPE_LABELS[borrowerType] ?? '(unknown)'})`,
+  );
+  console.log(
+    `   Mode:          ${doCommit ? 'COMMIT-SEED-CLIENT (will write)' : 'dry-run (no write)'}`,
+  );
+  console.log('');
+
+  // 1. Resolve the deal.
+  const dealResult = await findLoanDealByName(dealName, token, envUrl);
+  if (!dealResult.ok) {
+    bail(`Could not resolve deal "${dealName}": ${dealResult.error}`);
+  }
+  if (dealResult.records.length === 0) {
+    bail(
+      `No cr664_loandeals row with cr664_dealname = "${dealName}". ` +
+        `Refusing — the script will not invent a deal.`,
+    );
+  }
+  if (dealResult.records.length > 1) {
+    bail(
+      `${dealResult.records.length} cr664_loandeals rows match cr664_dealname = ` +
+        `"${dealName}". Refusing — the operator must pick one explicitly.`,
+    );
+  }
+  const deal = dealResult.records[0];
+  console.log(`   ✓ Deal found:    cr664_loandealid=${deal.cr664_loandealid}`);
+  console.log(
+    `     current cr664_Client lookup value: ${deal._cr664_client_value ?? '(unset)'}`,
+  );
+
+  // 2. Resolve (or plan-to-create) the client.
+  const clientResult = await findClientRelationshipByName(clientName, token, envUrl);
+  if (!clientResult.ok) {
+    bail(`Could not resolve client "${clientName}": ${clientResult.error}`);
+  }
+  if (clientResult.records.length > 1) {
+    bail(
+      `${clientResult.records.length} cr664_clientrelationships rows match ` +
+        `cr664_clientname = "${clientName}". Refusing for safety; ` +
+        `the operator must resolve the ambiguity before seeding.`,
+    );
+  }
+  let clientId = null;
+  let needCreate = false;
+  if (clientResult.records.length === 1) {
+    clientId = clientResult.records[0].cr664_clientrelationshipid;
+    const existingType = clientResult.records[0].cr664_borrowertype;
+    console.log(`   ✓ Client exists: cr664_clientrelationshipid=${clientId}`);
+    if (existingType != null && existingType !== borrowerType) {
+      console.log(
+        `     ⚠ Existing cr664_borrowertype=${existingType} differs from operator-requested ` +
+          `${borrowerType}. Reusing the existing row AS-IS — this seed mode does not ` +
+          `mutate existing values; an explicit follow-up PATCH would be required.`,
+      );
+    }
+  } else {
+    needCreate = true;
+    console.log(`   ⚙ Client does not exist — will create on commit.`);
+  }
+
+  // 3. Idempotency: if the deal already points to the resolved client, no-op.
+  if (clientId && deal._cr664_client_value === clientId) {
+    console.log('');
+    console.log(
+      `   ✓ Already linked: cr664_loandeals(${deal.cr664_loandealid}).cr664_Client → ` +
+        `cr664_clientrelationships(${clientId}).`,
+    );
+    console.log('   No-op success.');
+    return { ok: true, alreadyLinked: true, clientId };
+  }
+
+  // 4. Plan summary.
+  console.log('');
+  console.log('   Planned actions:');
+  let stepNum = 1;
+  if (needCreate) {
+    console.log(`     [${stepNum}] POST /api/data/v9.2/cr664_clientrelationships`);
+    console.log(
+      `         body: { "cr664_clientname": "${clientName}", ` +
+        `"cr664_borrowertype": ${borrowerType} }`,
+    );
+    stepNum += 1;
+  }
+  console.log(
+    `     [${stepNum}] PATCH /api/data/v9.2/cr664_loandeals(${deal.cr664_loandealid})`,
+  );
+  if (needCreate) {
+    console.log(
+      `         body: { "cr664_Client@odata.bind": "/cr664_clientrelationships(<newly-created>)" }`,
+    );
+  } else {
+    console.log(
+      `         body: { "cr664_Client@odata.bind": "/cr664_clientrelationships(${clientId})" }`,
+    );
+  }
+  console.log(
+    '         PATCH body sets ONLY cr664_Client@odata.bind — no other column touched.',
+  );
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no POST or PATCH issued.');
+    console.log('   Re-run with `--commit-seed-client` to execute the plan above.');
+    return { ok: true, planned: true, needCreate, clientId };
+  }
+
+  // 5. Commit. Create the client if needed.
+  if (needCreate) {
+    console.log('');
+    console.log(`   ⚙ POST /api/data/v9.2/cr664_clientrelationships …`);
+    const createResult = await createClientRelationship(
+      clientName,
+      borrowerType,
+      token,
+      envUrl,
+    );
+    if (!createResult.ok) {
+      bail(`Create cr664_clientrelationship failed: ${createResult.error}`);
+    }
+    clientId = createResult.id;
+    console.log(`   ✓ Created cr664_clientrelationshipid=${clientId}`);
+  }
+
+  // 6. PATCH the deal.
+  console.log(`   ⚙ PATCH cr664_loandeals(${deal.cr664_loandealid}) cr664_Client@odata.bind …`);
+  const patchResult = await patchLoanDealClient(
+    deal.cr664_loandealid,
+    clientId,
+    token,
+    envUrl,
+  );
+  if (!patchResult.ok) {
+    bail(`PATCH loan deal failed: ${patchResult.error}`);
+  }
+  console.log('   ✓ PATCH succeeded.');
+
+  // 7. Verify.
+  console.log('');
+  console.log('   ⚙ Re-reading the deal to verify the new Client lookup …');
+  const verifyResult = await readLoanDealClientLink(
+    deal.cr664_loandealid,
+    token,
+    envUrl,
+  );
+  if (!verifyResult.ok) {
+    console.log(`     ⚠ Could not re-read deal: ${verifyResult.error}`);
+  } else {
+    const verifiedDeal = verifyResult.record;
+    const verifiedClient = verifiedDeal._cr664_client_value ?? '(unset)';
+    const formatted =
+      verifiedDeal[
+        '_cr664_client_value@OData.Community.Display.V1.FormattedValue'
+      ];
+    console.log(`     _cr664_client_value:                       ${verifiedClient}`);
+    if (formatted) {
+      console.log(`     formatted value (cockpit display):         ${formatted}`);
+    }
+    if (verifiedDeal._cr664_client_value === clientId) {
+      console.log('     ✓ Deal Client lookup is linked to the seeded client.');
+    } else {
+      console.log(
+        '     ⚠ Verification mismatch — re-read shows a different client id ' +
+          'than the one the script wrote. Investigate.',
+      );
+    }
+  }
+
+  console.log('');
+  console.log('Summary:');
+  console.log(`   client created:      ${needCreate ? 'yes' : 'no (reused)'}`);
+  console.log(`   client id:           ${clientId}`);
+  console.log(`   deal id:             ${deal.cr664_loandealid}`);
+  console.log(`   deal linked:         yes`);
+  console.log('');
+  console.log('✓ Seed commit complete.');
+  return { ok: true, clientId, needCreate };
 }
 
 function countNonNull(table, attribute) {
@@ -3594,6 +4042,27 @@ async function main() {
     return;
   }
 
+  // === TEST Client / Relationship seed (Phase 122D Pt 2) ===
+  // Dry-run by default; writes require --commit-seed-client. The
+  // mode is idempotent on both ends: reuses an existing
+  // cr664_clientrelationship row whose cr664_clientname matches the
+  // supplied --client-name, and short-circuits with no-op success
+  // when the deal's cr664_Client lookup already points at the
+  // resolved client.
+  if (FLAGS.seedClientRelationship) {
+    await runSeedClientRelationship(
+      {
+        dealName: FLAGS.seedDealName,
+        clientName: FLAGS.seedClientName,
+        borrowerType: FLAGS.seedBorrowerType,
+        doCommit: FLAGS.commitSeedClient,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
   // === Broad SystemForm inspection (read-only) ===
   if (FLAGS.inspectFormId !== null) {
     const result = await runFormInspect(
@@ -4041,6 +4510,28 @@ Modes:
       Useful for seeding a record into a table the SDK has no
       generated model for (e.g. cr664_clientrelationship). Pure GETs,
       no write of any kind.
+
+  --seed-client-relationship
+      --deal-name <text> --client-name <text> --borrower-type <int>
+      [--commit-seed-client]
+      Phase 122D Pt 2 — guarded seed of one cr664_clientrelationship
+      row and the deal-link PATCH. All three inputs required. Dry-run
+      by default. The mode:
+        1. GETs the Loan Deal by cr664_dealname; refuses if zero or
+           multiple matches.
+        2. GETs the Client by cr664_clientname. If found, reuses;
+           if not, plans a POST that creates one with the supplied
+           name + borrower-type integer.
+        3. If the deal's _cr664_client_value already equals the
+           resolved client id, no-op success (idempotent).
+        4. With --commit-seed-client: executes the POST (if needed)
+           and PATCHes the deal with cr664_Client@odata.bind. The
+           PATCH body sets ONLY that field — Product Type / Loan
+           Structure / Pricing Type stay untouched.
+        5. Re-reads the deal post-write and verifies the link.
+      Valid --borrower-type values:
+        788190000=Individual, 788190001=LLC, 788190002=Corporation,
+        788190003=Partnership, 788190004=Trust, 788190005=Non-Profit.
   --commit
       Run the plan against the live env. Refuses to run unless every
       safety gate (publisher prefix, rollback artifacts, dependency

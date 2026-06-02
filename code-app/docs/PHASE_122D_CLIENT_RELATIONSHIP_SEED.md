@@ -1,14 +1,19 @@
 # Phase 122D — Reference data dependency audit for Client / Relationship
 
-**Status:** **Audit tool delivered. Live schema inspection pending operator
-run.** This phase ships a read-only Dataverse Web API metadata inspector
-(`--inspect-table`) so the operator can stop guessing at Maker Portal
-required fields and surface the exact column requirements for the
-`cr664_clientrelationship` table (and any nested-reference tables it
-depends on, e.g. `cr664_borrower`).
+**Status:** **Pt 1 audit tool + Pt 2 seed mode delivered. Live execution
+pending operator `--commit-seed-client` run.** This phase shipped in two
+commits:
 
-**No live writes performed in this commit.** The seed step runs in a
-follow-up commit driven by the inspect output.
+- **Pt 1** (commit `1dd76be`) — read-only Dataverse Web API metadata
+  inspector (`--inspect-table`) so the operator stops guessing at Maker
+  Portal required fields. Source: §1–§5 of this doc.
+- **Pt 2** (this commit) — guarded write mode `--seed-client-relationship`
+  that resolves-or-creates the TEST Client row and PATCHes the deal's
+  `cr664_Client` lookup. Dry-run by default; writes require
+  `--commit-seed-client`. Source: §6 of this doc.
+
+**No live writes performed in this commit.** The seed step is staged but
+only executes when the operator passes `--commit-seed-client`.
 
 Related canonical sources:
 - [PHASE_122_RETARGET_DEAL_LOOKUPS.md](PHASE_122_RETARGET_DEAL_LOOKUPS.md) — Phase 122 parent.
@@ -225,9 +230,106 @@ Record 3 — PATCH cr664_loandeals(<TEST-deal-id>)
 | No force-delete / bypass | Phase 122B's hard-non-goal pins still apply. `--inspect-table` is read-only. |
 | No pac shellout | `--inspect-table` uses the Dataverse Web API metadata endpoints exclusively. |
 
+## 6. Pt 2 — `--seed-client-relationship` execution mode
+
+After Pt 1's audit confirmed the required column set, Pt 2 added a
+guarded write mode that creates-or-reuses the TEST Client row and
+PATCHes the Loan Deal in a single idempotent run.
+
+**Audit-confirmed required columns** (from `--inspect-table
+cr664_clientrelationship`):
+
+| Column | Type | RequiredLevel | Note |
+| --- | --- | --- | --- |
+| `cr664_clientname` | String | ApplicationRequired | Operator-supplied via `--client-name`. |
+| `cr664_borrowertype` | Picklist | ApplicationRequired | Operator-supplied via `--borrower-type <int>`. Valid integers: 788190000=Individual, 788190001=LLC, 788190002=Corporation, 788190003=Partnership, 788190004=Trust, 788190005=Non-Profit. |
+| `cr664_clientrelationshipid` / `ownerid` / `owneridtype` | system | system | Server-managed; never appear in the POST body. |
+
+Pt 1's audit revealed NO required Borrower lookup on
+`cr664_clientrelationship` — the "Borrower" field is in fact the
+`cr664_borrowertype` choice column, not a separate `cr664_borrower`
+table reference. Pt 2 therefore does **not** seed any
+`cr664_borrower` row; the seed graph is one record + one PATCH.
+
+### 6.1 Commands
+
+```powershell
+# Dry-run preview — no write of any kind.
+node scripts/phase122-lookup-repair.mjs `
+  --seed-client-relationship `
+  --deal-name "TEST — Deal Phase 121" `
+  --client-name "TEST Client" `
+  --borrower-type 788190001
+
+# Execute the seed.
+node scripts/phase122-lookup-repair.mjs `
+  --seed-client-relationship `
+  --deal-name "TEST — Deal Phase 121" `
+  --client-name "TEST Client" `
+  --borrower-type 788190001 `
+  --commit-seed-client
+```
+
+### 6.2 What the mode does
+
+1. **Resolves the deal** by `cr664_dealname` via OData GET. Refuses
+   zero matches (no auto-create) and refuses >1 match (operator must
+   resolve ambiguity).
+2. **Resolves the client** by `cr664_clientname` via OData GET.
+   Refuses >1 match. Zero matches → marks the create-on-commit plan.
+3. **Idempotency short-circuit**: if the deal's `_cr664_client_value`
+   already equals the resolved client id, prints "No-op success" and
+   returns.
+4. **Plan summary**: prints the exact POST + PATCH payloads dry-run.
+5. **Commit path** (only with `--commit-seed-client`):
+   - `POST /api/data/v9.2/cr664_clientrelationships` with body
+     `{ "cr664_clientname": "<client-name>", "cr664_borrowertype": <int> }`
+     and `Prefer: return=representation` so the new id comes back
+     in the response.
+   - `PATCH /api/data/v9.2/cr664_loandeals(<deal-id>)` with body
+     `{ "cr664_Client@odata.bind": "/cr664_clientrelationships(<client-id>)" }`.
+     The PATCH body sets ONLY `cr664_Client@odata.bind` — no other
+     column is touched.
+6. **Verify**: re-reads the deal with the `OData.Community.Display.V1.FormattedValue`
+   include-annotations Prefer header and prints `_cr664_client_value`
+   + its formatted display.
+
+### 6.3 What this mode does NOT do
+
+- Does **not** restore or modify any column other than
+  `cr664_Client@odata.bind` on the deal. Product Type / Loan Structure
+  / Pricing Type stay legitimately blank.
+- Does **not** create a `cr664_borrower` row (the audit revealed no
+  Borrower lookup on `cr664_clientrelationship`).
+- Does **not** invent a client name from the deal name or any other
+  source. The operator supplies the name verbatim via `--client-name`.
+- Does **not** mutate an existing TEST Client row. If the row exists
+  with a different `cr664_borrowertype` than `--borrower-type`, the
+  script reuses it as-is and prints a warning — no in-place update.
+- Does **not** use any bypass header (`BypassBusinessLogicExecution`,
+  `BypassCustomPluginExecution`, `SuppressDuplicateDetection`,
+  `?Force=true`) — re-asserted by negative static-source tests.
+- Does **not** touch React app code. The cockpit's Phase 122C loader
+  fix reads the deal's lookup display from
+  `_cr664_client_value@…FormattedValue` — no further frontend change
+  needed.
+
+### 6.4 Acceptance mapping after Pt 2 lands
+
+| Acceptance criterion | Status after `--commit-seed-client` |
+| --- | --- |
+| Dry-run prints the planned create/reuse + PATCH | ✓ — `--seed-client-relationship` without `--commit-seed-client`. |
+| Commit creates/reuses TEST Client and links TEST — Deal Phase 121 | ✓ — `--commit-seed-client` executes the POST (or reuse) + PATCH. |
+| Re-running commit is a no-op success | ✓ — idempotent: existing-client path + already-linked short-circuit. |
+| Deal cockpit shows Client = TEST Client | ✓ — Phase 122C's loader reads the lookup formatted value into `deal.clientName`. |
+| Missing fields remains 3 of 13 — only Product type, Loan structure, Pricing type | ✓ — the PATCH body sets ONLY `cr664_Client@odata.bind`; nothing else changes. |
+| Contract tests updated for the new guarded write mode | ✓ — 20 new static-source + behavioral pins on `phase122BScriptContract.test.ts`. |
+
+---
+
 ## 7. Cross-references
 
-- [scripts/phase122-lookup-repair.mjs](../scripts/phase122-lookup-repair.mjs) — `--inspect-table` mode lives here.
-- [src/shared/governance/phase122BScriptContract.test.ts](../src/shared/governance/phase122BScriptContract.test.ts) — 8 new static-source pins on the new mode.
-- [src/deals/dealQueries.ts](../src/deals/dealQueries.ts) — Phase 122C loader fix that wires `_cr664_client_value@…FormattedValue` into `deal.clientName`. Once the seed lands, no further loader change is needed.
+- [scripts/phase122-lookup-repair.mjs](../scripts/phase122-lookup-repair.mjs) — `--inspect-table` (Pt 1) + `--seed-client-relationship` (Pt 2) modes live here.
+- [src/shared/governance/phase122BScriptContract.test.ts](../src/shared/governance/phase122BScriptContract.test.ts) — Pt 1 added 8 pins; Pt 2 adds 20 more (231 total contract tests).
+- [src/deals/dealQueries.ts](../src/deals/dealQueries.ts) — Phase 122C loader fix that wires `_cr664_client_value@…FormattedValue` into `deal.clientName`. After Pt 2's seed lands, no further loader change is needed.
 - [PHASE_122B_AUTOMATED_LOOKUP_REPAIR.md](PHASE_122B_AUTOMATED_LOOKUP_REPAIR.md) — the parent script's safety discipline (dry-run default, no bypass, no React change) is inherited verbatim.

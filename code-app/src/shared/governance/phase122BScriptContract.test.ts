@@ -262,7 +262,7 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
     // Now part of the broader three-way mutex with --cleanup-form.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive/,
     );
   });
 
@@ -323,7 +323,7 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
 
   it('cleanup-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive\./,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive\./,
     );
   });
 
@@ -424,7 +424,7 @@ describe('Phase 122B — broad SystemForm inspection for indirect dependencies',
 
   it('--inspect-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive/,
     );
   });
 
@@ -538,7 +538,7 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
 
   it('5-way mutex includes --cleanup-subgrid', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive/,
     );
   });
 
@@ -949,7 +949,7 @@ describe('Phase 122B — SavedQuery (view) inspection + targeted cleanup', () =>
 
   it('7-way mutex includes --inspect-view and --cleanup-view', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, and --cleanup-view are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive/,
     );
   });
 
@@ -1415,7 +1415,11 @@ describe('Phase 122B — --verify-lookups Web API metadata mode', () => {
   it('--verify-lookups mode performs NO write — no PATCH / POST / DELETE in runVerifyLookups', () => {
     const fnStart = SCRIPT.indexOf('async function runVerifyLookups');
     expect(fnStart).toBeGreaterThan(-1);
-    const fnEnd = SCRIPT.indexOf('function countNonNull', fnStart);
+    // Bound to the NEXT function declaration after runVerifyLookups
+    // so the slice doesn't bleed into unrelated downstream helpers
+    // (Phase 122D Pt 2 inserted seed helpers between runVerifyLookups
+    // and the legacy countNonNull anchor).
+    const fnEnd = SCRIPT.indexOf('\n// ---', fnStart);
     expect(fnEnd).toBeGreaterThan(fnStart);
     const body = SCRIPT.slice(fnStart, fnEnd);
     expect(body).not.toMatch(/method:\s*'PATCH'/);
@@ -1546,6 +1550,220 @@ describe('Phase 122B — commit still skips create when a true lookup already ex
   });
 });
 
+describe('Phase 122D Pt 2 — --seed-client-relationship guarded write mode', () => {
+  it('parses --seed-client-relationship + the three required inputs + --commit-seed-client', () => {
+    expect(SCRIPT).toMatch(/'--seed-client-relationship'/);
+    expect(SCRIPT).toMatch(/'--deal-name'/);
+    expect(SCRIPT).toMatch(/'--client-name'/);
+    expect(SCRIPT).toMatch(/'--borrower-type'/);
+    expect(SCRIPT).toMatch(/'--commit-seed-client'/);
+    expect(SCRIPT).toMatch(/flags\.seedClientRelationship\s*=\s*true/);
+    expect(SCRIPT).toMatch(/flags\.commitSeedClient\s*=\s*true/);
+  });
+
+  it('all three inputs are required when --seed-client-relationship is set', () => {
+    expect(SCRIPT).toMatch(/--seed-client-relationship requires --deal-name/);
+    expect(SCRIPT).toMatch(/--seed-client-relationship requires --client-name/);
+    expect(SCRIPT).toMatch(/--seed-client-relationship requires --borrower-type/);
+  });
+
+  it('each input flag is only valid alongside --seed-client-relationship', () => {
+    expect(SCRIPT).toMatch(/--deal-name is only valid alongside --seed-client-relationship/);
+    expect(SCRIPT).toMatch(/--client-name is only valid alongside --seed-client-relationship/);
+    expect(SCRIPT).toMatch(/--borrower-type is only valid alongside --seed-client-relationship/);
+    expect(SCRIPT).toMatch(/--commit-seed-client has no effect without --seed-client-relationship/);
+  });
+
+  it('BORROWER_TYPE_LABELS pins the six audit-confirmed Borrower Type values', () => {
+    expect(SCRIPT).toMatch(/BORROWER_TYPE_LABELS\s*=\s*Object\.freeze/);
+    expect(SCRIPT).toMatch(/788190000:\s*'Individual'/);
+    expect(SCRIPT).toMatch(/788190001:\s*'LLC'/);
+    expect(SCRIPT).toMatch(/788190002:\s*'Corporation'/);
+    expect(SCRIPT).toMatch(/788190003:\s*'Partnership'/);
+    expect(SCRIPT).toMatch(/788190004:\s*'Trust'/);
+    expect(SCRIPT).toMatch(/788190005:\s*'Non-Profit'/);
+  });
+
+  it('--borrower-type validates against BORROWER_TYPE_LABELS membership', () => {
+    expect(SCRIPT).toMatch(/!BORROWER_TYPE_LABELS\[parsed\]/);
+    expect(SCRIPT).toMatch(/--borrower-type expects one of/);
+  });
+
+  it('OData filter helper escapes single quotes in primary-name values', () => {
+    expect(SCRIPT).toMatch(/function\s+odataEscapeStringLiteral/);
+    expect(SCRIPT).toMatch(/replace\(\/'\/g,\s*"''"\)/);
+  });
+
+  it('findLoanDealByName + findClientRelationshipByName are read-only GETs', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+findLoanDealByName/);
+    expect(SCRIPT).toMatch(/async\s+function\s+findClientRelationshipByName/);
+    // The shared list-fetch helper uses method: 'GET'.
+    expect(SCRIPT).toMatch(/async\s+function\s+fetchODataList/);
+    const fetchListStart = SCRIPT.indexOf('async function fetchODataList');
+    const nextDecl = SCRIPT.indexOf('async function findLoanDealByName', fetchListStart);
+    const body = SCRIPT.slice(fetchListStart, nextDecl);
+    expect(body).toMatch(/method:\s*'GET'/);
+    expect(body).not.toMatch(/method:\s*'PATCH'/);
+    expect(body).not.toMatch(/method:\s*'POST'/);
+    expect(body).not.toMatch(/method:\s*'DELETE'/);
+  });
+
+  it('OData filter uses the table primary-name attributes confirmed by the Pt 1 audit', () => {
+    expect(SCRIPT).toMatch(/cr664_dealname eq '\$\{/);
+    expect(SCRIPT).toMatch(/cr664_clientname eq '\$\{/);
+    // Selects the lookup FK so the idempotency check can compare values.
+    expect(SCRIPT).toMatch(/cr664_loandealid,cr664_dealname,_cr664_client_value/);
+    expect(SCRIPT).toMatch(/cr664_clientrelationshipid,cr664_clientname,cr664_borrowertype/);
+  });
+
+  it('createClientRelationship POSTs only the two required columns', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+createClientRelationship/);
+    const fnStart = SCRIPT.indexOf('async function createClientRelationship');
+    expect(fnStart).toBeGreaterThan(-1);
+    const nextDecl = SCRIPT.indexOf('async function patchLoanDealClient', fnStart);
+    const body = SCRIPT.slice(fnStart, nextDecl);
+    expect(body).toMatch(/method:\s*'POST'/);
+    expect(body).toMatch(/cr664_clientname:\s*clientName/);
+    expect(body).toMatch(/cr664_borrowertype:\s*borrowerType/);
+    // Body must NOT include any other column — Phase 122D's "minimum
+    // valid reference graph" constraint.
+    expect(body).not.toMatch(/cr664_loanstructure/);
+    expect(body).not.toMatch(/cr664_producttype/);
+    expect(body).not.toMatch(/cr664_pricingtype/);
+    expect(body).not.toMatch(/cr664_industry/);
+    expect(body).not.toMatch(/cr664_customertype/);
+  });
+
+  it('patchLoanDealClient PATCH body sets ONLY cr664_Client@odata.bind', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+patchLoanDealClient/);
+    const fnStart = SCRIPT.indexOf('async function patchLoanDealClient');
+    expect(fnStart).toBeGreaterThan(-1);
+    const nextDecl = SCRIPT.indexOf('async function readLoanDealClientLink', fnStart);
+    const body = SCRIPT.slice(fnStart, nextDecl);
+    expect(body).toMatch(/method:\s*'PATCH'/);
+    expect(body).toMatch(/cr664_Client@odata\.bind/);
+    expect(body).toMatch(/\/cr664_clientrelationships\(\$\{clientId\}\)/);
+    // No other field — Phase 122D explicit non-goal.
+    expect(body).not.toMatch(/cr664_producttype/i);
+    expect(body).not.toMatch(/cr664_loanstructure/i);
+    expect(body).not.toMatch(/cr664_pricingtype/i);
+    expect(body).not.toMatch(/cr664_industry/);
+    expect(body).not.toMatch(/cr664_customertype/);
+    expect(body).not.toMatch(/cr664_guarantorstructure/);
+  });
+
+  it('dry-run is the default — write path guarded by doCommit', () => {
+    const fnStart = SCRIPT.indexOf('async function runSeedClientRelationship');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart);
+    expect(body).toMatch(/if\s*\(!doCommit\)/);
+    expect(body).toMatch(/Re-run with `--commit-seed-client` to execute/);
+    // Pin ordering: the dry-run early return appears BEFORE any
+    // createClientRelationship or patchLoanDealClient call.
+    const dryReturnIdx = body.indexOf('Re-run with `--commit-seed-client`');
+    const createIdx = body.indexOf('createClientRelationship(');
+    const patchIdx = body.indexOf('patchLoanDealClient(');
+    expect(dryReturnIdx).toBeGreaterThan(-1);
+    expect(createIdx).toBeGreaterThan(-1);
+    expect(patchIdx).toBeGreaterThan(-1);
+    expect(dryReturnIdx).toBeLessThan(createIdx);
+    expect(dryReturnIdx).toBeLessThan(patchIdx);
+  });
+
+  it('idempotent: no POST when client already exists, no-op when deal already linked', () => {
+    const fnStart = SCRIPT.indexOf('async function runSeedClientRelationship');
+    const body = SCRIPT.slice(fnStart);
+    // Existing-client path skips createClientRelationship.
+    expect(body).toMatch(/needCreate\s*=\s*false/);
+    // The "already linked" short-circuit returns BEFORE the create/patch.
+    expect(body).toMatch(/alreadyLinked:\s*true/);
+    expect(body).toMatch(/No-op success/);
+  });
+
+  it('refuses zero-match OR multi-match for both deal and client lookups', () => {
+    const fnStart = SCRIPT.indexOf('async function runSeedClientRelationship');
+    const body = SCRIPT.slice(fnStart);
+    // Deal must exist (no auto-create) AND be unique.
+    expect(body).toMatch(
+      /No cr664_loandeals row with cr664_dealname/,
+    );
+    expect(body).toMatch(
+      /cr664_loandeals rows match cr664_dealname/,
+    );
+    // Client multi-match refusal (zero-match is handled by the
+    // create branch, but multi-match must bail). The bail message
+    // wraps across template-literal concat, so use [\s\S] for the
+    // bridge.
+    expect(body).toMatch(
+      /cr664_clientrelationships rows match[\s\S]*?cr664_clientname/,
+    );
+  });
+
+  it('post-commit verification re-reads the deal and prints the formatted value', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+readLoanDealClientLink/);
+    expect(SCRIPT).toMatch(
+      /Prefer:\s*'odata\.include-annotations="OData\.Community\.Display\.V1\.FormattedValue"'/,
+    );
+    expect(SCRIPT).toMatch(
+      /_cr664_client_value@OData\.Community\.Display\.V1\.FormattedValue/,
+    );
+  });
+
+  it('seed-client branch in main() returns before the audit phase is reached', () => {
+    const guardIdx = SCRIPT.indexOf('if (FLAGS.seedClientRelationship)');
+    expect(guardIdx).toBeGreaterThan(-1);
+    const auditMarkerIdx = SCRIPT.indexOf('// === Phase A: audit ===', guardIdx);
+    expect(auditMarkerIdx).toBeGreaterThan(guardIdx);
+    const between = SCRIPT.slice(guardIdx, auditMarkerIdx);
+    expect(between).toMatch(/return;/);
+  });
+
+  it('no force-delete / bypass path introduced by the seed mode', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+
+  it('write-mode warning fires on --commit-seed-client like other commit flags', () => {
+    expect(SCRIPT).toMatch(/FLAGS\.commitSeedClient/);
+    // The header banner promotes seed-client to a top-level mode.
+    expect(SCRIPT).toMatch(/COMMIT-SEED-CLIENT/);
+    expect(SCRIPT).toMatch(/SEED-CLIENT-RELATIONSHIP \(dry-run\)/);
+  });
+});
+
+describe('Phase 122D Pt 2 — borrower-type integer validation (behavioral)', () => {
+  // Behavioral mirror of the script's --borrower-type validator.
+  const VALID = new Set([
+    788190000, 788190001, 788190002, 788190003, 788190004, 788190005,
+  ]);
+  function isValidBorrowerType(input: string): boolean {
+    const n = Number(input);
+    return Number.isInteger(n) && VALID.has(n);
+  }
+  it('accepts every audit-confirmed Borrower Type integer', () => {
+    expect(isValidBorrowerType('788190000')).toBe(true);
+    expect(isValidBorrowerType('788190001')).toBe(true);
+    expect(isValidBorrowerType('788190002')).toBe(true);
+    expect(isValidBorrowerType('788190003')).toBe(true);
+    expect(isValidBorrowerType('788190004')).toBe(true);
+    expect(isValidBorrowerType('788190005')).toBe(true);
+  });
+  it('rejects integers outside the audit-confirmed set', () => {
+    expect(isValidBorrowerType('788190006')).toBe(false);
+    expect(isValidBorrowerType('1')).toBe(false);
+    expect(isValidBorrowerType('-1')).toBe(false);
+    expect(isValidBorrowerType('0')).toBe(false);
+  });
+  it('rejects non-integer input (decimals, hex, junk, empty)', () => {
+    expect(isValidBorrowerType('1.5')).toBe(false);
+    expect(isValidBorrowerType('0x788190001')).toBe(false);
+    expect(isValidBorrowerType('LLC')).toBe(false);
+    expect(isValidBorrowerType('')).toBe(false);
+  });
+});
+
 describe('Phase 122D — --inspect-table Web API metadata audit', () => {
   it('parses --inspect-table <logical-name> as a flag with a single value', () => {
     expect(SCRIPT).toMatch(/'--inspect-table'/);
@@ -1599,7 +1817,11 @@ describe('Phase 122D — --inspect-table Web API metadata audit', () => {
     expect(SCRIPT).toMatch(/async\s+function\s+runInspectTable/);
     const fnStart = SCRIPT.indexOf('async function runInspectTable');
     expect(fnStart).toBeGreaterThan(-1);
-    const fnEnd = SCRIPT.indexOf('function countNonNull', fnStart);
+    // Bound to the next top-level section header so the slice doesn't
+    // bleed into unrelated downstream helpers (Phase 122D Pt 2's seed
+    // helpers sit between this function and the legacy countNonNull
+    // anchor).
+    const fnEnd = SCRIPT.indexOf('\n// ---', fnStart);
     expect(fnEnd).toBeGreaterThan(fnStart);
     const body = SCRIPT.slice(fnStart, fnEnd);
     expect(body).toMatch(/REQUIRED FOR CREATE/);
@@ -2010,12 +2232,30 @@ describe('Phase 122B — rollback gate fires at the correct phase', () => {
 });
 
 describe('Phase 122B — script never edits React app code', () => {
-  it('declares LookupTarget constants pointing at Dataverse logical names, not URLs', () => {
-    // The script never embeds `/cr664_loandeals(` URLs — that would
-    // mean the script is bundling React bind-URL contracts in its
-    // own logic. Dataverse Web API metadata operations work in terms
-    // of logical names, not entity-set URLs.
-    expect(SCRIPT).not.toMatch(/\/cr664_loandeals\(/);
+  it('METADATA operations use logical names, not entity-set URLs', () => {
+    // The script's METADATA-operation payloads (RelationshipDefinitions
+    // POST, EntityDefinitions GET, etc.) never embed `/cr664_loandeals(`
+    // URLs — those are React `@odata.bind` payload contracts. The
+    // metadata layer works in terms of logical names.
+    //
+    // Phase 122D Pt 2 added DATA-operation paths (PATCH a specific
+    // Loan Deal row by primary id) which legitimately need the
+    // entity-set URL. The negative pin is therefore scoped to NOT
+    // include those data-operation helpers — runSeedClientRelationship
+    // and its patchLoanDealClient / readLoanDealClientLink /
+    // findLoanDealByName / createClientRelationship cousins live in
+    // the seed code region between the inspect-table header and
+    // countNonNull.
+    const seedBlockStart = SCRIPT.indexOf(
+      '// Phase 122D Pt 2 — guarded TEST Client / Relationship seed.',
+    );
+    expect(seedBlockStart).toBeGreaterThan(-1);
+    const seedBlockEnd = SCRIPT.indexOf('function countNonNull', seedBlockStart);
+    expect(seedBlockEnd).toBeGreaterThan(seedBlockStart);
+    const beforeSeed = SCRIPT.slice(0, seedBlockStart);
+    const afterSeed = SCRIPT.slice(seedBlockEnd);
+    expect(beforeSeed).not.toMatch(/\/cr664_loandeals\(/);
+    expect(afterSeed).not.toMatch(/\/cr664_loandeals\(/);
   });
 
   it('does NOT import from src/ (script is its own module)', () => {
