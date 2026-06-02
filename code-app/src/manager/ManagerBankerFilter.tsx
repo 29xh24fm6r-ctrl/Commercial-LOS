@@ -318,6 +318,19 @@ export function useManagerBankerFilter(): ManagerBankerFilterView {
   return ctx;
 }
 
+/**
+ * Phase 124B — opt-in variant for cockpit surfaces that may render
+ * outside the filter provider (e.g. component tests that mount the
+ * card standalone). Returns `undefined` when no provider is mounted
+ * — never throws. Mirrors the Phase 123B
+ * `useOptionalDealIntelligence` pattern.
+ */
+export function useOptionalManagerBankerFilter():
+  | ManagerBankerFilterView
+  | undefined {
+  return useContext(ManagerBankerFilterContext) ?? undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Control
 // ---------------------------------------------------------------------------

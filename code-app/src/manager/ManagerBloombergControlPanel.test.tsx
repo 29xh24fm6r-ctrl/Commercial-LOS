@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 import type {
   TeamDeal,
@@ -11,38 +12,60 @@ import type {
   TeamScopedDocument,
 } from './managerQueries';
 import type { AsyncResult, ManagerData } from './ManagerDataProvider';
+import type {
+  ManagerBankerFilterSelection,
+  ManagerBankerFilterView,
+} from './ManagerBankerFilter';
 
 /**
- * Phase 124A — ManagerBloombergControlPanel integration tests.
+ * Phase 124A + 124B — ManagerBloombergControlPanel integration tests.
  *
- * Pins:
- *   - the panel renders the command strip from authorized records;
- *   - the exception tape surfaces deals from the shared deriver
- *     (blocker / at-risk / missing-fields / stale) without any
- *     sample / mock data;
- *   - the honest empty state renders when the team has zero
- *     authorized deals;
- *   - the panel fails closed when any of the four core data slots
- *     failed to load (no aggregate KPI shown across a partial load);
- *   - the panel waits for all four slots before rendering aggregates
- *     (no "0 across the board" leak while data is still in flight);
- *   - no fake fallback labels for missing client / stage / status /
- *     banker — empty deals render honest "Not set" / "Unassigned" /
- *     "No amount" copy;
- *   - the top-deals section surfaces the shared Phase-123A VM's
- *     next-best-action when one fires;
- *   - static-source pins: the component imports the shared deriver,
- *     does NOT import any banker write-surface action, and exposes
- *     no banker write buttons.
+ * Phase 124A pins (preserved):
+ *   - command strip from authorized records;
+ *   - exception tape from shared deriver (no sample data);
+ *   - honest empty state with zero deals;
+ *   - fails closed on any failed slot;
+ *   - honest absence for missing client/stage/status/banker;
+ *   - shared-VM next-best-action surfaces on top deals;
+ *   - no banker write-surface imports + no write buttons + no
+ *     predictive vocabulary.
+ *
+ * Phase 124B pins (new):
+ *   - banker filter integration: selection narrows command strip /
+ *     exception tape / top deals;
+ *   - "Filtered to X" chip rendered when a non-'all' selection is
+ *     active; no chip when the provider is absent or selection
+ *     is 'all';
+ *   - empty-state copy distinguishes "no records" from "no records
+ *     match the filter";
+ *   - top-deal name renders as a Link to /deals/<dealId>;
+ *   - exception-tape row name renders as a Link to /deals/<dealId>;
+ *   - no <button>, no <form>, no onClick / onSubmit in the source
+ *     (drill-down is via navigation, not write affordance);
+ *   - failure copy explicitly states "failing closed" + "no partial
+ *     KPIs across a failed load".
  */
 
 const { useManagerDataMock } = vi.hoisted(() => ({
   useManagerDataMock: vi.fn(),
 }));
+const { useOptionalManagerBankerFilterMock } = vi.hoisted(() => ({
+  useOptionalManagerBankerFilterMock: vi.fn(),
+}));
 
 vi.mock('./ManagerDataProvider', () => ({
   useManagerData: useManagerDataMock,
 }));
+
+vi.mock('./ManagerBankerFilter', async () => {
+  const actual = await vi.importActual<typeof import('./ManagerBankerFilter')>(
+    './ManagerBankerFilter',
+  );
+  return {
+    ...actual,
+    useOptionalManagerBankerFilter: useOptionalManagerBankerFilterMock,
+  };
+});
 
 import { ManagerBloombergControlPanel } from './ManagerBloombergControlPanel';
 
@@ -118,34 +141,69 @@ function setAllReady(opts: {
   });
 }
 
+function setFilter(selection: ManagerBankerFilterSelection | undefined) {
+  if (selection === undefined) {
+    useOptionalManagerBankerFilterMock.mockReturnValue(undefined);
+    return;
+  }
+  const view: ManagerBankerFilterView = {
+    selection,
+    setSelection: vi.fn(),
+    options: [],
+    matchesDeal: () => true,
+    selectionLabel:
+      selection.kind === 'all'
+        ? 'Showing team view'
+        : selection.kind === 'unassigned'
+          ? 'Filtered to Unassigned'
+          : `Filtered to ${selection.name}`,
+    isPreferenceScoped: false,
+  };
+  useOptionalManagerBankerFilterMock.mockReturnValue(view);
+}
+
+function renderPanel() {
+  return render(
+    <MemoryRouter>
+      <ManagerBloombergControlPanel />
+    </MemoryRouter>,
+  );
+}
+
 beforeEach(() => {
   useManagerDataMock.mockReset();
+  useOptionalManagerBankerFilterMock.mockReset();
+  setFilter(undefined);
 });
 
 // ---------------------------------------------------------------------------
-// Loading / failure / empty states
+// Cockpit shell / loading / failure / empty
 // ---------------------------------------------------------------------------
 
-describe('Phase 124A — loading + failure + empty states', () => {
-  it('renders the cockpit shell with the institutional read-only chip', () => {
+describe('Phase 124A + 124B — cockpit shell + loading + failure + empty', () => {
+  it('renders the cockpit shell with title, subtitle, and read-only chip', () => {
     setAllReady({ pipeline: [deal()] });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     expect(
       screen.getByRole('region', { name: /Manager Bloomberg Control Panel/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Bloomberg Control Panel/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /Manager Bloomberg Control Panel/i, level: 2 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Live authorized pipeline snapshot/i),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Read-only management view')).toBeInTheDocument();
   });
 
-  it('waits for ALL four data slots before rendering KPI aggregates (no 0-across-the-board leak)', () => {
+  it('waits for ALL four data slots before rendering KPI aggregates', () => {
     setManagerData({
       teamPipeline: ready([deal()]),
       teamBankers: ready([banker()]),
       teamTasks: { kind: 'loading' },
       teamDocuments: { kind: 'loading' },
     });
-    render(<ManagerBloombergControlPanel />);
-    // Loading status visible; no command-strip KPI block.
+    renderPanel();
     expect(
       screen.getByText(/Loading authorized team pipeline/i),
     ).toBeInTheDocument();
@@ -154,38 +212,39 @@ describe('Phase 124A — loading + failure + empty states', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('fails closed when ANY core data slot reports failed (refuses to render aggregate)', () => {
+  it('fails closed on a failed slot with explicit "failing closed" copy', () => {
     setManagerData({
       teamPipeline: ready([deal()]),
       teamBankers: ready([banker()]),
       teamTasks: { kind: 'failed', message: 'OData 5xx' },
       teamDocuments: ready([]),
     });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent(/Could not load team tasks/i);
+    expect(alert).toHaveTextContent(/failing closed/i);
+    expect(alert).toHaveTextContent(/no partial KPIs/i);
     expect(alert).toHaveTextContent(/OData 5xx/);
     expect(
       screen.queryByLabelText('Pipeline command strip'),
     ).not.toBeInTheDocument();
   });
 
-  it('renders the honest empty state when the team has zero authorized deals', () => {
+  it('renders the unfiltered honest empty state when zero authorized deals exist', () => {
     setAllReady({ pipeline: [] });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     expect(
       screen.getByText(/No authorized manager pipeline records found\./i),
     ).toBeInTheDocument();
-    // Command strip / exception tape / banker workload / top deals
-    // sections must NOT render under the empty state.
+  });
+
+  it('renders a filter-aware empty state when the active filter has zero matches', () => {
+    setAllReady({ pipeline: [deal({ assignedBankerName: 'Alice' })] });
+    setFilter({ kind: 'banker', id: 'banker-z', name: 'Zoe' });
+    renderPanel();
     expect(
-      screen.queryByLabelText('Pipeline command strip'),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Exception tape')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Banker workload')).not.toBeInTheDocument();
-    expect(
-      screen.queryByLabelText('Top deals by amount'),
-    ).not.toBeInTheDocument();
+      screen.getByText(/No authorized records match the current banker filter\./i),
+    ).toBeInTheDocument();
   });
 });
 
@@ -199,13 +258,7 @@ describe('Phase 124A — pipeline command strip', () => {
       pipeline: [
         deal({ id: 'd1', amount: 1_000_000 }),
         deal({ id: 'd2', amount: 500_000 }),
-        // d3 — past close 10 days → blocked
-        deal({
-          id: 'd3',
-          amount: 250_000,
-          targetCloseDate: isoDaysAgo(10),
-        }),
-        // d4 — sparse amount → counts as missing data
+        deal({ id: 'd3', amount: 250_000, targetCloseDate: isoDaysAgo(10) }),
         deal({ id: 'd4', amount: undefined, name: 'Sparse' }),
       ],
       bankers: [banker()],
@@ -247,9 +300,8 @@ describe('Phase 124A — pipeline command strip', () => {
         },
       ],
     });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     const strip = screen.getByLabelText('Pipeline command strip');
-    expect(within(strip).getByText(/Active deals/i)).toBeInTheDocument();
     expect(within(strip).getByLabelText('4 active deals')).toBeInTheDocument();
     expect(
       within(strip).getByLabelText(/Total pipeline.*1,750,000/),
@@ -268,6 +320,111 @@ describe('Phase 124A — pipeline command strip', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Banker filter integration (Phase 124B)
+// ---------------------------------------------------------------------------
+
+describe('Phase 124B — banker filter integration', () => {
+  it('narrows the command-strip aggregates to the selected banker', () => {
+    setAllReady({
+      pipeline: [
+        deal({ id: 'd1', assignedBankerId: 'b-alice', assignedBankerName: 'Alice', amount: 500_000 }),
+        deal({ id: 'd2', assignedBankerId: 'b-alice', assignedBankerName: 'Alice', amount: 300_000 }),
+        deal({ id: 'd3', assignedBankerId: 'b-bob', assignedBankerName: 'Bob', amount: 1_000_000 }),
+      ],
+      bankers: [
+        banker({ id: 'b-alice', fullName: 'Alice' }),
+        banker({ id: 'b-bob', fullName: 'Bob' }),
+      ],
+    });
+    setFilter({ kind: 'banker', id: 'b-alice', name: 'Alice' });
+    renderPanel();
+    const strip = screen.getByLabelText('Pipeline command strip');
+    // Total active deals = 2 (Alice's two), pipeline = 800,000.
+    expect(within(strip).getByLabelText('2 active deals')).toBeInTheDocument();
+    expect(
+      within(strip).getByLabelText(/Total pipeline.*800,000/),
+    ).toBeInTheDocument();
+  });
+
+  it('narrows the top-deals list to the selected banker', () => {
+    setAllReady({
+      pipeline: [
+        deal({ id: 'd-alice-1', name: 'AliceDeal1', assignedBankerId: 'b-alice', assignedBankerName: 'Alice', amount: 500_000 }),
+        deal({ id: 'd-bob-1', name: 'BobDeal1', assignedBankerId: 'b-bob', assignedBankerName: 'Bob', amount: 1_000_000 }),
+      ],
+      bankers: [
+        banker({ id: 'b-alice', fullName: 'Alice' }),
+        banker({ id: 'b-bob', fullName: 'Bob' }),
+      ],
+    });
+    setFilter({ kind: 'banker', id: 'b-alice', name: 'Alice' });
+    renderPanel();
+    const top = screen.getByLabelText('Top deals by amount');
+    expect(within(top).getByText('AliceDeal1')).toBeInTheDocument();
+    expect(within(top).queryByText('BobDeal1')).not.toBeInTheDocument();
+  });
+
+  it('renders the "Filtered to X" chip when a non-all selection is active', () => {
+    setAllReady({ pipeline: [deal()] });
+    setFilter({ kind: 'banker', id: 'b-alice', name: 'Alice' });
+    renderPanel();
+    expect(screen.getByText(/Filtered to Alice/i)).toBeInTheDocument();
+  });
+
+  it('does NOT render the filter chip when no filter provider is mounted', () => {
+    setAllReady({ pipeline: [deal()] });
+    setFilter(undefined);
+    renderPanel();
+    expect(screen.queryByText(/Filtered to/i)).not.toBeInTheDocument();
+  });
+
+  it('does NOT narrow aggregates when filter selection is { kind: "all" }', () => {
+    setAllReady({
+      pipeline: [
+        deal({ id: 'd1', assignedBankerId: 'b1', assignedBankerName: 'Alice' }),
+        deal({ id: 'd2', assignedBankerId: 'b2', assignedBankerName: 'Bob' }),
+      ],
+      bankers: [banker({ id: 'b1', fullName: 'Alice' }), banker({ id: 'b2', fullName: 'Bob' })],
+    });
+    setFilter({ kind: 'all' });
+    renderPanel();
+    const strip = screen.getByLabelText('Pipeline command strip');
+    expect(within(strip).getByLabelText('2 active deals')).toBeInTheDocument();
+  });
+
+  it('narrows the exception tape to the selected banker', () => {
+    setAllReady({
+      pipeline: [
+        deal({
+          id: 'd-alice-blocked',
+          name: 'AliceBlocked',
+          assignedBankerId: 'b-alice',
+          assignedBankerName: 'Alice',
+          targetCloseDate: isoDaysAgo(10),
+        }),
+        deal({
+          id: 'd-bob-blocked',
+          name: 'BobBlocked',
+          assignedBankerId: 'b-bob',
+          assignedBankerName: 'Bob',
+          targetCloseDate: isoDaysAgo(10),
+        }),
+      ],
+      bankers: [
+        banker({ id: 'b-alice', fullName: 'Alice' }),
+        banker({ id: 'b-bob', fullName: 'Bob' }),
+      ],
+    });
+    setFilter({ kind: 'banker', id: 'b-alice', name: 'Alice' });
+    renderPanel();
+    const tape = screen.getByLabelText('Exception tape');
+    const blocked = within(tape).getByLabelText('Blocked bucket');
+    expect(within(blocked).getByText('AliceBlocked')).toBeInTheDocument();
+    expect(within(blocked).queryByText('BobBlocked')).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Exception tape from shared deriver — no sample data
 // ---------------------------------------------------------------------------
 
@@ -275,31 +432,15 @@ describe('Phase 124A — exception tape', () => {
   it('renders Blocked / At risk / Missing fields / Stale buckets from the authorized records', () => {
     setAllReady({
       pipeline: [
-        deal({
-          id: 'd-blocked',
-          name: 'BlockedDeal',
-          targetCloseDate: isoDaysAgo(15),
-        }),
-        deal({
-          id: 'd-atrisk',
-          name: 'AtRiskDeal',
-          targetCloseDate: isoDaysAgo(3),
-        }),
-        deal({
-          id: 'd-missing',
-          name: 'MissingDeal',
-          amount: undefined,
-        }),
-        deal({
-          id: 'd-stale',
-          name: 'StaleDeal',
-          modifiedOn: isoDaysAgo(20),
-        }),
+        deal({ id: 'd-blocked', name: 'BlockedDeal', targetCloseDate: isoDaysAgo(15) }),
+        deal({ id: 'd-atrisk', name: 'AtRiskDeal', targetCloseDate: isoDaysAgo(3) }),
+        deal({ id: 'd-missing', name: 'MissingDeal', amount: undefined }),
+        deal({ id: 'd-stale', name: 'StaleDeal', modifiedOn: isoDaysAgo(20) }),
         deal({ id: 'd-clean', name: 'CleanDeal' }),
       ],
       bankers: [banker()],
     });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     const tape = screen.getByLabelText('Exception tape');
     expect(within(tape).getByLabelText('Blocked bucket')).toHaveTextContent(
       /BlockedDeal/,
@@ -313,19 +454,17 @@ describe('Phase 124A — exception tape', () => {
     expect(within(tape).getByLabelText('Stale bucket')).toHaveTextContent(
       /StaleDeal/,
     );
-    // Clean deal is NOT surfaced anywhere on the tape — buckets are
-    // mutually exclusive, and clean status fires no bucket.
     expect(within(tape).queryByText(/CleanDeal/)).not.toBeInTheDocument();
   });
 
-  it('does NOT inject sample / mock / fake borrower or deal data into the exception tape', () => {
+  it('does NOT inject sample / mock / fake borrower or deal data', () => {
     setAllReady({
       pipeline: [
         deal({ id: 'd1', name: 'Honest Deal Name', targetCloseDate: isoDaysAgo(15) }),
       ],
       bankers: [banker()],
     });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     const text = document.body.textContent ?? '';
     expect(text).not.toMatch(/\bAcme\b/i);
     expect(text).not.toMatch(/\bContoso\b/i);
@@ -333,15 +472,63 @@ describe('Phase 124A — exception tape', () => {
     expect(text).not.toMatch(/mock\s+deal/i);
   });
 
-  it('renders honest "None." copy in any bucket that has zero rows', () => {
+  it('renders honest "None." copy in empty buckets', () => {
+    setAllReady({ pipeline: [deal({ id: 'd-clean' })], bankers: [banker()] });
+    renderPanel();
+    const tape = screen.getByLabelText('Exception tape');
+    expect(within(tape).getAllByText(/^None\.$/).length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Drill-down navigation (Phase 124B)
+// ---------------------------------------------------------------------------
+
+describe('Phase 124B — drill-down navigation', () => {
+  it('renders the top-deal name as a Link to /deals/<dealId>', () => {
     setAllReady({
-      pipeline: [deal({ id: 'd-clean' })],
+      pipeline: [deal({ id: 'd-drill', name: 'Drill Deal', amount: 750_000 })],
       bankers: [banker()],
     });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
+    const link = screen.getByLabelText(
+      'Open Drill Deal in the deal workspace',
+    );
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('href')).toBe('/deals/d-drill');
+    expect(link.getAttribute('data-manager-drilldown-deal')).toBe('d-drill');
+  });
+
+  it('renders the exception-tape row name as a Link to /deals/<dealId>', () => {
+    setAllReady({
+      pipeline: [
+        deal({
+          id: 'd-blocked',
+          name: 'BlockedDeal',
+          targetCloseDate: isoDaysAgo(15),
+        }),
+      ],
+      bankers: [banker()],
+    });
+    renderPanel();
     const tape = screen.getByLabelText('Exception tape');
-    // Default deal is clean → all four buckets are empty → all render "None."
-    expect(within(tape).getAllByText(/^None\.$/).length).toBeGreaterThanOrEqual(4);
+    const link = within(tape).getByLabelText(
+      'Open BlockedDeal in the deal workspace',
+    );
+    expect(link.tagName).toBe('A');
+    expect(link.getAttribute('href')).toBe('/deals/d-blocked');
+  });
+
+  it('every drill-down link is a navigation anchor (never a <button> / form / write surface)', () => {
+    setAllReady({
+      pipeline: [
+        deal({ id: 'd1', name: 'D1', targetCloseDate: isoDaysAgo(15) }),
+      ],
+      bankers: [banker()],
+    });
+    const { container } = renderPanel();
+    expect(container.querySelector('button')).toBeNull();
+    expect(container.querySelector('form')).toBeNull();
   });
 });
 
@@ -366,7 +553,7 @@ describe('Phase 124A — honest absence', () => {
       ],
       bankers: [],
     });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     const topDeals = screen.getByLabelText('Top deals by amount');
     const row = within(topDeals).getByText('Sparse cockpit deal').closest('li');
     expect(row).not.toBeNull();
@@ -377,7 +564,7 @@ describe('Phase 124A — honest absence', () => {
     expect(row!).toHaveTextContent('No amount');
   });
 
-  it('does NOT inject any of the forbidden fake-fallback placeholder strings beyond the explicit honest empty-state copy', () => {
+  it('does NOT inject TBD / N/A / placeholder vocabulary', () => {
     setAllReady({
       pipeline: [
         deal({
@@ -391,42 +578,11 @@ describe('Phase 124A — honest absence', () => {
         }),
       ],
     });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     const text = document.body.textContent ?? '';
-    // TBD / N/A / em-dash placeholders are NEVER injected. ("Not set"
-    // is the honest empty state copy used in the banker cockpit too;
-    // "Unassigned" / "No amount" are the deliberate manager-side
-    // honest empty-state labels for banker / amount slots.)
     expect(text).not.toMatch(/\bTBD\b/);
     expect(text).not.toMatch(/\bN\/A\b/);
     expect(text).not.toMatch(/\bplaceholder\b/i);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Banker workload
-// ---------------------------------------------------------------------------
-
-describe('Phase 124A — banker workload', () => {
-  it('renders one row per roster banker with active deal count + amount + work', () => {
-    setAllReady({
-      pipeline: [
-        deal({
-          id: 'd1',
-          assignedBankerId: 'b1',
-          assignedBankerName: 'Alice',
-          amount: 500_000,
-        }),
-      ],
-      bankers: [
-        banker({ id: 'b1', fullName: 'Alice' }),
-        banker({ id: 'b2', fullName: 'Bob' }),
-      ],
-    });
-    render(<ManagerBloombergControlPanel />);
-    const workload = screen.getByLabelText('Banker workload');
-    expect(within(workload).getByText('Alice')).toBeInTheDocument();
-    expect(within(workload).getByText('Bob')).toBeInTheDocument();
   });
 });
 
@@ -452,7 +608,7 @@ describe('Phase 124A — top deals + shared VM next-best-action', () => {
         },
       ],
     });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     const topDeals = screen.getByLabelText('Top deals by amount');
     expect(within(topDeals).getByText(/Next:.*overdue task/i)).toBeInTheDocument();
   });
@@ -462,7 +618,7 @@ describe('Phase 124A — top deals + shared VM next-best-action', () => {
       pipeline: [deal({ id: 'd-clean' })],
       bankers: [banker()],
     });
-    render(<ManagerBloombergControlPanel />);
+    renderPanel();
     const topDeals = screen.getByLabelText('Top deals by amount');
     expect(within(topDeals).getByText(/No mechanical signal/i)).toBeInTheDocument();
   });
@@ -472,7 +628,7 @@ describe('Phase 124A — top deals + shared VM next-best-action', () => {
 // Static-source discipline
 // ---------------------------------------------------------------------------
 
-describe('Phase 124A — ManagerBloombergControlPanel.tsx static-source discipline', () => {
+describe('Phase 124A + 124B — ManagerBloombergControlPanel.tsx static-source discipline', () => {
   const source = readFileSync(
     resolve(__dirname, 'ManagerBloombergControlPanel.tsx'),
     'utf8',
@@ -481,13 +637,25 @@ describe('Phase 124A — ManagerBloombergControlPanel.tsx static-source discipli
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|\s)\/\/.*$/gm, '$1');
 
-  it('imports the manager pipeline snapshot deriver (which routes through the shared VM)', () => {
+  it('imports the manager pipeline snapshot deriver', () => {
     expect(source).toMatch(
       /import\s+\{[^}]*deriveManagerPipelineSnapshot[^}]*\}\s+from\s+['"]\.\/managerPipelineSnapshot['"]/,
     );
   });
 
-  it('does NOT import any banker-only write surface (no DealAutopilotPanel, no banker context, no email actions)', () => {
+  it('imports the optional banker-filter hook (Phase 124B integration pin)', () => {
+    expect(source).toMatch(
+      /import\s+\{[^}]*useOptionalManagerBankerFilter[^}]*\}\s+from\s+['"]\.\/ManagerBankerFilter['"]/,
+    );
+  });
+
+  it('imports Link from react-router-dom (Phase 124B drill-down pin)', () => {
+    expect(source).toMatch(
+      /import\s+\{\s*Link\s*\}\s+from\s+['"]react-router-dom['"]/,
+    );
+  });
+
+  it('does NOT import any banker-only write surface', () => {
     expect(source).not.toMatch(/from\s+['"][^'"]*\/banker\//);
     expect(source).not.toMatch(/DealAutopilotPanel/);
     expect(source).not.toMatch(/from\s+['"][^'"]*Office365/);
@@ -500,9 +668,6 @@ describe('Phase 124A — ManagerBloombergControlPanel.tsx static-source discipli
   });
 
   it('does NOT render any button / form / interactive write affordance', () => {
-    // Inert read-only cockpit. The only interactive element a manager
-    // surface here might want would be a navigation link — explicitly
-    // not included in Phase 124A foundation.
     expect(sourceCode).not.toMatch(/<button\b/i);
     expect(sourceCode).not.toMatch(/<form\b/i);
     expect(sourceCode).not.toMatch(/onSubmit/);

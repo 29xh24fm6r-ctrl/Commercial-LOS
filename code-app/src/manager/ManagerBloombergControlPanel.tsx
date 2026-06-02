@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useManagerData } from './ManagerDataProvider';
+import {
+  dealMatchesBankerFilter,
+  useOptionalManagerBankerFilter,
+} from './ManagerBankerFilter';
 import {
   deriveManagerPipelineSnapshot,
   type ManagerExceptionRow,
@@ -47,6 +52,15 @@ import { palette, radius, severityPalette, shadow, spacing, typography } from '.
  */
 export function ManagerBloombergControlPanel() {
   const { teamPipeline, teamBankers, teamTasks, teamDocuments } = useManagerData();
+  // Phase 124B — when the manager workspace has the existing banker
+  // filter provider mounted, narrow the cockpit to the selected
+  // banker so command-strip / exception-tape / workload / top-deals
+  // all stay consistent with the rest of the manager surface. Falls
+  // back to "all team" when no provider is mounted (standalone test
+  // mountability preserved).
+  const filter = useOptionalManagerBankerFilter();
+  const filterSelection = filter?.selection;
+  const filterLabel = filter?.selectionLabel;
 
   // Fail closed: if ANY of the four core slots failed to load, we
   // refuse to render an aggregate. Showing zeros across a partial
@@ -78,13 +92,32 @@ export function ManagerBloombergControlPanel() {
     ) {
       return undefined;
     }
+    // Apply the banker filter BEFORE derivation so every section
+    // (command strip / exception tape / banker workload / top deals)
+    // reflects the selection. The filter operates only over already-
+    // authorized records — no permission widening.
+    const filteredPipeline =
+      filterSelection && filterSelection.kind !== 'all'
+        ? teamPipeline.data.filter((d) =>
+            dealMatchesBankerFilter(d, filterSelection),
+          )
+        : teamPipeline.data;
+    const dealIdsInScope = new Set(filteredPipeline.map((d) => d.id));
+    const filteredTasks =
+      filterSelection && filterSelection.kind !== 'all'
+        ? teamTasks.data.filter((t) => t.dealId && dealIdsInScope.has(t.dealId))
+        : teamTasks.data;
+    const filteredDocuments =
+      filterSelection && filterSelection.kind !== 'all'
+        ? teamDocuments.data.filter((d) => d.dealId && dealIdsInScope.has(d.dealId))
+        : teamDocuments.data;
     return deriveManagerPipelineSnapshot({
-      teamPipeline: teamPipeline.data,
+      teamPipeline: filteredPipeline,
       teamBankers: teamBankers.data,
-      teamTasks: teamTasks.data,
-      teamDocuments: teamDocuments.data,
+      teamTasks: filteredTasks,
+      teamDocuments: filteredDocuments,
     });
-  }, [teamPipeline, teamBankers, teamTasks, teamDocuments]);
+  }, [teamPipeline, teamBankers, teamTasks, teamDocuments, filterSelection]);
 
   return (
     <section
@@ -93,26 +126,42 @@ export function ManagerBloombergControlPanel() {
       data-manager-cockpit="bloomberg-control-panel"
     >
       <header style={styles.header}>
-        <div>
+        <div style={styles.headerTitleBlock}>
           <div style={styles.eyebrow}>Management Cockpit</div>
-          <h2 style={styles.title}>Bloomberg Control Panel</h2>
+          <h2 style={styles.title}>Manager Bloomberg Control Panel</h2>
+          <p style={styles.subtitle}>Live authorized pipeline snapshot</p>
         </div>
-        <span style={styles.readOnlyChip} aria-label="Read-only management view">
-          Read-only
-        </span>
+        <div style={styles.headerMeta}>
+          {filterLabel && (
+            <span
+              style={styles.filterChip}
+              aria-label={`Banker filter: ${filterLabel}`}
+              data-manager-cockpit-filter-label
+            >
+              {filterLabel}
+            </span>
+          )}
+          <span style={styles.readOnlyChip} aria-label="Read-only management view">
+            Read-only
+          </span>
+        </div>
       </header>
 
       {failureSlot && (
         <FailureState slot={failureSlot.name} message={failureSlot.message} />
       )}
       {!failureSlot && !allReady && <LoadingStrip />}
-      {!failureSlot && allReady && snapshot && snapshot.isEmpty && <EmptyState />}
+      {!failureSlot && allReady && snapshot && snapshot.isEmpty && (
+        <EmptyState filtered={Boolean(filterSelection && filterSelection.kind !== 'all')} />
+      )}
       {!failureSlot && allReady && snapshot && !snapshot.isEmpty && (
         <div style={styles.body}>
           <CommandStrip strip={snapshot.commandStrip} />
           <ExceptionTape tape={snapshot.exceptionTape} />
-          <BankerWorkload rows={snapshot.bankerWorkload} />
-          <TopDeals rows={snapshot.topDeals} />
+          <div style={styles.bottomGrid}>
+            <BankerWorkload rows={snapshot.bankerWorkload} />
+            <TopDeals rows={snapshot.topDeals} />
+          </div>
         </div>
       )}
     </section>
@@ -139,14 +188,18 @@ function LoadingStrip() {
 function FailureState({ slot, message }: { slot: string; message: string }) {
   return (
     <div role="alert" style={styles.failureRow} data-manager-cockpit-state="failed">
-      <span style={styles.failureLabel}>Could not load {slot}.</span>
+      <span style={styles.failureLabel}>
+        Could not load {slot}. The cockpit is failing closed.
+      </span>
       <span style={styles.failureDetail}>{message}</span>
-      <span style={styles.failureHint}>Refresh to retry.</span>
+      <span style={styles.failureHint}>
+        No partial KPIs are shown across a failed load. Refresh to retry.
+      </span>
     </div>
   );
 }
 
-function EmptyState() {
+function EmptyState({ filtered }: { filtered: boolean }) {
   return (
     <div
       role="status"
@@ -154,7 +207,9 @@ function EmptyState() {
       style={styles.emptyRow}
       data-manager-cockpit-state="empty"
     >
-      No authorized manager pipeline records found.
+      {filtered
+        ? 'No authorized records match the current banker filter.'
+        : 'No authorized manager pipeline records found.'}
     </div>
   );
 }
@@ -311,7 +366,14 @@ function ExceptionBucket({
               data-manager-exception-row={r.dealId}
             >
               <div style={styles.bucketRowHead}>
-                <span style={styles.bucketRowName}>{r.dealName}</span>
+                <Link
+                  to={`/deals/${r.dealId}`}
+                  style={styles.bucketRowLink}
+                  aria-label={`Open ${r.dealName} in the deal workspace`}
+                  data-manager-drilldown-deal={r.dealId}
+                >
+                  {r.dealName}
+                </Link>
                 <span style={styles.bucketRowAmount}>{formatAmount(r.amount)}</span>
               </div>
               <div style={styles.bucketRowSub}>
@@ -404,7 +466,14 @@ function TopDeals({ rows }: { rows: ManagerTopDealRow[] }) {
               data-manager-top-deal-row={r.dealId}
             >
               <div style={styles.topDealHead}>
-                <span style={styles.topDealName}>{r.dealName}</span>
+                <Link
+                  to={`/deals/${r.dealId}`}
+                  style={styles.topDealLink}
+                  aria-label={`Open ${r.dealName} in the deal workspace`}
+                  data-manager-drilldown-deal={r.dealId}
+                >
+                  {r.dealName}
+                </Link>
                 <span style={styles.topDealAmount}>{formatAmount(r.amount)}</span>
               </div>
               <div style={styles.topDealMeta}>
@@ -531,11 +600,61 @@ const styles: Record<string, React.CSSProperties> = {
   header: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.md,
     paddingBottom: spacing.sm,
     borderBottom: `1px solid ${palette.divider}`,
     marginBottom: spacing.md,
+    flexWrap: 'wrap' as const,
+  },
+  headerTitleBlock: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 2,
+    minWidth: 0,
+  },
+  headerMeta: {
+    display: 'flex',
+    gap: spacing.xs,
+    alignItems: 'center',
+    flexWrap: 'wrap' as const,
+  },
+  subtitle: {
+    margin: 0,
+    color: palette.textMuted,
+    fontSize: typography.size.sm,
+    lineHeight: typography.lineHeight.snug,
+  },
+  filterChip: {
+    padding: `2px ${spacing.sm}`,
+    background: palette.primaryBg,
+    color: palette.primaryFg,
+    border: `1px solid ${palette.primaryDim}`,
+    borderRadius: radius.pill,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    letterSpacing: typography.letterSpacing.label,
+  },
+  bottomGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+    gap: spacing.md,
+    alignItems: 'start',
+  },
+  bucketRowLink: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: palette.primary,
+    textDecoration: 'none' as const,
+    overflow: 'hidden' as const,
+    textOverflow: 'ellipsis' as const,
+    whiteSpace: 'nowrap' as const,
+  },
+  topDealLink: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: palette.primary,
+    textDecoration: 'none' as const,
   },
   eyebrow: {
     fontSize: typography.size.xs,
