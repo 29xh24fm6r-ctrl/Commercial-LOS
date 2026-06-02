@@ -262,7 +262,7 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
     // Now part of the broader three-way mutex with --cleanup-form.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
     );
   });
 
@@ -323,7 +323,7 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
 
   it('cleanup-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive\./,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive\./,
     );
   });
 
@@ -424,7 +424,7 @@ describe('Phase 122B — broad SystemForm inspection for indirect dependencies',
 
   it('--inspect-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
     );
   });
 
@@ -538,7 +538,7 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
 
   it('5-way mutex includes --cleanup-subgrid', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
     );
   });
 
@@ -949,7 +949,7 @@ describe('Phase 122B — SavedQuery (view) inspection + targeted cleanup', () =>
 
   it('7-way mutex includes --inspect-view and --cleanup-view', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
     );
   });
 
@@ -1547,6 +1547,155 @@ describe('Phase 122B — commit still skips create when a true lookup already ex
   it('buildPlan still emits noop when standardLookupFkExists is true', () => {
     expect(SCRIPT).toMatch(/if\s*\(a\?\.standardLookupFkExists\)/);
     expect(SCRIPT).toMatch(/kind:\s*'noop'/);
+  });
+});
+
+describe('Phase 122E Pt 1 — --inspect-attributes targeted attribute audit', () => {
+  it('parses --inspect-attributes with a comma-separated list of <table>.<attribute>', () => {
+    expect(SCRIPT).toMatch(/'--inspect-attributes'/);
+    expect(SCRIPT).toMatch(/flags\.inspectAttributeItems\s*=/);
+    expect(SCRIPT).toMatch(/--inspect-attributes requires a comma-separated list/);
+  });
+
+  it('validates each item is exactly <table>.<attribute> with Dataverse logical-name shape', () => {
+    // The parser splits on `.`, refuses items with !== 2 parts, and
+    // validates each half against the Dataverse logical-name regex.
+    expect(SCRIPT).toMatch(
+      /--inspect-attributes item "\$\{item\}" must be exactly "<table>\.<attribute>"/,
+    );
+    expect(SCRIPT).toMatch(
+      /--inspect-attributes item "\$\{item\}" must use Dataverse logical-name shape/,
+    );
+  });
+
+  it('declares runInspectAttributes() that walks one level deep into lookup targets', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+runInspectAttributes/);
+    const fnStart = SCRIPT.indexOf('async function runInspectAttributes');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnEnd = SCRIPT.indexOf('\n// ---', fnStart);
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    // For each item, reuses the existing Web API metadata helpers.
+    expect(body).toMatch(/getTableMetadata\(/);
+    expect(body).toMatch(/getLookupTargetsForAttribute\(/);
+    expect(body).toMatch(/getPicklistOptionsForAttribute\(/);
+    // Lookup branch prints the target table headline + REQUIRED FOR
+    // CREATE columns with nested Lookup Targets + Picklist OptionSets.
+    expect(body).toMatch(/Lookup Targets\[\]:/);
+    expect(body).toMatch(/REQUIRED FOR CREATE on/);
+    expect(body).toMatch(/Lookup Targets:/);
+    expect(body).toMatch(/OptionSet \(\$\{choice\.options\.length\}\):/);
+    // Read-only contract — no write of any kind in the orchestrator.
+    expect(body).not.toMatch(/method:\s*'PATCH'/);
+    expect(body).not.toMatch(/method:\s*'POST'/);
+    expect(body).not.toMatch(/method:\s*'DELETE'/);
+    expect(body).not.toMatch(/PublishXml/);
+    expect(body).not.toMatch(/spawnSync\(/);
+  });
+
+  it('inspect-attributes branch returns from main() before any write-capable mode is reached', () => {
+    const guardIdx = SCRIPT.indexOf('if (FLAGS.inspectAttributeItems !== null)');
+    expect(guardIdx).toBeGreaterThan(-1);
+    // The next write-capable branch is the seed-client-relationship
+    // block — verify the inspect-attributes branch returns BEFORE it.
+    const nextWriteModeIdx = SCRIPT.indexOf(
+      'if (FLAGS.seedClientRelationship)',
+      guardIdx,
+    );
+    expect(nextWriteModeIdx).toBeGreaterThan(guardIdx);
+    const between = SCRIPT.slice(guardIdx, nextWriteModeIdx);
+    expect(between).toMatch(/return;/);
+    // And the Phase A audit block also sits AFTER the inspect-attributes
+    // branch.
+    const auditMarkerIdx = SCRIPT.indexOf('// === Phase A: audit ===', guardIdx);
+    expect(auditMarkerIdx).toBeGreaterThan(guardIdx);
+  });
+
+  it('MODE banner adds INSPECT-ATTRIBUTES', () => {
+    expect(SCRIPT).toMatch(/'INSPECT-ATTRIBUTES'/);
+  });
+
+  it('no force-delete / bypass headers introduced by the new mode', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+
+  it('9-way mutex extended to include --inspect-attributes', () => {
+    // Asserted via the central mutex pin updated elsewhere in this file,
+    // but re-check the specific string for clarity.
+    expect(SCRIPT).toMatch(
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive/,
+    );
+  });
+});
+
+describe('Phase 122E Pt 1 — targeted attribute parser (behavioral)', () => {
+  // Behavioral mirror of the script's --inspect-attributes value parser.
+  type Item = { table: string; attribute: string };
+  function parseItems(value: string): Item[] {
+    const items = value.split(',').map((s) => s.trim()).filter(Boolean);
+    const logicalShape = /^[a-z][a-z0-9_]{1,79}$/i;
+    const parsed: Item[] = [];
+    for (const item of items) {
+      const parts = item.split('.');
+      if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        throw new Error(
+          `item "${item}" must be exactly "<table>.<attribute>"`,
+        );
+      }
+      if (!logicalShape.test(parts[0]) || !logicalShape.test(parts[1])) {
+        throw new Error(`item "${item}" must use Dataverse logical-name shape`);
+      }
+      parsed.push({ table: parts[0].toLowerCase(), attribute: parts[1].toLowerCase() });
+    }
+    return parsed;
+  }
+
+  it('accepts the operator example: the three final cockpit-missing references', () => {
+    const items = parseItems(
+      'cr664_loandeal.cr664_producttypereference,' +
+        'cr664_loandeal.cr664_loanstructuretypereference,' +
+        'cr664_loandeal.cr664_pricingtypereference',
+    );
+    expect(items).toEqual([
+      { table: 'cr664_loandeal', attribute: 'cr664_producttypereference' },
+      { table: 'cr664_loandeal', attribute: 'cr664_loanstructuretypereference' },
+      { table: 'cr664_loandeal', attribute: 'cr664_pricingtypereference' },
+    ]);
+  });
+
+  it('rejects items missing the dot separator', () => {
+    expect(() => parseItems('cr664_loandeal_cr664_producttypereference')).toThrow(
+      /must be exactly/,
+    );
+  });
+
+  it('rejects items with too many dots', () => {
+    expect(() => parseItems('cr664_loandeal.foo.bar')).toThrow(/must be exactly/);
+  });
+
+  it('rejects empty table or empty attribute', () => {
+    expect(() => parseItems('.cr664_x')).toThrow(/must be exactly/);
+    expect(() => parseItems('cr664_loandeal.')).toThrow(/must be exactly/);
+  });
+
+  it('rejects shapes that violate Dataverse logical-name rules', () => {
+    expect(() => parseItems('cr664_loandeal.cr664/producttype')).toThrow(
+      /logical-name shape/,
+    );
+    expect(() => parseItems('cr664-loandeal.cr664_producttypereference')).toThrow(
+      /logical-name shape/,
+    );
+  });
+
+  it('Phase 122E Pt 1 example command uses the three final cockpit-missing attributes', () => {
+    // The doc + the operator's command-shape contract both name these
+    // three optional reference lookups as the Phase 122E Pt 1 targets.
+    expect(SCRIPT).toMatch(/cr664_producttypereference/);
+    expect(SCRIPT).toMatch(/cr664_loanstructuretypereference/);
+    expect(SCRIPT).toMatch(/cr664_pricingtypereference/);
   });
 });
 

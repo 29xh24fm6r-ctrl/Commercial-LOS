@@ -182,6 +182,7 @@ function parseArgs(argv) {
     printRelationshipPayload: false,
     verifyLookups: false,
     inspectTableName: null,
+    inspectAttributeItems: null,
     seedClientRelationship: false,
     seedDealName: null,
     seedClientName: null,
@@ -318,6 +319,40 @@ function parseArgs(argv) {
       flags.inspectTableName = next.toLowerCase();
       flags.dryRun = false;
       i += 1;
+    } else if (arg === '--inspect-attributes') {
+      // Phase 122E Pt 1 — read-only targeted attribute inspection.
+      // Takes a comma-separated list of <table>.<attribute> pairs.
+      // For each lookup attribute, prints the resolved Targets[] AND
+      // each target table's REQUIRED FOR CREATE columns (one level
+      // deep). For each picklist attribute, prints the OptionSet.
+      const next = args[i + 1];
+      if (!next) {
+        bailParseArgs(
+          '--inspect-attributes requires a comma-separated list of <table>.<attribute>',
+        );
+      }
+      const items = next.split(',').map((s) => s.trim()).filter(Boolean);
+      if (items.length === 0) {
+        bailParseArgs('--inspect-attributes requires at least one <table>.<attribute>');
+      }
+      const logicalShape = /^[a-z][a-z0-9_]{1,79}$/i;
+      const parsed = items.map((item) => {
+        const parts = item.split('.');
+        if (parts.length !== 2 || !parts[0] || !parts[1]) {
+          bailParseArgs(
+            `--inspect-attributes item "${item}" must be exactly "<table>.<attribute>"`,
+          );
+        }
+        if (!logicalShape.test(parts[0]) || !logicalShape.test(parts[1])) {
+          bailParseArgs(
+            `--inspect-attributes item "${item}" must use Dataverse logical-name shape (letters/digits/underscore, 2–80 chars per part)`,
+          );
+        }
+        return { table: parts[0].toLowerCase(), attribute: parts[1].toLowerCase() };
+      });
+      flags.inspectAttributeItems = parsed;
+      flags.dryRun = false;
+      i += 1;
     } else if (arg === '--seed-client-relationship') {
       // Phase 122D Pt 2 — guarded TEST Client / Relationship seed.
       // Dry-run by default; writes require --commit-seed-client.
@@ -366,10 +401,11 @@ function parseArgs(argv) {
     flags.inspectViewId !== null,
     flags.cleanupViewId !== null,
     flags.seedClientRelationship,
+    flags.inspectAttributeItems !== null,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, and --seed-client-relationship are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, and --inspect-attributes are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
@@ -491,11 +527,13 @@ const MODE = FLAGS.commit
                 ? 'VERIFY-LOOKUPS'
                 : FLAGS.inspectTableName !== null
                   ? 'INSPECT-TABLE'
-                  : FLAGS.seedClientRelationship
-                    ? FLAGS.commitSeedClient
-                      ? 'COMMIT-SEED-CLIENT'
-                      : 'SEED-CLIENT-RELATIONSHIP (dry-run)'
-                    : 'DRY-RUN';
+                  : FLAGS.inspectAttributeItems !== null
+                    ? 'INSPECT-ATTRIBUTES'
+                    : FLAGS.seedClientRelationship
+                      ? FLAGS.commitSeedClient
+                        ? 'COMMIT-SEED-CLIENT'
+                        : 'SEED-CLIENT-RELATIONSHIP (dry-run)'
+                      : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -1044,6 +1082,205 @@ async function runInspectTable(tableLogicalName, token, envUrl) {
     'Read-only inspection. No write of any kind has been issued against this env.',
   );
   return { ok: true, table: t, required, recommended, optional };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 122E Pt 1 — targeted attribute inspection (--inspect-attributes).
+//
+// --inspect-table prints a table's columns grouped by RequiredLevel
+// (REQUIRED FOR CREATE / RECOMMENDED / OPTIONAL). For Phase 122E the
+// final three cockpit-missing fields are OPTIONAL reference lookups
+// on cr664_loandeal:
+//
+//   cr664_producttypereference
+//   cr664_loanstructuretypereference
+//   cr664_pricingtypereference
+//
+// Optional columns are not detail-printed by --inspect-table (their
+// lookup Targets + per-target required columns are not surfaced). To
+// design a seed for those references we need the full picture per
+// attribute — what entity each lookup points at, what columns each
+// target table requires on create, and (for any nested picklist)
+// what OptionSet values are valid.
+//
+// This mode walks one level deep: for each operator-supplied
+// <table>.<attribute>, GETs the parent table + the attribute, and —
+// if the attribute is a Lookup — GETs each Targets[] table's
+// REQUIRED FOR CREATE column set with Lookup Targets + Picklist
+// OptionSets inlined. Read-only Web API GETs; no PATCH / POST /
+// DELETE / pac shellout / bypass headers.
+// ---------------------------------------------------------------------------
+
+async function runInspectAttributes(items, token, envUrl) {
+  console.log('');
+  console.log(
+    'Phase A — Targeted attribute inspection (Web API metadata, read-only)',
+  );
+  console.log(`   Items: ${items.length}`);
+  console.log('');
+
+  for (const { table, attribute } of items) {
+    console.log('='.repeat(72));
+    console.log(`-- ${table}.${attribute}`);
+    console.log('='.repeat(72));
+
+    const tableMeta = await getTableMetadata(table, token, envUrl);
+    if (!tableMeta.ok) {
+      console.log(`   ✗ Could not fetch table metadata: ${tableMeta.error}`);
+      console.log('');
+      continue;
+    }
+    const t = tableMeta.table;
+    const attr = (t.Attributes ?? []).find(
+      (a) =>
+        typeof a.LogicalName === 'string' &&
+        a.LogicalName.toLowerCase() === attribute,
+    );
+    if (!attr) {
+      console.log(`   ✗ Attribute "${attribute}" not found on table "${table}".`);
+      console.log('');
+      continue;
+    }
+
+    console.log(`   Table LogicalName:     ${t.LogicalName}`);
+    console.log(`   Attribute LogicalName: ${attr.LogicalName}`);
+    console.log(`   SchemaName:            ${attr.SchemaName}`);
+    console.log(`   AttributeType:         ${attr.AttributeType}`);
+    console.log(
+      `   DisplayName:           ${localizedDisplayName(attr.DisplayName) ?? '(none)'}`,
+    );
+    console.log(
+      `   RequiredLevel:         ${attr.RequiredLevel?.Value ?? 'None'}`,
+    );
+    console.log(`   IsCustomAttribute:     ${attr.IsCustomAttribute}`);
+    console.log('');
+
+    if (attr.AttributeType === 'Lookup' || attr.AttributeType === 'Customer') {
+      const lookupRes = await getLookupTargetsForAttribute(
+        table,
+        attribute,
+        token,
+        envUrl,
+      );
+      if (!lookupRes.ok) {
+        console.log(`   ✗ Could not fetch lookup targets: ${lookupRes.error}`);
+        console.log('');
+        continue;
+      }
+      console.log(`   Lookup Targets[]:      ${JSON.stringify(lookupRes.targets)}`);
+      console.log('');
+
+      for (const targetTable of lookupRes.targets) {
+        console.log(`   --- target table: ${targetTable} ---`);
+        const targetMeta = await getTableMetadata(targetTable, token, envUrl);
+        if (!targetMeta.ok) {
+          console.log(
+            `       ✗ Could not fetch target metadata: ${targetMeta.error}`,
+          );
+          console.log('');
+          continue;
+        }
+        const tt = targetMeta.table;
+        console.log(`       LogicalName:           ${tt.LogicalName}`);
+        console.log(`       EntitySetName:         ${tt.EntitySetName}`);
+        console.log(`       PrimaryNameAttribute:  ${tt.PrimaryNameAttribute}`);
+        console.log(`       PrimaryIdAttribute:    ${tt.PrimaryIdAttribute}`);
+        console.log(`       IsCustomEntity:        ${tt.IsCustomEntity}`);
+        console.log(
+          `       DisplayName:           ${localizedDisplayName(tt.DisplayName) ?? '(none)'}`,
+        );
+        console.log('');
+
+        // REQUIRED FOR CREATE on the target table.
+        const required = [];
+        for (const a of tt.Attributes ?? []) {
+          if (!a.IsValidForCreate) continue;
+          const lvl = a.RequiredLevel?.Value ?? 'None';
+          if (lvl === 'SystemRequired' || lvl === 'ApplicationRequired') {
+            required.push(a);
+          }
+        }
+        required.sort((a, b) => a.LogicalName.localeCompare(b.LogicalName));
+
+        console.log(
+          `       REQUIRED FOR CREATE on ${tt.LogicalName} (${required.length}):`,
+        );
+        for (const ra of required) {
+          const lvl = ra.RequiredLevel?.Value ?? 'None';
+          const display = localizedDisplayName(ra.DisplayName);
+          console.log(
+            `         - ${ra.LogicalName}   type=${ra.AttributeType}   ` +
+              `RequiredLevel=${lvl}   IsCustom=${ra.IsCustomAttribute}` +
+              (display ? `   DisplayName="${display}"` : ''),
+          );
+          if (ra.AttributeType === 'Lookup' || ra.AttributeType === 'Customer') {
+            const nestedLookup = await getLookupTargetsForAttribute(
+              tt.LogicalName,
+              ra.LogicalName,
+              token,
+              envUrl,
+            );
+            if (nestedLookup.ok) {
+              console.log(
+                `             Lookup Targets: ${JSON.stringify(nestedLookup.targets)}`,
+              );
+            } else {
+              console.log(
+                `             (could not fetch nested lookup targets: ${nestedLookup.error})`,
+              );
+            }
+          } else if (ra.AttributeType === 'Picklist') {
+            const choice = await getPicklistOptionsForAttribute(
+              tt.LogicalName,
+              ra.LogicalName,
+              token,
+              envUrl,
+            );
+            if (choice.ok) {
+              console.log(`             OptionSet (${choice.options.length}):`);
+              for (const o of choice.options) {
+                console.log(
+                  `               ${o.value} → ${o.label ?? '(no label)'}`,
+                );
+              }
+            } else {
+              console.log(
+                `             (could not fetch nested OptionSet: ${choice.error})`,
+              );
+            }
+          }
+        }
+        console.log('');
+      }
+    } else if (attr.AttributeType === 'Picklist') {
+      const choice = await getPicklistOptionsForAttribute(
+        table,
+        attribute,
+        token,
+        envUrl,
+      );
+      if (!choice.ok) {
+        console.log(`   ✗ Could not fetch OptionSet: ${choice.error}`);
+        console.log('');
+        continue;
+      }
+      console.log(`   OptionSet (${choice.options.length} options):`);
+      for (const o of choice.options) {
+        console.log(`     ${o.value} → ${o.label ?? '(no label)'}`);
+      }
+      console.log('');
+    } else {
+      console.log(
+        `   (no per-type detail to print for AttributeType=${attr.AttributeType} — it is neither a Lookup nor a Picklist.)`,
+      );
+      console.log('');
+    }
+  }
+
+  console.log(
+    'Read-only attribute inspection complete. No write of any kind issued.',
+  );
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -4042,6 +4279,12 @@ async function main() {
     return;
   }
 
+  // === Read-only targeted attribute inspection (Phase 122E Pt 1) ===
+  if (FLAGS.inspectAttributeItems !== null) {
+    await runInspectAttributes(FLAGS.inspectAttributeItems, mainToken, mainEnvUrl);
+    return;
+  }
+
   // === TEST Client / Relationship seed (Phase 122D Pt 2) ===
   // Dry-run by default; writes require --commit-seed-client. The
   // mode is idempotent on both ends: reuses an existing
@@ -4510,6 +4753,24 @@ Modes:
       Useful for seeding a record into a table the SDK has no
       generated model for (e.g. cr664_clientrelationship). Pure GETs,
       no write of any kind.
+
+  --inspect-attributes <comma-separated list of <table>.<attribute>>
+      Read-only targeted attribute inspection (Phase 122E Pt 1). For
+      each operator-supplied <table>.<attribute>, walks one level
+      deep:
+        - GETs the parent table + the attribute (LogicalName,
+          SchemaName, AttributeType, RequiredLevel, IsCustomAttribute,
+          DisplayName).
+        - If Lookup: GETs the resolved Targets[] AND, for each
+          target table, prints LogicalName / EntitySetName /
+          PrimaryNameAttribute / PrimaryIdAttribute / IsCustomEntity,
+          plus the target's REQUIRED FOR CREATE columns. Required
+          nested Lookups print their Targets; required nested
+          Picklists print their OptionSet values.
+        - If Picklist: prints the OptionSet values.
+      Designed for OPTIONAL reference lookups that --inspect-table
+      doesn't detail-print (e.g. cr664_loandeal.cr664_producttypereference).
+      Pure GETs, no write of any kind.
 
   --seed-client-relationship
       --deal-name <text> --client-name <text> --borrower-type <int>
