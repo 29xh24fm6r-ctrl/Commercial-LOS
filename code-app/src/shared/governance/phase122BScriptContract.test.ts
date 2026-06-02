@@ -1344,6 +1344,208 @@ describe('Phase 122B — --cleanup-form accepts optional --attribute <table>.<co
   });
 });
 
+describe('Phase 122B — --verify-lookups Web API metadata mode', () => {
+  it('parses --verify-lookups as a flag', () => {
+    expect(SCRIPT).toMatch(/'--verify-lookups'/);
+    expect(SCRIPT).toMatch(/flags\.verifyLookups\s*=\s*true/);
+  });
+
+  it('declares classifyAttribute() that uses Web API metadata only', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+classifyAttribute/);
+    const fnStart = SCRIPT.indexOf('async function classifyAttribute');
+    // Bound to the next top-level helper so the pin doesn't bleed
+    // into countNonNull (which legitimately uses pac env fetch).
+    const fnEnd = SCRIPT.indexOf(
+      'async function getManyToOneRelationshipMeta',
+      fnStart,
+    );
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    // The URL is built up via baseUrl + $select template — match each
+    // piece inside the function body.
+    expect(body).toMatch(
+      /EntityDefinitions\(LogicalName=[^)]+\)\/Attributes\(LogicalName=[^)]+\)/,
+    );
+    expect(body).toMatch(/\$select=AttributeType/);
+    // Cast to LookupAttributeMetadata for the Targets check.
+    expect(body).toMatch(/Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata/);
+    // Three classifications.
+    expect(body).toMatch(/'missing'/);
+    expect(body).toMatch(/'pseudo-scalar'/);
+    expect(body).toMatch(/'real-lookup'/);
+    // No pac fetch in this helper's body.
+    expect(body).not.toMatch(/spawnSync\(/);
+    expect(body).not.toMatch(/pac env fetch/);
+  });
+
+  it('distinguishes pseudo-scalar from real-lookup via AttributeType', () => {
+    // Behavioral mirror — same classifier logic the script uses.
+    function classify(attributeType: string | undefined): 'missing' | 'pseudo-scalar' | 'real-lookup' {
+      if (attributeType === undefined) return 'missing';
+      if (attributeType === 'Lookup') return 'real-lookup';
+      return 'pseudo-scalar';
+    }
+    expect(classify('Uniqueidentifier')).toBe('pseudo-scalar');
+    expect(classify('Lookup')).toBe('real-lookup');
+    expect(classify(undefined)).toBe('missing');
+    // Source pin: the same comparison runs in the script.
+    expect(SCRIPT).toMatch(/meta\.AttributeType\s*!==\s*'Lookup'/);
+  });
+
+  it('declares runVerifyLookups() iterating all six Phase 122 targets', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+runVerifyLookups/);
+    // VERIFY_LOOKUP_TARGETS is the canonical list used by both
+    // --verify-lookups AND the post-commit verify plan steps.
+    expect(SCRIPT).toMatch(
+      /VERIFY_LOOKUP_TARGETS\s*=\s*Object\.freeze\(\[[\s\S]*?CANDIDATE_CHILD_TABLES\.map/,
+    );
+    // The AssignedTo entry sits alongside the five cr664_Deal entries.
+    expect(SCRIPT).toMatch(/expectedTarget:\s*LOOKUP_TARGET_SYSTEMUSER/);
+  });
+
+  it('verify-lookups branch wired into main() and returns before audit phase', () => {
+    const verifyGuardIdx = SCRIPT.indexOf('if (FLAGS.verifyLookups)');
+    expect(verifyGuardIdx).toBeGreaterThan(-1);
+    const auditMarkerIdx = SCRIPT.indexOf('// === Phase A: audit ===', verifyGuardIdx);
+    expect(auditMarkerIdx).toBeGreaterThan(verifyGuardIdx);
+    const between = SCRIPT.slice(verifyGuardIdx, auditMarkerIdx);
+    expect(between).toMatch(/return;/);
+  });
+
+  it('--verify-lookups mode performs NO write — no PATCH / POST / DELETE in runVerifyLookups', () => {
+    const fnStart = SCRIPT.indexOf('async function runVerifyLookups');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnEnd = SCRIPT.indexOf('function countNonNull', fnStart);
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    expect(body).not.toMatch(/method:\s*'PATCH'/);
+    expect(body).not.toMatch(/method:\s*'POST'/);
+    expect(body).not.toMatch(/method:\s*'DELETE'/);
+    expect(body).not.toMatch(/patchSavedQuery\(/);
+    expect(body).not.toMatch(/patchSystemFormXml\(/);
+    expect(body).not.toMatch(/publishSystemForm\(/);
+    expect(body).not.toMatch(/publishSavedQuery\(/);
+    expect(body).not.toMatch(/spawnSync\(/);
+  });
+
+  it('verifyOneLookup reports all six per-target facts', () => {
+    // The user-required output list:
+    //   1. attribute exists
+    //   2. is LookupAttributeMetadata
+    //   3. targets the expected entity
+    //   4. backing FK projection name
+    //   5. relationship schema name
+    //   6. legacy pseudo present
+    const printFnStart = SCRIPT.indexOf('function printVerifyLookupReport');
+    expect(printFnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(printFnStart, printFnStart + 3000);
+    expect(body).toMatch(/classification/);
+    expect(body).toMatch(/AttributeType/);
+    expect(body).toMatch(/LookupAttributeMetadata/);
+    expect(body).toMatch(/Targets\[\]/);
+    expect(body).toMatch(/OData FK projection/);
+    expect(body).toMatch(/M:1 relationship name/);
+    expect(body).toMatch(/legacy pseudo scalar/);
+  });
+});
+
+describe('Phase 122B — auditTable uses Web API metadata, not pac env fetch', () => {
+  it('auditTable is async and takes (table, token, envUrl)', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+auditTable\(table,\s*token,\s*envUrl\)/);
+  });
+
+  it('auditTable body calls classifyAttribute for both cr664_deal and cr664_assignedto', () => {
+    const fnStart = SCRIPT.indexOf('async function auditTable');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart, fnStart + 4000);
+    expect(body).toMatch(/classifyAttribute\(table,\s*PSEUDO_DEAL_COLUMN/);
+    expect(body).toMatch(/classifyAttribute\(table,\s*PSEUDO_ASSIGNEDTO_COLUMN/);
+  });
+
+  it('auditTable no longer reads _<attr>_value via pac env fetch (legacy attributeExists)', () => {
+    // The buggy legacy path was:
+    //   attributeExists(table, `_${PSEUDO_DEAL_COLUMN}_value`)
+    // which returned a stale answer through pac env fetch. Pin its
+    // absence from auditTable's body.
+    const fnStart = SCRIPT.indexOf('async function auditTable');
+    const body = SCRIPT.slice(fnStart, fnStart + 4000);
+    expect(body).not.toMatch(/attributeExists\(table,\s*`_/);
+  });
+
+  it('main() acquires mainToken + mainEnvUrl BEFORE the audit phase', () => {
+    const mainStart = SCRIPT.indexOf('async function main()');
+    expect(mainStart).toBeGreaterThan(-1);
+    const slice = SCRIPT.slice(mainStart);
+    const acquireIdx = slice.indexOf('await acquireBearerToken(mainEnvUrl)');
+    const auditIdx = slice.indexOf('// === Phase A: audit ===');
+    expect(acquireIdx).toBeGreaterThan(-1);
+    expect(auditIdx).toBeGreaterThan(acquireIdx);
+  });
+});
+
+describe('Phase 122B — post-commit verify plan steps use Web API metadata, not pac', () => {
+  it('plan emits kind: "webapi-verify" steps after Step 5 publish', () => {
+    expect(SCRIPT).toMatch(/kind:\s*'webapi-verify'/);
+    // Pin the URL shape — exactly the LookupAttributeMetadata cast.
+    expect(SCRIPT).toMatch(
+      /Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata\?\$select=Targets,SchemaName,MetadataId/,
+    );
+  });
+
+  it('the kind: "verify" pac-shellout step kind no longer appears in buildPlan', () => {
+    const buildPlanStart = SCRIPT.indexOf('function buildPlan');
+    expect(buildPlanStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(buildPlanStart, buildPlanStart + 12000);
+    // The previous pac-fetch verify step is gone:
+    //   kind: 'verify' + `command: \`pac env fetch ...`
+    expect(body).not.toMatch(/kind:\s*'verify'/);
+    expect(body).not.toMatch(/command:\s*`pac env fetch[\s\S]*?_value/);
+  });
+
+  it('executeStep handles webapi-verify with an explicit Targets[] check', () => {
+    const fnStart = SCRIPT.indexOf('async function executeStep');
+    expect(fnStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(fnStart, fnStart + 4000);
+    expect(body).toMatch(/step\.kind === 'webapi-verify'/);
+    expect(body).toMatch(/json\.Targets/);
+    expect(body).toMatch(/includes\(step\.expectedTarget\)/);
+  });
+
+  it('webapi-verify path uses ONLY HTTP GET — no fallback to pac', () => {
+    const fnStart = SCRIPT.indexOf('async function executeStep');
+    const body = SCRIPT.slice(fnStart, fnStart + 4000);
+    const verifyBranchIdx = body.indexOf("step.kind === 'webapi-verify'");
+    expect(verifyBranchIdx).toBeGreaterThan(-1);
+    const nextKindIdx = body.indexOf("step.kind === 'webapi'", verifyBranchIdx + 30);
+    const verifyBlock = body.slice(verifyBranchIdx, nextKindIdx);
+    // Inside the verify branch, only GET is allowed.
+    expect(verifyBlock).not.toMatch(/method:\s*'PATCH'/);
+    expect(verifyBlock).not.toMatch(/method:\s*'POST'/);
+    expect(verifyBlock).not.toMatch(/method:\s*'DELETE'/);
+    expect(verifyBlock).not.toMatch(/spawnSync\(/);
+  });
+});
+
+describe('Phase 122B — commit still skips create when a true lookup already exists', () => {
+  // Re-asserts the audit-driven idempotency contract with the new
+  // Web-API-backed classification. When classifyAttribute returns
+  // 'real-lookup', auditTable sets standardLookupFkExists = true,
+  // and buildPlan emits a noop step instead of a re-POST.
+
+  it('classifyAttribute === "real-lookup" maps to standardLookupFkExists = true', () => {
+    const fnStart = SCRIPT.indexOf('async function auditTable');
+    const body = SCRIPT.slice(fnStart, fnStart + 4000);
+    expect(body).toMatch(
+      /result\.standardLookupFkExists\s*=\s*c\.classification\s*===\s*'real-lookup'/,
+    );
+  });
+
+  it('buildPlan still emits noop when standardLookupFkExists is true', () => {
+    expect(SCRIPT).toMatch(/if\s*\(a\?\.standardLookupFkExists\)/);
+    expect(SCRIPT).toMatch(/kind:\s*'noop'/);
+  });
+});
+
 describe('Phase 122B — --print-relationship-payload diagnostic mode', () => {
   it('parses --print-relationship-payload as a flag', () => {
     expect(SCRIPT).toMatch(/'--print-relationship-payload'/);
@@ -1402,7 +1604,11 @@ describe('Phase 122B — current-state resume: pseudo-columns present', () => {
   it('buildPlan unconditionally re-audits before emitting DELETEs', () => {
     // main() runs auditTable() on every commit invocation. Pin the
     // call site so a regression can't silently cache prior state.
-    expect(SCRIPT).toMatch(/CANDIDATE_CHILD_TABLES\.map\(auditTable\)/);
+    // auditTable is now async (Web API metadata) and receives the
+    // shared mainToken + mainEnvUrl.
+    expect(SCRIPT).toMatch(
+      /CANDIDATE_CHILD_TABLES\.map\(\(t\)\s*=>\s*auditTable\(t,\s*mainToken,\s*mainEnvUrl\)\)/,
+    );
   });
 
   it('emits a DELETE step when pseudoDealColumnExists is true and rows are zero', () => {

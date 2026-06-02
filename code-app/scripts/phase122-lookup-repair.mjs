@@ -166,6 +166,7 @@ function parseArgs(argv) {
     cleanupViewId: null,
     commitViewCleanup: false,
     printRelationshipPayload: false,
+    verifyLookups: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -271,6 +272,16 @@ function parseArgs(argv) {
       // output for every plan step that POSTs to RelationshipDefinitions,
       // then exit. No pac auth, no Web API call, no write.
       flags.printRelationshipPayload = true;
+      flags.dryRun = false;
+    } else if (arg === '--verify-lookups') {
+      // Read-only Web API metadata verification. Queries
+      // /api/data/v9.2/EntityDefinitions(.../Attributes(.../
+      //   Microsoft.Dynamics.CRM.LookupAttributeMetadata
+      // for every Phase 122 target attribute and prints whether it's
+      // missing, a pseudo scalar, or a true Lookup (with Targets[]).
+      // Does NOT use pac env fetch — the metadata source is the
+      // Dataverse Web API only.
+      flags.verifyLookups = true;
       flags.dryRun = false;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
@@ -378,7 +389,9 @@ const MODE = FLAGS.commit
               ? FLAGS.commitViewCleanup
                 ? 'COMMIT-VIEW-CLEANUP'
                 : 'CLEANUP-VIEW (dry-run)'
-              : 'DRY-RUN';
+              : FLAGS.verifyLookups
+                ? 'VERIFY-LOOKUPS'
+                : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -435,8 +448,273 @@ function fetchXml(xml) {
 }
 
 function attributeExists(table, attribute) {
+  // Legacy pac-based existence probe. Retained for callers outside
+  // the lookup audit; the audit itself now uses
+  // classifyAttribute() against the Dataverse Web API metadata
+  // endpoint because pac env fetch was returning stale answers on
+  // the operator's 2026-06-08 dry-run after a real Lookup attribute
+  // had been created (it reported pseudo cr664_deal as still
+  // present because the new lookup's logical name collides).
   const xml = `<fetch count='1'><entity name='${table}'><attribute name='${table}id'/><attribute name='${attribute}'/></entity></fetch>`;
   return fetchXml(xml).ok;
+}
+
+/**
+ * Web API metadata classification — the authoritative answer to
+ * "does <table>.<attribute> exist, and if so, is it a real Lookup or
+ * the legacy pseudo scalar?". Used by the audit, by the
+ * --verify-lookups mode, and by the post-commit verify steps.
+ *
+ * Read-only. Uses two GETs:
+ *   1. /api/data/v9.2/EntityDefinitions(LogicalName='<table>')
+ *      /Attributes(LogicalName='<attribute>')?$select=AttributeType,…
+ *      → 404 means missing; 200 yields the AttributeType.
+ *   2. Same path + /Microsoft.Dynamics.CRM.LookupAttributeMetadata
+ *      $select=Targets,…
+ *      → 200 confirms the attribute can be cast to LookupAttributeMetadata
+ *        and exposes Targets[]. 404 means it's a non-Lookup
+ *        (pseudo scalar) — caught by step 1's AttributeType.
+ *
+ * Returns an object with `classification` in
+ *   'missing' | 'pseudo-scalar' | 'real-lookup' | 'probe-failed'
+ * plus details when applicable.
+ */
+async function classifyAttribute(table, attribute, token, envUrl) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'OData-MaxVersion': '4.0',
+    'OData-Version': '4.0',
+    Accept: 'application/json',
+  };
+  const baseUrl = `${envUrl}/api/data/v9.2/EntityDefinitions(LogicalName='${table}')/Attributes(LogicalName='${attribute}')`;
+  let res;
+  try {
+    res = await fetch(`${baseUrl}?$select=AttributeType,SchemaName,MetadataId,LogicalName`, {
+      method: 'GET',
+      headers,
+    });
+  } catch (err) {
+    return { classification: 'probe-failed', error: `attribute metadata network error: ${err.message}` };
+  }
+  if (res.status === 404) {
+    return { classification: 'missing' };
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    return { classification: 'probe-failed', error: `attribute metadata → ${res.status}: ${text}` };
+  }
+  const meta = await res.json();
+  if (meta.AttributeType !== 'Lookup') {
+    return {
+      classification: 'pseudo-scalar',
+      attributeType: meta.AttributeType,
+      schemaName: meta.SchemaName,
+      metadataId: meta.MetadataId,
+    };
+  }
+  // AttributeType is Lookup. Fetch Targets via the explicit cast so
+  // the script reports the resolved target entity authoritatively.
+  let lookupRes;
+  try {
+    lookupRes = await fetch(
+      `${baseUrl}/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=Targets,SchemaName,MetadataId`,
+      { method: 'GET', headers },
+    );
+  } catch (err) {
+    return {
+      classification: 'real-lookup',
+      attributeType: 'Lookup',
+      schemaName: meta.SchemaName,
+      metadataId: meta.MetadataId,
+      error: `lookup cast network error: ${err.message}`,
+    };
+  }
+  if (!lookupRes.ok) {
+    const text = await lookupRes.text();
+    return {
+      classification: 'real-lookup',
+      attributeType: 'Lookup',
+      schemaName: meta.SchemaName,
+      metadataId: meta.MetadataId,
+      error: `lookup cast → ${lookupRes.status}: ${text}`,
+    };
+  }
+  const lookup = await lookupRes.json();
+  return {
+    classification: 'real-lookup',
+    attributeType: 'Lookup',
+    schemaName: meta.SchemaName,
+    metadataId: meta.MetadataId,
+    targets: Array.isArray(lookup.Targets) ? lookup.Targets : [],
+  };
+}
+
+/**
+ * Read-only Web API probe for the ManyToOne relationship metadata
+ * tied to a specific (table, attribute) lookup. Returns the
+ * relationship's SchemaName and ReferencedEntity, or null when no
+ * relationship is found (e.g. the attribute is not yet a real lookup).
+ */
+async function getManyToOneRelationshipMeta(table, attribute, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/EntityDefinitions(LogicalName='${table}')` +
+    `/ManyToOneRelationships?$filter=ReferencingAttribute eq '${attribute}'` +
+    `&$select=SchemaName,ReferencingEntity,ReferencedEntity,ReferencingAttribute`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) {
+      return { ok: false, error: `many-to-one GET → ${res.status}` };
+    }
+    const json = await res.json();
+    const first = Array.isArray(json.value) && json.value.length > 0 ? json.value[0] : null;
+    return { ok: true, relationship: first };
+  } catch (err) {
+    return { ok: false, error: `many-to-one network error: ${err.message}` };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Read-only Web API metadata verification (--verify-lookups).
+//
+// Standalone diagnostic mode. For every Phase 122 target attribute,
+// queries the Dataverse Web API metadata layer (NOT pac env fetch)
+// and reports six facts per attribute:
+//
+//   1. Does the attribute exist?
+//   2. Is it a true LookupAttributeMetadata (i.e. AttributeType === 'Lookup'
+//      AND the .../Microsoft.Dynamics.CRM.LookupAttributeMetadata cast 200s)?
+//   3. Does Targets[] include the expected referenced entity?
+//   4. The expected OData FK projection name (`_<attribute>_value`).
+//   5. The ManyToOne relationship SchemaName (if any).
+//   6. Whether the legacy pseudo-scalar with the same logical name is
+//      still present.
+//
+// Pure GETs — no PATCH, POST, DELETE, or PublishXml call. Used both as
+// a standalone --verify-lookups mode AND as the building block for the
+// `kind: 'webapi-verify'` plan steps that run after the destructive
+// commit phase.
+// ---------------------------------------------------------------------------
+
+const VERIFY_LOOKUP_TARGETS = Object.freeze([
+  ...CANDIDATE_CHILD_TABLES.map((t) => ({
+    table: t,
+    attribute: PSEUDO_DEAL_COLUMN,
+    expectedTarget: LOOKUP_TARGET_LOAN_DEAL,
+  })),
+  {
+    table: 'cr664_dealtask1',
+    attribute: PSEUDO_ASSIGNEDTO_COLUMN,
+    expectedTarget: LOOKUP_TARGET_SYSTEMUSER,
+  },
+]);
+
+async function verifyOneLookup(target, token, envUrl) {
+  const { table, attribute, expectedTarget } = target;
+  const classification = await classifyAttribute(table, attribute, token, envUrl);
+  const rel = await getManyToOneRelationshipMeta(table, attribute, token, envUrl);
+  return {
+    table,
+    attribute,
+    expectedTarget,
+    classification: classification.classification,
+    attributeType: classification.attributeType ?? null,
+    schemaName: classification.schemaName ?? null,
+    metadataId: classification.metadataId ?? null,
+    targets: classification.targets ?? null,
+    relationshipSchemaName: rel.ok ? rel.relationship?.SchemaName ?? null : null,
+    relationshipReferencedEntity: rel.ok ? rel.relationship?.ReferencedEntity ?? null : null,
+    expectedFkProjectionName: `_${attribute}_value`,
+    error: classification.error ?? (rel.ok ? null : rel.error),
+  };
+}
+
+function printVerifyLookupReport(report) {
+  console.log(`-- ${report.table}.${report.attribute}  (expected target: ${report.expectedTarget})`);
+  console.log(`     classification:           ${report.classification}`);
+  if (report.attributeType) {
+    console.log(`     AttributeType:            ${report.attributeType}`);
+  }
+  if (report.schemaName) {
+    console.log(`     SchemaName:               ${report.schemaName}`);
+  }
+  if (report.metadataId) {
+    console.log(`     MetadataId:               ${report.metadataId}`);
+  }
+  if (report.classification === 'real-lookup') {
+    const ok = Array.isArray(report.targets) && report.targets.includes(report.expectedTarget);
+    console.log(`     LookupAttributeMetadata:  YES`);
+    console.log(`     Targets[]:                ${JSON.stringify(report.targets)}`);
+    console.log(`     Targets includes ${report.expectedTarget}: ${ok ? 'YES ✓' : 'NO ✗'}`);
+    console.log(`     OData FK projection:      ${report.expectedFkProjectionName}`);
+  } else if (report.classification === 'pseudo-scalar') {
+    console.log(`     LookupAttributeMetadata:  NO`);
+    console.log(`     legacy pseudo scalar:     YES — still needs cleanup`);
+  } else if (report.classification === 'missing') {
+    console.log(`     attribute does NOT exist on this table.`);
+  } else {
+    console.log(`     classification probe failed: ${report.error ?? '(no detail)'}`);
+  }
+  if (report.relationshipSchemaName) {
+    console.log(`     M:1 relationship name:    ${report.relationshipSchemaName}`);
+  } else {
+    console.log(`     M:1 relationship name:    (none — relationship not found)`);
+  }
+  if (report.relationshipReferencedEntity) {
+    console.log(`     M:1 referenced entity:    ${report.relationshipReferencedEntity}`);
+  }
+  if (report.error) {
+    console.log(`     probe errors:             ${report.error}`);
+  }
+}
+
+async function runVerifyLookups(token, envUrl) {
+  console.log('');
+  console.log('Phase L — Lookup metadata verification (Web API only, read-only)');
+  console.log('');
+  console.log('NOTE: no pac env fetch. This mode reads the Dataverse Web API');
+  console.log('      metadata endpoints directly so the result reflects the');
+  console.log('      actual lookup attribute / relationship metadata, not');
+  console.log('      the pac client cache.');
+  console.log('');
+  const reports = [];
+  for (const target of VERIFY_LOOKUP_TARGETS) {
+    const report = await verifyOneLookup(target, token, envUrl);
+    printVerifyLookupReport(report);
+    reports.push(report);
+    console.log('');
+  }
+  // Final summary line: how many targets are real-lookup vs not.
+  const realCount = reports.filter((r) => r.classification === 'real-lookup').length;
+  const pseudoCount = reports.filter((r) => r.classification === 'pseudo-scalar').length;
+  const missingCount = reports.filter((r) => r.classification === 'missing').length;
+  const failedCount = reports.filter((r) => r.classification === 'probe-failed').length;
+  console.log('Summary:');
+  console.log(`  real-lookup:    ${realCount}/${reports.length}`);
+  console.log(`  pseudo-scalar:  ${pseudoCount}/${reports.length}`);
+  console.log(`  missing:        ${missingCount}/${reports.length}`);
+  console.log(`  probe-failed:   ${failedCount}/${reports.length}`);
+  console.log('');
+  if (realCount === reports.length) {
+    console.log('✓ Every Phase 122 target is a real LookupAttributeMetadata pointing at');
+    console.log('  the expected referenced entity. The cr664_deal cleanup is complete from');
+    console.log('  the metadata side.');
+  } else if (pseudoCount > 0) {
+    console.log('⚠ Some attributes still present as legacy pseudo scalars. Re-run --commit');
+    console.log('  to delete the pseudos and create real lookups.');
+  } else if (missingCount > 0) {
+    console.log('⚠ Some attributes do not exist on their tables. Re-run --commit to');
+    console.log('  create the lookups.');
+  } else {
+    console.log('⚠ Probe failures detected. Investigate the per-attribute errors above.');
+  }
 }
 
 function countNonNull(table, attribute) {
@@ -492,31 +770,42 @@ function auditPublishers() {
   return found;
 }
 
-function auditTable(table) {
+async function auditTable(table, token, envUrl) {
   console.log(`  · ${table}`);
-  const result = {
-    table,
-    pseudoDealColumnExists: attributeExists(table, PSEUDO_DEAL_COLUMN),
-    standardLookupFkExists: attributeExists(table, `_${PSEUDO_DEAL_COLUMN}_value`),
-    pseudoDealColumnPopulated: undefined,
-  };
+  const result = { table };
+  // The audit now reads Dataverse Web API metadata, not pac env fetch.
+  // pac was reporting the legacy pseudo column as still present even
+  // after a real Lookup attribute had been created with the same
+  // logical name (and reporting the new lookup's _<…>_value as
+  // missing). The Web API metadata endpoint distinguishes the two
+  // states cleanly via AttributeType.
+  const c = await classifyAttribute(table, PSEUDO_DEAL_COLUMN, token, envUrl);
+  result.dealClassification = c.classification;
+  result.dealAttributeType = c.attributeType ?? null;
+  result.dealSchemaName = c.schemaName ?? null;
+  result.dealLookupTargets = c.targets ?? null;
+  // Map classification onto the existing boolean fields so buildPlan
+  // and the dry-run summary keep working without further changes.
+  result.pseudoDealColumnExists = c.classification === 'pseudo-scalar';
+  result.standardLookupFkExists = c.classification === 'real-lookup';
+  result.pseudoDealColumnPopulated = undefined;
   if (result.pseudoDealColumnExists) {
-    const c = countNonNull(table, PSEUDO_DEAL_COLUMN);
-    if (!c.ok) {
-      result.pseudoDealColumnPopulated = null; // unknown
-    } else {
-      result.pseudoDealColumnPopulated = c.count;
-    }
+    // Row count still uses pac env fetch — the attribute logical name
+    // is concrete and well-known at this point; the issue pac had was
+    // distinguishing pseudo vs lookup metadata, not counting rows.
+    const cn = countNonNull(table, PSEUDO_DEAL_COLUMN);
+    result.pseudoDealColumnPopulated = cn.ok ? cn.count : null;
   }
   if (table === 'cr664_dealtask1') {
-    result.pseudoAssignedToColumnExists = attributeExists(table, PSEUDO_ASSIGNEDTO_COLUMN);
-    result.standardAssignedToFkExists = attributeExists(
-      table,
-      `_${PSEUDO_ASSIGNEDTO_COLUMN}_value`,
-    );
+    const ca = await classifyAttribute(table, PSEUDO_ASSIGNEDTO_COLUMN, token, envUrl);
+    result.assignedToClassification = ca.classification;
+    result.assignedToAttributeType = ca.attributeType ?? null;
+    result.assignedToLookupTargets = ca.targets ?? null;
+    result.pseudoAssignedToColumnExists = ca.classification === 'pseudo-scalar';
+    result.standardAssignedToFkExists = ca.classification === 'real-lookup';
     if (result.pseudoAssignedToColumnExists) {
-      const c = countNonNull(table, PSEUDO_ASSIGNEDTO_COLUMN);
-      result.pseudoAssignedToColumnPopulated = c.ok ? c.count : null;
+      const cn = countNonNull(table, PSEUDO_ASSIGNEDTO_COLUMN);
+      result.pseudoAssignedToColumnPopulated = cn.ok ? cn.count : null;
     }
   }
   return result;
@@ -722,20 +1011,38 @@ function buildPlan(audit) {
     command: 'pac solution publish',
   });
 
-  // Step 6 — verification probes
+  // Step 6 — Web API metadata verification probes.
+  //
+  // We deliberately do NOT use pac env fetch here. On the operator's
+  // 2026-06-08 run a successful CREATE+publish was followed by pac
+  // env fetch reporting `_cr664_deal_value` as missing — almost
+  // certainly stale metadata in the pac client. The Web API metadata
+  // endpoint is authoritative: each verify step casts the attribute
+  // to Microsoft.Dynamics.CRM.LookupAttributeMetadata and checks
+  // Targets[] contains the expected referenced entity.
   for (const t of CANDIDATE_CHILD_TABLES) {
     steps.push({
       id: `verify-${t}`,
-      kind: 'verify',
-      label: `Verify _${PSEUDO_DEAL_COLUMN}_value resolves on ${t}`,
-      command: `pac env fetch -x "<fetch count='1'><entity name='${t}'><attribute name='${t}id'/><attribute name='_${PSEUDO_DEAL_COLUMN}_value'/></entity></fetch>"`,
+      kind: 'webapi-verify',
+      label: `Verify ${t}.${PSEUDO_DEAL_COLUMN} is a LookupAttributeMetadata targeting ${LOOKUP_TARGET_LOAN_DEAL} (Web API metadata)`,
+      method: 'GET',
+      url:
+        `/api/data/v9.2/EntityDefinitions(LogicalName='${t}')` +
+        `/Attributes(LogicalName='${PSEUDO_DEAL_COLUMN}')` +
+        `/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=Targets,SchemaName,MetadataId`,
+      expectedTarget: LOOKUP_TARGET_LOAN_DEAL,
     });
   }
   steps.push({
     id: 'verify-assignedto',
-    kind: 'verify',
-    label: 'Verify _cr664_assignedto_value resolves on cr664_dealtask1',
-    command: `pac env fetch -x "<fetch count='1'><entity name='cr664_dealtask1'><attribute name='cr664_dealtask1id'/><attribute name='_${PSEUDO_ASSIGNEDTO_COLUMN}_value'/></entity></fetch>"`,
+    kind: 'webapi-verify',
+    label: `Verify cr664_dealtask1.${PSEUDO_ASSIGNEDTO_COLUMN} is a LookupAttributeMetadata targeting ${LOOKUP_TARGET_SYSTEMUSER} (Web API metadata)`,
+    method: 'GET',
+    url:
+      `/api/data/v9.2/EntityDefinitions(LogicalName='cr664_dealtask1')` +
+      `/Attributes(LogicalName='${PSEUDO_ASSIGNEDTO_COLUMN}')` +
+      `/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=Targets,SchemaName,MetadataId`,
+    expectedTarget: LOOKUP_TARGET_SYSTEMUSER,
   });
 
   return steps;
@@ -1006,7 +1313,7 @@ async function executeStep(step, ctx) {
   if (step.kind === 'manual-inspection' || step.kind === 'stop-condition') {
     bail(`Stop condition reached during commit: ${step.label}`);
   }
-  if (step.kind === 'pac' || step.kind === 'verify') {
+  if (step.kind === 'pac') {
     const cmd = step.command.split(' ');
     const res = spawnSync(cmd[0], cmd.slice(1), { encoding: 'utf8', stdio: 'inherit' });
     if (res.status !== 0) {
@@ -1014,9 +1321,48 @@ async function executeStep(step, ctx) {
     }
     return { ok: true };
   }
+  if (step.kind === 'webapi-verify') {
+    // Post-commit Web API metadata verification. Authoritative — uses
+    // the same /Attributes(…)/Microsoft.Dynamics.CRM.LookupAttributeMetadata
+    // cast that --verify-lookups uses, with an explicit Targets[]
+    // check. Replaces the previous pac env fetch verify step.
+    const url = `${ctx.envUrl}${step.url}`;
+    let res;
+    try {
+      res = await fetch(url, {
+        method: step.method,
+        headers: {
+          Authorization: `Bearer ${ctx.token}`,
+          'OData-MaxVersion': '4.0',
+          'OData-Version': '4.0',
+          Accept: 'application/json',
+        },
+      });
+    } catch (err) {
+      return { ok: false, error: `Web API verify network error: ${err.message}` };
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      return {
+        ok: false,
+        error:
+          `Web API verify ${step.method} ${url} → ${res.status}: ${text}. ` +
+          `The attribute may not be a LookupAttributeMetadata yet — re-check with --verify-lookups.`,
+      };
+    }
+    const json = await res.json();
+    if (!Array.isArray(json.Targets) || !json.Targets.includes(step.expectedTarget)) {
+      return {
+        ok: false,
+        error:
+          `LookupAttributeMetadata Targets ${JSON.stringify(json.Targets)} does not ` +
+          `include the expected entity "${step.expectedTarget}".`,
+      };
+    }
+    return { ok: true };
+  }
   if (step.kind === 'webapi') {
-    const envUrl = await resolveEnvUrl();
-    const url = `${envUrl}${step.url}`;
+    const url = `${ctx.envUrl}${step.url}`;
     const headers = {
       Authorization: `Bearer ${ctx.token}`,
       'OData-MaxVersion': '4.0',
@@ -2986,35 +3332,39 @@ async function main() {
 
   assertPacAuth();
 
+  // Acquire shared envUrl + bearer token early. Every remaining mode
+  // (dry-run audit, --verify-lookups, all inspect/cleanup modes, and
+  // --commit) needs both, and the Web-API-based audit is now the
+  // primary source of truth — pac env fetch was returning stale
+  // metadata answers on the operator's 2026-06-08 dry-run.
+  const mainEnvUrl = await resolveEnvUrl();
+  const mainToken = await acquireBearerToken(mainEnvUrl);
+
+  // === Standalone Web API metadata verification (read-only) ===
+  if (FLAGS.verifyLookups) {
+    await runVerifyLookups(mainToken, mainEnvUrl);
+    return;
+  }
+
   // === Broad SystemForm inspection (read-only) ===
-  // Independent of every other mode. Reads one form, walks its formxml
-  // against one qualified attribute, prints per-category findings.
-  // Never writes.
   if (FLAGS.inspectFormId !== null) {
-    const envUrl = await resolveEnvUrl();
-    const token = await acquireBearerToken(envUrl);
     const result = await runFormInspect(
       FLAGS.inspectFormId,
       FLAGS.inspectFormAttribute,
-      token,
-      envUrl,
+      mainToken,
+      mainEnvUrl,
     );
     if (!result.ok) process.exit(7);
     return;
   }
 
   // === Targeted SystemForm cleanup ===
-  // This mode is independent of the audit/plan/commit flow. It edits
-  // one form and re-probes that form's parent table for residual
-  // dependencies. No rollback export, no destructive Attribute delete.
   if (FLAGS.cleanupFormId !== null) {
-    const envUrl = await resolveEnvUrl();
-    const token = await acquireBearerToken(envUrl);
     const result = await runFormCleanup(
       FLAGS.cleanupFormId,
       FLAGS.inspectFormAttribute, // optional — null defaults to cr664_deal
-      token,
-      envUrl,
+      mainToken,
+      mainEnvUrl,
       FLAGS.commitFormCleanup,
     );
     if (!result.ok) process.exit(6);
@@ -3023,13 +3373,11 @@ async function main() {
 
   // === Read-only SavedQuery (view) inspection ===
   if (FLAGS.inspectViewId !== null) {
-    const envUrl = await resolveEnvUrl();
-    const token = await acquireBearerToken(envUrl);
     const result = await runViewInspect(
       FLAGS.inspectViewId,
       FLAGS.inspectFormAttribute,
-      token,
-      envUrl,
+      mainToken,
+      mainEnvUrl,
     );
     if (!result.ok) process.exit(11);
     return;
@@ -3037,13 +3385,11 @@ async function main() {
 
   // === Targeted SavedQuery (view) cleanup ===
   if (FLAGS.cleanupViewId !== null) {
-    const envUrl = await resolveEnvUrl();
-    const token = await acquireBearerToken(envUrl);
     const result = await runViewCleanup(
       FLAGS.cleanupViewId,
       FLAGS.inspectFormAttribute,
-      token,
-      envUrl,
+      mainToken,
+      mainEnvUrl,
       FLAGS.commitViewCleanup,
     );
     if (!result.ok) process.exit(12);
@@ -3051,18 +3397,12 @@ async function main() {
   }
 
   // === Targeted subgrid cleanup (by control id) ===
-  // Operator identifies one specific subgrid via its control id; the
-  // script removes ONLY the enclosing <cell> after every validation
-  // gate (classid, TargetEntityType, RelationshipName) passes. Never
-  // deletes the pseudo-column itself.
   if (FLAGS.cleanupSubgridFormId !== null) {
-    const envUrl = await resolveEnvUrl();
-    const token = await acquireBearerToken(envUrl);
     const result = await runSubgridCleanup(
       FLAGS.cleanupSubgridFormId,
       FLAGS.cleanupSubgridControlId,
-      token,
-      envUrl,
+      mainToken,
+      mainEnvUrl,
       FLAGS.commitSubgridCleanup,
     );
     if (!result.ok) process.exit(9);
@@ -3077,20 +3417,39 @@ async function main() {
   }
   console.log('');
 
-  console.log('Phase B — Auditing candidate child tables for column state…');
-  const tableAudits = CANDIDATE_CHILD_TABLES.map(auditTable);
+  console.log('Phase B — Auditing candidate child tables for column state (Web API metadata)…');
+  const tableAudits = await Promise.all(
+    CANDIDATE_CHILD_TABLES.map((t) => auditTable(t, mainToken, mainEnvUrl)),
+  );
   console.log('');
-  console.log('Table audit summary:');
+  console.log('Table audit summary (source: Dataverse Web API metadata):');
   for (const t of tableAudits) {
     console.log(`  ${t.table}:`);
+    console.log(`    cr664_deal classification:      ${t.dealClassification}`);
+    if (t.dealAttributeType) {
+      console.log(`    cr664_deal AttributeType:       ${t.dealAttributeType}`);
+    }
+    if (t.dealClassification === 'real-lookup' && Array.isArray(t.dealLookupTargets)) {
+      console.log(`    cr664_deal Lookup Targets:      ${JSON.stringify(t.dealLookupTargets)}`);
+    }
     console.log(`    pseudo cr664_deal exists:       ${t.pseudoDealColumnExists}`);
-    console.log(`    standard _cr664_deal_value:     ${t.standardLookupFkExists}`);
+    console.log(`    standard Lookup attribute:      ${t.standardLookupFkExists}`);
     if (t.pseudoDealColumnExists) {
       console.log(`    non-NULL row count:             ${t.pseudoDealColumnPopulated}`);
     }
     if (t.table === 'cr664_dealtask1') {
+      console.log(`    cr664_assignedto classification:${t.assignedToClassification}`);
+      if (t.assignedToAttributeType) {
+        console.log(`    cr664_assignedto AttributeType: ${t.assignedToAttributeType}`);
+      }
+      if (
+        t.assignedToClassification === 'real-lookup' &&
+        Array.isArray(t.assignedToLookupTargets)
+      ) {
+        console.log(`    cr664_assignedto Targets:       ${JSON.stringify(t.assignedToLookupTargets)}`);
+      }
       console.log(`    pseudo cr664_assignedto:        ${t.pseudoAssignedToColumnExists}`);
-      console.log(`    standard _cr664_assignedto_v:   ${t.standardAssignedToFkExists}`);
+      console.log(`    standard Lookup attribute:      ${t.standardAssignedToFkExists}`);
       if (t.pseudoAssignedToColumnExists) {
         console.log(`    AssignedTo non-NULL count:      ${t.pseudoAssignedToColumnPopulated}`);
       }
@@ -3127,7 +3486,7 @@ async function main() {
             ? '✓ '
             : step.kind === 'webapi'
               ? '🔧'
-              : step.kind === 'verify'
+              : step.kind === 'webapi-verify'
                 ? '🧪'
                 : '·';
     console.log(`  ${tag} [${i + 1}] ${step.label}`);
@@ -3144,9 +3503,7 @@ async function main() {
 
   // === Inspect-dependencies mode (read-only) ===
   if (FLAGS.inspectDependencies) {
-    const envUrl = await resolveEnvUrl();
-    const token = await acquireBearerToken(envUrl);
-    const depResult = await inspectPseudoColumnDependencies(plan, token, envUrl);
+    const depResult = await inspectPseudoColumnDependencies(plan, mainToken, mainEnvUrl);
     if (depResult.blocked) {
       console.error('');
       console.error(`✗ ${depResult.blockers.length} pseudo-column(s) have dependencies that block delete.`);
@@ -3188,11 +3545,9 @@ async function main() {
       mkdirSync(ROLLBACK_DIR, { recursive: true });
     }
 
-    const envUrl = await resolveEnvUrl();
-    const token = await acquireBearerToken(envUrl);
     console.log('All pre-execution safety gates passed. Beginning commit execution…');
     console.log('');
-    const ctx = { token, envUrl };
+    const ctx = { token: mainToken, envUrl: mainEnvUrl };
 
     // ----- Phase 1: rollback export steps (auto-export path only) -----
     // Idempotency: pac solution export fails if the destination zip
@@ -3225,7 +3580,7 @@ async function main() {
     console.log('✓ Rollback artifacts verified on disk.');
 
     // ----- Phase 2: dependency inspection (read-only) -----
-    const depResult = await inspectPseudoColumnDependencies(plan, token, envUrl);
+    const depResult = await inspectPseudoColumnDependencies(plan, mainToken, mainEnvUrl);
     if (depResult.blocked) {
       console.error('');
       console.error('✗ Safety gate: one or more pseudo-columns have dependent components.');
@@ -3417,6 +3772,16 @@ Modes:
       planned cr664_Deal + cr664_AssignedTo Lookup. No pac call, no
       Web API call, no write. Useful for eyeballing payload shape
       after a 400-response (e.g. the 2026-06-08 IsCustomizable bug).
+
+  --verify-lookups
+      Read-only Web API metadata verification. For every Phase 122
+      target attribute (5 cr664_Deal lookups + 1 cr664_AssignedTo
+      lookup) queries the Dataverse Web API metadata endpoint and
+      reports whether the attribute is missing, a legacy pseudo
+      scalar, or a true LookupAttributeMetadata — including the
+      resolved Targets[] and ManyToOne relationship SchemaName.
+      Authoritative; does NOT use pac env fetch. The same metadata
+      check is used by the post-commit verify plan steps.
   --commit
       Run the plan against the live env. Refuses to run unless every
       safety gate (publisher prefix, rollback artifacts, dependency

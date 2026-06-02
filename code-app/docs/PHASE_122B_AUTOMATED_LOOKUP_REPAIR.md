@@ -1181,6 +1181,128 @@ tests.
 
 ---
 
+## 5G. Web API metadata verification (`--verify-lookups`)
+
+The operator's 2026-06-08 commit log reported successful DELETE +
+CREATE + publish for all six target attributes — but the dry-run that
+ran moments later said the pseudo cr664_deal columns were still
+present and the standard `_cr664_deal_value` FKs were missing. The
+root cause was the script trusting **pac env fetch** for the post-
+commit verify step. Pac was returning a stale-looking answer (the
+pseudo column shares a logical name with the new Lookup, and pac's
+client-side metadata cache hadn't fully refreshed). The fix replaces
+every authoritative lookup-existence check with a Dataverse Web API
+metadata query.
+
+### 5G.1 The standalone diagnostic mode
+
+```powershell
+node scripts/phase122-lookup-repair.mjs --verify-lookups
+```
+
+For every Phase 122 target attribute (five `cr664_deal` lookups on
+the candidate child tables, plus `cr664_dealtask1.cr664_assignedto`)
+the script:
+
+1. **GET** `/api/data/v9.2/EntityDefinitions(LogicalName='<table>')/Attributes(LogicalName='<attribute>')?$select=AttributeType,SchemaName,MetadataId,LogicalName`
+   → tells us whether the attribute exists, and what kind it is
+   (`Lookup`, `Uniqueidentifier`, `String`, …).
+2. **GET** the same path + `/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=Targets,SchemaName,MetadataId`
+   → 200 confirms it's a true Lookup and exposes the resolved
+   `Targets[]` array. 404 means the attribute is not a lookup (i.e.
+   the legacy pseudo scalar is still present).
+3. **GET** `/api/data/v9.2/EntityDefinitions(LogicalName='<table>')/ManyToOneRelationships?$filter=ReferencingAttribute eq '<attribute>'&$select=SchemaName,ReferencedEntity,ReferencingAttribute`
+   → reports the ManyToOne relationship SchemaName + ReferencedEntity
+   (or `(none)` when no relationship exists yet).
+
+Per-target output:
+
+```text
+-- cr664_documentchecklist.cr664_deal  (expected target: cr664_loandeal)
+     classification:           real-lookup
+     AttributeType:            Lookup
+     SchemaName:               cr664_Deal
+     MetadataId:               <guid>
+     LookupAttributeMetadata:  YES
+     Targets[]:                ["cr664_loandeal"]
+     Targets includes cr664_loandeal: YES ✓
+     OData FK projection:      _cr664_deal_value
+     M:1 relationship name:    cr664_documentchecklist_cr664_loandeal_Deal
+     M:1 referenced entity:    cr664_loandeal
+```
+
+Six facts per attribute — the exact list the user asked for:
+
+1. Attribute existence (`classification`).
+2. LookupAttributeMetadata cast (YES / NO).
+3. Resolved `Targets[]` and whether the expected entity appears.
+4. The OData FK projection name (`_<attribute>_value`).
+5. ManyToOne relationship SchemaName.
+6. Whether the legacy pseudo scalar is still present.
+
+Read-only, no PATCH / POST / DELETE / PublishXml call. Same metadata
+endpoint the post-commit verify plan steps now use, so the operator
+can sanity-check before and after `--commit` with the same source of
+truth.
+
+### 5G.2 Audit + verify steps now bypass pac
+
+Two related changes shipped alongside the standalone mode:
+
+1. **`auditTable` no longer uses `pac env fetch`** for the
+   pseudo-vs-real-lookup distinction. It calls `classifyAttribute(table,
+   attribute, token, envUrl)` which returns one of
+   `'missing'` / `'pseudo-scalar'` / `'real-lookup'` based on
+   `AttributeType`. The dry-run "Table audit summary" now surfaces
+   the classification + Targets verbatim. Row-count probes still use
+   pac (FetchXML is the right tool for that and the issue pac had was
+   metadata, not row data).
+2. **The post-commit verify plan steps changed from `kind: 'verify'`
+   to `kind: 'webapi-verify'`**. Each verify step does the same
+   `/Attributes(…)/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=Targets,…`
+   GET that `--verify-lookups` uses, and asserts that `Targets[]`
+   contains the expected referenced entity. No more pac env fetch in
+   the critical commit path.
+
+The Web API metadata source is authoritative for all of these
+checks. The pac CLI is still used for solution exports + publish
+(those are write operations that pac handles cleanly) but is no
+longer trusted for read-side metadata inspection.
+
+### 5G.3 What this does NOT do
+
+- Does **not** remove the legacy `attributeExists` helper — it stays
+  in the source for any future caller that wants a quick pac-based
+  existence probe. It's just no longer wired into the audit.
+- Does **not** introduce any new write path. `--verify-lookups` is
+  read-only.
+- Does **not** require `DATAVERSE_BEARER_TOKEN` to be set — the
+  device-code flow works the same as for `--commit`.
+- Does **not** touch React app code.
+
+### 5G.4 Typical sequence after this commit
+
+```powershell
+# 1. Authoritative lookup state (read-only).
+node scripts/phase122-lookup-repair.mjs --verify-lookups
+
+# 2. If anything classifies as 'pseudo-scalar' or 'missing', the
+#    dry-run + plan emits the right DELETE / CREATE steps.
+node scripts/phase122-lookup-repair.mjs --dry-run
+
+# 3. Run commit. The post-commit verify plan steps use the same
+#    metadata endpoint as --verify-lookups, so the script will
+#    fail closed at the verify gate if (and only if) the create
+#    didn't actually produce a real LookupAttributeMetadata with
+#    Targets[] containing the expected entity.
+node scripts/phase122-lookup-repair.mjs --commit
+
+# 4. Final confirmation.
+node scripts/phase122-lookup-repair.mjs --verify-lookups
+```
+
+---
+
 ## 6. Expected output (full example)
 
 The latest dry-run run produced exactly this against the live env
