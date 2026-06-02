@@ -167,6 +167,7 @@ function parseArgs(argv) {
     commitViewCleanup: false,
     printRelationshipPayload: false,
     verifyLookups: false,
+    inspectTableName: null,
     help: false,
   };
   const args = argv.slice(2);
@@ -283,6 +284,21 @@ function parseArgs(argv) {
       // Dataverse Web API only.
       flags.verifyLookups = true;
       flags.dryRun = false;
+    } else if (arg === '--inspect-table') {
+      // Read-only Dataverse table schema inspection (Phase 122D).
+      // Takes one Dataverse logical-name argument and prints the
+      // table's columns grouped by required-for-create level, with
+      // lookup Targets + Picklist OptionSet values inlined.
+      const next = args[i + 1];
+      if (!next) bailParseArgs('--inspect-table requires a Dataverse table logical name');
+      if (!/^[a-z][a-z0-9_]{1,79}$/i.test(next)) {
+        bailParseArgs(
+          `--inspect-table expects a Dataverse logical name (letters/digits/underscore); got "${next}"`,
+        );
+      }
+      flags.inspectTableName = next.toLowerCase();
+      flags.dryRun = false;
+      i += 1;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -391,7 +407,9 @@ const MODE = FLAGS.commit
                 : 'CLEANUP-VIEW (dry-run)'
               : FLAGS.verifyLookups
                 ? 'VERIFY-LOOKUPS'
-                : 'DRY-RUN';
+                : FLAGS.inspectTableName !== null
+                  ? 'INSPECT-TABLE'
+                  : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -715,6 +733,230 @@ async function runVerifyLookups(token, envUrl) {
   } else {
     console.log('⚠ Probe failures detected. Investigate the per-attribute errors above.');
   }
+}
+
+// ---------------------------------------------------------------------------
+// Read-only Web API table-schema inspection (--inspect-table).
+//
+// Phase 122D — the operator hit a wall trying to seed
+// cr664_clientrelationship rows in Maker Portal because the table has
+// required nested-reference dependencies (a Borrower lookup and a
+// relationship-type field). The generated Power Apps SDK does NOT
+// include a model for cr664_clientrelationship — that table was added
+// to Dataverse after the last `pac modelbuilder` run — so the schema
+// can only be learned authoritatively from Web API metadata.
+//
+// This mode fetches the table's EntityDefinitions metadata + the
+// per-attribute RequiredLevel + lookup Targets + Picklist OptionSet
+// values, grouped by required-for-create level. Pure GETs, no write.
+// ---------------------------------------------------------------------------
+
+async function getTableMetadata(tableLogicalName, token, envUrl) {
+  // Single GET pulls table + attribute headline metadata. Per-attribute
+  // lookup Targets / Picklist OptionSet need separate casts (below).
+  const url =
+    `${envUrl}/api/data/v9.2/EntityDefinitions(LogicalName='${tableLogicalName}')` +
+    `?$select=LogicalName,SchemaName,EntitySetName,PrimaryNameAttribute,PrimaryIdAttribute,` +
+    `LogicalCollectionName,DisplayName,IsCustomEntity` +
+    `&$expand=Attributes($select=LogicalName,SchemaName,AttributeType,RequiredLevel,` +
+    `IsValidForCreate,IsValidForUpdate,DisplayName,IsCustomAttribute)`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (res.status === 404) {
+      return { ok: false, error: `table not found: ${tableLogicalName}` };
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `EntityDefinitions GET → ${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    return { ok: true, table: json };
+  } catch (err) {
+    return { ok: false, error: `EntityDefinitions network error: ${err.message}` };
+  }
+}
+
+async function getLookupTargetsForAttribute(table, attribute, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/EntityDefinitions(LogicalName='${table}')` +
+    `/Attributes(LogicalName='${attribute}')` +
+    `/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=Targets,SchemaName`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) {
+      return { ok: false, error: `lookup-cast GET → ${res.status}` };
+    }
+    const json = await res.json();
+    return { ok: true, targets: Array.isArray(json.Targets) ? json.Targets : [] };
+  } catch (err) {
+    return { ok: false, error: `lookup-cast network error: ${err.message}` };
+  }
+}
+
+async function getPicklistOptionsForAttribute(table, attribute, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/EntityDefinitions(LogicalName='${table}')` +
+    `/Attributes(LogicalName='${attribute}')` +
+    `/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=SchemaName` +
+    `&$expand=OptionSet($select=Options)`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) return { ok: false, error: `picklist-cast GET → ${res.status}` };
+    const json = await res.json();
+    const options = Array.isArray(json?.OptionSet?.Options)
+      ? json.OptionSet.Options.map((o) => ({
+          value: o.Value,
+          label:
+            Array.isArray(o?.Label?.LocalizedLabels) &&
+            o.Label.LocalizedLabels[0]?.Label
+              ? o.Label.LocalizedLabels[0].Label
+              : null,
+        }))
+      : [];
+    return { ok: true, options };
+  } catch (err) {
+    return { ok: false, error: `picklist-cast network error: ${err.message}` };
+  }
+}
+
+function localizedDisplayName(displayName) {
+  if (!displayName) return null;
+  const labels = displayName.LocalizedLabels;
+  if (!Array.isArray(labels) || labels.length === 0) return null;
+  return labels[0]?.Label ?? null;
+}
+
+async function runInspectTable(tableLogicalName, token, envUrl) {
+  console.log('');
+  console.log('Phase T — Dataverse table inspection (Web API metadata, read-only)');
+  console.log(`   Target table: ${tableLogicalName}`);
+  console.log('');
+
+  const meta = await getTableMetadata(tableLogicalName, token, envUrl);
+  if (!meta.ok) bail(`Table inspection failed: ${meta.error}`);
+  const t = meta.table;
+
+  console.log(`   LogicalName:              ${t.LogicalName}`);
+  console.log(`   SchemaName:               ${t.SchemaName}`);
+  console.log(`   EntitySetName:            ${t.EntitySetName}`);
+  console.log(`   LogicalCollectionName:    ${t.LogicalCollectionName ?? '(none)'}`);
+  console.log(`   DisplayName:              ${localizedDisplayName(t.DisplayName) ?? '(none)'}`);
+  console.log(`   PrimaryNameAttribute:     ${t.PrimaryNameAttribute}`);
+  console.log(`   PrimaryIdAttribute:       ${t.PrimaryIdAttribute}`);
+  console.log(`   IsCustomEntity:           ${t.IsCustomEntity}`);
+  console.log('');
+
+  // Partition attributes by required-for-create level. Skip
+  // attributes that aren't valid for create (those are server-managed).
+  const required = [];
+  const recommended = [];
+  const optional = [];
+  for (const attr of t.Attributes ?? []) {
+    if (!attr.IsValidForCreate) continue;
+    const lvl = attr.RequiredLevel?.Value ?? 'None';
+    if (lvl === 'SystemRequired' || lvl === 'ApplicationRequired') {
+      required.push(attr);
+    } else if (lvl === 'Recommended') {
+      recommended.push(attr);
+    } else {
+      optional.push(attr);
+    }
+  }
+  // Sort each bucket alphabetically for stable output.
+  const byLogical = (a, b) => a.LogicalName.localeCompare(b.LogicalName);
+  required.sort(byLogical);
+  recommended.sort(byLogical);
+  optional.sort(byLogical);
+
+  console.log(`   REQUIRED FOR CREATE (${required.length}):`);
+  for (const attr of required) {
+    const lvl = attr.RequiredLevel?.Value ?? 'None';
+    const display = localizedDisplayName(attr.DisplayName);
+    console.log(
+      `     - ${attr.LogicalName}   type=${attr.AttributeType}   ` +
+        `RequiredLevel=${lvl}   IsCustom=${attr.IsCustomAttribute}` +
+        (display ? `   DisplayName="${display}"` : ''),
+    );
+    if (attr.AttributeType === 'Lookup' || attr.AttributeType === 'Customer') {
+      const lookup = await getLookupTargetsForAttribute(
+        tableLogicalName,
+        attr.LogicalName,
+        token,
+        envUrl,
+      );
+      if (lookup.ok) {
+        console.log(`         Lookup Targets: ${JSON.stringify(lookup.targets)}`);
+      } else {
+        console.log(`         (could not fetch Targets: ${lookup.error})`);
+      }
+    } else if (attr.AttributeType === 'Picklist') {
+      const choice = await getPicklistOptionsForAttribute(
+        tableLogicalName,
+        attr.LogicalName,
+        token,
+        envUrl,
+      );
+      if (choice.ok) {
+        console.log(`         OptionSet (${choice.options.length} options):`);
+        for (const o of choice.options) {
+          console.log(`           ${o.value} → ${o.label ?? '(no label)'}`);
+        }
+      } else {
+        console.log(`         (could not fetch OptionSet: ${choice.error})`);
+      }
+    }
+  }
+
+  console.log('');
+  console.log(`   RECOMMENDED (${recommended.length}):`);
+  for (const attr of recommended) {
+    const display = localizedDisplayName(attr.DisplayName);
+    console.log(
+      `     - ${attr.LogicalName}   type=${attr.AttributeType}` +
+        (display ? `   DisplayName="${display}"` : ''),
+    );
+  }
+
+  console.log('');
+  console.log(`   OPTIONAL (${optional.length}):  …not printed individually.`);
+  console.log('     Run again against this table after the operator has the');
+  console.log('     required-column list captured if you also need the optional set.');
+
+  console.log('');
+  console.log('Summary:');
+  console.log(`   total attributes:       ${(t.Attributes ?? []).length}`);
+  console.log(`   required for create:    ${required.length}`);
+  console.log(`   recommended:            ${recommended.length}`);
+  console.log(`   optional:               ${optional.length}`);
+  console.log('');
+  console.log(
+    'Read-only inspection. No write of any kind has been issued against this env.',
+  );
+  return { ok: true, table: t, required, recommended, optional };
 }
 
 function countNonNull(table, attribute) {
@@ -3346,6 +3588,12 @@ async function main() {
     return;
   }
 
+  // === Read-only Dataverse table schema inspection (Phase 122D) ===
+  if (FLAGS.inspectTableName !== null) {
+    await runInspectTable(FLAGS.inspectTableName, mainToken, mainEnvUrl);
+    return;
+  }
+
   // === Broad SystemForm inspection (read-only) ===
   if (FLAGS.inspectFormId !== null) {
     const result = await runFormInspect(
@@ -3782,6 +4030,17 @@ Modes:
       resolved Targets[] and ManyToOne relationship SchemaName.
       Authoritative; does NOT use pac env fetch. The same metadata
       check is used by the post-commit verify plan steps.
+
+  --inspect-table <logical-name>
+      Read-only Web API table schema inspection (Phase 122D). Fetches
+      EntityDefinitions metadata for the supplied table and prints
+      every column grouped by RequiredLevel (REQUIRED FOR CREATE,
+      RECOMMENDED, OPTIONAL). For each required Lookup column the
+      mode also fetches the resolved Targets[]; for each required
+      Picklist (choice) column it fetches the OptionSet values.
+      Useful for seeding a record into a table the SDK has no
+      generated model for (e.g. cr664_clientrelationship). Pure GETs,
+      no write of any kind.
   --commit
       Run the plan against the live env. Refuses to run unless every
       safety gate (publisher prefix, rollback artifacts, dependency

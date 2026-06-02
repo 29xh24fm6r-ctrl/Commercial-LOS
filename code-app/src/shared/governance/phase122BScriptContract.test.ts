@@ -1546,6 +1546,101 @@ describe('Phase 122B — commit still skips create when a true lookup already ex
   });
 });
 
+describe('Phase 122D — --inspect-table Web API metadata audit', () => {
+  it('parses --inspect-table <logical-name> as a flag with a single value', () => {
+    expect(SCRIPT).toMatch(/'--inspect-table'/);
+    expect(SCRIPT).toMatch(/flags\.inspectTableName\s*=/);
+    // The CLI validator restricts the value to a Dataverse logical name
+    // shape (letters / digits / underscore, 2-80 chars).
+    expect(SCRIPT).toMatch(/\[a-z\]\[a-z0-9_\]\{1,79\}/);
+    expect(SCRIPT).toMatch(/--inspect-table expects a Dataverse logical name/);
+  });
+
+  it('declares getTableMetadata() with a Web-API-only GET against EntityDefinitions', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+getTableMetadata/);
+    const fnStart = SCRIPT.indexOf('async function getTableMetadata');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnEnd = SCRIPT.indexOf(
+      'async function getLookupTargetsForAttribute',
+      fnStart,
+    );
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    // The GET URL pulls the table-level metadata + the per-attribute
+    // metadata in one round-trip via $expand.
+    expect(body).toMatch(/EntityDefinitions\(LogicalName=/);
+    expect(body).toMatch(/PrimaryNameAttribute/);
+    expect(body).toMatch(/PrimaryIdAttribute/);
+    expect(body).toMatch(/\$expand=Attributes/);
+    expect(body).toMatch(/RequiredLevel/);
+    expect(body).toMatch(/IsValidForCreate/);
+    expect(body).toMatch(/method:\s*'GET'/);
+    // No write inside this helper.
+    expect(body).not.toMatch(/method:\s*'PATCH'/);
+    expect(body).not.toMatch(/method:\s*'POST'/);
+    expect(body).not.toMatch(/method:\s*'DELETE'/);
+  });
+
+  it('declares getLookupTargetsForAttribute() for required-Lookup column inspection', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+getLookupTargetsForAttribute/);
+    // The lookup-cast URL is the standard Dataverse pattern.
+    expect(SCRIPT).toMatch(
+      /Microsoft\.Dynamics\.CRM\.LookupAttributeMetadata\?\$select=Targets,SchemaName/,
+    );
+  });
+
+  it('declares getPicklistOptionsForAttribute() for required-Picklist column inspection', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+getPicklistOptionsForAttribute/);
+    expect(SCRIPT).toMatch(/Microsoft\.Dynamics\.CRM\.PicklistAttributeMetadata/);
+    expect(SCRIPT).toMatch(/\$expand=OptionSet/);
+  });
+
+  it('declares runInspectTable() orchestrator that partitions attrs by RequiredLevel', () => {
+    expect(SCRIPT).toMatch(/async\s+function\s+runInspectTable/);
+    const fnStart = SCRIPT.indexOf('async function runInspectTable');
+    expect(fnStart).toBeGreaterThan(-1);
+    const fnEnd = SCRIPT.indexOf('function countNonNull', fnStart);
+    expect(fnEnd).toBeGreaterThan(fnStart);
+    const body = SCRIPT.slice(fnStart, fnEnd);
+    expect(body).toMatch(/REQUIRED FOR CREATE/);
+    expect(body).toMatch(/RECOMMENDED/);
+    expect(body).toMatch(/OPTIONAL/);
+    expect(body).toMatch(/SystemRequired/);
+    expect(body).toMatch(/ApplicationRequired/);
+    // Recommended is its own bucket but does NOT trigger lookup /
+    // picklist cast probes (those are required-only).
+    expect(body).toMatch(/PrimaryNameAttribute/);
+    // No write of any kind.
+    expect(body).not.toMatch(/method:\s*'PATCH'/);
+    expect(body).not.toMatch(/method:\s*'POST'/);
+    expect(body).not.toMatch(/method:\s*'DELETE'/);
+    expect(body).not.toMatch(/spawnSync\(/);
+  });
+
+  it('inspect-table branch is wired into main() and returns before audit/commit', () => {
+    const guardIdx = SCRIPT.indexOf('if (FLAGS.inspectTableName !== null)');
+    expect(guardIdx).toBeGreaterThan(-1);
+    const auditMarkerIdx = SCRIPT.indexOf('// === Phase A: audit ===', guardIdx);
+    expect(auditMarkerIdx).toBeGreaterThan(guardIdx);
+    const between = SCRIPT.slice(guardIdx, auditMarkerIdx);
+    expect(between).toMatch(/return;/);
+  });
+
+  it('inspect-table mode never issues a write — read-only contract', () => {
+    // The runInspectTable function body must contain only GETs and no
+    // bypass headers (re-asserted alongside the existing negative
+    // pins so the read-only contract holds across the new helpers).
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+
+  it('MODE banner adds INSPECT-TABLE when FLAGS.inspectTableName is set', () => {
+    expect(SCRIPT).toMatch(/'INSPECT-TABLE'/);
+  });
+});
+
 describe('Phase 122B — --print-relationship-payload diagnostic mode', () => {
   it('parses --print-relationship-payload as a flag', () => {
     expect(SCRIPT).toMatch(/'--print-relationship-payload'/);
