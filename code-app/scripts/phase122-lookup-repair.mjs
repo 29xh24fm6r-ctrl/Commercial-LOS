@@ -222,6 +222,11 @@ function parseArgs(argv) {
     commitSeedClient: false,
     seedProductReferences: false,
     commitSeedProductReferences: false,
+    // Phase 124D — guarded TEST manager-entitlement seed mode.
+    seedManagerEntitlement: false,
+    seedUpn: null,
+    seedTeamName: null,
+    commitSeedManagerEntitlement: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -431,6 +436,37 @@ function parseArgs(argv) {
       flags.dryRun = false;
     } else if (arg === '--commit-seed-product-references') {
       flags.commitSeedProductReferences = true;
+    } else if (arg === '--seed-manager-entitlement') {
+      // Phase 124D — guarded TEST manager-entitlement seed.
+      // Dry-run by default; writes require
+      // --commit-seed-manager-entitlement. Requires --upn,
+      // --team-name, and --deal-name.
+      flags.seedManagerEntitlement = true;
+      flags.dryRun = false;
+    } else if (arg === '--upn') {
+      const next = args[i + 1];
+      if (!next || next.length === 0) {
+        bailParseArgs('--upn requires a non-empty user principal name');
+      }
+      // UPN shape sanity check — must contain exactly one '@'.
+      // Not a strict email validator; we just refuse obviously
+      // malformed inputs so the OData filter is well-formed.
+      if (!/^[^@\s]+@[^@\s]+$/.test(next)) {
+        bailParseArgs(
+          `--upn expects a "<local>@<domain>" value; got "${next}"`,
+        );
+      }
+      flags.seedUpn = next;
+      i += 1;
+    } else if (arg === '--team-name') {
+      const next = args[i + 1];
+      if (!next || next.length === 0) {
+        bailParseArgs('--team-name requires a non-empty Team primary-name value');
+      }
+      flags.seedTeamName = next;
+      i += 1;
+    } else if (arg === '--commit-seed-manager-entitlement') {
+      flags.commitSeedManagerEntitlement = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -446,10 +482,11 @@ function parseArgs(argv) {
     flags.seedClientRelationship,
     flags.inspectAttributeItems !== null,
     flags.seedProductReferences,
+    flags.seedManagerEntitlement,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
@@ -531,11 +568,39 @@ function parseArgs(argv) {
   if (
     flags.seedDealName &&
     !flags.seedClientRelationship &&
-    !flags.seedProductReferences
+    !flags.seedProductReferences &&
+    !flags.seedManagerEntitlement
   ) {
     bailParseArgs(
-      '--deal-name is only valid alongside --seed-client-relationship or --seed-product-references',
+      '--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, or --seed-manager-entitlement',
     );
+  }
+  // Phase 124D — manager-entitlement seed cross-flag validation.
+  // --seed-manager-entitlement requires all three of --upn,
+  // --team-name, and --deal-name. None of those inputs is meaningful
+  // outside this mode.
+  if (flags.seedManagerEntitlement) {
+    if (!flags.seedUpn) {
+      bailParseArgs('--seed-manager-entitlement requires --upn <email>');
+    }
+    if (!flags.seedTeamName) {
+      bailParseArgs('--seed-manager-entitlement requires --team-name <text>');
+    }
+    if (!flags.seedDealName) {
+      bailParseArgs('--seed-manager-entitlement requires --deal-name <text>');
+    }
+  } else {
+    if (flags.seedUpn) {
+      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement');
+    }
+    if (flags.seedTeamName) {
+      bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
+    }
+    if (flags.commitSeedManagerEntitlement) {
+      bailParseArgs(
+        '--commit-seed-manager-entitlement has no effect without --seed-manager-entitlement.',
+      );
+    }
   }
   return flags;
 }
@@ -600,7 +665,11 @@ const MODE = FLAGS.commit
                         ? FLAGS.commitSeedProductReferences
                           ? 'COMMIT-SEED-PRODUCT-REFERENCES'
                           : 'SEED-PRODUCT-REFERENCES (dry-run)'
-                        : 'DRY-RUN';
+                        : FLAGS.seedManagerEntitlement
+                          ? FLAGS.commitSeedManagerEntitlement
+                            ? 'COMMIT-SEED-MANAGER-ENTITLEMENT'
+                            : 'SEED-MANAGER-ENTITLEMENT (dry-run)'
+                          : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -617,7 +686,8 @@ if (
   FLAGS.commitSubgridCleanup ||
   FLAGS.commitViewCleanup ||
   FLAGS.commitSeedClient ||
-  FLAGS.commitSeedProductReferences
+  FLAGS.commitSeedProductReferences ||
+  FLAGS.commitSeedManagerEntitlement
 ) {
   console.log('⚠  WRITE MODE — script may perform live Dataverse writes if every');
   console.log('   safety gate passes. Press Ctrl+C now to abort.');
@@ -2202,6 +2272,533 @@ function countNonNull(table, attribute) {
   // Subtract 1 for the column-header row.
   const count = Math.max(0, lines.length - 1);
   return { ok: true, count };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 124D — guarded TEST manager-entitlement seed.
+//
+// Bridges the Phase 124C workspace switcher to a live entitlement
+// path for one specified UPN. `loadManagerIdentity(upn)` returns
+// `kind: 'ready'` only when:
+//   1. cr664_banker row exists where cr664_email = upn
+//   2. that Banker has _cr664_team_value populated
+// Manager data is then team-scoped: cr664_loandeal._cr664_team_value
+// must equal the same team for the deal to appear on the manager's
+// surface.
+//
+// This mode:
+//   - resolves Banker by cr664_email = --upn (bails on 0 or >1)
+//   - resolves Team by cr664_teamname = --team-name (creates on
+//     commit when missing; bails on >1)
+//   - resolves Loan Deal by cr664_dealname = --deal-name (bails on
+//     0 or >1)
+//   - PATCHes the Banker with ONLY cr664_Team@odata.bind
+//   - PATCHes the Loan Deal with ONLY cr664_Team@odata.bind
+//   - re-reads both with formatted-value annotation to verify
+//
+// Idempotency:
+//   - existing Banker / Team / Loan Deal rows are NEVER mutated
+//     beyond the single cr664_Team relationship
+//   - if Banker and Loan Deal already point at the resolved Team id,
+//     no PATCH is issued (no-op success)
+//   - existing Team rows are never modified, even if their
+//     cr664_description / statecode etc. differ from a "fresh" create
+//
+// Safety:
+//   - dry-run default; writes require --commit-seed-manager-entitlement
+//   - PATCH body shapes contain ONLY cr664_Team@odata.bind
+//   - no bypass / suppress / force headers anywhere
+//   - duplicates bail explicitly with a hand-fix message
+// ---------------------------------------------------------------------------
+
+async function findBankerByEmail(upn, token, envUrl) {
+  const filter = `cr664_email eq '${odataEscapeStringLiteral(upn)}'`;
+  const select =
+    'cr664_bankerid,cr664_fullname,cr664_email,_cr664_team_value';
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_bankers` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+async function findTeamByName(teamName, token, envUrl) {
+  const filter = `cr664_teamname eq '${odataEscapeStringLiteral(teamName)}'`;
+  const select = 'cr664_teamid,cr664_teamname';
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_teams` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+async function createTeam(teamName, token, envUrl) {
+  const url = `${envUrl}/api/data/v9.2/cr664_teams`;
+  // ONLY the primary name. Description / statecode / statuscode are
+  // intentionally omitted — Dataverse applies its own defaults
+  // (statecode=0 Active, statuscode=1 Active, owner = calling user).
+  // Adding any other field here would constitute schema drift the
+  // operator did not request.
+  const body = { cr664_teamname: teamName };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        // Ask Dataverse to return the created row so we can pluck the
+        // primary id without a follow-up GET.
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `POST cr664_teams → ${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    if (!json.cr664_teamid) {
+      return {
+        ok: false,
+        error: 'POST succeeded but response is missing cr664_teamid',
+      };
+    }
+    return { ok: true, id: json.cr664_teamid, record: json };
+  } catch (err) {
+    return { ok: false, error: `POST network error: ${err.message}` };
+  }
+}
+
+async function patchBankerTeam(bankerId, teamId, token, envUrl) {
+  // PATCH ONLY cr664_Team@odata.bind. Do NOT include any other
+  // column in the body — the script must not mutate fullname, email,
+  // role type, team-name denorm, or any other Banker attribute.
+  const url = `${envUrl}/api/data/v9.2/cr664_bankers(${bankerId})`;
+  const body = {
+    'cr664_Team@odata.bind': `/cr664_teams(${teamId})`,
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return {
+        ok: false,
+        error: `PATCH cr664_bankers(${bankerId}) → ${res.status}: ${text}`,
+      };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PATCH network error: ${err.message}` };
+  }
+}
+
+async function patchLoanDealTeam(dealId, teamId, token, envUrl) {
+  // PATCH ONLY cr664_Team@odata.bind. Do NOT include Client /
+  // Product Type / Stage / Status / Banker / Amount / etc. The
+  // Phase 122C loader-side hydration depends on Dataverse returning
+  // every other column unchanged on the next GET.
+  const url = `${envUrl}/api/data/v9.2/cr664_loandeals(${dealId})`;
+  const body = {
+    'cr664_Team@odata.bind': `/cr664_teams(${teamId})`,
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return {
+        ok: false,
+        error: `PATCH cr664_loandeals(${dealId}) → ${res.status}: ${text}`,
+      };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PATCH network error: ${err.message}` };
+  }
+}
+
+async function readBankerTeamLink(bankerId, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_bankers(${bankerId})` +
+    `?$select=cr664_bankerid,cr664_fullname,cr664_email,_cr664_team_value`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        Prefer:
+          'odata.include-annotations="OData.Community.Display.V1.FormattedValue"',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    return { ok: true, record: json };
+  } catch (err) {
+    return { ok: false, error: `re-read network error: ${err.message}` };
+  }
+}
+
+async function readLoanDealTeamLink(dealId, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_loandeals(${dealId})` +
+    `?$select=cr664_loandealid,cr664_dealname,_cr664_team_value`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        Prefer:
+          'odata.include-annotations="OData.Community.Display.V1.FormattedValue"',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    return { ok: true, record: json };
+  } catch (err) {
+    return { ok: false, error: `re-read network error: ${err.message}` };
+  }
+}
+
+async function runSeedManagerEntitlement(
+  { upn, teamName, dealName, doCommit },
+  token,
+  envUrl,
+) {
+  console.log('');
+  console.log('Phase M — TEST manager-entitlement seed');
+  console.log(`   UPN:           ${upn}`);
+  console.log(`   Team name:     ${teamName}`);
+  console.log(`   Deal name:     ${dealName}`);
+  console.log(
+    `   Mode:          ${
+      doCommit
+        ? 'COMMIT-SEED-MANAGER-ENTITLEMENT (will write)'
+        : 'dry-run (no write)'
+    }`,
+  );
+  console.log('');
+
+  // 1. Resolve the banker.
+  const bankerResult = await findBankerByEmail(upn, token, envUrl);
+  if (!bankerResult.ok) {
+    bail(`Could not resolve banker by upn "${upn}": ${bankerResult.error}`);
+  }
+  if (bankerResult.records.length === 0) {
+    bail(
+      `No cr664_banker row with cr664_email = "${upn}". Refusing — the ` +
+        `script will not auto-create a banker row. Provision the banker ` +
+        `via the Maker Portal (or a dedicated banker-seed mode in a ` +
+        `follow-up phase) before re-running this mode.`,
+    );
+  }
+  if (bankerResult.records.length > 1) {
+    bail(
+      `${bankerResult.records.length} cr664_banker rows match cr664_email = ` +
+        `"${upn}". Refusing — the operator must resolve the ambiguity ` +
+        `before seeding.`,
+    );
+  }
+  const banker = bankerResult.records[0];
+  console.log(`   ✓ Banker found:   cr664_bankerid=${banker.cr664_bankerid}`);
+  console.log(
+    `     current cr664_Team lookup value: ${banker._cr664_team_value ?? '(unset)'}`,
+  );
+
+  // 2. Resolve (or plan-to-create) the team.
+  const teamResult = await findTeamByName(teamName, token, envUrl);
+  if (!teamResult.ok) {
+    bail(`Could not resolve team "${teamName}": ${teamResult.error}`);
+  }
+  if (teamResult.records.length > 1) {
+    bail(
+      `${teamResult.records.length} cr664_teams rows match cr664_teamname = ` +
+        `"${teamName}". Refusing — the operator must resolve the ambiguity ` +
+        `before seeding.`,
+    );
+  }
+  let teamId = null;
+  let needCreateTeam = false;
+  if (teamResult.records.length === 1) {
+    teamId = teamResult.records[0].cr664_teamid;
+    console.log(`   ✓ Team exists:    cr664_teamid=${teamId}`);
+  } else {
+    needCreateTeam = true;
+    console.log(
+      `   ⚙ Team does not exist — will create on commit (POST cr664_teams ` +
+        `with only cr664_teamname).`,
+    );
+  }
+
+  // 3. Resolve the deal.
+  const dealResult = await findLoanDealByName(dealName, token, envUrl);
+  if (!dealResult.ok) {
+    bail(`Could not resolve deal "${dealName}": ${dealResult.error}`);
+  }
+  if (dealResult.records.length === 0) {
+    bail(
+      `No cr664_loandeals row with cr664_dealname = "${dealName}". ` +
+        `Refusing — the script will not invent a deal.`,
+    );
+  }
+  if (dealResult.records.length > 1) {
+    bail(
+      `${dealResult.records.length} cr664_loandeals rows match ` +
+        `cr664_dealname = "${dealName}". Refusing — the operator must ` +
+        `pick one explicitly.`,
+    );
+  }
+  // Re-read with the _cr664_team_value column. findLoanDealByName's
+  // SELECT does not currently include it, so probe with a quick
+  // second GET.
+  const dealLinkResult = await readLoanDealTeamLink(
+    dealResult.records[0].cr664_loandealid,
+    token,
+    envUrl,
+  );
+  if (!dealLinkResult.ok) {
+    bail(`Could not re-read deal team link: ${dealLinkResult.error}`);
+  }
+  const deal = dealLinkResult.record;
+  console.log(`   ✓ Deal found:     cr664_loandealid=${deal.cr664_loandealid}`);
+  console.log(
+    `     current cr664_Team lookup value: ${deal._cr664_team_value ?? '(unset)'}`,
+  );
+
+  // 4. Idempotency: if both Banker and Loan Deal already point at the
+  //    resolved Team id, no PATCH is needed.
+  const bankerAlreadyLinked =
+    teamId != null && banker._cr664_team_value === teamId;
+  const dealAlreadyLinked =
+    teamId != null && deal._cr664_team_value === teamId;
+  if (bankerAlreadyLinked && dealAlreadyLinked) {
+    console.log('');
+    console.log(
+      `   ✓ Already linked: cr664_bankers(${banker.cr664_bankerid}).cr664_Team and ` +
+        `cr664_loandeals(${deal.cr664_loandealid}).cr664_Team both point at ` +
+        `cr664_teams(${teamId}).`,
+    );
+    console.log('   No-op success.');
+    return { ok: true, alreadyLinked: true, teamId };
+  }
+
+  // 5. Plan summary.
+  console.log('');
+  console.log('   Planned actions:');
+  let stepNum = 1;
+  if (needCreateTeam) {
+    console.log(`     [${stepNum}] POST /api/data/v9.2/cr664_teams`);
+    console.log(`         body: { "cr664_teamname": "${teamName}" }`);
+    stepNum += 1;
+  }
+  if (!bankerAlreadyLinked) {
+    console.log(
+      `     [${stepNum}] PATCH /api/data/v9.2/cr664_bankers(${banker.cr664_bankerid})`,
+    );
+    if (needCreateTeam) {
+      console.log(
+        `         body: { "cr664_Team@odata.bind": "/cr664_teams(<newly-created>)" }`,
+      );
+    } else {
+      console.log(
+        `         body: { "cr664_Team@odata.bind": "/cr664_teams(${teamId})" }`,
+      );
+    }
+    console.log(
+      '         PATCH body sets ONLY cr664_Team@odata.bind — no other column touched.',
+    );
+    stepNum += 1;
+  }
+  if (!dealAlreadyLinked) {
+    console.log(
+      `     [${stepNum}] PATCH /api/data/v9.2/cr664_loandeals(${deal.cr664_loandealid})`,
+    );
+    if (needCreateTeam) {
+      console.log(
+        `         body: { "cr664_Team@odata.bind": "/cr664_teams(<newly-created>)" }`,
+      );
+    } else {
+      console.log(
+        `         body: { "cr664_Team@odata.bind": "/cr664_teams(${teamId})" }`,
+      );
+    }
+    console.log(
+      '         PATCH body sets ONLY cr664_Team@odata.bind — no other column touched.',
+    );
+  }
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no POST or PATCH issued.');
+    console.log(
+      '   Re-run with `--commit-seed-manager-entitlement` to execute the plan above.',
+    );
+    return {
+      ok: true,
+      planned: true,
+      needCreateTeam,
+      teamId,
+      bankerId: banker.cr664_bankerid,
+      dealId: deal.cr664_loandealid,
+    };
+  }
+
+  // 6. Commit. Create the team if needed.
+  if (needCreateTeam) {
+    console.log('');
+    console.log(`   ⚙ POST /api/data/v9.2/cr664_teams …`);
+    const createResult = await createTeam(teamName, token, envUrl);
+    if (!createResult.ok) {
+      bail(`Create cr664_team failed: ${createResult.error}`);
+    }
+    teamId = createResult.id;
+    console.log(`   ✓ Created cr664_teamid=${teamId}`);
+  }
+
+  // 7. PATCH the banker (if not already linked).
+  if (!bankerAlreadyLinked) {
+    console.log(
+      `   ⚙ PATCH cr664_bankers(${banker.cr664_bankerid}) cr664_Team@odata.bind …`,
+    );
+    const patchBankerResult = await patchBankerTeam(
+      banker.cr664_bankerid,
+      teamId,
+      token,
+      envUrl,
+    );
+    if (!patchBankerResult.ok) {
+      bail(`PATCH banker failed: ${patchBankerResult.error}`);
+    }
+    console.log('   ✓ Banker PATCH succeeded.');
+  }
+
+  // 8. PATCH the deal (if not already linked).
+  if (!dealAlreadyLinked) {
+    console.log(
+      `   ⚙ PATCH cr664_loandeals(${deal.cr664_loandealid}) cr664_Team@odata.bind …`,
+    );
+    const patchDealResult = await patchLoanDealTeam(
+      deal.cr664_loandealid,
+      teamId,
+      token,
+      envUrl,
+    );
+    if (!patchDealResult.ok) {
+      bail(`PATCH loan deal failed: ${patchDealResult.error}`);
+    }
+    console.log('   ✓ Deal PATCH succeeded.');
+  }
+
+  // 9. Verify both rows.
+  console.log('');
+  console.log('   ⚙ Re-reading the banker to verify the new Team lookup …');
+  const verifyBanker = await readBankerTeamLink(
+    banker.cr664_bankerid,
+    token,
+    envUrl,
+  );
+  if (!verifyBanker.ok) {
+    console.log(`     ⚠ Could not re-read banker: ${verifyBanker.error}`);
+  } else {
+    const b = verifyBanker.record;
+    const bTeam = b._cr664_team_value ?? '(unset)';
+    const bFormatted =
+      b['_cr664_team_value@OData.Community.Display.V1.FormattedValue'];
+    console.log(`     banker _cr664_team_value:                  ${bTeam}`);
+    if (bFormatted) {
+      console.log(`     banker team formatted value:               ${bFormatted}`);
+    }
+    if (b._cr664_team_value === teamId) {
+      console.log('     ✓ Banker Team lookup is linked to the seeded team.');
+    } else {
+      console.log(
+        '     ⚠ Verification mismatch — re-read shows a different team id ' +
+          'than the one the script wrote. Investigate.',
+      );
+    }
+  }
+
+  console.log('   ⚙ Re-reading the deal to verify the new Team lookup …');
+  const verifyDeal = await readLoanDealTeamLink(
+    deal.cr664_loandealid,
+    token,
+    envUrl,
+  );
+  if (!verifyDeal.ok) {
+    console.log(`     ⚠ Could not re-read deal: ${verifyDeal.error}`);
+  } else {
+    const d = verifyDeal.record;
+    const dTeam = d._cr664_team_value ?? '(unset)';
+    const dFormatted =
+      d['_cr664_team_value@OData.Community.Display.V1.FormattedValue'];
+    console.log(`     deal _cr664_team_value:                    ${dTeam}`);
+    if (dFormatted) {
+      console.log(`     deal team formatted value:                 ${dFormatted}`);
+    }
+    if (d._cr664_team_value === teamId) {
+      console.log('     ✓ Deal Team lookup is linked to the seeded team.');
+    } else {
+      console.log(
+        '     ⚠ Verification mismatch — re-read shows a different team id ' +
+          'than the one the script wrote. Investigate.',
+      );
+    }
+  }
+
+  console.log('');
+  console.log('Summary:');
+  console.log(`   team created:   ${needCreateTeam ? 'yes' : 'no (reused)'}`);
+  console.log(`   team id:        ${teamId}`);
+  console.log(`   banker id:      ${banker.cr664_bankerid}`);
+  console.log(`   banker linked:  ${bankerAlreadyLinked ? 'already' : 'now linked'}`);
+  console.log(`   deal id:        ${deal.cr664_loandealid}`);
+  console.log(`   deal linked:    ${dealAlreadyLinked ? 'already' : 'now linked'}`);
+  console.log('');
+  console.log(
+    'After a hard browser refresh, the Phase 124C workspace switcher should ' +
+      'now expose the "Manager Workspace" link for this UPN, and the ' +
+      'manager surface will list this deal in the team pipeline.',
+  );
+  console.log('');
+  console.log('✓ Seed commit complete.');
+  return {
+    ok: true,
+    teamId,
+    needCreateTeam,
+    bankerId: banker.cr664_bankerid,
+    dealId: deal.cr664_loandealid,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -4859,6 +5456,28 @@ async function main() {
       {
         dealName: FLAGS.seedDealName,
         doCommit: FLAGS.commitSeedProductReferences,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
+  // === Manager-entitlement seed (Phase 124D) ===
+  // Dry-run by default; writes require
+  // --commit-seed-manager-entitlement. Bridges the Phase 124C
+  // workspace switcher to a live entitlement path by linking one
+  // Banker (resolved by --upn) and one Loan Deal (resolved by
+  // --deal-name) to the same Team (resolved by --team-name; created
+  // on commit if missing). PATCH bodies set ONLY
+  // cr664_Team@odata.bind on both rows. Idempotent at both ends.
+  if (FLAGS.seedManagerEntitlement) {
+    await runSeedManagerEntitlement(
+      {
+        upn: FLAGS.seedUpn,
+        teamName: FLAGS.seedTeamName,
+        dealName: FLAGS.seedDealName,
+        doCommit: FLAGS.commitSeedManagerEntitlement,
       },
       mainToken,
       mainEnvUrl,

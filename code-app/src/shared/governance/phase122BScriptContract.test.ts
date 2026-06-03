@@ -262,7 +262,7 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
     // Now part of the broader three-way mutex with --cleanup-form.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
     );
   });
 
@@ -323,7 +323,7 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
 
   it('cleanup-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive\./,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive\./,
     );
   });
 
@@ -424,7 +424,7 @@ describe('Phase 122B — broad SystemForm inspection for indirect dependencies',
 
   it('--inspect-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
     );
   });
 
@@ -538,7 +538,7 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
 
   it('5-way mutex includes --cleanup-subgrid', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
     );
   });
 
@@ -949,7 +949,7 @@ describe('Phase 122B — SavedQuery (view) inspection + targeted cleanup', () =>
 
   it('7-way mutex includes --inspect-view and --cleanup-view', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
     );
   });
 
@@ -1568,15 +1568,15 @@ describe('Phase 122E Pt 2 — --seed-product-references guarded write mode', () 
     );
   });
 
-  it('--deal-name is valid alongside EITHER seed mode (client OR product-references)', () => {
+  it('--deal-name is valid alongside any seed mode (client / product-references / manager-entitlement)', () => {
     expect(SCRIPT).toMatch(
-      /--deal-name is only valid alongside --seed-client-relationship or --seed-product-references/,
+      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, or --seed-manager-entitlement/,
     );
   });
 
   it('10-way mutex extended to include --seed-product-references', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
     );
   });
 
@@ -1928,7 +1928,7 @@ describe('Phase 122E Pt 1 — --inspect-attributes targeted attribute audit', ()
     // Asserted via the central mutex pin updated elsewhere in this file,
     // but re-check the specific string for clarity.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, and --seed-product-references are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
     );
   });
 });
@@ -2689,19 +2689,21 @@ describe('Phase 122B — script never edits React app code', () => {
     // URLs — those are React `@odata.bind` payload contracts. The
     // metadata layer works in terms of logical names.
     //
-    // Phase 122D Pt 2 added DATA-operation paths (PATCH a specific
-    // Loan Deal row by primary id) which legitimately need the
-    // entity-set URL. The negative pin is therefore scoped to NOT
-    // include those data-operation helpers — runSeedClientRelationship
-    // and its patchLoanDealClient / readLoanDealClientLink /
-    // findLoanDealByName / createClientRelationship cousins live in
-    // the seed code region between the inspect-table header and
-    // countNonNull.
+    // The data-operation seed region (Phase 122D Pt 2 client seed,
+    // Phase 122E Pt 2 product-references seed, Phase 124D
+    // manager-entitlement seed) legitimately uses the entity-set
+    // URL to PATCH a specific row by primary id. The negative pin
+    // is scoped to NOT include those data-operation helpers — they
+    // all live between the Phase 122D Pt 2 seed header and the
+    // start of the audit phase.
     const seedBlockStart = SCRIPT.indexOf(
       '// Phase 122D Pt 2 — guarded TEST Client / Relationship seed.',
     );
     expect(seedBlockStart).toBeGreaterThan(-1);
-    const seedBlockEnd = SCRIPT.indexOf('function countNonNull', seedBlockStart);
+    const seedBlockEnd = SCRIPT.indexOf(
+      '// Audit phase — publishers + tables + columns',
+      seedBlockStart,
+    );
     expect(seedBlockEnd).toBeGreaterThan(seedBlockStart);
     const beforeSeed = SCRIPT.slice(0, seedBlockStart);
     const afterSeed = SCRIPT.slice(seedBlockEnd);
@@ -2806,3 +2808,291 @@ describe('Phase 122B — script writes a runbook artifact', () => {
     expect(SCRIPT).toMatch(/writeFileSync\(\s*RUNBOOK_PATH/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 124D — guarded manager-entitlement seed mode
+// ---------------------------------------------------------------------------
+
+describe('Phase 124D — --seed-manager-entitlement guarded write mode', () => {
+  it('parses --seed-manager-entitlement + the three required inputs + --commit-seed-manager-entitlement', () => {
+    expect(SCRIPT).toMatch(/'--seed-manager-entitlement'/);
+    expect(SCRIPT).toMatch(/'--upn'/);
+    expect(SCRIPT).toMatch(/'--team-name'/);
+    expect(SCRIPT).toMatch(/'--deal-name'/);
+    expect(SCRIPT).toMatch(/'--commit-seed-manager-entitlement'/);
+  });
+
+  it('--upn is required when --seed-manager-entitlement is set', () => {
+    expect(SCRIPT).toMatch(/--seed-manager-entitlement requires --upn/);
+  });
+
+  it('--team-name is required when --seed-manager-entitlement is set', () => {
+    expect(SCRIPT).toMatch(/--seed-manager-entitlement requires --team-name/);
+  });
+
+  it('--deal-name is required when --seed-manager-entitlement is set', () => {
+    expect(SCRIPT).toMatch(/--seed-manager-entitlement requires --deal-name/);
+  });
+
+  it('--upn is only valid alongside --seed-manager-entitlement', () => {
+    expect(SCRIPT).toMatch(
+      /--upn is only valid alongside --seed-manager-entitlement/,
+    );
+  });
+
+  it('--team-name is only valid alongside --seed-manager-entitlement', () => {
+    expect(SCRIPT).toMatch(
+      /--team-name is only valid alongside --seed-manager-entitlement/,
+    );
+  });
+
+  it('--commit-seed-manager-entitlement is rejected without --seed-manager-entitlement', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-manager-entitlement has no effect without --seed-manager-entitlement/,
+    );
+  });
+
+  it('--upn refuses obviously malformed inputs (must contain exactly one "@")', () => {
+    expect(SCRIPT).toMatch(
+      /--upn expects a "<local>@<domain>" value/,
+    );
+  });
+
+  it('11-way mutex extended to include --seed-manager-entitlement', () => {
+    expect(SCRIPT).toMatch(
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
+    );
+  });
+
+  it('--seed-manager-entitlement is part of the exclusive-modes array', () => {
+    // The exclusiveModes array lists every mutually-exclusive mode
+    // by flag; --seed-manager-entitlement must be enumerated there
+    // so a future overlapping mode trips the mutex check.
+    expect(SCRIPT).toMatch(/flags\.seedManagerEntitlement,?\s*$/m);
+  });
+});
+
+describe('Phase 124D — manager-entitlement seed runner shape', () => {
+  it('declares runSeedManagerEntitlement(upn, teamName, dealName, doCommit) dispatcher', () => {
+    expect(SCRIPT).toMatch(
+      /async function runSeedManagerEntitlement\(\s*\{[\s\S]*?upn[\s\S]*?teamName[\s\S]*?dealName[\s\S]*?doCommit[\s\S]*?\}/,
+    );
+  });
+
+  it('dispatches the runner only inside the FLAGS.seedManagerEntitlement branch', () => {
+    expect(SCRIPT).toMatch(
+      /if\s*\(\s*FLAGS\.seedManagerEntitlement\s*\)\s*\{[\s\S]*?await runSeedManagerEntitlement\(/,
+    );
+  });
+
+  it('write-mode warning header fires on --commit-seed-manager-entitlement', () => {
+    expect(SCRIPT).toMatch(
+      /FLAGS\.commitSeedManagerEntitlement[\s\S]{0,200}?WRITE MODE/,
+    );
+  });
+
+  it('the MODE banner has a COMMIT-SEED-MANAGER-ENTITLEMENT / dry-run branch', () => {
+    expect(SCRIPT).toMatch(/'COMMIT-SEED-MANAGER-ENTITLEMENT'/);
+    expect(SCRIPT).toMatch(/'SEED-MANAGER-ENTITLEMENT \(dry-run\)'/);
+  });
+});
+
+describe('Phase 124D — finders + creators + verifier helpers', () => {
+  it('findBankerByEmail filters cr664_bankers by cr664_email (no other column)', () => {
+    expect(SCRIPT).toMatch(/async function findBankerByEmail\(/);
+    expect(SCRIPT).toMatch(/cr664_email eq '\$\{odataEscapeStringLiteral\(upn\)\}'/);
+    expect(SCRIPT).toMatch(/\/api\/data\/v9\.2\/cr664_bankers/);
+  });
+
+  it('findTeamByName filters cr664_teams by cr664_teamname (no other column)', () => {
+    expect(SCRIPT).toMatch(/async function findTeamByName\(/);
+    expect(SCRIPT).toMatch(
+      /cr664_teamname eq '\$\{odataEscapeStringLiteral\(teamName\)\}'/,
+    );
+    expect(SCRIPT).toMatch(/\/api\/data\/v9\.2\/cr664_teams/);
+  });
+
+  it('createTeam POSTs ONLY { cr664_teamname } — no description / statecode / statuscode', () => {
+    // The body literal is a single-key object containing only the
+    // primary name; we assert the exact shape AND that no other
+    // cr664_* / statecode / statuscode key appears inside the helper.
+    const createTeamBlock = sliceFunction('createTeam');
+    expect(createTeamBlock).toMatch(
+      /const body\s*=\s*\{\s*cr664_teamname:\s*teamName\s*,?\s*\};/,
+    );
+    expect(createTeamBlock).not.toMatch(/cr664_description/);
+    expect(createTeamBlock).not.toMatch(/statecode\s*:/);
+    expect(createTeamBlock).not.toMatch(/statuscode\s*:/);
+    expect(createTeamBlock).not.toMatch(/ownerid\s*:/);
+  });
+
+  it('patchBankerTeam body sets ONLY cr664_Team@odata.bind — no other column', () => {
+    const block = sliceFunction('patchBankerTeam');
+    expect(block).toMatch(
+      /const body\s*=\s*\{\s*'cr664_Team@odata\.bind':\s*`\/cr664_teams\(\$\{teamId\}\)`,?\s*\};/,
+    );
+    // Forbid every other Banker column from appearing in this body.
+    expect(block).not.toMatch(/cr664_fullname/);
+    expect(block).not.toMatch(/cr664_email/);
+    expect(block).not.toMatch(/cr664_roletype/);
+    expect(block).not.toMatch(/cr664_activeflag/);
+    expect(block).not.toMatch(/_cr664_team_value/);
+    // The body region must NOT contain any second key — pinned by
+    // the strict single-key regex above.
+  });
+
+  it('patchLoanDealTeam body sets ONLY cr664_Team@odata.bind — Client / Stage / Status / Banker / Amount untouched', () => {
+    const block = sliceFunction('patchLoanDealTeam');
+    expect(block).toMatch(
+      /const body\s*=\s*\{\s*'cr664_Team@odata\.bind':\s*`\/cr664_teams\(\$\{teamId\}\)`,?\s*\};/,
+    );
+    // Hard pin: every other deal column the operator might worry
+    // about must NOT appear inside the patch helper.
+    expect(block).not.toMatch(/cr664_Client/);
+    expect(block).not.toMatch(/cr664_stagereference/);
+    expect(block).not.toMatch(/cr664_statusreference/);
+    expect(block).not.toMatch(/cr664_assignedbanker/);
+    expect(block).not.toMatch(/cr664_amount/);
+    expect(block).not.toMatch(/cr664_producttype/);
+    expect(block).not.toMatch(/cr664_loanstructure/);
+    expect(block).not.toMatch(/cr664_pricingtype/);
+    expect(block).not.toMatch(/cr664_targetclosedate/);
+  });
+
+  it('readBankerTeamLink + readLoanDealTeamLink request FormattedValue annotation only (no other Prefer headers)', () => {
+    const r1 = sliceFunction('readBankerTeamLink');
+    const r2 = sliceFunction('readLoanDealTeamLink');
+    for (const block of [r1, r2]) {
+      expect(block).toMatch(
+        /Prefer:\s*\n?\s*'odata\.include-annotations="OData\.Community\.Display\.V1\.FormattedValue"'/,
+      );
+      // No bypass / suppress / force / duplicate-detection headers
+      // are permitted on the verify GET.
+      expect(block).not.toMatch(/MSCRM\.SuppressDuplicateDetection/i);
+      expect(block).not.toMatch(/MSCRM\.BypassCustomPluginExecution/i);
+      expect(block).not.toMatch(/x-suppress/i);
+      expect(block).not.toMatch(/X-Override/i);
+    }
+  });
+});
+
+describe('Phase 124D — dry-run + commit-gate behavior', () => {
+  it('dry-run returns BEFORE issuing any POST or PATCH', () => {
+    const block = sliceFunction('runSeedManagerEntitlement');
+    // The dry-run guard must short-circuit before any of the four
+    // write helpers (createTeam, patchBankerTeam, patchLoanDealTeam)
+    // is reachable.
+    expect(block).toMatch(/if \(!doCommit\)/);
+    const dryReturnIdx = block.indexOf('Re-run with `--commit-seed-manager-entitlement`');
+    expect(dryReturnIdx).toBeGreaterThan(-1);
+    const firstCreateTeamCall = block.indexOf('await createTeam(');
+    const firstPatchBankerCall = block.indexOf('await patchBankerTeam(');
+    const firstPatchDealCall = block.indexOf('await patchLoanDealTeam(');
+    for (const idx of [firstCreateTeamCall, firstPatchBankerCall, firstPatchDealCall]) {
+      expect(idx).toBeGreaterThan(dryReturnIdx);
+    }
+  });
+
+  it('zero / duplicate Banker matches bail explicitly (no auto-create banker, no ambiguous pick)', () => {
+    const block = sliceFunction('runSeedManagerEntitlement');
+    expect(block).toMatch(/No cr664_banker row with cr664_email/);
+    expect(block).toMatch(
+      /script will not auto-create a banker row\. Provision the banker/,
+    );
+    expect(block).toMatch(/cr664_banker rows match cr664_email/);
+    expect(block).toMatch(/operator must resolve the ambiguity/);
+  });
+
+  it('zero / duplicate Loan Deal matches bail explicitly (no invent deal, no ambiguous pick)', () => {
+    const block = sliceFunction('runSeedManagerEntitlement');
+    expect(block).toMatch(/No cr664_loandeals row with cr664_dealname/);
+    expect(block).toMatch(/script will not invent a deal/);
+    // The duplicate-bail spans multiple template-literal segments;
+    // assert the key tokens are all present in the runner body.
+    expect(block).toMatch(/cr664_loandeals rows match/);
+    expect(block).toMatch(/cr664_dealname = ".*Refusing/s);
+    // Phrase is split across two template-literal segments
+    // ("operator must " + "pick one explicitly"). Match the join.
+    expect(block).toMatch(/operator must[\s\S]{0,30}pick one explicitly/);
+  });
+
+  it('duplicate Team matches bail; zero matches plan-to-create (not an error)', () => {
+    const block = sliceFunction('runSeedManagerEntitlement');
+    // Duplicate path: bail.
+    expect(block).toMatch(/cr664_teams rows match cr664_teamname/);
+    // Zero-match path: needCreateTeam (NOT bail).
+    expect(block).toMatch(/needCreateTeam\s*=\s*true/);
+    expect(block).toMatch(
+      /Team does not exist — will create on commit/,
+    );
+  });
+
+  it('idempotency: when Banker AND Loan Deal already point at the resolved Team id, returns no-op success without issuing any PATCH', () => {
+    const block = sliceFunction('runSeedManagerEntitlement');
+    expect(block).toMatch(/bankerAlreadyLinked\s*=/);
+    expect(block).toMatch(/dealAlreadyLinked\s*=/);
+    expect(block).toMatch(/if \(bankerAlreadyLinked && dealAlreadyLinked\)/);
+    expect(block).toMatch(/No-op success/);
+  });
+
+  it('verify step prints the formatted-value annotation for both banker and deal Team lookups', () => {
+    const block = sliceFunction('runSeedManagerEntitlement');
+    expect(block).toMatch(
+      /Re-reading the banker to verify the new Team lookup/,
+    );
+    expect(block).toMatch(/Re-reading the deal to verify the new Team lookup/);
+    expect(block).toMatch(/banker team formatted value/);
+    expect(block).toMatch(/deal team formatted value/);
+  });
+
+  it('summary explains the Phase 124C switcher should now show Manager Workspace', () => {
+    const block = sliceFunction('runSeedManagerEntitlement');
+    expect(block).toMatch(
+      /Phase 124C workspace switcher should[\s\S]{0,80}?(now expose|expose)[\s\S]{0,40}?"Manager Workspace"/,
+    );
+    expect(block).toMatch(/hard browser refresh/i);
+  });
+
+  it('the helper region does NOT use any bypass / suppress / force-header values', () => {
+    // The block from `Phase 124D — guarded TEST manager-entitlement
+    // seed.` up to the Audit-phase header must NOT carry any of the
+    // governed-write bypass headers Phase 122 explicitly forbids.
+    // Match against actual HTTP header syntax (Key: Value or
+    // Key=Value), not free text — the comment above the runner
+    // legitimately includes the literal word "force" describing
+    // what's forbidden.
+    const start = SCRIPT.indexOf(
+      '// Phase 124D — guarded TEST manager-entitlement seed.',
+    );
+    expect(start).toBeGreaterThan(-1);
+    const end = SCRIPT.indexOf(
+      '// Audit phase — publishers + tables + columns',
+      start,
+    );
+    expect(end).toBeGreaterThan(start);
+    const region = SCRIPT.slice(start, end);
+    expect(region).not.toMatch(/MSCRM\.SuppressDuplicateDetection/i);
+    expect(region).not.toMatch(/MSCRM\.BypassCustomPluginExecution/i);
+    expect(region).not.toMatch(/['"]?x-suppress[^'"]*['"]?\s*:/i);
+    expect(region).not.toMatch(/['"]?X-Override[^'"]*['"]?\s*:/i);
+    // Forbid `force=true` query-string and `Force:` header forms,
+    // but allow the literal word "force" inside comments.
+    expect(region).not.toMatch(/\bforce\s*=\s*true\b/i);
+    expect(region).not.toMatch(/['"]Force['"]\s*:/);
+  });
+});
+
+// Small slice helper: pull a function's body region by name. Boundary
+// chosen as the next blank line followed by another `function` / `async
+// function` declaration, OR the end of file.
+function sliceFunction(name: string): string {
+  const re = new RegExp(`(async\\s+)?function\\s+${name}\\s*\\(`);
+  const m = SCRIPT.match(re);
+  if (!m || m.index === undefined) {
+    throw new Error(`sliceFunction: ${name} not found in SCRIPT`);
+  }
+  const start = m.index;
+  const tail = SCRIPT.slice(start + 1);
+  const nextFn = tail.search(/\n(async\s+)?function\s+/);
+  return nextFn === -1 ? SCRIPT.slice(start) : SCRIPT.slice(start, start + 1 + nextFn);
+}
