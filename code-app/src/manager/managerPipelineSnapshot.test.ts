@@ -218,6 +218,88 @@ describe('Phase 124A — command strip', () => {
     });
     expect(s.commandStrip.openTaskCount).toBe(2);
   });
+
+  // Phase 125A — new dense KPI fields.
+
+  it('Phase 125A — splits blocked vs at-risk counts on the ribbon', () => {
+    const s = snapshot({
+      teamPipeline: [
+        deal({ id: 'd1', targetCloseDate: isoDaysAgo(10) }), // blocked
+        deal({ id: 'd2', targetCloseDate: isoDaysAgo(2) }), // at-risk
+        deal({ id: 'd3', targetCloseDate: isoDaysAgo(8) }), // blocked
+        deal({ id: 'd4' }), // clear
+      ],
+    });
+    expect(s.commandStrip.blockedDealCount).toBe(2);
+    expect(s.commandStrip.atRiskDealCount).toBe(1);
+    expect(s.commandStrip.blockerAtRiskCount).toBe(3);
+  });
+
+  it('Phase 125A — overdueTaskCount = open tasks with dueDate past now', () => {
+    const s = snapshot({
+      teamPipeline: [deal({ id: 'd1' })],
+      teamTasks: [
+        task({ id: 't1', dealId: 'd1', dueDate: isoDaysAgo(3) }), // overdue
+        task({ id: 't2', dealId: 'd1', dueDate: isoDaysAgo(-5) }), // future
+        task({ id: 't3', dealId: 'd1', completed: true, dueDate: isoDaysAgo(99) }), // completed
+        task({ id: 't4', dealId: 'd1', dueDate: undefined }), // no date
+      ],
+    });
+    expect(s.commandStrip.overdueTaskCount).toBe(1);
+  });
+
+  it('Phase 125A — staleDealCount counts deals whose modifiedOn ≥ 14 days', () => {
+    const s = snapshot({
+      teamPipeline: [
+        deal({ id: 'd-stale', modifiedOn: isoDaysAgo(20) }),
+        deal({ id: 'd-fresh', modifiedOn: isoDaysAgo(2) }),
+        deal({ id: 'd-edge', modifiedOn: isoDaysAgo(14) }),
+      ],
+    });
+    expect(s.commandStrip.staleDealCount).toBe(2);
+  });
+
+  it('Phase 125A — closingNext30DayCount + amount cover deals with targetCloseDate in [now, now+30d]', () => {
+    const s = snapshot({
+      teamPipeline: [
+        deal({ id: 'd1', targetCloseDate: isoDaysAgo(-10), amount: 100_000 }), // in 10d → counts
+        deal({ id: 'd2', targetCloseDate: isoDaysAgo(-25), amount: 200_000 }), // in 25d → counts
+        deal({ id: 'd3', targetCloseDate: isoDaysAgo(-45), amount: 999_000 }), // in 45d → excluded
+        deal({ id: 'd4', targetCloseDate: isoDaysAgo(2), amount: 555_000 }), // past → excluded
+      ],
+    });
+    expect(s.commandStrip.closingNext30DayCount).toBe(2);
+    expect(s.commandStrip.closingNext30DayAmount).toBe(300_000);
+  });
+
+  it('Phase 125A — avgDaysInStage is undefined when no deal has stageEntryDate (honest absence)', () => {
+    const s = snapshot({
+      teamPipeline: [
+        deal({ id: 'd1', stageEntryDate: undefined }),
+        deal({ id: 'd2', stageEntryDate: undefined }),
+      ],
+    });
+    expect(s.commandStrip.avgDaysInStage).toBeUndefined();
+  });
+
+  it('Phase 125A — avgDaysInStage is the rounded mean of days-in-stage across deals that have one', () => {
+    const s = snapshot({
+      teamPipeline: [
+        deal({ id: 'd1', stageEntryDate: isoDaysAgo(5) }),
+        deal({ id: 'd2', stageEntryDate: isoDaysAgo(15) }),
+        deal({ id: 'd3', stageEntryDate: isoDaysAgo(25) }),
+      ],
+    });
+    expect(s.commandStrip.avgDaysInStage).toBe(15);
+  });
+
+  it('Phase 125A — snapshot exposes vmRows for chart helpers (no IO duplication)', () => {
+    const s = snapshot({
+      teamPipeline: [deal({ id: 'd1' }), deal({ id: 'd2' })],
+    });
+    expect(s.vmRows).toHaveLength(2);
+    expect(s.vmRows.map((r) => r.teamDeal.id)).toEqual(['d1', 'd2']);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -309,13 +309,14 @@ describe('Phase 124A — pipeline command strip', () => {
     expect(
       within(strip).getByLabelText(/1 deals with missing required fields/),
     ).toBeInTheDocument();
-    expect(
-      within(strip).getByLabelText(/1 deals blocked or at risk/),
-    ).toBeInTheDocument();
+    // Phase 125A — split blocked/at-risk tiles + new dense KPIs.
+    expect(within(strip).getByLabelText(/1 deals blocked/)).toBeInTheDocument();
+    expect(within(strip).getByLabelText(/0 deals at risk/)).toBeInTheDocument();
     expect(
       within(strip).getByLabelText(/1 outstanding documents/),
     ).toBeInTheDocument();
     expect(within(strip).getByLabelText(/1 open tasks/)).toBeInTheDocument();
+    expect(within(strip).getByLabelText(/0 overdue tasks/)).toBeInTheDocument();
   });
 });
 
@@ -627,6 +628,99 @@ describe('Phase 124A — top deals + shared VM next-best-action', () => {
 // ---------------------------------------------------------------------------
 // Static-source discipline
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Phase 125A — Dense analytics grid + extended KPI ribbon
+// ---------------------------------------------------------------------------
+
+describe('Phase 125A — dense KPI ribbon', () => {
+  it('renders the extended 11-tile KPI ribbon (Blocked / At risk / Stale / Overdue tasks / Avg days in stage / Closing 30d)', () => {
+    setAllReady({
+      pipeline: [
+        deal({ id: 'd1', targetCloseDate: isoDaysAgo(10) }),
+        deal({ id: 'd2' }),
+      ],
+      bankers: [banker()],
+    });
+    renderPanel();
+    const strip = screen.getByLabelText('Pipeline command strip');
+    // Distinct labels mean the ribbon now exposes split blocked/at-risk
+    // plus the new Phase 125A KPIs.
+    expect(within(strip).getByLabelText(/1 deals blocked/)).toBeInTheDocument();
+    expect(within(strip).getByLabelText(/0 deals at risk/)).toBeInTheDocument();
+    expect(
+      within(strip).getByLabelText(/no record activity/i),
+    ).toBeInTheDocument();
+    expect(within(strip).getByLabelText(/overdue tasks/i)).toBeInTheDocument();
+    expect(
+      within(strip).getByLabelText(/Average days in stage/i),
+    ).toBeInTheDocument();
+    expect(
+      within(strip).getByLabelText(/Closing in 30 days total/i),
+    ).toBeInTheDocument();
+  });
+
+  it('renders "Not yet wired" for Avg days in stage when no deal has a stageEntryDate (honest absence)', () => {
+    setAllReady({
+      pipeline: [
+        deal({ id: 'd1', stageEntryDate: undefined }),
+      ],
+      bankers: [banker()],
+    });
+    renderPanel();
+    const strip = screen.getByLabelText('Pipeline command strip');
+    expect(within(strip).getByText(/Not yet wired/i)).toBeInTheDocument();
+  });
+});
+
+describe('Phase 125A — analytics grid', () => {
+  it('renders the analytics grid with at least 6 distinct chart regions', () => {
+    setAllReady({
+      pipeline: [
+        deal({ id: 'd1' }),
+        deal({ id: 'd2', targetCloseDate: isoDaysAgo(10) }),
+        deal({ id: 'd3' }),
+      ],
+      bankers: [banker()],
+    });
+    renderPanel();
+    const grid = screen.getByLabelText('Analytics grid');
+    expect(grid).toBeInTheDocument();
+    expect(within(grid).getByText(/Pipeline by stage/i)).toBeInTheDocument();
+    expect(within(grid).getByText(/Pipeline by banker/i)).toBeInTheDocument();
+    expect(within(grid).getByText(/Aging — days in stage/i)).toBeInTheDocument();
+    expect(within(grid).getByText(/Risk distribution/i)).toBeInTheDocument();
+    expect(within(grid).getByText(/Closings forecast/i)).toBeInTheDocument();
+    expect(within(grid).getByText(/Data quality/i)).toBeInTheDocument();
+  });
+
+  it('hides the analytics grid in the empty / failed / loading states', () => {
+    // Empty.
+    setAllReady({ pipeline: [] });
+    const { unmount: u1 } = renderPanel();
+    expect(screen.queryByLabelText('Analytics grid')).not.toBeInTheDocument();
+    u1();
+    // Failed slot.
+    setManagerData({
+      teamPipeline: ready([deal()]),
+      teamBankers: ready([banker()]),
+      teamTasks: { kind: 'failed', message: 'down' },
+      teamDocuments: ready([]),
+    });
+    const { unmount: u2 } = renderPanel();
+    expect(screen.queryByLabelText('Analytics grid')).not.toBeInTheDocument();
+    u2();
+    // Loading.
+    setManagerData({
+      teamPipeline: ready([deal()]),
+      teamBankers: ready([banker()]),
+      teamTasks: { kind: 'loading' },
+      teamDocuments: { kind: 'loading' },
+    });
+    renderPanel();
+    expect(screen.queryByLabelText('Analytics grid')).not.toBeInTheDocument();
+  });
+});
 
 describe('Phase 124A + 124B — ManagerBloombergControlPanel.tsx static-source discipline', () => {
   const source = readFileSync(

@@ -71,10 +71,34 @@ export interface ManagerPipelineCommandStrip {
   missingDataCount: number;
   /** Distinct count of deals whose blocker status is 'blocked' or 'at-risk'. */
   blockerAtRiskCount: number;
+  /** Distinct count of deals whose blocker status is 'blocked'. */
+  blockedDealCount: number;
+  /** Distinct count of deals whose blocker status is 'at-risk'. */
+  atRiskDealCount: number;
   /** Total outstanding documents across all team-scoped deals. */
   outstandingDocumentCount: number;
   /** Total open (non-completed) tasks across all team-scoped deals. */
   openTaskCount: number;
+  /** Total open tasks past their due date (now-relative). */
+  overdueTaskCount: number;
+  /** Distinct count of deals not modified within MANAGER_STALE_DEAL_DAYS. */
+  staleDealCount: number;
+  /**
+   * Count of deals with targetCloseDate within the next 30 days
+   * (inclusive of today, exclusive of dates already past).
+   */
+  closingNext30DayCount: number;
+  /**
+   * Sum of populated amounts on deals closing in the next 30 days.
+   * Missing amounts contribute 0.
+   */
+  closingNext30DayAmount: number;
+  /**
+   * Mean days-in-stage across deals with a populated stageEntryDate.
+   * `undefined` when no deal has a stageEntryDate (honest absence —
+   * the dashboard renders 'Not yet wired' instead of 0).
+   */
+  avgDaysInStage: number | undefined;
 }
 
 export type ManagerExceptionSeverity = 'blocked' | 'at-risk' | 'missing' | 'stale';
@@ -151,6 +175,30 @@ export interface ManagerPipelineSnapshot {
    *  Lets the cockpit render the honest "no records" empty state
    *  instead of an all-zero KPI strip. */
   isEmpty: boolean;
+  /**
+   * Per-deal projected rows — exposed for Phase 125A chart helpers
+   * that need to slice + count over the same authorized records the
+   * snapshot already derived. Each row carries the projected VM
+   * (with loader-gap signals muted) plus the manager-scoped missing
+   * fields list + per-deal open/overdue task counts + outstanding
+   * document count, so chart derivers do not re-run any IO.
+   */
+  vmRows: ReadonlyArray<ManagerVMRow>;
+}
+
+/**
+ * Per-deal row consumed by the Phase 125A chart helpers. Identical
+ * to the internal VMRow shape — exposed so a chart deriver can
+ * iterate without re-projecting through deriveBlockers /
+ * deriveDealCockpitMetrics / deriveDealIntelligenceViewModel.
+ */
+export interface ManagerVMRow {
+  teamDeal: TeamDeal;
+  vm: DealIntelligenceViewModel;
+  openTaskCount: number;
+  overdueTaskCount: number;
+  outstandingDocumentCount: number;
+  managerMissingFieldLabels: ReadonlyArray<string>;
 }
 
 export interface ManagerPipelineSnapshotInput {
@@ -223,7 +271,7 @@ export function deriveManagerPipelineSnapshot(
     projectTeamDealToVM(td, tasksByDeal.get(td.id) ?? [], docsByDeal.get(td.id) ?? [], now),
   );
 
-  const commandStrip = buildCommandStrip(vmRows);
+  const commandStrip = buildCommandStrip(vmRows, now);
   const exceptionTape = buildExceptionTape(vmRows, now);
   const bankerWorkload = buildBankerWorkload(input.teamBankers, vmRows);
   const topDeals = buildTopDeals(vmRows, topN);
@@ -234,6 +282,7 @@ export function deriveManagerPipelineSnapshot(
     bankerWorkload,
     topDeals,
     isEmpty: input.teamPipeline.length === 0,
+    vmRows,
   };
 }
 
@@ -245,6 +294,8 @@ interface VMRow {
   teamDeal: TeamDeal;
   vm: DealIntelligenceViewModel;
   openTaskCount: number;
+  /** Phase 124E — open tasks past their due date (now-relative). */
+  overdueTaskCount: number;
   outstandingDocumentCount: number;
   /** Manager-scoped missing-fields list (see MANAGER_REQUIRED_TEAM_FIELDS). */
   managerMissingFieldLabels: ReadonlyArray<string>;
@@ -287,10 +338,21 @@ function projectTeamDealToVM(
   const rawVm = deriveDealIntelligenceViewModel({ deal, metrics, blockers });
   const vm = muteLoaderGapNextBestAction(rawVm);
 
+  // Overdue = open task whose dueDate has parsed and is in the past.
+  let overdueTaskCount = 0;
+  for (const t of tasksResult.open) {
+    if (!t.dueDate) continue;
+    const due = new Date(t.dueDate).getTime();
+    if (!Number.isNaN(due) && due < now.getTime()) {
+      overdueTaskCount += 1;
+    }
+  }
+
   return {
     teamDeal: td,
     vm,
     openTaskCount: tasksResult.open.length,
+    overdueTaskCount,
     outstandingDocumentCount: documentsResult.outstanding.length,
     managerMissingFieldLabels: managerMissingFieldLabels(td),
   };
@@ -432,32 +494,88 @@ function groupByDealId<T extends { dealId: string | undefined }>(
 // Section builders
 // ---------------------------------------------------------------------------
 
-function buildCommandStrip(rows: ReadonlyArray<VMRow>): ManagerPipelineCommandStrip {
+function buildCommandStrip(
+  rows: ReadonlyArray<VMRow>,
+  now: Date,
+): ManagerPipelineCommandStrip {
   let totalPipelineAmount = 0;
   let missingDataCount = 0;
   let blockerAtRiskCount = 0;
+  let blockedDealCount = 0;
+  let atRiskDealCount = 0;
   let outstandingDocumentCount = 0;
   let openTaskCount = 0;
+  let overdueTaskCount = 0;
+  let staleDealCount = 0;
+  let closingNext30DayCount = 0;
+  let closingNext30DayAmount = 0;
+  let stageDaysSum = 0;
+  let stageDaysCount = 0;
+
+  const closeHorizonMs = 30 * MS_PER_DAY;
 
   for (const r of rows) {
     if (typeof r.teamDeal.amount === 'number' && Number.isFinite(r.teamDeal.amount)) {
       totalPipelineAmount += r.teamDeal.amount;
     }
     if (r.managerMissingFieldLabels.length > 0) missingDataCount += 1;
-    if (r.vm.blockerStatus === 'blocked' || r.vm.blockerStatus === 'at-risk') {
+    if (r.vm.blockerStatus === 'blocked') {
+      blockedDealCount += 1;
+      blockerAtRiskCount += 1;
+    } else if (r.vm.blockerStatus === 'at-risk') {
+      atRiskDealCount += 1;
       blockerAtRiskCount += 1;
     }
     outstandingDocumentCount += r.outstandingDocumentCount;
     openTaskCount += r.openTaskCount;
+    overdueTaskCount += r.overdueTaskCount;
+    const daysStale = daysSince(r.teamDeal.modifiedOn, now);
+    if (daysStale !== undefined && daysStale >= MANAGER_STALE_DEAL_DAYS) {
+      staleDealCount += 1;
+    }
+    // Closing-next-30: targetCloseDate within [now, now + 30d]. Past
+    // dates are NOT counted (they belong on the blocker/at-risk
+    // signal). Missing dates are NOT counted.
+    if (r.teamDeal.targetCloseDate) {
+      const tc = new Date(r.teamDeal.targetCloseDate).getTime();
+      if (!Number.isNaN(tc)) {
+        const delta = tc - now.getTime();
+        if (delta >= 0 && delta <= closeHorizonMs) {
+          closingNext30DayCount += 1;
+          if (
+            typeof r.teamDeal.amount === 'number' &&
+            Number.isFinite(r.teamDeal.amount)
+          ) {
+            closingNext30DayAmount += r.teamDeal.amount;
+          }
+        }
+      }
+    }
+    // Avg days in stage — only counted when stageEntryDate parses.
+    const daysInStage = daysSince(r.teamDeal.stageEntryDate, now);
+    if (daysInStage !== undefined && daysInStage >= 0) {
+      stageDaysSum += daysInStage;
+      stageDaysCount += 1;
+    }
   }
+
+  const avgDaysInStage =
+    stageDaysCount === 0 ? undefined : Math.round(stageDaysSum / stageDaysCount);
 
   return {
     activeDealCount: rows.length,
     totalPipelineAmount,
     missingDataCount,
     blockerAtRiskCount,
+    blockedDealCount,
+    atRiskDealCount,
     outstandingDocumentCount,
     openTaskCount,
+    overdueTaskCount,
+    staleDealCount,
+    closingNext30DayCount,
+    closingNext30DayAmount,
+    avgDaysInStage,
   };
 }
 

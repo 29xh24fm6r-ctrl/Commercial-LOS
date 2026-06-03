@@ -23,6 +23,7 @@ import {
 } from '../bootstrap/workspaceEntitlements';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
+import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function ManagerWorkspace() {
@@ -46,65 +47,75 @@ function ManagerWorkspaceContent() {
     currentRoute: WORKSPACE_ROUTES.manager,
     entitledRoutes: entitled.routes,
   });
-  const showSwitcher = workspaceLinks.length >= 2;
+  const showInlineSwitcher = workspaceLinks.length >= 2;
+  // Phase 124E — wrap the manager body in the same LendingOSLayout
+  // shell the banker workspace uses so the dark left toolbar +
+  // workspace switcher render consistently across role surfaces.
+  // The shell's WorkspaceSwitcher handles cross-workspace
+  // navigation when the user is multi-entitled; we keep the inline
+  // header switcher in the manager identity block as a redundant
+  // affordance for visibility in tests / on narrower viewports.
+  // `onNavSelect` is intentionally undefined — the dark sidebar nav
+  // items (Dashboard, Active Deals, etc.) are banker-coded and
+  // remain non-interactive on the manager surface for now.
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <div style={styles.titleBlock}>
-          <div style={styles.eyebrow}>Commercial Lending</div>
-          <h1 style={styles.title}>Manager Command Center</h1>
-          <p style={styles.subtitle}>
-            Team pipeline health, banker production, and risk roll-up.
-          </p>
-        </div>
-        <div style={styles.context} aria-label="Manager context">
-          {/* Phase 124C — workspace switcher rendered above the
-              identity block so an entitled banker who has switched
-              into the manager workspace can return to their
-              bootstrap-primary workspace. Hidden for single-
-              workspace users (length=1 → no switcher). */}
-          {showSwitcher && (
-            <WorkspaceSwitcher
-              links={workspaceLinks}
-              tone="light"
-              aria-label="Manager workspace switcher"
-            />
-          )}
-          <div style={styles.contextRow}>
-            <div style={styles.contextLabel}>Team</div>
-            <div style={styles.contextValue}>{teamName}</div>
+    <LendingOSLayout
+      activeNav="dashboard"
+      fullName={fullName}
+      email={email}
+      workspaceName="Manager Workspace"
+      workspaceLinks={workspaceLinks}
+    >
+      <div style={styles.page}>
+        <header style={styles.header}>
+          <div style={styles.titleBlock}>
+            <div style={styles.eyebrow}>Commercial Lending</div>
+            <h1 style={styles.title}>Manager Command Center</h1>
+            <p style={styles.subtitle}>
+              Team pipeline health, banker production, and risk roll-up.
+            </p>
           </div>
-          <div style={styles.contextRow}>
-            <div style={styles.contextLabel}>Signed in</div>
-            <div style={styles.contextValue}>{fullName}</div>
+          <div style={styles.context} aria-label="Manager context">
+            {showInlineSwitcher && (
+              <WorkspaceSwitcher
+                links={workspaceLinks}
+                tone="light"
+                aria-label="Manager workspace switcher"
+              />
+            )}
+            <div style={styles.contextRow}>
+              <div style={styles.contextLabel}>Team</div>
+              <div style={styles.contextValue}>{teamName}</div>
+            </div>
+            <div style={styles.contextRow}>
+              <div style={styles.contextLabel}>Signed in</div>
+              <div style={styles.contextValue}>{fullName}</div>
+            </div>
+            <div style={styles.contextEmail}>{email}</div>
           </div>
-          <div style={styles.contextEmail}>{email}</div>
-        </div>
-      </header>
-      <main style={styles.main}>
-        {/* Phase 124A — Manager Bloomberg Control Panel mounts as
-            the FIRST cockpit at the top of the manager workspace.
-            Reads the same ManagerDataProvider slots existing cards
-            consume; renders pipeline command strip + exception tape
-            + banker workload + top deals projected through the
-            shared Phase-123A deal-intelligence VM. Existing cards
-            below are unchanged in this phase. */}
-        <ManagerBloombergControlPanel />
-        <TeamWorkQueue />
-        <ManagerBankerFilterControl />
-        <ManagerMorningCatchUp />
-        <ManagerAutopilotRollup />
-        <ManagerRelationshipMemory />
-        <TeamPipelineSummary />
-        <div style={styles.twoCol}>
-          <DealsByStage />
-          <ClosingForecast />
-        </div>
-        <AtRiskBlockedDeals />
-        <BankerWorkloadSummary />
-        <ManagerActivitySummary />
-      </main>
-    </div>
+        </header>
+        <main style={styles.main}>
+          {/* Phase 124A/B/E — Manager Bloomberg Control Panel +
+              dense dashboard mounts as the FIRST cockpit at the top
+              of the manager workspace. Existing cards below render
+              unchanged. */}
+          <ManagerBloombergControlPanel />
+          <TeamWorkQueue />
+          <ManagerBankerFilterControl />
+          <ManagerMorningCatchUp />
+          <ManagerAutopilotRollup />
+          <ManagerRelationshipMemory />
+          <TeamPipelineSummary />
+          <div style={styles.twoCol}>
+            <DealsByStage />
+            <ClosingForecast />
+          </div>
+          <AtRiskBlockedDeals />
+          <BankerWorkloadSummary />
+          <ManagerActivitySummary />
+        </main>
+      </div>
+    </LendingOSLayout>
   );
 }
 

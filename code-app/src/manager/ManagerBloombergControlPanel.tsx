@@ -12,7 +12,26 @@ import {
   type BankerWorkloadRow,
   type ManagerTopDealRow,
   type ManagerPipelineCommandStrip,
+  type ManagerVMRow,
 } from './managerPipelineSnapshot';
+import {
+  deriveStageDistribution,
+  deriveBankerAmountDistribution,
+  deriveAgingHistogram,
+  deriveRiskDistribution,
+  deriveClosingForecast,
+  deriveMissingFieldsDistribution,
+  deriveDataQualityDistribution,
+} from './managerDashboardCharts';
+import {
+  VerticalBarChart,
+  HorizontalBarChart,
+  Histogram,
+  DonutChart,
+  ForecastSparkline,
+  type VerticalBarDatum,
+  type HorizontalBarDatum,
+} from './ManagerChartPrimitives';
 import { palette, radius, severityPalette, shadow, spacing, typography } from '../shared/theme';
 
 /**
@@ -157,6 +176,7 @@ export function ManagerBloombergControlPanel() {
       {!failureSlot && allReady && snapshot && !snapshot.isEmpty && (
         <div style={styles.body}>
           <CommandStrip strip={snapshot.commandStrip} />
+          <AnalyticsGrid rows={snapshot.vmRows} />
           <ExceptionTape tape={snapshot.exceptionTape} />
           <div style={styles.bottomGrid}>
             <BankerWorkload rows={snapshot.bankerWorkload} />
@@ -219,6 +239,12 @@ function EmptyState({ filtered }: { filtered: boolean }) {
 // ---------------------------------------------------------------------------
 
 function CommandStrip({ strip }: { strip: ManagerPipelineCommandStrip }) {
+  // Phase 125A — dense 10-tile KPI ribbon. Honest about the two
+  // metrics the team-pipeline loader cannot derive cleanly:
+  // "Weighted pipeline" (no probability-by-stage in schema) and
+  // "Win rate / pull-through" (the pipeline query excludes terminal
+  // deals; there is no closed-won/closed-lost history available
+  // client-side). Both are omitted rather than faked.
   const tiles: Array<{
     label: string;
     value: string;
@@ -238,16 +264,40 @@ function CommandStrip({ strip }: { strip: ManagerPipelineCommandStrip }) {
       ariaLabel: `Total pipeline ${formatCurrency(strip.totalPipelineAmount)}`,
     },
     {
+      label: 'Closing 30d',
+      value: String(strip.closingNext30DayCount),
+      tone: strip.closingNext30DayCount === 0 ? 'clear' : 'info',
+      ariaLabel: `${strip.closingNext30DayCount} deals closing in the next 30 days, total ${formatCurrency(strip.closingNext30DayAmount)}`,
+    },
+    {
+      label: 'Closing 30d $',
+      value: formatCurrencyCompact(strip.closingNext30DayAmount),
+      tone: 'info',
+      ariaLabel: `Closing in 30 days total ${formatCurrency(strip.closingNext30DayAmount)}`,
+    },
+    {
+      label: 'Blocked',
+      value: String(strip.blockedDealCount),
+      tone: strip.blockedDealCount === 0 ? 'clear' : 'blocked',
+      ariaLabel: `${strip.blockedDealCount} deals blocked`,
+    },
+    {
+      label: 'At risk',
+      value: String(strip.atRiskDealCount),
+      tone: strip.atRiskDealCount === 0 ? 'clear' : 'atRisk',
+      ariaLabel: `${strip.atRiskDealCount} deals at risk`,
+    },
+    {
       label: 'Missing data',
       value: String(strip.missingDataCount),
       tone: strip.missingDataCount === 0 ? 'clear' : 'atRisk',
       ariaLabel: `${strip.missingDataCount} deals with missing required fields`,
     },
     {
-      label: 'Blocked / at-risk',
-      value: String(strip.blockerAtRiskCount),
-      tone: strip.blockerAtRiskCount === 0 ? 'clear' : 'atRisk',
-      ariaLabel: `${strip.blockerAtRiskCount} deals blocked or at risk`,
+      label: 'Stale deals',
+      value: String(strip.staleDealCount),
+      tone: strip.staleDealCount === 0 ? 'clear' : 'atRisk',
+      ariaLabel: `${strip.staleDealCount} deals with no record activity in 14+ days`,
     },
     {
       label: 'Outstanding docs',
@@ -260,6 +310,24 @@ function CommandStrip({ strip }: { strip: ManagerPipelineCommandStrip }) {
       value: String(strip.openTaskCount),
       tone: strip.openTaskCount === 0 ? 'clear' : 'info',
       ariaLabel: `${strip.openTaskCount} open tasks`,
+    },
+    {
+      label: 'Overdue tasks',
+      value: String(strip.overdueTaskCount),
+      tone: strip.overdueTaskCount === 0 ? 'clear' : 'atRisk',
+      ariaLabel: `${strip.overdueTaskCount} overdue tasks`,
+    },
+    {
+      label: 'Avg days in stage',
+      value:
+        strip.avgDaysInStage === undefined
+          ? 'Not yet wired'
+          : `${strip.avgDaysInStage}d`,
+      tone: 'info',
+      ariaLabel:
+        strip.avgDaysInStage === undefined
+          ? 'Average days in stage — no stage entry dates loaded'
+          : `Average days in stage ${strip.avgDaysInStage}`,
     },
   ];
 
@@ -283,6 +351,127 @@ function CommandStrip({ strip }: { strip: ManagerPipelineCommandStrip }) {
           <span style={styles.kpiValue}>{t.value}</span>
         </div>
       ))}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// (2) Analytics grid — Phase 125A dense chart panel
+// ---------------------------------------------------------------------------
+
+function AnalyticsGrid({ rows }: { rows: ReadonlyArray<ManagerVMRow> }) {
+  const stageData = useMemo(() => deriveStageDistribution(rows), [rows]);
+  const bankerData = useMemo(
+    () => deriveBankerAmountDistribution(rows),
+    [rows],
+  );
+  const aging = useMemo(() => deriveAgingHistogram(rows), [rows]);
+  const risk = useMemo(() => deriveRiskDistribution(rows), [rows]);
+  const forecast = useMemo(() => deriveClosingForecast(rows), [rows]);
+  const missing = useMemo(() => deriveMissingFieldsDistribution(rows), [rows]);
+  const quality = useMemo(() => deriveDataQualityDistribution(rows), [rows]);
+
+  const stageBars: VerticalBarDatum[] = stageData.map((s) => ({
+    label: s.stage,
+    value: s.dealCount,
+    tone: s.stage === 'Unset' ? 'neutral' : 'info',
+  }));
+  const bankerBars: HorizontalBarDatum[] = bankerData.map((b) => ({
+    label: b.bankerName,
+    value: b.dealCount,
+    secondaryLabel: formatCurrencyCompact(b.totalAmount),
+    tone: b.atRiskCount > 0 ? 'atRisk' : 'info',
+  }));
+  const tasksByBanker: HorizontalBarDatum[] = bankerData
+    .filter((b) => b.openTaskCount > 0)
+    .map((b) => ({
+      label: b.bankerName,
+      value: b.openTaskCount,
+      secondaryLabel:
+        b.overdueTaskCount > 0 ? `${b.overdueTaskCount} overdue` : undefined,
+      tone: b.overdueTaskCount > 0 ? 'atRisk' : 'info',
+    }));
+  const docsByBanker: HorizontalBarDatum[] = bankerData
+    .filter((b) => b.outstandingDocumentCount > 0)
+    .map((b) => ({
+      label: b.bankerName,
+      value: b.outstandingDocumentCount,
+      tone: 'atRisk',
+    }));
+  const missingBars: HorizontalBarDatum[] = missing.map((m) => ({
+    label: m.label,
+    value: m.dealCount,
+    tone: 'atRisk',
+  }));
+  const qualityBars: HorizontalBarDatum[] = quality.map((q) => ({
+    label: q.label,
+    value: q.dealCount,
+    tone:
+      q.label === 'Complete (100%)'
+        ? 'clear'
+        : q.label === 'Sparse (<50%)'
+          ? 'blocked'
+          : 'atRisk',
+  }));
+  return (
+    <section
+      style={styles.analyticsGrid}
+      aria-label="Analytics grid"
+      data-manager-cockpit-section="analytics-grid"
+    >
+      <VerticalBarChart
+        title="Pipeline by stage"
+        subtitle="Deal count"
+        data={stageBars}
+      />
+      <HorizontalBarChart
+        title="Pipeline by banker"
+        subtitle="Deals + amount"
+        data={bankerBars}
+      />
+      <Histogram title="Aging — days in stage" data={aging.map((a) => ({
+        label: a.label,
+        value: a.dealCount,
+        tone: a.lowDays >= 31 ? 'atRisk' : 'info',
+      }))} />
+      <DonutChart
+        title="Risk distribution"
+        subtitle="Blocker pipeline"
+        segments={[
+          { label: 'Blocked', value: risk.blocked, tone: 'blocked' },
+          { label: 'At risk', value: risk.atRisk, tone: 'atRisk' },
+          { label: 'Clear', value: risk.clear, tone: 'clear' },
+          { label: 'Unknown', value: risk.unknown, tone: 'neutral' },
+        ]}
+      />
+      <HorizontalBarChart
+        title="Open tasks by banker"
+        subtitle="Overdue highlighted"
+        data={tasksByBanker}
+      />
+      <HorizontalBarChart
+        title="Outstanding docs by banker"
+        data={docsByBanker}
+      />
+      <ForecastSparkline
+        title="Closings forecast"
+        subtitle="Next 6 months"
+        points={forecast.map((f) => ({
+          label: f.label,
+          dealCount: f.dealCount,
+          totalAmount: f.totalAmount,
+        }))}
+      />
+      <HorizontalBarChart
+        title="Missing fields"
+        subtitle="Deals × field"
+        data={missingBars}
+      />
+      <HorizontalBarChart
+        title="Data quality"
+        subtitle="Completeness buckets"
+        data={qualityBars}
+      />
     </section>
   );
 }
@@ -539,6 +728,20 @@ function formatAmount(amount: number | undefined): string {
   return formatCurrency(amount);
 }
 
+function formatCurrencyCompact(amount: number): string {
+  // Compact USD format for the KPI ribbon (e.g. $2.5M, $750K).
+  if (amount >= 1_000_000_000) {
+    return `$${(amount / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (amount >= 1_000_000) {
+    return `$${(amount / 1_000_000).toFixed(1)}M`;
+  }
+  if (amount >= 1_000) {
+    return `$${Math.round(amount / 1_000)}K`;
+  }
+  return `$${amount}`;
+}
+
 function labelForBlockerStatus(
   status: 'blocked' | 'at-risk' | 'clear' | undefined,
 ): string {
@@ -723,8 +926,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   commandStrip: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
     gap: spacing.sm,
+  },
+  analyticsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: spacing.sm,
+    alignItems: 'stretch',
   },
   kpiTile: {
     background: palette.deckBg,
