@@ -402,7 +402,7 @@ function Lane({
                 </span>
               </div>
               <div style={styles.laneRowSub}>
-                <span>{item.ownerName ?? 'Unassigned'}</span>
+                <span>{displayOwner(item)}</span>
                 <span style={styles.laneRowSep} aria-hidden="true">·</span>
                 <span style={styles.laneRowReason}>{item.reason}</span>
               </div>
@@ -497,6 +497,11 @@ function ExecutionBoard({ items }: { items: ReadonlyArray<WorkItem> }) {
         <ul style={styles.executionList}>
           {items.slice(0, 20).map((item) => {
             const tone = item.severity === 'clear' ? 'info' : item.severity;
+            // Phase 127C — show the deal-name link separately from the
+            // title when they differ (tasks / documents have their own
+            // titles; deal-level items collapse to one row).
+            const showDealLine =
+              item.title !== item.dealName ? item.dealName : undefined;
             return (
               <li
                 key={`${item.kind}-${item.itemId}`}
@@ -507,30 +512,48 @@ function ExecutionBoard({ items }: { items: ReadonlyArray<WorkItem> }) {
                 data-team-execution-item={item.itemId}
               >
                 <div style={styles.executionHead}>
-                  <Link
-                    to={`/deals/${item.dealId}`}
-                    style={styles.executionLink}
-                    aria-label={`Open ${item.dealName} in the deal workspace`}
-                    data-team-drilldown-deal={item.dealId}
-                  >
-                    {item.title}
-                  </Link>
-                  <span
-                    style={{
-                      ...styles.executionSeverityChip,
-                      background: severityPalette[tone].bg,
-                      color: severityPalette[tone].fg,
-                    }}
-                  >
-                    {labelForKind(item.kind)}
-                  </span>
+                  <div style={styles.executionTitleGroup}>
+                    <Link
+                      to={`/deals/${item.dealId}`}
+                      style={styles.executionLink}
+                      aria-label={`Open ${item.dealName} in the deal workspace`}
+                      data-team-drilldown-deal={item.dealId}
+                    >
+                      {item.title}
+                    </Link>
+                    {showDealLine && (
+                      <span style={styles.executionDeal}>{showDealLine}</span>
+                    )}
+                  </div>
+                  <div style={styles.executionBadgeGroup}>
+                    <span
+                      style={{
+                        ...styles.executionKindChip,
+                        background: severityPalette[tone].bg,
+                        color: severityPalette[tone].fg,
+                      }}
+                      data-team-execution-kind={item.kind}
+                    >
+                      {labelForKind(item.kind)}
+                    </span>
+                    <span
+                      style={{
+                        ...styles.executionSeverityDot,
+                        background: severityPalette[tone].bar,
+                      }}
+                      aria-label={`Severity ${labelForSeverity(item.severity)}`}
+                      data-team-execution-severity={item.severity}
+                    />
+                  </div>
                 </div>
                 <div style={styles.executionMeta}>
-                  <span>{item.dealName}</span>
-                  <span style={styles.executionSep} aria-hidden="true">·</span>
                   <span>{item.clientName ?? 'Not set'}</span>
                   <span style={styles.executionSep} aria-hidden="true">·</span>
-                  <span>{item.ownerName ?? 'Unassigned'}</span>
+                  <span>{item.stage ?? 'Stage not set'}</span>
+                  <span style={styles.executionSep} aria-hidden="true">·</span>
+                  <span>{item.status ?? 'Status not set'}</span>
+                  <span style={styles.executionSep} aria-hidden="true">·</span>
+                  <span>{displayOwner(item)}</span>
                   <span style={styles.executionSep} aria-hidden="true">·</span>
                   <span>{formatUrgency(item)}</span>
                   <span style={styles.executionSep} aria-hidden="true">·</span>
@@ -660,6 +683,32 @@ function labelForKind(kind: WorkItem['kind']): string {
     case 'closing-soon':
       return 'Closing soon';
   }
+}
+
+function labelForSeverity(severity: WorkItemSeverity): string {
+  switch (severity) {
+    case 'blocked':
+      return 'blocked';
+    case 'atRisk':
+      return 'at risk';
+    case 'info':
+      return 'info';
+    case 'clear':
+      return 'clear';
+  }
+}
+
+/**
+ * Phase 127C — honest owner display rule. When the deal carries an
+ * assigned banker name, show it. When the FK is present but the name
+ * didn't hydrate (e.g. team query returned only the _value/GUID),
+ * surface 'Unknown banker' instead of leaking the raw GUID. When no
+ * FK is present at all, the row is genuinely unassigned.
+ */
+function displayOwner(item: WorkItem): string {
+  if (item.ownerName) return item.ownerName;
+  if (item.ownerId) return 'Unknown banker';
+  return 'Unassigned';
 }
 
 // ---------------------------------------------------------------------------
@@ -990,13 +1039,36 @@ const styles: Record<string, React.CSSProperties> = {
     color: palette.primary,
     textDecoration: 'none' as const,
   },
-  executionSeverityChip: {
+  executionTitleGroup: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    minWidth: 0,
+    gap: 1,
+  },
+  executionDeal: {
+    fontSize: typography.size.xs,
+    color: palette.textSubtle,
+    fontWeight: typography.weight.semibold,
+  },
+  executionBadgeGroup: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 0,
+  },
+  executionKindChip: {
     padding: `1px ${spacing.sm}`,
     borderRadius: radius.pill,
     fontSize: typography.size.xs,
     fontWeight: typography.weight.bold,
     letterSpacing: typography.letterSpacing.label,
     textTransform: 'uppercase' as const,
+  },
+  executionSeverityDot: {
+    width: 10,
+    height: 10,
+    borderRadius: '50%',
+    display: 'inline-block',
   },
   executionMeta: {
     display: 'flex',

@@ -333,6 +333,126 @@ describe('Phase 127A — analytics row', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 127C — execution board polish (banker labels, stage/status, badges)
+// ---------------------------------------------------------------------------
+
+describe('Phase 127C — execution board renders hydrated client/stage/status/banker', () => {
+  it('renders the stage label on each execution board row when present on the deal', () => {
+    setAllReady({
+      deals: [
+        deal({
+          id: 'd-stage',
+          name: 'StagedDeal',
+          stage: 'Underwriting',
+          status: 'Active',
+          targetCloseDate: isoDaysAgo(15),
+        }),
+      ],
+    });
+    renderCockpit();
+    const board = screen.getByLabelText('Execution board');
+    expect(within(board).getByText('Underwriting')).toBeInTheDocument();
+    expect(within(board).getByText('Active')).toBeInTheDocument();
+  });
+
+  it('renders the hydrated banker name (not the GUID) in banker workload + execution board', () => {
+    setAllReady({
+      deals: [
+        deal({
+          id: 'd-banker',
+          name: 'BankerDeal',
+          assignedBankerId: 'banker-real',
+          assignedBankerName: 'Alice Realname',
+          targetCloseDate: isoDaysAgo(15),
+        }),
+      ],
+    });
+    renderCockpit();
+    expect(screen.getAllByText('Alice Realname').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('banker-real')).toBeNull();
+  });
+
+  it('renders "Unknown banker" rather than the raw GUID when the banker FK did not hydrate', () => {
+    setAllReady({
+      deals: [
+        deal({
+          id: 'd-bare',
+          name: 'BareDeal',
+          assignedBankerId: 'banker-guid-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          assignedBankerName: undefined,
+          targetCloseDate: isoDaysAgo(15),
+        }),
+      ],
+    });
+    renderCockpit();
+    expect(screen.getAllByText('Unknown banker').length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.queryByText(/banker-guid-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/),
+    ).toBeNull();
+  });
+
+  it('keeps "Unassigned" when no banker FK is set (distinct from "Unknown banker")', () => {
+    setAllReady({
+      deals: [
+        deal({
+          id: 'd-unassigned',
+          name: 'UnassignedDeal',
+          assignedBankerId: undefined,
+          assignedBankerName: undefined,
+          targetCloseDate: isoDaysAgo(15),
+        }),
+      ],
+    });
+    renderCockpit();
+    expect(screen.getAllByText('Unassigned').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders honest absence ("Stage not set", "Status not set") when the source deal has no value', () => {
+    setAllReady({
+      deals: [
+        deal({
+          id: 'd-no-meta',
+          name: 'NoMetaDeal',
+          stage: undefined,
+          status: undefined,
+          targetCloseDate: isoDaysAgo(15),
+        }),
+      ],
+    });
+    renderCockpit();
+    const board = screen.getByLabelText('Execution board');
+    // One deal with missing stage/status will appear on multiple
+    // lanes (missing-data + blocked-at-risk) — each row renders the
+    // honest absence label, so getAllByText returns ≥ 1.
+    expect(within(board).getAllByText('Stage not set').length).toBeGreaterThanOrEqual(1);
+    expect(within(board).getAllByText('Status not set').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders both the item-kind chip and the severity indicator on each execution row', () => {
+    setAllReady({
+      deals: [
+        deal({
+          id: 'd-blocked',
+          name: 'BlockedDeal',
+          targetCloseDate: isoDaysAgo(15),
+        }),
+      ],
+    });
+    renderCockpit();
+    const board = screen.getByLabelText('Execution board');
+    // Item-kind chip carries data-team-execution-kind; severity dot
+    // carries data-team-execution-severity. Both must appear at least
+    // once.
+    expect(
+      board.querySelector('[data-team-execution-kind]'),
+    ).not.toBeNull();
+    expect(
+      board.querySelector('[data-team-execution-severity]'),
+    ).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Static-source discipline
 // ---------------------------------------------------------------------------
 

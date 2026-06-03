@@ -419,6 +419,107 @@ describe('Phase 127A — execution board sort', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 127C — banker label hydration + stage/status on WorkItem
+// ---------------------------------------------------------------------------
+
+describe('Phase 127C — banker label hydration is honest (no GUID leak)', () => {
+  it('falls back to "Unknown banker" when assignedBankerId is present but the name did not hydrate', () => {
+    const s = snapshot({
+      deals: [
+        deal({
+          id: 'd-bare-fk',
+          assignedBankerId: 'banker-guid-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          assignedBankerName: undefined,
+        }),
+      ],
+    });
+    expect(s.bankerWorkload).toHaveLength(1);
+    expect(s.bankerWorkload[0].bankerName).toBe('Unknown banker');
+    // The raw GUID MUST NOT appear in the rendered banker name.
+    expect(s.bankerWorkload[0].bankerName).not.toContain('banker-guid');
+  });
+
+  it('keeps "Unassigned" when no banker FK is set (honest absence, not "Unknown banker")', () => {
+    const s = snapshot({
+      deals: [
+        deal({
+          id: 'd-unassigned',
+          assignedBankerId: undefined,
+          assignedBankerName: undefined,
+        }),
+      ],
+    });
+    expect(s.bankerWorkload).toHaveLength(1);
+    expect(s.bankerWorkload[0].bankerName).toBe('Unassigned');
+  });
+
+  it('uses the hydrated banker name when both id and name are present', () => {
+    const s = snapshot({
+      deals: [
+        deal({
+          assignedBankerId: 'banker-x',
+          assignedBankerName: 'Banker X Real Name',
+        }),
+      ],
+    });
+    expect(s.bankerWorkload[0].bankerName).toBe('Banker X Real Name');
+  });
+});
+
+describe('Phase 127C — WorkItem carries stage + status from the source deal', () => {
+  it('blocked / at-risk lane items expose stage + status when present on the deal', () => {
+    const s = snapshot({
+      deals: [
+        deal({
+          id: 'd-blocked',
+          stage: 'Underwriting',
+          status: 'Pending review',
+          targetCloseDate: isoDaysAgo(15),
+        }),
+      ],
+    });
+    expect(s.lanes.blockedAtRisk.length).toBeGreaterThan(0);
+    const item = s.lanes.blockedAtRisk[0];
+    expect(item.stage).toBe('Underwriting');
+    expect(item.status).toBe('Pending review');
+  });
+
+  it('overdue-task lane items expose the parent deal stage + status', () => {
+    const s = snapshot({
+      deals: [
+        deal({
+          id: 'd-ovr',
+          stage: 'Sourcing',
+          status: 'Active',
+        }),
+      ],
+      tasks: [
+        task({ id: 't-ovr', dealId: 'd-ovr', dueDate: isoDaysAgo(2) }),
+      ],
+    });
+    const item = s.lanes.overdueTasks[0];
+    expect(item.stage).toBe('Sourcing');
+    expect(item.status).toBe('Active');
+  });
+
+  it('stage / status remain undefined when the source deal row has no value (honest absence)', () => {
+    const s = snapshot({
+      deals: [
+        deal({
+          id: 'd-no-stage-status',
+          stage: undefined,
+          status: undefined,
+          targetCloseDate: isoDaysAgo(15),
+        }),
+      ],
+    });
+    const item = s.lanes.blockedAtRisk[0];
+    expect(item.stage).toBeUndefined();
+    expect(item.status).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Static-source discipline
 // ---------------------------------------------------------------------------
 

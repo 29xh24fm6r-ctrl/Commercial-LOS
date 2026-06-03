@@ -18,6 +18,7 @@ import {
 } from '../bootstrap/workspaceEntitlements';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
+import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function TeamWorkspace() {
@@ -50,56 +51,72 @@ function TeamWorkspaceContent() {
     includePortfolioSurface: managerEntitled,
   });
   const showInlineSwitcher = workspaceLinks.length >= 2;
+
+  // Phase 127C — wrap the team body in the same Lending OS shell the
+  // banker / manager / portfolio surfaces use, so the dark left
+  // sidebar (brand block, sidebar workspace switcher, My Pipeline /
+  // Work Queue / Relationships / Resources nav) renders consistently
+  // across role surfaces. `onNavSelect` is intentionally undefined —
+  // the Lending OS nav items are banker-coded and remain
+  // non-interactive on the team surface for now.
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <div style={styles.titleBlock}>
-          <div style={styles.eyebrow}>Commercial Lending</div>
-          <h1 style={styles.title}>Team Command Center</h1>
-          <p style={styles.subtitle}>
-            Shared pipeline, bottlenecks, document needs, and task load across the team.
-          </p>
-        </div>
-        <div style={styles.context} aria-label="Team context">
-          {showInlineSwitcher && (
-            <WorkspaceSwitcher
-              links={workspaceLinks}
-              tone="light"
-              aria-label="Team workspace switcher"
-            />
-          )}
-          <div style={styles.contextRow}>
-            <div style={styles.contextLabel}>Team</div>
-            <div style={styles.contextValue}>{teamName}</div>
+    <LendingOSLayout
+      activeNav="dashboard"
+      fullName={fullName}
+      email={email}
+      workspaceName="Team Workspace"
+      workspaceLinks={workspaceLinks}
+    >
+      <div style={styles.page}>
+        <header style={styles.header}>
+          <div style={styles.titleBlock}>
+            <div style={styles.eyebrow}>Commercial Lending</div>
+            <h1 style={styles.title}>Team Command Center</h1>
+            <p style={styles.subtitle}>
+              Shared pipeline, bottlenecks, document needs, and task load across the team.
+            </p>
           </div>
-          <div style={styles.contextRow}>
-            <div style={styles.contextLabel}>Signed in</div>
-            <div style={styles.contextValue}>{fullName}</div>
+          <div style={styles.context} aria-label="Team context">
+            {showInlineSwitcher && (
+              <WorkspaceSwitcher
+                links={workspaceLinks}
+                tone="light"
+                aria-label="Team workspace switcher"
+              />
+            )}
+            <div style={styles.contextRow}>
+              <div style={styles.contextLabel}>Team</div>
+              <div style={styles.contextValue}>{teamName}</div>
+            </div>
+            <div style={styles.contextRow}>
+              <div style={styles.contextLabel}>Signed in</div>
+              <div style={styles.contextValue}>{fullName}</div>
+            </div>
+            <div style={styles.contextEmail}>{email}</div>
           </div>
-          <div style={styles.contextEmail}>{email}</div>
-        </div>
-      </header>
-      <main style={styles.main}>
-        {/* Phase 127A — Team Ops Queue mounts as the FIRST cockpit
-            at the top of the team workspace: 10-tile command ribbon
-            + 8 lanes + banker workload matrix + execution board +
-            analytics row. Existing cards below render unchanged. */}
-        <TeamOpsQueue />
-        <SharedWorkQueue />
-        <TeamAutopilotRollup />
-        <TeamPipelineSummary />
-        <div style={styles.twoCol}>
-          <BottlenecksAgingByStage />
-          <SharedClosingCalendar />
-        </div>
-        <div style={styles.twoCol}>
-          <TeamDocumentNeeds />
-          <TeamTaskLoad />
-        </div>
-        <SharedActiveDeals />
-        <TeamBankerActivityBreakdown />
-      </main>
-    </div>
+        </header>
+        <main style={styles.main}>
+          {/* Phase 127A — Team Ops Queue mounts as the FIRST cockpit
+              at the top of the team workspace: 10-tile command ribbon
+              + 8 lanes + banker workload matrix + execution board +
+              analytics row. Existing cards below render unchanged. */}
+          <TeamOpsQueue />
+          <SharedWorkQueue />
+          <TeamAutopilotRollup />
+          <TeamPipelineSummary />
+          <div style={styles.twoCol}>
+            <BottlenecksAgingByStage />
+            <SharedClosingCalendar />
+          </div>
+          <div style={styles.twoCol}>
+            <TeamDocumentNeeds />
+            <TeamTaskLoad />
+          </div>
+          <SharedActiveDeals />
+          <TeamBankerActivityBreakdown />
+        </main>
+      </div>
+    </LendingOSLayout>
   );
 }
 

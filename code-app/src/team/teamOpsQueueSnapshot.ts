@@ -104,6 +104,11 @@ export interface WorkItem {
   ownerId: string | undefined;
   /** Client display when available. */
   clientName: string | undefined;
+  /** Phase 127C — stage/status display labels surfaced on execution
+   *  board rows. Honest absence: undefined when the underlying deal
+   *  field is truly empty. Never falls back to GUIDs or fake values. */
+  stage: string | undefined;
+  status: string | undefined;
   /** ISO due-date (tasks / docs) or relevant timestamp (deal). */
   dueDate: string | undefined;
   /** Whole-day count: positive = days until due, negative = days
@@ -504,6 +509,8 @@ function buildLanes(
         ownerName: r.teamDeal.assignedBankerName,
         ownerId: r.teamDeal.assignedBankerId,
         clientName: r.teamDeal.clientName,
+        stage: r.teamDeal.stage,
+        status: r.teamDeal.status,
         dueDate: t.dueDate,
         daysUntilDue,
         daysStale: undefined,
@@ -520,6 +527,8 @@ function buildLanes(
         ownerName: r.teamDeal.assignedBankerName,
         ownerId: r.teamDeal.assignedBankerId,
         clientName: r.teamDeal.clientName,
+        stage: r.teamDeal.stage,
+        status: r.teamDeal.status,
         dueDate: t.dueDate,
         daysUntilDue,
         daysStale: undefined,
@@ -560,6 +569,8 @@ function buildLanes(
         ownerName: r.teamDeal.assignedBankerName,
         ownerId: r.teamDeal.assignedBankerId,
         clientName: r.teamDeal.clientName,
+        stage: r.teamDeal.stage,
+        status: r.teamDeal.status,
         dueDate: d.dueDate,
         daysUntilDue,
         daysStale: undefined,
@@ -576,6 +587,8 @@ function buildLanes(
         ownerName: r.teamDeal.assignedBankerName,
         ownerId: r.teamDeal.assignedBankerId,
         clientName: r.teamDeal.clientName,
+        stage: r.teamDeal.stage,
+        status: r.teamDeal.status,
         dueDate: d.dueDate,
         daysUntilDue: d.dueDate
           ? Math.round(
@@ -609,6 +622,8 @@ function buildLanes(
         ownerName: r.teamDeal.assignedBankerName,
         ownerId: r.teamDeal.assignedBankerId,
         clientName: r.teamDeal.clientName,
+        stage: r.teamDeal.stage,
+        status: r.teamDeal.status,
         dueDate: undefined,
         daysUntilDue: undefined,
         daysStale: undefined,
@@ -632,6 +647,8 @@ function buildLanes(
         ownerName: r.teamDeal.assignedBankerName,
         ownerId: r.teamDeal.assignedBankerId,
         clientName: r.teamDeal.clientName,
+        stage: r.teamDeal.stage,
+        status: r.teamDeal.status,
         dueDate: r.teamDeal.modifiedOn,
         daysUntilDue: undefined,
         daysStale: days,
@@ -655,6 +672,8 @@ function buildLanes(
         ownerName: r.teamDeal.assignedBankerName,
         ownerId: r.teamDeal.assignedBankerId,
         clientName: r.teamDeal.clientName,
+        stage: r.teamDeal.stage,
+        status: r.teamDeal.status,
         dueDate: r.teamDeal.targetCloseDate,
         daysUntilDue: r.teamDeal.targetCloseDate
           ? Math.round(
@@ -685,6 +704,8 @@ function buildLanes(
         ownerName: r.teamDeal.assignedBankerName,
         ownerId: r.teamDeal.assignedBankerId,
         clientName: r.teamDeal.clientName,
+        stage: r.teamDeal.stage,
+        status: r.teamDeal.status,
         dueDate: r.teamDeal.targetCloseDate,
         daysUntilDue,
         daysStale: undefined,
@@ -727,9 +748,14 @@ function buildBankerWorkload(
   const UNASSIGNED = '__unassigned__';
   for (const r of vmRows) {
     const id = r.teamDeal.assignedBankerId ?? UNASSIGNED;
+    // Phase 127C — honest banker label. When the deal row carries an
+    // assignedBankerName, use it. When the banker FK is present but
+    // the name didn't hydrate (e.g. team query returned only the
+    // _value/GUID), use 'Unknown banker' rather than leaking the raw
+    // GUID to the UI. When no FK is present at all, use 'Unassigned'.
     const name =
       r.teamDeal.assignedBankerName ??
-      (id === UNASSIGNED ? 'Unassigned' : id);
+      (id === UNASSIGNED ? 'Unassigned' : 'Unknown banker');
     let row = acc.get(id);
     if (!row) {
       row = {

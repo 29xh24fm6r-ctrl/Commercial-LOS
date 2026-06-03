@@ -56,6 +56,8 @@ function workItem(over: Partial<WorkItem>): WorkItem {
     ownerName: undefined,
     ownerId: undefined,
     clientName: undefined,
+    stage: undefined,
+    status: undefined,
     dueDate: undefined,
     daysUntilDue: undefined,
     daysStale: undefined,

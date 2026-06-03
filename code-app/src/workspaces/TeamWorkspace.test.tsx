@@ -157,8 +157,8 @@ describe('Phase 127B — TeamWorkspace mounts TeamOpsQueue as the first cockpit'
 // Workspace switcher rendering — Phase 127B widening
 // ---------------------------------------------------------------------------
 
-describe('Phase 127B — TeamWorkspace switcher visibility', () => {
-  it('renders the inline workspace switcher for a manager-entitled banker (banker bootstrap)', async () => {
+describe('Phase 127B / 127C — TeamWorkspace switcher visibility', () => {
+  it('renders the inline workspace switcher AND the dark sidebar switcher for a manager-entitled banker', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.banker }));
     loadManagerIdentityMock.mockResolvedValue({
       kind: 'ready',
@@ -171,20 +171,28 @@ describe('Phase 127B — TeamWorkspace switcher visibility', () => {
       },
     });
     renderTeamWorkspace();
-    const switcher = await screen.findByRole('navigation', {
-      name: /Team workspace switcher/i,
-    });
-    // Banker bootstrap + entitled manager + entitled team (current).
-    // Phase 127B widening means the switcher shows the bootstrap
-    // (banker), the entitled manager + portfolio links, and team as
-    // current.
-    expect(switcher).toBeInTheDocument();
-    expect(screen.getByLabelText('Switch to Banker Workspace')).toBeInTheDocument();
-    expect(screen.getByLabelText('Switch to Manager Workspace')).toBeInTheDocument();
-    expect(screen.getByLabelText('Switch to Portfolio Workspace')).toBeInTheDocument();
+    // Phase 127C — both the dark Lending OS sidebar switcher and the
+    // inline team-header switcher render (Manager parity). Each
+    // surface emits its own banker / manager / portfolio link, so
+    // every "Switch to <Workspace>" lookup expects at least one
+    // result.
+    await screen.findAllByRole('navigation', { name: /Workspace switcher/i });
+    expect(
+      screen.getAllByLabelText('Switch to Banker Workspace').length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByLabelText('Switch to Manager Workspace').length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByLabelText('Switch to Portfolio Workspace').length,
+    ).toBeGreaterThanOrEqual(1);
+    // And the inline team switcher is uniquely findable by its aria-label.
+    expect(
+      screen.getByRole('navigation', { name: /Team workspace switcher/i }),
+    ).toBeInTheDocument();
   });
 
-  it('marks the Team Workspace entry as aria-current on the team route', async () => {
+  it('marks the Team Workspace entry as aria-current on the team route (both switchers)', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.banker }));
     loadManagerIdentityMock.mockResolvedValue({
       kind: 'ready',
@@ -199,24 +207,31 @@ describe('Phase 127B — TeamWorkspace switcher visibility', () => {
     renderTeamWorkspace();
     await screen.findByRole('navigation', { name: /Team workspace switcher/i });
     // The current "Team Workspace" entry is rendered as <span aria-current>,
-    // not a link. So getByText finds it but queryByLabelText('Switch to
-    // Team Workspace') returns null.
-    const current = screen.getByText('Team Workspace');
-    expect(current.tagName).toBe('SPAN');
-    expect(current.getAttribute('aria-current')).toBe('page');
+    // not a link. Both the dark sidebar switcher AND the inline switcher
+    // render the same current marker, so getAllByText expects both.
+    const currents = screen.getAllByText('Team Workspace');
+    expect(currents.length).toBeGreaterThanOrEqual(1);
+    for (const c of currents) {
+      expect(c.tagName).toBe('SPAN');
+      expect(c.getAttribute('aria-current')).toBe('page');
+    }
     expect(screen.queryByLabelText('Switch to Team Workspace')).toBeNull();
   });
 
   it('hides the inline switcher when the user has no additional entitlements (team-bootstrap, no manager probe)', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.team }));
     // Probe returns not-entitled — only the bootstrap (team) is in the
-    // allowed set. The switcher gate (links.length >= 2) hides itself
-    // honestly rather than rendering a single-item nav.
+    // allowed set. Both switcher gates (links.length >= 2) hide
+    // themselves; the Lending OS sidebar falls back to the static
+    // CurrentWorkspacePill instead.
     loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
     renderTeamWorkspace();
     expect(await screen.findByTestId('team-ops-queue')).toBeInTheDocument();
     expect(
       screen.queryByRole('navigation', { name: /Team workspace switcher/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('navigation', { name: /^Workspace switcher$/i }),
     ).toBeNull();
   });
 
@@ -226,13 +241,14 @@ describe('Phase 127B — TeamWorkspace switcher visibility', () => {
     renderTeamWorkspace();
     expect(await screen.findByTestId('team-ops-queue')).toBeInTheDocument();
     // Banker-only user (or team-bootstrap with no manager probe) →
-    // no portfolio link, no banker-only widening.
+    // no portfolio link in either switcher, no banker-only widening.
     expect(screen.queryByLabelText('Switch to Portfolio Workspace')).toBeNull();
   });
 
   it('Team Workspace link in the switcher points to /workspaces/team (existing route — no new path invented)', async () => {
     // From a manager-bootstrap user's perspective the team link is a
-    // navigation link, not the current entry. Verify the href.
+    // navigation link, not the current entry. Verify the href on
+    // whichever switcher emits it.
     useBootstrapMock.mockReturnValue(
       bootstrap({ route: WORKSPACE_ROUTES.manager, workspaceName: 'Manager Command Center' }),
     );
@@ -248,22 +264,45 @@ describe('Phase 127B — TeamWorkspace switcher visibility', () => {
     });
     renderTeamWorkspace();
     await screen.findByRole('navigation', { name: /Team workspace switcher/i });
-    // We're rendering the TeamWorkspace itself; manager-bootstrap +
-    // entitled manager means the manager link appears as a sibling
-    // of the team (current) entry. The Switch to Manager Workspace
-    // link must point at the existing manager route, NOT some new
-    // path.
-    const managerLink = screen.getByLabelText('Switch to Manager Workspace');
-    expect(managerLink.getAttribute('href')).toBe(WORKSPACE_ROUTES.manager);
+    const managerLinks = screen.getAllByLabelText('Switch to Manager Workspace');
+    expect(managerLinks.length).toBeGreaterThanOrEqual(1);
+    for (const link of managerLinks) {
+      expect(link.getAttribute('href')).toBe(WORKSPACE_ROUTES.manager);
+    }
   });
 });
 
 // ---------------------------------------------------------------------------
-// Read-only discipline (static-source pin)
+// Phase 127C — Lending OS shell parity
 // ---------------------------------------------------------------------------
 
-describe('Phase 127B — TeamWorkspace stays read-only and uses the existing team route', () => {
-  it('renders no <button> or <form> in the team workspace shell', async () => {
+describe('Phase 127C — TeamWorkspace renders the Lending OS shell', () => {
+  it('mounts the Lending OS dark sidebar (same shell as Banker/Manager/Portfolio)', async () => {
+    useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.team }));
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    renderTeamWorkspace();
+    expect(await screen.findByTestId('team-ops-queue')).toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', { name: /Lending OS navigation/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Lending OS/i)).toBeInTheDocument();
+    expect(screen.getByText(/Old Glory Bank/i)).toBeInTheDocument();
+  });
+
+  it('passes workspaceName="Team Workspace" so the sidebar shows the team workspace pill / switcher entry', async () => {
+    useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.team }));
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    renderTeamWorkspace();
+    await screen.findByTestId('team-ops-queue');
+    // Phase 127C — single-link team-bootstrap user → sidebar falls
+    // back to the static CurrentWorkspacePill ('Banker Workspace' is
+    // the brand label; the dynamic name is the workspaceName prop).
+    // We assert the dynamic name ('Team Workspace') is present in the
+    // sidebar.
+    expect(screen.getByText('Team Workspace')).toBeInTheDocument();
+  });
+
+  it('renders the sidebar workspace switcher when the user has additional entitlements (manager-entitled banker)', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.banker }));
     loadManagerIdentityMock.mockResolvedValue({
       kind: 'ready',
@@ -275,9 +314,47 @@ describe('Phase 127B — TeamWorkspace stays read-only and uses the existing tea
         teamName: 'Capital Markets',
       },
     });
-    const { container } = renderTeamWorkspace();
-    await screen.findByTestId('team-ops-queue');
-    expect(container.querySelector('button')).toBeNull();
-    expect(container.querySelector('form')).toBeNull();
+    renderTeamWorkspace();
+    await screen.findByRole('navigation', { name: /Team workspace switcher/i });
+    const switchers = screen.getAllByRole('navigation', {
+      name: /Workspace switcher/i,
+    });
+    expect(switchers.some((n) => n.getAttribute('data-workspace-switcher') === 'dark')).toBe(
+      true,
+    );
+    expect(switchers.some((n) => n.getAttribute('data-workspace-switcher') === 'light')).toBe(
+      true,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Read-only discipline — scoped to the team body (the Lending OS sidebar
+// uses <button disabled> placeholders by design — same posture as Banker /
+// Manager workspaces).
+// ---------------------------------------------------------------------------
+
+describe('Phase 127C — TeamWorkspace body stays read-only', () => {
+  it('renders no <button> or <form> inside the team workspace body (lanes / queue / cards)', async () => {
+    useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.banker }));
+    loadManagerIdentityMock.mockResolvedValue({
+      kind: 'ready',
+      identity: {
+        bankerId: 'b-1',
+        fullName: 'Matthew Paller',
+        email: 'banker@oldglorybank.com',
+        teamId: 'team-1',
+        teamName: 'Capital Markets',
+      },
+    });
+    renderTeamWorkspace();
+    const ops = await screen.findByTestId('team-ops-queue');
+    // The Lending OS sidebar carries placeholder <button disabled>
+    // elements by design (parity with Banker/Manager/Portfolio). The
+    // team body itself must stay free of buttons and forms.
+    const main = ops.closest('main');
+    expect(main).not.toBeNull();
+    expect(main!.querySelector('button')).toBeNull();
+    expect(main!.querySelector('form')).toBeNull();
   });
 });
