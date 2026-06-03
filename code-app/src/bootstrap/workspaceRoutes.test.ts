@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { WORKSPACE_ROUTES, resolveWorkspaceRoute } from './workspaceRoutes';
+import {
+  WORKSPACE_ROUTES,
+  resolveWorkspaceRoute,
+  isPortfolioWorkspaceName,
+} from './workspaceRoutes';
 
 /**
  * Phase 116 — first-live-launch stabilization tests for the
@@ -202,5 +206,49 @@ describe('Phase 116 — WORKSPACE_ROUTES contract', () => {
     for (const route of Object.values(WORKSPACE_ROUTES)) {
       expect(route).toMatch(/^\/workspaces\//);
     }
+  });
+});
+
+describe('Phase 126B — isPortfolioWorkspaceName predicate', () => {
+  it('returns true for the canonical "Portfolio Management" name', () => {
+    expect(isPortfolioWorkspaceName('Portfolio Management')).toBe(true);
+  });
+
+  it('is case-insensitive and trims whitespace', () => {
+    expect(isPortfolioWorkspaceName('  portfolio management  ')).toBe(true);
+    expect(isPortfolioWorkspaceName('PORTFOLIO MANAGEMENT')).toBe(true);
+    expect(isPortfolioWorkspaceName('Portfolio management')).toBe(true);
+  });
+
+  it('returns false for manager / banker / team / executive / admin canonical names', () => {
+    expect(isPortfolioWorkspaceName('Manager Command Center')).toBe(false);
+    expect(isPortfolioWorkspaceName('Banker Workspace')).toBe(false);
+    expect(isPortfolioWorkspaceName('Team Workspace')).toBe(false);
+    expect(isPortfolioWorkspaceName('Executive Dashboard')).toBe(false);
+    expect(isPortfolioWorkspaceName('Admin Control Center')).toBe(false);
+  });
+
+  it('returns false for undefined / empty / whitespace input (honest absence)', () => {
+    expect(isPortfolioWorkspaceName(undefined)).toBe(false);
+    expect(isPortfolioWorkspaceName('')).toBe(false);
+    expect(isPortfolioWorkspaceName('   ')).toBe(false);
+  });
+
+  it('returns false for unrelated names (no substring matching)', () => {
+    // The predicate is name-exact (case/whitespace tolerant), not
+    // substring. A name like "Portfolio Manager Office" should NOT
+    // match — only the canonical alias does.
+    expect(isPortfolioWorkspaceName('manage portfolio')).toBe(false);
+    expect(isPortfolioWorkspaceName('Portfolio Manager Office')).toBe(false);
+    expect(isPortfolioWorkspaceName('My Portfolio')).toBe(false);
+  });
+
+  it('does NOT change the route the same name resolves to (Phase 116 alias preserved)', () => {
+    // Phase 126B is route-preserving: 'Portfolio Management' still
+    // routes to the manager route. The predicate only governs which
+    // cockpit ManagerWorkspace mounts inside that route.
+    expect(resolveWorkspaceRoute('Portfolio Management')).toBe(
+      WORKSPACE_ROUTES.manager,
+    );
   });
 });

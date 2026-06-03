@@ -80,6 +80,11 @@ vi.mock('../manager/ManagerBloombergControlPanel', () => ({
     <div data-testid="manager-bloomberg-control-panel">Bloomberg Control Panel</div>
   ),
 }));
+vi.mock('../portfolio/PortfolioCommandCenter', () => ({
+  PortfolioCommandCenter: () => (
+    <div data-testid="portfolio-command-center">Portfolio Command Center</div>
+  ),
+}));
 vi.mock('../manager/TeamPipelineSummary', () => ({ TeamPipelineSummary: () => null }));
 vi.mock('../manager/TeamWorkQueue', () => ({ TeamWorkQueue: () => null }));
 vi.mock('../manager/ManagerAutopilotRollup', () => ({
@@ -241,5 +246,108 @@ describe('Phase 124E — Manager Workspace static-source discipline', () => {
   it('does NOT pass onNavSelect (sidebar nav stays non-interactive on the manager surface)', () => {
     // Verify the LendingOSLayout element has no onNavSelect prop.
     expect(SRC).not.toMatch(/<LendingOSLayout[\s\S]*?onNavSelect=/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 126B — Portfolio route conditional mount
+// ---------------------------------------------------------------------------
+
+describe('Phase 126B — manager-name workspaces still render the Bloomberg Control Panel', () => {
+  it('renders ManagerBloombergControlPanel when bootstrap workspaceName is "Manager Command Center"', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Manager Command Center' }),
+    );
+    renderManagerWorkspace();
+    expect(
+      screen.getByTestId('manager-bloomberg-control-panel'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('portfolio-command-center'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /Manager Command Center/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the Manager cockpit even when the bootstrap-primary is some other workspace (still no portfolio match)', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Banker Workspace' }),
+    );
+    renderManagerWorkspace();
+    expect(
+      screen.getByTestId('manager-bloomberg-control-panel'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('portfolio-command-center'),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('Phase 126B — portfolio-name workspaces swap the cockpit to PortfolioCommandCenter', () => {
+  it('mounts PortfolioCommandCenter when bootstrap workspaceName is "Portfolio Management"', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Portfolio Management' }),
+    );
+    renderManagerWorkspace();
+    expect(
+      screen.getByTestId('portfolio-command-center'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('manager-bloomberg-control-panel'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('updates the header copy to "Portfolio Command Center" in portfolio mode', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Portfolio Management' }),
+    );
+    renderManagerWorkspace();
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /Portfolio Command Center/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', {
+        level: 1,
+        name: /Manager Command Center/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Live authorized portfolio exposure/i),
+    ).toBeInTheDocument();
+  });
+
+  it('is case-insensitive on the bootstrap workspaceName (still swaps to portfolio cockpit)', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: '  PORTFOLIO MANAGEMENT  ' }),
+    );
+    renderManagerWorkspace();
+    expect(
+      screen.getByTestId('portfolio-command-center'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('manager-bloomberg-control-panel'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('still mounts ManagerDataProvider and the LendingOS shell (permission-before-render preserved)', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Portfolio Management' }),
+    );
+    renderManagerWorkspace();
+    expect(
+      screen.getByRole('navigation', { name: /Lending OS navigation/i }),
+    ).toBeInTheDocument();
+    // The existing nine manager cards continue to render below the
+    // portfolio cockpit (their data scope is identical) — we don't
+    // assert any specific card here since they're mocked to null,
+    // but we DO assert the cockpit replacement is the only visible
+    // swap.
+    expect(
+      screen.getByTestId('portfolio-command-center'),
+    ).toBeInTheDocument();
   });
 });

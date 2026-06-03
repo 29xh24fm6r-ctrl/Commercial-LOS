@@ -21,9 +21,13 @@ import {
   deriveWorkspaceLinks,
   useEntitledRoutes,
 } from '../bootstrap/workspaceEntitlements';
-import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
+import {
+  WORKSPACE_ROUTES,
+  isPortfolioWorkspaceName,
+} from '../bootstrap/workspaceRoutes';
 import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
+import { PortfolioCommandCenter } from '../portfolio/PortfolioCommandCenter';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function ManagerWorkspace() {
@@ -48,39 +52,56 @@ function ManagerWorkspaceContent() {
     entitledRoutes: entitled.routes,
   });
   const showInlineSwitcher = workspaceLinks.length >= 2;
+  // Phase 126B — when the bootstrap-resolved workspace name matches
+  // a Portfolio alias (Phase 116 maps 'Portfolio Management' → the
+  // manager route), swap the primary cockpit to the
+  // PortfolioCommandCenter so the same authorized team-scoped data
+  // renders through an exposure / mix / concentration lens.
+  // ManagerDataProvider, LendingOSLayout shell, workspace switcher,
+  // and the existing nine manager cards all stay mounted — only
+  // the lead cockpit + header copy + sidebar pill label swap.
+  const isPortfolio = isPortfolioWorkspaceName(bootstrap.workspaceName);
+  const shellWorkspaceName = isPortfolio
+    ? 'Portfolio Workspace'
+    : 'Manager Workspace';
+  const headerTitle = isPortfolio
+    ? 'Portfolio Command Center'
+    : 'Manager Command Center';
+  const headerSubtitle = isPortfolio
+    ? 'Live authorized portfolio exposure, mix, and risk roll-up.'
+    : 'Team pipeline health, banker production, and risk roll-up.';
+  const headerContextAria = isPortfolio ? 'Portfolio context' : 'Manager context';
+  const switcherAria = isPortfolio
+    ? 'Portfolio workspace switcher'
+    : 'Manager workspace switcher';
+
   // Phase 124E — wrap the manager body in the same LendingOSLayout
   // shell the banker workspace uses so the dark left toolbar +
   // workspace switcher render consistently across role surfaces.
-  // The shell's WorkspaceSwitcher handles cross-workspace
-  // navigation when the user is multi-entitled; we keep the inline
-  // header switcher in the manager identity block as a redundant
-  // affordance for visibility in tests / on narrower viewports.
-  // `onNavSelect` is intentionally undefined — the dark sidebar nav
-  // items (Dashboard, Active Deals, etc.) are banker-coded and
-  // remain non-interactive on the manager surface for now.
+  // `onNavSelect` is intentionally undefined — the Lending OS
+  // sidebar nav items are banker-coded and remain non-interactive
+  // on the manager + portfolio surfaces for now.
   return (
     <LendingOSLayout
       activeNav="dashboard"
       fullName={fullName}
       email={email}
-      workspaceName="Manager Workspace"
+      workspaceName={shellWorkspaceName}
       workspaceLinks={workspaceLinks}
     >
       <div style={styles.page}>
         <header style={styles.header}>
           <div style={styles.titleBlock}>
             <div style={styles.eyebrow}>Commercial Lending</div>
-            <h1 style={styles.title}>Manager Command Center</h1>
-            <p style={styles.subtitle}>
-              Team pipeline health, banker production, and risk roll-up.
-            </p>
+            <h1 style={styles.title}>{headerTitle}</h1>
+            <p style={styles.subtitle}>{headerSubtitle}</p>
           </div>
-          <div style={styles.context} aria-label="Manager context">
+          <div style={styles.context} aria-label={headerContextAria}>
             {showInlineSwitcher && (
               <WorkspaceSwitcher
                 links={workspaceLinks}
                 tone="light"
-                aria-label="Manager workspace switcher"
+                aria-label={switcherAria}
               />
             )}
             <div style={styles.contextRow}>
@@ -95,11 +116,13 @@ function ManagerWorkspaceContent() {
           </div>
         </header>
         <main style={styles.main}>
-          {/* Phase 124A/B/E — Manager Bloomberg Control Panel +
-              dense dashboard mounts as the FIRST cockpit at the top
-              of the manager workspace. Existing cards below render
-              unchanged. */}
-          <ManagerBloombergControlPanel />
+          {/* Phase 124A/B/E + 126B — Lead cockpit: Manager Bloomberg
+              Control Panel for manager-name workspaces, Portfolio
+              Command Center for portfolio-name workspaces. The
+              existing nine manager cards below render unchanged in
+              both modes (their data scope is the same authorized
+              team pipeline). */}
+          {isPortfolio ? <PortfolioCommandCenter /> : <ManagerBloombergControlPanel />}
           <TeamWorkQueue />
           <ManagerBankerFilterControl />
           <ManagerMorningCatchUp />

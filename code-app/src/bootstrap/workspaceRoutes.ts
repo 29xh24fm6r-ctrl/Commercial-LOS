@@ -64,6 +64,41 @@ const MATCHERS: ReadonlyArray<readonly [WorkspaceKey, RegExp]> = [
   ['admin', /\badmin\b/i],
 ];
 
+/**
+ * Phase 126B — set of canonical workspace names that mean "portfolio
+ * view" inside the manager route. Today only the Phase 116 alias
+ * 'Portfolio Management' lives here; future portfolio aliases can
+ * be added without changing the predicate's call sites.
+ *
+ * Stored lowercased so the predicate is a single case-insensitive
+ * lookup; trim happens at the call site.
+ */
+const PORTFOLIO_WORKSPACE_NAMES_LOWER: ReadonlySet<string> = new Set([
+  'portfolio management',
+]);
+
+/**
+ * Phase 126B — predicate that returns true when a bootstrap-resolved
+ * workspace name represents a Portfolio view. Used by ManagerWorkspace
+ * to swap in <PortfolioCommandCenter> in place of
+ * <ManagerBloombergControlPanel> while keeping the manager route,
+ * the manager data provider, and the Lending OS shell unchanged.
+ *
+ * Honest behavior: undefined / empty input returns false. A workspace
+ * name like 'Manager Command Center' returns false even though it
+ * resolves to the same manager route as 'Portfolio Management'. The
+ * predicate is name-scoped, not route-scoped, exactly so the two
+ * surfaces can co-exist behind one route.
+ */
+export function isPortfolioWorkspaceName(
+  workspaceName: string | undefined,
+): boolean {
+  if (!workspaceName) return false;
+  const trimmed = workspaceName.trim();
+  if (trimmed.length === 0) return false;
+  return PORTFOLIO_WORKSPACE_NAMES_LOWER.has(trimmed.toLowerCase());
+}
+
 export function resolveWorkspaceRoute(
   workspaceName: string | undefined,
 ): string | null {
