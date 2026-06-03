@@ -336,12 +336,16 @@ function teamDealToDealDetail(td: TeamDealRow): DealDetail {
     amount: td.amount,
     bankerName: td.assignedBankerName,
     targetCloseDate: td.targetCloseDate,
-    productType: undefined,
-    loanStructure: undefined,
+    // Phase 128B — forward the now-hydrated product / structure /
+    // pricing labels (the team pipeline row carries them at parity
+    // with the manager TeamDeal). Honest `undefined` when the deal
+    // has not pointed at a reference row.
+    productType: td.productType,
+    loanStructure: td.loanStructure,
     customerType: undefined,
     industry: undefined,
     guarantorStructure: undefined,
-    pricingType: undefined,
+    pricingType: td.pricingType,
     spreadIndex: undefined,
     spreadMargin: undefined,
     collateralSummary: td.collateralSummary,
@@ -397,11 +401,17 @@ function teamDocsToDealDocumentsResult(
 }
 
 function filterOutLoaderGapSignals(blockers: BlockersResult): BlockersResult {
-  // The team-pipeline query does NOT fetch productType, so
-  // deriveBlockers's `missing-required` signal would always fire
-  // and pollute the queue. Strip it before passing to the VM —
-  // the team's manager-style missing-field catalog (below) is
-  // the honest signal for that concept.
+  // The team surface owns the "missing required deal fields" concept
+  // through its own honest missing-data lane (teamMissingFieldLabels
+  // below), which classifies Client / amount / target-close / stage /
+  // status / banker absence directly off the team pipeline row. Strip
+  // deriveBlockers's generic `missing-required` signal so the same
+  // concept is not double-surfaced on the blocked/at-risk lane.
+  //
+  // Phase 128B note: the team pipeline now hydrates productType (at
+  // parity with the manager TeamDeal), so this is no longer a
+  // loader-gap workaround — it is deliberate de-duplication against
+  // the dedicated missing-data lane.
   const signals = blockers.signals.filter((s) => s.id !== 'missing-required');
   const status = signals.some((s) => s.severity === 'blocked')
     ? 'blocked'

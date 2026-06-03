@@ -520,6 +520,90 @@ describe('Phase 127C — WorkItem carries stage + status from the source deal', 
 });
 
 // ---------------------------------------------------------------------------
+// Phase 128B — Team Ops Queue data-hydration parity
+// ---------------------------------------------------------------------------
+
+describe('Phase 128B — work items hydrate labels from the matching TeamDeal row', () => {
+  const HYDRATED = {
+    clientName: 'TEST Client',
+    stage: 'TEST · Stage Phase 121',
+    status: 'TEST — Status Phase 121',
+    assignedBankerId: 'banker-mp',
+    assignedBankerName: 'Matthew Paller',
+  } as const;
+
+  it('task-derived work item hydrates client / stage / status / banker from the matching TeamDeal', () => {
+    const s = snapshot({
+      deals: [deal({ id: 'd-hyd', ...HYDRATED })],
+      tasks: [task({ id: 't-ovr', dealId: 'd-hyd', dueDate: isoDaysAgo(2) })],
+    });
+    const item = s.lanes.overdueTasks[0];
+    expect(item.clientName).toBe('TEST Client');
+    expect(item.stage).toBe('TEST · Stage Phase 121');
+    expect(item.status).toBe('TEST — Status Phase 121');
+    expect(item.ownerName).toBe('Matthew Paller');
+  });
+
+  it('document-derived work item hydrates client / stage / status / banker from the matching TeamDeal', () => {
+    const s = snapshot({
+      deals: [deal({ id: 'd-hyd', ...HYDRATED })],
+      documents: [
+        doc({ id: 'doc-out', dealId: 'd-hyd', status: 'outstanding' }),
+      ],
+    });
+    const item = s.lanes.outstandingDocuments[0];
+    expect(item.clientName).toBe('TEST Client');
+    expect(item.stage).toBe('TEST · Stage Phase 121');
+    expect(item.status).toBe('TEST — Status Phase 121');
+    expect(item.ownerName).toBe('Matthew Paller');
+  });
+
+  it('does NOT flag the missing-data lane when the hydrated deal row carries every required field', () => {
+    const s = snapshot({
+      deals: [
+        deal({
+          id: 'd-hyd',
+          ...HYDRATED,
+          amount: 1_000_000,
+          targetCloseDate: isoDaysFromNow(45),
+        }),
+      ],
+    });
+    expect(s.lanes.missingData).toHaveLength(0);
+  });
+
+  it('banker workload uses the human assignedBankerName (no GUID, no "Unknown banker") when present', () => {
+    const s = snapshot({
+      deals: [deal({ id: 'd-hyd', ...HYDRATED })],
+    });
+    expect(s.bankerWorkload).toHaveLength(1);
+    expect(s.bankerWorkload[0].bankerName).toBe('Matthew Paller');
+    expect(s.bankerWorkload[0].bankerName).not.toMatch(/Unknown banker/);
+  });
+
+  it('surfaces "Unknown banker" only when a banker FK exists but no human display name does', () => {
+    const s = snapshot({
+      deals: [
+        deal({
+          id: 'd-fk-only',
+          assignedBankerId: 'banker-guid',
+          assignedBankerName: undefined,
+        }),
+        deal({
+          id: 'd-named',
+          assignedBankerId: 'banker-mp',
+          assignedBankerName: 'Matthew Paller',
+        }),
+      ],
+    });
+    const unknown = s.bankerWorkload.find((b) => b.bankerId === 'banker-guid');
+    const named = s.bankerWorkload.find((b) => b.bankerId === 'banker-mp');
+    expect(unknown?.bankerName).toBe('Unknown banker');
+    expect(named?.bankerName).toBe('Matthew Paller');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Static-source discipline
 // ---------------------------------------------------------------------------
 
