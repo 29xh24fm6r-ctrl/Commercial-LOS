@@ -1,6 +1,7 @@
 import { TeamProvider } from '../team/TeamProvider';
 import { TeamDataProvider } from '../team/TeamDataProvider';
 import { useTeam } from '../team/TeamContext';
+import { TeamOpsQueue } from '../team/TeamOpsQueue';
 import { TeamPipelineSummary } from '../team/TeamPipelineSummary';
 import { SharedWorkQueue } from '../team/SharedWorkQueue';
 import { SharedActiveDeals } from '../team/SharedActiveDeals';
@@ -47,6 +48,11 @@ function TeamWorkspaceContent() {
         </div>
       </header>
       <main style={styles.main}>
+        {/* Phase 127A — Team Ops Queue mounts as the FIRST cockpit
+            at the top of the team workspace: 10-tile command ribbon
+            + 8 lanes + banker workload matrix + execution board +
+            analytics row. Existing cards below render unchanged. */}
+        <TeamOpsQueue />
         <SharedWorkQueue />
         <TeamAutopilotRollup />
         <TeamPipelineSummary />
