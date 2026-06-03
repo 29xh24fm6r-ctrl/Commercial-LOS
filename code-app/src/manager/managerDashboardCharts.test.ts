@@ -50,6 +50,9 @@ function deal(over: Partial<TeamDeal> = {}): TeamDeal {
     assignedBankerId: 'b-default',
     assignedBankerName: 'Default Banker',
     collateralSummary: undefined,
+    productType: undefined,
+    loanStructure: undefined,
+    pricingType: undefined,
     ...over,
   };
 }
@@ -128,6 +131,22 @@ describe('Phase 125A — deriveStageDistribution', () => {
     ]);
     expect(out[0].stage).toBe('Unset');
     expect(out[0].dealCount).toBe(2);
+  });
+
+  it('Phase 125B — uses the hydrated stage display name (no GUID leakage)', () => {
+    const out = deriveStageDistribution([
+      row({
+        teamDeal: deal({
+          id: 'd1',
+          stage: 'TEST · Stage Phase 121',
+          amount: 1_000_000,
+        }),
+      }),
+    ]);
+    // The chart label is the human display name from the loader, not
+    // the lookup id; no GUID-shaped value should appear.
+    expect(out[0].stage).toBe('TEST · Stage Phase 121');
+    expect(out[0].stage).not.toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('treats undefined amounts as 0 (no fake substitution)', () => {

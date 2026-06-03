@@ -60,6 +60,9 @@ function deal(over: Partial<TeamDeal> = {}): TeamDeal {
     assignedBankerId: 'banker-a',
     assignedBankerName: 'Banker A',
     collateralSummary: undefined,
+    productType: undefined,
+    loanStructure: undefined,
+    pricingType: undefined,
     ...over,
   };
 }
@@ -549,6 +552,86 @@ describe('Phase 124A — top deals', () => {
     expect(row.stage).toBeUndefined();
     expect(row.status).toBeUndefined();
     expect(row.bankerName).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 125B — missing-field check honors hydrated TeamDeal fields
+// ---------------------------------------------------------------------------
+
+describe('Phase 125B — manager-scoped missing-fields catalog respects hydrated TeamDeal labels', () => {
+  it('does NOT flag clientName / stage / status / banker as missing when the loader hydrated them via formatted values', () => {
+    const s = snapshot({
+      teamPipeline: [
+        deal({
+          id: 'd-hydrated',
+          // All four manager-catalog string fields populated.
+          clientName: 'Borrower Inc.',
+          stage: 'Underwriting',
+          status: 'Active',
+          assignedBankerName: 'Hydrated Banker',
+          amount: 1_000_000,
+          targetCloseDate: isoDaysAgo(-30),
+        }),
+      ],
+    });
+    expect(s.commandStrip.missingDataCount).toBe(0);
+    expect(s.exceptionTape.missingFields).toHaveLength(0);
+  });
+
+  it('still flags only the truly-absent manager-catalog fields (Loan amount / Banker etc.)', () => {
+    const s = snapshot({
+      teamPipeline: [
+        deal({
+          id: 'd-partial',
+          clientName: 'Borrower Inc.',
+          stage: 'Underwriting',
+          status: 'Active',
+          // Banker truly absent.
+          assignedBankerId: undefined,
+          assignedBankerName: undefined,
+          amount: 1_000_000,
+          targetCloseDate: isoDaysAgo(-30),
+        }),
+      ],
+    });
+    expect(s.commandStrip.missingDataCount).toBe(1);
+    expect(s.exceptionTape.missingFields).toHaveLength(1);
+    expect(s.exceptionTape.missingFields[0].reason).toMatch(/Banker/);
+  });
+
+  it('top-deal row carries the hydrated product / loan-structure / pricing labels when populated', () => {
+    const s = snapshot({
+      teamPipeline: [
+        deal({
+          id: 'd-ref',
+          amount: 500_000,
+          productType: 'SBA 7(a)',
+          loanStructure: 'Term Loan',
+          pricingType: 'Variable',
+        }),
+      ],
+    });
+    expect(s.topDeals[0].productType).toBe('SBA 7(a)');
+    expect(s.topDeals[0].loanStructure).toBe('Term Loan');
+    expect(s.topDeals[0].pricingType).toBe('Variable');
+  });
+
+  it('top-deal row keeps product / loan / pricing undefined when the loader returned no display value (honest absence)', () => {
+    const s = snapshot({
+      teamPipeline: [
+        deal({
+          id: 'd-sparse-refs',
+          amount: 500_000,
+          productType: undefined,
+          loanStructure: undefined,
+          pricingType: undefined,
+        }),
+      ],
+    });
+    expect(s.topDeals[0].productType).toBeUndefined();
+    expect(s.topDeals[0].loanStructure).toBeUndefined();
+    expect(s.topDeals[0].pricingType).toBeUndefined();
   });
 });
 

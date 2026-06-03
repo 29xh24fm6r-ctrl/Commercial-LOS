@@ -116,6 +116,9 @@ function deal(overrides: Partial<TeamDeal> = {}): TeamDeal {
     assignedBankerId: 'b-1',
     assignedBankerName: 'M. Paller',
     collateralSummary: undefined,
+    productType: undefined,
+    loanStructure: undefined,
+    pricingType: undefined,
     ...overrides,
   };
 }

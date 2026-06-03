@@ -45,6 +45,40 @@ function escapeOData(value: string): string {
   return value.replace(/'/g, "''");
 }
 
+/**
+ * Phase 125B — read a Dataverse
+ * `@OData.Community.Display.V1.FormattedValue` annotation off a raw
+ * record. Mirrors the Phase 122C banker-cockpit helper of the same
+ * name. The auto-generated SDK exposes typed `<attr>name` shadow
+ * fields that the live env does NOT populate for choice / lookup
+ * columns; the formatted value Dataverse returns lives on the
+ * annotation key, which is a legal JavaScript object key and arrives
+ * verbatim from the Web API.
+ *
+ * Kept local to the manager module per the Phase 48 isolation rule
+ * (src/manager/ does not import from src/deals/).
+ */
+function getFormattedValue(
+  record: Record<string, unknown>,
+  attributeName: string,
+): string | undefined {
+  const annotationKey = `${attributeName}@OData.Community.Display.V1.FormattedValue`;
+  const value = record[annotationKey];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Lookup formatted value annotations hang off the `_<lookup>_value`
+ * key, not the bare lookup name. e.g. cr664_StageReference's display
+ * arrives as `_cr664_stagereference_value@OData.Community.Display.V1.FormattedValue`.
+ */
+function getLookupFormattedValue(
+  record: Record<string, unknown>,
+  lookupLogicalName: string,
+): string | undefined {
+  return getFormattedValue(record, `_${lookupLogicalName}_value`);
+}
+
 export async function loadManagerIdentity(upn: string): Promise<ManagerIdentityResult> {
   const bankersResult = await Cr664_bankersService.getAll({
     filter: `cr664_email eq '${escapeOData(upn)}'`,
@@ -62,8 +96,20 @@ export async function loadManagerIdentity(upn: string): Promise<ManagerIdentityR
   if (!banker) return { kind: 'not-banker' };
 
   const teamId = banker._cr664_team_value;
-  const teamName = banker.cr664_teamname;
   if (!teamId) return { kind: 'no-team' };
+
+  // Phase 125B — team name resolution priority (parity with the
+  // Phase 122C banker-cockpit hydration order):
+  //   1. lookup formatted value annotation on _cr664_team_value
+  //   2. SDK-projected cr664_teamname shadow field (often empty in
+  //      the live env even when the Banker.Team FK is populated —
+  //      this is the live-screenshot bug we're fixing)
+  //   3. undefined → preserve the legacy '(unnamed team)' display
+  //      so callers don't crash, but no fake derivation from id.
+  const bankerRaw = banker as unknown as Record<string, unknown>;
+  const teamName =
+    getLookupFormattedValue(bankerRaw, 'cr664_team') ??
+    banker.cr664_teamname;
 
   return {
     kind: 'ready',
@@ -94,6 +140,13 @@ export interface TeamDeal {
    *  surfaces. Not rendered on any list/screen — only the rollup
    *  derivation reads it. */
   collateralSummary: string | undefined;
+  /** Phase 125B — Product / Loan Structure / Pricing display names
+   *  resolved via the same formatted-value-first hydration the
+   *  banker cockpit uses. Honest `undefined` when the deal has not
+   *  yet pointed at a reference row. */
+  productType: string | undefined;
+  loanStructure: string | undefined;
+  pricingType: string | undefined;
 }
 
 /**
@@ -119,22 +172,48 @@ export async function loadTeamPipeline(teamId: string): Promise<TeamDeal[]> {
     throw new Error(result.error?.message ?? 'Failed to load team pipeline');
   }
 
-  return (result.data ?? []).map(
-    (d): TeamDeal => ({
+  // Phase 125B — every lookup / status display column is resolved
+  // via the same formatted-value-first → shadow-field fallback
+  // pattern Phase 122C uses on the banker cockpit. Without this the
+  // SDK returns undefined for clientName / stage / status / banker
+  // in the operator's live env even when Maker Portal shows them
+  // populated, which is the live-screenshot bug fixed here.
+  return (result.data ?? []).map((d): TeamDeal => {
+    const raw = d as unknown as Record<string, unknown>;
+    return {
       id: d.cr664_loandealid,
       name: d.cr664_dealname,
-      clientName: d.cr664_clientname,
-      stage: d.cr664_stagereferencename,
-      status: d.cr664_statusreferencename,
+      clientName:
+        getLookupFormattedValue(raw, 'cr664_client') ?? d.cr664_clientname,
+      stage:
+        getLookupFormattedValue(raw, 'cr664_stagereference') ??
+        d.cr664_stagereferencename,
+      status:
+        getLookupFormattedValue(raw, 'cr664_statusreference') ??
+        d.cr664_statusreferencename ??
+        getFormattedValue(raw, 'statuscode') ??
+        d.statuscodename,
       amount: d.cr664_amount,
       targetCloseDate: d.cr664_targetclosedate,
       stageEntryDate: d.cr664_stageentrydate,
       modifiedOn: d.modifiedon,
       assignedBankerId: d._cr664_assignedbanker_value,
-      assignedBankerName: d.cr664_assignedbankername,
+      assignedBankerName:
+        getLookupFormattedValue(raw, 'cr664_assignedbanker') ??
+        d.cr664_assignedbankername ??
+        d.owneridname,
       collateralSummary: d.cr664_collateralsummary,
-    }),
-  );
+      productType:
+        getLookupFormattedValue(raw, 'cr664_producttypereference') ??
+        d.cr664_producttypereferencename,
+      loanStructure:
+        getLookupFormattedValue(raw, 'cr664_loanstructuretypereference') ??
+        d.cr664_loanstructuretypereferencename,
+      pricingType:
+        getLookupFormattedValue(raw, 'cr664_pricingtypereference') ??
+        d.cr664_pricingtypereferencename,
+    };
+  });
 }
 
 export interface TeamBanker {

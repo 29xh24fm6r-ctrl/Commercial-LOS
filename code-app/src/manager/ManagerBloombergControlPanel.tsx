@@ -670,6 +670,20 @@ function TopDeals({ rows }: { rows: ManagerTopDealRow[] }) {
                 <MetaCell label="Stage" value={r.stage ?? 'Not set'} />
                 <MetaCell label="Status" value={r.status ?? 'Not set'} />
                 <MetaCell label="Banker" value={r.bankerName ?? 'Unassigned'} />
+                {/* Phase 125B — reference rows surfaced when present;
+                    omitted entirely when undefined so the meta grid
+                    does not pollute the cockpit with "Not set" cells
+                    for fields that legitimately haven't been wired
+                    yet on early-stage deals. */}
+                {r.productType !== undefined && (
+                  <MetaCell label="Product" value={r.productType} />
+                )}
+                {r.loanStructure !== undefined && (
+                  <MetaCell label="Loan structure" value={r.loanStructure} />
+                )}
+                {r.pricingType !== undefined && (
+                  <MetaCell label="Pricing" value={r.pricingType} />
+                )}
               </div>
               <div style={styles.topDealFoot}>
                 <span

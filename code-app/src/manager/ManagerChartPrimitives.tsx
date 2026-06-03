@@ -19,7 +19,11 @@ import { palette, radius, severityPalette, spacing, typography } from '../shared
  *     amount visualizations.
  */
 
-const CHART_HEIGHT = 140;
+// Phase 125B — tighter chart canvas so single-bar / two-bar charts
+// don't drag dead whitespace across the cockpit. The minimum bar
+// height (4px in the track styles) keeps even all-zero histograms
+// readable without a giant empty box.
+const CHART_HEIGHT = 110;
 const BAR_GAP = 6;
 
 // ---------------------------------------------------------------------------
@@ -506,10 +510,12 @@ const frameStyles: Record<string, CSSProperties> = {
     background: palette.surface,
     border: `1px solid ${palette.panelBorder}`,
     borderRadius: radius.md,
-    padding: `${spacing.sm} ${spacing.md}`,
+    // Phase 125B — tighter chart card padding to match the dense
+    // Bloomberg target without breaking type rhythm.
+    padding: `${spacing.xs} ${spacing.sm}`,
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: spacing.xs,
+    gap: 4,
     minWidth: 0,
   },
   head: {

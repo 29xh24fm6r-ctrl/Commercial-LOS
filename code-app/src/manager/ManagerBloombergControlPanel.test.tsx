@@ -93,6 +93,9 @@ function deal(over: Partial<TeamDeal> = {}): TeamDeal {
     assignedBankerId: 'banker-a',
     assignedBankerName: 'Banker A',
     collateralSummary: undefined,
+    productType: undefined,
+    loanStructure: undefined,
+    pricingType: undefined,
     ...over,
   };
 }
@@ -719,6 +722,60 @@ describe('Phase 125A — analytics grid', () => {
     });
     renderPanel();
     expect(screen.queryByLabelText('Analytics grid')).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 125B — Top-deal row surfaces hydrated reference labels
+// ---------------------------------------------------------------------------
+
+describe('Phase 125B — top-deal row hydrated product / loan-structure / pricing labels', () => {
+  it('renders product / loan-structure / pricing meta cells when the loader hydrated them', () => {
+    setAllReady({
+      pipeline: [
+        deal({
+          id: 'd-hydrated',
+          name: 'Hydrated Deal',
+          productType: 'SBA 7(a)',
+          loanStructure: 'Term Loan',
+          pricingType: 'Variable',
+        }),
+      ],
+      bankers: [banker()],
+    });
+    renderPanel();
+    const topDeals = screen.getByLabelText('Top deals by amount');
+    const row = within(topDeals).getByText('Hydrated Deal').closest('li');
+    expect(row).not.toBeNull();
+    expect(row!).toHaveTextContent(/Product.*SBA 7\(a\)/);
+    expect(row!).toHaveTextContent(/Loan structure.*Term Loan/);
+    expect(row!).toHaveTextContent(/Pricing.*Variable/);
+  });
+
+  it('OMITS product / loan-structure / pricing cells entirely when the loader returned undefined (honest absence — no "Not set" cell pollution)', () => {
+    setAllReady({
+      pipeline: [
+        deal({
+          id: 'd-sparse',
+          name: 'Sparse refs deal',
+          productType: undefined,
+          loanStructure: undefined,
+          pricingType: undefined,
+        }),
+      ],
+      bankers: [banker()],
+    });
+    renderPanel();
+    const topDeals = screen.getByLabelText('Top deals by amount');
+    const row = within(topDeals).getByText('Sparse refs deal').closest('li');
+    expect(row).not.toBeNull();
+    // Required slots (Client/Stage/Status/Banker) still render.
+    expect(row!).toHaveTextContent(/Client/);
+    expect(row!).toHaveTextContent(/Stage/);
+    // Reference slots omitted from the meta grid.
+    expect(within(row! as HTMLElement).queryByText(/^Product$/)).toBeNull();
+    expect(within(row! as HTMLElement).queryByText(/^Loan structure$/)).toBeNull();
+    expect(within(row! as HTMLElement).queryByText(/^Pricing$/)).toBeNull();
   });
 });
 

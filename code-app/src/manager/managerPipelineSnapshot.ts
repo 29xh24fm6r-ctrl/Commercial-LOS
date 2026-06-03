@@ -160,6 +160,12 @@ export interface ManagerTopDealRow {
   status: string | undefined;
   bankerName: string | undefined;
   amount: number | undefined;
+  /** Phase 125B — reference-table display values surfaced on the
+   *  top-deal row when present. Honest undefined when the deal has
+   *  not been pointed at a reference row. */
+  productType: string | undefined;
+  loanStructure: string | undefined;
+  pricingType: string | undefined;
   /** Shared-VM blocker classification ('blocked'|'at-risk'|'clear') for the deal. */
   blockerStatus: DealIntelligenceViewModel['blockerStatus'];
   /** Shared-VM mechanical next-best-action when one fires. May be undefined. */
@@ -407,6 +413,12 @@ function managerMissingFieldLabels(td: TeamDeal): ReadonlyArray<string> {
 // absence. The team-pipeline query filters out terminal deals via
 // `cr664_isterminalstatus eq false or null` and `statecode eq 0`, so
 // all loaded deals are open; isClosed is therefore false by contract.
+//
+// Phase 125B — product / loan / pricing now flow through from the
+// formatted-value-hydrated TeamDeal so per-deal VM projection
+// (deriveBlockers + deriveDealCockpitMetrics + the shared VM) sees
+// the populated values and stops counting them as missing when the
+// operator has wired them.
 function teamDealToDealDetail(td: TeamDeal): DealDetail {
   return {
     id: td.id,
@@ -417,12 +429,12 @@ function teamDealToDealDetail(td: TeamDeal): DealDetail {
     amount: td.amount,
     bankerName: td.assignedBankerName,
     targetCloseDate: td.targetCloseDate,
-    productType: undefined,
-    loanStructure: undefined,
+    productType: td.productType,
+    loanStructure: td.loanStructure,
     customerType: undefined,
     industry: undefined,
     guarantorStructure: undefined,
-    pricingType: undefined,
+    pricingType: td.pricingType,
     spreadIndex: undefined,
     spreadMargin: undefined,
     collateralSummary: td.collateralSummary,
@@ -724,6 +736,9 @@ function buildTopDeals(
     status: r.teamDeal.status,
     bankerName: r.teamDeal.assignedBankerName,
     amount: r.teamDeal.amount,
+    productType: r.teamDeal.productType,
+    loanStructure: r.teamDeal.loanStructure,
+    pricingType: r.teamDeal.pricingType,
     blockerStatus: r.vm.blockerStatus,
     nextBestAction: r.vm.nextBestAction,
   }));
