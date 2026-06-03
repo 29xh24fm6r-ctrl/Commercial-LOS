@@ -77,9 +77,16 @@ type LoadState =
 
 export interface BankerShellProps {
   workspaceName: string;
+  /**
+   * Phase 124C — optional entitled-workspace links forwarded to
+   * LendingOSLayout so the sidebar can render the workspace
+   * switcher for manager-entitled users. When undefined, the shell
+   * falls back to the single-workspace pill.
+   */
+  workspaceLinks?: ReadonlyArray<import('../bootstrap/workspaceEntitlements').WorkspaceLink>;
 }
 
-export function BankerShell({ workspaceName }: BankerShellProps) {
+export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps) {
   const { bankerId, fullName, email, writeDisabledReason } = useBanker();
   const [tab, setTab] = useState<ShellTab>('dashboard');
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
@@ -160,6 +167,7 @@ export function BankerShell({ workspaceName }: BankerShellProps) {
       fullName={fullName}
       email={email}
       workspaceName={workspaceName}
+      workspaceLinks={workspaceLinks}
     >
       <GreetingHeader
         fullName={fullName}

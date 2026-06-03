@@ -16,6 +16,13 @@ import { AtRiskBlockedDeals } from '../manager/AtRiskBlockedDeals';
 import { BankerWorkloadSummary } from '../manager/BankerWorkloadSummary';
 import { ClosingForecast } from '../manager/ClosingForecast';
 import { ManagerActivitySummary } from '../manager/ActivitySummary';
+import { useBootstrap } from '../bootstrap/BootstrapContext';
+import {
+  deriveWorkspaceLinks,
+  useEntitledRoutes,
+} from '../bootstrap/workspaceEntitlements';
+import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
+import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function ManagerWorkspace() {
@@ -32,6 +39,14 @@ export function ManagerWorkspace() {
 
 function ManagerWorkspaceContent() {
   const { fullName, email, teamName } = useManager();
+  const bootstrap = useBootstrap();
+  const entitled = useEntitledRoutes();
+  const workspaceLinks = deriveWorkspaceLinks({
+    bootstrapRoute: bootstrap.route,
+    currentRoute: WORKSPACE_ROUTES.manager,
+    entitledRoutes: entitled.routes,
+  });
+  const showSwitcher = workspaceLinks.length >= 2;
   return (
     <div style={styles.page}>
       <header style={styles.header}>
@@ -43,6 +58,18 @@ function ManagerWorkspaceContent() {
           </p>
         </div>
         <div style={styles.context} aria-label="Manager context">
+          {/* Phase 124C — workspace switcher rendered above the
+              identity block so an entitled banker who has switched
+              into the manager workspace can return to their
+              bootstrap-primary workspace. Hidden for single-
+              workspace users (length=1 → no switcher). */}
+          {showSwitcher && (
+            <WorkspaceSwitcher
+              links={workspaceLinks}
+              tone="light"
+              aria-label="Manager workspace switcher"
+            />
+          )}
           <div style={styles.contextRow}>
             <div style={styles.contextLabel}>Team</div>
             <div style={styles.contextValue}>{teamName}</div>

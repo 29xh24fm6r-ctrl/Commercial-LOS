@@ -15,6 +15,8 @@ import {
   TeamsIcon,
 } from '../shared/cockpitIcons';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import type { WorkspaceLink } from '../bootstrap/workspaceEntitlements';
+import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
 
 /**
  * Phase 125F — Lending OS shell layout.
@@ -71,6 +73,15 @@ export interface LendingOSLayoutProps {
   email: string;
   /** Bootstrap-resolved workspace name (for the switcher). */
   workspaceName: string;
+  /**
+   * Phase 124C — optional entitled-workspace links. When two or
+   * more links are supplied, the sidebar renders a navigation
+   * switcher so manager-entitled users can reach the manager
+   * workspace from the banker sidebar. When `undefined` or a
+   * single link, the sidebar preserves the original static
+   * workspace pill (single-workspace-per-user posture).
+   */
+  workspaceLinks?: ReadonlyArray<WorkspaceLink>;
   /** Main content rendered to the right of the sidebar. */
   children: ReactNode;
 }
@@ -168,15 +179,25 @@ export function LendingOSLayout({
   fullName,
   email,
   workspaceName,
+  workspaceLinks,
   children,
 }: LendingOSLayoutProps) {
   const initials = useMemo(() => deriveInitials(fullName), [fullName]);
   const safeWorkspace = workspaceName.trim().length > 0 ? workspaceName : 'Banker Workspace';
+  const showSwitcher = workspaceLinks !== undefined && workspaceLinks.length >= 2;
   return (
     <div style={styles.page}>
       <nav style={styles.sidebar} aria-label="Lending OS navigation">
         <BrandBlock />
-        <CurrentWorkspacePill name={safeWorkspace} />
+        {showSwitcher ? (
+          <WorkspaceSwitcher
+            links={workspaceLinks!}
+            tone="dark"
+            aria-label="Workspace switcher"
+          />
+        ) : (
+          <CurrentWorkspacePill name={safeWorkspace} />
+        )}
 
         <div style={styles.scroll}>
           {NAV_SECTIONS.map((section) => (
