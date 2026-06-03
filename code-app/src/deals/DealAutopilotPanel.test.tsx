@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DealData } from './DealDataProvider';
@@ -118,8 +118,19 @@ function readyData(over: Partial<DealData> = {}): DealData {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Phase 128A — pin the wall clock to the fixture NOW so the
+  // production component's `new Date()` (DealAutopilotPanel.tsx:109)
+  // sees the same reference time the fixtures derive their iso
+  // timestamps from. Previously these tests drifted into a "stale
+  // activity" signal when wall-clock dates moved past the fixture's
+  // 2026-05-18 horizon (6 pre-existing date-dependent failures).
+  vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
   // Default: consistency check finds no findings.
   checkMock.mockReturnValue({ hasDraftToCompare: false, findings: [] });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('DealAutopilotPanel — Phase 80', () => {
