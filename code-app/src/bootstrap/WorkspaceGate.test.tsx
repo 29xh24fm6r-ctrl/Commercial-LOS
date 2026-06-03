@@ -129,6 +129,56 @@ describe('Phase 124C — WorkspaceGate: entitlement widening for manager', () =>
   });
 });
 
+describe('Phase 127B — WorkspaceGate: team workspace admission for manager-entitled users', () => {
+  it('renders the team workspace children for a manager-entitled banker', async () => {
+    loadManagerIdentityMock.mockResolvedValue({
+      kind: 'ready',
+      identity: {
+        bankerId: 'b1',
+        fullName: 'Test',
+        email: 'banker@oldglorybank.com',
+        teamId: 'team-1',
+        teamName: 'Capital Markets',
+      },
+    });
+    mountGate({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      initialPath: WORKSPACE_ROUTES.team,
+      allowed: WORKSPACE_ROUTES.team,
+    });
+    expect(await screen.findByTestId('gate-children')).toBeInTheDocument();
+  });
+
+  it('bounces banker-only users away from the team workspace (no leak)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    mountGate({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      initialPath: WORKSPACE_ROUTES.team,
+      allowed: WORKSPACE_ROUTES.team,
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('primary-route')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('gate-children')).not.toBeInTheDocument();
+  });
+
+  it('bounces when the manager probe FAILED (no fake widening to the team route on error)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({
+      kind: 'failed',
+      message: 'OData 5xx',
+    });
+    mountGate({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      initialPath: WORKSPACE_ROUTES.team,
+      allowed: WORKSPACE_ROUTES.team,
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('primary-route')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('gate-children')).not.toBeInTheDocument();
+  });
+});
+
 describe('Phase 124C — WorkspaceGate: fail-closed posture preserved', () => {
   it('bounces to bootstrap.route when the user is NOT entitled to the requested workspace', async () => {
     loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });

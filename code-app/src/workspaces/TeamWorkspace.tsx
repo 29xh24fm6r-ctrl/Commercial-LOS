@@ -11,6 +11,13 @@ import { TeamTaskLoad } from '../team/TeamTaskLoad';
 import { SharedClosingCalendar } from '../team/SharedClosingCalendar';
 import { TeamBankerActivityBreakdown } from '../team/TeamBankerActivityBreakdown';
 import { TeamAutopilotRollup } from '../team/TeamAutopilotRollup';
+import { useBootstrap } from '../bootstrap/BootstrapContext';
+import {
+  deriveWorkspaceLinks,
+  useEntitledRoutes,
+} from '../bootstrap/workspaceEntitlements';
+import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
+import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function TeamWorkspace() {
@@ -25,6 +32,24 @@ export function TeamWorkspace() {
 
 function TeamWorkspaceContent() {
   const { fullName, email, teamName } = useTeam();
+  const bootstrap = useBootstrap();
+  const entitled = useEntitledRoutes();
+  // Phase 127B — surface the workspace switcher in the team header so
+  // manager-entitled users who reached the team route via the Phase
+  // 127B entitlement widening can navigate back. Banker-only users
+  // are still bounced by WorkspaceGate and never see this page; team-
+  // bootstrap users with no additional entitlements see a single-link
+  // list, which the switcher gate (links.length >= 2) hides honestly.
+  // Portfolio surface is opt-in only when the manager route is in the
+  // user's allowed set (same rule as banker/manager workspaces).
+  const managerEntitled = entitled.routes.includes(WORKSPACE_ROUTES.manager);
+  const workspaceLinks = deriveWorkspaceLinks({
+    bootstrapRoute: bootstrap.route,
+    currentRoute: WORKSPACE_ROUTES.team,
+    entitledRoutes: entitled.routes,
+    includePortfolioSurface: managerEntitled,
+  });
+  const showInlineSwitcher = workspaceLinks.length >= 2;
   return (
     <div style={styles.page}>
       <header style={styles.header}>
@@ -36,6 +61,13 @@ function TeamWorkspaceContent() {
           </p>
         </div>
         <div style={styles.context} aria-label="Team context">
+          {showInlineSwitcher && (
+            <WorkspaceSwitcher
+              links={workspaceLinks}
+              tone="light"
+              aria-label="Team workspace switcher"
+            />
+          )}
           <div style={styles.contextRow}>
             <div style={styles.contextLabel}>Team</div>
             <div style={styles.contextValue}>{teamName}</div>

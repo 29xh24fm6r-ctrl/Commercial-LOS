@@ -118,12 +118,27 @@ export interface EntitledRoutesState {
  * `kind: 'loading'` is surfaced while the manager probe is in
  * flight so callers (e.g. WorkspaceGate) can wait honestly rather
  * than mis-classifying an entitled user.
+ *
+ * Phase 127B — when the manager probe returns `entitled`, the team
+ * workspace route is admitted alongside the manager route. The
+ * probe's success condition (`loadManagerIdentity` returns
+ * `kind: 'ready'`) is the same condition `TeamProvider` /
+ * `TeamDataProvider` would enforce when the user actually navigates
+ * to the team workspace (banker row + populated team FK). Adding the
+ * team route here therefore does NOT widen data access — the team
+ * route's own provider chain still re-verifies identity before
+ * rendering anything, and the team queries continue to scope by
+ * `_cr664_team_value` exactly as before. Banker-only users
+ * (probe → `not-entitled`) never receive the team route.
  */
 export function useEntitledRoutes(): EntitledRoutesState {
   const m = useManagerEntitlement();
   if (m.kind === 'loading') return { kind: 'loading', routes: [] };
   const routes: string[] = [];
-  if (m.kind === 'entitled') routes.push(WORKSPACE_ROUTES.manager);
+  if (m.kind === 'entitled') {
+    routes.push(WORKSPACE_ROUTES.manager);
+    routes.push(WORKSPACE_ROUTES.team);
+  }
   return { kind: 'ready', routes };
 }
 

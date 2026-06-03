@@ -265,7 +265,13 @@ describe('Phase 124C — useEntitledRoutes', () => {
     });
   });
 
-  it('includes the manager route only when the manager probe returns entitled', async () => {
+  it('includes the manager + team routes when the manager probe returns entitled', async () => {
+    // Phase 127B — the same `loadManagerIdentity` probe that admits
+    // the manager route now also admits the team route. The team
+    // route's TeamProvider re-verifies banker + team FK before
+    // rendering, so this is not a data-scope widening — just a
+    // switcher-and-gate widening for users who already meet the
+    // team workspace's hard contract.
     loadManagerIdentityMock.mockResolvedValue({
       kind: 'ready',
       identity: {
@@ -282,7 +288,10 @@ describe('Phase 124C — useEntitledRoutes', () => {
     await waitFor(() => {
       expect(result.current.kind).toBe('ready');
     });
-    expect(result.current.routes).toEqual([WORKSPACE_ROUTES.manager]);
+    expect(result.current.routes).toEqual([
+      WORKSPACE_ROUTES.manager,
+      WORKSPACE_ROUTES.team,
+    ]);
   });
 
   it('returns an empty routes list when the probe returns not-entitled', async () => {
@@ -402,5 +411,103 @@ describe('Phase 126C — deriveWorkspaceLinks portfolio surface inclusion', () =
     // query string, not a new path.
     expect(portfolio.route.startsWith(WORKSPACE_ROUTES.manager)).toBe(true);
     expect(portfolio.route).toContain('?surface=portfolio');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 127B — Team Workspace entitlement widening
+// ---------------------------------------------------------------------------
+
+describe('Phase 127B — useEntitledRoutes admits the team workspace for manager-entitled users', () => {
+  it('returns BOTH manager and team routes when the manager probe is entitled', async () => {
+    loadManagerIdentityMock.mockResolvedValue({
+      kind: 'ready',
+      identity: {
+        bankerId: 'b1',
+        fullName: 'Test',
+        email: 'banker@oldglorybank.com',
+        teamId: 'team-1',
+        teamName: 'Capital Markets',
+      },
+    });
+    const { result } = renderHook(() => useEntitledRoutes(), {
+      wrapper: withBootstrap(bootstrapResult()),
+    });
+    await waitFor(() => {
+      expect(result.current.kind).toBe('ready');
+    });
+    expect(result.current.routes).toContain(WORKSPACE_ROUTES.team);
+    expect(result.current.routes).toContain(WORKSPACE_ROUTES.manager);
+  });
+
+  it('does NOT include the team route for banker-only users (probe → not-entitled)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    const { result } = renderHook(() => useEntitledRoutes(), {
+      wrapper: withBootstrap(bootstrapResult()),
+    });
+    await waitFor(() => {
+      expect(result.current.kind).toBe('ready');
+    });
+    expect(result.current.routes).not.toContain(WORKSPACE_ROUTES.team);
+  });
+
+  it('does NOT include the team route when the probe failed (no fake widening on error)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({
+      kind: 'failed',
+      message: 'OData 5xx',
+    });
+    const { result } = renderHook(() => useEntitledRoutes(), {
+      wrapper: withBootstrap(bootstrapResult()),
+    });
+    await waitFor(() => {
+      expect(result.current.kind).toBe('ready');
+    });
+    expect(result.current.routes).not.toContain(WORKSPACE_ROUTES.team);
+  });
+});
+
+describe('Phase 127B — deriveWorkspaceLinks surfaces the team link when admitted', () => {
+  it('renders the Team Workspace link for manager-entitled bankers (banker bootstrap + team entitled)', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      currentRoute: WORKSPACE_ROUTES.banker,
+      entitledRoutes: [WORKSPACE_ROUTES.manager, WORKSPACE_ROUTES.team],
+    });
+    const team = links.find((l) => l.key === 'team');
+    expect(team).toBeDefined();
+    expect(team!.label).toBe('Team Workspace');
+    expect(team!.route).toBe(WORKSPACE_ROUTES.team);
+    expect(team!.isCurrent).toBe(false);
+  });
+
+  it('does NOT render the Team Workspace link for banker-only users (team not in entitled set)', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      currentRoute: WORKSPACE_ROUTES.banker,
+      entitledRoutes: [],
+    });
+    expect(links.map((l) => l.key)).toEqual(['banker']);
+  });
+
+  it('marks the Team Workspace link as isCurrent when the user is rendering it', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      currentRoute: WORKSPACE_ROUTES.team,
+      entitledRoutes: [WORKSPACE_ROUTES.manager, WORKSPACE_ROUTES.team],
+    });
+    const team = links.find((l) => l.key === 'team')!;
+    const banker = links.find((l) => l.key === 'banker')!;
+    expect(team.isCurrent).toBe(true);
+    expect(banker.isCurrent).toBe(false);
+  });
+
+  it('Team Workspace link route is exactly the existing /workspaces/team path (no new route invented)', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      currentRoute: WORKSPACE_ROUTES.banker,
+      entitledRoutes: [WORKSPACE_ROUTES.team],
+    });
+    const team = links.find((l) => l.key === 'team')!;
+    expect(team.route).toBe(WORKSPACE_ROUTES.team);
   });
 });
