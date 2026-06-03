@@ -28,10 +28,16 @@ import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 export function BankerWorkspace() {
   const bootstrap = useBootstrap();
   const entitled = useEntitledRoutes();
+  // Phase 126C — surface the Portfolio Workspace switcher entry only
+  // for bankers who are ALSO manager-entitled (the same Phase 124C
+  // probe that already widens the gate for the manager route adds
+  // the portfolio rendering option). Banker-only users never see it.
+  const managerEntitled = entitled.routes.includes(WORKSPACE_ROUTES.manager);
   const workspaceLinks = deriveWorkspaceLinks({
     bootstrapRoute: bootstrap.route,
     currentRoute: WORKSPACE_ROUTES.banker,
     entitledRoutes: entitled.routes,
+    includePortfolioSurface: managerEntitled,
   });
   return (
     <BankerProvider>

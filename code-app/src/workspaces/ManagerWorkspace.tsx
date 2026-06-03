@@ -16,10 +16,13 @@ import { AtRiskBlockedDeals } from '../manager/AtRiskBlockedDeals';
 import { BankerWorkloadSummary } from '../manager/BankerWorkloadSummary';
 import { ClosingForecast } from '../manager/ClosingForecast';
 import { ManagerActivitySummary } from '../manager/ActivitySummary';
+import { useSearchParams } from 'react-router-dom';
 import { useBootstrap } from '../bootstrap/BootstrapContext';
 import {
   deriveWorkspaceLinks,
   useEntitledRoutes,
+  PORTFOLIO_SURFACE_PARAM_NAME,
+  PORTFOLIO_SURFACE_PARAM_VALUE,
 } from '../bootstrap/workspaceEntitlements';
 import {
   WORKSPACE_ROUTES,
@@ -46,21 +49,36 @@ function ManagerWorkspaceContent() {
   const { fullName, email, teamName } = useManager();
   const bootstrap = useBootstrap();
   const entitled = useEntitledRoutes();
+  const [searchParams] = useSearchParams();
+  // Phase 126C — the `?surface=portfolio` query is the explicit
+  // user-driven signal that they want the Portfolio cockpit. Falls
+  // back to Phase 126B's bootstrap workspace-name rule when the
+  // query is absent, so portfolio-primary users (whose bootstrap
+  // workspaceName === 'Portfolio Management') still see the
+  // portfolio surface by default. An explicit `?surface=manager`
+  // overrides the bootstrap default.
+  const surfaceParam = searchParams.get(PORTFOLIO_SURFACE_PARAM_NAME);
+  const isPortfolio =
+    surfaceParam === PORTFOLIO_SURFACE_PARAM_VALUE ||
+    (surfaceParam === null && isPortfolioWorkspaceName(bootstrap.workspaceName));
+  // Phase 126C — surface the portfolio link in the workspace
+  // switcher for everyone on the manager route. By contract the
+  // user already passed the manager-route gate (bootstrap-primary or
+  // Phase 124C entitled probe), so adding the portfolio rendering
+  // option does not widen permission. Banker-only users never reach
+  // this code path because their bootstrap route is /workspaces/banker.
   const workspaceLinks = deriveWorkspaceLinks({
     bootstrapRoute: bootstrap.route,
     currentRoute: WORKSPACE_ROUTES.manager,
     entitledRoutes: entitled.routes,
+    includePortfolioSurface: true,
+    currentSurface: isPortfolio ? 'portfolio' : undefined,
   });
   const showInlineSwitcher = workspaceLinks.length >= 2;
-  // Phase 126B — when the bootstrap-resolved workspace name matches
-  // a Portfolio alias (Phase 116 maps 'Portfolio Management' → the
-  // manager route), swap the primary cockpit to the
-  // PortfolioCommandCenter so the same authorized team-scoped data
-  // renders through an exposure / mix / concentration lens.
-  // ManagerDataProvider, LendingOSLayout shell, workspace switcher,
-  // and the existing nine manager cards all stay mounted — only
-  // the lead cockpit + header copy + sidebar pill label swap.
-  const isPortfolio = isPortfolioWorkspaceName(bootstrap.workspaceName);
+  // Phase 126B — header / shell label copy swaps with the lead
+  // cockpit. Manager and Portfolio surfaces share the manager route
+  // and the manager data provider chain; only the cockpit and the
+  // wrapper labels swap.
   const shellWorkspaceName = isPortfolio
     ? 'Portfolio Workspace'
     : 'Manager Workspace';

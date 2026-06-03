@@ -310,3 +310,97 @@ describe('Phase 124C — useEntitledRoutes', () => {
     expect(result.current.routes).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 126C — Portfolio surface link
+// ---------------------------------------------------------------------------
+
+describe('Phase 126C — deriveWorkspaceLinks portfolio surface inclusion', () => {
+  it('does NOT include the portfolio link by default (no opt-in flag)', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.manager,
+      currentRoute: WORKSPACE_ROUTES.manager,
+      entitledRoutes: [],
+    });
+    expect(links.map((l) => l.key)).toEqual(['manager']);
+  });
+
+  it('does NOT include the portfolio link for banker-only users even when includePortfolioSurface=true', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      currentRoute: WORKSPACE_ROUTES.banker,
+      entitledRoutes: [],
+      includePortfolioSurface: true,
+    });
+    // Banker-only user (no manager route in allowed set) → no
+    // portfolio link, even though the caller opted in.
+    expect(links.map((l) => l.key)).toEqual(['banker']);
+  });
+
+  it('includes the portfolio link for manager-entitled bankers when includePortfolioSurface=true', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      currentRoute: WORKSPACE_ROUTES.banker,
+      entitledRoutes: [WORKSPACE_ROUTES.manager],
+      includePortfolioSurface: true,
+    });
+    expect(links.map((l) => l.key)).toEqual(['banker', 'manager', 'portfolio']);
+    const portfolio = links.find((l) => l.key === 'portfolio')!;
+    expect(portfolio.label).toBe('Portfolio Workspace');
+    expect(portfolio.route).toBe(
+      `${WORKSPACE_ROUTES.manager}?surface=portfolio`,
+    );
+  });
+
+  it('includes the portfolio link for manager-bootstrap users when includePortfolioSurface=true', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.manager,
+      currentRoute: WORKSPACE_ROUTES.manager,
+      entitledRoutes: [],
+      includePortfolioSurface: true,
+    });
+    expect(links.map((l) => l.key)).toEqual(['manager', 'portfolio']);
+  });
+
+  it('marks the portfolio link as isCurrent when currentSurface=portfolio (and manager link is NOT current)', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.manager,
+      currentRoute: WORKSPACE_ROUTES.manager,
+      entitledRoutes: [],
+      includePortfolioSurface: true,
+      currentSurface: 'portfolio',
+    });
+    const manager = links.find((l) => l.key === 'manager')!;
+    const portfolio = links.find((l) => l.key === 'portfolio')!;
+    expect(manager.isCurrent).toBe(false);
+    expect(portfolio.isCurrent).toBe(true);
+  });
+
+  it('marks the manager link as isCurrent when currentSurface is undefined and the user is on the manager route', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.manager,
+      currentRoute: WORKSPACE_ROUTES.manager,
+      entitledRoutes: [],
+      includePortfolioSurface: true,
+    });
+    const manager = links.find((l) => l.key === 'manager')!;
+    const portfolio = links.find((l) => l.key === 'portfolio')!;
+    expect(manager.isCurrent).toBe(true);
+    expect(portfolio.isCurrent).toBe(false);
+  });
+
+  it('portfolio link route navigates to the same manager route + surface query (no route widening)', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.manager,
+      currentRoute: WORKSPACE_ROUTES.manager,
+      entitledRoutes: [],
+      includePortfolioSurface: true,
+    });
+    const portfolio = links.find((l) => l.key === 'portfolio')!;
+    // The portfolio link MUST share the manager route path so
+    // WorkspaceGate continues to admit it. The surface marker is a
+    // query string, not a new path.
+    expect(portfolio.route.startsWith(WORKSPACE_ROUTES.manager)).toBe(true);
+    expect(portfolio.route).toContain('?surface=portfolio');
+  });
+});

@@ -158,9 +158,9 @@ beforeEach(() => {
   });
 });
 
-function renderManagerWorkspace() {
+function renderManagerWorkspace(initialUrl = '/workspaces/manager') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialUrl]}>
       <ManagerWorkspace />
     </MemoryRouter>,
   );
@@ -349,5 +349,86 @@ describe('Phase 126B — portfolio-name workspaces swap the cockpit to Portfolio
     expect(
       screen.getByTestId('portfolio-command-center'),
     ).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 126C — Portfolio surface URL query swap
+// ---------------------------------------------------------------------------
+
+describe('Phase 126C — `?surface=portfolio` query swaps the cockpit for ANY user on the manager route', () => {
+  it('renders PortfolioCommandCenter when the URL carries ?surface=portfolio even with a manager bootstrap', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Manager Command Center' }),
+    );
+    renderManagerWorkspace('/workspaces/manager?surface=portfolio');
+    expect(
+      screen.getByTestId('portfolio-command-center'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('manager-bloomberg-control-panel'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders ManagerBloombergControlPanel by default when no surface query is present (manager bootstrap)', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Manager Command Center' }),
+    );
+    renderManagerWorkspace('/workspaces/manager');
+    expect(
+      screen.getByTestId('manager-bloomberg-control-panel'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('portfolio-command-center'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('?surface=manager overrides a portfolio bootstrap (explicit query wins)', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Portfolio Management' }),
+    );
+    renderManagerWorkspace('/workspaces/manager?surface=manager');
+    // Phase 126B default would have been Portfolio Command Center;
+    // the explicit surface query routes around it.
+    expect(
+      screen.getByTestId('manager-bloomberg-control-panel'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('portfolio-command-center'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('Portfolio Workspace switcher link appears for manager-bootstrap users', async () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Manager Command Center' }),
+    );
+    renderManagerWorkspace();
+    // Wait for the entitlement probe to settle so the switcher
+    // renders. The portfolio link is added independently of the
+    // probe (because the user is ALREADY on the manager route), so
+    // it should appear immediately, but we wait for switcher render
+    // either way.
+    await screen.findAllByRole('navigation', {
+      name: /[Ww]orkspace switcher/i,
+    });
+    const portfolioLinks = screen.getAllByLabelText('Switch to Portfolio Workspace');
+    expect(portfolioLinks.length).toBeGreaterThanOrEqual(1);
+    // The portfolio link points to the same manager route + the
+    // surface query — no new route is exposed.
+    expect(portfolioLinks[0].getAttribute('href')).toBe(
+      '/workspaces/manager?surface=portfolio',
+    );
+  });
+
+  it('the data provider chain is unchanged on the portfolio surface (no permission widening)', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Manager Command Center' }),
+    );
+    renderManagerWorkspace('/workspaces/manager?surface=portfolio');
+    // Same shell, same identity card, same Lending OS sidebar.
+    expect(
+      screen.getByRole('navigation', { name: /Lending OS navigation/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Capital Markets')).toBeInTheDocument();
   });
 });
