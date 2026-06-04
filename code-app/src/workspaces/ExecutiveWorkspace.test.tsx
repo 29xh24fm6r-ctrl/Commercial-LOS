@@ -67,3 +67,20 @@ describe('Phase 133A — ExecutiveWorkspace shell', () => {
     expect(CODE).not.toMatch(/BankerProvider|useBanker\b/);
   });
 });
+
+describe('Phase 134A — ExecutiveWorkspace shell is read-only', () => {
+  it('introduces no raw write affordance (<button>/<form>/onClick/onSubmit)', () => {
+    // The Lending OS sidebar placeholders live in LendingOSLayout (a
+    // separate component); the workspace shell itself adds none.
+    expect(CODE).not.toMatch(/<button\b/i);
+    expect(CODE).not.toMatch(/<form\b/i);
+    expect(CODE).not.toMatch(/\bonClick\b/);
+    expect(CODE).not.toMatch(/\bonSubmit\b/);
+  });
+
+  it('imports no write surface (modal / governed-write / email send)', () => {
+    expect(CODE).not.toMatch(/Modal['"]/);
+    expect(CODE).not.toMatch(/SendEmailV2|Office365/);
+    expect(CODE).not.toMatch(/from ['"][^'"]*\/generated\//);
+  });
+});

@@ -9,7 +9,7 @@ import {
   useManagerEntitlement,
   useEntitledRoutes,
 } from './workspaceEntitlements';
-import { WORKSPACE_ROUTES } from './workspaceRoutes';
+import { WORKSPACE_ROUTES, resolveWorkspaceRoute } from './workspaceRoutes';
 import { BootstrapProvider } from './BootstrapContext';
 import type { BootstrapResult } from './bootstrapFlow';
 
@@ -568,5 +568,40 @@ describe('Phase 133B — Executive reachability', () => {
     expect(result.current.routes).toContain(WORKSPACE_ROUTES.manager);
     expect(result.current.routes).toContain(WORKSPACE_ROUTES.team);
     expect(result.current.routes).not.toContain(WORKSPACE_ROUTES.executive);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 134A — name → link chain (no entitlement proxy)
+// ---------------------------------------------------------------------------
+
+describe('Phase 134A — executive link derives from the resolved primary-workspace name', () => {
+  it('a "Executive Dashboard" primary workspace yields the Executive link as current', () => {
+    const route = resolveWorkspaceRoute('Executive Dashboard');
+    expect(route).toBe(WORKSPACE_ROUTES.executive);
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: route!,
+      currentRoute: route!,
+      entitledRoutes: [],
+    });
+    const exec = links.find((l) => l.key === 'executive');
+    expect(exec).toBeDefined();
+    expect(exec!.isCurrent).toBe(true);
+    // No other workspace link is fabricated for an executive-only user.
+    expect(links.map((l) => l.key)).toEqual(['executive']);
+  });
+
+  it('a non-executive primary-workspace name never yields an Executive link', () => {
+    const route = resolveWorkspaceRoute('Banker Workspace');
+    expect(route).toBe(WORKSPACE_ROUTES.banker);
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: route!,
+      currentRoute: route!,
+      // Even with the strongest entitlement (manager probe → manager + team),
+      // executive is not derivable — it is not an entitlement proxy.
+      entitledRoutes: [WORKSPACE_ROUTES.manager, WORKSPACE_ROUTES.team],
+      includePortfolioSurface: true,
+    });
+    expect(links.map((l) => l.key)).not.toContain('executive');
   });
 });

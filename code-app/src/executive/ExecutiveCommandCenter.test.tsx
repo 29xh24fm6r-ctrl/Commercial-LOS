@@ -175,6 +175,58 @@ describe('Phase 133A — ExecutiveCommandCenter content', () => {
   });
 });
 
+describe('Phase 134A — empty-state + partial-data honesty', () => {
+  it('a fully-empty executive view shows the empty state and NO KPI ribbon (no invented metrics)', () => {
+    setReady({ readiness: [], pipelineByStage: [], closingForecast: [] });
+    renderCockpit();
+    expect(
+      screen.getByText(/No authorized executive snapshot records found/i),
+    ).toBeInTheDocument();
+    // No KPI ribbon, no risk strip — nothing is fabricated to fill the page.
+    expect(screen.queryByLabelText('Executive KPI ribbon')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: /Strategic risk strip/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('an empty pipeline with readiness present renders honest ZERO exposure (not invented from readiness)', () => {
+    // Readiness rows carry no dollar amount; exposure must come ONLY from
+    // the stage aggregate. With no stage rows, exposure must read $0.
+    setReady({
+      pipelineByStage: [],
+      readiness: [
+        readiness({ id: '1', readinessBand: 'Blocked', openBlockersCount: 2 }),
+        readiness({ id: '2', readinessBand: 'High' }),
+      ],
+    });
+    renderCockpit();
+    expect(screen.getByLabelText('Executive KPI ribbon')).toBeInTheDocument();
+    // Active deals + total exposure are honest zeros, not fabricated.
+    expect(screen.getByLabelText('0 active deals')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Total exposure \$0/)).toBeInTheDocument();
+    // Risk posture still reflects the readiness rows that DO exist.
+    expect(
+      screen.getByRole('region', { name: /Strategic risk strip/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('a failed performance slot does NOT fail the cockpit closed or invent KPIs (only the 3 core slots gate)', () => {
+    setData({
+      snapshotReadiness: ready([readiness()]),
+      snapshotPerformance: { kind: 'failed', message: 'perf boom' },
+      fallbackPipelineByStage: ready([
+        { stage: 'Underwriting', count: 1, totalAmount: 1_000_000 },
+      ]),
+      fallbackClosingForecast: ready([]),
+    });
+    renderCockpit();
+    expect(screen.getByLabelText('Executive KPI ribbon')).toBeInTheDocument();
+    expect(screen.queryByText(/failing closed/i)).not.toBeInTheDocument();
+    // Real exposure from the stage aggregate; nothing invented from perf.
+    expect(screen.getByLabelText('1 active deals')).toBeInTheDocument();
+  });
+});
+
 describe('Phase 133A — ExecutiveCommandCenter is read-only + honest (static source)', () => {
   const src = readFileSync(
     resolve(__dirname, 'ExecutiveCommandCenter.tsx'),

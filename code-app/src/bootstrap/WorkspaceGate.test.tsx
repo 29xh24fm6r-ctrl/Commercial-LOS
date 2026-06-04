@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { WorkspaceGate } from './WorkspaceGate';
 import { BootstrapProvider } from './BootstrapContext';
-import { WORKSPACE_ROUTES } from './workspaceRoutes';
+import { WORKSPACE_ROUTES, resolveWorkspaceRoute } from './workspaceRoutes';
 import { _resetWorkspaceEntitlementCacheForTests } from './workspaceEntitlements';
 import type { BootstrapResult } from './bootstrapFlow';
 
@@ -251,6 +251,45 @@ describe('Phase 133B — WorkspaceGate: executive admission', () => {
     loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
     mountGate({
       bootstrapRoute: WORKSPACE_ROUTES.banker,
+      initialPath: WORKSPACE_ROUTES.executive,
+      allowed: WORKSPACE_ROUTES.executive,
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('primary-route')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('gate-children')).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 134A — Executive route renders only when the primary workspace
+// NAME resolves to "Executive Dashboard" (name → route → admission).
+// ---------------------------------------------------------------------------
+
+describe('Phase 134A — executive route is name-gated', () => {
+  it('a user whose primary workspace name is "Executive Dashboard" reaches /workspaces/executive', async () => {
+    // The bootstrap route is derived from the platform workspace NAME via
+    // resolveWorkspaceRoute. Prove the full chain admits the executive
+    // route for exactly that name.
+    const route = resolveWorkspaceRoute('Executive Dashboard');
+    expect(route).toBe(WORKSPACE_ROUTES.executive);
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    mountGate({
+      bootstrapRoute: route!,
+      initialPath: WORKSPACE_ROUTES.executive,
+      allowed: WORKSPACE_ROUTES.executive,
+    });
+    expect(await screen.findByTestId('gate-children')).toBeInTheDocument();
+  });
+
+  it('a user whose primary workspace name resolves elsewhere is bounced from the executive route', async () => {
+    // "Banker Workspace" resolves to the banker route; that user must not
+    // reach the executive route even via a direct URL.
+    const route = resolveWorkspaceRoute('Banker Workspace');
+    expect(route).toBe(WORKSPACE_ROUTES.banker);
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    mountGate({
+      bootstrapRoute: route!,
       initialPath: WORKSPACE_ROUTES.executive,
       allowed: WORKSPACE_ROUTES.executive,
     });
