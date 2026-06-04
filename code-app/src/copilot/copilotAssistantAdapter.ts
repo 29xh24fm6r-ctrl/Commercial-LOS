@@ -42,7 +42,7 @@ export interface CopilotDealContext {
 }
 
 export interface CopilotWorkspaceContext {
-  workspaceRole: 'banker' | 'manager' | 'team' | 'portfolio';
+  workspaceRole: 'banker' | 'manager' | 'team' | 'portfolio' | 'executive';
   userName: string | undefined;
   teamName: string | undefined;
   dealCount: number;
