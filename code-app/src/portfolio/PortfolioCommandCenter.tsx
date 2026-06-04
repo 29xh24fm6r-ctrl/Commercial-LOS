@@ -29,6 +29,11 @@ import {
   derivePortfolioExposureBands,
   exposureBandsToVerticalBars,
 } from './portfolioDashboardCharts';
+import {
+  derivePortfolioRiskSnapshot,
+  portfolioRiskCopilotSummaries,
+} from './portfolioRiskEngine';
+import { RiskConcentrationRadar } from './RiskConcentrationRadar';
 import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
 import { getCopilotConnector } from '../copilot/copilotConnector';
@@ -129,11 +134,18 @@ export function PortfolioCommandCenter() {
     });
   }, [teamPipeline, teamBankers, teamTasks, teamDocuments, filterSelection]);
 
-  // Phase 130A — read-only Copilot workspace context derived from the
-  // SAME already-derived portfolio snapshot. Counts + label summaries
-  // only (the builder drops record ids), so no GUID and no cross-team
-  // data reaches the assistant. Mounted only when the snapshot is ready
-  // + non-empty.
+  // Phase 132A — risk & concentration snapshot layered on the same
+  // already-derived command snapshot (single source of truth). Read-only.
+  const riskSnapshot = useMemo(
+    () => (snapshot ? derivePortfolioRiskSnapshot(snapshot) : undefined),
+    [snapshot],
+  );
+
+  // Phase 130A + 132A — read-only Copilot workspace context derived from
+  // the SAME already-derived snapshot. Counts + label summaries only (the
+  // builder drops record ids), so no GUID and no cross-team data reaches
+  // the assistant. Phase 132A adds the risk/concentration summary lines
+  // and routes the top risk findings into the proposal topBlockers.
   const copilotContext =
     snapshot && !snapshot.isEmpty
       ? buildWorkspaceCopilotContext({
@@ -146,17 +158,27 @@ export function PortfolioCommandCenter() {
             stage: r.teamDeal.stage,
           })),
           urgentItems: snapshot.exceptions.map((e) => ({ label: e.reason })),
-          kpiSummaries: portfolioCopilotKpiSummaries(snapshot.commandRibbon),
+          kpiSummaries: [
+            ...portfolioCopilotKpiSummaries(snapshot.commandRibbon),
+            ...(riskSnapshot ? portfolioRiskCopilotSummaries(riskSnapshot) : []),
+          ],
         })
       : undefined;
 
   // SPEC-COPILOT-LIVE-CONNECTOR — confirmation-required proposals from the
-  // governed connector. Empty in the default not_configured posture.
+  // governed connector. Empty in the default not_configured posture. Top
+  // risk findings join the blocker list so a live assistant can reason
+  // over concentration as well as per-deal exceptions.
   const copilotProposals =
     copilotContext && snapshot
       ? getCopilotConnector().assistWorkspace({
           workspace: copilotContext,
-          topBlockers: snapshot.exceptions.map((e) => e.reason),
+          topBlockers: [
+            ...snapshot.exceptions.map((e) => e.reason),
+            ...(riskSnapshot
+              ? riskSnapshot.findings.slice(0, 5).map((f) => f.label)
+              : []),
+          ],
         }).proposed_actions
       : undefined;
 
@@ -208,6 +230,7 @@ export function PortfolioCommandCenter() {
               />
             </div>
           )}
+          {riskSnapshot && <RiskConcentrationRadar risk={riskSnapshot} />}
           <KpiRibbon ribbon={snapshot.commandRibbon} />
           <AnalyticsGrid snapshot={snapshot} />
           <TopExposures rows={snapshot.topExposures} />

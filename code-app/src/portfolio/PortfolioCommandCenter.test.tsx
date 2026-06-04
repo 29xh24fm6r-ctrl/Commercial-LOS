@@ -546,3 +546,23 @@ describe('Phase 130A — Copilot assist panel wiring', () => {
     ).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 132A — Risk & Concentration Radar mounts in the cockpit
+// ---------------------------------------------------------------------------
+
+describe('Phase 132A — risk radar', () => {
+  it('mounts the Risk & Concentration Radar near the top when ready', () => {
+    setAllReady({ pipeline: [deal({ assignedBankerName: 'Alice' })] });
+    renderCockpit();
+    expect(
+      screen.getByRole('region', { name: /Risk and Concentration Radar/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Single-name concentration')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Policy bands are operational indicators, not regulatory classifications\./,
+      ),
+    ).toBeInTheDocument();
+  });
+});
