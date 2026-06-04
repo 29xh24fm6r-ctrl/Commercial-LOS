@@ -46,6 +46,10 @@ const COPILOT_MODULE_FILES = [
   'copilot/DealCopilotAssist.tsx',
   'copilot/dealCopilotContext.ts',
   'copilot/workspaceCopilotContext.ts',
+  // SPEC-COPILOT-LIVE-CONNECTOR additions.
+  'copilot/copilotConnector.ts',
+  'copilot/copilotProposalEngine.ts',
+  'copilot/copilotAssistContext.ts',
 ] as const;
 
 // The dense cockpit bodies that embed a workspace Copilot panel. Their
@@ -197,10 +201,15 @@ describe('Phase 130B §5 — polish is discoverable and still not-configured-fir
     expect(src).toMatch(/Copilot connector not configured/);
   });
 
-  it('the live "Connected" pill is gated on a non-not_configured adapter (never shown by default)', () => {
+  it('the live pill styling is gated on connector.connected (no fake "Connected")', () => {
     const src = stripComments(read('copilot/CopilotAssistPanel.tsx'));
-    // The "Connected" label only renders in the live branch; the default
-    // adapter is not_configured, so it cannot appear today.
-    expect(src).toMatch(/notConfigured\s*\?\s*'Not configured'\s*:\s*'Connected'/);
+    // SPEC-COPILOT-LIVE-CONNECTOR — the pill label derives from the
+    // connector mode, and the cobalt "live" styling is applied ONLY when
+    // the connector reports connected === true in a live mode.
+    expect(src).toMatch(/pillLabelFor\(mode\)/);
+    expect(src).toMatch(
+      /pillConnected\s*=\s*connectorStatus\.connected\s*&&\s*isLiveMode/,
+    );
+    expect(src).toMatch(/pillConnected\s*\?\s*statusPillLiveStyle\s*:\s*statusPillMutedStyle/);
   });
 });

@@ -34,6 +34,7 @@ import {
 } from './ManagerChartPrimitives';
 import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
+import { getCopilotConnector } from '../copilot/copilotConnector';
 import { palette, radius, severityPalette, shadow, spacing, typography } from '../shared/theme';
 
 /**
@@ -167,6 +168,20 @@ export function ManagerBloombergControlPanel() {
         })
       : undefined;
 
+  // SPEC-COPILOT-LIVE-CONNECTOR — confirmation-required proposals from the
+  // governed connector. Empty in the default not_configured posture, so
+  // the panel renders none.
+  const copilotProposals =
+    copilotContext && snapshot
+      ? getCopilotConnector().assistWorkspace({
+          workspace: copilotContext,
+          topBlockers: [
+            ...snapshot.exceptionTape.blocked,
+            ...snapshot.exceptionTape.atRisk,
+          ].map((e) => e.reason),
+        }).proposed_actions
+      : undefined;
+
   return (
     <section
       style={styles.deck}
@@ -209,6 +224,7 @@ export function ManagerBloombergControlPanel() {
               <CopilotAssistPanel
                 surface="workspace"
                 workspaceContext={copilotContext}
+                proposedActions={copilotProposals}
               />
             </div>
           )}
