@@ -11,11 +11,19 @@ import {
   type ExecutiveDataQuality,
 } from './executiveCommandSnapshot';
 import {
+  VerticalBarChart,
   HorizontalBarChart,
   DonutChart,
   ForecastSparkline,
-  type HorizontalBarDatum,
 } from '../shared/CommandChartPrimitives';
+import {
+  stageCountBars,
+  stageExposureBars,
+  readinessDonutSegments,
+  closingForecastPoints,
+  executiveExceptionTape,
+  type ExecutiveExceptionBucket,
+} from './executiveDashboardCharts';
 import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
 import { getCopilotConnector } from '../copilot/copilotConnector';
@@ -48,9 +56,22 @@ export function ExecutiveCommandCenter() {
   const {
     snapshotReadiness,
     snapshotPerformance,
+    snapshotProfitability,
     fallbackPipelineByStage,
     fallbackClosingForecast,
   } = useExecutiveData();
+
+  // Phase 134B — performance + profitability are NON-CORE slots. They
+  // never gate the cockpit (the three core slots below do). We surface
+  // only honest availability counts; their per-banker / revenue / ROE
+  // breakdowns are intentionally NOT rendered (see the "not yet wired"
+  // panel + honest omissions).
+  const performanceAvailableCount =
+    snapshotPerformance.kind === 'ready' ? snapshotPerformance.data.length : 0;
+  const profitabilityAvailableCount =
+    snapshotProfitability.kind === 'ready'
+      ? snapshotProfitability.data.length
+      : 0;
 
   const failureSlot =
     snapshotReadiness.kind === 'failed'
@@ -149,19 +170,28 @@ export function ExecutiveCommandCenter() {
             </div>
           )}
           <KpiRibbon ribbon={snapshot.ribbon} />
+          <ExceptionTape buckets={executiveExceptionTape(snapshot)} />
           <StrategicRiskStrip
             risk={snapshot.riskDistribution}
             ribbon={snapshot.ribbon}
           />
           <div style={styles.twoCol}>
             <PortfolioExposureSummary snapshot={snapshot} />
-            <OperationsHealthSummary ribbon={snapshot.ribbon} />
+            <StageDistribution snapshot={snapshot} />
           </div>
-          <DataQualitySummary dq={snapshot.dataQuality} />
+          <ClosingForecastCard snapshot={snapshot} />
+          <div style={styles.twoCol}>
+            <OperationsHealthSummary ribbon={snapshot.ribbon} />
+            <DataQualitySummary dq={snapshot.dataQuality} />
+          </div>
           <div style={styles.twoCol}>
             <TopDealsToWatch rows={snapshot.topDeals} />
             <TopBottlenecks rows={snapshot.topBlockers} />
           </div>
+          <PerformanceProfitabilityPanel
+            performanceCount={performanceAvailableCount}
+            profitabilityCount={profitabilityAvailableCount}
+          />
           <HonestOmissions />
         </div>
       )}
@@ -275,13 +305,7 @@ function StrategicRiskStrip({
         <DonutChart
           title="Readiness distribution"
           subtitle="Across authorized readiness snapshots"
-          segments={[
-            { label: 'High', value: risk.high, tone: 'clear' },
-            { label: 'Medium', value: risk.medium, tone: 'info' },
-            { label: 'Low', value: risk.low, tone: 'atRisk' },
-            { label: 'Blocked', value: risk.blocked, tone: 'blocked' },
-            { label: 'Unknown', value: risk.unknown, tone: 'neutral' },
-          ]}
+          segments={readinessDonutSegments(risk)}
         />
         <div style={styles.statColumn}>
           <Stat label="Blocked deals" value={String(ribbon.blockedCount)} tone="blocked" />
@@ -303,25 +327,136 @@ function PortfolioExposureSummary({
 }: {
   snapshot: ExecutiveCommandSnapshot;
 }) {
-  const bars: HorizontalBarDatum[] = snapshot.exposureByStage.map((s) => ({
-    label: s.stage,
-    value: s.totalExposure,
-    secondaryLabel: `${s.dealCount} · ${s.sharePct}%`,
-    tone: s.isUnknown ? 'neutral' : 'info',
-  }));
-  const forecastPoints = snapshot.closingForecast
-    .filter((b) => !b.past)
-    .map((b) => ({ label: b.label, dealCount: b.dealCount, totalAmount: b.totalExposure }));
   return (
     <section style={styles.panel} aria-label="Portfolio exposure summary" data-executive-cockpit-section="exposure">
       <header style={styles.sectionHeader}>
         <h3 style={styles.sectionTitle}>Portfolio exposure</h3>
         <span style={styles.sectionMeta}>By stage · {formatCurrency(snapshot.ribbon.totalExposure)}</span>
       </header>
-      <HorizontalBarChart title="Exposure by stage" subtitle="$ + share" data={bars} valueFormatter={formatCurrencyCompact} />
-      {forecastPoints.length > 0 && (
-        <ForecastSparkline title="Closing forecast" subtitle="Upcoming windows" points={forecastPoints} />
+      <HorizontalBarChart
+        title="Exposure by stage"
+        subtitle="$ + share"
+        data={stageExposureBars(snapshot)}
+        valueFormatter={formatCurrencyCompact}
+      />
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Stage distribution (deal count by stage)
+// ---------------------------------------------------------------------------
+
+function StageDistribution({
+  snapshot,
+}: {
+  snapshot: ExecutiveCommandSnapshot;
+}) {
+  return (
+    <section style={styles.panel} aria-label="Stage distribution" data-executive-cockpit-section="stage-distribution">
+      <header style={styles.sectionHeader}>
+        <h3 style={styles.sectionTitle}>Stage distribution</h3>
+        <span style={styles.sectionMeta}>{snapshot.ribbon.totalActiveDeals} active deals</span>
+      </header>
+      <VerticalBarChart
+        title="Deals by stage"
+        subtitle="Count per stage"
+        data={stageCountBars(snapshot)}
+      />
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Closing forecast (its own card)
+// ---------------------------------------------------------------------------
+
+function ClosingForecastCard({
+  snapshot,
+}: {
+  snapshot: ExecutiveCommandSnapshot;
+}) {
+  const points = closingForecastPoints(snapshot);
+  return (
+    <section style={styles.panel} aria-label="Closing forecast" data-executive-cockpit-section="closing-forecast">
+      <header style={styles.sectionHeader}>
+        <h3 style={styles.sectionTitle}>Closing forecast</h3>
+        <span style={styles.sectionMeta}>Upcoming windows</span>
+      </header>
+      {points.length === 0 ? (
+        <p style={styles.bucketEmpty}>No upcoming closing windows in the forecast.</p>
+      ) : (
+        <ForecastSparkline title="Closing forecast" subtitle="$ by window" points={points} />
       )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Executive exception tape
+// ---------------------------------------------------------------------------
+
+function ExceptionTape({
+  buckets,
+}: {
+  buckets: ReadonlyArray<ExecutiveExceptionBucket>;
+}) {
+  return (
+    <section style={styles.exceptionTape} aria-label="Executive exception tape" data-executive-cockpit-section="exception-tape">
+      {buckets.map((b) => (
+        <div
+          key={b.key}
+          style={{ ...styles.exceptionBucket, borderLeftColor: severityPalette[b.tone].bar }}
+          data-executive-exception={b.key}
+          aria-label={`${b.label}: ${b.count}`}
+        >
+          <span style={styles.exceptionLabel}>{b.label}</span>
+          <span
+            style={{
+              ...styles.exceptionCount,
+              background: severityPalette[b.tone].bg,
+              color: severityPalette[b.tone].fg,
+            }}
+          >
+            {b.count}
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Performance & profitability availability (honest "not yet wired")
+// ---------------------------------------------------------------------------
+
+function PerformanceProfitabilityPanel({
+  performanceCount,
+  profitabilityCount,
+}: {
+  performanceCount: number;
+  profitabilityCount: number;
+}) {
+  return (
+    <section
+      style={styles.panel}
+      aria-label="Performance and profitability availability"
+      data-executive-cockpit-section="performance-profitability"
+    >
+      <header style={styles.sectionHeader}>
+        <h3 style={styles.sectionTitle}>Performance &amp; profitability</h3>
+        <span style={styles.sectionMeta}>Not yet wired</span>
+      </header>
+      <div style={styles.statRow}>
+        <Stat label="Performance metric rows" value={String(performanceCount)} tone="info" />
+        <Stat label="Profitability snapshots" value={String(profitabilityCount)} tone="info" />
+      </div>
+      <p style={styles.note}>
+        Per-banker production, revenue, ROE, yield, and margin breakdowns are
+        Not yet wired in the executive cockpit. Only the availability counts
+        above are shown — no figures are derived from these slots, and a
+        failed load of either does not affect the cockpit.
+      </p>
     </section>
   );
 }
@@ -655,6 +790,37 @@ const styles: Record<string, React.CSSProperties> = {
   },
   statColumn: { display: 'flex', flexDirection: 'column' as const, gap: spacing.xs },
   statRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: spacing.xs },
+  exceptionTape: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+    gap: spacing.sm,
+  },
+  exceptionBucket: {
+    background: palette.deckBg,
+    border: `1px solid ${palette.panelBorder}`,
+    borderLeft: '3px solid',
+    borderRadius: radius.md,
+    padding: `${spacing.xs} ${spacing.md}`,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minWidth: 0,
+  },
+  exceptionLabel: {
+    fontSize: typography.size.xs,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase' as const,
+    color: palette.textSubtle,
+    fontWeight: typography.weight.bold,
+  },
+  exceptionCount: {
+    padding: `1px ${spacing.sm}`,
+    borderRadius: radius.pill,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    flexShrink: 0,
+  },
   stat: {
     background: palette.surface,
     borderLeft: '3px solid',

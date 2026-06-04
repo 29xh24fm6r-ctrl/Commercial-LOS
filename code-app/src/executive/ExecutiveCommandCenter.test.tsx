@@ -227,6 +227,104 @@ describe('Phase 134A — empty-state + partial-data honesty', () => {
   });
 });
 
+describe('Phase 134B — density sections render from real data', () => {
+  it('renders the stage distribution, closing forecast, and exception tape sections', () => {
+    const { container } = (() => {
+      setReady({
+        pipelineByStage: [
+          { stage: 'Underwriting', count: 2, totalAmount: 6_000_000 },
+        ],
+        readiness: [
+          readiness({ id: '1', readinessBand: 'Blocked', missingDocsCount: 1 }),
+        ],
+        closingForecast: [
+          { key: '2026-07', label: 'July 2026', count: 1, totalAmount: 2_000_000, past: false },
+        ],
+      });
+      return renderCockpit();
+    })();
+    expect(
+      container.querySelector('[data-executive-cockpit-section="stage-distribution"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-executive-cockpit-section="closing-forecast"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-executive-cockpit-section="exception-tape"]'),
+    ).not.toBeNull();
+  });
+
+  it('the exception tape shows the real blocked count from readiness (no fabrication)', () => {
+    const { container } = (() => {
+      setReady({
+        readiness: [
+          readiness({ id: '1', readinessBand: 'Blocked' }),
+          readiness({ id: '2', readinessBand: 'Blocked' }),
+          readiness({ id: '3', readinessBand: 'High' }),
+        ],
+      });
+      return renderCockpit();
+    })();
+    const blocked = container.querySelector(
+      '[data-executive-exception="blocked"]',
+    );
+    expect(blocked).not.toBeNull();
+    expect(blocked!.getAttribute('aria-label')).toBe('Blocked readiness: 2');
+  });
+
+  it('closing-forecast card shows an honest empty message when there are no upcoming windows', () => {
+    setReady({ closingForecast: [] });
+    renderCockpit();
+    expect(
+      screen.getByText(/No upcoming closing windows in the forecast/i),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('Phase 134B — performance / profitability honesty', () => {
+  it('shows availability counts and an explicit "Not yet wired" — no fabricated revenue/ROE', () => {
+    setData({
+      snapshotReadiness: ready([readiness()]),
+      snapshotPerformance: ready([
+        { id: 'm1', bankerId: 'b1', bankerName: 'A', metricName: 'closed', metricType: undefined, periodStart: '', periodEnd: '', value: 3 },
+      ]),
+      snapshotProfitability: ready([
+        { id: 'p1', asOfDate: '', relationshipName: 'R', totalLoanBalance: 1, totalDeposits: 1, totalLoanRevenue: undefined, totalRelationshipRevenue: undefined, feeIncomeYtd: undefined, roe: undefined, estimatedVsActual: undefined, snapshotFreshness: '', snapshotVersion: '', staleDataFlag: false, snapshotState: undefined },
+      ]),
+      fallbackPipelineByStage: ready([{ stage: 'Underwriting', count: 1, totalAmount: 1_000_000 }]),
+      fallbackClosingForecast: ready([]),
+    });
+    renderCockpit();
+    const panel = screen.getByRole('region', {
+      name: /Performance and profitability availability/i,
+    });
+    expect(within(panel).getByText('Performance metric rows')).toBeInTheDocument();
+    expect(within(panel).getByText('Profitability snapshots')).toBeInTheDocument();
+    expect(
+      within(panel).getByText(/Not yet wired in the executive cockpit/i),
+    ).toBeInTheDocument();
+    // No fabricated dollar / ROE / yield / margin figures appear in the panel.
+    expect(panel.textContent ?? '').not.toMatch(/ROE\s*[:=]|\$\s*\d|%/);
+  });
+
+  it('a FAILED profitability slot (non-core) does not fail the cockpit closed or invent KPIs', () => {
+    setData({
+      snapshotReadiness: ready([readiness()]),
+      snapshotProfitability: { kind: 'failed', message: 'profit boom' },
+      fallbackPipelineByStage: ready([{ stage: 'Underwriting', count: 1, totalAmount: 1_000_000 }]),
+      fallbackClosingForecast: ready([]),
+    });
+    renderCockpit();
+    expect(screen.getByLabelText('Executive KPI ribbon')).toBeInTheDocument();
+    expect(screen.queryByText(/failing closed/i)).not.toBeInTheDocument();
+    // Availability count reads 0 (not loaded), never invented.
+    const panel = screen.getByRole('region', {
+      name: /Performance and profitability availability/i,
+    });
+    expect(within(panel).getByText('Profitability snapshots')).toBeInTheDocument();
+  });
+});
+
 describe('Phase 133A — ExecutiveCommandCenter is read-only + honest (static source)', () => {
   const src = readFileSync(
     resolve(__dirname, 'ExecutiveCommandCenter.tsx'),
@@ -247,6 +345,15 @@ describe('Phase 133A — ExecutiveCommandCenter is read-only + honest (static so
     expect(code).not.toMatch(/useManagerData|ManagerProvider/);
     expect(code).not.toMatch(/useBanker\b|BankerProvider/);
     expect(code).not.toMatch(/from ['"]\.\.\/portfolio\//);
+  });
+
+  it('Phase 134B — introduces no fetch / Graph / Office / Dataverse-write / email-send pattern', () => {
+    expect(code).not.toMatch(/\bfetch\(/);
+    expect(code).not.toMatch(/XMLHttpRequest/);
+    expect(code).not.toMatch(/SendEmailV2|Office365/);
+    expect(code).not.toMatch(/microsoft-graph|graph\.microsoft/i);
+    expect(code).not.toMatch(/from ['"]\.\.\/generated\//);
+    expect(code).not.toMatch(/\.create\(|\.update\(|\.patch\(|\.delete\(/);
   });
 
   // Note: the cockpit renders the honest-omission disclaimer, which
