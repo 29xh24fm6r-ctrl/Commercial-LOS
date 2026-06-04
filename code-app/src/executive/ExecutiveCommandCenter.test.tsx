@@ -364,3 +364,96 @@ describe('Phase 133A — ExecutiveCommandCenter is read-only + honest (static so
   // such disclaimer text. Here we only confirm the disclaimer is present
   // (covered by the "honest-omission copy" render test above).
 });
+
+describe('Phase 135A — Executive demo readiness contract', () => {
+  it('the densified demo cockpit still renders every 134B section from real data', () => {
+    setReady({
+      readiness: [
+        readiness({ id: '1', readinessBand: 'Blocked' }),
+        readiness({ id: '2', readinessBand: 'High' }),
+      ],
+      pipelineByStage: [
+        { stage: 'Underwriting', count: 2, totalAmount: 6_000_000 },
+      ],
+      closingForecast: [],
+    });
+    const { container } = renderCockpit();
+    for (const section of [
+      'kpi-ribbon',
+      'exception-tape',
+      'strategic-risk',
+      'exposure',
+      'stage-distribution',
+      'closing-forecast',
+      'operations',
+      'data-quality',
+      'top-deals',
+      'top-bottlenecks',
+      'performance-profitability',
+      'omissions',
+    ]) {
+      expect(
+        container.querySelector(
+          `[data-executive-cockpit-section="${section}"]`,
+        ),
+      ).not.toBeNull();
+    }
+  });
+
+  it('still shows the honest "Not yet wired" performance/profitability state for the demo', () => {
+    setReady({
+      readiness: [readiness({ readinessBand: 'High' })],
+    });
+    renderCockpit();
+    const panel = screen.getByLabelText(
+      'Performance and profitability availability',
+    );
+    expect(within(panel).getAllByText(/Not yet wired/i).length).toBeGreaterThan(
+      0,
+    );
+    // The demo panel must not surface any revenue / ROE / yield / margin /
+    // dollar figure — only availability counts.
+    expect(panel.textContent).not.toMatch(/ROE\s*[:=]|\$\s*\d|%/);
+  });
+
+  it('keeps the empty state honest as an expected demo state (no fabricated sections)', () => {
+    setReady({ readiness: [], pipelineByStage: [], closingForecast: [] });
+    const { container } = renderCockpit();
+    expect(
+      screen.getByText(/No authorized executive snapshot records found/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Executive KPI ribbon'),
+    ).not.toBeInTheDocument();
+    expect(
+      container.querySelector(
+        '[data-executive-cockpit-section="stage-distribution"]',
+      ),
+    ).toBeNull();
+  });
+
+  it('cockpit source reads no profitability figure fields — only the availability count (static pin)', () => {
+    // Strip comments so doc-comment vocabulary ("ROE", "revenue", etc.) does
+    // not trip the scan; we pin on actual property access of figure fields.
+    const code = readFileSync(
+      resolve(__dirname, 'ExecutiveCommandCenter.tsx'),
+      'utf8',
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|\s)\/\/.*$/gm, '$1');
+    // Availability is the ONLY thing read off the profitability slot.
+    expect(code).toMatch(/snapshotProfitability\.data\.length/);
+    // None of the profitability figure fields are ever accessed.
+    for (const field of [
+      /\.roe\b/,
+      /\.totalLoanRevenue\b/,
+      /\.totalRelationshipRevenue\b/,
+      /\.feeIncomeYtd\b/,
+      /\.totalDeposits\b/,
+      /\.totalLoanBalance\b/,
+      /\.estimatedVsActual\b/,
+    ]) {
+      expect(code).not.toMatch(field);
+    }
+  });
+});

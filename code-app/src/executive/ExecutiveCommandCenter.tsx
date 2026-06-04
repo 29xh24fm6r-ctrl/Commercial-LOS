@@ -235,7 +235,9 @@ function EmptyState() {
       style={styles.emptyRow}
       data-executive-cockpit-state="empty"
     >
-      No authorized executive snapshot records found.
+      No authorized executive snapshot records found. This is an expected
+      state until executive snapshot data is available — no metrics are
+      fabricated to fill the view.
     </div>
   );
 }

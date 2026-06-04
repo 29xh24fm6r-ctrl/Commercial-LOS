@@ -440,3 +440,69 @@ describe('Phase 111 — Stable cross-doc pointers', () => {
     expect(doc).toMatch(/PHASE_111_RELEASE_CANDIDATE_SNAPSHOT\.md/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 135A — Executive demo readiness + release snapshot
+// ---------------------------------------------------------------------------
+
+describe('Phase 135A — Executive workspace release docs exist on disk', () => {
+  const REQUIRED_EXECUTIVE_DOCS: readonly string[] = [
+    'docs/PHASE_133A_EXECUTIVE_WORKSPACE_COMMAND_CENTER.md',
+    'docs/PHASE_133B_EXECUTIVE_WORKSPACE_REACHABILITY.md',
+    'docs/PHASE_133C_EXECUTIVE_PRIMARY_WORKSPACE_SEED.md',
+    'docs/PHASE_134A_EXECUTIVE_WORKSPACE_RUNTIME_VERIFICATION.md',
+    'docs/PHASE_134B_EXECUTIVE_COMMAND_CENTER_DENSITY.md',
+    'docs/PHASE_135A_EXECUTIVE_DEMO_READINESS.md',
+  ];
+  for (const rel of REQUIRED_EXECUTIVE_DOCS) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+});
+
+describe('Phase 135A — Executive demo contract is pinned in the doc', () => {
+  const doc = readDoc('docs/PHASE_135A_EXECUTIVE_DEMO_READINESS.md');
+
+  it('pins that Executive is primary-workspace-name gated', () => {
+    expect(doc).toMatch(/primary[- ]workspace[- ]name gated/i);
+    expect(doc).toMatch(/Executive Dashboard/);
+  });
+
+  it('pins that manager/team entitlement does not proxy Executive access', () => {
+    expect(doc).toMatch(
+      /Manager\/team entitlement does (?:\*\*)?not(?:\*\*)? proxy Executive access/i,
+    );
+  });
+
+  it('pins that the Executive cockpit is dense but honest', () => {
+    expect(doc).toMatch(/Executive cockpit is dense but honest/i);
+  });
+
+  it('pins that empty/partial states are expected demo states', () => {
+    expect(doc).toMatch(/Empty\/partial states are expected demo states/i);
+  });
+
+  it('pins that live provisioning remains pending operator auth availability', () => {
+    expect(doc).toMatch(
+      /Live provisioning remains pending operator auth availability/i,
+    );
+  });
+
+  it('pins that Copilot remains not-configured unless a future connector phase changes it', () => {
+    expect(doc).toMatch(
+      /Copilot remains not-configured[\s\S]*?future connector phase/i,
+    );
+  });
+
+  it('explicitly states no fake metrics / no runtime mock data / no access widening / no Copilot live connector', () => {
+    expect(doc).toMatch(/No fake metrics\./i);
+    expect(doc).toMatch(/No runtime mock data\./i);
+    expect(doc).toMatch(/No access widening\./i);
+    expect(doc).toMatch(/No Copilot live connector\./i);
+  });
+
+  it('does not imply any live Dataverse write is part of Phase 135A', () => {
+    expect(doc).toMatch(/No live Dataverse write is part of Phase 135A/i);
+  });
+});
