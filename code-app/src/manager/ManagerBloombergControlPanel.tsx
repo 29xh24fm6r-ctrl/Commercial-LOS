@@ -32,6 +32,8 @@ import {
   type VerticalBarDatum,
   type HorizontalBarDatum,
 } from './ManagerChartPrimitives';
+import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
+import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
 import { palette, radius, severityPalette, shadow, spacing, typography } from '../shared/theme';
 
 /**
@@ -138,6 +140,33 @@ export function ManagerBloombergControlPanel() {
     });
   }, [teamPipeline, teamBankers, teamTasks, teamDocuments, filterSelection]);
 
+  // Phase 130A — build the read-only Copilot workspace context from the
+  // SAME already-derived snapshot the cockpit renders. Only counts +
+  // label summaries are forwarded (the builder drops record ids), so no
+  // raw GUID and no cross-team data ever reaches the assistant. Built
+  // only when the snapshot is ready + non-empty; otherwise the panel
+  // simply does not mount.
+  const copilotContext =
+    snapshot && !snapshot.isEmpty
+      ? buildWorkspaceCopilotContext({
+          workspaceRole: 'manager',
+          userName: undefined,
+          teamName: undefined,
+          deals: snapshot.vmRows.map((r) => ({
+            id: r.teamDeal.id,
+            name: r.teamDeal.name,
+            stage: r.teamDeal.stage,
+          })),
+          urgentItems: [
+            ...snapshot.exceptionTape.blocked,
+            ...snapshot.exceptionTape.atRisk,
+            ...snapshot.exceptionTape.missingFields,
+            ...snapshot.exceptionTape.stale,
+          ].map((e) => ({ label: e.reason })),
+          kpiSummaries: managerCopilotKpiSummaries(snapshot.commandStrip),
+        })
+      : undefined;
+
   return (
     <section
       style={styles.deck}
@@ -175,6 +204,14 @@ export function ManagerBloombergControlPanel() {
       )}
       {!failureSlot && allReady && snapshot && !snapshot.isEmpty && (
         <div style={styles.body}>
+          {copilotContext && (
+            <div data-cockpit-copilot="manager">
+              <CopilotAssistPanel
+                surface="workspace"
+                workspaceContext={copilotContext}
+              />
+            </div>
+          )}
           <CommandStrip strip={snapshot.commandStrip} />
           <AnalyticsGrid rows={snapshot.vmRows} />
           <ExceptionTape tape={snapshot.exceptionTape} />
@@ -735,6 +772,24 @@ function formatCurrency(amount: number): string {
     currency: 'USD',
     maximumFractionDigits: 0,
   });
+}
+
+/**
+ * Phase 130A — concise, honest KPI summary lines for the Copilot
+ * workspace context. Derived purely from the command strip the cockpit
+ * already renders. No predictive language, no GUIDs.
+ */
+function managerCopilotKpiSummaries(
+  strip: ManagerPipelineCommandStrip,
+): string[] {
+  return [
+    `Active deals: ${strip.activeDealCount}`,
+    `Pipeline amount: ${formatCurrencyCompact(strip.totalPipelineAmount)}`,
+    `Blocked: ${strip.blockedDealCount} · At risk: ${strip.atRiskDealCount}`,
+    `Missing data: ${strip.missingDataCount} · Stale: ${strip.staleDealCount}`,
+    `Outstanding docs: ${strip.outstandingDocumentCount} · Open tasks: ${strip.openTaskCount} · Overdue: ${strip.overdueTaskCount}`,
+    `Closing next 30d: ${strip.closingNext30DayCount}`,
+  ];
 }
 
 function formatAmount(amount: number | undefined): string {

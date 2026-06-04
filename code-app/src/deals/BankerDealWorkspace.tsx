@@ -20,6 +20,7 @@ import { ActivityTimeline } from './ActivityTimeline';
 import { BorrowerCommunication } from './BorrowerCommunication';
 import { TeamsChatHandoff } from './TeamsChatHandoff';
 import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
+import { DealCopilotAssist } from '../copilot/DealCopilotAssist';
 import { DealDataProvider } from './DealDataProvider';
 import { DealIntelligenceProvider } from '../shared/dealIntelligenceContext';
 import { DealIntelligenceBeacon } from '../shared/DealIntelligenceBeacon';
@@ -255,6 +256,12 @@ export function BankerDealWorkspace({
               {/* Phase 96: copy-to-Teams deal summary. */}
               <div data-deal-card="teams-deal-summary-handoff">
                 <TeamsDealSummaryHandoff />
+              </div>
+              {/* Phase 130A: read-only Copilot assist (connector not
+                  configured). Context-only local summaries built from
+                  the data already loaded by DealDataProvider. */}
+              <div data-deal-card="copilot-assist">
+                <DealCopilotAssist />
               </div>
             </section>
           </div>

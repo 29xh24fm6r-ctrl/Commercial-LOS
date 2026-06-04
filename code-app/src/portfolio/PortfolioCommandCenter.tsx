@@ -29,6 +29,8 @@ import {
   derivePortfolioExposureBands,
   exposureBandsToVerticalBars,
 } from './portfolioDashboardCharts';
+import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
+import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
 import {
   palette,
   radius,
@@ -126,6 +128,27 @@ export function PortfolioCommandCenter() {
     });
   }, [teamPipeline, teamBankers, teamTasks, teamDocuments, filterSelection]);
 
+  // Phase 130A — read-only Copilot workspace context derived from the
+  // SAME already-derived portfolio snapshot. Counts + label summaries
+  // only (the builder drops record ids), so no GUID and no cross-team
+  // data reaches the assistant. Mounted only when the snapshot is ready
+  // + non-empty.
+  const copilotContext =
+    snapshot && !snapshot.isEmpty
+      ? buildWorkspaceCopilotContext({
+          workspaceRole: 'portfolio',
+          userName: undefined,
+          teamName: undefined,
+          deals: snapshot.vmRows.map((r) => ({
+            id: r.teamDeal.id,
+            name: r.teamDeal.name,
+            stage: r.teamDeal.stage,
+          })),
+          urgentItems: snapshot.exceptions.map((e) => ({ label: e.reason })),
+          kpiSummaries: portfolioCopilotKpiSummaries(snapshot.commandRibbon),
+        })
+      : undefined;
+
   return (
     <section
       style={styles.deck}
@@ -165,6 +188,14 @@ export function PortfolioCommandCenter() {
       )}
       {!failureSlot && allReady && snapshot && !snapshot.isEmpty && (
         <div style={styles.body}>
+          {copilotContext && (
+            <div data-cockpit-copilot="portfolio">
+              <CopilotAssistPanel
+                surface="workspace"
+                workspaceContext={copilotContext}
+              />
+            </div>
+          )}
           <KpiRibbon ribbon={snapshot.commandRibbon} />
           <AnalyticsGrid snapshot={snapshot} />
           <TopExposures rows={snapshot.topExposures} />
@@ -636,6 +667,24 @@ function formatCurrencyCompact(amount: number): string {
   if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1_000) return `$${Math.round(amount / 1_000)}K`;
   return `$${amount}`;
+}
+
+/**
+ * Phase 130A — concise, honest KPI summary lines for the Copilot
+ * workspace context. Derived purely from the portfolio ribbon the
+ * cockpit already renders. No predictive language, no GUIDs.
+ */
+function portfolioCopilotKpiSummaries(
+  ribbon: PortfolioCommandRibbon,
+): string[] {
+  return [
+    `Active deals: ${ribbon.activeDealCount}`,
+    `Total exposure: ${formatCurrencyCompact(ribbon.totalExposure)}`,
+    `Blocked: ${ribbon.blockedDealCount} · At risk: ${ribbon.atRiskDealCount}`,
+    `Missing data: ${ribbon.missingDataCount} · Stale: ${ribbon.staleDealCount}`,
+    `Outstanding docs: ${ribbon.outstandingDocumentCount} · Open tasks: ${ribbon.openTaskCount}`,
+    `Closing next 30d: ${ribbon.closingNext30DayCount}`,
+  ];
 }
 
 function formatAmount(amount: number | undefined): string {

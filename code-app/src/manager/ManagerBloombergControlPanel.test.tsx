@@ -531,6 +531,12 @@ describe('Phase 124B — drill-down navigation', () => {
       bankers: [banker()],
     });
     const { container } = renderPanel();
+    // Phase 130A — the cockpit now embeds the read-only CopilotAssistPanel,
+    // which owns its own (non-mutating) Expand / quick-action controls.
+    // Scope this drill-down pin to the cockpit's OWN surfaces by excluding
+    // the encapsulated Copilot subtree; the cockpit itself must still
+    // expose zero <button> / <form> write affordances.
+    container.querySelector('[data-cockpit-copilot]')?.remove();
     expect(container.querySelector('button')).toBeNull();
     expect(container.querySelector('form')).toBeNull();
   });
@@ -839,5 +845,44 @@ describe('Phase 124A + 124B — ManagerBloombergControlPanel.tsx static-source d
     expect(sourceCode).not.toMatch(/deal\s+score/i);
     expect(sourceCode).not.toMatch(/AI[- ]generated/i);
     expect(sourceCode).not.toMatch(/predicted\s+close/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 130A — Copilot assist surface wiring (read-only, not configured)
+// ---------------------------------------------------------------------------
+
+describe('Phase 130A — Copilot assist panel wiring', () => {
+  it('mounts the CopilotAssistPanel atop the cockpit when the snapshot is ready', () => {
+    setAllReady({ pipeline: [deal()], bankers: [banker()] });
+    renderPanel();
+    expect(screen.getByText('Copilot Assist')).toBeInTheDocument();
+  });
+
+  it('clearly states the connector is not configured (no live connector required)', () => {
+    setAllReady({ pipeline: [deal()], bankers: [banker()] });
+    renderPanel();
+    expect(
+      screen.getByText(/Copilot connector not configured/i),
+    ).toBeInTheDocument();
+  });
+
+  it('states the assistant is read-only and cannot change data', () => {
+    setAllReady({ pipeline: [deal()], bankers: [banker()] });
+    renderPanel();
+    expect(
+      screen.getByText(/Read-only assistant\. Cannot approve, change data/i),
+    ).toBeInTheDocument();
+  });
+
+  it('does NOT mount the panel before the snapshot is ready (no partial context)', () => {
+    setManagerData({
+      teamPipeline: ready([deal()]),
+      teamBankers: ready([banker()]),
+      teamTasks: { kind: 'loading' },
+      teamDocuments: { kind: 'loading' },
+    });
+    renderPanel();
+    expect(screen.queryByText('Copilot Assist')).not.toBeInTheDocument();
   });
 });

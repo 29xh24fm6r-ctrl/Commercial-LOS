@@ -508,3 +508,31 @@ describe('Phase 127A — TeamOpsQueue.tsx static-source discipline', () => {
     expect(sourceCode).not.toMatch(/mock\s+deal/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 130A — Copilot assist surface wiring (read-only, not configured)
+// ---------------------------------------------------------------------------
+
+describe('Phase 130A — Copilot assist panel wiring', () => {
+  it('mounts the CopilotAssistPanel atop the team ops queue when the snapshot is ready', () => {
+    setAllReady({ deals: [deal()] });
+    renderCockpit();
+    expect(screen.getByText('Copilot Assist')).toBeInTheDocument();
+  });
+
+  it('clearly states the connector is not configured (no live connector required)', () => {
+    setAllReady({ deals: [deal()] });
+    renderCockpit();
+    expect(
+      screen.getByText(/Copilot connector not configured/i),
+    ).toBeInTheDocument();
+  });
+
+  it('states the assistant is read-only and cannot change data', () => {
+    setAllReady({ deals: [deal()] });
+    renderCockpit();
+    expect(
+      screen.getByText(/Read-only assistant\. Cannot approve, change data/i),
+    ).toBeInTheDocument();
+  });
+});

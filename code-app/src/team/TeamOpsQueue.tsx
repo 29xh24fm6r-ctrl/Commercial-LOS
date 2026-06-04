@@ -22,6 +22,8 @@ import {
   DonutChart,
   ForecastSparkline,
 } from '../shared/CommandChartPrimitives';
+import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
+import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
 import {
   palette,
   radius,
@@ -89,6 +91,26 @@ export function TeamOpsQueue() {
     });
   }, [deals, tasks, documents]);
 
+  // Phase 130A — read-only Copilot workspace context derived from the
+  // SAME already-derived ops-queue snapshot. Counts + label summaries
+  // only (the builder drops record ids), so no GUID and no cross-team
+  // data reaches the assistant. Mounted only when ready + non-empty.
+  const copilotContext =
+    snapshot && !snapshot.isEmpty
+      ? buildWorkspaceCopilotContext({
+          workspaceRole: 'team',
+          userName: undefined,
+          teamName: undefined,
+          deals: snapshot.vmRows.map((r) => ({
+            id: r.teamDeal.id,
+            name: r.teamDeal.name,
+            stage: r.teamDeal.stage,
+          })),
+          urgentItems: snapshot.executionBoard.map((i) => ({ label: i.reason })),
+          kpiSummaries: teamCopilotKpiSummaries(snapshot.commandRibbon),
+        })
+      : undefined;
+
   return (
     <section
       style={styles.deck}
@@ -115,6 +137,14 @@ export function TeamOpsQueue() {
       {!failureSlot && allReady && snapshot && snapshot.isEmpty && <EmptyState />}
       {!failureSlot && allReady && snapshot && !snapshot.isEmpty && (
         <div style={styles.body}>
+          {copilotContext && (
+            <div data-cockpit-copilot="team">
+              <CopilotAssistPanel
+                surface="workspace"
+                workspaceContext={copilotContext}
+              />
+            </div>
+          )}
           <CommandRibbon ribbon={snapshot.commandRibbon} />
           <Lanes lanes={snapshot.lanes} />
           <BankerWorkloadMatrix rows={snapshot.bankerWorkload} />
@@ -651,6 +681,23 @@ function AnalyticsRow({
 // ---------------------------------------------------------------------------
 // Formatting helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Phase 130A — concise, honest KPI summary lines for the Copilot
+ * workspace context. Derived purely from the command ribbon the
+ * cockpit already renders. No predictive language, no GUIDs.
+ */
+function teamCopilotKpiSummaries(
+  ribbon: TeamOpsCommandRibbon,
+): string[] {
+  return [
+    `Active deals: ${ribbon.activeDealCount}`,
+    `Open tasks: ${ribbon.openTaskCount} · Overdue: ${ribbon.overdueTaskCount} · Due soon: ${ribbon.dueSoonTaskCount}`,
+    `Outstanding docs: ${ribbon.outstandingDocumentCount} · Pending review: ${ribbon.docsPendingReviewCount}`,
+    `Blocked: ${ribbon.blockedDealCount} · At risk: ${ribbon.atRiskDealCount} · Stale: ${ribbon.staleDealCount}`,
+    `Closing next 30d: ${ribbon.closingNext30DayCount}`,
+  ];
+}
 
 function formatUrgency(item: WorkItem): string {
   if (item.daysStale !== undefined) {
