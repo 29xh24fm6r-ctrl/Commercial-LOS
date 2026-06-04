@@ -2,6 +2,11 @@ import { useCallback, useState, type CSSProperties } from 'react';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import { getCopilotAdapter, type CopilotResponse, type CopilotDealContext, type CopilotWorkspaceContext } from './copilotAssistantAdapter';
+import {
+  getCopilotConnector,
+  type CopilotConnectorMode,
+  type CopilotProposedAction,
+} from './copilotConnector';
 import { CopilotNotConfiguredState } from './CopilotNotConfiguredState';
 import { CopilotPromptBar } from './CopilotPromptBar';
 import { CopilotResponseCard } from './CopilotResponseCard';
@@ -12,6 +17,13 @@ interface CopilotAssistPanelProps {
   surface: CopilotSurface;
   dealContext?: CopilotDealContext;
   workspaceContext?: CopilotWorkspaceContext;
+  /**
+   * Safe, confirmation-required proposals from the governed connector.
+   * Rendered ONLY when the connector is in a live mode (live_read_only /
+   * proposal_only). Never rendered in not_configured / disabled, so the
+   * default posture stays inert.
+   */
+  proposedActions?: CopilotProposedAction[];
   /** Collapsed by default on command surfaces. */
   defaultExpanded?: boolean;
 }
@@ -23,15 +35,48 @@ type PromptAction =
   | 'blockers'
   | 'workspace-summary';
 
+const READ_ONLY_DISCLAIMER =
+  'Copilot can summarize and suggest. It cannot write or submit changes.';
+
+function pillLabelFor(mode: CopilotConnectorMode): string {
+  switch (mode) {
+    case 'live_read_only':
+      return 'Live read-only';
+    case 'proposal_only':
+      return 'Proposal only';
+    case 'disabled':
+      return 'Disabled';
+    case 'not_configured':
+    default:
+      return 'Not configured';
+  }
+}
+
+function pillAriaFor(mode: CopilotConnectorMode): string {
+  switch (mode) {
+    case 'live_read_only':
+      return 'Copilot live read-only';
+    case 'proposal_only':
+      return 'Copilot proposal only';
+    case 'disabled':
+      return 'Copilot connector disabled';
+    case 'not_configured':
+    default:
+      return 'Copilot connector not configured';
+  }
+}
+
 export function CopilotAssistPanel({
   surface,
   dealContext,
   workspaceContext,
+  proposedActions,
   defaultExpanded = false,
 }: CopilotAssistPanelProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [responses, setResponses] = useState<CopilotResponse[]>([]);
   const adapter = getCopilotAdapter();
+  const connectorStatus = getCopilotConnector().status();
 
   const handleAction = useCallback(
     (action: PromptAction) => {
@@ -79,7 +124,16 @@ export function CopilotAssistPanel({
     [surface, handleAction],
   );
 
+  // Legacy adapter posture (drives the honest not-configured copy +
+  // the local summary path). Preserved for backward compatibility.
   const notConfigured = adapter.mode === 'not_configured';
+
+  // Governed connector posture (drives the status pill + proposals).
+  const mode = connectorStatus.mode;
+  const isLiveMode = mode === 'live_read_only' || mode === 'proposal_only';
+  const pillConnected = connectorStatus.connected && isLiveMode;
+  const showProposals =
+    isLiveMode && !!proposedActions && proposedActions.length > 0;
 
   return (
     <Card accentColor={palette.cobalt}>
@@ -93,14 +147,10 @@ export function CopilotAssistPanel({
         trailing={
           <div style={trailingStyle}>
             <span
-              style={notConfigured ? statusPillMutedStyle : statusPillLiveStyle}
-              aria-label={
-                notConfigured
-                  ? 'Copilot connector not configured'
-                  : 'Microsoft Copilot connector active'
-              }
+              style={pillConnected ? statusPillLiveStyle : statusPillMutedStyle}
+              aria-label={pillAriaFor(mode)}
             >
-              {notConfigured ? 'Not configured' : 'Connected'}
+              {pillLabelFor(mode)}
             </span>
             <button
               onClick={() => setExpanded((e) => !e)}
@@ -117,6 +167,10 @@ export function CopilotAssistPanel({
       {expanded && (
         <div style={bodyStyle}>
           {adapter.mode === 'not_configured' && <CopilotNotConfiguredState />}
+
+          <p style={disclaimerStyle} role="note">
+            {READ_ONLY_DISCLAIMER}
+          </p>
 
           {surface === 'deal' && dealContext && (
             <div style={quickActionsStyle}>
@@ -145,6 +199,10 @@ export function CopilotAssistPanel({
             </div>
           )}
 
+          {showProposals && (
+            <ProposedActions actions={proposedActions!} />
+          )}
+
           {responses.map((r, i) => (
             <CopilotResponseCard key={i} response={r} />
           ))}
@@ -165,10 +223,60 @@ export function CopilotAssistPanel({
   );
 }
 
+/**
+ * Proposed actions are SUGGESTIONS only. open_screen renders a safe
+ * in-page anchor; every other type renders a non-executing card with a
+ * "Requires confirmation" badge. No proposal performs a write, send, or
+ * approval — execution (if ever) is a separate, explicitly-confirmed spec.
+ */
+function ProposedActions({ actions }: { actions: CopilotProposedAction[] }) {
+  return (
+    <section style={proposalsWrapStyle} aria-label="Copilot proposed actions">
+      <span style={quickActionsLabelStyle}>Proposed (requires your confirmation):</span>
+      <ul style={proposalListStyle}>
+        {actions.map((a) => {
+          const anchor =
+            a.action_type === 'open_screen' &&
+            typeof a.payload?.anchor === 'string'
+              ? (a.payload.anchor as string)
+              : undefined;
+          return (
+            <li
+              key={a.action_id}
+              style={proposalCardStyle}
+              data-copilot-proposal={a.action_type}
+            >
+              <div style={proposalHeadStyle}>
+                {anchor ? (
+                  <a href={anchor} style={proposalLinkStyle}>
+                    {a.label}
+                  </a>
+                ) : (
+                  <span style={proposalLabelStyle}>{a.label}</span>
+                )}
+                <span style={confirmBadgeStyle}>Requires confirmation</span>
+              </div>
+              <p style={proposalRationaleStyle}>{a.rationale}</p>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 const bodyStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: spacing.md,
+};
+
+const disclaimerStyle: CSSProperties = {
+  margin: 0,
+  fontSize: typography.size.xs,
+  color: palette.textMuted,
+  fontStyle: 'italic',
+  lineHeight: typography.lineHeight.snug,
 };
 
 const trailingStyle: CSSProperties = {
@@ -189,8 +297,9 @@ const statusPillBaseStyle: CSSProperties = {
   whiteSpace: 'nowrap' as const,
 };
 
-// Honest "not configured" pill — neutral/muted, never colored to imply
-// an active connector.
+// Honest muted pill — used for not_configured / disabled, and for any
+// live mode that is NOT actually connected. Never implies an active
+// connector.
 const statusPillMutedStyle: CSSProperties = {
   ...statusPillBaseStyle,
   background: palette.surfaceAlt,
@@ -198,8 +307,8 @@ const statusPillMutedStyle: CSSProperties = {
   border: `1px solid ${palette.border}`,
 };
 
-// Reserved for a future live connector (Phase 130B leaves the default
-// adapter not_configured, so this pill does not render today).
+// Cobalt "live" pill — only used when the connector reports
+// connected === true in a live mode. No fake connected state.
 const statusPillLiveStyle: CSSProperties = {
   ...statusPillBaseStyle,
   background: palette.cobaltBg,
@@ -245,4 +354,67 @@ const chipStyle: CSSProperties = {
   borderRadius: '12px',
   cursor: 'pointer',
   fontFamily: 'inherit',
+};
+
+const proposalsWrapStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: spacing.xs,
+};
+
+const proposalListStyle: CSSProperties = {
+  listStyle: 'none',
+  margin: 0,
+  padding: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: spacing.xs,
+};
+
+const proposalCardStyle: CSSProperties = {
+  border: `1px solid ${palette.border}`,
+  borderLeft: `3px solid ${palette.cobalt}`,
+  borderRadius: radius.sm,
+  padding: `${spacing.xs} ${spacing.sm}`,
+  background: palette.surfaceAlt,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
+};
+
+const proposalHeadStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'baseline',
+  gap: spacing.sm,
+};
+
+const proposalLabelStyle: CSSProperties = {
+  fontSize: typography.size.sm,
+  fontWeight: typography.weight.semibold,
+  color: palette.text,
+};
+
+const proposalLinkStyle: CSSProperties = {
+  fontSize: typography.size.sm,
+  fontWeight: typography.weight.semibold,
+  color: palette.primary,
+  textDecoration: 'none',
+};
+
+const confirmBadgeStyle: CSSProperties = {
+  fontSize: typography.size.xs,
+  fontWeight: typography.weight.semibold,
+  color: palette.textSubtle,
+  letterSpacing: typography.letterSpacing.label,
+  textTransform: 'uppercase' as const,
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
+};
+
+const proposalRationaleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: typography.size.xs,
+  color: palette.textMuted,
+  lineHeight: typography.lineHeight.snug,
 };

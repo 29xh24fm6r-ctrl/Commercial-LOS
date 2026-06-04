@@ -24,6 +24,7 @@ import {
 } from '../shared/CommandChartPrimitives';
 import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
+import { getCopilotConnector } from '../copilot/copilotConnector';
 import {
   palette,
   radius,
@@ -111,6 +112,16 @@ export function TeamOpsQueue() {
         })
       : undefined;
 
+  // SPEC-COPILOT-LIVE-CONNECTOR — confirmation-required proposals from the
+  // governed connector. Empty in the default not_configured posture.
+  const copilotProposals =
+    copilotContext && snapshot
+      ? getCopilotConnector().assistWorkspace({
+          workspace: copilotContext,
+          topBlockers: snapshot.executionBoard.map((i) => i.reason),
+        }).proposed_actions
+      : undefined;
+
   return (
     <section
       style={styles.deck}
@@ -142,6 +153,7 @@ export function TeamOpsQueue() {
               <CopilotAssistPanel
                 surface="workspace"
                 workspaceContext={copilotContext}
+                proposedActions={copilotProposals}
               />
             </div>
           )}
