@@ -511,3 +511,62 @@ describe('Phase 127B — deriveWorkspaceLinks surfaces the team link when admitt
     expect(team.route).toBe(WORKSPACE_ROUTES.team);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 133B — Executive Workspace reachability (no manager/team proxy)
+// ---------------------------------------------------------------------------
+
+describe('Phase 133B — Executive reachability', () => {
+  it('executive-primary user sees Executive Workspace as the current link', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.executive,
+      currentRoute: WORKSPACE_ROUTES.executive,
+      entitledRoutes: [],
+    });
+    expect(links.map((l) => l.key)).toEqual(['executive']);
+    expect(links[0].isCurrent).toBe(true);
+    expect(links[0].route).toBe(WORKSPACE_ROUTES.executive);
+  });
+
+  it('executive-primary user who is ALSO manager-entitled keeps the Executive link', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.executive,
+      currentRoute: WORKSPACE_ROUTES.executive,
+      entitledRoutes: [WORKSPACE_ROUTES.manager, WORKSPACE_ROUTES.team],
+      includePortfolioSurface: true,
+    });
+    const exec = links.find((l) => l.key === 'executive');
+    expect(exec).toBeDefined();
+    expect(exec!.isCurrent).toBe(true);
+  });
+
+  it('manager/team-entitled (non-executive) users do NOT get an Executive link', () => {
+    const links = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      currentRoute: WORKSPACE_ROUTES.banker,
+      entitledRoutes: [WORKSPACE_ROUTES.manager, WORKSPACE_ROUTES.team],
+      includePortfolioSurface: true,
+    });
+    expect(links.map((l) => l.key)).not.toContain('executive');
+  });
+
+  it('useEntitledRoutes never admits the executive route — manager entitlement is not an executive proxy', async () => {
+    loadManagerIdentityMock.mockResolvedValue({
+      kind: 'ready',
+      identity: {
+        bankerId: 'b1',
+        fullName: 'Test',
+        email: 'banker@oldglorybank.com',
+        teamId: 'team-1',
+        teamName: 'Capital Markets',
+      },
+    });
+    const { result } = renderHook(() => useEntitledRoutes(), {
+      wrapper: withBootstrap(bootstrapResult()),
+    });
+    await waitFor(() => expect(result.current.kind).toBe('ready'));
+    expect(result.current.routes).toContain(WORKSPACE_ROUTES.manager);
+    expect(result.current.routes).toContain(WORKSPACE_ROUTES.team);
+    expect(result.current.routes).not.toContain(WORKSPACE_ROUTES.executive);
+  });
+});

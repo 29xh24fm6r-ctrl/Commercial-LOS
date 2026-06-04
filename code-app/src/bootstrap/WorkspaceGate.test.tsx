@@ -209,3 +209,54 @@ describe('Phase 124C — WorkspaceGate: fail-closed posture preserved', () => {
     expect(screen.queryByTestId('gate-children')).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 133B — WorkspaceGate: executive admission (no manager/team proxy)
+// ---------------------------------------------------------------------------
+
+describe('Phase 133B — WorkspaceGate: executive admission', () => {
+  it('admits an executive-primary user to /workspaces/executive (fast path)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    mountGate({
+      bootstrapRoute: WORKSPACE_ROUTES.executive,
+      initialPath: WORKSPACE_ROUTES.executive,
+      allowed: WORKSPACE_ROUTES.executive,
+    });
+    expect(await screen.findByTestId('gate-children')).toBeInTheDocument();
+  });
+
+  it('bounces a manager-entitled (non-executive) user away from /workspaces/executive (no proxy)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({
+      kind: 'ready',
+      identity: {
+        bankerId: 'b1',
+        fullName: 'Test',
+        email: 'banker@oldglorybank.com',
+        teamId: 'team-1',
+        teamName: 'Capital Markets',
+      },
+    });
+    mountGate({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      initialPath: WORKSPACE_ROUTES.executive,
+      allowed: WORKSPACE_ROUTES.executive,
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('primary-route')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('gate-children')).not.toBeInTheDocument();
+  });
+
+  it('fails closed for a non-entitled user hitting the /workspaces/executive URL directly', async () => {
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    mountGate({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      initialPath: WORKSPACE_ROUTES.executive,
+      allowed: WORKSPACE_ROUTES.executive,
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('primary-route')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('gate-children')).not.toBeInTheDocument();
+  });
+});
