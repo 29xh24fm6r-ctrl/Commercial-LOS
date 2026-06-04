@@ -1,6 +1,6 @@
 import { useCallback, useState, type CSSProperties } from 'react';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
-import { palette, spacing, typography } from '../shared/theme';
+import { palette, radius, spacing, typography } from '../shared/theme';
 import { getCopilotAdapter, type CopilotResponse, type CopilotDealContext, type CopilotWorkspaceContext } from './copilotAssistantAdapter';
 import { CopilotNotConfiguredState } from './CopilotNotConfiguredState';
 import { CopilotPromptBar } from './CopilotPromptBar';
@@ -79,24 +79,38 @@ export function CopilotAssistPanel({
     [surface, handleAction],
   );
 
+  const notConfigured = adapter.mode === 'not_configured';
+
   return (
-    <Card>
+    <Card accentColor={palette.cobalt}>
       <CardHeader
         title="Copilot Assist"
         subtitle={
-          adapter.mode === 'not_configured'
+          notConfigured
             ? 'Connector not configured — local summaries only'
             : 'Microsoft Copilot'
         }
         trailing={
-          <button
-            onClick={() => setExpanded((e) => !e)}
-            style={toggleStyle}
-            aria-expanded={expanded}
-            aria-label={expanded ? 'Collapse Copilot panel' : 'Expand Copilot panel'}
-          >
-            {expanded ? 'Collapse' : 'Expand'}
-          </button>
+          <div style={trailingStyle}>
+            <span
+              style={notConfigured ? statusPillMutedStyle : statusPillLiveStyle}
+              aria-label={
+                notConfigured
+                  ? 'Copilot connector not configured'
+                  : 'Microsoft Copilot connector active'
+              }
+            >
+              {notConfigured ? 'Not configured' : 'Connected'}
+            </span>
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              style={toggleStyle}
+              aria-expanded={expanded}
+              aria-label={expanded ? 'Collapse Copilot panel' : 'Expand Copilot panel'}
+            >
+              {expanded ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
         }
       />
 
@@ -155,6 +169,42 @@ const bodyStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: spacing.md,
+};
+
+const trailingStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: spacing.xs,
+  flexWrap: 'wrap',
+};
+
+const statusPillBaseStyle: CSSProperties = {
+  display: 'inline-block',
+  padding: `2px ${spacing.sm}`,
+  borderRadius: radius.pill,
+  fontSize: typography.size.xs,
+  fontWeight: typography.weight.semibold,
+  letterSpacing: typography.letterSpacing.label,
+  textTransform: 'uppercase' as const,
+  whiteSpace: 'nowrap' as const,
+};
+
+// Honest "not configured" pill — neutral/muted, never colored to imply
+// an active connector.
+const statusPillMutedStyle: CSSProperties = {
+  ...statusPillBaseStyle,
+  background: palette.surfaceAlt,
+  color: palette.textSubtle,
+  border: `1px solid ${palette.border}`,
+};
+
+// Reserved for a future live connector (Phase 130B leaves the default
+// adapter not_configured, so this pill does not render today).
+const statusPillLiveStyle: CSSProperties = {
+  ...statusPillBaseStyle,
+  background: palette.cobaltBg,
+  color: palette.cobaltFg,
+  border: `1px solid ${palette.cobalt}`,
 };
 
 const toggleStyle: CSSProperties = {

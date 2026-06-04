@@ -90,6 +90,22 @@ describe('Phase 130A — DealCopilotAssist', () => {
     expect(screen.getByText('Copilot Assist')).toBeInTheDocument();
   });
 
+  it('opens expanded by default on the deal cockpit (quick actions visible without a click)', () => {
+    render(<DealCopilotAssist />);
+    // Expanded → the toggle offers Collapse and the quick actions show.
+    expect(screen.getByText('Collapse')).toBeInTheDocument();
+    expect(screen.getByText('Summarize deal')).toBeInTheDocument();
+    expect(screen.getByText('Explain blockers')).toBeInTheDocument();
+  });
+
+  it('shows a visible "Not configured" status pill', () => {
+    render(<DealCopilotAssist />);
+    expect(screen.getByText('Not configured')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Copilot connector not configured'),
+    ).toBeInTheDocument();
+  });
+
   it('clearly states the connector is not configured', () => {
     render(<DealCopilotAssist />);
     expect(
@@ -108,7 +124,6 @@ describe('Phase 130A — DealCopilotAssist', () => {
 
   it('summarizes the deal from already-loaded authorized context (no AI claim)', () => {
     render(<DealCopilotAssist />);
-    fireEvent.click(screen.getByText('Expand'));
     fireEvent.click(screen.getByText('Summarize deal'));
     expect(screen.getByText(/Riverside Mfg WC/)).toBeInTheDocument();
     expect(screen.getByText(/Riverside Mfg/)).toBeInTheDocument();
@@ -123,14 +138,12 @@ describe('Phase 130A — DealCopilotAssist', () => {
 
   it('explains blockers using the shared intelligence VM blocker labels', () => {
     render(<DealCopilotAssist />);
-    fireEvent.click(screen.getByText('Expand'));
     fireEvent.click(screen.getByText('Explain blockers'));
     expect(screen.getByText(/Missing appraisal/)).toBeInTheDocument();
   });
 
   it('introduces NO write affordance (no Send / Complete / Request buttons)', () => {
     render(<DealCopilotAssist />);
-    fireEvent.click(screen.getByText('Expand'));
     const buttons = screen.getAllByRole('button').map((b) => b.textContent ?? '');
     for (const label of buttons) {
       expect(label).not.toMatch(/send/i);
@@ -142,7 +155,6 @@ describe('Phase 130A — DealCopilotAssist', () => {
 
   it('does not leak a raw GUID into the rendered summary', () => {
     render(<DealCopilotAssist />);
-    fireEvent.click(screen.getByText('Expand'));
     fireEvent.click(screen.getByText('Summarize deal'));
     // The deal record id is a GUID; the builder must never surface it.
     expect(

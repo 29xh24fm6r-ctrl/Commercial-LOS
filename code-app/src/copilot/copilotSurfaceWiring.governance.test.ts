@@ -177,3 +177,30 @@ describe('Phase 130A §4 — cockpit bodies stay read-only after Copilot wiring'
     expect(src).not.toMatch(/\bonSubmit\b/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// §5 — Phase 130B polish stays honest + discoverable
+// ---------------------------------------------------------------------------
+
+describe('Phase 130B §5 — polish is discoverable and still not-configured-first', () => {
+  it('the deal cockpit opens the assistant expanded (defaultExpanded)', () => {
+    const src = read('copilot/DealCopilotAssist.tsx');
+    expect(src).toMatch(/defaultExpanded/);
+  });
+
+  it('the panel carries a visible accent + a status pill that names the not-configured state', () => {
+    const src = read('copilot/CopilotAssistPanel.tsx');
+    // Discoverability: a Card accent stripe.
+    expect(src).toMatch(/accentColor=\{palette\.cobalt\}/);
+    // Honest status pill text driven by the adapter mode.
+    expect(src).toMatch(/Not configured/);
+    expect(src).toMatch(/Copilot connector not configured/);
+  });
+
+  it('the live "Connected" pill is gated on a non-not_configured adapter (never shown by default)', () => {
+    const src = stripComments(read('copilot/CopilotAssistPanel.tsx'));
+    // The "Connected" label only renders in the live branch; the default
+    // adapter is not_configured, so it cannot appear today.
+    expect(src).toMatch(/notConfigured\s*\?\s*'Not configured'\s*:\s*'Connected'/);
+  });
+});

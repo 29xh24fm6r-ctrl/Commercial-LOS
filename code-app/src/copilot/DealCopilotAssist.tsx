@@ -76,5 +76,11 @@ export function DealCopilotAssist() {
     });
   }, [deal, tasks, documents, vm]);
 
-  return <CopilotAssistPanel surface="deal" dealContext={context} />;
+  // Phase 130B — the deal cockpit opens the assistant expanded so the
+  // banker immediately sees the read-only quick actions + the honest
+  // not-configured state. The command-center surfaces stay collapsed
+  // (compact) by default.
+  return (
+    <CopilotAssistPanel surface="deal" dealContext={context} defaultExpanded />
+  );
 }
