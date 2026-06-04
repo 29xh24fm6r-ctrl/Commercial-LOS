@@ -227,6 +227,10 @@ function parseArgs(argv) {
     seedUpn: null,
     seedTeamName: null,
     commitSeedManagerEntitlement: false,
+    // Phase 133C — guarded executive primary-workspace seed mode.
+    seedExecutivePrimaryWorkspace: false,
+    seedWorkspaceName: null,
+    commitSeedExecutivePrimaryWorkspace: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -467,6 +471,23 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg === '--commit-seed-manager-entitlement') {
       flags.commitSeedManagerEntitlement = true;
+    } else if (arg === '--seed-executive-primary-workspace') {
+      // Phase 133C — guarded Platform-User primary-workspace seed.
+      // Dry-run by default; writes require
+      // --commit-seed-executive-primary-workspace. Requires --upn and
+      // --workspace-name. Patches ONLY the Platform User primary
+      // workspace lookup — no other table or column is touched.
+      flags.seedExecutivePrimaryWorkspace = true;
+      flags.dryRun = false;
+    } else if (arg === '--workspace-name') {
+      const next = args[i + 1];
+      if (!next || next.length === 0) {
+        bailParseArgs('--workspace-name requires a non-empty Platform Workspace name value');
+      }
+      flags.seedWorkspaceName = next;
+      i += 1;
+    } else if (arg === '--commit-seed-executive-primary-workspace') {
+      flags.commitSeedExecutivePrimaryWorkspace = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -483,10 +504,11 @@ function parseArgs(argv) {
     flags.inspectAttributeItems !== null,
     flags.seedProductReferences,
     flags.seedManagerEntitlement,
+    flags.seedExecutivePrimaryWorkspace,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
@@ -569,7 +591,8 @@ function parseArgs(argv) {
     flags.seedDealName &&
     !flags.seedClientRelationship &&
     !flags.seedProductReferences &&
-    !flags.seedManagerEntitlement
+    !flags.seedManagerEntitlement &&
+    !flags.seedExecutivePrimaryWorkspace
   ) {
     bailParseArgs(
       '--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, or --seed-manager-entitlement',
@@ -589,9 +612,20 @@ function parseArgs(argv) {
     if (!flags.seedDealName) {
       bailParseArgs('--seed-manager-entitlement requires --deal-name <text>');
     }
-  } else {
-    if (flags.seedUpn) {
-      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement');
+  } else if (flags.seedExecutivePrimaryWorkspace) {
+    // Phase 133C — executive primary-workspace seed requires only --upn
+    // and --workspace-name. The manager-seed-only inputs may not ride
+    // along: --deal-name, --team-name, and --commit-seed-manager-
+    // entitlement are each rejected here so they cannot silently attach
+    // to the executive seed.
+    if (!flags.seedUpn) {
+      bailParseArgs('--seed-executive-primary-workspace requires --upn <email>');
+    }
+    if (!flags.seedWorkspaceName) {
+      bailParseArgs('--seed-executive-primary-workspace requires --workspace-name <text>');
+    }
+    if (flags.seedDealName) {
+      bailParseArgs('--deal-name is only valid alongside --seed-manager-entitlement or --seed-product-references');
     }
     if (flags.seedTeamName) {
       bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
@@ -599,6 +633,26 @@ function parseArgs(argv) {
     if (flags.commitSeedManagerEntitlement) {
       bailParseArgs(
         '--commit-seed-manager-entitlement has no effect without --seed-manager-entitlement.',
+      );
+    }
+  } else {
+    if (flags.seedUpn) {
+      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace');
+    }
+    if (flags.seedTeamName) {
+      bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
+    }
+    if (flags.seedWorkspaceName) {
+      bailParseArgs('--workspace-name is only valid alongside --seed-executive-primary-workspace');
+    }
+    if (flags.commitSeedManagerEntitlement) {
+      bailParseArgs(
+        '--commit-seed-manager-entitlement has no effect without --seed-manager-entitlement.',
+      );
+    }
+    if (flags.commitSeedExecutivePrimaryWorkspace) {
+      bailParseArgs(
+        '--commit-seed-executive-primary-workspace has no effect without --seed-executive-primary-workspace.',
       );
     }
   }
@@ -669,7 +723,11 @@ const MODE = FLAGS.commit
                           ? FLAGS.commitSeedManagerEntitlement
                             ? 'COMMIT-SEED-MANAGER-ENTITLEMENT'
                             : 'SEED-MANAGER-ENTITLEMENT (dry-run)'
-                          : 'DRY-RUN';
+                          : FLAGS.seedExecutivePrimaryWorkspace
+                            ? FLAGS.commitSeedExecutivePrimaryWorkspace
+                              ? 'COMMIT-SEED-EXECUTIVE-PRIMARY-WORKSPACE'
+                              : 'SEED-EXECUTIVE-PRIMARY-WORKSPACE (dry-run)'
+                            : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -687,7 +745,8 @@ if (
   FLAGS.commitViewCleanup ||
   FLAGS.commitSeedClient ||
   FLAGS.commitSeedProductReferences ||
-  FLAGS.commitSeedManagerEntitlement
+  FLAGS.commitSeedManagerEntitlement ||
+  FLAGS.commitSeedExecutivePrimaryWorkspace
 ) {
   console.log('⚠  WRITE MODE — script may perform live Dataverse writes if every');
   console.log('   safety gate passes. Press Ctrl+C now to abort.');
@@ -2798,6 +2857,358 @@ async function runSeedManagerEntitlement(
     needCreateTeam,
     bankerId: banker.cr664_bankerid,
     dealId: deal.cr664_loandealid,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 133C — Platform User / Platform Workspace helpers (executive seed)
+//
+// The Executive Workspace becomes reachable when the signed-in Platform
+// User's primary workspace resolves to "Executive Dashboard" (see
+// docs/PHASE_133B). These helpers resolve that row pair and patch ONLY
+// the Platform User primary-workspace lookup — never any other table.
+// ---------------------------------------------------------------------------
+
+async function findPlatformUserByEmail(upn, token, envUrl) {
+  const filter = `cr664_email eq '${odataEscapeStringLiteral(upn)}'`;
+  const select =
+    'cr664_platformuserid,cr664_email,_cr664_primaryworkspace_value';
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_platformusers` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+async function findPlatformWorkspaceByName(workspaceName, token, envUrl) {
+  const filter = `cr664_workspacename eq '${odataEscapeStringLiteral(workspaceName)}'`;
+  const select = 'cr664_platformworkspaceid,cr664_workspacename';
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_platformworkspaces` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+async function createPlatformWorkspace(workspaceName, token, envUrl) {
+  const url = `${envUrl}/api/data/v9.2/cr664_platformworkspaces`;
+  // ONLY the primary name. Mirrors createTeam — Dataverse applies its
+  // own defaults (statecode/statuscode/owner). No other column is set.
+  const body = { cr664_workspacename: workspaceName };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return {
+        ok: false,
+        error: `POST cr664_platformworkspaces → ${res.status}: ${text}`,
+      };
+    }
+    const json = await res.json();
+    if (!json.cr664_platformworkspaceid) {
+      return {
+        ok: false,
+        error: 'POST succeeded but response is missing cr664_platformworkspaceid',
+      };
+    }
+    return { ok: true, id: json.cr664_platformworkspaceid, record: json };
+  } catch (err) {
+    return { ok: false, error: `POST network error: ${err.message}` };
+  }
+}
+
+async function patchPlatformUserPrimaryWorkspace(
+  platformUserId,
+  workspaceId,
+  token,
+  envUrl,
+) {
+  // PATCH ONLY cr664_PrimaryWorkspace@odata.bind. Do NOT include
+  // cr664_email, fullname, role, or any other Platform User column —
+  // the bootstrap flow reads every other field unchanged on next login.
+  // This bind name matches the generated platform-user model navigation
+  // property used by bootstrap/platform-user code.
+  const url = `${envUrl}/api/data/v9.2/cr664_platformusers(${platformUserId})`;
+  const body = {
+    'cr664_PrimaryWorkspace@odata.bind': `/cr664_platformworkspaces(${workspaceId})`,
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return {
+        ok: false,
+        error: `PATCH cr664_platformusers(${platformUserId}) → ${res.status}: ${text}`,
+      };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PATCH network error: ${err.message}` };
+  }
+}
+
+async function readPlatformUserPrimaryWorkspace(platformUserId, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_platformusers(${platformUserId})` +
+    `?$select=cr664_platformuserid,cr664_email,_cr664_primaryworkspace_value`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        Prefer:
+          'odata.include-annotations="OData.Community.Display.V1.FormattedValue"',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    return { ok: true, record: json };
+  } catch (err) {
+    return { ok: false, error: `re-read network error: ${err.message}` };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 133C — Executive primary-workspace seed runner.
+//
+// Resolves exactly one Platform User (by cr664_email) and at most one
+// "Executive Dashboard" Platform Workspace (by cr664_workspacename),
+// then PATCHes ONLY the Platform User primary-workspace lookup. Dry-run
+// by default; the lone write requires --commit-seed-executive-primary-
+// workspace. Idempotent: a no-op when the user already points at the
+// resolved workspace.
+// ---------------------------------------------------------------------------
+
+async function runSeedExecutivePrimaryWorkspace(
+  { upn, workspaceName, doCommit },
+  token,
+  envUrl,
+) {
+  console.log('');
+  console.log('Phase E — TEST executive primary-workspace seed');
+  console.log(`   UPN:             ${upn}`);
+  console.log(`   Workspace name:  ${workspaceName}`);
+  console.log(
+    `   Mode:            ${
+      doCommit
+        ? 'COMMIT-SEED-EXECUTIVE-PRIMARY-WORKSPACE (will write)'
+        : 'dry-run (no write)'
+    }`,
+  );
+  console.log('');
+
+  // 1. Resolve the Platform User by cr664_email — exactly one row.
+  const userResult = await findPlatformUserByEmail(upn, token, envUrl);
+  if (!userResult.ok) {
+    bail(`Could not resolve platform user by upn "${upn}": ${userResult.error}`);
+  }
+  if (userResult.records.length === 0) {
+    bail(
+      `No cr664_platformuser row with cr664_email = "${upn}". Refusing — ` +
+        `the script will not auto-create a platform user. Provision the ` +
+        `platform user before re-running this mode.`,
+    );
+  }
+  if (userResult.records.length > 1) {
+    bail(
+      `${userResult.records.length} cr664_platformuser rows match ` +
+        `cr664_email = "${upn}". Refusing — the operator must resolve the ` +
+        `ambiguity before seeding.`,
+    );
+  }
+  const platformUser = userResult.records[0];
+  console.log(
+    `   ✓ Platform user found:  cr664_platformuserid=${platformUser.cr664_platformuserid}`,
+  );
+  console.log(
+    `     current _cr664_primaryworkspace_value: ${
+      platformUser._cr664_primaryworkspace_value ?? '(unset)'
+    }`,
+  );
+
+  // 2. Resolve the Platform Workspace by name — at most one row.
+  const wsResult = await findPlatformWorkspaceByName(workspaceName, token, envUrl);
+  if (!wsResult.ok) {
+    bail(`Could not resolve platform workspace "${workspaceName}": ${wsResult.error}`);
+  }
+  if (wsResult.records.length > 1) {
+    bail(
+      `${wsResult.records.length} cr664_platformworkspace rows match ` +
+        `cr664_workspacename = "${workspaceName}". Refusing — the operator ` +
+        `must resolve the ambiguity before seeding.`,
+    );
+  }
+  let workspaceId = null;
+  let needCreateWorkspace = false;
+  if (wsResult.records.length === 1) {
+    workspaceId = wsResult.records[0].cr664_platformworkspaceid;
+    console.log(`   ✓ Platform workspace exists:  cr664_platformworkspaceid=${workspaceId}`);
+  } else {
+    needCreateWorkspace = true;
+    console.log(
+      `   ⚙ Platform workspace "${workspaceName}" does not exist — will ` +
+        `create on commit (POST cr664_platformworkspaces with ONLY ` +
+        `cr664_workspacename). This mirrors the existing team ` +
+        `create-on-commit seed pattern.`,
+    );
+  }
+
+  // 3. Idempotency: already pointing at the resolved workspace?
+  const alreadyLinked =
+    workspaceId != null &&
+    platformUser._cr664_primaryworkspace_value === workspaceId;
+  if (alreadyLinked) {
+    console.log('');
+    console.log(
+      `   ✓ Already linked: cr664_platformusers(${platformUser.cr664_platformuserid})` +
+        `.cr664_PrimaryWorkspace already points at ` +
+        `cr664_platformworkspaces(${workspaceId}).`,
+    );
+    console.log('   No-op success.');
+    return { ok: true, alreadyLinked: true, workspaceId };
+  }
+
+  // 4. Plan summary.
+  console.log('');
+  console.log('   Planned actions:');
+  let stepNum = 1;
+  if (needCreateWorkspace) {
+    console.log(`     [${stepNum}] POST /api/data/v9.2/cr664_platformworkspaces`);
+    console.log(`         body: { "cr664_workspacename": "${workspaceName}" }`);
+    stepNum += 1;
+  }
+  console.log(
+    `     [${stepNum}] PATCH /api/data/v9.2/cr664_platformusers(${platformUser.cr664_platformuserid})`,
+  );
+  if (needCreateWorkspace) {
+    console.log(
+      `         body: { "cr664_PrimaryWorkspace@odata.bind": "/cr664_platformworkspaces(<newly-created>)" }`,
+    );
+  } else {
+    console.log(
+      `         body: { "cr664_PrimaryWorkspace@odata.bind": "/cr664_platformworkspaces(${workspaceId})" }`,
+    );
+  }
+  console.log(
+    '         PATCH body sets ONLY cr664_PrimaryWorkspace@odata.bind — no ' +
+      'other Platform User column, and no Banker / Team / Loan Deal / ' +
+      'Manager / Portfolio / Executive row, is touched.',
+  );
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no POST or PATCH issued.');
+    console.log(
+      '   Re-run with `--commit-seed-executive-primary-workspace` to execute the plan above.',
+    );
+    return {
+      ok: true,
+      planned: true,
+      needCreateWorkspace,
+      workspaceId,
+      platformUserId: platformUser.cr664_platformuserid,
+    };
+  }
+
+  // 5. Commit. Create the workspace if needed.
+  if (needCreateWorkspace) {
+    console.log('');
+    console.log(`   ⚙ POST /api/data/v9.2/cr664_platformworkspaces …`);
+    const createResult = await createPlatformWorkspace(workspaceName, token, envUrl);
+    if (!createResult.ok) {
+      bail(`Create cr664_platformworkspace failed: ${createResult.error}`);
+    }
+    workspaceId = createResult.id;
+    console.log(`   ✓ Created cr664_platformworkspaceid=${workspaceId}`);
+  }
+
+  // 6. PATCH the Platform User primary-workspace lookup.
+  console.log(
+    `   ⚙ PATCH cr664_platformusers(${platformUser.cr664_platformuserid}) cr664_PrimaryWorkspace@odata.bind …`,
+  );
+  const patchResult = await patchPlatformUserPrimaryWorkspace(
+    platformUser.cr664_platformuserid,
+    workspaceId,
+    token,
+    envUrl,
+  );
+  if (!patchResult.ok) {
+    bail(`PATCH platform user failed: ${patchResult.error}`);
+  }
+  console.log('   ✓ Platform user PATCH succeeded.');
+
+  // 7. Verify.
+  console.log('');
+  console.log('   ⚙ Re-reading the platform user to verify the new primary workspace …');
+  const verify = await readPlatformUserPrimaryWorkspace(
+    platformUser.cr664_platformuserid,
+    token,
+    envUrl,
+  );
+  if (!verify.ok) {
+    console.log(`     ⚠ Could not re-read platform user: ${verify.error}`);
+  } else {
+    const u = verify.record;
+    const cur = u._cr664_primaryworkspace_value ?? '(unset)';
+    const formatted =
+      u['_cr664_primaryworkspace_value@OData.Community.Display.V1.FormattedValue'];
+    console.log(`     platform user _cr664_primaryworkspace_value:  ${cur}`);
+    if (formatted) {
+      console.log(`     primary workspace formatted value:            ${formatted}`);
+    }
+    if (u._cr664_primaryworkspace_value === workspaceId) {
+      console.log('     ✓ Primary workspace lookup is linked to the Executive Dashboard workspace.');
+    } else {
+      console.log(
+        '     ⚠ Verification mismatch — re-read shows a different workspace id ' +
+          'than the one the script wrote. Investigate.',
+      );
+    }
+  }
+
+  console.log('');
+  console.log('Summary:');
+  console.log(`   workspace created:  ${needCreateWorkspace ? 'yes' : 'no (reused)'}`);
+  console.log(`   workspace id:       ${workspaceId}`);
+  console.log(`   platform user id:   ${platformUser.cr664_platformuserid}`);
+  console.log('');
+  console.log(
+    'After a hard browser refresh, this user should land on ' +
+      '/workspaces/executive or see Executive Workspace according to the ' +
+      'bootstrap route.',
+  );
+  console.log('');
+  console.log('✓ Seed commit complete.');
+  return {
+    ok: true,
+    workspaceId,
+    needCreateWorkspace,
+    platformUserId: platformUser.cr664_platformuserid,
   };
 }
 
@@ -5478,6 +5889,26 @@ async function main() {
         teamName: FLAGS.seedTeamName,
         dealName: FLAGS.seedDealName,
         doCommit: FLAGS.commitSeedManagerEntitlement,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
+  // === Executive primary-workspace seed (Phase 133C) ===
+  // Dry-run by default; writes require
+  // --commit-seed-executive-primary-workspace. Resolves one Platform
+  // User (by --upn / cr664_email) and at most one Platform Workspace
+  // (by --workspace-name; created on commit if missing) and PATCHes
+  // ONLY the Platform User cr664_PrimaryWorkspace lookup. No other
+  // table or column is touched. Idempotent.
+  if (FLAGS.seedExecutivePrimaryWorkspace) {
+    await runSeedExecutivePrimaryWorkspace(
+      {
+        upn: FLAGS.seedUpn,
+        workspaceName: FLAGS.seedWorkspaceName,
+        doCommit: FLAGS.commitSeedExecutivePrimaryWorkspace,
       },
       mainToken,
       mainEnvUrl,

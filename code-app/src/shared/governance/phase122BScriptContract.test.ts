@@ -262,7 +262,7 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
     // Now part of the broader three-way mutex with --cleanup-form.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive/,
     );
   });
 
@@ -323,7 +323,7 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
 
   it('cleanup-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive\./,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive\./,
     );
   });
 
@@ -424,7 +424,7 @@ describe('Phase 122B — broad SystemForm inspection for indirect dependencies',
 
   it('--inspect-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive/,
     );
   });
 
@@ -538,7 +538,7 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
 
   it('5-way mutex includes --cleanup-subgrid', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive/,
     );
   });
 
@@ -949,7 +949,7 @@ describe('Phase 122B — SavedQuery (view) inspection + targeted cleanup', () =>
 
   it('7-way mutex includes --inspect-view and --cleanup-view', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive/,
     );
   });
 
@@ -1576,7 +1576,7 @@ describe('Phase 122E Pt 2 — --seed-product-references guarded write mode', () 
 
   it('10-way mutex extended to include --seed-product-references', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive/,
     );
   });
 
@@ -1928,7 +1928,7 @@ describe('Phase 122E Pt 1 — --inspect-attributes targeted attribute audit', ()
     // Asserted via the central mutex pin updated elsewhere in this file,
     // but re-check the specific string for clarity.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive/,
     );
   });
 });
@@ -2860,7 +2860,7 @@ describe('Phase 124D — --seed-manager-entitlement guarded write mode', () => {
 
   it('11-way mutex extended to include --seed-manager-entitlement', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, and --seed-manager-entitlement are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive/,
     );
   });
 
@@ -3096,3 +3096,191 @@ function sliceFunction(name: string): string {
   const nextFn = tail.search(/\n(async\s+)?function\s+/);
   return nextFn === -1 ? SCRIPT.slice(start) : SCRIPT.slice(start, start + 1 + nextFn);
 }
+
+// ---------------------------------------------------------------------------
+// Phase 133C — guarded executive primary-workspace seed mode
+// ---------------------------------------------------------------------------
+
+describe('Phase 133C — --seed-executive-primary-workspace guarded write mode', () => {
+  it('parses the mode + --upn + --workspace-name + the commit flag', () => {
+    expect(SCRIPT).toMatch(/'--seed-executive-primary-workspace'/);
+    expect(SCRIPT).toMatch(/'--upn'/);
+    expect(SCRIPT).toMatch(/'--workspace-name'/);
+    expect(SCRIPT).toMatch(/'--commit-seed-executive-primary-workspace'/);
+  });
+
+  it('defaults to dry-run (selecting the mode sets dryRun = false but no commit)', () => {
+    // The mode arm flips dryRun off but only the explicit commit flag
+    // enables writes (asserted separately below).
+    expect(SCRIPT).toMatch(
+      /arg === '--seed-executive-primary-workspace'\)\s*\{[\s\S]*?flags\.seedExecutivePrimaryWorkspace = true;[\s\S]*?flags\.dryRun = false;/,
+    );
+  });
+
+  it('--upn is required when the mode is set', () => {
+    expect(SCRIPT).toMatch(/--seed-executive-primary-workspace requires --upn/);
+  });
+
+  it('--workspace-name is required when the mode is set', () => {
+    expect(SCRIPT).toMatch(
+      /--seed-executive-primary-workspace requires --workspace-name/,
+    );
+  });
+
+  it('--workspace-name is only valid alongside the executive seed mode', () => {
+    expect(SCRIPT).toMatch(
+      /--workspace-name is only valid alongside --seed-executive-primary-workspace/,
+    );
+  });
+
+  it('rejects --deal-name riding along with the executive seed mode (parse-time guard)', () => {
+    // `node scripts/phase122-lookup-repair.mjs --seed-executive-primary-workspace
+    //    --upn mpaller@oldglorybank.com --workspace-name "Executive Dashboard"
+    //    --deal-name "TEST — Deal Phase 121"`
+    // must fail at parse time with this message — --deal-name must not
+    // silently attach to the executive primary-workspace seed.
+    expect(SCRIPT).toMatch(
+      /--deal-name is only valid alongside --seed-manager-entitlement or --seed-product-references/,
+    );
+  });
+
+  it('the --deal-name guard lives INSIDE the executive seed branch', () => {
+    // Bound the slice to the executive branch (from its `else if` to the
+    // closing `} else {`) so we prove the new guard is in-branch, not
+    // merely somewhere in the file.
+    const start = SCRIPT.indexOf('} else if (flags.seedExecutivePrimaryWorkspace) {');
+    const end = SCRIPT.indexOf('\n  } else {', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const branch = SCRIPT.slice(start, end);
+    expect(branch).toMatch(
+      /if \(flags\.seedDealName\) \{[\s\S]*?--deal-name is only valid alongside --seed-manager-entitlement or --seed-product-references/,
+    );
+  });
+
+  it('the earlier broad --deal-name check excludes executive mode so the in-branch guard is reachable', () => {
+    expect(SCRIPT).toMatch(
+      /flags\.seedDealName &&[\s\S]*?!flags\.seedManagerEntitlement &&\s*\n\s*!flags\.seedExecutivePrimaryWorkspace\s*\n\s*\)/,
+    );
+  });
+
+  it('the commit flag is rejected without the mode', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-executive-primary-workspace has no effect without --seed-executive-primary-workspace/,
+    );
+  });
+
+  it('the mode is part of the exclusive-modes array', () => {
+    expect(SCRIPT).toMatch(/flags\.seedExecutivePrimaryWorkspace,?\s*$/m);
+  });
+
+  it('the 12-way mutex message lists the new mode', () => {
+    expect(SCRIPT).toMatch(
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive/,
+    );
+  });
+
+  it('the MODE banner has a COMMIT / dry-run branch for the mode', () => {
+    expect(SCRIPT).toMatch(/'COMMIT-SEED-EXECUTIVE-PRIMARY-WORKSPACE'/);
+    expect(SCRIPT).toMatch(/'SEED-EXECUTIVE-PRIMARY-WORKSPACE \(dry-run\)'/);
+  });
+
+  it('the write-mode warning header fires on the commit flag', () => {
+    expect(SCRIPT).toMatch(
+      /FLAGS\.commitSeedExecutivePrimaryWorkspace[\s\S]{0,200}?WRITE MODE/,
+    );
+  });
+});
+
+describe('Phase 133C — executive seed runner + helpers', () => {
+  it('declares runSeedExecutivePrimaryWorkspace({ upn, workspaceName, doCommit })', () => {
+    expect(SCRIPT).toMatch(
+      /async function runSeedExecutivePrimaryWorkspace\(\s*\{[\s\S]*?upn[\s\S]*?workspaceName[\s\S]*?doCommit[\s\S]*?\}/,
+    );
+  });
+
+  it('dispatches the runner only inside the FLAGS.seedExecutivePrimaryWorkspace branch', () => {
+    expect(SCRIPT).toMatch(
+      /if\s*\(\s*FLAGS\.seedExecutivePrimaryWorkspace\s*\)\s*\{[\s\S]*?await runSeedExecutivePrimaryWorkspace\(/,
+    );
+  });
+
+  it('resolves the Platform User by cr664_email only', () => {
+    const block = sliceFunction('findPlatformUserByEmail');
+    expect(block).toMatch(/cr664_email eq '\$\{odataEscapeStringLiteral\(upn\)\}'/);
+    expect(block).toMatch(/\/api\/data\/v9\.2\/cr664_platformusers/);
+    // No other filter column.
+    expect(block).not.toMatch(/cr664_fullname eq|cr664_workspacename eq/);
+  });
+
+  it('resolves the Platform Workspace by cr664_workspacename only', () => {
+    const block = sliceFunction('findPlatformWorkspaceByName');
+    expect(block).toMatch(
+      /cr664_workspacename eq '\$\{odataEscapeStringLiteral\(workspaceName\)\}'/,
+    );
+    expect(block).toMatch(/\/api\/data\/v9\.2\/cr664_platformworkspaces/);
+  });
+
+  it('createPlatformWorkspace POSTs ONLY { cr664_workspacename }', () => {
+    const block = sliceFunction('createPlatformWorkspace');
+    expect(block).toMatch(
+      /const body\s*=\s*\{\s*cr664_workspacename:\s*workspaceName\s*,?\s*\};/,
+    );
+    expect(block).not.toMatch(/statecode\s*:/);
+    expect(block).not.toMatch(/statuscode\s*:/);
+    expect(block).not.toMatch(/ownerid\s*:/);
+  });
+
+  it('patchPlatformUserPrimaryWorkspace body sets ONLY cr664_PrimaryWorkspace@odata.bind', () => {
+    const block = sliceFunction('patchPlatformUserPrimaryWorkspace');
+    expect(block).toMatch(
+      /const body\s*=\s*\{\s*'cr664_PrimaryWorkspace@odata\.bind':\s*`\/cr664_platformworkspaces\(\$\{workspaceId\}\)`,?\s*\};/,
+    );
+    // No other Platform User column in the PATCH body.
+    expect(block).not.toMatch(/cr664_email\s*:/);
+    expect(block).not.toMatch(/cr664_fullname\s*:/);
+  });
+
+  it('bails on zero / ambiguous Platform User', () => {
+    // Zero-match and >1-match both bail.
+    expect(SCRIPT).toMatch(/No cr664_platformuser row with cr664_email/);
+    expect(SCRIPT).toMatch(/cr664_platformuser rows match/);
+  });
+
+  it('bails on ambiguous Platform Workspace', () => {
+    expect(SCRIPT).toMatch(/cr664_platformworkspace rows match/);
+  });
+
+  it('the runner touches no Banker / Team / Loan Deal table', () => {
+    // sliceFunction over-captures here because the runner is the last
+    // function before the audit section; bound the slice to the runner
+    // body (up to the audit-phase marker that immediately follows it).
+    const start = SCRIPT.indexOf(
+      'async function runSeedExecutivePrimaryWorkspace(',
+    );
+    const end = SCRIPT.indexOf(
+      '// Audit phase — publishers + tables + columns',
+      start,
+    );
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const block = SCRIPT.slice(start, end);
+    expect(block).not.toMatch(/cr664_bankers/);
+    expect(block).not.toMatch(/cr664_teams/);
+    expect(block).not.toMatch(/cr664_loandeals/);
+  });
+
+  it('introduces no bypass / suppress / force header in the new helpers', () => {
+    for (const fn of [
+      'createPlatformWorkspace',
+      'patchPlatformUserPrimaryWorkspace',
+      'readPlatformUserPrimaryWorkspace',
+    ]) {
+      const block = sliceFunction(fn);
+      expect(block).not.toMatch(/MSCRM\.BypassCustomPluginExecution/i);
+      expect(block).not.toMatch(/SuppressDuplicateDetection/i);
+      expect(block).not.toMatch(/BypassBusinessLogicExecution/i);
+      expect(block).not.toMatch(/force/i);
+    }
+  });
+});
