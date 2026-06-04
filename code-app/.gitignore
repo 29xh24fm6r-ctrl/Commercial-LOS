@@ -27,3 +27,7 @@ dist-ssr
 # The script regenerates these on every dry-run; committing them
 # would leak live Dataverse env URLs + timestamps.
 .phase122/
+
+# Phase 131A — local Claude Code agent workspace (memory, transcripts,
+# project settings). Never committed; it holds session-local state.
+.claude/
