@@ -453,6 +453,7 @@ describe('Phase 135A — Executive workspace release docs exist on disk', () => 
     'docs/PHASE_134A_EXECUTIVE_WORKSPACE_RUNTIME_VERIFICATION.md',
     'docs/PHASE_134B_EXECUTIVE_COMMAND_CENTER_DENSITY.md',
     'docs/PHASE_135A_EXECUTIVE_DEMO_READINESS.md',
+    'docs/PHASE_135B_EXECUTIVE_FINAL_DEMO_SMOKE.md',
   ];
   for (const rel of REQUIRED_EXECUTIVE_DOCS) {
     it(`${rel} exists on disk`, () => {
@@ -504,5 +505,40 @@ describe('Phase 135A — Executive demo contract is pinned in the doc', () => {
 
   it('does not imply any live Dataverse write is part of Phase 135A', () => {
     expect(doc).toMatch(/No live Dataverse write is part of Phase 135A/i);
+  });
+});
+
+describe('Phase 135B — Executive final demo smoke contract is pinned in the doc', () => {
+  const doc = readDoc('docs/PHASE_135B_EXECUTIVE_FINAL_DEMO_SMOKE.md');
+
+  it('declares itself a finish pass, not a feature expansion', () => {
+    expect(doc).toMatch(/demo-ready and stable/i);
+    expect(doc).toMatch(/final polish\/hardening pass/i);
+    expect(doc).toMatch(/not(?:\*\*)? a (?:new )?feature expansion/i);
+  });
+
+  it('documents the four+ exact demo states (no-auth, auth-pending, populated, empty, partial)', () => {
+    expect(doc).toMatch(/No-auth ?\/ ?local state/i);
+    expect(doc).toMatch(/Auth-pending state/i);
+    expect(doc).toMatch(/Populated Executive data/i);
+    expect(doc).toMatch(/Empty Executive data/i);
+    expect(doc).toMatch(/Partial Executive data/i);
+  });
+
+  it('pins the known limitations (auth-dependent provisioning, figures not wired, Copilot not configured)', () => {
+    expect(doc).toMatch(
+      /Live Phase 133C provisioning still depends on operator auth\s+availability/i,
+    );
+    expect(doc).toMatch(
+      /Profitability and performance figures remain not wired by\s+governance\s+choice/i,
+    );
+    expect(doc).toMatch(/Copilot remains not configured/i);
+  });
+
+  it('reaffirms the no-write / no-widening guardrails', () => {
+    expect(doc).toMatch(/No Dataverse writes/i);
+    expect(doc).toMatch(/No entitlement widening/i);
+    expect(doc).toMatch(/No write affordances/i);
+    expect(doc).toMatch(/Phase 133C seed behavior unchanged/i);
   });
 });

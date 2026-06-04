@@ -457,3 +457,108 @@ describe('Phase 135A — Executive demo readiness contract', () => {
     }
   });
 });
+
+describe('Phase 135B — Executive final demo smoke', () => {
+  // A single populated render that walks every demo-critical section by its
+  // ACCESSIBLE name (region role / label) — the way a reviewer or QA pass
+  // reads the screen, complementing the 135A data-attribute loop.
+  it('renders every demo-critical section by its accessible name', () => {
+    setReady({
+      readiness: [
+        readiness({ id: '1', dealId: 'd1', dealName: 'Blocked Deal', readinessBand: 'Blocked', openBlockersCount: 3, missingDocsCount: 1, staleItemsCount: 1 }),
+        readiness({ id: '2', dealId: 'd2', dealName: 'Healthy Deal', readinessBand: 'High' }),
+      ],
+      pipelineByStage: [
+        { stage: 'Underwriting', count: 1, totalAmount: 6_000_000 },
+        { stage: 'Closing', count: 1, totalAmount: 4_000_000 },
+      ],
+      closingForecast: [
+        { key: '2026-07', label: 'July 2026', count: 1, totalAmount: 2_000_000, past: false },
+      ],
+    });
+    renderCockpit();
+
+    // Read-only posture is unmistakable.
+    expect(screen.getByLabelText('Read-only executive view')).toBeInTheDocument();
+
+    // Every demo-critical region is reachable by its accessible name. Using
+    // the region role (exact name) so a chart sharing a title string doesn't
+    // create an ambiguous match.
+    for (const name of [
+      'Executive KPI ribbon',
+      'Executive exception tape',
+      'Strategic risk strip',
+      'Portfolio exposure summary',
+      'Stage distribution',
+      'Closing forecast',
+      'Operations health summary',
+      'Data quality and readiness summary',
+      'Top deals to watch',
+      'Top operational bottlenecks',
+      'Performance and profitability availability',
+      'Executive view limitations',
+    ]) {
+      expect(screen.getByRole('region', { name })).toBeInTheDocument();
+    }
+
+    // Honest "Not yet wired" + Copilot not-configured both visible for the demo.
+    expect(screen.getAllByText(/Not yet wired/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('Not configured')).toBeInTheDocument();
+  });
+
+  it('the empty demo state shows no KPI ribbon, no exception tape, and no performance panel (no fabricated sections)', () => {
+    setReady({ readiness: [], pipelineByStage: [], closingForecast: [] });
+    renderCockpit();
+    expect(
+      screen.getByText(/No authorized executive snapshot records found/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Executive KPI ribbon')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Executive exception tape'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Performance and profitability availability'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('partial data (readiness, no stage aggregates) still smokes clean — honest $0 exposure, risk posture present', () => {
+    setReady({
+      pipelineByStage: [],
+      readiness: [
+        readiness({ id: '1', readinessBand: 'Blocked', openBlockersCount: 2 }),
+        readiness({ id: '2', readinessBand: 'High' }),
+      ],
+    });
+    renderCockpit();
+    expect(screen.getByLabelText('Executive KPI ribbon')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Total exposure \$0/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Strategic risk strip')).toBeInTheDocument();
+  });
+
+  // Final consolidated hardening pin: the whole Executive demo trio
+  // (workspace shell + cockpit + chart adapter) carries NO write affordance
+  // and NO IO surface. This is the "finish pass" guard that all three files
+  // stay demo-safe together.
+  it('the Executive demo trio contains no write affordance or IO surface (static pin)', () => {
+    const strip = (rel: string) =>
+      readFileSync(resolve(__dirname, rel), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|\s)\/\/.*$/gm, '$1');
+    const files: Record<string, string> = {
+      cockpit: strip('ExecutiveCommandCenter.tsx'),
+      adapter: strip('executiveDashboardCharts.ts'),
+      workspace: strip('../workspaces/ExecutiveWorkspace.tsx'),
+    };
+    for (const [where, code] of Object.entries(files)) {
+      expect(code, `${where}: no <form>`).not.toMatch(/<form\b/i);
+      expect(code, `${where}: no onSubmit`).not.toMatch(/\bonSubmit\b/);
+      expect(code, `${where}: no SendEmail`).not.toMatch(/SendEmail/i);
+      expect(code, `${where}: no Office365`).not.toMatch(/Office365/i);
+      expect(code, `${where}: no Graph`).not.toMatch(/microsoft-graph|graph\.microsoft/i);
+      expect(code, `${where}: no generated write import`).not.toMatch(/from ['"][^'"]*\/generated\//);
+    }
+    // No network fetch in the cockpit or the chart adapter.
+    expect(files.cockpit).not.toMatch(/\bfetch\(/);
+    expect(files.adapter).not.toMatch(/\bfetch\b/);
+  });
+});

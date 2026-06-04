@@ -84,3 +84,24 @@ describe('Phase 134A — ExecutiveWorkspace shell is read-only', () => {
     expect(CODE).not.toMatch(/from ['"][^'"]*\/generated\//);
   });
 });
+
+describe('Phase 135B — Executive final demo polish', () => {
+  it('frames the workspace as a board-safe, read-only overview', () => {
+    expect(SRC).toMatch(/Board-safe executive overview/);
+    expect(SRC).toMatch(/read-only/i);
+    // Still says the view is derived only from authorized records (honesty).
+    expect(SRC).toMatch(/authorized to this workspace/i);
+  });
+
+  it('does not duplicate the cockpit subtitle sentence verbatim in the page header', () => {
+    // The cockpit owns the "Strategic, read-only roll-up …" sentence; the
+    // page header must not repeat it verbatim (a demo-quality dedup).
+    expect(SRC).not.toMatch(
+      /Strategic, read-only roll-up of lending activity, exposure,\s*risk posture, operations health, and data quality/,
+    );
+  });
+
+  it('keeps the read-only board-safe eyebrow', () => {
+    expect(SRC).toMatch(/Board-safe view/);
+  });
+});

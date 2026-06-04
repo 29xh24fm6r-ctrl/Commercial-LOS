@@ -70,9 +70,9 @@ function ExecutiveWorkspaceContent() {
             <div style={styles.eyebrow}>Commercial Lending · Board-safe view</div>
             <h1 style={styles.title}>Executive Command Center</h1>
             <p style={styles.subtitle}>
-              Strategic, read-only roll-up of lending activity, exposure,
-              risk posture, operations health, and data quality. Derived from
-              authorized lending records currently available to this workspace.
+              Board-safe executive overview — a read-only command center
+              followed by supporting snapshot detail, derived only from lending
+              records currently authorized to this workspace.
             </p>
           </div>
           <div style={styles.context} aria-label="Executive context">
