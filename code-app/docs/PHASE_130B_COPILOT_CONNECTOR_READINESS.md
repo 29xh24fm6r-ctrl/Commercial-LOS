@@ -200,3 +200,9 @@ npm run build
 - Implement `createLiveAdapter()` against `CopilotAssistantAdapter`;
   gate `getCopilotAdapter()` on configuration.
 - Per-call audit + "this is AI" disclosure surface.
+
+> **Architecture decision:** the live-connector path is governed by
+> [PHASE_137A_COPILOT_LIVE_CONNECTOR_DECISION.md](./PHASE_137A_COPILOT_LIVE_CONNECTOR_DECISION.md)
+> — Dataverse Custom API + server-side Azure OpenAI (recommended),
+> browser-direct/fake/autonomous paths rejected. Decision only; runtime
+> stays not-configured until a future Phase 137B+.

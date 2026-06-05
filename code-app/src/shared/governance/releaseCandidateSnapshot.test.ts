@@ -587,3 +587,32 @@ describe('Phase 136A — Cross-workspace final smoke doc exists and is smoke-onl
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 137A — Copilot live connector implementation DECISION (doc-only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137A — Copilot live connector decision is recorded and runtime stays not-configured', () => {
+  const rel = 'docs/PHASE_137A_COPILOT_LIVE_CONNECTOR_DECISION.md';
+
+  it('the Phase 137A decision doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the doc as a decision/spec/governance phase — not an implementation', () => {
+    expect(doc).toMatch(/decision ?\/ ?spec ?\/ ?governance phase, not an\s+implementation/i);
+  });
+
+  it('pins the recommended primary path (Dataverse Custom API + server-side Azure OpenAI)', () => {
+    expect(doc).toMatch(/Dataverse Custom API/i);
+    expect(doc).toMatch(/Azure OpenAI server-side/i);
+  });
+
+  it('pins that the Copilot live connector remains decision-only / not-configured after 137A', () => {
+    expect(doc).toMatch(/Decision documented only\. Runtime remains\s+not-configured/i);
+    expect(doc).toMatch(/No connector code\./i);
+    expect(doc).toMatch(/No enabling live mode\./i);
+  });
+});
