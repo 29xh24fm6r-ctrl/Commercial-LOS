@@ -39,6 +39,7 @@ export function copilotServerDeploymentPrerequisites(): ReadonlyArray<CopilotSer
     { key: 'audit_start_verified', label: 'audit_start verified before any model call.', satisfied: false },
     { key: 'fail_closed_verified', label: 'Fail-closed (audit_unavailable / disabled) verified.', satisfied: false },
     { key: 'disable_switch_configured', label: 'Disable switch configured for live mode.', satisfied: false },
+    { key: 'test_tenant_enabled', label: 'Test tenant enabled (test-tenant only; never production).', satisfied: false },
   ];
 }
 

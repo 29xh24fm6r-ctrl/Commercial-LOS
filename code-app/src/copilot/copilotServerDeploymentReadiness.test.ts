@@ -23,6 +23,7 @@ describe('Phase 138C — deployment prerequisites', () => {
     expect(keys).toContain('server_handler_deployed');
     expect(keys).toContain('dlp_model_policy_approved');
     expect(keys).toContain('disable_switch_configured');
+    expect(keys).toContain('test_tenant_enabled');
   });
 });
 

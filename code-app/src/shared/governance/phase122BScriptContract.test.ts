@@ -3770,3 +3770,30 @@ describe('Phase 138B — the dry-run prints a COMPLETE typed payload plan', () =
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 139A — final: both Copilot commit modes stay future-only & guarded
+// ---------------------------------------------------------------------------
+
+describe('Phase 139A — both Copilot metadata commit modes are future-only and guarded', () => {
+  it('the audit-table commit notice is future-only (NOT IMPLEMENTED, no write)', () => {
+    const block = sliceFunction('runSeedCopilotAuditTableMetadataPlan');
+    expect(block).toMatch(/NOT IMPLEMENTED in Phase/);
+    expect(block).toMatch(/No write has been or will be issued/);
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+  });
+
+  it('the Custom API commit notice is future-only (NOT IMPLEMENTED, no write)', () => {
+    const block = sliceFunction('runSeedCopilotCustomApiMetadataPlan');
+    expect(block).toMatch(/NOT IMPLEMENTED in Phase/);
+    expect(block).toMatch(/No write has been or will be issued/);
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+  });
+
+  it('the script as a whole makes no browser-direct Azure/OpenAI call and uses no bypass headers', () => {
+    expect(SCRIPT).not.toMatch(/api\.openai\.com|openai\.azure\.com/i);
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution|SuppressDuplicateDetection/i);
+  });
+});

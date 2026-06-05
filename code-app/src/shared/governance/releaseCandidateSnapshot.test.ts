@@ -938,6 +938,39 @@ describe('Phase 138C — Copilot controlled live-enablement bundle: guarded, pro
 });
 
 // ---------------------------------------------------------------------------
+// Phase 139A — Copilot final completion bundle (repo complete, live blocked)
+// ---------------------------------------------------------------------------
+
+describe('Phase 139A — Copilot final completion: repo complete, live disabled, production blocked', () => {
+  const DOCS = [
+    'docs/PHASE_139A_COPILOT_FINAL_OPERATOR_COMMANDS.md',
+    'docs/PHASE_139A_COPILOT_SERVER_HANDLER_PACKAGE_PLAN.md',
+    'docs/PHASE_139A_COPILOT_TEST_TENANT_VALIDATION_PACKET.md',
+    'docs/PHASE_139A_COPILOT_FINAL_COMPLETION_CERTIFICATION.md',
+  ];
+
+  for (const rel of DOCS) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const cert = readDoc('docs/PHASE_139A_COPILOT_FINAL_COMPLETION_CERTIFICATION.md');
+
+  it('the final certification pins repo-complete end-to-end, live disabled, default not_configured', () => {
+    expect(cert).toMatch(/Repo-side Copilot work is complete end-to-end/i);
+    expect(cert).toMatch(/Live Copilot remains disabled/i);
+    expect(cert).toMatch(/Default mode remains `?not_configured`?/i);
+  });
+
+  it('the final certification pins production blocked + both commit paths future-only', () => {
+    expect(cert).toMatch(/Production remains blocked/i);
+    expect(cert).toMatch(/Audit table tooling[\s\S]{0,60}commit future-only ?\/ ?not implemented/i);
+    expect(cert).toMatch(/Custom API tooling[\s\S]{0,60}commit future-only ?\/ ?not implemented/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137K — Copilot audit-logger skeleton (disabled)
 // ---------------------------------------------------------------------------
 

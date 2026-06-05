@@ -174,8 +174,11 @@ Before **any** live enablement (all must be true):
 ## References
 
 - [PHASE_138A_COPILOT_COMPLETION_CERTIFICATION.md](./PHASE_138A_COPILOT_COMPLETION_CERTIFICATION.md)
-  — the final completion certification: repo-side readiness done, live
+  — the completion certification: repo-side readiness done, live
   enablement intentionally blocked.
+- [PHASE_139A_COPILOT_FINAL_COMPLETION_CERTIFICATION.md](./PHASE_139A_COPILOT_FINAL_COMPLETION_CERTIFICATION.md)
+  — the FINAL completion certification + operator commands, server-handler
+  package plan, and test-tenant validation packet.
 - 137A–137L docs (see the table in §B), and the inert `src/copilot`
   skeletons.
 - `feat/copilot-live-connector-safe-actions @ fea3520` — prior prep. **Not

@@ -132,6 +132,9 @@ it should not proceed without that approval.
   [PHASE_138C deployment plan](./PHASE_138C_COPILOT_SERVER_HANDLER_DEPLOYMENT_PLAN.md),
   [PHASE_138C test-tenant runbook](./PHASE_138C_COPILOT_CONTROLLED_TEST_TENANT_ENABLEMENT.md),
   [PHASE_138C live-readiness certification](./PHASE_138C_COPILOT_LIVE_READINESS_CERTIFICATION.md).
+- **Phase 139A** — final operator commands, server-handler package plan,
+  test-tenant validation packet, and final completion certification:
+  [PHASE_139A_COPILOT_FINAL_COMPLETION_CERTIFICATION.md](./PHASE_139A_COPILOT_FINAL_COMPLETION_CERTIFICATION.md).
 - 137A–137M Copilot docs (see §B) and the inert `src/copilot` skeletons.
 - `feat/copilot-live-connector-safe-actions @ fea3520` — prior prep. **Not
   merged or implemented.**
