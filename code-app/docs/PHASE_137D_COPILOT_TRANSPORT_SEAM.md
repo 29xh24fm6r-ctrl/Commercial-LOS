@@ -132,8 +132,10 @@ npm run build
 
 ## Next phase recommendation
 
-**Phase 137E** — implement the server-only `CopilotCustomApiTransport`
-against the Dataverse Custom API (still gated by `resolveCopilotConnectorConfig`,
-default `not_configured`), add the audit logger, and wire the resolved
-config + transport into `getCopilotConnector()` — behind explicit config
-and security/DLP approval, with default behavior unchanged.
+**Phase 137E** — add the isolated server-bound transport stub/factory +
+implementation plan (still fail-closed, default `not_configured`). See
+[PHASE_137E_COPILOT_CUSTOM_API_TRANSPORT_STUB.md](./PHASE_137E_COPILOT_CUSTOM_API_TRANSPORT_STUB.md).
+A later phase then implements the real server-only `CopilotCustomApiTransport`
+against the Dataverse Custom API, adds the audit logger, and wires the
+resolved config + transport into `getCopilotConnector()` — behind explicit
+config and security/DLP approval, with default behavior unchanged.

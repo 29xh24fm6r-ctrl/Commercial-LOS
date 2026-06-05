@@ -707,3 +707,34 @@ describe('Phase 137D — Copilot transport seam adds config gating only, no conc
     expect(doc).toMatch(/secret/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 137E — Copilot Custom API transport stub (no concrete live transport)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137E — Copilot transport stub is fail-closed and no live transport is enabled', () => {
+  const rel = 'docs/PHASE_137E_COPILOT_CUSTOM_API_TRANSPORT_STUB.md';
+
+  it('the Phase 137E transport-stub doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the doc as a stub/factory only — no concrete live transport', () => {
+    expect(doc).toMatch(/transport stub/i);
+    expect(doc).toMatch(/fail(?:s|ing)? closed/i);
+    expect(doc).toMatch(/no network call/i);
+  });
+
+  it('pins that the default stays not_configured and no transport is wired by default', () => {
+    expect(doc).toMatch(/default (?:stays|remains) `?not_configured`?/i);
+    expect(doc).toMatch(/there is no default/i);
+  });
+
+  it('pins the readiness blockers for a real implementation', () => {
+    expect(doc).toMatch(/transport is not implemented/i);
+    expect(doc).toMatch(/Audit \/ event ledger logger not wired/i);
+    expect(doc).toMatch(/DLP and Azure OpenAI model policy not approved/i);
+  });
+});
