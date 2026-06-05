@@ -252,7 +252,8 @@ Before any implementation phase begins, confirm:
 
 ## L. Next phases
 
-- **137I** — audit / event ledger design or mapping (table/fields).
+- **137I** — audit / event ledger design or mapping (table/fields). See
+  [PHASE_137I_COPILOT_AUDIT_EVENT_LEDGER_DESIGN.md](./PHASE_137I_COPILOT_AUDIT_EVENT_LEDGER_DESIGN.md).
 - **137J** — server handler pseudocode → tests, or a plugin skeleton in a
   **separate server project** only after approval.
 - **137K** — disabled live-transport integration test (default

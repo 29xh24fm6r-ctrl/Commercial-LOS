@@ -805,6 +805,40 @@ describe('Phase 137H — Copilot server-side skeleton spec is docs-only with no 
 });
 
 // ---------------------------------------------------------------------------
+// Phase 137I — Copilot audit / event ledger design (docs-only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137I — Copilot audit/event ledger design is docs-only with no runtime/live behavior', () => {
+  const rel = 'docs/PHASE_137I_COPILOT_AUDIT_EVENT_LEDGER_DESIGN.md';
+
+  it('the Phase 137I audit-ledger design doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the doc as audit-design only — no table/migration/runtime created', () => {
+    expect(doc).toMatch(/audit ?\/ ?event ledger design only/i);
+    expect(doc).toMatch(/No Dataverse table creation\./i);
+    expect(doc).toMatch(/No live enablement\./i);
+  });
+
+  it('pins the audit-before-model rule + audit_unavailable fail-closed', () => {
+    expect(doc).toMatch(/before any Azure\s+OpenAI ?\/ ?model call/i);
+    expect(doc).toMatch(/failClosedCode: audit_unavailable/);
+  });
+
+  it('pins the proposed cr664_copilotauditevent ledger + correlationId discipline', () => {
+    expect(doc).toMatch(/cr664_copilotauditevent/);
+    expect(doc).toMatch(/cr664_correlationid/);
+  });
+
+  it('pins that the runtime Copilot connector remains not_configured', () => {
+    expect(doc).toMatch(/Runtime remains `?not_configured`?/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137F — Copilot Custom API registration runbook (docs/spec only)
 // ---------------------------------------------------------------------------
 
