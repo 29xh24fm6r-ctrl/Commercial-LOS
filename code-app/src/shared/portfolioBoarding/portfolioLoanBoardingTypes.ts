@@ -144,6 +144,14 @@ export interface PortfolioLoanIdentity {
   maturityDate?: string;
   renewalDate?: string;
   paidOffDate?: string;
+  /** Phase 140B-H: link to an originated deal if applicable. */
+  originatedDealId?: string;
+  /** Phase 140B-H: the boarded loan's own persistence ID. */
+  boardedLoanId?: string;
+  /** Phase 140B-H: ID from a legacy core system. */
+  legacySystemId?: string;
+  /** Phase 140B-H: core banking system loan number. */
+  coreSystemLoanId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,12 +214,21 @@ export interface ClosingInformation {
 // D. Credit approval
 // ---------------------------------------------------------------------------
 
+/** Phase 140B-H: sources and uses line item. */
+export interface SourcesAndUsesRecord {
+  category?: string;
+  description?: string;
+  amount?: number;
+}
+
 export interface CreditApprovalRecord {
   approvalAuthority?: string;
   approvalDate?: string;
   approvedStructure?: string;
   approvedPurpose?: string;
   approvedSourcesAndUses?: string;
+  /** Phase 140B-H: structured sources and uses records. */
+  sourcesAndUses?: SourcesAndUsesRecord[];
   approvedCollateral?: string;
   approvedGuarantors?: string;
   approvalConditions?: string[];
@@ -219,6 +236,10 @@ export interface CreditApprovalRecord {
   mitigants?: string[];
   boardApprovalRequired?: boolean;
   boardApprovalDate?: string;
+  /** Phase 140B-H: linked approval memo document ID. */
+  approvalMemoDocumentId?: string;
+  /** Phase 140B-H: linked credit memo document ID. */
+  creditMemoDocumentId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -226,21 +247,51 @@ export interface CreditApprovalRecord {
 // ---------------------------------------------------------------------------
 
 export interface CollateralItem {
+  /** Phase 140B-H: stable collateral identifier. */
+  collateralId?: string;
   collateralType?: PortfolioCollateralType;
   description?: string;
   lienPosition?: string;
   perfected?: boolean;
+  /** Phase 140B-H: method of perfection. */
+  perfectionMethod?: string;
   uccFilingDetails?: string;
+  /** Phase 140B-H: UCC filing number. */
+  uccFilingNumber?: string;
+  /** Phase 140B-H: UCC filing date. */
+  uccFilingDate?: string;
+  /** Phase 140B-H: UCC continuation date. */
+  uccContinuationDate?: string;
   mortgageDeedDetails?: string;
+  /** Phase 140B-H: mortgage instrument number. */
+  mortgageInstrumentNumber?: string;
+  /** Phase 140B-H: deed of trust instrument number. */
+  deedOfTrustInstrumentNumber?: string;
   titlePolicy?: string;
+  /** Phase 140B-H: title policy number. */
+  titlePolicyNumber?: string;
+  /** Phase 140B-H: title policy amount. */
+  titlePolicyAmount?: number;
   appraisal?: string;
+  /** Phase 140B-H: whether appraisal is required. */
+  appraisalRequired?: boolean;
+  /** Phase 140B-H: appraisal date. */
+  appraisalDate?: string;
+  /** Phase 140B-H: appraised value. */
+  appraisedValue?: number;
   valuationDate?: string;
   valuationAmount?: number;
   advanceRate?: number;
   environmentalStatus?: string;
   floodStatus?: string;
+  /** Phase 140B-H: flood determination status. */
+  floodDeterminationStatus?: string;
   insuranceRequired?: boolean;
+  /** Phase 140B-H: linked insurance policy IDs. */
+  insurancePolicyIds?: string[];
   collateralExceptions?: string[];
+  /** Phase 140B-H: release status. */
+  releaseStatus?: string;
 }
 
 export interface CollateralPackage {
@@ -252,17 +303,29 @@ export interface CollateralPackage {
 // ---------------------------------------------------------------------------
 
 export interface GuarantorRecord {
+  /** Phase 140B-H: stable guarantor identifier. */
+  guarantorId?: string;
   guarantorName?: string;
   guarantorType?: PortfolioGuarantorType;
   guaranteeType?: string;
   guaranteeScope?: PortfolioGuaranteeScope;
+  /** Phase 140B-H: limited or unlimited. */
+  limitedOrUnlimited?: string;
   guaranteeAmount?: number;
+  /** Phase 140B-H: whether spouse consent is required. */
+  spouseConsentRequired?: boolean;
   spouseConsent?: boolean;
+  /** Phase 140B-H: whether spouse consent has been received. */
+  spouseConsentReceived?: boolean;
   globalDebtServiceNotes?: string;
   personalFinancialStatementDate?: string;
   liquidity?: number;
   netWorth?: number;
   contingentLiabilitiesSummary?: string;
+  /** Phase 140B-H: linked guarantor document IDs. */
+  guarantorDocumentIds?: string[];
+  /** Phase 140B-H: guarantor-level exceptions. */
+  exceptions?: string[];
 }
 
 export interface GuarantorPackage {
@@ -274,6 +337,8 @@ export interface GuarantorPackage {
 // ---------------------------------------------------------------------------
 
 export interface CovenantRecord {
+  /** Phase 140B-H: stable covenant identifier. */
+  covenantId?: string;
   covenantName?: string;
   covenantType?: string;
   testingFrequency?: string;
@@ -281,10 +346,14 @@ export interface CovenantRecord {
   requiredThreshold?: string;
   currentStatus?: CovenantStatus;
   lastTestedDate?: string;
+  /** Phase 140B-H: last reported value. */
+  lastReportedValue?: string;
   waiverHistory?: string[];
   breachHistory?: string[];
   ticklerOwner?: string;
   ticklerSeverity?: ExceptionSeverity;
+  /** Phase 140B-H: linked evidence document IDs. */
+  evidenceDocumentIds?: string[];
 }
 
 export interface CovenantPackage {
@@ -292,12 +361,22 @@ export interface CovenantPackage {
 }
 
 export interface TicklerRecord {
+  /** Phase 140B-H: stable tickler identifier. */
+  ticklerId?: string;
   ticklerName?: string;
   ticklerType?: string;
   dueDate?: string;
+  /** Phase 140B-H: tickler frequency. */
+  frequency?: string;
   owner?: string;
   severity?: ExceptionSeverity;
   status?: string;
+  /** Phase 140B-H: related document type. */
+  relatedDocumentType?: string;
+  /** Phase 140B-H: related covenant ID. */
+  relatedCovenantId?: string;
+  /** Phase 140B-H: freeform notes. */
+  notes?: string;
 }
 
 export interface TicklerPackage {
@@ -309,13 +388,27 @@ export interface TicklerPackage {
 // ---------------------------------------------------------------------------
 
 export interface InsurancePolicyRecord {
+  /** Phase 140B-H: stable insurance record identifier. */
+  insuranceId?: string;
+  /** Phase 140B-H: insurance type. */
+  insuranceType?: string;
   policyType?: string;
   carrier?: string;
+  /** Phase 140B-H: policy number. */
+  policyNumber?: string;
   coverageAmount?: number;
   effectiveDate?: string;
   expirationDate?: string;
+  /** Phase 140B-H: required coverage amount. */
+  requiredCoverageAmount?: number;
+  /** Phase 140B-H: evidence document ID. */
+  evidenceDocumentId?: string;
   evidenceReceived?: boolean;
   status?: string;
+  /** Phase 140B-H: stale flag. */
+  stale?: boolean;
+  /** Phase 140B-H: exception description. */
+  exception?: string;
 }
 
 export interface InsuranceTrackingPackage {
@@ -327,8 +420,12 @@ export interface InsuranceTrackingPackage {
 // ---------------------------------------------------------------------------
 
 export interface PortfolioLoanDocumentRecord {
+  /** Phase 140B-H: stable document identifier. */
+  documentId?: string;
   documentType?: PortfolioLoanDocumentType;
   documentName?: string;
+  /** Phase 140B-H: category label. */
+  category?: string;
   obligorAssociation?: string;
   effectiveDate?: string;
   periodEndDate?: string;
@@ -337,10 +434,20 @@ export interface PortfolioLoanDocumentRecord {
   reviewer?: string;
   source?: string;
   status?: PortfolioDocumentStatus;
+  /** Phase 140B-H: exception flag. */
+  exceptionFlag?: boolean;
   exception?: boolean;
+  /** Phase 140B-H: missing flag. */
+  missingFlag?: boolean;
   missing?: boolean;
+  /** Phase 140B-H: stale flag. */
+  staleFlag?: boolean;
   stale?: boolean;
   fileReference?: string;
+  /** Phase 140B-H: extracted fact IDs. */
+  extractedFactIds?: string[];
+  /** Phase 140B-H: evidence link IDs. */
+  evidenceLinkIds?: string[];
   notes?: string;
 }
 
@@ -378,32 +485,86 @@ export interface ServicingSnapshot {
 
 export interface RiskRatingRecord {
   rating?: string;
+  priorRating?: string;
   ratingDate?: string;
   ratingType?: string;
+  /** Phase 140B-H: rating authority. */
+  ratingAuthority?: string;
   ratedBy?: string;
   rationale?: string;
-  priorRating?: string;
+  /** Phase 140B-H: rating rationale. */
+  ratingRationale?: string;
+  /** Phase 140B-H: strengths. */
+  strengths?: string[];
+  /** Phase 140B-H: weaknesses. */
+  weaknesses?: string[];
+  /** Phase 140B-H: primary repayment source. */
+  repaymentSource?: string;
+  /** Phase 140B-H: secondary repayment source. */
+  secondaryRepaymentSource?: string;
+  /** Phase 140B-H: risk drivers. */
+  riskDrivers?: string[];
+  /** Phase 140B-H: migration direction. */
+  migrationDirection?: string;
+  /** Phase 140B-H: next review date. */
+  nextReviewDate?: string;
+  /** Phase 140B-H: linked evidence document IDs. */
+  evidenceDocumentIds?: string[];
 }
 
 export interface ExceptionRecord {
+  /** Phase 140B-H: stable exception identifier. */
+  exceptionId?: string;
   exceptionType?: string;
   description?: string;
   severity?: ExceptionSeverity;
   identifiedDate?: string;
+  /** Phase 140B-H: opened date alias. */
+  openedDate?: string;
+  /** Phase 140B-H: due date for remediation. */
+  dueDate?: string;
   owner?: string;
   status?: ExceptionStatus;
   clearedDate?: string;
+  /** Phase 140B-H: resolved date alias. */
+  resolvedDate?: string;
+  /** Phase 140B-H: remediation plan. */
+  remediationPlan?: string;
+  /** Phase 140B-H: linked evidence document IDs. */
+  evidenceDocumentIds?: string[];
 }
 
 export interface ReviewHistoryRecord {
+  /** Phase 140B-H: stable review identifier. */
+  reviewId?: string;
   reviewType?: string;
   reviewDate?: string;
   reviewer?: string;
   outcome?: string;
+  /** Phase 140B-H: freeform notes. */
+  notes?: string;
   nextReviewDate?: string;
+  /** Phase 140B-H: linked evidence document IDs. */
+  evidenceDocumentIds?: string[];
 }
 
 export interface AuditTrailRecord {
+  /** Phase 140B-H: stable audit record identifier. */
+  auditId?: string;
+  /** Phase 140B-H: actor who performed the action. */
+  actor?: string;
+  /** Phase 140B-H: action performed. */
+  action?: string;
+  /** Phase 140B-H: timestamp of the action. */
+  timestamp?: string;
+  /** Phase 140B-H: field key that was changed. */
+  fieldKey?: string;
+  /** Phase 140B-H: summary of previous value. */
+  previousValueSummary?: string;
+  /** Phase 140B-H: summary of new value. */
+  newValueSummary?: string;
+  /** Phase 140B-H: reason for the change. */
+  reason?: string;
   createdBy?: string;
   createdAt?: string;
   updatedBy?: string;
@@ -416,13 +577,67 @@ export interface AuditTrailRecord {
   changeHistory?: string[];
   evidenceLinks?: string[];
   examinerNotes?: string;
+  /** Phase 140B-H: linked evidence link IDs. */
+  evidenceLinkIds?: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Evidence links (Phase 140B-H)
+// ---------------------------------------------------------------------------
+
+export interface EvidenceLinkRecord {
+  evidenceId: string;
+  sourceType?: string;
+  sourceId?: string;
+  documentId?: string;
+  factKey?: string;
+  description?: string;
+  createdAt?: string;
+  createdBy?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Examiner notes (Phase 140B-H)
+// ---------------------------------------------------------------------------
+
+export interface ExaminerNoteRecord {
+  noteId: string;
+  examinerRequestId?: string;
+  note?: string;
+  responseStatus?: string;
+  owner?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  relatedEvidenceIds: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Boarding source (Phase 140B-H)
+// ---------------------------------------------------------------------------
+
+export type PortfolioLoanBoardingSource =
+  | 'manual_boarding'
+  | 'originated_closed_deal';
 
 // ---------------------------------------------------------------------------
 // The boarding package
 // ---------------------------------------------------------------------------
 
 export interface PortfolioLoanBoardingPackage {
+  // Phase 140B-H metadata (optional for backward compatibility)
+  packageId?: string;
+  source?: PortfolioLoanBoardingSource;
+  createdBy?: string;
+  createdAt?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+  boardedBy?: string;
+  boardedAt?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+
   identity: PortfolioLoanIdentity;
   borrower: BorrowerProfile;
   terms: LoanTerms;
@@ -439,6 +654,9 @@ export interface PortfolioLoanBoardingPackage {
   exceptions: ExceptionRecord[];
   reviewHistory: ReviewHistoryRecord[];
   audit: AuditTrailRecord;
+  // Phase 140B-H additions
+  evidenceLinks: EvidenceLinkRecord[];
+  examinerNotes: ExaminerNoteRecord[];
 }
 
 // ---------------------------------------------------------------------------
@@ -489,5 +707,7 @@ export function createEmptyPortfolioLoanBoardingPackage(): PortfolioLoanBoarding
     exceptions: [],
     reviewHistory: [],
     audit: {},
+    evidenceLinks: [],
+    examinerNotes: [],
   };
 }

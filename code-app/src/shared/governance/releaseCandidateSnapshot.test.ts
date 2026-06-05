@@ -1260,3 +1260,37 @@ describe('Phase 140B — boarding doc pins foundation-only scope', () => {
     expect(doc).toMatch(/portfolio monitoring/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140B-H — Portfolio Loan Boarding mega phase files
+// ---------------------------------------------------------------------------
+
+describe('Phase 140B-H — all mega-phase files exist on disk', () => {
+  const REQUIRED_140BH_FILES: readonly string[] = [
+    'docs/PHASE_140B_H_PORTFOLIO_LOAN_BOARDING_SYSTEM_OF_RECORD.md',
+    'src/shared/portfolioBoarding/portfolioLoanBoardingTypes.ts',
+    'src/shared/portfolioBoarding/portfolioLoanBoardingCatalog.ts',
+    'src/shared/portfolioBoarding/portfolioLoanDocumentCatalog.ts',
+    'src/shared/portfolioBoarding/derivePortfolioLoanBoardingCompleteness.ts',
+    'src/shared/portfolioBoarding/portfolioLoanBoardingSnapshot.ts',
+    'src/shared/portfolioBoarding/portfolioLoanDocumentClassifier.ts',
+    'src/shared/portfolioBoarding/portfolioLoanEvidenceBinder.ts',
+    'src/shared/portfolioBoarding/portfolioLoanDocumentReadiness.ts',
+    'src/shared/portfolioBoarding/fdicExaminerPackage.ts',
+    'src/portfolioBoarding/PortfolioLoanBoardingPreview.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingEditor.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingDocumentUploadPanel.tsx',
+    'src/portfolioBoarding/portfolioLoanBoardingWriteAdapter.ts',
+    'src/portfolioBoarding/portfolioLoanDocumentUploadAdapter.ts',
+    'src/portfolioBoarding/portfolioLoanBoardingPersistenceTypes.ts',
+    'src/portfolioBoarding/portfolioLoanBoardingDataverseMapper.ts',
+    'src/portfolioBoarding/portfolioLoanBoardingDataverseAdapter.ts',
+    'src/portfolioBoarding/portfolioBoardingCommandCenterAdapter.ts',
+    'src/shared/portfolioBoarding/portfolioLoanBoardingGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_140BH_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+});

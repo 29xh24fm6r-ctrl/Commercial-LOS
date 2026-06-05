@@ -6,14 +6,15 @@ import { fieldsRequiredForFDICReview } from './portfolioLoanBoardingCatalog';
 import { documentsRequiredForFDICReview } from './portfolioLoanDocumentCatalog';
 
 /**
- * Phase 140B — Portfolio loan boarding governance.
+ * Phase 140B-H — Portfolio loan boarding governance.
  *
  * Pins that the boarding system of record is a PURE shared module:
- *   - the five canonical files exist;
+ *   - the canonical files exist (including new Phase 140B-H files);
  *   - required FDIC fields and documents are represented;
  *   - no React component, fetch, Dataverse write, or connector code exists;
  *   - no fake borrower names, loan names, or dollar values are baked into the
- *     shared source.
+ *     shared source;
+ *   - no command center write affordance in the shared domain.
  *
  * Test fixtures (which legitimately carry synthetic placeholder values) live
  * only in *.test.ts files and are excluded from the source scan below.
@@ -28,6 +29,13 @@ const REQUIRED_FILES = [
   'portfolioLoanDocumentCatalog.ts',
   'derivePortfolioLoanBoardingCompleteness.ts',
   'portfolioLoanBoardingSnapshot.ts',
+] as const;
+
+const PHASE_140BH_FILES = [
+  'portfolioLoanDocumentClassifier.ts',
+  'portfolioLoanEvidenceBinder.ts',
+  'portfolioLoanDocumentReadiness.ts',
+  'fdicExaminerPackage.ts',
 ] as const;
 
 function stripComments(src: string): string {
@@ -64,6 +72,14 @@ describe('Phase 140B — canonical files exist', () => {
   });
 });
 
+describe('Phase 140B-H — new Phase 140B-H files exist', () => {
+  for (const f of PHASE_140BH_FILES) {
+    it(`${f} exists on disk`, () => {
+      expect(existsSync(resolve(DIR, f))).toBe(true);
+    });
+  }
+});
+
 describe('Phase 140B — required FDIC coverage is represented', () => {
   it('represents required FDIC fields', () => {
     expect(fieldsRequiredForFDICReview().length).toBeGreaterThan(0);
@@ -84,12 +100,13 @@ describe('Phase 140B — the shared module is pure (no React / fetch / Dataverse
     },
     { id: 'dataset', pattern: /\bIDataset\b|openDatasetItem/ },
     { id: 'connector-copilot', pattern: /\bcopilot\b/i },
+    { id: 'graph-office365', pattern: /\b(Graph|Office365|SendEmailV2)\b/ },
   ];
 
   const files = sourceFiles();
 
-  it('discovers the five source files', () => {
-    expect(files.length).toBe(5);
+  it('discovers source files (original five plus new additions)', () => {
+    expect(files.length).toBeGreaterThanOrEqual(5);
   });
 
   for (const rule of FORBIDDEN) {
@@ -124,6 +141,75 @@ describe('Phase 140B — no fake borrower / loan / dollar data in the shared sou
         if (re.test(f.code)) hits.push(`${f.rel} — ${re}`);
       }
     }
+    expect(hits).toEqual([]);
+  });
+});
+
+describe('Phase 140B-H — no React component exists in shared portfolioBoarding domain', () => {
+  it('no .tsx files in shared/portfolioBoarding', () => {
+    const tsx = readdirSync(DIR).filter((e) => e.endsWith('.tsx'));
+    expect(tsx).toEqual([]);
+  });
+});
+
+describe('Phase 140B-H — no fetch/XMLHttpRequest/Graph/Office365/SendEmailV2/connector code', () => {
+  const files = sourceFiles();
+
+  it('no fetch or XMLHttpRequest calls', () => {
+    const hits = files.filter((f) => /\b(fetch|XMLHttpRequest)\s*\(/.test(f.code)).map((f) => f.rel);
+    expect(hits).toEqual([]);
+  });
+
+  it('no Graph/Office365/SendEmailV2 references', () => {
+    const hits = files.filter((f) => /\b(Graph|Office365|SendEmailV2)\b/.test(f.code)).map((f) => f.rel);
+    expect(hits).toEqual([]);
+  });
+
+  it('no connector or copilot references', () => {
+    const hits = files.filter((f) => /\b(connector|copilot)\b/i.test(f.code)).map((f) => f.rel);
+    expect(hits).toEqual([]);
+  });
+});
+
+describe('Phase 140B-H — no sample borrower/dollar data in shared source', () => {
+  const files = sourceFiles();
+
+  it('no sample dollar amounts', () => {
+    const hits = files.filter((f) => /\$\s*\d{1,3}(,\d{3})*(\.\d+)?/.test(f.code)).map((f) => f.rel);
+    expect(hits).toEqual([]);
+  });
+
+  it('no sample borrower names', () => {
+    const NAMES = [/\bJohn\s+Smith\b/i, /\bTest\s+Borrower\b/i, /\bSample\s+Loan\b/i];
+    const hits: string[] = [];
+    for (const f of files) {
+      for (const re of NAMES) {
+        if (re.test(f.code)) hits.push(`${f.rel} — ${re}`);
+      }
+    }
+    expect(hits).toEqual([]);
+  });
+});
+
+describe('Phase 140B-H — no command center write affordance in shared domain', () => {
+  const files = sourceFiles();
+
+  it('no createRecord / updateRecord / deleteRecord calls', () => {
+    const hits = files
+      .filter((f) => /\b(createRecord|updateRecord|deleteRecord|saveRecord)\b/.test(f.code))
+      .map((f) => f.rel);
+    expect(hits).toEqual([]);
+  });
+
+  it('no webAPI calls', () => {
+    const hits = files.filter((f) => /\bwebAPI\b/.test(f.code)).map((f) => f.rel);
+    expect(hits).toEqual([]);
+  });
+
+  it('no mutation verbs (POST/PUT/PATCH/DELETE) in source', () => {
+    const hits = files
+      .filter((f) => /\b(POST|PUT|PATCH|DELETE)\b/.test(f.code))
+      .map((f) => f.rel);
     expect(hits).toEqual([]);
   });
 });
