@@ -129,4 +129,6 @@ Either of (governance's choice):
   before any table creation or live enablement.
 
 No code in this repo enables live Copilot; that remains a deliberate,
-governed, test-tenant-first decision.
+governed, test-tenant-first decision. The full 137A–137L runway and its
+decision gates are summarized in the board/operator checkpoint packet:
+[PHASE_137M_COPILOT_GOVERNANCE_CHECKPOINT.md](./PHASE_137M_COPILOT_GOVERNANCE_CHECKPOINT.md).

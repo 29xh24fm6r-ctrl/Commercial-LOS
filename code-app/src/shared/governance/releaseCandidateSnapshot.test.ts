@@ -933,6 +933,35 @@ describe('Phase 137L — Copilot server-handler readiness bundle is disabled wit
 });
 
 // ---------------------------------------------------------------------------
+// Phase 137M — Copilot governance checkpoint packet (docs-only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137M — Copilot governance checkpoint is docs-only with no runtime/live behavior', () => {
+  const rel = 'docs/PHASE_137M_COPILOT_GOVERNANCE_CHECKPOINT.md';
+
+  it('the Phase 137M governance checkpoint doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the doc as a governance checkpoint only — no live enablement, no runtime change', () => {
+    expect(doc).toMatch(/Governance checkpoint only/i);
+    expect(doc).toMatch(/No live enablement in 137M/i);
+    expect(doc).toMatch(/No runtime behavior change\./i);
+  });
+
+  it('pins the full 137A–137L summary + architecture + gates + runtime not_configured', () => {
+    expect(doc).toMatch(/137A/);
+    expect(doc).toMatch(/137L/);
+    expect(doc).toMatch(/Browser → Dataverse Custom API/i);
+    expect(doc).toMatch(/Gate 1/);
+    expect(doc).toMatch(/Gate 9/);
+    expect(doc).toMatch(/Runtime default remains `?not_configured`?/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137F — Copilot Custom API registration runbook (docs/spec only)
 // ---------------------------------------------------------------------------
 
