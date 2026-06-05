@@ -118,6 +118,10 @@ Explicitly NOT part of Phase 137A:
 
 ## References
 
+- [PHASE_137B_COPILOT_CUSTOM_API_CONTRACT.md](./PHASE_137B_COPILOT_CUSTOM_API_CONTRACT.md)
+  — the future server-side Custom API request/response contract that
+  implements this decision (contract/spec only; runtime stays
+  not-configured).
 - [SPEC_COPILOT_LIVE_CONNECTOR_AND_SAFE_ACTION_ADAPTERS.md](./SPEC_COPILOT_LIVE_CONNECTOR_AND_SAFE_ACTION_ADAPTERS.md)
   — the governed connector modes + safe proposal engine this decision
   builds on.

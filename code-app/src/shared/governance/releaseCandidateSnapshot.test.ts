@@ -616,3 +616,33 @@ describe('Phase 137A — Copilot live connector decision is recorded and runtime
     expect(doc).toMatch(/No enabling live mode\./i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 137B — Copilot Custom API CONTRACT (docs + tests only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137B — Copilot Custom API contract is recorded and runtime stays not_configured', () => {
+  const rel = 'docs/PHASE_137B_COPILOT_CUSTOM_API_CONTRACT.md';
+
+  it('the Phase 137B contract doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the doc as contract/spec only — no implementation in this phase', () => {
+    expect(doc).toMatch(/Contract ?\/ ?spec only/i);
+    expect(doc).toMatch(/No implementation\./i);
+    expect(doc).toMatch(/No live traffic\./i);
+  });
+
+  it('pins the future Custom API boundary (browser → Dataverse Custom API → server-side Azure OpenAI)', () => {
+    expect(doc).toMatch(/cr664_RunLosCopilotAssist|cr664_RunCopilotAssist/);
+    expect(doc).toMatch(/The browser calls the Dataverse Custom API only/i);
+    expect(doc).toMatch(/calls Azure OpenAI server-side/i);
+  });
+
+  it('pins that the Copilot runtime remains not_configured after 137B', () => {
+    expect(doc).toMatch(/Runtime remains `?not_configured`?/i);
+  });
+});
