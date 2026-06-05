@@ -839,6 +839,38 @@ describe('Phase 137I — Copilot audit/event ledger design is docs-only with no 
 });
 
 // ---------------------------------------------------------------------------
+// Phase 137J — Copilot audit-event table metadata script (dry-run first)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137J — Copilot audit-table metadata script is dry-run-only with no live/runtime behavior', () => {
+  const rel = 'docs/PHASE_137J_COPILOT_AUDIT_TABLE_METADATA_SCRIPT.md';
+
+  it('the Phase 137J audit-table metadata-script doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the script as dry-run metadata script/spec only — no table created', () => {
+    expect(doc).toMatch(/Dry-run metadata script ?\/ ?spec only/i);
+    expect(doc).toMatch(/No table creation in Phase 137J/i);
+    expect(doc).toMatch(/not implemented/i);
+  });
+
+  it('pins the cr664_copilotauditevent target + inspect/seed commands', () => {
+    expect(doc).toMatch(/cr664_copilotauditevent/);
+    expect(doc).toMatch(/--inspect-copilot-audit-table/);
+    expect(doc).toMatch(/--seed-copilot-audit-table-metadata/);
+  });
+
+  it('pins the audit-before-model rule and runtime staying not_configured', () => {
+    expect(doc).toMatch(/audit_start[\s\S]{0,80}before any Azure\s+OpenAI ?\/ ?model call/i);
+    expect(doc).toMatch(/audit_unavailable/);
+    expect(doc).toMatch(/remains[\s>*`]+not_configured/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137F — Copilot Custom API registration runbook (docs/spec only)
 // ---------------------------------------------------------------------------
 

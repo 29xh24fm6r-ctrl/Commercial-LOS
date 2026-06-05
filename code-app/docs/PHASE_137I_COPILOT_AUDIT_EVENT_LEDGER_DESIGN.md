@@ -211,6 +211,7 @@ model output directly):
 ## K. Future phases
 
 - **137J** — guarded audit-table metadata script / spec, **dry-run first**.
+  See [PHASE_137J_COPILOT_AUDIT_TABLE_METADATA_SCRIPT.md](./PHASE_137J_COPILOT_AUDIT_TABLE_METADATA_SCRIPT.md).
 - **137K** — server audit-logger interface / skeleton, **disabled**.
 - **137L** — server handler skeleton once the audit table is available.
 - **137M** — live-transport test harness, **still disabled**.

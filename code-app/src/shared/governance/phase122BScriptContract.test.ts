@@ -262,7 +262,7 @@ describe('Phase 122B — script exposes a read-only --inspect-dependencies mode'
   it('--inspect-dependencies is mutually exclusive with --commit', () => {
     // Now part of the broader three-way mutex with --cleanup-form.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive/,
     );
   });
 
@@ -323,7 +323,7 @@ describe('Phase 122B — script supports targeted SystemForm cleanup', () => {
 
   it('cleanup-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive\./,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive\./,
     );
   });
 
@@ -424,7 +424,7 @@ describe('Phase 122B — broad SystemForm inspection for indirect dependencies',
 
   it('--inspect-form is mutually exclusive with every other mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive/,
     );
   });
 
@@ -538,7 +538,7 @@ describe('Phase 122B — targeted subgrid cleanup by control id', () => {
 
   it('5-way mutex includes --cleanup-subgrid', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive/,
     );
   });
 
@@ -949,7 +949,7 @@ describe('Phase 122B — SavedQuery (view) inspection + targeted cleanup', () =>
 
   it('7-way mutex includes --inspect-view and --cleanup-view', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive/,
     );
   });
 
@@ -1576,7 +1576,7 @@ describe('Phase 122E Pt 2 — --seed-product-references guarded write mode', () 
 
   it('10-way mutex extended to include --seed-product-references', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive/,
     );
   });
 
@@ -1928,7 +1928,7 @@ describe('Phase 122E Pt 1 — --inspect-attributes targeted attribute audit', ()
     // Asserted via the central mutex pin updated elsewhere in this file,
     // but re-check the specific string for clarity.
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive/,
     );
   });
 });
@@ -2860,7 +2860,7 @@ describe('Phase 124D — --seed-manager-entitlement guarded write mode', () => {
 
   it('11-way mutex extended to include --seed-manager-entitlement', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive/,
     );
   });
 
@@ -3176,7 +3176,7 @@ describe('Phase 133C — --seed-executive-primary-workspace guarded write mode',
 
   it('the 12-way mutex message lists the new mode', () => {
     expect(SCRIPT).toMatch(
-      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive/,
+      /Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive/,
     );
   });
 
@@ -3321,7 +3321,7 @@ describe('Phase 137G — --inspect-copilot-custom-api / --seed-copilot-custom-ap
 
   it('the mutex message lists both new Copilot modes', () => {
     expect(SCRIPT).toMatch(
-      /--inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive/,
+      /--inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table/,
     );
   });
 
@@ -3420,5 +3420,153 @@ describe('Phase 137G — no Azure/OpenAI/secret/bypass drift introduced by the n
   it('the script still imports nothing from src/ (no runtime app/copilot coupling)', () => {
     expect(SCRIPT).not.toMatch(/from\s+['"]\.\.\/src\//);
     expect(SCRIPT).not.toMatch(/require\(['"]\.\.\/src\//);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 137J — Copilot audit-event table metadata inspect / dry-run plan
+// ---------------------------------------------------------------------------
+
+describe('Phase 137J — --inspect-copilot-audit-table / --seed-copilot-audit-table-metadata args', () => {
+  it('parses the three new audit-table args', () => {
+    expect(SCRIPT).toMatch(/'--inspect-copilot-audit-table'/);
+    expect(SCRIPT).toMatch(/'--seed-copilot-audit-table-metadata'/);
+    expect(SCRIPT).toMatch(/'--commit-seed-copilot-audit-table-metadata'/);
+    expect(SCRIPT).toMatch(/flags\.inspectCopilotAuditTable\s*=\s*true/);
+    expect(SCRIPT).toMatch(/flags\.seedCopilotAuditTableMetadata\s*=\s*true/);
+    expect(SCRIPT).toMatch(/flags\.commitSeedCopilotAuditTableMetadata\s*=\s*true/);
+  });
+
+  it('pins the audit-table constants (logical/display/primary name, event types, fields)', () => {
+    expect(SCRIPT).toMatch(/COPILOT_AUDIT_TABLE_LOGICAL_NAME\s*=\s*'cr664_copilotauditevent'/);
+    expect(SCRIPT).toMatch(/COPILOT_AUDIT_TABLE_DISPLAY_NAME\s*=\s*'Copilot Audit Event'/);
+    expect(SCRIPT).toMatch(/COPILOT_AUDIT_TABLE_PLURAL_DISPLAY_NAME\s*=\s*'Copilot Audit Events'/);
+    expect(SCRIPT).toMatch(/COPILOT_AUDIT_TABLE_PRIMARY_NAME\s*=\s*'cr664_name'/);
+    expect(SCRIPT).toMatch(/COPILOT_AUDIT_EVENT_TYPES\s*=\s*Object\.freeze/);
+    expect(SCRIPT).toMatch(/COPILOT_AUDIT_FIELDS\s*=\s*Object\.freeze/);
+    expect(SCRIPT).toMatch(/COPILOT_AUDIT_RECOMMENDED_INDEXES\s*=\s*Object\.freeze/);
+    // Lifecycle event types pinned.
+    for (const ev of [
+      'audit_start',
+      'audit_completion',
+      'audit_fail_closed',
+      'proposal_confirmed',
+      'governed_write_completed',
+    ]) {
+      expect(SCRIPT, ev).toMatch(new RegExp(`'${ev}'`));
+    }
+    // A representative sample of the required fields.
+    for (const field of [
+      'cr664_correlationid',
+      'cr664_eventtype',
+      'cr664_promptkind',
+      'cr664_prompthash',
+      'cr664_proposalsjson',
+      'cr664_governedwriteid',
+      'cr664_payloadversion',
+    ]) {
+      expect(SCRIPT, field).toMatch(new RegExp(`'${field}'`));
+    }
+  });
+
+  it('MODE banner includes INSPECT-COPILOT-AUDIT-TABLE and SEED-COPILOT-AUDIT-TABLE-METADATA', () => {
+    expect(SCRIPT).toMatch(/'INSPECT-COPILOT-AUDIT-TABLE'/);
+    expect(SCRIPT).toMatch(/SEED-COPILOT-AUDIT-TABLE-METADATA \(dry-run\)/);
+    expect(SCRIPT).toMatch(/SEED-COPILOT-AUDIT-TABLE-METADATA \(commit requested — NOT IMPLEMENTED/);
+  });
+
+  it('the new modes are part of the exclusive-modes array', () => {
+    expect(SCRIPT).toMatch(/flags\.inspectCopilotAuditTable,?\s*$/m);
+    expect(SCRIPT).toMatch(/flags\.seedCopilotAuditTableMetadata,?\s*$/m);
+  });
+
+  it('the mutex message lists both new audit-table modes', () => {
+    expect(SCRIPT).toMatch(
+      /--inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive/,
+    );
+  });
+
+  it('the commit flag has no effect without the seed mode (explicitly gated)', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-copilot-audit-table-metadata has no effect without --seed-copilot-audit-table-metadata/,
+    );
+    expect(SCRIPT).toMatch(
+      /--commit-seed-copilot-audit-table-metadata cannot be combined with --inspect-copilot-audit-table/,
+    );
+  });
+});
+
+describe('Phase 137J — audit-table seed plan is OFFLINE dry-run only (no write, commit not implemented)', () => {
+  it('the seed-plan dispatch runs BEFORE assertPacAuth (offline — no auth, no network)', () => {
+    const mainStart = SCRIPT.indexOf('async function main()');
+    expect(mainStart).toBeGreaterThan(-1);
+    const body = SCRIPT.slice(mainStart);
+    const seedGuardIdx = body.indexOf('if (FLAGS.seedCopilotAuditTableMetadata)');
+    const authIdx = body.indexOf('assertPacAuth();');
+    expect(seedGuardIdx).toBeGreaterThan(-1);
+    expect(authIdx).toBeGreaterThan(-1);
+    expect(seedGuardIdx).toBeLessThan(authIdx);
+  });
+
+  it('runSeedCopilotAuditTableMetadataPlan prints planned metadata and issues NO write / fetch / publish', () => {
+    const block = sliceFunction('runSeedCopilotAuditTableMetadataPlan');
+    expect(block).toMatch(/Planned TABLE metadata/);
+    expect(block).toMatch(/Planned FIELDS/);
+    expect(block).toMatch(/Planned cr664_eventtype option values/);
+    expect(block).toMatch(/Recommended indexes/);
+    expect(block).toMatch(/No table is created\. No attributes are created\. No indexes are created\./);
+    expect(block).toMatch(/No publish is run\. This is a metadata plan only\./);
+    // Offline: no fetch / spawn / write method / publish anywhere.
+    expect(block).not.toMatch(/\bfetch\(/);
+    expect(block).not.toMatch(/spawnSync\(/);
+    expect(block).not.toMatch(/method:\s*'POST'/);
+    expect(block).not.toMatch(/method:\s*'PATCH'/);
+    expect(block).not.toMatch(/method:\s*'DELETE'/);
+    expect(block).not.toMatch(/PublishXml/);
+  });
+
+  it('commit is explicitly NOT IMPLEMENTED — passing the commit flag still writes nothing', () => {
+    const block = sliceFunction('runSeedCopilotAuditTableMetadataPlan');
+    expect(block).toMatch(/NOT IMPLEMENTED in Phase/);
+    expect(block).toMatch(/run dry-run only/);
+    expect(block).toMatch(/No write has been or will be issued/);
+    expect(block).toMatch(/remains not_configured/);
+  });
+});
+
+describe('Phase 137J — inspect-copilot-audit-table is a read-only GET mode', () => {
+  it('the inspect dispatch is wired into main() and returns', () => {
+    const guardIdx = SCRIPT.indexOf('if (FLAGS.inspectCopilotAuditTable)');
+    expect(guardIdx).toBeGreaterThan(-1);
+    const block = SCRIPT.slice(guardIdx, guardIdx + 200);
+    expect(block).toMatch(/await runInspectCopilotAuditTable\(/);
+    expect(block).toMatch(/return;/);
+  });
+
+  it('runInspectCopilotAuditTable uses ONLY GET — no POST / PATCH / DELETE / publish', () => {
+    const block = sliceFunction('runInspectCopilotAuditTable');
+    expect(block).toMatch(/method:\s*'GET'/);
+    expect(block).not.toMatch(/method:\s*'POST'/);
+    expect(block).not.toMatch(/method:\s*'PATCH'/);
+    expect(block).not.toMatch(/method:\s*'DELETE'/);
+    expect(block).not.toMatch(/PublishXml/);
+    // Reads the EntityDefinitions metadata endpoint for the audit table.
+    expect(block).toMatch(/EntityDefinitions\(LogicalName='\$\{COPILOT_AUDIT_TABLE_LOGICAL_NAME\}'\)/);
+  });
+});
+
+describe('Phase 137J — no Azure/OpenAI/secret/bypass drift introduced by the audit-table modes', () => {
+  it('the new audit-table functions carry no secret / bypass header / Azure-OpenAI endpoint', () => {
+    for (const fn of [
+      'printCopilotAuditTableExpectedContract',
+      'runSeedCopilotAuditTableMetadataPlan',
+      'runInspectCopilotAuditTable',
+    ]) {
+      const block = sliceFunction(fn);
+      expect(block, `${fn}: api key`).not.toMatch(/api[_-]?key\s*[:=]/i);
+      expect(block, `${fn}: AZURE secret`).not.toMatch(/AZURE_OPENAI_API_KEY|AZURE_OPENAI_ENDPOINT/);
+      expect(block, `${fn}: openai endpoint`).not.toMatch(/api\.openai\.com|openai\.azure\.com/i);
+      expect(block, `${fn}: bypass`).not.toMatch(/BypassBusinessLogicExecution|SuppressDuplicateDetection/i);
+    }
   });
 });

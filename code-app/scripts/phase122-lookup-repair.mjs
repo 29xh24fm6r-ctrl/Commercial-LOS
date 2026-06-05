@@ -189,6 +189,75 @@ const COPILOT_CUSTOM_API_REQUEST_PARAM = 'RequestPayload';
 const COPILOT_CUSTOM_API_CORRELATION_PARAM = 'CorrelationId';
 const COPILOT_CUSTOM_API_RESPONSE_PROP = 'ResponsePayload';
 
+// ---------------------------------------------------------------------------
+// Phase 137J — Copilot audit-event table metadata plan (DRY-RUN FIRST).
+//
+// The future cr664_copilotauditevent Dataverse table (Phase 137I audit /
+// event ledger design). Phase 137J only INSPECTS (read-only GET) or PLANS
+// (dry-run, offline) the table metadata — it creates NOTHING. Commit / live
+// table creation is intentionally NOT implemented in this phase; no
+// attribute, no index, no publish, and no runtime enablement are touched.
+// ---------------------------------------------------------------------------
+const COPILOT_AUDIT_TABLE_LOGICAL_NAME = 'cr664_copilotauditevent';
+const COPILOT_AUDIT_TABLE_DISPLAY_NAME = 'Copilot Audit Event';
+const COPILOT_AUDIT_TABLE_PLURAL_DISPLAY_NAME = 'Copilot Audit Events';
+const COPILOT_AUDIT_TABLE_PRIMARY_NAME = 'cr664_name';
+
+// cr664_eventtype option values (Phase 137I lifecycle events).
+const COPILOT_AUDIT_EVENT_TYPES = Object.freeze([
+  'audit_start',
+  'audit_completion',
+  'audit_fail_closed',
+  'proposal_confirmed',
+  'governed_write_completed',
+]);
+
+// Required audit fields (Phase 137I §D). The PLAN prints these; nothing is
+// created. Each is the logical column name only — no value or secret.
+const COPILOT_AUDIT_FIELDS = Object.freeze([
+  'cr664_correlationid',
+  'cr664_eventtype',
+  'cr664_eventtimestamp',
+  'cr664_userupn',
+  'cr664_userprofileid',
+  'cr664_workspacename',
+  'cr664_workspace',
+  'cr664_surface',
+  'cr664_dealid',
+  'cr664_dealname',
+  'cr664_promptkind',
+  'cr664_redactedpromptsummary',
+  'cr664_prompthash',
+  'cr664_contextsummary',
+  'cr664_contexthash',
+  'cr664_mode',
+  'cr664_policyversion',
+  'cr664_modeldeployment',
+  'cr664_modelversion',
+  'cr664_responsemode',
+  'cr664_islive',
+  'cr664_failclosedcode',
+  'cr664_warningsjson',
+  'cr664_proposalsjson',
+  'cr664_proposalcount',
+  'cr664_confirmationstatus',
+  'cr664_confirmedproposalid',
+  'cr664_governedwritepath',
+  'cr664_governedwriteid',
+  'cr664_errorclass',
+  'cr664_errorsummary',
+  'cr664_payloadversion',
+]);
+
+// Recommended indexes for the future table (Phase 137I §F).
+const COPILOT_AUDIT_RECOMMENDED_INDEXES = Object.freeze([
+  'cr664_correlationid',
+  'cr664_eventtimestamp',
+  'cr664_userprofileid',
+  'cr664_workspace',
+  'cr664_dealid',
+]);
+
 // No-admin OAuth2 device-code fallback constants.
 // PUBLIC_CLIENT_ID is the Microsoft Azure PowerShell public client —
 // a multi-tenant first-party app registration that supports the
@@ -253,6 +322,12 @@ function parseArgs(argv) {
     inspectCopilotCustomApi: false,
     seedCopilotCustomApiMetadata: false,
     commitSeedCopilotCustomApiMetadata: false,
+    // Phase 137J — Copilot audit-event table metadata inspect / dry-run plan.
+    // Read-only inspect + offline dry-run plan only. Commit is NOT
+    // implemented in this phase (no write path exists).
+    inspectCopilotAuditTable: false,
+    seedCopilotAuditTableMetadata: false,
+    commitSeedCopilotAuditTableMetadata: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -526,6 +601,22 @@ function parseArgs(argv) {
       // it performs NO write — commit is explicitly not implemented in
       // Phase 137G (see the seed handler).
       flags.commitSeedCopilotCustomApiMetadata = true;
+    } else if (arg === '--inspect-copilot-audit-table') {
+      // Phase 137J — read-only metadata inspection of the future
+      // cr664_copilotauditevent table. Pure GET; never writes.
+      flags.inspectCopilotAuditTable = true;
+      flags.dryRun = false;
+    } else if (arg === '--seed-copilot-audit-table-metadata') {
+      // Phase 137J — DRY-RUN-ONLY table metadata plan. Prints the planned
+      // Dataverse table/field/index metadata and exits before any write.
+      // Offline (no auth, no Web API call). Commit is NOT implemented.
+      flags.seedCopilotAuditTableMetadata = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-copilot-audit-table-metadata') {
+      // Accepted only to give a clear "not implemented" message — it
+      // performs NO write. Commit / live table creation is explicitly not
+      // implemented in Phase 137J (see the seed handler).
+      flags.commitSeedCopilotAuditTableMetadata = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -545,10 +636,12 @@ function parseArgs(argv) {
     flags.seedExecutivePrimaryWorkspace,
     flags.inspectCopilotCustomApi,
     flags.seedCopilotCustomApiMetadata,
+    flags.inspectCopilotAuditTable,
+    flags.seedCopilotAuditTableMetadata,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, --seed-copilot-custom-api-metadata, --inspect-copilot-audit-table, and --seed-copilot-audit-table-metadata are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
@@ -710,6 +803,20 @@ function parseArgs(argv) {
       '--commit-seed-copilot-custom-api-metadata cannot be combined with --inspect-copilot-custom-api.',
     );
   }
+  // Phase 137J — Copilot audit-table metadata mode cross-flag validation.
+  // The commit flag is meaningless without the seed mode; and even WITH it,
+  // commit is NOT implemented (the seed handler performs no write). The
+  // inspect mode cannot ride along with the seed/commit flags.
+  if (flags.commitSeedCopilotAuditTableMetadata && !flags.seedCopilotAuditTableMetadata) {
+    bailParseArgs(
+      '--commit-seed-copilot-audit-table-metadata has no effect without --seed-copilot-audit-table-metadata.',
+    );
+  }
+  if (flags.inspectCopilotAuditTable && flags.commitSeedCopilotAuditTableMetadata) {
+    bailParseArgs(
+      '--commit-seed-copilot-audit-table-metadata cannot be combined with --inspect-copilot-audit-table.',
+    );
+  }
   return flags;
 }
 
@@ -787,7 +894,13 @@ const MODE = FLAGS.commit
                                 ? FLAGS.commitSeedCopilotCustomApiMetadata
                                   ? 'SEED-COPILOT-CUSTOM-API-METADATA (commit requested — NOT IMPLEMENTED, dry-run only)'
                                   : 'SEED-COPILOT-CUSTOM-API-METADATA (dry-run)'
-                                : 'DRY-RUN';
+                                : FLAGS.inspectCopilotAuditTable
+                                  ? 'INSPECT-COPILOT-AUDIT-TABLE'
+                                  : FLAGS.seedCopilotAuditTableMetadata
+                                    ? FLAGS.commitSeedCopilotAuditTableMetadata
+                                      ? 'SEED-COPILOT-AUDIT-TABLE-METADATA (commit requested — NOT IMPLEMENTED, dry-run only)'
+                                      : 'SEED-COPILOT-AUDIT-TABLE-METADATA (dry-run)'
+                                    : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -6036,6 +6149,174 @@ async function runInspectCopilotCustomApi(token, envUrl) {
   console.log('Read-only inspection. No write, no plugin, no Azure resource touched.');
 }
 
+// ---------------------------------------------------------------------------
+// Phase 137J — Copilot audit-event TABLE metadata: dry-run plan + inspect.
+//
+// Dry-run / read-only ONLY. The plan printer is OFFLINE (no auth, no Web
+// API call). The inspect mode uses read-only GETs against the Dataverse
+// metadata Web API. NOTHING here creates a table/attribute/index, runs a
+// publish, calls Azure OpenAI, or enables live runtime.
+// ---------------------------------------------------------------------------
+
+function printCopilotAuditTableExpectedContract() {
+  console.log(
+    'Expected ledger contract (Phase 137I — docs/PHASE_137I_COPILOT_AUDIT_EVENT_LEDGER_DESIGN.md):',
+  );
+  console.log(`   Table logical/schema:   ${COPILOT_AUDIT_TABLE_LOGICAL_NAME}`);
+  console.log(`   Display name:           ${COPILOT_AUDIT_TABLE_DISPLAY_NAME}`);
+  console.log(`   Plural display name:    ${COPILOT_AUDIT_TABLE_PLURAL_DISPLAY_NAME}`);
+  console.log(`   Primary name attribute: ${COPILOT_AUDIT_TABLE_PRIMARY_NAME}`);
+  console.log('   Recommended ownership:  User/team-owned (unless an existing project');
+  console.log('                           convention requires organization-owned).');
+  console.log(
+    '   Audit-before-model:     audit_start must be written BEFORE any Azure OpenAI /',
+  );
+  console.log(
+    '                           model call; if it cannot, fail closed audit_unavailable.',
+  );
+  console.log('');
+}
+
+/**
+ * Phase 137J — DRY-RUN-ONLY audit-table metadata plan. Offline (no auth, no
+ * Web API call). Prints the planned table / field / index / option metadata
+ * and returns BEFORE any write. Commit is NOT implemented in this phase:
+ * passing --commit-seed-copilot-audit-table-metadata prints a clear
+ * not-implemented notice and still performs no write.
+ */
+function runSeedCopilotAuditTableMetadataPlan() {
+  console.log('Phase 137J — Copilot audit-event TABLE metadata creation PLAN (dry-run)');
+  console.log('');
+  console.log('NOTE: this mode is OFFLINE and DRY-RUN ONLY. It performs no pac auth,');
+  console.log('      no Web API call, and no write. It plans the metadata for the');
+  console.log(`      future ${COPILOT_AUDIT_TABLE_LOGICAL_NAME} Dataverse table.`);
+  console.log('');
+  printCopilotAuditTableExpectedContract();
+
+  console.log('-'.repeat(70));
+  console.log('Planned TABLE metadata (future EntityDefinitions POST):');
+  console.log('-'.repeat(70));
+  console.log(
+    JSON.stringify(
+      {
+        LogicalName: COPILOT_AUDIT_TABLE_LOGICAL_NAME,
+        SchemaName: COPILOT_AUDIT_TABLE_LOGICAL_NAME,
+        DisplayName: COPILOT_AUDIT_TABLE_DISPLAY_NAME,
+        DisplayCollectionName: COPILOT_AUDIT_TABLE_PLURAL_DISPLAY_NAME,
+        PrimaryNameAttribute: COPILOT_AUDIT_TABLE_PRIMARY_NAME,
+        OwnershipType: 'UserOwned',
+        HasNotes: false,
+        HasActivities: false,
+      },
+      null,
+      2,
+    ),
+  );
+  console.log('');
+
+  console.log('-'.repeat(70));
+  console.log(`Planned FIELDS (${COPILOT_AUDIT_FIELDS.length}) — one future attribute each:`);
+  console.log('-'.repeat(70));
+  for (const field of COPILOT_AUDIT_FIELDS) {
+    console.log(`   - ${field}`);
+  }
+  console.log('');
+
+  console.log('-'.repeat(70));
+  console.log(`Planned cr664_eventtype option values (${COPILOT_AUDIT_EVENT_TYPES.length}):`);
+  console.log('-'.repeat(70));
+  for (const ev of COPILOT_AUDIT_EVENT_TYPES) {
+    console.log(`   - ${ev}`);
+  }
+  console.log('');
+
+  console.log('-'.repeat(70));
+  console.log(`Recommended indexes (${COPILOT_AUDIT_RECOMMENDED_INDEXES.length}):`);
+  console.log('-'.repeat(70));
+  for (const idx of COPILOT_AUDIT_RECOMMENDED_INDEXES) {
+    console.log(`   - ${idx}`);
+  }
+  console.log('   (No uniqueness on cr664_correlationid — lifecycle events share it.)');
+  console.log('');
+
+  if (FLAGS.commitSeedCopilotAuditTableMetadata) {
+    console.log('⚠  --commit-seed-copilot-audit-table-metadata is NOT IMPLEMENTED in Phase');
+    console.log('   137J; run dry-run only. No write has been or will be issued. Live table');
+    console.log('   creation is deferred to a future phase.');
+    console.log('');
+  }
+
+  console.log('No table is created. No attributes are created. No indexes are created.');
+  console.log('No publish is run. This is a metadata plan only.');
+  console.log('No pac auth, no Web API call, no write, no plugin, no Azure resource.');
+  console.log('Runtime Copilot connector remains not_configured.');
+}
+
+/**
+ * Phase 137J — read-only inspection of the future Copilot audit-event table
+ * metadata. Pure GETs against the Dataverse Web API. Never writes.
+ */
+async function runInspectCopilotAuditTable(token, envUrl) {
+  console.log('');
+  console.log('Phase 137J — Copilot audit-event table inspection (Web API metadata, read-only)');
+  console.log(`   Target table: ${COPILOT_AUDIT_TABLE_LOGICAL_NAME}`);
+  console.log('');
+  printCopilotAuditTableExpectedContract();
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'OData-MaxVersion': '4.0',
+    'OData-Version': '4.0',
+    Accept: 'application/json',
+  };
+  const url =
+    `${envUrl}/api/data/v9.2/EntityDefinitions(LogicalName='${COPILOT_AUDIT_TABLE_LOGICAL_NAME}')` +
+    `?$select=LogicalName,SchemaName,PrimaryNameAttribute,PrimaryIdAttribute,OwnershipType` +
+    `&$expand=Attributes($select=LogicalName,AttributeType)`;
+  let res;
+  try {
+    res = await fetch(url, { method: 'GET', headers });
+  } catch (err) {
+    bail(`Copilot audit-table inspection network error: ${err.message}`);
+    return;
+  }
+  if (res.status === 404) {
+    console.log(`   RESULT: ${COPILOT_AUDIT_TABLE_LOGICAL_NAME} does NOT exist in this environment.`);
+    console.log('   (Expected in Phase 137J — the audit table has not been created yet.)');
+    console.log('');
+    console.log('Read-only inspection. No write of any kind has been issued.');
+    return;
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    bail(`EntityDefinitions GET → ${res.status}: ${text}`);
+    return;
+  }
+  const table = await res.json();
+  console.log(`   RESULT: ${COPILOT_AUDIT_TABLE_LOGICAL_NAME} EXISTS.`);
+  console.log(`     SchemaName:           ${table.SchemaName}`);
+  console.log(`     PrimaryNameAttribute: ${table.PrimaryNameAttribute}`);
+  console.log(`     PrimaryIdAttribute:   ${table.PrimaryIdAttribute}`);
+  console.log(`     OwnershipType:        ${table.OwnershipType}`);
+  console.log('');
+
+  // Report which expected audit fields are present (read-only).
+  const present = new Set(
+    (table.Attributes ?? []).map((a) => String(a.LogicalName).toLowerCase()),
+  );
+  console.log('   Expected audit-contract field presence:');
+  let missing = 0;
+  for (const field of COPILOT_AUDIT_FIELDS) {
+    const has = present.has(field.toLowerCase());
+    if (!has) missing += 1;
+    console.log(`     ${has ? '✓' : '✗'} ${field}`);
+  }
+  console.log('');
+  console.log(`   ${COPILOT_AUDIT_FIELDS.length - missing}/${COPILOT_AUDIT_FIELDS.length} expected fields present; ${missing} missing.`);
+  console.log('');
+  console.log('Read-only inspection. No write, no plugin, no Azure resource touched.');
+}
+
 async function main() {
   // === Pure diagnostic: print the lookup-creation payload(s) ===
   // No pac auth, no Web API call, no write. Useful when an operator
@@ -6096,6 +6377,14 @@ async function main() {
     return;
   }
 
+  // === Phase 137J — Copilot audit-table metadata PLAN (offline dry-run) ===
+  // Pure / offline: prints the planned table/field/index metadata and
+  // returns BEFORE any auth or network. Commit is not implemented.
+  if (FLAGS.seedCopilotAuditTableMetadata) {
+    runSeedCopilotAuditTableMetadataPlan();
+    return;
+  }
+
   assertPacAuth();
 
   // Acquire shared envUrl + bearer token early. Every remaining mode
@@ -6121,6 +6410,12 @@ async function main() {
   // === Phase 137G — read-only Copilot Custom API metadata inspection ===
   if (FLAGS.inspectCopilotCustomApi) {
     await runInspectCopilotCustomApi(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 137J — read-only Copilot audit-event table inspection ===
+  if (FLAGS.inspectCopilotAuditTable) {
+    await runInspectCopilotAuditTable(mainToken, mainEnvUrl);
     return;
   }
 
@@ -6727,6 +7022,23 @@ Modes:
       COMMIT IS NOT IMPLEMENTED in Phase 137G — passing
       --commit-seed-copilot-custom-api-metadata prints a notice and still
       performs no write. No plugin, no Azure resource, no live enablement.
+
+  --inspect-copilot-audit-table
+      Phase 137J — read-only inspection of the future
+      ${COPILOT_AUDIT_TABLE_LOGICAL_NAME} Dataverse audit-event table. Pure
+      GETs against the EntityDefinitions metadata endpoint; reports whether
+      it exists and which expected Phase 137I audit fields are present.
+      Never writes.
+
+  --seed-copilot-audit-table-metadata [--commit-seed-copilot-audit-table-metadata]
+      Phase 137J — DRY-RUN-ONLY plan for creating the
+      ${COPILOT_AUDIT_TABLE_LOGICAL_NAME} table metadata (table + ${COPILOT_AUDIT_FIELDS.length}
+      fields + cr664_eventtype options + recommended indexes). OFFLINE: no
+      pac auth, no Web API call, no write. Prints the planned metadata.
+      COMMIT IS NOT IMPLEMENTED in Phase 137J — passing
+      --commit-seed-copilot-audit-table-metadata prints a notice and still
+      performs no write. No table/attribute/index is created; no publish is
+      run; no live enablement.
 
   --commit
       Run the plan against the live env. Refuses to run unless every
