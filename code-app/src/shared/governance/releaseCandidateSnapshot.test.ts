@@ -902,6 +902,37 @@ describe('Phase 137K — Copilot audit-logger skeleton is inert with no live wri
 });
 
 // ---------------------------------------------------------------------------
+// Phase 137L — Copilot server handler + readiness bundle (disabled)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137L — Copilot server-handler readiness bundle is disabled with no live behavior', () => {
+  const rel = 'docs/PHASE_137L_COPILOT_SERVER_HANDLER_READINESS_BUNDLE.md';
+
+  it('the Phase 137L readiness-bundle doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the doc as a disabled readiness bundle with no live enablement', () => {
+    expect(doc).toMatch(/Disabled readiness bundle only/i);
+    expect(doc).toMatch(/No live enablement in (Phase )?137L/i);
+  });
+
+  it('pins the audit-before-model fail-closed handler + never-ready harness', () => {
+    expect(doc).toMatch(/audit_start[\s\S]{0,120}before any Azure\s+OpenAI ?\/ ?model\s+call/i);
+    expect(doc).toMatch(/audit_unavailable/);
+    expect(doc).toMatch(/model boundary is (an interface only|never|never reached)/i);
+  });
+
+  it('pins runtime staying not_configured + the remaining blockers', () => {
+    expect(doc).toMatch(/stays[\s>*`]+not_configured/i);
+    expect(doc).toMatch(/cr664_copilotauditevent/);
+    expect(doc).toMatch(/Live mode not enabled/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137F — Copilot Custom API registration runbook (docs/spec only)
 // ---------------------------------------------------------------------------
 

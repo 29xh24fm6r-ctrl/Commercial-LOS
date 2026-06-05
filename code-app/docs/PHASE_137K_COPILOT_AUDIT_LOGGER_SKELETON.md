@@ -127,8 +127,8 @@ npm run build
 
 ## Next phase recommendation
 
-**Phase 137L** — the server handler skeleton (separate server project,
-disabled) that calls `audit_start` (via the disabled logger) **before** the
-model boundary and fails closed on `audit_unavailable` — still default
-`not_configured` — followed by a disabled live-transport test harness
-(137M) and controlled test-tenant enablement (137N).
+**Phase 137L** — the disabled server-handler skeleton + audit-logger
+integration + disabled live-transport harness + controlled-enablement
+checklist, consolidated into one readiness bundle (still default
+`not_configured`). See
+[PHASE_137L_COPILOT_SERVER_HANDLER_READINESS_BUNDLE.md](./PHASE_137L_COPILOT_SERVER_HANDLER_READINESS_BUNDLE.md).
