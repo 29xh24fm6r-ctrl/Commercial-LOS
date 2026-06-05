@@ -3797,3 +3797,94 @@ describe('Phase 139A — both Copilot metadata commit modes are future-only and 
     expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution|SuppressDuplicateDetection/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140I — Portfolio boarding schema inspect / plan (READ-ONLY)
+// ---------------------------------------------------------------------------
+
+describe('Phase 140I — --inspect-portfolio-boarding-schema / --plan-portfolio-boarding-schema args', () => {
+  it('parses both new portfolio-boarding modes', () => {
+    expect(SCRIPT).toMatch(/'--inspect-portfolio-boarding-schema'/);
+    expect(SCRIPT).toMatch(/'--plan-portfolio-boarding-schema'/);
+    expect(SCRIPT).toMatch(/flags\.inspectPortfolioBoardingSchema\s*=\s*true/);
+    expect(SCRIPT).toMatch(/flags\.planPortfolioBoardingSchema\s*=\s*true/);
+  });
+
+  it('the MODE banner includes both new read-only modes', () => {
+    expect(SCRIPT).toMatch(/'INSPECT-PORTFOLIO-BOARDING-SCHEMA \(read-only\)'/);
+    expect(SCRIPT).toMatch(/'PLAN-PORTFOLIO-BOARDING-SCHEMA \(read-only, dry-run only\)'/);
+  });
+
+  it('both new modes are part of the exclusive-modes array (mutually exclusive with all modes)', () => {
+    expect(SCRIPT).toMatch(/flags\.inspectPortfolioBoardingSchema,?\s*$/m);
+    expect(SCRIPT).toMatch(/flags\.planPortfolioBoardingSchema,?\s*$/m);
+  });
+
+  it('exposes the 13 candidate portfolio boarded loan tables + the root table', () => {
+    expect(SCRIPT).toMatch(/PORTFOLIO_BOARDING_ROOT_TABLE\s*=\s*'cr664_portfolioboardedloan'/);
+    for (const t of [
+      'cr664_portfolioboardedloan',
+      'cr664_portfolioboardedloandocument',
+      'cr664_portfolioboardedloanevidence',
+      'cr664_portfolioboardedloanexaminernote',
+    ]) {
+      expect(SCRIPT).toMatch(new RegExp(`'${t}'`));
+    }
+  });
+
+  it('NO portfolio-boarding commit / live-create flag exists in Phase 140I', () => {
+    expect(SCRIPT).not.toMatch(/--commit-seed-portfolio-boarding-schema/);
+    expect(SCRIPT).not.toMatch(/commitSeedPortfolioBoardingSchema/);
+  });
+});
+
+describe('Phase 140I — inspect mode is read-only (no POST/PATCH/DELETE/PublishXml)', () => {
+  const block = sliceFunction('runInspectPortfolioBoardingSchema');
+
+  it('issues GET requests only', () => {
+    expect(block).toMatch(/method:\s*'GET'|getEntityDefinition\(/);
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+  });
+
+  it('never calls PublishXml or sends bypass / suppress headers', () => {
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(block).not.toMatch(/SuppressDuplicateDetection/i);
+  });
+
+  it('classifies tables and prints the recommendation section', () => {
+    expect(block).toMatch(/PORTFOLIO_BOARDING_SCHEMA_RECOMMENDATION/);
+    expect(block).toMatch(/MISSING_CAN_SEED|BLOCKED_BY_CONFLICT/);
+    expect(block).toMatch(/No table, column, relationship, or option set was created/);
+  });
+});
+
+describe('Phase 140I — plan mode is read-only and dry-run only', () => {
+  const block = sliceFunction('runPlanPortfolioBoardingSchema');
+
+  it('prints the DRY_RUN_ONLY / LIVE_WRITES_ENABLED / COMMIT_FLAG_AVAILABLE flags', () => {
+    expect(block).toMatch(/DRY_RUN_ONLY: true/);
+    expect(block).toMatch(/LIVE_WRITES_ENABLED: false/);
+    expect(block).toMatch(/COMMIT_FLAG_AVAILABLE: false/);
+  });
+
+  it('states Phase 140I does not create Dataverse schema', () => {
+    expect(block).toMatch(/Phase 140I does not create Dataverse schema\. It only inspects and plans\./);
+    expect(block).toMatch(/Schema seeding is intentionally disabled in Phase 140I/);
+  });
+
+  it('issues no POST/PATCH/DELETE/PublishXml and no bypass headers', () => {
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).not.toMatch(/BypassCustomPluginExecution/i);
+  });
+});
+
+describe('Phase 140I — the metadata GET helper is read-only', () => {
+  const block = sliceFunction('getEntityDefinition');
+  it('uses only a GET EntityDefinitions request', () => {
+    expect(block).toMatch(/EntityDefinitions/);
+    expect(block).toMatch(/method:\s*'GET'/);
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+  });
+});

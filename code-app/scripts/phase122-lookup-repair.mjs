@@ -328,6 +328,11 @@ function parseArgs(argv) {
     inspectCopilotAuditTable: false,
     seedCopilotAuditTableMetadata: false,
     commitSeedCopilotAuditTableMetadata: false,
+    // Phase 140I — portfolio boarding Dataverse schema inspect / plan.
+    // Both modes are READ-ONLY (GET only). No commit / live create flag
+    // exists in Phase 140I — schema seeding is intentionally disabled.
+    inspectPortfolioBoardingSchema: false,
+    planPortfolioBoardingSchema: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -617,6 +622,19 @@ function parseArgs(argv) {
       // performs NO write. Commit / live table creation is explicitly not
       // implemented in Phase 137J (see the seed handler).
       flags.commitSeedCopilotAuditTableMetadata = true;
+    } else if (arg === '--inspect-portfolio-boarding-schema') {
+      // Phase 140I — read-only Web API metadata inspection of the candidate
+      // portfolio-boarding tables + reusable related tables. Pure GET; never
+      // writes. Classifies each table EXISTS_REUSABLE / EXISTS_NEEDS_REVIEW /
+      // MISSING_CAN_SEED / BLOCKED_BY_CONFLICT / UNKNOWN.
+      flags.inspectPortfolioBoardingSchema = true;
+      flags.dryRun = false;
+    } else if (arg === '--plan-portfolio-boarding-schema') {
+      // Phase 140I — read-only schema PLAN. Runs the same GET inspection,
+      // then prints the exact (future) creation plan in seed order. Still
+      // read-only: NO table/column/relationship creation. No commit flag.
+      flags.planPortfolioBoardingSchema = true;
+      flags.dryRun = false;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -638,6 +656,8 @@ function parseArgs(argv) {
     flags.seedCopilotCustomApiMetadata,
     flags.inspectCopilotAuditTable,
     flags.seedCopilotAuditTableMetadata,
+    flags.inspectPortfolioBoardingSchema,
+    flags.planPortfolioBoardingSchema,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -900,7 +920,11 @@ const MODE = FLAGS.commit
                                     ? FLAGS.commitSeedCopilotAuditTableMetadata
                                       ? 'SEED-COPILOT-AUDIT-TABLE-METADATA (commit requested — NOT IMPLEMENTED, dry-run only)'
                                       : 'SEED-COPILOT-AUDIT-TABLE-METADATA (dry-run)'
-                                    : 'DRY-RUN';
+                                    : FLAGS.inspectPortfolioBoardingSchema
+                                      ? 'INSPECT-PORTFOLIO-BOARDING-SCHEMA (read-only)'
+                                      : FLAGS.planPortfolioBoardingSchema
+                                        ? 'PLAN-PORTFOLIO-BOARDING-SCHEMA (read-only, dry-run only)'
+                                        : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -6437,6 +6461,206 @@ async function runInspectCopilotAuditTable(token, envUrl) {
   console.log('Read-only inspection. No write, no plugin, no Azure resource touched.');
 }
 
+// ---------------------------------------------------------------------------
+// Phase 140I — Portfolio Boarding Dataverse schema inspect / plan (READ-ONLY)
+//
+// Both modes below issue ONLY GET requests against the Web API metadata
+// endpoints. They never write, never call the publish endpoint, never send
+// bypass or suppress headers, and expose NO commit flag. Phase 140I inspects
+// and plans only — it does not create Dataverse schema.
+// ---------------------------------------------------------------------------
+
+const PORTFOLIO_BOARDING_PREFIX = CR664_PUBLISHER_PREFIX; // 'cr664'
+const PORTFOLIO_BOARDING_ROOT_TABLE = 'cr664_portfolioboardedloan';
+
+// The 13 candidate boarded-loan tables (root first, then children).
+const PORTFOLIO_BOARDING_CANDIDATE_TABLES = [
+  { logical: 'cr664_portfolioboardedloan', display: 'Portfolio Boarded Loan', root: true },
+  { logical: 'cr664_portfolioboardedloanborrower', display: 'Portfolio Boarded Loan Borrower', root: false },
+  { logical: 'cr664_portfolioboardedloancollateral', display: 'Portfolio Boarded Loan Collateral', root: false },
+  { logical: 'cr664_portfolioboardedloanguarantor', display: 'Portfolio Boarded Loan Guarantor', root: false },
+  { logical: 'cr664_portfolioboardedloancovenant', display: 'Portfolio Boarded Loan Covenant', root: false },
+  { logical: 'cr664_portfolioboardedloantickler', display: 'Portfolio Boarded Loan Tickler', root: false },
+  { logical: 'cr664_portfolioboardedloaninsurance', display: 'Portfolio Boarded Loan Insurance', root: false },
+  { logical: 'cr664_portfolioboardedloandocument', display: 'Portfolio Boarded Loan Document', root: false },
+  { logical: 'cr664_portfolioboardedloanexception', display: 'Portfolio Boarded Loan Exception', root: false },
+  { logical: 'cr664_portfolioboardedloanreview', display: 'Portfolio Boarded Loan Review', root: false },
+  { logical: 'cr664_portfolioboardedloanevidence', display: 'Portfolio Boarded Loan Evidence', root: false },
+  { logical: 'cr664_portfolioboardedloanauditentry', display: 'Portfolio Boarded Loan Audit Entry', root: false },
+  { logical: 'cr664_portfolioboardedloanexaminernote', display: 'Portfolio Boarded Loan Examiner Note', root: false },
+];
+
+// Existing project tables the boarded loan may reuse / link to.
+const PORTFOLIO_BOARDING_RELATED_TABLES = [
+  'cr664_loandeal',
+  'cr664_clientrelationship',
+  'cr664_banker',
+  'cr664_team',
+  'cr664_platformuser',
+];
+
+// Seed order for the plan output.
+const PORTFOLIO_BOARDING_SEED_ORDER = PORTFOLIO_BOARDING_CANDIDATE_TABLES.map(
+  (t) => t.logical,
+);
+
+function metadataHeaders(token) {
+  return {
+    Authorization: `Bearer ${token}`,
+    'OData-MaxVersion': '4.0',
+    'OData-Version': '4.0',
+    Accept: 'application/json',
+  };
+}
+
+// Read-only GET of one EntityDefinition. Returns { exists, table } or
+// { exists: false }. Never writes.
+async function getEntityDefinition(token, envUrl, logicalName) {
+  const url =
+    `${envUrl}/api/data/v9.2/EntityDefinitions(LogicalName='${logicalName}')` +
+    `?$select=LogicalName,SchemaName,DisplayName,EntitySetName,OwnershipType,` +
+    `PrimaryIdAttribute,PrimaryNameAttribute,IsActivity,HasActivities,HasNotes` +
+    `&$expand=Attributes($select=LogicalName,AttributeType)`;
+  const res = await fetch(url, { method: 'GET', headers: metadataHeaders(token) });
+  if (res.status === 404) return { exists: false };
+  if (!res.ok) {
+    const text = await res.text();
+    bail(`EntityDefinitions GET for ${logicalName} → ${res.status}: ${text}`);
+    return { exists: false };
+  }
+  return { exists: true, table: await res.json() };
+}
+
+function classifyBoardingTable(meta) {
+  if (!meta.exists) return 'MISSING_CAN_SEED';
+  const table = meta.table;
+  const schema = String(table.SchemaName ?? '');
+  // Wrong-prefix or non-cr664 artifact occupying the name → conflict.
+  if (!schema.toLowerCase().startsWith(PORTFOLIO_BOARDING_PREFIX)) {
+    return 'BLOCKED_BY_CONFLICT';
+  }
+  // Exists under the right prefix — reusable, pending operator review.
+  return 'EXISTS_NEEDS_REVIEW';
+}
+
+async function runInspectPortfolioBoardingSchema(token, envUrl) {
+  console.log('');
+  console.log('Phase 140I — Portfolio boarding schema inspection (Web API metadata, read-only)');
+  console.log(`   Expected publisher prefix: ${PORTFOLIO_BOARDING_PREFIX}`);
+  console.log('   This mode issues GET requests only. No write of any kind is issued.');
+  console.log('');
+
+  const classifications = {};
+  for (const cand of PORTFOLIO_BOARDING_CANDIDATE_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, cand.logical);
+    const classification = classifyBoardingTable(meta);
+    classifications[cand.logical] = classification;
+    console.log('-'.repeat(70));
+    console.log(`-- ${cand.display}${cand.root ? '  (ROOT)' : ''}`);
+    console.log(`   logicalName:   ${cand.logical}`);
+    console.log(`   classification: ${classification}`);
+    if (meta.exists) {
+      const t = meta.table;
+      console.log(`   schemaName:    ${t.SchemaName}`);
+      console.log(`   entitySetName: ${t.EntitySetName}`);
+      console.log(`   ownershipType: ${t.OwnershipType}`);
+      console.log(`   primaryId:     ${t.PrimaryIdAttribute}`);
+      console.log(`   primaryName:   ${t.PrimaryNameAttribute}`);
+      console.log(`   isActivity:    ${t.IsActivity}`);
+      console.log(`   hasNotes:      ${t.HasNotes}`);
+      console.log(`   attributeCount: ${(t.Attributes ?? []).length}`);
+    } else {
+      console.log('   (table does not exist — MISSING_CAN_SEED is expected in Phase 140I)');
+    }
+  }
+
+  console.log('');
+  console.log('-'.repeat(70));
+  console.log('Existing related tables (reuse / lookup-target candidates):');
+  for (const rel of PORTFOLIO_BOARDING_RELATED_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, rel);
+    if (meta.exists) {
+      const t = meta.table;
+      console.log(`   ✓ ${rel}  (id=${t.PrimaryIdAttribute}, name=${t.PrimaryNameAttribute}, set=${t.EntitySetName}) — candidate lookup target`);
+    } else {
+      console.log(`   ✗ ${rel}  (not found — lookups to this target must be deferred)`);
+    }
+  }
+
+  console.log('');
+  console.log('='.repeat(70));
+  console.log('PORTFOLIO_BOARDING_SCHEMA_RECOMMENDATION');
+  console.log('='.repeat(70));
+  const missing = Object.entries(classifications).filter(([, c]) => c === 'MISSING_CAN_SEED');
+  const conflicts = Object.entries(classifications).filter(([, c]) => c === 'BLOCKED_BY_CONFLICT');
+  const reusable = Object.entries(classifications).filter(([, c]) => c === 'EXISTS_REUSABLE' || c === 'EXISTS_NEEDS_REVIEW');
+  console.log(`   tables to create (MISSING_CAN_SEED): ${missing.length}`);
+  for (const [name] of missing) console.log(`     - ${name}`);
+  console.log(`   tables to reuse / review:            ${reusable.length}`);
+  for (const [name] of reusable) console.log(`     - ${name}`);
+  console.log(`   conflicts to resolve manually:       ${conflicts.length}`);
+  for (const [name] of conflicts) console.log(`     - ${name}`);
+  console.log('   relationships to create: child → root cr664_portfolioboardedloan lookups + optional external links.');
+  console.log('   blockers before live persistence: any BLOCKED_BY_CONFLICT, unconfirmed prefix, or missing required lookup target.');
+  console.log('   recommended next script mode: --plan-portfolio-boarding-schema');
+  console.log('');
+  console.log('Read-only inspection. No table, column, relationship, or option set was created.');
+}
+
+async function runPlanPortfolioBoardingSchema(token, envUrl) {
+  console.log('');
+  console.log('Phase 140I — Portfolio boarding schema PLAN (read-only)');
+  console.log('   Phase 140I does not create Dataverse schema. It only inspects and plans.');
+  console.log('');
+  console.log('   DRY_RUN_ONLY: true');
+  console.log('   LIVE_WRITES_ENABLED: false');
+  console.log('   COMMIT_FLAG_AVAILABLE: false');
+  console.log('');
+
+  // Same read-only GET inspection feeds the plan.
+  const classifications = {};
+  for (const cand of PORTFOLIO_BOARDING_CANDIDATE_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, cand.logical);
+    classifications[cand.logical] = classifyBoardingTable(meta);
+  }
+
+  console.log('Planned tables (seed order):');
+  PORTFOLIO_BOARDING_SEED_ORDER.forEach((logical, idx) => {
+    console.log(`   ${idx + 1}. ${logical}  [${classifications[logical]}]`);
+  });
+  console.log('');
+  console.log('Planned columns: see src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.ts');
+  console.log('   (PORTFOLIO_BOARDING_TARGET_COLUMNS) — primary name + typed scalars + child→root lookup per table.');
+  console.log('');
+  console.log('Planned relationships (seed order): each child table gets a required');
+  console.log(`   ${'cr664_PortfolioBoardedLoan'} lookup → ${PORTFOLIO_BOARDING_ROOT_TABLE}, plus optional external links`);
+  console.log('   (cr664_OriginatedLoanDeal → cr664_loandeal, cr664_Client → cr664_clientrelationship).');
+  console.log('');
+  console.log('Planned option sets (metadata plan only — NOT created in Phase 140I):');
+  console.log('   boarding status, boarding source, loan status, document type, document status,');
+  console.log('   exception severity, exception status, review type, readiness status, collateral type,');
+  console.log('   guarantee type, covenant status, tickler status, insurance status.');
+  console.log('');
+  const conflicts = Object.entries(classifications).filter(([, c]) => c === 'BLOCKED_BY_CONFLICT');
+  console.log('Blockers:');
+  if (conflicts.length === 0) {
+    console.log('   - none detected by metadata (operator must still confirm publisher prefix + lookup targets).');
+  } else {
+    for (const [name] of conflicts) console.log(`   - BLOCKED_BY_CONFLICT: ${name}`);
+  }
+  console.log('');
+  console.log('Required manual review before any future seed:');
+  console.log('   - confirm publisher prefix cr664 owns every name');
+  console.log('   - confirm systemuser vs banker target for portfolio manager / servicing owner lookups');
+  console.log('   - confirm no legacy artifact occupies a candidate name');
+  console.log('');
+  console.log('Future seed command (NOT available in Phase 140I):');
+  console.log('   Phase 140J would add a guarded seed mode behind an explicit --commit-* flag.');
+  console.log('   Schema seeding is intentionally disabled in Phase 140I.');
+  console.log('');
+  console.log('Read-only plan. No table, column, relationship, or option set was created.');
+}
+
 async function main() {
   // === Pure diagnostic: print the lookup-creation payload(s) ===
   // No pac auth, no Web API call, no write. Useful when an operator
@@ -6536,6 +6760,18 @@ async function main() {
   // === Phase 137J — read-only Copilot audit-event table inspection ===
   if (FLAGS.inspectCopilotAuditTable) {
     await runInspectCopilotAuditTable(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 140I — read-only portfolio boarding schema inspection ===
+  if (FLAGS.inspectPortfolioBoardingSchema) {
+    await runInspectPortfolioBoardingSchema(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 140I — read-only portfolio boarding schema PLAN ===
+  if (FLAGS.planPortfolioBoardingSchema) {
+    await runPlanPortfolioBoardingSchema(mainToken, mainEnvUrl);
     return;
   }
 

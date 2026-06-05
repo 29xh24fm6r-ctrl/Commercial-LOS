@@ -1294,3 +1294,45 @@ describe('Phase 140B-H — all mega-phase files exist on disk', () => {
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140I — Portfolio Boarding Dataverse schema inspection + plan
+// ---------------------------------------------------------------------------
+
+describe('Phase 140I — portfolio boarding Dataverse schema inspection foundation exists', () => {
+  const REQUIRED_140I_FILES: readonly string[] = [
+    'docs/PHASE_140I_PORTFOLIO_BOARDING_DATAVERSE_SCHEMA_INSPECTION.md',
+    'src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.ts',
+    'src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.test.ts',
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaInspectionReport.ts',
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaInspectionReport.test.ts',
+    // The Phase 140B-H doc must remain pinned alongside the new schema work.
+    'docs/PHASE_140B_H_PORTFOLIO_LOAN_BOARDING_SYSTEM_OF_RECORD.md',
+  ];
+  for (const rel of REQUIRED_140I_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc(
+    'docs/PHASE_140I_PORTFOLIO_BOARDING_DATAVERSE_SCHEMA_INSPECTION.md',
+  );
+
+  it('the doc pins read-only inspect/plan modes with no schema creation', () => {
+    expect(doc).toMatch(/--inspect-portfolio-boarding-schema/);
+    expect(doc).toMatch(/--plan-portfolio-boarding-schema/);
+    expect(doc).toMatch(/no (actual )?Dataverse (table|schema) creation/i);
+    expect(doc).toMatch(/dry-run only/i);
+  });
+
+  it('the script exposes both read-only modes and no live commit flag', () => {
+    const script = readFileSync(
+      resolve(REPO_ROOT, 'scripts/phase122-lookup-repair.mjs'),
+      'utf8',
+    );
+    expect(script).toMatch(/'--inspect-portfolio-boarding-schema'/);
+    expect(script).toMatch(/'--plan-portfolio-boarding-schema'/);
+    expect(script).not.toMatch(/--commit-seed-portfolio-boarding-schema/);
+  });
+});
