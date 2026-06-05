@@ -125,6 +125,13 @@ it should not proceed without that approval.
 
 ## References
 
+- **Phase 138B/138C** — the guarded audit-table commit path, Custom API
+  commit path, server-handler deployment plan, controlled test-tenant
+  runbook, and final live-readiness certification:
+  [PHASE_138B](./PHASE_138B_COPILOT_AUDIT_TABLE_COMMIT_PATH.md),
+  [PHASE_138C deployment plan](./PHASE_138C_COPILOT_SERVER_HANDLER_DEPLOYMENT_PLAN.md),
+  [PHASE_138C test-tenant runbook](./PHASE_138C_COPILOT_CONTROLLED_TEST_TENANT_ENABLEMENT.md),
+  [PHASE_138C live-readiness certification](./PHASE_138C_COPILOT_LIVE_READINESS_CERTIFICATION.md).
 - 137A–137M Copilot docs (see §B) and the inert `src/copilot` skeletons.
 - `feat/copilot-live-connector-safe-actions @ fea3520` — prior prep. **Not
   merged or implemented.**

@@ -6050,10 +6050,27 @@ function runSeedCopilotCustomApiMetadataPlan() {
   console.log('');
 
   if (FLAGS.commitSeedCopilotCustomApiMetadata) {
-    console.log('⚠  --commit-seed-copilot-custom-api-metadata was passed, but COMMIT IS');
-    console.log('   NOT IMPLEMENTED in Phase 137G. No write has been or will be issued.');
-    console.log('   Metadata creation is deferred to a future phase (Phase 137F runbook');
-    console.log('   §I: 137G guarded dry-run first → later phases create it).');
+    console.log('⚠  --commit-seed-copilot-custom-api-metadata is NOT IMPLEMENTED in Phase');
+    console.log('   138C; use dry-run plan only. No write has been or will be issued. COMMIT IS');
+    console.log('   gated future-only.');
+    console.log('');
+    console.log('   Why (future-only): this repo has no proven Dataverse Custom API');
+    console.log('   (customapis) creation pattern, and live Custom API creation requires the');
+    console.log('   audit table (Phase 138B) plus Gate 1 (DLP / model policy) + governance');
+    console.log('   approval in a TEST TENANT first (see PHASE_137M / PHASE_138A). The');
+    console.log('   complete payload plan above is what a future, approved, guarded commit');
+    console.log('   would create.');
+    console.log('');
+    console.log('   Future commit contract (when implemented, test tenant only):');
+    console.log(`     - publisher prefix ${CR664_PUBLISHER_PREFIX} (forbidden prefix ${FORBIDDEN_PUBLISHER_PREFIX}_ rejected);`);
+    console.log('     - INSPECT first; bail on ambiguous / duplicate existing Custom API;');
+    console.log('     - idempotent: if cr664_RunLosCopilotAssist exists with the expected');
+    console.log('       contract, verify + skip create;');
+    console.log('     - create ONLY the Custom API + request/response metadata (137B/137F) —');
+    console.log('       no plugin, no Azure Function, no Azure OpenAI, no secret, no runtime');
+    console.log('       config, no UI change, no Copilot runtime enablement;');
+    console.log('     - no metadata publish step; no bypass / suppress / force headers;');
+    console.log('     - verify by re-reading the Custom API metadata.');
     console.log('');
   }
 
@@ -6177,12 +6194,83 @@ function printCopilotAuditTableExpectedContract() {
   console.log('');
 }
 
+// Phase 138B — typed attribute classification for the audit-table fields.
+// Most fields are single-line String; summaries / JSON blobs are Memo;
+// cr664_islive is Boolean; cr664_proposalcount is Integer;
+// cr664_eventtimestamp is DateTime. cr664_eventtype is text-first (a
+// picklist is documented as FUTURE hardening per Phase 137J).
+const COPILOT_AUDIT_MEMO_FIELDS = Object.freeze(
+  new Set([
+    'cr664_redactedpromptsummary',
+    'cr664_contextsummary',
+    'cr664_warningsjson',
+    'cr664_proposalsjson',
+    'cr664_errorsummary',
+  ]),
+);
+
+function copilotAuditAttributeType(field) {
+  if (field === 'cr664_islive') {
+    return { odataType: 'Microsoft.Dynamics.CRM.BooleanAttributeMetadata', attributeType: 'Boolean' };
+  }
+  if (field === 'cr664_proposalcount') {
+    return { odataType: 'Microsoft.Dynamics.CRM.IntegerAttributeMetadata', attributeType: 'Integer' };
+  }
+  if (field === 'cr664_eventtimestamp') {
+    return { odataType: 'Microsoft.Dynamics.CRM.DateTimeAttributeMetadata', attributeType: 'DateTime' };
+  }
+  if (COPILOT_AUDIT_MEMO_FIELDS.has(field)) {
+    return { odataType: 'Microsoft.Dynamics.CRM.MemoAttributeMetadata', attributeType: 'Memo' };
+  }
+  return { odataType: 'Microsoft.Dynamics.CRM.StringAttributeMetadata', attributeType: 'String' };
+}
+
 /**
- * Phase 137J — DRY-RUN-ONLY audit-table metadata plan. Offline (no auth, no
- * Web API call). Prints the planned table / field / index / option metadata
- * and returns BEFORE any write. Commit is NOT implemented in this phase:
+ * Phase 138B — pure: build the planned (illustrative) AttributeDefinitions
+ * payload for one audit field. NOT executed — printed in the dry-run plan
+ * for a future, approved, guarded commit. No IO.
+ */
+function buildCopilotAuditAttributePayload(field) {
+  const t = copilotAuditAttributeType(field);
+  const payload = {
+    '@odata.type': t.odataType,
+    SchemaName: field,
+    LogicalName: field,
+    AttributeType: t.attributeType,
+    RequiredLevel: { Value: 'None' },
+  };
+  if (t.attributeType === 'String') payload.MaxLength = 200;
+  if (t.attributeType === 'Memo') {
+    payload.MaxLength = 4000;
+    payload.Format = 'TextArea';
+  }
+  if (field === 'cr664_eventtype') {
+    payload._note =
+      'Text-first. A cr664_eventtype Picklist is FUTURE hardening (Phase 137J).';
+  }
+  return payload;
+}
+
+/** Phase 138B — the embedded primary-name String attribute (cr664_name). */
+function buildCopilotAuditPrimaryNamePayload() {
+  return {
+    '@odata.type': 'Microsoft.Dynamics.CRM.StringAttributeMetadata',
+    SchemaName: COPILOT_AUDIT_TABLE_PRIMARY_NAME,
+    LogicalName: COPILOT_AUDIT_TABLE_PRIMARY_NAME,
+    AttributeType: 'String',
+    RequiredLevel: { Value: 'ApplicationRequired' },
+    IsPrimaryName: true,
+    MaxLength: 200,
+  };
+}
+
+/**
+ * Phase 137J + 138B — DRY-RUN-ONLY audit-table metadata plan. Offline (no
+ * auth, no Web API call). Prints the COMPLETE planned metadata — full
+ * EntityDefinitions table payload + a typed AttributeDefinitions payload per
+ * field — and returns BEFORE any write. Commit is NOT implemented:
  * passing --commit-seed-copilot-audit-table-metadata prints a clear
- * not-implemented notice and still performs no write.
+ * future-only notice and still performs no write.
  */
 function runSeedCopilotAuditTableMetadataPlan() {
   console.log('Phase 137J — Copilot audit-event TABLE metadata creation PLAN (dry-run)');
@@ -6215,10 +6303,27 @@ function runSeedCopilotAuditTableMetadataPlan() {
   console.log('');
 
   console.log('-'.repeat(70));
+  console.log('Planned PRIMARY-NAME attribute (embedded in the table create):');
+  console.log('-'.repeat(70));
+  console.log(JSON.stringify(buildCopilotAuditPrimaryNamePayload(), null, 2));
+  console.log('');
+
+  console.log('-'.repeat(70));
   console.log(`Planned FIELDS (${COPILOT_AUDIT_FIELDS.length}) — one future attribute each:`);
   console.log('-'.repeat(70));
   for (const field of COPILOT_AUDIT_FIELDS) {
-    console.log(`   - ${field}`);
+    const t = copilotAuditAttributeType(field);
+    console.log(`   - ${field}   (${t.attributeType})`);
+  }
+  console.log('');
+
+  console.log('-'.repeat(70));
+  console.log(
+    `Planned ATTRIBUTE payloads (future AttributeDefinitions POST — one per field):`,
+  );
+  console.log('-'.repeat(70));
+  for (const field of COPILOT_AUDIT_FIELDS) {
+    console.log(JSON.stringify(buildCopilotAuditAttributePayload(field), null, 2));
   }
   console.log('');
 
@@ -6241,8 +6346,23 @@ function runSeedCopilotAuditTableMetadataPlan() {
 
   if (FLAGS.commitSeedCopilotAuditTableMetadata) {
     console.log('⚠  --commit-seed-copilot-audit-table-metadata is NOT IMPLEMENTED in Phase');
-    console.log('   137J; run dry-run only. No write has been or will be issued. Live table');
-    console.log('   creation is deferred to a future phase.');
+    console.log('   138B; run dry-run only. No write has been or will be issued.');
+    console.log('');
+    console.log('   Why (future-only): this repo has no proven Dataverse table');
+    console.log('   (EntityDefinitions) or attribute (AttributeDefinitions) creation');
+    console.log('   pattern, and live audit-table creation requires Gate 1 (DLP / model');
+    console.log('   policy) + Gate 2 approval in a TEST TENANT first (see PHASE_137M /');
+    console.log('   PHASE_138A). The complete payload plan above is what a future,');
+    console.log('   approved, guarded commit would create.');
+    console.log('');
+    console.log('   Future commit contract (when implemented, test tenant only):');
+    console.log(`     - publisher prefix ${CR664_PUBLISHER_PREFIX} (forbidden prefix ${FORBIDDEN_PUBLISHER_PREFIX}_ rejected);`);
+    console.log('     - INSPECT first; bail on ambiguous / duplicate existing table;');
+    console.log('     - idempotent: if cr664_copilotauditevent exists, verify + skip create;');
+    console.log('     - create ONLY the audit table + audit fields — no Custom API, no');
+    console.log('       plugin, no Azure resource, no Copilot runtime enablement;');
+    console.log('     - no metadata publish step; no bypass / suppress / force headers;');
+    console.log('     - verify by re-reading the table metadata + expected fields.');
     console.log('');
   }
 

@@ -871,6 +871,73 @@ describe('Phase 137J — Copilot audit-table metadata script is dry-run-only wit
 });
 
 // ---------------------------------------------------------------------------
+// Phase 138B — Copilot audit-table guarded commit path (future-only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 138B — Copilot audit-table commit path is operator-only and live stays not_configured', () => {
+  const rel = 'docs/PHASE_138B_COPILOT_AUDIT_TABLE_COMMIT_PATH.md';
+
+  it('the Phase 138B audit-table commit-path doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the commit path as future-only / not implemented, dry-run default, no write', () => {
+    expect(doc).toMatch(/Dry-run remains the default/i);
+    expect(doc).toMatch(/Commit is future-only ?\/ ?NOT IMPLEMENTED in 138B/i);
+    expect(doc).toMatch(/No table is created/i);
+  });
+
+  it('pins commit mode as operator-only (not run by tests) + idempotent inspect-first contract', () => {
+    expect(doc).toMatch(/test tenant/i);
+    expect(doc).toMatch(/Inspect first/i);
+    expect(doc).toMatch(/Idempotent/i);
+    expect(doc).toMatch(/Bail on ambiguous/i);
+  });
+
+  it('pins live Copilot still remains not_configured after 138B', () => {
+    expect(doc).toMatch(/Copilot still remains not_configured/i);
+    expect(doc).toMatch(/stays[\s>*`]+not_configured/i);
+    expect(doc).toMatch(/cr664_copilotauditevent/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 138C — Copilot controlled live-enablement bundle (guarded, blocked)
+// ---------------------------------------------------------------------------
+
+describe('Phase 138C — Copilot controlled live-enablement bundle: guarded, production blocked', () => {
+  const DOCS = [
+    'docs/PHASE_138C_COPILOT_SERVER_HANDLER_DEPLOYMENT_PLAN.md',
+    'docs/PHASE_138C_COPILOT_CONTROLLED_TEST_TENANT_ENABLEMENT.md',
+    'docs/PHASE_138C_COPILOT_LIVE_READINESS_CERTIFICATION.md',
+  ];
+
+  for (const rel of DOCS) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  it('the live-readiness certification pins repo complete / live disabled / production blocked', () => {
+    const doc = readDoc('docs/PHASE_138C_COPILOT_LIVE_READINESS_CERTIFICATION.md');
+    expect(doc).toMatch(/Repo-side Copilot work is complete/i);
+    expect(doc).toMatch(/Live Copilot remains disabled/i);
+    expect(doc).toMatch(/Production[\s\S]{0,30}[Bb]locked/);
+    expect(doc).toMatch(/Default connector mode:[\s\S]{0,20}not_configured/i);
+  });
+
+  it('the test-tenant runbook requires all prerequisites before live_read_only', () => {
+    const doc = readDoc('docs/PHASE_138C_COPILOT_CONTROLLED_TEST_TENANT_ENABLEMENT.md');
+    expect(doc).toMatch(/Audit table exists and verified/i);
+    expect(doc).toMatch(/Custom API exists and verified/i);
+    expect(doc).toMatch(/Disable switch configured/i);
+    expect(doc).toMatch(/Test tenant only/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137K — Copilot audit-logger skeleton (disabled)
 // ---------------------------------------------------------------------------
 

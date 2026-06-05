@@ -145,3 +145,10 @@ that targets `cr664_copilotauditevent`, still default `not_configured`. See
 Later phases add the server handler skeleton (137L), a disabled
 live-transport test harness (137M), and controlled test-tenant enablement
 (137N), per the Phase 137I design.
+
+> **Update (Phase 138B):** the audit-table seed mode now prints the
+> **complete** typed EntityDefinitions + AttributeDefinitions payload plan,
+> and the guarded **commit contract** is defined (inspect-first, idempotent,
+> bail-on-ambiguous, audit-table-only) — though commit remains **future-only
+> / not implemented**. See
+> [PHASE_138B_COPILOT_AUDIT_TABLE_COMMIT_PATH.md](./PHASE_138B_COPILOT_AUDIT_TABLE_COMMIT_PATH.md).

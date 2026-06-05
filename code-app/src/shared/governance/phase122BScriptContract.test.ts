@@ -3365,7 +3365,7 @@ describe('Phase 137G — seed metadata plan is OFFLINE dry-run only (no write, c
   it('commit is explicitly NOT IMPLEMENTED — passing the commit flag still writes nothing', () => {
     const block = sliceFunction('runSeedCopilotCustomApiMetadataPlan');
     expect(block).toMatch(/COMMIT IS/);
-    expect(block).toMatch(/NOT IMPLEMENTED in Phase 137G/);
+    expect(block).toMatch(/NOT IMPLEMENTED in Phase/);
     expect(block).toMatch(/No write has been or will be issued/);
     expect(block).toMatch(/remains not_configured/);
   });
@@ -3375,6 +3375,77 @@ describe('Phase 137G — seed metadata plan is OFFLINE dry-run only (no write, c
     expect(block).toMatch(/isfunction:\s*false/);
     expect(block).toMatch(/bindingtype:\s*0/);
     expect(block).toMatch(/isprivate:\s*false/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 138C — Copilot Custom API guarded commit path (future-only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 138C — Custom API commit flag is parsed, gated, dry-run default', () => {
+  it('--commit-seed-copilot-custom-api-metadata is parsed', () => {
+    expect(SCRIPT).toMatch(/'--commit-seed-copilot-custom-api-metadata'/);
+    expect(SCRIPT).toMatch(/flags\.commitSeedCopilotCustomApiMetadata\s*=\s*true/);
+  });
+
+  it('the commit flag has no effect without --seed-copilot-custom-api-metadata', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-copilot-custom-api-metadata has no effect without --seed-copilot-custom-api-metadata/,
+    );
+  });
+
+  it('the seed-plan dispatch is OFFLINE — it runs before assertPacAuth (dry-run default)', () => {
+    const mainStart = SCRIPT.indexOf('async function main()');
+    const body = SCRIPT.slice(mainStart);
+    const seedGuardIdx = body.indexOf('if (FLAGS.seedCopilotCustomApiMetadata)');
+    const authIdx = body.indexOf('assertPacAuth();');
+    expect(seedGuardIdx).toBeGreaterThan(-1);
+    expect(seedGuardIdx).toBeLessThan(authIdx);
+  });
+});
+
+describe('Phase 138C — Custom API commit is explicitly future-only with a guarded contract', () => {
+  const block = sliceFunction('runSeedCopilotCustomApiMetadataPlan');
+
+  it('the commit notice states NOT IMPLEMENTED in 138C, dry-run only, no write', () => {
+    expect(block).toMatch(/NOT IMPLEMENTED in Phase/);
+    expect(block).toMatch(/138C/);
+    expect(block).toMatch(/use dry-run plan only/);
+    expect(block).toMatch(/No write has been or will be issued/);
+    expect(block).toMatch(/remains not_configured/);
+  });
+
+  it('documents the future guarded contract (inspect-first, bail-ambiguous, idempotent, verify)', () => {
+    expect(block).toMatch(/Future commit contract/);
+    expect(block).toMatch(/INSPECT first; bail on ambiguous \/ duplicate existing Custom API/);
+    expect(block).toMatch(/idempotent: if cr664_RunLosCopilotAssist exists/);
+    expect(block).toMatch(/verify by re-reading the Custom API metadata/);
+  });
+
+  it('documents prefix safety (cr664 publisher; forbidden new_ prefix)', () => {
+    expect(block).toMatch(/publisher prefix \$\{CR664_PUBLISHER_PREFIX\}/);
+    expect(block).toMatch(/forbidden prefix \$\{FORBIDDEN_PUBLISHER_PREFIX\}/);
+  });
+
+  it('the contract creates ONLY Custom API metadata — no plugin / Azure / OpenAI / secret / runtime / UI', () => {
+    expect(block).toMatch(/create ONLY the Custom API \+ request\/response metadata/);
+    expect(block).toMatch(/no plugin, no Azure Function, no Azure OpenAI, no secret/);
+    expect(block).toMatch(/no UI change, no Copilot runtime enablement/);
+    expect(block).toMatch(/no metadata publish step; no bypass \/ suppress \/ force headers/);
+  });
+
+  it('the seed plan still issues NO write / fetch / publish (offline plan only)', () => {
+    expect(block).not.toMatch(/\bfetch\(/);
+    expect(block).not.toMatch(/spawnSync\(/);
+    expect(block).not.toMatch(/method:\s*'POST'/);
+    expect(block).not.toMatch(/method:\s*'PATCH'/);
+    expect(block).not.toMatch(/method:\s*'DELETE'/);
+    expect(block).not.toMatch(/PublishXml/);
+  });
+
+  it('the commit notice references no Azure/OpenAI endpoint and no bypass header', () => {
+    expect(block).not.toMatch(/api\.openai\.com|openai\.azure\.com/i);
+    expect(block).not.toMatch(/BypassBusinessLogicExecution|SuppressDuplicateDetection/i);
   });
 });
 
@@ -3567,6 +3638,135 @@ describe('Phase 137J — no Azure/OpenAI/secret/bypass drift introduced by the a
       expect(block, `${fn}: AZURE secret`).not.toMatch(/AZURE_OPENAI_API_KEY|AZURE_OPENAI_ENDPOINT/);
       expect(block, `${fn}: openai endpoint`).not.toMatch(/api\.openai\.com|openai\.azure\.com/i);
       expect(block, `${fn}: bypass`).not.toMatch(/BypassBusinessLogicExecution|SuppressDuplicateDetection/i);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 138B — Copilot audit-table guarded commit path (future-only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 138B — the commit flag is parsed, gated behind the seed mode, and dry-run stays default', () => {
+  it('--commit-seed-copilot-audit-table-metadata is parsed', () => {
+    expect(SCRIPT).toMatch(/'--commit-seed-copilot-audit-table-metadata'/);
+    expect(SCRIPT).toMatch(/flags\.commitSeedCopilotAuditTableMetadata\s*=\s*true/);
+  });
+
+  it('the commit flag has no effect without --seed-copilot-audit-table-metadata', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-copilot-audit-table-metadata has no effect without --seed-copilot-audit-table-metadata/,
+    );
+  });
+
+  it('the commit flag cannot combine with the inspect mode', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-copilot-audit-table-metadata cannot be combined with --inspect-copilot-audit-table/,
+    );
+  });
+
+  it('the seed-plan dispatch is OFFLINE — it runs before assertPacAuth (dry-run default)', () => {
+    const mainStart = SCRIPT.indexOf('async function main()');
+    const body = SCRIPT.slice(mainStart);
+    const seedGuardIdx = body.indexOf('if (FLAGS.seedCopilotAuditTableMetadata)');
+    const authIdx = body.indexOf('assertPacAuth();');
+    expect(seedGuardIdx).toBeGreaterThan(-1);
+    expect(seedGuardIdx).toBeLessThan(authIdx);
+  });
+});
+
+describe('Phase 138B — commit is explicitly future-only / NOT IMPLEMENTED with a complete payload plan', () => {
+  const block = sliceFunction('runSeedCopilotAuditTableMetadataPlan');
+
+  it('the commit notice states NOT IMPLEMENTED in 138B, dry-run only, no write', () => {
+    expect(block).toMatch(/NOT IMPLEMENTED in Phase/);
+    expect(block).toMatch(/138B/);
+    expect(block).toMatch(/run dry-run only/);
+    expect(block).toMatch(/No write has been or will be issued/);
+    expect(block).toMatch(/remains not_configured/);
+  });
+
+  it('documents the future guarded commit contract (inspect-first, bail-ambiguous, idempotent, verify)', () => {
+    expect(block).toMatch(/Future commit contract/);
+    expect(block).toMatch(/INSPECT first/);
+    expect(block).toMatch(/bail on ambiguous/);
+    expect(block).toMatch(/idempotent: if cr664_copilotauditevent exists/);
+    expect(block).toMatch(/verify by re-reading the table metadata/);
+  });
+
+  it('documents prefix safety (cr664 publisher; forbidden new_ prefix)', () => {
+    expect(block).toMatch(/publisher prefix \$\{CR664_PUBLISHER_PREFIX\}/);
+    expect(block).toMatch(/forbidden prefix \$\{FORBIDDEN_PUBLISHER_PREFIX\}/);
+  });
+
+  it('the commit contract creates ONLY the audit table + fields — no Custom API / plugin / Azure / runtime', () => {
+    expect(block).toMatch(/create ONLY the audit table \+ audit fields/);
+    expect(block).toMatch(/no Custom API/);
+    expect(block).toMatch(/no metadata publish step/);
+    expect(block).toMatch(/no bypass \/ suppress \/ force headers/);
+    // The audit-table seed must NOT reference the Custom API or its constant.
+    expect(block).not.toMatch(/cr664_RunLosCopilotAssist/);
+    expect(block).not.toMatch(/COPILOT_CUSTOM_API_NAME/);
+  });
+
+  it('the seed plan still issues NO write / fetch / publish (offline plan only)', () => {
+    expect(block).not.toMatch(/\bfetch\(/);
+    expect(block).not.toMatch(/spawnSync\(/);
+    expect(block).not.toMatch(/method:\s*'POST'/);
+    expect(block).not.toMatch(/method:\s*'PATCH'/);
+    expect(block).not.toMatch(/method:\s*'DELETE'/);
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).toMatch(/No table is created\. No attributes are created\. No indexes are created\./);
+    expect(block).toMatch(/No publish is run\. This is a metadata plan only\./);
+  });
+});
+
+describe('Phase 138B — the dry-run prints a COMPLETE typed payload plan', () => {
+  it('prints the primary-name attribute payload + a per-field AttributeDefinitions payload', () => {
+    const block = sliceFunction('runSeedCopilotAuditTableMetadataPlan');
+    expect(block).toMatch(/Planned PRIMARY-NAME attribute/);
+    expect(block).toMatch(/buildCopilotAuditPrimaryNamePayload\(\)/);
+    expect(block).toMatch(/Planned ATTRIBUTE payloads/);
+    expect(block).toMatch(/buildCopilotAuditAttributePayload\(field\)/);
+  });
+
+  it('classifies attribute types (String / Memo / Boolean / Integer / DateTime)', () => {
+    const t = sliceFunction('copilotAuditAttributeType');
+    expect(t).toMatch(/Microsoft\.Dynamics\.CRM\.BooleanAttributeMetadata/);
+    expect(t).toMatch(/Microsoft\.Dynamics\.CRM\.IntegerAttributeMetadata/);
+    expect(t).toMatch(/Microsoft\.Dynamics\.CRM\.DateTimeAttributeMetadata/);
+    expect(t).toMatch(/Microsoft\.Dynamics\.CRM\.MemoAttributeMetadata/);
+    expect(t).toMatch(/Microsoft\.Dynamics\.CRM\.StringAttributeMetadata/);
+    expect(t).toMatch(/cr664_islive/);
+    expect(t).toMatch(/cr664_proposalcount/);
+    expect(t).toMatch(/cr664_eventtimestamp/);
+  });
+
+  it('the primary-name attribute is a required String flagged IsPrimaryName', () => {
+    const p = sliceFunction('buildCopilotAuditPrimaryNamePayload');
+    expect(p).toMatch(/IsPrimaryName:\s*true/);
+    expect(p).toMatch(/StringAttributeMetadata/);
+    expect(p).toMatch(/ApplicationRequired/);
+    expect(p).toMatch(/COPILOT_AUDIT_TABLE_PRIMARY_NAME/);
+  });
+
+  it('cr664_eventtype is text-first with a documented future picklist note', () => {
+    const a = sliceFunction('buildCopilotAuditAttributePayload');
+    expect(a).toMatch(/cr664_eventtype/);
+    expect(a).toMatch(/Picklist is FUTURE hardening/i);
+  });
+
+  it('the new payload helpers carry no Azure/OpenAI endpoint / secret / bypass / write', () => {
+    for (const fn of [
+      'copilotAuditAttributeType',
+      'buildCopilotAuditAttributePayload',
+      'buildCopilotAuditPrimaryNamePayload',
+    ]) {
+      const block = sliceFunction(fn);
+      expect(block, `${fn}: openai`).not.toMatch(/api\.openai\.com|openai\.azure\.com/i);
+      expect(block, `${fn}: secret`).not.toMatch(/AZURE_OPENAI_API_KEY|AZURE_OPENAI_ENDPOINT/);
+      expect(block, `${fn}: bypass`).not.toMatch(/BypassBusinessLogicExecution|SuppressDuplicateDetection/i);
+      expect(block, `${fn}: fetch`).not.toMatch(/\bfetch\(/);
+      expect(block, `${fn}: write`).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
     }
   });
 });
