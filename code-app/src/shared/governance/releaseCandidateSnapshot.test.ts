@@ -772,6 +772,39 @@ describe('Phase 137G — Copilot Custom API metadata script is dry-run-first wit
 });
 
 // ---------------------------------------------------------------------------
+// Phase 137H — Copilot server-side plugin / Azure Function skeleton spec
+// ---------------------------------------------------------------------------
+
+describe('Phase 137H — Copilot server-side skeleton spec is docs-only with no runtime/live behavior', () => {
+  const rel = 'docs/PHASE_137H_COPILOT_SERVER_SIDE_SKELETON_SPEC.md';
+
+  it('the Phase 137H server-side skeleton-spec doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the doc as server-side skeleton/spec only — nothing created', () => {
+    expect(doc).toMatch(/server-side skeleton ?\/ ?spec only/i);
+    expect(doc).toMatch(/No plugin code\./i);
+    expect(doc).toMatch(/No live traffic\./i);
+    expect(doc).toMatch(/No client runtime change\./i);
+  });
+
+  it('pins the cr664_RunLosCopilotAssist target + plugin-primary / Azure-Function-alternative recommendation', () => {
+    expect(doc).toMatch(/cr664_RunLosCopilotAssist/);
+    expect(doc).toMatch(/Dataverse plugin[\s\S]*?recommended/i);
+    expect(doc).toMatch(/Azure Function/);
+  });
+
+  it('pins server-side Azure OpenAI only + audit/fail-closed + runtime not_configured', () => {
+    expect(doc).toMatch(/Server-side only/i);
+    expect(doc).toMatch(/audit_unavailable/);
+    expect(doc).toMatch(/Runtime remains `?not_configured`?/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137F — Copilot Custom API registration runbook (docs/spec only)
 // ---------------------------------------------------------------------------
 

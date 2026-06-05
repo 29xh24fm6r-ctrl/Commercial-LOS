@@ -118,7 +118,10 @@ npm run build
 
 ## Next phase recommendation
 
-**Phase 137H** — author the server-side plugin / Azure Function skeleton
-behind the Custom API (still no live enablement, default `not_configured`),
-followed by the audit logger (137I), the live transport (137J), and a
-controlled test-tenant enablement (137K) — per the Phase 137F runbook.
+**Phase 137H** — specify the server-side plugin / Azure Function skeleton
+contract behind the Custom API (docs/governance only; still no live
+enablement, default `not_configured`). See
+[PHASE_137H_COPILOT_SERVER_SIDE_SKELETON_SPEC.md](./PHASE_137H_COPILOT_SERVER_SIDE_SKELETON_SPEC.md).
+Later phases then design the audit ledger (137I), the server handler /
+plugin skeleton in a separate project (137J), a disabled live-transport
+integration test (137K), and controlled test-tenant enablement (137L).
