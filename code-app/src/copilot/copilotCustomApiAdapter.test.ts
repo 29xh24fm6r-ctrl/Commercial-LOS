@@ -10,6 +10,15 @@ import type {
   CopilotCustomApiRequest,
   CopilotCustomApiResponse,
 } from './copilotCustomApiContract';
+import type { CopilotConnectorConfig } from './copilotConnectorConfig';
+
+/** A resolved live config (Phase 137D) — used to exercise the transport seam. */
+const LIVE_CONFIG: CopilotConnectorConfig = {
+  mode: 'proposal_only',
+  customApiName: 'cr664_RunLosCopilotAssist',
+  endpointAlias: 'dataverse-custom-api',
+  policyVersion: 'v1',
+};
 
 /**
  * Phase 137C — Copilot Custom API adapter skeleton (disabled by default).
@@ -94,7 +103,60 @@ describe('Phase 137C — runCopilotCustomApi without a transport fails closed', 
   });
 });
 
-describe('Phase 137C — injected transport boundary (in-memory, still no network)', () => {
+describe('Phase 137D — config gates the transport seam', () => {
+  const transport: CopilotCustomApiTransport = {
+    invoke: vi.fn(async () => ({
+      mode: 'proposal_only' as const,
+      isLive: true,
+      answer: 'x',
+      citations: [],
+      proposals: [],
+      warnings: [],
+      audit: { correlationId: 'corr-1' },
+    })),
+  };
+  beforeEach(() => (transport.invoke as ReturnType<typeof vi.fn>).mockClear());
+
+  it('a disabled config returns disabled WITHOUT calling the transport', async () => {
+    const res = await runCopilotCustomApi(buildCopilotCustomApiRequest(buildInput()), {
+      config: { mode: 'disabled', reason: 'off by config' },
+      transport,
+    });
+    expect(res.mode).toBe('disabled');
+    expect(transport.invoke).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('a not_configured config returns not_configured WITHOUT calling the transport', async () => {
+    const res = await runCopilotCustomApi(buildCopilotCustomApiRequest(buildInput()), {
+      config: { mode: 'not_configured' },
+      transport,
+    });
+    expect(res.mode).toBe('not_configured');
+    expect(transport.invoke).not.toHaveBeenCalled();
+  });
+
+  it('a live config WITHOUT a transport returns disabled/missing_config', async () => {
+    const res = await runCopilotCustomApi(buildCopilotCustomApiRequest(buildInput()), {
+      config: LIVE_CONFIG,
+    });
+    expect(res.mode).toBe('disabled');
+    expect(res.failClosedCode).toBe('missing_config');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('invokes the injected transport ONLY when config is a live/proposal mode', async () => {
+    const res = await runCopilotCustomApi(buildCopilotCustomApiRequest(buildInput()), {
+      config: LIVE_CONFIG,
+      transport,
+    });
+    expect(transport.invoke).toHaveBeenCalledTimes(1);
+    expect(res.mode).toBe('proposal_only');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('Phase 137D — injected transport boundary (in-memory, still no network)', () => {
   it('returns a VALID transport response unchanged', async () => {
     const good: CopilotCustomApiResponse = {
       mode: 'proposal_only',
@@ -120,6 +182,7 @@ describe('Phase 137C — injected transport boundary (in-memory, still no networ
       invoke: vi.fn(async (_req: CopilotCustomApiRequest) => good),
     };
     const res = await runCopilotCustomApi(buildCopilotCustomApiRequest(buildInput()), {
+      config: LIVE_CONFIG,
       transport,
     });
     expect(res).toEqual(good);
@@ -154,6 +217,7 @@ describe('Phase 137C — injected transport boundary (in-memory, still no networ
       invoke: vi.fn(async () => bad),
     };
     const res = await runCopilotCustomApi(buildCopilotCustomApiRequest(buildInput()), {
+      config: LIVE_CONFIG,
       transport,
     });
     expect(res.mode).toBe('disabled');
@@ -168,6 +232,7 @@ describe('Phase 137C — injected transport boundary (in-memory, still no networ
       }),
     };
     const res = await runCopilotCustomApi(buildCopilotCustomApiRequest(buildInput()), {
+      config: LIVE_CONFIG,
       transport,
     });
     expect(res.mode).toBe('disabled');

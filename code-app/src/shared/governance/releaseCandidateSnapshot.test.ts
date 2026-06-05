@@ -676,3 +676,34 @@ describe('Phase 137C — Copilot connector skeleton is inert and runtime stays n
     expect(doc).toMatch(/copilotCustomApiAdapter\.ts/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 137D — Copilot transport seam + config resolver (disabled by default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137D — Copilot transport seam adds config gating only, no concrete transport', () => {
+  const rel = 'docs/PHASE_137D_COPILOT_TRANSPORT_SEAM.md';
+
+  it('the Phase 137D transport-seam doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the config resolver + transport seam as disabled-by-default with no network', () => {
+    expect(doc).toMatch(/config resolver/i);
+    expect(doc).toMatch(/transport seam/i);
+    expect(doc).toMatch(/no network call/i);
+    expect(doc).toMatch(/disabled by default/i);
+  });
+
+  it('pins that no concrete transport exists and the default stays not_configured', () => {
+    expect(doc).toMatch(/it does not exist in this phase|no concrete transport exists yet/i);
+    expect(doc).toMatch(/default (?:stays|remains) `?not_configured`?/i);
+  });
+
+  it('pins that secret-looking config fails closed', () => {
+    expect(doc).toMatch(/fail(?:s|ing)? closed/i);
+    expect(doc).toMatch(/secret/i);
+  });
+});

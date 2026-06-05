@@ -122,8 +122,10 @@ npm run build
 
 ## Next phase suggestion
 
-**Phase 137D** — implement the server-only `CopilotCustomApiTransport`
-against the Dataverse Custom API (still gated, default `not_configured`),
-add the audit logger, and wire `getCopilotConnector()` to consume the
-adapter — behind explicit config and security/DLP approval, with the
-default behavior unchanged.
+**Phase 137D** — add the pure config resolver + strengthen the config-gated
+transport seam (still disabled by default). See
+[PHASE_137D_COPILOT_TRANSPORT_SEAM.md](./PHASE_137D_COPILOT_TRANSPORT_SEAM.md).
+A later phase then implements the server-only `CopilotCustomApiTransport`
+against the Dataverse Custom API, adds the audit logger, and wires
+`getCopilotConnector()` — behind explicit config and security/DLP approval,
+with default behavior unchanged.

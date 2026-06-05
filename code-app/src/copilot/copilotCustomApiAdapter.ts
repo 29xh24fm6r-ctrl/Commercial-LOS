@@ -28,6 +28,7 @@ import {
   type CopilotSurface,
   type CopilotWorkspace,
 } from './copilotCustomApiContract';
+import type { CopilotConnectorConfig } from './copilotConnectorConfig';
 
 // ---------------------------------------------------------------------------
 // Pure request builder
@@ -81,39 +82,75 @@ export interface CopilotCustomApiTransport {
 }
 
 export interface RunCopilotCustomApiOptions {
-  /** Injected by a future phase. Absent today → fail closed not_configured. */
+  /**
+   * Resolved (non-secret) connector config — Phase 137D. Absent or
+   * `not_configured` → not_configured response; `disabled` → disabled
+   * response; a live mode is required before the transport is ever called.
+   */
+  config?: CopilotConnectorConfig;
+  /** Injected by a future phase. Absent today → fail closed. */
   transport?: CopilotCustomApiTransport;
 }
 
+const NOT_CONFIGURED_REASON =
+  'Copilot Custom API is not configured. No live call is made; the ' +
+  'connector is not_configured.';
+
 const NO_TRANSPORT_REASON =
-  'Copilot Custom API transport is not configured. No live call is made; ' +
-  'the connector is not_configured.';
+  'Copilot Custom API transport is not wired. No live call is made; the ' +
+  'connector fails closed.';
 
 /**
- * Run the Custom API. In Phase 137C there is NO transport, so this returns
- * a fail-closed not-configured response immediately — it never reaches a
- * network call. When a future phase injects a server-only transport, the
- * transport's response is structurally validated; an invalid/unsafe
- * response fails closed to `disabled` rather than reaching the UI.
+ * Run the Custom API behind the Phase 137D config + transport seam.
+ *
+ * Resolution order (fail-closed):
+ *   1. No config or `not_configured`            → not_configured response.
+ *   2. `disabled`                               → disabled response.
+ *   3. Live mode (`live_read_only`/`proposal_only`) but no transport
+ *                                               → disabled (missing_config).
+ *   4. Live mode + transport                    → invoke, validate, and fail
+ *                                                 closed to disabled on an
+ *                                                 invalid/unsafe response or
+ *                                                 a thrown error.
  *
  * This function performs no IO itself. The only path that could touch the
- * network is the injected `transport.invoke`, which does not exist today.
+ * network is the injected `transport.invoke`, which does not exist today —
+ * and it is reachable ONLY in a resolved live mode.
  */
 export async function runCopilotCustomApi(
   request: CopilotCustomApiRequest,
   options: RunCopilotCustomApiOptions = {},
 ): Promise<CopilotCustomApiResponse> {
-  const transport = options.transport;
-  if (!transport) {
+  const { config, transport } = options;
+
+  // 1. No config / not_configured → honest not_configured.
+  if (!config || config.mode === 'not_configured') {
     return createNotConfiguredCopilotResponse(
       request.correlationId,
+      config?.reason ?? NOT_CONFIGURED_REASON,
+    );
+  }
+
+  // 2. Explicitly disabled → honest disabled.
+  if (config.mode === 'disabled') {
+    return createDisabledCopilotResponse(
+      request.correlationId,
+      'missing_config',
+      config.reason ?? 'Copilot is disabled by configuration.',
+    );
+  }
+
+  // 3. Live mode requires an injected (server-only) transport. None today.
+  if (!transport) {
+    return createDisabledCopilotResponse(
+      request.correlationId,
+      'missing_config',
       NO_TRANSPORT_REASON,
     );
   }
 
-  // Future-phase path: a server-only transport is injected. We still never
-  // trust it blindly — validate the response and fail closed on anything
-  // that violates the safety contract.
+  // 4. Live mode + transport — invoke only here. We never trust the
+  //    transport blindly: validate and fail closed on anything unsafe.
   try {
     const response = await transport.invoke(request);
     const validation = validateCopilotResponse(response);

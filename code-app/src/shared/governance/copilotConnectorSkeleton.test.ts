@@ -10,6 +10,7 @@ import {
   ALLOWED_COPILOT_ACTION_TYPES,
   normalizeCopilotMode,
 } from '../../copilot/copilotCustomApiContract';
+import { resolveCopilotConnectorConfig } from '../../copilot/copilotConnectorConfig';
 import { getCopilotConnector } from '../../copilot/copilotConnector';
 
 /**
@@ -26,6 +27,8 @@ const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 const SKELETON_FILES = [
   'src/copilot/copilotCustomApiContract.ts',
   'src/copilot/copilotCustomApiAdapter.ts',
+  // Phase 137D — pure config resolver.
+  'src/copilot/copilotConnectorConfig.ts',
 ] as const;
 
 function code(rel: string): string {
@@ -86,6 +89,34 @@ describe('Phase 137C — no live transport is implemented', () => {
 describe('Phase 137C — the default Copilot connector mode remains not_configured', () => {
   it('getCopilotConnector().status().mode is not_configured', () => {
     expect(getCopilotConnector().status().mode).toBe('not_configured');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 137D — config resolver is pure and defaults disabled/not_configured
+// ---------------------------------------------------------------------------
+
+describe('Phase 137D — config resolver adds the seam without enabling anything', () => {
+  it('the empty / default config resolves to not_configured', () => {
+    expect(resolveCopilotConnectorConfig().mode).toBe('not_configured');
+    expect(resolveCopilotConnectorConfig({}).mode).toBe('not_configured');
+  });
+
+  it('any secret-looking config fails closed to disabled (no secret reaches a live mode)', () => {
+    const keyName = ['AZURE', 'OPENAI', 'API', 'KEY'].join('_');
+    expect(
+      resolveCopilotConnectorConfig({
+        VITE_COPILOT_MODE: 'proposal_only',
+        [keyName]: 'x',
+      }).mode,
+    ).toBe('disabled');
+  });
+
+  it('the config resolver source reads no secret env and builds no client/transport', () => {
+    const src = code('src/copilot/copilotConnectorConfig.ts');
+    expect(src).not.toMatch(/import\.meta\.env/);
+    expect(src).not.toMatch(/new\s+[A-Za-z]*Client\b/);
+    expect(src).not.toMatch(/new\s+[A-Za-z]*Transport\b/);
   });
 });
 
