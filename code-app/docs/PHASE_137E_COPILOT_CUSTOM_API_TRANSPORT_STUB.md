@@ -151,7 +151,10 @@ npm run build
 
 ## Next phase recommendation
 
-**Phase 137F** — implement the real server-bound transport (replace the
-stub's `invoke`), add the audit logger, and wire the resolved config +
-transport into `getCopilotConnector()` — behind explicit config and
-security/DLP approval, with default behavior unchanged.
+**Phase 137F** — define the Dataverse Custom API registration runbook +
+server contract (docs/governance only; nothing created). See
+[PHASE_137F_COPILOT_CUSTOM_API_REGISTRATION_RUNBOOK.md](./PHASE_137F_COPILOT_CUSTOM_API_REGISTRATION_RUNBOOK.md).
+Later phases (137G–137K) then create the Custom API metadata (guarded
+dry-run first), the server-side plugin/Azure Function, the audit logger,
+the live transport behind disabled config, and controlled test enablement —
+with default behavior unchanged throughout.

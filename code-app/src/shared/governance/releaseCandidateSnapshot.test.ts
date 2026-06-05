@@ -738,3 +738,35 @@ describe('Phase 137E — Copilot transport stub is fail-closed and no live trans
     expect(doc).toMatch(/DLP and Azure OpenAI model policy not approved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 137F — Copilot Custom API registration runbook (docs/spec only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137F — Copilot Custom API registration runbook is spec-only, no runtime change', () => {
+  const rel = 'docs/PHASE_137F_COPILOT_CUSTOM_API_REGISTRATION_RUNBOOK.md';
+
+  it('the Phase 137F runbook doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the doc as registration/runbook/spec only — nothing is created', () => {
+    expect(doc).toMatch(/registration ?\/ ?runbook ?\/ ?spec only/i);
+    expect(doc).toMatch(/No Custom API is created in this phase/i);
+    expect(doc).toMatch(/No client runtime behavior change\./i);
+  });
+
+  it('pins the cr664_RunLosCopilotAssist target and runtime staying not_configured', () => {
+    expect(doc).toMatch(/cr664_RunLosCopilotAssist/);
+    expect(doc).toMatch(/Runtime remains `?not_configured`?/i);
+  });
+
+  it('pins server-side Azure OpenAI only + audit-before-enable + future phases', () => {
+    expect(doc).toMatch(/Call Azure OpenAI server-side only/i);
+    expect(doc).toMatch(/before live\s+enablement/i);
+    expect(doc).toMatch(/137G/);
+    expect(doc).toMatch(/137K/);
+  });
+});
