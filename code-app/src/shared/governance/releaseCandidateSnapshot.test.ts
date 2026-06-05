@@ -542,3 +542,48 @@ describe('Phase 135B — Executive final demo smoke contract is pinned in the do
     expect(doc).toMatch(/Phase 133C seed behavior unchanged/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 136A — Cross-workspace final parity smoke
+// ---------------------------------------------------------------------------
+
+describe('Phase 136A — Cross-workspace final smoke doc exists and is smoke-only', () => {
+  it('docs/PHASE_136A_CROSS_WORKSPACE_FINAL_SMOKE.md exists on disk', () => {
+    expect(
+      existsSync(
+        resolve(REPO_ROOT, 'docs/PHASE_136A_CROSS_WORKSPACE_FINAL_SMOKE.md'),
+      ),
+    ).toBe(true);
+  });
+
+  const doc = readDoc('docs/PHASE_136A_CROSS_WORKSPACE_FINAL_SMOKE.md');
+
+  it('declares itself a tests + docs smoke phase (not feature work)', () => {
+    expect(doc).toMatch(/tests \+ docs smoke phase/i);
+    expect(doc).toMatch(/not new feature\s+work/i);
+  });
+
+  it('pins that it does not widen access (Executive stays primary-name gated; no proxy)', () => {
+    expect(doc).toMatch(
+      /Executive access comes only from the primary workspace name/i,
+    );
+    expect(doc).toMatch(/Portfolio is a query marker on the manager route/i);
+    expect(doc).toMatch(/no manager\/team\/executive proxy/i);
+  });
+
+  it('pins that it adds no live connectors and keeps every surface read-only', () => {
+    expect(doc).toMatch(/no Copilot live connector/i);
+    expect(doc).toMatch(/Copilot stays governed/i);
+    expect(doc).toMatch(/Every surface is read-only/i);
+  });
+
+  it('pins the known limitations (Executive auth, Copilot not configured, profitability future work)', () => {
+    expect(doc).toMatch(
+      /Executive live provisioning still needs operator auth/i,
+    );
+    expect(doc).toMatch(/Copilot remains not configured/i);
+    expect(doc).toMatch(
+      /Profitability \/ live-connector metrics remain governed future\s+work/i,
+    );
+  });
+});
