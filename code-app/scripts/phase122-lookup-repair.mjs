@@ -173,6 +173,22 @@ const COMPONENT_TYPE_NAMES = Object.freeze({
   150: 'ConnectionRole',
 });
 
+// ---------------------------------------------------------------------------
+// Phase 137G — Copilot Dataverse Custom API metadata plan (DRY-RUN FIRST).
+//
+// The future cr664_RunLosCopilotAssist Custom API (Phase 137B contract +
+// Phase 137F registration runbook). Phase 137G only INSPECTS (read-only
+// GET) or PLANS (dry-run, offline) the metadata — it creates NOTHING.
+// Commit / live writes are intentionally NOT implemented in this phase;
+// no plugin, no Azure resource, and no runtime enablement are touched.
+// ---------------------------------------------------------------------------
+const COPILOT_CUSTOM_API_NAME = 'cr664_RunLosCopilotAssist';
+const COPILOT_CUSTOM_API_DISPLAY_NAME = 'Run LOS Copilot Assist';
+// Expected request/response parameter names (Phase 137B request/response).
+const COPILOT_CUSTOM_API_REQUEST_PARAM = 'RequestPayload';
+const COPILOT_CUSTOM_API_CORRELATION_PARAM = 'CorrelationId';
+const COPILOT_CUSTOM_API_RESPONSE_PROP = 'ResponsePayload';
+
 // No-admin OAuth2 device-code fallback constants.
 // PUBLIC_CLIENT_ID is the Microsoft Azure PowerShell public client —
 // a multi-tenant first-party app registration that supports the
@@ -231,6 +247,12 @@ function parseArgs(argv) {
     seedExecutivePrimaryWorkspace: false,
     seedWorkspaceName: null,
     commitSeedExecutivePrimaryWorkspace: false,
+    // Phase 137G — Copilot Custom API metadata inspect / dry-run plan.
+    // Read-only inspect + offline dry-run plan only. Commit is NOT
+    // implemented in this phase (no write path exists).
+    inspectCopilotCustomApi: false,
+    seedCopilotCustomApiMetadata: false,
+    commitSeedCopilotCustomApiMetadata: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -488,6 +510,22 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg === '--commit-seed-executive-primary-workspace') {
       flags.commitSeedExecutivePrimaryWorkspace = true;
+    } else if (arg === '--inspect-copilot-custom-api') {
+      // Phase 137G — read-only metadata inspection of the future
+      // cr664_RunLosCopilotAssist Custom API. Pure GET; never writes.
+      flags.inspectCopilotCustomApi = true;
+      flags.dryRun = false;
+    } else if (arg === '--seed-copilot-custom-api-metadata') {
+      // Phase 137G — DRY-RUN-ONLY metadata creation plan. Prints the
+      // exact planned Dataverse payloads and exits before any write.
+      // Offline (no auth, no Web API call). Commit is NOT implemented.
+      flags.seedCopilotCustomApiMetadata = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-copilot-custom-api-metadata') {
+      // Accepted only alongside --seed-copilot-custom-api-metadata, but
+      // it performs NO write — commit is explicitly not implemented in
+      // Phase 137G (see the seed handler).
+      flags.commitSeedCopilotCustomApiMetadata = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -505,10 +543,12 @@ function parseArgs(argv) {
     flags.seedProductReferences,
     flags.seedManagerEntitlement,
     flags.seedExecutivePrimaryWorkspace,
+    flags.inspectCopilotCustomApi,
+    flags.seedCopilotCustomApiMetadata,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
-      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, and --seed-executive-primary-workspace are mutually exclusive.',
+      'Modes --commit, --inspect-dependencies, --cleanup-form, --inspect-form, --cleanup-subgrid, --inspect-view, --cleanup-view, --seed-client-relationship, --inspect-attributes, --seed-product-references, --seed-manager-entitlement, --seed-executive-primary-workspace, --inspect-copilot-custom-api, and --seed-copilot-custom-api-metadata are mutually exclusive.',
     );
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
@@ -656,6 +696,20 @@ function parseArgs(argv) {
       );
     }
   }
+  // Phase 137G — Copilot Custom API metadata mode cross-flag validation.
+  // The commit flag is meaningless without the seed mode; and even WITH it,
+  // commit is not implemented (the seed handler performs no write). The
+  // inspect mode cannot ride along with the seed/commit flags.
+  if (flags.commitSeedCopilotCustomApiMetadata && !flags.seedCopilotCustomApiMetadata) {
+    bailParseArgs(
+      '--commit-seed-copilot-custom-api-metadata has no effect without --seed-copilot-custom-api-metadata.',
+    );
+  }
+  if (flags.inspectCopilotCustomApi && flags.commitSeedCopilotCustomApiMetadata) {
+    bailParseArgs(
+      '--commit-seed-copilot-custom-api-metadata cannot be combined with --inspect-copilot-custom-api.',
+    );
+  }
   return flags;
 }
 
@@ -727,7 +781,13 @@ const MODE = FLAGS.commit
                             ? FLAGS.commitSeedExecutivePrimaryWorkspace
                               ? 'COMMIT-SEED-EXECUTIVE-PRIMARY-WORKSPACE'
                               : 'SEED-EXECUTIVE-PRIMARY-WORKSPACE (dry-run)'
-                            : 'DRY-RUN';
+                            : FLAGS.inspectCopilotCustomApi
+                              ? 'INSPECT-COPILOT-CUSTOM-API'
+                              : FLAGS.seedCopilotCustomApiMetadata
+                                ? FLAGS.commitSeedCopilotCustomApiMetadata
+                                  ? 'SEED-COPILOT-CUSTOM-API-METADATA (commit requested — NOT IMPLEMENTED, dry-run only)'
+                                  : 'SEED-COPILOT-CUSTOM-API-METADATA (dry-run)'
+                                : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -5756,6 +5816,226 @@ async function runViewCleanup(viewId, qualifiedAttribute, token, envUrl, doCommi
 // Main
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Phase 137G — Copilot Custom API metadata: plan builder + dry-run + inspect.
+//
+// Dry-run / read-only ONLY. The plan builder is pure (no IO). The dry-run
+// printer is OFFLINE (no auth, no Web API call). The inspect mode uses
+// read-only GETs against the Dataverse metadata Web API. NOTHING here
+// writes, creates a plugin, calls Azure OpenAI, or enables live runtime.
+// ---------------------------------------------------------------------------
+
+/**
+ * Pure: build the planned Dataverse Custom API metadata payloads for
+ * cr664_RunLosCopilotAssist. No IO. The shapes mirror the Dataverse
+ * CustomAPI / CustomAPIRequestParameter / CustomAPIResponseProperty
+ * entities; a future commit phase (NOT this one) would POST them.
+ *
+ *   BindingType 0 = Global (unbound)  ← recommended (Phase 137F runbook)
+ *   Parameter/property Type 10 = String
+ *   AllowedCustomProcessingStepType 0 = None
+ */
+function buildCopilotCustomApiMetadataPlan() {
+  const customApi = {
+    uniquename: COPILOT_CUSTOM_API_NAME,
+    name: COPILOT_CUSTOM_API_NAME,
+    displayname: COPILOT_CUSTOM_API_DISPLAY_NAME,
+    description:
+      'Server-side Copilot assist (Phase 137B contract). Browser → this ' +
+      'Custom API → server-side Azure OpenAI. Proposal-only; requireConfirmation.',
+    isfunction: false, // Action, not Function
+    isprivate: false, // callable by authorized LOS users
+    bindingtype: 0, // 0 = Global (unbound) — recommended
+    boundentitylogicalname: null,
+    allowedcustomprocessingsteptype: 0, // None
+    executeprivilegename: null, // gated by an existing LOS security role
+  };
+  const requestParameters = [
+    {
+      uniquename: COPILOT_CUSTOM_API_REQUEST_PARAM,
+      name: COPILOT_CUSTOM_API_REQUEST_PARAM,
+      displayname: 'Request payload (JSON)',
+      type: 10, // String
+      isoptional: false,
+      description:
+        'Phase 137B request JSON (already-authorized, minimized/redacted context).',
+    },
+    {
+      uniquename: COPILOT_CUSTOM_API_CORRELATION_PARAM,
+      name: COPILOT_CUSTOM_API_CORRELATION_PARAM,
+      displayname: 'Correlation id',
+      type: 10, // String
+      isoptional: false,
+      description: 'Correlation id for the audit / event ledger.',
+    },
+  ];
+  const responseProperties = [
+    {
+      uniquename: COPILOT_CUSTOM_API_RESPONSE_PROP,
+      name: COPILOT_CUSTOM_API_RESPONSE_PROP,
+      displayname: 'Response payload (JSON)',
+      type: 10, // String
+      description:
+        'Phase 137B response JSON (mode, isLive, answer?, proposals[], warnings[], audit).',
+    },
+  ];
+  return { customApi, requestParameters, responseProperties };
+}
+
+function printCopilotExpectedContract() {
+  console.log(
+    'Expected contract (Phase 137B — docs/PHASE_137B_COPILOT_CUSTOM_API_CONTRACT.md):',
+  );
+  console.log(`   Custom API name:   ${COPILOT_CUSTOM_API_NAME}`);
+  console.log(`   Display name:      ${COPILOT_CUSTOM_API_DISPLAY_NAME}`);
+  console.log('   Binding:           Unbound (Global) action — server-side execution.');
+  console.log(
+    `   Request params:    ${COPILOT_CUSTOM_API_REQUEST_PARAM} (String), ${COPILOT_CUSTOM_API_CORRELATION_PARAM} (String)`,
+  );
+  console.log(`   Response property: ${COPILOT_CUSTOM_API_RESPONSE_PROP} (String, JSON)`);
+  console.log('   Behavior:          proposal-only, requireConfirmation=true, fail-closed.');
+  console.log('   Azure OpenAI:      SERVER-SIDE ONLY. Browser never calls it directly.');
+  console.log('');
+}
+
+/**
+ * Phase 137G — DRY-RUN-ONLY metadata creation plan. Offline (no auth, no
+ * Web API call). Prints the exact planned Dataverse payloads and returns
+ * BEFORE any write. Commit is NOT implemented in this phase: passing
+ * --commit-seed-copilot-custom-api-metadata prints a notice and still
+ * performs no write.
+ */
+function runSeedCopilotCustomApiMetadataPlan() {
+  console.log('Phase 137G — Copilot Custom API metadata creation PLAN (dry-run)');
+  console.log('');
+  console.log('NOTE: this mode is OFFLINE and DRY-RUN ONLY. It performs no pac auth,');
+  console.log('      no Web API call, and no write. It plans the metadata for the');
+  console.log(`      future ${COPILOT_CUSTOM_API_NAME} Dataverse Custom API.`);
+  console.log('');
+  printCopilotExpectedContract();
+
+  const plan = buildCopilotCustomApiMetadataPlan();
+
+  console.log('-'.repeat(70));
+  console.log('Planned CustomAPI entity payload (future POST /api/data/v9.2/customapis):');
+  console.log('-'.repeat(70));
+  console.log(JSON.stringify(plan.customApi, null, 2));
+  console.log('');
+  console.log('-'.repeat(70));
+  console.log('Planned CustomAPIRequestParameter payloads (one future POST each):');
+  console.log('-'.repeat(70));
+  for (const p of plan.requestParameters) {
+    console.log(JSON.stringify(p, null, 2));
+  }
+  console.log('');
+  console.log('-'.repeat(70));
+  console.log('Planned CustomAPIResponseProperty payloads (one future POST each):');
+  console.log('-'.repeat(70));
+  for (const p of plan.responseProperties) {
+    console.log(JSON.stringify(p, null, 2));
+  }
+  console.log('');
+
+  if (FLAGS.commitSeedCopilotCustomApiMetadata) {
+    console.log('⚠  --commit-seed-copilot-custom-api-metadata was passed, but COMMIT IS');
+    console.log('   NOT IMPLEMENTED in Phase 137G. No write has been or will be issued.');
+    console.log('   Metadata creation is deferred to a future phase (Phase 137F runbook');
+    console.log('   §I: 137G guarded dry-run first → later phases create it).');
+    console.log('');
+  }
+
+  console.log('No pac auth, no Web API call, no write, no plugin, no Azure resource.');
+  console.log('Runtime Copilot connector remains not_configured.');
+}
+
+/**
+ * Phase 137G — read-only inspection of the future Copilot Custom API
+ * metadata. Pure GETs against the Dataverse Web API. Never writes.
+ */
+async function runInspectCopilotCustomApi(token, envUrl) {
+  console.log('');
+  console.log('Phase 137G — Copilot Custom API inspection (Web API metadata, read-only)');
+  console.log(`   Target Custom API: ${COPILOT_CUSTOM_API_NAME}`);
+  console.log('');
+  printCopilotExpectedContract();
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'OData-MaxVersion': '4.0',
+    'OData-Version': '4.0',
+    Accept: 'application/json',
+  };
+  const url =
+    `${envUrl}/api/data/v9.2/customapis` +
+    `?$filter=uniquename eq '${COPILOT_CUSTOM_API_NAME}'` +
+    `&$select=customapiid,uniquename,name,displayname,isfunction,isprivate,bindingtype,boundentitylogicalname`;
+  let res;
+  try {
+    res = await fetch(url, { method: 'GET', headers });
+  } catch (err) {
+    bail(`Copilot Custom API inspection network error: ${err.message}`);
+    return;
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    bail(`customapis GET → ${res.status}: ${text}`);
+    return;
+  }
+  const json = await res.json();
+  const rows = Array.isArray(json.value) ? json.value : [];
+  if (rows.length === 0) {
+    console.log(`   RESULT: ${COPILOT_CUSTOM_API_NAME} does NOT exist in this environment.`);
+    console.log('   (Expected in Phase 137G — the Custom API has not been created yet.)');
+    console.log('');
+    console.log('Read-only inspection. No write of any kind has been issued.');
+    return;
+  }
+  const api = rows[0];
+  console.log(`   RESULT: ${COPILOT_CUSTOM_API_NAME} EXISTS.`);
+  console.log(`     customapiid:            ${api.customapiid}`);
+  console.log(`     name:                   ${api.name}`);
+  console.log(`     displayname:            ${api.displayname}`);
+  console.log(`     isfunction:             ${api.isfunction}`);
+  console.log(`     isprivate:              ${api.isprivate}`);
+  console.log(`     bindingtype:            ${api.bindingtype}`);
+  console.log(`     boundentitylogicalname: ${api.boundentitylogicalname ?? '(none — unbound)'}`);
+  console.log('');
+
+  // Read-only follow-up GETs: request parameters + response properties.
+  const reqUrl =
+    `${envUrl}/api/data/v9.2/customapirequestparameters` +
+    `?$filter=_customapiid_value eq ${api.customapiid}` +
+    `&$select=uniquename,name,type,isoptional`;
+  const respUrl =
+    `${envUrl}/api/data/v9.2/customapiresponseproperties` +
+    `?$filter=_customapiid_value eq ${api.customapiid}` +
+    `&$select=uniquename,name,type`;
+  try {
+    const [rq, rp] = await Promise.all([
+      fetch(reqUrl, { method: 'GET', headers }),
+      fetch(respUrl, { method: 'GET', headers }),
+    ]);
+    if (rq.ok) {
+      const j = await rq.json();
+      console.log(`   Request parameters (${(j.value ?? []).length}):`);
+      for (const p of j.value ?? []) {
+        console.log(`     - ${p.uniquename}  type=${p.type}  isoptional=${p.isoptional}`);
+      }
+    }
+    if (rp.ok) {
+      const j = await rp.json();
+      console.log(`   Response properties (${(j.value ?? []).length}):`);
+      for (const p of j.value ?? []) {
+        console.log(`     - ${p.uniquename}  type=${p.type}`);
+      }
+    }
+  } catch (err) {
+    console.log(`   (could not fetch parameter metadata: ${err.message})`);
+  }
+  console.log('');
+  console.log('Read-only inspection. No write, no plugin, no Azure resource touched.');
+}
+
 async function main() {
   // === Pure diagnostic: print the lookup-creation payload(s) ===
   // No pac auth, no Web API call, no write. Useful when an operator
@@ -5808,6 +6088,14 @@ async function main() {
     return;
   }
 
+  // === Phase 137G — Copilot Custom API metadata PLAN (offline dry-run) ===
+  // Pure / offline: prints the planned metadata payloads and returns BEFORE
+  // any auth or network. Commit is not implemented (no write path exists).
+  if (FLAGS.seedCopilotCustomApiMetadata) {
+    runSeedCopilotCustomApiMetadataPlan();
+    return;
+  }
+
   assertPacAuth();
 
   // Acquire shared envUrl + bearer token early. Every remaining mode
@@ -5827,6 +6115,12 @@ async function main() {
   // === Read-only Dataverse table schema inspection (Phase 122D) ===
   if (FLAGS.inspectTableName !== null) {
     await runInspectTable(FLAGS.inspectTableName, mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 137G — read-only Copilot Custom API metadata inspection ===
+  if (FLAGS.inspectCopilotCustomApi) {
+    await runInspectCopilotCustomApi(mainToken, mainEnvUrl);
     return;
   }
 
@@ -6417,6 +6711,23 @@ Modes:
       Valid --borrower-type values:
         788190000=Individual, 788190001=LLC, 788190002=Corporation,
         788190003=Partnership, 788190004=Trust, 788190005=Non-Profit.
+
+  --inspect-copilot-custom-api
+      Phase 137G — read-only inspection of the future
+      ${COPILOT_CUSTOM_API_NAME} Dataverse Custom API. Pure GETs against
+      the customapis metadata endpoint; reports whether it exists and its
+      request/response parameter metadata if found, plus the expected
+      Phase 137B contract. Never writes.
+
+  --seed-copilot-custom-api-metadata [--commit-seed-copilot-custom-api-metadata]
+      Phase 137G — DRY-RUN-ONLY plan for creating the
+      ${COPILOT_CUSTOM_API_NAME} Custom API metadata (CustomAPI +
+      request parameters + response property). OFFLINE: no pac auth, no
+      Web API call, no write. Prints the exact planned Dataverse payloads.
+      COMMIT IS NOT IMPLEMENTED in Phase 137G — passing
+      --commit-seed-copilot-custom-api-metadata prints a notice and still
+      performs no write. No plugin, no Azure resource, no live enablement.
+
   --commit
       Run the plan against the live env. Refuses to run unless every
       safety gate (publisher prefix, rollback artifacts, dependency

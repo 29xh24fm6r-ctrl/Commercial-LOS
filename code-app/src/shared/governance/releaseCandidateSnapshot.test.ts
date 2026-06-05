@@ -740,6 +740,38 @@ describe('Phase 137E — Copilot transport stub is fail-closed and no live trans
 });
 
 // ---------------------------------------------------------------------------
+// Phase 137G — Copilot Custom API metadata script (guarded dry-run first)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137G — Copilot Custom API metadata script is dry-run-first with no live connector', () => {
+  const rel = 'docs/PHASE_137G_COPILOT_CUSTOM_API_METADATA_SCRIPT.md';
+
+  it('the Phase 137G metadata-script doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the script as dry-run-first / spec only with nothing created', () => {
+    expect(doc).toMatch(/dry-run first/i);
+    expect(doc).toMatch(/nothing is created/i);
+    expect(doc).toMatch(/live metadata creation is[\s\S]{0,40}not\s+implemented/i);
+  });
+
+  it('pins the cr664_RunLosCopilotAssist target and the inspect/seed commands', () => {
+    expect(doc).toMatch(/cr664_RunLosCopilotAssist/);
+    expect(doc).toMatch(/--inspect-copilot-custom-api/);
+    expect(doc).toMatch(/--seed-copilot-custom-api-metadata/);
+  });
+
+  it('pins that the runtime Copilot connector remains not_configured and no live connector is enabled', () => {
+    expect(doc).toMatch(/stays \*?\*?`?not_configured`?|remains not_configured/i);
+    expect(doc).toMatch(/no live enablement/i);
+    expect(doc).toMatch(/no browser-direct Azure OpenAI|no real `?fetch`? to Azure\/OpenAI/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137F — Copilot Custom API registration runbook (docs/spec only)
 // ---------------------------------------------------------------------------
 
