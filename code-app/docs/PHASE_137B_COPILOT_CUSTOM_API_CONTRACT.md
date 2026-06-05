@@ -277,6 +277,9 @@ Explicitly NOT part of Phase 137B:
 
 ## References
 
+- [PHASE_137C_COPILOT_CONNECTOR_SKELETON.md](./PHASE_137C_COPILOT_CONNECTOR_SKELETON.md)
+  — the inert, disabled-by-default TypeScript realization of this contract
+  (types + adapter seam; no transport, default not_configured).
 - [PHASE_137A_COPILOT_LIVE_CONNECTOR_DECISION.md](./PHASE_137A_COPILOT_LIVE_CONNECTOR_DECISION.md)
   — the architecture decision this contract implements.
 - [SPEC_COPILOT_LIVE_CONNECTOR_AND_SAFE_ACTION_ADAPTERS.md](./SPEC_COPILOT_LIVE_CONNECTOR_AND_SAFE_ACTION_ADAPTERS.md)

@@ -646,3 +646,33 @@ describe('Phase 137B — Copilot Custom API contract is recorded and runtime sta
     expect(doc).toMatch(/Runtime remains `?not_configured`?/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 137C — Copilot connector adapter skeleton (disabled by default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137C — Copilot connector skeleton is inert and runtime stays not_configured', () => {
+  const rel = 'docs/PHASE_137C_COPILOT_CONNECTOR_SKELETON.md';
+
+  it('the Phase 137C skeleton doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the skeleton as disabled-by-default with no network call', () => {
+    expect(doc).toMatch(/disabled by default/i);
+    expect(doc).toMatch(/no network call/i);
+    expect(doc).toMatch(/No transport is wired/i);
+  });
+
+  it('pins that no live mode is enabled and the runtime default stays not_configured', () => {
+    expect(doc).toMatch(/No live mode\./i);
+    expect(doc).toMatch(/default stays \*?\*?`?not_configured`?/i);
+  });
+
+  it('pins that the contract + adapter skeleton files were added', () => {
+    expect(doc).toMatch(/copilotCustomApiContract\.ts/);
+    expect(doc).toMatch(/copilotCustomApiAdapter\.ts/);
+  });
+});
