@@ -962,6 +962,54 @@ describe('Phase 137M — Copilot governance checkpoint is docs-only with no runt
 });
 
 // ---------------------------------------------------------------------------
+// Phase 138A — Copilot completion certification (docs-only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 138A — Copilot completion certification is docs-only and live not enabled', () => {
+  const rel = 'docs/PHASE_138A_COPILOT_COMPLETION_CERTIFICATION.md';
+
+  it('the Phase 138A completion certification doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  it('the full 137A–137M Copilot doc set still exists', () => {
+    const DOCS = [
+      'docs/PHASE_137A_COPILOT_LIVE_CONNECTOR_DECISION.md',
+      'docs/PHASE_137B_COPILOT_CUSTOM_API_CONTRACT.md',
+      'docs/PHASE_137C_COPILOT_CONNECTOR_SKELETON.md',
+      'docs/PHASE_137D_COPILOT_TRANSPORT_SEAM.md',
+      'docs/PHASE_137E_COPILOT_CUSTOM_API_TRANSPORT_STUB.md',
+      'docs/PHASE_137F_COPILOT_CUSTOM_API_REGISTRATION_RUNBOOK.md',
+      'docs/PHASE_137G_COPILOT_CUSTOM_API_METADATA_SCRIPT.md',
+      'docs/PHASE_137H_COPILOT_SERVER_SIDE_SKELETON_SPEC.md',
+      'docs/PHASE_137I_COPILOT_AUDIT_EVENT_LEDGER_DESIGN.md',
+      'docs/PHASE_137J_COPILOT_AUDIT_TABLE_METADATA_SCRIPT.md',
+      'docs/PHASE_137K_COPILOT_AUDIT_LOGGER_SKELETON.md',
+      'docs/PHASE_137L_COPILOT_SERVER_HANDLER_READINESS_BUNDLE.md',
+      'docs/PHASE_137M_COPILOT_GOVERNANCE_CHECKPOINT.md',
+    ];
+    for (const d of DOCS) {
+      expect(existsSync(resolve(REPO_ROOT, d)), d).toBe(true);
+    }
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins Copilot readiness complete / live not enabled / default not_configured', () => {
+    expect(doc).toMatch(/Copilot readiness is complete/i);
+    expect(doc).toMatch(/live enablement is intentionally NOT active/i);
+    expect(doc).toMatch(/Runtime default remains `?not_configured`?/i);
+  });
+
+  it('pins no live/runtime behavior + the remaining external gates', () => {
+    expect(doc).toMatch(/No live enablement in 138A/i);
+    expect(doc).toMatch(/No runtime UI change\./i);
+    expect(doc).toMatch(/BLOCKED ?\/ ?EXTERNAL/i);
+    expect(doc).toMatch(/Definition of done/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137F — Copilot Custom API registration runbook (docs/spec only)
 // ---------------------------------------------------------------------------
 
