@@ -1140,3 +1140,62 @@ describe('Phase 137F — Copilot Custom API registration runbook is spec-only, n
     expect(doc).toMatch(/137K/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140A — FDIC Remediation Lending OS Mega Foundation (model/docs/tests)
+// ---------------------------------------------------------------------------
+
+describe('Phase 140A — FDIC remediation foundation docs + model files exist', () => {
+  const REQUIRED_FDIC_DOCS: readonly string[] = [
+    'docs/PHASE_140A_FDIC_REMEDIATION_OPERATING_MODEL.md',
+    'docs/FDIC_REMEDIATION_PLATFORM_BLUEPRINT.md',
+  ];
+  for (const rel of REQUIRED_FDIC_DOCS) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const REQUIRED_FDIC_MODEL_FILES: readonly string[] = [
+    'src/shared/fdic/fdicRemediationOperatingModel.ts',
+    'src/shared/fdic/fdicWorkspaceResponsibilityMap.ts',
+    'src/shared/fdic/fdicEvidenceArchitecture.ts',
+    'src/shared/fdic/fdicRemediationArchitectureSnapshot.ts',
+    'src/shared/fdic/fdicRemediationRoadmap.ts',
+    // The governance pin that holds the no-fake-compliance discipline.
+    'src/shared/governance/fdicRemediationOperatingModelGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_FDIC_MODEL_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+});
+
+describe('Phase 140A — FDIC foundation pins the no-fake-compliance rule and is model/docs/tests only', () => {
+  const opModel = readDoc('docs/PHASE_140A_FDIC_REMEDIATION_OPERATING_MODEL.md');
+  const blueprint = readDoc('docs/FDIC_REMEDIATION_PLATFORM_BLUEPRINT.md');
+
+  it('declares itself domain model + docs + tests with no visible UI / schema / writes', () => {
+    expect(opModel).toMatch(/domain model \+ docs \+ tests only/i);
+    expect(opModel).toMatch(/No visible UI change/i);
+    expect(opModel).toMatch(/No Dataverse schema/i);
+  });
+
+  it('pins the no-fake-compliance rule in both FDIC docs', () => {
+    expect(opModel).toMatch(/No fake compliance/i);
+    expect(opModel).toMatch(/Evidence is not automatically compliance/i);
+    expect(blueprint).toMatch(/No fake compliance/i);
+    expect(blueprint).toMatch(/does not equal remediation/i);
+  });
+
+  it('pins portfolio as the control tower, not the sole remediation owner', () => {
+    expect(opModel).toMatch(/control tower/i);
+    expect(opModel).toMatch(/not the sole/i);
+  });
+
+  it('pins the future roadmap covering 140B through 140K', () => {
+    expect(opModel).toMatch(/140B/);
+    expect(opModel).toMatch(/140K/);
+  });
+});
