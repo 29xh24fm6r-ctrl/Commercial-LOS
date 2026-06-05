@@ -1199,3 +1199,64 @@ describe('Phase 140A — FDIC foundation pins the no-fake-compliance rule and is
     expect(opModel).toMatch(/140K/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140B — Portfolio Loan Boarding System of Record (model/tests/docs)
+// ---------------------------------------------------------------------------
+
+describe('Phase 140B — portfolio loan boarding system of record exists', () => {
+  const REQUIRED_BOARDING_FILES: readonly string[] = [
+    'src/shared/portfolioBoarding/portfolioLoanBoardingTypes.ts',
+    'src/shared/portfolioBoarding/portfolioLoanBoardingCatalog.ts',
+    'src/shared/portfolioBoarding/portfolioLoanDocumentCatalog.ts',
+    'src/shared/portfolioBoarding/derivePortfolioLoanBoardingCompleteness.ts',
+    'src/shared/portfolioBoarding/portfolioLoanBoardingSnapshot.ts',
+    // Tests that hold the foundation's discipline.
+    'src/shared/portfolioBoarding/portfolioLoanBoardingCatalog.test.ts',
+    'src/shared/portfolioBoarding/portfolioLoanDocumentCatalog.test.ts',
+    'src/shared/portfolioBoarding/derivePortfolioLoanBoardingCompleteness.test.ts',
+    'src/shared/portfolioBoarding/portfolioLoanBoardingSnapshot.test.ts',
+    'src/shared/portfolioBoarding/portfolioLoanBoardingGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_BOARDING_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  it('docs/PHASE_140B_PORTFOLIO_LOAN_BOARDING_SYSTEM_OF_RECORD.md exists on disk', () => {
+    expect(
+      existsSync(
+        resolve(
+          REPO_ROOT,
+          'docs/PHASE_140B_PORTFOLIO_LOAN_BOARDING_SYSTEM_OF_RECORD.md',
+        ),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('Phase 140B — boarding doc pins foundation-only scope', () => {
+  const doc = readDoc(
+    'docs/PHASE_140B_PORTFOLIO_LOAN_BOARDING_SYSTEM_OF_RECORD.md',
+  );
+
+  it('declares the manual closed-loan boarding path and foundation-first scope', () => {
+    expect(doc).toMatch(/system of record/i);
+    expect(doc).toMatch(/manual/i);
+    expect(doc).toMatch(/foundation-first|foundation first/i);
+  });
+
+  it('pins the no-live-write / no-React-UI / no-fake-data constraints', () => {
+    expect(doc).toMatch(/No live Dataverse writes/i);
+    expect(doc).toMatch(/No React UI/i);
+    expect(doc).toMatch(/No fake (portfolio|borrower)/i);
+  });
+
+  it('pins fail-closed readiness for FDIC / board / portfolio monitoring', () => {
+    expect(doc).toMatch(/fail-closed/i);
+    expect(doc).toMatch(/FDIC/);
+    expect(doc).toMatch(/board/i);
+    expect(doc).toMatch(/portfolio monitoring/i);
+  });
+});
