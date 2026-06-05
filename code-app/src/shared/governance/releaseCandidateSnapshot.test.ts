@@ -871,6 +871,37 @@ describe('Phase 137J — Copilot audit-table metadata script is dry-run-only wit
 });
 
 // ---------------------------------------------------------------------------
+// Phase 137K — Copilot audit-logger skeleton (disabled)
+// ---------------------------------------------------------------------------
+
+describe('Phase 137K — Copilot audit-logger skeleton is inert with no live write/runtime behavior', () => {
+  const rel = 'docs/PHASE_137K_COPILOT_AUDIT_LOGGER_SKELETON.md';
+
+  it('the Phase 137K audit-logger skeleton doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the doc as skeleton/interface only — no Dataverse table write, no table creation', () => {
+    expect(doc).toMatch(/Skeleton ?\/ ?interface only/i);
+    expect(doc).toMatch(/No Dataverse table write\./i);
+    expect(doc).toMatch(/No table creation\./i);
+  });
+
+  it('pins the disabled logger fail-closed behavior (audit_unavailable, no event id)', () => {
+    expect(doc).toMatch(/audit_unavailable/);
+    expect(doc).toMatch(/never fabricates an `?eventId`?/i);
+    expect(doc).toMatch(/cr664_copilotauditevent/);
+  });
+
+  it('pins the audit-before-model rule and runtime staying not_configured', () => {
+    expect(doc).toMatch(/before any Azure\s+OpenAI ?\/ ?model\s+call/i);
+    expect(doc).toMatch(/remains[\s>*`]+not_configured/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 137F — Copilot Custom API registration runbook (docs/spec only)
 // ---------------------------------------------------------------------------
 

@@ -139,8 +139,9 @@ npm run build
 
 ## Next phase recommendation
 
-**Phase 137K** — server audit-logger **interface / skeleton (disabled)**
-that targets `cr664_copilotauditevent`, still default `not_configured` —
-followed by the server handler skeleton (137L), a disabled live-transport
-test harness (137M), and controlled test-tenant enablement (137N), per the
-Phase 137I design.
+**Phase 137K** — an app-side audit-logger **interface / skeleton (disabled)**
+that targets `cr664_copilotauditevent`, still default `not_configured`. See
+[PHASE_137K_COPILOT_AUDIT_LOGGER_SKELETON.md](./PHASE_137K_COPILOT_AUDIT_LOGGER_SKELETON.md).
+Later phases add the server handler skeleton (137L), a disabled
+live-transport test harness (137M), and controlled test-tenant enablement
+(137N), per the Phase 137I design.
