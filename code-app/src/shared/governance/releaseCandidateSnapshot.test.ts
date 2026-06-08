@@ -1460,3 +1460,62 @@ describe('Phase 140L — portfolio boarding live persistence adapter foundation 
     expect(doc).toMatch(/no delete/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140M-P — operator UI, document/evidence persistence, FDIC package
+// ---------------------------------------------------------------------------
+
+describe('Phase 140M-P — portfolio boarding operator workflow + FDIC package exist', () => {
+  const REQUIRED_140MP_FILES: readonly string[] = [
+    'docs/PHASE_140M_P_PORTFOLIO_BOARDING_OPERATOR_UI_AND_FDIC_PACKAGE.md',
+    // Pure logic + hooks
+    'src/portfolioBoarding/portfolioBoardingAccess.ts',
+    'src/portfolioBoarding/portfolioLoanBoardingAuditTrail.ts',
+    'src/portfolioBoarding/PortfolioBoardingPackageExportModel.ts',
+    'src/portfolioBoarding/loadPortfolioBoardedLoansForWorkspace.ts',
+    'src/portfolioBoarding/portfolioBoardedLoanCommandCenterRows.ts',
+    'src/portfolioBoarding/portfolioBoardingListRows.ts',
+    'src/portfolioBoarding/usePortfolioLoanBoardingPersistence.ts',
+    'src/portfolioBoarding/usePortfolioLoanDocumentPersistence.ts',
+    // Operator UI
+    'src/portfolioBoarding/PortfolioLoanBoardingWorkspace.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingList.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingSearchPanel.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingStatusBanner.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingDetail.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingCreateFlow.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingSaveBar.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingValidationSummary.tsx',
+    // Document / evidence / examiner / audit
+    'src/portfolioBoarding/PortfolioLoanBoardingDocumentManager.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingEvidenceManager.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingExaminerNotes.tsx',
+    'src/portfolioBoarding/PortfolioLoanBoardingAuditPanel.tsx',
+    // FDIC / board / portfolio package UI
+    'src/portfolioBoarding/FdicBoardPackageWorkspace.tsx',
+    'src/portfolioBoarding/FdicPackageSectionList.tsx',
+    'src/portfolioBoarding/FdicEvidenceIndex.tsx',
+    'src/portfolioBoarding/BoardLoanReviewPackagePreview.tsx',
+    'src/portfolioBoarding/PortfolioManagerReviewPackagePreview.tsx',
+    // Governance
+    'src/shared/governance/portfolioBoardingRuntimeGovernance.test.ts',
+    'src/shared/governance/portfolioBoardingPermissionGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_140MP_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc(
+    'docs/PHASE_140M_P_PORTFOLIO_BOARDING_OPERATOR_UI_AND_FDIC_PACKAGE.md',
+  );
+
+  it('the doc pins the safety model: feature-flagged, adapter-gated, fail-closed, no fake data', () => {
+    expect(doc).toMatch(/feature[- ]flag/i);
+    expect(doc).toMatch(/adapter[- ]gated/i);
+    expect(doc).toMatch(/fail[- ]closed/i);
+    expect(doc).toMatch(/no fake data/i);
+    expect(doc).toMatch(/no permission widening/i);
+  });
+});

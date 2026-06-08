@@ -12,10 +12,14 @@
  *     without both the flag and an injected transport.
  */
 
-import type { PortfolioBoardingFeatureFlags } from './portfolioLoanBoardingFeatureFlags';
 import {
   resolvePortfolioBoardingFeatureFlags,
 } from './portfolioLoanBoardingFeatureFlags';
+
+/** Only the live-persistence flag is consulted by the resolver. */
+type LivePersistenceFlag = {
+  readonly PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: boolean;
+};
 import type {
   PortfolioBoardingLivePersistenceAdapter,
   PortfolioBoardingTransport,
@@ -27,7 +31,7 @@ import {
 
 export interface ResolveAdapterInput {
   /** Resolved feature flags. Defaults to all-off when omitted. */
-  flags?: PortfolioBoardingFeatureFlags;
+  flags?: LivePersistenceFlag;
   /** The injected Dataverse transport. Absent → disabled adapter. */
   transport?: PortfolioBoardingTransport;
 }
