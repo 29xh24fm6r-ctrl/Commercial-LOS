@@ -64,3 +64,27 @@ describe('Phase 141M — borrower request panel', () => {
     expect(text).not.toContain('approve and send');
   });
 });
+
+describe('Phase 141N — delivery readiness section', () => {
+  it('shows every outbound adapter disabled / not configured', () => {
+    renderPanel(viableMaster());
+    expect(screen.getByText(/Upload-link adapter: disabled \/ not configured/i)).toBeInTheDocument();
+    expect(screen.getByText(/Email adapter: disabled \/ not configured/i)).toBeInTheDocument();
+    expect(screen.getByText(/SMS adapter: disabled \/ not configured/i)).toBeInTheDocument();
+  });
+
+  it('shows send disabled, dry-run only, and approval required', () => {
+    renderPanel(viableMaster());
+    expect(screen.getByText(/Send: disabled/i)).toBeInTheDocument();
+    expect(screen.getByText(/Dry-run only: Yes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Approval required: Yes/i)).toBeInTheDocument();
+  });
+
+  it('has no live URL, no mailto, and no raw contact in the delivery section', () => {
+    const { container } = renderPanel(viableMaster());
+    expect(container.querySelectorAll('a[href^="mailto:"]').length).toBe(0);
+    const html = container.innerHTML;
+    expect(html).not.toMatch(/https?:\/\//);
+    expect(container.textContent ?? '').not.toContain('present');
+  });
+});

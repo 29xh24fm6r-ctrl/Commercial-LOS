@@ -5,6 +5,11 @@ import type { CrmMaster } from '../shared/crm/crmTypes';
 import type { AnnualReviewLoanSnapshot, AnnualReviewCycle } from '../shared/annualReview/annualReviewTypes';
 import { deriveAnnualReviewBorrowerRequestWorkflow } from './deriveAnnualReviewBorrowerRequestWorkflow';
 import type { AnnualReviewRequestFeatureFlagState } from './annualReviewRequestFeatureFlags';
+import { resolveAnnualReviewDeliveryAdapters } from './resolveAnnualReviewDeliveryAdapters';
+import {
+  deriveAnnualReviewDeliveryFeatureFlagState,
+  type AnnualReviewDeliveryFeatureFlagState,
+} from './annualReviewDeliveryFeatureFlags';
 
 interface Props {
   annualReviewId: string;
@@ -14,6 +19,7 @@ interface Props {
   loanId?: string;
   borrowerOrgId?: string;
   flags?: AnnualReviewRequestFeatureFlagState;
+  deliveryFlags?: AnnualReviewDeliveryFeatureFlagState;
   asOfDate?: string | Date;
 }
 
@@ -36,6 +42,9 @@ export function AnnualReviewBorrowerRequestPanel(props: Props) {
     flags: props.flags,
     asOfDate: props.asOfDate,
   });
+
+  const deliveryFlags = props.deliveryFlags ?? deriveAnnualReviewDeliveryFeatureFlagState();
+  const delivery = resolveAnnualReviewDeliveryAdapters({ flags: deliveryFlags });
 
   const decision = wf.recipientDecision;
   const recipientLabel =
@@ -100,6 +109,19 @@ export function AnnualReviewBorrowerRequestPanel(props: Props) {
         </div>
       )}
 
+      <div style={sectionStyle}>
+        <span style={sectionTitleStyle}>Delivery readiness</span>
+        <ul style={ulStyle}>
+          <li style={itemStyle}>Upload-link adapter: {adapterLabel(delivery.uploadLinkAdapter.enabled)}</li>
+          <li style={itemStyle}>Email adapter: {adapterLabel(delivery.emailAdapter.enabled)}</li>
+          <li style={itemStyle}>SMS adapter: {adapterLabel(delivery.smsAdapter.enabled)}</li>
+          <li style={itemStyle}>Approval required: {yn(deliveryFlags.ANNUAL_REVIEW_DELIVERY_APPROVAL_REQUIRED)}</li>
+          <li style={itemStyle}>Dry-run only: {yn(deliveryFlags.ANNUAL_REVIEW_DELIVERY_DRY_RUN_ONLY)}</li>
+          <li style={itemStyle}>Send: {deliveryFlags.ANNUAL_REVIEW_DELIVERY_SEND_ENABLED ? 'enabled' : 'disabled'}</li>
+          <li style={itemStyle}>Status: preview-only (no delivery is attempted)</li>
+        </ul>
+      </div>
+
       {wf.blockers.length > 0 && (
         <div style={sectionStyle}>
           <span style={blockerTitleStyle}>Blockers</span>
@@ -127,6 +149,10 @@ function statusLabel(status: string): string {
 
 function yn(v: boolean): string {
   return v ? 'Yes' : 'No';
+}
+
+function adapterLabel(enabled: boolean): string {
+  return enabled ? 'enabled' : 'disabled / not configured';
 }
 
 function Row({ label, value }: { label: string; value: string | undefined }) {

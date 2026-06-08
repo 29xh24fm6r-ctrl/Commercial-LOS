@@ -1734,3 +1734,37 @@ describe('Phase 141M — annual review borrower request workflow exists', () => 
     expect(doc).toMatch(/never invented|no fake|masked/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 141N — borrower delivery adapter seams (disabled by default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 141N — borrower delivery adapter seams exist', () => {
+  const REQUIRED_141N_FILES: readonly string[] = [
+    'docs/PHASE_141N_BORROWER_DELIVERY_ADAPTER_SEAMS.md',
+    'src/annualReview/annualReviewDeliveryFeatureFlags.ts',
+    'src/annualReview/annualReviewDeliveryTypes.ts',
+    'src/annualReview/validateAnnualReviewDeliveryRequest.ts',
+    'src/annualReview/annualReviewUploadLinkAdapter.ts',
+    'src/annualReview/annualReviewEmailDeliveryAdapter.ts',
+    'src/annualReview/annualReviewSmsDeliveryAdapter.ts',
+    'src/annualReview/resolveAnnualReviewDeliveryAdapters.ts',
+    'src/annualReview/buildAnnualReviewDeliveryAuditSummary.ts',
+    'src/shared/governance/annualReviewDeliveryGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_141N_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_141N_BORROWER_DELIVERY_ADAPTER_SEAMS.md');
+
+  it('the doc pins disabled-by-default, no sending, no live URL/token, masked contacts', () => {
+    expect(doc).toMatch(/disabled by default/i);
+    expect(doc).toMatch(/no live upload link|no token|no live URL/i);
+    expect(doc).toMatch(/no email|email sending|sendEmail/i);
+    expect(doc).toMatch(/masked/i);
+    expect(doc).toMatch(/approval[- ]gated|human approval/i);
+  });
+});
