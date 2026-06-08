@@ -1555,3 +1555,41 @@ describe('Phase 140Q — portfolio boarding final certification + runtime gate e
     expect(cert).toMatch(/does NOT enable runtime writes/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 141A — annual portfolio review + financial collection
+// ---------------------------------------------------------------------------
+
+describe('Phase 141A — annual portfolio review command center exists', () => {
+  const REQUIRED_141A_FILES: readonly string[] = [
+    'docs/PHASE_141A_ANNUAL_PORTFOLIO_REVIEW_AND_FINANCIAL_COLLECTION.md',
+    'src/shared/annualReview/annualReviewTypes.ts',
+    'src/shared/annualReview/annualReviewRequirementCatalog.ts',
+    'src/shared/annualReview/deriveAnnualReviewCollectionPlan.ts',
+    'src/shared/annualReview/deriveAnnualReviewReadiness.ts',
+    'src/shared/annualReview/deriveBorrowerSoundnessAssessment.ts',
+    'src/shared/annualReview/deriveBorrowerFinancialRequestPackage.ts',
+    'src/shared/annualReview/annualReviewTaskEngine.ts',
+    'src/portfolioAnnualReview/AnnualPortfolioReviewCommandCenter.tsx',
+    'src/portfolioAnnualReview/BorrowerFinancialRequestPreview.tsx',
+    'src/portfolioAnnualReview/AnnualReviewTaskBoard.tsx',
+    'src/shared/governance/annualReviewGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_141A_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc(
+    'docs/PHASE_141A_ANNUAL_PORTFOLIO_REVIEW_AND_FINANCIAL_COLLECTION.md',
+  );
+
+  it('the doc pins fail-closed readiness, no outreach, preview-only, no fake data', () => {
+    expect(doc).toMatch(/fail[- ]closed/i);
+    expect(doc).toMatch(/no (automatic )?borrower (email|outreach)/i);
+    expect(doc).toMatch(/preview/i);
+    expect(doc).toMatch(/no fake data/i);
+    expect(doc).toMatch(/insufficient_information/);
+  });
+});
