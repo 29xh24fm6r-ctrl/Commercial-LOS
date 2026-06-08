@@ -1428,3 +1428,35 @@ describe('Phase 140K — schema verification + optional-relationship repair foun
     expect(script).toMatch(/safeForRuntimePersistenceCandidate/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140L — live persistence adapter (disabled by default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 140L — portfolio boarding live persistence adapter foundation exists', () => {
+  const REQUIRED_140L_FILES: readonly string[] = [
+    'docs/PHASE_140L_PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ADAPTER.md',
+    'src/portfolioBoarding/portfolioLoanBoardingFeatureFlags.ts',
+    'src/portfolioBoarding/portfolioLoanBoardingLivePersistence.ts',
+    'src/portfolioBoarding/portfolioLoanBoardingLivePersistence.test.ts',
+    'src/portfolioBoarding/resolvePortfolioLoanBoardingAdapter.ts',
+    'src/shared/governance/portfolioBoardingLivePersistenceGovernance.test.ts',
+    // Earlier-phase artifacts must remain pinned.
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaVerificationReport.ts',
+    'docs/PHASE_140K_PORTFOLIO_BOARDING_SCHEMA_VERIFICATION_AND_OPTIONAL_RELATIONSHIP_REPAIR.md',
+  ];
+  for (const rel of REQUIRED_140L_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_140L_PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ADAPTER.md');
+
+  it('the doc pins disabled-by-default, schema-scoped, no-delete, no-route', () => {
+    expect(doc).toMatch(/disabled by default/i);
+    expect(doc).toMatch(/PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED/);
+    expect(doc).toMatch(/no UI route/i);
+    expect(doc).toMatch(/no delete/i);
+  });
+});
