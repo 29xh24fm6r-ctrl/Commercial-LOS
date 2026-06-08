@@ -41,3 +41,24 @@ export function createDisabledCrmPersistenceAdapter(): CrmPersistenceAdapter {
     addAuditEntry: () => notConfigured('addAuditEntry'),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Phase 141L — the richer live persistence adapter contract.
+//
+// The disabled live adapter (default) and the live adapter factory live in
+// `crmLiveDataverseAdapter.ts`; they are re-exported here so the persistence
+// contract has one entry point. The live adapter is never wired by default —
+// `resolveCrmPersistenceAdapter` returns the disabled one unless every gate
+// passes and a transport is injected.
+// ---------------------------------------------------------------------------
+
+export {
+  createCrmLiveDataverseAdapter,
+  createDisabledCrmLiveDataverseAdapter,
+} from './crmLiveDataverseAdapter';
+export type {
+  CrmLivePersistenceAdapter,
+  CrmLiveResult,
+  CrmPersistenceErrorCode,
+} from './crmPersistenceTypes';
+export { CRM_PERSISTENCE_ERROR_CODES } from './crmPersistenceTypes';

@@ -163,6 +163,21 @@ export interface CrmContactAuthorization {
   scope?: string;
 }
 
+export interface CrmVendorProfile {
+  vendorId: string;
+  orgId?: string;
+  vendorType?: string;
+  approvedVendor?: boolean;
+  approvalStatus?: string;
+  approvalDate?: string;
+  expirationDate?: string;
+  insuranceOnFile?: boolean;
+  lastUsedDate?: string;
+  serviceCategories?: readonly string[];
+  relatedDocumentTypes?: readonly string[];
+  notes?: string;
+}
+
 export interface CrmTimelineEvent {
   eventId: string;
   entityType: CrmEntityType;
@@ -183,6 +198,8 @@ export interface CrmAuditEntry {
   previousValueSummary?: string;
   newValueSummary?: string;
   reason?: string;
+  /** When true, the value summaries are persisted as `[redacted]`. */
+  redacted?: boolean;
 }
 
 // ---------------------------------------------------------------------------

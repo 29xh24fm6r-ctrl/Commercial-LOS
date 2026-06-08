@@ -1668,3 +1668,37 @@ describe('Phase 141J-K — CRM Dataverse schema inspection + seed foundation exi
     expect(doc).toMatch(/no fake (customer|data|CRM data)/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 141L — CRM live persistence adapter (disabled by default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 141L — CRM live persistence adapter foundation exists', () => {
+  const REQUIRED_141L_FILES: readonly string[] = [
+    'docs/PHASE_141L_CRM_LIVE_PERSISTENCE_ADAPTER.md',
+    'src/crm/crmFeatureFlags.ts',
+    'src/crm/crmDataverseMapper.ts',
+    'src/crm/crmLiveDataverseTransport.ts',
+    'src/crm/crmLiveDataverseAdapter.ts',
+    'src/crm/resolveCrmPersistenceAdapter.ts',
+    'src/crm/crmRuntimeSchemaGate.ts',
+    'src/crm/crmPersistenceTypes.ts',
+    'src/crm/crmPersistenceAdapter.ts',
+    'src/shared/governance/crmPersistenceGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_141L_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_141L_CRM_LIVE_PERSISTENCE_ADAPTER.md');
+
+  it('the doc pins disabled-by-default, no deletes, no outreach, table allow-list', () => {
+    expect(doc).toMatch(/disabled by default/i);
+    expect(doc).toMatch(/No deletes/i);
+    expect(doc).toMatch(/no borrower outreach/i);
+    expect(doc).toMatch(/allow-list/i);
+    expect(doc).toMatch(/No app-runtime CRM writes/i);
+  });
+});

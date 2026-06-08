@@ -59,6 +59,12 @@ describe('Phase 141B-H — CRM files exist', () => {
     'src/shared/crm/crmIntegrationSeams.ts',
     'src/shared/crm/crmDataverseSchemaPlan.ts',
     'src/crm/crmPersistenceAdapter.ts',
+    'src/crm/crmFeatureFlags.ts',
+    'src/crm/crmDataverseMapper.ts',
+    'src/crm/crmLiveDataverseTransport.ts',
+    'src/crm/crmLiveDataverseAdapter.ts',
+    'src/crm/resolveCrmPersistenceAdapter.ts',
+    'src/crm/crmRuntimeSchemaGate.ts',
     'src/crm/CrmRelationshipCommandCenter.tsx',
   ];
   for (const rel of REQUIRED) {
@@ -91,9 +97,24 @@ describe('Phase 141B-H — no fetch / Dataverse / outreach in source', () => {
     expect(hits.map((h) => h.rel)).toEqual([]);
   });
 
-  it('no write/delete verbs in source', () => {
+  it('no delete verb anywhere in source (Phase 141L: live transport is non-destructive)', () => {
+    // Delete is forbidden in EVERY CRM file — the live persistence adapter and
+    // transport seam (141L) expose create/read/update only, never delete.
     const hits = FILES.filter((f) =>
-      /\b(createRecord|updateRecord|deleteRecord)\b|method:\s*'(POST|PATCH|DELETE)'/.test(f.code),
+      /\b(deleteRecord|deleteMultiple)\b|method:\s*'DELETE'/.test(f.code),
+    );
+    expect(hits.map((h) => h.rel)).toEqual([]);
+  });
+
+  it('no write verbs (create/update/delete) inside React components', () => {
+    // The transport / adapter seam legitimately declares createRecord /
+    // updateRecord (141L). Components must never call them — they go through
+    // providers / hooks. So the write-verb ban is scoped to .tsx components.
+    const hits = FILES.filter(
+      (f) =>
+        f.isComponent &&
+        (/\b(createRecord|updateRecord|deleteRecord)\b/.test(f.code) ||
+          /method:\s*'(POST|PATCH|DELETE)'/.test(f.code)),
     );
     expect(hits.map((h) => h.rel)).toEqual([]);
   });
