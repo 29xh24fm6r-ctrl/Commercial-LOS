@@ -1593,3 +1593,41 @@ describe('Phase 141A — annual portfolio review command center exists', () => {
     expect(doc).toMatch(/insufficient_information/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 141B-H — CRM relationship master
+// ---------------------------------------------------------------------------
+
+describe('Phase 141B-H — CRM relationship master exists', () => {
+  const REQUIRED_141BH_FILES: readonly string[] = [
+    'docs/PHASE_141B_H_CRM_RELATIONSHIP_MASTER.md',
+    'src/shared/crm/crmTypes.ts',
+    'src/shared/crm/deriveCrmReadiness.ts',
+    'src/shared/crm/deriveCrmRelationshipNetworkSnapshot.ts',
+    'src/shared/crm/deriveCrmContactTasks.ts',
+    'src/shared/crm/resolveBorrowerRequestRecipient.ts',
+    'src/shared/crm/crmIntegrationSeams.ts',
+    'src/shared/crm/crmDataverseSchemaPlan.ts',
+    'src/crm/crmPersistenceTypes.ts',
+    'src/crm/crmPersistenceAdapter.ts',
+    'src/crm/CrmRelationshipCommandCenter.tsx',
+    'src/crm/CrmRelationshipNetworkPanel.tsx',
+    'src/crm/CrmContactTaskBoard.tsx',
+    'src/shared/governance/crmGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_141BH_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_141B_H_CRM_RELATIONSHIP_MASTER.md');
+
+  it('the doc pins the safety model: no outreach, fail-closed, no live writes, no fake data', () => {
+    expect(doc).toMatch(/no (automatic )?borrower outreach/i);
+    expect(doc).toMatch(/do-not-contact/i);
+    expect(doc).toMatch(/fail[- ]closed/i);
+    expect(doc).toMatch(/no live CRM writes/i);
+    expect(doc).toMatch(/no fake (customer|data)/i);
+  });
+});
