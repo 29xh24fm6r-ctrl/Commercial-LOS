@@ -4107,3 +4107,152 @@ describe('Phase 140K — guarded optional-relationship repair mode', () => {
     expect(block).not.toMatch(/method:\s*'DELETE'/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 141J-K — CRM Dataverse schema inspect / plan / guarded seed
+// ---------------------------------------------------------------------------
+
+describe('Phase 141J-K — CRM schema mode args', () => {
+  it('exposes --inspect-crm-schema', () => {
+    expect(SCRIPT).toMatch(/'--inspect-crm-schema'/);
+    expect(SCRIPT).toMatch(/flags\.inspectCrmSchema\s*=\s*true/);
+  });
+
+  it('exposes --plan-crm-schema', () => {
+    expect(SCRIPT).toMatch(/'--plan-crm-schema'/);
+    expect(SCRIPT).toMatch(/flags\.planCrmSchema\s*=\s*true/);
+  });
+
+  it('exposes --seed-crm-schema (dry-run by default — flips dryRun off, no commit)', () => {
+    expect(SCRIPT).toMatch(/'--seed-crm-schema'/);
+    expect(SCRIPT).toMatch(
+      /arg === '--seed-crm-schema'\)\s*\{[\s\S]*?flags\.seedCrmSchema = true;[\s\S]*?flags\.dryRun = false;/,
+    );
+  });
+
+  it('exposes --commit-seed-crm-schema', () => {
+    expect(SCRIPT).toMatch(/'--commit-seed-crm-schema'/);
+    expect(SCRIPT).toMatch(/flags\.commitSeedCrmSchema\s*=\s*true/);
+  });
+
+  it('the CRM commit flag alone fails (inert without --seed-crm-schema)', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-crm-schema has no effect without --seed-crm-schema/,
+    );
+  });
+
+  it('the three CRM modes are part of the exclusive-modes array (mutually exclusive with all existing modes)', () => {
+    expect(SCRIPT).toMatch(/flags\.inspectCrmSchema,?\s*$/m);
+    expect(SCRIPT).toMatch(/flags\.planCrmSchema,?\s*$/m);
+    expect(SCRIPT).toMatch(/flags\.seedCrmSchema,?\s*$/m);
+  });
+});
+
+describe('Phase 141J-K — CRM inspect / plan modes are read-only', () => {
+  it('inspect CRM mode issues no inline write verb and no PublishXml', () => {
+    const block = sliceFunction('runInspectCrmSchema');
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).toMatch(/CRM_SCHEMA_RECOMMENDATION/);
+  });
+
+  it('plan CRM mode issues no inline write verb and no PublishXml', () => {
+    const block = sliceFunction('runPlanCrmSchema');
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).toMatch(/DRY_RUN_ONLY: true/);
+    expect(block).toMatch(/does not create Dataverse schema unless --seed-crm-schema is used with --commit-seed-crm-schema/);
+  });
+
+  it('the verification section is read-only and states runtime persistence is NOT enabled', () => {
+    const block = sliceFunction('printCrmSchemaVerification');
+    expect(block).toMatch(/CRM_SCHEMA_VERIFICATION/);
+    expect(block).toMatch(/safeForCrmRuntimePersistenceCandidate/);
+    expect(block).toMatch(/app runtime CRM persistence is NOT enabled/i);
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+    expect(block).not.toMatch(/PublishXml/);
+  });
+});
+
+describe('Phase 141J-K — CRM seed mode is dry-run-first and fail-closed', () => {
+  it('seed CRM dry-run returns BEFORE the first create call (commit-gated)', () => {
+    const block = sliceFunction('runSeedCrmSchema');
+    const dryIdx = block.indexOf('Dry-run only — no metadata write issued');
+    const createIdx = block.indexOf('createCrmTableFromPlan(');
+    expect(dryIdx).toBeGreaterThan(-1);
+    expect(createIdx).toBeGreaterThan(-1);
+    expect(dryIdx).toBeLessThan(createIdx);
+  });
+
+  it('seed CRM commit is gated by safeToCommit (fail-closed on blockers)', () => {
+    const block = sliceFunction('runSeedCrmSchema');
+    expect(block).toMatch(/if\s*\(\s*!commit\s*\)/);
+    expect(block).toMatch(/Refusing to commit/);
+    expect(block).toMatch(/safeToCommit/);
+  });
+
+  it('the CRM seed path + create helpers contain no DELETE verb', () => {
+    for (const fn of [
+      'runSeedCrmSchema',
+      'createCrmTableFromPlan',
+      'buildCrmTablePayload',
+    ]) {
+      expect(sliceFunction(fn)).not.toMatch(/method:\s*'DELETE'/);
+    }
+  });
+
+  it('no PublishXml anywhere in the CRM seed/inspect/plan path', () => {
+    for (const fn of ['runInspectCrmSchema', 'runPlanCrmSchema', 'runSeedCrmSchema', 'printCrmSchemaVerification']) {
+      expect(sliceFunction(fn)).not.toMatch(/PublishXml/);
+    }
+  });
+
+  it('the CRM mode creates no records (no createRecord / saveRecord / record POST)', () => {
+    const block = sliceFunction('runSeedCrmSchema');
+    expect(block).not.toMatch(/createRecord|saveRecord|updateRecord|deleteRecord/);
+  });
+
+  it('the CRM mode issues no borrower outreach (email / SMS / Twilio / mailto / upload link send)', () => {
+    for (const fn of ['runInspectCrmSchema', 'runPlanCrmSchema', 'runSeedCrmSchema', 'printCrmSchemaVerification']) {
+      const block = sliceFunction(fn);
+      expect(block).not.toMatch(/sendEmail|SendEmailV2|sendSms|twilio|mailto:/i);
+    }
+  });
+
+  it('resolves CRM-internal organization/person tables as internal lookup targets', () => {
+    expect(SCRIPT).toMatch(/function\s+crmResolveTargetExists/);
+    expect(SCRIPT).toMatch(/function\s+crmIsCandidateTable/);
+    const seed = sliceFunction('runSeedCrmSchema');
+    expect(seed).toMatch(/crmResolveTargetExists\(/);
+  });
+});
+
+describe('Phase 141J-K — no drift in CRM mode (no bypass headers, existing modes intact)', () => {
+  it('no force-delete / bypass / suppress headers introduced by the CRM mode', () => {
+    expect(SCRIPT).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SCRIPT).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SCRIPT).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SCRIPT).not.toMatch(/[?&]Force=true/i);
+  });
+
+  it('IsCustomizable safety stays pinned (never nested in AssociatedMenuConfiguration)', () => {
+    expect(SCRIPT).not.toMatch(/AssociatedMenuConfiguration[\s\S]{0,200}IsCustomizable/);
+  });
+
+  it('existing portfolio boarding script modes remain present', () => {
+    expect(SCRIPT).toMatch(/'--inspect-portfolio-boarding-schema'/);
+    expect(SCRIPT).toMatch(/'--plan-portfolio-boarding-schema'/);
+    expect(SCRIPT).toMatch(/'--seed-portfolio-boarding-schema'/);
+  });
+
+  it('existing Phase 122/124/133 modes remain available', () => {
+    expect(SCRIPT).toMatch(/'--seed-client-relationship'/);
+    expect(SCRIPT).toMatch(/'--seed-manager-entitlement'/);
+    expect(SCRIPT).toMatch(/'--seed-executive-primary-workspace'/);
+  });
+
+  it('the Phase 122 IsCustomizable / dry-run defaults remain pinned', () => {
+    expect(SCRIPT).toMatch(/dryRun:\s*true/);
+    expect(SCRIPT).toMatch(/CR664_PUBLISHER_PREFIX\s*=\s*'cr664'/);
+  });
+});

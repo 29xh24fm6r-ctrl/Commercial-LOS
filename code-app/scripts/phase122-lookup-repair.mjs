@@ -342,6 +342,14 @@ function parseArgs(argv) {
     // evidence→document lookup. Dry-run by default; commit flag required.
     repairPortfolioBoardingOptionalRelationships: false,
     commitRepairPortfolioBoardingOptionalRelationships: false,
+    // Phase 141J-K — CRM Dataverse schema inspect / plan / guarded seed.
+    // inspect + plan are READ-ONLY (GET only). seed is dry-run by default;
+    // live metadata creation requires the explicit commit flag. Never creates
+    // CRM records, never enables app-runtime CRM persistence.
+    inspectCrmSchema: false,
+    planCrmSchema: false,
+    seedCrmSchema: false,
+    commitSeedCrmSchema: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -664,6 +672,29 @@ function parseArgs(argv) {
       // Phase 140K — authorizes creating ONLY the optional evidence→document
       // lookup. Valid only alongside the repair mode.
       flags.commitRepairPortfolioBoardingOptionalRelationships = true;
+    } else if (arg === '--inspect-crm-schema') {
+      // Phase 141J — read-only Web API metadata inspection of the candidate CRM
+      // tables + reusable related tables. Pure GET; never writes. Classifies
+      // each table EXISTS_REUSABLE / EXISTS_NEEDS_REVIEW / MISSING_CAN_SEED /
+      // BLOCKED_BY_CONFLICT / UNKNOWN.
+      flags.inspectCrmSchema = true;
+      flags.dryRun = false;
+    } else if (arg === '--plan-crm-schema') {
+      // Phase 141J — read-only CRM schema PLAN. Runs the same GET inspection,
+      // then prints the exact (future) creation plan in seed order. Still
+      // read-only: NO table/column/relationship creation. No commit flag.
+      flags.planCrmSchema = true;
+      flags.dryRun = false;
+    } else if (arg === '--seed-crm-schema') {
+      // Phase 141K — guarded CRM schema SEED. Dry-run by default: runs the same
+      // GET inspection + derives the seed plan and prints it. Live metadata
+      // creation happens ONLY when paired with the explicit commit flag.
+      flags.seedCrmSchema = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-crm-schema') {
+      // Phase 141K — the ONLY flag that authorizes live CRM schema metadata
+      // creation. Valid only alongside --seed-crm-schema.
+      flags.commitSeedCrmSchema = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -689,6 +720,9 @@ function parseArgs(argv) {
     flags.planPortfolioBoardingSchema,
     flags.seedPortfolioBoardingSchema,
     flags.repairPortfolioBoardingOptionalRelationships,
+    flags.inspectCrmSchema,
+    flags.planCrmSchema,
+    flags.seedCrmSchema,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -716,6 +750,13 @@ function parseArgs(argv) {
   ) {
     bailParseArgs(
       '--commit-repair-portfolio-boarding-optional-relationships has no effect without --repair-portfolio-boarding-optional-relationships.',
+    );
+  }
+  // Phase 141K — the CRM schema commit flag only authorizes writes alongside
+  // the seed mode; on its own it must fail.
+  if (flags.commitSeedCrmSchema && !flags.seedCrmSchema) {
+    bailParseArgs(
+      '--commit-seed-crm-schema has no effect without --seed-crm-schema.',
     );
   }
   // --attribute is a shared "<table>.<column>" qualifier reused by
@@ -983,7 +1024,15 @@ const MODE = FLAGS.commit
                                             ? FLAGS.commitRepairPortfolioBoardingOptionalRelationships
                                               ? 'REPAIR-PORTFOLIO-BOARDING-OPTIONAL-RELATIONSHIPS (COMMIT — optional lookup only)'
                                               : 'REPAIR-PORTFOLIO-BOARDING-OPTIONAL-RELATIONSHIPS (dry-run)'
-                                            : 'DRY-RUN';
+                                            : FLAGS.inspectCrmSchema
+                                              ? 'INSPECT-CRM-SCHEMA (read-only)'
+                                              : FLAGS.planCrmSchema
+                                                ? 'PLAN-CRM-SCHEMA (read-only, dry-run only)'
+                                                : FLAGS.seedCrmSchema
+                                                  ? FLAGS.commitSeedCrmSchema
+                                                    ? 'SEED-CRM-SCHEMA (COMMIT — live metadata create)'
+                                                    : 'SEED-CRM-SCHEMA (dry-run)'
+                                                  : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -1000,6 +1049,7 @@ if (
   FLAGS.commitSubgridCleanup ||
   FLAGS.commitViewCleanup ||
   FLAGS.commitSeedClient ||
+  FLAGS.commitSeedCrmSchema ||
   FLAGS.commitSeedProductReferences ||
   FLAGS.commitSeedManagerEntitlement ||
   FLAGS.commitSeedExecutivePrimaryWorkspace ||
@@ -7343,6 +7393,583 @@ async function runSeedPortfolioBoardingSchema(token, envUrl, commit) {
   console.log('Done. Schema metadata created. No loan records, no documents, no app-runtime writes.');
 }
 
+// ---------------------------------------------------------------------------
+// Phase 141J-K — CRM Dataverse schema inspect / plan / guarded seed
+//
+// inspect + plan are READ-ONLY (GET only). seed is dry-run by default and is
+// READ-ONLY in dry-run; live metadata creation happens ONLY inside the commit
+// branch of runSeedCrmSchema, reached only when --commit-seed-crm-schema is set
+// AND every inspection gate passes. There is NO DELETE, no column mutation, no
+// publish call, no bypass header, no record creation, and no CRM borrower
+// outreach (no email / SMS / upload link) anywhere in this path.
+// ---------------------------------------------------------------------------
+
+const CRM_PREFIX = CR664_PUBLISHER_PREFIX; // 'cr664'
+
+// The 10 candidate CRM tables (organization first, then the rest in seed order).
+const CRM_CANDIDATE_TABLES = [
+  { logical: 'cr664_crmorganization', display: 'CRM Organization', root: true },
+  { logical: 'cr664_crmperson', display: 'CRM Person', root: false },
+  { logical: 'cr664_crmcontactpoint', display: 'CRM Contact Point', root: false },
+  { logical: 'cr664_crmrelationship', display: 'CRM Relationship', root: false },
+  { logical: 'cr664_crmroleassignment', display: 'CRM Role Assignment', root: false },
+  { logical: 'cr664_crmcommunicationpreference', display: 'CRM Communication Preference', root: false },
+  { logical: 'cr664_crmcontactauthorization', display: 'CRM Contact Authorization', root: false },
+  { logical: 'cr664_crmvendorprofile', display: 'CRM Vendor Profile', root: false },
+  { logical: 'cr664_crmtimelineevent', display: 'CRM Timeline Event', root: false },
+  { logical: 'cr664_crmauditentry', display: 'CRM Audit Entry', root: false },
+];
+
+// Existing project tables CRM records may reuse / link to.
+const CRM_REUSE_TABLES = [
+  'cr664_clientrelationship',
+  'cr664_banker',
+  'cr664_platformuser',
+  'cr664_team',
+  'cr664_loandeal',
+  'cr664_portfolioboardedloan',
+  'systemuser',
+];
+
+// External (non-CRM) optional lookup targets. Their absence is a warning only —
+// the optional relationship that points at them is skipped, never a blocker.
+const CRM_EXTERNAL_LOOKUP_TARGETS = [
+  'cr664_portfolioboardedloan',
+  'cr664_loandeal',
+  'cr664_team',
+  'cr664_platformuser',
+];
+
+const CRM_ORG = 'cr664_crmorganization';
+const CRM_PERSON = 'cr664_crmperson';
+
+function crmOrgLookup(schema, label) {
+  return { schema, target: CRM_ORG, label, required: false };
+}
+function crmPersonLookup(schema, label) {
+  return { schema, target: CRM_PERSON, label, required: false };
+}
+
+// Script-local CRM seed plan. Columns are [shortName, typeCode]; type codes:
+//   s=string, m=memo(multiline), i=integer, b=boolean, t=datetime.
+// Picklist plan columns are seeded as TEXT (option sets are deferred — see the
+// schema plan safety note). JSON fields are memo. All lookups are optional.
+const CRM_SEED_TABLES = [
+  {
+    logical: CRM_ORG, display: 'CRM Organization', plural: 'CRM Organizations',
+    columns: [
+      ['organizationidtext', 's'], ['legalname', 's'], ['dbaname', 's'], ['displayname', 's'],
+      ['organizationtype', 's'], ['taxidpresent', 'b'], ['industry', 's'], ['naicscode', 's'],
+      ['stateofformation', 's'], ['primaryaddressjson', 'm'], ['mailingaddressjson', 'm'],
+      ['website', 's'], ['status', 's'], ['relationshipstartdate', 't'], ['relationshipenddate', 't'],
+      ['sourcesystem', 's'], ['sourcerecordid', 's'], ['notes', 'm'], ['createdbytext', 's'],
+      ['createdat', 't'], ['updatedbytext', 's'], ['updatedat', 't'],
+    ],
+    lookups: [],
+  },
+  {
+    logical: CRM_PERSON, display: 'CRM Person', plural: 'CRM People',
+    columns: [
+      ['personidtext', 's'], ['firstname', 's'], ['lastname', 's'], ['displayname', 's'],
+      ['title', 's'], ['rolesummary', 's'], ['status', 's'], ['sourcesystem', 's'],
+      ['sourcerecordid', 's'], ['notes', 'm'], ['createdbytext', 's'], ['createdat', 't'],
+      ['updatedbytext', 's'], ['updatedat', 't'],
+    ],
+    lookups: [crmOrgLookup('cr664_EmployerOrganization', 'Employer organization')],
+  },
+  {
+    logical: 'cr664_crmcontactpoint', display: 'CRM Contact Point', plural: 'CRM Contact Points',
+    columns: [
+      ['contactpointidtext', 's'], ['ownertype', 's'], ['owneridtext', 's'], ['contacttype', 's'],
+      ['value', 's'], ['label', 's'], ['preferred', 'b'], ['verified', 'b'], ['donotcontact', 'b'],
+      ['restricteduse', 'b'], ['authorizationstatus', 's'], ['lastverifieddate', 't'],
+      ['staleafterdays', 'i'], ['notes', 'm'],
+    ],
+    lookups: [crmOrgLookup('cr664_Organization', 'Organization'), crmPersonLookup('cr664_Person', 'Person')],
+  },
+  {
+    logical: 'cr664_crmrelationship', display: 'CRM Relationship', plural: 'CRM Relationships',
+    columns: [
+      ['relationshipidtext', 's'], ['sourceentitytype', 's'], ['sourceentityid', 's'],
+      ['targetentitytype', 's'], ['targetentityid', 's'], ['relationshiptype', 's'], ['role', 's'],
+      ['startdate', 't'], ['enddate', 't'], ['active', 'b'], ['evidencedocumentid', 's'], ['notes', 'm'],
+    ],
+    lookups: [
+      crmOrgLookup('cr664_SourceOrganization', 'Source organization'),
+      crmOrgLookup('cr664_TargetOrganization', 'Target organization'),
+      crmPersonLookup('cr664_SourcePerson', 'Source person'),
+      crmPersonLookup('cr664_TargetPerson', 'Target person'),
+      { schema: 'cr664_BoardedLoan', target: 'cr664_portfolioboardedloan', label: 'Boarded loan', required: false },
+      { schema: 'cr664_OriginatedLoanDeal', target: 'cr664_loandeal', label: 'Originated loan deal', required: false },
+    ],
+  },
+  {
+    logical: 'cr664_crmroleassignment', display: 'CRM Role Assignment', plural: 'CRM Role Assignments',
+    columns: [
+      ['roleassignmentidtext', 's'], ['entitytype', 's'], ['entityid', 's'], ['roletype', 's'],
+      ['assignedtotype', 's'], ['assignedtoid', 's'], ['loanid', 's'], ['boardedloanid', 's'],
+      ['annualreviewpackageid', 's'], ['startdate', 't'], ['enddate', 't'], ['active', 'b'],
+      ['authoritylevel', 's'], ['notes', 'm'],
+    ],
+    lookups: [
+      crmOrgLookup('cr664_Organization', 'Organization'),
+      crmPersonLookup('cr664_Person', 'Person'),
+      { schema: 'cr664_BoardedLoan', target: 'cr664_portfolioboardedloan', label: 'Boarded loan', required: false },
+      { schema: 'cr664_OriginatedLoanDeal', target: 'cr664_loandeal', label: 'Originated loan deal', required: false },
+      { schema: 'cr664_Team', target: 'cr664_team', label: 'Team', required: false },
+      { schema: 'cr664_PlatformUser', target: 'cr664_platformuser', label: 'Platform user', required: false },
+    ],
+  },
+  {
+    logical: 'cr664_crmcommunicationpreference', display: 'CRM Communication Preference', plural: 'CRM Communication Preferences',
+    columns: [
+      ['preferenceidtext', 's'], ['ownertype', 's'], ['ownerid', 's'], ['preferredmethod', 's'],
+      ['allowedmethodsjson', 'm'], ['prohibitedmethodsjson', 'm'], ['consentstatus', 's'],
+      ['statementdeliverypreference', 's'], ['annualreviewrequestpreference', 's'],
+      ['covenantnoticepreference', 's'], ['insurancenoticepreference', 's'], ['escalationpreference', 's'],
+      ['uploadlinkpreference', 's'], ['effectivedate', 't'], ['expiresat', 't'],
+      ['evidencedocumentid', 's'], ['notes', 'm'],
+    ],
+    lookups: [crmOrgLookup('cr664_Organization', 'Organization'), crmPersonLookup('cr664_Person', 'Person')],
+  },
+  {
+    logical: 'cr664_crmcontactauthorization', display: 'CRM Contact Authorization', plural: 'CRM Contact Authorizations',
+    columns: [
+      ['authorizationidtext', 's'], ['ownertype', 's'], ['ownerid', 's'],
+      ['authorizedforfinancialrequests', 'b'], ['authorizedforuploadlinks', 'b'],
+      ['authorizedforloannotices', 'b'], ['authorizedforinsurancerequests', 'b'],
+      ['authorizedforcovenantrequests', 'b'], ['authorizedforpayoffrequests', 'b'],
+      ['authorizedforboardpackagecorrespondence', 'b'], ['authorizedforexaminerpackagecorrespondence', 'b'],
+      ['authorizedforservicingrequests', 'b'], ['authorizedby', 's'], ['authorizationdate', 't'],
+      ['expiresat', 't'], ['evidencedocumentid', 's'], ['notes', 'm'],
+    ],
+    lookups: [crmOrgLookup('cr664_Organization', 'Organization'), crmPersonLookup('cr664_Person', 'Person')],
+  },
+  {
+    logical: 'cr664_crmvendorprofile', display: 'CRM Vendor Profile', plural: 'CRM Vendor Profiles',
+    columns: [
+      ['vendoridtext', 's'], ['vendortype', 's'], ['approvedvendor', 'b'], ['approvalstatus', 's'],
+      ['approvaldate', 't'], ['expirationdate', 't'], ['insuranceonfile', 'b'], ['lastuseddate', 't'],
+      ['servicecategoriesjson', 'm'], ['relateddocumenttypesjson', 'm'], ['notes', 'm'],
+    ],
+    lookups: [crmOrgLookup('cr664_Organization', 'Organization')],
+  },
+  {
+    logical: 'cr664_crmtimelineevent', display: 'CRM Timeline Event', plural: 'CRM Timeline Events',
+    columns: [
+      ['eventidtext', 's'], ['entitytype', 's'], ['entityid', 's'], ['eventtype', 's'],
+      ['occurredat', 't'], ['actor', 's'], ['summary', 'm'], ['relatedloanid', 's'],
+      ['relatedboardedloanid', 's'], ['relatedannualreviewpackageid', 's'], ['relateddocumentid', 's'],
+      ['relatedevidenceid', 's'], ['notes', 'm'],
+    ],
+    lookups: [
+      crmOrgLookup('cr664_Organization', 'Organization'),
+      crmPersonLookup('cr664_Person', 'Person'),
+      { schema: 'cr664_BoardedLoan', target: 'cr664_portfolioboardedloan', label: 'Boarded loan', required: false },
+      { schema: 'cr664_OriginatedLoanDeal', target: 'cr664_loandeal', label: 'Originated loan deal', required: false },
+    ],
+  },
+  {
+    logical: 'cr664_crmauditentry', display: 'CRM Audit Entry', plural: 'CRM Audit Entries',
+    columns: [
+      ['auditidtext', 's'], ['actor', 's'], ['action', 's'], ['timestamp', 't'], ['entitytype', 's'],
+      ['entityid', 's'], ['fieldkey', 's'], ['previousvaluesummary', 'm'], ['newvaluesummary', 'm'],
+      ['reason', 'm'], ['evidencedocumentid', 's'], ['redacted', 'b'], ['notes', 'm'],
+    ],
+    lookups: [
+      crmOrgLookup('cr664_Organization', 'Organization'),
+      crmPersonLookup('cr664_Person', 'Person'),
+      { schema: 'cr664_BoardedLoan', target: 'cr664_portfolioboardedloan', label: 'Boarded loan', required: false },
+      { schema: 'cr664_OriginatedLoanDeal', target: 'cr664_loandeal', label: 'Originated loan deal', required: false },
+    ],
+  },
+];
+
+const CRM_SEED_ORDER = CRM_SEED_TABLES.map((t) => t.logical);
+
+function buildCrmTablePayload(tablePlan) {
+  return {
+    '@odata.type': 'Microsoft.Dynamics.CRM.EntityMetadata',
+    SchemaName: `cr664_${tablePlan.logical.replace(/^cr664_/, '').replace(/^./, (s) => s.toUpperCase())}`,
+    DisplayName: pbLabel(tablePlan.display),
+    DisplayCollectionName: pbLabel(tablePlan.plural),
+    Description: pbLabel(`${tablePlan.display} — CRM relationship master table.`),
+    OwnershipType: 'UserOwned',
+    HasActivities: false,
+    HasNotes: false,
+    IsActivity: false,
+    Attributes: [buildPrimaryNameAttribute()],
+  };
+}
+
+async function createCrmTableFromPlan(token, envUrl, tablePlan) {
+  return pbMetadataCreate(token, envUrl, 'EntityDefinitions', buildCrmTablePayload(tablePlan));
+}
+
+// A CRM-internal target (organization / person) is always available because it
+// is created in this same seed run when missing. External targets fall back to
+// the pre-existing related-table probe.
+function crmIsCandidateTable(logical) {
+  return CRM_SEED_TABLES.some((t) => t.logical === logical);
+}
+
+function crmResolveTargetExists(target, inspected, lookupTargetExists, tablesBeingCreated) {
+  if (crmIsCandidateTable(target)) {
+    const info = inspected[target];
+    return (info && info.exists === true) || tablesBeingCreated.includes(target);
+  }
+  return lookupTargetExists[target] === true;
+}
+
+async function runInspectCrmSchema(token, envUrl) {
+  console.log('');
+  console.log('Phase 141J — CRM schema inspection (Web API metadata, read-only)');
+  console.log(`   Expected publisher prefix: ${CRM_PREFIX}`);
+  console.log('   This mode issues GET requests only. No write of any kind is issued.');
+  console.log('');
+
+  const classifications = {};
+  for (const cand of CRM_CANDIDATE_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, cand.logical);
+    const classification = classifyBoardingTable(meta);
+    classifications[cand.logical] = classification;
+    console.log('-'.repeat(70));
+    console.log(`-- ${cand.display}${cand.root ? '  (ROOT)' : ''}`);
+    console.log(`   logicalName:    ${cand.logical}`);
+    console.log(`   classification: ${classification}`);
+    if (meta.exists) {
+      const t = meta.table;
+      console.log(`   schemaName:     ${t.SchemaName}`);
+      console.log(`   entitySetName:  ${t.EntitySetName}`);
+      console.log(`   ownershipType:  ${t.OwnershipType}`);
+      console.log(`   primaryId:      ${t.PrimaryIdAttribute}`);
+      console.log(`   primaryName:    ${t.PrimaryNameAttribute}`);
+      console.log(`   isActivity:     ${t.IsActivity}`);
+      console.log(`   hasNotes:       ${t.HasNotes}`);
+      console.log(`   attributeCount: ${(t.Attributes ?? []).length}`);
+    } else {
+      console.log('   (table does not exist — MISSING_CAN_SEED is the seed candidate state)');
+    }
+  }
+
+  console.log('');
+  console.log('-'.repeat(70));
+  console.log('Existing related tables (reuse / lookup-target candidates):');
+  for (const rel of CRM_REUSE_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, rel);
+    if (meta.exists) {
+      const t = meta.table;
+      console.log(`   ✓ ${rel}  (id=${t.PrimaryIdAttribute}, name=${t.PrimaryNameAttribute}, set=${t.EntitySetName}) — candidate lookup target`);
+    } else {
+      console.log(`   ✗ ${rel}  (not found — optional lookups to this target will be skipped)`);
+    }
+  }
+
+  console.log('');
+  console.log('='.repeat(70));
+  console.log('CRM_SCHEMA_RECOMMENDATION');
+  console.log('='.repeat(70));
+  const missing = Object.entries(classifications).filter(([, c]) => c === 'MISSING_CAN_SEED');
+  const conflicts = Object.entries(classifications).filter(([, c]) => c === 'BLOCKED_BY_CONFLICT');
+  const reusable = Object.entries(classifications).filter(([, c]) => c === 'EXISTS_REUSABLE' || c === 'EXISTS_NEEDS_REVIEW');
+  console.log(`   tables to create (MISSING_CAN_SEED): ${missing.length}`);
+  for (const [name] of missing) console.log(`     - ${name}`);
+  console.log(`   tables to reuse / review:            ${reusable.length}`);
+  for (const [name] of reusable) console.log(`     - ${name}`);
+  console.log(`   conflicts to resolve manually:       ${conflicts.length}`);
+  for (const [name] of conflicts) console.log(`     - ${name}`);
+  console.log('   relationships to create: optional org/person lookups + optional boarded-loan / loan-deal / team / platform-user links.');
+  console.log('   skipped optional relationships: any optional external target (boarded loan / loan deal / team / platform user) that is absent.');
+  console.log('   blockers before live CRM persistence: any BLOCKED_BY_CONFLICT, unconfirmed prefix, or missing required lookup target.');
+  console.log('   recommended next script mode: --plan-crm-schema');
+  console.log('');
+
+  await printCrmSchemaVerification(token, envUrl);
+
+  console.log('');
+  console.log('Read-only inspection. No table, column, relationship, or option set was created.');
+}
+
+// Concise post-seed verification (read-only). Resolves CRM-internal tables as
+// valid lookup targets and distinguishes required items from optional external
+// links (warning only). Never enables app-runtime CRM persistence.
+async function printCrmSchemaVerification(token, envUrl) {
+  const inspected = {};
+  for (const t of CRM_SEED_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, t.logical);
+    inspected[t.logical] = {
+      exists: meta.exists,
+      present: meta.exists
+        ? new Set((meta.table.Attributes ?? []).map((a) => String(a.LogicalName).toLowerCase()))
+        : new Set(),
+      classification: classifyBoardingTable(meta),
+    };
+  }
+  const lookupTargetExists = {};
+  for (const ext of CRM_EXTERNAL_LOOKUP_TARGETS) {
+    const meta = await getEntityDefinition(token, envUrl, ext);
+    lookupTargetExists[ext] = meta.exists;
+  }
+
+  let foundTables = 0;
+  const missingTables = [];
+  let expectedColumns = 0;
+  const missingColumns = [];
+  let requiredRelExpected = 0;
+  let requiredRelFound = 0;
+  const requiredRelMissing = [];
+  let optionalRelExpected = 0;
+  let optionalRelFound = 0;
+  const optionalRelMissing = [];
+  let conflicts = 0;
+  const tablesPresent = CRM_SEED_TABLES.filter((t) => inspected[t.logical].exists).map((t) => t.logical);
+
+  for (const t of CRM_SEED_TABLES) {
+    const info = inspected[t.logical];
+    if (info.exists && info.classification === 'BLOCKED_BY_CONFLICT') conflicts += 1;
+    if (info.exists) foundTables += 1;
+    else missingTables.push(t.logical);
+
+    for (const [name] of t.columns) {
+      expectedColumns += 1;
+      const logical = `cr664_${name}`;
+      if (!info.exists || !info.present.has(logical)) missingColumns.push(`${t.logical}.${logical}`);
+    }
+    for (const lk of t.lookups) {
+      const has = info.exists && info.present.has(lk.schema.toLowerCase());
+      const targetExists = crmResolveTargetExists(lk.target, inspected, lookupTargetExists, tablesPresent);
+      if (lk.required) {
+        requiredRelExpected += 1;
+        if (has) requiredRelFound += 1;
+        else requiredRelMissing.push(`${t.logical}.${lk.schema}`);
+      } else {
+        optionalRelExpected += 1;
+        if (has) optionalRelFound += 1;
+        else optionalRelMissing.push(`${t.logical}.${lk.schema} → ${lk.target}${targetExists ? '' : ' (target absent)'}`);
+      }
+    }
+  }
+
+  const safeForCrmRuntimePersistenceCandidate =
+    missingTables.length === 0 &&
+    missingColumns.length === 0 &&
+    requiredRelMissing.length === 0 &&
+    conflicts === 0;
+
+  console.log('='.repeat(70));
+  console.log('CRM_SCHEMA_VERIFICATION');
+  console.log('='.repeat(70));
+  console.log(`   target tables expected:            ${CRM_SEED_TABLES.length}`);
+  console.log(`   target tables found:               ${foundTables}`);
+  console.log(`   target tables missing:             ${missingTables.length}`);
+  for (const x of missingTables) console.log(`      - ${x}`);
+  console.log(`   target columns expected:           ${expectedColumns}`);
+  console.log(`   target columns missing:            ${missingColumns.length}`);
+  console.log(`   required relationships expected:   ${requiredRelExpected}`);
+  console.log(`   required relationships found:      ${requiredRelFound}`);
+  console.log(`   required relationships missing:    ${requiredRelMissing.length}`);
+  for (const x of requiredRelMissing) console.log(`      - ${x}`);
+  console.log(`   optional relationships expected:   ${optionalRelExpected}`);
+  console.log(`   optional relationships found:      ${optionalRelFound}`);
+  console.log(`   optional relationships missing:    ${optionalRelMissing.length} (warning only)`);
+  for (const x of optionalRelMissing) console.log(`      ~ ${x}`);
+  console.log(`   safeForCrmRuntimePersistenceCandidate: ${safeForCrmRuntimePersistenceCandidate}`);
+  console.log('   NOTE: app runtime CRM persistence is NOT enabled. This is a schema-readiness');
+  console.log('   signal only — no CRM writes happen from the app.');
+}
+
+async function runPlanCrmSchema(token, envUrl) {
+  console.log('');
+  console.log('Phase 141J-K — CRM schema PLAN (read-only)');
+  console.log('   Phase 141J-K plan mode does not create Dataverse schema unless --seed-crm-schema is used with --commit-seed-crm-schema.');
+  console.log('');
+  console.log('   DRY_RUN_ONLY: true');
+  console.log('   LIVE_WRITES_ENABLED: false');
+  console.log('   COMMIT_FLAG_AVAILABLE: false');
+  console.log('');
+
+  const classifications = {};
+  for (const cand of CRM_CANDIDATE_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, cand.logical);
+    classifications[cand.logical] = classifyBoardingTable(meta);
+  }
+
+  console.log('Planned tables (seed order):');
+  CRM_SEED_ORDER.forEach((logical, idx) => {
+    console.log(`   ${idx + 1}. ${logical}  [${classifications[logical]}]`);
+  });
+  console.log('');
+  console.log('Planned columns: see src/crm/crmDataverseSchemaPlan.ts');
+  console.log('   (CRM_TARGET_COLUMNS) — primary name + typed scalars per table; picklist plan columns seeded as TEXT.');
+  console.log('');
+  console.log('Planned relationships (seed order): optional org/person lookups plus optional');
+  console.log('   external links (cr664_BoardedLoan → cr664_portfolioboardedloan, cr664_OriginatedLoanDeal');
+  console.log('   → cr664_loandeal, cr664_Team → cr664_team, cr664_PlatformUser → cr664_platformuser).');
+  console.log('');
+  console.log('Planned option sets (metadata plan only — NOT created in this phase):');
+  console.log('   organization type, person status, contact type, authorization status, relationship type,');
+  console.log('   role type, vendor type, consent status, communication method, timeline event type, CRM record status.');
+  console.log('');
+  const conflicts = Object.entries(classifications).filter(([, c]) => c === 'BLOCKED_BY_CONFLICT');
+  console.log('Blockers:');
+  if (conflicts.length === 0) {
+    console.log('   - none detected by metadata (operator must still confirm publisher prefix + lookup targets).');
+  } else {
+    for (const [name] of conflicts) console.log(`   - BLOCKED_BY_CONFLICT: ${name}`);
+  }
+  console.log('');
+  console.log('Skipped optional relationships: any optional external target that is absent at seed time.');
+  console.log('');
+  console.log('Required manual review before any future seed:');
+  console.log('   - confirm publisher prefix cr664 owns every name');
+  console.log('   - confirm no legacy artifact occupies a candidate name');
+  console.log('   - confirm optional external targets (boarded loan / loan deal / team / platform user) where links are wanted');
+  console.log('');
+  console.log('Future seed command:');
+  console.log('   node scripts/phase122-lookup-repair.mjs --seed-crm-schema                            (dry-run)');
+  console.log('   node scripts/phase122-lookup-repair.mjs --seed-crm-schema --commit-seed-crm-schema   (commit)');
+  console.log('');
+  console.log('Read-only plan. No table, column, relationship, or option set was created.');
+}
+
+async function runSeedCrmSchema(token, envUrl, commit) {
+  console.log('');
+  console.log('Phase 141K — CRM schema SEED');
+  console.log('   Phase 141K creates schema metadata only — never CRM records, never');
+  console.log('   borrower outreach, never upload links, never app-runtime CRM writes.');
+  console.log(`   DRY_RUN_ONLY: ${commit ? 'false' : 'true'}`);
+  if (commit) console.log('   COMMIT_CONFIRMED: true');
+  console.log('');
+
+  // --- Read-only inspection (GET only) ----------------------------------
+  const inspected = {};
+  for (const t of CRM_SEED_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, t.logical);
+    const classification = classifyBoardingTable(meta);
+    const present = meta.exists
+      ? new Set((meta.table.Attributes ?? []).map((a) => String(a.LogicalName).toLowerCase()))
+      : new Set();
+    inspected[t.logical] = { exists: meta.exists, classification, present };
+  }
+
+  const lookupTargetExists = {};
+  for (const ext of CRM_EXTERNAL_LOOKUP_TARGETS) {
+    const meta = await getEntityDefinition(token, envUrl, ext);
+    lookupTargetExists[ext] = meta.exists;
+  }
+
+  // --- Build the create / reuse / skip lists ----------------------------
+  const prefixConfirmed = CR664_PUBLISHER_PREFIX === CRM_PREFIX;
+  const blockers = [];
+  const warnings = [];
+  if (!prefixConfirmed) blockers.push(`Publisher prefix not confirmed (expected ${CRM_PREFIX}).`);
+
+  const tablesToCreate = [];
+  const tablesToReuse = [];
+  const columnCreates = [];
+  const relCreates = [];
+  const skippedOptionalRelationships = [];
+
+  for (const t of CRM_SEED_TABLES) {
+    const info = inspected[t.logical];
+    if (info.classification === 'BLOCKED_BY_CONFLICT') {
+      blockers.push(`BLOCKED_BY_CONFLICT: ${t.logical} (legacy / wrong-prefix artifact).`);
+      continue;
+    }
+    if (info.exists) tablesToReuse.push(t.logical);
+    else tablesToCreate.push(t.logical);
+
+    for (const [name, type] of t.columns) {
+      const logical = `cr664_${name}`;
+      if (!info.exists || !info.present.has(logical)) {
+        columnCreates.push({ table: t.logical, name, type });
+      }
+    }
+  }
+
+  // Resolve lookups after the create list is known (CRM-internal targets that
+  // are being created in this same run count as available).
+  for (const t of CRM_SEED_TABLES) {
+    const info = inspected[t.logical];
+    if (info.classification === 'BLOCKED_BY_CONFLICT') continue;
+    for (const lk of t.lookups) {
+      const lookupLogical = lk.schema.toLowerCase();
+      const alreadyPresent = info.exists && info.present.has(lookupLogical);
+      if (alreadyPresent) continue;
+      const targetExists = crmResolveTargetExists(lk.target, inspected, lookupTargetExists, tablesToCreate);
+      if (!targetExists) {
+        if (lk.required) {
+          blockers.push(`Required lookup target ${lk.target} is missing for ${lk.schema}.`);
+        } else {
+          skippedOptionalRelationships.push(`${t.logical}.${lk.schema} → ${lk.target}`);
+          warnings.push(`Optional lookup target ${lk.target} absent; skipping ${lk.schema}.`);
+        }
+        continue;
+      }
+      relCreates.push({ referencingEntity: t.logical, lookup: lk });
+    }
+  }
+
+  const safeToCommit = blockers.length === 0 && prefixConfirmed;
+
+  // --- Print the plan ----------------------------------------------------
+  console.log(`Tables to create (${tablesToCreate.length}):`);
+  for (const x of tablesToCreate) console.log(`   + ${x}`);
+  console.log(`Tables to reuse (${tablesToReuse.length}):`);
+  for (const x of tablesToReuse) console.log(`   = ${x}`);
+  console.log(`Columns to create: ${columnCreates.length}`);
+  console.log(`Relationships to create (${relCreates.length}):`);
+  for (const r of relCreates) console.log(`   + ${r.referencingEntity}.${r.lookup.schema} → ${r.lookup.target}`);
+  console.log(`Skipped optional relationships (${skippedOptionalRelationships.length}):`);
+  for (const x of skippedOptionalRelationships) console.log(`   ~ ${x}`);
+  console.log('Blockers:');
+  if (blockers.length === 0) console.log('   (none)');
+  for (const b of blockers) console.log(`   ! ${b}`);
+  for (const w of warnings) console.log(`   (warn) ${w}`);
+  console.log(`safeToCommit: ${safeToCommit}`);
+  console.log('');
+
+  // --- Dry-run stops here (no write of any kind) ------------------------
+  if (!commit) {
+    console.log('Dry-run only — no metadata write issued. Review this plan, then re-run');
+    console.log('with --seed-crm-schema --commit-seed-crm-schema.');
+    console.log('No table, column, relationship, or record was created.');
+    return;
+  }
+
+  // --- Commit gate (fail closed) ----------------------------------------
+  if (!safeToCommit) {
+    bail(`Refusing to commit: ${blockers.length} blocker(s). Resolve them and re-inspect.`);
+    return;
+  }
+
+  console.log('Creating missing CRM schema in seed order (metadata only)…');
+  for (const tableLogical of tablesToCreate) {
+    const plan = CRM_SEED_TABLES.find((t) => t.logical === tableLogical);
+    await createCrmTableFromPlan(token, envUrl, plan);
+    console.log(`   created table ${tableLogical}`);
+  }
+  for (const cc of columnCreates) {
+    const creator = pbColumnCreatorForType(cc.type);
+    await creator(token, envUrl, cc.table, cc.name, cc.name);
+    console.log(`   created column ${cc.table}.cr664_${cc.name}`);
+  }
+  for (const r of relCreates) {
+    await createLookupRelationshipFromPlan(token, envUrl, r.referencingEntity, r.lookup);
+    console.log(`   created relationship ${r.referencingEntity}.${r.lookup.schema}`);
+  }
+
+  // --- Verification read -------------------------------------------------
+  console.log('');
+  console.log('Verification (re-reading metadata):');
+  let okTables = 0;
+  for (const tableLogical of tablesToCreate) {
+    if (await verifyTableCreated(token, envUrl, tableLogical)) okTables += 1;
+  }
+  console.log(`   tables verified: ${okTables}/${tablesToCreate.length}`);
+  console.log('Done. CRM schema metadata created. No CRM records, no outreach, no app-runtime writes.');
+}
+
 async function main() {
   // === Pure diagnostic: print the lookup-creation payload(s) ===
   // No pac auth, no Web API call, no write. Useful when an operator
@@ -7477,6 +8104,25 @@ async function main() {
       mainEnvUrl,
       FLAGS.commitRepairPortfolioBoardingOptionalRelationships,
     );
+    return;
+  }
+
+  // === Phase 141J — read-only CRM schema inspection ===
+  if (FLAGS.inspectCrmSchema) {
+    await runInspectCrmSchema(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 141J — read-only CRM schema PLAN ===
+  if (FLAGS.planCrmSchema) {
+    await runPlanCrmSchema(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 141K — guarded CRM schema SEED ===
+  // Dry-run by default; live metadata creation only with the commit flag.
+  if (FLAGS.seedCrmSchema) {
+    await runSeedCrmSchema(mainToken, mainEnvUrl, FLAGS.commitSeedCrmSchema);
     return;
   }
 

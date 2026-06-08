@@ -1631,3 +1631,40 @@ describe('Phase 141B-H — CRM relationship master exists', () => {
     expect(doc).toMatch(/no fake (customer|data)/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 141J-K — CRM Dataverse schema inspection + guarded seed
+// ---------------------------------------------------------------------------
+
+describe('Phase 141J-K — CRM Dataverse schema inspection + seed foundation exists', () => {
+  const REQUIRED_141JK_FILES: readonly string[] = [
+    'docs/PHASE_141J_K_CRM_DATAVERSE_SCHEMA_INSPECTION_AND_SEED.md',
+    'src/crm/crmDataverseSchemaPlan.ts',
+    'src/crm/crmDataverseSchemaPlan.test.ts',
+    'src/crm/deriveCrmSchemaInspectionReport.ts',
+    'src/crm/deriveCrmSchemaInspectionReport.test.ts',
+    'src/crm/deriveCrmSchemaSeedPlan.ts',
+    'src/crm/deriveCrmSchemaSeedPlan.test.ts',
+  ];
+  for (const rel of REQUIRED_141JK_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_141J_K_CRM_DATAVERSE_SCHEMA_INSPECTION_AND_SEED.md');
+
+  it('the doc pins the inspect → plan → dry-run → commit → verify workflow', () => {
+    expect(doc).toMatch(/--inspect-crm-schema/);
+    expect(doc).toMatch(/--plan-crm-schema/);
+    expect(doc).toMatch(/--seed-crm-schema/);
+    expect(doc).toMatch(/--commit-seed-crm-schema/);
+  });
+
+  it('the doc pins the safety model: no app-runtime CRM writes, no outreach, dry-run default', () => {
+    expect(doc).toMatch(/no app[- ]runtime CRM writes/i);
+    expect(doc).toMatch(/dry[- ]run/i);
+    expect(doc).toMatch(/no borrower outreach/i);
+    expect(doc).toMatch(/no fake (customer|data|CRM data)/i);
+  });
+});
