@@ -338,6 +338,10 @@ function parseArgs(argv) {
     // Never creates loan records, never enables app-runtime persistence.
     seedPortfolioBoardingSchema: false,
     commitSeedPortfolioBoardingSchema: false,
+    // Phase 140K — narrow guarded repair of ONLY the optional
+    // evidence→document lookup. Dry-run by default; commit flag required.
+    repairPortfolioBoardingOptionalRelationships: false,
+    commitRepairPortfolioBoardingOptionalRelationships: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -650,6 +654,16 @@ function parseArgs(argv) {
       // Phase 140J — the ONLY flag that authorizes live schema metadata
       // creation. Valid only alongside --seed-portfolio-boarding-schema.
       flags.commitSeedPortfolioBoardingSchema = true;
+    } else if (arg === '--repair-portfolio-boarding-optional-relationships') {
+      // Phase 140K — narrow repair mode. Dry-run by default: inspects and
+      // reports ONLY the missing optional evidence→document lookup. Live
+      // creation requires the explicit commit flag below.
+      flags.repairPortfolioBoardingOptionalRelationships = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-repair-portfolio-boarding-optional-relationships') {
+      // Phase 140K — authorizes creating ONLY the optional evidence→document
+      // lookup. Valid only alongside the repair mode.
+      flags.commitRepairPortfolioBoardingOptionalRelationships = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -674,6 +688,7 @@ function parseArgs(argv) {
     flags.inspectPortfolioBoardingSchema,
     flags.planPortfolioBoardingSchema,
     flags.seedPortfolioBoardingSchema,
+    flags.repairPortfolioBoardingOptionalRelationships,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -691,6 +706,16 @@ function parseArgs(argv) {
   ) {
     bailParseArgs(
       '--commit-seed-portfolio-boarding-schema has no effect without --seed-portfolio-boarding-schema.',
+    );
+  }
+  // Phase 140K — the optional-relationship repair commit flag is inert on its
+  // own; it only authorizes writes alongside the repair mode.
+  if (
+    flags.commitRepairPortfolioBoardingOptionalRelationships &&
+    !flags.repairPortfolioBoardingOptionalRelationships
+  ) {
+    bailParseArgs(
+      '--commit-repair-portfolio-boarding-optional-relationships has no effect without --repair-portfolio-boarding-optional-relationships.',
     );
   }
   // --attribute is a shared "<table>.<column>" qualifier reused by
@@ -954,7 +979,11 @@ const MODE = FLAGS.commit
                                           ? FLAGS.commitSeedPortfolioBoardingSchema
                                             ? 'SEED-PORTFOLIO-BOARDING-SCHEMA (COMMIT — live metadata create)'
                                             : 'SEED-PORTFOLIO-BOARDING-SCHEMA (dry-run)'
-                                          : 'DRY-RUN';
+                                          : FLAGS.repairPortfolioBoardingOptionalRelationships
+                                            ? FLAGS.commitRepairPortfolioBoardingOptionalRelationships
+                                              ? 'REPAIR-PORTFOLIO-BOARDING-OPTIONAL-RELATIONSHIPS (COMMIT — optional lookup only)'
+                                              : 'REPAIR-PORTFOLIO-BOARDING-OPTIONAL-RELATIONSHIPS (dry-run)'
+                                            : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -974,7 +1003,8 @@ if (
   FLAGS.commitSeedProductReferences ||
   FLAGS.commitSeedManagerEntitlement ||
   FLAGS.commitSeedExecutivePrimaryWorkspace ||
-  FLAGS.commitSeedPortfolioBoardingSchema
+  FLAGS.commitSeedPortfolioBoardingSchema ||
+  FLAGS.commitRepairPortfolioBoardingOptionalRelationships
 ) {
   console.log('⚠  WRITE MODE — script may perform live Dataverse writes if every');
   console.log('   safety gate passes. Press Ctrl+C now to abort.');
@@ -6635,7 +6665,84 @@ async function runInspectPortfolioBoardingSchema(token, envUrl) {
   console.log('   blockers before live persistence: any BLOCKED_BY_CONFLICT, unconfirmed prefix, or missing required lookup target.');
   console.log('   recommended next script mode: --plan-portfolio-boarding-schema');
   console.log('');
+
+  // --- Phase 140K verification section (read-only) ----------------------
+  await printPortfolioBoardingVerification(token, envUrl);
+
+  console.log('');
   console.log('Read-only inspection. No table, column, relationship, or option set was created.');
+}
+
+// Phase 140K — concise post-seed verification (read-only). Resolves internal
+// portfolio boarding tables as valid lookup targets and distinguishes required
+// items (blockers) from the optional evidence→document lookup (warning).
+async function printPortfolioBoardingVerification(token, envUrl) {
+  let foundTables = 0;
+  const missingTables = [];
+  let expectedColumns = 0;
+  const missingColumns = [];
+  let requiredRelExpected = 0;
+  let requiredRelFound = 0;
+  const requiredRelMissing = [];
+  let optionalRelExpected = 0;
+  let optionalRelFound = 0;
+  const optionalRelMissing = [];
+  let conflicts = 0;
+
+  for (const t of PB_SEED_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, t.logical);
+    const present = meta.exists
+      ? new Set((meta.table.Attributes ?? []).map((a) => String(a.LogicalName).toLowerCase()))
+      : new Set();
+    if (meta.exists && classifyBoardingTable(meta) === 'BLOCKED_BY_CONFLICT') conflicts += 1;
+    if (meta.exists) foundTables += 1;
+    else missingTables.push(t.logical);
+
+    for (const [name] of t.columns) {
+      expectedColumns += 1;
+      const logical = `cr664_${name}`;
+      if (!meta.exists || !present.has(logical)) missingColumns.push(`${t.logical}.${logical}`);
+    }
+    for (const lk of t.lookups) {
+      const has = meta.exists && present.has(lk.schema.toLowerCase());
+      if (lk.required) {
+        requiredRelExpected += 1;
+        if (has) requiredRelFound += 1;
+        else requiredRelMissing.push(`${t.logical}.${lk.schema}`);
+      } else {
+        optionalRelExpected += 1;
+        if (has) optionalRelFound += 1;
+        else optionalRelMissing.push(`${t.logical}.${lk.schema} → ${lk.target}`);
+      }
+    }
+  }
+
+  const safeForRuntimePersistenceCandidate =
+    missingTables.length === 0 &&
+    missingColumns.length === 0 &&
+    requiredRelMissing.length === 0 &&
+    conflicts === 0;
+
+  console.log('='.repeat(70));
+  console.log('PORTFOLIO_BOARDING_SCHEMA_VERIFICATION');
+  console.log('='.repeat(70));
+  console.log(`   target tables expected:            ${PB_SEED_TABLES.length}`);
+  console.log(`   target tables found:               ${foundTables}`);
+  console.log(`   target tables missing:             ${missingTables.length}`);
+  for (const x of missingTables) console.log(`      - ${x}`);
+  console.log(`   target columns expected:           ${expectedColumns}`);
+  console.log(`   target columns missing:            ${missingColumns.length}`);
+  console.log(`   required child→root lookups expected: ${requiredRelExpected}`);
+  console.log(`   required child→root lookups found:    ${requiredRelFound}`);
+  console.log(`   required child→root lookups missing:  ${requiredRelMissing.length}`);
+  for (const x of requiredRelMissing) console.log(`      - ${x}`);
+  console.log(`   optional relationships expected:   ${optionalRelExpected}`);
+  console.log(`   optional relationships found:      ${optionalRelFound}`);
+  console.log(`   optional relationships missing:    ${optionalRelMissing.length} (warning only)`);
+  for (const x of optionalRelMissing) console.log(`      ~ ${x}`);
+  console.log(`   safeForRuntimePersistenceCandidate: ${safeForRuntimePersistenceCandidate}`);
+  console.log('   NOTE: app runtime persistence is NOT enabled. This is a schema-readiness');
+  console.log('   signal only — no portfolio boarding writes happen from the app.');
 }
 
 async function runPlanPortfolioBoardingSchema(token, envUrl) {
@@ -7007,6 +7114,92 @@ function pbColumnCreatorForType(typeCode) {
   }
 }
 
+// Phase 140K — resolve whether a lookup target table exists. Internal
+// portfolio boarding candidate tables count as available when they already
+// exist (inspected) OR are being created in this same seed run. External
+// related tables fall back to the pre-existing related-table probe.
+function pbIsCandidateTable(logical) {
+  return PB_SEED_TABLES.some((t) => t.logical === logical) || logical === PB_ROOT;
+}
+
+function pbResolveTargetExists(target, inspected, lookupTargetExists, tablesBeingCreated) {
+  if (target === PB_ROOT) return true; // root is created in-plan
+  if (pbIsCandidateTable(target)) {
+    const info = inspected[target];
+    return (info && info.exists === true) || tablesBeingCreated.includes(target);
+  }
+  return lookupTargetExists[target] === true;
+}
+
+// Phase 140K — the only optional relationship this repair mode targets.
+const PB_OPTIONAL_REPAIR = Object.freeze({
+  sourceTable: 'cr664_portfolioboardedloanevidence',
+  targetTable: 'cr664_portfolioboardedloandocument',
+  lookup: {
+    schema: 'cr664_PortfolioBoardedLoanDocument',
+    target: 'cr664_portfolioboardedloandocument',
+    label: 'Portfolio Boarded Loan Document',
+    required: false,
+  },
+});
+
+async function runRepairPortfolioBoardingOptionalRelationships(token, envUrl, commit) {
+  console.log('');
+  console.log('Phase 140K — Portfolio boarding optional-relationship REPAIR');
+  console.log('   Targets ONLY the optional evidence→document lookup.');
+  console.log('   Creates no tables, no records, no documents; no app-runtime persistence.');
+  console.log(`   DRY_RUN_ONLY: ${commit ? 'false' : 'true'}`);
+  if (commit) console.log('   COMMIT_CONFIRMED: true');
+  console.log('');
+
+  const { sourceTable, targetTable, lookup } = PB_OPTIONAL_REPAIR;
+
+  // Read-only inspection of just the source + target tables.
+  const sourceMeta = await getEntityDefinition(token, envUrl, sourceTable);
+  const targetMeta = await getEntityDefinition(token, envUrl, targetTable);
+
+  if (!targetMeta.exists) {
+    bail(`Refusing to repair: target table ${targetTable} is missing.`);
+    return;
+  }
+  if (!sourceMeta.exists) {
+    bail(`Refusing to repair: source table ${sourceTable} is missing.`);
+    return;
+  }
+
+  const present = new Set(
+    (sourceMeta.table.Attributes ?? []).map((a) => String(a.LogicalName).toLowerCase()),
+  );
+  const relationshipExists = present.has(lookup.schema.toLowerCase());
+
+  if (relationshipExists) {
+    console.log(`No-op: ${sourceTable}.${lookup.schema} → ${targetTable} already exists (reused).`);
+    console.log('No write issued.');
+    return;
+  }
+
+  console.log('Missing optional relationship to create:');
+  console.log(`   + ${sourceTable}.${lookup.schema} → ${targetTable}`);
+  console.log('');
+
+  if (!commit) {
+    console.log('Dry-run only — no metadata write issued. Re-run with');
+    console.log('--repair-portfolio-boarding-optional-relationships --commit-repair-portfolio-boarding-optional-relationships.');
+    console.log('No table, column, record, or document was created.');
+    return;
+  }
+
+  // Commit: create ONLY the optional lookup relationship.
+  await createLookupRelationshipFromPlan(token, envUrl, sourceTable, lookup);
+  console.log(`   created relationship ${sourceTable}.${lookup.schema}`);
+
+  // Verify by re-reading metadata.
+  const ok = await verifyRelationshipCreated(token, envUrl, sourceTable, lookup.schema);
+  console.log('');
+  console.log(`Verification: ${sourceTable}.${lookup.schema} present = ${ok}`);
+  console.log('Done. Only the optional evidence→document lookup was created.');
+}
+
 async function runSeedPortfolioBoardingSchema(token, envUrl, commit) {
   console.log('');
   console.log('Phase 140J — Portfolio boarding schema SEED');
@@ -7067,9 +7260,16 @@ async function runSeedPortfolioBoardingSchema(token, envUrl, commit) {
       const lookupLogical = lk.schema.toLowerCase();
       const alreadyPresent = info.exists && info.present.has(lookupLogical);
       if (alreadyPresent) continue;
-      const targetExists = lk.target === PB_ROOT
-        ? true // root is created in-plan
-        : lookupTargetExists[lk.target] === true;
+      // Phase 140K fix: an optional lookup target that is itself a portfolio
+      // boarding candidate table (e.g. cr664_portfolioboardedloandocument) is
+      // resolved from the inspected candidate results — and from the in-plan
+      // create list — not only from the pre-existing external related tables.
+      const targetExists = pbResolveTargetExists(
+        lk.target,
+        inspected,
+        lookupTargetExists,
+        tablesToCreate,
+      );
       if (!targetExists) {
         if (lk.required) {
           blockers.push(`Required lookup target ${lk.target} is missing for ${lk.schema}.`);
@@ -7264,6 +7464,18 @@ async function main() {
       mainToken,
       mainEnvUrl,
       FLAGS.commitSeedPortfolioBoardingSchema,
+    );
+    return;
+  }
+
+  // === Phase 140K — guarded optional-relationship REPAIR ===
+  // Dry-run by default; creates ONLY the optional evidence→document lookup,
+  // and only with the commit flag.
+  if (FLAGS.repairPortfolioBoardingOptionalRelationships) {
+    await runRepairPortfolioBoardingOptionalRelationships(
+      mainToken,
+      mainEnvUrl,
+      FLAGS.commitRepairPortfolioBoardingOptionalRelationships,
     );
     return;
   }

@@ -1381,3 +1381,50 @@ describe('Phase 140J — guarded portfolio boarding schema seed foundation exist
     expect(script).toMatch(/never loan records/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140K — schema verification + optional-relationship repair
+// ---------------------------------------------------------------------------
+
+describe('Phase 140K — schema verification + optional-relationship repair foundation exists', () => {
+  const REQUIRED_140K_FILES: readonly string[] = [
+    'docs/PHASE_140K_PORTFOLIO_BOARDING_SCHEMA_VERIFICATION_AND_OPTIONAL_RELATIONSHIP_REPAIR.md',
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaVerificationReport.ts',
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaVerificationReport.test.ts',
+    // Earlier-phase artifacts must remain pinned.
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaSeedPlan.ts',
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaInspectionReport.ts',
+    'docs/PHASE_140J_PORTFOLIO_BOARDING_DATAVERSE_SCHEMA_SEED_MODE.md',
+    'docs/PHASE_140B_H_PORTFOLIO_LOAN_BOARDING_SYSTEM_OF_RECORD.md',
+  ];
+  for (const rel of REQUIRED_140K_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc(
+    'docs/PHASE_140K_PORTFOLIO_BOARDING_SCHEMA_VERIFICATION_AND_OPTIONAL_RELATIONSHIP_REPAIR.md',
+  );
+
+  it('the doc pins the repair mode (dry-run default), verification, and no runtime persistence', () => {
+    expect(doc).toMatch(/--repair-portfolio-boarding-optional-relationships/);
+    expect(doc).toMatch(/--commit-repair-portfolio-boarding-optional-relationships/);
+    expect(doc).toMatch(/evidence.{0,3}document/i);
+    expect(doc).toMatch(/no live app persistence/i);
+  });
+
+  it('the script exposes the repair mode, gates its commit flag, and adds the verification section', () => {
+    const script = readFileSync(
+      resolve(REPO_ROOT, 'scripts/phase122-lookup-repair.mjs'),
+      'utf8',
+    );
+    expect(script).toMatch(/'--repair-portfolio-boarding-optional-relationships'/);
+    expect(script).toMatch(/'--commit-repair-portfolio-boarding-optional-relationships'/);
+    expect(script).toMatch(
+      /--commit-repair-portfolio-boarding-optional-relationships has no effect without --repair-portfolio-boarding-optional-relationships/,
+    );
+    expect(script).toMatch(/PORTFOLIO_BOARDING_SCHEMA_VERIFICATION/);
+    expect(script).toMatch(/safeForRuntimePersistenceCandidate/);
+  });
+});

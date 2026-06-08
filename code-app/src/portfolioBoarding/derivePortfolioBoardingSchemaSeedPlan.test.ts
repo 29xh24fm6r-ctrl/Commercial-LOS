@@ -104,6 +104,28 @@ describe('Phase 140J — reuse and skip behavior', () => {
   });
 });
 
+describe('Phase 140K — the internal evidence→document target is created, not skipped', () => {
+  it('treats cr664_portfolioboardedloandocument as an internal target (relationship to create, not skipped)', () => {
+    // Every table exists and is reusable, but the evidence table is missing its
+    // evidence→document lookup column. Because the document table is itself a
+    // portfolio boarding target, the missing lookup must be queued for creation
+    // — never skipped as an "absent optional target".
+    const tables = ALL_TARGET_TABLE_LOGICAL_NAMES.map((logicalName) => ({
+      logicalName,
+      exists: true,
+      classification: 'EXISTS_REUSABLE' as TableClassification,
+      presentColumns: ['cr664_name', 'cr664_portfolioboardedloan'],
+    }));
+    const plan = seedPlanFrom({ inspectedTables: tables });
+    expect(plan.relationshipsToCreate).toContain(
+      'cr664_portfolioboardedloandocument_evidence',
+    );
+    expect(plan.skippedOptionalRelationships).not.toContain(
+      'cr664_portfolioboardedloandocument_evidence',
+    );
+  });
+});
+
 describe('Phase 140J — fail-closed commit gates', () => {
   it('a required lookup target absence blocks commit', () => {
     const plan = seedPlanFrom({

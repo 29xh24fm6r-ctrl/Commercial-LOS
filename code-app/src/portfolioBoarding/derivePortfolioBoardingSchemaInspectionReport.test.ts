@@ -112,6 +112,25 @@ describe('Phase 140I — fail-closed gates', () => {
   });
 });
 
+describe('Phase 140K — internal evidence→document relationship recognition', () => {
+  it('reports the evidence→document relationship as found when its lookup column is present', () => {
+    const tables = ALL_TARGET_TABLE_LOGICAL_NAMES.map((logicalName) => {
+      const present = ['cr664_name', 'cr664_portfolioboardedloan'];
+      if (logicalName === 'cr664_portfolioboardedloanevidence') {
+        present.push('cr664_portfolioboardedloandocument');
+      }
+      return {
+        logicalName,
+        exists: true,
+        classification: 'EXISTS_REUSABLE' as TableClassification,
+        presentColumns: present,
+      };
+    });
+    const r = derivePortfolioBoardingSchemaInspectionReport(input({ inspectedTables: tables }));
+    expect(r.relationshipsFound).toContain('cr664_portfolioboardedloandocument_evidence');
+  });
+});
+
 describe('Phase 140I — reusable tables are allowed', () => {
   it('all-reusable + clean gates → safeToSeed true, recommends reuse', () => {
     const tables = ALL_TARGET_TABLE_LOGICAL_NAMES.map((logicalName) => ({

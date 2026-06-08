@@ -4023,3 +4023,87 @@ describe('Phase 140J — no drift: no DELETE in the seed path, no command-center
     expect(SCRIPT).toMatch(/'--seed-executive-primary-workspace'/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140K — optional-relationship repair + internal-target resolution
+// ---------------------------------------------------------------------------
+
+describe('Phase 140K — internal lookup-target resolution fix', () => {
+  it('resolves candidate portfolio boarding tables as internal lookup targets', () => {
+    expect(SCRIPT).toMatch(/function\s+pbResolveTargetExists/);
+    expect(SCRIPT).toMatch(/function\s+pbIsCandidateTable/);
+    // The seed handler uses the resolver rather than the external-only probe.
+    const seed = sliceFunction('runSeedPortfolioBoardingSchema');
+    expect(seed).toMatch(/pbResolveTargetExists\(/);
+  });
+
+  it('the --inspect mode prints the verification section', () => {
+    const block = sliceFunction('printPortfolioBoardingVerification');
+    expect(block).toMatch(/PORTFOLIO_BOARDING_SCHEMA_VERIFICATION/);
+    expect(block).toMatch(/safeForRuntimePersistenceCandidate/);
+    expect(block).toMatch(/app runtime persistence is NOT enabled/i);
+    // Read-only: no mutation verbs.
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+    expect(block).not.toMatch(/PublishXml/);
+  });
+});
+
+describe('Phase 140K — guarded optional-relationship repair mode', () => {
+  it('exposes the repair mode + commit flag', () => {
+    expect(SCRIPT).toMatch(/'--repair-portfolio-boarding-optional-relationships'/);
+    expect(SCRIPT).toMatch(/'--commit-repair-portfolio-boarding-optional-relationships'/);
+    expect(SCRIPT).toMatch(/flags\.repairPortfolioBoardingOptionalRelationships\s*=\s*true/);
+    expect(SCRIPT).toMatch(/flags\.commitRepairPortfolioBoardingOptionalRelationships\s*=\s*true/);
+  });
+
+  it('the repair commit flag has no effect without the repair mode', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-repair-portfolio-boarding-optional-relationships has no effect without --repair-portfolio-boarding-optional-relationships/,
+    );
+  });
+
+  it('the repair mode is part of the exclusive-modes array', () => {
+    expect(SCRIPT).toMatch(/flags\.repairPortfolioBoardingOptionalRelationships,?\s*$/m);
+  });
+
+  it('targets ONLY the optional evidence→document lookup', () => {
+    // The single repair target is declared in the PB_OPTIONAL_REPAIR constant.
+    const constMatch = SCRIPT.match(/const PB_OPTIONAL_REPAIR = Object\.freeze\(\{[\s\S]*?\}\);/);
+    expect(constMatch).not.toBeNull();
+    const constBlock = constMatch![0];
+    expect(constBlock).toMatch(/sourceTable:\s*'cr664_portfolioboardedloanevidence'/);
+    expect(constBlock).toMatch(/targetTable:\s*'cr664_portfolioboardedloandocument'/);
+    expect(constBlock).toMatch(/schema:\s*'cr664_PortfolioBoardedLoanDocument'/);
+    expect(constBlock).toMatch(/required:\s*false/);
+  });
+
+  it('fails closed when the source or target table is missing', () => {
+    const block = sliceFunction('runRepairPortfolioBoardingOptionalRelationships');
+    expect(block).toMatch(/target table \$\{targetTable\} is missing/);
+    expect(block).toMatch(/source table \$\{sourceTable\} is missing/);
+  });
+
+  it('the repair handler issues no inline POST/PATCH/DELETE and no PublishXml; creates no tables/columns', () => {
+    const block = sliceFunction('runRepairPortfolioBoardingOptionalRelationships');
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).not.toMatch(/createCustomTableFromPlan\(/);
+    expect(block).not.toMatch(/create(Text|Memo|Integer|Decimal|Money|Boolean|DateTime)ColumnFromPlan\(/);
+    expect(block).not.toMatch(/createRecord|saveRecord/);
+  });
+
+  it('the dry-run return occurs BEFORE the only create call (commit-gated)', () => {
+    const block = sliceFunction('runRepairPortfolioBoardingOptionalRelationships');
+    const dryIdx = block.indexOf('Dry-run only — no metadata write issued');
+    const createIdx = block.indexOf('createLookupRelationshipFromPlan(');
+    expect(dryIdx).toBeGreaterThan(-1);
+    expect(createIdx).toBeGreaterThan(-1);
+    expect(dryIdx).toBeLessThan(createIdx);
+  });
+
+  it('commit branch creates ONLY the optional lookup relationship (no other create helper)', () => {
+    const block = sliceFunction('runRepairPortfolioBoardingOptionalRelationships');
+    expect(block).toMatch(/createLookupRelationshipFromPlan\(/);
+    expect(block).not.toMatch(/method:\s*'DELETE'/);
+  });
+});
