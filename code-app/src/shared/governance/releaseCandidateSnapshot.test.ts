@@ -1702,3 +1702,35 @@ describe('Phase 141L — CRM live persistence adapter foundation exists', () => 
     expect(doc).toMatch(/No app-runtime CRM writes/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 141M — annual review borrower request workflow (human-approved)
+// ---------------------------------------------------------------------------
+
+describe('Phase 141M — annual review borrower request workflow exists', () => {
+  const REQUIRED_141M_FILES: readonly string[] = [
+    'docs/PHASE_141M_ANNUAL_REVIEW_BORROWER_REQUEST_WORKFLOW.md',
+    'src/annualReview/annualReviewBorrowerRequestTypes.ts',
+    'src/annualReview/resolveAnnualReviewBorrowerRequestRecipients.ts',
+    'src/annualReview/buildAnnualReviewBorrowerRequestPackage.ts',
+    'src/annualReview/buildAnnualReviewBorrowerRequestDraft.ts',
+    'src/annualReview/deriveAnnualReviewBorrowerRequestWorkflow.ts',
+    'src/annualReview/AnnualReviewBorrowerRequestPanel.tsx',
+    'src/annualReview/annualReviewRequestFeatureFlags.ts',
+    'src/shared/governance/annualReviewBorrowerRequestGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_141M_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_141M_ANNUAL_REVIEW_BORROWER_REQUEST_WORKFLOW.md');
+
+  it('the doc pins human-approval, no sending, do-not-contact, no fake data', () => {
+    expect(doc).toMatch(/human[- ]approved|human approval/i);
+    expect(doc).toMatch(/sends nothing|no send path|Sending[\s\S]{0,40}disabled|safeForSend/i);
+    expect(doc).toMatch(/do-not-contact/i);
+    expect(doc).toMatch(/never invented|no fake|masked/i);
+  });
+});
