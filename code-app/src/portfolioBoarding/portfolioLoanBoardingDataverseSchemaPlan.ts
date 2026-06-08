@@ -697,6 +697,36 @@ export const PORTFOLIO_BOARDING_TARGET_RELATIONSHIPS: readonly TargetRelationshi
       cascadeBehavior: 'Referential',
       description: 'Optional link to the Client / Relationship record.',
     },
+    {
+      relationshipSchemaName: 'cr664_portfolioboardedloan_portfoliomanager',
+      fromTable: T.loan,
+      fromColumn: 'cr664_PortfolioManager',
+      toTable: 'systemuser',
+      cardinality: 'ManyToOne',
+      required: false,
+      cascadeBehavior: 'Referential',
+      description: 'Optional link to the portfolio manager (systemuser).',
+    },
+    {
+      relationshipSchemaName: 'cr664_portfolioboardedloan_assignedservicingowner',
+      fromTable: T.loan,
+      fromColumn: 'cr664_AssignedServicingOwner',
+      toTable: 'systemuser',
+      cardinality: 'ManyToOne',
+      required: false,
+      cascadeBehavior: 'Referential',
+      description: 'Optional link to the assigned servicing owner (systemuser).',
+    },
+    {
+      relationshipSchemaName: 'cr664_portfolioboardedloan_team',
+      fromTable: T.loan,
+      fromColumn: 'cr664_Team',
+      toTable: 'cr664_team',
+      cardinality: 'ManyToOne',
+      required: false,
+      cascadeBehavior: 'Referential',
+      description: 'Optional link to the owning Team, if a Team table exists.',
+    },
   ]);
 
 // ---------------------------------------------------------------------------

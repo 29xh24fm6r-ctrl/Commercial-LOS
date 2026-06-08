@@ -1519,3 +1519,39 @@ describe('Phase 140M-P — portfolio boarding operator workflow + FDIC package e
     expect(doc).toMatch(/no permission widening/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 140Q — final certification + release readiness
+// ---------------------------------------------------------------------------
+
+describe('Phase 140Q — portfolio boarding final certification + runtime gate exist', () => {
+  const REQUIRED_140Q_FILES: readonly string[] = [
+    'docs/PHASE_140Q_PORTFOLIO_BOARDING_FINAL_CERTIFICATION_AND_RELEASE_READINESS.md',
+    'src/portfolioBoarding/portfolioBoardingRuntimeSchemaGate.ts',
+    'src/portfolioBoarding/portfolioLoanBoardingLiveDataverseTransport.ts',
+    'src/portfolioBoarding/resolvePortfolioLoanBoardingPersistenceAdapter.ts',
+    'src/portfolioBoarding/portfolioBoardingFeatureFlags.ts',
+    'src/portfolioBoarding/portfolioLoanBoardingEndToEndSmoke.test.tsx',
+    'src/shared/governance/portfolioBoardingFinalCertification.test.ts',
+    // Earlier-phase artifacts must remain pinned.
+    'docs/PHASE_140M_P_PORTFOLIO_BOARDING_OPERATOR_UI_AND_FDIC_PACKAGE.md',
+    'docs/PHASE_140L_PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ADAPTER.md',
+  ];
+  for (const rel of REQUIRED_140Q_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const cert = readDoc(
+    'docs/PHASE_140Q_PORTFOLIO_BOARDING_FINAL_CERTIFICATION_AND_RELEASE_READINESS.md',
+  );
+
+  it('the cert doc pins disabled-by-default writes, schema scoping, no delete, rollback', () => {
+    expect(cert).toMatch(/disabled by default/i);
+    expect(cert).toMatch(/cr664_portfolioboardedloan/);
+    expect(cert).toMatch(/no delete/i);
+    expect(cert).toMatch(/Rollback plan/i);
+    expect(cert).toMatch(/does NOT enable runtime writes/i);
+  });
+});

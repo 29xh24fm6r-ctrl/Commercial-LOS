@@ -61,6 +61,8 @@ describe('Phase 140I — child lookup relationships back to the root table', () 
       ...ALL_TARGET_TABLE_LOGICAL_NAMES,
       'cr664_loandeal',
       'cr664_clientrelationship',
+      'systemuser',
+      'cr664_team',
     ]);
     for (const r of PORTFOLIO_BOARDING_TARGET_RELATIONSHIPS) {
       expect(ALL_TARGET_TABLE_LOGICAL_NAMES).toContain(r.fromTable);
