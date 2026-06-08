@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
@@ -433,6 +433,19 @@ describe('Phase 124B — banker filter integration', () => {
 // ---------------------------------------------------------------------------
 
 describe('Phase 124A — exception tape', () => {
+  // Phase 141I — the at-risk / stale aging buckets are derived against the
+  // runtime clock, while every fixture date here is anchored to the fixed
+  // `NOW` constant via `isoDaysAgo`. Freeze ONLY the Date clock to that same
+  // anchor so the buckets are deterministic regardless of the real calendar
+  // date. Real timers stay live (no `toFake: ['Date']` side effects on async).
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders Blocked / At risk / Missing fields / Stale buckets from the authorized records', () => {
     setAllReady({
       pipeline: [
