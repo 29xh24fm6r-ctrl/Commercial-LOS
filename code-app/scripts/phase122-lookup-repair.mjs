@@ -333,6 +333,11 @@ function parseArgs(argv) {
     // exists in Phase 140I — schema seeding is intentionally disabled.
     inspectPortfolioBoardingSchema: false,
     planPortfolioBoardingSchema: false,
+    // Phase 140J — guarded portfolio boarding schema SEED. Dry-run by
+    // default; live metadata creation requires the explicit commit flag.
+    // Never creates loan records, never enables app-runtime persistence.
+    seedPortfolioBoardingSchema: false,
+    commitSeedPortfolioBoardingSchema: false,
     help: false,
   };
   const args = argv.slice(2);
@@ -635,6 +640,16 @@ function parseArgs(argv) {
       // read-only: NO table/column/relationship creation. No commit flag.
       flags.planPortfolioBoardingSchema = true;
       flags.dryRun = false;
+    } else if (arg === '--seed-portfolio-boarding-schema') {
+      // Phase 140J — guarded schema SEED. Dry-run by default: runs the same
+      // GET inspection + derives the seed plan and prints it. Live metadata
+      // creation happens ONLY when paired with the explicit commit flag.
+      flags.seedPortfolioBoardingSchema = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-portfolio-boarding-schema') {
+      // Phase 140J — the ONLY flag that authorizes live schema metadata
+      // creation. Valid only alongside --seed-portfolio-boarding-schema.
+      flags.commitSeedPortfolioBoardingSchema = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -658,6 +673,7 @@ function parseArgs(argv) {
     flags.seedCopilotAuditTableMetadata,
     flags.inspectPortfolioBoardingSchema,
     flags.planPortfolioBoardingSchema,
+    flags.seedPortfolioBoardingSchema,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -666,6 +682,16 @@ function parseArgs(argv) {
   }
   if (flags.commitFormCleanup && flags.cleanupFormId === null) {
     bailParseArgs('--commit-form-cleanup has no effect without --cleanup-form <id>.');
+  }
+  // Phase 140J — the portfolio-boarding schema commit flag only authorizes
+  // writes alongside the seed mode; on its own it must fail.
+  if (
+    flags.commitSeedPortfolioBoardingSchema &&
+    !flags.seedPortfolioBoardingSchema
+  ) {
+    bailParseArgs(
+      '--commit-seed-portfolio-boarding-schema has no effect without --seed-portfolio-boarding-schema.',
+    );
   }
   // --attribute is a shared "<table>.<column>" qualifier reused by
   // --inspect-form, --inspect-view, and --cleanup-view. The field
@@ -924,7 +950,11 @@ const MODE = FLAGS.commit
                                       ? 'INSPECT-PORTFOLIO-BOARDING-SCHEMA (read-only)'
                                       : FLAGS.planPortfolioBoardingSchema
                                         ? 'PLAN-PORTFOLIO-BOARDING-SCHEMA (read-only, dry-run only)'
-                                        : 'DRY-RUN';
+                                        : FLAGS.seedPortfolioBoardingSchema
+                                          ? FLAGS.commitSeedPortfolioBoardingSchema
+                                            ? 'SEED-PORTFOLIO-BOARDING-SCHEMA (COMMIT — live metadata create)'
+                                            : 'SEED-PORTFOLIO-BOARDING-SCHEMA (dry-run)'
+                                          : 'DRY-RUN';
 console.log('='.repeat(70));
 console.log(`Phase 122B — Dataverse lookup repair script — mode: ${MODE}`);
 console.log('='.repeat(70));
@@ -943,7 +973,8 @@ if (
   FLAGS.commitSeedClient ||
   FLAGS.commitSeedProductReferences ||
   FLAGS.commitSeedManagerEntitlement ||
-  FLAGS.commitSeedExecutivePrimaryWorkspace
+  FLAGS.commitSeedExecutivePrimaryWorkspace ||
+  FLAGS.commitSeedPortfolioBoardingSchema
 ) {
   console.log('⚠  WRITE MODE — script may perform live Dataverse writes if every');
   console.log('   safety gate passes. Press Ctrl+C now to abort.');
@@ -6661,6 +6692,457 @@ async function runPlanPortfolioBoardingSchema(token, envUrl) {
   console.log('Read-only plan. No table, column, relationship, or option set was created.');
 }
 
+// ---------------------------------------------------------------------------
+// Phase 140J — Guarded Portfolio Boarding schema SEED (dry-run-first)
+//
+// Dry-run is the default and is READ-ONLY (GET only). Live metadata creation
+// happens ONLY inside the commit branch of runSeedPortfolioBoardingSchema,
+// which is reached only when --commit-seed-portfolio-boarding-schema is set
+// AND every inspection gate passes. There is NO DELETE, no column mutation,
+// no publish call, no bypass header, and no loan-record / sample-data write.
+// ---------------------------------------------------------------------------
+
+// Script-local seed plan. Columns are [shortName, typeCode]; type codes:
+//   s=string, m=memo(multiline), i=integer, d=decimal, n=money, b=boolean,
+//   t=datetime. Picklist plan columns are seeded as TEXT (option sets are
+//   deferred — see the schema plan safety note). JSON fields are memo.
+const PB_ROOT = 'cr664_portfolioboardedloan';
+const PB_ROOT_LOOKUP_SCHEMA = 'cr664_PortfolioBoardedLoan';
+
+function pbRootLookup() {
+  return { schema: PB_ROOT_LOOKUP_SCHEMA, target: PB_ROOT, label: 'Portfolio Boarded Loan', required: true };
+}
+
+const PB_SEED_TABLES = [
+  {
+    logical: PB_ROOT,
+    display: 'Portfolio Boarded Loan',
+    plural: 'Portfolio Boarded Loans',
+    columns: [
+      ['loannumber', 's'], ['borrowerlegalname', 's'], ['borrowerdba', 's'],
+      ['relationshipname', 's'], ['loanstatus', 's'], ['boardingstatus', 's'],
+      ['boardingsource', 's'], ['originateddealid', 's'], ['legacysystemid', 's'],
+      ['coresystemloanid', 's'], ['originalcommitmentamount', 'n'],
+      ['currentoutstandingprincipal', 'n'], ['availablebalance', 'n'],
+      ['interestratetype', 's'], ['index', 's'], ['spread', 'd'], ['floor', 'd'],
+      ['ceiling', 'd'], ['paymentfrequency', 's'], ['amortizationmonths', 'i'],
+      ['termmonths', 'i'], ['bookingdate', 't'], ['closingdate', 't'],
+      ['maturitydate', 't'], ['renewaldate', 't'], ['paidoffdate', 't'],
+      ['currentriskrating', 's'], ['priorriskrating', 's'], ['riskratingdate', 't'],
+      ['nextreviewdate', 't'], ['watchlistflag', 'b'], ['criticizedclassifiedstatus', 's'],
+      ['accrualstatus', 's'], ['pastduedays', 'i'], ['exceptioncount', 'i'],
+      ['highseverityexceptioncount', 'i'], ['fdicready', 'b'], ['boardready', 'b'],
+      ['portfoliomonitoringready', 'b'], ['boardingready', 'b'], ['readinessjson', 'm'],
+      ['snapshotjson', 'm'],
+    ],
+    lookups: [
+      { schema: 'cr664_OriginatedLoanDeal', target: 'cr664_loandeal', label: 'Originated loan deal', required: false },
+      { schema: 'cr664_Client', target: 'cr664_clientrelationship', label: 'Client', required: false },
+      { schema: 'cr664_PortfolioManager', target: 'systemuser', label: 'Portfolio manager', required: false },
+      { schema: 'cr664_AssignedServicingOwner', target: 'systemuser', label: 'Assigned servicing owner', required: false },
+      { schema: 'cr664_Team', target: 'cr664_team', label: 'Team', required: false },
+    ],
+  },
+  {
+    logical: 'cr664_portfolioboardedloanborrower', display: 'Portfolio Boarded Loan Borrower', plural: 'Portfolio Boarded Loan Borrowers',
+    columns: [['legalentitytype', 's'], ['taxidentifier', 's'], ['naicsindustry', 's'], ['address', 'm'], ['stateofformation', 's'], ['ownershipsummary', 'm'], ['managementsummary', 'm'], ['depositrelationshipsummary', 'm']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloancollateral', display: 'Portfolio Boarded Loan Collateral', plural: 'Portfolio Boarded Loan Collateral',
+    columns: [['collateralid', 's'], ['collateraltype', 's'], ['description', 'm'], ['lienposition', 's'], ['perfected', 'b'], ['perfectionmethod', 's'], ['uccfilingnumber', 's'], ['uccfilingdate', 't'], ['ucccontinuationdate', 't'], ['mortgageinstrumentnumber', 's'], ['deedoftrustinstrumentnumber', 's'], ['titlepolicynumber', 's'], ['titlepolicyamount', 'n'], ['appraisalrequired', 'b'], ['appraisaldate', 't'], ['appraisedvalue', 'n'], ['valuationdate', 't'], ['valuationamount', 'n'], ['advancerate', 'd'], ['environmentalstatus', 's'], ['flooddeterminationstatus', 's'], ['insurancerequired', 'b'], ['collateralexceptionsjson', 'm'], ['releasestatus', 's']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloanguarantor', display: 'Portfolio Boarded Loan Guarantor', plural: 'Portfolio Boarded Loan Guarantors',
+    columns: [['guarantorid', 's'], ['guarantorname', 's'], ['guarantortype', 's'], ['guaranteetype', 's'], ['limitedorunlimited', 's'], ['guaranteeamount', 'n'], ['spouseconsentrequired', 'b'], ['spouseconsentreceived', 'b'], ['pfsdate', 't'], ['liquidity', 'n'], ['networth', 'n'], ['contingentliabilitiessummary', 'm'], ['globaldebtservicesupportnotes', 'm'], ['exceptionsjson', 'm']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloancovenant', display: 'Portfolio Boarded Loan Covenant', plural: 'Portfolio Boarded Loan Covenants',
+    columns: [['covenantid', 's'], ['covenantname', 's'], ['covenanttype', 's'], ['testingfrequency', 's'], ['nextduedate', 't'], ['requiredthreshold', 's'], ['currentstatus', 's'], ['lasttesteddate', 't'], ['lastreportedvalue', 's'], ['waiverhistoryjson', 'm'], ['breachhistoryjson', 'm'], ['owner', 's'], ['severity', 's'], ['evidencedocumentidsjson', 'm']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloantickler', display: 'Portfolio Boarded Loan Tickler', plural: 'Portfolio Boarded Loan Ticklers',
+    columns: [['ticklerid', 's'], ['ticklername', 's'], ['ticklertype', 's'], ['owner', 's'], ['duedate', 't'], ['frequency', 's'], ['status', 's'], ['severity', 's'], ['relateddocumenttype', 's'], ['relatedcovenantid', 's'], ['notes', 'm']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloaninsurance', display: 'Portfolio Boarded Loan Insurance', plural: 'Portfolio Boarded Loan Insurance',
+    columns: [['insuranceid', 's'], ['insurancetype', 's'], ['carrier', 's'], ['policynumber', 's'], ['coverageamount', 'n'], ['effectivedate', 't'], ['expirationdate', 't'], ['requiredcoverageamount', 'n'], ['evidencedocumentid', 's'], ['status', 's'], ['stale', 'b'], ['exception', 'b']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloandocument', display: 'Portfolio Boarded Loan Document', plural: 'Portfolio Boarded Loan Documents',
+    columns: [['documentid', 's'], ['documenttype', 's'], ['documentname', 's'], ['category', 's'], ['borrowerorobligorassociation', 's'], ['effectivedate', 't'], ['periodenddate', 't'], ['receiveddate', 't'], ['revieweddate', 't'], ['reviewer', 's'], ['source', 's'], ['status', 's'], ['exceptionflag', 'b'], ['missingflag', 'b'], ['staleflag', 'b'], ['filereference', 's'], ['extractedfactidsjson', 'm'], ['evidencelinkidsjson', 'm'], ['notes', 'm']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloanexception', display: 'Portfolio Boarded Loan Exception', plural: 'Portfolio Boarded Loan Exceptions',
+    columns: [['exceptionid', 's'], ['exceptiontype', 's'], ['severity', 's'], ['status', 's'], ['openeddate', 't'], ['duedate', 't'], ['resolveddate', 't'], ['owner', 's'], ['description', 'm'], ['remediationplan', 'm'], ['evidencedocumentidsjson', 'm']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloanreview', display: 'Portfolio Boarded Loan Review', plural: 'Portfolio Boarded Loan Reviews',
+    columns: [['reviewid', 's'], ['reviewtype', 's'], ['reviewer', 's'], ['reviewdate', 't'], ['outcome', 's'], ['notes', 'm'], ['nextreviewdate', 't'], ['evidencedocumentidsjson', 'm']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloanevidence', display: 'Portfolio Boarded Loan Evidence', plural: 'Portfolio Boarded Loan Evidence',
+    columns: [['evidenceid', 's'], ['sourcetype', 's'], ['sourceid', 's'], ['documentid', 's'], ['factkey', 's'], ['description', 'm'], ['createdbytext', 's'], ['createdat', 't']],
+    lookups: [pbRootLookup(), { schema: 'cr664_PortfolioBoardedLoanDocument', target: 'cr664_portfolioboardedloandocument', label: 'Portfolio Boarded Loan Document', required: false }],
+  },
+  {
+    logical: 'cr664_portfolioboardedloanauditentry', display: 'Portfolio Boarded Loan Audit Entry', plural: 'Portfolio Boarded Loan Audit Entries',
+    columns: [['auditid', 's'], ['actor', 's'], ['action', 's'], ['timestamp', 't'], ['fieldkey', 's'], ['previousvaluesummary', 'm'], ['newvaluesummary', 'm'], ['reason', 'm'], ['evidencelinkidsjson', 'm']],
+    lookups: [pbRootLookup()],
+  },
+  {
+    logical: 'cr664_portfolioboardedloanexaminernote', display: 'Portfolio Boarded Loan Examiner Note', plural: 'Portfolio Boarded Loan Examiner Notes',
+    columns: [['noteid', 's'], ['examinerrequestid', 's'], ['note', 'm'], ['responsestatus', 's'], ['owner', 's'], ['createdat', 't'], ['updatedat', 't'], ['relatedevidenceidsjson', 'm']],
+    lookups: [pbRootLookup()],
+  },
+];
+
+function pbLabel(text) {
+  return {
+    '@odata.type': 'Microsoft.Dynamics.CRM.Label',
+    LocalizedLabels: [
+      { '@odata.type': 'Microsoft.Dynamics.CRM.LocalizedLabel', Label: text, LanguageCode: 1033 },
+    ],
+  };
+}
+
+// Single guarded metadata POST. The ONLY mutation verb the seed path uses is
+// POST (create). There is no PATCH and no DELETE anywhere in this path.
+async function pbMetadataCreate(token, envUrl, path, payload) {
+  const res = await fetch(`${envUrl}/api/data/v9.2/${path}`, {
+    method: 'POST',
+    headers: {
+      ...metadataHeaders(token),
+      'Content-Type': 'application/json',
+      'MSCRM.SolutionUniqueName': SOLUTION_FOR_CR664,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok && res.status !== 204) {
+    const text = await res.text();
+    bail(`metadata create ${path} → ${res.status}: ${text}`);
+  }
+  return res;
+}
+
+function buildPrimaryNameAttribute() {
+  return {
+    '@odata.type': 'Microsoft.Dynamics.CRM.StringAttributeMetadata',
+    SchemaName: 'cr664_Name',
+    RequiredLevel: { Value: 'ApplicationRequired' },
+    MaxLength: 200,
+    FormatName: { Value: 'Text' },
+    DisplayName: pbLabel('Name'),
+    IsPrimaryName: true,
+  };
+}
+
+function buildTablePayload(tablePlan) {
+  return {
+    '@odata.type': 'Microsoft.Dynamics.CRM.EntityMetadata',
+    SchemaName: `cr664_${tablePlan.logical.replace(/^cr664_/, '').replace(/^./, (s) => s.toUpperCase())}`,
+    DisplayName: pbLabel(tablePlan.display),
+    DisplayCollectionName: pbLabel(tablePlan.plural),
+    Description: pbLabel(`${tablePlan.display} — portfolio boarding system of record.`),
+    OwnershipType: 'UserOwned',
+    HasActivities: false,
+    HasNotes: false,
+    IsActivity: false,
+    Attributes: [buildPrimaryNameAttribute()],
+  };
+}
+
+async function createCustomTableFromPlan(token, envUrl, tablePlan) {
+  return pbMetadataCreate(token, envUrl, 'EntityDefinitions', buildTablePayload(tablePlan));
+}
+
+function pbColumnSchema(shortName) {
+  return `cr664_${shortName.replace(/^./, (s) => s.toUpperCase())}`;
+}
+
+async function pbCreateAttribute(token, envUrl, tableLogical, payload) {
+  return pbMetadataCreate(
+    token,
+    envUrl,
+    `EntityDefinitions(LogicalName='${tableLogical}')/Attributes`,
+    payload,
+  );
+}
+
+async function createTextColumnFromPlan(token, envUrl, tableLogical, shortName, label) {
+  return pbCreateAttribute(token, envUrl, tableLogical, {
+    '@odata.type': 'Microsoft.Dynamics.CRM.StringAttributeMetadata',
+    SchemaName: pbColumnSchema(shortName),
+    RequiredLevel: { Value: 'None' },
+    MaxLength: 4000,
+    FormatName: { Value: 'Text' },
+    DisplayName: pbLabel(label),
+  });
+}
+
+async function createMemoColumnFromPlan(token, envUrl, tableLogical, shortName, label) {
+  return pbCreateAttribute(token, envUrl, tableLogical, {
+    '@odata.type': 'Microsoft.Dynamics.CRM.MemoAttributeMetadata',
+    SchemaName: pbColumnSchema(shortName),
+    RequiredLevel: { Value: 'None' },
+    MaxLength: 100000,
+    DisplayName: pbLabel(label),
+  });
+}
+
+async function createIntegerColumnFromPlan(token, envUrl, tableLogical, shortName, label) {
+  return pbCreateAttribute(token, envUrl, tableLogical, {
+    '@odata.type': 'Microsoft.Dynamics.CRM.IntegerAttributeMetadata',
+    SchemaName: pbColumnSchema(shortName),
+    RequiredLevel: { Value: 'None' },
+    Format: 'None',
+    DisplayName: pbLabel(label),
+  });
+}
+
+async function createDecimalColumnFromPlan(token, envUrl, tableLogical, shortName, label) {
+  return pbCreateAttribute(token, envUrl, tableLogical, {
+    '@odata.type': 'Microsoft.Dynamics.CRM.DecimalAttributeMetadata',
+    SchemaName: pbColumnSchema(shortName),
+    RequiredLevel: { Value: 'None' },
+    Precision: 4,
+    DisplayName: pbLabel(label),
+  });
+}
+
+async function createMoneyColumnFromPlan(token, envUrl, tableLogical, shortName, label) {
+  return pbCreateAttribute(token, envUrl, tableLogical, {
+    '@odata.type': 'Microsoft.Dynamics.CRM.MoneyAttributeMetadata',
+    SchemaName: pbColumnSchema(shortName),
+    RequiredLevel: { Value: 'None' },
+    Precision: 2,
+    PrecisionSource: 2,
+    DisplayName: pbLabel(label),
+  });
+}
+
+async function createBooleanColumnFromPlan(token, envUrl, tableLogical, shortName, label) {
+  return pbCreateAttribute(token, envUrl, tableLogical, {
+    '@odata.type': 'Microsoft.Dynamics.CRM.BooleanAttributeMetadata',
+    SchemaName: pbColumnSchema(shortName),
+    RequiredLevel: { Value: 'None' },
+    DisplayName: pbLabel(label),
+    OptionSet: {
+      '@odata.type': 'Microsoft.Dynamics.CRM.BooleanOptionSetMetadata',
+      TrueOption: { Value: 1, Label: pbLabel('Yes') },
+      FalseOption: { Value: 0, Label: pbLabel('No') },
+    },
+  });
+}
+
+async function createDateTimeColumnFromPlan(token, envUrl, tableLogical, shortName, label) {
+  return pbCreateAttribute(token, envUrl, tableLogical, {
+    '@odata.type': 'Microsoft.Dynamics.CRM.DateTimeAttributeMetadata',
+    SchemaName: pbColumnSchema(shortName),
+    RequiredLevel: { Value: 'None' },
+    Format: 'DateOnly',
+    DisplayName: pbLabel(label),
+  });
+}
+
+// Choice columns are intentionally NOT created as choices in Phase 140J —
+// global/local option-set metadata is deferred. Picklist plan columns are
+// routed to createTextColumnFromPlan above, and this helper records that.
+async function createChoiceColumnFromPlan(token, envUrl, tableLogical, shortName, label) {
+  console.log(`   (choice deferred) ${tableLogical}.${pbColumnSchema(shortName)} seeded as TEXT; option set deferred to a later phase.`);
+  return createTextColumnFromPlan(token, envUrl, tableLogical, shortName, label);
+}
+
+async function createLookupRelationshipFromPlan(token, envUrl, referencingEntity, lookup) {
+  return pbMetadataCreate(
+    token,
+    envUrl,
+    'RelationshipDefinitions',
+    buildLookupRelationshipPayload({
+      referencingEntity,
+      schemaName: lookup.schema,
+      displayLabel: lookup.label,
+      target: lookup.target,
+    }),
+  );
+}
+
+async function verifyTableCreated(token, envUrl, tableLogical) {
+  const meta = await getEntityDefinition(token, envUrl, tableLogical);
+  return meta.exists === true;
+}
+
+async function verifyColumnCreated(token, envUrl, tableLogical, shortName) {
+  const meta = await getEntityDefinition(token, envUrl, tableLogical);
+  if (!meta.exists) return false;
+  const present = new Set((meta.table.Attributes ?? []).map((a) => String(a.LogicalName).toLowerCase()));
+  return present.has(`cr664_${shortName}`.toLowerCase());
+}
+
+async function verifyRelationshipCreated(token, envUrl, tableLogical, lookupColumnLogical) {
+  const meta = await getEntityDefinition(token, envUrl, tableLogical);
+  if (!meta.exists) return false;
+  const present = new Set((meta.table.Attributes ?? []).map((a) => String(a.LogicalName).toLowerCase()));
+  return present.has(lookupColumnLogical.toLowerCase());
+}
+
+function pbColumnCreatorForType(typeCode) {
+  switch (typeCode) {
+    case 'm': return createMemoColumnFromPlan;
+    case 'i': return createIntegerColumnFromPlan;
+    case 'd': return createDecimalColumnFromPlan;
+    case 'n': return createMoneyColumnFromPlan;
+    case 'b': return createBooleanColumnFromPlan;
+    case 't': return createDateTimeColumnFromPlan;
+    case 's':
+    default: return createTextColumnFromPlan;
+  }
+}
+
+async function runSeedPortfolioBoardingSchema(token, envUrl, commit) {
+  console.log('');
+  console.log('Phase 140J — Portfolio boarding schema SEED');
+  console.log('   Phase 140J creates schema metadata only — never loan records, never');
+  console.log('   document uploads, never app-runtime portfolio boarding writes.');
+  console.log(`   DRY_RUN_ONLY: ${commit ? 'false' : 'true'}`);
+  if (commit) console.log('   COMMIT_CONFIRMED: true');
+  console.log('');
+
+  // --- Read-only inspection (GET only) ----------------------------------
+  const inspected = {};
+  for (const t of PB_SEED_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, t.logical);
+    const classification = classifyBoardingTable(meta);
+    const present = meta.exists
+      ? new Set((meta.table.Attributes ?? []).map((a) => String(a.LogicalName).toLowerCase()))
+      : new Set();
+    inspected[t.logical] = { exists: meta.exists, classification, present };
+  }
+
+  // Related lookup targets (external).
+  const lookupTargetExists = {};
+  for (const rel of PORTFOLIO_BOARDING_RELATED_TABLES) {
+    const meta = await getEntityDefinition(token, envUrl, rel);
+    lookupTargetExists[rel] = meta.exists;
+  }
+  const systemUserMeta = await getEntityDefinition(token, envUrl, 'systemuser');
+  lookupTargetExists['systemuser'] = systemUserMeta.exists;
+
+  // --- Build the create / reuse / skip lists ----------------------------
+  const prefixConfirmed = CR664_PUBLISHER_PREFIX === PORTFOLIO_BOARDING_PREFIX;
+  const blockers = [];
+  const warnings = [];
+  if (!prefixConfirmed) blockers.push(`Publisher prefix not confirmed (expected ${PORTFOLIO_BOARDING_PREFIX}).`);
+
+  const tablesToCreate = [];
+  const tablesToReuse = [];
+  const columnCreates = []; // { table, name, type }
+  const relCreates = []; // { referencingEntity, lookup }
+  const skippedOptionalRelationships = [];
+
+  for (const t of PB_SEED_TABLES) {
+    const info = inspected[t.logical];
+    if (info.classification === 'BLOCKED_BY_CONFLICT') {
+      blockers.push(`BLOCKED_BY_CONFLICT: ${t.logical} (legacy / wrong-prefix artifact).`);
+      continue;
+    }
+    if (info.exists) tablesToReuse.push(t.logical);
+    else tablesToCreate.push(t.logical);
+
+    for (const [name, type] of t.columns) {
+      const logical = `cr664_${name}`;
+      if (!info.exists || !info.present.has(logical)) {
+        columnCreates.push({ table: t.logical, name, type });
+      }
+    }
+    for (const lk of t.lookups) {
+      const lookupLogical = lk.schema.toLowerCase();
+      const alreadyPresent = info.exists && info.present.has(lookupLogical);
+      if (alreadyPresent) continue;
+      const targetExists = lk.target === PB_ROOT
+        ? true // root is created in-plan
+        : lookupTargetExists[lk.target] === true;
+      if (!targetExists) {
+        if (lk.required) {
+          blockers.push(`Required lookup target ${lk.target} is missing for ${lk.schema}.`);
+        } else {
+          skippedOptionalRelationships.push(`${t.logical}.${lk.schema} → ${lk.target}`);
+          warnings.push(`Optional lookup target ${lk.target} absent; skipping ${lk.schema}.`);
+        }
+        continue;
+      }
+      relCreates.push({ referencingEntity: t.logical, lookup: lk });
+    }
+  }
+
+  const safeToCommit = blockers.length === 0 && prefixConfirmed;
+
+  // --- Print the plan ----------------------------------------------------
+  console.log(`Tables to create (${tablesToCreate.length}):`);
+  for (const x of tablesToCreate) console.log(`   + ${x}`);
+  console.log(`Tables to reuse (${tablesToReuse.length}):`);
+  for (const x of tablesToReuse) console.log(`   = ${x}`);
+  console.log(`Columns to create: ${columnCreates.length}`);
+  console.log(`Relationships to create (${relCreates.length}):`);
+  for (const r of relCreates) console.log(`   + ${r.referencingEntity}.${r.lookup.schema} → ${r.lookup.target}`);
+  console.log(`Skipped optional relationships (${skippedOptionalRelationships.length}):`);
+  for (const x of skippedOptionalRelationships) console.log(`   ~ ${x}`);
+  console.log('Blockers:');
+  if (blockers.length === 0) console.log('   (none)');
+  for (const b of blockers) console.log(`   ! ${b}`);
+  for (const w of warnings) console.log(`   (warn) ${w}`);
+  console.log(`safeToCommit: ${safeToCommit}`);
+  console.log('');
+
+  // --- Dry-run stops here (no write of any kind) ------------------------
+  if (!commit) {
+    console.log('Dry-run only — no metadata write issued. Review this plan, then re-run');
+    console.log('with --seed-portfolio-boarding-schema --commit-seed-portfolio-boarding-schema.');
+    console.log('No table, column, relationship, or record was created.');
+    return;
+  }
+
+  // --- Commit gate (fail closed) ----------------------------------------
+  if (!safeToCommit) {
+    bail(`Refusing to commit: ${blockers.length} blocker(s). Resolve them and re-inspect.`);
+    return;
+  }
+
+  console.log('Creating missing schema in seed order (metadata only)…');
+  for (const tableLogical of tablesToCreate) {
+    const plan = PB_SEED_TABLES.find((t) => t.logical === tableLogical);
+    await createCustomTableFromPlan(token, envUrl, plan);
+    console.log(`   created table ${tableLogical}`);
+  }
+  for (const cc of columnCreates) {
+    const creator = pbColumnCreatorForType(cc.type);
+    await creator(token, envUrl, cc.table, cc.name, cc.name);
+    console.log(`   created column ${cc.table}.cr664_${cc.name}`);
+  }
+  for (const r of relCreates) {
+    await createLookupRelationshipFromPlan(token, envUrl, r.referencingEntity, r.lookup);
+    console.log(`   created relationship ${r.referencingEntity}.${r.lookup.schema}`);
+  }
+
+  // --- Verification read -------------------------------------------------
+  console.log('');
+  console.log('Verification (re-reading metadata):');
+  let okTables = 0;
+  for (const tableLogical of tablesToCreate) {
+    if (await verifyTableCreated(token, envUrl, tableLogical)) okTables += 1;
+  }
+  console.log(`   tables verified: ${okTables}/${tablesToCreate.length}`);
+  console.log('Done. Schema metadata created. No loan records, no documents, no app-runtime writes.');
+}
+
 async function main() {
   // === Pure diagnostic: print the lookup-creation payload(s) ===
   // No pac auth, no Web API call, no write. Useful when an operator
@@ -6772,6 +7254,17 @@ async function main() {
   // === Phase 140I — read-only portfolio boarding schema PLAN ===
   if (FLAGS.planPortfolioBoardingSchema) {
     await runPlanPortfolioBoardingSchema(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 140J — guarded portfolio boarding schema SEED ===
+  // Dry-run by default; live metadata creation only with the commit flag.
+  if (FLAGS.seedPortfolioBoardingSchema) {
+    await runSeedPortfolioBoardingSchema(
+      mainToken,
+      mainEnvUrl,
+      FLAGS.commitSeedPortfolioBoardingSchema,
+    );
     return;
   }
 

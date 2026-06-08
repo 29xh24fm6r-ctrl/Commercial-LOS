@@ -3832,9 +3832,17 @@ describe('Phase 140I — --inspect-portfolio-boarding-schema / --plan-portfolio-
     }
   });
 
-  it('NO portfolio-boarding commit / live-create flag exists in Phase 140I', () => {
-    expect(SCRIPT).not.toMatch(/--commit-seed-portfolio-boarding-schema/);
-    expect(SCRIPT).not.toMatch(/commitSeedPortfolioBoardingSchema/);
+  it('the 140I inspect/plan modes themselves expose no commit flag (seeding lives in the gated 140J mode)', () => {
+    // Phase 140J added the guarded --commit-seed-portfolio-boarding-schema
+    // flag, but it is inert without --seed-portfolio-boarding-schema and is
+    // never reachable from the read-only inspect/plan modes.
+    expect(SCRIPT).toMatch(
+      /--commit-seed-portfolio-boarding-schema has no effect without --seed-portfolio-boarding-schema/,
+    );
+    const planBlock = sliceFunction('runPlanPortfolioBoardingSchema');
+    expect(planBlock).not.toMatch(/commitSeedPortfolioBoardingSchema/);
+    const inspectBlock = sliceFunction('runInspectPortfolioBoardingSchema');
+    expect(inspectBlock).not.toMatch(/commitSeedPortfolioBoardingSchema/);
   });
 });
 
@@ -3886,5 +3894,132 @@ describe('Phase 140I — the metadata GET helper is read-only', () => {
     expect(block).toMatch(/EntityDefinitions/);
     expect(block).toMatch(/method:\s*'GET'/);
     expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 140J — Guarded portfolio boarding schema SEED mode
+// ---------------------------------------------------------------------------
+
+describe('Phase 140J — seed mode args, gating, and mutex', () => {
+  it('exposes --seed-portfolio-boarding-schema and --commit-seed-portfolio-boarding-schema', () => {
+    expect(SCRIPT).toMatch(/'--seed-portfolio-boarding-schema'/);
+    expect(SCRIPT).toMatch(/'--commit-seed-portfolio-boarding-schema'/);
+    expect(SCRIPT).toMatch(/flags\.seedPortfolioBoardingSchema\s*=\s*true/);
+    expect(SCRIPT).toMatch(/flags\.commitSeedPortfolioBoardingSchema\s*=\s*true/);
+  });
+
+  it('the seed mode defaults to dry-run (selecting it sets dryRun = false, no commit)', () => {
+    expect(SCRIPT).toMatch(
+      /arg === '--seed-portfolio-boarding-schema'\)\s*\{[\s\S]*?flags\.seedPortfolioBoardingSchema = true;[\s\S]*?flags\.dryRun = false;/,
+    );
+  });
+
+  it('the commit flag has no effect without the seed mode (explicitly gated)', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-portfolio-boarding-schema has no effect without --seed-portfolio-boarding-schema/,
+    );
+  });
+
+  it('the seed mode is part of the exclusive-modes array', () => {
+    expect(SCRIPT).toMatch(/flags\.seedPortfolioBoardingSchema,?\s*$/m);
+  });
+
+  it('the MODE banner distinguishes dry-run from commit', () => {
+    expect(SCRIPT).toMatch(/'SEED-PORTFOLIO-BOARDING-SCHEMA \(dry-run\)'/);
+    expect(SCRIPT).toMatch(/SEED-PORTFOLIO-BOARDING-SCHEMA \(COMMIT/);
+  });
+
+  it('no --force flag is introduced for the seed mode', () => {
+    expect(SCRIPT).not.toMatch(/'--force'/);
+  });
+});
+
+describe('Phase 140J — the seed handler is dry-run-first; create helpers run only after the commit gate', () => {
+  const block = sliceFunction('runSeedPortfolioBoardingSchema');
+
+  it('prints DRY_RUN_ONLY and COMMIT_CONFIRMED state', () => {
+    expect(block).toMatch(/DRY_RUN_ONLY: \$\{commit \? 'false' : 'true'\}/);
+    expect(block).toMatch(/COMMIT_CONFIRMED: true/);
+  });
+
+  it('the dry-run return occurs BEFORE any create-metadata helper call', () => {
+    const dryReturnIdx = block.indexOf('Dry-run only — no metadata write issued');
+    const firstCreateIdx = block.indexOf('createCustomTableFromPlan(');
+    expect(dryReturnIdx).toBeGreaterThan(-1);
+    expect(firstCreateIdx).toBeGreaterThan(-1);
+    expect(dryReturnIdx).toBeLessThan(firstCreateIdx);
+  });
+
+  it('the handler itself issues no inline POST/PATCH/DELETE and no PublishXml', () => {
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(block).not.toMatch(/SuppressDuplicateDetection/i);
+  });
+
+  it('fails closed: refuses to commit when blockers exist', () => {
+    expect(block).toMatch(/Refusing to commit/);
+    expect(block).toMatch(/safeToCommit/);
+  });
+
+  it('creates schema metadata only — never loan records, uploads, or app-runtime writes', () => {
+    expect(block).toMatch(/never loan records/i);
+    // No POST to the boarded-loan record collection (no data records seeded).
+    expect(block).not.toMatch(/\/cr664_portfolioboardedloans\(/);
+    expect(block).not.toMatch(/createRecord|saveRecord/);
+  });
+});
+
+describe('Phase 140J — metadata create helpers use POST only (no DELETE), reuse safe relationship payload', () => {
+  it('the shared create helper uses POST and never PATCH/DELETE', () => {
+    const create = sliceFunction('pbMetadataCreate');
+    expect(create).toMatch(/method:\s*'POST'/);
+    expect(create).not.toMatch(/method:\s*'(PATCH|DELETE)'/);
+  });
+
+  it('the lookup-relationship helper reuses buildLookupRelationshipPayload', () => {
+    const rel = sliceFunction('createLookupRelationshipFromPlan');
+    expect(rel).toMatch(/buildLookupRelationshipPayload\(/);
+    expect(rel).not.toMatch(/method:\s*'(PATCH|DELETE)'/);
+  });
+
+  it('choice columns are deferred (seeded as text, no option-set creation)', () => {
+    const choice = sliceFunction('createChoiceColumnFromPlan');
+    expect(choice).toMatch(/option set deferred/i);
+    expect(choice).toMatch(/createTextColumnFromPlan\(/);
+  });
+});
+
+describe('Phase 140J — no drift: no DELETE in the seed path, no command-center / adapter coupling', () => {
+  it('the seed handler + create helpers contain no DELETE verb', () => {
+    for (const fn of [
+      'runSeedPortfolioBoardingSchema',
+      'pbMetadataCreate',
+      'createCustomTableFromPlan',
+      'createLookupRelationshipFromPlan',
+    ]) {
+      expect(sliceFunction(fn)).not.toMatch(/method:\s*'DELETE'/);
+    }
+  });
+
+  it('the script does not touch the runtime persistence adapter or command center', () => {
+    expect(SCRIPT).not.toMatch(/PortfolioLoanBoardingDataverseAdapter/);
+    expect(SCRIPT).not.toMatch(/portfolioBoardingCommandCenterAdapter/);
+  });
+
+  it('IsCustomizable safety stays pinned (never nested in AssociatedMenuConfiguration)', () => {
+    expect(SCRIPT).not.toMatch(/AssociatedMenuConfiguration[\s\S]{0,200}IsCustomizable/);
+  });
+
+  it('existing Phase 140I read-only modes remain present', () => {
+    expect(SCRIPT).toMatch(/'--inspect-portfolio-boarding-schema'/);
+    expect(SCRIPT).toMatch(/'--plan-portfolio-boarding-schema'/);
+  });
+
+  it('existing Phase 122/124/133 modes remain available', () => {
+    expect(SCRIPT).toMatch(/'--seed-client-relationship'/);
+    expect(SCRIPT).toMatch(/'--seed-manager-entitlement'/);
+    expect(SCRIPT).toMatch(/'--seed-executive-primary-workspace'/);
   });
 });

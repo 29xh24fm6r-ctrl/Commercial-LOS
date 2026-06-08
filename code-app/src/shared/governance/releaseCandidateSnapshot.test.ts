@@ -1326,13 +1326,58 @@ describe('Phase 140I — portfolio boarding Dataverse schema inspection foundati
     expect(doc).toMatch(/dry-run only/i);
   });
 
-  it('the script exposes both read-only modes and no live commit flag', () => {
+  it('the script still exposes both read-only inspect/plan modes', () => {
     const script = readFileSync(
       resolve(REPO_ROOT, 'scripts/phase122-lookup-repair.mjs'),
       'utf8',
     );
     expect(script).toMatch(/'--inspect-portfolio-boarding-schema'/);
     expect(script).toMatch(/'--plan-portfolio-boarding-schema'/);
-    expect(script).not.toMatch(/--commit-seed-portfolio-boarding-schema/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 140J — Guarded portfolio boarding schema seed mode
+// ---------------------------------------------------------------------------
+
+describe('Phase 140J — guarded portfolio boarding schema seed foundation exists', () => {
+  const REQUIRED_140J_FILES: readonly string[] = [
+    'docs/PHASE_140J_PORTFOLIO_BOARDING_DATAVERSE_SCHEMA_SEED_MODE.md',
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaSeedPlan.ts',
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaSeedPlan.test.ts',
+    // Phase 140I + 140B-H artifacts must remain pinned.
+    'src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.ts',
+    'src/portfolioBoarding/derivePortfolioBoardingSchemaInspectionReport.ts',
+    'docs/PHASE_140I_PORTFOLIO_BOARDING_DATAVERSE_SCHEMA_INSPECTION.md',
+    'docs/PHASE_140B_H_PORTFOLIO_LOAN_BOARDING_SYSTEM_OF_RECORD.md',
+  ];
+  for (const rel of REQUIRED_140J_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc(
+    'docs/PHASE_140J_PORTFOLIO_BOARDING_DATAVERSE_SCHEMA_SEED_MODE.md',
+  );
+
+  it('the doc pins dry-run-default + explicit commit flag + no runtime persistence', () => {
+    expect(doc).toMatch(/--seed-portfolio-boarding-schema/);
+    expect(doc).toMatch(/--commit-seed-portfolio-boarding-schema/);
+    expect(doc).toMatch(/dry-run/i);
+    expect(doc).toMatch(/does not enable app runtime portfolio boarding writes/i);
+  });
+
+  it('the script gates the commit flag behind the seed mode and creates no loan records', () => {
+    const script = readFileSync(
+      resolve(REPO_ROOT, 'scripts/phase122-lookup-repair.mjs'),
+      'utf8',
+    );
+    expect(script).toMatch(/'--seed-portfolio-boarding-schema'/);
+    expect(script).toMatch(/'--commit-seed-portfolio-boarding-schema'/);
+    expect(script).toMatch(
+      /--commit-seed-portfolio-boarding-schema has no effect without --seed-portfolio-boarding-schema/,
+    );
+    expect(script).toMatch(/never loan records/i);
   });
 });
