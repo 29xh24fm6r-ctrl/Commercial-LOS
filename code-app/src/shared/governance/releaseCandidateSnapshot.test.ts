@@ -2078,3 +2078,36 @@ describe('Phase 142G — admin configuration review queue exists', () => {
     expect(doc).toMatch(/Phase 142H/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142H — executive product strategy surface
+// ---------------------------------------------------------------------------
+
+describe('Phase 142H — executive product strategy surface exists', () => {
+  const REQUIRED_142H_FILES: readonly string[] = [
+    'docs/PHASE_142H_EXECUTIVE_PRODUCT_STRATEGY_SURFACE.md',
+    'src/competitive/executiveStrategyTypes.ts',
+    'src/competitive/deriveExecutiveProductStrategyDashboard.ts',
+    'src/competitive/deriveCompetitiveDifferentiators.ts',
+    'src/competitive/deriveCompetitiveGaps.ts',
+    'src/competitive/deriveCompetitiveRoadmap.ts',
+    'src/competitive/ExecutiveProductStrategyPanel.tsx',
+    'src/competitive/CompetitiveReferencePlatformPanel.tsx',
+    'src/competitive/CompetitiveSafetyPosturePanel.tsx',
+    'src/shared/governance/executiveProductStrategyGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142H_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142H_EXECUTIVE_PRODUCT_STRATEGY_SURFACE.md');
+
+  it('the doc pins read-only strategy, no operational execution, intentionally disabled', () => {
+    expect(doc).toMatch(/read-only|product intelligence, not operational execution/i);
+    expect(doc).toMatch(/intentionally disabled/i);
+    expect(doc).toMatch(/final credit approval/i);
+    expect(doc).toMatch(/Phase 142I/);
+  });
+});

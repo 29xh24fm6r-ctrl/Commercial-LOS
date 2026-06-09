@@ -4,6 +4,10 @@ import { palette, spacing, typography } from '../shared/theme';
 import { COMPETITIVE_CAPABILITY_MATRIX } from './competitiveCapabilityMatrix';
 import { deriveCompetitiveReferenceLessons } from './deriveCompetitiveReferenceLessons';
 import { deriveCompetitiveImplementationBacklog } from './deriveCompetitiveImplementationBacklog';
+import type { ExecutiveProductStrategyDashboardState } from './executiveStrategyTypes';
+import { ExecutiveProductStrategyPanel } from './ExecutiveProductStrategyPanel';
+import { CompetitiveReferencePlatformPanel } from './CompetitiveReferencePlatformPanel';
+import { CompetitiveSafetyPosturePanel } from './CompetitiveSafetyPosturePanel';
 
 /**
  * Optional platform-metadata summary (Phase 142B). Passed in by a caller that
@@ -18,6 +22,8 @@ export interface CompetitivePlatformMetadataSummary {
 
 interface DashboardProps {
   platformMetadata?: CompetitivePlatformMetadataSummary;
+  /** Optional executive product strategy state (Phase 142H) — enriches the dashboard when provided. */
+  executiveStrategy?: ExecutiveProductStrategyDashboardState;
 }
 
 /**
@@ -29,7 +35,7 @@ interface DashboardProps {
  * controls, and no route registration. Phase 142B: optionally shows a platform
  * metadata summary when provided.
  */
-export function CompetitiveCapabilityDashboard({ platformMetadata }: DashboardProps = {}) {
+export function CompetitiveCapabilityDashboard({ platformMetadata, executiveStrategy }: DashboardProps = {}) {
   const lessons = deriveCompetitiveReferenceLessons();
   const backlog = deriveCompetitiveImplementationBacklog();
 
@@ -39,6 +45,7 @@ export function CompetitiveCapabilityDashboard({ platformMetadata }: DashboardPr
   });
 
   return (
+    <>
     <Card>
       <CardHeader title="Competitive platform convergence" subtitle="Product strategy — read-only" />
 
@@ -109,6 +116,15 @@ export function CompetitiveCapabilityDashboard({ platformMetadata }: DashboardPr
         <span>Strategy view only. No external data, no writes, no final credit decisions.</span>
       </CardFooter>
     </Card>
+
+    {executiveStrategy && (
+      <>
+        <ExecutiveProductStrategyPanel state={executiveStrategy} />
+        <CompetitiveReferencePlatformPanel platforms={executiveStrategy.referencePlatforms} />
+        <CompetitiveSafetyPosturePanel safetyPosture={executiveStrategy.safetyPosture} />
+      </>
+    )}
+    </>
   );
 }
 
