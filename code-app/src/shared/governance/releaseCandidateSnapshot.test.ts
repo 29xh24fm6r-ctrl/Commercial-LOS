@@ -1878,3 +1878,38 @@ describe('Phase 142A — competitive platform convergence exists', () => {
     expect(doc).toMatch(/Phase 142B/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142B — governed platform object/view metadata surfaces
+// ---------------------------------------------------------------------------
+
+describe('Phase 142B — governed platform metadata surfaces exist', () => {
+  const REQUIRED_142B_FILES: readonly string[] = [
+    'docs/PHASE_142B_GOVERNED_PLATFORM_OBJECT_VIEW_SURFACES.md',
+    'src/platform/platformSurfaceTypes.ts',
+    'src/platform/derivePlatformObjectCatalog.ts',
+    'src/platform/derivePlatformViewCatalog.ts',
+    'src/platform/derivePlatformObjectRelationshipMap.ts',
+    'src/platform/deriveWorkspaceCapabilityGroups.ts',
+    'src/platform/PlatformObjectCatalogPanel.tsx',
+    'src/platform/PlatformViewCatalogPanel.tsx',
+    'src/platform/PlatformRelationshipMapPanel.tsx',
+    'src/platform/PlatformMetadataDashboard.tsx',
+    'src/shared/governance/platformMetadataSurfaceGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142B_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142B_GOVERNED_PLATFORM_OBJECT_VIEW_SURFACES.md');
+
+  it('the doc pins read-only, no schema mutation, no low-code builder, no route registration', () => {
+    expect(doc).toMatch(/read-only/i);
+    expect(doc).toMatch(/no schema mutation|no .* custom field/i);
+    expect(doc).toMatch(/not a low-code builder/i);
+    expect(doc).toMatch(/no route registration/i);
+    expect(doc).toMatch(/Phase 142C/);
+  });
+});

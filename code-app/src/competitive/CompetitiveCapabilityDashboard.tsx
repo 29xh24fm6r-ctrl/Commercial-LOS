@@ -6,14 +6,30 @@ import { deriveCompetitiveReferenceLessons } from './deriveCompetitiveReferenceL
 import { deriveCompetitiveImplementationBacklog } from './deriveCompetitiveImplementationBacklog';
 
 /**
+ * Optional platform-metadata summary (Phase 142B). Passed in by a caller that
+ * already derived it — this avoids an import cycle and keeps the dashboard pure.
+ */
+export interface CompetitivePlatformMetadataSummary {
+  objectModelStatus?: string;
+  viewModelStatus?: string;
+  workflowRoutingStatus?: string;
+  productProcessStatus?: string;
+}
+
+interface DashboardProps {
+  platformMetadata?: CompetitivePlatformMetadataSummary;
+}
+
+/**
  * Phase 142A — Competitive capability dashboard (strategy / read-only).
  *
  * Shows OGB current vs target, top gaps, shipped differentiators, the prioritized
  * backlog (with risk class), and recommended next phases. Strategy-only: no
  * production customer data, no external calls, no iframe/repo scraping, no write
- * controls, and no route registration.
+ * controls, and no route registration. Phase 142B: optionally shows a platform
+ * metadata summary when provided.
  */
-export function CompetitiveCapabilityDashboard() {
+export function CompetitiveCapabilityDashboard({ platformMetadata }: DashboardProps = {}) {
   const lessons = deriveCompetitiveReferenceLessons();
   const backlog = deriveCompetitiveImplementationBacklog();
 
@@ -67,6 +83,18 @@ export function CompetitiveCapabilityDashboard() {
           ))}
         </ul>
       </div>
+
+      {platformMetadata && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Platform metadata status (142B)</span>
+          <ul style={ulStyle}>
+            {platformMetadata.objectModelStatus && <li style={itemStyle}>Object model: {platformMetadata.objectModelStatus}</li>}
+            {platformMetadata.viewModelStatus && <li style={itemStyle}>View model: {platformMetadata.viewModelStatus}</li>}
+            {platformMetadata.workflowRoutingStatus && <li style={itemStyle}>Workflow routing: {platformMetadata.workflowRoutingStatus}</li>}
+            {platformMetadata.productProcessStatus && <li style={itemStyle}>Product/process metadata: {platformMetadata.productProcessStatus}</li>}
+          </ul>
+        </div>
+      )}
 
       <div style={sectionStyle}>
         <span style={sectionTitleStyle}>Next recommended phases</span>

@@ -27,3 +27,26 @@ describe('Phase 142A — competitive dashboard', () => {
     expect(container.innerHTML).not.toMatch(/https?:\/\//);
   });
 });
+
+describe('Phase 142B — competitive dashboard platform-metadata integration', () => {
+  it('renders without platform metadata (optional prop)', () => {
+    const { container } = render(<CompetitiveCapabilityDashboard />);
+    expect(container.textContent ?? '').not.toContain('Platform metadata status');
+  });
+
+  it('renders the platform metadata summary when provided', () => {
+    render(
+      <CompetitiveCapabilityDashboard
+        platformMetadata={{ objectModelStatus: '22 objects (read-only)', viewModelStatus: '12 views', workflowRoutingStatus: '10 routes', productProcessStatus: '8 templates' }}
+      />,
+    );
+    expect(screen.getByText(/Platform metadata status/i)).toBeInTheDocument();
+    expect(screen.getByText(/22 objects/)).toBeInTheDocument();
+  });
+
+  it('the integration adds no route / fetch / write', () => {
+    const { container } = render(<CompetitiveCapabilityDashboard platformMetadata={{ objectModelStatus: 'ok' }} />);
+    expect(container.querySelectorAll('button').length).toBe(0);
+    expect(container.innerHTML).not.toMatch(/https?:\/\//);
+  });
+});
