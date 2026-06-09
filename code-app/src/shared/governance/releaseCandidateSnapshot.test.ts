@@ -1946,3 +1946,35 @@ describe('Phase 142C — configurable workflow routing exists', () => {
     expect(doc).toMatch(/Phase 142D/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142D — product / process template registry
+// ---------------------------------------------------------------------------
+
+describe('Phase 142D — product / process template registry exists', () => {
+  const REQUIRED_142D_FILES: readonly string[] = [
+    'docs/PHASE_142D_PRODUCT_PROCESS_TEMPLATE_REGISTRY.md',
+    'src/platform/productProcessTemplateTypes.ts',
+    'src/platform/productProcessTemplateRegistry.ts',
+    'src/platform/deriveProductProcessTemplateSelection.ts',
+    'src/platform/deriveProductProcessRequirements.ts',
+    'src/platform/deriveProductProcessTemplateReadiness.ts',
+    'src/platform/ProductProcessTemplateCatalogPanel.tsx',
+    'src/platform/ProductProcessTemplateSelectionPanel.tsx',
+    'src/shared/governance/productProcessTemplateGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142D_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142D_PRODUCT_PROCESS_TEMPLATE_REGISTRY.md');
+
+  it('the doc pins metadata-only templates, no live product creation, no approval', () => {
+    expect(doc).toMatch(/metadata-only|read-only/i);
+    expect(doc).toMatch(/no live product creation|live product creation/i);
+    expect(doc).toMatch(/no .* template editing|no user-created templates/i);
+    expect(doc).toMatch(/Phase 142E/);
+  });
+});

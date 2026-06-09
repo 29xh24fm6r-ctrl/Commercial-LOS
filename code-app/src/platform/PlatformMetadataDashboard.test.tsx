@@ -50,4 +50,21 @@ describe('Phase 142B — platform metadata dashboard', () => {
     expect(screen.getByText(/Routes: 14/)).toBeInTheDocument();
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders without product/process template data (optional prop)', () => {
+    const { container } = render(<PlatformMetadataDashboard context={{ workspace: 'strategy' }} />);
+    expect(container.textContent ?? '').not.toContain('Product / process templates (142D)');
+  });
+
+  it('renders the product/process template summary when provided (no mutation controls)', () => {
+    const { container } = render(
+      <PlatformMetadataDashboard
+        context={{ workspace: 'strategy' }}
+        productProcessTemplates={{ totalTemplates: 10, activeCount: 10, plannedCount: 0, disabledCount: 0, productFamilies: ['SBA', 'commercial', 'CRE'], annualReviewTemplateCount: 2, fdicCommitteeTemplateCount: 2 }}
+      />,
+    );
+    expect(screen.getByText(/Product \/ process templates \(142D\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Templates: 10/)).toBeInTheDocument();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

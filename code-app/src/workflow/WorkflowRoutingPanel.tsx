@@ -4,9 +4,18 @@ import { palette, spacing, typography } from '../shared/theme';
 import type { WorkflowRouteDerivationResult } from './workflowRoutingConfigTypes';
 import type { WorkflowRoutingReadinessResult } from './deriveWorkflowRoutingReadiness';
 
+/** Optional template alignment summary (Phase 142D) — passed in by the caller. */
+export interface WorkflowRoutingTemplateAlignment {
+  primaryTemplate?: string;
+  companionTemplates?: readonly string[];
+  packageEvidenceRequirements?: readonly string[];
+  caveats?: readonly string[];
+}
+
 interface Props {
   route: WorkflowRouteDerivationResult;
   readiness?: WorkflowRoutingReadinessResult;
+  templateAlignment?: WorkflowRoutingTemplateAlignment;
 }
 
 /**
@@ -18,7 +27,7 @@ interface Props {
  * / create-task / update-stage / send-request / upload-link / write / fetch
  * affordance.
  */
-export function WorkflowRoutingPanel({ route, readiness }: Props) {
+export function WorkflowRoutingPanel({ route, readiness, templateAlignment }: Props) {
   const committee = route.creditCommittee;
   return (
     <Card>
@@ -79,6 +88,22 @@ export function WorkflowRoutingPanel({ route, readiness }: Props) {
               <li key={i} style={blockerItemStyle}>{b.message}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {templateAlignment && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Template alignment (142D)</span>
+          <span style={itemStyle}>Primary template: {templateAlignment.primaryTemplate ?? 'none'}</span>
+          {templateAlignment.companionTemplates && templateAlignment.companionTemplates.length > 0 && (
+            <span style={itemStyle}>Companions: {templateAlignment.companionTemplates.join(', ')}</span>
+          )}
+          {templateAlignment.packageEvidenceRequirements && templateAlignment.packageEvidenceRequirements.length > 0 && (
+            <span style={itemStyle}>Package / evidence: {templateAlignment.packageEvidenceRequirements.join(', ')}</span>
+          )}
+          {(templateAlignment.caveats ?? []).map((c) => (
+            <span key={c} style={noneStyle}>{c}</span>
+          ))}
         </div>
       )}
 

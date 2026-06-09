@@ -20,9 +20,22 @@ export interface PlatformWorkflowRoutingSummary {
   selectedRoutePreview?: string;
 }
 
+/** Optional product/process template summary (Phase 142D) — passed in by the caller. */
+export interface PlatformProductProcessTemplateSummary {
+  totalTemplates?: number;
+  activeCount?: number;
+  plannedCount?: number;
+  disabledCount?: number;
+  productFamilies?: readonly string[];
+  annualReviewTemplateCount?: number;
+  fdicCommitteeTemplateCount?: number;
+  selectedTemplatePreview?: string;
+}
+
 interface Props {
   context?: PlatformViewerContext;
   workflowRouting?: PlatformWorkflowRoutingSummary;
+  productProcessTemplates?: PlatformProductProcessTemplateSummary;
 }
 
 /**
@@ -34,7 +47,7 @@ interface Props {
  * view/custom-field creation, workflow activation, route registration, write
  * toggle, external-integration toggle, or fetch. No new route is registered.
  */
-export function PlatformMetadataDashboard({ context, workflowRouting }: Props) {
+export function PlatformMetadataDashboard({ context, workflowRouting, productProcessTemplates }: Props) {
   const ctx: PlatformViewerContext = context ?? { workspace: 'strategy' };
   const objects = derivePlatformObjectCatalog({ context: ctx });
   const views = derivePlatformViewCatalog({ context: ctx });
@@ -81,6 +94,20 @@ export function PlatformMetadataDashboard({ context, workflowRouting }: Props) {
             {workflowRouting.annualReviewRouteCount !== undefined && <li style={itemStyle}>Annual review routes: {workflowRouting.annualReviewRouteCount}</li>}
             {workflowRouting.exceptionRouteCount !== undefined && <li style={itemStyle}>Exception routes: {workflowRouting.exceptionRouteCount}</li>}
             {workflowRouting.selectedRoutePreview && <li style={itemStyle}>Selected route: {workflowRouting.selectedRoutePreview}</li>}
+          </ul>
+        </div>
+      )}
+
+      {productProcessTemplates && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Product / process templates (142D)</span>
+          <ul style={ulStyle}>
+            {productProcessTemplates.totalTemplates !== undefined && <li style={itemStyle}>Templates: {productProcessTemplates.totalTemplates}</li>}
+            {productProcessTemplates.activeCount !== undefined && <li style={itemStyle}>Active: {productProcessTemplates.activeCount} · Planned: {productProcessTemplates.plannedCount ?? 0} · Disabled: {productProcessTemplates.disabledCount ?? 0}</li>}
+            {productProcessTemplates.productFamilies && <li style={itemStyle}>Families: {productProcessTemplates.productFamilies.join(', ')}</li>}
+            {productProcessTemplates.annualReviewTemplateCount !== undefined && <li style={itemStyle}>Annual review templates: {productProcessTemplates.annualReviewTemplateCount}</li>}
+            {productProcessTemplates.fdicCommitteeTemplateCount !== undefined && <li style={itemStyle}>FDIC / committee templates: {productProcessTemplates.fdicCommitteeTemplateCount}</li>}
+            {productProcessTemplates.selectedTemplatePreview && <li style={itemStyle}>Selected template: {productProcessTemplates.selectedTemplatePreview}</li>}
           </ul>
         </div>
       )}

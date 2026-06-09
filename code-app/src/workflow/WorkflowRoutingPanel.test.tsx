@@ -44,3 +44,27 @@ describe('Phase 142C — workflow routing panel', () => {
     }
   });
 });
+
+describe('Phase 142D — routing panel template alignment', () => {
+  function panel(alignment?: Parameters<typeof WorkflowRoutingPanel>[0]['templateAlignment']) {
+    const route = deriveConfigurableWorkflowRoute({ input: { productType: 'sba_7a', amount: 200000 } });
+    return render(<WorkflowRoutingPanel route={route} templateAlignment={alignment} />);
+  }
+
+  it('renders without template alignment (optional prop)', () => {
+    const { container } = panel();
+    expect(container.textContent ?? '').not.toContain('Template alignment (142D)');
+  });
+
+  it('renders the template alignment when provided', () => {
+    panel({ primaryTemplate: 'sba_7a_standard_template', companionTemplates: ['fdic_exam_prep_template'], packageEvidenceRequirements: ['annual_review_credit_memo'], caveats: ['guidance only'] });
+    expect(screen.getByText(/Template alignment \(142D\)/)).toBeInTheDocument();
+    expect(screen.getByText(/sba_7a_standard_template/)).toBeInTheDocument();
+  });
+
+  it('the alignment adds no apply-template button', () => {
+    const { container } = panel({ primaryTemplate: 'sba_7a_standard_template' });
+    expect(container.querySelectorAll('button').length).toBe(0);
+    expect((container.textContent ?? '').toLowerCase()).not.toContain('apply template');
+  });
+});
