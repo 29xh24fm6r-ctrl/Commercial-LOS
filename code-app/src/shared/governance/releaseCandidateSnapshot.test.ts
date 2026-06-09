@@ -2012,3 +2012,37 @@ describe('Phase 142E — servicing / lifecycle model exists', () => {
     expect(doc).toMatch(/Phase 142F/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142F — integration adapter registry
+// ---------------------------------------------------------------------------
+
+describe('Phase 142F — integration adapter registry exists', () => {
+  const REQUIRED_142F_FILES: readonly string[] = [
+    'docs/PHASE_142F_INTEGRATION_ADAPTER_REGISTRY.md',
+    'src/integrations/integrationAdapterTypes.ts',
+    'src/integrations/integrationProviderRegistry.ts',
+    'src/integrations/integrationAdapterContracts.ts',
+    'src/integrations/validateIntegrationRequest.ts',
+    'src/integrations/createDisabledIntegrationAdapters.ts',
+    'src/integrations/resolveIntegrationAdapter.ts',
+    'src/integrations/deriveIntegrationReadiness.ts',
+    'src/integrations/IntegrationAdapterRegistryPanel.tsx',
+    'src/integrations/IntegrationRequestPreviewPanel.tsx',
+    'src/shared/governance/integrationAdapterGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142F_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142F_INTEGRATION_ADAPTER_REGISTRY.md');
+
+  it('the doc pins disabled-by-default, no external call, no credit pull / AML / core write', () => {
+    expect(doc).toMatch(/disabled by default|no external integration is live/i);
+    expect(doc).toMatch(/no external call|makes no external call/i);
+    expect(doc).toMatch(/credit pull|pulls no credit/i);
+    expect(doc).toMatch(/Phase 142G/);
+  });
+});

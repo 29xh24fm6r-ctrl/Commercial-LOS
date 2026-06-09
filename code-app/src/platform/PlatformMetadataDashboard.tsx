@@ -41,11 +41,20 @@ export interface PlatformServicingLifecycleSummary {
   nextBestAction?: string;
 }
 
+/** Optional integration readiness summary (Phase 142F) — passed in by the caller. */
+export interface PlatformIntegrationReadinessSummary {
+  requiredCount?: number;
+  blockedCount?: number;
+  missingPolicyApprovals?: number;
+  nextBestAction?: string;
+}
+
 interface Props {
   context?: PlatformViewerContext;
   workflowRouting?: PlatformWorkflowRoutingSummary;
   productProcessTemplates?: PlatformProductProcessTemplateSummary;
   servicing?: PlatformServicingLifecycleSummary;
+  integration?: PlatformIntegrationReadinessSummary;
 }
 
 /**
@@ -57,7 +66,7 @@ interface Props {
  * view/custom-field creation, workflow activation, route registration, write
  * toggle, external-integration toggle, or fetch. No new route is registered.
  */
-export function PlatformMetadataDashboard({ context, workflowRouting, productProcessTemplates, servicing }: Props) {
+export function PlatformMetadataDashboard({ context, workflowRouting, productProcessTemplates, servicing, integration }: Props) {
   const ctx: PlatformViewerContext = context ?? { workspace: 'strategy' };
   const objects = derivePlatformObjectCatalog({ context: ctx });
   const views = derivePlatformViewCatalog({ context: ctx });
@@ -131,6 +140,18 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
             {servicing.servicingExpectationCount !== undefined && <li style={itemStyle}>Servicing expectations: {servicing.servicingExpectationCount}</li>}
             {servicing.blockerCount !== undefined && <li style={itemStyle}>Blockers: {servicing.blockerCount}</li>}
             {servicing.nextBestAction && <li style={itemStyle}>Next: {servicing.nextBestAction}</li>}
+          </ul>
+        </div>
+      )}
+
+      {integration && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Integration readiness (142F)</span>
+          <ul style={ulStyle}>
+            {integration.requiredCount !== undefined && <li style={itemStyle}>Required integrations: {integration.requiredCount}</li>}
+            {integration.blockedCount !== undefined && <li style={itemStyle}>Blocked integrations: {integration.blockedCount}</li>}
+            {integration.missingPolicyApprovals !== undefined && <li style={itemStyle}>Missing policy approvals: {integration.missingPolicyApprovals}</li>}
+            {integration.nextBestAction && <li style={itemStyle}>Next: {integration.nextBestAction}</li>}
           </ul>
         </div>
       )}

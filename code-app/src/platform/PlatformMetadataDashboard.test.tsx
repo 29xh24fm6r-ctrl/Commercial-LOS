@@ -84,4 +84,21 @@ describe('Phase 142B — platform metadata dashboard', () => {
     expect(screen.getByText(/Stage: booked_active/)).toBeInTheDocument();
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders without integration readiness data (optional prop)', () => {
+    const { container } = render(<PlatformMetadataDashboard context={{ workspace: 'strategy' }} />);
+    expect(container.textContent ?? '').not.toContain('Integration readiness (142F)');
+  });
+
+  it('renders the integration readiness summary when provided (no mutation controls)', () => {
+    const { container } = render(
+      <PlatformMetadataDashboard
+        context={{ workspace: 'strategy' }}
+        integration={{ requiredCount: 4, blockedCount: 20, missingPolicyApprovals: 2, nextBestAction: 'Configure transport and obtain policy approval.' }}
+      />,
+    );
+    expect(screen.getByText(/Integration readiness \(142F\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Required integrations: 4/)).toBeInTheDocument();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

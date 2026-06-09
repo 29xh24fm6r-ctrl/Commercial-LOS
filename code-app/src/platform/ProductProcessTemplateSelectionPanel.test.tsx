@@ -54,4 +54,20 @@ describe('Phase 142D — template selection panel', () => {
     expect(screen.getByText(/booked_active/)).toBeInTheDocument();
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders without integration readiness data (optional prop)', () => {
+    const { selection } = build({ productFamily: 'commercial', loanStructure: 'term_loan' });
+    const { container } = render(<ProductProcessTemplateSelectionPanel selection={selection} />);
+    expect(container.textContent ?? '').not.toContain('Integration readiness (142F)');
+  });
+
+  it('renders the integration readiness summary when provided (no mutation controls)', () => {
+    const { selection } = build({ productFamily: 'commercial', loanStructure: 'term_loan' });
+    const { container } = render(
+      <ProductProcessTemplateSelectionPanel selection={selection} integration={{ requiredCount: 4, blockedCount: 20, missingPolicyApprovals: 2 }} />,
+    );
+    expect(screen.getByText(/Integration readiness \(142F\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Required: 4/)).toBeInTheDocument();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

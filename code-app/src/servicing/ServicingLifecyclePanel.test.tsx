@@ -42,4 +42,18 @@ describe('Phase 142E — ServicingLifecyclePanel', () => {
     const { container } = render(<ServicingLifecyclePanel snapshot={snapshot()} />);
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders without integration readiness data (optional prop)', () => {
+    const { container } = render(<ServicingLifecyclePanel snapshot={snapshot()} />);
+    expect(container.textContent ?? '').not.toContain('Integration readiness (142F)');
+  });
+
+  it('renders the integration readiness summary when provided (no mutation controls)', () => {
+    const { container } = render(
+      <ServicingLifecyclePanel snapshot={snapshot()} integration={{ requiredCount: 4, blockedCount: 20, missingPolicyApprovals: 2, nextBestAction: 'Configure transport and obtain policy approval.' }} />,
+    );
+    expect(screen.getByText(/Integration readiness \(142F\)/)).toBeTruthy();
+    expect(screen.getByText(/Required: 4/)).toBeTruthy();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

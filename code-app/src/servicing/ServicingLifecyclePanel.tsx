@@ -3,8 +3,17 @@ import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { palette, spacing, typography } from '../shared/theme';
 import type { ServicingLifecycleSnapshot } from './servicingLifecycleTypes';
 
+/** Optional integration readiness summary (Phase 142F). */
+export interface ServicingIntegrationSummary {
+  requiredCount?: number;
+  blockedCount?: number;
+  missingPolicyApprovals?: number;
+  nextBestAction?: string;
+}
+
 interface Props {
   snapshot: ServicingLifecycleSnapshot;
+  integration?: ServicingIntegrationSummary;
 }
 
 /**
@@ -16,7 +25,7 @@ interface Props {
  * transfer / repayment-schedule / task / tickler-update / waive / approve /
  * send / upload-link / write / fetch affordance.
  */
-export function ServicingLifecyclePanel({ snapshot }: Props) {
+export function ServicingLifecyclePanel({ snapshot, integration }: Props) {
   return (
     <Card>
       <CardHeader title="Servicing lifecycle" subtitle={snapshot.lifecycleStage.replace(/_/g, ' ')} />
@@ -69,6 +78,17 @@ export function ServicingLifecyclePanel({ snapshot }: Props) {
           ))}
         </ul>
       </div>
+
+      {integration && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Integration readiness (142F)</span>
+          <span style={itemStyle}>
+            Required: {integration.requiredCount ?? 0} · Blocked: {integration.blockedCount ?? 0}
+            {integration.missingPolicyApprovals !== undefined ? ` · Missing approvals: ${integration.missingPolicyApprovals}` : ''}
+          </span>
+          {integration.nextBestAction && <span style={itemStyle}>Next: {integration.nextBestAction}</span>}
+        </div>
+      )}
 
       <CardFooter>
         <span>Operational decision support only — never posts transactions, books loans, moves money, or mutates live records.</span>

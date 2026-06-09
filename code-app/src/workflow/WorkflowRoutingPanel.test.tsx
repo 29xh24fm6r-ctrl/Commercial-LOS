@@ -91,3 +91,26 @@ describe('Phase 142E — routing panel servicing lifecycle summary', () => {
     expect(container.querySelectorAll('button').length).toBe(0);
   });
 });
+
+describe('Phase 142F — routing panel integration readiness summary', () => {
+  function panel(integration?: Parameters<typeof WorkflowRoutingPanel>[0]['integration']) {
+    const route = deriveConfigurableWorkflowRoute({ input: { productType: 'sba_7a', amount: 200000 } });
+    return render(<WorkflowRoutingPanel route={route} integration={integration} />);
+  }
+
+  it('renders without integration data (optional prop)', () => {
+    const { container } = panel();
+    expect(container.textContent ?? '').not.toContain('Integration readiness (142F)');
+  });
+
+  it('renders the integration readiness summary when provided', () => {
+    panel({ requiredCount: 4, blockedCount: 20, missingPolicyApprovals: 2 });
+    expect(screen.getByText(/Integration readiness \(142F\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Required: 4/)).toBeInTheDocument();
+  });
+
+  it('the integration summary adds no mutation controls', () => {
+    const { container } = panel({ requiredCount: 4 });
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
+});

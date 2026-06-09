@@ -19,11 +19,20 @@ export interface WorkflowServicingSummary {
   nextBestAction?: string;
 }
 
+/** Optional integration readiness summary (Phase 142F). */
+export interface WorkflowIntegrationSummary {
+  requiredCount?: number;
+  blockedCount?: number;
+  missingPolicyApprovals?: number;
+  nextBestAction?: string;
+}
+
 interface Props {
   route: WorkflowRouteDerivationResult;
   readiness?: WorkflowRoutingReadinessResult;
   templateAlignment?: WorkflowRoutingTemplateAlignment;
   servicing?: WorkflowServicingSummary;
+  integration?: WorkflowIntegrationSummary;
 }
 
 /**
@@ -35,7 +44,7 @@ interface Props {
  * / create-task / update-stage / send-request / upload-link / write / fetch
  * affordance.
  */
-export function WorkflowRoutingPanel({ route, readiness, templateAlignment, servicing }: Props) {
+export function WorkflowRoutingPanel({ route, readiness, templateAlignment, servicing, integration }: Props) {
   const committee = route.creditCommittee;
   return (
     <Card>
@@ -119,6 +128,16 @@ export function WorkflowRoutingPanel({ route, readiness, templateAlignment, serv
         <div style={sectionStyle}>
           <span style={sectionTitleStyle}>Servicing lifecycle (142E)</span>
           <span style={itemStyle}>Stage: {servicing.lifecycleStage ?? 'unknown'} · Health: {servicing.lifecycleHealth ?? 'unknown'}</span>
+        </div>
+      )}
+
+      {integration && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Integration readiness (142F)</span>
+          <span style={itemStyle}>
+            Required: {integration.requiredCount ?? 0} · Blocked: {integration.blockedCount ?? 0}
+            {integration.missingPolicyApprovals !== undefined ? ` · Missing approvals: ${integration.missingPolicyApprovals}` : ''}
+          </span>
         </div>
       )}
 

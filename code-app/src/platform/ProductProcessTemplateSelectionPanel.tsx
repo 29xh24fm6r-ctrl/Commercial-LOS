@@ -13,12 +13,21 @@ export interface TemplateServicingSummary {
   nextBestAction?: string;
 }
 
+/** Optional integration readiness summary (Phase 142F). */
+export interface TemplateIntegrationSummary {
+  requiredCount?: number;
+  blockedCount?: number;
+  missingPolicyApprovals?: number;
+  nextBestAction?: string;
+}
+
 interface Props {
   selection: ProductProcessTemplateDerivationResult;
   requirements?: ProductProcessRequirementsResult;
   readiness?: ProductProcessTemplateReadinessResult;
   workflowRouteKey?: string;
   servicing?: TemplateServicingSummary;
+  integration?: TemplateIntegrationSummary;
 }
 
 /**
@@ -29,7 +38,7 @@ interface Props {
  * apply-template / update-deal / update-route / create-requirements / create-task
  * / approve-committee / write affordance, and no fetch.
  */
-export function ProductProcessTemplateSelectionPanel({ selection, requirements, readiness, workflowRouteKey, servicing }: Props) {
+export function ProductProcessTemplateSelectionPanel({ selection, requirements, readiness, workflowRouteKey, servicing, integration }: Props) {
   return (
     <Card>
       <CardHeader title="Template selection" subtitle={selection.status.replace(/_/g, ' ')} />
@@ -70,6 +79,13 @@ export function ProductProcessTemplateSelectionPanel({ selection, requirements, 
         <div style={sectionStyle}>
           <span style={sectionTitleStyle}>Servicing lifecycle (142E)</span>
           <span style={itemStyle}>Stage: {servicing.lifecycleStage ?? 'unknown'} · Health: {servicing.lifecycleHealth ?? 'unknown'}{servicing.servicingExpectationCount !== undefined ? ` · Expectations: ${servicing.servicingExpectationCount}` : ''}</span>
+        </div>
+      )}
+
+      {integration && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Integration readiness (142F)</span>
+          <span style={itemStyle}>Required: {integration.requiredCount ?? 0} · Blocked: {integration.blockedCount ?? 0}{integration.missingPolicyApprovals !== undefined ? ` · Missing approvals: ${integration.missingPolicyApprovals}` : ''}</span>
         </div>
       )}
 
