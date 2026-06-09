@@ -1837,3 +1837,44 @@ describe('Phase 141P — annual review memo / board / FDIC packages exist', () =
     expect(doc).toMatch(/export/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142A — competitive platform convergence
+// ---------------------------------------------------------------------------
+
+describe('Phase 142A — competitive platform convergence exists', () => {
+  const REQUIRED_142A_FILES: readonly string[] = [
+    'docs/PHASE_142A_COMPETITIVE_PLATFORM_CONVERGENCE.md',
+    'src/competitive/competitiveCapabilityTypes.ts',
+    'src/competitive/competitiveCapabilityMatrix.ts',
+    'src/competitive/deriveCompetitiveReferenceLessons.ts',
+    'src/competitive/deriveCompetitiveImplementationBacklog.ts',
+    'src/competitive/CompetitiveCapabilityDashboard.tsx',
+    'src/platform/platformObjectModelTypes.ts',
+    'src/platform/platformObjectRegistry.ts',
+    'src/platform/derivePlatformObjectModel.ts',
+    'src/platform/platformViewRegistry.ts',
+    'src/platform/derivePlatformViews.ts',
+    'src/platform/productProcessMetadataTypes.ts',
+    'src/platform/productProcessRegistry.ts',
+    'src/platform/deriveProductProcessProfile.ts',
+    'src/workflow/workflowRoutingTypes.ts',
+    'src/workflow/deriveWorkflowRoute.ts',
+    'src/workflow/workflowRouteRegistry.ts',
+    'src/shared/governance/competitivePlatformGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142A_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142A_COMPETITIVE_PLATFORM_CONVERGENCE.md');
+
+  it('the doc pins read-only strategy, no replacement, no final decision / schema mutation', () => {
+    expect(doc).toMatch(/read-only|metadata-only/i);
+    expect(doc).toMatch(/no final credit/i);
+    expect(doc).toMatch(/no (dynamic )?schema mutation/i);
+    expect(doc).toMatch(/Phase 142B/);
+  });
+});
