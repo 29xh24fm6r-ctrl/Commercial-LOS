@@ -2046,3 +2046,35 @@ describe('Phase 142F — integration adapter registry exists', () => {
     expect(doc).toMatch(/Phase 142G/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142G — admin configuration review queue
+// ---------------------------------------------------------------------------
+
+describe('Phase 142G — admin configuration review queue exists', () => {
+  const REQUIRED_142G_FILES: readonly string[] = [
+    'docs/PHASE_142G_ADMIN_CONFIGURATION_REVIEW_QUEUE.md',
+    'src/adminConfig/adminConfigurationTypes.ts',
+    'src/adminConfig/buildAdminConfigurationProposal.ts',
+    'src/adminConfig/validateAdminConfigurationProposal.ts',
+    'src/adminConfig/deriveAdminConfigurationReviewQueue.ts',
+    'src/adminConfig/deriveAdminConfigurationReviewDecision.ts',
+    'src/adminConfig/AdminConfigurationReviewQueuePanel.tsx',
+    'src/adminConfig/AdminConfigurationSummaryPanel.tsx',
+    'src/shared/governance/adminConfigurationGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142G_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142G_ADMIN_CONFIGURATION_REVIEW_QUEUE.md');
+
+  it('the doc pins review-only, validForApply false, no schema mutation', () => {
+    expect(doc).toMatch(/review-only|cannot apply them/i);
+    expect(doc).toMatch(/validForApply.*false|never apply/i);
+    expect(doc).toMatch(/schema mutation|no Dataverse schema change/i);
+    expect(doc).toMatch(/Phase 142H/);
+  });
+});

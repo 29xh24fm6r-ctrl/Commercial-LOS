@@ -101,4 +101,21 @@ describe('Phase 142B — platform metadata dashboard', () => {
     expect(screen.getByText(/Required integrations: 4/)).toBeInTheDocument();
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders without admin configuration data (optional prop)', () => {
+    const { container } = render(<PlatformMetadataDashboard context={{ workspace: 'strategy' }} />);
+    expect(container.textContent ?? '').not.toContain('Admin configuration review (142G)');
+  });
+
+  it('renders the admin configuration summary when provided (no apply controls)', () => {
+    const { container } = render(
+      <PlatformMetadataDashboard
+        context={{ workspace: 'strategy' }}
+        adminConfiguration={{ pendingCount: 3, blockedUnsafeCount: 2, approvedNotAppliedCount: 1, highRiskCount: 2, nextBestAction: 'Review pending proposals (no apply).' }}
+      />,
+    );
+    expect(screen.getByText(/Admin configuration review \(142G\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Pending proposals: 3/)).toBeInTheDocument();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

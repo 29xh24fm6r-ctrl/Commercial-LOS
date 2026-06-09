@@ -49,12 +49,22 @@ export interface PlatformIntegrationReadinessSummary {
   nextBestAction?: string;
 }
 
+/** Optional admin configuration review summary (Phase 142G) — passed in by the caller. */
+export interface PlatformAdminConfigurationSummary {
+  pendingCount?: number;
+  blockedUnsafeCount?: number;
+  approvedNotAppliedCount?: number;
+  highRiskCount?: number;
+  nextBestAction?: string;
+}
+
 interface Props {
   context?: PlatformViewerContext;
   workflowRouting?: PlatformWorkflowRoutingSummary;
   productProcessTemplates?: PlatformProductProcessTemplateSummary;
   servicing?: PlatformServicingLifecycleSummary;
   integration?: PlatformIntegrationReadinessSummary;
+  adminConfiguration?: PlatformAdminConfigurationSummary;
 }
 
 /**
@@ -66,7 +76,7 @@ interface Props {
  * view/custom-field creation, workflow activation, route registration, write
  * toggle, external-integration toggle, or fetch. No new route is registered.
  */
-export function PlatformMetadataDashboard({ context, workflowRouting, productProcessTemplates, servicing, integration }: Props) {
+export function PlatformMetadataDashboard({ context, workflowRouting, productProcessTemplates, servicing, integration, adminConfiguration }: Props) {
   const ctx: PlatformViewerContext = context ?? { workspace: 'strategy' };
   const objects = derivePlatformObjectCatalog({ context: ctx });
   const views = derivePlatformViewCatalog({ context: ctx });
@@ -152,6 +162,19 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
             {integration.blockedCount !== undefined && <li style={itemStyle}>Blocked integrations: {integration.blockedCount}</li>}
             {integration.missingPolicyApprovals !== undefined && <li style={itemStyle}>Missing policy approvals: {integration.missingPolicyApprovals}</li>}
             {integration.nextBestAction && <li style={itemStyle}>Next: {integration.nextBestAction}</li>}
+          </ul>
+        </div>
+      )}
+
+      {adminConfiguration && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Admin configuration review (142G)</span>
+          <ul style={ulStyle}>
+            {adminConfiguration.pendingCount !== undefined && <li style={itemStyle}>Pending proposals: {adminConfiguration.pendingCount}</li>}
+            {adminConfiguration.blockedUnsafeCount !== undefined && <li style={itemStyle}>Blocked unsafe: {adminConfiguration.blockedUnsafeCount}</li>}
+            {adminConfiguration.approvedNotAppliedCount !== undefined && <li style={itemStyle}>Approved (not applied): {adminConfiguration.approvedNotAppliedCount}</li>}
+            {adminConfiguration.highRiskCount !== undefined && <li style={itemStyle}>High risk: {adminConfiguration.highRiskCount}</li>}
+            {adminConfiguration.nextBestAction && <li style={itemStyle}>Next: {adminConfiguration.nextBestAction}</li>}
           </ul>
         </div>
       )}
