@@ -59,6 +59,10 @@ export interface PlatformAdminConfigurationSummary {
   /** Phase 142J — optional persistence readiness summary. */
   persistenceMode?: string;
   persistenceSchemaStatus?: string;
+  /** Phase 142K — optional controlled-apply workflow summary. */
+  applyPreviewReadyCount?: number;
+  applyBlockedCount?: number;
+  applyDryRunOnly?: boolean;
 }
 
 interface Props {
@@ -178,6 +182,7 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
             {adminConfiguration.approvedNotAppliedCount !== undefined && <li style={itemStyle}>Approved (not applied): {adminConfiguration.approvedNotAppliedCount}</li>}
             {adminConfiguration.highRiskCount !== undefined && <li style={itemStyle}>High risk: {adminConfiguration.highRiskCount}</li>}
             {adminConfiguration.persistenceMode && <li style={itemStyle}>Persistence: {adminConfiguration.persistenceMode} (schema {adminConfiguration.persistenceSchemaStatus ?? 'not ready'})</li>}
+            {adminConfiguration.applyPreviewReadyCount !== undefined && <li style={itemStyle}>Apply preview-ready: {adminConfiguration.applyPreviewReadyCount} · blocked: {adminConfiguration.applyBlockedCount ?? 0} (dry-run only {String(adminConfiguration.applyDryRunOnly ?? true)})</li>}
             {adminConfiguration.nextBestAction && <li style={itemStyle}>Next: {adminConfiguration.nextBestAction}</li>}
           </ul>
         </div>

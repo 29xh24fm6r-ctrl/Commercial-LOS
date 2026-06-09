@@ -12,9 +12,19 @@ export interface AdminConfigurationPersistenceSummary {
   nextBestAction?: string;
 }
 
+/** Optional controlled-apply workflow summary (Phase 142K). */
+export interface AdminConfigurationApplySummary {
+  previewReadyCount?: number;
+  blockedCount?: number;
+  dryRunOnly?: boolean;
+  executionDisabledReason?: string;
+  nextBestAction?: string;
+}
+
 interface Props {
   queue: AdminConfigurationReviewQueue;
   persistence?: AdminConfigurationPersistenceSummary;
+  apply?: AdminConfigurationApplySummary;
 }
 
 /**
@@ -26,7 +36,7 @@ interface Props {
  * save-config / execute-workflow / approve-credit / waive-covenant / send
  * affordance, no callback, no fetch, and no write. Nothing is applied.
  */
-export function AdminConfigurationReviewQueuePanel({ queue, persistence }: Props) {
+export function AdminConfigurationReviewQueuePanel({ queue, persistence, apply }: Props) {
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const entries = q
@@ -113,6 +123,17 @@ export function AdminConfigurationReviewQueuePanel({ queue, persistence }: Props
           {persistence.saveDisabledReason && <span style={itemStyle}>Save disabled: {persistence.saveDisabledReason}</span>}
           {persistence.applyDisabledReason && <span style={itemStyle}>Apply disabled: {persistence.applyDisabledReason}</span>}
           {persistence.nextBestAction && <span style={itemStyle}>Next: {persistence.nextBestAction}</span>}
+        </div>
+      )}
+
+      {apply && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Controlled apply (142K)</span>
+          <span style={itemStyle}>
+            Preview-ready: {apply.previewReadyCount ?? 0} · Blocked: {apply.blockedCount ?? 0} · Dry-run only: {String(apply.dryRunOnly ?? true)}
+          </span>
+          {apply.executionDisabledReason && <span style={itemStyle}>Execution disabled: {apply.executionDisabledReason}</span>}
+          {apply.nextBestAction && <span style={itemStyle}>Next: {apply.nextBestAction}</span>}
         </div>
       )}
 

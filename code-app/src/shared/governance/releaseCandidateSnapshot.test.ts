@@ -2174,3 +2174,35 @@ describe('Phase 142J — admin configuration persistence adapter exists', () => 
     expect(doc).toMatch(/Phase 142K/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142K — admin configuration controlled apply workflow
+// ---------------------------------------------------------------------------
+
+describe('Phase 142K — admin configuration controlled apply workflow exists', () => {
+  const REQUIRED_142K_FILES: readonly string[] = [
+    'docs/PHASE_142K_ADMIN_CONFIGURATION_CONTROLLED_APPLY_WORKFLOW.md',
+    'src/adminConfig/adminConfigurationApplyTypes.ts',
+    'src/adminConfig/deriveAdminConfigurationApplyReadiness.ts',
+    'src/adminConfig/buildAdminConfigurationApplyPlan.ts',
+    'src/adminConfig/createAdminConfigurationControlledApplyEngine.ts',
+    'src/adminConfig/adminConfigurationApplyFeatureFlags.ts',
+    'src/adminConfig/deriveAdminConfigurationApplyWorkflow.ts',
+    'src/adminConfig/AdminConfigurationApplyPreviewPanel.tsx',
+    'src/shared/governance/adminConfigurationApplyGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142K_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142K_ADMIN_CONFIGURATION_CONTROLLED_APPLY_WORKFLOW.md');
+
+  it('the doc pins generate-plans-not-apply, no schema mutation, execution disabled', () => {
+    expect(doc).toMatch(/generate apply plans.*do not apply|do not apply them/i);
+    expect(doc).toMatch(/no schema mutation|schema mutation/i);
+    expect(doc).toMatch(/attemptApply always blocked|actual apply.*none|execution/i);
+    expect(doc).toMatch(/Phase 142L/);
+  });
+});

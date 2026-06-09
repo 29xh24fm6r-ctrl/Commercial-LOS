@@ -36,4 +36,10 @@ describe('Phase 142J — AdminConfigurationPersistenceReadinessPanel', () => {
     }
     expect(container.innerHTML).not.toMatch(/https?:\/\//);
   });
+
+  it('renders the controlled apply summary when provided (no controls)', () => {
+    const { container } = render(<AdminConfigurationPersistenceReadinessPanel readiness={readiness} schemaState={schemaState} apply={{ previewReadyCount: 1, blockedCount: 2, dryRunOnly: true }} />);
+    expect(screen.getByText(/Controlled apply \(142K\)/)).toBeTruthy();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

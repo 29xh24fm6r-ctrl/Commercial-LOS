@@ -2,11 +2,12 @@ import { type CSSProperties } from 'react';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { palette, spacing, typography } from '../shared/theme';
 import type { AdminConfigurationReviewQueue } from './adminConfigurationTypes';
-import type { AdminConfigurationPersistenceSummary } from './AdminConfigurationReviewQueuePanel';
+import type { AdminConfigurationPersistenceSummary, AdminConfigurationApplySummary } from './AdminConfigurationReviewQueuePanel';
 
 interface Props {
   queue: AdminConfigurationReviewQueue;
   persistence?: AdminConfigurationPersistenceSummary;
+  apply?: AdminConfigurationApplySummary;
 }
 
 /**
@@ -17,7 +18,7 @@ interface Props {
  * distribution. Read-only — no apply / mutate / route registration / fetch /
  * write affordance, and no fabricated data.
  */
-export function AdminConfigurationSummaryPanel({ queue, persistence }: Props) {
+export function AdminConfigurationSummaryPanel({ queue, persistence, apply }: Props) {
   const riskDistribution = countBy(queue.proposals.map((e) => e.proposal.riskClass));
   const domainDistribution = countBy(queue.proposals.map((e) => e.proposal.targetDomain));
 
@@ -67,6 +68,13 @@ export function AdminConfigurationSummaryPanel({ queue, persistence }: Props) {
         <div style={sectionStyle}>
           <span style={sectionTitleStyle}>Persistence readiness (142J)</span>
           <span style={itemStyle}>Mode: {persistence.persistenceMode ?? 'disabled'} · Schema: {persistence.schemaStatus ?? 'not ready'}</span>
+        </div>
+      )}
+
+      {apply && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Controlled apply (142K)</span>
+          <span style={itemStyle}>Preview-ready: {apply.previewReadyCount ?? 0} · Blocked: {apply.blockedCount ?? 0} · Dry-run only: {String(apply.dryRunOnly ?? true)}</span>
         </div>
       )}
 

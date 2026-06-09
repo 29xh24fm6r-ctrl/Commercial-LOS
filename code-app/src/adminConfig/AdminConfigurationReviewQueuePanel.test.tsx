@@ -64,4 +64,17 @@ describe('Phase 142G — AdminConfigurationReviewQueuePanel', () => {
     expect(screen.getByText(/Persistence readiness \(142J\)/)).toBeTruthy();
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders without apply workflow data and renders it when provided (no apply controls)', () => {
+    const { container: without } = render(<AdminConfigurationReviewQueuePanel queue={queue([p('P1', 'platform_object_change')])} />);
+    expect(without.textContent ?? '').not.toContain('Controlled apply (142K)');
+    const { container } = render(
+      <AdminConfigurationReviewQueuePanel
+        queue={queue([p('P1', 'platform_object_change')])}
+        apply={{ previewReadyCount: 1, blockedCount: 2, dryRunOnly: true, executionDisabledReason: 'execution disabled', nextBestAction: 'Prepare operator spec.' }}
+      />,
+    );
+    expect(screen.getByText(/Controlled apply \(142K\)/)).toBeTruthy();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

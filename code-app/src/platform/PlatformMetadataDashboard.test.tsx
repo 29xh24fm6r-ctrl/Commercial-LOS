@@ -129,4 +129,15 @@ describe('Phase 142B — platform metadata dashboard', () => {
     expect(screen.getByText(/Persistence: disabled \(schema not ready\)/)).toBeInTheDocument();
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders the controlled apply summary when provided (142K)', () => {
+    const { container } = render(
+      <PlatformMetadataDashboard
+        context={{ workspace: 'strategy' }}
+        adminConfiguration={{ pendingCount: 1, applyPreviewReadyCount: 1, applyBlockedCount: 2, applyDryRunOnly: true }}
+      />,
+    );
+    expect(screen.getByText(/Apply preview-ready: 1/)).toBeInTheDocument();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

@@ -6,10 +6,12 @@ import type {
   AdminConfigurationPersistenceSchemaState,
 } from './adminConfigurationPersistenceTypes';
 import { ADMIN_CONFIG_TARGET_TABLES } from './adminConfigurationDataverseSchemaPlan';
+import type { AdminConfigurationApplySummary } from './AdminConfigurationReviewQueuePanel';
 
 interface Props {
   readiness: AdminConfigurationPersistenceReadiness;
   schemaState: AdminConfigurationPersistenceSchemaState;
+  apply?: AdminConfigurationApplySummary;
 }
 
 /**
@@ -21,7 +23,7 @@ interface Props {
  * create-schema / save / apply / deploy / publish / activate / Dataverse-write /
  * fetch affordance. Write and apply are always disabled.
  */
-export function AdminConfigurationPersistenceReadinessPanel({ readiness, schemaState }: Props) {
+export function AdminConfigurationPersistenceReadinessPanel({ readiness, schemaState, apply }: Props) {
   return (
     <Card>
       <CardHeader title="Admin configuration persistence readiness" subtitle={`Mode: ${readiness.mode.replace(/_/g, ' ')}`} />
@@ -86,6 +88,12 @@ export function AdminConfigurationPersistenceReadinessPanel({ readiness, schemaS
       <Section title="Next best action">
         <span style={itemStyle}>{readiness.nextBestAction.label}</span>
       </Section>
+
+      {apply && (
+        <Section title="Controlled apply (142K)">
+          <span style={itemStyle}>Preview-ready: {apply.previewReadyCount ?? 0} · Blocked: {apply.blockedCount ?? 0} · Dry-run only: {String(apply.dryRunOnly ?? true)}</span>
+        </Section>
+      )}
 
       <CardFooter>
         <span>Persistence is disabled by default. Future activation requires policy approval, transport injection, permission controls, and audit verification — writes and apply remain disabled.</span>

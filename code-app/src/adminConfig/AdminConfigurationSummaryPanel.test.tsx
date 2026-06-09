@@ -50,4 +50,10 @@ describe('Phase 142G — AdminConfigurationSummaryPanel', () => {
     expect(screen.getByText(/Persistence readiness \(142J\)/)).toBeTruthy();
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders the controlled apply summary when provided (no apply controls)', () => {
+    const { container } = render(<AdminConfigurationSummaryPanel queue={queue()} apply={{ previewReadyCount: 1, blockedCount: 2, dryRunOnly: true }} />);
+    expect(screen.getByText(/Controlled apply \(142K\)/)).toBeTruthy();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });
