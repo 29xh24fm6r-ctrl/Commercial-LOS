@@ -11,8 +11,18 @@ import { PlatformViewCatalogPanel } from './PlatformViewCatalogPanel';
 import { PlatformRelationshipMapPanel } from './PlatformRelationshipMapPanel';
 import type { PlatformViewerContext } from './platformSurfaceTypes';
 
+/** Optional workflow routing summary (Phase 142C) — passed in by the caller. */
+export interface PlatformWorkflowRoutingSummary {
+  routeCount?: number;
+  creditCommitteeRouteCount?: number;
+  annualReviewRouteCount?: number;
+  exceptionRouteCount?: number;
+  selectedRoutePreview?: string;
+}
+
 interface Props {
   context?: PlatformViewerContext;
+  workflowRouting?: PlatformWorkflowRoutingSummary;
 }
 
 /**
@@ -24,7 +34,7 @@ interface Props {
  * view/custom-field creation, workflow activation, route registration, write
  * toggle, external-integration toggle, or fetch. No new route is registered.
  */
-export function PlatformMetadataDashboard({ context }: Props) {
+export function PlatformMetadataDashboard({ context, workflowRouting }: Props) {
   const ctx: PlatformViewerContext = context ?? { workspace: 'strategy' };
   const objects = derivePlatformObjectCatalog({ context: ctx });
   const views = derivePlatformViewCatalog({ context: ctx });
@@ -61,6 +71,19 @@ export function PlatformMetadataDashboard({ context }: Props) {
           ))}
         </ul>
       </div>
+
+      {workflowRouting && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Workflow routing (142C)</span>
+          <ul style={ulStyle}>
+            {workflowRouting.routeCount !== undefined && <li style={itemStyle}>Routes: {workflowRouting.routeCount}</li>}
+            {workflowRouting.creditCommitteeRouteCount !== undefined && <li style={itemStyle}>Credit committee routes: {workflowRouting.creditCommitteeRouteCount}</li>}
+            {workflowRouting.annualReviewRouteCount !== undefined && <li style={itemStyle}>Annual review routes: {workflowRouting.annualReviewRouteCount}</li>}
+            {workflowRouting.exceptionRouteCount !== undefined && <li style={itemStyle}>Exception routes: {workflowRouting.exceptionRouteCount}</li>}
+            {workflowRouting.selectedRoutePreview && <li style={itemStyle}>Selected route: {workflowRouting.selectedRoutePreview}</li>}
+          </ul>
+        </div>
+      )}
 
       <PlatformObjectCatalogPanel objects={objects} />
       <PlatformViewCatalogPanel views={views} />

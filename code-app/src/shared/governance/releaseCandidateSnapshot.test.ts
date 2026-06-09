@@ -1913,3 +1913,36 @@ describe('Phase 142B — governed platform metadata surfaces exist', () => {
     expect(doc).toMatch(/Phase 142C/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142C — configurable workflow routing + credit committee
+// ---------------------------------------------------------------------------
+
+describe('Phase 142C — configurable workflow routing exists', () => {
+  const REQUIRED_142C_FILES: readonly string[] = [
+    'docs/PHASE_142C_CONFIGURABLE_WORKFLOW_ROUTING_AND_CREDIT_COMMITTEE.md',
+    'src/workflow/workflowRoutingConfigTypes.ts',
+    'src/workflow/workflowRouteRuleRegistry.ts',
+    'src/workflow/deriveConfigurableWorkflowRoute.ts',
+    'src/workflow/deriveCreditCommitteeRoute.ts',
+    'src/workflow/deriveWorkflowStageSequence.ts',
+    'src/workflow/deriveWorkflowRoutingReadiness.ts',
+    'src/workflow/WorkflowRoutingPanel.tsx',
+    'src/shared/governance/workflowRoutingGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142C_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142C_CONFIGURABLE_WORKFLOW_ROUTING_AND_CREDIT_COMMITTEE.md');
+
+  it('the doc pins read-only decision support, no approval/vote/stage mutation', () => {
+    expect(doc).toMatch(/read-only/i);
+    expect(doc).toMatch(/decision support/i);
+    expect(doc).toMatch(/approves no credit|no credit/i);
+    expect(doc).toMatch(/voting|vote/i);
+    expect(doc).toMatch(/Phase 142D/);
+  });
+});

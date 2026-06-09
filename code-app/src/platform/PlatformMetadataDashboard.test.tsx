@@ -33,4 +33,21 @@ describe('Phase 142B — platform metadata dashboard', () => {
     const { container } = render(<PlatformMetadataDashboard context={{ workspace: 'banker' }} />);
     expect(container.textContent ?? '').not.toContain('FDIC Package');
   });
+
+  it('renders without workflow routing data (optional prop)', () => {
+    const { container } = render(<PlatformMetadataDashboard context={{ workspace: 'strategy' }} />);
+    expect(container.textContent ?? '').not.toContain('Workflow routing (142C)');
+  });
+
+  it('renders the workflow routing summary when provided (no activation controls)', () => {
+    const { container } = render(
+      <PlatformMetadataDashboard
+        context={{ workspace: 'strategy' }}
+        workflowRouting={{ routeCount: 14, creditCommitteeRouteCount: 3, annualReviewRouteCount: 4, exceptionRouteCount: 1, selectedRoutePreview: 'sba_7a_standard' }}
+      />,
+    );
+    expect(screen.getByText(/Workflow routing \(142C\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Routes: 14/)).toBeInTheDocument();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });
