@@ -1802,3 +1802,38 @@ describe('Phase 141O — annual review financial spreading + covenants exist', (
     expect(doc).toMatch(/ambiguous/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 141P — annual review memo / board / FDIC packages
+// ---------------------------------------------------------------------------
+
+describe('Phase 141P — annual review memo / board / FDIC packages exist', () => {
+  const REQUIRED_141P_FILES: readonly string[] = [
+    'docs/PHASE_141P_ANNUAL_REVIEW_MEMO_BOARD_FDIC_PACKAGES.md',
+    'src/annualReview/annualReviewPackageTypes.ts',
+    'src/annualReview/deriveAnnualReviewPackageReadiness.ts',
+    'src/annualReview/buildAnnualReviewEvidenceIndex.ts',
+    'src/annualReview/buildAnnualReviewMemoPackage.ts',
+    'src/annualReview/buildAnnualReviewBoardPackage.ts',
+    'src/annualReview/buildAnnualReviewFdicPackage.ts',
+    'src/annualReview/AnnualReviewPackagePreviewPanel.tsx',
+    'src/annualReview/annualReviewPackageExportAdapter.ts',
+    'src/annualReview/deriveAnnualReviewPackageWorkflow.ts',
+    'src/shared/governance/annualReviewPackageGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_141P_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_141P_ANNUAL_REVIEW_MEMO_BOARD_FDIC_PACKAGES.md');
+
+  it('the doc pins draft-only, evidence-backed, no approval/waiver/export', () => {
+    expect(doc).toMatch(/draft[- ]only/i);
+    expect(doc).toMatch(/evidence-backed/i);
+    expect(doc).toMatch(/no final credit|final approval/i);
+    expect(doc).toMatch(/covenant waiver/i);
+    expect(doc).toMatch(/export/i);
+  });
+});
