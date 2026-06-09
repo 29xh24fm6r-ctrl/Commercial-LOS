@@ -42,4 +42,12 @@ describe('Phase 142G — AdminConfigurationSummaryPanel', () => {
     const { container } = render(<AdminConfigurationSummaryPanel queue={queue()} />);
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders without persistence data and renders it when provided (no controls)', () => {
+    const { container: without } = render(<AdminConfigurationSummaryPanel queue={queue()} />);
+    expect(without.textContent ?? '').not.toContain('Persistence readiness (142J)');
+    const { container } = render(<AdminConfigurationSummaryPanel queue={queue()} persistence={{ persistenceMode: 'disabled', schemaStatus: 'not ready' }} />);
+    expect(screen.getByText(/Persistence readiness \(142J\)/)).toBeTruthy();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

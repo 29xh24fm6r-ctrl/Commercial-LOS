@@ -3,8 +3,18 @@ import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { palette, spacing, typography } from '../shared/theme';
 import type { AdminConfigurationReviewQueue } from './adminConfigurationTypes';
 
+/** Optional persistence readiness summary (Phase 142J). */
+export interface AdminConfigurationPersistenceSummary {
+  persistenceMode?: string;
+  schemaStatus?: string;
+  saveDisabledReason?: string;
+  applyDisabledReason?: string;
+  nextBestAction?: string;
+}
+
 interface Props {
   queue: AdminConfigurationReviewQueue;
+  persistence?: AdminConfigurationPersistenceSummary;
 }
 
 /**
@@ -16,7 +26,7 @@ interface Props {
  * save-config / execute-workflow / approve-credit / waive-covenant / send
  * affordance, no callback, no fetch, and no write. Nothing is applied.
  */
-export function AdminConfigurationReviewQueuePanel({ queue }: Props) {
+export function AdminConfigurationReviewQueuePanel({ queue, persistence }: Props) {
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const entries = q
@@ -93,6 +103,18 @@ export function AdminConfigurationReviewQueuePanel({ queue }: Props) {
         <span style={sectionTitleStyle}>Review-only actions (informational)</span>
         <span style={itemStyle}>{queue.reviewerActions.map((a) => a.replace(/_/g, ' ')).join(' · ')}</span>
       </div>
+
+      {persistence && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Persistence readiness (142J)</span>
+          <span style={itemStyle}>
+            Mode: {persistence.persistenceMode ?? 'disabled'} · Schema: {persistence.schemaStatus ?? 'not ready'}
+          </span>
+          {persistence.saveDisabledReason && <span style={itemStyle}>Save disabled: {persistence.saveDisabledReason}</span>}
+          {persistence.applyDisabledReason && <span style={itemStyle}>Apply disabled: {persistence.applyDisabledReason}</span>}
+          {persistence.nextBestAction && <span style={itemStyle}>Next: {persistence.nextBestAction}</span>}
+        </div>
+      )}
 
       <CardFooter>
         <span>Review-only — admins may review proposed configuration changes but cannot apply them in this phase.</span>

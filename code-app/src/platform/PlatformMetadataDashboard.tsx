@@ -56,6 +56,9 @@ export interface PlatformAdminConfigurationSummary {
   approvedNotAppliedCount?: number;
   highRiskCount?: number;
   nextBestAction?: string;
+  /** Phase 142J — optional persistence readiness summary. */
+  persistenceMode?: string;
+  persistenceSchemaStatus?: string;
 }
 
 interface Props {
@@ -174,6 +177,7 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
             {adminConfiguration.blockedUnsafeCount !== undefined && <li style={itemStyle}>Blocked unsafe: {adminConfiguration.blockedUnsafeCount}</li>}
             {adminConfiguration.approvedNotAppliedCount !== undefined && <li style={itemStyle}>Approved (not applied): {adminConfiguration.approvedNotAppliedCount}</li>}
             {adminConfiguration.highRiskCount !== undefined && <li style={itemStyle}>High risk: {adminConfiguration.highRiskCount}</li>}
+            {adminConfiguration.persistenceMode && <li style={itemStyle}>Persistence: {adminConfiguration.persistenceMode} (schema {adminConfiguration.persistenceSchemaStatus ?? 'not ready'})</li>}
             {adminConfiguration.nextBestAction && <li style={itemStyle}>Next: {adminConfiguration.nextBestAction}</li>}
           </ul>
         </div>

@@ -2,9 +2,11 @@ import { type CSSProperties } from 'react';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { palette, spacing, typography } from '../shared/theme';
 import type { AdminConfigurationReviewQueue } from './adminConfigurationTypes';
+import type { AdminConfigurationPersistenceSummary } from './AdminConfigurationReviewQueuePanel';
 
 interface Props {
   queue: AdminConfigurationReviewQueue;
+  persistence?: AdminConfigurationPersistenceSummary;
 }
 
 /**
@@ -15,7 +17,7 @@ interface Props {
  * distribution. Read-only — no apply / mutate / route registration / fetch /
  * write affordance, and no fabricated data.
  */
-export function AdminConfigurationSummaryPanel({ queue }: Props) {
+export function AdminConfigurationSummaryPanel({ queue, persistence }: Props) {
   const riskDistribution = countBy(queue.proposals.map((e) => e.proposal.riskClass));
   const domainDistribution = countBy(queue.proposals.map((e) => e.proposal.targetDomain));
 
@@ -60,6 +62,13 @@ export function AdminConfigurationSummaryPanel({ queue }: Props) {
           {queue.approvedNotAppliedCount > 0 && <li style={itemStyle}>Track approved-not-applied proposals for a future implementation phase.</li>}
         </ul>
       </div>
+
+      {persistence && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Persistence readiness (142J)</span>
+          <span style={itemStyle}>Mode: {persistence.persistenceMode ?? 'disabled'} · Schema: {persistence.schemaStatus ?? 'not ready'}</span>
+        </div>
+      )}
 
       <CardFooter>
         <span>Governed review summary only — proposals are never applied, deployed, or activated in this phase.</span>

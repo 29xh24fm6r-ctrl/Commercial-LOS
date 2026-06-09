@@ -2139,3 +2139,38 @@ describe('Phase 142I — executive-safe product strategy route exists', () => {
     expect(doc).toMatch(/Phase 142J/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142J — admin configuration persistence adapter
+// ---------------------------------------------------------------------------
+
+describe('Phase 142J — admin configuration persistence adapter exists', () => {
+  const REQUIRED_142J_FILES: readonly string[] = [
+    'docs/PHASE_142J_ADMIN_CONFIGURATION_PERSISTENCE_ADAPTER.md',
+    'src/adminConfig/adminConfigurationPersistenceTypes.ts',
+    'src/adminConfig/adminConfigurationDataverseSchemaPlan.ts',
+    'src/adminConfig/deriveAdminConfigurationSchemaReadiness.ts',
+    'src/adminConfig/adminConfigurationPersistenceMapper.ts',
+    'src/adminConfig/adminConfigurationPersistenceAdapter.ts',
+    'src/adminConfig/createDisabledAdminConfigurationPersistenceAdapter.ts',
+    'src/adminConfig/createAdminConfigurationDataversePersistenceAdapter.ts',
+    'src/adminConfig/adminConfigurationPersistenceFeatureFlags.ts',
+    'src/adminConfig/resolveAdminConfigurationPersistenceAdapter.ts',
+    'src/adminConfig/AdminConfigurationPersistenceReadinessPanel.tsx',
+    'src/shared/governance/adminConfigurationPersistenceGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142J_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142J_ADMIN_CONFIGURATION_PERSISTENCE_ADAPTER.md');
+
+  it('the doc pins disabled-by-default persistence, no schema creation, write/apply disabled', () => {
+    expect(doc).toMatch(/disabled by default/i);
+    expect(doc).toMatch(/no .* schema|schema creation/i);
+    expect(doc).toMatch(/apply nothing now|write.*disabled|apply.*disabled/i);
+    expect(doc).toMatch(/Phase 142K/);
+  });
+});

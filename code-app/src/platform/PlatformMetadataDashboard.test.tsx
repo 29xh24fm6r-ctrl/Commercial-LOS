@@ -118,4 +118,15 @@ describe('Phase 142B — platform metadata dashboard', () => {
     expect(screen.getByText(/Pending proposals: 3/)).toBeInTheDocument();
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders the admin configuration persistence readiness when provided (142J)', () => {
+    const { container } = render(
+      <PlatformMetadataDashboard
+        context={{ workspace: 'strategy' }}
+        adminConfiguration={{ pendingCount: 1, persistenceMode: 'disabled', persistenceSchemaStatus: 'not ready' }}
+      />,
+    );
+    expect(screen.getByText(/Persistence: disabled \(schema not ready\)/)).toBeInTheDocument();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

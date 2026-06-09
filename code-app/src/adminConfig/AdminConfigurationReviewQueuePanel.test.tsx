@@ -48,4 +48,20 @@ describe('Phase 142G — AdminConfigurationReviewQueuePanel', () => {
       expect(text).not.toContain(w);
     }
   });
+
+  it('renders without persistence readiness data (optional prop)', () => {
+    const { container } = render(<AdminConfigurationReviewQueuePanel queue={queue([p('P1', 'platform_object_change')])} />);
+    expect(container.textContent ?? '').not.toContain('Persistence readiness (142J)');
+  });
+
+  it('renders the persistence readiness summary when provided (no save / apply controls)', () => {
+    const { container } = render(
+      <AdminConfigurationReviewQueuePanel
+        queue={queue([p('P1', 'platform_object_change')])}
+        persistence={{ persistenceMode: 'disabled', schemaStatus: 'not ready', saveDisabledReason: 'persistence disabled', applyDisabledReason: 'apply forbidden' }}
+      />,
+    );
+    expect(screen.getByText(/Persistence readiness \(142J\)/)).toBeTruthy();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });
