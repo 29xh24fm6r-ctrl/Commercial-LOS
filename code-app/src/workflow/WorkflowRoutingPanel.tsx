@@ -12,10 +12,18 @@ export interface WorkflowRoutingTemplateAlignment {
   caveats?: readonly string[];
 }
 
+/** Optional servicing lifecycle summary (Phase 142E). */
+export interface WorkflowServicingSummary {
+  lifecycleStage?: string;
+  lifecycleHealth?: string;
+  nextBestAction?: string;
+}
+
 interface Props {
   route: WorkflowRouteDerivationResult;
   readiness?: WorkflowRoutingReadinessResult;
   templateAlignment?: WorkflowRoutingTemplateAlignment;
+  servicing?: WorkflowServicingSummary;
 }
 
 /**
@@ -27,7 +35,7 @@ interface Props {
  * / create-task / update-stage / send-request / upload-link / write / fetch
  * affordance.
  */
-export function WorkflowRoutingPanel({ route, readiness, templateAlignment }: Props) {
+export function WorkflowRoutingPanel({ route, readiness, templateAlignment, servicing }: Props) {
   const committee = route.creditCommittee;
   return (
     <Card>
@@ -104,6 +112,13 @@ export function WorkflowRoutingPanel({ route, readiness, templateAlignment }: Pr
           {(templateAlignment.caveats ?? []).map((c) => (
             <span key={c} style={noneStyle}>{c}</span>
           ))}
+        </div>
+      )}
+
+      {servicing && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Servicing lifecycle (142E)</span>
+          <span style={itemStyle}>Stage: {servicing.lifecycleStage ?? 'unknown'} · Health: {servicing.lifecycleHealth ?? 'unknown'}</span>
         </div>
       )}
 

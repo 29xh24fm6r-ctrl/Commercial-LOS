@@ -1978,3 +1978,37 @@ describe('Phase 142D — product / process template registry exists', () => {
     expect(doc).toMatch(/Phase 142E/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142E — servicing / lifecycle model
+// ---------------------------------------------------------------------------
+
+describe('Phase 142E — servicing / lifecycle model exists', () => {
+  const REQUIRED_142E_FILES: readonly string[] = [
+    'docs/PHASE_142E_SERVICING_LIFECYCLE_MODEL.md',
+    'src/servicing/servicingLifecycleTypes.ts',
+    'src/servicing/deriveServicingLifecycleStage.ts',
+    'src/servicing/deriveServicingObligations.ts',
+    'src/servicing/deriveServicingCollateralSecurityStatus.ts',
+    'src/servicing/deriveServicingInsuranceTicklerStatus.ts',
+    'src/servicing/deriveServicingCovenantReportingStatus.ts',
+    'src/servicing/deriveServicingMaturityRenewalStatus.ts',
+    'src/servicing/deriveServicingLifecycleSnapshot.ts',
+    'src/servicing/ServicingLifecyclePanel.tsx',
+    'src/shared/governance/servicingLifecycleGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142E_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142E_SERVICING_LIFECYCLE_MODEL.md');
+
+  it('the doc pins read-only servicing, no money movement, no waiver / approval', () => {
+    expect(doc).toMatch(/read-only|decision support only/i);
+    expect(doc).toMatch(/no payment posting|never posts payments|no money movement/i);
+    expect(doc).toMatch(/waive|covenant waiver/i);
+    expect(doc).toMatch(/Phase 142F/);
+  });
+});

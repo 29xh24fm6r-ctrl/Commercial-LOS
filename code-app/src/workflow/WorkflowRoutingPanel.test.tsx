@@ -68,3 +68,26 @@ describe('Phase 142D — routing panel template alignment', () => {
     expect((container.textContent ?? '').toLowerCase()).not.toContain('apply template');
   });
 });
+
+describe('Phase 142E — routing panel servicing lifecycle summary', () => {
+  function panel(servicing?: Parameters<typeof WorkflowRoutingPanel>[0]['servicing']) {
+    const route = deriveConfigurableWorkflowRoute({ input: { productType: 'sba_7a', amount: 200000 } });
+    return render(<WorkflowRoutingPanel route={route} servicing={servicing} />);
+  }
+
+  it('renders without servicing data (optional prop)', () => {
+    const { container } = panel();
+    expect(container.textContent ?? '').not.toContain('Servicing lifecycle (142E)');
+  });
+
+  it('renders the servicing summary when provided', () => {
+    panel({ lifecycleStage: 'booked_active', lifecycleHealth: 'healthy' });
+    expect(screen.getByText(/Servicing lifecycle \(142E\)/)).toBeInTheDocument();
+    expect(screen.getByText(/booked_active/)).toBeInTheDocument();
+  });
+
+  it('the servicing summary adds no mutation controls', () => {
+    const { container } = panel({ lifecycleStage: 'booked_active' });
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
+});

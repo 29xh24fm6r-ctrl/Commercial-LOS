@@ -32,10 +32,20 @@ export interface PlatformProductProcessTemplateSummary {
   selectedTemplatePreview?: string;
 }
 
+/** Optional servicing lifecycle summary (Phase 142E) — passed in by the caller. */
+export interface PlatformServicingLifecycleSummary {
+  lifecycleStage?: string;
+  lifecycleHealth?: string;
+  servicingExpectationCount?: number;
+  blockerCount?: number;
+  nextBestAction?: string;
+}
+
 interface Props {
   context?: PlatformViewerContext;
   workflowRouting?: PlatformWorkflowRoutingSummary;
   productProcessTemplates?: PlatformProductProcessTemplateSummary;
+  servicing?: PlatformServicingLifecycleSummary;
 }
 
 /**
@@ -47,7 +57,7 @@ interface Props {
  * view/custom-field creation, workflow activation, route registration, write
  * toggle, external-integration toggle, or fetch. No new route is registered.
  */
-export function PlatformMetadataDashboard({ context, workflowRouting, productProcessTemplates }: Props) {
+export function PlatformMetadataDashboard({ context, workflowRouting, productProcessTemplates, servicing }: Props) {
   const ctx: PlatformViewerContext = context ?? { workspace: 'strategy' };
   const objects = derivePlatformObjectCatalog({ context: ctx });
   const views = derivePlatformViewCatalog({ context: ctx });
@@ -108,6 +118,19 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
             {productProcessTemplates.annualReviewTemplateCount !== undefined && <li style={itemStyle}>Annual review templates: {productProcessTemplates.annualReviewTemplateCount}</li>}
             {productProcessTemplates.fdicCommitteeTemplateCount !== undefined && <li style={itemStyle}>FDIC / committee templates: {productProcessTemplates.fdicCommitteeTemplateCount}</li>}
             {productProcessTemplates.selectedTemplatePreview && <li style={itemStyle}>Selected template: {productProcessTemplates.selectedTemplatePreview}</li>}
+          </ul>
+        </div>
+      )}
+
+      {servicing && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Servicing lifecycle (142E)</span>
+          <ul style={ulStyle}>
+            {servicing.lifecycleStage && <li style={itemStyle}>Stage: {servicing.lifecycleStage}</li>}
+            {servicing.lifecycleHealth && <li style={itemStyle}>Health: {servicing.lifecycleHealth}</li>}
+            {servicing.servicingExpectationCount !== undefined && <li style={itemStyle}>Servicing expectations: {servicing.servicingExpectationCount}</li>}
+            {servicing.blockerCount !== undefined && <li style={itemStyle}>Blockers: {servicing.blockerCount}</li>}
+            {servicing.nextBestAction && <li style={itemStyle}>Next: {servicing.nextBestAction}</li>}
           </ul>
         </div>
       )}

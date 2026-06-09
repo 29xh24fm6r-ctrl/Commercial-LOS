@@ -67,4 +67,21 @@ describe('Phase 142B — platform metadata dashboard', () => {
     expect(screen.getByText(/Templates: 10/)).toBeInTheDocument();
     expect(container.querySelectorAll('button').length).toBe(0);
   });
+
+  it('renders without servicing lifecycle data (optional prop)', () => {
+    const { container } = render(<PlatformMetadataDashboard context={{ workspace: 'strategy' }} />);
+    expect(container.textContent ?? '').not.toContain('Servicing lifecycle (142E)');
+  });
+
+  it('renders the servicing lifecycle summary when provided (no mutation controls)', () => {
+    const { container } = render(
+      <PlatformMetadataDashboard
+        context={{ workspace: 'strategy' }}
+        servicing={{ lifecycleStage: 'booked_active', lifecycleHealth: 'healthy', servicingExpectationCount: 4, blockerCount: 0, nextBestAction: 'Continue read-only lifecycle monitoring.' }}
+      />,
+    );
+    expect(screen.getByText(/Servicing lifecycle \(142E\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Stage: booked_active/)).toBeInTheDocument();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });

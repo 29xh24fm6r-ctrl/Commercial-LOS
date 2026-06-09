@@ -5,11 +5,20 @@ import type { ProductProcessTemplateDerivationResult } from './productProcessTem
 import type { ProductProcessRequirementsResult } from './deriveProductProcessRequirements';
 import type { ProductProcessTemplateReadinessResult } from './deriveProductProcessTemplateReadiness';
 
+/** Optional servicing lifecycle summary (Phase 142E). */
+export interface TemplateServicingSummary {
+  lifecycleStage?: string;
+  lifecycleHealth?: string;
+  servicingExpectationCount?: number;
+  nextBestAction?: string;
+}
+
 interface Props {
   selection: ProductProcessTemplateDerivationResult;
   requirements?: ProductProcessRequirementsResult;
   readiness?: ProductProcessTemplateReadinessResult;
   workflowRouteKey?: string;
+  servicing?: TemplateServicingSummary;
 }
 
 /**
@@ -20,7 +29,7 @@ interface Props {
  * apply-template / update-deal / update-route / create-requirements / create-task
  * / approve-committee / write affordance, and no fetch.
  */
-export function ProductProcessTemplateSelectionPanel({ selection, requirements, readiness, workflowRouteKey }: Props) {
+export function ProductProcessTemplateSelectionPanel({ selection, requirements, readiness, workflowRouteKey, servicing }: Props) {
   return (
     <Card>
       <CardHeader title="Template selection" subtitle={selection.status.replace(/_/g, ' ')} />
@@ -54,6 +63,13 @@ export function ProductProcessTemplateSelectionPanel({ selection, requirements, 
               <li key={b.code} style={blockerItemStyle}>{b.message}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {servicing && (
+        <div style={sectionStyle}>
+          <span style={sectionTitleStyle}>Servicing lifecycle (142E)</span>
+          <span style={itemStyle}>Stage: {servicing.lifecycleStage ?? 'unknown'} · Health: {servicing.lifecycleHealth ?? 'unknown'}{servicing.servicingExpectationCount !== undefined ? ` · Expectations: ${servicing.servicingExpectationCount}` : ''}</span>
         </div>
       )}
 

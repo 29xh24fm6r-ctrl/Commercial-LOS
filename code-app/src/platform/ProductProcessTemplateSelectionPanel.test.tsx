@@ -38,4 +38,20 @@ describe('Phase 142D — template selection panel', () => {
       expect(text).not.toContain(w);
     }
   });
+
+  it('renders without servicing lifecycle data (optional prop)', () => {
+    const { selection } = build({ productFamily: 'commercial', loanStructure: 'term_loan' });
+    const { container } = render(<ProductProcessTemplateSelectionPanel selection={selection} />);
+    expect(container.textContent ?? '').not.toContain('Servicing lifecycle (142E)');
+  });
+
+  it('renders the servicing lifecycle summary when provided (no mutation controls)', () => {
+    const { selection } = build({ productFamily: 'commercial', loanStructure: 'term_loan' });
+    const { container } = render(
+      <ProductProcessTemplateSelectionPanel selection={selection} servicing={{ lifecycleStage: 'booked_active', lifecycleHealth: 'healthy', servicingExpectationCount: 3 }} />,
+    );
+    expect(screen.getByText(/Servicing lifecycle \(142E\)/)).toBeInTheDocument();
+    expect(screen.getByText(/booked_active/)).toBeInTheDocument();
+    expect(container.querySelectorAll('button').length).toBe(0);
+  });
 });
