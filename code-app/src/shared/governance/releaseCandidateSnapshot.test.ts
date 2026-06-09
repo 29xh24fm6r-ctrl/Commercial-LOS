@@ -1768,3 +1768,37 @@ describe('Phase 141N — borrower delivery adapter seams exist', () => {
     expect(doc).toMatch(/approval[- ]gated|human approval/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 141O — annual review financial spreading + covenant testing
+// ---------------------------------------------------------------------------
+
+describe('Phase 141O — annual review financial spreading + covenants exist', () => {
+  const REQUIRED_141O_FILES: readonly string[] = [
+    'docs/PHASE_141O_ANNUAL_REVIEW_FINANCIAL_SPREADING_AND_COVENANTS.md',
+    'src/annualReview/annualReviewFinancialTypes.ts',
+    'src/annualReview/deriveAnnualReviewFinancialReadiness.ts',
+    'src/annualReview/deriveAnnualReviewFinancialSpreadSnapshot.ts',
+    'src/annualReview/resolveAnnualReviewCovenantDefinitions.ts',
+    'src/annualReview/testAnnualReviewCovenants.ts',
+    'src/annualReview/deriveAnnualReviewFinancialAnalysisSnapshot.ts',
+    'src/annualReview/AnnualReviewFinancialCovenantPanel.tsx',
+    'src/annualReview/buildAnnualReviewFinancialMemoSections.ts',
+    'src/shared/governance/annualReviewFinancialGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_141O_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_141O_ANNUAL_REVIEW_FINANCIAL_SPREADING_AND_COVENANTS.md');
+
+  it('the doc pins evidence-backed, no credit decision, no automatic waiver, fact exclusions', () => {
+    expect(doc).toMatch(/evidence-backed/i);
+    expect(doc).toMatch(/no final credit|no credit decision/i);
+    expect(doc).toMatch(/no automatic waiver|never applied automatically/i);
+    expect(doc).toMatch(/superseded/i);
+    expect(doc).toMatch(/ambiguous/i);
+  });
+});
