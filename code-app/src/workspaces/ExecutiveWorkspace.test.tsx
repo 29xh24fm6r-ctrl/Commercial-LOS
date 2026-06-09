@@ -105,3 +105,38 @@ describe('Phase 135B — Executive final demo polish', () => {
     expect(SRC).toMatch(/Board-safe view/);
   });
 });
+
+describe('Phase 142I — executive product strategy surface wiring (static source)', () => {
+  it('reads the product-strategy surface param and renders the strategy surface', () => {
+    expect(SRC).toMatch(/useSearchParams/);
+    expect(SRC).toMatch(/isProductStrategySurface/);
+    expect(SRC).toMatch(/<ExecutiveProductStrategyWorkspace/);
+  });
+
+  it('adds a read-only product strategy navigation card to the executive route', () => {
+    expect(SRC).toMatch(/<ProductStrategyNavigationCard/);
+    expect(SRC).toMatch(/PRODUCT_STRATEGY_SURFACE_URL/);
+  });
+
+  it('keeps the default executive command center as the non-strategy content', () => {
+    // The default branch still leads with the command center before the
+    // legacy detail cards — the strategy surface is additive, not a replacement.
+    expect(SRC).toMatch(/<ExecutiveCommandCenter\s*\/>/);
+    const cockpitIdx = SRC.indexOf('<ExecutiveCommandCenter');
+    const portfolioIdx = SRC.indexOf('<PortfolioSummary');
+    expect(cockpitIdx).toBeLessThan(portfolioIdx);
+  });
+
+  it('introduces no write affordance for the surface wiring', () => {
+    expect(CODE).not.toMatch(/<button\b/i);
+    expect(CODE).not.toMatch(/\bonClick\b/);
+    expect(CODE).not.toMatch(/\bonSubmit\b/);
+  });
+
+  it('keeps the surface under the executive route (currentRoute stays executive)', () => {
+    expect(SRC).toMatch(/currentRoute:\s*WORKSPACE_ROUTES\.executive/);
+    // No banker/team/admin route is referenced; manager is only the existing
+    // portfolio-switcher probe, never the strategy surface target.
+    expect(CODE).not.toMatch(/WORKSPACE_ROUTES\.(banker|team|admin)/);
+  });
+});

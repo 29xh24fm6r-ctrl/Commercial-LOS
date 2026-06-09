@@ -9,6 +9,26 @@ export const WORKSPACE_ROUTES = {
 export type WorkspaceKey = keyof typeof WORKSPACE_ROUTES;
 
 /**
+ * Phase 142I — Executive product-strategy surface marker.
+ *
+ * Mirrors the Phase 126C portfolio-surface pattern: the competitive /
+ * product-strategy dashboard (Phase 142H) is a read-only RENDERING SURFACE
+ * attached to the EXECUTIVE route — `/workspaces/executive?surface=product-strategy`.
+ * It is NOT a new route and NOT a new entitlement: it is subordinate to executive
+ * access by construction. The existing `WorkspaceGate allowed={executive}` already
+ * fails closed for non-executive users, while loading, and on direct URL — the
+ * surface inherits that gating and never widens permission.
+ */
+export const PRODUCT_STRATEGY_SURFACE_PARAM_NAME = 'surface';
+export const PRODUCT_STRATEGY_SURFACE_PARAM_VALUE = 'product-strategy';
+export const PRODUCT_STRATEGY_SURFACE_URL = `${WORKSPACE_ROUTES.executive}?${PRODUCT_STRATEGY_SURFACE_PARAM_NAME}=${PRODUCT_STRATEGY_SURFACE_PARAM_VALUE}`;
+
+/** True when a search-param string selects the executive product-strategy surface. */
+export function isProductStrategySurface(surfaceParam: string | null | undefined): boolean {
+  return surfaceParam === PRODUCT_STRATEGY_SURFACE_PARAM_VALUE;
+}
+
+/**
  * Phase 116: explicit aliases for the live environment's Platform
  * Workspace names. Matched BEFORE the substring regex matchers below
  * (case-insensitive, whitespace-trimmed) so the contract between

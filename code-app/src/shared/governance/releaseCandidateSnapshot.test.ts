@@ -2111,3 +2111,31 @@ describe('Phase 142H — executive product strategy surface exists', () => {
     expect(doc).toMatch(/Phase 142I/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142I — executive-safe product strategy route mounting
+// ---------------------------------------------------------------------------
+
+describe('Phase 142I — executive-safe product strategy route exists', () => {
+  const REQUIRED_142I_FILES: readonly string[] = [
+    'docs/PHASE_142I_EXECUTIVE_SAFE_PRODUCT_STRATEGY_ROUTE.md',
+    'src/workspaces/ExecutiveProductStrategyWorkspace.tsx',
+    'src/competitive/buildExecutiveProductStrategySurfaceState.ts',
+    'src/competitive/ProductStrategyNavigationCard.tsx',
+    'src/shared/governance/executiveProductStrategyRouteGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142I_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142I_EXECUTIVE_SAFE_PRODUCT_STRATEGY_ROUTE.md');
+
+  it('the doc pins executive-gated, fail-closed, no permission widening', () => {
+    expect(doc).toMatch(/executive entitlement required|subordinate to executive access/i);
+    expect(doc).toMatch(/fail-closed|fail closed/i);
+    expect(doc).toMatch(/no permission widening|no .* proxy/i);
+    expect(doc).toMatch(/Phase 142J/);
+  });
+});

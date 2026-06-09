@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { ExecutiveProvider } from '../executive/ExecutiveProvider';
 import { ExecutiveDataProvider } from '../executive/ExecutiveDataProvider';
 import { useExecutive } from '../executive/ExecutiveContext';
@@ -12,9 +13,17 @@ import {
   deriveWorkspaceLinks,
   useEntitledRoutes,
 } from '../bootstrap/workspaceEntitlements';
-import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
+import {
+  WORKSPACE_ROUTES,
+  PRODUCT_STRATEGY_SURFACE_PARAM_NAME,
+  PRODUCT_STRATEGY_SURFACE_URL,
+  isProductStrategySurface,
+} from '../bootstrap/workspaceRoutes';
 import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
+import { ExecutiveProductStrategyWorkspace } from './ExecutiveProductStrategyWorkspace';
+import { ProductStrategyNavigationCard } from '../competitive/ProductStrategyNavigationCard';
+import { buildExecutiveProductStrategySurfaceState } from '../competitive/buildExecutiveProductStrategySurfaceState';
 import { palette, spacing, typography } from '../shared/theme';
 
 /**
@@ -45,6 +54,14 @@ function ExecutiveWorkspaceContent() {
   const { fullName, upn } = useExecutive();
   const bootstrap = useBootstrap();
   const entitled = useEntitledRoutes();
+  const [searchParams] = useSearchParams();
+  // Phase 142I — the `?surface=product-strategy` query selects the read-only
+  // competitive / product-strategy surface. It is subordinate to executive
+  // access: this code only runs after the executive WorkspaceGate has already
+  // admitted the user, so the surface adds no permission and no new route.
+  const isProductStrategy = isProductStrategySurface(
+    searchParams.get(PRODUCT_STRATEGY_SURFACE_PARAM_NAME),
+  );
   // Surface the Portfolio switcher entry only for users who are also
   // manager-entitled (the same probe that widens the manager route).
   const managerEntitled = entitled.routes.includes(WORKSPACE_ROUTES.manager);
@@ -55,6 +72,7 @@ function ExecutiveWorkspaceContent() {
     includePortfolioSurface: managerEntitled,
   });
   const showInlineSwitcher = workspaceLinks.length >= 2;
+  const productStrategyState = buildExecutiveProductStrategySurfaceState();
 
   return (
     <LendingOSLayout
@@ -64,43 +82,52 @@ function ExecutiveWorkspaceContent() {
       workspaceName="Executive Workspace"
       workspaceLinks={workspaceLinks}
     >
-      <div style={styles.page}>
-        <header style={styles.header}>
-          <div style={styles.titleBlock}>
-            <div style={styles.eyebrow}>Commercial Lending · Board-safe view</div>
-            <h1 style={styles.title}>Executive Command Center</h1>
-            <p style={styles.subtitle}>
-              Board-safe executive overview — a read-only command center
-              followed by supporting snapshot detail, derived only from lending
-              records currently authorized to this workspace.
-            </p>
-          </div>
-          <div style={styles.context} aria-label="Executive context">
-            {showInlineSwitcher && (
-              <WorkspaceSwitcher
-                links={workspaceLinks}
-                tone="light"
-                aria-label="Executive workspace switcher"
-              />
-            )}
-            <div style={styles.contextLabel}>Signed in</div>
-            <div style={styles.contextValue}>{fullName}</div>
-            <div style={styles.contextEmail}>{upn}</div>
-          </div>
-        </header>
-        <main style={styles.main}>
-          {/* Phase 133A — the command center is the lead executive cockpit. */}
-          <ExecutiveCommandCenter />
-          {/* Existing board-safe snapshot cards remain below as detail. */}
-          <PortfolioSummary />
-          <AtRiskPortfolioSummary />
-          <BankerProductionRollup />
-          <div style={styles.twoCol}>
-            <PipelineByStage />
-            <MonthlyClosingForecast />
-          </div>
-        </main>
-      </div>
+      {isProductStrategy ? (
+        <ExecutiveProductStrategyWorkspace state={productStrategyState} />
+      ) : (
+        <div style={styles.page}>
+          <header style={styles.header}>
+            <div style={styles.titleBlock}>
+              <div style={styles.eyebrow}>Commercial Lending · Board-safe view</div>
+              <h1 style={styles.title}>Executive Command Center</h1>
+              <p style={styles.subtitle}>
+                Board-safe executive overview — a read-only command center
+                followed by supporting snapshot detail, derived only from lending
+                records currently authorized to this workspace.
+              </p>
+            </div>
+            <div style={styles.context} aria-label="Executive context">
+              {showInlineSwitcher && (
+                <WorkspaceSwitcher
+                  links={workspaceLinks}
+                  tone="light"
+                  aria-label="Executive workspace switcher"
+                />
+              )}
+              <div style={styles.contextLabel}>Signed in</div>
+              <div style={styles.contextValue}>{fullName}</div>
+              <div style={styles.contextEmail}>{upn}</div>
+            </div>
+          </header>
+          <main style={styles.main}>
+            {/* Phase 133A — the command center is the lead executive cockpit. */}
+            <ExecutiveCommandCenter />
+            {/* Existing board-safe snapshot cards remain below as detail. */}
+            <PortfolioSummary />
+            <AtRiskPortfolioSummary />
+            <BankerProductionRollup />
+            <div style={styles.twoCol}>
+              <PipelineByStage />
+              <MonthlyClosingForecast />
+            </div>
+            {/* Phase 142I — read-only navigation to the product-strategy surface. */}
+            <ProductStrategyNavigationCard
+              state={productStrategyState}
+              to={PRODUCT_STRATEGY_SURFACE_URL}
+            />
+          </main>
+        </div>
+      )}
     </LendingOSLayout>
   );
 }
