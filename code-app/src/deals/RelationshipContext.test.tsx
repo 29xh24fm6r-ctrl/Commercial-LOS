@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BankerWorkQueueData } from '../banker/workQueueQueries';
@@ -124,6 +124,18 @@ function asBanker() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Phase 141O-flake — every fixture date here is anchored to the fixed `NOW`
+  // constant via `isoDaysAgo` / `isoDaysFromNow`, but the stage-aging / closing-
+  // soon badges are derived against the runtime clock. Freeze ONLY the Date clock
+  // to that same anchor so the badge thresholds (e.g. "30 days in current stage")
+  // are deterministic regardless of the real calendar date. Real timers stay live
+  // (no `toFake` of timers) so userEvent-driven navigation tests are unaffected.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('RelationshipContext — Phase 77', () => {
