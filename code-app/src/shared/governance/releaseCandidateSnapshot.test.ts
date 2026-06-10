@@ -2369,3 +2369,31 @@ describe('Phase 142Q — AML/KYC and credit bureau policy gate exists', () => {
     expect(doc).toMatch(/Phase 142R/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142R — servicing lifecycle read-only Dataverse mapper
+// ---------------------------------------------------------------------------
+
+describe('Phase 142R — servicing lifecycle read-only mapper exists', () => {
+  const REQUIRED_142R_FILES: readonly string[] = [
+    'docs/PHASE_142R_SERVICING_LIFECYCLE_READ_ONLY_DATAVERSE_MAPPER.md',
+    'src/servicing/servicingLifecycleMapper.ts',
+    'src/servicing/ServicingLifecycleMapperPanel.tsx',
+    'src/shared/governance/servicingLifecycleMapperGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142R_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142R_SERVICING_LIFECYCLE_READ_ONLY_DATAVERSE_MAPPER.md');
+
+  it('the doc pins read-only mapper, no boarding, no core sync, no schedule generation', () => {
+    expect(doc).toMatch(/read-only mapper/i);
+    expect(doc).toMatch(/no .* boarding|boards no loan|loanBoarded/i);
+    expect(doc).toMatch(/no core banking|coreBankingSyncPerformed|no .* sync/i);
+    expect(doc).toMatch(/no payment.?schedule|paymentScheduleGenerated/i);
+    expect(doc).toMatch(/Phase 142S/);
+  });
+});
