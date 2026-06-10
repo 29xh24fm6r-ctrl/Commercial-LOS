@@ -1,6 +1,9 @@
 import { type CSSProperties } from 'react';
 import { Card, CardHeader, CardFooter } from '../../shared/Card';
 import { palette, spacing, typography } from '../../shared/theme';
+import { DrillThroughCard } from '../../shared/drillthrough/DrillThroughCard';
+import { useDrillThroughDeepLink, deepLinkCardProps } from '../../shared/drillthrough/useDrillThroughDeepLink';
+import { crmRelationshipSectionTargets } from './crmRelationshipDrillThrough';
 import type { CrmRelationshipIntelligenceViewModel } from './crmRelationshipIntelligenceViewModel';
 
 interface Props {
@@ -16,6 +19,14 @@ interface Props {
  * "push now" button. Nothing is synced, pushed, or written here.
  */
 export function CrmRelationshipIntelligenceCockpit({ viewModel }: Props) {
+  // Phase 144E — per-section read-only drill-through + deep-link. The hook is
+  // called unconditionally (Rules of Hooks); availability is gated by these
+  // local section target ids — the panel payload never comes from the URL.
+  const sectionTargets = viewModel
+    ? crmRelationshipSectionTargets(viewModel.sections, viewModel.nextSafeStep)
+    : {};
+  const deepLink = useDrillThroughDeepLink(Object.values(sectionTargets).map((t) => t.id));
+
   if (!viewModel) {
     return (
       <Card>
@@ -34,15 +45,25 @@ export function CrmRelationshipIntelligenceCockpit({ viewModel }: Props) {
       </div>
 
       <div style={listStyle}>
-        {viewModel.sections.map((s) => (
-          <div key={s.key} style={sectionStyle}>
-            <div style={sectionHeadStyle}>
-              <span style={sectionTitleStyle}>{s.title}</span>
-              <span style={statusChipStyle}>{s.status.replace(/_/g, ' ')}</span>
+        {viewModel.sections.map((s) => {
+          const target = sectionTargets[s.key];
+          const sectionFace = (
+            <div style={sectionStyle}>
+              <div style={sectionHeadStyle}>
+                <span style={sectionTitleStyle}>{s.title}</span>
+                <span style={statusChipStyle}>{s.status.replace(/_/g, ' ')}</span>
+              </div>
+              <span style={detailStyle}>{s.detail}</span>
             </div>
-            <span style={detailStyle}>{s.detail}</span>
-          </div>
-        ))}
+          );
+          return target ? (
+            <DrillThroughCard key={s.key} target={target} unstyled {...deepLinkCardProps(deepLink, target.id)}>
+              {sectionFace}
+            </DrillThroughCard>
+          ) : (
+            <div key={s.key}>{sectionFace}</div>
+          );
+        })}
       </div>
 
       <div style={nextStepStyle}>Next safe CRM activation step: {viewModel.nextSafeStep}</div>

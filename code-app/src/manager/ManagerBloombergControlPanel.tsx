@@ -37,6 +37,7 @@ import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext
 import { getCopilotConnector } from '../copilot/copilotConnector';
 import { palette, radius, severityPalette, shadow, spacing, typography } from '../shared/theme';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
+import { useDrillThroughDeepLink, deepLinkCardProps } from '../shared/drillthrough/useDrillThroughDeepLink';
 import { managerKpiTargets } from './managerDrillThrough';
 
 /**
@@ -298,6 +299,9 @@ function CommandStrip({ strip }: { strip: ManagerPipelineCommandStrip }) {
   // explains its contributing counts. The existing tile markup (aria-label +
   // data-manager-kpi) is preserved inside the disclosure face.
   const kpiTargets = managerKpiTargets(strip);
+  // Phase 144E — deep-link: a ?drill=<target id> param reopens the matching KPI
+  // panel from the current authorized page (payload from `kpiTargets`, not URL).
+  const deepLink = useDrillThroughDeepLink(Object.values(kpiTargets).map((t) => t.id));
   // Phase 125A — dense 10-tile KPI ribbon. Honest about the two
   // metrics the team-pipeline loader cannot derive cleanly:
   // "Weighted pipeline" (no probability-by-stage in schema) and
@@ -413,7 +417,7 @@ function CommandStrip({ strip }: { strip: ManagerPipelineCommandStrip }) {
         );
         const target = kpiTargets[slug];
         return target ? (
-          <DrillThroughCard key={t.label} target={target} unstyled>
+          <DrillThroughCard key={t.label} target={target} unstyled {...deepLinkCardProps(deepLink, target.id)}>
             {tile}
           </DrillThroughCard>
         ) : (

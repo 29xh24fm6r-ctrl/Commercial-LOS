@@ -2638,3 +2638,37 @@ describe('Phase 144D — drill-through deep-link support exists', () => {
     expect(doc).toMatch(/read-only/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 144E — extend drill-through deep-links across cockpits
+// ---------------------------------------------------------------------------
+
+describe('Phase 144E — drill-through deep-link expansion exists', () => {
+  const REQUIRED_144E_FILES: readonly string[] = [
+    'docs/PHASE_144E_EXTEND_DRILL_THROUGH_DEEP_LINKS.md',
+    'src/crm/relationshipIntelligence/crmRelationshipDrillThrough.ts',
+    'src/shared/governance/drillThroughDeepLinkExpansion.test.ts',
+  ];
+  for (const rel of REQUIRED_144E_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_144E_EXTEND_DRILL_THROUGH_DEEP_LINKS.md');
+
+  it('the doc pins the four extended cockpits and fail-closed/read-only posture', () => {
+    expect(doc).toMatch(/Manager/);
+    expect(doc).toMatch(/Team/);
+    expect(doc).toMatch(/Executive/);
+    expect(doc).toMatch(/CRM Relationship Intelligence/);
+    expect(doc).toMatch(/fail-?closed/i);
+    expect(doc).toMatch(/read-only/i);
+  });
+
+  it('the doc pins no new route / no cross-workspace lookup / payload-from-local-registry', () => {
+    expect(doc).toMatch(/no new route/i);
+    expect(doc).toMatch(/cross-workspace/i);
+    expect(doc).toMatch(/never the URL|not the URL|never from the URL/i);
+  });
+});

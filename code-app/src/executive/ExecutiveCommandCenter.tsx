@@ -36,6 +36,7 @@ import {
   typography,
 } from '../shared/theme';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
+import { useDrillThroughDeepLink, deepLinkCardProps } from '../shared/drillthrough/useDrillThroughDeepLink';
 import { executiveKpiTargets } from './executiveDrillThrough';
 
 /**
@@ -252,6 +253,9 @@ function KpiRibbon({ ribbon }: { ribbon: ExecutiveKpiRibbon }) {
   // Phase 144B — each KPI tile becomes a read-only drill-through disclosure that
   // explains its contributing counts. The existing tile markup is preserved.
   const kpiTargets = executiveKpiTargets(ribbon);
+  // Phase 144E — deep-link: a ?drill=<target id> param reopens the matching KPI
+  // panel from the current authorized page (payload from `kpiTargets`, not URL).
+  const deepLink = useDrillThroughDeepLink(Object.values(kpiTargets).map((t) => t.id));
   const tiles: Array<{
     key: string;
     label: string;
@@ -291,7 +295,7 @@ function KpiRibbon({ ribbon }: { ribbon: ExecutiveKpiRibbon }) {
         );
         const target = kpiTargets[t.key];
         return target ? (
-          <DrillThroughCard key={t.key} target={target} unstyled>
+          <DrillThroughCard key={t.key} target={target} unstyled {...deepLinkCardProps(deepLink, target.id)}>
             {tile}
           </DrillThroughCard>
         ) : (

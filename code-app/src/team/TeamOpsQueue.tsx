@@ -34,6 +34,7 @@ import {
   typography,
 } from '../shared/theme';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
+import { useDrillThroughDeepLink, deepLinkCardProps } from '../shared/drillthrough/useDrillThroughDeepLink';
 import { teamOpsKpiTargets } from './teamOpsQueueDrillThrough';
 
 /**
@@ -222,6 +223,9 @@ function CommandRibbon({ ribbon }: { ribbon: TeamOpsCommandRibbon }) {
   // Phase 144B — each KPI tile becomes a read-only drill-through disclosure that
   // explains its contributing counts. The existing tile markup is preserved.
   const kpiTargets = teamOpsKpiTargets(ribbon);
+  // Phase 144E — deep-link: a ?drill=<target id> param reopens the matching KPI
+  // panel from the current authorized page (payload from `kpiTargets`, not URL).
+  const deepLink = useDrillThroughDeepLink(Object.values(kpiTargets).map((t) => t.id));
   const tiles: Array<{
     label: string;
     value: string;
@@ -312,7 +316,7 @@ function CommandRibbon({ ribbon }: { ribbon: TeamOpsCommandRibbon }) {
         );
         const target = kpiTargets[slug];
         return target ? (
-          <DrillThroughCard key={t.label} target={target} unstyled>
+          <DrillThroughCard key={t.label} target={target} unstyled {...deepLinkCardProps(deepLink, target.id)}>
             {tile}
           </DrillThroughCard>
         ) : (

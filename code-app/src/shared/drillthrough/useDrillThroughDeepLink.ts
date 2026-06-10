@@ -89,3 +89,20 @@ export function useDrillThroughDeepLink(availableIds?: Iterable<string>): DrillT
 
   return { activeId, activeAvailable, isActive, open, close };
 }
+
+/**
+ * Pure binder for a {@link DrillThroughCard}'s controlled-open props from a
+ * deep-link. Returns `open` (true only when this id is the active, available
+ * deep link; otherwise undefined so the card stays native/uncontrolled) and an
+ * `onOpenChange` that writes/removes the drill param. Read-only — no fetch, no
+ * navigation away from the page.
+ */
+export function deepLinkCardProps(
+  deepLink: DrillThroughDeepLink,
+  id: string,
+): { open: boolean | undefined; onOpenChange: (open: boolean) => void } {
+  return {
+    open: deepLink.isActive(id) || undefined,
+    onOpenChange: (open: boolean) => (open ? deepLink.open(id) : deepLink.close()),
+  };
+}

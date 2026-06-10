@@ -536,3 +536,43 @@ describe('Phase 130A — Copilot assist panel wiring', () => {
     ).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 144E — KPI drill-through deep-link
+// ---------------------------------------------------------------------------
+
+function renderCockpitAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <TeamOpsQueue />
+    </MemoryRouter>,
+  );
+}
+
+describe('Phase 144E — deep-link reopens a team KPI panel', () => {
+  it('opens the matching KPI panel when ?drill=<target id> is present', () => {
+    setAllReady({ deals: [deal()] });
+    renderCockpitAt('/team?drill=team-kpi-active-deals');
+    const ribbon = screen.getByLabelText('Team command ribbon');
+    const details = ribbon
+      .querySelector('[data-team-kpi="active-deals"]')
+      ?.closest('details');
+    expect(details).toBeTruthy();
+    expect((details as HTMLDetailsElement).open).toBe(true);
+    expect(within(details as HTMLElement).getByRole('heading', { name: 'Active deals' })).toBeTruthy();
+  });
+
+  it('fails closed for an unsafe drill param', () => {
+    setAllReady({ deals: [deal()] });
+    renderCockpitAt('/team?drill=javascript:alert');
+    const ribbon = screen.getByLabelText('Team command ribbon');
+    expect(ribbon.querySelectorAll('details[open]').length).toBe(0);
+  });
+
+  it('leaves panels closed when no drill param is present', () => {
+    setAllReady({ deals: [deal()] });
+    renderCockpitAt('/team');
+    const ribbon = screen.getByLabelText('Team command ribbon');
+    expect(ribbon.querySelectorAll('details[open]').length).toBe(0);
+  });
+});

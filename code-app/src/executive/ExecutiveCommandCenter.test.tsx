@@ -565,3 +565,44 @@ describe('Phase 135B — Executive final demo smoke', () => {
     expect(files.adapter).not.toMatch(/\bfetch\b/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 144E — KPI drill-through deep-link
+// ---------------------------------------------------------------------------
+
+function renderCockpitAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <ExecutiveCommandCenter />
+    </MemoryRouter>,
+  );
+}
+
+describe('Phase 144E — deep-link reopens an executive KPI panel', () => {
+  it('opens the matching KPI panel when ?drill=<target id> is present', () => {
+    setReady();
+    renderCockpitAt('/executive?drill=executive-kpi-active-deals');
+    const ribbon = screen.getByLabelText('Executive KPI ribbon');
+    const details = ribbon
+      .querySelector('[data-executive-kpi="active-deals"]')
+      ?.closest('details');
+    expect(details).toBeTruthy();
+    expect((details as HTMLDetailsElement).open).toBe(true);
+    // Executive panel headings carry a "— details" suffix (see 144B).
+    expect(within(details as HTMLElement).getByRole('heading', { name: 'Active deals — details' })).toBeTruthy();
+  });
+
+  it('fails closed for an unsafe drill param', () => {
+    setReady();
+    renderCockpitAt('/executive?drill=javascript:alert');
+    const ribbon = screen.getByLabelText('Executive KPI ribbon');
+    expect(ribbon.querySelectorAll('details[open]').length).toBe(0);
+  });
+
+  it('leaves panels closed when no drill param is present', () => {
+    setReady();
+    renderCockpitAt('/executive');
+    const ribbon = screen.getByLabelText('Executive KPI ribbon');
+    expect(ribbon.querySelectorAll('details[open]').length).toBe(0);
+  });
+});

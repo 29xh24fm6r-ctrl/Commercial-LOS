@@ -901,3 +901,43 @@ describe('Phase 130A — Copilot assist panel wiring', () => {
     expect(screen.queryByText('Copilot Assist')).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 144E — KPI drill-through deep-link
+// ---------------------------------------------------------------------------
+
+function renderPanelAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <ManagerBloombergControlPanel />
+    </MemoryRouter>,
+  );
+}
+
+describe('Phase 144E — deep-link reopens a manager KPI panel', () => {
+  it('opens the matching KPI panel when ?drill=<target id> is present', () => {
+    setAllReady({ pipeline: [deal({ id: 'd1' })], bankers: [banker()] });
+    renderPanelAt('/manager?drill=manager-kpi-active-deals');
+    const strip = screen.getByLabelText('Pipeline command strip');
+    const details = strip
+      .querySelector('[data-manager-kpi="active-deals"]')
+      ?.closest('details');
+    expect(details).toBeTruthy();
+    expect((details as HTMLDetailsElement).open).toBe(true);
+    expect(within(details as HTMLElement).getByRole('heading', { name: 'Active deals' })).toBeTruthy();
+  });
+
+  it('fails closed for an unsafe drill param', () => {
+    setAllReady({ pipeline: [deal({ id: 'd1' })], bankers: [banker()] });
+    renderPanelAt('/manager?drill=javascript:alert');
+    const strip = screen.getByLabelText('Pipeline command strip');
+    expect(strip.querySelectorAll('details[open]').length).toBe(0);
+  });
+
+  it('leaves panels closed when no drill param is present', () => {
+    setAllReady({ pipeline: [deal({ id: 'd1' })], bankers: [banker()] });
+    renderPanelAt('/manager');
+    const strip = screen.getByLabelText('Pipeline command strip');
+    expect(strip.querySelectorAll('details[open]').length).toBe(0);
+  });
+});
