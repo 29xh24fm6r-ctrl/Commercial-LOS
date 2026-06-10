@@ -566,3 +566,45 @@ describe('Phase 132A — risk radar', () => {
     ).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 144D — KPI drill-through deep-link
+// ---------------------------------------------------------------------------
+
+function renderCockpitAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <PortfolioCommandCenter />
+    </MemoryRouter>,
+  );
+}
+
+describe('Phase 144D — deep-link reopens a KPI drill-through panel', () => {
+  it('opens the matching KPI panel when ?drill=<target id> is present', () => {
+    setAllReady({ pipeline: [deal({ id: 'd1', amount: 750_000 })], bankers: [banker()] });
+    renderCockpitAt('/portfolio?drill=portfolio-kpi-active-deals');
+    const ribbon = screen.getByLabelText('Portfolio KPI ribbon');
+    const tile = ribbon.querySelector('[data-portfolio-kpi="active-deals"]');
+    const details = tile?.closest('details');
+    expect(details).toBeTruthy();
+    expect((details as HTMLDetailsElement).open).toBe(true);
+    // The panel payload comes from the registry/props — its heading is the
+    // target title, not the raw URL id.
+    expect(within(details as HTMLElement).getByRole('heading', { name: 'Active deals' })).toBeTruthy();
+  });
+
+  it('does not open any panel for an unknown / unsafe drill param (fails closed)', () => {
+    setAllReady({ pipeline: [deal({ id: 'd1' })], bankers: [banker()] });
+    renderCockpitAt('/portfolio?drill=javascript:alert');
+    const ribbon = screen.getByLabelText('Portfolio KPI ribbon');
+    const openDetails = ribbon.querySelectorAll('details[open]');
+    expect(openDetails.length).toBe(0);
+  });
+
+  it('leaves all panels closed when no drill param is present (normal behavior preserved)', () => {
+    setAllReady({ pipeline: [deal({ id: 'd1' })], bankers: [banker()] });
+    renderCockpitAt('/portfolio');
+    const ribbon = screen.getByLabelText('Portfolio KPI ribbon');
+    expect(ribbon.querySelectorAll('details[open]').length).toBe(0);
+  });
+});

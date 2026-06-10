@@ -30,16 +30,28 @@ interface Props {
    * frame. The native `<details>`/`<summary>` keyboard behaviour is unchanged.
    */
   unstyled?: boolean;
+  /**
+   * Phase 144D — optional controlled open state for deep-linking. When omitted
+   * the disclosure is fully NATIVE/uncontrolled (byte-identical to before).
+   * When provided, the matching deep-linked panel can be opened from the URL.
+   */
+  open?: boolean;
+  /** Phase 144D — fires with the new open state on user toggle (deep-link sync). */
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function DrillThroughCard({ target, children, variant = 'card', unstyled = false }: Props) {
+export function DrillThroughCard({ target, children, variant = 'card', unstyled = false, open, onOpenChange }: Props) {
   const action = resolveDrillThroughAction(target);
   const accessibleName = drillThroughAccessibleName(target);
   const regionId = `drillthrough-${target.id}`;
   const headingId = `${regionId}-heading`;
 
   return (
-    <details style={unstyled ? undefined : shellStyle(variant)}>
+    <details
+      style={unstyled ? undefined : shellStyle(variant)}
+      open={open}
+      onToggle={onOpenChange ? (e) => onOpenChange(e.currentTarget.open) : undefined}
+    >
       <summary
         style={summaryStyle}
         aria-label={accessibleName}

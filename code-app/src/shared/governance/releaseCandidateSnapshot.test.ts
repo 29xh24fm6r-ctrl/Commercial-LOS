@@ -2602,3 +2602,39 @@ describe('Phase 144C — chart segment drill-through exists', () => {
     expect(doc).toMatch(/Enter\/Space/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 144D — drill-through deep-link support
+// ---------------------------------------------------------------------------
+
+describe('Phase 144D — drill-through deep-link support exists', () => {
+  const REQUIRED_144D_FILES: readonly string[] = [
+    'docs/PHASE_144D_DRILL_THROUGH_ROUTE_DEEP_LINK_SUPPORT.md',
+    'src/shared/drillthrough/drillThroughDeepLink.ts',
+    'src/shared/drillthrough/drillThroughDeepLink.test.ts',
+    'src/shared/drillthrough/useDrillThroughDeepLink.ts',
+    'src/shared/drillthrough/useDrillThroughDeepLink.test.tsx',
+    'src/shared/governance/drillThroughDeepLinkGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_144D_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_144D_DRILL_THROUGH_ROUTE_DEEP_LINK_SUPPORT.md');
+
+  it('the doc pins the ?drill= contract, validation rules, and fail-closed availability', () => {
+    expect(doc).toMatch(/\?drill=/);
+    expect(doc).toMatch(/validation rules/i);
+    expect(doc).toMatch(/fails? closed/i);
+    expect(doc).toMatch(/never fetch/i);
+  });
+
+  it('the doc pins no new route / auth bypass / permission widening and read-only posture', () => {
+    expect(doc).toMatch(/no new route/i);
+    expect(doc).toMatch(/WorkspaceGate/);
+    expect(doc).toMatch(/permission widening/i);
+    expect(doc).toMatch(/read-only/i);
+  });
+});

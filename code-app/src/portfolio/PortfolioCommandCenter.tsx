@@ -35,6 +35,7 @@ import {
 } from './portfolioRiskEngine';
 import { RiskConcentrationRadar } from './RiskConcentrationRadar';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
+import { useDrillThroughDeepLink } from '../shared/drillthrough/useDrillThroughDeepLink';
 import { portfolioKpiTargets } from './portfolioDrillThrough';
 import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
@@ -304,6 +305,10 @@ function KpiRibbon({
   // explains its contributing counts / deals. The existing tile markup (aria-label
   // + data-portfolio-kpi) is preserved inside the disclosure face.
   const targets = portfolioKpiTargets(ribbon, exceptions);
+  // Phase 144D — deep-link: a ?drill=<target id> param reopens the matching KPI
+  // panel from the current authorized page. Availability is gated by these ids
+  // (the panel payload still comes from `targets`, never from the URL text).
+  const deepLink = useDrillThroughDeepLink(Object.values(targets).map((t) => t.id));
   const tiles: Array<{
     label: string;
     value: string;
@@ -406,7 +411,13 @@ function KpiRibbon({
         );
         const target = targets[slug];
         return target ? (
-          <DrillThroughCard key={t.label} target={target} unstyled>
+          <DrillThroughCard
+            key={t.label}
+            target={target}
+            unstyled
+            open={deepLink.isActive(target.id) || undefined}
+            onOpenChange={(o) => (o ? deepLink.open(target.id) : deepLink.close())}
+          >
             {tile}
           </DrillThroughCard>
         ) : (
