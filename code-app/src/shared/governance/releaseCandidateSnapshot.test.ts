@@ -2450,3 +2450,47 @@ describe('Phase 142T — platform convergence release readiness certification ex
     expect(doc).toMatch(/live.?activation prerequisites/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 143A-143J — controlled CRM activation stack
+// ---------------------------------------------------------------------------
+
+describe('Phase 143 — controlled CRM activation stack exists', () => {
+  const REQUIRED_143_FILES: readonly string[] = [
+    'docs/PHASE_143A_CRM_ACTIVATION_INVENTORY_SOURCE_OF_TRUTH.md',
+    'docs/PHASE_143B_SALESFORCE_NCINO_CONNECTOR_READINESS_AUDIT.md',
+    'docs/PHASE_143C_CRM_IDENTITY_ENTITY_MATCHING_MODEL.md',
+    'docs/PHASE_143D_CRM_SYNC_PREVIEW_NO_WRITES.md',
+    'docs/PHASE_143E_CRM_WRITEBACK_POLICY_GATE_DISABLED.md',
+    'docs/PHASE_143F_CRM_CONTROLLED_WRITEBACK_DRY_RUN_ADAPTER.md',
+    'docs/PHASE_143G_CRM_ACTIVITY_TIMELINE_ENRICHMENT_READ_ONLY.md',
+    'docs/PHASE_143H_CRM_RELATIONSHIP_INTELLIGENCE_COCKPIT.md',
+    'docs/PHASE_143I_CRM_ALLOWLISTED_LIVE_WRITE_PILOT_SCAFFOLD.md',
+    'docs/PHASE_143J_CRM_ACTIVATION_CERTIFICATION_AND_ROLLBACK.md',
+    'src/crm/sourceOfTruth/crmSourceOfTruthMap.ts',
+    'src/crm/connectors/crmConnectorReadiness.ts',
+    'src/crm/matching/crmEntityMatchingModel.ts',
+    'src/crm/syncPreview/crmSyncPreviewPlan.ts',
+    'src/crm/writeback/crmWritebackPolicyGate.ts',
+    'src/crm/writeback/crmControlledWritebackAdapter.ts',
+    'src/crm/writeback/crmAllowlistedLiveWritePilot.ts',
+    'src/crm/activityTimeline/crmActivityTimelineModel.ts',
+    'src/crm/relationshipIntelligence/crmRelationshipIntelligenceViewModel.ts',
+    'src/shared/governance/crmActivationGovernance.test.ts',
+    'src/shared/governance/crmActivationCertification.test.ts',
+  ];
+  for (const rel of REQUIRED_143_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_143J_CRM_ACTIVATION_CERTIFICATION_AND_ROLLBACK.md');
+
+  it('the certification doc pins no-uncontrolled-live-writes, dry-run/read-only, rollback, non-certifications', () => {
+    expect(doc).toMatch(/no uncontrolled live writes/i);
+    expect(doc).toMatch(/disabled\s*\/\s*dry-run\s*\/\s*read-only/i);
+    expect(doc).toMatch(/rollback\s*\/\s*kill[- ]?switch/i);
+    expect(doc).toMatch(/explicit non-certifications/i);
+  });
+});
