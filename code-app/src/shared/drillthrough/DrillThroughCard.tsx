@@ -24,16 +24,22 @@ interface Props {
   children?: ReactNode;
   /** Visual variant — a dense KPI tile, a queue row, or a full card. */
   variant?: 'card' | 'tile' | 'row';
+  /**
+   * When true, the disclosure shell drops its own border/padding so a
+   * retrofitted legacy tile can supply its own face styling without a double
+   * frame. The native `<details>`/`<summary>` keyboard behaviour is unchanged.
+   */
+  unstyled?: boolean;
 }
 
-export function DrillThroughCard({ target, children, variant = 'card' }: Props) {
+export function DrillThroughCard({ target, children, variant = 'card', unstyled = false }: Props) {
   const action = resolveDrillThroughAction(target);
   const accessibleName = drillThroughAccessibleName(target);
   const regionId = `drillthrough-${target.id}`;
   const headingId = `${regionId}-heading`;
 
   return (
-    <details style={shellStyle(variant)}>
+    <details style={unstyled ? undefined : shellStyle(variant)}>
       <summary
         style={summaryStyle}
         aria-label={accessibleName}

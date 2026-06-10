@@ -673,7 +673,9 @@ describe('Phase 125A — dense KPI ribbon', () => {
     expect(
       within(strip).getByLabelText(/no record activity/i),
     ).toBeInTheDocument();
-    expect(within(strip).getByLabelText(/overdue tasks/i)).toBeInTheDocument();
+    // Phase 144B — the KPI tile aria-label begins with a count; scope past the
+    // drill-through disclosure's "View details: Overdue tasks" accessible name.
+    expect(within(strip).getByLabelText(/\d+ overdue tasks/i)).toBeInTheDocument();
     expect(
       within(strip).getByLabelText(/Average days in stage/i),
     ).toBeInTheDocument();

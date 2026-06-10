@@ -2528,3 +2528,41 @@ describe('Phase 144A — system-wide drill-through contract exists', () => {
     expect(doc).toMatch(/WorkspaceGate/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 144B — legacy cockpit drill-through retrofit
+// ---------------------------------------------------------------------------
+
+describe('Phase 144B — legacy cockpit drill-through retrofit exists', () => {
+  const REQUIRED_144B_FILES: readonly string[] = [
+    'docs/PHASE_144B_LEGACY_COCKPIT_DRILL_THROUGH_RETROFIT.md',
+    'src/manager/managerDrillThrough.ts',
+    'src/portfolio/portfolioDrillThrough.ts',
+    'src/team/teamOpsQueueDrillThrough.ts',
+    'src/deals/dealCockpitDrillThrough.ts',
+    'src/executive/executiveDrillThrough.ts',
+    'src/shared/governance/legacyCockpitDrillThroughRetrofit.test.ts',
+  ];
+  for (const rel of REQUIRED_144B_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_144B_LEGACY_COCKPIT_DRILL_THROUGH_RETROFIT.md');
+
+  it('the doc pins the five retrofitted workspaces and read-only posture', () => {
+    expect(doc).toMatch(/Manager/);
+    expect(doc).toMatch(/Portfolio/);
+    expect(doc).toMatch(/Team/);
+    expect(doc).toMatch(/Banker\/Deal/);
+    expect(doc).toMatch(/Executive/);
+    expect(doc).toMatch(/read-only/i);
+  });
+
+  it('the doc pins no new route / permission widening and honest unavailable reasons', () => {
+    expect(doc).toMatch(/No permission, role, or scope widening/i);
+    expect(doc).toMatch(/unavailable/i);
+    expect(doc).toMatch(/WorkspaceGate/i);
+  });
+});

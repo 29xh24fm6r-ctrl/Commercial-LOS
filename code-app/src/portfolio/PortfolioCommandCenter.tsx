@@ -34,6 +34,8 @@ import {
   portfolioRiskCopilotSummaries,
 } from './portfolioRiskEngine';
 import { RiskConcentrationRadar } from './RiskConcentrationRadar';
+import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
+import { portfolioKpiTargets } from './portfolioDrillThrough';
 import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
 import { getCopilotConnector } from '../copilot/copilotConnector';
@@ -231,7 +233,7 @@ export function PortfolioCommandCenter() {
             </div>
           )}
           {riskSnapshot && <RiskConcentrationRadar risk={riskSnapshot} />}
-          <KpiRibbon ribbon={snapshot.commandRibbon} />
+          <KpiRibbon ribbon={snapshot.commandRibbon} exceptions={snapshot.exceptions} />
           <AnalyticsGrid snapshot={snapshot} />
           <TopExposures rows={snapshot.topExposures} />
           <Exceptions rows={snapshot.exceptions} />
@@ -291,7 +293,17 @@ function EmptyState({ filtered }: { filtered: boolean }) {
 // KPI Ribbon
 // ---------------------------------------------------------------------------
 
-function KpiRibbon({ ribbon }: { ribbon: PortfolioCommandRibbon }) {
+function KpiRibbon({
+  ribbon,
+  exceptions,
+}: {
+  ribbon: PortfolioCommandRibbon;
+  exceptions: ReadonlyArray<PortfolioExceptionRow>;
+}) {
+  // Phase 144B — each KPI tile becomes a read-only drill-through disclosure that
+  // explains its contributing counts / deals. The existing tile markup (aria-label
+  // + data-portfolio-kpi) is preserved inside the disclosure face.
+  const targets = portfolioKpiTargets(ribbon, exceptions);
   const tiles: Array<{
     label: string;
     value: string;
@@ -377,20 +389,30 @@ function KpiRibbon({ ribbon }: { ribbon: PortfolioCommandRibbon }) {
       aria-label="Portfolio KPI ribbon"
       data-portfolio-cockpit-section="kpi-ribbon"
     >
-      {tiles.map((t) => (
-        <div
-          key={t.label}
-          style={{
-            ...styles.kpiTile,
-            borderTopColor: severityPalette[t.tone].bar,
-          }}
-          aria-label={t.ariaLabel}
-          data-portfolio-kpi={t.label.toLowerCase().replace(/\s+/g, '-')}
-        >
-          <span style={styles.kpiLabel}>{t.label}</span>
-          <span style={styles.kpiValue}>{t.value}</span>
-        </div>
-      ))}
+      {tiles.map((t) => {
+        const slug = t.label.toLowerCase().replace(/\s+/g, '-');
+        const tile = (
+          <div
+            style={{
+              ...styles.kpiTile,
+              borderTopColor: severityPalette[t.tone].bar,
+            }}
+            aria-label={t.ariaLabel}
+            data-portfolio-kpi={slug}
+          >
+            <span style={styles.kpiLabel}>{t.label}</span>
+            <span style={styles.kpiValue}>{t.value}</span>
+          </div>
+        );
+        const target = targets[slug];
+        return target ? (
+          <DrillThroughCard key={t.label} target={target} unstyled>
+            {tile}
+          </DrillThroughCard>
+        ) : (
+          <div key={t.label}>{tile}</div>
+        );
+      })}
     </section>
   );
 }

@@ -121,9 +121,12 @@ describe('Phase 133A — ExecutiveCommandCenter content', () => {
   it('renders the KPI ribbon', () => {
     setReady();
     renderCockpit();
-    expect(screen.getByLabelText('Executive KPI ribbon')).toBeInTheDocument();
-    expect(screen.getByText('Active deals')).toBeInTheDocument();
-    expect(screen.getByText('Total exposure')).toBeInTheDocument();
+    const ribbon = screen.getByLabelText('Executive KPI ribbon');
+    expect(ribbon).toBeInTheDocument();
+    // Phase 144B — scope to the KPI tile faces; the same labels now also appear as
+    // contributing-count labels inside the read-only drill-through panels.
+    expect(ribbon.querySelector('[data-executive-kpi="active-deals"]')?.textContent).toContain('Active deals');
+    expect(ribbon.querySelector('[data-executive-kpi="total-exposure"]')?.textContent).toContain('Total exposure');
   });
 
   it('renders risk + data-quality summaries', () => {

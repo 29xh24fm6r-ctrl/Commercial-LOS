@@ -36,6 +36,8 @@ import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
 import { getCopilotConnector } from '../copilot/copilotConnector';
 import { palette, radius, severityPalette, shadow, spacing, typography } from '../shared/theme';
+import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
+import { managerKpiTargets } from './managerDrillThrough';
 
 /**
  * Phase 124A — Manager Bloomberg Control Panel (foundation).
@@ -292,6 +294,10 @@ function EmptyState({ filtered }: { filtered: boolean }) {
 // ---------------------------------------------------------------------------
 
 function CommandStrip({ strip }: { strip: ManagerPipelineCommandStrip }) {
+  // Phase 144B — each KPI tile becomes a read-only drill-through disclosure that
+  // explains its contributing counts. The existing tile markup (aria-label +
+  // data-manager-kpi) is preserved inside the disclosure face.
+  const kpiTargets = managerKpiTargets(strip);
   // Phase 125A — dense 10-tile KPI ribbon. Honest about the two
   // metrics the team-pipeline loader cannot derive cleanly:
   // "Weighted pipeline" (no probability-by-stage in schema) and
@@ -390,20 +396,30 @@ function CommandStrip({ strip }: { strip: ManagerPipelineCommandStrip }) {
       aria-label="Pipeline command strip"
       data-manager-cockpit-section="command-strip"
     >
-      {tiles.map((t) => (
-        <div
-          key={t.label}
-          style={{
-            ...styles.kpiTile,
-            borderTopColor: severityPalette[t.tone].bar,
-          }}
-          aria-label={t.ariaLabel}
-          data-manager-kpi={t.label.toLowerCase().replace(/\s+/g, '-')}
-        >
-          <span style={styles.kpiLabel}>{t.label}</span>
-          <span style={styles.kpiValue}>{t.value}</span>
-        </div>
-      ))}
+      {tiles.map((t) => {
+        const slug = t.label.toLowerCase().replace(/\s+/g, '-');
+        const tile = (
+          <div
+            style={{
+              ...styles.kpiTile,
+              borderTopColor: severityPalette[t.tone].bar,
+            }}
+            aria-label={t.ariaLabel}
+            data-manager-kpi={slug}
+          >
+            <span style={styles.kpiLabel}>{t.label}</span>
+            <span style={styles.kpiValue}>{t.value}</span>
+          </div>
+        );
+        const target = kpiTargets[slug];
+        return target ? (
+          <DrillThroughCard key={t.label} target={target} unstyled>
+            {tile}
+          </DrillThroughCard>
+        ) : (
+          <div key={t.label}>{tile}</div>
+        );
+      })}
     </section>
   );
 }

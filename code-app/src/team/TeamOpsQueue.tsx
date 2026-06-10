@@ -33,6 +33,8 @@ import {
   spacing,
   typography,
 } from '../shared/theme';
+import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
+import { teamOpsKpiTargets } from './teamOpsQueueDrillThrough';
 
 /**
  * Phase 127A — Team Ops Queue.
@@ -217,6 +219,9 @@ function EmptyState() {
 // ---------------------------------------------------------------------------
 
 function CommandRibbon({ ribbon }: { ribbon: TeamOpsCommandRibbon }) {
+  // Phase 144B — each KPI tile becomes a read-only drill-through disclosure that
+  // explains its contributing counts. The existing tile markup is preserved.
+  const kpiTargets = teamOpsKpiTargets(ribbon);
   const tiles: Array<{
     label: string;
     value: string;
@@ -290,20 +295,30 @@ function CommandRibbon({ ribbon }: { ribbon: TeamOpsCommandRibbon }) {
       aria-label="Team command ribbon"
       data-team-cockpit-section="command-ribbon"
     >
-      {tiles.map((t) => (
-        <div
-          key={t.label}
-          style={{
-            ...styles.kpiTile,
-            borderTopColor: severityPalette[t.tone].bar,
-          }}
-          aria-label={t.ariaLabel}
-          data-team-kpi={t.label.toLowerCase().replace(/\s+/g, '-')}
-        >
-          <span style={styles.kpiLabel}>{t.label}</span>
-          <span style={styles.kpiValue}>{t.value}</span>
-        </div>
-      ))}
+      {tiles.map((t) => {
+        const slug = t.label.toLowerCase().replace(/\s+/g, '-');
+        const tile = (
+          <div
+            style={{
+              ...styles.kpiTile,
+              borderTopColor: severityPalette[t.tone].bar,
+            }}
+            aria-label={t.ariaLabel}
+            data-team-kpi={slug}
+          >
+            <span style={styles.kpiLabel}>{t.label}</span>
+            <span style={styles.kpiValue}>{t.value}</span>
+          </div>
+        );
+        const target = kpiTargets[slug];
+        return target ? (
+          <DrillThroughCard key={t.label} target={target} unstyled>
+            {tile}
+          </DrillThroughCard>
+        ) : (
+          <div key={t.label}>{tile}</div>
+        );
+      })}
     </section>
   );
 }

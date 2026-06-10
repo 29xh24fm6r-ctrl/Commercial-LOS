@@ -35,6 +35,8 @@ import {
   spacing,
   typography,
 } from '../shared/theme';
+import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
+import { executiveKpiTargets } from './executiveDrillThrough';
 
 /**
  * Phase 133A — Executive Command Center.
@@ -247,41 +249,55 @@ function EmptyState() {
 // ---------------------------------------------------------------------------
 
 function KpiRibbon({ ribbon }: { ribbon: ExecutiveKpiRibbon }) {
+  // Phase 144B — each KPI tile becomes a read-only drill-through disclosure that
+  // explains its contributing counts. The existing tile markup is preserved.
+  const kpiTargets = executiveKpiTargets(ribbon);
   const tiles: Array<{
+    key: string;
     label: string;
     value: string;
     tone: 'info' | 'clear' | 'atRisk' | 'blocked';
     ariaLabel: string;
   }> = [
-    { label: 'Active deals', value: String(ribbon.totalActiveDeals), tone: 'info', ariaLabel: `${ribbon.totalActiveDeals} active deals` },
-    { label: 'Total exposure', value: formatCurrencyCompact(ribbon.totalExposure), tone: 'info', ariaLabel: `Total exposure ${formatCurrency(ribbon.totalExposure)}` },
+    { key: 'active-deals', label: 'Active deals', value: String(ribbon.totalActiveDeals), tone: 'info', ariaLabel: `${ribbon.totalActiveDeals} active deals` },
+    { key: 'total-exposure', label: 'Total exposure', value: formatCurrencyCompact(ribbon.totalExposure), tone: 'info', ariaLabel: `Total exposure ${formatCurrency(ribbon.totalExposure)}` },
     {
+      key: 'closing',
       label: ribbon.closingWindowLabel ? `Closing — ${ribbon.closingWindowLabel}` : 'Closing window',
       value: formatCurrencyCompact(ribbon.closingWindowExposure),
       tone: 'info',
       ariaLabel: `Closing-window exposure ${formatCurrency(ribbon.closingWindowExposure)}`,
     },
-    { label: 'Blocked', value: String(ribbon.blockedCount), tone: ribbon.blockedCount === 0 ? 'clear' : 'blocked', ariaLabel: `${ribbon.blockedCount} blocked deals` },
-    { label: 'At risk', value: String(ribbon.atRiskCount), tone: ribbon.atRiskCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.atRiskCount} at-risk deals` },
-    { label: 'Open blockers', value: String(ribbon.openBlockerCount), tone: ribbon.openBlockerCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.openBlockerCount} open blockers` },
-    { label: 'Outstanding docs', value: String(ribbon.outstandingDocumentCount), tone: ribbon.outstandingDocumentCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.outstandingDocumentCount} outstanding documents` },
-    { label: 'Pending approvals', value: String(ribbon.pendingApprovalCount), tone: ribbon.pendingApprovalCount === 0 ? 'clear' : 'info', ariaLabel: `${ribbon.pendingApprovalCount} pending approvals` },
-    { label: 'Stale items', value: String(ribbon.staleItemCount), tone: ribbon.staleItemCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.staleItemCount} stale items` },
-    { label: 'Readiness unknown', value: String(ribbon.readinessUnknownCount), tone: ribbon.readinessUnknownCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.readinessUnknownCount} deals without a readiness band` },
+    { key: 'blocked', label: 'Blocked', value: String(ribbon.blockedCount), tone: ribbon.blockedCount === 0 ? 'clear' : 'blocked', ariaLabel: `${ribbon.blockedCount} blocked deals` },
+    { key: 'at-risk', label: 'At risk', value: String(ribbon.atRiskCount), tone: ribbon.atRiskCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.atRiskCount} at-risk deals` },
+    { key: 'open-blockers', label: 'Open blockers', value: String(ribbon.openBlockerCount), tone: ribbon.openBlockerCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.openBlockerCount} open blockers` },
+    { key: 'outstanding-docs', label: 'Outstanding docs', value: String(ribbon.outstandingDocumentCount), tone: ribbon.outstandingDocumentCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.outstandingDocumentCount} outstanding documents` },
+    { key: 'pending-approvals', label: 'Pending approvals', value: String(ribbon.pendingApprovalCount), tone: ribbon.pendingApprovalCount === 0 ? 'clear' : 'info', ariaLabel: `${ribbon.pendingApprovalCount} pending approvals` },
+    { key: 'stale-items', label: 'Stale items', value: String(ribbon.staleItemCount), tone: ribbon.staleItemCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.staleItemCount} stale items` },
+    { key: 'readiness-unknown', label: 'Readiness unknown', value: String(ribbon.readinessUnknownCount), tone: ribbon.readinessUnknownCount === 0 ? 'clear' : 'atRisk', ariaLabel: `${ribbon.readinessUnknownCount} deals without a readiness band` },
   ];
   return (
     <section style={styles.commandStrip} aria-label="Executive KPI ribbon" data-executive-cockpit-section="kpi-ribbon">
-      {tiles.map((t) => (
-        <div
-          key={t.label}
-          style={{ ...styles.kpiTile, borderTopColor: severityPalette[t.tone].bar }}
-          aria-label={t.ariaLabel}
-          data-executive-kpi={t.label.toLowerCase().replace(/\s+/g, '-')}
-        >
-          <span style={styles.kpiLabel}>{t.label}</span>
-          <span style={styles.kpiValue}>{t.value}</span>
-        </div>
-      ))}
+      {tiles.map((t) => {
+        const tile = (
+          <div
+            style={{ ...styles.kpiTile, borderTopColor: severityPalette[t.tone].bar }}
+            aria-label={t.ariaLabel}
+            data-executive-kpi={t.label.toLowerCase().replace(/\s+/g, '-')}
+          >
+            <span style={styles.kpiLabel}>{t.label}</span>
+            <span style={styles.kpiValue}>{t.value}</span>
+          </div>
+        );
+        const target = kpiTargets[t.key];
+        return target ? (
+          <DrillThroughCard key={t.key} target={target} unstyled>
+            {tile}
+          </DrillThroughCard>
+        ) : (
+          <div key={t.key}>{tile}</div>
+        );
+      })}
     </section>
   );
 }

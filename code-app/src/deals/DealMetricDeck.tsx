@@ -15,6 +15,8 @@ import {
   PipelineIcon,
 } from '../shared/cockpitIcons';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
+import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
+import { dealMetricDeckTargets } from './dealCockpitDrillThrough';
 
 /**
  * Phase 125E — Deal Metric Deck (recomposed).
@@ -81,6 +83,27 @@ export function DealMetricDeck() {
   const missingFieldLabels =
     vm?.completeness.missingFieldLabels ?? metrics.missingFieldLabels;
 
+  // Phase 144B — each metric tile becomes a read-only drill-through disclosure
+  // explaining its populated/missing fields and contributing counts. Values are
+  // the same `deriveDealCockpitMetrics` output the tiles already render.
+  const targetCloseLabel = formatTargetCloseDate(metrics.targetCloseIso) ?? 'No date set';
+  const deckTargets = dealMetricDeckTargets({
+    loanAmountLabel: formatCurrency(metrics.loanAmount) ?? 'Not set',
+    loanAmountKnown: metrics.loanAmount !== undefined,
+    missingFieldLabels,
+    totalFieldCount,
+    populatedFieldCount,
+    taskOpenCount: metrics.taskOpenCount,
+    taskOverdueCount: metrics.taskOverdueCount,
+    taskCompletedCount: metrics.taskCompletedCount,
+    docOutstandingCount: metrics.docOutstandingCount,
+    docReceivedCount: metrics.docReceivedCount,
+    docReviewedCount: metrics.docReviewedCount,
+    targetCloseLabel,
+    daysToCloseLabel: formatRelativeDays(metrics.daysToClose) ?? 'No date set',
+    memoStateLabel: memoStateLabel(metrics.memoState),
+  });
+
   return (
     <section
       data-cockpit-zone="metric-deck"
@@ -96,65 +119,77 @@ export function DealMetricDeck() {
         />
       </div>
       <div className="cc-metric-deck-tiles" data-metric-deck-tiles="phase-125g">
-        <LargeMetricTile
-          label="Loan amount"
-          value={formatCurrency(metrics.loanAmount)}
-          sub="Authorized cr664_loandeal record"
-          tone="info"
-          icon={<DollarIcon />}
-        />
-        <LargeMetricTile
-          label="Missing fields"
-          value={formatNonNegativeCount(missingFieldLabels.length)}
-          sub={
-            missingFieldLabels.length === 0
-              ? 'Every tracked field populated'
-              : `of ${totalFieldCount} tracked`
-          }
-          tone={missingFieldLabels.length === 0 ? 'clear' : 'atRisk'}
-          icon={<ChecklistIcon />}
-        />
-        <LargeMetricTile
-          label="Blockers"
-          value={formatNonNegativeCount(
-            metrics.taskOverdueCount + metrics.docOutstandingCount,
-          )}
-          sub={blockerSubLabel(metrics)}
-          tone={tonalForBlockers(metrics)}
-          icon={<AlertIcon />}
-          aria-label={`Blockers: ${metrics.taskOverdueCount} overdue tasks, ${metrics.docOutstandingCount} outstanding documents`}
-        />
-        <LargeMetricTile
-          label="Tasks open"
-          value={formatNonNegativeCount(metrics.taskOpenCount)}
-          sub={
-            metrics.taskOverdueCount > 0
-              ? `${metrics.taskOverdueCount} overdue · ${metrics.taskCompletedCount} completed`
-              : metrics.taskOpenCount === 0
-                ? `${metrics.taskCompletedCount} completed`
-                : `${metrics.taskCompletedCount} completed`
-          }
-          tone={metrics.taskOverdueCount > 0 ? 'atRisk' : metrics.taskOpenCount === 0 ? 'clear' : 'info'}
-          icon={<PipelineIcon />}
-        />
-        <LargeMetricTile
-          label="Documents"
-          value={formatNonNegativeCount(metrics.docOutstandingCount)}
-          sub={
-            metrics.docOutstandingCount === 0
-              ? `${metrics.docReceivedCount} received · ${metrics.docReviewedCount} reviewed`
-              : `${metrics.docOutstandingCount} outstanding · ${metrics.docReceivedCount} received`
-          }
-          tone={metrics.docOutstandingCount > 0 ? 'atRisk' : 'clear'}
-          icon={<DocumentsIcon />}
-        />
-        <LargeMetricTile
-          label="Target close"
-          value={formatTargetCloseDate(metrics.targetCloseIso)}
-          sub={formatRelativeDays(metrics.daysToClose) ?? 'No date set'}
-          tone={tonalForDaysToClose(metrics.daysToClose)}
-          icon={<CalendarIcon />}
-        />
+        <DrillThroughCard target={deckTargets['loan-amount']} unstyled>
+          <LargeMetricTile
+            label="Loan amount"
+            value={formatCurrency(metrics.loanAmount)}
+            sub="Authorized cr664_loandeal record"
+            tone="info"
+            icon={<DollarIcon />}
+          />
+        </DrillThroughCard>
+        <DrillThroughCard target={deckTargets['missing-fields']} unstyled>
+          <LargeMetricTile
+            label="Missing fields"
+            value={formatNonNegativeCount(missingFieldLabels.length)}
+            sub={
+              missingFieldLabels.length === 0
+                ? 'Every tracked field populated'
+                : `of ${totalFieldCount} tracked`
+            }
+            tone={missingFieldLabels.length === 0 ? 'clear' : 'atRisk'}
+            icon={<ChecklistIcon />}
+          />
+        </DrillThroughCard>
+        <DrillThroughCard target={deckTargets['blockers']} unstyled>
+          <LargeMetricTile
+            label="Blockers"
+            value={formatNonNegativeCount(
+              metrics.taskOverdueCount + metrics.docOutstandingCount,
+            )}
+            sub={blockerSubLabel(metrics)}
+            tone={tonalForBlockers(metrics)}
+            icon={<AlertIcon />}
+            aria-label={`Blockers: ${metrics.taskOverdueCount} overdue tasks, ${metrics.docOutstandingCount} outstanding documents`}
+          />
+        </DrillThroughCard>
+        <DrillThroughCard target={deckTargets['tasks-open']} unstyled>
+          <LargeMetricTile
+            label="Tasks open"
+            value={formatNonNegativeCount(metrics.taskOpenCount)}
+            sub={
+              metrics.taskOverdueCount > 0
+                ? `${metrics.taskOverdueCount} overdue · ${metrics.taskCompletedCount} completed`
+                : metrics.taskOpenCount === 0
+                  ? `${metrics.taskCompletedCount} completed`
+                  : `${metrics.taskCompletedCount} completed`
+            }
+            tone={metrics.taskOverdueCount > 0 ? 'atRisk' : metrics.taskOpenCount === 0 ? 'clear' : 'info'}
+            icon={<PipelineIcon />}
+          />
+        </DrillThroughCard>
+        <DrillThroughCard target={deckTargets['documents']} unstyled>
+          <LargeMetricTile
+            label="Documents"
+            value={formatNonNegativeCount(metrics.docOutstandingCount)}
+            sub={
+              metrics.docOutstandingCount === 0
+                ? `${metrics.docReceivedCount} received · ${metrics.docReviewedCount} reviewed`
+                : `${metrics.docOutstandingCount} outstanding · ${metrics.docReceivedCount} received`
+            }
+            tone={metrics.docOutstandingCount > 0 ? 'atRisk' : 'clear'}
+            icon={<DocumentsIcon />}
+          />
+        </DrillThroughCard>
+        <DrillThroughCard target={deckTargets['target-close']} unstyled>
+          <LargeMetricTile
+            label="Target close"
+            value={formatTargetCloseDate(metrics.targetCloseIso)}
+            sub={formatRelativeDays(metrics.daysToClose) ?? 'No date set'}
+            tone={tonalForDaysToClose(metrics.daysToClose)}
+            icon={<CalendarIcon />}
+          />
+        </DrillThroughCard>
       </div>
       <div style={styles.footerRow}>
         <span style={styles.footerLabel}>LAST TOUCHED</span>
