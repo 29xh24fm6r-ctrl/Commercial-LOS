@@ -2341,3 +2341,31 @@ describe('Phase 142P — core banking read-only lookup adapter seam exists', () 
     expect(doc).toMatch(/Phase 142Q/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142Q — AML/KYC and credit bureau policy gate (no live pull)
+// ---------------------------------------------------------------------------
+
+describe('Phase 142Q — AML/KYC and credit bureau policy gate exists', () => {
+  const REQUIRED_142Q_FILES: readonly string[] = [
+    'docs/PHASE_142Q_AML_KYC_CREDIT_BUREAU_POLICY_GATE.md',
+    'src/integrations/policyGates/amlKycCreditBureauPolicyGate.ts',
+    'src/integrations/policyGates/AmlKycCreditBureauPolicyGatePanel.tsx',
+    'src/shared/governance/amlKycCreditBureauPolicyGateGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142Q_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142Q_AML_KYC_CREDIT_BUREAU_POLICY_GATE.md');
+
+  it('the doc pins no-live-pull, no provider call, no decisioning, no sensitive ids', () => {
+    expect(doc).toMatch(/no live pull/i);
+    expect(doc).toMatch(/no .* provider call|providerCalled|no report or score retrieval/i);
+    expect(doc).toMatch(/no credit decisioning|no .* decisioning|adverse action/i);
+    expect(doc).toMatch(/sensitive identifier/i);
+    expect(doc).toMatch(/Phase 142R/);
+  });
+});
