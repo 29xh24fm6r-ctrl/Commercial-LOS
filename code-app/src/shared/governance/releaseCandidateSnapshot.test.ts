@@ -2494,3 +2494,37 @@ describe('Phase 143 — controlled CRM activation stack exists', () => {
     expect(doc).toMatch(/explicit non-certifications/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 144A — system-wide drill-through contract
+// ---------------------------------------------------------------------------
+
+describe('Phase 144A — system-wide drill-through contract exists', () => {
+  const REQUIRED_144A_FILES: readonly string[] = [
+    'docs/PHASE_144A_SYSTEM_WIDE_DRILL_THROUGH_CONTRACT.md',
+    'src/shared/drillthrough/drillThroughTypes.ts',
+    'src/shared/drillthrough/drillThroughRegistry.ts',
+    'src/shared/drillthrough/DrillThroughPanel.tsx',
+    'src/shared/drillthrough/DrillThroughCard.tsx',
+    'src/shared/governance/systemWideDrillThroughContract.test.ts',
+  ];
+  for (const rel of REQUIRED_144A_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_144A_SYSTEM_WIDE_DRILL_THROUGH_CONTRACT.md');
+
+  it('the doc pins no-dead-cards, read-only, three-way resolution, and accessibility', () => {
+    expect(doc).toMatch(/no dead summary cards/i);
+    expect(doc).toMatch(/read-only/i);
+    expect(doc).toMatch(/unavailable state/i);
+    expect(doc).toMatch(/Enter\/Space/i);
+  });
+
+  it('the doc pins no new write / route / permission widening', () => {
+    expect(doc).toMatch(/no new permissions, routes, live calls, or writes/i);
+    expect(doc).toMatch(/WorkspaceGate/i);
+  });
+});
