@@ -2286,3 +2286,30 @@ describe('Phase 142N — live package export adapter seam exists', () => {
     expect(doc).toMatch(/Phase 142O/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142O — e-sign envelope adapter seam (PandaDoc, disabled by default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 142O — e-sign envelope adapter seam exists', () => {
+  const REQUIRED_142O_FILES: readonly string[] = [
+    'docs/PHASE_142O_ESIGN_ENVELOPE_ADAPTER_SEAM.md',
+    'src/committee/eSignEnvelopeAdapter.ts',
+    'src/committee/ESignEnvelopePanel.tsx',
+    'src/shared/governance/eSignEnvelopeGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142O_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142O_ESIGN_ENVELOPE_ADAPTER_SEAM.md');
+
+  it('the doc pins PandaDoc disabled-by-default, no live envelope/upload/email/webhook', () => {
+    expect(doc).toMatch(/pandadoc/i);
+    expect(doc).toMatch(/disabled by default/i);
+    expect(doc).toMatch(/no live pandadoc|no envelope creation|no webhook|liveEnvelopeCreated/i);
+    expect(doc).toMatch(/Phase 142P/);
+  });
+});
