@@ -2397,3 +2397,30 @@ describe('Phase 142R — servicing lifecycle read-only mapper exists', () => {
     expect(doc).toMatch(/Phase 142S/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142S — executive product profitability / ROE availability model
+// ---------------------------------------------------------------------------
+
+describe('Phase 142S — product profitability / ROE availability model exists', () => {
+  const REQUIRED_142S_FILES: readonly string[] = [
+    'docs/PHASE_142S_EXECUTIVE_PRODUCT_PROFITABILITY_ROE_AVAILABILITY_MODEL.md',
+    'src/executive/productProfitabilityAvailabilityModel.ts',
+    'src/executive/ProductProfitabilityAvailabilityPanel.tsx',
+    'src/shared/governance/productProfitabilityAvailabilityGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142S_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142S_EXECUTIVE_PRODUCT_PROFITABILITY_ROE_AVAILABILITY_MODEL.md');
+
+  it('the doc pins availability-only, no metric calculation, no fake figures', () => {
+    expect(doc).toMatch(/availability .* model only|availability \/ readiness model only/i);
+    expect(doc).toMatch(/no .* calculation|no metric is calculated|calculates no/i);
+    expect(doc).toMatch(/no fake .* figures|no numeric output/i);
+    expect(doc).toMatch(/Phase 142T/);
+  });
+});
