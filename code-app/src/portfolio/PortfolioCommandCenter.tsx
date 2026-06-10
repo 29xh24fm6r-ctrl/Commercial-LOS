@@ -462,35 +462,41 @@ function AnalyticsGrid({
         title="Pipeline by stage"
         subtitle="Deal count"
         data={concentrationToVerticalBars(snapshot.byStage)}
+        drillThroughSurface="portfolio_command_center"
       />
       <HorizontalBarChart
         title="Exposure by product type"
         subtitle="$ + share"
         data={concentrationToHorizontalBars(snapshot.byProductType)}
         valueFormatter={formatCurrencyCompact}
+        drillThroughSurface="portfolio_command_center"
       />
       <HorizontalBarChart
         title="Loan structure mix"
         subtitle="$ + share"
         data={concentrationToHorizontalBars(snapshot.byLoanStructure)}
         valueFormatter={formatCurrencyCompact}
+        drillThroughSurface="portfolio_command_center"
       />
       <HorizontalBarChart
         title="Pricing type mix"
         subtitle="$ + share"
         data={concentrationToHorizontalBars(snapshot.byPricingType)}
         valueFormatter={formatCurrencyCompact}
+        drillThroughSurface="portfolio_command_center"
       />
       <HorizontalBarChart
         title="Exposure by banker"
         subtitle="$ + share"
         data={concentrationToHorizontalBars(snapshot.byBanker)}
         valueFormatter={formatCurrencyCompact}
+        drillThroughSurface="portfolio_command_center"
       />
       <VerticalBarChart
         title="Deal size mix"
         subtitle="Count by band"
         data={exposureBandsToVerticalBars(exposureBands)}
+        drillThroughSurface="portfolio_command_center"
       />
       <Histogram
         title="Aging — days in stage"
@@ -499,6 +505,7 @@ function AnalyticsGrid({
           value: a.dealCount,
           tone: a.lowDays >= 31 ? 'atRisk' : 'info',
         }))}
+        drillThroughSurface="portfolio_command_center"
       />
       <DonutChart
         title="Risk distribution"
@@ -509,6 +516,7 @@ function AnalyticsGrid({
           { label: 'Clear', value: risk.clear, tone: 'clear' },
           { label: 'Unknown', value: risk.unknown, tone: 'neutral' },
         ]}
+        drillThroughSurface="portfolio_command_center"
       />
       <ForecastSparkline
         title="Closings forecast"
@@ -518,6 +526,7 @@ function AnalyticsGrid({
           dealCount: f.dealCount,
           totalAmount: f.totalAmount,
         }))}
+        drillThroughSurface="portfolio_command_center"
       />
       <HorizontalBarChart
         title="Missing field concentration"
@@ -527,6 +536,7 @@ function AnalyticsGrid({
           value: m.dealCount,
           tone: 'atRisk',
         }))}
+        drillThroughSurface="portfolio_command_center"
       />
       <HorizontalBarChart
         title="Data quality"
@@ -541,6 +551,7 @@ function AnalyticsGrid({
                 ? 'blocked'
                 : 'atRisk',
         }))}
+        drillThroughSurface="portfolio_command_center"
       />
     </section>
   );

@@ -673,14 +673,17 @@ function AnalyticsRow({
         title="Work items by type"
         subtitle="Count per lane"
         data={workItemTypes}
+        drillThroughSurface="team_ops_queue"
       />
       <HorizontalBarChart
         title="Overdue tasks by banker"
         data={overdueByBanker.map((b) => ({ label: b.label, value: b.value, tone: 'atRisk' as const }))}
+        drillThroughSurface="team_ops_queue"
       />
       <HorizontalBarChart
         title="Outstanding docs by banker"
         data={docsByBanker.map((b) => ({ label: b.label, value: b.value, tone: 'atRisk' as const }))}
+        drillThroughSurface="team_ops_queue"
       />
       <DonutChart
         title="Risk distribution"
@@ -691,6 +694,7 @@ function AnalyticsRow({
           { label: 'Clear', value: risk.clear, tone: 'clear' },
           { label: 'Unknown', value: risk.unknown, tone: 'neutral' },
         ]}
+        drillThroughSurface="team_ops_queue"
       />
       <ForecastSparkline
         title="Closings forecast"
@@ -700,6 +704,7 @@ function AnalyticsRow({
           dealCount: f.dealCount,
           totalAmount: f.totalAmount,
         }))}
+        drillThroughSurface="team_ops_queue"
       />
     </section>
   );

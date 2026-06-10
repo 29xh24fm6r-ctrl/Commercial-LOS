@@ -2566,3 +2566,39 @@ describe('Phase 144B — legacy cockpit drill-through retrofit exists', () => {
     expect(doc).toMatch(/WorkspaceGate/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 144C — chart segment drill-through
+// ---------------------------------------------------------------------------
+
+describe('Phase 144C — chart segment drill-through exists', () => {
+  const REQUIRED_144C_FILES: readonly string[] = [
+    'docs/PHASE_144C_CHART_SEGMENT_DRILL_THROUGH.md',
+    'src/shared/drillthrough/chartDrillThrough.ts',
+    'src/shared/drillthrough/chartDrillThrough.test.tsx',
+    'src/shared/governance/chartSegmentDrillThrough.test.ts',
+  ];
+  for (const rel of REQUIRED_144C_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_144C_CHART_SEGMENT_DRILL_THROUGH.md');
+
+  it('the doc pins chart-level vs segment-level, the four workspaces, and read-only posture', () => {
+    expect(doc).toMatch(/Chart-level/i);
+    expect(doc).toMatch(/segment-level/i);
+    expect(doc).toMatch(/Manager/);
+    expect(doc).toMatch(/Portfolio/);
+    expect(doc).toMatch(/Team/);
+    expect(doc).toMatch(/Executive/);
+    expect(doc).toMatch(/read-only/i);
+  });
+
+  it('the doc pins no fake data, honest unavailable reasons, and Enter/Space activation', () => {
+    expect(doc).toMatch(/no.*fake/i);
+    expect(doc).toMatch(/unavailable reason/i);
+    expect(doc).toMatch(/Enter\/Space/i);
+  });
+});

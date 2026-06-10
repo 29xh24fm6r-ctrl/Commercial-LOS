@@ -1,5 +1,8 @@
 import type { CSSProperties } from 'react';
 import { palette, radius, severityPalette, spacing, typography } from './theme';
+import { DrillThroughPanel } from './drillthrough/DrillThroughPanel';
+import { buildChartDrillThrough, type ChartSegmentInput } from './drillthrough/chartDrillThrough';
+import { drillThroughAccessibleName, type DrillThroughSurface, type DrillThroughTarget } from './drillthrough/drillThroughTypes';
 
 /**
  * Phase 127A — Shared command-cockpit chart primitives.
@@ -46,6 +49,12 @@ interface ChartFrameProps {
   empty?: boolean;
   emptyLabel?: string;
   children?: React.ReactNode;
+  /**
+   * Phase 144C — optional read-only chart-level drill-through. When provided, a
+   * native `<details>` disclosure is appended below the chart so a user can open
+   * the segment breakdown / honest unavailable reason without touching the SVG.
+   */
+  drillThrough?: DrillThroughTarget;
 }
 
 function ChartFrame({
@@ -56,7 +65,10 @@ function ChartFrame({
   empty,
   emptyLabel = 'No data yet.',
   children,
+  drillThrough,
 }: ChartFrameProps) {
+  const regionId = drillThrough ? `${drillThrough.id}-region` : undefined;
+  const headingId = drillThrough ? `${drillThrough.id}-heading` : undefined;
   return (
     <section
       style={frameStyles.frame}
@@ -76,8 +88,34 @@ function ChartFrame({
           children
         )}
       </div>
+      {drillThrough ? (
+        <details style={frameStyles.drillDetails} data-manager-chart-drilldown={dataTestid}>
+          <summary
+            style={frameStyles.drillSummary}
+            aria-label={drillThroughAccessibleName(drillThrough).replace(/^View details:/, 'View chart details:')}
+            aria-controls={regionId}
+          >
+            View chart details ▸
+          </summary>
+          <div id={regionId} role="region" aria-labelledby={headingId}>
+            <DrillThroughPanel target={drillThrough} headingId={headingId} />
+          </div>
+        </details>
+      ) : null}
     </section>
   );
+}
+
+/** Phase 144C — builds a chart segment list for the chart-level drill-through. */
+function chartSegments(
+  data: ReadonlyArray<{ label: string; value: number }>,
+  fmt?: (v: number) => string,
+): ChartSegmentInput[] {
+  return data.map((d) => ({
+    label: d.label,
+    value: d.value,
+    secondary: fmt ? fmt(d.value) : undefined,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -97,6 +135,9 @@ interface VerticalBarChartProps {
   subtitle?: string;
   data: ReadonlyArray<VerticalBarDatum>;
   valueFormatter?: (v: number) => string;
+  /** Phase 144C — opt into chart-level drill-through derived from `data`. */
+  drillThroughSurface?: DrillThroughSurface;
+  nextReviewStep?: string;
 }
 
 export function VerticalBarChart({
@@ -104,6 +145,8 @@ export function VerticalBarChart({
   subtitle,
   data,
   valueFormatter,
+  drillThroughSurface,
+  nextReviewStep,
 }: VerticalBarChartProps) {
   const total = data.reduce((s, d) => s + d.value, 0);
   const empty = data.length === 0 || total === 0;
@@ -119,6 +162,11 @@ export function VerticalBarChart({
       ariaLabel={ariaSummary}
       dataTestid="vertical-bar-chart"
       empty={empty}
+      drillThrough={
+        drillThroughSurface
+          ? buildChartDrillThrough({ chartTitle: title, surface: drillThroughSurface, segments: chartSegments(data, valueFormatter), nextReviewStep })
+          : undefined
+      }
     >
       <ul style={chartStyles.vbarList} role="list">
         {data.map((d) => {
@@ -172,6 +220,9 @@ interface HorizontalBarChartProps {
   data: ReadonlyArray<HorizontalBarDatum>;
   valueFormatter?: (v: number) => string;
   maxRows?: number;
+  /** Phase 144C — opt into chart-level drill-through derived from `data`. */
+  drillThroughSurface?: DrillThroughSurface;
+  nextReviewStep?: string;
 }
 
 export function HorizontalBarChart({
@@ -180,6 +231,8 @@ export function HorizontalBarChart({
   data,
   valueFormatter,
   maxRows = 8,
+  drillThroughSurface,
+  nextReviewStep,
 }: HorizontalBarChartProps) {
   const visible = data.slice(0, maxRows);
   const total = visible.reduce((s, d) => s + d.value, 0);
@@ -196,6 +249,16 @@ export function HorizontalBarChart({
       ariaLabel={ariaSummary}
       dataTestid="horizontal-bar-chart"
       empty={empty}
+      drillThrough={
+        drillThroughSurface
+          ? buildChartDrillThrough({
+              chartTitle: title,
+              surface: drillThroughSurface,
+              segments: visible.map((d) => ({ label: d.label, value: d.value, secondary: d.secondaryLabel ?? (valueFormatter ? valueFormatter(d.value) : undefined) })),
+              nextReviewStep,
+            })
+          : undefined
+      }
     >
       <ul style={chartStyles.hbarList} role="list">
         {visible.map((d) => {
@@ -247,9 +310,12 @@ interface HistogramProps {
   title: string;
   subtitle?: string;
   data: ReadonlyArray<HistogramDatum>;
+  /** Phase 144C — opt into chart-level drill-through derived from `data`. */
+  drillThroughSurface?: DrillThroughSurface;
+  nextReviewStep?: string;
 }
 
-export function Histogram({ title, subtitle, data }: HistogramProps) {
+export function Histogram({ title, subtitle, data, drillThroughSurface, nextReviewStep }: HistogramProps) {
   const total = data.reduce((s, d) => s + d.value, 0);
   const empty = data.length === 0 || total === 0;
   const max = data.reduce((m, d) => Math.max(m, d.value), 0) || 1;
@@ -263,6 +329,11 @@ export function Histogram({ title, subtitle, data }: HistogramProps) {
       ariaLabel={ariaSummary}
       dataTestid="histogram"
       empty={empty}
+      drillThrough={
+        drillThroughSurface
+          ? buildChartDrillThrough({ chartTitle: title, surface: drillThroughSurface, segments: chartSegments(data), unit: 'deals', nextReviewStep })
+          : undefined
+      }
     >
       <ul style={chartStyles.histList} role="list">
         {data.map((d) => {
@@ -309,9 +380,12 @@ interface DonutChartProps {
   title: string;
   subtitle?: string;
   segments: ReadonlyArray<DonutSegment>;
+  /** Phase 144C — opt into chart-level drill-through derived from `segments`. */
+  drillThroughSurface?: DrillThroughSurface;
+  nextReviewStep?: string;
 }
 
-export function DonutChart({ title, subtitle, segments }: DonutChartProps) {
+export function DonutChart({ title, subtitle, segments, drillThroughSurface, nextReviewStep }: DonutChartProps) {
   const total = segments.reduce((s, x) => s + x.value, 0);
   const empty = total === 0;
   const ariaSummary = `${title}: ${segments
@@ -324,6 +398,16 @@ export function DonutChart({ title, subtitle, segments }: DonutChartProps) {
       ariaLabel={ariaSummary}
       dataTestid="donut-chart"
       empty={empty}
+      drillThrough={
+        drillThroughSurface
+          ? buildChartDrillThrough({
+              chartTitle: title,
+              surface: drillThroughSurface,
+              segments: segments.map((s) => ({ label: s.label, value: s.value, secondary: total > 0 ? `${Math.round((s.value / total) * 100)}%` : undefined })),
+              nextReviewStep,
+            })
+          : undefined
+      }
     >
       <div style={chartStyles.donutBody}>
         <DonutSvg segments={segments} total={total} />
@@ -444,12 +528,17 @@ interface ForecastSparklineProps {
   title: string;
   subtitle?: string;
   points: ReadonlyArray<ForecastPoint>;
+  /** Phase 144C — opt into chart-level drill-through derived from `points`. */
+  drillThroughSurface?: DrillThroughSurface;
+  nextReviewStep?: string;
 }
 
 export function ForecastSparkline({
   title,
   subtitle,
   points,
+  drillThroughSurface,
+  nextReviewStep,
 }: ForecastSparklineProps) {
   const total = points.reduce((s, p) => s + p.dealCount, 0);
   const empty = points.length === 0 || total === 0;
@@ -464,6 +553,17 @@ export function ForecastSparkline({
       ariaLabel={ariaSummary}
       dataTestid="forecast-sparkline"
       empty={empty}
+      drillThrough={
+        drillThroughSurface
+          ? buildChartDrillThrough({
+              chartTitle: title,
+              surface: drillThroughSurface,
+              segments: points.map((p) => ({ label: p.label, value: p.dealCount, secondary: p.totalAmount > 0 ? formatCurrencyCompact(p.totalAmount) : undefined })),
+              unit: 'deals',
+              nextReviewStep,
+            })
+          : undefined
+      }
     >
       <ul style={chartStyles.forecastList} role="list">
         {points.map((p) => {
@@ -560,6 +660,18 @@ const frameStyles: Record<string, CSSProperties> = {
     fontStyle: 'italic' as const,
     textAlign: 'center' as const,
     padding: `${spacing.lg} 0`,
+  },
+  drillDetails: {
+    borderTop: `1px dashed ${palette.divider}`,
+    paddingTop: 4,
+    marginTop: 2,
+  },
+  drillSummary: {
+    cursor: 'pointer',
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: palette.link,
+    letterSpacing: typography.letterSpacing.label,
   },
 };
 

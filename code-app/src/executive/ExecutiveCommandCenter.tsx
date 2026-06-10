@@ -324,6 +324,7 @@ function StrategicRiskStrip({
           title="Readiness distribution"
           subtitle="Across authorized readiness snapshots"
           segments={readinessDonutSegments(risk)}
+          drillThroughSurface="executive_command_center"
         />
         <div style={styles.statColumn}>
           <Stat label="Blocked deals" value={String(ribbon.blockedCount)} tone="blocked" />
@@ -356,6 +357,7 @@ function PortfolioExposureSummary({
         subtitle="$ + share"
         data={stageExposureBars(snapshot)}
         valueFormatter={formatCurrencyCompact}
+        drillThroughSurface="executive_command_center"
       />
     </section>
   );
@@ -380,6 +382,7 @@ function StageDistribution({
         title="Deals by stage"
         subtitle="Count per stage"
         data={stageCountBars(snapshot)}
+        drillThroughSurface="executive_command_center"
       />
     </section>
   );
@@ -404,7 +407,7 @@ function ClosingForecastCard({
       {points.length === 0 ? (
         <p style={styles.bucketEmpty}>No upcoming closing windows in the forecast.</p>
       ) : (
-        <ForecastSparkline title="Closing forecast" subtitle="$ by window" points={points} />
+        <ForecastSparkline title="Closing forecast" subtitle="$ by window" points={points} drillThroughSurface="executive_command_center" />
       )}
     </section>
   );

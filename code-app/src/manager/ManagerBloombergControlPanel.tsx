@@ -492,17 +492,19 @@ function AnalyticsGrid({ rows }: { rows: ReadonlyArray<ManagerVMRow> }) {
         title="Pipeline by stage"
         subtitle="Deal count"
         data={stageBars}
+        drillThroughSurface="manager_control_panel"
       />
       <HorizontalBarChart
         title="Pipeline by banker"
         subtitle="Deals + amount"
         data={bankerBars}
+        drillThroughSurface="manager_control_panel"
       />
       <Histogram title="Aging — days in stage" data={aging.map((a) => ({
         label: a.label,
         value: a.dealCount,
         tone: a.lowDays >= 31 ? 'atRisk' : 'info',
-      }))} />
+      }))} drillThroughSurface="manager_control_panel" />
       <DonutChart
         title="Risk distribution"
         subtitle="Blocker pipeline"
@@ -512,15 +514,18 @@ function AnalyticsGrid({ rows }: { rows: ReadonlyArray<ManagerVMRow> }) {
           { label: 'Clear', value: risk.clear, tone: 'clear' },
           { label: 'Unknown', value: risk.unknown, tone: 'neutral' },
         ]}
+        drillThroughSurface="manager_control_panel"
       />
       <HorizontalBarChart
         title="Open tasks by banker"
         subtitle="Overdue highlighted"
         data={tasksByBanker}
+        drillThroughSurface="manager_control_panel"
       />
       <HorizontalBarChart
         title="Outstanding docs by banker"
         data={docsByBanker}
+        drillThroughSurface="manager_control_panel"
       />
       <ForecastSparkline
         title="Closings forecast"
@@ -530,16 +535,19 @@ function AnalyticsGrid({ rows }: { rows: ReadonlyArray<ManagerVMRow> }) {
           dealCount: f.dealCount,
           totalAmount: f.totalAmount,
         }))}
+        drillThroughSurface="manager_control_panel"
       />
       <HorizontalBarChart
         title="Missing fields"
         subtitle="Deals × field"
         data={missingBars}
+        drillThroughSurface="manager_control_panel"
       />
       <HorizontalBarChart
         title="Data quality"
         subtitle="Completeness buckets"
         data={qualityBars}
+        drillThroughSurface="manager_control_panel"
       />
     </section>
   );

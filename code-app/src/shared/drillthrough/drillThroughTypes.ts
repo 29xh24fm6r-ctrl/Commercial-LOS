@@ -50,6 +50,8 @@ export type DrillThroughEntityKind =
   | 'envelope'
   | 'connector'
   | 'record'
+  | 'chart'
+  | 'chart_segment'
   | 'generic';
 
 /** Confidence band for a derived detail row (mirrors the read-only intelligence bands). */
