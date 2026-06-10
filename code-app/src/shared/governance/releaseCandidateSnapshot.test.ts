@@ -2424,3 +2424,29 @@ describe('Phase 142S — product profitability / ROE availability model exists',
     expect(doc).toMatch(/Phase 142T/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142T — platform convergence release readiness certification
+// ---------------------------------------------------------------------------
+
+describe('Phase 142T — platform convergence release readiness certification exists', () => {
+  const REQUIRED_142T_FILES: readonly string[] = [
+    'docs/PHASE_142T_PLATFORM_CONVERGENCE_RELEASE_READINESS_CERTIFICATION.md',
+    'src/shared/governance/platformConvergenceReleaseReadiness.test.ts',
+  ];
+  for (const rel of REQUIRED_142T_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142T_PLATFORM_CONVERGENCE_RELEASE_READINESS_CERTIFICATION.md');
+
+  it('the doc certifies a no-live-action, no-write, disabled/read-only stack with explicit non-certifications', () => {
+    expect(doc).toMatch(/no-live-action/i);
+    expect(doc).toMatch(/disabled\s*\/\s*read-only/i);
+    expect(doc).toMatch(/no Dataverse\s*\/\s*CRM writes|no .* writes/i);
+    expect(doc).toMatch(/explicit non-certifications/i);
+    expect(doc).toMatch(/live.?activation prerequisites/i);
+  });
+});
