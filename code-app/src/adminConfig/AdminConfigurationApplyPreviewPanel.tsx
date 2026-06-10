@@ -5,12 +5,15 @@ import type {
   AdminConfigurationApplyPlan,
   AdminConfigurationApplyReadiness,
 } from './adminConfigurationApplyTypes';
+import type { AdminConfigurationApplyProofResult } from './adminConfigurationTransport';
 
 interface Props {
   readiness: AdminConfigurationApplyReadiness;
   plan?: AdminConfigurationApplyPlan;
   proposalTitle?: string;
   proposalStatus?: string;
+  /** Phase 142L — optional fake/offline transport-boundary proof (no live write). */
+  transportProof?: AdminConfigurationApplyProofResult;
 }
 
 /**
@@ -22,7 +25,7 @@ interface Props {
  * register-route / enable-integration / widen-permission / execute-workflow /
  * Dataverse-write / fetch affordance. No changes will be applied.
  */
-export function AdminConfigurationApplyPreviewPanel({ readiness, plan, proposalTitle, proposalStatus }: Props) {
+export function AdminConfigurationApplyPreviewPanel({ readiness, plan, proposalTitle, proposalStatus, transportProof }: Props) {
   return (
     <Card>
       <CardHeader title="Controlled apply preview" subtitle={`Mode: ${readiness.mode.replace(/_/g, ' ')}`} />
@@ -76,6 +79,16 @@ export function AdminConfigurationApplyPreviewPanel({ readiness, plan, proposalT
       <Section title="Next best action">
         <span style={itemStyle}>{readiness.nextBestAction.label}</span>
       </Section>
+
+      {transportProof && (
+        <Section title="Transport boundary proof (fake / offline)">
+          <span style={itemStyle}>Status: {transportProof.status.replace(/_/g, ' ')}</span>
+          <span style={itemStyle}>Mode: {transportProof.mode.replace(/_/g, ' ')} · Proof only: {String(transportProof.proofOnly)} · Live write performed: {String(transportProof.liveWritePerformed)}</span>
+          {transportProof.transportProofId && <span style={itemStyle}>Proof id: {transportProof.transportProofId}</span>}
+          {transportProof.rejectedReason && <span style={blockerItemStyle}>Rejected: {transportProof.rejectedReason.replace(/_/g, ' ')}</span>}
+          <span style={noneStyle}>{transportProof.message}</span>
+        </Section>
+      )}
 
       <div style={footerBannerStyle}>No changes will be applied.</div>
 

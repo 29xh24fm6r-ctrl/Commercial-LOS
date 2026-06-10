@@ -7,6 +7,7 @@ import { deriveAdminConfigurationApplyReadiness } from './deriveAdminConfigurati
 import { buildAdminConfigurationProposal } from './buildAdminConfigurationProposal';
 import { validateAdminConfigurationProposal } from './validateAdminConfigurationProposal';
 import { resolveAdminConfigApplyFeatureFlags } from './adminConfigurationApplyFeatureFlags';
+import { submitAdminConfigurationApplyProof, buildAdminConfigurationApplyProofRequest } from './adminConfigurationTransport';
 import type { AdminConfigurationProposal, AdminConfigurationProposalType } from './adminConfigurationTypes';
 
 const CLOCK = '2026-06-09T00:00:00.000Z';
@@ -52,5 +53,17 @@ describe('Phase 142K — AdminConfigurationApplyPreviewPanel', () => {
       expect(text).not.toContain(w);
     }
     expect(container.innerHTML).not.toMatch(/https?:\/\//);
+  });
+
+  it('renders the fake transport proof section when provided (no live write copy)', () => {
+    const p = proposal('platform_object_change');
+    const plan = ENGINE.previewApply(p).plan!;
+    const proof = submitAdminConfigurationApplyProof(buildAdminConfigurationApplyProofRequest(plan, { requestedAt: CLOCK, actor: 'admin-1' }));
+    const { container } = render(<AdminConfigurationApplyPreviewPanel readiness={readinessFor(p)} plan={plan} transportProof={proof} />);
+    expect(screen.getByText(/Transport boundary proof \(fake \/ offline\)/i)).toBeTruthy();
+    expect(screen.getByText(/Live write performed: false/)).toBeTruthy();
+    const text = (container.textContent ?? '').toLowerCase();
+    expect(text).not.toMatch(/live applied|applied live|deployed live|deploy now/);
+    expect(container.querySelectorAll('button').length).toBe(0);
   });
 });

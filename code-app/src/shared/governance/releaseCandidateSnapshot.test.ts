@@ -2206,3 +2206,29 @@ describe('Phase 142K — admin configuration controlled apply workflow exists', 
     expect(doc).toMatch(/Phase 142L/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142L — integration transport proof-of-concept harness (fake only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 142L — integration transport proof harness exists', () => {
+  const REQUIRED_142L_FILES: readonly string[] = [
+    'docs/PHASE_142L_INTEGRATION_TRANSPORT_PROOF_HARNESS.md',
+    'src/adminConfig/adminConfigurationTransport.ts',
+    'src/shared/governance/adminConfigurationTransportGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142L_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142L_INTEGRATION_TRANSPORT_PROOF_HARNESS.md');
+
+  it('the doc pins fake-only transport, no live write, no fetch', () => {
+    expect(doc).toMatch(/fake .* only|fake_transport_only|fake \/ offline/i);
+    expect(doc).toMatch(/liveWritePerformed.*false|never applies anything to a live system|no live write/i);
+    expect(doc).toMatch(/no .* fetch|no live transport/i);
+    expect(doc).toMatch(/Phase 142M/);
+  });
+});
