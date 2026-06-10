@@ -2313,3 +2313,31 @@ describe('Phase 142O — e-sign envelope adapter seam exists', () => {
     expect(doc).toMatch(/Phase 142P/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142P — core banking read-only lookup adapter seam (disabled by default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 142P — core banking read-only lookup adapter seam exists', () => {
+  const REQUIRED_142P_FILES: readonly string[] = [
+    'docs/PHASE_142P_CORE_BANKING_READ_ONLY_LOOKUP_ADAPTER.md',
+    'src/integrations/coreBanking/coreBankingLookupAdapter.ts',
+    'src/integrations/coreBanking/CoreBankingLookupPanel.tsx',
+    'src/shared/governance/coreBankingLookupGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142P_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142P_CORE_BANKING_READ_ONLY_LOOKUP_ADAPTER.md');
+
+  it('the doc pins disabled-by-default core lookup, no retrieval, no money movement, no sensitive ids', () => {
+    expect(doc).toMatch(/disabled by default/i);
+    expect(doc).toMatch(/no live core|no customer.*lookup|liveLookupPerformed|no .* retrieved/i);
+    expect(doc).toMatch(/no money movement|no transfer/i);
+    expect(doc).toMatch(/sensitive identifier/i);
+    expect(doc).toMatch(/Phase 142Q/);
+  });
+});
