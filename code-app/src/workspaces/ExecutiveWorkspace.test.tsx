@@ -140,3 +140,15 @@ describe('Phase 142I — executive product strategy surface wiring (static sourc
     expect(CODE).not.toMatch(/WORKSPACE_ROUTES\.(banker|team|admin)/);
   });
 });
+
+describe('BUGFIX-CRM-VISIBLE — Executive workspace mounts the read-only CRM strategy surface', () => {
+  it('imports and renders CrmExecutiveWorkingSurface with an honest preview input', () => {
+    expect(SRC).toMatch(/import\s*\{\s*CrmExecutiveWorkingSurface\s*\}/);
+    expect(SRC).toMatch(/executiveCrmPreviewInput/);
+    expect(SRC).toMatch(/<CrmExecutiveWorkingSurface\s+input=\{executiveCrmPreviewInput\(\)\}/);
+  });
+
+  it('does not introduce sync/push/write/enable-live controls around the CRM surface', () => {
+    expect(SRC).not.toMatch(/syncNow|pushNow|writeNow|enableLive/);
+  });
+});

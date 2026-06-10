@@ -16,6 +16,7 @@ import { BankerDueDiligenceView } from './BankerDueDiligenceView';
 import { LendingOSLayout, type LendingOSNavKey } from './LendingOSLayout';
 import { GreetingHeader } from './GreetingHeader';
 import { BankerKpiGrid } from './BankerKpiGrid';
+import { BankerCrmIntelligencePanel } from './BankerCrmIntelligencePanel';
 import { Badge } from '../shared/Badge';
 import { CountBadge } from '../shared/cockpitPrimitives';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
@@ -278,6 +279,7 @@ function TabContent({ tab }: { tab: ShellTab }) {
     case 'dashboard':
       return (
         <div style={styles.tabStack}>
+          <BankerCrmIntelligencePanel />
           <PersonalActivitySummary />
           <BankerMorningCatchUp />
         </div>

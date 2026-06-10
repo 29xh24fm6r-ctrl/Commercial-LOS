@@ -432,3 +432,17 @@ describe('Phase 126C — `?surface=portfolio` query swaps the cockpit for ANY us
     expect(screen.getByText('Capital Markets')).toBeInTheDocument();
   });
 });
+
+describe('BUGFIX-CRM-VISIBLE — Manager workspace mounts the read-only CRM team surface', () => {
+  it('renders the Team CRM Intelligence surface with no assignment-mutation/write controls', () => {
+    renderManagerWorkspace();
+    const heading = screen.getByText('Team CRM Intelligence');
+    expect(heading).toBeInTheDocument();
+    const card = heading.closest('section') ?? document.body;
+    const text = (card.textContent ?? '').toLowerCase();
+    for (const banned of ['sync now', 'push now', 'enable live', 'synced successfully']) {
+      expect(text).not.toContain(banned);
+    }
+    expect(text).toContain('read-only');
+  });
+});

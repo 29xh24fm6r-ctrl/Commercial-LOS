@@ -24,6 +24,8 @@ import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { ExecutiveProductStrategyWorkspace } from './ExecutiveProductStrategyWorkspace';
 import { ProductStrategyNavigationCard } from '../competitive/ProductStrategyNavigationCard';
 import { buildExecutiveProductStrategySurfaceState } from '../competitive/buildExecutiveProductStrategySurfaceState';
+import { CrmExecutiveWorkingSurface } from '../crm/workspaceIntegration/CrmExecutiveWorkingSurface';
+import { executiveCrmPreviewInput } from '../crm/workspaceIntegration/crmWorkspacePreviewInputs';
 import { palette, spacing, typography } from '../shared/theme';
 
 /**
@@ -112,6 +114,10 @@ function ExecutiveWorkspaceContent() {
           <main style={styles.main}>
             {/* Phase 133A — the command center is the lead executive cockpit. */}
             <ExecutiveCommandCenter />
+            {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 — visible read-only CRM
+                strategy intelligence (honest preview posture; no fake revenue/ROE,
+                no credit decisioning, no write controls, no permission widening). */}
+            <CrmExecutiveWorkingSurface input={executiveCrmPreviewInput()} />
             {/* Existing board-safe snapshot cards remain below as detail. */}
             <PortfolioSummary />
             <AtRiskPortfolioSummary />

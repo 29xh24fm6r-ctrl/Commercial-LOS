@@ -303,3 +303,45 @@ describe('Phase 125F — BankerShell.tsx static-source pins', () => {
     expect(SRC).not.toMatch(/from\s+['"][^'"]*sendBorrowerUpdateEmail['"]/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 — CRM entry visible on dashboard
+// ---------------------------------------------------------------------------
+
+describe('BUGFIX-CRM-VISIBLE — Banker dashboard mounts the CRM Command Center entry', () => {
+  it('renders the CRM Command Center entry + Salesforce/nCino preview copy on the default dashboard tab', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    render(<BankerShell workspaceName="Banker Workspace" />);
+    const crm = await screen.findByRole('region', { name: 'CRM Command Center' });
+    expect(within(crm).getByText('CRM Command Center')).toBeInTheDocument();
+    expect(within(crm).getByText('Salesforce and nCino preview intelligence')).toBeInTheDocument();
+    expect(
+      within(crm).getByText('Review source-of-truth, matching, sync preview, and dry-run posture.'),
+    ).toBeInTheDocument();
+    // Read-only CRM working surface is mounted alongside the entry.
+    expect(within(crm).getByText('CRM Intelligence')).toBeInTheDocument();
+  });
+
+  it('keeps existing dashboard cards (Personal Activity + Morning Catch-Up) rendered', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    render(<BankerShell workspaceName="Banker Workspace" />);
+    expect(await screen.findByTestId('card-personal-activity-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('card-morning-catchup')).toBeInTheDocument();
+  });
+
+  it('exposes NO sync/push/write/enable-live controls and no fake sync success copy in the CRM entry', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    render(<BankerShell workspaceName="Banker Workspace" />);
+    const crm = await screen.findByRole('region', { name: 'CRM Command Center' });
+    expect(crm.querySelectorAll('button, form, input, select, textarea').length).toBe(0);
+    const text = (crm.textContent ?? '').toLowerCase();
+    for (const banned of ['sync now', 'push now', 'enable live', 'synced successfully', 'salesforce updated', 'ncino updated', 'write now']) {
+      expect(text).not.toContain(banned);
+    }
+    // Honest read-only framing is present.
+    expect(text).toContain('read-only');
+  });
+});
