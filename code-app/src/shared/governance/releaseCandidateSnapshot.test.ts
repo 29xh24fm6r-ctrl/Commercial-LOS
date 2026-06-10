@@ -2259,3 +2259,30 @@ describe('Phase 142M — credit committee package review queue exists', () => {
     expect(doc).toMatch(/Phase 142N/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142N — live package export adapter seam (disabled by default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 142N — live package export adapter seam exists', () => {
+  const REQUIRED_142N_FILES: readonly string[] = [
+    'docs/PHASE_142N_LIVE_PACKAGE_EXPORT_ADAPTER_SEAM.md',
+    'src/committee/creditPackageExportAdapter.ts',
+    'src/committee/CreditPackageExportPanel.tsx',
+    'src/shared/governance/creditPackageExportGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142N_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142N_LIVE_PACKAGE_EXPORT_ADAPTER_SEAM.md');
+
+  it('the doc pins disabled-by-default export, no live effect, no fake delivery', () => {
+    expect(doc).toMatch(/disabled by default/i);
+    expect(doc).toMatch(/liveExportPerformed.*false|exports nothing live|no live export/i);
+    expect(doc).toMatch(/no fake|no .* delivery confirmation/i);
+    expect(doc).toMatch(/Phase 142O/);
+  });
+});
