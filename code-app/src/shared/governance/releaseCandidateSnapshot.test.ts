@@ -2232,3 +2232,30 @@ describe('Phase 142L — integration transport proof harness exists', () => {
     expect(doc).toMatch(/Phase 142M/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 142M — credit committee package review queue (no voting)
+// ---------------------------------------------------------------------------
+
+describe('Phase 142M — credit committee package review queue exists', () => {
+  const REQUIRED_142M_FILES: readonly string[] = [
+    'docs/PHASE_142M_CREDIT_COMMITTEE_PACKAGE_REVIEW_QUEUE.md',
+    'src/committee/creditCommitteePackageQueue.ts',
+    'src/committee/CreditCommitteePackageReviewQueuePanel.tsx',
+    'src/shared/governance/creditCommitteePackageQueueGovernance.test.ts',
+  ];
+  for (const rel of REQUIRED_142M_FILES) {
+    it(`${rel} exists on disk`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+
+  const doc = readDoc('docs/PHASE_142M_CREDIT_COMMITTEE_PACKAGE_REVIEW_QUEUE.md');
+
+  it('the doc pins read-only, no voting, honest unavailable, no fake evidence', () => {
+    expect(doc).toMatch(/read-only|review only/i);
+    expect(doc).toMatch(/no voting|no .* vote/i);
+    expect(doc).toMatch(/no fake|honest when data is unavailable|not mounted/i);
+    expect(doc).toMatch(/Phase 142N/);
+  });
+});
