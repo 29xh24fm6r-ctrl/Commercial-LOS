@@ -58,3 +58,34 @@ describe('Phase 148A — CRM workspace placement route safety', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// BUGFIX-PRODUCTION-CRM-CARDS-NOT-CLICKABLE-1 — drill-through governance
+// ---------------------------------------------------------------------------
+
+describe('BUGFIX — CRM cards use drill-through primitives', () => {
+  it('BankerCrmIntelligencePanel imports DrillThroughCard', () => {
+    const src = readSrc('banker/BankerCrmIntelligencePanel.tsx');
+    expect(src).toContain('DrillThroughCard');
+    expect(src).toContain('buildDrillThroughTarget');
+  });
+
+  it('CrmBankerWorkingSurface uses DrillThroughCard for metric cells', () => {
+    const src = readSrc('crm/workspaceIntegration/CrmBankerWorkingSurface.tsx');
+    expect(src).toContain('DrillThroughCard');
+    expect(src).toContain('buildDrillThroughTarget');
+  });
+
+  it('neither file contains forbidden write/network/action patterns', () => {
+    for (const rel of [
+      'banker/BankerCrmIntelligencePanel.tsx',
+      'crm/workspaceIntegration/CrmBankerWorkingSurface.tsx',
+    ]) {
+      const src = readSrc(rel);
+      expect(src).not.toMatch(/\bfetch\s*\(/);
+      expect(src).not.toMatch(/XMLHttpRequest/);
+      expect(src).not.toMatch(/syncNow|pushNow|writeNow|enableLive/);
+      expect(src).not.toMatch(/synced successfully|pushed successfully/i);
+    }
+  });
+});

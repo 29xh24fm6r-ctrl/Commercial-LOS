@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Card, CardHeader, CardFooter } from '../../shared/Card';
+import { DrillThroughCard } from '../../shared/drillthrough/DrillThroughCard';
+import { buildDrillThroughTarget } from '../../shared/drillthrough/drillThroughTypes';
 import { palette, spacing, typography, radius } from '../../shared/theme';
 
 export interface CrmBankerSurfaceInput {
@@ -17,21 +19,54 @@ interface Props {
   input: CrmBankerSurfaceInput;
 }
 
+function metricTarget(id: string, label: string, value: string, nextStep: string) {
+  return buildDrillThroughTarget({
+    id: `banker-crm-${id}`,
+    title: label,
+    surface: 'crm_relationship_intelligence',
+    entityKind: 'metric',
+    summary: value,
+    detailSections: [
+      {
+        title: label,
+        rows: [
+          { label: 'Current status', value },
+          { label: 'Source', value: 'Derived from local preview input / current banker workspace context' },
+          { label: 'Next safe review step', value: nextStep },
+        ],
+      },
+    ],
+  });
+}
+
 export function CrmBankerWorkingSurface({ input }: Props) {
+  const nextStep = input.nextSafeBankerStep;
+
+  const targets = [
+    { id: 'relationship', label: 'Relationship', value: input.relationshipOverview ?? 'Not available', highlight: false },
+    { id: 'salesforce', label: 'Salesforce', value: input.salesforceReadiness, highlight: false },
+    { id: 'ncino', label: 'nCino', value: input.ncinoReadiness, highlight: false },
+    { id: 'match-status', label: 'Match Status', value: input.entityMatchStatus, highlight: false },
+    { id: 'sot-gaps', label: 'SoT Gaps', value: String(input.sourceOfTruthGaps), highlight: input.sourceOfTruthGaps > 0 },
+    { id: 'sync-blocked', label: 'Sync Blocked', value: String(input.syncPreviewBlockers), highlight: input.syncPreviewBlockers > 0 },
+  ];
+
   return (
     <Card>
       <CardHeader title="CRM Intelligence" subtitle="Salesforce / nCino readiness — read-only" />
       <div style={gridStyle}>
-        <MetricCell label="Relationship" value={input.relationshipOverview ?? 'Not available'} />
-        <MetricCell label="Salesforce" value={input.salesforceReadiness} />
-        <MetricCell label="nCino" value={input.ncinoReadiness} />
-        <MetricCell label="Match Status" value={input.entityMatchStatus} />
-        <MetricCell label="SoT Gaps" value={String(input.sourceOfTruthGaps)} highlight={input.sourceOfTruthGaps > 0} />
-        <MetricCell label="Sync Blocked" value={String(input.syncPreviewBlockers)} highlight={input.syncPreviewBlockers > 0} />
+        {targets.map((t) => (
+          <DrillThroughCard key={t.id} target={metricTarget(t.id, t.label, t.value, nextStep)} variant="tile" unstyled>
+            <div style={cellStyle}>
+              <span style={cellLabelStyle}>{t.label}</span>
+              <span style={t.highlight ? cellValueHighlightStyle : cellValueStyle}>{t.value}</span>
+            </div>
+          </DrillThroughCard>
+        ))}
       </div>
       <div style={nextStepStyle}>
         <span style={nextLabelStyle}>Next step:</span>
-        <span style={nextValueStyle}>{input.nextSafeBankerStep}</span>
+        <span style={nextValueStyle}>{nextStep}</span>
       </div>
       {input.crmCommandCenterHref && (
         <a href={input.crmCommandCenterHref} style={linkStyle}>Open CRM Command Center</a>
@@ -43,17 +78,8 @@ export function CrmBankerWorkingSurface({ input }: Props) {
   );
 }
 
-function MetricCell({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div style={cellStyle}>
-      <span style={cellLabelStyle}>{label}</span>
-      <span style={highlight ? cellValueHighlightStyle : cellValueStyle}>{value}</span>
-    </div>
-  );
-}
-
 const gridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: spacing.sm };
-const cellStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 2, padding: spacing.sm, background: palette.surfaceAlt, borderRadius: radius.sm };
+const cellStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 2, padding: spacing.sm, background: palette.surfaceAlt, borderRadius: radius.sm, cursor: 'pointer' };
 const cellLabelStyle: CSSProperties = { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.semibold };
 const cellValueStyle: CSSProperties = { fontSize: typography.size.sm, color: palette.text, fontWeight: typography.weight.semibold };
 const cellValueHighlightStyle: CSSProperties = { fontSize: typography.size.sm, color: palette.atRisk, fontWeight: typography.weight.bold };
