@@ -1,6 +1,7 @@
 import { AdminProvider } from '../admin/AdminProvider';
 import { AdminDataProvider } from '../admin/AdminDataProvider';
 import { useAdmin } from '../admin/AdminContext';
+import { AdminOperationsConsole } from '../admin/AdminOperationsConsole';
 import { SystemHealthSummary } from '../admin/SystemHealthSummary';
 import { DataQualityFlags } from '../admin/DataQualityFlags';
 import { AuditAnomalies } from '../admin/AuditAnomalies';
@@ -44,6 +45,7 @@ function AdminWorkspaceContent() {
         </div>
       </header>
       <main style={styles.main}>
+        <AdminOperationsConsole />
         <ReleaseReadinessGate />
         <SystemHealthSummary />
         <div style={styles.twoCol}>

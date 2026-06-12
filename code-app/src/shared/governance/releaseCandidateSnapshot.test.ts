@@ -2765,3 +2765,39 @@ describe('Phase 168 — V1.0 release notes pin the final controlled-pilot tag', 
     expect(doc).toMatch(/V1\.0 controlled pilot tagged and smoke-passed/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 169A -- Admin Operations Console (read-only shell)
+// ---------------------------------------------------------------------------
+
+describe('Phase 169A -- Admin Operations Console doc exists and is read-only/honest', () => {
+  const rel = 'docs/PHASE_169A_ADMIN_OPERATIONS_CONSOLE.md';
+
+  it('the Phase 169A doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the read-only shell scope and the five modules', () => {
+    expect(doc).toMatch(/read-only shell/i);
+    expect(doc).toMatch(/User & Access Management/);
+    expect(doc).toMatch(/New Deal Intake/);
+    expect(doc).toMatch(/Portfolio Boarding/);
+    expect(doc).toMatch(/CRM Onboarding/);
+    expect(doc).toMatch(/Security \/ Dataverse Roles/);
+  });
+
+  it('pins app-level-vs-platform-security distinction and no writes enabled', () => {
+    expect(doc).toMatch(/app-level entitlements/i);
+    expect(doc).toMatch(/Power Platform admin center/i);
+    expect(doc).toMatch(/No live write path is enabled by this phase/i);
+  });
+
+  it('pins New Deal still blocked, route delta 0, and tag not moved', () => {
+    expect(doc).toMatch(/New Deal Intake \| blocked/i);
+    expect(doc).toMatch(/Route Delta/i);
+    expect(doc).toMatch(/v1\.0\.0-controlled-pilot/);
+    expect(doc).toMatch(/it is not moved|remains `?v1\.0\.0-controlled-pilot`? at `?faf26d6`?/i);
+  });
+});
