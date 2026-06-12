@@ -3,6 +3,7 @@ import { useBootstrap } from '../bootstrap/BootstrapContext';
 import { useAdmin } from './AdminContext';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
+import { UserAccessManagementPanel } from './UserAccessManagementPanel';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 import {
   ADMIN_CONSOLE_MODULES,
@@ -80,6 +81,8 @@ export function AdminOperationsConsole() {
           <ModuleCard key={module.id} module={module} />
         ))}
       </div>
+
+      <UserAccessManagementPanel />
     </section>
   );
 }

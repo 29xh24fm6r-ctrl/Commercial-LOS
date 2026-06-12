@@ -2801,3 +2801,39 @@ describe('Phase 169A -- Admin Operations Console doc exists and is read-only/hon
     expect(doc).toMatch(/it is not moved|remains `?v1\.0\.0-controlled-pilot`? at `?faf26d6`?/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 169B -- Admin User & Access Management (Case B, preview-only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 169B -- Admin User & Access Management doc exists and is Case B', () => {
+  const rel = 'docs/PHASE_169B_ADMIN_USER_ACCESS_MANAGEMENT.md';
+
+  it('the Phase 169B doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the Case B outcome (read path, no safe governed write)', () => {
+    expect(doc).toMatch(/CASE B/i);
+    expect(doc).toMatch(/no safe governed write/i);
+  });
+
+  it('pins the access-is-PrimaryWorkspace finding and the misleading-entitlement-write reason', () => {
+    expect(doc).toMatch(/cr664_platformuser\.cr664_PrimaryWorkspace/);
+    expect(doc).toMatch(/would (?:therefore )?NOT grant a user access/i);
+  });
+
+  it('pins no live write enabled and the Dataverse-security-role / Power Platform handoff', () => {
+    expect(doc).toMatch(/Nothing\.|USER_ACCESS_LIVE_WRITE_ENABLED = false/);
+    expect(doc).toMatch(/Power Platform admin center/i);
+    expect(doc).toMatch(/Dataverse\s+security roles?/i);
+  });
+
+  it('pins route delta 0 and tag not moved', () => {
+    expect(doc).toMatch(/Route Delta/i);
+    expect(doc).toMatch(/v1\.0\.0-controlled-pilot/);
+    expect(doc).toMatch(/stays at `?faf26d6`?|not created or moved/i);
+  });
+});

@@ -1,9 +1,24 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { BootstrapProvider } from '../bootstrap/BootstrapContext';
+
+// The User & Access panel performs a read on mount; mock it so the
+// console tests stay deterministic and never hit a live service.
+vi.mock('./adminUserAccessQueries', () => ({
+  ADMIN_USER_ACCESS_ROW_CAP: 100,
+  loadAdminUserAccessSummary: vi.fn().mockResolvedValue({
+    userCount: 0,
+    entitlementCount: 0,
+    users: [],
+    entitlements: [],
+    usersTruncated: false,
+    entitlementsTruncated: false,
+  }),
+}));
+
 import type { BootstrapResult } from '../bootstrap/bootstrapFlow';
 import { AdminIdentityProvider, type AdminIdentity } from './AdminContext';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
@@ -55,11 +70,14 @@ function renderConsole(
 
 describe('Phase 169A -- Admin Operations Console rendering', () => {
   it('an admin (admin route) sees the Operations Console with all five module cards', () => {
-    renderConsole(WORKSPACE_ROUTES.admin);
+    const { container } = renderConsole(WORKSPACE_ROUTES.admin);
     expect(
       screen.getByRole('region', { name: 'Admin Operations Console' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Operations Console/i })).toBeInTheDocument();
+    // Scope to the module-card grid: "User & Access Management" also
+    // appears as the Phase 169B panel heading below the grid.
+    const grid = container.querySelector('[data-admin-ops-grid]') as HTMLElement;
     for (const title of [
       'User & Access Management',
       'New Deal Intake',
@@ -67,7 +85,7 @@ describe('Phase 169A -- Admin Operations Console rendering', () => {
       'CRM Onboarding',
       'Security / Dataverse Roles',
     ]) {
-      expect(screen.getByText(title)).toBeInTheDocument();
+      expect(within(grid).getByText(title)).toBeInTheDocument();
     }
   });
 
