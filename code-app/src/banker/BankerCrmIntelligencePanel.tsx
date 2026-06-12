@@ -141,28 +141,28 @@ export function BankerCrmIntelligencePanel() {
 }
 
 const s: Record<string, CSSProperties> = {
-  wrap: { display: 'flex', flexDirection: 'column', gap: spacing.lg },
+  wrap: { display: 'flex', flexDirection: 'column', gap: spacing.lg, width: '100%' },
 
-  // Hero
-  heroFace: { display: 'flex', flexDirection: 'column', gap: spacing.sm, padding: `${spacing.lg} ${spacing.xl}`, background: palette.primaryBg, borderRadius: radius.md, border: `1px solid ${palette.primary}` },
+  // Hero — full width, prominent
+  heroFace: { display: 'flex', flexDirection: 'column', gap: spacing.md, padding: `${spacing.xl} ${spacing.xl}`, background: palette.primaryBg, borderRadius: radius.md, border: `2px solid ${palette.primary}`, width: '100%', boxSizing: 'border-box' },
   heroTitleRow: { display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
   heroTitle: { fontSize: typography.size.xl, fontWeight: typography.weight.bold, color: palette.text, letterSpacing: typography.letterSpacing.heading },
   heroSubtitle: { fontSize: typography.size.md, color: palette.textMuted, fontWeight: typography.weight.semibold },
-  heroDesc: { fontSize: typography.size.sm, color: palette.text, lineHeight: typography.lineHeight.snug },
-  badge: { display: 'inline-block', fontSize: typography.size.xs, fontWeight: typography.weight.bold, color: palette.primaryFg, background: palette.primary, padding: `2px ${spacing.sm}`, borderRadius: radius.sm, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
-  badgePreview: { display: 'inline-block', fontSize: typography.size.xs, fontWeight: typography.weight.bold, color: palette.infoFg, background: palette.infoBg, padding: `2px ${spacing.sm}`, borderRadius: radius.sm, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
+  heroDesc: { fontSize: typography.size.sm, color: palette.text, lineHeight: typography.lineHeight.snug, maxWidth: 640 },
+  badge: { display: 'inline-block', fontSize: typography.size.xs, fontWeight: typography.weight.bold, color: palette.primaryFg, background: palette.primary, padding: `3px ${spacing.md}`, borderRadius: radius.sm, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
+  badgePreview: { display: 'inline-block', fontSize: typography.size.xs, fontWeight: typography.weight.bold, color: palette.infoFg, background: palette.infoBg, padding: `3px ${spacing.md}`, borderRadius: radius.sm, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
 
-  // Lanes
-  laneGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg },
-  laneCard: { display: 'flex', flexDirection: 'column', gap: spacing.xs, padding: `${spacing.md} ${spacing.lg}`, background: palette.surfaceAlt, borderRadius: radius.md, border: `1px solid ${palette.border}`, minHeight: 100 },
-  laneTitle: { fontSize: typography.size.sm, fontWeight: typography.weight.bold, color: palette.text, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
-  laneValue: { fontSize: typography.size.md, color: palette.textMuted, fontWeight: typography.weight.semibold },
-  laneHint: { fontSize: typography.size.xs, color: palette.textSubtle, fontStyle: 'italic' },
+  // Lanes — substantial, fill columns
+  laneGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, width: '100%' },
+  laneCard: { display: 'flex', flexDirection: 'column', gap: spacing.sm, padding: `${spacing.lg} ${spacing.xl}`, background: palette.surface, borderRadius: radius.md, border: `1px solid ${palette.border}`, minHeight: 120, justifyContent: 'center' },
+  laneTitle: { fontSize: typography.size.md, fontWeight: typography.weight.bold, color: palette.text },
+  laneValue: { fontSize: typography.size.sm, color: palette.textMuted, fontWeight: typography.weight.semibold },
+  laneHint: { fontSize: typography.size.xs, color: palette.textSubtle, fontStyle: 'italic', marginTop: spacing.xs },
 
-  // Relationship summary
-  relSummary: { display: 'flex', flexDirection: 'column', gap: spacing.sm, padding: `${spacing.md} ${spacing.lg}`, background: palette.surfaceAlt, borderRadius: radius.md, border: `1px solid ${palette.border}` },
-  relTitle: { fontSize: typography.size.sm, fontWeight: typography.weight.bold, color: palette.text, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
-  relMetrics: { display: 'flex', gap: spacing.lg, flexWrap: 'wrap' },
-  relMetric: { fontSize: typography.size.sm, color: palette.textMuted },
-  relNext: { fontSize: typography.size.xs, color: palette.textSubtle, fontStyle: 'italic' },
+  // Relationship summary — full width
+  relSummary: { display: 'flex', flexDirection: 'column', gap: spacing.md, padding: `${spacing.lg} ${spacing.xl}`, background: palette.surface, borderRadius: radius.md, border: `1px solid ${palette.border}`, width: '100%', boxSizing: 'border-box' },
+  relTitle: { fontSize: typography.size.md, fontWeight: typography.weight.bold, color: palette.text },
+  relMetrics: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: spacing.md },
+  relMetric: { fontSize: typography.size.sm, color: palette.textMuted, padding: `${spacing.sm} ${spacing.md}`, background: palette.surfaceAlt, borderRadius: radius.sm },
+  relNext: { fontSize: typography.size.sm, color: palette.textSubtle, fontStyle: 'italic', marginTop: spacing.xs },
 };

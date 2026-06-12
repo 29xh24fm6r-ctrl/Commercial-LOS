@@ -79,11 +79,11 @@ export function CrmBankerWorkingSurface({ input }: Props) {
   );
 }
 
-const gridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: spacing.md };
-const cellStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: spacing.xs, padding: `${spacing.md} ${spacing.lg}`, background: palette.surfaceAlt, borderRadius: radius.md, border: `1px solid ${palette.border}`, cursor: 'pointer', minHeight: 80 };
-const cellLabelStyle: CSSProperties = { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold };
-const cellValueStyle: CSSProperties = { fontSize: typography.size.md, color: palette.text, fontWeight: typography.weight.bold };
-const cellValueHighlightStyle: CSSProperties = { fontSize: typography.size.md, color: palette.atRisk, fontWeight: typography.weight.bold };
+const gridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.md };
+const cellStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: spacing.sm, padding: `${spacing.lg} ${spacing.xl}`, background: palette.surface, borderRadius: radius.md, border: `1px solid ${palette.border}`, cursor: 'pointer', minHeight: 100, transition: 'border-color 0.15s' };
+const cellLabelStyle: CSSProperties = { fontSize: typography.size.sm, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold };
+const cellValueStyle: CSSProperties = { fontSize: typography.size.lg, color: palette.text, fontWeight: typography.weight.bold };
+const cellValueHighlightStyle: CSSProperties = { fontSize: typography.size.lg, color: palette.atRisk, fontWeight: typography.weight.bold };
 const cellMeaningStyle: CSSProperties = { fontSize: typography.size.xs, color: palette.textMuted, lineHeight: typography.lineHeight.snug };
 const nextStepStyle: CSSProperties = { display: 'flex', gap: spacing.sm, alignItems: 'baseline', marginTop: spacing.sm };
 const nextLabelStyle: CSSProperties = { fontSize: typography.size.xs, color: palette.textSubtle, fontWeight: typography.weight.semibold, textTransform: 'uppercase' };
