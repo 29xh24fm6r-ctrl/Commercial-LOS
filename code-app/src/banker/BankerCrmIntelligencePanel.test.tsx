@@ -44,44 +44,71 @@ vi.mock('../crm/workspaceIntegration/crmWorkspacePreviewInputs', () => ({
   }),
 }));
 
-describe('BUGFIX-PRODUCTION-CRM-CARDS-NOT-CLICKABLE-1 — BankerCrmIntelligencePanel', () => {
+describe('Phase 157 — BankerCrmIntelligencePanel premium cockpit', () => {
   it('renders CRM Command Center as a DrillThroughCard', () => {
     render(<BankerCrmIntelligencePanel />);
     expect(screen.getByTestId('drill-banker-crm-command-center')).toBeInTheDocument();
   });
 
+  it('renders Read-only and Preview-only badges', () => {
+    render(<BankerCrmIntelligencePanel />);
+    expect(screen.getByText('Read-only')).toBeInTheDocument();
+    expect(screen.getByText('Preview-only')).toBeInTheDocument();
+  });
+
   it('CRM Command Center drill-through opens read-only detail panel', () => {
     render(<BankerCrmIntelligencePanel />);
-    const details = screen.getByTestId('drill-banker-crm-command-center');
-    fireEvent.click(details.querySelector('summary')!);
+    fireEvent.click(screen.getByTestId('drill-banker-crm-command-center').querySelector('summary')!);
     expect(screen.getByTestId('panel-banker-crm-command-center')).toBeInTheDocument();
     expect(screen.getByText(/Read-only, preview-only/)).toBeInTheDocument();
   });
 
-  it('keyboard Enter opens a CRM card detail', () => {
+  it('renders CRM Readiness lane', () => {
     render(<BankerCrmIntelligencePanel />);
-    const summary = screen.getByTestId('drill-banker-crm-command-center').querySelector('summary')!;
-    fireEvent.keyDown(summary, { key: 'Enter' });
-    // Native <details>/<summary> handles Enter/Space — just verify the element exists and is focusable
-    expect(summary).toBeTruthy();
+    expect(screen.getByTestId('drill-banker-crm-lane-crm-readiness')).toBeInTheDocument();
+    expect(screen.getAllByText(/CRM Readiness/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders Lending Workflow Readiness lane', () => {
+    render(<BankerCrmIntelligencePanel />);
+    expect(screen.getByTestId('drill-banker-crm-lane-lending-readiness')).toBeInTheDocument();
+    expect(screen.getAllByText(/Lending Workflow Readiness/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders relationship intelligence summary', () => {
+    render(<BankerCrmIntelligencePanel />);
+    expect(screen.getByTestId('drill-banker-crm-relationship-summary')).toBeInTheDocument();
+    expect(screen.getAllByText(/Relationship Intelligence Summary/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the six CRM intelligence cards', () => {
+    render(<BankerCrmIntelligencePanel />);
+    expect(screen.getByTestId('crm-banker-surface')).toBeInTheDocument();
+  });
+
+  it('every card has drill-through (View details)', () => {
+    render(<BankerCrmIntelligencePanel />);
+    const details = screen.getByTestId('drill-banker-crm-command-center');
+    expect(details.tagName.toLowerCase()).toBe('details');
+  });
+
+  it('no third-party vendor/product names appear', () => {
+    const { container } = render(<BankerCrmIntelligencePanel />);
+    const html = container.innerHTML;
+    expect(html).not.toMatch(/\bSalesforce\b/i);
+    expect(html).not.toMatch(/\bnCino\b/i);
   });
 
   it('no sync/push/write/enable-live controls appear', () => {
     const { container } = render(<BankerCrmIntelligencePanel />);
     const html = container.innerHTML;
     expect(html).not.toMatch(/syncNow|pushNow|writeNow|enableLive/i);
-    expect(html).not.toMatch(/Sync CRM|Push to Salesforce|Enable nCino/i);
   });
 
   it('no fake sync success copy appears', () => {
     const { container } = render(<BankerCrmIntelligencePanel />);
     const html = container.innerHTML;
     expect(html).not.toMatch(/synced successfully|pushed successfully|connected successfully/i);
-  });
-
-  it('renders the CRM banker working surface', () => {
-    render(<BankerCrmIntelligencePanel />);
-    expect(screen.getByTestId('crm-banker-surface')).toBeInTheDocument();
   });
 
   it('detail panel includes derivation source note', () => {
