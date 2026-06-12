@@ -105,7 +105,6 @@ export function BankerCrmIntelligencePanel() {
             <div style={s.heroRight}>
               <span style={s.heroNextLabel}>Next safe step</span>
               <span style={s.heroNextValue}>Review source-of-truth and matching posture</span>
-              <span style={s.heroAction} data-crm-action="view-details">View details</span>
             </div>
           </div>
         </div>
@@ -121,7 +120,6 @@ export function BankerCrmIntelligencePanel() {
             <span style={s.laneTitle}>CRM Readiness</span>
             <span style={s.laneValue}>{input.salesforceReadiness}</span>
             <span style={s.laneHint}>Next: Review CRM readiness prerequisites</span>
-            <span style={s.laneAction}>View details</span>
           </div>
         </DrillThroughCard>
         <DrillThroughCard target={lendingLaneTarget}>
@@ -129,7 +127,6 @@ export function BankerCrmIntelligencePanel() {
             <span style={s.laneTitle}>Lending Workflow Readiness</span>
             <span style={s.laneValue}>{input.ncinoReadiness}</span>
             <span style={s.laneHint}>Next: Review lending workflow configuration</span>
-            <span style={s.laneAction}>View details</span>
           </div>
         </DrillThroughCard>
       </div>
@@ -139,7 +136,6 @@ export function BankerCrmIntelligencePanel() {
         <div style={s.relSummary}>
           <div style={s.relHeader}>
             <span style={s.relTitle}>Relationship Intelligence Summary</span>
-            <span style={s.relAction}>View details</span>
           </div>
           <div style={s.relMetrics}>
             <span style={s.relMetric}>Relationship: {input.relationshipOverview ?? 'Not available'}</span>
@@ -168,7 +164,6 @@ const s: Record<string, CSSProperties> = {
   heroDesc: { fontSize: typography.size.sm, color: palette.text, lineHeight: typography.lineHeight.snug },
   heroNextLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.semibold },
   heroNextValue: { fontSize: typography.size.sm, color: palette.text, fontWeight: typography.weight.semibold },
-  heroAction: { fontSize: typography.size.xs, color: palette.primary, fontWeight: typography.weight.bold, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, marginTop: spacing.xs },
   badge: { display: 'inline-block', fontSize: typography.size.xs, fontWeight: typography.weight.bold, color: palette.primaryFg, background: palette.primary, padding: `3px ${spacing.md}`, borderRadius: radius.sm, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
   badgePreview: { display: 'inline-block', fontSize: typography.size.xs, fontWeight: typography.weight.bold, color: palette.infoFg, background: palette.infoBg, padding: `3px ${spacing.md}`, borderRadius: radius.sm, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
 
@@ -178,13 +173,11 @@ const s: Record<string, CSSProperties> = {
   laneTitle: { fontSize: typography.size.md, fontWeight: typography.weight.bold, color: palette.text },
   laneValue: { fontSize: typography.size.sm, color: palette.textMuted, fontWeight: typography.weight.semibold },
   laneHint: { fontSize: typography.size.xs, color: palette.textSubtle, fontStyle: 'italic' },
-  laneAction: { fontSize: typography.size.xs, color: palette.primary, fontWeight: typography.weight.bold, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, marginTop: spacing.xs },
 
   // Relationship summary — full width
   relSummary: { display: 'flex', flexDirection: 'column', gap: spacing.sm, padding: `${spacing.lg} ${spacing.xl}`, background: palette.surface, borderRadius: radius.md, border: `1px solid ${palette.border}`, width: '100%', boxSizing: 'border-box' },
   relHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   relTitle: { fontSize: typography.size.md, fontWeight: typography.weight.bold, color: palette.text },
-  relAction: { fontSize: typography.size.xs, color: palette.primary, fontWeight: typography.weight.bold, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
   relMetrics: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: spacing.sm },
   relMetric: { fontSize: typography.size.sm, color: palette.textMuted, padding: `${spacing.sm} ${spacing.md}`, background: palette.surfaceAlt, borderRadius: radius.sm, textAlign: 'center' },
   relNext: { fontSize: typography.size.sm, color: palette.textSubtle, fontStyle: 'italic' },

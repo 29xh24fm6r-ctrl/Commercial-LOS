@@ -56,12 +56,11 @@ export function CrmBankerWorkingSurface({ input }: Props) {
       <CardHeader title="CRM Intelligence" subtitle="CRM readiness — read-only" />
       <div style={gridStyle} data-crm-grid="command">
         {targets.map((t) => (
-          <DrillThroughCard key={t.id} target={metricTarget(t.id, t.label, t.value, nextStep)} variant="tile" unstyled>
+          <DrillThroughCard key={t.id} target={metricTarget(t.id, t.label, t.value, nextStep)} variant="tile">
             <div style={cellStyle} data-crm-cell="fill">
               <span style={cellLabelStyle}>{t.label}</span>
               <span style={t.highlight ? cellValueHighlightStyle : cellValueStyle}>{t.value}</span>
               <span style={cellMeaningStyle}>{t.meaning}</span>
-              <span style={cellActionStyle}>View details</span>
             </div>
           </DrillThroughCard>
         ))}
@@ -86,7 +85,6 @@ const cellLabelStyle: CSSProperties = { fontSize: typography.size.xs, color: pal
 const cellValueStyle: CSSProperties = { fontSize: typography.size.md, color: palette.text, fontWeight: typography.weight.bold };
 const cellValueHighlightStyle: CSSProperties = { fontSize: typography.size.md, color: palette.atRisk, fontWeight: typography.weight.bold };
 const cellMeaningStyle: CSSProperties = { fontSize: typography.size.xs, color: palette.textMuted, lineHeight: typography.lineHeight.snug };
-const cellActionStyle: CSSProperties = { fontSize: typography.size.xs, color: palette.primary, fontWeight: typography.weight.bold, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, marginTop: spacing.xs };
 const nextStepStyle: CSSProperties = { display: 'flex', gap: spacing.sm, alignItems: 'baseline', marginTop: spacing.sm };
 const nextLabelStyle: CSSProperties = { fontSize: typography.size.xs, color: palette.textSubtle, fontWeight: typography.weight.semibold, textTransform: 'uppercase' };
 const nextValueStyle: CSSProperties = { fontSize: typography.size.sm, color: palette.text };

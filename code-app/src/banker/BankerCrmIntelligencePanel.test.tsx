@@ -56,11 +56,12 @@ describe('Phase 157 — BankerCrmIntelligencePanel premium cockpit', () => {
     expect(screen.getByText('Preview-only')).toBeInTheDocument();
   });
 
-  it('hero contains in-card View details action', () => {
+  it('hero drill-through card is self-contained (no standalone floating action)', () => {
     render(<BankerCrmIntelligencePanel />);
     const hero = screen.getByTestId('drill-banker-crm-command-center');
-    const actions = hero.querySelectorAll('[data-crm-action="view-details"]');
-    expect(actions.length).toBeGreaterThanOrEqual(1);
+    // The whole <details> is the clickable surface — View details is inside <summary>
+    expect(hero.tagName.toLowerCase()).toBe('details');
+    expect(hero.querySelector('summary')).toBeTruthy();
   });
 
   it('hero uses full-width layout marker', () => {
