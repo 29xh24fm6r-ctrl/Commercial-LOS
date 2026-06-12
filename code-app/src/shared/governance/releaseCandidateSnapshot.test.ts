@@ -2837,3 +2837,40 @@ describe('Phase 169B -- Admin User & Access Management doc exists and is Case B'
     expect(doc).toMatch(/stays at `?faf26d6`?|not created or moved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 169C -- Admin New Deal Intake blocker (Case B, preview-only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 169C -- Admin New Deal Intake doc exists and is Case B blocker', () => {
+  const rel = 'docs/PHASE_169C_ADMIN_NEW_DEAL_INTAKE_BLOCKER.md';
+
+  it('the Phase 169C doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the Case B outcome and the Stage/Status reference blocker', () => {
+    expect(doc).toMatch(/CASE B/i);
+    expect(doc).toMatch(/Stage\/Status (?:reference )?source missing|Stage\/Status reference data source registration is missing/i);
+    expect(doc).toMatch(/Phase 163/);
+  });
+
+  it('pins no create enabled and the + New Deal button staying disabled', () => {
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false/);
+    expect(doc).toMatch(/\+ New Deal button remains disabled/i);
+  });
+
+  it('pins the five-step registration checklist (incl. fail-closed resolver, no GUIDs)', () => {
+    expect(doc).toMatch(/Registration Checklist/i);
+    expect(doc).toMatch(/fail-closed default resolver/i);
+    expect(doc).toMatch(/no hardcoded GUIDs/i);
+  });
+
+  it('pins route delta 0 and tag not moved', () => {
+    expect(doc).toMatch(/Route Delta/i);
+    expect(doc).toMatch(/v1\.0\.0-controlled-pilot/);
+    expect(doc).toMatch(/stays\s+at\s+`?faf26d6`?/i);
+  });
+});
