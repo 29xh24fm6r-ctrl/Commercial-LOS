@@ -19,7 +19,7 @@ export function CrmWorkspaceEntryCard({ routeAvailable, routeHref }: Props) {
     <Card>
       <CardHeader
         title="CRM Command Center"
-        subtitle="Salesforce/nCino preview intelligence"
+        subtitle="CRM and lending workflow preview intelligence"
       />
       <p style={descStyle}>
         Review source-of-truth, matching, sync preview, and dry-run posture.

@@ -61,9 +61,9 @@ export function deriveCrmCommandCenterViewModel(): CrmCommandCenterViewModel {
 
   return {
     title: 'CRM Command Center',
-    subtitle: 'Salesforce and nCino intelligence, preview-only and controlled',
+    subtitle: 'CRM and lending workflow intelligence, preview-only and controlled',
     safetyCopy:
-      'Live Salesforce and nCino writes are disabled. This cockpit shows read-only intelligence, matching, source-of-truth, sync preview, and dry-run readiness only.',
+      'Live CRM and lending workflow writes are disabled. This cockpit shows read-only intelligence, matching, source-of-truth, sync preview, and dry-run readiness only.',
 
     readOnly: true,
     previewOnly: true,
@@ -81,7 +81,7 @@ export function deriveCrmCommandCenterViewModel(): CrmCommandCenterViewModel {
 
     salesforceLane: {
       provider: 'salesforce',
-      label: 'Salesforce',
+      label: 'CRM System',
       domainsOwned: sfOwned.length,
       domainsReadSource: sfRead.length,
       connectorStatus: 'not_configured',
@@ -89,7 +89,7 @@ export function deriveCrmCommandCenterViewModel(): CrmCommandCenterViewModel {
     },
     ncinoLane: {
       provider: 'ncino',
-      label: 'nCino',
+      label: 'Lending Workflow',
       domainsOwned: ncOwned.length,
       domainsReadSource: ncRead.length,
       connectorStatus: 'not_configured',

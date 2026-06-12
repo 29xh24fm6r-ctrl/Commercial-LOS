@@ -14,7 +14,7 @@ import type { CrmBankerSurfaceInput } from './CrmBankerWorkingSurface';
 import type { CrmManagerSurfaceInput } from './CrmManagerWorkingSurface';
 import type { CrmExecutiveSurfaceInput } from './CrmExecutiveWorkingSurface';
 
-const NOT_CONNECTED = 'Preview — not yet connected';
+const NOT_CONNECTED = 'Preview — external connection disabled';
 
 /** Honest banker CRM preview posture (no provider data available yet). */
 export function bankerCrmPreviewInput(): CrmBankerSurfaceInput {

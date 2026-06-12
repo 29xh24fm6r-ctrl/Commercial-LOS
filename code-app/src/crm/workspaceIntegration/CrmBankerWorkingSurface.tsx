@@ -44,8 +44,8 @@ export function CrmBankerWorkingSurface({ input }: Props) {
 
   const targets = [
     { id: 'relationship', label: 'Relationship', value: input.relationshipOverview ?? 'Not available', highlight: false },
-    { id: 'salesforce', label: 'Salesforce', value: input.salesforceReadiness, highlight: false },
-    { id: 'ncino', label: 'nCino', value: input.ncinoReadiness, highlight: false },
+    { id: 'salesforce', label: 'CRM', value: input.salesforceReadiness, highlight: false },
+    { id: 'ncino', label: 'Lending Workflow', value: input.ncinoReadiness, highlight: false },
     { id: 'match-status', label: 'Match Status', value: input.entityMatchStatus, highlight: false },
     { id: 'sot-gaps', label: 'SoT Gaps', value: String(input.sourceOfTruthGaps), highlight: input.sourceOfTruthGaps > 0 },
     { id: 'sync-blocked', label: 'Sync Blocked', value: String(input.syncPreviewBlockers), highlight: input.syncPreviewBlockers > 0 },
@@ -53,7 +53,7 @@ export function CrmBankerWorkingSurface({ input }: Props) {
 
   return (
     <Card>
-      <CardHeader title="CRM Intelligence" subtitle="Salesforce / nCino readiness — read-only" />
+      <CardHeader title="CRM Intelligence" subtitle="CRM readiness — read-only" />
       <div style={gridStyle}>
         {targets.map((t) => (
           <DrillThroughCard key={t.id} target={metricTarget(t.id, t.label, t.value, nextStep)} variant="tile" unstyled>

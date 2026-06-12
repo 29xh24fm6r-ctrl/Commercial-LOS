@@ -13,7 +13,7 @@ export function CrmCommandCenterShell() {
       <header style={headerStyle}>
         <h2 style={titleStyle}>CRM Command Center</h2>
         <p style={subtitleStyle}>
-          Salesforce and nCino intelligence — read-only, preview-only, dry-run only
+          CRM and lending workflow intelligence — read-only, preview-only, dry-run only
         </p>
       </header>
       <CrmCommandCenter />

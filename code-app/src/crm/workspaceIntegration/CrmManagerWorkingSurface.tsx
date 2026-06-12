@@ -25,8 +25,8 @@ export function CrmManagerWorkingSurface({ input }: Props) {
         <MetricCell label="Team Readiness" value={input.teamCrmReadiness} />
         <MetricCell label="Banker Follow-ups" value={String(input.bankerFollowUpWorkload)} highlight={input.bankerFollowUpWorkload > 0} />
         <MetricCell label="SoT Conflicts" value={String(input.sourceOfTruthConflicts)} highlight={input.sourceOfTruthConflicts > 0} />
-        <MetricCell label="Salesforce" value={input.salesforceReadinessByPipeline} />
-        <MetricCell label="nCino" value={input.ncinoReadinessByPipeline} />
+        <MetricCell label="CRM" value={input.salesforceReadinessByPipeline} />
+        <MetricCell label="Lending Workflow" value={input.ncinoReadinessByPipeline} />
         <MetricCell label="Sync Blocked" value={String(input.syncPreviewBlockedCount)} highlight={input.syncPreviewBlockedCount > 0} />
       </div>
       <div style={nextStepStyle}>

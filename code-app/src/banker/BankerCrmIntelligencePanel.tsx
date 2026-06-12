@@ -22,7 +22,7 @@ export function BankerCrmIntelligencePanel() {
   const commandCenterTarget = buildDrillThroughTarget({
     id: 'banker-crm-command-center',
     title: 'CRM Command Center',
-    subtitle: 'Salesforce and nCino preview intelligence',
+    subtitle: 'CRM and lending workflow preview intelligence',
     surface: 'crm_relationship_intelligence',
     entityKind: 'cockpit_widget',
     summary: 'Review source-of-truth, matching, sync preview, and dry-run posture.',
@@ -43,7 +43,7 @@ export function BankerCrmIntelligencePanel() {
       <DrillThroughCard target={commandCenterTarget}>
         <div style={styles.face}>
           <span style={styles.faceTitle}>CRM Command Center</span>
-          <span style={styles.faceSubtitle}>Salesforce and nCino preview intelligence</span>
+          <span style={styles.faceSubtitle}>CRM and lending workflow preview intelligence</span>
           <span style={styles.faceSafety}>Read-only preview. No sync, push, or write actions.</span>
         </div>
       </DrillThroughCard>

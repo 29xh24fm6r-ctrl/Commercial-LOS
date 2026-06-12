@@ -23,8 +23,8 @@ export function CrmExecutiveWorkingSurface({ input }: Props) {
       <CardHeader title="CRM Strategy Intelligence" subtitle="Coverage, readiness, and data availability — read-only" />
       <div style={gridStyle}>
         <MetricCell label="CRM Coverage" value={input.crmCoverageStatus} />
-        <MetricCell label="Salesforce" value={input.salesforceActivationPosture} />
-        <MetricCell label="nCino" value={input.ncinoActivationPosture} />
+        <MetricCell label="CRM" value={input.salesforceActivationPosture} />
+        <MetricCell label="Lending Workflow" value={input.ncinoActivationPosture} />
         <MetricCell label="Intelligence Gaps" value={String(input.relationshipIntelligenceGaps)} highlight={input.relationshipIntelligenceGaps > 0} />
         <MetricCell label="Product Strategy" value={input.productStrategyCrmReadiness} />
         <MetricCell label="Revenue Data" value={input.revenueDataAvailability} />

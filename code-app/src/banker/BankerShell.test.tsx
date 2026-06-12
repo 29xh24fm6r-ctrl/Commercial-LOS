@@ -309,14 +309,14 @@ describe('Phase 125F — BankerShell.tsx static-source pins', () => {
 // ---------------------------------------------------------------------------
 
 describe('BUGFIX-CRM-VISIBLE — Banker dashboard mounts the CRM Command Center entry', () => {
-  it('renders the CRM Command Center entry + Salesforce/nCino preview copy on the default dashboard tab', async () => {
+  it('renders the CRM Command Center entry + CRM preview copy on the default dashboard tab', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     render(<BankerShell workspaceName="Banker Workspace" />);
     const crm = await screen.findByRole('region', { name: 'CRM Command Center' });
     // DrillThroughCard renders the title in a face span; use getAllByText for multiple matches.
     expect(within(crm).getAllByText('CRM Command Center').length).toBeGreaterThanOrEqual(1);
-    expect(within(crm).getAllByText(/Salesforce and nCino preview intelligence/).length).toBeGreaterThanOrEqual(1);
+    expect(within(crm).getAllByText(/CRM and lending workflow preview intelligence/).length).toBeGreaterThanOrEqual(1);
     // Read-only CRM working surface is mounted alongside the entry.
     expect(within(crm).getByText('CRM Intelligence')).toBeInTheDocument();
   });

@@ -34,8 +34,8 @@ vi.mock('../crm/workspaceIntegration/CrmBankerWorkingSurface', () => ({
 vi.mock('../crm/workspaceIntegration/crmWorkspacePreviewInputs', () => ({
   bankerCrmPreviewInput: () => ({
     relationshipOverview: undefined,
-    salesforceReadiness: 'Preview — not yet connected',
-    ncinoReadiness: 'Preview — not yet connected',
+    salesforceReadiness: 'Preview — external connection disabled',
+    ncinoReadiness: 'Preview — external connection disabled',
     entityMatchStatus: 'Awaiting human review',
     sourceOfTruthGaps: 0,
     syncPreviewBlockers: 0,

@@ -47,7 +47,7 @@ describe('BUGFIX-CRM-VISIBLE — Banker workspace mounts the CRM entry', () => {
 
   it('the panel renders the required CRM Command Center entry copy', () => {
     expect(panel).toContain('CRM Command Center');
-    expect(panel).toContain('Salesforce and nCino preview intelligence');
+    expect(panel).toContain('CRM and lending workflow preview intelligence');
     expect(panel).toContain('Review source-of-truth, matching, sync preview, and dry-run posture.');
   });
 
