@@ -87,46 +87,60 @@ export function BankerCrmIntelligencePanel() {
 
   return (
     <section aria-label="CRM Command Center" data-banker-crm-entry="command-center" style={s.wrap}>
-      {/* Hero command card */}
+      {/* Hero command card — two-column internal layout */}
       <DrillThroughCard target={commandCenterTarget}>
-        <div style={s.heroFace}>
-          <div style={s.heroTitleRow}>
-            <span style={s.heroTitle}>CRM Command Center</span>
-            <span style={s.badge}>Read-only</span>
-            <span style={s.badgePreview}>Preview-only</span>
+        <div style={s.heroFace} data-crm-hero="full-width">
+          <div style={s.heroColumns}>
+            <div style={s.heroLeft}>
+              <div style={s.heroTitleRow}>
+                <span style={s.heroTitle}>CRM Command Center</span>
+                <span style={s.badge}>Read-only</span>
+                <span style={s.badgePreview}>Preview-only</span>
+              </div>
+              <span style={s.heroSubtitle}>CRM and lending workflow preview intelligence</span>
+              <span style={s.heroDesc}>
+                Review source-of-truth, relationship matching, sync preview, and dry-run readiness from the current banker workspace.
+              </span>
+            </div>
+            <div style={s.heroRight}>
+              <span style={s.heroNextLabel}>Next safe step</span>
+              <span style={s.heroNextValue}>Review source-of-truth and matching posture</span>
+              <span style={s.heroAction} data-crm-action="view-details">View details</span>
+            </div>
           </div>
-          <span style={s.heroSubtitle}>CRM and lending workflow preview intelligence</span>
-          <span style={s.heroDesc}>
-            Review source-of-truth, relationship matching, sync preview, and dry-run readiness from the current banker workspace.
-          </span>
         </div>
       </DrillThroughCard>
 
-      {/* Six intelligence cards */}
+      {/* Six intelligence cards — command grid */}
       <CrmBankerWorkingSurface input={input} />
 
-      {/* Readiness lanes */}
+      {/* Readiness lanes — fill columns */}
       <div style={s.laneGrid}>
         <DrillThroughCard target={crmLaneTarget}>
-          <div style={s.laneCard}>
+          <div style={s.laneCard} data-crm-lane="fill">
             <span style={s.laneTitle}>CRM Readiness</span>
             <span style={s.laneValue}>{input.salesforceReadiness}</span>
             <span style={s.laneHint}>Next: Review CRM readiness prerequisites</span>
+            <span style={s.laneAction}>View details</span>
           </div>
         </DrillThroughCard>
         <DrillThroughCard target={lendingLaneTarget}>
-          <div style={s.laneCard}>
+          <div style={s.laneCard} data-crm-lane="fill">
             <span style={s.laneTitle}>Lending Workflow Readiness</span>
             <span style={s.laneValue}>{input.ncinoReadiness}</span>
             <span style={s.laneHint}>Next: Review lending workflow configuration</span>
+            <span style={s.laneAction}>View details</span>
           </div>
         </DrillThroughCard>
       </div>
 
-      {/* Relationship intelligence summary */}
+      {/* Relationship intelligence summary — full width */}
       <DrillThroughCard target={relSummaryTarget}>
         <div style={s.relSummary}>
-          <span style={s.relTitle}>Relationship Intelligence Summary</span>
+          <div style={s.relHeader}>
+            <span style={s.relTitle}>Relationship Intelligence Summary</span>
+            <span style={s.relAction}>View details</span>
+          </div>
           <div style={s.relMetrics}>
             <span style={s.relMetric}>Relationship: {input.relationshipOverview ?? 'Not available'}</span>
             <span style={s.relMetric}>Match: {input.entityMatchStatus}</span>
@@ -141,28 +155,37 @@ export function BankerCrmIntelligencePanel() {
 }
 
 const s: Record<string, CSSProperties> = {
-  wrap: { display: 'flex', flexDirection: 'column', gap: spacing.lg, width: '100%' },
+  wrap: { display: 'flex', flexDirection: 'column', gap: spacing.md, width: '100%' },
 
-  // Hero — full width, prominent
-  heroFace: { display: 'flex', flexDirection: 'column', gap: spacing.md, padding: `${spacing.xl} ${spacing.xl}`, background: palette.primaryBg, borderRadius: radius.md, border: `2px solid ${palette.primary}`, width: '100%', boxSizing: 'border-box' },
+  // Hero — full width, two-column internal
+  heroFace: { padding: `${spacing.xl} ${spacing.xl}`, background: palette.primaryBg, borderRadius: radius.md, border: `2px solid ${palette.primary}`, width: '100%', boxSizing: 'border-box' },
+  heroColumns: { display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.xl, alignItems: 'start' },
+  heroLeft: { display: 'flex', flexDirection: 'column', gap: spacing.sm },
+  heroRight: { display: 'flex', flexDirection: 'column', gap: spacing.sm, alignItems: 'flex-end', textAlign: 'right', minWidth: 180 },
   heroTitleRow: { display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
   heroTitle: { fontSize: typography.size.xl, fontWeight: typography.weight.bold, color: palette.text, letterSpacing: typography.letterSpacing.heading },
   heroSubtitle: { fontSize: typography.size.md, color: palette.textMuted, fontWeight: typography.weight.semibold },
-  heroDesc: { fontSize: typography.size.sm, color: palette.text, lineHeight: typography.lineHeight.snug, maxWidth: 640 },
+  heroDesc: { fontSize: typography.size.sm, color: palette.text, lineHeight: typography.lineHeight.snug },
+  heroNextLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.semibold },
+  heroNextValue: { fontSize: typography.size.sm, color: palette.text, fontWeight: typography.weight.semibold },
+  heroAction: { fontSize: typography.size.xs, color: palette.primary, fontWeight: typography.weight.bold, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, marginTop: spacing.xs },
   badge: { display: 'inline-block', fontSize: typography.size.xs, fontWeight: typography.weight.bold, color: palette.primaryFg, background: palette.primary, padding: `3px ${spacing.md}`, borderRadius: radius.sm, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
   badgePreview: { display: 'inline-block', fontSize: typography.size.xs, fontWeight: typography.weight.bold, color: palette.infoFg, background: palette.infoBg, padding: `3px ${spacing.md}`, borderRadius: radius.sm, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
 
-  // Lanes — substantial, fill columns
-  laneGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, width: '100%' },
-  laneCard: { display: 'flex', flexDirection: 'column', gap: spacing.sm, padding: `${spacing.lg} ${spacing.xl}`, background: palette.surface, borderRadius: radius.md, border: `1px solid ${palette.border}`, minHeight: 120, justifyContent: 'center' },
+  // Lanes — fill columns
+  laneGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md, width: '100%' },
+  laneCard: { display: 'flex', flexDirection: 'column', gap: spacing.sm, padding: `${spacing.lg} ${spacing.xl}`, background: palette.surface, borderRadius: radius.md, border: `1px solid ${palette.border}`, flex: 1 },
   laneTitle: { fontSize: typography.size.md, fontWeight: typography.weight.bold, color: palette.text },
   laneValue: { fontSize: typography.size.sm, color: palette.textMuted, fontWeight: typography.weight.semibold },
-  laneHint: { fontSize: typography.size.xs, color: palette.textSubtle, fontStyle: 'italic', marginTop: spacing.xs },
+  laneHint: { fontSize: typography.size.xs, color: palette.textSubtle, fontStyle: 'italic' },
+  laneAction: { fontSize: typography.size.xs, color: palette.primary, fontWeight: typography.weight.bold, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, marginTop: spacing.xs },
 
   // Relationship summary — full width
-  relSummary: { display: 'flex', flexDirection: 'column', gap: spacing.md, padding: `${spacing.lg} ${spacing.xl}`, background: palette.surface, borderRadius: radius.md, border: `1px solid ${palette.border}`, width: '100%', boxSizing: 'border-box' },
+  relSummary: { display: 'flex', flexDirection: 'column', gap: spacing.sm, padding: `${spacing.lg} ${spacing.xl}`, background: palette.surface, borderRadius: radius.md, border: `1px solid ${palette.border}`, width: '100%', boxSizing: 'border-box' },
+  relHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   relTitle: { fontSize: typography.size.md, fontWeight: typography.weight.bold, color: palette.text },
-  relMetrics: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: spacing.md },
-  relMetric: { fontSize: typography.size.sm, color: palette.textMuted, padding: `${spacing.sm} ${spacing.md}`, background: palette.surfaceAlt, borderRadius: radius.sm },
-  relNext: { fontSize: typography.size.sm, color: palette.textSubtle, fontStyle: 'italic', marginTop: spacing.xs },
+  relAction: { fontSize: typography.size.xs, color: palette.primary, fontWeight: typography.weight.bold, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label },
+  relMetrics: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: spacing.sm },
+  relMetric: { fontSize: typography.size.sm, color: palette.textMuted, padding: `${spacing.sm} ${spacing.md}`, background: palette.surfaceAlt, borderRadius: radius.sm, textAlign: 'center' },
+  relNext: { fontSize: typography.size.sm, color: palette.textSubtle, fontStyle: 'italic' },
 };

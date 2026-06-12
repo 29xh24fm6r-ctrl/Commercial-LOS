@@ -56,6 +56,19 @@ describe('Phase 157 — BankerCrmIntelligencePanel premium cockpit', () => {
     expect(screen.getByText('Preview-only')).toBeInTheDocument();
   });
 
+  it('hero contains in-card View details action', () => {
+    render(<BankerCrmIntelligencePanel />);
+    const hero = screen.getByTestId('drill-banker-crm-command-center');
+    const actions = hero.querySelectorAll('[data-crm-action="view-details"]');
+    expect(actions.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('hero uses full-width layout marker', () => {
+    render(<BankerCrmIntelligencePanel />);
+    const hero = screen.getByTestId('drill-banker-crm-command-center');
+    expect(hero.querySelector('[data-crm-hero="full-width"]')).toBeTruthy();
+  });
+
   it('CRM Command Center drill-through opens read-only detail panel', () => {
     render(<BankerCrmIntelligencePanel />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-command-center').querySelector('summary')!);
