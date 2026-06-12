@@ -2874,3 +2874,42 @@ describe('Phase 169C -- Admin New Deal Intake doc exists and is Case B blocker',
     expect(doc).toMatch(/stays\s+at\s+`?faf26d6`?/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 169D -- Admin Portfolio Boarding onboarding (Case B, disabled-by-default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 169D -- Admin Portfolio Boarding doc exists and is Case B', () => {
+  const rel = 'docs/PHASE_169D_ADMIN_PORTFOLIO_BOARDING_ONBOARDING.md';
+
+  it('the Phase 169D doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins Case B (stack present; runtime persistence disabled by default)', () => {
+    expect(doc).toMatch(/CASE B/i);
+    expect(doc).toMatch(/runtime persistence disabled by default/i);
+    expect(doc).toMatch(/PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED/);
+  });
+
+  it('pins no live create/import/upload enabled and the resolver fails closed', () => {
+    expect(doc).toMatch(/PORTFOLIO_BOARDING_ADMIN_LIVE_WRITE_ENABLED = false/);
+    expect(doc).toMatch(/fails closed/i);
+    expect(doc).toMatch(/no document upload wired|Document upload disabled/i);
+  });
+
+  it('pins the nine required data groups and the five safe next steps', () => {
+    expect(doc).toMatch(/loan master/i);
+    expect(doc).toMatch(/guarantors/i);
+    expect(doc).toMatch(/exceptions\/reviews/i);
+    expect(doc).toMatch(/test-tenant write/i);
+  });
+
+  it('pins route delta 0 and tag not moved', () => {
+    expect(doc).toMatch(/Route Delta/i);
+    expect(doc).toMatch(/v1\.0\.0-controlled-pilot/);
+    expect(doc).toMatch(/stays\s+at\s+`?faf26d6`?/i);
+  });
+});
