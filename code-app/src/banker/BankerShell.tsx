@@ -185,7 +185,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
         onActivityLogged={reload}
         now={now}
       />
-      <BankerKpiGrid state={state} now={now} />
+      <BankerKpiGrid state={state} now={now} onSelectTab={setTab} />
       <main style={styles.main} role="main" aria-label="Banker workspace">
         <div style={styles.body}>
           <section style={styles.contentArea} aria-label="Banker workspace content">

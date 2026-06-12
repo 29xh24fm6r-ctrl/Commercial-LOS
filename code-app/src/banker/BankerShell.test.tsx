@@ -350,6 +350,113 @@ describe('Phase 125F — Lending OS shell layout', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 166 — top dashboard KPI cards open honest destinations (live smoke fix)
+// ---------------------------------------------------------------------------
+
+describe('Phase 166 — dashboard KPI card interactions', () => {
+  async function renderReady(data = dataWithOneDeal()) {
+    setUpBanker();
+    loadMock.mockResolvedValue(data);
+    const utils = render(<BankerShell workspaceName="Banker Workspace" />);
+    // Wait for the real (ready) KPI tiles, not the 10 loading placeholders.
+    await waitFor(() => {
+      expect(
+        utils.container.querySelector('[data-kpi-tile="active-deals"]')?.tagName,
+      ).toBe('BUTTON');
+    });
+    return utils;
+  }
+
+  // Assert tab selection via the stable data-tab-key + aria-selected
+  // attributes (querySelector, no cloneNode) rather than
+  // getByRole('tab', {name}); the latter clones the now-active tab
+  // button, which carries a var(--cc-*) background that trips a jsdom
+  // shorthand-parsing bug during accessible-name computation.
+  function tabSelected(container: HTMLElement, key: string): boolean {
+    return (
+      container
+        .querySelector(`[data-tab-key="${key}"]`)
+        ?.getAttribute('aria-selected') === 'true'
+    );
+  }
+
+  it('Active Deals KPI click selects the Active Deals tab', async () => {
+    const { container } = await renderReady();
+    const user = userEvent.setup();
+    // Default tab is Dashboard.
+    expect(screen.getByTestId('card-personal-activity-summary')).toBeInTheDocument();
+
+    const tile = container.querySelector('[data-kpi-tile="active-deals"]') as HTMLButtonElement;
+    await user.click(tile);
+
+    expect(tabSelected(container, 'active-deals')).toBe(true);
+    expect(screen.getByTestId('card-personal-pipeline')).toBeInTheDocument();
+    expect(screen.queryByTestId('card-personal-activity-summary')).toBeNull();
+  });
+
+  it('Urgent KPI click selects the My Alerts tab (owns overdue tasks/docs/closes)', async () => {
+    const { container } = await renderReady();
+    const user = userEvent.setup();
+    const tile = container.querySelector('[data-kpi-tile="urgent"]') as HTMLButtonElement;
+    expect(tile.getAttribute('data-kpi-target')).toBe('my-alerts');
+    await user.click(tile);
+    expect(tabSelected(container, 'my-alerts')).toBe(true);
+  });
+
+  it('In UW KPI click selects the Active Deals tab (stage-grouped board)', async () => {
+    const { container } = await renderReady();
+    const user = userEvent.setup();
+    const tile = container.querySelector('[data-kpi-tile="in-uw"]') as HTMLButtonElement;
+    expect(tile.tagName).toBe('BUTTON');
+    await user.click(tile);
+    expect(tabSelected(container, 'active-deals')).toBe(true);
+  });
+
+  it('keyboard activation (Enter) works on a clickable KPI tile', async () => {
+    const { container } = await renderReady();
+    const user = userEvent.setup();
+    const tile = container.querySelector('[data-kpi-tile="active-deals"]') as HTMLButtonElement;
+    tile.focus();
+    expect(tile).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(tabSelected(container, 'active-deals')).toBe(true);
+  });
+
+  it('not-yet-wired and no-destination KPI tiles are NOT buttons and do not claim clickability', async () => {
+    const { container } = await renderReady();
+    // Not-yet-wired (bucket C) tiles + honest no-destination tiles.
+    for (const id of ['weighted', 'ytd-closed', 'win-rate', 'high-prob', 'closing-soon', 'stale']) {
+      const tile = container.querySelector(`[data-kpi-tile="${id}"]`);
+      expect(tile, `tile ${id} should render`).not.toBeNull();
+      expect(tile?.tagName, `tile ${id} must not be a button`).not.toBe('BUTTON');
+      expect(tile?.getAttribute('data-kpi-target')).toBeNull();
+      // No cursor:pointer affordance on non-clickable tiles.
+      expect((tile as HTMLElement | null)?.style.cursor ?? '').not.toBe('pointer');
+    }
+  });
+
+  it('clickable KPI tiles expose an honest aria-label naming the destination', async () => {
+    const { container } = await renderReady();
+    const tile = container.querySelector('[data-kpi-tile="active-deals"]');
+    expect(tile?.getAttribute('aria-label')).toMatch(/Open the Active Deals tab\.$/);
+  });
+
+  it('CRM Command Center still renders and + New Deal stays disabled / Log Activity stays available after the KPI change', async () => {
+    await renderReady();
+    // CRM drill-through entry still present on the dashboard.
+    expect(
+      await screen.findByRole('region', { name: 'CRM Command Center' }),
+    ).toBeInTheDocument();
+    // + New Deal remains an honest disabled placeholder.
+    const newDeal = document.querySelector('[data-action-placeholder="-new-deal"]');
+    expect(newDeal).not.toBeNull();
+    expect(newDeal?.getAttribute('disabled')).not.toBeNull();
+    // Log Activity remains available for governed writers.
+    expect(screen.getByRole('button', { name: /^Log Activity$/i })).not.toBeDisabled();
+  });
+});
+
 describe('Phase 125F — BankerShell.tsx static-source pins', () => {
   const SRC = readFileSync(resolve(__dirname, 'BankerShell.tsx'), 'utf8');
 

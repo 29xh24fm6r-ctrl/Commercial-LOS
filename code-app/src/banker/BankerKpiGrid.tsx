@@ -45,6 +45,19 @@ import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 
 type KpiTone = 'info' | 'clear' | 'atRisk' | 'blocked' | 'neutral' | 'violet' | 'teal';
 
+/**
+ * Phase 166 — the only honest in-page drill targets a KPI tile may
+ * open. Both are existing shell tabs (no new route). A tile without a
+ * `target` is intentionally non-clickable (either "Not yet wired" or it
+ * has no honest filtered destination today).
+ */
+export type BankerKpiTab = 'active-deals' | 'my-alerts';
+
+const TAB_LABELS: Record<BankerKpiTab, string> = {
+  'active-deals': 'Active Deals',
+  'my-alerts': 'My Alerts',
+};
+
 interface KpiSpec {
   readonly id: string;
   readonly label: string;
@@ -53,6 +66,12 @@ interface KpiSpec {
   readonly value: string | undefined;
   readonly hint?: string;
   readonly tooltip?: string;
+  /**
+   * Phase 166 — when set, the tile is a real button that selects this
+   * existing shell tab. When omitted, the tile is a plain, honestly
+   * non-clickable card.
+   */
+  readonly target?: BankerKpiTab;
 }
 
 export interface BankerKpiGridProps {
@@ -63,6 +82,11 @@ export interface BankerKpiGridProps {
     | { kind: 'ready'; data: BankerWorkQueueData };
   /** Override `now` (primarily for tests). */
   now?: Date;
+  /**
+   * Phase 166 — select an existing shell tab when a drillable KPI tile
+   * is clicked. When omitted, every tile renders non-clickable.
+   */
+  onSelectTab?: (tab: BankerKpiTab) => void;
 }
 
 const NOT_YET_WIRED_TOOLTIP_WEIGHTED =
@@ -74,7 +98,7 @@ const NOT_YET_WIRED_TOOLTIP_WIN_RATE =
 const NOT_YET_WIRED_TOOLTIP_HIGH_PROB =
   'High-probability count requires a cr664_loandeal.probability field that is not in the live schema today. Bucket C.';
 
-export function BankerKpiGrid({ state, now }: BankerKpiGridProps) {
+export function BankerKpiGrid({ state, now, onSelectTab }: BankerKpiGridProps) {
   if (state.kind === 'loading') {
     return (
       <section
@@ -120,6 +144,9 @@ export function BankerKpiGrid({ state, now }: BankerKpiGridProps) {
         kpis.dealsMissingAmount > 0
           ? `${kpis.dealsMissingAmount} deal${kpis.dealsMissingAmount === 1 ? '' : 's'} missing amount`
           : 'Sum across active deals',
+      // Phase 166 — pipeline dollars sum across active deals; the
+      // Active Deals board is the only honest drill destination.
+      target: 'active-deals',
     },
     {
       id: 'weighted',
@@ -137,6 +164,8 @@ export function BankerKpiGrid({ state, now }: BankerKpiGridProps) {
       tone: 'info',
       value: kpis.activeDeals.toString(),
       hint: 'Authorized to you',
+      // Phase 166 — opens the Active Deals board directly.
+      target: 'active-deals',
     },
     {
       id: 'urgent',
@@ -145,6 +174,9 @@ export function BankerKpiGrid({ state, now }: BankerKpiGridProps) {
       tone: kpis.urgentItemCount > 0 ? 'blocked' : 'clear',
       value: kpis.urgentItemCount.toString(),
       hint: 'Overdue tasks · docs · closes',
+      // Phase 166 — the My Alerts tab badge is this same urgent-item
+      // count; My Alerts owns overdue tasks/docs/closes.
+      target: 'my-alerts',
     },
     {
       id: 'closing-soon',
@@ -196,6 +228,11 @@ export function BankerKpiGrid({ state, now }: BankerKpiGridProps) {
       tone: kpis.inUnderwritingCount > 0 ? 'info' : 'neutral',
       value: kpis.inUnderwritingCount.toString(),
       hint: 'Active deals in Underwriting',
+      // Phase 166 — the Active Deals board is stage-grouped with an
+      // Underwriting lane + stage filter, an existing honest view of
+      // these deals. Closing Soon / Stale 14d+ have no equivalent
+      // dedicated tab view, so they remain non-clickable below.
+      target: 'active-deals',
     },
   ];
   return (
@@ -206,7 +243,7 @@ export function BankerKpiGrid({ state, now }: BankerKpiGridProps) {
       data-banker-kpi-grid="phase-125g"
     >
       {specs.map((s) => (
-        <KpiTile key={s.id} spec={s} />
+        <KpiTile key={s.id} spec={s} onSelectTab={onSelectTab} />
       ))}
     </section>
   );
@@ -223,19 +260,21 @@ function loadingSpec(i: number): KpiSpec {
   };
 }
 
-function KpiTile({ spec }: { spec: KpiSpec }) {
+function KpiTile({
+  spec,
+  onSelectTab,
+}: {
+  spec: KpiSpec;
+  onSelectTab?: (tab: BankerKpiTab) => void;
+}) {
   const isMissing = spec.value === undefined;
   const tonePalette = TONE_TOKENS[spec.tone];
-  return (
-    <div
-      style={{
-        ...styles.tile,
-        borderTop: `3px solid ${tonePalette.accent}`,
-      }}
-      data-kpi-tile={spec.id}
-      data-kpi-tone={spec.tone}
-      title={spec.tooltip}
-    >
+  // Phase 166 — a tile is interactive only when it has an honest
+  // existing-tab destination AND the parent provided a selector.
+  const clickable = spec.target !== undefined && onSelectTab !== undefined;
+
+  const inner = (
+    <>
       <div style={styles.head}>
         <span
           style={{
@@ -258,6 +297,53 @@ function KpiTile({ spec }: { spec: KpiSpec }) {
         {spec.value ?? 'Not yet wired'}
       </div>
       {spec.hint && <div style={styles.hint}>{spec.hint}</div>}
+    </>
+  );
+
+  if (clickable && spec.target) {
+    const target = spec.target;
+    return (
+      <button
+        type="button"
+        style={{
+          ...styles.tile,
+          ...styles.tileButton,
+          // Longhand border/background (not the shorthands) so a cloned
+          // <button> carrying CSS custom properties (var(--cc-*)) does
+          // not trip jsdom's shorthand expander during accessible-name
+          // computation. Visually identical to the div tile.
+          background: undefined,
+          backgroundColor: palette.surface,
+          border: undefined,
+          borderStyle: 'solid',
+          borderWidth: 1,
+          borderColor: palette.border,
+          borderTopWidth: 3,
+          borderTopColor: tonePalette.accent,
+        }}
+        data-kpi-tile={spec.id}
+        data-kpi-tone={spec.tone}
+        data-kpi-target={target}
+        title={spec.tooltip}
+        aria-label={`${spec.label}${spec.value ? `: ${spec.value}` : ''}. Open the ${TAB_LABELS[target]} tab.`}
+        onClick={() => onSelectTab(target)}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        ...styles.tile,
+        borderTop: `3px solid ${tonePalette.accent}`,
+      }}
+      data-kpi-tile={spec.id}
+      data-kpi-tone={spec.tone}
+      title={spec.tooltip}
+    >
+      {inner}
     </div>
   );
 }
@@ -297,6 +383,23 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: 'column',
     gap: spacing.xs,
     minHeight: 116,
+  },
+  // Phase 166 — button reset so an interactive KPI tile keeps the exact
+  // card look while gaining native button semantics (keyboard + focus).
+  // `outline` is intentionally NOT removed: the browser focus-visible
+  // ring stays available. `textAlign: left` + `width: 100%` + inherited
+  // font keep the layout identical to the non-clickable div tile.
+  tileButton: {
+    width: '100%',
+    textAlign: 'left',
+    // Longhand (not the `font` shorthand) on purpose: keep the tile's
+    // typography while avoiding a jsdom shorthand-parsing crash during
+    // accessible-name computation in tests.
+    fontFamily: typography.family,
+    color: 'inherit',
+    cursor: 'pointer',
+    appearance: 'none',
+    WebkitAppearance: 'none',
   },
   head: {
     display: 'flex',
