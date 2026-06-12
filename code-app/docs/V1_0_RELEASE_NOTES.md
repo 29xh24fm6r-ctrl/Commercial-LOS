@@ -7,6 +7,27 @@ and disabled scope, live smoke checklist, rollback plan, and go/no-go --
 is docs/PHASE_164_V1_CONTROLLED_PILOT_RELEASE_PACKAGE.md (baseline
 `4937b42`).
 
+## Final Release Tag
+
+- Release tag: `v1.0.0-controlled-pilot`
+- Tagged commit: `faf26d6` Phase 166 fix dashboard KPI card interactions
+- Deployment: Phase 167 PAC `pac code push` to environment
+  `5f2d77a5-de50-edeb-9d74-5b2400a2320d` succeeded.
+- Smoke: operator live smoke passed in the deployed app, including the
+  Phase 166 KPI-card interaction fix (Pipeline / Active Deals / Urgent /
+  In UW open their honest destinations; the not-yet-wired and
+  no-destination cards are honestly non-clickable).
+- Accepted limitation: + New Deal is disabled for V1.0 due to the
+  Stage/Status reference blocker documented in Phase 163. This is the
+  single documented, honestly-disabled limitation accepted for the
+  controlled pilot.
+- Post-V1 unblock path: register the Stage Reference / Status Reference
+  data sources, refresh the generated SDK, add a fail-closed default
+  resolver, then wire governed + New Deal create. See
+  docs/PHASE_163_STAGE_STATUS_REFERENCE_UNBLOCK.md.
+
+Release status: V1.0 controlled pilot tagged and smoke-passed.
+
 ## Production-Ready Surfaces
 
 - Banker Workspace dashboard, active deals, tasks, due diligence, activity, relationships, alerts, and signals.

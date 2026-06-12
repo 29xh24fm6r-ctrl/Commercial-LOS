@@ -110,3 +110,25 @@ pilot until resolved.
 Recommendation: GO for a controlled pilot with + New Deal accepted as
 disabled-for-V1.0, contingent on the section 5 live smoke checklist
 passing in the target environment.
+
+## 8. Final Status Addendum (2026-06-12)
+
+The contingency in section 7 is now satisfied:
+
+- The first live smoke (post Phase 165 deploy of baseline `eefaa61`)
+  found the top dashboard KPI cards did not open. Phase 166 fixed that
+  interaction failure: Pipeline / Active Deals / Urgent / In UW open
+  honest existing-tab destinations, and the not-yet-wired and
+  no-destination cards (Weighted / YTD Closed / Win Rate / High Prob /
+  Closing Soon / Stale 14d+) are honestly non-clickable. See
+  docs/PHASE_166_DASHBOARD_KPI_CARD_INTERACTION_FIX.md.
+- Phase 167 redeployed the Phase 166 baseline (`faf26d6`) via PAC
+  `pac code push`, which succeeded.
+- The operator re-ran the section 5 live smoke checklist against the
+  redeployed app and it passed.
+- The release tag `v1.0.0-controlled-pilot` was created on commit
+  `faf26d6` and pushed to origin.
+
+Final state: V1.0 controlled pilot tagged and smoke-passed; + New Deal
+remains the single accepted disabled-for-V1.0 limitation (Phase 163
+Stage/Status reference blocker).

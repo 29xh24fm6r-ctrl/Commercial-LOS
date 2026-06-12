@@ -2719,4 +2719,49 @@ describe('Phase 164 — V1.0 controlled pilot release package exists and is hone
     expect(doc).toMatch(/GO for controlled pilot/i);
     expect(doc).toMatch(/NO-GO/);
   });
+
+  it('pins the Phase 168 final-status addendum (Phase 166 fix, Phase 167 redeploy, smoke passed, tag pushed)', () => {
+    expect(doc).toMatch(/Final Status Addendum/i);
+    expect(doc).toMatch(/Phase 166/);
+    expect(doc).toMatch(/Phase 167 redeployed/i);
+    expect(doc).toMatch(/v1\.0\.0-controlled-pilot/);
+    expect(doc).toMatch(/faf26d6/);
+    expect(doc).toMatch(/smoke[- ]passed/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 168 — V1.0 release notes carry the pushed controlled-pilot tag
+// ---------------------------------------------------------------------------
+
+describe('Phase 168 — V1.0 release notes pin the final controlled-pilot tag', () => {
+  const doc = readDoc('docs/V1_0_RELEASE_NOTES.md');
+
+  it('pins the release tag and tagged commit', () => {
+    expect(doc).toMatch(/v1\.0\.0-controlled-pilot/);
+    expect(doc).toMatch(/faf26d6/);
+  });
+
+  it('pins the Phase 167 deployment and a passed operator live smoke', () => {
+    expect(doc).toMatch(/Phase 167/);
+    expect(doc).toMatch(/pac code push/i);
+    expect(doc).toMatch(/operator live smoke passed/i);
+  });
+
+  it('pins + New Deal as the accepted disabled-for-V1.0 limitation due to the Stage/Status reference blocker', () => {
+    expect(doc).toMatch(/New Deal/);
+    expect(doc).toMatch(/disabled for V1\.0/i);
+    expect(doc).toMatch(/Stage\/Status reference blocker/i);
+  });
+
+  it('pins the post-V1 unblock path (register data sources, SDK refresh, fail-closed resolver, governed create)', () => {
+    expect(doc).toMatch(/register the Stage Reference \/ Status Reference\s+data sources/i);
+    expect(doc).toMatch(/refresh the generated SDK/i);
+    expect(doc).toMatch(/fail-closed default\s+resolver/i);
+    expect(doc).toMatch(/governed \+ New Deal create/i);
+  });
+
+  it('pins the final release status line', () => {
+    expect(doc).toMatch(/V1\.0 controlled pilot tagged and smoke-passed/i);
+  });
 });
