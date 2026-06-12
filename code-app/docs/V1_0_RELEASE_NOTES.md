@@ -27,7 +27,7 @@ Date: 2026-06-12
 
 ## Known Limitations
 
-- New Deal cannot safely create `cr664_loandeal` records because required Stage Reference and Status Reference lookup values are not resolvable in the generated app SDK.
+- New Deal cannot safely create `cr664_loandeal` records because required Stage Reference and Status Reference lookup values are not resolvable in the generated app SDK. Phase 163 confirmed the reference lookup target table is not registered, not generated, and not verifiable from the repo (Case C); see docs/PHASE_163_STAGE_STATUS_REFERENCE_UNBLOCK.md. V1.0 go requires formally accepting + New Deal as disabled-for-V1.0.
 - Log Activity requires at least one active banker-authorized deal to select.
 - KPI tiles that depend on unavailable schema fields remain honestly marked not wired.
 - Secondary sidebar items for Schedule, Contacts, Vendors, Settings, and Help remain disabled placeholders.

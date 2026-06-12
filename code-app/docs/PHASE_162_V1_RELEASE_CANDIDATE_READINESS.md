@@ -7,6 +7,16 @@ Date: 2026-06-12
 No-go for V1.0 release candidate until the remaining P1 New Deal blocker is
 resolved or formally accepted as disabled for V1.0.
 
+## Phase 163 Update (2026-06-12)
+
+Phase 163 attempted the New Deal Stage/Status reference unblock and
+resolved to Case C: no safe typed or generic Dataverse read path exists
+for the required reference lookups, and the lookup target table name is
+not verifiable from the repo. + New Deal remains disabled and unchanged.
+The P1 posture below is unchanged; the decision is now binary: accept
++ New Deal as disabled-for-V1.0 (go) or treat it as required (no-go). See
+docs/PHASE_163_STAGE_STATUS_REFERENCE_UNBLOCK.md.
+
 ## P0/P1 Blockers
 
 - P0: none found.

@@ -22,6 +22,15 @@ To enable + New Deal, the following must happen:
 3. Resolve a canonical default stage and status for new deals.
 4. Wire the create with the resolved references.
 
+## Phase 163 Update (2026-06-12)
+
+Phase 163 re-investigated this blocker and confirmed Case C: no typed
+stage/status reference service, no schema file, no data-source
+registration, and no governed generic read path exist, and the lookup
+target table name is not even verifiable from the repo. + New Deal stays
+disabled. The exact data-source registration task is documented in
+docs/PHASE_163_STAGE_STATUS_REFERENCE_UNBLOCK.md. No behavior changed.
+
 ## Log Activity (Phase 160)
 
 Log Activity was wired as Phase 160 with:
