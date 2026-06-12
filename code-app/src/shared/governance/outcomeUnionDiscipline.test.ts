@@ -117,6 +117,13 @@ const OUTCOME_BY_WRITE_ID: Readonly<Record<string, OutcomeMapping>> =
       failurePattern: 'governance-partial',
       successCarriesIds: true,
     },
+    'deal-log-activity': {
+      file: 'src/deals/logActivityActions.ts',
+      typeName: 'LogActivityOutcome',
+      primaryFailedKind: 'activity-failed',
+      failurePattern: 'governance-partial',
+      successCarriesIds: true,
+    },
     'credit-memo-draft-save': {
       file: 'src/deals/creditMemoActions.ts',
       typeName: 'SaveCreditMemoDraftOutcome',
@@ -436,6 +443,9 @@ describe('Phase 47 — modal callers convert thrown errors to { kind: "unknown",
     ],
     'src/admin/ResolveFlagModal.tsx': [
       { typeName: 'ResolveOutcome', actionModule: './dataQualityActions' },
+    ],
+    'src/deals/LogActivityModal.tsx': [
+      { typeName: 'LogActivityOutcome', actionModule: './logActivityActions' },
     ],
   };
 

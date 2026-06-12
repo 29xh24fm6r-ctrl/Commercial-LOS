@@ -75,15 +75,16 @@ describe('Phase 125F — Honest disabled placeholders', () => {
     expect(navPlaceholderBlock.split('function ')[0]).not.toMatch(/onClick=\{/);
   });
 
-  it('GreetingHeader renders "+ New Deal" + "Log Activity" as DISABLED action buttons (no governed-write handler)', () => {
+  it('GreetingHeader keeps "+ New Deal" disabled while Log Activity uses the Phase 160 governed action', () => {
     const src = READ('GreetingHeader.tsx');
     // ActionButton component is the disabled-placeholder factory.
     expect(src).toMatch(/function ActionButton\b/);
     expect(src).toMatch(/disabled\s*\n?\s*aria-disabled="true"/);
     expect(src).toMatch(/\+ New Deal/);
     expect(src).toMatch(/Log Activity/);
-    // No governed-write imports leak in.
-    expect(src).not.toMatch(/sendDocumentRequestEmail|sendBorrowerUpdateEmail|completeTask|requestDocument/);
+    expect(src).toMatch(/from\s+['"]\.\.\/deals\/logActivityActions['"]/);
+    expect(src).toMatch(/no generated stage\/status reference data source exists/);
+    expect(src).not.toMatch(/newDealActions|NewDealModal/);
   });
 
   it('GreetingHeader search input is disabled with a "not yet wired" placeholder', () => {

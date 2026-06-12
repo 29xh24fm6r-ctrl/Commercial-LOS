@@ -43,6 +43,10 @@ vi.mock('../generated/services/Office365OutlookService', () => ({
   Office365OutlookService: { SendEmailV2: vi.fn() },
 }));
 
+vi.mock('../deals/logActivityActions', () => ({
+  logActivity: vi.fn(),
+}));
+
 vi.mock('./PersonalActivitySummary', () => ({
   PersonalActivitySummary: () => (
     <div data-testid="card-personal-activity-summary">PersonalActivitySummary</div>
@@ -85,9 +89,11 @@ vi.mock('./BankerDueDiligenceView', () => ({
 import { loadBankerWorkQueueData } from './workQueueQueries';
 import { useBanker } from './BankerContext';
 import { BankerShell } from './BankerShell';
+import { logActivity } from '../deals/logActivityActions';
 
 const loadMock = vi.mocked(loadBankerWorkQueueData);
 const useBankerMock = vi.mocked(useBanker);
+const logActivityMock = vi.mocked(logActivity);
 
 function emptyData(): BankerWorkQueueData {
   return {
@@ -97,6 +103,27 @@ function emptyData(): BankerWorkQueueData {
     pendingReviewDocuments: [],
     memos: [],
     memoSections: [],
+  };
+}
+
+function dataWithOneDeal(): BankerWorkQueueData {
+  return {
+    ...emptyData(),
+    deals: [
+      {
+        id: 'deal-1',
+        name: 'Expansion Loan',
+        clientName: 'Acme Co',
+        stage: 'Underwriting',
+        status: 'Active',
+        amount: 1000000,
+        targetCloseDate: '2026-07-01T00:00:00Z',
+        lastActivityOn: '2026-06-01T00:00:00Z',
+        stageEntryDate: '2026-05-15T00:00:00Z',
+        isClosed: false,
+        collateralSummary: undefined,
+      },
+    ],
   };
 }
 
@@ -114,6 +141,7 @@ function setUpBanker(overrides: Partial<{ writeDisabledReason: string | undefine
 beforeEach(() => {
   loadMock.mockReset();
   useBankerMock.mockReset();
+  logActivityMock.mockReset();
 });
 
 // ---------------------------------------------------------------------------
@@ -176,7 +204,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
     });
   });
 
-  it('renders the disabled-placeholder header affordances (search / Log Activity / + New Deal)', () => {
+  it('renders search and + New Deal as disabled placeholders, with Log Activity enabled for governed writers', () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
@@ -184,9 +212,44 @@ describe('Phase 125F — Lending OS shell layout', () => {
     const search = container.querySelector('[data-search-placeholder="lending-os-search"]');
     expect(search).not.toBeNull();
     expect(search?.getAttribute('disabled')).not.toBeNull();
-    // Log Activity + New Deal disabled buttons
-    expect(container.querySelector('[data-action-placeholder="log-activity"]')).not.toBeNull();
+    expect(screen.getByRole('button', { name: /^Log Activity$/i })).not.toBeDisabled();
     expect(container.querySelector('[data-action-placeholder="-new-deal"]')).not.toBeNull();
+  });
+
+  it('keeps Log Activity disabled when governed write identity is unavailable', () => {
+    setUpBanker({ writeDisabledReason: 'No cr664_systemuser binding for this banker.' });
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    expect(container.querySelector('[data-action-placeholder="log-activity"]')).not.toBeNull();
+  });
+
+  it('logs activity against a selected banker-authorized deal and refreshes dashboard data', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(dataWithOneDeal());
+    logActivityMock.mockResolvedValue({ kind: 'success', activityId: 'activity-1' });
+    render(<BankerShell workspaceName="Banker Workspace" />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: /^Log Activity$/i }));
+    const dialog = screen.getByRole('dialog', { name: /^Log activity$/i });
+    await user.type(
+      within(dialog).getByRole('textbox', { name: /activity note/i }),
+      'Client confirmed diligence timeline.',
+    );
+    await user.click(within(dialog).getByRole('button', { name: /^Log Activity$/i }));
+
+    await waitFor(() => {
+      expect(logActivityMock).toHaveBeenCalledWith({
+        dealId: 'deal-1',
+        dealName: 'Expansion Loan',
+        bankerName: 'Matt Paller',
+        systemUserId: 'sys-1',
+        note: 'Client confirmed diligence timeline.',
+      });
+    });
+    await waitFor(() => {
+      expect(loadMock).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('renders the flat KPI grid with 10 tonal tiles', async () => {

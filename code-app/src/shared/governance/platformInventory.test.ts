@@ -36,6 +36,7 @@ describe('platformInventory — governed writes', () => {
         'deal-document-request-handoff',
         'deal-document-review',
         'deal-document-review-task-create',
+        'deal-log-activity',
         'deal-task-complete',
       ].sort(),
     );
@@ -55,6 +56,7 @@ describe('platformInventory — governed writes', () => {
         'deal-document-receive',
         'deal-document-review',
         'deal-borrower-update-email',
+        'deal-log-activity',
         'credit-memo-draft-save',
       ].includes(w.id),
     );
@@ -76,6 +78,7 @@ describe('platformInventory — governed writes', () => {
       // 'borrower-email-send' name was never used and must not
       // accidentally appear as a sibling id.
       'borrower-email-send',
+      'deal-create',
       'document-upload',
       'ai-generation',
     ];
@@ -103,6 +106,7 @@ describe('platformInventory — not wired', () => {
     // borrower-update-email via Office365OutlookService.SendEmailV2).
     expect(ids.has('email-delivery')).toBe(false);
     expect(ids.has('document-upload')).toBe(true);
+    expect(ids.has('new-deal-create')).toBe(true);
     expect(ids.has('ai-generation')).toBe(true);
     expect(ids.has('test-coverage-build-verification')).toBe(true);
     expect(ids.has('stage-reference-data-source')).toBe(true);
@@ -159,6 +163,7 @@ describe('platformInventory — not wired', () => {
     expect(byId.get('stage-reference-data-source')?.blockerKind).toBe(
       'schema',
     );
+    expect(byId.get('new-deal-create')?.blockerKind).toBe('schema');
     expect(byId.get('stage-ordering-contract')?.blockerKind).toBe('schema');
     // Governance / deferred design decision
     expect(byId.get('ai-generation')?.blockerKind).toBe('governance');
@@ -939,8 +944,8 @@ describe('platformInventory — Phase 67 handoff classification', () => {
     expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
   });
 
-  it('GOVERNED_WRITES count: Phase 67 did not add a new governed write — Phase 70 added the 11th (review task); Phase 105 added the 12th (borrower-update email)', () => {
-    expect(GOVERNED_WRITES.length).toBe(12);
+  it('GOVERNED_WRITES count: Phase 160 added the 13th governed write (deal-log-activity)', () => {
+    expect(GOVERNED_WRITES.length).toBe(13);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {

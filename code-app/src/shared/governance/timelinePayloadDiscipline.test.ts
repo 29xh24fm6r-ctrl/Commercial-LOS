@@ -83,6 +83,12 @@ const TIMELINE_BY_WRITE_ID: Readonly<Record<string, TimelineMapping>> =
       eventTypeValue: 788190014,
       subtypeHasDomainPrefix: false,
     },
+    'deal-log-activity': {
+      file: 'src/deals/logActivityActions.ts',
+      eventTypeConst: 'TIMELINE_EVENT_TYPE_NOTE_LOGGED',
+      eventTypeValue: 788190002,
+      subtypeHasDomainPrefix: true,
+    },
     'deal-document-review-task-create': {
       file: 'src/deals/dealTaskActions.ts',
       eventTypeConst: 'TIMELINE_EVENT_TYPE_TASK_CREATED',

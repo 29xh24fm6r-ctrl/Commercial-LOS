@@ -90,6 +90,11 @@ const AUDIT_BY_WRITE_ID: Readonly<Record<string, AuditMapping>> = Object.freeze(
     eventName: 'DealTask Created',
     linksToDeal: true,
   },
+  'deal-log-activity': {
+    file: 'src/deals/logActivityActions.ts',
+    eventName: 'Deal Activity Logged',
+    linksToDeal: true,
+  },
   'credit-memo-draft-save': {
     file: 'src/deals/creditMemoActions.ts',
     eventName: 'CreditMemo Draft Saved',

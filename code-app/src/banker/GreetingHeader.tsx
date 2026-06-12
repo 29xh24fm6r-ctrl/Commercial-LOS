@@ -1,8 +1,13 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
 import { SparkleIcon } from '../shared/cockpitIcons';
 import { EMAIL_MODE } from '../deals/emailDelivery/emailMode';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
+import {
+  LogActivityModal,
+  type LogActivityDealOption,
+} from '../deals/LogActivityModal';
+import { logActivity } from '../deals/logActivityActions';
 
 /**
  * Phase 125F — Banker Workspace greeting header.
@@ -27,11 +32,10 @@ import { palette, radius, shadow, spacing, typography } from '../shared/theme';
  *   - Search bar is a **disabled** input with a "Search not yet
  *     wired" placeholder/tooltip. No client-side filtering; no
  *     loader call.
- *   - "Log Activity" and "+ New Deal" render as **disabled**
- *     buttons with explicit "Not yet wired" tooltips. They
- *     would require new GOVERNED_WRITES entries that have not
- *     been added (see PHASE_118_ORIGINAL_UI_UX_INVENTORY.md
- *     §4.1).
+ *   - "Log Activity" opens a governed activity-write modal when
+ *     the banker has write entitlement and Dataverse identity.
+ *   - "+ New Deal" remains disabled with an explicit schema
+ *     blocker tooltip until stage/status reference defaults exist.
  *   - The read-only banner from Phase 117 is preserved as a
  *     status row beneath the greeting when applicable.
  */
@@ -39,15 +43,23 @@ export interface GreetingHeaderProps {
   fullName: string;
   email: string;
   writeDisabledReason: string | undefined;
+  /** Dataverse systemuserid for governed writes. */
+  systemUserId: string | undefined;
+  /** Banker ID for governed writes. */
+  bankerId: string | undefined;
+  /** Active banker-authorized deals available for activity logging. */
+  activityDealOptions: readonly LogActivityDealOption[];
   /**
    * Open-task count derived by the parent shell. Used to populate
    * the "N tasks pending" sub-line honestly. `undefined` while
    * the parent slot is still loading; the sub-line renders a
-   * neutral "Loading workload…" until ready.
+   * neutral "Loading workload..." until ready.
    */
   openTaskCount: number | undefined;
+  /** Callback after a governed activity write completes. */
+  onActivityLogged?: () => void;
   /**
-   * Optional override for `now` — primarily for tests.
+   * Optional override for `now` -- primarily for tests.
    */
   now?: Date;
 }
@@ -56,10 +68,16 @@ export function GreetingHeader({
   fullName,
   email,
   writeDisabledReason,
+  systemUserId,
+  bankerId,
+  activityDealOptions,
   openTaskCount,
+  onActivityLogged,
   now: nowOverride,
 }: GreetingHeaderProps) {
   const now = nowOverride ?? new Date();
+  const [showLogActivityModal, setShowLogActivityModal] = useState(false);
+  const logActivityEnabled = !writeDisabledReason && !!systemUserId && !!bankerId;
   const firstName = deriveFirstName(fullName);
   const greeting = greetingForHour(now.getHours());
   return (
@@ -90,13 +108,24 @@ export function GreetingHeader({
         </div>
         <div style={styles.actions} aria-label="Workspace actions">
           <SearchPlaceholder />
-          <ActionButton
-            label="Log Activity"
-            tooltip="Log Activity is not yet wired. Requires a new GOVERNED_WRITES entry (see Phase 118 inventory)."
-          />
+          {logActivityEnabled ? (
+            <button
+              type="button"
+              style={styles.secondaryEnabledButton}
+              aria-label="Log activity"
+              onClick={() => setShowLogActivityModal(true)}
+            >
+              Log Activity
+            </button>
+          ) : (
+            <ActionButton
+              label="Log Activity"
+              tooltip={writeDisabledReason ?? 'Log Activity requires write entitlement.'}
+            />
+          )}
           <ActionButton
             label="+ New Deal"
-            tooltip="+ New Deal is not yet wired. Requires a new GOVERNED_WRITES entry (see Phase 118 inventory)."
+            tooltip="+ New Deal is blocked: cr664_loandeal requires StageReference and StatusReference values, but no generated stage/status reference data source exists."
             primary
           />
         </div>
@@ -121,6 +150,27 @@ export function GreetingHeader({
           remain disabled until the underlying issue is resolved.
           (Identity chip: {fullName} · {email}.)
         </div>
+      )}
+      {showLogActivityModal && systemUserId && (
+        <LogActivityModal
+          deals={activityDealOptions}
+          writeDisabledReason={writeDisabledReason}
+          onConfirm={async (dealId, note) => {
+            const deal = activityDealOptions.find((option) => option.id === dealId);
+            const result = await logActivity({
+              dealId,
+              dealName: deal?.name ?? 'Selected deal',
+              bankerName: fullName,
+              systemUserId,
+              note,
+            });
+            if (result.kind === 'success' || result.kind === 'governance-partial') {
+              onActivityLogged?.();
+            }
+            return result;
+          }}
+          onClose={() => setShowLogActivityModal(false)}
+        />
       )}
     </header>
   );
@@ -275,6 +325,20 @@ const styles: Record<string, CSSProperties> = {
     fontFamily: typography.family,
     cursor: 'not-allowed',
     opacity: 0.7,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  secondaryEnabledButton: {
+    background: palette.surfaceAlt,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    fontFamily: typography.family,
+    cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
     gap: spacing.xs,

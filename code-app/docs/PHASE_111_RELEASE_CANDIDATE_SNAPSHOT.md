@@ -23,9 +23,9 @@ Snapshot date: 2026-05-21. Snapshot anchor: end of Phase 110.
 | Latest commit | Phase 110 — Communication Lane Final Release Lock | +8 phases |
 | Tests | **2523 passing** across **111 test files** | +345 tests / +7 files |
 | Build | `tsc -b && vite build` clean (~1047 kB minified / ~235 kB gzip) | +125 kB / +14 kB |
-| `GOVERNED_WRITES` | **12** entries | +1 (Phase 105 `deal-borrower-update-email`) |
+| `GOVERNED_WRITES` | **13** entries | +2 since Phase 110 (Phase 105 `deal-borrower-update-email`, Phase 160 `deal-log-activity`) |
 | `LOCAL_ONLY_FLOWS` | **16** entries | +1 (Phase 105 updated `borrower-update-draft` shape; net inventory shifted) |
-| `NOT_WIRED` | **8** entries | −2 (Phase 104 retired `outlook-connector-live-send`; Phase 105 retired `email-delivery`) |
+| `NOT_WIRED` | **9** entries | Includes Phase 160 classification of blocked `new-deal-create` |
 | `DELIBERATELY_BLOCKED` | **1** entry (`stage-progression-advance`) | unchanged |
 | Vibe capability groups tracked | 29 in [MICROSOFT_VIBE_CAPABILITY_COVERAGE.md](MICROSOFT_VIBE_CAPABILITY_COVERAGE.md) | unchanged |
 | Workspaces shipped | Banker · Manager · Team · Executive (snapshot) · Admin | unchanged |
@@ -113,7 +113,7 @@ copy, and read-back contracts pinned by the Phase 46–50 + 106 + 107 +
 - **Admin readiness visibility** — Release Readiness Gate + Capability
   Inventory + KPI threshold config + system settings + (new)
   Outlook LIVE Email Diagnostics card.
-- **Audit / timeline / governance plumbing** — **12** governed writes
+- **Audit / timeline / governance plumbing** — **13** governed writes
   emit audit + timeline events with correlation ids and read-back
   contracts.
 

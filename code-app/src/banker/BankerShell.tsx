@@ -35,8 +35,8 @@ import { palette, radius, shadow, spacing, typography } from '../shared/theme';
  *     real authorized data. Tiles needing data the schema does
  *     not surface (WEIGHTED / WIN RATE / HIGH PROB / YTD CLOSED)
  *     render italic "Not yet wired" with explicit tooltips.
- *   - "+ New Deal" / "Log Activity" / global search render as
- *     disabled placeholders in GreetingHeader — no fake state.
+ *   - Log Activity is the governed banker write; "+ New Deal" and
+ *     global search remain honest placeholders in GreetingHeader.
  *   - Schedule / Contacts / Vendors / Settings / Help & Support
  *     sidebar items are disabled placeholders in LendingOSLayout.
  *   - Phase 110 communication-lane lock untouched.
@@ -88,7 +88,7 @@ export interface BankerShellProps {
 }
 
 export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps) {
-  const { bankerId, fullName, email, writeDisabledReason } = useBanker();
+  const { bankerId, fullName, email, systemUserId, writeDisabledReason } = useBanker();
   const [tab, setTab] = useState<ShellTab>('dashboard');
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
@@ -157,6 +157,10 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   }, [state]);
 
   const activeNav: LendingOSNavKey = TAB_SPECS.find((t) => t.key === tab)?.nav ?? 'dashboard';
+  const activityDealOptions =
+    state.kind === 'ready'
+      ? state.data.deals.map((deal) => ({ id: deal.id, name: deal.name }))
+      : [];
 
   return (
     <LendingOSLayout
@@ -174,7 +178,11 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
         fullName={fullName}
         email={email}
         writeDisabledReason={writeDisabledReason}
+        systemUserId={systemUserId}
+        bankerId={bankerId}
+        activityDealOptions={activityDealOptions}
         openTaskCount={kpis ? kpis.openTaskCount : undefined}
+        onActivityLogged={reload}
         now={now}
       />
       <BankerKpiGrid state={state} now={now} />

@@ -124,8 +124,15 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
   },
   {
     id: 'deal-borrower-update-email',
-    label: 'Borrower update — Outlook send',
+    label: 'Borrower update -- Outlook send',
     phase: 105,
+    emitsAudit: true,
+    emitsTimeline: true,
+  },
+  {
+    id: 'deal-log-activity',
+    label: 'Log banker activity',
+    phase: 160,
     emitsAudit: true,
     emitsTimeline: true,
   },
@@ -204,6 +211,17 @@ export interface NotWiredEntry {
 }
 
 export const NOT_WIRED: readonly NotWiredEntry[] = [
+  {
+    id: 'new-deal-create',
+    label: 'New Deal create',
+    reason:
+      'The cr664_loandeal schema requires cr664_StageReference and ' +
+      'cr664_StatusReference lookup values on create, but no generated ' +
+      'stage/status reference data source or canonical default resolver ' +
+      'exists in the app. The + New Deal control must remain disabled ' +
+      'until those required references can be resolved without guessing.',
+    blockerKind: 'schema',
+  },
   {
     id: 'document-upload',
     label: 'Document upload (binary file)',
