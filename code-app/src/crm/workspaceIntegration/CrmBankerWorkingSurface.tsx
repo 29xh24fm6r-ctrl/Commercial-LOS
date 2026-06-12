@@ -19,7 +19,65 @@ interface Props {
   input: CrmBankerSurfaceInput;
 }
 
-function metricTarget(id: string, label: string, value: string, nextStep: string) {
+const DETAIL_CONTENT: Record<string, { rows: { label: string; value: string }[] }> = {
+  relationship: {
+    rows: [
+      { label: 'Status', value: 'Relationship context derived from authorized banker workspace data' },
+      { label: 'Source-of-truth posture', value: 'LOS is authoritative for borrower identity; external CRM is reference only' },
+      { label: 'Missing data', value: 'No external relationship records loaded (external connection disabled)' },
+      { label: 'Data source', value: 'Authorized banker workspace context — no external lookup performed' },
+      { label: 'Next safe step', value: 'Review relationship ownership and source-of-truth map' },
+    ],
+  },
+  salesforce: {
+    rows: [
+      { label: 'External CRM connection', value: 'Disabled. No live connection to any external CRM platform.' },
+      { label: 'Posture', value: 'Preview-only. Read-only intelligence from local workspace context.' },
+      { label: 'What would be required', value: 'Secure transport, connector configuration, auth configuration, read scope documentation, operator approval' },
+      { label: 'Writes', value: 'All external CRM writes are disabled by default' },
+      { label: 'Next safe step', value: 'Review connector readiness prerequisites in the CRM Command Center' },
+    ],
+  },
+  ncino: {
+    rows: [
+      { label: 'Lending workflow sync', value: 'Disabled. No live sync to any external lending workflow platform.' },
+      { label: 'Why disabled', value: 'Secure transport not configured. Auth not configured. Operator approval required before enablement.' },
+      { label: 'Posture', value: 'Preview-only. No loan boarding, booking, or approval actions from this surface.' },
+      { label: 'Writes', value: 'All lending workflow writes are disabled by default' },
+      { label: 'Next safe step', value: 'Review lending workflow readiness and document checklist mapping' },
+    ],
+  },
+  'match-status': {
+    rows: [
+      { label: 'Entity matching', value: 'Awaiting human review. No auto-link performed.' },
+      { label: 'Confidence', value: 'No external records available for comparison (external connection disabled)' },
+      { label: 'Matching mode', value: 'Review-only. Matching operates on authorized labels only.' },
+      { label: 'Auto-link', value: 'Disabled. No automatic record linking without explicit human confirmation.' },
+      { label: 'Next safe step', value: 'Review match candidates when external read-only pull is enabled' },
+    ],
+  },
+  'sot-gaps': {
+    rows: [
+      { label: 'Source-of-truth gaps', value: 'Number of CRM domains where ownership is unresolved or disabled' },
+      { label: 'Impact', value: 'Gaps mean the system cannot determine which platform is authoritative for those domains' },
+      { label: 'Resolution path', value: 'Review the source-of-truth map and confirm ownership per domain' },
+      { label: 'Current state', value: 'All domains default to LOS-authoritative with external sources as reference only' },
+      { label: 'Next safe step', value: 'Review source-of-truth ownership map in CRM Command Center' },
+    ],
+  },
+  'sync-blocked': {
+    rows: [
+      { label: 'Sync blocked', value: 'Number of sync preview operations blocked by policy or conflict' },
+      { label: 'Blocking reason', value: 'Writeback policy gate not ready, or entity match conflict requires human review' },
+      { label: 'Resolution path', value: 'Resolve match conflicts and verify writeback policy prerequisites' },
+      { label: 'Current state', value: 'All sync operations are preview-only. No records have been synced.' },
+      { label: 'Next safe step', value: 'Review sync preview blockers and resolve conflicts before dry-run validation' },
+    ],
+  },
+};
+
+function metricTarget(id: string, label: string, value: string, _nextStep: string) {
+  const content = DETAIL_CONTENT[id];
   return buildDrillThroughTarget({
     id: `banker-crm-${id}`,
     title: label,
@@ -31,8 +89,8 @@ function metricTarget(id: string, label: string, value: string, nextStep: string
         title: label,
         rows: [
           { label: 'Current status', value },
-          { label: 'Source', value: 'Derived from local preview input / current banker workspace context' },
-          { label: 'Next safe review step', value: nextStep },
+          ...(content?.rows ?? []),
+          { label: 'Source', value: 'Authorized banker workspace context' },
         ],
       },
     ],
