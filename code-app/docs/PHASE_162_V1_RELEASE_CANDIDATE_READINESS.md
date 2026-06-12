@@ -7,6 +7,15 @@ Date: 2026-06-12
 No-go for V1.0 release candidate until the remaining P1 New Deal blocker is
 resolved or formally accepted as disabled for V1.0.
 
+## Phase 164 Update (2026-06-12)
+
+The controlled-pilot release package was cut on baseline `4937b42` as
+docs/PHASE_164_V1_CONTROLLED_PILOT_RELEASE_PACKAGE.md. It carries the
+included/disabled scope, the live Power Apps smoke checklist, the rollback
+plan, and the final go/no-go. Recommendation: GO for a controlled pilot
+with + New Deal accepted as disabled-for-V1.0, contingent on the live
+smoke checklist passing; NO-GO if + New Deal create is mandatory for V1.0.
+
 ## Phase 163 Update (2026-06-12)
 
 Phase 163 attempted the New Deal Stage/Status reference unblock and

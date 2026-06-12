@@ -2,6 +2,11 @@
 
 Date: 2026-06-12
 
+The final controlled-pilot release package -- baseline commit, included
+and disabled scope, live smoke checklist, rollback plan, and go/no-go --
+is docs/PHASE_164_V1_CONTROLLED_PILOT_RELEASE_PACKAGE.md (baseline
+`4937b42`).
+
 ## Production-Ready Surfaces
 
 - Banker Workspace dashboard, active deals, tasks, due diligence, activity, relationships, alerts, and signals.

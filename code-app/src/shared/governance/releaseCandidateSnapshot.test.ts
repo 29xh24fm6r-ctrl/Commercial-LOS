@@ -2672,3 +2672,51 @@ describe('Phase 144E — drill-through deep-link expansion exists', () => {
     expect(doc).toMatch(/never the URL|not the URL|never from the URL/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 164 — V1.0 controlled pilot release package
+// ---------------------------------------------------------------------------
+
+describe('Phase 164 — V1.0 controlled pilot release package exists and is honest', () => {
+  it('docs/PHASE_164_V1_CONTROLLED_PILOT_RELEASE_PACKAGE.md exists on disk', () => {
+    expect(
+      existsSync(
+        resolve(
+          REPO_ROOT,
+          'docs/PHASE_164_V1_CONTROLLED_PILOT_RELEASE_PACKAGE.md',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  const doc = readDoc('docs/PHASE_164_V1_CONTROLLED_PILOT_RELEASE_PACKAGE.md');
+
+  it('pins the exact release baseline commit 4937b42', () => {
+    expect(doc).toMatch(/4937b42/);
+  });
+
+  it('pins the included scope (CRM drill-through, Log Activity governed write)', () => {
+    expect(doc).toMatch(/CRM Command Center/);
+    expect(doc).toMatch(/drill-through/i);
+    expect(doc).toMatch(/Log Activity governed write/i);
+  });
+
+  it('pins + New Deal disabled as a known blocker with the Stage/Status reason', () => {
+    expect(doc).toMatch(/New Deal/);
+    expect(doc).toMatch(/StageReference@odata\.bind/);
+    expect(doc).toMatch(/StatusReference@odata\.bind/);
+    expect(doc).toMatch(/disabled/i);
+  });
+
+  it('pins the live smoke checklist and the no-fake-data / no-unconfigured-connector guardrails', () => {
+    expect(doc).toMatch(/Live Power Apps Smoke Checklist/i);
+    expect(doc).toMatch(/No fake data is visible/i);
+    expect(doc).toMatch(/Copilot/);
+  });
+
+  it('pins the rollback plan and a binary go/no-go on + New Deal', () => {
+    expect(doc).toMatch(/Rollback Plan/i);
+    expect(doc).toMatch(/GO for controlled pilot/i);
+    expect(doc).toMatch(/NO-GO/);
+  });
+});
