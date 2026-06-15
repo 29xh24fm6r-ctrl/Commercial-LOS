@@ -3272,3 +3272,42 @@ describe('Phase 170E -- data source / resolver reader doc exists and is governed
     expect(doc).toMatch(/No tag created or moved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170F -- typed Stage/Status data-source registration runbook
+// ---------------------------------------------------------------------------
+
+describe('Phase 170F -- typed data-source registration runbook exists and is governed', () => {
+  const rel = 'docs/PHASE_170F_TYPED_DATASOURCE_REGISTRATION_RUNBOOK.md';
+
+  it('the Phase 170F doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('names the two reference entity sets the runbook registers', () => {
+    expect(doc).toMatch(/cr664_dealstagereferences/);
+    expect(doc).toMatch(/cr664_dealstatusreferences/);
+  });
+
+  it('rejects the generic MicrosoftDataverseService connector artifact', () => {
+    expect(doc).toMatch(/MicrosoftDataverseService/);
+    expect(doc).toMatch(/Rejected diff shape/i);
+  });
+
+  it('rejects the shared_commondataserviceforapps connector reference', () => {
+    expect(doc).toMatch(/shared_commondataserviceforapps/);
+  });
+
+  it('pins the accepted native typed pattern and verification commands', () => {
+    expect(doc).toMatch(/databaseReferences\.default\.cds|databaseReferences\."default\.cds"/);
+    expect(doc).toMatch(/Accepted diff shape/i);
+    expect(doc).toMatch(/Verification Commands/i);
+  });
+
+  it('states + New Deal remains disabled and no tag movement', () => {
+    expect(doc).toMatch(/New Deal Remains Disabled|New Deal stays disabled/i);
+    expect(doc).toMatch(/No tag created or moved/i);
+  });
+});
