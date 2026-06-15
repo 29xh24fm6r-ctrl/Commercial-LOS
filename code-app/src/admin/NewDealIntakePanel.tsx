@@ -6,6 +6,11 @@ import {
   NEW_DEAL_INTAKE_FIELDS,
   NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST,
 } from './adminNewDealIntakeModel';
+import {
+  NEW_DEAL_REFERENCE_TARGETS,
+  NEW_DEAL_REFERENCE_TARGETS_CONFIRMED_ON,
+  NEW_DEAL_REFERENCE_TARGETS_SOURCE_COMMAND,
+} from '../deals/newDealReferenceTargets';
 
 /**
  * Phase 169C -- Admin New Deal Intake panel (blocker/preview only).
@@ -37,6 +42,40 @@ export function NewDealIntakePanel() {
 
       <div style={styles.blocker} role="note" data-admin-new-deal-blocker>
         <strong>Blocker:</strong> {NEW_DEAL_INTAKE_BLOCKER}
+      </div>
+
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>
+          Confirmed live reference targets (Phase 170D)
+        </div>
+        <p style={styles.sectionNote} data-admin-new-deal-targets-note>
+          Identified read-only via <code>{NEW_DEAL_REFERENCE_TARGETS_SOURCE_COMMAND}</code> on{' '}
+          {NEW_DEAL_REFERENCE_TARGETS_CONFIRMED_ON}. Metadata names only -- no
+          record ids. Not yet registered as an app data source, so no resolver
+          and no create are enabled.
+        </p>
+        <table style={styles.table} data-admin-new-deal-targets>
+          <thead>
+            <tr>
+              <th style={styles.th}>Reference</th>
+              <th style={styles.th}>Target entity set</th>
+              <th style={styles.th}>Primary id</th>
+              <th style={styles.th}>Primary name</th>
+              <th style={styles.th}>Selector fields</th>
+            </tr>
+          </thead>
+          <tbody>
+            {NEW_DEAL_REFERENCE_TARGETS.map((t) => (
+              <tr key={t.lookupAttribute}>
+                <td style={styles.td}>{t.label}</td>
+                <td style={styles.tdMono}>{t.targetEntitySetName}</td>
+                <td style={styles.tdMono}>{t.primaryIdAttribute}</td>
+                <td style={styles.tdMono}>{t.primaryNameAttribute}</td>
+                <td style={styles.tdMono}>{t.selectorFields.join(', ')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <div style={styles.section}>
@@ -79,12 +118,17 @@ export function NewDealIntakePanel() {
         </div>
         <ol style={styles.checklist} data-admin-new-deal-checklist>
           {NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST.map((step) => (
-            <li key={step.order} style={styles.checklistItem}>
+            <li
+              key={step.order}
+              style={styles.checklistItem}
+              data-done={step.done ? 'true' : 'false'}
+            >
               <span style={styles.checklistMark} aria-hidden="true">
-                ☐
+                {step.done ? '☑' : '☐'}
               </span>
               <span>
                 <strong>{step.title}.</strong> {step.detail}
+                {step.done ? <em style={styles.doneTag}> — done</em> : null}
               </span>
             </li>
           ))}
@@ -146,6 +190,13 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: typography.lineHeight.snug,
   },
   section: { display: 'flex', flexDirection: 'column', gap: spacing.sm },
+  sectionNote: {
+    margin: 0,
+    color: palette.textMuted,
+    fontSize: typography.size.xs,
+    lineHeight: typography.lineHeight.snug,
+  },
+  doneTag: { color: palette.textSubtle, fontStyle: 'italic' },
   sectionTitle: {
     fontSize: typography.size.xs,
     textTransform: 'uppercase',

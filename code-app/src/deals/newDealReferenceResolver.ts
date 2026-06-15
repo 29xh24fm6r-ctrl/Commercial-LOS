@@ -30,25 +30,20 @@
  * The resolver NEVER hardcodes a GUID and NEVER fabricates a default. It
  * emits an `@odata.bind` path ONLY after verifying exactly one ACTIVE row
  * for each of Stage and Status.
+ *
+ * Phase 170D-R: the Stage/Status table metadata is now declared once, in
+ * the canonical `./newDealReferenceTargets` module, and consumed by both
+ * this resolver and the admin New Deal panel. We re-export it here so
+ * existing resolver consumers keep importing it from this module.
  */
 
-/** Stage reference table metadata (from live inspection). */
-export const STAGE_REFERENCE = Object.freeze({
-  logicalName: 'cr664_dealstagereference',
-  entitySetName: 'cr664_dealstagereferences',
-  primaryId: 'cr664_dealstagereferenceid',
-  primaryName: 'cr664_name',
-  bindAttribute: 'cr664_StageReference@odata.bind',
-});
+import {
+  STAGE_REFERENCE,
+  STATUS_REFERENCE,
+  type ReferenceTargetMetadata,
+} from './newDealReferenceTargets';
 
-/** Status reference table metadata (from live inspection). */
-export const STATUS_REFERENCE = Object.freeze({
-  logicalName: 'cr664_dealstatusreference',
-  entitySetName: 'cr664_dealstatusreferences',
-  primaryId: 'cr664_dealstatusreferenceid',
-  primaryName: 'cr664_name',
-  bindAttribute: 'cr664_StatusReference@odata.bind',
-});
+export { STAGE_REFERENCE, STATUS_REFERENCE, type ReferenceTargetMetadata };
 
 /** A single reference row (Stage or Status). */
 export interface ReferenceRow {

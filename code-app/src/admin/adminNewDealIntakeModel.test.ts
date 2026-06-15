@@ -26,6 +26,13 @@ describe('Phase 169C -- no live create (Case B)', () => {
     expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/Phase 170C/);
   });
 
+  it('the blocker records the Phase 170D confirmed targets but still blocks create', () => {
+    expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/Phase 170D/);
+    expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/cr664_dealstagereferences/);
+    expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/cr664_dealstatusreferences/);
+    expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/registration[\s\S]*remain/i);
+  });
+
   it('+ New Deal create remains blocked in the platform inventory', () => {
     expect(NOT_WIRED.some((e) => e.id === 'new-deal-create')).toBe(true);
   });
@@ -69,15 +76,25 @@ describe('Phase 169C -- required future fields', () => {
 });
 
 describe('Phase 169C -- registration checklist', () => {
-  it('has five ordered, all-pending steps', () => {
+  it('has five ordered steps; only step 1 (identify targets) is done after Phase 170D', () => {
     expect(NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST.map((s) => s.order)).toEqual([
       1, 2, 3, 4, 5,
     ]);
     for (const step of NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST) {
-      expect(step.done).toBe(false);
       expect(step.title.length).toBeGreaterThan(0);
       expect(step.detail.length).toBeGreaterThan(0);
     }
+    // Phase 170D completed step 1 (live target identification). The
+    // registration, SDK regeneration, resolver, and governed-create steps
+    // (2-5) remain pending, so create stays blocked.
+    const byOrder = new Map(
+      NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST.map((s) => [s.order, s.done]),
+    );
+    expect(byOrder.get(1)).toBe(true);
+    expect(byOrder.get(2)).toBe(false);
+    expect(byOrder.get(3)).toBe(false);
+    expect(byOrder.get(4)).toBe(false);
+    expect(byOrder.get(5)).toBe(false);
   });
 
   it('the resolver step is fail-closed with no hardcoded GUIDs', () => {

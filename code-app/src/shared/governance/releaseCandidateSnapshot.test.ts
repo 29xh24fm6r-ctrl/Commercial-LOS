@@ -3184,3 +3184,51 @@ describe('Phase 170D -- Stage/Status reference resolver doc exists and is govern
     expect(doc).toMatch(/No tag created or moved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170D-R -- reconcile Stage/Status reference metadata to one source
+// ---------------------------------------------------------------------------
+
+describe('Phase 170D-R -- canonical reference metadata + companion doc', () => {
+  it('the companion targets-confirmed doc exists on disk', () => {
+    expect(
+      existsSync(
+        resolve(REPO_ROOT, 'docs/PHASE_170D_NEW_DEAL_REFERENCE_TARGETS_CONFIRMED.md'),
+      ),
+    ).toBe(true);
+  });
+
+  it('the companion doc pins the canonical single-source relocation to src/deals', () => {
+    const doc = readDoc('docs/PHASE_170D_NEW_DEAL_REFERENCE_TARGETS_CONFIRMED.md');
+    expect(doc).toMatch(/src\/deals\/newDealReferenceTargets\.ts/);
+    expect(doc).toMatch(/single source of truth/i);
+  });
+
+  it('the canonical metadata module exists and the duplicate admin copy is gone', () => {
+    expect(existsSync(resolve(REPO_ROOT, 'src/deals/newDealReferenceTargets.ts'))).toBe(true);
+    expect(existsSync(resolve(REPO_ROOT, 'src/admin/newDealReferenceTargets.ts'))).toBe(false);
+  });
+
+  it('the canonical module declares the exact Stage/Status target values once', () => {
+    const src = readFileSync(
+      resolve(REPO_ROOT, 'src/deals/newDealReferenceTargets.ts'),
+      'utf8',
+    );
+    expect(src).toMatch(/cr664_dealstagereferences/);
+    expect(src).toMatch(/cr664_dealstatusreferences/);
+    expect(src).toMatch(/cr664_activeflag/);
+    // No record GUIDs in the metadata-only manifest.
+    expect(src).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  });
+
+  it('the resolver consumes the canonical module (does not redeclare entity sets)', () => {
+    const src = readFileSync(
+      resolve(REPO_ROOT, 'src/deals/newDealReferenceResolver.ts'),
+      'utf8',
+    );
+    expect(src).toMatch(/from '\.\/newDealReferenceTargets'/);
+    // The literal entity-set strings live ONLY in the canonical module now.
+    expect(src).not.toMatch(/'cr664_dealstagereferences'/);
+    expect(src).not.toMatch(/'cr664_dealstatusreferences'/);
+  });
+});

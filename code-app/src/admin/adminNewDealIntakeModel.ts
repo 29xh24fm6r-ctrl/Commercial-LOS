@@ -21,7 +21,7 @@ export const NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false as const;
 
 /** The exact blocker, carried from Phase 163. */
 export const NEW_DEAL_INTAKE_BLOCKER =
-  'Stage/Status reference data source registration is missing. cr664_loandeal create requires cr664_StageReference and cr664_StatusReference lookup binds, but the target reference table is not registered (no generated model/service, not in power.config.json / dataSourcesInfo, no schema file). Phase 170C adds an inspect-only metadata command; no default Stage/Status can be resolved without registration, SDK regeneration, and a fail-closed resolver. Hardcoded GUIDs are prohibited.';
+  'Stage/Status reference data source registration is missing. cr664_loandeal create requires cr664_StageReference and cr664_StatusReference lookup binds, but the target reference table is not registered (no generated model/service, not in power.config.json / dataSourcesInfo, no schema file). Phase 170C adds an inspect-only metadata command; no default Stage/Status can be resolved without registration, SDK regeneration, and a fail-closed resolver. Hardcoded GUIDs are prohibited. Phase 170D confirmed the live lookup targets (cr664_dealstagereferences / cr664_dealstatusreferences) by read-only metadata inspection; registration, SDK regeneration, and a fail-closed resolver remain before any create can be enabled.';
 
 /** Operator-only metadata command added in Phase 170C. Pure GET; no writes. */
 export const NEW_DEAL_REFERENCE_INSPECT_COMMAND =
@@ -60,8 +60,12 @@ export interface NewDealIntakeChecklistStep {
   readonly order: number;
   readonly title: string;
   readonly detail: string;
-  /** Phase 169C status: nothing is done yet -- all steps are pending. */
-  readonly done: false;
+  /**
+   * Whether the step is complete. Phase 170D marks step 1 done after the
+   * read-only metadata inspection confirmed the live lookup targets; steps
+   * 2-5 (registration, SDK regeneration, resolver, governed create) remain.
+   */
+  readonly done: boolean;
 }
 
 /**
@@ -75,8 +79,8 @@ export const NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST: readonly NewDealIntakeCheck
       order: 1,
       title: 'Identify live target tables / entity sets',
       detail:
-        `Run ${NEW_DEAL_REFERENCE_INSPECT_COMMAND} to confirm the live Dataverse reference table(s) behind cr664_StageReference and cr664_StatusReference, and their exact entity-set and logical names, from environment metadata (not guessed).`,
-      done: false,
+        `Done (Phase 170D): ${NEW_DEAL_REFERENCE_INSPECT_COMMAND} confirmed cr664_StageReference -> cr664_dealstagereferences and cr664_StatusReference -> cr664_dealstatusreferences (primary id cr664_dealstagereferenceid / cr664_dealstatusreferenceid, primary name cr664_name, selector cr664_code + cr664_activeflag) from live environment metadata (not guessed).`,
+      done: true,
     }),
     Object.freeze({
       order: 2,

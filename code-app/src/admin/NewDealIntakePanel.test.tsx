@@ -40,6 +40,29 @@ describe('Phase 169C -- New Deal Intake panel', () => {
     expect(within(fields).getByText('cr664_StatusReference@odata.bind')).toBeInTheDocument();
   });
 
+  it('shows the Phase 170D confirmed live reference targets (metadata only)', () => {
+    const { container } = render(<NewDealIntakePanel />);
+    const targets = container.querySelector('[data-admin-new-deal-targets]') as HTMLElement;
+    expect(targets).not.toBeNull();
+    expect(within(targets).getByText('cr664_dealstagereferences')).toBeInTheDocument();
+    expect(within(targets).getByText('cr664_dealstatusreferences')).toBeInTheDocument();
+    expect(within(targets).getByText('cr664_dealstagereferenceid')).toBeInTheDocument();
+    expect(within(targets).getByText('cr664_dealstatusreferenceid')).toBeInTheDocument();
+    const note = container.querySelector('[data-admin-new-deal-targets-note]');
+    expect(note?.textContent).toMatch(/Not yet registered as an app data source/i);
+    expect(note?.textContent).toMatch(/inspect-new-deal-references/i);
+  });
+
+  it('marks checklist step 1 done and leaves the rest pending', () => {
+    const { container } = render(<NewDealIntakePanel />);
+    const checklist = container.querySelector('[data-admin-new-deal-checklist]') as HTMLElement;
+    const items = Array.from(checklist.querySelectorAll('li'));
+    expect(items[0].getAttribute('data-done')).toBe('true');
+    for (const item of items.slice(1)) {
+      expect(item.getAttribute('data-done')).toBe('false');
+    }
+  });
+
   it('shows the five-step Stage/Status registration checklist', () => {
     const { container } = render(<NewDealIntakePanel />);
     const checklist = container.querySelector('[data-admin-new-deal-checklist]') as HTMLElement;
