@@ -6,6 +6,7 @@ import {
   NEW_DEAL_INTAKE_FIELDS,
   NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED,
   NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST,
+  NEW_DEAL_REFERENCE_INSPECT_COMMAND,
 } from './adminNewDealIntakeModel';
 import { NOT_WIRED } from '../shared/governance/platformInventory';
 
@@ -18,11 +19,11 @@ describe('Phase 169C -- no live create (Case B)', () => {
     expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
   });
 
-  it('the blocker carries the Phase 163 Stage/Status reference gap', () => {
+  it('the blocker carries the Phase 170C Stage/Status reference gap', () => {
     expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/Stage\/Status reference data source/i);
     expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/cr664_StageReference/);
     expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/cr664_StatusReference/);
-    expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/Phase 163/);
+    expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/Phase 170C/);
   });
 
   it('+ New Deal create remains blocked in the platform inventory', () => {
@@ -84,6 +85,15 @@ describe('Phase 169C -- registration checklist', () => {
     expect(resolver?.detail).toMatch(/fail closed/i);
     expect(resolver?.detail).toMatch(/No hardcoded GUIDs/i);
   });
+
+  it('starts with the Phase 170C inspect-only metadata command', () => {
+    expect(NEW_DEAL_REFERENCE_INSPECT_COMMAND).toBe(
+      'node scripts/phase122-lookup-repair.mjs --inspect-new-deal-references',
+    );
+    expect(NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST[0]?.detail).toContain(
+      NEW_DEAL_REFERENCE_INSPECT_COMMAND,
+    );
+  });
 });
 
 describe('Phase 169C -- model source discipline', () => {
@@ -91,6 +101,11 @@ describe('Phase 169C -- model source discipline', () => {
 
   it('hardcodes no Dataverse GUID', () => {
     expect(SRC).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  });
+
+  it('does not promote fabricated Stage or Status labels as truth', () => {
+    expect(SRC).not.toMatch(/initial review|underwriting|active phase|test stage/i);
+    expect(SRC).not.toMatch(/test status|active status|in progress status/i);
   });
 
   it('introduces no fetch / XHR / Graph / Dataverse write or create', () => {

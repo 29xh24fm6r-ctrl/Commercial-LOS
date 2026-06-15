@@ -142,6 +142,23 @@ const PRODUCT_REFERENCE_SEEDS = Object.freeze({
     code: 'VARIABLE',
   }),
 });
+
+// Phase 170C -- New Deal Stage/Status lookup target inspection.
+// Read-only helper mode that reuses the Phase 122E targeted metadata
+// inspector. It performs only Web API GETs and exists solely to reveal
+// the live lookup target table/entity-set metadata required before a
+// future registered resolver can be built. It never creates records,
+// never patches loan deals, and never enables + New Deal.
+const NEW_DEAL_REFERENCE_LOOKUP_INSPECTION_ITEMS = Object.freeze([
+  Object.freeze({
+    table: 'cr664_loandeal',
+    attribute: 'cr664_stagereference',
+  }),
+  Object.freeze({
+    table: 'cr664_loandeal',
+    attribute: 'cr664_statusreference',
+  }),
+]);
 const COMPONENT_TYPE_NAMES = Object.freeze({
   1: 'Entity',
   2: 'Attribute',
@@ -300,6 +317,7 @@ function parseArgs(argv) {
     verifyLookups: false,
     inspectTableName: null,
     inspectAttributeItems: null,
+    inspectNewDealReferences: false,
     seedClientRelationship: false,
     seedDealName: null,
     seedClientName: null,
@@ -316,6 +334,10 @@ function parseArgs(argv) {
     seedExecutivePrimaryWorkspace: false,
     seedWorkspaceName: null,
     commitSeedExecutivePrimaryWorkspace: false,
+    // Phase 170B — generalized primary-workspace seed (any role).
+    // Existing-user only; never creates a user or a workspace.
+    seedPrimaryWorkspace: false,
+    commitSeedPrimaryWorkspace: false,
     // Phase 137G — Copilot Custom API metadata inspect / dry-run plan.
     // Read-only inspect + offline dry-run plan only. Commit is NOT
     // implemented in this phase (no write path exists).
@@ -515,6 +537,14 @@ function parseArgs(argv) {
       flags.inspectAttributeItems = parsed;
       flags.dryRun = false;
       i += 1;
+    } else if (arg === '--inspect-new-deal-references') {
+      // Phase 170C -- read-only New Deal Stage/Status lookup target
+      // inspection. This is a fixed, safer alias for:
+      //   --inspect-attributes cr664_loandeal.cr664_stagereference,cr664_loandeal.cr664_statusreference
+      // It prints lookup Targets[], entity sets, primary name/id
+      // attributes, and required target-table fields. Pure GET only.
+      flags.inspectNewDealReferences = true;
+      flags.dryRun = false;
     } else if (arg === '--seed-client-relationship') {
       // Phase 122D Pt 2 — guarded TEST Client / Relationship seed.
       // Dry-run by default; writes require --commit-seed-client.
@@ -607,6 +637,18 @@ function parseArgs(argv) {
       i += 1;
     } else if (arg === '--commit-seed-executive-primary-workspace') {
       flags.commitSeedExecutivePrimaryWorkspace = true;
+    } else if (arg === '--seed-primary-workspace') {
+      // Phase 170B — generalized Platform-User primary-workspace seed
+      // (any role). Dry-run by default; writes require
+      // --commit-seed-primary-workspace. Requires --upn and
+      // --workspace-name. Patches ONLY the Platform User primary
+      // workspace lookup. Existing-user ONLY (never creates a platform
+      // user) and bails if the workspace does not exist (never creates a
+      // workspace). No workspaceentitlement row is written.
+      flags.seedPrimaryWorkspace = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-primary-workspace') {
+      flags.commitSeedPrimaryWorkspace = true;
     } else if (arg === '--inspect-copilot-custom-api') {
       // Phase 137G — read-only metadata inspection of the future
       // cr664_RunLosCopilotAssist Custom API. Pure GET; never writes.
@@ -709,9 +751,11 @@ function parseArgs(argv) {
     flags.cleanupViewId !== null,
     flags.seedClientRelationship,
     flags.inspectAttributeItems !== null,
+    flags.inspectNewDealReferences,
     flags.seedProductReferences,
     flags.seedManagerEntitlement,
     flags.seedExecutivePrimaryWorkspace,
+    flags.seedPrimaryWorkspace,
     flags.inspectCopilotCustomApi,
     flags.seedCopilotCustomApiMetadata,
     flags.inspectCopilotAuditTable,
@@ -757,6 +801,13 @@ function parseArgs(argv) {
   if (flags.commitSeedCrmSchema && !flags.seedCrmSchema) {
     bailParseArgs(
       '--commit-seed-crm-schema has no effect without --seed-crm-schema.',
+    );
+  }
+  // Phase 170B — the generalized primary-workspace commit flag only
+  // authorizes a write alongside its seed mode; on its own it must fail.
+  if (flags.commitSeedPrimaryWorkspace && !flags.seedPrimaryWorkspace) {
+    bailParseArgs(
+      '--commit-seed-primary-workspace has no effect without --seed-primary-workspace.',
     );
   }
   // --attribute is a shared "<table>.<column>" qualifier reused by
@@ -880,15 +931,42 @@ function parseArgs(argv) {
         '--commit-seed-manager-entitlement has no effect without --seed-manager-entitlement.',
       );
     }
+  } else if (flags.seedPrimaryWorkspace) {
+    // Phase 170B — generalized primary-workspace seed requires --upn and
+    // --workspace-name. The manager-seed-only inputs may not ride along:
+    // --deal-name and --team-name are rejected so they cannot silently
+    // attach to the primary-workspace seed.
+    if (!flags.seedUpn) {
+      bailParseArgs('--seed-primary-workspace requires --upn <email>');
+    }
+    if (!flags.seedWorkspaceName) {
+      bailParseArgs('--seed-primary-workspace requires --workspace-name <text>');
+    }
+    if (flags.seedDealName) {
+      bailParseArgs('--deal-name is only valid alongside --seed-manager-entitlement or --seed-product-references');
+    }
+    if (flags.seedTeamName) {
+      bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
+    }
+    if (flags.commitSeedManagerEntitlement) {
+      bailParseArgs(
+        '--commit-seed-manager-entitlement has no effect without --seed-manager-entitlement.',
+      );
+    }
+    if (flags.commitSeedExecutivePrimaryWorkspace) {
+      bailParseArgs(
+        '--commit-seed-executive-primary-workspace has no effect without --seed-executive-primary-workspace.',
+      );
+    }
   } else {
     if (flags.seedUpn) {
-      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace');
+      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace or --seed-primary-workspace');
     }
     if (flags.seedTeamName) {
       bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
     }
     if (flags.seedWorkspaceName) {
-      bailParseArgs('--workspace-name is only valid alongside --seed-executive-primary-workspace');
+      bailParseArgs('--workspace-name is only valid alongside --seed-executive-primary-workspace or --seed-primary-workspace');
     }
     if (flags.commitSeedManagerEntitlement) {
       bailParseArgs(
@@ -958,7 +1036,11 @@ if (FLAGS.help) {
 // Header
 // ---------------------------------------------------------------------------
 
-const MODE = FLAGS.commit
+const MODE = FLAGS.seedPrimaryWorkspace
+  ? FLAGS.commitSeedPrimaryWorkspace
+    ? 'COMMIT-SEED-PRIMARY-WORKSPACE'
+    : 'SEED-PRIMARY-WORKSPACE (dry-run)'
+  : FLAGS.commit
   ? 'COMMIT'
   : FLAGS.inspectDependencies
     ? 'INSPECT-DEPENDENCIES'
@@ -984,11 +1066,13 @@ const MODE = FLAGS.commit
                   ? 'INSPECT-TABLE'
                   : FLAGS.inspectAttributeItems !== null
                     ? 'INSPECT-ATTRIBUTES'
-                    : FLAGS.seedClientRelationship
-                      ? FLAGS.commitSeedClient
-                        ? 'COMMIT-SEED-CLIENT'
-                        : 'SEED-CLIENT-RELATIONSHIP (dry-run)'
-                      : FLAGS.seedProductReferences
+                    : FLAGS.inspectNewDealReferences
+                      ? 'INSPECT-NEW-DEAL-REFERENCES (read-only)'
+                      : FLAGS.seedClientRelationship
+                        ? FLAGS.commitSeedClient
+                          ? 'COMMIT-SEED-CLIENT'
+                          : 'SEED-CLIENT-RELATIONSHIP (dry-run)'
+                        : FLAGS.seedProductReferences
                         ? FLAGS.commitSeedProductReferences
                           ? 'COMMIT-SEED-PRODUCT-REFERENCES'
                           : 'SEED-PRODUCT-REFERENCES (dry-run)'
@@ -1053,6 +1137,7 @@ if (
   FLAGS.commitSeedProductReferences ||
   FLAGS.commitSeedManagerEntitlement ||
   FLAGS.commitSeedExecutivePrimaryWorkspace ||
+  FLAGS.commitSeedPrimaryWorkspace ||
   FLAGS.commitSeedPortfolioBoardingSchema ||
   FLAGS.commitRepairPortfolioBoardingOptionalRelationships
 ) {
@@ -1786,6 +1871,22 @@ async function runInspectAttributes(items, token, envUrl) {
     'Read-only attribute inspection complete. No write of any kind issued.',
   );
   return { ok: true };
+}
+
+async function runInspectNewDealReferences(token, envUrl) {
+  console.log('');
+  console.log(
+    'Phase 170C -- New Deal Stage/Status reference inspection (read-only)',
+  );
+  console.log(
+    '   Inspecting cr664_loandeal Stage/Status lookup metadata only; no create/patch/delete.',
+  );
+  console.log('');
+  return runInspectAttributes(
+    NEW_DEAL_REFERENCE_LOOKUP_INSPECTION_ITEMS,
+    token,
+    envUrl,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -3516,6 +3617,190 @@ async function runSeedExecutivePrimaryWorkspace(
     ok: true,
     workspaceId,
     needCreateWorkspace,
+    platformUserId: platformUser.cr664_platformuserid,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 170B — generalized primary-workspace seed (any role)
+// ---------------------------------------------------------------------------
+//
+// Assigns an EXISTING platform user to an EXISTING platform workspace by
+// PATCHing ONLY cr664_PrimaryWorkspace@odata.bind. Differs from the
+// Phase 133C executive seed in two safety-tightening ways:
+//   - It NEVER creates a platform user (bails if the user is missing).
+//   - It NEVER creates a workspace (bails if the workspace is missing).
+// It writes no cr664_workspaceentitlements row and no Dataverse security
+// role. Dry-run by default; PATCH happens only with
+// --commit-seed-primary-workspace and only after every gate passes.
+async function runSeedPrimaryWorkspace({ upn, workspaceName, doCommit }, token, envUrl) {
+  console.log('');
+  console.log('Phase P — TEST primary-workspace seed (existing user only)');
+  console.log(`   UPN:             ${upn}`);
+  console.log(`   Workspace name:  ${workspaceName}`);
+  console.log(
+    `   Mode:            ${
+      doCommit
+        ? 'COMMIT-SEED-PRIMARY-WORKSPACE (will PATCH primary workspace)'
+        : 'dry-run (no write)'
+    }`,
+  );
+  console.log('');
+
+  // 1. Resolve the Platform User by cr664_email — exactly one row.
+  const userResult = await findPlatformUserByEmail(upn, token, envUrl);
+  if (!userResult.ok) {
+    bail(`Could not resolve platform user by upn "${upn}": ${userResult.error}`);
+  }
+  if (userResult.records.length === 0) {
+    bail(
+      `No cr664_platformuser row with cr664_email = "${upn}". Refusing — ` +
+        `this mode provisions EXISTING users only and will not create a ` +
+        `platform user. Provision the platform user before re-running.`,
+    );
+  }
+  if (userResult.records.length > 1) {
+    bail(
+      `${userResult.records.length} cr664_platformuser rows match ` +
+        `cr664_email = "${upn}". Refusing — the operator must resolve the ` +
+        `ambiguity before seeding.`,
+    );
+  }
+  const platformUser = userResult.records[0];
+  console.log(
+    `   ✓ Platform user found:  cr664_platformuserid=${platformUser.cr664_platformuserid}`,
+  );
+  console.log(
+    `     current _cr664_primaryworkspace_value: ${
+      platformUser._cr664_primaryworkspace_value ?? '(unset)'
+    }`,
+  );
+
+  // 2. Resolve the Platform Workspace by name — exactly one row.
+  //    This mode does NOT create a workspace: zero matches bails.
+  const wsResult = await findPlatformWorkspaceByName(workspaceName, token, envUrl);
+  if (!wsResult.ok) {
+    bail(`Could not resolve platform workspace "${workspaceName}": ${wsResult.error}`);
+  }
+  if (wsResult.records.length === 0) {
+    bail(
+      `No cr664_platformworkspace row with cr664_workspacename = ` +
+        `"${workspaceName}". Refusing — this mode does NOT create a ` +
+        `workspace. Use an existing workspace name (or seed the workspace ` +
+        `separately) before re-running.`,
+    );
+  }
+  if (wsResult.records.length > 1) {
+    bail(
+      `${wsResult.records.length} cr664_platformworkspace rows match ` +
+        `cr664_workspacename = "${workspaceName}". Refusing — the operator ` +
+        `must resolve the ambiguity before seeding.`,
+    );
+  }
+  const workspaceId = wsResult.records[0].cr664_platformworkspaceid;
+  console.log(`   ✓ Platform workspace exists:  cr664_platformworkspaceid=${workspaceId}`);
+
+  // 3. Idempotency: already pointing at the resolved workspace?
+  if (platformUser._cr664_primaryworkspace_value === workspaceId) {
+    console.log('');
+    console.log(
+      `   ✓ Already linked: cr664_platformusers(${platformUser.cr664_platformuserid})` +
+        `.cr664_PrimaryWorkspace already points at ` +
+        `cr664_platformworkspaces(${workspaceId}).`,
+    );
+    console.log('   No-op success.');
+    return { ok: true, alreadyLinked: true, workspaceId };
+  }
+
+  // 4. Plan summary.
+  console.log('');
+  console.log('   Planned action:');
+  console.log(
+    `     [1] PATCH /api/data/v9.2/cr664_platformusers(${platformUser.cr664_platformuserid})`,
+  );
+  console.log(
+    `         body: { "cr664_PrimaryWorkspace@odata.bind": "/cr664_platformworkspaces(${workspaceId})" }`,
+  );
+  console.log(
+    '         PATCH body sets ONLY cr664_PrimaryWorkspace@odata.bind — no ' +
+      'other Platform User column, no cr664_workspaceentitlements row, and ' +
+      'no Dataverse security role, is touched.',
+  );
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no PATCH issued.');
+    console.log(
+      '   Re-run with `--commit-seed-primary-workspace` to execute the plan above.',
+    );
+    return {
+      ok: true,
+      planned: true,
+      workspaceId,
+      platformUserId: platformUser.cr664_platformuserid,
+    };
+  }
+
+  // 5. Commit. PATCH the Platform User primary-workspace lookup only.
+  console.log('');
+  console.log(
+    `   ⚙ PATCH cr664_platformusers(${platformUser.cr664_platformuserid}) cr664_PrimaryWorkspace@odata.bind …`,
+  );
+  const patchResult = await patchPlatformUserPrimaryWorkspace(
+    platformUser.cr664_platformuserid,
+    workspaceId,
+    token,
+    envUrl,
+  );
+  if (!patchResult.ok) {
+    bail(`PATCH platform user failed: ${patchResult.error}`);
+  }
+  console.log('   ✓ Platform user PATCH succeeded.');
+
+  // 6. Verify by re-reading the platform user + formatted primary workspace.
+  console.log('');
+  console.log('   ⚙ Re-reading the platform user to verify the new primary workspace …');
+  const verify = await readPlatformUserPrimaryWorkspace(
+    platformUser.cr664_platformuserid,
+    token,
+    envUrl,
+  );
+  if (!verify.ok) {
+    console.log(`     ⚠ Could not re-read platform user: ${verify.error}`);
+  } else {
+    const u = verify.record;
+    const cur = u._cr664_primaryworkspace_value ?? '(unset)';
+    const formatted =
+      u['_cr664_primaryworkspace_value@OData.Community.Display.V1.FormattedValue'];
+    console.log(`     platform user _cr664_primaryworkspace_value:  ${cur}`);
+    if (formatted) {
+      console.log(`     primary workspace formatted value:            ${formatted}`);
+    }
+    if (u._cr664_primaryworkspace_value === workspaceId) {
+      console.log('     ✓ Primary workspace lookup is linked to the resolved workspace.');
+    } else {
+      console.log(
+        '     ⚠ Verification mismatch — re-read shows a different workspace id ' +
+          'than the one the script wrote. Investigate.',
+      );
+    }
+  }
+
+  console.log('');
+  console.log('Summary:');
+  console.log('   workspace created:  no (existing only)');
+  console.log(`   workspace id:       ${workspaceId}`);
+  console.log(`   platform user id:   ${platformUser.cr664_platformuserid}`);
+  console.log('');
+  console.log(
+    'After a hard browser refresh, this user should land on the workspace ' +
+      'route that the resolved primary workspace name maps to.',
+  );
+  console.log('');
+  console.log('✓ Seed commit complete.');
+  return {
+    ok: true,
+    workspaceId,
     platformUserId: platformUser.cr664_platformuserid,
   };
 }
@@ -8126,6 +8411,12 @@ async function main() {
     return;
   }
 
+  // === Phase 170C -- read-only New Deal Stage/Status reference inspection ===
+  if (FLAGS.inspectNewDealReferences) {
+    await runInspectNewDealReferences(mainToken, mainEnvUrl);
+    return;
+  }
+
   // === Read-only targeted attribute inspection (Phase 122E Pt 1) ===
   if (FLAGS.inspectAttributeItems !== null) {
     await runInspectAttributes(FLAGS.inspectAttributeItems, mainToken, mainEnvUrl);
@@ -8205,6 +8496,27 @@ async function main() {
         upn: FLAGS.seedUpn,
         workspaceName: FLAGS.seedWorkspaceName,
         doCommit: FLAGS.commitSeedExecutivePrimaryWorkspace,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
+  // === Generalized primary-workspace seed (Phase 170B) ===
+  // Dry-run by default; writes require --commit-seed-primary-workspace.
+  // Resolves one Platform User (by --upn / cr664_email) and exactly one
+  // existing Platform Workspace (by --workspace-name) and PATCHes ONLY
+  // the Platform User cr664_PrimaryWorkspace lookup. Existing-user ONLY
+  // (never creates a platform user) and BAILS if the workspace does not
+  // exist (never creates a workspace). No other table or column — and no
+  // cr664_workspaceentitlements row — is touched. Idempotent.
+  if (FLAGS.seedPrimaryWorkspace) {
+    await runSeedPrimaryWorkspace(
+      {
+        upn: FLAGS.seedUpn,
+        workspaceName: FLAGS.seedWorkspaceName,
+        doCommit: FLAGS.commitSeedPrimaryWorkspace,
       },
       mainToken,
       mainEnvUrl,
@@ -8552,6 +8864,7 @@ Usage:
   node scripts/phase122-lookup-repair.mjs --inspect-dependencies                                # read-only dependency probe
   node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid>                            # read-only form cleanup preview
   node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> --commit-form-cleanup      # execute the form cleanup
+  node scripts/phase122-lookup-repair.mjs --inspect-new-deal-references                         # read-only New Deal Stage/Status lookup target inspection
   node scripts/phase122-lookup-repair.mjs --commit                                              # execute writes after every safety gate passes
   node scripts/phase122-lookup-repair.mjs --help
 
@@ -8677,6 +8990,15 @@ Modes:
       Designed for OPTIONAL reference lookups that --inspect-table
       doesn't detail-print (e.g. cr664_loandeal.cr664_producttypereference).
       Pure GETs, no write of any kind.
+
+  --inspect-new-deal-references
+      Phase 170C read-only alias for:
+        --inspect-attributes cr664_loandeal.cr664_stagereference,cr664_loandeal.cr664_statusreference
+      Prints the Stage/Status lookup Targets[], target entity sets,
+      primary id/name attributes, and required target-table fields.
+      Pure Web API GETs only; no POST, PATCH, DELETE, publish, record
+      create, deal patch, resolver enablement, or + New Deal behavior
+      change.
 
   --seed-product-references --deal-name <text>
       [--commit-seed-product-references]

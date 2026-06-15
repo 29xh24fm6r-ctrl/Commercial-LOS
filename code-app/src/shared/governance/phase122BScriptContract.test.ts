@@ -2887,7 +2887,7 @@ describe('Phase 124D — manager-entitlement seed runner shape', () => {
 
   it('write-mode warning header fires on --commit-seed-manager-entitlement', () => {
     expect(SCRIPT).toMatch(
-      /FLAGS\.commitSeedManagerEntitlement[\s\S]{0,200}?WRITE MODE/,
+      /FLAGS\.commitSeedManagerEntitlement\s*\|\|[\s\S]{0,300}?WRITE MODE/,
     );
   });
 
@@ -4254,5 +4254,168 @@ describe('Phase 141J-K — no drift in CRM mode (no bypass headers, existing mod
   it('the Phase 122 IsCustomizable / dry-run defaults remain pinned', () => {
     expect(SCRIPT).toMatch(/dryRun:\s*true/);
     expect(SCRIPT).toMatch(/CR664_PUBLISHER_PREFIX\s*=\s*'cr664'/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 170C -- New Deal Stage/Status reference inspect-only mode
+// ---------------------------------------------------------------------------
+
+describe('Phase 170C -- New Deal reference inspection mode is read-only', () => {
+  it('exposes --inspect-new-deal-references and wires a distinct read-only mode', () => {
+    expect(SCRIPT).toMatch(/'--inspect-new-deal-references'/);
+    expect(SCRIPT).toMatch(/flags\.inspectNewDealReferences\s*=\s*true/);
+    expect(SCRIPT).toMatch(/'INSPECT-NEW-DEAL-REFERENCES \(read-only\)'/);
+  });
+
+  it('is mutexed with every other exclusive script mode', () => {
+    expect(SCRIPT).toMatch(/flags\.inspectNewDealReferences,?\s*$/m);
+  });
+
+  it('pins the exact cr664_loandeal Stage and Status lookup attributes', () => {
+    expect(SCRIPT).toMatch(/NEW_DEAL_REFERENCE_LOOKUP_INSPECTION_ITEMS/);
+    expect(SCRIPT).toMatch(/table:\s*'cr664_loandeal'/);
+    expect(SCRIPT).toMatch(/attribute:\s*'cr664_stagereference'/);
+    expect(SCRIPT).toMatch(/attribute:\s*'cr664_statusreference'/);
+    expect(SCRIPT).toMatch(/cr664_loandeal\.cr664_stagereference,cr664_loandeal\.cr664_statusreference/);
+  });
+
+  it('delegates to the existing targeted attribute inspector and returns before write-capable modes', () => {
+    const mainGuardIdx = SCRIPT.indexOf('if (FLAGS.inspectNewDealReferences)');
+    expect(mainGuardIdx).toBeGreaterThan(-1);
+    const seedClientIdx = SCRIPT.indexOf('if (FLAGS.seedClientRelationship)', mainGuardIdx);
+    expect(seedClientIdx).toBeGreaterThan(mainGuardIdx);
+    const block = SCRIPT.slice(mainGuardIdx, seedClientIdx);
+    expect(block).toMatch(/runInspectNewDealReferences\(mainToken, mainEnvUrl\)/);
+    expect(block).toMatch(/return;/);
+    expect(block).not.toMatch(/runSeed|executeStep|createRecord|patchLoanDeal/);
+  });
+
+  it('issues no inline POST/PATCH/DELETE/PublishXml and no bypass or suppress headers', () => {
+    const block = sliceFunction('runInspectNewDealReferences');
+    expect(block).toMatch(/runInspectAttributes/);
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+    expect(block).not.toMatch(/PublishXml/);
+    expect(block).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(block).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(block).not.toMatch(/Force=true/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 170B — generalized primary-workspace seed (existing user only)
+// ---------------------------------------------------------------------------
+
+describe('Phase 170B — --seed-primary-workspace guarded write mode', () => {
+  it('parses the mode + --upn + --workspace-name + the commit flag', () => {
+    expect(SCRIPT).toMatch(/'--seed-primary-workspace'/);
+    expect(SCRIPT).toMatch(/'--upn'/);
+    expect(SCRIPT).toMatch(/'--workspace-name'/);
+    expect(SCRIPT).toMatch(/'--commit-seed-primary-workspace'/);
+  });
+
+  it('defaults to dry-run (selecting the mode sets dryRun = false but no commit)', () => {
+    expect(SCRIPT).toMatch(
+      /arg === '--seed-primary-workspace'\)\s*\{[\s\S]*?flags\.seedPrimaryWorkspace = true;[\s\S]*?flags\.dryRun = false;/,
+    );
+  });
+
+  it('--upn is required when the mode is set', () => {
+    expect(SCRIPT).toMatch(/--seed-primary-workspace requires --upn/);
+  });
+
+  it('--workspace-name is required when the mode is set', () => {
+    expect(SCRIPT).toMatch(/--seed-primary-workspace requires --workspace-name/);
+  });
+
+  it('the commit flag is rejected without the mode', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-primary-workspace has no effect without --seed-primary-workspace/,
+    );
+  });
+
+  it('the mode is part of the exclusive-modes array', () => {
+    expect(SCRIPT).toMatch(/flags\.seedPrimaryWorkspace,?\s*$/m);
+  });
+
+  it('the MODE banner has a COMMIT / dry-run branch for the mode', () => {
+    expect(SCRIPT).toMatch(/'COMMIT-SEED-PRIMARY-WORKSPACE'/);
+    expect(SCRIPT).toMatch(/'SEED-PRIMARY-WORKSPACE \(dry-run\)'/);
+  });
+
+  it('the write-mode warning header fires on the commit flag', () => {
+    expect(SCRIPT).toMatch(
+      /FLAGS\.commitSeedPrimaryWorkspace[\s\S]{0,200}?WRITE MODE/,
+    );
+  });
+
+  it('dispatches to runSeedPrimaryWorkspace with upn/workspaceName/doCommit', () => {
+    expect(SCRIPT).toMatch(
+      /if \(FLAGS\.seedPrimaryWorkspace\) \{[\s\S]*?runSeedPrimaryWorkspace\(/,
+    );
+    const block = SCRIPT.slice(SCRIPT.indexOf('if (FLAGS.seedPrimaryWorkspace) {'));
+    expect(block).toMatch(/upn: FLAGS\.seedUpn/);
+    expect(block).toMatch(/workspaceName: FLAGS\.seedWorkspaceName/);
+    expect(block).toMatch(/doCommit: FLAGS\.commitSeedPrimaryWorkspace/);
+  });
+});
+
+describe('Phase 170B — runSeedPrimaryWorkspace runner contract', () => {
+  const block = sliceFunction('runSeedPrimaryWorkspace');
+
+  it('resolves the platform user by email and bails on missing / duplicate', () => {
+    expect(block).toMatch(/findPlatformUserByEmail/);
+    expect(block).toMatch(/No cr664_platformuser row with cr664_email/);
+    expect(block).toMatch(/provisions EXISTING users only and will not create a/i);
+    expect(block).toMatch(/cr664_platformuser rows match/);
+  });
+
+  it('resolves the workspace by name and BAILS when missing (never creates a workspace)', () => {
+    expect(block).toMatch(/findPlatformWorkspaceByName/);
+    expect(block).toMatch(/this mode does NOT create a/i);
+    expect(block).toMatch(/cr664_platformworkspace rows match/);
+    // No create-on-commit path in this runner.
+    expect(block).not.toMatch(/createPlatformWorkspace/);
+  });
+
+  it('no-ops when the user already points at the resolved workspace', () => {
+    expect(block).toMatch(/_cr664_primaryworkspace_value === workspaceId/);
+    expect(block).toMatch(/No-op success/);
+  });
+
+  it('PATCHes ONLY cr664_PrimaryWorkspace@odata.bind on commit', () => {
+    expect(block).toMatch(/patchPlatformUserPrimaryWorkspace/);
+    expect(block).toMatch(/sets ONLY cr664_PrimaryWorkspace@odata\.bind/);
+    expect(block).toMatch(/no cr664_workspaceentitlements row/i);
+  });
+
+  it('does not create platform users, write entitlements, or grant security roles', () => {
+    expect(block).not.toMatch(/POST[\s\S]{0,40}cr664_platformusers/);
+    // The entitlement ENTITY SET (plural) is what a write path would target;
+    // the singular logical name appears only in the no-write safety comment.
+    expect(block).not.toMatch(/cr664_workspaceentitlementses/);
+    expect(block).not.toMatch(/roleid|securityrole|AddMembersToRole/i);
+  });
+
+  it('verifies by re-reading the platform user primary workspace', () => {
+    expect(block).toMatch(/readPlatformUserPrimaryWorkspace/);
+    expect(block).toMatch(/Re-reading the platform user to verify/);
+  });
+
+  it('only PATCHes when doCommit is set (dry-run returns a plan)', () => {
+    expect(block).toMatch(/if \(!doCommit\)/);
+    expect(block).toMatch(/Dry-run only — no PATCH issued/);
+  });
+
+  it('issues no bypass / suppress / force headers and no Graph/fetch', () => {
+    expect(block).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(block).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(block).not.toMatch(/Force=true/i);
+    expect(block).not.toMatch(/graph\.microsoft\.com/i);
+    expect(block).not.toMatch(/\bfetch\s*\(/);
+  });
+
+  it('hardcodes no Dataverse GUID', () => {
+    expect(block).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
   });
 });

@@ -44,6 +44,9 @@ describe('Phase 169C -- New Deal Intake panel', () => {
     const { container } = render(<NewDealIntakePanel />);
     const checklist = container.querySelector('[data-admin-new-deal-checklist]') as HTMLElement;
     expect(checklist.querySelectorAll('li').length).toBe(5);
+    expect(
+      within(checklist).getByText(/--inspect-new-deal-references/i),
+    ).toBeInTheDocument();
     expect(within(checklist).getByText(/Add a fail-closed default resolver/i)).toBeInTheDocument();
   });
 

@@ -21,7 +21,11 @@ export const NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false as const;
 
 /** The exact blocker, carried from Phase 163. */
 export const NEW_DEAL_INTAKE_BLOCKER =
-  'Stage/Status reference data source registration is missing. cr664_loandeal create requires cr664_StageReference and cr664_StatusReference lookup binds, but the target reference table is not registered (no generated model/service, not in power.config.json / dataSourcesInfo, no schema file). No default Stage/Status can be resolved without hardcoding a GUID, which is prohibited (Phase 163).';
+  'Stage/Status reference data source registration is missing. cr664_loandeal create requires cr664_StageReference and cr664_StatusReference lookup binds, but the target reference table is not registered (no generated model/service, not in power.config.json / dataSourcesInfo, no schema file). Phase 170C adds an inspect-only metadata command; no default Stage/Status can be resolved without registration, SDK regeneration, and a fail-closed resolver. Hardcoded GUIDs are prohibited.';
+
+/** Operator-only metadata command added in Phase 170C. Pure GET; no writes. */
+export const NEW_DEAL_REFERENCE_INSPECT_COMMAND =
+  'node scripts/phase122-lookup-repair.mjs --inspect-new-deal-references';
 
 /** A required field a future governed intake form would collect. */
 export interface NewDealIntakeField {
@@ -71,7 +75,7 @@ export const NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST: readonly NewDealIntakeCheck
       order: 1,
       title: 'Identify live target tables / entity sets',
       detail:
-        'Confirm the live Dataverse reference table(s) behind cr664_StageReference and cr664_StatusReference, and their exact entity-set and logical names, from environment metadata (not guessed).',
+        `Run ${NEW_DEAL_REFERENCE_INSPECT_COMMAND} to confirm the live Dataverse reference table(s) behind cr664_StageReference and cr664_StatusReference, and their exact entity-set and logical names, from environment metadata (not guessed).`,
       done: false,
     }),
     Object.freeze({

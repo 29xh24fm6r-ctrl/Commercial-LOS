@@ -2876,6 +2876,45 @@ describe('Phase 169C -- Admin New Deal Intake doc exists and is Case B blocker',
 });
 
 // ---------------------------------------------------------------------------
+// Phase 170C -- Stage/Status reference resolver foundation
+// ---------------------------------------------------------------------------
+
+describe('Phase 170C -- Stage/Status reference resolver doc exists and keeps New Deal disabled', () => {
+  const rel = 'docs/PHASE_170C_STAGE_STATUS_REFERENCE_RESOLVER.md';
+
+  it('the Phase 170C doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the Case B outcome and missing generated registration', () => {
+    expect(doc).toMatch(/Case Outcome: CASE B/i);
+    expect(doc).toMatch(/no generated .*Stage.*Status.*service/i);
+    expect(doc).toMatch(/not registered in `?power\.config\.json`?/i);
+  });
+
+  it('pins the exact required cr664_loandeal bind fields', () => {
+    expect(doc).toMatch(/cr664_StageReference@odata\.bind/);
+    expect(doc).toMatch(/cr664_StatusReference@odata\.bind/);
+  });
+
+  it('pins the inspect-only operator mode and no runtime resolver', () => {
+    expect(doc).toMatch(/--inspect-new-deal-references/);
+    expect(doc).toMatch(/inspect-only/i);
+    expect(doc).toMatch(/Resolver added: No/i);
+  });
+
+  it('pins no create, no GUID defaults, no deploy, and + New Deal disabled', () => {
+    expect(doc).toMatch(/New Deal create remains disabled/i);
+    expect(doc).toMatch(/No hardcoded GUID/i);
+    expect(doc).toMatch(/No deploy/i);
+    expect(doc).toMatch(/No schema/i);
+    expect(doc).toMatch(/No record write/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 169E -- Admin CRM Onboarding (Case B, disabled-by-default)
 // ---------------------------------------------------------------------------
 
@@ -3047,5 +3086,51 @@ describe('Phase 170A -- platform user provisioning design doc exists and is gove
     expect(doc).toMatch(/phase122-lookup-repair\.mjs/);
     expect(doc).toMatch(/runSeedExecutivePrimaryWorkspace/);
     expect(doc).toMatch(/brand-new script is NOT needed/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 170B -- Operator primary workspace provisioning
+// ---------------------------------------------------------------------------
+
+describe('Phase 170B -- operator primary-workspace provisioning doc exists and is governed', () => {
+  const rel = 'docs/PHASE_170B_OPERATOR_PRIMARY_WORKSPACE_PROVISIONING.md';
+
+  it('the Phase 170B doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the new mode, its args, dry-run default, and explicit commit flag', () => {
+    expect(doc).toMatch(/--seed-primary-workspace/);
+    expect(doc).toMatch(/--upn/);
+    expect(doc).toMatch(/--workspace-name/);
+    expect(doc).toMatch(/--commit-seed-primary-workspace/);
+    expect(doc).toMatch(/Default: dry-run/i);
+  });
+
+  it('pins existing-user-only and never-creates-workspace behavior', () => {
+    expect(doc).toMatch(/NEVER creates a platform user|existing-user only/i);
+    expect(doc).toMatch(/NEVER creates a workspace|does NOT create a workspace/i);
+  });
+
+  it('pins the no-op / bail matrix', () => {
+    expect(doc).toMatch(/No-op \/ Bail Matrix/i);
+    expect(doc).toMatch(/duplicate user/i);
+    expect(doc).toMatch(/duplicate workspace/i);
+  });
+
+  it('pins what it does NOT do (no roles, no entitlements, no Graph, no in-app, no GUID)', () => {
+    expect(doc).toMatch(/Does NOT grant Dataverse \/ Microsoft tenant security roles/i);
+    expect(doc).toMatch(/Does NOT write `?cr664_workspaceentitlements`? rows/i);
+    expect(doc).toMatch(/Does NOT expose in-app provisioning/i);
+    expect(doc).toMatch(/Does NOT call Microsoft Graph/i);
+    expect(doc).toMatch(/Does NOT hardcode any GUID/i);
+  });
+
+  it('pins PATCH-only-PrimaryWorkspace and no tag movement', () => {
+    expect(doc).toMatch(/cr664_PrimaryWorkspace@odata\.bind/);
+    expect(doc).toMatch(/No tag created or moved/i);
   });
 });
