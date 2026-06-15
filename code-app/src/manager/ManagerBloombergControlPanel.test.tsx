@@ -502,6 +502,21 @@ describe('Phase 124A — exception tape', () => {
 // ---------------------------------------------------------------------------
 
 describe('Phase 124B — drill-down navigation', () => {
+  // Fixture dates are anchored to the fixed `NOW` constant via
+  // `isoDaysAgo`, but the panel derives its at-risk / stale aging buckets
+  // against the runtime clock. Freeze ONLY the Date clock to that same
+  // anchor so a fixture deal lands in exactly its intended section
+  // regardless of the real calendar date (otherwise a deal can drift into
+  // a second bucket and produce a duplicate drill-down link). Real timers
+  // stay live (no async side effects).
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('renders the top-deal name as a Link to /deals/<dealId>', () => {
     setAllReady({
       pipeline: [deal({ id: 'd-drill', name: 'Drill Deal', amount: 750_000 })],
