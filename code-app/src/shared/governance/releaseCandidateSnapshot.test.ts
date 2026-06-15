@@ -3453,3 +3453,56 @@ describe('Phase 170H-A -- admin workspace provisioning repair doc', () => {
     expect(doc).toMatch(/No Dataverse\s+record created or\s+patched/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170I -- runtime dataSourcesInfo binding repair
+// ---------------------------------------------------------------------------
+
+describe('Phase 170I -- runtime dataSourcesInfo binding repair doc + script', () => {
+  const rel = 'docs/PHASE_170I_RUNTIME_DATASOURCESINFO_BINDING_REPAIR.md';
+
+  it('the Phase 170I doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('documents the live failure text and the root cause', () => {
+    expect(doc).toMatch(/Unable to find data source:[\s\S]*?cr664_dealstagereferences in data sources info/);
+    expect(doc).toMatch(/\.power\/? is gitignored|gitignored/i);
+    expect(doc).toMatch(/dataSourcesInfo/);
+  });
+
+  it('pins no generic connector artifact and no hardcoded inspected GUIDs', () => {
+    expect(doc).toMatch(/MicrosoftDataverse/);
+    expect(doc).toMatch(/shared_commondataserviceforapps/);
+    const docLower = doc;
+    for (const id of ['128de457-3059-f111-bec7-70a8a59be491', '8029c312-3159-f111-bec7-70a8a59be491']) {
+      expect(docLower).not.toContain(id);
+    }
+  });
+
+  it('pins .power local-only (not committed) and + New Deal disabled', () => {
+    expect(doc).toMatch(/MUST NOT be committed|not committed/i);
+    expect(doc).toMatch(/New Deal Remains Disabled|new-deal-create/i);
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false/);
+  });
+
+  it('pins the tracked repair script and no records/writes/tags', () => {
+    expect(doc).toMatch(/sync-datasourcesinfo\.mjs/);
+    expect(doc).toMatch(/No Dataverse record created, patched, or deleted/i);
+    expect(doc).toMatch(/No tag created or moved/i);
+  });
+
+  it('the tracked repair script writes only native Dataverse entries (no connector) and no GUID', () => {
+    const script = readFileSync(resolve(REPO_ROOT, 'scripts/sync-datasourcesinfo.mjs'), 'utf8');
+    // It emits native Dataverse entries...
+    expect(script).toMatch(/"dataSourceType": "Dataverse"/);
+    // ...and never EMITS a Connector-typed entry (the connector names may
+    // appear only in the explanatory comment, never as a written value).
+    expect(script).not.toMatch(/"dataSourceType": "Connector"/);
+    expect(script).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+    // additive: never deletes/rewrites existing entries.
+    expect(script).toMatch(/ADDITIVE/i);
+  });
+});
