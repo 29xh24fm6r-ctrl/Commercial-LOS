@@ -3352,3 +3352,38 @@ describe('Phase 170F2 -- typed data-source code proof doc + artifacts', () => {
     expect(powerConfig).toMatch(/cr664_dealstatusreferences/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170G -- Stage/Status runtime binding proof
+// ---------------------------------------------------------------------------
+
+describe('Phase 170G -- runtime binding proof doc exists and is governed', () => {
+  const rel = 'docs/PHASE_170G_STAGE_STATUS_RUNTIME_BINDING_PROOF.md';
+
+  it('the Phase 170G doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('states generic connector artifacts are absent (committed + deployed + local .power)', () => {
+    expect(doc).toMatch(/Generic Connector Artifacts: Absent/i);
+    expect(doc).toMatch(/MicrosoftDataverseService/);
+    expect(doc).toMatch(/shared_commondataserviceforapps/);
+  });
+
+  it('pins that .power is local/gitignored and not committed', () => {
+    expect(doc).toMatch(/\.power\/? is gitignored|gitignored \(never committed\)/i);
+    expect(doc).toMatch(/NOT committed|was NOT committed/i);
+  });
+
+  it('states + New Deal remains disabled and no records/writes', () => {
+    expect(doc).toMatch(/New Deal Remains Disabled|New Deal stays disabled/i);
+    expect(doc).toMatch(/No Dataverse record created or patched|No Dataverse write/i);
+  });
+
+  it('pins the rollback command and no tag movement', () => {
+    expect(doc).toMatch(/git checkout v1\.0\.1-admin-console-rollout/);
+    expect(doc).toMatch(/No tag created or moved/i);
+  });
+});
