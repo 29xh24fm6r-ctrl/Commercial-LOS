@@ -4419,3 +4419,70 @@ describe('Phase 170B — runSeedPrimaryWorkspace runner contract', () => {
     expect(block).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170D — read-only Stage/Status reference ROW inspection
+// ---------------------------------------------------------------------------
+
+describe('Phase 170D — --inspect-stage-status-values read-only mode', () => {
+  it('exposes the mode and wires it as a read-only (dryRun=false, no commit) mode', () => {
+    expect(SCRIPT).toMatch(/'--inspect-stage-status-values'/);
+    expect(SCRIPT).toMatch(
+      /arg === '--inspect-stage-status-values'\)\s*\{[\s\S]*?flags\.inspectStageStatusValues = true;[\s\S]*?flags\.dryRun = false;/,
+    );
+  });
+
+  it('the mode is part of the exclusive-modes array', () => {
+    expect(SCRIPT).toMatch(/flags\.inspectStageStatusValues,?\s*$/m);
+  });
+
+  it('the MODE banner has a read-only branch for the mode', () => {
+    expect(SCRIPT).toMatch(/'INSPECT-STAGE-STATUS-VALUES \(read-only\)'/);
+  });
+
+  it('dispatches to runInspectStageStatusValues', () => {
+    expect(SCRIPT).toMatch(
+      /if \(FLAGS\.inspectStageStatusValues\) \{[\s\S]*?runInspectStageStatusValues\(/,
+    );
+  });
+});
+
+describe('Phase 170D — runInspectStageStatusValues runner is pure GET', () => {
+  const block = sliceFunction('runInspectStageStatusValues');
+  const helper = sliceFunction('inspectOneReferenceSet');
+
+  it('reads the two discovered reference entity sets', () => {
+    expect(block).toMatch(/cr664_dealstagereferences/);
+    expect(block).toMatch(/cr664_dealstatusreferences/);
+    expect(block).toMatch(/cr664_dealstagereferenceid/);
+    expect(block).toMatch(/cr664_dealstatusreferenceid/);
+  });
+
+  it('selects only id/name/code/activeflag and flags duplicate + inactive risk', () => {
+    expect(helper).toMatch(/cr664_name,cr664_code,cr664_activeflag/);
+    expect(helper).toMatch(/duplicate codes/i);
+    expect(helper).toMatch(/no ACTIVE rows/i);
+  });
+
+  it('issues only GET (no POST/PATCH/DELETE/PublishXml) and no bypass/suppress/force headers', () => {
+    for (const probe of [block, helper]) {
+      expect(probe).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+      expect(probe).not.toMatch(/PublishXml/);
+      expect(probe).not.toMatch(/BypassCustomPluginExecution/i);
+      expect(probe).not.toMatch(/SuppressDuplicateDetection/i);
+      expect(probe).not.toMatch(/Force=true/i);
+    }
+    // The data GET goes through the shared read-only helper.
+    expect(helper).toMatch(/fetchODataList/);
+  });
+
+  it('selects no default and registers nothing (New Deal stays disabled)', () => {
+    expect(block).toMatch(/New Deal stays disabled/i);
+    expect(block).toMatch(/registers nothing and selects no default/i);
+  });
+
+  it('hardcodes no Dataverse GUID', () => {
+    expect(block).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+    expect(helper).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  });
+});

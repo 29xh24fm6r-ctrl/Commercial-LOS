@@ -318,6 +318,9 @@ function parseArgs(argv) {
     inspectTableName: null,
     inspectAttributeItems: null,
     inspectNewDealReferences: false,
+    // Phase 170D — read-only inspection of actual Stage/Status reference
+    // ROWS (data GET, not metadata). Pure GET; never writes.
+    inspectStageStatusValues: false,
     seedClientRelationship: false,
     seedDealName: null,
     seedClientName: null,
@@ -545,6 +548,14 @@ function parseArgs(argv) {
       // attributes, and required target-table fields. Pure GET only.
       flags.inspectNewDealReferences = true;
       flags.dryRun = false;
+    } else if (arg === '--inspect-stage-status-values') {
+      // Phase 170D -- read-only inspection of actual Stage/Status
+      // reference ROWS (data GET on the two entity sets). Prints
+      // active/inactive rows and duplicate code/name risks so an
+      // operator can confirm a unique active default exists before any
+      // future resolver wiring. Pure GET only; never writes.
+      flags.inspectStageStatusValues = true;
+      flags.dryRun = false;
     } else if (arg === '--seed-client-relationship') {
       // Phase 122D Pt 2 — guarded TEST Client / Relationship seed.
       // Dry-run by default; writes require --commit-seed-client.
@@ -752,6 +763,7 @@ function parseArgs(argv) {
     flags.seedClientRelationship,
     flags.inspectAttributeItems !== null,
     flags.inspectNewDealReferences,
+    flags.inspectStageStatusValues,
     flags.seedProductReferences,
     flags.seedManagerEntitlement,
     flags.seedExecutivePrimaryWorkspace,
@@ -1036,7 +1048,9 @@ if (FLAGS.help) {
 // Header
 // ---------------------------------------------------------------------------
 
-const MODE = FLAGS.seedPrimaryWorkspace
+const MODE = FLAGS.inspectStageStatusValues
+  ? 'INSPECT-STAGE-STATUS-VALUES (read-only)'
+  : FLAGS.seedPrimaryWorkspace
   ? FLAGS.commitSeedPrimaryWorkspace
     ? 'COMMIT-SEED-PRIMARY-WORKSPACE'
     : 'SEED-PRIMARY-WORKSPACE (dry-run)'
@@ -1886,6 +1900,90 @@ async function runInspectNewDealReferences(token, envUrl) {
     NEW_DEAL_REFERENCE_LOOKUP_INSPECTION_ITEMS,
     token,
     envUrl,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 170D — read-only Stage/Status reference ROW inspection.
+//
+// A pure GET on the two reference entity sets discovered in Phase 170C
+// (cr664_dealstagereferences / cr664_dealstatusreferences). Prints each
+// row's id/name/code/active flag, and flags duplicate code/name risks so
+// an operator can confirm a single active default exists BEFORE any
+// future resolver wiring. Never PATCHes/POSTs/DELETEs; never registers a
+// data source; never creates or selects a default.
+// ---------------------------------------------------------------------------
+
+async function inspectOneReferenceSet(label, entitySetName, idAttr, token, envUrl) {
+  const select = `${idAttr},cr664_name,cr664_code,cr664_activeflag`;
+  const url =
+    `${envUrl}/api/data/v9.2/${entitySetName}` +
+    `?$select=${encodeURIComponent(select)}`;
+  console.log('');
+  console.log(`   ${label}  (GET /api/data/v9.2/${entitySetName})`);
+  const res = await fetchODataList(url, token);
+  if (!res.ok) {
+    console.log(`     ⚠ Could not read ${entitySetName}: ${res.error}`);
+    return;
+  }
+  const rows = res.records;
+  if (rows.length === 0) {
+    console.log('     (no rows) — fail closed: no default can be resolved.');
+    return;
+  }
+  let activeCount = 0;
+  const codeSeen = new Map();
+  const nameSeen = new Map();
+  for (const r of rows) {
+    const id = r[idAttr];
+    const name = r.cr664_name ?? '(no name)';
+    const code = r.cr664_code ?? '(no code)';
+    const active = r.cr664_activeflag === true;
+    if (active) activeCount += 1;
+    codeSeen.set(code, (codeSeen.get(code) ?? 0) + 1);
+    nameSeen.set(name, (nameSeen.get(name) ?? 0) + 1);
+    console.log(
+      `     - ${active ? 'ACTIVE  ' : 'inactive'}  code=${code}  name=${name}  id=${id}`,
+    );
+  }
+  console.log(`     rows: ${rows.length}  active: ${activeCount}`);
+  const dupCodes = [...codeSeen.entries()].filter(([, n]) => n > 1).map(([c]) => c);
+  const dupNames = [...nameSeen.entries()].filter(([, n]) => n > 1).map(([n]) => n);
+  if (dupCodes.length > 0) {
+    console.log(`     ⚠ duplicate codes (resolver would fail closed): ${dupCodes.join(', ')}`);
+  }
+  if (dupNames.length > 0) {
+    console.log(`     ⚠ duplicate names (resolver would fail closed): ${dupNames.join(', ')}`);
+  }
+  if (activeCount === 0) {
+    console.log('     ⚠ no ACTIVE rows — resolver would fail closed (inactive).');
+  }
+}
+
+async function runInspectStageStatusValues(token, envUrl) {
+  console.log('');
+  console.log('Phase 170D -- Stage/Status reference ROW inspection (read-only)');
+  console.log(
+    '   Reading actual cr664_dealstagereferences / cr664_dealstatusreferences rows; no create/patch/delete.',
+  );
+  await inspectOneReferenceSet(
+    'Stage references',
+    'cr664_dealstagereferences',
+    'cr664_dealstagereferenceid',
+    token,
+    envUrl,
+  );
+  await inspectOneReferenceSet(
+    'Status references',
+    'cr664_dealstatusreferences',
+    'cr664_dealstatusreferenceid',
+    token,
+    envUrl,
+  );
+  console.log('');
+  console.log(
+    '   Read-only inspection complete. + New Deal stays disabled; this mode ' +
+      'registers nothing and selects no default.',
   );
 }
 
@@ -8414,6 +8512,12 @@ async function main() {
   // === Phase 170C -- read-only New Deal Stage/Status reference inspection ===
   if (FLAGS.inspectNewDealReferences) {
     await runInspectNewDealReferences(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 170D -- read-only Stage/Status reference ROW inspection ===
+  if (FLAGS.inspectStageStatusValues) {
+    await runInspectStageStatusValues(mainToken, mainEnvUrl);
     return;
   }
 
