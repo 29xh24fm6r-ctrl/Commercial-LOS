@@ -159,6 +159,51 @@ const NEW_DEAL_REFERENCE_LOOKUP_INSPECTION_ITEMS = Object.freeze([
     attribute: 'cr664_statusreference',
   }),
 ]);
+
+// ---------------------------------------------------------------------------
+// Phase 170K — controlled, operator-gated New Deal create SMOKE.
+//
+// Creates EXACTLY ONE TEST-labeled cr664_loandeal row, and ONLY when the
+// operator passes --smoke-create-new-deal AND --commit-smoke-create-new-deal.
+// Default is dry-run (resolve + plan, no write). This proves the create
+// payload + Stage/Status @odata.bind work end-to-end. It does NOT enable the
+// public + New Deal button, approves no TEST reference row for production,
+// creates no client/borrower row, and touches no Advance Stage / stage-
+// progression logic.
+//
+// Stage/Status are resolved by stable ACTIVE code (never a hardcoded GUID)
+// against the two reference entity sets confirmed in Phase 170D. The codes
+// mirror src/deals/newDealReferenceTargets.ts (TEST-environment rows).
+const SMOKE_NEW_DEAL_STAGE_CODE = 'PHASE121_STAGE';
+const SMOKE_NEW_DEAL_STATUS_CODE = 'PHASE121_STATUS';
+const SMOKE_NEW_DEAL_STAGE_ENTITY_SET = 'cr664_dealstagereferences';
+const SMOKE_NEW_DEAL_STATUS_ENTITY_SET = 'cr664_dealstatusreferences';
+const SMOKE_NEW_DEAL_STAGE_ID_ATTR = 'cr664_dealstagereferenceid';
+const SMOKE_NEW_DEAL_STATUS_ID_ATTR = 'cr664_dealstatusreferenceid';
+
+// Every created smoke deal name carries this marker so the row is
+// unmistakably a TEST smoke record (guardrail: "make clear it is a TEST
+// smoke record"). The operator-supplied --deal-name is appended to it.
+const SMOKE_NEW_DEAL_NAME_PREFIX = '[SMOKE TEST - PHASE 170K - DO NOT USE] ';
+
+// The ONLY keys allowed in the POST body. The create handler asserts the
+// built payload's keys are a subset of this allow-list and bails otherwise,
+// so no stray / guessed column can ever be written. ownerid / owneridtype /
+// statecode / statuscode are deliberately ABSENT: Dataverse defaults the
+// owner to the calling user and the state to Active on create — the script
+// never sets them. cr664_stageentrydate is an ApplicationRequired date on
+// cr664_loandeal (see src/generated/models/Cr664_loandealsModel.ts) and is
+// populated with the run timestamp. cr664_amount / cr664_Client are optional.
+const SMOKE_NEW_DEAL_ALLOWED_FIELDS = Object.freeze([
+  'cr664_dealname',
+  'cr664_StageReference@odata.bind',
+  'cr664_StatusReference@odata.bind',
+  'cr664_AssignedBanker@odata.bind',
+  'cr664_stageentrydate',
+  'cr664_amount',
+  'cr664_Client@odata.bind',
+]);
+
 const COMPONENT_TYPE_NAMES = Object.freeze({
   1: 'Entity',
   2: 'Attribute',
@@ -321,6 +366,13 @@ function parseArgs(argv) {
     // Phase 170D — read-only inspection of actual Stage/Status reference
     // ROWS (data GET, not metadata). Pure GET; never writes.
     inspectStageStatusValues: false,
+    // Phase 170K — controlled, operator-gated New Deal create smoke.
+    // Dry-run by default; a single live create requires the explicit
+    // --commit-smoke-create-new-deal flag. Never enables + New Deal.
+    smokeCreateNewDeal: false,
+    commitSmokeCreateNewDeal: false,
+    smokeAmount: null,
+    smokeAssignedBankerUpn: null,
     seedClientRelationship: false,
     seedDealName: null,
     seedClientName: null,
@@ -560,6 +612,34 @@ function parseArgs(argv) {
       // future resolver wiring. Pure GET only; never writes.
       flags.inspectStageStatusValues = true;
       flags.dryRun = false;
+    } else if (arg === '--smoke-create-new-deal') {
+      // Phase 170K — controlled New Deal create smoke. Dry-run by default;
+      // a single live create requires --commit-smoke-create-new-deal.
+      // Requires --deal-name and one of --assigned-banker-upn /
+      // --assigned-banker-email. Optional: --amount, --client-name (existing
+      // client only). Resolves Stage/Status by active code (never a GUID).
+      flags.smokeCreateNewDeal = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-smoke-create-new-deal') {
+      flags.commitSmokeCreateNewDeal = true;
+    } else if (arg === '--amount') {
+      const next = args[i + 1];
+      const parsed = Number(next);
+      if (next === undefined || next.length === 0 || !Number.isFinite(parsed) || parsed < 0) {
+        bailParseArgs(`--amount expects a non-negative number; got "${next}"`);
+      }
+      flags.smokeAmount = parsed;
+      i += 1;
+    } else if (arg === '--assigned-banker-upn' || arg === '--assigned-banker-email') {
+      const next = args[i + 1];
+      if (!next || next.length === 0) {
+        bailParseArgs(`${arg} requires a non-empty user principal name / email`);
+      }
+      if (!/^[^@\s]+@[^@\s]+$/.test(next)) {
+        bailParseArgs(`${arg} expects a "<local>@<domain>" value; got "${next}"`);
+      }
+      flags.smokeAssignedBankerUpn = next;
+      i += 1;
     } else if (arg === '--seed-client-relationship') {
       // Phase 122D Pt 2 — guarded TEST Client / Relationship seed.
       // Dry-run by default; writes require --commit-seed-client.
@@ -782,6 +862,7 @@ function parseArgs(argv) {
     flags.inspectAttributeItems !== null,
     flags.inspectNewDealReferences,
     flags.inspectStageStatusValues,
+    flags.smokeCreateNewDeal,
     flags.listPlatformWorkspaces,
     flags.seedPlatformWorkspace,
     flags.seedProductReferences,
@@ -903,14 +984,43 @@ function parseArgs(argv) {
       bailParseArgs('--seed-client-relationship requires --borrower-type <integer>');
     }
   } else {
-    if (flags.seedClientName) {
-      bailParseArgs('--client-name is only valid alongside --seed-client-relationship');
+    // --client-name is also accepted by the Phase 170K smoke-create mode,
+    // where it resolves an EXISTING client relationship only (never created).
+    if (flags.seedClientName && !flags.smokeCreateNewDeal) {
+      bailParseArgs(
+        '--client-name is only valid alongside --seed-client-relationship or --smoke-create-new-deal',
+      );
     }
     if (flags.seedBorrowerType !== null) {
       bailParseArgs('--borrower-type is only valid alongside --seed-client-relationship');
     }
     if (flags.commitSeedClient) {
       bailParseArgs('--commit-seed-client has no effect without --seed-client-relationship.');
+    }
+  }
+  // Phase 170K — controlled New Deal create smoke cross-flag validation.
+  if (flags.smokeCreateNewDeal) {
+    if (!flags.seedDealName) {
+      bailParseArgs('--smoke-create-new-deal requires --deal-name <text>');
+    }
+    if (!flags.smokeAssignedBankerUpn) {
+      bailParseArgs(
+        '--smoke-create-new-deal requires --assigned-banker-upn <upn> (or --assigned-banker-email <email>)',
+      );
+    }
+  } else {
+    if (flags.commitSmokeCreateNewDeal) {
+      bailParseArgs(
+        '--commit-smoke-create-new-deal has no effect without --smoke-create-new-deal.',
+      );
+    }
+    if (flags.smokeAmount !== null) {
+      bailParseArgs('--amount is only valid alongside --smoke-create-new-deal');
+    }
+    if (flags.smokeAssignedBankerUpn) {
+      bailParseArgs(
+        '--assigned-banker-upn / --assigned-banker-email is only valid alongside --smoke-create-new-deal',
+      );
     }
   }
   // --seed-product-references cross-flag validation. --deal-name is
@@ -1087,6 +1197,10 @@ const MODE = FLAGS.listPlatformWorkspaces
     : 'SEED-PLATFORM-WORKSPACE (dry-run)'
   : FLAGS.inspectStageStatusValues
   ? 'INSPECT-STAGE-STATUS-VALUES (read-only)'
+  : FLAGS.smokeCreateNewDeal
+  ? FLAGS.commitSmokeCreateNewDeal
+    ? 'SMOKE-CREATE-NEW-DEAL (COMMIT — creates ONE TEST deal)'
+    : 'SMOKE-CREATE-NEW-DEAL (dry-run)'
   : FLAGS.seedPrimaryWorkspace
   ? FLAGS.commitSeedPrimaryWorkspace
     ? 'COMMIT-SEED-PRIMARY-WORKSPACE'
@@ -1184,6 +1298,7 @@ if (
   FLAGS.commitSubgridCleanup ||
   FLAGS.commitViewCleanup ||
   FLAGS.commitSeedClient ||
+  FLAGS.commitSmokeCreateNewDeal ||
   FLAGS.commitSeedCrmSchema ||
   FLAGS.commitSeedProductReferences ||
   FLAGS.commitSeedManagerEntitlement ||
@@ -2023,6 +2138,355 @@ async function runInspectStageStatusValues(token, envUrl) {
     '   Read-only inspection complete. + New Deal stays disabled; this mode ' +
       'registers nothing and selects no default.',
   );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 170K — controlled, operator-gated New Deal create SMOKE.
+//
+// Creates EXACTLY ONE TEST-labeled cr664_loandeal, dry-run by default, and
+// only on --commit-smoke-create-new-deal. Stage/Status are resolved by
+// ACTIVE code (never a GUID) and fail closed on zero / multiple / inactive /
+// service-error. The POST body is restricted to SMOKE_NEW_DEAL_ALLOWED_FIELDS.
+// No client/borrower row is created; no Advance Stage logic is touched; no
+// audit row is fabricated (see the documented audit gap). + New Deal stays
+// disabled — this is an operator script, not an in-app button.
+// ---------------------------------------------------------------------------
+
+// Resolve exactly one ACTIVE reference row by stable code. Returns a typed
+// outcome union; every non-`ready` branch is fail-closed (no row chosen).
+async function resolveActiveSmokeReference(label, entitySet, idAttr, code, token, envUrl) {
+  const select = `${idAttr},cr664_name,cr664_code,cr664_activeflag`;
+  const filter = `cr664_code eq '${odataEscapeStringLiteral(code)}'`;
+  const url =
+    `${envUrl}/api/data/v9.2/${entitySet}` +
+    `?$select=${encodeURIComponent(select)}&$filter=${encodeURIComponent(filter)}`;
+  const res = await fetchODataList(url, token);
+  if (!res.ok) {
+    return { kind: 'serviceError', label, error: res.error };
+  }
+  const rows = res.records;
+  if (rows.length === 0) {
+    return { kind: 'missing', label, code };
+  }
+  if (rows.length > 1) {
+    return { kind: 'duplicate', label, code, count: rows.length };
+  }
+  const row = rows[0];
+  if (row.cr664_activeflag !== true) {
+    return { kind: 'inactive', label, code };
+  }
+  return {
+    kind: 'ready',
+    label,
+    id: row[idAttr],
+    name: row.cr664_name ?? '(no name)',
+    code: row.cr664_code ?? code,
+    entitySet,
+  };
+}
+
+function bailOnUnresolvedSmokeReference(outcome) {
+  switch (outcome.kind) {
+    case 'ready':
+      return;
+    case 'serviceError':
+      bail(
+        `${outcome.label} reference lookup failed (fail closed): ${outcome.error}`,
+      );
+      break;
+    case 'missing':
+      bail(
+        `No ACTIVE ${outcome.label} reference row with cr664_code = ` +
+          `"${outcome.code}" (fail closed — refusing to create a deal with an ` +
+          `unresolved ${outcome.label}).`,
+      );
+      break;
+    case 'duplicate':
+      bail(
+        `${outcome.count} ${outcome.label} reference rows match cr664_code = ` +
+          `"${outcome.code}" (fail closed — the operator must resolve the ` +
+          `ambiguity before any create).`,
+      );
+      break;
+    case 'inactive':
+      bail(
+        `The ${outcome.label} reference row for cr664_code = "${outcome.code}" ` +
+          `is INACTIVE (fail closed — refusing to bind an inactive reference).`,
+      );
+      break;
+    default:
+      bail(`${outcome.label} reference resolution returned an unknown outcome.`);
+  }
+}
+
+async function createLoanDealSmoke(payload, token, envUrl) {
+  // Defense in depth: never POST a key outside the allow-list.
+  const strayKeys = Object.keys(payload).filter(
+    (k) => !SMOKE_NEW_DEAL_ALLOWED_FIELDS.includes(k),
+  );
+  if (strayKeys.length > 0) {
+    return {
+      ok: false,
+      error:
+        `Refusing to POST — payload contains disallowed field(s): ` +
+        `${strayKeys.join(', ')}. Allowed: ${SMOKE_NEW_DEAL_ALLOWED_FIELDS.join(', ')}.`,
+    };
+  }
+  const url = `${envUrl}/api/data/v9.2/cr664_loandeals`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `POST cr664_loandeals → ${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    if (!json.cr664_loandealid) {
+      return {
+        ok: false,
+        error: 'POST succeeded but response is missing cr664_loandealid',
+      };
+    }
+    return { ok: true, id: json.cr664_loandealid, record: json };
+  } catch (err) {
+    return { ok: false, error: `POST network error: ${err.message}` };
+  }
+}
+
+async function readLoanDealSmokeVerification(dealId, token, envUrl) {
+  const select = [
+    'cr664_loandealid',
+    'cr664_dealname',
+    'cr664_amount',
+    'cr664_stageentrydate',
+    '_cr664_stagereference_value',
+    '_cr664_statusreference_value',
+    '_cr664_assignedbanker_value',
+    '_cr664_client_value',
+  ].join(',');
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_loandeals(${dealId})` +
+    `?$select=${encodeURIComponent(select)}`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        Prefer:
+          'odata.include-annotations="OData.Community.Display.V1.FormattedValue"',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `${res.status}: ${text}` };
+    }
+    return { ok: true, record: await res.json() };
+  } catch (err) {
+    return { ok: false, error: `network error: ${err.message}` };
+  }
+}
+
+async function runSmokeCreateNewDeal(
+  { dealName, amount, bankerUpn, clientName, doCommit },
+  token,
+  envUrl,
+) {
+  const finalDealName = `${SMOKE_NEW_DEAL_NAME_PREFIX}${dealName}`;
+  console.log('');
+  console.log('Phase 170K — controlled New Deal create SMOKE');
+  console.log(`   Deal name:       ${finalDealName}`);
+  console.log(`   Assigned banker: ${bankerUpn}`);
+  console.log(`   Amount:          ${amount === null ? '(omitted)' : amount}`);
+  console.log(`   Client:          ${clientName ?? '(omitted — optional, not created)'}`);
+  console.log(
+    `   Mode:            ${
+      doCommit
+        ? 'COMMIT-SMOKE-CREATE-NEW-DEAL (will POST exactly one TEST deal)'
+        : 'dry-run (resolve + plan, no write)'
+    }`,
+  );
+  console.log('');
+  console.log(
+    '   ⚠ TEST-ONLY: this creates a single TEST-labeled smoke record. It does ' +
+      'NOT enable + New Deal, approves no production reference row, and creates ' +
+      'no client/borrower row. Separate from Advance Stage / stage-progression.',
+  );
+  console.log('');
+
+  // 1. Resolve Stage + Status by ACTIVE code (never a GUID), fail closed.
+  const stage = await resolveActiveSmokeReference(
+    'Stage',
+    SMOKE_NEW_DEAL_STAGE_ENTITY_SET,
+    SMOKE_NEW_DEAL_STAGE_ID_ATTR,
+    SMOKE_NEW_DEAL_STAGE_CODE,
+    token,
+    envUrl,
+  );
+  bailOnUnresolvedSmokeReference(stage);
+  console.log(`   ✓ Stage resolved:  code=${stage.code}  name=${stage.name}`);
+
+  const status = await resolveActiveSmokeReference(
+    'Status',
+    SMOKE_NEW_DEAL_STATUS_ENTITY_SET,
+    SMOKE_NEW_DEAL_STATUS_ID_ATTR,
+    SMOKE_NEW_DEAL_STATUS_CODE,
+    token,
+    envUrl,
+  );
+  bailOnUnresolvedSmokeReference(status);
+  console.log(`   ✓ Status resolved: code=${status.code}  name=${status.name}`);
+
+  // 2. Resolve Assigned Banker by UPN/email — exactly one, else fail closed.
+  const bankerResult = await findBankerByEmail(bankerUpn, token, envUrl);
+  if (!bankerResult.ok) {
+    bail(`Could not resolve banker by "${bankerUpn}": ${bankerResult.error}`);
+  }
+  if (bankerResult.records.length === 0) {
+    bail(
+      `No cr664_banker row with cr664_email = "${bankerUpn}" (fail closed — ` +
+        `Assigned Banker is required and this mode never creates a banker).`,
+    );
+  }
+  if (bankerResult.records.length > 1) {
+    bail(
+      `${bankerResult.records.length} cr664_banker rows match cr664_email = ` +
+        `"${bankerUpn}" (fail closed — resolve the ambiguity before any create).`,
+    );
+  }
+  const banker = bankerResult.records[0];
+  console.log(
+    `   ✓ Banker resolved: cr664_bankerid=${banker.cr664_bankerid}  ` +
+      `name=${banker.cr664_fullname ?? '(no name)'}`,
+  );
+
+  // 3. Optional client — resolve an EXISTING client relationship only.
+  let clientId = null;
+  if (clientName) {
+    const clientResult = await findClientRelationshipByName(clientName, token, envUrl);
+    if (!clientResult.ok) {
+      bail(`Could not resolve client "${clientName}": ${clientResult.error}`);
+    }
+    if (clientResult.records.length === 0) {
+      bail(
+        `No cr664_clientrelationship row with cr664_clientname = "${clientName}" ` +
+          `(fail closed — this mode resolves an EXISTING client only and never ` +
+          `creates a client/borrower row). Omit --client-name to skip the client.`,
+      );
+    }
+    if (clientResult.records.length > 1) {
+      bail(
+        `${clientResult.records.length} cr664_clientrelationship rows match ` +
+          `cr664_clientname = "${clientName}" (fail closed — resolve the ambiguity).`,
+      );
+    }
+    clientId = clientResult.records[0].cr664_clientrelationshipid;
+    console.log(`   ✓ Existing client resolved: cr664_clientrelationshipid=${clientId}`);
+  }
+
+  // 4. Build the minimal create payload (allow-listed keys only).
+  const stageEntryDate = new Date().toISOString();
+  const payload = {
+    cr664_dealname: finalDealName,
+    'cr664_StageReference@odata.bind': `/${SMOKE_NEW_DEAL_STAGE_ENTITY_SET}(${stage.id})`,
+    'cr664_StatusReference@odata.bind': `/${SMOKE_NEW_DEAL_STATUS_ENTITY_SET}(${status.id})`,
+    'cr664_AssignedBanker@odata.bind': `/cr664_bankers(${banker.cr664_bankerid})`,
+    cr664_stageentrydate: stageEntryDate,
+  };
+  if (amount !== null) payload.cr664_amount = amount;
+  if (clientId) payload['cr664_Client@odata.bind'] = `/cr664_clientrelationships(${clientId})`;
+
+  // Masked plan: never print resolved record GUIDs in the dry-run plan.
+  const maskedPayload = {
+    cr664_dealname: finalDealName,
+    'cr664_StageReference@odata.bind': `/${SMOKE_NEW_DEAL_STAGE_ENTITY_SET}(<resolved active ${SMOKE_NEW_DEAL_STAGE_CODE} id>)`,
+    'cr664_StatusReference@odata.bind': `/${SMOKE_NEW_DEAL_STATUS_ENTITY_SET}(<resolved active ${SMOKE_NEW_DEAL_STATUS_CODE} id>)`,
+    'cr664_AssignedBanker@odata.bind': '/cr664_bankers(<resolved banker id>)',
+    cr664_stageentrydate: stageEntryDate,
+  };
+  if (amount !== null) maskedPayload.cr664_amount = amount;
+  if (clientId) maskedPayload['cr664_Client@odata.bind'] = '/cr664_clientrelationships(<resolved existing client id>)';
+
+  console.log('');
+  console.log('   Planned POST /api/data/v9.2/cr664_loandeals body (IDs masked):');
+  console.log(`     ${JSON.stringify(maskedPayload, null, 2).replace(/\n/g, '\n     ')}`);
+  console.log(
+    `     Allowed fields only: ${SMOKE_NEW_DEAL_ALLOWED_FIELDS.join(', ')}.`,
+  );
+  console.log(
+    '     ownerid / statecode are intentionally omitted — Dataverse defaults ' +
+      'owner to the calling user and state to Active on create.',
+  );
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no POST issued. No deal was created.');
+    console.log(
+      '   Re-run with `--commit-smoke-create-new-deal` to create exactly one TEST deal.',
+    );
+    return { ok: true, planned: true };
+  }
+
+  // 5. Commit — create exactly one TEST deal.
+  console.log('');
+  console.log('   ⚙ POST /api/data/v9.2/cr664_loandeals …');
+  const createResult = await createLoanDealSmoke(payload, token, envUrl);
+  if (!createResult.ok) {
+    bail(`Smoke create failed (no deal created): ${createResult.error}`);
+  }
+  const dealId = createResult.id;
+  console.log(`   ✓ Created cr664_loandealid=${dealId}`);
+
+  // 6. Verify by re-reading the created deal with formatted values.
+  console.log('');
+  console.log('   ⚙ Re-reading the created deal to verify …');
+  const verify = await readLoanDealSmokeVerification(dealId, token, envUrl);
+  if (!verify.ok) {
+    console.log(`     ⚠ Could not re-read the deal: ${verify.error}`);
+  } else {
+    const r = verify.record;
+    const fv = (key) => r[`${key}@OData.Community.Display.V1.FormattedValue`] ?? '(no formatted value)';
+    console.log(`     deal id:        ${r.cr664_loandealid}`);
+    console.log(`     deal name:      ${r.cr664_dealname}`);
+    console.log(`     stage:          ${fv('_cr664_stagereference_value')}`);
+    console.log(`     status:         ${fv('_cr664_statusreference_value')}`);
+    console.log(`     assigned banker:${fv('_cr664_assignedbanker_value')}`);
+    if (r._cr664_client_value) {
+      console.log(`     client:         ${fv('_cr664_client_value')}`);
+    }
+    if (r.cr664_amount !== undefined && r.cr664_amount !== null) {
+      console.log(`     amount:         ${r.cr664_amount}`);
+    }
+  }
+
+  // 7. Audit gap (honest — not faked) + rollback guidance.
+  console.log('');
+  console.log(
+    '   Audit: no governed cr664_auditevent row is written by this script. A ' +
+      'governed, audited in-app create adapter is the separate Phase 170J ' +
+      'checklist step 7. This smoke proves the payload + Stage/Status binds ' +
+      'only; the audit trail is Dataverse system createdon/createdby plus this ' +
+      'verify-by-reread output.',
+  );
+  console.log(
+    `   Rollback: this script does NOT auto-delete. To remove the TEST deal, ` +
+      `run an authorized manual delete, e.g. DELETE /api/data/v9.2/cr664_loandeals(${dealId}).`,
+  );
+  console.log('');
+  console.log('✓ Smoke create commit complete (exactly one TEST deal).');
+  return { ok: true, dealId };
 }
 
 // ---------------------------------------------------------------------------
@@ -8681,6 +9145,26 @@ async function main() {
   // === Phase 170D -- read-only Stage/Status reference ROW inspection ===
   if (FLAGS.inspectStageStatusValues) {
     await runInspectStageStatusValues(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 170K -- controlled New Deal create SMOKE (dry-run / commit) ===
+  // Dry-run by default; a single live create requires
+  // --commit-smoke-create-new-deal. Resolves Stage/Status by active code,
+  // resolves the assigned banker by UPN, and POSTs exactly one TEST-labeled
+  // cr664_loandeal with an allow-listed payload. Never enables + New Deal.
+  if (FLAGS.smokeCreateNewDeal) {
+    await runSmokeCreateNewDeal(
+      {
+        dealName: FLAGS.seedDealName,
+        amount: FLAGS.smokeAmount,
+        bankerUpn: FLAGS.smokeAssignedBankerUpn,
+        clientName: FLAGS.seedClientName,
+        doCommit: FLAGS.commitSmokeCreateNewDeal,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
     return;
   }
 

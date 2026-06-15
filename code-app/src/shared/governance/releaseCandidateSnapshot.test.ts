@@ -3552,3 +3552,52 @@ describe('Phase 170J -- New Deal readiness truth reconciliation doc exists and i
     expect(doc).toMatch(/No tag created or moved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170K -- controlled New Deal create smoke (operator/admin-gated)
+// ---------------------------------------------------------------------------
+
+describe('Phase 170K -- controlled New Deal create smoke doc exists and is honest', () => {
+  const rel = 'docs/PHASE_170K_CONTROLLED_NEW_DEAL_CREATE_SMOKE.md';
+
+  it('the Phase 170K doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the exact dry-run and commit commands', () => {
+    expect(doc).toMatch(/--smoke-create-new-deal/);
+    expect(doc).toMatch(/--commit-smoke-create-new-deal/);
+    expect(doc).toMatch(/--assigned-banker-upn/);
+    expect(doc).toMatch(/Dry-run \(default/i);
+  });
+
+  it('pins fail-closed resolve-by-code (no GUID) and allow-listed payload', () => {
+    expect(doc).toMatch(/PHASE121_STAGE/);
+    expect(doc).toMatch(/PHASE121_STATUS/);
+    expect(doc).toMatch(/fails? closed/i);
+    expect(doc).toMatch(/allow-list/i);
+    expect(doc).toMatch(/No Dataverse record GUID is hardcoded/i);
+  });
+
+  it('pins the TEST-only marker and the audit gap (no faked audit row)', () => {
+    expect(doc).toMatch(/SMOKE TEST - PHASE 170K/);
+    expect(doc).toMatch(/writes \*\*no\*\*|writes no `?cr664_auditevent/i);
+    expect(doc).toMatch(/audit gap/i);
+  });
+
+  it('pins the New-Deal-create vs Advance-Stage distinction', () => {
+    expect(doc).toMatch(/cr664_dealstagereferences/);
+    expect(doc).toMatch(/cr664_stagereferences/);
+    expect(doc).toMatch(/Advance Stage|stage-progression/i);
+  });
+
+  it('pins + New Deal still disabled, NOT_WIRED unchanged, and no deploy/tag/permission change', () => {
+    expect(doc).toMatch(/\+ New Deal\b[\s\S]{0,80}disabled|stays disabled/i);
+    expect(doc).toMatch(/new-deal-create.{0,40}NOT_WIRED|stays in `?NOT_WIRED/i);
+    expect(doc).toMatch(/no `?pac code push`? deploy/i);
+    expect(doc).toMatch(/No git tag was created or\s+moved/i);
+    expect(doc).toMatch(/No permission was widened or\s+bypassed/i);
+  });
+});
