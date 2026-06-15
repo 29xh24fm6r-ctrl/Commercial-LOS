@@ -3186,8 +3186,12 @@ describe('Phase 133C — --seed-executive-primary-workspace guarded write mode',
   });
 
   it('the write-mode warning header fires on the commit flag', () => {
+    // Window widened from 200 to 300 chars: the WRITE MODE gate has gained
+    // sibling commit flags (170B primary-workspace, 170H-A platform-
+    // workspace) between this flag and the warning. The assertion still
+    // confirms the executive commit flag participates in the gate.
     expect(SCRIPT).toMatch(
-      /FLAGS\.commitSeedExecutivePrimaryWorkspace[\s\S]{0,200}?WRITE MODE/,
+      /FLAGS\.commitSeedExecutivePrimaryWorkspace[\s\S]{0,300}?WRITE MODE/,
     );
   });
 });
@@ -4484,5 +4488,94 @@ describe('Phase 170D — runInspectStageStatusValues runner is pure GET', () => 
   it('hardcodes no Dataverse GUID', () => {
     expect(block).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
     expect(helper).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 170H-A -- Platform Workspace listing + ROW seed
+// ---------------------------------------------------------------------------
+
+describe('Phase 170H-A -- --list-platform-workspaces / --seed-platform-workspace modes', () => {
+  it('exposes the three flags and wires list + seed as read-only / dry-run-first', () => {
+    expect(SCRIPT).toMatch(/'--list-platform-workspaces'/);
+    expect(SCRIPT).toMatch(/'--seed-platform-workspace'/);
+    expect(SCRIPT).toMatch(/'--commit-seed-platform-workspace'/);
+    expect(SCRIPT).toMatch(
+      /arg === '--seed-platform-workspace'\)\s*\{[\s\S]*?flags\.seedPlatformWorkspace = true;[\s\S]*?flags\.dryRun = false;/,
+    );
+  });
+
+  it('both new modes are in the exclusive-modes array (mutexed)', () => {
+    expect(SCRIPT).toMatch(/flags\.listPlatformWorkspaces,?\s*$/m);
+    expect(SCRIPT).toMatch(/flags\.seedPlatformWorkspace,?\s*$/m);
+  });
+
+  it('the seed commit flag is rejected without the mode, and the mode requires --workspace-name', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-platform-workspace has no effect without --seed-platform-workspace/,
+    );
+    expect(SCRIPT).toMatch(/--seed-platform-workspace requires --workspace-name/);
+  });
+
+  it('the MODE banner + write-mode warning cover the new mode', () => {
+    expect(SCRIPT).toMatch(/'LIST-PLATFORM-WORKSPACES \(read-only\)'/);
+    expect(SCRIPT).toMatch(/'COMMIT-SEED-PLATFORM-WORKSPACE'/);
+    expect(SCRIPT).toMatch(/'SEED-PLATFORM-WORKSPACE \(dry-run\)'/);
+    expect(SCRIPT).toMatch(/FLAGS\.commitSeedPlatformWorkspace[\s\S]{0,200}?WRITE MODE/);
+  });
+
+  it('preserves --seed-primary-workspace as existing-user only (still requires --upn)', () => {
+    expect(SCRIPT).toMatch(/--seed-primary-workspace requires --upn/);
+    const block = sliceFunction('runSeedPrimaryWorkspace');
+    expect(block).toMatch(/provisions EXISTING users only and will not create a/i);
+    expect(block).not.toMatch(/createPlatformWorkspace/);
+  });
+});
+
+describe('Phase 170H-A -- runListPlatformWorkspaces is pure GET', () => {
+  const block = sliceFunction('runListPlatformWorkspaces');
+
+  it('reads cr664_platformworkspaces id + name via the read-only helper', () => {
+    expect(block).toMatch(/cr664_platformworkspaces/);
+    expect(block).toMatch(/cr664_platformworkspaceid/);
+    expect(block).toMatch(/cr664_workspacename/);
+    expect(block).toMatch(/fetchODataList/);
+  });
+
+  it('issues no POST/PATCH/DELETE and no bypass/suppress/force headers', () => {
+    expect(block).not.toMatch(/method:\s*'(POST|PATCH|DELETE)'/);
+    expect(block).not.toMatch(/createPlatformWorkspace/);
+    expect(block).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(block).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(block).not.toMatch(/Force=true/i);
+  });
+});
+
+describe('Phase 170H-A -- runSeedPlatformWorkspace contract', () => {
+  const block = sliceFunction('runSeedPlatformWorkspace');
+
+  it('resolves by name; no-ops if it exists; bails on duplicate', () => {
+    expect(block).toMatch(/findPlatformWorkspaceByName/);
+    expect(block).toMatch(/No-op success/);
+    expect(block).toMatch(/cr664_platformworkspace rows match/);
+  });
+
+  it('only POSTs on commit, and the create body is cr664_workspacename only', () => {
+    expect(block).toMatch(/if \(!doCommit\)/);
+    expect(block).toMatch(/Dry-run only — no POST issued/);
+    expect(block).toMatch(/createPlatformWorkspace/);
+    expect(block).toMatch(/sets ONLY cr664_workspacename/);
+  });
+
+  it('verifies by re-reading; no security role / no unrelated fields / no bypass headers', () => {
+    expect(block).toMatch(/Re-reading the workspace to verify/);
+    expect(block).not.toMatch(/roleid|securityrole|AddMembersToRole/i);
+    expect(block).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(block).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(block).not.toMatch(/Force=true/i);
+  });
+
+  it('hardcodes no Dataverse GUID', () => {
+    expect(block).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
   });
 });

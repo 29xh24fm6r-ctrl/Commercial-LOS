@@ -341,6 +341,10 @@ function parseArgs(argv) {
     // Existing-user only; never creates a user or a workspace.
     seedPrimaryWorkspace: false,
     commitSeedPrimaryWorkspace: false,
+    // Phase 170H-A — Platform Workspace listing + seed (workspace row only).
+    listPlatformWorkspaces: false,
+    seedPlatformWorkspace: false,
+    commitSeedPlatformWorkspace: false,
     // Phase 137G — Copilot Custom API metadata inspect / dry-run plan.
     // Read-only inspect + offline dry-run plan only. Commit is NOT
     // implemented in this phase (no write path exists).
@@ -660,6 +664,20 @@ function parseArgs(argv) {
       flags.dryRun = false;
     } else if (arg === '--commit-seed-primary-workspace') {
       flags.commitSeedPrimaryWorkspace = true;
+    } else if (arg === '--list-platform-workspaces') {
+      // Phase 170H-A — read-only listing of cr664_platformworkspace rows
+      // (id + name). Pure GET; never writes.
+      flags.listPlatformWorkspaces = true;
+      flags.dryRun = false;
+    } else if (arg === '--seed-platform-workspace') {
+      // Phase 170H-A — seed a cr664_platformworkspace ROW by name.
+      // Dry-run by default; writes require --commit-seed-platform-workspace.
+      // Requires --workspace-name. POST sets ONLY cr664_workspacename. No
+      // user, deal, entitlement, or security role is touched.
+      flags.seedPlatformWorkspace = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-platform-workspace') {
+      flags.commitSeedPlatformWorkspace = true;
     } else if (arg === '--inspect-copilot-custom-api') {
       // Phase 137G — read-only metadata inspection of the future
       // cr664_RunLosCopilotAssist Custom API. Pure GET; never writes.
@@ -764,6 +782,8 @@ function parseArgs(argv) {
     flags.inspectAttributeItems !== null,
     flags.inspectNewDealReferences,
     flags.inspectStageStatusValues,
+    flags.listPlatformWorkspaces,
+    flags.seedPlatformWorkspace,
     flags.seedProductReferences,
     flags.seedManagerEntitlement,
     flags.seedExecutivePrimaryWorkspace,
@@ -821,6 +841,17 @@ function parseArgs(argv) {
     bailParseArgs(
       '--commit-seed-primary-workspace has no effect without --seed-primary-workspace.',
     );
+  }
+  // Phase 170H-A — the platform-workspace seed commit flag only authorizes
+  // a write alongside its seed mode; on its own it must fail. The seed mode
+  // requires --workspace-name.
+  if (flags.commitSeedPlatformWorkspace && !flags.seedPlatformWorkspace) {
+    bailParseArgs(
+      '--commit-seed-platform-workspace has no effect without --seed-platform-workspace.',
+    );
+  }
+  if (flags.seedPlatformWorkspace && !flags.seedWorkspaceName) {
+    bailParseArgs('--seed-platform-workspace requires --workspace-name <text>');
   }
   // --attribute is a shared "<table>.<column>" qualifier reused by
   // --inspect-form, --inspect-view, and --cleanup-view. The field
@@ -977,8 +1008,8 @@ function parseArgs(argv) {
     if (flags.seedTeamName) {
       bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
     }
-    if (flags.seedWorkspaceName) {
-      bailParseArgs('--workspace-name is only valid alongside --seed-executive-primary-workspace or --seed-primary-workspace');
+    if (flags.seedWorkspaceName && !flags.seedPlatformWorkspace) {
+      bailParseArgs('--workspace-name is only valid alongside --seed-executive-primary-workspace or --seed-primary-workspace or --seed-platform-workspace');
     }
     if (flags.commitSeedManagerEntitlement) {
       bailParseArgs(
@@ -1048,7 +1079,13 @@ if (FLAGS.help) {
 // Header
 // ---------------------------------------------------------------------------
 
-const MODE = FLAGS.inspectStageStatusValues
+const MODE = FLAGS.listPlatformWorkspaces
+  ? 'LIST-PLATFORM-WORKSPACES (read-only)'
+  : FLAGS.seedPlatformWorkspace
+  ? FLAGS.commitSeedPlatformWorkspace
+    ? 'COMMIT-SEED-PLATFORM-WORKSPACE'
+    : 'SEED-PLATFORM-WORKSPACE (dry-run)'
+  : FLAGS.inspectStageStatusValues
   ? 'INSPECT-STAGE-STATUS-VALUES (read-only)'
   : FLAGS.seedPrimaryWorkspace
   ? FLAGS.commitSeedPrimaryWorkspace
@@ -1152,6 +1189,7 @@ if (
   FLAGS.commitSeedManagerEntitlement ||
   FLAGS.commitSeedExecutivePrimaryWorkspace ||
   FLAGS.commitSeedPrimaryWorkspace ||
+  FLAGS.commitSeedPlatformWorkspace ||
   FLAGS.commitSeedPortfolioBoardingSchema ||
   FLAGS.commitRepairPortfolioBoardingOptionalRelationships
 ) {
@@ -3393,6 +3431,131 @@ async function findPlatformWorkspaceByName(workspaceName, token, envUrl) {
     `${envUrl}/api/data/v9.2/cr664_platformworkspaces` +
     `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
   return fetchODataList(url, token);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 170H-A — Platform Workspace listing + ROW seed.
+//
+// runListPlatformWorkspaces: pure GET of cr664_platformworkspace rows
+//   (id + name). Never writes.
+// runSeedPlatformWorkspace: resolve a workspace by name; no-op if it
+//   exists, bail on duplicate, plan/POST { cr664_workspacename } only when
+//   the row is missing AND --commit-seed-platform-workspace is set. POST
+//   sets ONLY cr664_workspacename (reuses createPlatformWorkspace). Verify
+//   by re-reading. No user/deal/entitlement/security-role is touched.
+// ---------------------------------------------------------------------------
+
+async function runListPlatformWorkspaces(token, envUrl) {
+  console.log('');
+  console.log('Phase 170H-A — Platform Workspace listing (read-only)');
+  console.log('   GET /api/data/v9.2/cr664_platformworkspaces; no create/patch/delete.');
+  const select = 'cr664_platformworkspaceid,cr664_workspacename';
+  const url =
+    `${envUrl}/api/data/v9.2/cr664_platformworkspaces` +
+    `?$select=${encodeURIComponent(select)}&$orderby=cr664_workspacename asc`;
+  const res = await fetchODataList(url, token);
+  if (!res.ok) {
+    console.log(`   ⚠ Could not read cr664_platformworkspaces: ${res.error}`);
+    return { ok: false, error: res.error };
+  }
+  const rows = res.records;
+  console.log('');
+  if (rows.length === 0) {
+    console.log('   (no Platform Workspace rows found)');
+  } else {
+    for (const r of rows) {
+      console.log(
+        `   - cr664_platformworkspaceid=${r.cr664_platformworkspaceid}  ` +
+          `cr664_workspacename=${r.cr664_workspacename ?? '(no name)'}`,
+      );
+    }
+  }
+  console.log('');
+  console.log(`   rows: ${rows.length}  (read-only; nothing written)`);
+  return { ok: true, count: rows.length };
+}
+
+async function runSeedPlatformWorkspace({ workspaceName, doCommit }, token, envUrl) {
+  console.log('');
+  console.log('Phase 170H-A — Platform Workspace ROW seed');
+  console.log(`   Workspace name:  ${workspaceName}`);
+  console.log(
+    `   Mode:            ${
+      doCommit
+        ? 'COMMIT-SEED-PLATFORM-WORKSPACE (will POST the workspace row)'
+        : 'dry-run (no write)'
+    }`,
+  );
+  console.log('');
+
+  // 1. Resolve by cr664_workspacename — at most one.
+  const wsResult = await findPlatformWorkspaceByName(workspaceName, token, envUrl);
+  if (!wsResult.ok) {
+    bail(`Could not resolve platform workspace "${workspaceName}": ${wsResult.error}`);
+  }
+  if (wsResult.records.length > 1) {
+    bail(
+      `${wsResult.records.length} cr664_platformworkspace rows match ` +
+        `cr664_workspacename = "${workspaceName}". Refusing — the operator ` +
+        `must resolve the ambiguity before seeding.`,
+    );
+  }
+  if (wsResult.records.length === 1) {
+    const existingId = wsResult.records[0].cr664_platformworkspaceid;
+    console.log(
+      `   ✓ Platform workspace already exists: cr664_platformworkspaceid=${existingId}.`,
+    );
+    console.log('   No-op success.');
+    return { ok: true, alreadyExists: true, workspaceId: existingId };
+  }
+
+  // 2. Missing — plan the create.
+  console.log('   Planned action:');
+  console.log('     [1] POST /api/data/v9.2/cr664_platformworkspaces');
+  console.log(`         body: { "cr664_workspacename": "${workspaceName}" }`);
+  console.log(
+    '         POST body sets ONLY cr664_workspacename — no other column, no ' +
+      'user/deal/entitlement row, and no security role.',
+  );
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no POST issued.');
+    console.log(
+      '   Re-run with `--commit-seed-platform-workspace` to create the workspace row.',
+    );
+    return { ok: true, planned: true };
+  }
+
+  // 3. Commit — POST only cr664_workspacename.
+  console.log('');
+  console.log('   ⚙ POST /api/data/v9.2/cr664_platformworkspaces …');
+  const createResult = await createPlatformWorkspace(workspaceName, token, envUrl);
+  if (!createResult.ok) {
+    bail(`Create cr664_platformworkspace failed: ${createResult.error}`);
+  }
+  const workspaceId = createResult.id;
+  console.log(`   ✓ Created cr664_platformworkspaceid=${workspaceId}`);
+
+  // 4. Verify by re-reading.
+  console.log('');
+  console.log('   ⚙ Re-reading the workspace to verify …');
+  const verify = await findPlatformWorkspaceByName(workspaceName, token, envUrl);
+  if (!verify.ok) {
+    console.log(`     ⚠ Could not re-read workspace: ${verify.error}`);
+  } else if (verify.records.length === 1) {
+    console.log(
+      `     ✓ Verified one cr664_platformworkspace row with cr664_workspacename = "${workspaceName}".`,
+    );
+  } else {
+    console.log(
+      `     ⚠ Verification mismatch — re-read returned ${verify.records.length} rows.`,
+    );
+  }
+
+  console.log('');
+  console.log('✓ Seed commit complete.');
+  return { ok: true, workspaceId };
 }
 
 async function createPlatformWorkspace(workspaceName, token, envUrl) {
@@ -8621,6 +8784,25 @@ async function main() {
         upn: FLAGS.seedUpn,
         workspaceName: FLAGS.seedWorkspaceName,
         doCommit: FLAGS.commitSeedPrimaryWorkspace,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
+  // === Phase 170H-A -- read-only Platform Workspace listing ===
+  if (FLAGS.listPlatformWorkspaces) {
+    await runListPlatformWorkspaces(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 170H-A -- Platform Workspace ROW seed (dry-run / commit) ===
+  if (FLAGS.seedPlatformWorkspace) {
+    await runSeedPlatformWorkspace(
+      {
+        workspaceName: FLAGS.seedWorkspaceName,
+        doCommit: FLAGS.commitSeedPlatformWorkspace,
       },
       mainToken,
       mainEnvUrl,

@@ -3420,3 +3420,36 @@ describe('Phase 170H -- resolver readiness surface doc exists and is governed', 
     expect(doc).toMatch(/No tag\s+created or moved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170H-A -- Admin workspace reachability + provisioning repair
+// ---------------------------------------------------------------------------
+
+describe('Phase 170H-A -- admin workspace provisioning repair doc', () => {
+  const rel = 'docs/PHASE_170H_A_ADMIN_WORKSPACE_REACHABILITY_REPAIR.md';
+
+  it('the Phase 170H-A doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('documents the three new commands', () => {
+    expect(doc).toMatch(/--list-platform-workspaces/);
+    expect(doc).toMatch(/--seed-platform-workspace/);
+    expect(doc).toMatch(/--commit-seed-platform-workspace/);
+  });
+
+  it('pins POST-only cr664_workspacename, no auto-routing, no security roles', () => {
+    expect(doc).toMatch(/cr664_workspacename/);
+    expect(doc).toMatch(/No automated routing of Matt|not automated/i);
+    expect(doc).toMatch(/No Dataverse security roles granted/i);
+  });
+
+  it('pins + New Deal disabled, no deploy/tag/record', () => {
+    expect(doc).toMatch(/New Deal stays disabled|new-deal-create/);
+    expect(doc).toMatch(/No deploy/i);
+    expect(doc).toMatch(/No tag\s+created or moved/i);
+    expect(doc).toMatch(/No Dataverse\s+record created or\s+patched/i);
+  });
+});
