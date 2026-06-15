@@ -3232,3 +3232,43 @@ describe('Phase 170D-R -- canonical reference metadata + companion doc', () => {
     expect(src).not.toMatch(/'cr664_dealstatusreferences'/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170E -- Stage/Status data source registration + resolver reader
+// ---------------------------------------------------------------------------
+
+describe('Phase 170E -- data source / resolver reader doc exists and is governed', () => {
+  const rel = 'docs/PHASE_170E_STAGE_STATUS_DATASOURCE_RESOLVER_READER.md';
+
+  it('the Phase 170E doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('records the live inspection values explicitly as evidence only', () => {
+    expect(doc).toMatch(/EVIDENCE ONLY/i);
+    expect(doc).toMatch(/PHASE121_STAGE/);
+    expect(doc).toMatch(/PHASE121_STATUS/);
+    expect(doc).toMatch(/NOT stored in source|never hardcoded/i);
+  });
+
+  it('pins that data sources were NOT registered (connector attempt reverted)', () => {
+    expect(doc).toMatch(/Were Data Sources \/ Generated Services Added\?/i);
+    expect(doc).toMatch(/No\./);
+    expect(doc).toMatch(/reverted/i);
+    expect(doc).toMatch(/pac code add-data-source/);
+  });
+
+  it('pins selection by code/name (not GUID) and the registration runbook', () => {
+    expect(doc).toMatch(/STAGE_REFERENCE_SELECTION/);
+    expect(doc).toMatch(/Registration Runbook/i);
+    expect(doc).toMatch(/notConfigured/);
+  });
+
+  it('pins New Deal still disabled, TEST-env labels, and no tag movement', () => {
+    expect(doc).toMatch(/New Deal Remains Disabled|New Deal stays disabled/i);
+    expect(doc).toMatch(/REFERENCE_SELECTION_PRODUCTION_APPROVED = false/);
+    expect(doc).toMatch(/No tag created or moved/i);
+  });
+});

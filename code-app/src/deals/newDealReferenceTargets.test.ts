@@ -8,8 +8,12 @@ import {
   NEW_DEAL_REFERENCE_TARGETS_REGISTERED,
   NEW_DEAL_REFERENCE_RESOLVER_AVAILABLE,
   NEW_DEAL_REFERENCE_TARGETS_SOURCE_COMMAND,
+  REFERENCE_SELECTION_IS_TEST_ENVIRONMENT,
+  REFERENCE_SELECTION_PRODUCTION_APPROVED,
   STAGE_REFERENCE,
+  STAGE_REFERENCE_SELECTION,
   STATUS_REFERENCE,
+  STATUS_REFERENCE_SELECTION,
 } from './newDealReferenceTargets';
 import {
   STAGE_REFERENCE as RESOLVER_STAGE_REFERENCE,
@@ -87,6 +91,50 @@ describe('Phase 170D-R -- one canonical source feeds resolver + admin', () => {
     expect(STATUS_REFERENCE.entitySetName).toBe(status.targetEntitySetName);
     expect(STATUS_REFERENCE.bindAttribute).toBe(status.odataBindKey);
   });
+});
+
+describe('Phase 170E -- reference selection is by code/name, marked TEST-env', () => {
+  it('selects Stage/Status by stable code + name (never a GUID)', () => {
+    expect(STAGE_REFERENCE_SELECTION.code).toBe('PHASE121_STAGE');
+    expect(STAGE_REFERENCE_SELECTION.name).toBe('TEST - Stage Phase 121');
+    expect(STATUS_REFERENCE_SELECTION.code).toBe('PHASE121_STATUS');
+    expect(STATUS_REFERENCE_SELECTION.name).toBe('TEST — Status Phase 121');
+    for (const sel of [STAGE_REFERENCE_SELECTION, STATUS_REFERENCE_SELECTION]) {
+      const blob = `${sel.code} ${sel.name}`;
+      expect(blob).not.toMatch(
+        /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
+      );
+    }
+  });
+
+  it('is flagged as the current TEST environment with production NOT approved', () => {
+    expect(REFERENCE_SELECTION_IS_TEST_ENVIRONMENT).toBe(true);
+    expect(REFERENCE_SELECTION_PRODUCTION_APPROVED).toBe(false);
+  });
+});
+
+describe('Phase 170E -- inspected record GUIDs are never hardcoded', () => {
+  // The two ACTIVE rows observed during read-only inspection. They are
+  // evidence only and must NOT appear anywhere in source.
+  const INSPECTED_IDS = [
+    '128de457-3059-f111-bec7-70a8a59be491',
+    '8029c312-3159-f111-bec7-70a8a59be491',
+  ];
+  const FILES = [
+    'src/deals/newDealReferenceTargets.ts',
+    'src/deals/newDealReferenceResolver.ts',
+    'src/admin/NewDealIntakePanel.tsx',
+    'src/admin/adminNewDealIntakeModel.ts',
+  ];
+  const REPO_ROOT = resolve(__dirname, '..', '..');
+  for (const rel of FILES) {
+    it(`${rel} contains neither inspected Stage/Status GUID`, () => {
+      const src = readFileSync(resolve(REPO_ROOT, rel), 'utf8');
+      for (const id of INSPECTED_IDS) {
+        expect(src).not.toContain(id);
+      }
+    });
+  }
 });
 
 describe('Phase 170D -- target manifest source discipline', () => {

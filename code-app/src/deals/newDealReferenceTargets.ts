@@ -146,3 +146,41 @@ export const STAGE_REFERENCE: ReferenceTargetMetadata = toResolverMetadata(STAGE
 
 /** Status reference metadata (derived from the canonical Status target). */
 export const STATUS_REFERENCE: ReferenceTargetMetadata = toResolverMetadata(STATUS_TARGET);
+
+// ---------------------------------------------------------------------------
+// Phase 170E -- target SELECTION config (code/name, never IDs)
+// ---------------------------------------------------------------------------
+//
+// A future fail-closed reader (once the data sources are registered as
+// typed services) selects the Stage/Status rows by these stable code/name
+// values -- NEVER by a record GUID. The values below are the codes/names
+// of the single ACTIVE rows observed in the CURRENT TEST environment via
+// the read-only `--inspect-stage-status-values` inspection (2026-06-15).
+//
+// These are TEST-environment reference rows (note the "Phase 121" labels),
+// NOT approved production labels. + New Deal therefore stays disabled
+// until production Stage/Status reference rows are seeded/approved and a
+// reader is wired. The inspected record GUIDs are deliberately NOT stored
+// here; resolution happens by unique active code/name only.
+
+/** True: the selection below targets the current TEST environment rows. */
+export const REFERENCE_SELECTION_IS_TEST_ENVIRONMENT = true as const;
+/** False: production Stage/Status labels are not yet seeded/approved. */
+export const REFERENCE_SELECTION_PRODUCTION_APPROVED = false as const;
+
+export interface ReferenceSelection {
+  readonly code: string;
+  readonly name: string;
+}
+
+/** TEST-environment Stage selector (code preferred; name for reference). */
+export const STAGE_REFERENCE_SELECTION: ReferenceSelection = Object.freeze({
+  code: 'PHASE121_STAGE',
+  name: 'TEST - Stage Phase 121',
+});
+
+/** TEST-environment Status selector (code preferred; name for reference). */
+export const STATUS_REFERENCE_SELECTION: ReferenceSelection = Object.freeze({
+  code: 'PHASE121_STATUS',
+  name: 'TEST — Status Phase 121',
+});
