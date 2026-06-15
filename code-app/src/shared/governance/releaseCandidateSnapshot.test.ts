@@ -3506,3 +3506,49 @@ describe('Phase 170I -- runtime dataSourcesInfo binding repair doc + script', ()
     expect(script).toMatch(/ADDITIVE/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170J -- reconcile New Deal readiness truth (and Admin shell parity)
+// ---------------------------------------------------------------------------
+
+describe('Phase 170J -- New Deal readiness truth reconciliation doc exists and is honest', () => {
+  const rel = 'docs/PHASE_170J_NEW_DEAL_READINESS_TRUTH_RECONCILIATION.md';
+
+  it('the Phase 170J doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the live smoke Ready(TEST) result and the stale-copy root cause', () => {
+    expect(doc).toMatch(/READY \(TEST\)/i);
+    expect(doc).toMatch(/PHASE121_STAGE/);
+    expect(doc).toMatch(/PHASE121_STATUS/);
+    expect(doc).toMatch(/data source registration is missing/i);
+  });
+
+  it('pins the reconciled truth model (Ready/Pending/Not wired/Disabled)', () => {
+    expect(doc).toMatch(/Production reference approval/i);
+    expect(doc).toMatch(/Governed create adapter/i);
+    expect(doc).toMatch(/NEW_DEAL_RESOLVER_READY_IN_TEST = true/);
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false/);
+  });
+
+  it('pins the New-Deal-create vs Advance-Stage distinction explicitly', () => {
+    expect(doc).toMatch(/cr664_dealstagereferences/);
+    expect(doc).toMatch(/cr664_stagereferences/);
+    expect(doc).toMatch(/Advance Stage|stage-progression/i);
+  });
+
+  it('pins the Admin shell / LendingOSLayout parity as deferred', () => {
+    expect(doc).toMatch(/LendingOSLayout/);
+    expect(doc).toMatch(/deferred/i);
+  });
+
+  it('pins no enablement, no record write, no production approval, and tag not moved', () => {
+    expect(doc).toMatch(/New Deal NOT enabled|\+ New Deal NOT enabled/i);
+    expect(doc).toMatch(/No Dataverse record created/i);
+    expect(doc).toMatch(/No TEST reference rows approved for production/i);
+    expect(doc).toMatch(/No tag created or moved/i);
+  });
+});

@@ -74,11 +74,12 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
     title: 'New Deal Intake',
     status: 'blocked',
     liveWriteEnabledHere: false,
-    statusLine: 'New deal create remains disabled for V1.0.',
+    statusLine:
+      'Readiness proven in TEST; create disabled pending production reference approval and a governed create adapter.',
     blocker:
-      'cr664_loandeal create requires Stage/Status reference binds, but no Stage/Status reference data source is registered (Phase 163).',
+      'The Stage/Status reference data sources are registered and the fail-closed resolver reads them at runtime (Ready in TEST), but the active rows are TEST labels (not production-approved) and no governed audited create adapter is wired. Separate from Advance Stage / stage-progression ordering.',
     nextStep:
-      'Phase 169C / Phase 163 unblock: register Stage/Status reference data sources, refresh the generated SDK, add a fail-closed default resolver, then wire a governed create.',
+      'Phase 170J+: approve/seed production Stage/Status reference rows, add a governed audited create adapter, run a single-record create smoke, then enable + New Deal.',
   }),
   Object.freeze({
     id: 'portfolio-boarding',

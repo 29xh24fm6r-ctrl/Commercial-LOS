@@ -109,7 +109,7 @@ describe('Phase 169A -- Admin Operations Console rendering', () => {
   it('renders honest blocker / next-step copy on the cards', () => {
     renderConsole(WORKSPACE_ROUTES.admin);
     expect(
-      screen.getByText(/no Stage\/Status reference data source is registered/i),
+      screen.getByText(/data sources are registered and the fail-closed resolver reads them at runtime \(Ready in TEST\)/i),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED defaults to false/),

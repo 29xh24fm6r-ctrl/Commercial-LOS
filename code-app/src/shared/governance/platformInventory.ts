@@ -215,11 +215,13 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     id: 'new-deal-create',
     label: 'New Deal create',
     reason:
-      'The cr664_loandeal schema requires cr664_StageReference and ' +
-      'cr664_StatusReference lookup values on create, but no generated ' +
-      'stage/status reference data source or canonical default resolver ' +
-      'exists in the app. The + New Deal control must remain disabled ' +
-      'until those required references can be resolved without guessing.',
+      'Stage/Status reference resolution is READY in TEST: the ' +
+      'cr664_dealstagereferences / cr664_dealstatusreferences data sources ' +
+      'are registered, typed services exist, and the fail-closed resolver ' +
+      'reads one active Stage + Status at runtime (Phase 170D-170I). The ' +
+      '+ New Deal control remains not wired pending production-approved ' +
+      'reference rows and a governed, audited create adapter. Separate from ' +
+      'Advance Stage / stage-progression ordering (see stage-progression-advance).',
     blockerKind: 'schema',
   },
   {

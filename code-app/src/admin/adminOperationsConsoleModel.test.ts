@@ -54,11 +54,15 @@ describe('Phase 169A -- admin console modules are honest and write-free', () => 
     }
   });
 
-  it('pins New Deal intake as blocked by the Stage/Status reference gap (Phase 163)', () => {
+  it('pins New Deal intake as Ready(TEST) but create-blocked pending production approval + adapter (Phase 170J)', () => {
     const newDeal = ADMIN_CONSOLE_MODULES.find((m) => m.id === 'new-deal-intake');
     expect(newDeal?.status).toBe('blocked');
-    expect(newDeal?.blocker).toMatch(/Stage\/Status reference/i);
-    expect(newDeal?.nextStep).toMatch(/Phase 163/);
+    expect(newDeal?.statusLine).toMatch(/Ready in TEST|Readiness proven in TEST/i);
+    expect(newDeal?.blocker).toMatch(/Ready in TEST/i);
+    expect(newDeal?.blocker).not.toMatch(/data source registration is missing/i);
+    expect(newDeal?.blocker).toMatch(/production-approved/i);
+    expect(newDeal?.blocker).toMatch(/Advance Stage|stage-progression/i);
+    expect(newDeal?.nextStep).toMatch(/Phase 170J\+/);
   });
 
   it('pins portfolio and CRM as adapter-disabled by default', () => {

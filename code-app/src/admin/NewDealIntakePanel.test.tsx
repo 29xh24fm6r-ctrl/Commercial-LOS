@@ -16,20 +16,38 @@ vi.mock('../deals/newDealReferenceReader', () => ({
 import { NewDealIntakePanel } from './NewDealIntakePanel';
 
 /**
- * Phase 169C -- New Deal Intake panel (blocker/preview only).
+ * Phase 170J -- New Deal Intake panel (reconciled readiness truth).
  */
 
-describe('Phase 169C -- New Deal Intake panel', () => {
-  it('renders the panel marked Blocked with the Phase 163 blocker', () => {
+describe('Phase 170J -- New Deal Intake panel', () => {
+  it('renders the panel marked Create disabled with the reconciled status, not a missing-data-source claim', () => {
     const { container } = render(<NewDealIntakePanel />);
     expect(
       screen.getByRole('region', { name: 'New Deal Intake' }),
     ).toBeInTheDocument();
+    expect(screen.getByText('Create disabled')).toBeInTheDocument();
     const blocker = container.querySelector('[data-admin-new-deal-blocker]');
-    expect(blocker?.textContent).toMatch(/Stage\/Status reference data source registration is missing/i);
+    expect(blocker?.textContent).toMatch(/READY in TEST/i);
+    expect(blocker?.textContent).not.toMatch(/data source registration is missing/i);
+    expect(blocker?.textContent).toMatch(/production-approved/i);
+    expect(blocker?.textContent).toMatch(/Advance Stage|stage-progression/i);
   });
 
-  it('shows the required future fields including the blocked Stage and Status', () => {
+  it('shows the reconciled readiness truth table (Ready(TEST) / Pending / Not wired / Disabled)', () => {
+    const { container } = render(<NewDealIntakePanel />);
+    const truth = container.querySelector('[data-admin-new-deal-truth]') as HTMLElement;
+    expect(truth).not.toBeNull();
+    expect(within(truth).getByText('Stage/Status resolver readiness')).toBeInTheDocument();
+    expect(within(truth).getByText('Ready (TEST)')).toBeInTheDocument();
+    expect(within(truth).getByText('Production reference approval')).toBeInTheDocument();
+    expect(within(truth).getByText('Pending')).toBeInTheDocument();
+    expect(within(truth).getByText('Governed create adapter')).toBeInTheDocument();
+    expect(within(truth).getByText('Not wired')).toBeInTheDocument();
+    expect(within(truth).getByText('Public + New Deal')).toBeInTheDocument();
+    expect(within(truth).getByText('Disabled')).toBeInTheDocument();
+  });
+
+  it('shows the required future fields including Stage and Status (now Ready, not Blocked)', () => {
     const { container } = render(<NewDealIntakePanel />);
     const fields = container.querySelector('[data-admin-new-deal-fields]') as HTMLElement;
     for (const label of [
@@ -48,9 +66,11 @@ describe('Phase 169C -- New Deal Intake panel', () => {
     // The Stage/Status rows carry the required odata binds.
     expect(within(fields).getByText('cr664_StageReference@odata.bind')).toBeInTheDocument();
     expect(within(fields).getByText('cr664_StatusReference@odata.bind')).toBeInTheDocument();
+    // No field renders the "Blocked" reference state any more.
+    expect(within(fields).queryByText('Blocked')).toBeNull();
   });
 
-  it('shows the Phase 170D confirmed live reference targets (metadata only)', () => {
+  it('shows the Phase 170D confirmed live reference targets, now registered (Ready in TEST)', () => {
     const { container } = render(<NewDealIntakePanel />);
     const targets = container.querySelector('[data-admin-new-deal-targets]') as HTMLElement;
     expect(targets).not.toBeNull();
@@ -59,28 +79,28 @@ describe('Phase 169C -- New Deal Intake panel', () => {
     expect(within(targets).getByText('cr664_dealstagereferenceid')).toBeInTheDocument();
     expect(within(targets).getByText('cr664_dealstatusreferenceid')).toBeInTheDocument();
     const note = container.querySelector('[data-admin-new-deal-targets-note]');
-    expect(note?.textContent).toMatch(/Not yet registered as an app data source/i);
+    expect(note?.textContent).toMatch(/registered as native app data sources/i);
+    expect(note?.textContent).toMatch(/Ready in\s+TEST/i);
     expect(note?.textContent).toMatch(/inspect-new-deal-references/i);
   });
 
-  it('marks checklist step 1 done and leaves the rest pending', () => {
+  it('marks the reference/resolver/runtime steps done and leaves production/adapter/create/enable pending', () => {
     const { container } = render(<NewDealIntakePanel />);
     const checklist = container.querySelector('[data-admin-new-deal-checklist]') as HTMLElement;
     const items = Array.from(checklist.querySelectorAll('li'));
-    expect(items[0].getAttribute('data-done')).toBe('true');
-    for (const item of items.slice(1)) {
-      expect(item.getAttribute('data-done')).toBe('false');
-    }
+    expect(items.length).toBe(9);
+    for (const i of [0, 1, 2, 3, 4]) expect(items[i].getAttribute('data-done')).toBe('true');
+    for (const i of [5, 6, 7, 8]) expect(items[i].getAttribute('data-done')).toBe('false');
   });
 
-  it('shows the five-step Stage/Status registration checklist', () => {
+  it('shows the enablement checklist with resolver and create-adapter steps', () => {
     const { container } = render(<NewDealIntakePanel />);
     const checklist = container.querySelector('[data-admin-new-deal-checklist]') as HTMLElement;
-    expect(checklist.querySelectorAll('li').length).toBe(5);
     expect(
       within(checklist).getByText(/--inspect-new-deal-references/i),
     ).toBeInTheDocument();
     expect(within(checklist).getByText(/Add a fail-closed default resolver/i)).toBeInTheDocument();
+    expect(within(checklist).getByText(/governed, audited create adapter/i)).toBeInTheDocument();
   });
 
   it('keeps the Create action disabled (no live create)', () => {

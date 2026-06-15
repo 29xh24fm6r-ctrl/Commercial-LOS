@@ -182,6 +182,25 @@ describe('platformInventory — not wired', () => {
     expect(byId.get('borrower-portal')?.blockerKind).toBe('compound');
   });
 
+  it('new-deal-create reason is reconciled to Ready(TEST) + pending approval/adapter (Phase 170J)', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'new-deal-create')!;
+    expect(entry.reason).toMatch(/READY in TEST/i);
+    expect(entry.reason).not.toMatch(/not registered/i);
+    expect(entry.reason).toMatch(/production-approved/i);
+    expect(entry.reason).toMatch(/governed, audited create adapter/i);
+    // Keeps the New Deal create vs Advance Stage distinction explicit.
+    expect(entry.reason).toMatch(/Advance Stage|stage-progression/i);
+    expect(entry.blockerKind).toBe('schema');
+  });
+
+  it('stage-reference-data-source stays about cr664_stagereferences (Advance Stage), not the New Deal references', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'stage-reference-data-source')!;
+    // The New Deal references (cr664_dealstagereferences) are now registered;
+    // this separate entry is the stage-progression stage reference table.
+    expect(entry.reason).toMatch(/Cr664_stagereferences/i);
+    expect(entry.reason).not.toMatch(/cr664_dealstagereferences/i);
+  });
+
   it('test-coverage-build-verification reason explicitly says no in-process signal', () => {
     const tcv = NOT_WIRED.find(
       (n) => n.id === 'test-coverage-build-verification',

@@ -5,6 +5,7 @@ import {
   NEW_DEAL_INTAKE_BLOCKER,
   NEW_DEAL_INTAKE_FIELDS,
   NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST,
+  NEW_DEAL_READINESS_TRUTH,
 } from './adminNewDealIntakeModel';
 import {
   NEW_DEAL_REFERENCE_TARGETS,
@@ -31,18 +32,37 @@ export function NewDealIntakePanel() {
       <header style={styles.head}>
         <div style={styles.titleRow}>
           <h3 style={styles.title}>New Deal Intake</h3>
-          <Badge variant="atRisk" appearance="outline">
-            Blocked
+          <Badge variant="neutral" appearance="outline">
+            Create disabled
           </Badge>
         </div>
         <p style={styles.subtitle}>
-          Admin deal onboarding. Blocked until the Stage/Status reference data
-          source is registered. No deal is created from here.
+          Admin deal onboarding. Stage/Status reference resolution is ready in
+          TEST; + New Deal create stays disabled pending production reference
+          approval and a governed create adapter. No deal is created from here.
         </p>
       </header>
 
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>New Deal create readiness</div>
+        <table style={styles.table} data-admin-new-deal-truth>
+          <tbody>
+            {NEW_DEAL_READINESS_TRUTH.map((item) => (
+              <tr key={item.label}>
+                <td style={styles.td}>{item.label}</td>
+                <td style={styles.td}>
+                  <Badge variant={item.done ? 'clear' : 'neutral'} appearance="outline">
+                    {item.value}
+                  </Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <div style={styles.blocker} role="note" data-admin-new-deal-blocker>
-        <strong>Blocker:</strong> {NEW_DEAL_INTAKE_BLOCKER}
+        <strong>Status:</strong> {NEW_DEAL_INTAKE_BLOCKER}
       </div>
 
       <NewDealResolverReadinessCard />
@@ -54,8 +74,10 @@ export function NewDealIntakePanel() {
         <p style={styles.sectionNote} data-admin-new-deal-targets-note>
           Identified read-only via <code>{NEW_DEAL_REFERENCE_TARGETS_SOURCE_COMMAND}</code> on{' '}
           {NEW_DEAL_REFERENCE_TARGETS_CONFIRMED_ON}. Metadata names only -- no
-          record ids. Not yet registered as an app data source, so no resolver
-          and no create are enabled.
+          record ids. Now registered as native app data sources with typed
+          services; the fail-closed resolver reads them at runtime (Ready in
+          TEST). Create stays disabled pending production approval + a governed
+          create adapter.
         </p>
         <table style={styles.table} data-admin-new-deal-targets>
           <thead>
@@ -117,7 +139,7 @@ export function NewDealIntakePanel() {
 
       <div style={styles.section}>
         <div style={styles.sectionTitle}>
-          Stage/Status data-source registration checklist
+          New Deal create enablement checklist
         </div>
         <ol style={styles.checklist} data-admin-new-deal-checklist>
           {NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST.map((step) => (
@@ -150,9 +172,12 @@ export function NewDealIntakePanel() {
         Create deal (not yet available)
       </button>
       <p style={styles.footnote} data-admin-new-deal-footnote>
-        The + New Deal button elsewhere in the app remains disabled for the same
-        reason. Deal creation will be enabled only after the checklist above is
-        complete and a fail-closed Stage/Status resolver exists.
+        The + New Deal button elsewhere in the app remains disabled. The
+        fail-closed Stage/Status resolver is ready in TEST; deal creation will
+        be enabled only after the remaining checklist items (production
+        reference approval and a governed, audited create adapter) are complete.
+        This is separate from Advance Stage / stage-progression, which remains
+        its own blocker.
       </p>
     </section>
   );
