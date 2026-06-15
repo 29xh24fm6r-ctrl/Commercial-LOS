@@ -2876,6 +2876,45 @@ describe('Phase 169C -- Admin New Deal Intake doc exists and is Case B blocker',
 });
 
 // ---------------------------------------------------------------------------
+// Phase 169E -- Admin CRM Onboarding (Case B, disabled-by-default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 169E -- Admin CRM Onboarding doc exists and is Case B', () => {
+  const rel = 'docs/PHASE_169E_ADMIN_CRM_ONBOARDING.md';
+
+  it('the Phase 169E doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins Case B (stack present; runtime CRM persistence disabled by default)', () => {
+    expect(doc).toMatch(/CASE B/i);
+    expect(doc).toMatch(/runtime CRM persistence disabled by default/i);
+    expect(doc).toMatch(/CRM_LIVE_PERSISTENCE_ENABLED/);
+  });
+
+  it('pins no live create/import/sync enabled, fail-closed resolver, and external connector off', () => {
+    expect(doc).toMatch(/CRM_ADMIN_LIVE_WRITE_ENABLED = false/);
+    expect(doc).toMatch(/fails closed/i);
+    expect(doc).toMatch(/disabled_by_default/);
+  });
+
+  it('pins the ten required data groups and the five safe next steps', () => {
+    expect(doc).toMatch(/organizations/i);
+    expect(doc).toMatch(/contact authorizations/i);
+    expect(doc).toMatch(/timeline events/i);
+    expect(doc).toMatch(/test-tenant write/i);
+  });
+
+  it('pins route delta 0 and tag not moved', () => {
+    expect(doc).toMatch(/Route Delta/i);
+    expect(doc).toMatch(/v1\.0\.0-controlled-pilot/);
+    expect(doc).toMatch(/stays\s+at\s+`?faf26d6`?/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 169D -- Admin Portfolio Boarding onboarding (Case B, disabled-by-default)
 // ---------------------------------------------------------------------------
 
