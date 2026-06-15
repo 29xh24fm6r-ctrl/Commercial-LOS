@@ -2915,6 +2915,53 @@ describe('Phase 169E -- Admin CRM Onboarding doc exists and is Case B', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 169F -- Admin Operations Console certification & deploy
+// ---------------------------------------------------------------------------
+
+describe('Phase 169F -- Admin console certification doc exists and is honest', () => {
+  const rel = 'docs/PHASE_169F_ADMIN_CONSOLE_CERTIFICATION_AND_DEPLOY.md';
+
+  it('the Phase 169F doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the included 169A-E commits and the bugfix', () => {
+    for (const sha of ['c18b587', '6a3be00', '5a3c8ab', 'b279de5', '4a7bed1', '912982f']) {
+      expect(doc).toMatch(new RegExp(sha));
+    }
+  });
+
+  it('pins the five required modules in the certification checklist', () => {
+    expect(doc).toMatch(/User & Access Management/);
+    expect(doc).toMatch(/New Deal Intake/);
+    expect(doc).toMatch(/Portfolio Boarding/);
+    expect(doc).toMatch(/CRM Onboarding/);
+    expect(doc).toMatch(/Security \/ Dataverse Roles/);
+  });
+
+  it('pins no live writes / no schema / no tag movement at faf26d6', () => {
+    expect(doc).toMatch(/No live admin writes/i);
+    expect(doc).toMatch(/No schema, migration, or Dataverse record changes/i);
+    expect(doc).toMatch(/stays\s+at\s+`?faf26d6`?/i);
+  });
+
+  it('pins the deploy target and the rollback via the controlled-pilot tag', () => {
+    expect(doc).toMatch(/5f2d77a5-de50-edeb-9d74-5b2400a2320d/);
+    expect(doc).toMatch(/63858e09-3d0b-47c9-b1d2-65cef742fda4/);
+    expect(doc).toMatch(/git checkout v1\.0\.0-controlled-pilot/);
+  });
+
+  it('pins the ten admin live smoke steps', () => {
+    expect(doc).toMatch(/Live Smoke Checklist/i);
+    expect(doc).toMatch(/Navigate to the Admin workspace/i);
+    expect(doc).toMatch(/Banker workspace still renders/i);
+    expect(doc).toMatch(/CRM Command Center still renders/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Phase 169D -- Admin Portfolio Boarding onboarding (Case B, disabled-by-default)
 // ---------------------------------------------------------------------------
 
