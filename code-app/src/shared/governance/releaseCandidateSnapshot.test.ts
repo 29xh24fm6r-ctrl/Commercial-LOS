@@ -3311,3 +3311,44 @@ describe('Phase 170F -- typed data-source registration runbook exists and is gov
     expect(doc).toMatch(/No tag created or moved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170F2 -- Stage/Status typed data-source code proof
+// ---------------------------------------------------------------------------
+
+describe('Phase 170F2 -- typed data-source code proof doc + artifacts', () => {
+  const rel = 'docs/PHASE_170F2_STAGE_STATUS_DATASOURCE_CODE_PROOF.md';
+
+  it('the Phase 170F2 doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('records ACCEPTED outcome and the two typed reference tables', () => {
+    expect(doc).toMatch(/ACCEPTED/i);
+    expect(doc).toMatch(/cr664_dealstagereferences/);
+    expect(doc).toMatch(/cr664_dealstatusreferences/);
+  });
+
+  it('rejects the generic connector artifact and pins .power gitignore fact', () => {
+    expect(doc).toMatch(/MicrosoftDataverseService/);
+    expect(doc).toMatch(/shared_commondataserviceforapps/);
+    expect(doc).toMatch(/\.power\/ Is Git-Ignored|\.power\/` is gitignored/i);
+  });
+
+  it('states + New Deal remains disabled and no tag movement', () => {
+    expect(doc).toMatch(/New Deal Remains Disabled|New Deal stays disabled/i);
+    expect(doc).toMatch(/No tag created or moved/i);
+  });
+
+  it('the typed generated services exist and no committed connector artifact does', () => {
+    expect(existsSync(resolve(REPO_ROOT, 'src/generated/services/Cr664_dealstagereferencesService.ts'))).toBe(true);
+    expect(existsSync(resolve(REPO_ROOT, 'src/generated/services/Cr664_dealstatusreferencesService.ts'))).toBe(true);
+    expect(existsSync(resolve(REPO_ROOT, 'src/generated/services/MicrosoftDataverseService.ts'))).toBe(false);
+    const powerConfig = readFileSync(resolve(REPO_ROOT, 'power.config.json'), 'utf8');
+    expect(powerConfig).not.toMatch(/shared_commondataserviceforapps/);
+    expect(powerConfig).toMatch(/cr664_dealstagereferences/);
+    expect(powerConfig).toMatch(/cr664_dealstatusreferences/);
+  });
+});

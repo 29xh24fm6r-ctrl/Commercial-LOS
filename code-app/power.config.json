@@ -103,6 +103,16 @@
           "logicalName": "cr664_dealreadinesssnapshot",
           "isHidden": false
         },
+        "dealstagereferences": {
+          "entitySetName": "cr664_dealstagereferences",
+          "logicalName": "cr664_dealstagereference",
+          "isHidden": false
+        },
+        "dealstatusreferences": {
+          "entitySetName": "cr664_dealstatusreferences",
+          "logicalName": "cr664_dealstatusreference",
+          "isHidden": false
+        },
         "performancemetrics": {
           "entitySetName": "cr664_performancemetrics",
           "logicalName": "cr664_performancemetric",
