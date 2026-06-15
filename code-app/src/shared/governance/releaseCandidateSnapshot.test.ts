@@ -2999,3 +2999,53 @@ describe('Phase 169D -- Admin Portfolio Boarding doc exists and is Case B', () =
     expect(doc).toMatch(/stays\s+at\s+`?faf26d6`?/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170A -- Governed platform user / primary workspace provisioning design
+// ---------------------------------------------------------------------------
+
+describe('Phase 170A -- platform user provisioning design doc exists and is governed', () => {
+  const rel = 'docs/PHASE_170A_PLATFORM_USER_PRIMARY_WORKSPACE_PROVISIONING_DESIGN.md';
+
+  it('the Phase 170A doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins that access is driven by the platform user primary workspace, not entitlements alone', () => {
+    expect(doc).toMatch(/cr664_platformuser\.cr664_PrimaryWorkspace/);
+    expect(doc).toMatch(/PrimaryWorkspace@odata\.bind/);
+    expect(doc).toMatch(/does NOT grant access/i);
+  });
+
+  it('warns that Dataverse security roles are outside in-app provisioning', () => {
+    expect(doc).toMatch(/SECURITY ROLES remain OUTSIDE the app/i);
+    expect(doc).toMatch(/Power Platform admin center/i);
+  });
+
+  it('requires dry-run default and an explicit commit flag', () => {
+    expect(doc).toMatch(/Dry-run by default/i);
+    expect(doc).toMatch(/--commit/);
+  });
+
+  it('includes an idempotency matrix with bail-on-duplicate states', () => {
+    expect(doc).toMatch(/Idempotency Matrix/i);
+    expect(doc).toMatch(/duplicate user/i);
+    expect(doc).toMatch(/duplicate workspace/i);
+    expect(doc).toMatch(/no-op/i);
+  });
+
+  it('asserts no Graph / no external HTTP / no hardcoded GUID / no live provisioning', () => {
+    expect(doc).toMatch(/No Microsoft Graph/i);
+    expect(doc).toMatch(/No\s+external HTTP\/fetch/i);
+    expect(doc).toMatch(/No hardcoded GUIDs/i);
+    expect(doc).toMatch(/No live in-app user provisioning/i);
+  });
+
+  it('pins that the existing operator script can be extended safely (no new script needed)', () => {
+    expect(doc).toMatch(/phase122-lookup-repair\.mjs/);
+    expect(doc).toMatch(/runSeedExecutivePrimaryWorkspace/);
+    expect(doc).toMatch(/brand-new script is NOT needed/i);
+  });
+});
