@@ -19,6 +19,15 @@ vi.mock('./adminUserAccessQueries', () => ({
   }),
 }));
 
+// The Phase 170H New Deal resolver readiness card reads the typed
+// Stage/Status data sources on mount; mock the reader so console tests
+// stay deterministic and never load the generated services.
+vi.mock('../deals/newDealReferenceReader', () => ({
+  resolveConfiguredNewDealReferences: vi
+    .fn()
+    .mockResolvedValue({ kind: 'notConfigured', reason: 'mocked in console test' }),
+}));
+
 import type { BootstrapResult } from '../bootstrap/bootstrapFlow';
 import { AdminIdentityProvider, type AdminIdentity } from './AdminContext';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';

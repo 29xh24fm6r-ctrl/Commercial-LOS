@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
+
+// The Phase 170H readiness card reads the typed Stage/Status data sources
+// on mount; mock the reader so panel tests stay deterministic and never
+// load the generated services / hit a live data source.
+vi.mock('../deals/newDealReferenceReader', () => ({
+  resolveConfiguredNewDealReferences: vi
+    .fn()
+    .mockResolvedValue({ kind: 'notConfigured', reason: 'mocked in panel test' }),
+}));
+
 import { NewDealIntakePanel } from './NewDealIntakePanel';
 
 /**

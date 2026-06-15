@@ -3387,3 +3387,36 @@ describe('Phase 170G -- runtime binding proof doc exists and is governed', () =>
     expect(doc).toMatch(/No tag created or moved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170H -- Admin New Deal resolver readiness surface
+// ---------------------------------------------------------------------------
+
+describe('Phase 170H -- resolver readiness surface doc exists and is governed', () => {
+  const rel = 'docs/PHASE_170H_ADMIN_NEW_DEAL_RESOLVER_READINESS.md';
+
+  it('the Phase 170H doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the read-only readiness states (ready + fail-closed) and no GUID display', () => {
+    expect(doc).toMatch(/Readiness UI States/i);
+    expect(doc).toMatch(/ready/);
+    expect(doc).toMatch(/serviceError/);
+    expect(doc).toMatch(/never displays a record GUID|No GUID is shown/i);
+  });
+
+  it('pins the TEST not-production-approved warning', () => {
+    expect(doc).toMatch(/TEST reference rows — not production-approved|TEST-environment labels/i);
+    expect(doc).toMatch(/REFERENCE_SELECTION_PRODUCTION_APPROVED = false/);
+  });
+
+  it('pins + New Deal disabled, read-only (no write), and no tag movement', () => {
+    expect(doc).toMatch(/New Deal Remains Disabled|Create remains disabled|New Deal stays disabled/i);
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false/);
+    expect(doc).toMatch(/No Dataverse record created/i);
+    expect(doc).toMatch(/No tag\s+created or moved/i);
+  });
+});

@@ -11,6 +11,7 @@ import {
   NEW_DEAL_REFERENCE_TARGETS_CONFIRMED_ON,
   NEW_DEAL_REFERENCE_TARGETS_SOURCE_COMMAND,
 } from '../deals/newDealReferenceTargets';
+import { NewDealResolverReadinessCard } from './NewDealResolverReadinessCard';
 
 /**
  * Phase 169C -- Admin New Deal Intake panel (blocker/preview only).
@@ -43,6 +44,8 @@ export function NewDealIntakePanel() {
       <div style={styles.blocker} role="note" data-admin-new-deal-blocker>
         <strong>Blocker:</strong> {NEW_DEAL_INTAKE_BLOCKER}
       </div>
+
+      <NewDealResolverReadinessCard />
 
       <div style={styles.section}>
         <div style={styles.sectionTitle}>
