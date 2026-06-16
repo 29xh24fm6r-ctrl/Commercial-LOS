@@ -1041,10 +1041,11 @@ function parseArgs(argv) {
     !flags.seedClientRelationship &&
     !flags.seedProductReferences &&
     !flags.seedManagerEntitlement &&
-    !flags.seedExecutivePrimaryWorkspace
+    !flags.seedExecutivePrimaryWorkspace &&
+    !flags.smokeCreateNewDeal
   ) {
     bailParseArgs(
-      '--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, or --seed-manager-entitlement',
+      '--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, or --smoke-create-new-deal',
     );
   }
   // Phase 124D — manager-entitlement seed cross-flag validation.

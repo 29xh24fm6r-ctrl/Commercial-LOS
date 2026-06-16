@@ -80,6 +80,46 @@ describe('Phase 170K — smoke-create mode is gated and mutexed', () => {
   });
 });
 
+describe('Phase 170K — BUGFIX: --deal-name is valid with --smoke-create-new-deal', () => {
+  // The global "--deal-name is only valid alongside ..." guard previously
+  // omitted the smoke-create mode, so an operator dry-run bailed at parse
+  // time before entering the mode. The guard must now exempt smoke-create
+  // WITHOUT loosening it for any unrelated mode.
+  const GUARD_BLOCK = (() => {
+    const idx = SCRIPT.indexOf('flags.seedDealName &&');
+    expect(idx).toBeGreaterThan(-1);
+    return SCRIPT.slice(idx, idx + 400);
+  })();
+
+  it('the global deal-name guard exempts --smoke-create-new-deal', () => {
+    expect(GUARD_BLOCK).toMatch(/!flags\.smokeCreateNewDeal/);
+  });
+
+  it('the guard still requires one of the seed modes (not globally allowed)', () => {
+    // All the original mode exclusions remain — the guard is narrowed by
+    // adding smoke-create, never widened to allow deal-name everywhere.
+    expect(GUARD_BLOCK).toMatch(/!flags\.seedClientRelationship/);
+    expect(GUARD_BLOCK).toMatch(/!flags\.seedProductReferences/);
+    expect(GUARD_BLOCK).toMatch(/!flags\.seedManagerEntitlement/);
+    expect(GUARD_BLOCK).toMatch(/!flags\.seedExecutivePrimaryWorkspace/);
+  });
+
+  it('the bail message lists --smoke-create-new-deal', () => {
+    expect(SCRIPT).toMatch(
+      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, or --smoke-create-new-deal/,
+    );
+  });
+
+  it('unrelated workspace modes still reject --deal-name (guard not loosened)', () => {
+    // The executive / primary-workspace branches keep their explicit
+    // deal-name rejection so deal-name cannot silently attach to them.
+    const rejections = SCRIPT.match(
+      /--deal-name is only valid alongside --seed-manager-entitlement or --seed-product-references/g,
+    );
+    expect(rejections && rejections.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('Phase 170K — Stage/Status resolved by code, fail-closed, no GUID', () => {
   it('5. Stage/Status are resolved by active CODE, never a hardcoded GUID', () => {
     expect(SCRIPT).toMatch(/SMOKE_NEW_DEAL_STAGE_CODE\s*=\s*'PHASE121_STAGE'/);

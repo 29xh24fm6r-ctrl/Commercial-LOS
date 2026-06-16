@@ -1568,9 +1568,10 @@ describe('Phase 122E Pt 2 — --seed-product-references guarded write mode', () 
     );
   });
 
-  it('--deal-name is valid alongside any seed mode (client / product-references / manager-entitlement)', () => {
+  it('--deal-name is valid alongside any seed mode (client / product-references / manager-entitlement / smoke-create)', () => {
+    // BUGFIX-170K appended --smoke-create-new-deal to the valid-mode list.
     expect(SCRIPT).toMatch(
-      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, or --seed-manager-entitlement/,
+      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, or --smoke-create-new-deal/,
     );
   });
 
@@ -3159,8 +3160,11 @@ describe('Phase 133C — --seed-executive-primary-workspace guarded write mode',
   });
 
   it('the earlier broad --deal-name check excludes executive mode so the in-branch guard is reachable', () => {
+    // BUGFIX-170K: the broad guard now also exempts --smoke-create-new-deal,
+    // appended after the executive-mode exclusion. The executive exclusion
+    // must remain present so the in-branch executive guard stays reachable.
     expect(SCRIPT).toMatch(
-      /flags\.seedDealName &&[\s\S]*?!flags\.seedManagerEntitlement &&\s*\n\s*!flags\.seedExecutivePrimaryWorkspace\s*\n\s*\)/,
+      /flags\.seedDealName &&[\s\S]*?!flags\.seedManagerEntitlement &&\s*\n\s*!flags\.seedExecutivePrimaryWorkspace\s*&&\s*\n\s*!flags\.smokeCreateNewDeal\s*\n\s*\)/,
     );
   });
 
