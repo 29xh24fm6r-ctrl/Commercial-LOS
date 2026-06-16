@@ -369,6 +369,10 @@ function parseArgs(argv) {
     // Phase 181A -- read-only Stage/Status reference inspection that classifies
     // each row PRODUCTION-SAFE vs REJECTED (TEST/PHASE/demo). Pure GET.
     inspectNewDealCreateReferences: false,
+    // Phase 181A -- guarded seed of the production-safe Intake/Open reference
+    // rows. Dry-run by default; a live create requires the commit flag.
+    seedNewDealCreateReferences: false,
+    commitSeedNewDealCreateReferences: false,
     // Phase 170K — controlled, operator-gated New Deal create smoke.
     // Dry-run by default; a single live create requires the explicit
     // --commit-smoke-create-new-deal flag. Never enables + New Deal.
@@ -622,6 +626,16 @@ function parseArgs(argv) {
       // Pure GET only; never writes; never enables any gate.
       flags.inspectNewDealCreateReferences = true;
       flags.dryRun = false;
+    } else if (arg === '--seed-new-deal-create-references') {
+      // Phase 181A -- guarded seed of production-safe Intake/Open reference
+      // rows. Dry-run by default; a live create requires
+      // --commit-seed-new-deal-create-references. Reuses existing production-
+      // safe rows; never mutates TEST/PHASE rows; never patches Loan Deals;
+      // never enables a gate; writes no audit.
+      flags.seedNewDealCreateReferences = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-new-deal-create-references') {
+      flags.commitSeedNewDealCreateReferences = true;
     } else if (arg === '--smoke-create-new-deal') {
       // Phase 170K — controlled New Deal create smoke. Dry-run by default;
       // a single live create requires --commit-smoke-create-new-deal.
@@ -873,6 +887,7 @@ function parseArgs(argv) {
     flags.inspectNewDealReferences,
     flags.inspectStageStatusValues,
     flags.inspectNewDealCreateReferences,
+    flags.seedNewDealCreateReferences,
     flags.smokeCreateNewDeal,
     flags.listPlatformWorkspaces,
     flags.seedPlatformWorkspace,
@@ -1033,6 +1048,12 @@ function parseArgs(argv) {
         '--assigned-banker-upn / --assigned-banker-email is only valid alongside --smoke-create-new-deal',
       );
     }
+  }
+  // Phase 181A -- the seed commit flag is inert without its seed mode.
+  if (flags.commitSeedNewDealCreateReferences && !flags.seedNewDealCreateReferences) {
+    bailParseArgs(
+      '--commit-seed-new-deal-create-references has no effect without --seed-new-deal-create-references.',
+    );
   }
   // --seed-product-references cross-flag validation. --deal-name is
   // shared with --seed-client-relationship since both write to the
@@ -1211,6 +1232,10 @@ const MODE = FLAGS.listPlatformWorkspaces
   ? 'INSPECT-STAGE-STATUS-VALUES (read-only)'
   : FLAGS.inspectNewDealCreateReferences
   ? 'INSPECT-NEW-DEAL-CREATE-REFERENCES (read-only)'
+  : FLAGS.seedNewDealCreateReferences
+  ? FLAGS.commitSeedNewDealCreateReferences
+    ? 'SEED-NEW-DEAL-CREATE-REFERENCES (COMMIT — creates missing Intake/Open rows)'
+    : 'SEED-NEW-DEAL-CREATE-REFERENCES (dry-run)'
   : FLAGS.smokeCreateNewDeal
   ? FLAGS.commitSmokeCreateNewDeal
     ? 'SMOKE-CREATE-NEW-DEAL (COMMIT — creates ONE TEST deal)'
@@ -1313,6 +1338,7 @@ if (
   FLAGS.commitViewCleanup ||
   FLAGS.commitSeedClient ||
   FLAGS.commitSmokeCreateNewDeal ||
+  FLAGS.commitSeedNewDealCreateReferences ||
   FLAGS.commitSeedCrmSchema ||
   FLAGS.commitSeedProductReferences ||
   FLAGS.commitSeedManagerEntitlement ||
@@ -2247,6 +2273,198 @@ async function runInspectNewDealCreateReferences(token, envUrl) {
     );
   }
   console.log('   This mode is read-only and enabled no gate.');
+}
+
+// ---------------------------------------------------------------------------
+// Phase 181A — guarded seed of the production-safe Intake/Open reference rows.
+//
+// Dry-run by default; a live create requires
+// --commit-seed-new-deal-create-references. Creates ONLY a missing production-
+// safe row in each reference table; reuses an existing active production-safe
+// row; fails closed on multiple production-safe candidates or a single INACTIVE
+// match. Never mutates TEST/PHASE rows; never patches a Loan Deal; never
+// enables a gate; writes no audit. Payload allow-list: cr664_name / cr664_code
+// / cr664_activeflag. No hardcoded GUIDs.
+// ---------------------------------------------------------------------------
+
+const NEW_DEAL_REFERENCE_SEED_ALLOWED_FIELDS = Object.freeze([
+  'cr664_name',
+  'cr664_code',
+  'cr664_activeflag',
+]);
+
+const NEW_DEAL_REFERENCE_SEEDS = Object.freeze([
+  Object.freeze({
+    label: 'Stage reference (Intake / INTAKE)',
+    entitySet: 'cr664_dealstagereferences',
+    idAttr: 'cr664_dealstagereferenceid',
+    name: 'Intake',
+    code: 'INTAKE',
+  }),
+  Object.freeze({
+    label: 'Status reference (Open / OPEN)',
+    entitySet: 'cr664_dealstatusreferences',
+    idAttr: 'cr664_dealstatusreferenceid',
+    name: 'Open',
+    code: 'OPEN',
+  }),
+]);
+
+async function findProductionSafeReferenceCandidates(seed, token, envUrl) {
+  const select = `${seed.idAttr},cr664_name,cr664_code,cr664_activeflag`;
+  const url =
+    `${envUrl}/api/data/v9.2/${seed.entitySet}` +
+    `?$select=${encodeURIComponent(select)}`;
+  const res = await fetchODataList(url, token);
+  if (!res.ok) return { ok: false, error: res.error };
+  const wantCode = seed.code.trim().toLowerCase();
+  const wantName = seed.name.trim().toLowerCase();
+  const candidates = res.records
+    .map((r) => ({
+      id: r[seed.idAttr],
+      name: r.cr664_name ?? '',
+      code: r.cr664_code ?? '',
+      active: r.cr664_activeflag === true,
+    }))
+    // production-safe only (TEST/PHASE/demo rows are never candidates and are
+    // never mutated)
+    .filter((r) => !isProductionUnsafeReferenceLabel(r.code, r.name))
+    .filter(
+      (r) =>
+        r.code.trim().toLowerCase() === wantCode ||
+        r.name.trim().toLowerCase() === wantName,
+    );
+  return { ok: true, candidates };
+}
+
+async function createNewDealReferenceRow(seed, token, envUrl) {
+  const url = `${envUrl}/api/data/v9.2/${seed.entitySet}`;
+  // ONLY the allow-listed fields. Dataverse defaults ownerid / statecode.
+  const body = {
+    cr664_name: seed.name,
+    cr664_code: seed.code,
+    cr664_activeflag: true,
+  };
+  const stray = Object.keys(body).filter(
+    (k) => !NEW_DEAL_REFERENCE_SEED_ALLOWED_FIELDS.includes(k),
+  );
+  if (stray.length > 0) {
+    return { ok: false, error: `Disallowed seed field(s): ${stray.join(', ')}` };
+  }
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `POST ${seed.entitySet} → ${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    const id = json[seed.idAttr];
+    if (!id) {
+      return { ok: false, error: `POST succeeded but response is missing ${seed.idAttr}` };
+    }
+    return { ok: true, id };
+  } catch (err) {
+    return { ok: false, error: `POST network error: ${err.message}` };
+  }
+}
+
+async function planOrSeedOneReference(seed, doCommit, token, envUrl) {
+  console.log('');
+  console.log(`   ${seed.label}: target name=${seed.name} code=${seed.code}`);
+  const found = await findProductionSafeReferenceCandidates(seed, token, envUrl);
+  if (!found.ok) {
+    bail(`Could not read ${seed.entitySet}: ${found.error}`);
+  }
+  const cands = found.candidates;
+  if (cands.length > 1) {
+    bail(
+      `${cands.length} production-safe candidate rows already match ` +
+        `${seed.entitySet} (code ${seed.code} / name ${seed.name}). Failing closed — ` +
+        `an operator must resolve the ambiguity before any seed.`,
+    );
+  }
+  if (cands.length === 1) {
+    const c = cands[0];
+    if (c.active) {
+      console.log(
+        `     ✓ Reusing existing ACTIVE production-safe row (id=${c.id}, code=${c.code}, name=${c.name}). No create.`,
+      );
+      return { action: 'reuse', id: c.id };
+    }
+    bail(
+      `A matching production-safe row exists but is INACTIVE (id=${c.id}, code=${c.code}). ` +
+        `Failing closed — this script will not auto-reactivate; an operator must reactivate ` +
+        `or seed deliberately.`,
+    );
+  }
+  // Zero candidates -> plan / create.
+  console.log(
+    `     Would create: name=${seed.name} code=${seed.code} active=true ` +
+      `(allow-listed fields: ${NEW_DEAL_REFERENCE_SEED_ALLOWED_FIELDS.join(', ')}).`,
+  );
+  console.log(
+    '     Would NOT touch TEST/PHASE121 rows; would NOT patch any Loan Deal; would NOT enable a gate.',
+  );
+  if (!doCommit) {
+    return { action: 'plan' };
+  }
+  console.log(`     ⚙ POST /api/data/v9.2/${seed.entitySet} …`);
+  const created = await createNewDealReferenceRow(seed, token, envUrl);
+  if (!created.ok) {
+    bail(`Create ${seed.entitySet} failed (no gate enabled): ${created.error}`);
+  }
+  console.log(`     ✓ Created production-safe row id=${created.id}`);
+  return { action: 'create', id: created.id };
+}
+
+async function runSeedNewDealCreateReferences({ doCommit }, token, envUrl) {
+  console.log('');
+  console.log('Phase 181A -- guarded New Deal create production reference seed');
+  console.log(
+    `   Mode: ${
+      doCommit
+        ? 'COMMIT (creates missing production-safe Intake/Open rows)'
+        : 'dry-run (no write)'
+    }`,
+  );
+  console.log(
+    '   Creates only a MISSING production-safe row in each table; reuses an existing active ' +
+      'row; never mutates TEST/PHASE rows; never patches Loan Deals; never enables a gate; ' +
+      'writes no audit.',
+  );
+  const results = [];
+  for (const seed of NEW_DEAL_REFERENCE_SEEDS) {
+    results.push({ seed, ...(await planOrSeedOneReference(seed, doCommit, token, envUrl)) });
+  }
+  console.log('');
+  if (!doCommit) {
+    console.log('   Dry-run only — no POST issued. No reference row was created.');
+    console.log(
+      '   Re-run with `--commit-seed-new-deal-create-references` to create the missing rows.',
+    );
+    console.log('   Banker create gates remain DISABLED; no audit row written.');
+    return { ok: true, planned: true };
+  }
+  for (const r of results) {
+    console.log(`   ✓ ${r.seed.label}: ${r.action}.`);
+  }
+  console.log(
+    '   Re-run `--inspect-new-deal-create-references` to confirm exactly one production-safe ' +
+      'active Stage and Status row.',
+  );
+  console.log('   Banker create gates remain DISABLED; no audit row written.');
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -9263,6 +9481,16 @@ async function main() {
     return;
   }
 
+  // === Phase 181A -- guarded production reference seed (dry-run / commit) ===
+  if (FLAGS.seedNewDealCreateReferences) {
+    await runSeedNewDealCreateReferences(
+      { doCommit: FLAGS.commitSeedNewDealCreateReferences },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
   // === Phase 170K -- controlled New Deal create SMOKE (dry-run / commit) ===
   // Dry-run by default; a single live create requires
   // --commit-smoke-create-new-deal. Resolves Stage/Status by active code,
@@ -9750,6 +9978,9 @@ Usage:
   node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid>                            # read-only form cleanup preview
   node scripts/phase122-lookup-repair.mjs --cleanup-form <form-guid> --commit-form-cleanup      # execute the form cleanup
   node scripts/phase122-lookup-repair.mjs --inspect-new-deal-references                         # read-only New Deal Stage/Status lookup target inspection
+  node scripts/phase122-lookup-repair.mjs --inspect-new-deal-create-references                  # read-only: classify Stage/Status rows PRODUCTION-SAFE vs REJECTED
+  node scripts/phase122-lookup-repair.mjs --seed-new-deal-create-references                     # dry-run: plan production-safe Intake/Open reference rows
+  node scripts/phase122-lookup-repair.mjs --seed-new-deal-create-references --commit-seed-new-deal-create-references  # create missing Intake/Open reference rows
   node scripts/phase122-lookup-repair.mjs --commit                                              # execute writes after every safety gate passes
   node scripts/phase122-lookup-repair.mjs --help
 

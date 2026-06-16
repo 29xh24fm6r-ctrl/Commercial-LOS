@@ -50,20 +50,29 @@ equivalents — but never point at a TEST/PHASE row.
 
 ## Seed runbook (operator action required, with Matt approval)
 
-A guarded seed is intentionally **not auto-run** here (it mutates production
-reference data). The exact operator procedure to unblock:
+A guarded seed mode is provided. It is **dry-run by default** and a live create
+requires the explicit commit flag; it mutates production reference data only on
+commit. The exact operator procedure to unblock:
 
-1. Run the read-only classification: `--inspect-new-deal-create-references`.
-2. If no production-safe active Stage/Status pair exists, create exactly one
-   active row in each reference table (with Matt's approval), e.g. via the maker
-   portal or an authorized Web API POST:
-   - `cr664_dealstagereferences`: `{ cr664_name: "Intake", cr664_code: "INTAKE", cr664_activeflag: true }`
-   - `cr664_dealstatusreferences`: `{ cr664_name: "Open", cr664_code: "OPEN", cr664_activeflag: true }`
-   - Allow-listed fields only (`cr664_name`, `cr664_code`, `cr664_activeflag`);
-     do not mutate existing TEST/PHASE rows; do not patch any Loan Deal.
-3. Re-run `--inspect-new-deal-create-references` to confirm exactly one
+1. Run the read-only classification:
+   `node scripts/phase122-lookup-repair.mjs --inspect-new-deal-create-references`.
+2. Preview the seed (dry-run, no write):
+   `node scripts/phase122-lookup-repair.mjs --seed-new-deal-create-references`.
+   It prints "Would create" the missing Intake/Open rows and confirms it will
+   not touch TEST/PHASE rows, not patch any Loan Deal, and not enable any gate.
+3. With Matt's approval, create the missing rows:
+   `node scripts/phase122-lookup-repair.mjs --seed-new-deal-create-references --commit-seed-new-deal-create-references`.
+   - Creates only a MISSING production-safe row in each table:
+     - `cr664_dealstagereferences`: `{ cr664_name: "Intake", cr664_code: "INTAKE", cr664_activeflag: true }`
+     - `cr664_dealstatusreferences`: `{ cr664_name: "Open", cr664_code: "OPEN", cr664_activeflag: true }`
+   - Allow-listed fields only (`cr664_name`, `cr664_code`, `cr664_activeflag`).
+   - Reuses an existing ACTIVE production-safe row; fails closed on multiple
+     production-safe candidates or a single INACTIVE match; never mutates
+     TEST/PHASE rows; never patches a Loan Deal; never enables a gate; writes
+     no audit row.
+4. Re-run `--inspect-new-deal-create-references` to confirm exactly one
    production-safe active Stage and Status.
-4. Confirm the codes/names match the in-app production selection (INTAKE / OPEN).
+5. Confirm the codes/names match the in-app production selection (INTAKE / OPEN).
 
 ## Why TEST/PHASE121 rows are rejected
 

@@ -29,7 +29,7 @@ describe('Phase 181A -- read-only reference inspection/classification mode', () 
 
   it('the inspection classifies PRODUCTION-SAFE vs REJECTED and never writes', () => {
     const start = SCRIPT.indexOf('async function classifyReferenceSet');
-    const end = SCRIPT.indexOf('// Phase 170K — controlled', start);
+    const end = SCRIPT.indexOf('// Phase 181A — guarded seed', start);
     const block = SCRIPT.slice(start, end);
     expect(block).toMatch(/PRODUCTION-SAFE/);
     expect(block).toMatch(/REJECTED \(TEST\/PHASE\/demo/);
@@ -43,6 +43,82 @@ describe('Phase 181A -- read-only reference inspection/classification mode', () 
     const start = SCRIPT.indexOf('async function runInspectNewDealCreateReferences');
     const block = SCRIPT.slice(start, start + 1500);
     expect(block).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  });
+});
+
+describe('Phase 181A -- guarded production reference SEED mode', () => {
+  const seedBlock = (() => {
+    const start = SCRIPT.indexOf('const NEW_DEAL_REFERENCE_SEED_ALLOWED_FIELDS');
+    const end = SCRIPT.indexOf('// Phase 170K — controlled', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    return SCRIPT.slice(start, end);
+  })();
+
+  it('the seed flags are parsed (no "Unknown argument") and in the exclusive-mode set', () => {
+    expect(SCRIPT).toMatch(/'--seed-new-deal-create-references'/);
+    expect(SCRIPT).toMatch(/'--commit-seed-new-deal-create-references'/);
+    expect(SCRIPT).toMatch(/flags\.seedNewDealCreateReferences\s*=\s*true/);
+    expect(SCRIPT).toMatch(/flags\.seedNewDealCreateReferences,/);
+  });
+
+  it('the commit flag is inert without the seed mode', () => {
+    expect(SCRIPT).toMatch(
+      /--commit-seed-new-deal-create-references has no effect without --seed-new-deal-create-references/,
+    );
+  });
+
+  it('help/usage text lists both new flags', () => {
+    const help = SCRIPT.slice(SCRIPT.indexOf('function printHelp'));
+    expect(help).toMatch(/--inspect-new-deal-create-references/);
+    expect(help).toMatch(/--seed-new-deal-create-references/);
+    expect(help).toMatch(/--commit-seed-new-deal-create-references/);
+  });
+
+  it('dry-run is guarded: POST happens only on commit (after the dry-run return)', () => {
+    expect(seedBlock).toMatch(/if \(!doCommit\)/);
+    const dryReturnIdx = seedBlock.indexOf("return { action: 'plan' }");
+    const postIdx = seedBlock.indexOf('await createNewDealReferenceRow(seed');
+    expect(dryReturnIdx).toBeGreaterThan(-1);
+    expect(postIdx).toBeGreaterThan(-1);
+    expect(dryReturnIdx).toBeLessThan(postIdx);
+    // The only POST in the seed block is the reference-row create.
+    expect(seedBlock).toMatch(/method:\s*'POST'/);
+    expect(seedBlock).not.toMatch(/method:\s*'PATCH'|method:\s*'DELETE'/);
+  });
+
+  it('reuses an existing active row; fails closed on multiple / inactive candidates', () => {
+    expect(seedBlock).toMatch(/Reusing existing ACTIVE production-safe row/);
+    expect(seedBlock).toMatch(/production-safe candidate rows already match/);
+    expect(seedBlock).toMatch(/INACTIVE[\s\S]{0,120}Failing closed/);
+  });
+
+  it('never mutates TEST/PHASE rows (filters them out as non-candidates)', () => {
+    expect(seedBlock).toMatch(/isProductionUnsafeReferenceLabel/);
+    expect(seedBlock).toMatch(/TEST\/PHASE/);
+  });
+
+  it('payload is allow-listed (name/code/activeflag) and creates only the two reference tables', () => {
+    expect(SCRIPT).toMatch(
+      /NEW_DEAL_REFERENCE_SEED_ALLOWED_FIELDS = Object\.freeze\(\[\s*'cr664_name',\s*'cr664_code',\s*'cr664_activeflag',/,
+    );
+    expect(seedBlock).toMatch(/cr664_dealstagereferences/);
+    expect(seedBlock).toMatch(/cr664_dealstatusreferences/);
+  });
+
+  it('does not create/patch a Loan Deal, enable a gate, or write an audit row', () => {
+    expect(seedBlock).not.toMatch(/cr664_loandeals/);
+    expect(seedBlock).not.toMatch(/cr664_auditevents/);
+    expect(seedBlock).not.toMatch(/ENABLED\s*=\s*true/);
+    expect(seedBlock).toMatch(/Banker create gates remain DISABLED/);
+    expect(seedBlock).toMatch(/writes no audit|no audit row written/);
+  });
+
+  it('hardcodes no GUID and no bypass/suppress/force header in the seed block', () => {
+    expect(seedBlock).not.toMatch(
+      /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
+    );
+    expect(seedBlock).not.toMatch(/BypassBusinessLogicExecution|SuppressDuplicateDetection|[?&]Force=true/i);
   });
 });
 

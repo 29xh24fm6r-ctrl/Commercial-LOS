@@ -94,8 +94,9 @@ additions. No Dataverse state exists to roll back.
 complete and fail-closed. The exact remaining operator action to unblock:
 
 1. Seed/approve production Stage (`Intake`/`INTAKE`) and Status (`Open`/`OPEN`)
-   reference rows (with Matt's approval); confirm via
-   `--inspect-new-deal-create-references`.
+   reference rows with the guarded seed mode (dry-run, then
+   `--seed-new-deal-create-references --commit-seed-new-deal-create-references`
+   with Matt's approval); confirm via `--inspect-new-deal-create-references`.
 2. Enable the three banker create gates through the single rollout config path
    for the approved environment only (public create stays disabled).
 3. Mount the Banker workspace create entry point (Phase 181D).

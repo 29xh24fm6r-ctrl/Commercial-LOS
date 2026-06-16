@@ -4291,9 +4291,12 @@ describe('Phase 170C -- New Deal reference inspection mode is read-only', () => 
   it('delegates to the existing targeted attribute inspector and returns before write-capable modes', () => {
     const mainGuardIdx = SCRIPT.indexOf('if (FLAGS.inspectNewDealReferences)');
     expect(mainGuardIdx).toBeGreaterThan(-1);
-    const seedClientIdx = SCRIPT.indexOf('if (FLAGS.seedClientRelationship)', mainGuardIdx);
-    expect(seedClientIdx).toBeGreaterThan(mainGuardIdx);
-    const block = SCRIPT.slice(mainGuardIdx, seedClientIdx);
+    // Slice ONLY the inspectNewDealReferences branch (up to the next mode
+    // guard) so unrelated guarded modes that legitimately follow (e.g. the
+    // Phase 181A reference seed) don't pollute the assertion.
+    const nextGuardIdx = SCRIPT.indexOf('if (FLAGS.inspectStageStatusValues)', mainGuardIdx);
+    expect(nextGuardIdx).toBeGreaterThan(mainGuardIdx);
+    const block = SCRIPT.slice(mainGuardIdx, nextGuardIdx);
     expect(block).toMatch(/runInspectNewDealReferences\(mainToken, mainEnvUrl\)/);
     expect(block).toMatch(/return;/);
     expect(block).not.toMatch(/runSeed|executeStep|createRecord|patchLoanDeal/);
