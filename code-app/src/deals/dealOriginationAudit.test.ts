@@ -43,11 +43,23 @@ describe('BUGFIX -- origination audit payload omits system-managed owner/state',
     }
   });
 
-  it('binds ChangedBy / ActorUser to /systemusers(<actor>) and carries the correlation id', () => {
+  it('binds ChangedBy to /systemusers(<actor>) (authoritative) and carries the correlation id', () => {
     expect(payload['cr664_ChangedBy@odata.bind']).toBe('/systemusers(sys-1)');
-    expect(payload['cr664_ActorUser@odata.bind']).toBe('/systemusers(sys-1)');
     expect(payload.cr664_correlationid).toBe('corr-1');
     expect(payload['cr664_LoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-1)');
+  });
+
+  it('does NOT bind a systemuser id into the cr664_user-targeted cr664_ActorUser lookup', () => {
+    // cr664_ActorUser targets the custom cr664_user table; binding a systemuser
+    // id there failed the live audit POST. It is omitted (optional, no resolver).
+    expect(payload).not.toHaveProperty('cr664_ActorUser@odata.bind');
+    expect(ORIGINATION_AUDIT_ALLOWED_FIELDS).not.toContain('cr664_ActorUser@odata.bind');
+    // No systemusers bind targets anything other than ChangedBy.
+    for (const [key, value] of Object.entries(payload)) {
+      if (typeof value === 'string' && value.startsWith('/systemusers(')) {
+        expect(key).toBe('cr664_ChangedBy@odata.bind');
+      }
+    }
   });
 
   it('uses verified, pinned option-set values + the supplied outcome', () => {

@@ -46,8 +46,10 @@ export const ORIGINATION_AUDIT_ALLOWED_FIELDS = Object.freeze([
   'cr664_outcomestatus',
   'cr664_failurereason',
   'cr664_changeddate',
+  // cr664_ChangedBy targets systemuser (authoritative actor). cr664_ActorUser
+  // is NOT allow-listed: it targets the custom cr664_user table, and binding a
+  // systemuser id there fails the audit POST. No cr664_user resolver exists.
   'cr664_ChangedBy@odata.bind',
-  'cr664_ActorUser@odata.bind',
   'cr664_notes',
   'cr664_sourcescreensourceprocess',
   'cr664_correlationid',
@@ -72,8 +74,10 @@ export function buildOriginationAuditPayload(
     cr664_outcomestatus: input.outcome,
     cr664_failurereason: input.failureReason,
     cr664_changeddate: nowIso,
+    // cr664_ChangedBy targets systemuser and is the authoritative actor. The
+    // optional cr664_ActorUser bind is omitted (it targets cr664_user, not
+    // systemuser; binding a systemuser id there fails the audit POST).
     'cr664_ChangedBy@odata.bind': `/systemusers(${input.actorSystemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${input.actorSystemUserId})`,
     cr664_notes: input.notes,
     cr664_sourcescreensourceprocess: input.sourceProcess,
     cr664_correlationid: input.correlationId,

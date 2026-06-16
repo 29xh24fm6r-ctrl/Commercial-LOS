@@ -330,8 +330,12 @@ async function liveEmitNewDealAuditEvent(
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: nowIso,
+    // cr664_ChangedBy targets systemuser and is the authoritative actor field.
     'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.actorSystemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.actorSystemUserId})`,
+    // cr664_ActorUser is intentionally OMITTED: it targets the custom cr664_user
+    // table, not systemuser. Binding a systemuser id there made the live audit
+    // POST fail ("Entity 'cr664_User' ... Does Not Exist"). It is optional, and
+    // no cr664_user resolver exists; the actor is recorded via cr664_ChangedBy.
     cr664_fieldname: 'cr664_dealname',
     cr664_oldvalue: '',
     cr664_newvalue: opts.input.dealName,

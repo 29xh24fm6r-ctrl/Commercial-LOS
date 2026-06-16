@@ -280,6 +280,19 @@ describe('Phase 170P -- audit payload discipline (verified, pinned)', () => {
     expect(payloadBlock).not.toMatch(/\bstatecode:/);
   });
 
+  it('BUGFIX -- the live audit payload omits cr664_ActorUser (cr664_user-targeted) but keeps ChangedBy', () => {
+    const start = SRC.indexOf('async function liveEmitNewDealAuditEvent');
+    const end = SRC.indexOf('Cr664_auditeventsService.create', start);
+    const payloadBlock = SRC.slice(start, end);
+    // No ActorUser bind set in the payload (it targets cr664_user, not systemuser).
+    expect(payloadBlock).not.toMatch(/'cr664_ActorUser@odata\.bind':/);
+    // ChangedBy -> systemuser remains.
+    expect(payloadBlock).toMatch(/'cr664_ChangedBy@odata\.bind':\s*`\/systemusers\(/);
+    // No systemusers bind goes to anything other than ChangedBy.
+    const systemuserBinds = payloadBlock.match(/'(cr664_\w+)@odata\.bind':\s*`\/systemusers\(/g) ?? [];
+    for (const b of systemuserBinds) expect(b).toMatch(/cr664_ChangedBy/);
+  });
+
   it('uses verified, pinned audit option-set values (Lifecycle / AssignmentChange / LoanDeal)', () => {
     expect(SRC).toMatch(/AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002/);
     expect(SRC).toMatch(/AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE = 788190002/);
