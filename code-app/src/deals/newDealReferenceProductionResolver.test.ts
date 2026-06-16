@@ -56,13 +56,13 @@ describe('Phase 181B -- production-unsafe label guard', () => {
   });
 });
 
-describe('Phase 181B -- profile selection (production not approved yet)', () => {
-  it('production profile selects INTAKE/OPEN and is not approved', () => {
+describe('Phase 182 -- profile selection (production references approved)', () => {
+  it('production profile selects INTAKE/OPEN and is approved (Phase 182 seed verified)', () => {
     const p = selectNewDealReferenceProfile('production');
     expect(p.stage.code).toBe('INTAKE');
     expect(p.status.code).toBe('OPEN');
-    expect(p.productionApproved).toBe(false);
-    expect(PRODUCTION_REFERENCES_APPROVED).toBe(false);
+    expect(p.productionApproved).toBe(true);
+    expect(PRODUCTION_REFERENCES_APPROVED).toBe(true);
   });
 });
 

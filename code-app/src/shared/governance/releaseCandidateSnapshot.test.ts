@@ -3847,3 +3847,49 @@ describe('Phase 181F -- banker create certification is honest (still blocked)', 
     expect(a).toMatch(/No hardcoded Stage\/Status GUIDs/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 182 -- banker New Deal create pilot live
+// ---------------------------------------------------------------------------
+
+describe('Phase 182 -- banker create pilot docs exist', () => {
+  for (const rel of [
+    'docs/PHASE_182D_BANKER_NEW_DEAL_CREATE_PILOT_PROOF.md',
+    'docs/PHASE_182E_BANKER_NEW_DEAL_CREATE_V1_CERTIFICATION.md',
+  ]) {
+    it(`${rel} exists`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+});
+
+describe('Phase 182E -- banker create certification (pilot live, public disabled)', () => {
+  const doc = readDoc('docs/PHASE_182E_BANKER_NEW_DEAL_CREATE_V1_CERTIFICATION.md');
+
+  it('certifies PILOT_LIVE_CONTROLLED for banker, public DISABLED', () => {
+    expect(doc).toMatch(/PILOT_LIVE_CONTROLLED/);
+    expect(doc).toMatch(/Public create status[\s\S]{0,40}DISABLED/i);
+  });
+
+  it('pins single-switch enablement + one-line rollback, downstream disabled', () => {
+    expect(doc).toMatch(/BANKER_CREATE_PILOT_ENABLED = true/);
+    expect(doc).toMatch(/Rollback is one line/i);
+    expect(doc).toMatch(/downstream automations? .*disabled|downstream stays disabled/i);
+  });
+
+  it('pins Intake/Open references (no GUID), audit_failed_partial distinct, no fake id', () => {
+    expect(doc).toMatch(/INTAKE/);
+    expect(doc).toMatch(/OPEN/);
+    expect(doc).toMatch(/No Stage\/Status\s+GUID is hardcoded/i);
+    expect(doc).toMatch(/audit_failed_partial\s+is distinct from\s+success/i);
+    expect(doc).toMatch(/never faked/i);
+  });
+
+  it('182D proof is operator-run (one proof) with downstream confirmed off', () => {
+    const d = readDoc('docs/PHASE_182D_BANKER_NEW_DEAL_CREATE_PILOT_PROOF.md');
+    expect(d).toMatch(/run exactly one proof|one proof/i);
+    expect(d).toMatch(/Stage = \*\*Intake\*\*/);
+    expect(d).toMatch(/Status = \*\*Open\*\*/);
+    expect(d).toMatch(/NO downstream/i);
+  });
+});

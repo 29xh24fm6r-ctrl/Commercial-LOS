@@ -13,6 +13,7 @@ import { RelationshipMemory } from './RelationshipMemory';
 import { PersonalPipeline } from './PersonalPipeline';
 import { BankerActivityFeed } from './BankerActivityFeed';
 import { BankerDueDiligenceView } from './BankerDueDiligenceView';
+import { BankerNewDealCreate } from './BankerNewDealCreate';
 import { LendingOSLayout, type LendingOSNavKey } from './LendingOSLayout';
 import { GreetingHeader } from './GreetingHeader';
 import { BankerKpiGrid } from './BankerKpiGrid';
@@ -295,6 +296,7 @@ function TabContent({ tab }: { tab: ShellTab }) {
     case 'active-deals':
       return (
         <div style={styles.tabStack}>
+          <BankerNewDealCreate />
           <PersonalPipeline />
         </div>
       );

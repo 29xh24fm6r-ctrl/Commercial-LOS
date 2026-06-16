@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import {
   evaluateBankerCreateRollout,
   isBankerNewDealCreateLive,
@@ -13,7 +13,7 @@ import {
 // live_controlled. Each test mutates one dimension to prove a fail-closed branch.
 function approved(over: Partial<BankerCreateRolloutInput> = {}): BankerCreateRolloutInput {
   return {
-    gatesOverride: { banker: true, adapter: true, intake: true },
+    gateValues: { banker: true, adapter: true, intake: true },
     actorSystemUserId: 'sys-1',
     bankerAuthorized: true,
     productionReferencesApproved: true,
@@ -29,13 +29,13 @@ describe('Phase 181C -- default is disabled (hard constants false)', () => {
     expect(isBankerNewDealCreateLive()).toBe(false);
   });
   it('approved inputs WITHOUT the gate override stay disabled (committed constants false)', () => {
-    const { gatesOverride: _omit, ...withoutGates } = approved();
+    const { gateValues: _omit, ...withoutGates } = approved();
     expect(evaluateBankerCreateRollout(withoutGates)).toBe('disabled');
   });
   it('any single hard gate off -> disabled', () => {
-    expect(evaluateBankerCreateRollout(approved({ gatesOverride: { banker: false, adapter: true, intake: true } }))).toBe('disabled');
-    expect(evaluateBankerCreateRollout(approved({ gatesOverride: { banker: true, adapter: false, intake: true } }))).toBe('disabled');
-    expect(evaluateBankerCreateRollout(approved({ gatesOverride: { banker: true, adapter: true, intake: false } }))).toBe('disabled');
+    expect(evaluateBankerCreateRollout(approved({ gateValues: { banker: false, adapter: true, intake: true } }))).toBe('disabled');
+    expect(evaluateBankerCreateRollout(approved({ gateValues: { banker: true, adapter: false, intake: true } }))).toBe('disabled');
+    expect(evaluateBankerCreateRollout(approved({ gateValues: { banker: true, adapter: true, intake: false } }))).toBe('disabled');
   });
 });
 
@@ -74,3 +74,4 @@ describe('Phase 181C -- live only when every gate passes', () => {
     ).toBe('live_controlled');
   });
 });
+

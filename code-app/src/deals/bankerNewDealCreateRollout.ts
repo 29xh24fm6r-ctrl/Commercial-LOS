@@ -39,10 +39,13 @@ export interface BankerCreateRolloutInput {
   /** Explicit production rollout approval (a separate, higher bar). */
   readonly productionRolloutApproved?: boolean;
   /**
-   * Test-only hard-constant overrides. Production never sets them; the
-   * committed constants (all false) are used otherwise.
+   * Explicit gate values supplied by the approved pilot config
+   * (bankerCreatePilotConfig) or by tests. When omitted, the gate falls back to
+   * the global governance constants (all false -> disabled). These are the
+   * BANKER-create gate values only; they never enable public create or any
+   * downstream automation.
    */
-  readonly gatesOverride?: {
+  readonly gateValues?: {
     readonly banker?: boolean;
     readonly adapter?: boolean;
     readonly intake?: boolean;
@@ -52,9 +55,9 @@ export interface BankerCreateRolloutInput {
 export function evaluateBankerCreateRollout(
   input: BankerCreateRolloutInput = {},
 ): BankerCreateRolloutState {
-  const banker = input.gatesOverride?.banker ?? (BANKER_NEW_DEAL_CREATE_ENABLED as boolean);
-  const adapter = input.gatesOverride?.adapter ?? (NEW_DEAL_CREATE_ADAPTER_ENABLED as boolean);
-  const intake = input.gatesOverride?.intake ?? (NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED as boolean);
+  const banker = input.gateValues?.banker ?? (BANKER_NEW_DEAL_CREATE_ENABLED as boolean);
+  const adapter = input.gateValues?.adapter ?? (NEW_DEAL_CREATE_ADAPTER_ENABLED as boolean);
+  const intake = input.gateValues?.intake ?? (NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED as boolean);
 
   // 1. All three hard gates must be on (default: all false -> disabled).
   if (banker !== true || adapter !== true || intake !== true) return 'disabled';

@@ -209,8 +209,14 @@ export const PRODUCTION_STATUS_REFERENCE_SELECTION: ReferenceSelection = Object.
   name: 'Open',
 });
 
-/** Whether the production selection rows are approved + present. False until seeded. */
-export const PRODUCTION_REFERENCES_APPROVED = false as const;
+/**
+ * Whether the production selection rows are approved + present. Set true in
+ * Phase 182 after the operator seeded/verified exactly one active production-safe
+ * Stage (Intake / INTAKE) and Status (Open / OPEN) row (see
+ * docs/PHASE_182E_BANKER_NEW_DEAL_CREATE_V1_CERTIFICATION.md). The fail-closed
+ * production resolver still verifies uniqueness/active at runtime.
+ */
+export const PRODUCTION_REFERENCES_APPROVED = true as const;
 
 /**
  * A reference row label is production-UNSAFE when its code/name looks like a

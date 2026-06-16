@@ -126,10 +126,10 @@ describe('Phase 181B -- production resolver profile (code/name, no GUID)', () =>
   const targets = readFileSync(resolve(ROOT, 'src/deals/newDealReferenceTargets.ts'), 'utf8');
   const reader = readFileSync(resolve(ROOT, 'src/deals/newDealReferenceReader.ts'), 'utf8');
 
-  it('production selection is code/name and not yet approved', () => {
+  it('production selection is code/name and approved (Phase 182 seed verified)', () => {
     expect(PRODUCTION_STAGE_REFERENCE_SELECTION.code).toBe('INTAKE');
     expect(PRODUCTION_STATUS_REFERENCE_SELECTION.code).toBe('OPEN');
-    expect(PRODUCTION_REFERENCES_APPROVED).toBe(false);
+    expect(PRODUCTION_REFERENCES_APPROVED).toBe(true);
   });
 
   it('no hardcoded Dataverse GUID in the reference target / reader source', () => {
