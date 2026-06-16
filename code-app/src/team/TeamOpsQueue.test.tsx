@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
@@ -138,6 +138,18 @@ function renderCockpit() {
 
 beforeEach(() => {
   useTeamDataMock.mockReset();
+  // The fixtures anchor every relative date to a fixed NOW, but the
+  // TeamOpsQueue actionability derivation reads the real wall clock. Pin
+  // the clock to the fixture anchor so actionability thresholds (e.g.
+  // closing-soon / overdue windows) are deterministic regardless of the
+  // real date the suite runs on. Fake ONLY Date so timers / microtasks
+  // (and Testing Library async) keep working with real timers.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 // ---------------------------------------------------------------------------

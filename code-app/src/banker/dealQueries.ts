@@ -26,13 +26,61 @@ export interface PipelineDeal {
   collateralSummary: string | undefined;
 }
 
+/**
+ * Read a Dataverse `@OData.Community.Display.V1.FormattedValue`
+ * annotation off the raw record. Mirrors the deal-detail loader
+ * (src/deals/dealQueries.ts, Phase 122C) and the team/manager query
+ * hydration (Phase 125B): the auto-generated SDK declares optional
+ * `<attr>name` shadow fields but does NOT populate them for lookup
+ * columns in the live env. The authoritative display text lives on the
+ * `@OData.Community.Display.V1.FormattedValue`-suffixed key.
+ */
+function getFormattedValue(
+  record: Record<string, unknown>,
+  attributeName: string,
+): string | undefined {
+  const annotationKey = `${attributeName}@OData.Community.Display.V1.FormattedValue`;
+  const value = record[annotationKey];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * For lookup columns the formatted value hangs off the `_<lookup>_value`
+ * key, e.g. cr664_StageReference arrives as
+ *   _cr664_stagereference_value@OData.Community.Display.V1.FormattedValue
+ */
+function getLookupFormattedValue(
+  record: Record<string, unknown>,
+  lookupLogicalName: string,
+): string | undefined {
+  return getFormattedValue(record, `_${lookupLogicalName}_value`);
+}
+
 function toPipelineDeal(d: Cr664_loandeals): PipelineDeal {
+  // Annotated raw response — `@`-suffixed keys arrive verbatim from the
+  // Web API and are legal JS property names.
+  const raw = d as unknown as Record<string, unknown>;
   return {
     id: d.cr664_loandealid,
     name: d.cr664_dealname,
     clientName: d.cr664_clientname,
-    stage: d.cr664_stagereferencename,
-    status: d.cr664_statusreferencename,
+    // Phase 170L — formatted-value-first hydration parity with the deal
+    // detail / team / manager read models. Deals created via the
+    // cr664_StageReference / cr664_StatusReference lookups (e.g. the Phase
+    // 170K smoke deal) surface their label through the lookup formatted
+    // value, NOT the legacy cr664_stagereferencename shadow field (which
+    // the live SDK leaves unpopulated). Fall back to the shadow field, then
+    // the standard statuscode label for status, so legacy/test fixtures and
+    // a future SDK upgrade still work. A truly unset stage/status stays
+    // undefined here so the honest missing-stage signal still fires.
+    stage:
+      getLookupFormattedValue(raw, 'cr664_stagereference') ??
+      d.cr664_stagereferencename,
+    status:
+      getLookupFormattedValue(raw, 'cr664_statusreference') ??
+      d.cr664_statusreferencename ??
+      getFormattedValue(raw, 'statuscode') ??
+      d.statuscodename,
     amount: d.cr664_amount,
     targetCloseDate: d.cr664_targetclosedate,
     lastActivityOn: d.modifiedon,

@@ -3601,3 +3601,47 @@ describe('Phase 170K -- controlled New Deal create smoke doc exists and is hones
     expect(doc).toMatch(/No permission was widened or\s+bypassed/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170L -- New Deal smoke read-model hydration parity
+// ---------------------------------------------------------------------------
+
+describe('Phase 170L -- New Deal smoke read-model hydration parity doc exists and is honest', () => {
+  const rel = 'docs/PHASE_170L_NEW_DEAL_SMOKE_READ_MODEL_HYDRATION_PARITY.md';
+
+  it('the Phase 170L doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the 170K smoke result and the live "Stage not set" symptom', () => {
+    expect(doc).toMatch(/ca41e0df-9869-f111-ab0c-70a8a59be491/);
+    expect(doc).toMatch(/Stage not set/);
+    expect(doc).toMatch(/Morning catch-up/i);
+  });
+
+  it('pins the root cause and the formatted-value-first fix', () => {
+    expect(doc).toMatch(/cr664_stagereferencename/);
+    expect(doc).toMatch(/_cr664_stagereference_value@OData\.Community\.Display\.V1\.FormattedValue/);
+    expect(doc).toMatch(/formatted-value-first/i);
+    expect(doc).toMatch(/toPipelineDeal/);
+  });
+
+  it('pins read-only discipline: create path untouched, no fake labels, no GUID', () => {
+    expect(doc).toMatch(/create path is unchanged|create path was not changed/i);
+    expect(doc).toMatch(/no fake fallback label|honest missing-stage/i);
+    expect(doc).toMatch(/No raw `?_value`? GUID|never surfaced as a label/i);
+  });
+
+  it('pins + New Deal still disabled and stage-progression kept separate', () => {
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED[\s\S]{0,20}false/);
+    expect(doc).toMatch(/Advance Stage|stage-progression/i);
+  });
+
+  it('pins no record write / schema / tag change', () => {
+    expect(doc).toMatch(/No\s+Dataverse\s+record was created, patched, or\s+deleted/i);
+    expect(doc).toMatch(/no schema\s+changed/i);
+    expect(doc).toMatch(/no git\s+tag was created or\s+moved/i);
+  });
+});

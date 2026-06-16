@@ -354,6 +354,41 @@ describe('BankerMorningCatchUp — Phase 89', () => {
     );
   });
 
+  it("Phase 170L — does NOT flag 'Stage not set' when the deal carries a hydrated StageReference label", async () => {
+    // The Phase 170K smoke deal: stage is the hydrated cr664_StageReference
+    // formatted value, not the legacy shadow field. The banker pipeline now
+    // hydrates it, so the missing-stage data-quality signal must not fire.
+    loadMock.mockResolvedValue(
+      dataWith({
+        deals: [
+          {
+            id: 'ca41e0df-9869-f111-ab0c-70a8a59be491',
+            name: '[SMOKE TEST - PHASE 170K - DO NOT USE] TEST - New Deal Smoke 170K',
+            clientName: undefined,
+            stage: 'TEST - Stage Phase 121',
+            status: 'TEST — Status Phase 121',
+            amount: 250_000,
+            targetCloseDate: isoDaysFromNow(60),
+            lastActivityOn: isoDaysAgo(1),
+            stageEntryDate: isoDaysAgo(1),
+            isClosed: false,
+            collateralSummary: undefined,
+          },
+        ],
+      }),
+    );
+    render(<BankerMorningCatchUp />);
+    // Wait until loading resolves (the disclaimer renders in both the
+    // empty and populated states).
+    await waitFor(() =>
+      expect(screen.getByText(/Not AI-generated\./i)).toBeInTheDocument(),
+    );
+    const body = document.body.textContent ?? '';
+    expect(body).not.toMatch(/Stage not set/i);
+    // And the deal id must never leak as a label.
+    expect(body).not.toMatch(/ca41e0df-9869-f111-ab0c-70a8a59be491/i);
+  });
+
   it("populated-state disclaimer renders 'Not AI-generated.' verbatim", async () => {
     loadMock.mockResolvedValue(
       dataWith({
