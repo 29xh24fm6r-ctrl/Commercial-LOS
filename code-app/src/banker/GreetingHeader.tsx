@@ -125,7 +125,7 @@ export function GreetingHeader({
           )}
           <ActionButton
             label="+ New Deal"
-            tooltip="+ New Deal is blocked: cr664_loandeal requires StageReference and StatusReference values, but no generated stage/status reference data source exists."
+            tooltip="Create a deal from the New Deal panel on the Active Deals tab. The governed create resolves the production Stage (Intake) and Status (Open) references at runtime and is audited; this header shortcut is not wired."
             primary
           />
         </div>

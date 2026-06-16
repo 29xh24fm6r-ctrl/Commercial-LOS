@@ -83,7 +83,12 @@ describe('Phase 125F — Honest disabled placeholders', () => {
     expect(src).toMatch(/\+ New Deal/);
     expect(src).toMatch(/Log Activity/);
     expect(src).toMatch(/from\s+['"]\.\.\/deals\/logActivityActions['"]/);
-    expect(src).toMatch(/no generated stage\/status reference data source exists/);
+    // The header "+ New Deal" stays a disabled placeholder; its tooltip now
+    // accurately points to the governed New Deal panel (Active Deals tab)
+    // instead of the stale "no generated data source" claim.
+    expect(src).toMatch(/New Deal panel on the Active Deals tab/);
+    expect(src).toMatch(/this header shortcut is not wired/);
+    expect(src).not.toMatch(/no generated stage\/status reference data source/);
     expect(src).not.toMatch(/newDealActions|NewDealModal/);
   });
 

@@ -29,6 +29,7 @@ import {
   PRODUCTION_STATUS_REFERENCE_SELECTION,
   isProductionUnsafeReferenceLabel,
 } from './newDealReferenceTargets';
+import { createNewDealReferenceRuntimeReader } from './newDealReferenceRuntimeReader';
 
 const STAGE_SELECT = [
   STAGE_REFERENCE.primaryId,
@@ -143,7 +144,7 @@ function productionGuardedReader(reader: NewDealReferenceReader): NewDealReferen
  * approved -- so banker production create stays disabled until then.
  */
 export async function resolveProductionNewDealReferences(
-  reader: NewDealReferenceReader = createNewDealReferenceReader(),
+  reader: NewDealReferenceReader = createNewDealReferenceRuntimeReader(),
 ): Promise<NewDealReferenceResolution> {
   return resolveNewDealReferences(
     {
