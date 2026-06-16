@@ -260,3 +260,36 @@ describe('Phase 170M -- adapter source discipline', () => {
     expect(SRC).not.toMatch(/https?:\/\//);
   });
 });
+
+describe('Phase 170P -- audit payload discipline (verified, pinned)', () => {
+  const SRC = readFileSync(resolve(__dirname, 'newDealCreateAdapter.ts'), 'utf8');
+
+  it('binds cr664_ChangedBy to /systemusers(<actor>) and carries the correlation id', () => {
+    expect(SRC).toMatch(/'cr664_ChangedBy@odata\.bind':\s*`\/systemusers\(\$\{opts\.input\.actorSystemUserId\}\)`/);
+    expect(SRC).toMatch(/cr664_correlationid:\s*opts\.correlationId/);
+  });
+
+  it('uses verified, pinned audit option-set values (Lifecycle / AssignmentChange / LoanDeal)', () => {
+    expect(SRC).toMatch(/AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002/);
+    expect(SRC).toMatch(/AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE = 788190002/);
+    expect(SRC).toMatch(/AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000/);
+    // Succeeded / Failed come from the shared audit enum module, not inline.
+    expect(SRC).toMatch(/AUDIT_OUTCOME_SUCCEEDED/);
+    expect(SRC).toMatch(/AUDIT_OUTCOME_FAILED/);
+  });
+
+  it('uses no bypass / suppress / force headers', () => {
+    expect(SRC).not.toMatch(/BypassBusinessLogicExecution/i);
+    expect(SRC).not.toMatch(/BypassCustomPluginExecution/i);
+    expect(SRC).not.toMatch(/SuppressDuplicateDetection/i);
+    expect(SRC).not.toMatch(/[?&]Force=true/i);
+  });
+
+  it('emits the audit AFTER the create, and returns audit_failed_partial on audit failure', () => {
+    const createIdx = SRC.indexOf('await deps.createLoanDeal(payload)');
+    const successAuditIdx = SRC.indexOf('outcome: AUDIT_OUTCOME_SUCCEEDED');
+    expect(createIdx).toBeGreaterThan(-1);
+    expect(successAuditIdx).toBeGreaterThan(createIdx);
+    expect(SRC).toMatch(/kind: 'audit_failed_partial'/);
+  });
+});

@@ -215,13 +215,16 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     id: 'new-deal-create',
     label: 'New Deal create',
     reason:
-      'Stage/Status reference resolution is READY in TEST: the ' +
-      'cr664_dealstagereferences / cr664_dealstatusreferences data sources ' +
-      'are registered, typed services exist, and the fail-closed resolver ' +
-      'reads one active Stage + Status at runtime (Phase 170D-170I). The ' +
-      '+ New Deal control remains not wired pending production-approved ' +
-      'reference rows and a governed, audited create adapter. Separate from ' +
-      'Advance Stage / stage-progression ordering (see stage-progression-advance).',
+      'WIRED_DISABLED: a governed, audited create adapter now exists ' +
+      '(src/deals/newDealCreateAdapter.ts) and is wired behind a controlled, ' +
+      'fail-closed enablement gate and admin surface (Phase 170M-170N). It is ' +
+      'DISABLED by default -- NEW_DEAL_CREATE_ADAPTER_ENABLED=false and ' +
+      'NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED=false -- so no live create or audit ' +
+      'occurs. Stage/Status resolve READY in TEST via the fail-closed resolver ' +
+      '(cr664_dealstagereferences / cr664_dealstatusreferences, Phase 170D-170I); ' +
+      'live create stays off pending production-approved reference rows and a ' +
+      'certified enablement decision (Phase 170Q). Separate from Advance Stage / ' +
+      'stage-progression ordering (see stage-progression-advance).',
     blockerKind: 'schema',
   },
   {

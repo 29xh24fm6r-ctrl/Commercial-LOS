@@ -193,6 +193,17 @@ describe('platformInventory — not wired', () => {
     expect(entry.blockerKind).toBe('schema');
   });
 
+  it('new-deal-create reason reflects WIRED_DISABLED with both gates off (Phase 170N)', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'new-deal-create')!;
+    expect(entry.reason).toMatch(/WIRED_DISABLED/);
+    expect(entry.reason).toMatch(/NEW_DEAL_CREATE_ADAPTER_ENABLED=false/);
+    expect(entry.reason).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED=false/);
+    expect(entry.reason).toMatch(/disabled by default/i);
+    // Still NOT_WIRED for live create until production approval + certification.
+    expect(entry.reason).toMatch(/Phase 170Q|certified enablement/i);
+    expect(entry.blockerKind).toBe('schema');
+  });
+
   it('stage-reference-data-source stays about cr664_stagereferences (Advance Stage), not the New Deal references', () => {
     const entry = NOT_WIRED.find((n) => n.id === 'stage-reference-data-source')!;
     // The New Deal references (cr664_dealstagereferences) are now registered;

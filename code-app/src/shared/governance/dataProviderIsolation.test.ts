@@ -324,6 +324,17 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
       'only in BankerDealWorkspace; the manager/team deal-route branches ' +
       'do not render it.',
   },
+  {
+    file: 'deals/newDealCreateController.ts',
+    allowedFrom: ['../admin/adminNewDealIntakeModel'],
+    reason:
+      'Phase 170N governed-create controller reads the canonical public + New ' +
+      'Deal intake hard floor (NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED) from the ' +
+      'admin New Deal truth model so the controlled create surface can never ' +
+      'become ready while public intake is disabled. Single source of truth ' +
+      'for the intake gate lives in the admin model; the controller only reads ' +
+      'the constant (no admin component / write surface is imported).',
+  },
 ];
 
 describe('Phase 48 — src/deals/ cross-role imports are limited to documented exceptions', () => {

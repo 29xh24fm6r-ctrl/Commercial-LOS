@@ -3701,3 +3701,43 @@ describe('Phase 170M -- governed New Deal create adapter doc exists and is hones
     expect(doc).toMatch(/no permission was\s+widened/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170Q -- New Deal create production-enablement certification
+// ---------------------------------------------------------------------------
+
+describe('Phase 170Q -- New Deal create production enablement certification doc exists', () => {
+  const rel = 'docs/PHASE_170Q_NEW_DEAL_CREATE_PRODUCTION_ENABLEMENT_CERTIFICATION.md';
+
+  it('the Phase 170Q certification doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the current gate values (both hard false) and WIRED_DISABLED', () => {
+    expect(doc).toMatch(/NEW_DEAL_CREATE_ADAPTER_ENABLED = false/);
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false/);
+    expect(doc).toMatch(/WIRED_DISABLED/);
+  });
+
+  it('pins resolver labels, no hardcoded GUIDs, and verified audit values', () => {
+    expect(doc).toMatch(/PHASE121_STAGE/);
+    expect(doc).toMatch(/PHASE121_STATUS/);
+    expect(doc).toMatch(/no Dataverse record GUID is hardcoded/i);
+    expect(doc).toMatch(/AssignmentChange \(788190002\)/);
+    expect(doc).toMatch(/cr664_ChangedBy@odata\.bind = \/systemusers/);
+  });
+
+  it('pins the production blockers and the disabled / pilot-only recommendation', () => {
+    expect(doc).toMatch(/Production blockers/i);
+    expect(doc).toMatch(/Certified disabled/i);
+    expect(doc).toMatch(/not ready\s+for broad production/i);
+  });
+
+  it('pins rollback instructions and the no record/schema/tag change statement', () => {
+    expect(doc).toMatch(/Rollback instructions/i);
+    expect(doc).toMatch(/No Dataverse\s+write, schema change, or permission change/i);
+    expect(doc).toMatch(/No git tag was created or\s+moved/i);
+  });
+});

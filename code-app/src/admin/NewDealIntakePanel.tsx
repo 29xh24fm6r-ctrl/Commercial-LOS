@@ -13,6 +13,7 @@ import {
   NEW_DEAL_REFERENCE_TARGETS_SOURCE_COMMAND,
 } from '../deals/newDealReferenceTargets';
 import { NewDealResolverReadinessCard } from './NewDealResolverReadinessCard';
+import { NewDealCreatePanel } from '../deals/NewDealCreatePanel';
 
 /**
  * Phase 169C -- Admin New Deal Intake panel (blocker/preview only).
@@ -66,6 +67,8 @@ export function NewDealIntakePanel() {
       </div>
 
       <NewDealResolverReadinessCard />
+
+      <NewDealCreatePanel />
 
       <div style={styles.section}>
         <div style={styles.sectionTitle}>
