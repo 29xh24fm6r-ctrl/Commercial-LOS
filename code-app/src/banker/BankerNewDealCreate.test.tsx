@@ -96,7 +96,8 @@ describe('Phase 182A -- banker New Deal create surface', () => {
     orchestrateMock.mockResolvedValue({
       kind: 'audit_failed_partial',
       createdDealId: 'deal-xyz',
-      auditOutcome: { kind: 'failed', error: 'audit POST 400: ownerid' },
+      correlationId: 'corr-abc',
+      auditOutcome: { kind: 'failed', error: "Entity 'cr664_User' ... | auditPayload keys=[...]; binds=[cr664_ChangedBy@odata.bind->systemusers]" },
       userFacingMessage: 'partial',
     });
     const user = userEvent.setup();
@@ -108,8 +109,11 @@ describe('Phase 182A -- banker New Deal create surface', () => {
     );
     expect(container.querySelector('[data-banker-new-deal-result="success"]')).toBeNull();
     expect(screen.getByText(/audit record failed/i)).toBeInTheDocument();
-    // The raw audit error is surfaced so the operator can capture it.
-    expect(container.querySelector('[data-banker-new-deal-audit-error]')?.textContent).toMatch(/audit POST 400/);
+    // The raw audit error (incl. sanitized payload shape) + correlation id are
+    // surfaced so the operator can capture them for diagnosis.
+    const banner = container.querySelector('[data-banker-new-deal-result="audit_failed_partial"]');
+    expect(banner?.textContent).toMatch(/Correlation id: corr-abc/);
+    expect(container.querySelector('[data-banker-new-deal-audit-error]')?.textContent).toMatch(/binds=\[cr664_ChangedBy@odata\.bind->systemusers\]/);
   });
 
   it('create_failed shows no confirmed deal id', async () => {

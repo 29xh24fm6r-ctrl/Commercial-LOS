@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildOriginationAuditPayload,
+  buildNewDealAuditPayload,
+  summarizeAuditPayloadShape,
   ORIGINATION_AUDIT_ALLOWED_FIELDS,
   AUDIT_EVENT_CATEGORY_LIFECYCLE,
   AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE,
@@ -72,5 +74,44 @@ describe('BUGFIX -- origination audit payload omits system-managed owner/state',
   it('hardcodes no Dataverse record GUID', () => {
     const blob = JSON.stringify(payload);
     expect(blob).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  });
+
+  it('buildOriginationAuditPayload is the canonical builder (same alias)', () => {
+    expect(buildOriginationAuditPayload).toBe(buildNewDealAuditPayload);
+  });
+
+  it('change-detail fields are included only when provided and stay allow-listed', () => {
+    const p = buildNewDealAuditPayload(
+      { ...input, fieldName: 'cr664_dealname', oldValue: '', newValue: 'Acme', beforeState: 'No deal', afterState: 'Deal created' },
+      '2026-06-16T00:00:00.000Z',
+    );
+    expect(p.cr664_fieldname).toBe('cr664_dealname');
+    expect(p.cr664_newvalue).toBe('Acme');
+    for (const key of Object.keys(p)) expect(ORIGINATION_AUDIT_ALLOWED_FIELDS).toContain(key);
+    // Still only ChangedBy gets a systemusers bind; still no ActorUser.
+    expect(p).not.toHaveProperty('cr664_ActorUser@odata.bind');
+  });
+});
+
+describe('BUGFIX -- summarizeAuditPayloadShape is a safe, conclusive diagnostic', () => {
+  const payload = buildNewDealAuditPayload(input, '2026-06-16T00:00:00.000Z');
+  const shape = summarizeAuditPayloadShape(payload);
+
+  it('lists the payload keys and the bind TARGET entity sets', () => {
+    expect(shape).toMatch(/keys=\[/);
+    expect(shape).toMatch(/cr664_ChangedBy@odata\.bind->systemusers/);
+    expect(shape).toMatch(/cr664_LoanDeal@odata\.bind->cr664_loandeals/);
+  });
+
+  it('the ONLY ->systemusers bind shown is cr664_ChangedBy; no cr664_user target appears', () => {
+    const systemuserTargets = shape.match(/([a-zA-Z0-9_@.]+)->systemusers/g) ?? [];
+    expect(systemuserTargets.length).toBe(1);
+    expect(systemuserTargets[0]).toMatch(/cr664_ChangedBy/);
+    expect(shape).not.toMatch(/->cr664_users?\b/i);
+  });
+
+  it('exposes NO record ids / GUIDs / tokens (key names + entity sets only)', () => {
+    expect(shape).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+    expect(shape).not.toMatch(/sys-1|deal-1|corr-1/); // no values, only keys/targets
   });
 });

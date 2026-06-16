@@ -1,18 +1,39 @@
 # Phase 182 — Banker create audit_failed_partial: diagnosis + reconciliation
 
-## What happened (two live proofs, both partial)
+## What happened (three live proofs, all partial)
 
-Both live banker New Deal create proofs created the Loan Deal but returned
+All three live banker New Deal create proofs created the Loan Deal but returned
 `audit_failed_partial`:
 
 - First partial proof deal: `387a1ecd-c669-f111-ab0c-70a8a596e491`
 - Second partial proof deal: `33829cbc-cd69-f111-ab0c-70a8a596e491`
-- Second proof surfaced the raw audit error:
+- Third partial proof deal: created by `V1 Banker Create Proof - 2026-06-16 3`
+- Second + third proofs surfaced the raw audit error:
   `Entity 'cr664_User' With Id = e050f0e7-4a13-f111-8406-6045bd07ee56 Does Not Exist`
 
 This confirmed the create path works and the audit failure was surfaced
-honestly (not faked). Two distinct root causes were found and fixed in turn
-(below).
+honestly (not faked).
+
+## Why the third proof still failed (stale bundle vs ChangedBy)
+
+The second fix removed `cr664_ActorUser@odata.bind`, but the third proof failed
+identically. Two possibilities, now made conclusive by diagnostics:
+
+1. **Stale bundle** — Power Apps cached the pre-fix JS, so the third proof ran
+   the old payload (still binding `cr664_ActorUser`). **Hard-refresh / reopen the
+   app** before the next proof.
+2. **`cr664_ChangedBy` itself targets `cr664_user`** — then even the correct
+   `/systemusers(<actor>)` bind is validated against `cr664_user` and rejected.
+
+This fix routes the audit payload through ONE canonical builder
+(`buildNewDealAuditPayload`) and appends a **sanitized payload-shape diagnostic**
+to the audit error (key list + each bind's TARGET entity set; no ids/secrets),
+plus the correlation id in the UI. The next proof's banner will read e.g.
+`binds=[cr664_ChangedBy@odata.bind->systemusers, cr664_LoanDeal@odata.bind->cr664_loandeals]`
+— if it still errors on `cr664_User` with ONLY that ChangedBy bind shown, the
+cause is conclusively #2 (a schema/metadata decision requiring a
+systemuser→cr664_user resolver, separate + Matt-approved). If `cr664_ActorUser`
+reappears in the shape, it was a stale bundle.
 
 ## Diagnosis
 
@@ -81,9 +102,17 @@ Before creating it, query `cr664_auditevents` for any existing row with that
 
 ## Next proof
 
-Do NOT create another proof deal immediately. After the ActorUser fix is
-deployed, run **exactly one** final banker create proof only after Matt
-approval, named `V1 Banker Create Proof - 2026-06-16 3`, and confirm a clean
-`success` (create + audit). If it still returns `audit_failed_partial`, the UI
-now shows the exact Dataverse error to capture. Public create and all downstream
-automations remain disabled.
+Do NOT create another proof deal immediately. After this fix is deployed:
+
+1. **Hard-refresh / close the old tab and reopen the app URL** so the new bundle
+   loads (a stale bundle is the prime suspect for the third failure).
+2. Run **exactly one** final banker create proof only after Matt approval, named
+   `V1 Banker Create Proof - 2026-06-16 4`.
+3. Read the `audit_failed_partial` banner if it recurs: it now shows the
+   correlation id, the raw Dataverse error, AND the sanitized payload shape
+   (`binds=[…]`). That conclusively identifies which bind/target caused it.
+4. Confirm a clean `success` (create + audit). Public create and all downstream
+   automations remain disabled.
+
+Three proof deals (`387a1ecd-…`, `33829cbc-…`, and the third) are missing audit
+rows; reconcile each per the section above.

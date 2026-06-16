@@ -30,14 +30,10 @@ import {
 import { resolveConfiguredNewDealReferences } from './newDealReferenceReader';
 import type { NewDealReferenceResolution } from './newDealReferenceResolver';
 import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from './newDealCreateFeatureFlags';
-
-// Verified cr664_AuditEvent option-set values (see
-// src/generated/models/Cr664_auditeventsModel.ts). The same Lifecycle /
-// AssignmentChange / LoanDeal values the existing create-task governed write
-// uses for a record-creation audit -- no enum is guessed.
-const AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002;
-const AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE = 788190002;
-const AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
+import {
+  buildNewDealAuditPayload,
+  summarizeAuditPayloadShape,
+} from './dealOriginationAudit';
 
 /**
  * The ONLY keys allowed in the cr664_loandeals create body. The adapter
@@ -320,48 +316,44 @@ async function liveEmitNewDealAuditEvent(
   opts: EmitNewDealAuditInput,
 ): Promise<EmitAuditResult> {
   const nowIso = new Date().toISOString();
-  const payload = {
-    cr664_auditeventname: 'New Deal Created',
-    cr664_eventcategory: AUDIT_EVENT_CATEGORY_LIFECYCLE,
-    cr664_eventtype: AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE,
-    cr664_entitytype: AUDIT_ENTITY_TYPE_LOAN_DEAL,
-    cr664_entityid: opts.dealId,
-    'cr664_LoanDeal@odata.bind': `/cr664_loandeals(${opts.dealId})`,
-    cr664_outcomestatus: opts.outcome,
-    cr664_failurereason: opts.failureReason,
-    cr664_changeddate: nowIso,
-    // cr664_ChangedBy targets systemuser and is the authoritative actor field.
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.actorSystemUserId})`,
-    // cr664_ActorUser is intentionally OMITTED: it targets the custom cr664_user
-    // table, not systemuser. Binding a systemuser id there made the live audit
-    // POST fail ("Entity 'cr664_User' ... Does Not Exist"). It is optional, and
-    // no cr664_user resolver exists; the actor is recorded via cr664_ChangedBy.
-    cr664_fieldname: 'cr664_dealname',
-    cr664_oldvalue: '',
-    cr664_newvalue: opts.input.dealName,
-    cr664_beforestate: 'No deal',
-    cr664_afterstate: 'Deal created',
-    cr664_notes: `Governed New Deal create for "${opts.input.dealName}".`,
-    cr664_sourcescreensourceprocess: 'NewDealCreateAdapter/governed-create',
-    cr664_correlationid: opts.correlationId,
-    // ownerid / owneridtype / statecode are intentionally OMITTED. Like the
-    // governed loan-deal create (which omits them and succeeds), Dataverse
-    // defaults the owner to the calling user and the state to Active on create.
-    // Setting ownerid as a plain GUID + the SOAP-era owneridtype, and a
-    // not-settable-on-create statecode, is what made the first live banker
-    // proof return audit_failed_partial (the deal was created; the audit POST
-    // was rejected). The actor is still recorded via cr664_ChangedBy.
-  };
+  // THE single canonical builder. The ONLY user bind it emits is
+  // cr664_ChangedBy -> /systemusers(<actor>); it never emits cr664_ActorUser /
+  // cr664_user / ownerid / statecode.
+  const payload = buildNewDealAuditPayload(
+    {
+      eventName: 'New Deal Created',
+      dealId: opts.dealId,
+      actorSystemUserId: opts.input.actorSystemUserId,
+      correlationId: opts.correlationId,
+      outcome: opts.outcome,
+      sourceProcess: 'NewDealCreateAdapter/governed-create',
+      notes: `Governed New Deal create for "${opts.input.dealName}".`,
+      failureReason: opts.failureReason,
+      fieldName: 'cr664_dealname',
+      oldValue: '',
+      newValue: opts.input.dealName,
+      beforeState: 'No deal',
+      afterState: 'Deal created',
+    },
+    nowIso,
+  );
+  // Sanitized payload-shape diagnostic (key names + bind target entity sets;
+  // no ids/secrets) so any failure is conclusively traceable in the UI.
+  const shape = summarizeAuditPayloadShape(payload);
   try {
     const result = await Cr664_auditeventsService.create(
       payload as unknown as Parameters<typeof Cr664_auditeventsService.create>[0],
     );
     if (!result.success) {
-      return { ok: false, error: result.error?.message ?? 'AuditEvent create returned non-success.' };
+      return {
+        ok: false,
+        error: `${result.error?.message ?? 'AuditEvent create returned non-success.'} | ${shape}`,
+      };
     }
     return { ok: true };
   } catch (err: unknown) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `${msg} | ${shape}` };
   }
 }
 

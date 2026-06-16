@@ -27,14 +27,25 @@ export interface OriginationAuditInput {
   readonly sourceProcess: string;
   readonly notes: string;
   readonly failureReason?: string;
+  // Optional change-detail fields (governed New Deal create populates these).
+  readonly fieldName?: string;
+  readonly oldValue?: string;
+  readonly newValue?: string;
+  readonly beforeState?: string;
+  readonly afterState?: string;
 }
 
 /**
- * The allow-listed audit payload keys. `ownerid` / `owneridtype` / `statecode`
- * are intentionally NOT set on create -- Dataverse defaults the owner to the
- * calling user and state to Active, exactly like the governed loan-deal create.
- * Setting them on create is what made the first live banker proof's audit POST
- * fail (audit_failed_partial). The actor is recorded via cr664_ChangedBy.
+ * The allow-listed audit payload keys -- the ONLY keys any New Deal audit
+ * payload may contain. Critically:
+ *   - `cr664_ChangedBy@odata.bind` is the ONLY user/actor bind, and it targets
+ *     systemuser (`/systemusers(<actor>)`).
+ *   - `cr664_ActorUser@odata.bind` is NOT allow-listed: it targets the custom
+ *     `cr664_user` table, so binding a systemuser id there fails the audit POST
+ *     ("Entity 'cr664_User' ... Does Not Exist"). No systemuser->cr664_user
+ *     resolver exists.
+ *   - `ownerid` / `owneridtype` / `statecode` are NOT set on create (Dataverse
+ *     defaults them).
  */
 export const ORIGINATION_AUDIT_ALLOWED_FIELDS = Object.freeze([
   'cr664_auditeventname',
@@ -46,25 +57,28 @@ export const ORIGINATION_AUDIT_ALLOWED_FIELDS = Object.freeze([
   'cr664_outcomestatus',
   'cr664_failurereason',
   'cr664_changeddate',
-  // cr664_ChangedBy targets systemuser (authoritative actor). cr664_ActorUser
-  // is NOT allow-listed: it targets the custom cr664_user table, and binding a
-  // systemuser id there fails the audit POST. No cr664_user resolver exists.
   'cr664_ChangedBy@odata.bind',
   'cr664_notes',
   'cr664_sourcescreensourceprocess',
   'cr664_correlationid',
+  'cr664_fieldname',
+  'cr664_oldvalue',
+  'cr664_newvalue',
+  'cr664_beforestate',
+  'cr664_afterstate',
 ] as const);
 
 /**
- * Build the audit payload. `nowIso` is injected for determinism (no clock
- * dependency here). Binds cr664_ChangedBy to /systemusers(<actor>); never a
- * hardcoded GUID.
+ * THE single canonical New Deal audit payload builder. Both the adapter's live
+ * emit and any shared origination audit route through this. The ONLY user bind
+ * is `cr664_ChangedBy@odata.bind = /systemusers(<actor>)`; no cr664_user /
+ * cr664_users bind, no ActorUser, no owner/state. `nowIso` is injected.
  */
-export function buildOriginationAuditPayload(
+export function buildNewDealAuditPayload(
   input: OriginationAuditInput,
   nowIso: string,
 ): Record<string, unknown> {
-  return {
+  const payload: Record<string, unknown> = {
     cr664_auditeventname: input.eventName,
     cr664_eventcategory: AUDIT_EVENT_CATEGORY_LIFECYCLE,
     cr664_eventtype: AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE,
@@ -74,16 +88,42 @@ export function buildOriginationAuditPayload(
     cr664_outcomestatus: input.outcome,
     cr664_failurereason: input.failureReason,
     cr664_changeddate: nowIso,
-    // cr664_ChangedBy targets systemuser and is the authoritative actor. The
-    // optional cr664_ActorUser bind is omitted (it targets cr664_user, not
-    // systemuser; binding a systemuser id there fails the audit POST).
+    // The ONLY actor/user bind. Targets systemuser.
     'cr664_ChangedBy@odata.bind': `/systemusers(${input.actorSystemUserId})`,
     cr664_notes: input.notes,
     cr664_sourcescreensourceprocess: input.sourceProcess,
     cr664_correlationid: input.correlationId,
-    // ownerid / owneridtype / statecode intentionally omitted (Dataverse
-    // defaults them on create; setting them rejected the live audit POST).
   };
+  if (input.fieldName !== undefined) payload.cr664_fieldname = input.fieldName;
+  if (input.oldValue !== undefined) payload.cr664_oldvalue = input.oldValue;
+  if (input.newValue !== undefined) payload.cr664_newvalue = input.newValue;
+  if (input.beforeState !== undefined) payload.cr664_beforestate = input.beforeState;
+  if (input.afterState !== undefined) payload.cr664_afterstate = input.afterState;
+  return payload;
+}
+
+/** Back-compat alias -- the canonical builder. */
+export const buildOriginationAuditPayload = buildNewDealAuditPayload;
+
+/**
+ * Sanitized payload-shape summary for diagnostics: the payload key list plus,
+ * for every `@odata.bind`, the TARGET entity set (the segment after `/`). It
+ * exposes NO record ids, tokens, or secrets -- only key names and entity-set
+ * names -- so it is safe to surface in the UI / logs. Lets a failed audit
+ * conclusively show WHICH bind received which target (e.g. whether any user
+ * bind other than cr664_ChangedBy is present, or whether ChangedBy itself is
+ * being validated against cr664_user).
+ */
+export function summarizeAuditPayloadShape(payload: Record<string, unknown>): string {
+  const keys = Object.keys(payload).sort();
+  const binds: string[] = [];
+  for (const [k, v] of Object.entries(payload)) {
+    if (k.endsWith('@odata.bind') && typeof v === 'string') {
+      const m = /^\/([a-zA-Z0-9_]+)\(/.exec(v.trim());
+      binds.push(`${k}->${m ? m[1] : 'unknown'}`);
+    }
+  }
+  return `auditPayload keys=[${keys.join(',')}]; binds=[${binds.sort().join(',')}]`;
 }
 
 /** Injected emit; default deps in the orchestrator never enable a live emit. */

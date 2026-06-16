@@ -200,6 +200,7 @@ function ResultBanner({ submit }: { submit: SubmitState }) {
         <div style={styles.bannerWarn} role="alert" data-banker-new-deal-result="audit_failed_partial">
           The deal was created (id {r.createdDealId}) but its audit record failed.
           An operator must reattempt the audit. This is not a clean success.
+          {' '}Correlation id: {r.correlationId}.
           {r.auditOutcome?.error ? (
             <span data-banker-new-deal-audit-error> Audit error: {r.auditOutcome.error}</span>
           ) : null}

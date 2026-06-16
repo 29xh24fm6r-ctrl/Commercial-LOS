@@ -261,43 +261,54 @@ describe('Phase 170M -- adapter source discipline', () => {
   });
 });
 
-describe('Phase 170P -- audit payload discipline (verified, pinned)', () => {
+describe('Phase 170P / BUGFIX -- audit payload discipline (canonical builder)', () => {
   const SRC = readFileSync(resolve(__dirname, 'newDealCreateAdapter.ts'), 'utf8');
+  const AUDIT_SRC = readFileSync(resolve(__dirname, 'dealOriginationAudit.ts'), 'utf8');
 
-  it('binds cr664_ChangedBy to /systemusers(<actor>) and carries the correlation id', () => {
-    expect(SRC).toMatch(/'cr664_ChangedBy@odata\.bind':\s*`\/systemusers\(\$\{opts\.input\.actorSystemUserId\}\)`/);
-    expect(SRC).toMatch(/cr664_correlationid:\s*opts\.correlationId/);
+  it('the adapter routes its audit payload through the single canonical builder', () => {
+    expect(SRC).toMatch(/buildNewDealAuditPayload\(/);
+    expect(SRC).toMatch(/summarizeAuditPayloadShape\(/);
   });
 
-  it('BUGFIX -- the live audit payload omits ownerid / owneridtype / statecode on create', () => {
-    // Slice the liveEmitNewDealAuditEvent payload object and assert the
-    // system-managed owner/state fields are not set (Dataverse defaults them).
-    const start = SRC.indexOf('async function liveEmitNewDealAuditEvent');
-    const end = SRC.indexOf('Cr664_auditeventsService.create', start);
-    const payloadBlock = SRC.slice(start, end);
-    expect(payloadBlock).not.toMatch(/\bownerid:/);
-    expect(payloadBlock).not.toMatch(/\bowneridtype:/);
-    expect(payloadBlock).not.toMatch(/\bstatecode:/);
+  it('the canonical builder binds cr664_ChangedBy to /systemusers(<actor>) and carries the correlation id', () => {
+    expect(AUDIT_SRC).toMatch(/'cr664_ChangedBy@odata\.bind':\s*`\/systemusers\(\$\{input\.actorSystemUserId\}\)`/);
+    expect(AUDIT_SRC).toMatch(/cr664_correlationid:\s*input\.correlationId/);
   });
 
-  it('BUGFIX -- the live audit payload omits cr664_ActorUser (cr664_user-targeted) but keeps ChangedBy', () => {
-    const start = SRC.indexOf('async function liveEmitNewDealAuditEvent');
-    const end = SRC.indexOf('Cr664_auditeventsService.create', start);
-    const payloadBlock = SRC.slice(start, end);
-    // No ActorUser bind set in the payload (it targets cr664_user, not systemuser).
-    expect(payloadBlock).not.toMatch(/'cr664_ActorUser@odata\.bind':/);
-    // ChangedBy -> systemuser remains.
-    expect(payloadBlock).toMatch(/'cr664_ChangedBy@odata\.bind':\s*`\/systemusers\(/);
-    // No systemusers bind goes to anything other than ChangedBy.
-    const systemuserBinds = payloadBlock.match(/'(cr664_\w+)@odata\.bind':\s*`\/systemusers\(/g) ?? [];
+  it('BUGFIX -- the canonical builder sets NO ownerid / owneridtype / statecode and NO ActorUser', () => {
+    const start = AUDIT_SRC.indexOf('export function buildNewDealAuditPayload');
+    const end = AUDIT_SRC.indexOf('Back-compat alias', start);
+    const block = AUDIT_SRC.slice(start, end);
+    expect(block).not.toMatch(/\bownerid:/);
+    expect(block).not.toMatch(/\bowneridtype:/);
+    expect(block).not.toMatch(/\bstatecode:/);
+    expect(block).not.toMatch(/cr664_ActorUser/);
+  });
+
+  it('BUGFIX -- the ONLY /systemusers bind in the canonical builder is cr664_ChangedBy; no cr664_user(s) bind anywhere', () => {
+    const start = AUDIT_SRC.indexOf('export function buildNewDealAuditPayload');
+    const end = AUDIT_SRC.indexOf('Back-compat alias', start);
+    const block = AUDIT_SRC.slice(start, end);
+    const systemuserBinds = block.match(/'(cr664_\w+)@odata\.bind':\s*`\/systemusers\(/g) ?? [];
+    expect(systemuserBinds.length).toBe(1);
     for (const b of systemuserBinds) expect(b).toMatch(/cr664_ChangedBy/);
+    // No bind targets the custom cr664_user / cr664_users table anywhere.
+    expect(AUDIT_SRC).not.toMatch(/@odata\.bind[^\n]*\/cr664_[Uu]sers?\(/);
+    expect(SRC).not.toMatch(/@odata\.bind[^\n]*\/cr664_[Uu]sers?\(/);
+  });
+
+  it('the canonical builder is NOT allow-listing cr664_ActorUser / ownerid / statecode', () => {
+    expect(AUDIT_SRC).not.toMatch(/'cr664_ActorUser@odata\.bind',/);
+    const allowStart = AUDIT_SRC.indexOf('ORIGINATION_AUDIT_ALLOWED_FIELDS');
+    const allowEnd = AUDIT_SRC.indexOf('] as const)', allowStart);
+    const allow = AUDIT_SRC.slice(allowStart, allowEnd);
+    expect(allow).not.toMatch(/'ownerid'|'owneridtype'|'statecode'/);
   });
 
   it('uses verified, pinned audit option-set values (Lifecycle / AssignmentChange / LoanDeal)', () => {
-    expect(SRC).toMatch(/AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002/);
-    expect(SRC).toMatch(/AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE = 788190002/);
-    expect(SRC).toMatch(/AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000/);
-    // Succeeded / Failed come from the shared audit enum module, not inline.
+    expect(AUDIT_SRC).toMatch(/AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002/);
+    expect(AUDIT_SRC).toMatch(/AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE = 788190002/);
+    expect(AUDIT_SRC).toMatch(/AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000/);
     expect(SRC).toMatch(/AUDIT_OUTCOME_SUCCEEDED/);
     expect(SRC).toMatch(/AUDIT_OUTCOME_FAILED/);
   });
