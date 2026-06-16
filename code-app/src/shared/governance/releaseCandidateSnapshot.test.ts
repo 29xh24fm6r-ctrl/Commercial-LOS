@@ -3741,3 +3741,61 @@ describe('Phase 170Q -- New Deal create production enablement certification doc 
     expect(doc).toMatch(/No git tag was created or\s+moved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 171-180 -- deal origination operating arc
+// ---------------------------------------------------------------------------
+
+describe('Phase 171-180 -- deal origination arc docs exist', () => {
+  const ARC_DOCS = [
+    'docs/PHASE_171A_NEW_DEAL_CREATE_REFERENCE_APPROVAL.md',
+    'docs/PHASE_172A_CRM_AUTOMATION_ADAPTER_DISABLED.md',
+    'docs/PHASE_173A_BORROWER_INVITE_AUTOMATION_DISABLED.md',
+    'docs/PHASE_174A_AUTO_STAGE_ADVANCE_DISABLED.md',
+    'docs/PHASE_175A_TASK_GENERATION_DISABLED.md',
+    'docs/PHASE_176A_DOCUMENT_CHECKLIST_GENERATION_DISABLED.md',
+    'docs/PHASE_177A_PORTFOLIO_SIDE_EFFECTS_DISABLED.md',
+    'docs/PHASE_178A_BORROWER_MESSAGING_DISABLED.md',
+    'docs/PHASE_179A_DUPLICATE_DETECTION_NO_MERGE.md',
+    'docs/PHASE_180A_DEAL_ORIGINATION_OS_V1_CERTIFICATION.md',
+  ];
+  for (const rel of ARC_DOCS) {
+    it(`${rel} exists`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+});
+
+describe('Phase 180A -- origination arc certification classifications', () => {
+  const doc = readDoc('docs/PHASE_180A_DEAL_ORIGINATION_OS_V1_CERTIFICATION.md');
+
+  it('classifies banker create as controlled and public create as DISABLED', () => {
+    expect(doc).toMatch(/Banker New Deal Create[\s\S]{0,80}(WIRED_CONTROLLED_DISABLED|LIVE_CONTROLLED|controlled)/i);
+    expect(doc).toMatch(/Public New Deal Create[\s\S]{0,40}DISABLED/i);
+  });
+
+  it('classifies each downstream domain and duplicate merge as detect-and-prepare-only', () => {
+    expect(doc).toMatch(/CRM Automation[\s\S]{0,60}DISABLED/i);
+    expect(doc).toMatch(/Borrower Invite[\s\S]{0,80}DISABLED/i);
+    expect(doc).toMatch(/Auto-stage Advancement[\s\S]{0,40}DISABLED/i);
+    expect(doc).toMatch(/Task Generation[\s\S]{0,40}DISABLED/i);
+    expect(doc).toMatch(/Document Checklist[\s\S]{0,40}DISABLED/i);
+    expect(doc).toMatch(/Portfolio Side Effects[\s\S]{0,60}(SKIPPED_NOT_NEEDED|DISABLED)/i);
+    expect(doc).toMatch(/Borrower Messaging[\s\S]{0,80}DISABLED/i);
+    expect(doc).toMatch(/Duplicate Merge[\s\S]{0,40}DETECT_AND_PREPARE_ONLY/i);
+  });
+
+  it('pins no hardcoded GUIDs, no TEST refs for production, and no fake success / external send', () => {
+    expect(doc).toMatch(/No Stage\/Status GUID is hardcoded/i);
+    expect(doc).toMatch(/No TEST\s+references are approved for production/i);
+    expect(doc).toMatch(/fake success/i);
+    expect(doc).toMatch(/external HTTP send/i);
+  });
+
+  it('pins the disabled / not-broad-production recommendation and no deploy/tag', () => {
+    expect(doc).toMatch(/Certified disabled/i);
+    expect(doc).toMatch(/not ready\s+for broad production/i);
+    expect(doc).toMatch(/No git tag was created or\s+moved/i);
+    expect(doc).toMatch(/No `?pac code push`? deploy/i);
+  });
+});
