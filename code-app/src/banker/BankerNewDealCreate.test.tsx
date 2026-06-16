@@ -96,6 +96,7 @@ describe('Phase 182A -- banker New Deal create surface', () => {
     orchestrateMock.mockResolvedValue({
       kind: 'audit_failed_partial',
       createdDealId: 'deal-xyz',
+      auditOutcome: { kind: 'failed', error: 'audit POST 400: ownerid' },
       userFacingMessage: 'partial',
     });
     const user = userEvent.setup();
@@ -107,6 +108,8 @@ describe('Phase 182A -- banker New Deal create surface', () => {
     );
     expect(container.querySelector('[data-banker-new-deal-result="success"]')).toBeNull();
     expect(screen.getByText(/audit record failed/i)).toBeInTheDocument();
+    // The raw audit error is surfaced so the operator can capture it.
+    expect(container.querySelector('[data-banker-new-deal-audit-error]')?.textContent).toMatch(/audit POST 400/);
   });
 
   it('create_failed shows no confirmed deal id', async () => {

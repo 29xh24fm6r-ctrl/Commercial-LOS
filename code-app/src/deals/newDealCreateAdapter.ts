@@ -340,9 +340,13 @@ async function liveEmitNewDealAuditEvent(
     cr664_notes: `Governed New Deal create for "${opts.input.dealName}".`,
     cr664_sourcescreensourceprocess: 'NewDealCreateAdapter/governed-create',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.actorSystemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
+    // ownerid / owneridtype / statecode are intentionally OMITTED. Like the
+    // governed loan-deal create (which omits them and succeeds), Dataverse
+    // defaults the owner to the calling user and the state to Active on create.
+    // Setting ownerid as a plain GUID + the SOAP-era owneridtype, and a
+    // not-settable-on-create statecode, is what made the first live banker
+    // proof return audit_failed_partial (the deal was created; the audit POST
+    // was rejected). The actor is still recorded via cr664_ChangedBy.
   };
   try {
     const result = await Cr664_auditeventsService.create(

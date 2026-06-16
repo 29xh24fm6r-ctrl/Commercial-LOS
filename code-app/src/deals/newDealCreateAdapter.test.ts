@@ -269,6 +269,17 @@ describe('Phase 170P -- audit payload discipline (verified, pinned)', () => {
     expect(SRC).toMatch(/cr664_correlationid:\s*opts\.correlationId/);
   });
 
+  it('BUGFIX -- the live audit payload omits ownerid / owneridtype / statecode on create', () => {
+    // Slice the liveEmitNewDealAuditEvent payload object and assert the
+    // system-managed owner/state fields are not set (Dataverse defaults them).
+    const start = SRC.indexOf('async function liveEmitNewDealAuditEvent');
+    const end = SRC.indexOf('Cr664_auditeventsService.create', start);
+    const payloadBlock = SRC.slice(start, end);
+    expect(payloadBlock).not.toMatch(/\bownerid:/);
+    expect(payloadBlock).not.toMatch(/\bowneridtype:/);
+    expect(payloadBlock).not.toMatch(/\bstatecode:/);
+  });
+
   it('uses verified, pinned audit option-set values (Lifecycle / AssignmentChange / LoanDeal)', () => {
     expect(SRC).toMatch(/AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002/);
     expect(SRC).toMatch(/AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE = 788190002/);

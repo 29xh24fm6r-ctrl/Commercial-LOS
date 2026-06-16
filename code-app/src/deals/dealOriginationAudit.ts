@@ -29,7 +29,13 @@ export interface OriginationAuditInput {
   readonly failureReason?: string;
 }
 
-/** The allow-listed audit payload keys (mirrors the existing governed writes). */
+/**
+ * The allow-listed audit payload keys. `ownerid` / `owneridtype` / `statecode`
+ * are intentionally NOT set on create -- Dataverse defaults the owner to the
+ * calling user and state to Active, exactly like the governed loan-deal create.
+ * Setting them on create is what made the first live banker proof's audit POST
+ * fail (audit_failed_partial). The actor is recorded via cr664_ChangedBy.
+ */
 export const ORIGINATION_AUDIT_ALLOWED_FIELDS = Object.freeze([
   'cr664_auditeventname',
   'cr664_eventcategory',
@@ -45,9 +51,6 @@ export const ORIGINATION_AUDIT_ALLOWED_FIELDS = Object.freeze([
   'cr664_notes',
   'cr664_sourcescreensourceprocess',
   'cr664_correlationid',
-  'ownerid',
-  'owneridtype',
-  'statecode',
 ] as const);
 
 /**
@@ -74,9 +77,8 @@ export function buildOriginationAuditPayload(
     cr664_notes: input.notes,
     cr664_sourcescreensourceprocess: input.sourceProcess,
     cr664_correlationid: input.correlationId,
-    ownerid: input.actorSystemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
+    // ownerid / owneridtype / statecode intentionally omitted (Dataverse
+    // defaults them on create; setting them rejected the live audit POST).
   };
 }
 
