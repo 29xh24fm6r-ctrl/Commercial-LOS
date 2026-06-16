@@ -3645,3 +3645,59 @@ describe('Phase 170L -- New Deal smoke read-model hydration parity doc exists an
     expect(doc).toMatch(/no git\s+tag was created or\s+moved/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 170M -- governed in-app New Deal create adapter (disabled by default)
+// ---------------------------------------------------------------------------
+
+describe('Phase 170M -- governed New Deal create adapter doc exists and is honest', () => {
+  const rel = 'docs/PHASE_170M_GOVERNED_NEW_DEAL_CREATE_ADAPTER_DISABLED.md';
+
+  it('the Phase 170M doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('pins the 170K/170L proof chain and the disabled-by-default flag', () => {
+    expect(doc).toMatch(/Phase 170K/);
+    expect(doc).toMatch(/Phase 170L/);
+    expect(doc).toMatch(/NEW_DEAL_CREATE_ADAPTER_ENABLED = false/);
+    expect(doc).toMatch(/disabled by default/i);
+  });
+
+  it('pins the typed outcome union and the payload allow-list', () => {
+    for (const k of [
+      'success',
+      'validation_error',
+      'unauthorized',
+      'resolver_not_ready',
+      'create_failed',
+      'audit_failed_partial',
+    ]) {
+      expect(doc).toMatch(new RegExp(k));
+    }
+    expect(doc).toMatch(/NEW_DEAL_CREATE_ALLOWED_FIELDS/);
+    expect(doc).toMatch(/No Stage\/Status\s+GUID is hardcoded/i);
+  });
+
+  it('pins the resolver dependency and the WIRED audit (no faked audit)', () => {
+    expect(doc).toMatch(/fail-closed resolver|by stable\s+code\/name/i);
+    expect(doc).toMatch(/Audit status\s*[—-]\s*WIRED/i);
+    expect(doc).toMatch(/AssignmentChange \(788190002\)/);
+    expect(doc).toMatch(/no audit is faked|audit_failed_partial/);
+  });
+
+  it('pins + New Deal disabled, NOT_WIRED unchanged, and stage-progression separate', () => {
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED[\s\S]{0,20}false/);
+    expect(doc).toMatch(/new-deal-create[\s\S]{0,40}NOT_WIRED|stays in\s+`?NOT_WIRED/i);
+    expect(doc).toMatch(/Advance Stage|stage-progression/i);
+  });
+
+  it('pins no record write / schema / tag / permission change', () => {
+    expect(doc).toMatch(/No Dataverse record was created, patched, or\s+deleted/i);
+    expect(doc).toMatch(/no schema\s+changed/i);
+    expect(doc).toMatch(/no git\s+tag was\s+created or\s+moved/i);
+    expect(doc).toMatch(/no permission was\s+widened/i);
+  });
+});
