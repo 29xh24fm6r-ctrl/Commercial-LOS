@@ -366,6 +366,9 @@ function parseArgs(argv) {
     // Phase 170D — read-only inspection of actual Stage/Status reference
     // ROWS (data GET, not metadata). Pure GET; never writes.
     inspectStageStatusValues: false,
+    // Phase 181A -- read-only Stage/Status reference inspection that classifies
+    // each row PRODUCTION-SAFE vs REJECTED (TEST/PHASE/demo). Pure GET.
+    inspectNewDealCreateReferences: false,
     // Phase 170K — controlled, operator-gated New Deal create smoke.
     // Dry-run by default; a single live create requires the explicit
     // --commit-smoke-create-new-deal flag. Never enables + New Deal.
@@ -611,6 +614,13 @@ function parseArgs(argv) {
       // operator can confirm a unique active default exists before any
       // future resolver wiring. Pure GET only; never writes.
       flags.inspectStageStatusValues = true;
+      flags.dryRun = false;
+    } else if (arg === '--inspect-new-deal-create-references') {
+      // Phase 181A -- read-only inspection that classifies each Stage/Status
+      // reference row as PRODUCTION-SAFE or REJECTED (TEST/PHASE/demo). Helps
+      // an operator find/approve production-safe references for banker create.
+      // Pure GET only; never writes; never enables any gate.
+      flags.inspectNewDealCreateReferences = true;
       flags.dryRun = false;
     } else if (arg === '--smoke-create-new-deal') {
       // Phase 170K — controlled New Deal create smoke. Dry-run by default;
@@ -862,6 +872,7 @@ function parseArgs(argv) {
     flags.inspectAttributeItems !== null,
     flags.inspectNewDealReferences,
     flags.inspectStageStatusValues,
+    flags.inspectNewDealCreateReferences,
     flags.smokeCreateNewDeal,
     flags.listPlatformWorkspaces,
     flags.seedPlatformWorkspace,
@@ -1198,6 +1209,8 @@ const MODE = FLAGS.listPlatformWorkspaces
     : 'SEED-PLATFORM-WORKSPACE (dry-run)'
   : FLAGS.inspectStageStatusValues
   ? 'INSPECT-STAGE-STATUS-VALUES (read-only)'
+  : FLAGS.inspectNewDealCreateReferences
+  ? 'INSPECT-NEW-DEAL-CREATE-REFERENCES (read-only)'
   : FLAGS.smokeCreateNewDeal
   ? FLAGS.commitSmokeCreateNewDeal
     ? 'SMOKE-CREATE-NEW-DEAL (COMMIT — creates ONE TEST deal)'
@@ -2139,6 +2152,101 @@ async function runInspectStageStatusValues(token, envUrl) {
     '   Read-only inspection complete. + New Deal stays disabled; this mode ' +
       'registers nothing and selects no default.',
   );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 181A — read-only Stage/Status reference inspection that classifies
+// each row PRODUCTION-SAFE vs REJECTED, to help an operator find/approve
+// production-safe references for banker create. Pure GET; never writes; never
+// enables any gate. Mirrors the in-app isProductionUnsafeReferenceLabel guard
+// (src/deals/newDealReferenceTargets.ts).
+// ---------------------------------------------------------------------------
+
+function isProductionUnsafeReferenceLabel(code, name) {
+  const code0 = String(code ?? '').trim();
+  const blob = `${code0} ${name ?? ''}`.toLowerCase();
+  if (/\b(test|demo|sample|fake|temp|temporary|placeholder|dummy)\b/.test(blob)) return true;
+  if (/phase\s*\d+/.test(blob)) return true;
+  if (code0.toUpperCase().startsWith('PHASE')) return true;
+  return false;
+}
+
+async function classifyReferenceSet(label, entitySetName, idAttr, token, envUrl) {
+  const select = `${idAttr},cr664_name,cr664_code,cr664_activeflag`;
+  const url =
+    `${envUrl}/api/data/v9.2/${entitySetName}` +
+    `?$select=${encodeURIComponent(select)}`;
+  console.log('');
+  console.log(`   ${label}  (GET /api/data/v9.2/${entitySetName})`);
+  const res = await fetchODataList(url, token);
+  if (!res.ok) {
+    console.log(`     ⚠ Could not read ${entitySetName}: ${res.error}`);
+    return { productionSafeActive: 0 };
+  }
+  const rows = res.records;
+  if (rows.length === 0) {
+    console.log('     (no rows) — no production-safe reference exists; banker create stays blocked.');
+    return { productionSafeActive: 0 };
+  }
+  let productionSafeActive = 0;
+  for (const r of rows) {
+    const name = r.cr664_name ?? '(no name)';
+    const code = r.cr664_code ?? '(no code)';
+    const active = r.cr664_activeflag === true;
+    const unsafe = isProductionUnsafeReferenceLabel(code, name);
+    const verdict = unsafe
+      ? 'REJECTED (TEST/PHASE/demo — not production-safe)'
+      : active
+        ? 'PRODUCTION-SAFE (active)'
+        : 'production-safe label but INACTIVE';
+    if (!unsafe && active) productionSafeActive += 1;
+    console.log(`     - ${active ? 'ACTIVE  ' : 'inactive'}  code=${code}  name=${name}  -> ${verdict}`);
+  }
+  console.log(`     production-safe ACTIVE rows: ${productionSafeActive}`);
+  if (productionSafeActive === 0) {
+    console.log('     ⚠ no production-safe active row — banker production create stays blocked.');
+  } else if (productionSafeActive > 1) {
+    console.log('     ⚠ more than one production-safe active row — resolver would fail closed (duplicate).');
+  }
+  return { productionSafeActive };
+}
+
+async function runInspectNewDealCreateReferences(token, envUrl) {
+  console.log('');
+  console.log('Phase 181A -- New Deal create reference inspection (read-only, classified)');
+  console.log(
+    '   Reading cr664_dealstagereferences / cr664_dealstatusreferences rows and classifying ' +
+      'each PRODUCTION-SAFE vs REJECTED (TEST/PHASE/demo). No create/patch/delete; no gate enabled.',
+  );
+  const stage = await classifyReferenceSet(
+    'Stage references (need: one active "Intake"/new-deal stage)',
+    'cr664_dealstagereferences',
+    'cr664_dealstagereferenceid',
+    token,
+    envUrl,
+  );
+  const status = await classifyReferenceSet(
+    'Status references (need: one active "Open"/active status)',
+    'cr664_dealstatusreferences',
+    'cr664_dealstatusreferenceid',
+    token,
+    envUrl,
+  );
+  console.log('');
+  const ready = stage.productionSafeActive === 1 && status.productionSafeActive === 1;
+  if (ready) {
+    console.log(
+      '   ✓ Exactly one production-safe active Stage and Status found. Confirm their ' +
+        'codes/names match the in-app production selection (INTAKE / OPEN) before enabling.',
+    );
+  } else {
+    console.log(
+      '   ⚠ No unique production-safe active Stage+Status pair. Banker production create ' +
+        'stays BLOCKED. Seed/approve production rows (e.g. Stage code INTAKE / name Intake, ' +
+        'Status code OPEN / name Open) with Matt approval, then re-run this inspection.',
+    );
+  }
+  console.log('   This mode is read-only and enabled no gate.');
 }
 
 // ---------------------------------------------------------------------------
@@ -9146,6 +9254,12 @@ async function main() {
   // === Phase 170D -- read-only Stage/Status reference ROW inspection ===
   if (FLAGS.inspectStageStatusValues) {
     await runInspectStageStatusValues(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 181A -- read-only production-safe reference classification ===
+  if (FLAGS.inspectNewDealCreateReferences) {
+    await runInspectNewDealCreateReferences(mainToken, mainEnvUrl);
     return;
   }
 

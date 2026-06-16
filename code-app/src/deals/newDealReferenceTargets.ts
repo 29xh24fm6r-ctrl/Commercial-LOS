@@ -184,3 +184,70 @@ export const STATUS_REFERENCE_SELECTION: ReferenceSelection = Object.freeze({
   code: 'PHASE121_STATUS',
   name: 'TEST — Status Phase 121',
 });
+
+// ---------------------------------------------------------------------------
+// Phase 181B -- approved PRODUCTION selection profile (code/name, never IDs)
+// ---------------------------------------------------------------------------
+//
+// The production banker create path resolves the Stage/Status rows by these
+// stable, production-safe code/name values -- NEVER by a GUID. A new deal opens
+// at the "Intake" stage with an "Open" status. These rows do NOT exist in the
+// environment yet (only the TEST PHASE121 rows are active), so the production
+// resolver fails closed until an authorized operator seeds/approves them
+// (Phase 181A). Adjust to the environment's actual production naming if it
+// already has equivalents -- but never point at a TEST/PHASE/demo row.
+
+/** Approved production Stage selector (a newly opened / intake deal). */
+export const PRODUCTION_STAGE_REFERENCE_SELECTION: ReferenceSelection = Object.freeze({
+  code: 'INTAKE',
+  name: 'Intake',
+});
+
+/** Approved production Status selector (an active / open deal). */
+export const PRODUCTION_STATUS_REFERENCE_SELECTION: ReferenceSelection = Object.freeze({
+  code: 'OPEN',
+  name: 'Open',
+});
+
+/** Whether the production selection rows are approved + present. False until seeded. */
+export const PRODUCTION_REFERENCES_APPROVED = false as const;
+
+/**
+ * A reference row label is production-UNSAFE when its code/name looks like a
+ * TEST / PHASE / demo / sample / temporary fixture. The production resolver
+ * filters these out so they can never back a production create, even if one
+ * happened to match a production code.
+ */
+export function isProductionUnsafeReferenceLabel(
+  code: string | undefined,
+  name: string | undefined,
+): boolean {
+  const code0 = (code ?? '').trim();
+  const blob = `${code0} ${name ?? ''}`.toLowerCase();
+  if (/\b(test|demo|sample|fake|temp|temporary|placeholder|dummy)\b/.test(blob)) return true;
+  if (/phase\s*\d+/.test(blob)) return true;
+  if (code0.toUpperCase().startsWith('PHASE')) return true;
+  return false;
+}
+
+export type NewDealReferenceProfile = 'test' | 'production';
+
+/** Resolve the Stage+Status selection pair for a profile. */
+export function selectNewDealReferenceProfile(profile: NewDealReferenceProfile): {
+  readonly stage: ReferenceSelection;
+  readonly status: ReferenceSelection;
+  readonly productionApproved: boolean;
+} {
+  if (profile === 'production') {
+    return {
+      stage: PRODUCTION_STAGE_REFERENCE_SELECTION,
+      status: PRODUCTION_STATUS_REFERENCE_SELECTION,
+      productionApproved: PRODUCTION_REFERENCES_APPROVED,
+    };
+  }
+  return {
+    stage: STAGE_REFERENCE_SELECTION,
+    status: STATUS_REFERENCE_SELECTION,
+    productionApproved: false,
+  };
+}

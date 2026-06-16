@@ -3799,3 +3799,51 @@ describe('Phase 180A -- origination arc certification classifications', () => {
     expect(doc).toMatch(/No `?pac code push`? deploy/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 181 -- banker New Deal create production unblock
+// ---------------------------------------------------------------------------
+
+describe('Phase 181 -- banker create unblock docs exist', () => {
+  for (const rel of [
+    'docs/PHASE_181A_NEW_DEAL_CREATE_PRODUCTION_REFERENCE_APPROVAL.md',
+    'docs/PHASE_181E_BANKER_NEW_DEAL_CREATE_LIVE_PROOF.md',
+    'docs/PHASE_181F_BANKER_NEW_DEAL_CREATE_V1_CERTIFICATION.md',
+  ]) {
+    it(`${rel} exists`, () => {
+      expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    });
+  }
+});
+
+describe('Phase 181F -- banker create certification is honest (still blocked)', () => {
+  const doc = readDoc('docs/PHASE_181F_BANKER_NEW_DEAL_CREATE_V1_CERTIFICATION.md');
+
+  it('certifies STILL_BLOCKED with gates hard-false and public create disabled', () => {
+    expect(doc).toMatch(/STILL_BLOCKED/);
+    expect(doc).toMatch(/BANKER_NEW_DEAL_CREATE_ENABLED = false/);
+    expect(doc).toMatch(/Public create status[\s\S]{0,40}DISABLED/i);
+  });
+
+  it('pins approved selection by code/name (INTAKE/OPEN), TEST rejected, no GUID', () => {
+    expect(doc).toMatch(/INTAKE/);
+    expect(doc).toMatch(/OPEN/);
+    expect(doc).toMatch(/rejected for production/i);
+    expect(doc).toMatch(/no GUID/i);
+  });
+
+  it('pins the exact operator action to unblock and no deploy/tag/write', () => {
+    expect(doc).toMatch(/Seed\/approve production Stage/i);
+    expect(doc).toMatch(/No git tag was created or\s+moved/i);
+    expect(doc).toMatch(/No `?pac code push`? deploy/i);
+    expect(doc).toMatch(/No Dataverse\s+write, schema change, or permission change/i);
+  });
+
+  it('181A documents the read-only inspection tool + seed runbook; gates stay disabled', () => {
+    const a = readDoc('docs/PHASE_181A_NEW_DEAL_CREATE_PRODUCTION_REFERENCE_APPROVAL.md');
+    expect(a).toMatch(/--inspect-new-deal-create-references/);
+    expect(a).toMatch(/Seed runbook/i);
+    expect(a).toMatch(/Create gates remain DISABLED/i);
+    expect(a).toMatch(/No hardcoded Stage\/Status GUIDs/i);
+  });
+});

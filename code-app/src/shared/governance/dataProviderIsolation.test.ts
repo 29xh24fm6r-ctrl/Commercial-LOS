@@ -335,6 +335,15 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
       'for the intake gate lives in the admin model; the controller only reads ' +
       'the constant (no admin component / write surface is imported).',
   },
+  {
+    file: 'deals/bankerNewDealCreateRollout.ts',
+    allowedFrom: ['../admin/adminNewDealIntakeModel'],
+    reason:
+      'Phase 181C banker create rollout gate reads the same canonical intake ' +
+      'hard floor constant (NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED) as one of the ' +
+      'three required gates. Constant-only read; no admin component / write ' +
+      'surface is imported.',
+  },
 ];
 
 describe('Phase 48 — src/deals/ cross-role imports are limited to documented exceptions', () => {

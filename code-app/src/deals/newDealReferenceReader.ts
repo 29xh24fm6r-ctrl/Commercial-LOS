@@ -25,6 +25,9 @@ import {
   STATUS_REFERENCE,
   STAGE_REFERENCE_SELECTION,
   STATUS_REFERENCE_SELECTION,
+  PRODUCTION_STAGE_REFERENCE_SELECTION,
+  PRODUCTION_STATUS_REFERENCE_SELECTION,
+  isProductionUnsafeReferenceLabel,
 } from './newDealReferenceTargets';
 
 const STAGE_SELECT = [
@@ -110,5 +113,45 @@ export async function resolveConfiguredNewDealReferences(
       statusName: STATUS_REFERENCE_SELECTION.name,
     },
     reader,
+  );
+}
+
+/**
+ * Phase 181B -- wrap a reader so production-UNSAFE rows (TEST / PHASE / demo /
+ * sample / temp) are filtered out before resolution. A TEST row can therefore
+ * NEVER back a production create, even if it matched a production code.
+ */
+function productionGuardedReader(reader: NewDealReferenceReader): NewDealReferenceReader {
+  return {
+    async readStageReferences(): Promise<readonly ReferenceRow[]> {
+      return (await reader.readStageReferences()).filter(
+        (r) => !isProductionUnsafeReferenceLabel(r.code, r.name),
+      );
+    },
+    async readStatusReferences(): Promise<readonly ReferenceRow[]> {
+      return (await reader.readStatusReferences()).filter(
+        (r) => !isProductionUnsafeReferenceLabel(r.code, r.name),
+      );
+    },
+  };
+}
+
+/**
+ * Resolve the APPROVED PRODUCTION Stage/Status references (code/name, never a
+ * GUID), with TEST/PHASE rows filtered out. Fails closed (missing/duplicate/
+ * inactive/serviceError/notConfigured) until the production rows are seeded and
+ * approved -- so banker production create stays disabled until then.
+ */
+export async function resolveProductionNewDealReferences(
+  reader: NewDealReferenceReader = createNewDealReferenceReader(),
+): Promise<NewDealReferenceResolution> {
+  return resolveNewDealReferences(
+    {
+      stageCode: PRODUCTION_STAGE_REFERENCE_SELECTION.code,
+      stageName: PRODUCTION_STAGE_REFERENCE_SELECTION.name,
+      statusCode: PRODUCTION_STATUS_REFERENCE_SELECTION.code,
+      statusName: PRODUCTION_STATUS_REFERENCE_SELECTION.name,
+    },
+    productionGuardedReader(reader),
   );
 }
