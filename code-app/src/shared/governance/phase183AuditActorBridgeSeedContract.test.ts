@@ -27,10 +27,14 @@ const SCRIPT = readFileSync(SCRIPT_PATH, 'utf8');
 const BRIDGE_START = SCRIPT.indexOf(
   '// BUGFIX — audit actor CoreUser bridge inspect + guarded seed/repair.',
 );
-const BRIDGE_END = SCRIPT.indexOf(
-  '// Audit phase — publishers + tables + columns',
-  BRIDGE_START,
-);
+// End the bridge slice where the follow-up CoreUser required-lookup section
+// begins (it has its own contract test), falling back to the audit-phase marker.
+const BRIDGE_END = (() => {
+  const next = SCRIPT.indexOf('// BUGFIX — CoreUser required-lookup seed.', BRIDGE_START);
+  return next !== -1
+    ? next
+    : SCRIPT.indexOf('// Audit phase — publishers + tables + columns', BRIDGE_START);
+})();
 const BRIDGE = SCRIPT.slice(BRIDGE_START, BRIDGE_END);
 
 /** Slice just the read-only inspect handler. */
@@ -40,7 +44,8 @@ const INSPECT = SCRIPT.slice(INSPECT_START, INSPECT_END);
 
 /** Slice the seed/repair handler. */
 const SEED_START = SCRIPT.indexOf('async function runSeedAuditActorBridge');
-const SEED_END = SCRIPT.indexOf('// Audit phase — publishers + tables + columns', SEED_START);
+// runSeedAuditActorBridge ends where the CoreUser required-lookup section begins.
+const SEED_END = SCRIPT.indexOf('// BUGFIX — CoreUser required-lookup seed.', SEED_START);
 const SEED = SCRIPT.slice(SEED_START, SEED_END);
 
 describe('bridge seed — flags & dry-run default', () => {
