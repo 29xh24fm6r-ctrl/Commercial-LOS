@@ -3,8 +3,10 @@
 - **Date:** 2026-06-17
 - **Author:** Matthew Paller
 - **Spec:** SPEC-DATAVERSE-SYSTEMS-INTEGRITY-MASTER-REMEDIATION-187H-1 (approved).
-- **Status:** Code remediation COMPLETE and verified green. One live-data step (G-1) is
-  token-gated and staged for execution when a fresh Dataverse token is provided.
+- **Status:** Code remediation COMPLETE and verified green. The live-data step
+  (G-1) is now **COMPLETE** — the CoreUser bridge was provisioned and verified
+  `GRAPH STATUS: READY`, and the final banker New Deal proof succeeded (create +
+  audit). See [Phase 187I certification](./PHASE_187I_V1_SYSTEMS_INTEGRITY_CERTIFICATION.md).
 
 ## Approved policy applied
 
@@ -13,7 +15,7 @@
 - Seed/reuse production-safe Banker Workspace identity rows. ✅ (`cr664_workspacetype` seed "Banker Workspace")
 - Treat `cr664_workspacecontext` as a Picklist on `cr664_workspacetype`, not a table dependency. ✅ (G-2)
 - Fix the identity-graph provisioner accordingly. ✅ (G-2)
-- Then provision Matthew's CoreUser bridge. ⏸ (G-1 — token-gated; see below)
+- Then provision Matthew's CoreUser bridge. ✅ (G-1 — COMPLETE; see below)
 - Then back-port the New Deal audit actor resolver to the 12 other live governed audit emitters. ✅ (G-5/G-6)
 
 ## What was implemented
@@ -67,9 +69,28 @@ writes were performed** — the provisioner was not run (it is dry-run/commit-ga
 No `pac code push` performed (runtime app code DID change for G-5, so a pac push + deploy will be
 required to ship it — staged, not executed).
 
-## Remaining: G-1 — live CoreUser bridge provisioning (token-gated)
+## G-1 — live CoreUser bridge provisioning — ✅ COMPLETE
 
-The cached Dataverse token expired at 2026-06-17T16:19Z. To finish:
+Provisioned and verified `GRAPH STATUS: READY`. Created/bound rows (production-safe,
+allow-listed; PlatformUser patched on `cr664_CoreUser` only):
+
+| Row | Id |
+| --- | --- |
+| WorkspaceType (Banker Workspace, `OPERATIONAL_CONTEXT`) | `920a202e-756a-f111-ab0c-70a8a59be491` |
+| UserRole (Banker) | `930a202e-756a-f111-ab0c-70a8a59be491` |
+| CoreUser (`cr664_user`) | `940a202e-756a-f111-ab0c-70a8a59be491` |
+| PlatformUser (patched `cr664_CoreUser`) | `e20d1fcd-4fbc-4439-962e-975c1db08aeb` |
+
+Verify result: **`GRAPH STATUS: READY`**. The subsequent banker New Deal proof
+(`V1 Banker Create Proof - 2026-06-16 8`, deal
+`1a10a165-756a-f111-ab0c-70a8a59be491`) created the deal AND wrote the audit
+cleanly — no `audit_failed_partial`. Certified in
+[Phase 187I](./PHASE_187I_V1_SYSTEMS_INTEGRITY_CERTIFICATION.md).
+
+### Runbook used (for the record)
+
+The cached Dataverse token expired at 2026-06-17T16:19Z; provisioning ran with a
+fresh token via:
 
 ```
 # fresh token required (env var or device-code)
