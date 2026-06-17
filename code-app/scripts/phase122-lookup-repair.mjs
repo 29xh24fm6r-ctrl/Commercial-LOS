@@ -6575,13 +6575,14 @@ const IDENTITY_AUDIT_CHANGEDBY_ATTR = 'cr664_changedby';
 // Production-safe naming/seed policy per dependency table (keyed by the logical
 // name discovered from metadata). A table with no policy is REJECTED_UNKNOWN_
 // METADATA (the walker will not guess a name/seed for it).
+// NOTE (Phase 187H / G-2): cr664_workspacecontext is NOT a table — it is a
+// REQUIRED Picklist column on cr664_workspacetype (live metadata:
+// 788190000 EXECUTIVE_CONTEXT / 788190001 OPERATIONAL_CONTEXT / 788190002 ADMIN_CONTEXT).
+// It is therefore handled by IDENTITY_REQUIRED_PICKLIST_SEED below (seeded at
+// workspacetype-create time), not as a standalone dependency node. The old
+// `cr664_workspacecontext` node-policy entry was removed per the approved 187H
+// policy ("treat cr664_workspacecontext as a picklist, not a table dependency").
 const IDENTITY_NODE_POLICY = {
-  cr664_workspacecontext: {
-    label: 'WorkspaceContext',
-    approvedNames: ['lending os', 'commercial lending los', 'commercial lending', 'ogb los', 'banker workspace context'],
-    seedName: 'OGB LOS',
-    seedCode: 'OGB_LOS',
-  },
   cr664_workspacetype: {
     label: 'WorkspaceType',
     approvedNames: ['banker workspace', 'banker', 'commercial lending', 'commercial lending los', 'lending os banker'],
@@ -6595,6 +6596,24 @@ const IDENTITY_NODE_POLICY = {
     seedCode: 'BANKER',
   },
 };
+
+// Required Picklist columns the graph seeds with a fixed, production-safe option
+// value at create time (keyed by table logical -> { attrLogical: { value, label } }).
+// A Banker Workspace is an operational (not executive/admin) context, so we pin
+// OPERATIONAL_CONTEXT. The value is metadata-backed (live OptionSet on
+// cr664_workspacetype.cr664_workspacecontext) — never a hardcoded GUID.
+const IDENTITY_REQUIRED_PICKLIST_SEED = {
+  cr664_workspacetype: {
+    cr664_workspacecontext: { value: 788190001, label: 'OPERATIONAL_CONTEXT' },
+  },
+};
+
+// Return the picklist seeds for a table as a Map(attrLower -> { attr, value, label }).
+function getPicklistSeedsForTable(tableLogical) {
+  const m = IDENTITY_REQUIRED_PICKLIST_SEED[tableLogical] ?? null;
+  if (!m) return new Map();
+  return new Map(Object.entries(m).map(([k, v]) => [k.toLowerCase(), { attr: k, ...v }]));
+}
 
 // The scalar cr664_user create fields the graph may set (lookups are added from
 // metadata). Pinned, allow-listed.
@@ -6695,7 +6714,11 @@ function analyzeIdentityNodeFields(info) {
   const coveredLower = new Set([nameField, codeField, activeField, emailField].filter(Boolean).map((f) => f.toLowerCase()));
   const autodefaultedLower = new Set(required.map((a) => a.LogicalName.toLowerCase()).filter(isAutodefaulted));
   const serverDefaultedRequired = [...autodefaultedLower];
-  return { nameField, codeField, activeField, emailField, required, coveredLower, autodefaultedLower, serverDefaultedRequired };
+  // Required Picklist columns with a pinned production-safe seed value (e.g.
+  // cr664_workspacetype.cr664_workspacecontext). Keyed lower; not a lookup,
+  // not blocking, set on create. See IDENTITY_REQUIRED_PICKLIST_SEED.
+  const picklistSeeds = getPicklistSeedsForTable(info.logical);
+  return { nameField, codeField, activeField, emailField, required, coveredLower, autodefaultedLower, serverDefaultedRequired, picklistSeeds };
 }
 
 // THE single required-field classifier used by every graph mode. For one
@@ -6708,13 +6731,19 @@ function analyzeIdentityNodeFields(info) {
 //                               allow-listed; the exact probe error is surfaced.
 // The lookup decision is ALWAYS the live probe result — never the `$select`ed
 // AttributeType (kept only for the trace).
-async function classifyRequiredFieldForGraph(tableLogical, attr, coveredLower, autodefaultedLower, token, envUrl) {
+async function classifyRequiredFieldForGraph(tableLogical, attr, coveredLower, autodefaultedLower, picklistSeeds, token, envUrl) {
   const ln = attr.LogicalName;
   const lnLower = ln.toLowerCase();
   const attributeType = attr.AttributeType ?? '(unknown)';
   const base = { table: tableLogical, attribute: ln, attributeType, navProperty: attr.SchemaName, targets: null, error: null };
   if (autodefaultedLower.has(lnLower)) {
     return { ...base, classification: 'SERVER_DEFAULTED', reason: 'system-required but server-defaulted (ownerid/owneridtype/state/PK)' };
+  }
+  // Required Picklist with a pinned production-safe seed value — covered, not a
+  // lookup dependency, not blocking. (e.g. cr664_workspacetype.cr664_workspacecontext)
+  if (picklistSeeds && picklistSeeds.has(lnLower)) {
+    const seed = picklistSeeds.get(lnLower);
+    return { ...base, classification: 'ALLOWLISTED_PICKLIST', reason: `required picklist seeded with ${seed.label} (${seed.value})` };
   }
   if (coveredLower.has(lnLower)) {
     return { ...base, classification: 'ALLOWLISTED_SCALAR', reason: 'covered by the seed scalar allow-list (name/code/active/email)' };
@@ -6765,7 +6794,7 @@ async function resolveIdentityNode(ctx, tableLogical, depth) {
   const requiredFieldTrace = [];
   for (const attr of fields.required) {
     const c = await classifyRequiredFieldForGraph(
-      tableLogical, attr, fields.coveredLower, fields.autodefaultedLower, ctx.token, ctx.envUrl,
+      tableLogical, attr, fields.coveredLower, fields.autodefaultedLower, fields.picklistSeeds, ctx.token, ctx.envUrl,
     );
     requiredFieldTrace.push(c);
     if (c.classification === 'WALK_LOOKUP_DEPENDENCY') {
@@ -6830,7 +6859,8 @@ async function resolveIdentityNode(ctx, tableLogical, depth) {
     const scalarKeys = isCoreUser
       ? [fields.nameField, fields.emailField, fields.activeField].filter(Boolean)
       : [fields.nameField, fields.codeField, fields.activeField].filter(Boolean);
-    payloadKeys = [...scalarKeys, ...binds.map((b) => b.nav)];
+    const picklistKeys = [...fields.picklistSeeds.values()].map((s) => s.attr);
+    payloadKeys = [...scalarKeys, ...picklistKeys, ...binds.map((b) => b.nav)];
   }
 
   const node = {
@@ -7119,6 +7149,10 @@ function buildIdentityCreateBody(node, ctx, idMap) {
     body[node.fields.nameField] = node.policy.seedName;
     if (node.fields.codeField) body[node.fields.codeField] = node.policy.seedCode;
     if (node.fields.activeField) body[node.fields.activeField] = true;
+  }
+  // Required Picklist seeds (e.g. cr664_workspacetype.cr664_workspacecontext).
+  for (const seed of node.fields.picklistSeeds?.values?.() ?? []) {
+    body[seed.attr] = seed.value;
   }
   for (const b of node.binds || []) {
     const childId = idMap.get(b.childTable);

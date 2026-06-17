@@ -4,6 +4,12 @@ import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dea
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
+import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
+import {
+  createActorChangedByResolver,
+  type ActorChangedByResolution,
+  type ResolveActorChangedBy,
+} from './newDealAuditActorResolver';
 
 /**
  * Phase 21: governed write for completing an open cr664_DealTask1 from
@@ -56,6 +62,10 @@ export interface CompleteTaskInput {
    *  audit before/after labels. */
   priorAssigneeName: string | undefined;
   systemUserId: string;
+  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   completionNote: string;
 }
 
@@ -69,10 +79,17 @@ const TIMELINE_EVENT_TYPE_TASK_COMPLETED = 788190005;
 
 async function emitAuditEvent(opts: {
   input: CompleteTaskInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const nowIso = new Date().toISOString();
   const payload = {
     cr664_auditeventname: 'DealTask Completed',
@@ -86,8 +103,10 @@ async function emitAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'cr664_completed',
     cr664_oldvalue: 'false',
     cr664_newvalue: 'true',
@@ -96,9 +115,6 @@ async function emitAuditEvent(opts: {
     cr664_notes: opts.input.completionNote,
     cr664_sourcescreensourceprocess: 'DealWorkspace/DealTasks/complete',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -155,13 +171,18 @@ async function emitTimelineEvent(opts: {
   }
 }
 
-export async function completeTask(input: CompleteTaskInput): Promise<CompleteTaskOutcome> {
+export async function completeTask(
+  input: CompleteTaskInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
+): Promise<CompleteTaskOutcome> {
   const note = input.completionNote.trim();
   if (note.length === 0) {
     return { kind: 'unknown', message: 'Completion note must not be empty.' };
   }
 
   const correlationId = newCorrelationId('dt');
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: flip task to completed.
   try {
@@ -171,6 +192,7 @@ export async function completeTask(input: CompleteTaskInput): Promise<CompleteTa
     if (!update.success) {
       void emitAuditEvent({
         input,
+        actor,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
         failureReason: update.error?.message ?? 'Unknown task update error',
@@ -184,6 +206,7 @@ export async function completeTask(input: CompleteTaskInput): Promise<CompleteTa
     const message = err instanceof Error ? err.message : String(err);
     void emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
@@ -197,6 +220,7 @@ export async function completeTask(input: CompleteTaskInput): Promise<CompleteTa
   const [audit, timeline] = await Promise.all([
     emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_SUCCEEDED,
       failureReason: undefined,
@@ -262,6 +286,9 @@ export interface CreateDocumentReviewTaskInput {
   /** Self-assign: the banker creating the task is the assignee. The
    *  cr664_AssignedTo bind on cr664_dealtask1s is required by schema. */
   systemUserId: string;
+  /** Acting banker's email — resolved fail-closed to the audit's
+   *  cr664_ChangedBy (cr664_user) bind (Phase 187H / G-5). */
+  actorEmail: string;
   /** Optional banker name; used in audit notes for human readability. */
   bankerName: string | undefined;
   /** Banker-provided follow-up note (required). Appears in audit notes
@@ -276,12 +303,17 @@ function buildReviewTaskTitle(documentName: string): string {
 
 async function emitCreateTaskAuditEvent(opts: {
   input: CreateDocumentReviewTaskInput;
+  actor: ActorChangedByResolution;
   taskId: string;
   taskTitle: string;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const nowIso = new Date().toISOString();
   const notes =
     `Follow-up review task created for document "${opts.input.documentName}". ` +
@@ -299,8 +331,9 @@ async function emitCreateTaskAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // ONLY actor bind — resolved cr664_user (never systemuser); no ActorUser,
+    // no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'cr664_taskname',
     cr664_oldvalue: '',
     cr664_newvalue: opts.taskTitle,
@@ -310,9 +343,6 @@ async function emitCreateTaskAuditEvent(opts: {
     cr664_sourcescreensourceprocess:
       'DealWorkspace/DealDocuments/create-review-task',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -378,6 +408,7 @@ async function emitCreateTaskTimelineEvent(opts: {
 
 export async function createDocumentReviewTask(
   input: CreateDocumentReviewTaskInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<CreateDocumentReviewTaskOutcome> {
   const note = input.followUpNote.trim();
   if (note.length === 0) {
@@ -389,6 +420,7 @@ export async function createDocumentReviewTask(
 
   const correlationId = newCorrelationId('rt');
   const taskTitle = buildReviewTaskTitle(input.documentName.trim());
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: create the task. cr664_dealtask1s requires
   // cr664_AssignedTo@odata.bind; we self-assign to the banker. The
@@ -408,6 +440,7 @@ export async function createDocumentReviewTask(
       const msg = create.error?.message ?? 'DealTask create returned non-success';
       void emitCreateTaskAuditEvent({
         input,
+        actor,
         taskId: 'unknown',
         taskTitle,
         correlationId,
@@ -421,6 +454,7 @@ export async function createDocumentReviewTask(
     const message = err instanceof Error ? err.message : String(err);
     void emitCreateTaskAuditEvent({
       input,
+      actor,
       taskId: 'unknown',
       taskTitle,
       correlationId,
@@ -435,6 +469,7 @@ export async function createDocumentReviewTask(
   const [audit, timeline] = await Promise.all([
     emitCreateTaskAuditEvent({
       input,
+      actor,
       taskId,
       taskTitle,
       correlationId,

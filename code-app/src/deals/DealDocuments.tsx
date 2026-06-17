@@ -77,6 +77,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       dealId: deal.id,
       priorRequestDate: pendingRequestDoc.requestDate,
       systemUserId: banker.systemUserId,
+      actorEmail: banker.email,
       requestNote: note,
     });
     refresh('after-document-request');
@@ -99,6 +100,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       documentName: pendingRequestDoc.name,
       dealId: deal.id,
       systemUserId: banker.systemUserId,
+      actorEmail: banker.email,
       recipient: emailInput.recipient,
       subject: emailInput.subject,
       body: emailInput.body,
@@ -124,6 +126,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       documentName: pendingRequestDoc.name,
       dealId: deal.id,
       systemUserId: banker.systemUserId,
+      actorEmail: banker.email,
       recipient: handoffInput.recipient,
       subject: handoffInput.subject,
       body: handoffInput.body,
@@ -145,6 +148,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       documentName: pendingReceiveDoc.name,
       dealId: deal.id,
       systemUserId: banker.systemUserId,
+      actorEmail: banker.email,
       receiveNote: note,
     });
     refresh('after-document-receive');
@@ -162,6 +166,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       documentName: pendingReviewDoc.name,
       dealId: deal.id,
       systemUserId: banker.systemUserId,
+      actorEmail: banker.email,
       reviewerName: banker.fullName,
       reviewNote: note,
     });
@@ -183,6 +188,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       documentId: pendingReviewTaskDoc.id,
       documentName: pendingReviewTaskDoc.name,
       systemUserId: banker.systemUserId,
+      actorEmail: banker.email,
       bankerName: banker.fullName,
       followUpNote: note,
     });

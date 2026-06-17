@@ -3893,3 +3893,36 @@ describe('Phase 182E -- banker create certification (pilot live, public disabled
     expect(d).toMatch(/NO downstream/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 187I — V1 systems-integrity certification (PILOT_LIVE_CONTROLLED)
+// ---------------------------------------------------------------------------
+
+describe('Phase 187I — banker New Deal create certification', () => {
+  const rel = 'docs/PHASE_187I_V1_SYSTEMS_INTEGRITY_CERTIFICATION.md';
+
+  it('the certification doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('certifies PILOT_LIVE_CONTROLLED with a READY identity graph', () => {
+    expect(doc).toMatch(/PILOT_LIVE_CONTROLLED/);
+    expect(doc).toMatch(/GRAPH STATUS: READY/);
+  });
+
+  it('pins the final proof name + deal id', () => {
+    expect(doc).toMatch(/V1 Banker Create Proof - 2026-06-16 8/);
+    expect(doc).toMatch(/1a10a165-756a-f111-ab0c-70a8a59be491/);
+  });
+
+  it('records that no audit_failed_partial was observed', () => {
+    expect(doc).toMatch(/no `?audit_failed_partial`? (?:was )?observed/i);
+  });
+
+  it('pins that public create + downstream automation remain disabled', () => {
+    expect(doc).toMatch(/Public create remains disabled/);
+    expect(doc).toMatch(/Downstream automation remains disabled/);
+  });
+});

@@ -5,6 +5,12 @@ import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dea
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
+import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
+import {
+  createActorChangedByResolver,
+  type ActorChangedByResolution,
+  type ResolveActorChangedBy,
+} from './newDealAuditActorResolver';
 
 /**
  * Phase 25: governed credit-memo draft save. The fifth governed
@@ -61,6 +67,10 @@ export interface SaveCreditMemoDraftInput {
   dealName: string;
   workspaceId: string;
   systemUserId: string;
+  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   memoName: string;
   memoType: string;
   memoBody: string;
@@ -101,12 +111,19 @@ const TIMELINE_SUBTYPE_CREDIT_MEMO_DRAFT_SAVED = 'creditmemo:draft-saved';
 
 async function emitAuditEvent(opts: {
   input: SaveCreditMemoDraftInput;
+  actor: ActorChangedByResolution;
   memoId: string | undefined;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
   nowIso: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const payload = {
     cr664_auditeventname: 'CreditMemo Draft Saved',
     cr664_eventcategory: AUDIT_EVENT_CATEGORY_LIFECYCLE,
@@ -119,8 +136,10 @@ async function emitAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: opts.nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'cr664_status',
     cr664_oldvalue: '',
     cr664_newvalue: 'Draft',
@@ -129,9 +148,6 @@ async function emitAuditEvent(opts: {
     cr664_notes: opts.input.saveNote,
     cr664_sourcescreensourceprocess: 'DealWorkspace/CreditMemo/saveDraft',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -224,6 +240,7 @@ async function createMemoSection(opts: {
 
 export async function saveCreditMemoDraft(
   input: SaveCreditMemoDraftInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<SaveCreditMemoDraftOutcome> {
   const note = input.saveNote.trim();
   if (note.length === 0) {
@@ -240,6 +257,8 @@ export async function saveCreditMemoDraft(
 
   const correlationId = newCorrelationId('cm');
   const nowIso = new Date().toISOString();
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: create the cr664_creditmemo1 row as Draft.
   let memoId: string | undefined;
@@ -267,6 +286,7 @@ export async function saveCreditMemoDraft(
     if (!result.success) {
       void emitAuditEvent({
         input: trimmedInput,
+        actor,
         memoId: undefined,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
@@ -282,6 +302,7 @@ export async function saveCreditMemoDraft(
     if (!memoId) {
       void emitAuditEvent({
         input: trimmedInput,
+        actor,
         memoId: undefined,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
@@ -297,6 +318,7 @@ export async function saveCreditMemoDraft(
     const message = err instanceof Error ? err.message : String(err);
     void emitAuditEvent({
       input,
+      actor,
       memoId: undefined,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
@@ -320,6 +342,7 @@ export async function saveCreditMemoDraft(
   );
   const auditP = emitAuditEvent({
     input: trimmedInput,
+    actor,
     memoId,
     correlationId,
     outcome: AUDIT_OUTCOME_SUCCEEDED,

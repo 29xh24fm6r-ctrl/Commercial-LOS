@@ -237,6 +237,7 @@ describe('MyWorkQueue — Phase 53 receive integration', () => {
         documentName: 'Personal Financial Statement',
         dealId: 'deal-77',
         systemUserId: 'sys-user-1',
+        actorEmail: 'm@bank.test',
         receiveNote: 'emailed by borrower',
       });
     });
@@ -530,6 +531,7 @@ describe('MyWorkQueue — Phase 55 review integration', () => {
         documentName: 'Tax Return 2024',
         dealId: 'deal-77',
         systemUserId: 'sys-user-1',
+        actorEmail: 'm@bank.test',
         reviewerName: 'M. Paller',
         reviewNote: 'reviewed; ratios reconcile',
       });

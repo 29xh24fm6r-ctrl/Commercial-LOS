@@ -60,10 +60,15 @@ describe('recursive graph walk', () => {
     expect(SECTION).toMatch(/IDENTITY_MAX_DEPTH/);
   });
 
-  it('has explicit policy nodes for WorkspaceContext, WorkspaceType and UserRole', () => {
-    expect(SECTION).toMatch(/cr664_workspacecontext:\s*\{/);
+  it('has explicit policy nodes for WorkspaceType and UserRole, and seeds WorkspaceContext as a picklist (not a node)', () => {
     expect(SECTION).toMatch(/cr664_workspacetype:\s*\{/);
     expect(SECTION).toMatch(/cr664_userrole:\s*\{/);
+    // cr664_workspacecontext is a REQUIRED Picklist on cr664_workspacetype (live
+    // metadata), NOT a table dependency — it is seeded at workspacetype-create
+    // time, and the old node-policy entry was removed (Phase 187H / G-2).
+    expect(SECTION).toMatch(/IDENTITY_REQUIRED_PICKLIST_SEED/);
+    expect(SECTION).toMatch(/cr664_workspacecontext:\s*\{\s*value:\s*788190001/);
+    expect(SECTION).not.toMatch(/cr664_workspacecontext:\s*\{\s*\n\s*label:\s*'WorkspaceContext'/);
   });
 
   it('honors metadata required-for-create fields (SystemRequired / ApplicationRequired)', () => {
@@ -140,9 +145,9 @@ describe('provisioning — dependency-safe order, allow-lists, guarded commit', 
     expect(SECTION).toMatch(/for \(const c of node\.children \|\| \[\]\) collectCreateOrder\(c\.child, arr, seen\)/);
   });
 
-  it('each create payload is allow-listed (scalar keys + only the resolved lookup binds)', () => {
+  it('each create payload is allow-listed (scalar keys + seeded picklists + only the resolved lookup binds)', () => {
     expect(SECTION).toMatch(/IDENTITY_COREUSER_SCALAR_ALLOWLIST = Object\.freeze\(\[\s*'cr664_username',\s*'cr664_email',\s*'cr664_activeaccessflag',\s*\]\)/);
-    expect(SECTION).toMatch(/payloadKeys = \[\.\.\.scalarKeys, \.\.\.binds\.map\(\(b\) => b\.nav\)\]/);
+    expect(SECTION).toMatch(/payloadKeys = \[\.\.\.scalarKeys, \.\.\.picklistKeys, \.\.\.binds\.map\(\(b\) => b\.nav\)\]/);
     // createDependencyRow enforces body keys subset allowedKeys.
     expect(SECTION).toMatch(/built\.allowedKeys/);
   });

@@ -28,6 +28,7 @@ export function DataQualityFlags() {
       flagName: resolvingFlag.flagName,
       flagType: resolvingFlag.flagType,
       systemUserId: admin.systemUserId,
+      actorEmail: admin.upn,
       resolutionNote: note,
     });
     // Refresh the affected cards on either success or audit-failed

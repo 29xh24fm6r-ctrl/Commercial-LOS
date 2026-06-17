@@ -4,6 +4,12 @@ import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dea
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
+import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
+import {
+  createActorChangedByResolver,
+  type ActorChangedByResolution,
+  type ResolveActorChangedBy,
+} from './newDealAuditActorResolver';
 
 /**
  * Phase 22: governed write for requesting an outstanding document on
@@ -46,6 +52,10 @@ export interface RequestDocumentInput {
    *  <date>)' precisely. */
   priorRequestDate: string | undefined;
   systemUserId: string;
+  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   requestNote: string;
 }
 
@@ -67,11 +77,18 @@ function beforeStateForRequest(prior: string | undefined): string {
 
 async function emitAuditEvent(opts: {
   input: RequestDocumentInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
   nowIso: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const payload = {
     cr664_auditeventname: 'DocumentChecklist Requested',
     cr664_eventcategory: AUDIT_EVENT_CATEGORY_LIFECYCLE,
@@ -84,8 +101,10 @@ async function emitAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: opts.nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'cr664_requestdate',
     cr664_oldvalue: opts.input.priorRequestDate ?? '',
     cr664_newvalue: opts.nowIso,
@@ -94,9 +113,6 @@ async function emitAuditEvent(opts: {
     cr664_notes: opts.input.requestNote,
     cr664_sourcescreensourceprocess: 'DealWorkspace/DealDocuments/request',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -155,6 +171,7 @@ async function emitTimelineEvent(opts: {
 
 export async function requestDocument(
   input: RequestDocumentInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<RequestDocumentOutcome> {
   const note = input.requestNote.trim();
   if (note.length === 0) {
@@ -163,6 +180,8 @@ export async function requestDocument(
 
   const correlationId = newCorrelationId('dr');
   const nowIso = new Date().toISOString();
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: stamp the document's request date.
   try {
@@ -172,6 +191,7 @@ export async function requestDocument(
     if (!update.success) {
       void emitAuditEvent({
         input,
+        actor,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
         failureReason: update.error?.message ?? 'Unknown document update error',
@@ -186,6 +206,7 @@ export async function requestDocument(
     const message = err instanceof Error ? err.message : String(err);
     void emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
@@ -199,6 +220,7 @@ export async function requestDocument(
   const [audit, timeline] = await Promise.all([
     emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_SUCCEEDED,
       failureReason: undefined,
@@ -268,16 +290,27 @@ export interface MarkDocumentReceivedInput {
   documentName: string;
   dealId: string;
   systemUserId: string;
+  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   receiveNote: string;
 }
 
 async function emitAuditEventForReceive(opts: {
   input: MarkDocumentReceivedInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
   nowIso: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const payload = {
     cr664_auditeventname: 'DocumentChecklist Received',
     cr664_eventcategory: AUDIT_EVENT_CATEGORY_LIFECYCLE,
@@ -290,8 +323,10 @@ async function emitAuditEventForReceive(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: opts.nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'cr664_receiveddate',
     cr664_oldvalue: '',
     cr664_newvalue: opts.nowIso,
@@ -300,9 +335,6 @@ async function emitAuditEventForReceive(opts: {
     cr664_notes: opts.input.receiveNote,
     cr664_sourcescreensourceprocess: 'DealWorkspace/DealDocuments/receive',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -361,6 +393,7 @@ async function emitTimelineEventForReceive(opts: {
 
 export async function markDocumentReceived(
   input: MarkDocumentReceivedInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<MarkDocumentReceivedOutcome> {
   const note = input.receiveNote.trim();
   if (note.length === 0) {
@@ -369,6 +402,8 @@ export async function markDocumentReceived(
 
   const correlationId = newCorrelationId('rd');
   const nowIso = new Date().toISOString();
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: stamp cr664_receiveddate. This is the only schema-level
   // write — the deriveStatus selector flips the document from
@@ -380,6 +415,7 @@ export async function markDocumentReceived(
     if (!update.success) {
       void emitAuditEventForReceive({
         input,
+        actor,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
         failureReason: update.error?.message ?? 'Unknown document update error',
@@ -394,6 +430,7 @@ export async function markDocumentReceived(
     const message = err instanceof Error ? err.message : String(err);
     void emitAuditEventForReceive({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
@@ -407,6 +444,7 @@ export async function markDocumentReceived(
   const [audit, timeline] = await Promise.all([
     emitAuditEventForReceive({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_SUCCEEDED,
       failureReason: undefined,
@@ -482,16 +520,27 @@ export interface MarkDocumentReviewedInput {
    *  identity link; the reviewer field is the human-readable
    *  display. */
   reviewerName: string;
+  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   reviewNote: string;
 }
 
 async function emitAuditEventForReview(opts: {
   input: MarkDocumentReviewedInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
   nowIso: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const payload = {
     cr664_auditeventname: 'DocumentChecklist Reviewed',
     cr664_eventcategory: AUDIT_EVENT_CATEGORY_LIFECYCLE,
@@ -504,8 +553,10 @@ async function emitAuditEventForReview(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: opts.nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'cr664_reviewer',
     cr664_oldvalue: '',
     cr664_newvalue: opts.input.reviewerName,
@@ -514,9 +565,6 @@ async function emitAuditEventForReview(opts: {
     cr664_notes: opts.input.reviewNote,
     cr664_sourcescreensourceprocess: 'DealWorkspace/DealDocuments/review',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -575,6 +623,7 @@ async function emitTimelineEventForReview(opts: {
 
 export async function markDocumentReviewed(
   input: MarkDocumentReviewedInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<MarkDocumentReviewedOutcome> {
   const note = input.reviewNote.trim();
   if (note.length === 0) {
@@ -590,6 +639,8 @@ export async function markDocumentReviewed(
 
   const correlationId = newCorrelationId('rv');
   const nowIso = new Date().toISOString();
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: stamp cr664_reviewer. This is the only schema-level
   // write — the deriveStatus selector flips the document from
@@ -603,6 +654,7 @@ export async function markDocumentReviewed(
     if (!update.success) {
       void emitAuditEventForReview({
         input,
+        actor,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
         failureReason: update.error?.message ?? 'Unknown document update error',
@@ -617,6 +669,7 @@ export async function markDocumentReviewed(
     const message = err instanceof Error ? err.message : String(err);
     void emitAuditEventForReview({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
@@ -630,6 +683,7 @@ export async function markDocumentReviewed(
   const [audit, timeline] = await Promise.all([
     emitAuditEventForReview({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_SUCCEEDED,
       failureReason: undefined,

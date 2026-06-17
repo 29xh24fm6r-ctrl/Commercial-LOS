@@ -162,6 +162,7 @@ export function GreetingHeader({
               dealName: deal?.name ?? 'Selected deal',
               bankerName: fullName,
               systemUserId,
+              actorEmail: email,
               note,
             });
             if (result.kind === 'success' || result.kind === 'governance-partial') {

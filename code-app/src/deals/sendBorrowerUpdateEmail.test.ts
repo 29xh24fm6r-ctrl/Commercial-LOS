@@ -18,6 +18,7 @@ vi.mock('../generated/services/Office365OutlookService', () => ({
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
 import { sendBorrowerUpdateEmail } from './sendBorrowerUpdateEmail';
+import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
 import type {
   OutlookEmailInput,
   OutlookEmailPort,
@@ -27,10 +28,20 @@ import type {
 const auditCreate = vi.mocked(Cr664_auditeventsService.create);
 const timelineCreate = vi.mocked(Cr664_dealtimelineeventsService.create);
 
+// Phase 187H / G-5: the audit actor (cr664_ChangedBy) is resolved fail-closed to
+// a cr664_user bind via the platform-user bridge. Tests inject the resolver.
+const CORE_USER_BIND = '/cr664_users(core-1)';
+const okResolver: ResolveActorChangedBy = async () => ({ ok: true, changedByBind: CORE_USER_BIND });
+const failResolver: ResolveActorChangedBy = async () => ({
+  ok: false,
+  reason: 'matched platform-user has no linked cr664_user (CoreUser is empty)',
+});
+
 function baseInput(overrides: Partial<Parameters<typeof sendBorrowerUpdateEmail>[0]> = {}) {
   return {
     dealId: 'deal-77',
     systemUserId: 'sys-user-1',
+    actorEmail: 'banker@oldglorybank.com',
     recipient: 'borrower@example.com',
     subject: 'Loan update — your application status',
     body: 'Hi, your application is currently with underwriting. We will follow up shortly.',
@@ -115,7 +126,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
           { kind: 'accepted', providerMessageId: 'msg-42' },
           'DRY_RUN',
         ),
-      });
+      }, okResolver);
       expect(result.kind).toBe('success');
       if (result.kind === 'success') {
         expect(result.mode).toBe('DRY_RUN');
@@ -129,7 +140,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
       await sendBorrowerUpdateEmail(baseInput(), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
-      });
+      }, okResolver);
       expect(auditCreate).toHaveBeenCalledTimes(1);
       expect(timelineCreate).toHaveBeenCalledTimes(1);
     });
@@ -144,6 +155,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
           bankerNote: 'Borrower has not returned PFS for 14 days.',
         }),
         { adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }) },
+        okResolver,
       );
       const auditPayload = auditCreate.mock.calls[0]?.[0] as Record<string, unknown>;
       const notes = String(auditPayload.cr664_notes);
@@ -158,6 +170,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       await sendBorrowerUpdateEmail(
         baseInput({ recipient: 'borrower@example.com' }),
         { adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }) },
+        okResolver,
       );
       const tlPayload = timelineCreate.mock.calls[0]?.[0] as Record<string, unknown>;
       const summary = String(tlPayload.cr664_summary);
@@ -170,7 +183,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
       await sendBorrowerUpdateEmail(baseInput(), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
-      });
+      }, okResolver);
       const tlPayload = timelineCreate.mock.calls[0]?.[0] as Record<string, unknown>;
       expect(tlPayload.cr664_eventtype).toBe(788190014);
     });
@@ -183,7 +196,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
           { kind: 'accepted', providerMessageId: 'msg-1' },
           'LIVE',
         ),
-      });
+      }, okResolver);
       const tlPayload = timelineCreate.mock.calls[0]?.[0] as Record<string, unknown>;
       const summary = String(tlPayload.cr664_summary);
       expect(summary).toMatch(/Outlook accepted borrower update/i);
@@ -199,7 +212,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
           { kind: 'accepted', providerMessageId: undefined },
           'DRY_RUN',
         ),
-      });
+      }, okResolver);
       const tlPayload = timelineCreate.mock.calls[0]?.[0] as Record<string, unknown>;
       expect(String(tlPayload.cr664_summary)).toMatch(/nothing left the client/i);
     });
@@ -209,9 +222,25 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
       await sendBorrowerUpdateEmail(baseInput(), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
-      });
+      }, okResolver);
       const auditPayload = auditCreate.mock.calls[0]?.[0] as Record<string, unknown>;
       expect(auditPayload.cr664_auditeventname).toBe('BorrowerUpdate Outlook Send');
+    });
+
+    it('binds cr664_ChangedBy to the resolved cr664_user; no ActorUser/owner/state', async () => {
+      auditCreate.mockReturnValueOnce(successAudit('aud-1'));
+      timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
+      await sendBorrowerUpdateEmail(baseInput(), {
+        adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
+      }, okResolver);
+      const auditPayload = auditCreate.mock.calls[0]?.[0] as Record<string, unknown>;
+      // Phase 187H / G-5: ChangedBy is the resolved cr664_user bind — never a
+      // systemuser id — and the redundant ActorUser + owner/state are gone.
+      expect(auditPayload['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+      expect(auditPayload['cr664_ActorUser@odata.bind']).toBeUndefined();
+      expect(auditPayload.ownerid).toBeUndefined();
+      expect(auditPayload.owneridtype).toBeUndefined();
+      expect(auditPayload.statecode).toBeUndefined();
     });
   });
 
@@ -223,7 +252,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
           { kind: 'permanent-failure', reason: '403 forbidden' },
           'LIVE',
         ),
-      });
+      }, okResolver);
       expect(result.kind).toBe('send-failed');
       if (result.kind === 'send-failed') {
         expect(result.transient).toBe(false);
@@ -239,7 +268,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
           { kind: 'transient-failure', reason: '503 backend unavailable' },
           'LIVE',
         ),
-      });
+      }, okResolver);
       expect(result.kind).toBe('send-failed');
       if (result.kind === 'send-failed') expect(result.transient).toBe(true);
     });
@@ -251,7 +280,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
           { kind: 'invalid-recipient', reason: 'rejected by transport' },
           'LIVE',
         ),
-      });
+      }, okResolver);
       expect(result.kind).toBe('send-failed');
     });
 
@@ -259,7 +288,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       auditCreate.mockReturnValueOnce(successAudit('aud-1'));
       await sendBorrowerUpdateEmail(baseInput(), {
         adapter: adapterReturning({ kind: 'permanent-failure', reason: 'x' }, 'LIVE'),
-      });
+      }, okResolver);
       expect(auditCreate).toHaveBeenCalledTimes(1);
       expect(timelineCreate).not.toHaveBeenCalled();
       const auditPayload = auditCreate.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -273,7 +302,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       timelineCreate.mockReturnValueOnce(failedTimeline('timeline 500'));
       const result = await sendBorrowerUpdateEmail(baseInput(), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: 'm' }),
-      });
+      }, okResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
         expect(result.auditError).toBeUndefined();
@@ -287,7 +316,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
       const result = await sendBorrowerUpdateEmail(baseInput(), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: 'm' }),
-      });
+      }, okResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
         expect(result.auditError).toBe('audit 500');
@@ -300,8 +329,26 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       timelineCreate.mockReturnValueOnce(failedTimeline('t'));
       const result = await sendBorrowerUpdateEmail(baseInput(), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: 'm' }),
-      });
+      }, okResolver);
       expect(result.kind).toBe('governance-partial');
+    });
+
+    it('fails closed when the actor cannot be resolved: send proceeds, NO audit POST, governance-partial', async () => {
+      // Mocks are wired to "succeed" so the assertion proves the audit is
+      // skipped because the actor is unresolved — never POSTed with a
+      // systemuser bind.
+      auditCreate.mockReturnValueOnce(successAudit('should-not-be-used'));
+      timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
+      const result = await sendBorrowerUpdateEmail(baseInput(), {
+        adapter: adapterReturning({ kind: 'accepted', providerMessageId: 'm' }),
+      }, failResolver);
+      expect(result.kind).toBe('governance-partial');
+      if (result.kind === 'governance-partial') {
+        expect(result.auditError).toMatch(/CoreUser is empty/);
+      }
+      // The send path still ran (timeline emitted); the audit is NOT POSTed.
+      expect(auditCreate).not.toHaveBeenCalled();
+      expect(timelineCreate).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -309,7 +356,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
     it('returns kind: "unknown" when the adapter throws', async () => {
       const result = await sendBorrowerUpdateEmail(baseInput(), {
         adapter: adapterThrowing(new Error('boom')),
-      });
+      }, okResolver);
       expect(result.kind).toBe('unknown');
       if (result.kind === 'unknown') expect(result.message).toBe('boom');
     });
@@ -317,28 +364,28 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
     it('returns kind: "unknown" for an empty recipient (caught BEFORE adapter)', async () => {
       const result = await sendBorrowerUpdateEmail(baseInput({ recipient: '' }), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
-      });
+      }, okResolver);
       expect(result.kind).toBe('unknown');
     });
 
     it('returns kind: "unknown" for an empty subject', async () => {
       const result = await sendBorrowerUpdateEmail(baseInput({ subject: '   ' }), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
-      });
+      }, okResolver);
       expect(result.kind).toBe('unknown');
     });
 
     it('returns kind: "unknown" for an empty body', async () => {
       const result = await sendBorrowerUpdateEmail(baseInput({ body: '' }), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
-      });
+      }, okResolver);
       expect(result.kind).toBe('unknown');
     });
 
     it('returns kind: "unknown" for an empty banker note (required by audit discipline)', async () => {
       const result = await sendBorrowerUpdateEmail(baseInput({ bankerNote: '   ' }), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
-      });
+      }, okResolver);
       expect(result.kind).toBe('unknown');
       if (result.kind === 'unknown') {
         expect(result.message).toMatch(/banker note/i);
@@ -348,7 +395,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
     it('does NOT consume an audit or timeline call slot for pre-adapter rejection', async () => {
       await sendBorrowerUpdateEmail(baseInput({ recipient: 'nope' }), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
-      });
+      }, okResolver);
       expect(auditCreate).not.toHaveBeenCalled();
       expect(timelineCreate).not.toHaveBeenCalled();
     });
@@ -360,7 +407,7 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
       await sendBorrowerUpdateEmail(baseInput(), {
         adapter: adapterReturning({ kind: 'accepted', providerMessageId: undefined }),
-      });
+      }, okResolver);
       const auditPayload = auditCreate.mock.calls[0]?.[0] as Record<string, unknown>;
       const tlPayload = timelineCreate.mock.calls[0]?.[0] as Record<string, unknown>;
       const auditCid = String(auditPayload.cr664_correlationid);

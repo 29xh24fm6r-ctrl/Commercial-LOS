@@ -62,7 +62,7 @@ type State =
   | { kind: 'failed'; message: string };
 
 export function MyWorkQueue() {
-  const { bankerId, fullName, systemUserId } = useBanker();
+  const { bankerId, fullName, email, systemUserId } = useBanker();
   const navigate = useNavigate();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [pendingReceive, setPendingReceive] =
@@ -111,6 +111,7 @@ export function MyWorkQueue() {
       documentName: pendingReceive.meta.documentName,
       dealId: pendingReceive.dealId,
       systemUserId,
+      actorEmail: email,
       receiveNote: note,
     });
     if (outcome.kind === 'success' || outcome.kind === 'governance-partial') {
@@ -135,6 +136,7 @@ export function MyWorkQueue() {
       documentName: pendingReview.meta.documentName,
       dealId: pendingReview.dealId,
       systemUserId,
+      actorEmail: email,
       reviewerName: fullName,
       reviewNote: note,
     });
@@ -161,6 +163,7 @@ export function MyWorkQueue() {
       documentId: pendingReviewTask.meta.documentId,
       documentName: pendingReviewTask.meta.documentName,
       systemUserId,
+      actorEmail: email,
       bankerName: fullName,
       followUpNote: note,
     });

@@ -3,6 +3,12 @@ import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dea
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
+import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
+import {
+  createActorChangedByResolver,
+  type ActorChangedByResolution,
+  type ResolveActorChangedBy,
+} from './newDealAuditActorResolver';
 import { getEmailAdapter, isLikelyValidEmail } from './emailDelivery/outlookEmailAdapters';
 import { maskRecipient } from './emailDelivery/recipientMasking';
 import type { EmailMode } from './emailDelivery/emailMode';
@@ -95,6 +101,10 @@ export interface SendDocumentRequestEmailInput {
   documentName: string;
   dealId: string;
   systemUserId: string;
+  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   /** Unmasked recipient — the banker typed it. Goes to the audit
    *  event verbatim; appears in masked form everywhere else. */
   recipient: string;
@@ -148,6 +158,7 @@ function describeSendOutcome(result: OutlookSendResult): {
 
 async function emitAuditEvent(opts: {
   input: SendDocumentRequestEmailInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
@@ -156,6 +167,12 @@ async function emitAuditEvent(opts: {
   mode: EmailMode;
   providerMessageId: string | undefined;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   // Notes carry the verbatim banker-supplied subject + the full
   // recipient address. The audit row is the privileged ledger; full
   // recipient lives here and ONLY here.
@@ -177,8 +194,10 @@ async function emitAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: opts.nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'outlook_send_attempt',
     cr664_oldvalue: '',
     cr664_newvalue: opts.afterState,
@@ -187,9 +206,6 @@ async function emitAuditEvent(opts: {
     cr664_notes: notes,
     cr664_sourcescreensourceprocess: 'DealWorkspace/DealDocuments/request-email',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -259,6 +275,7 @@ async function emitTimelineEvent(opts: {
 export async function sendDocumentRequestEmail(
   input: SendDocumentRequestEmailInput,
   deps: SendDocumentRequestEmailDependencies = {},
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<SendDocumentRequestEmailOutcome> {
   // Local input checks. These mirror the adapter's own shape checks
   // so a malformed input fails fast without consuming a transport call
@@ -281,6 +298,8 @@ export async function sendDocumentRequestEmail(
   const correlationId = newCorrelationId('oe');
   const nowIso = new Date().toISOString();
   const maskedRecipient = maskRecipient(recipient);
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   let sendResult: OutlookSendResult;
   try {
@@ -295,6 +314,7 @@ export async function sendDocumentRequestEmail(
     // Best-effort audit row records the unexpected adapter throw.
     void emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
@@ -318,6 +338,7 @@ export async function sendDocumentRequestEmail(
     // outcome — the audit row is the durable trace).
     void emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: describe.failureReason,
@@ -339,6 +360,7 @@ export async function sendDocumentRequestEmail(
   const [audit, timeline] = await Promise.all([
     emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_SUCCEEDED,
       failureReason: undefined,
