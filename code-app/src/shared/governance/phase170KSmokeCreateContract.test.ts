@@ -105,8 +105,11 @@ describe('Phase 170K — BUGFIX: --deal-name is valid with --smoke-create-new-de
   });
 
   it('the bail message lists --smoke-create-new-deal', () => {
+    // Phase 189A appended --inspect-crm-relationship-graph to the valid-mode
+    // list; --smoke-create-new-deal moved from the trailing "or" slot to a
+    // mid-list item but is still named.
     expect(SCRIPT).toMatch(
-      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, or --smoke-create-new-deal/,
+      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, --smoke-create-new-deal, or --inspect-crm-relationship-graph/,
     );
   });
 
