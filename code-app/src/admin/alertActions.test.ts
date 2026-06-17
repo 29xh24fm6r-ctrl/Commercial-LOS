@@ -14,9 +14,19 @@ vi.mock('../generated/services/Cr664_auditeventsService', () => ({
 import { Cr664_alertqueuesService } from '../generated/services/Cr664_alertqueuesService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { resolveAlert, dismissAlert } from './alertActions';
+import type { ResolveActorChangedBy } from '../deals/newDealAuditActorResolver';
 
 const updateMock = vi.mocked(Cr664_alertqueuesService.update);
 const createMock = vi.mocked(Cr664_auditeventsService.create);
+
+// Phase 187H / G-5: the audit actor (cr664_ChangedBy) is resolved fail-closed to
+// a cr664_user bind via the platform-user bridge. Tests inject the resolver.
+const CORE_USER_BIND = '/cr664_users(core-1)';
+const okResolver: ResolveActorChangedBy = async () => ({ ok: true, changedByBind: CORE_USER_BIND });
+const failResolver: ResolveActorChangedBy = async () => ({
+  ok: false,
+  reason: 'matched platform-user has no linked cr664_user (CoreUser is empty)',
+});
 
 function baseInput(overrides: Partial<Parameters<typeof resolveAlert>[0]> = {}) {
   return {
@@ -24,6 +34,7 @@ function baseInput(overrides: Partial<Parameters<typeof resolveAlert>[0]> = {}) 
     alertName: 'Compliance check failed',
     priorStatus: 'In progress',
     systemUserId: 'sys-user-1',
+    actorEmail: 'admin@oldglorybank.com',
     resolutionNote: 'reviewed and corrected',
     ...overrides,
   };
@@ -75,7 +86,7 @@ describe('resolveAlert', () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('audit-1'));
 
-    await resolveAlert(baseInput());
+    await resolveAlert(baseInput(), okResolver);
 
     expect(updateMock).toHaveBeenCalledWith(
       'alert-1',
@@ -93,7 +104,7 @@ describe('resolveAlert', () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('audit-1'));
 
-    await resolveAlert(baseInput());
+    await resolveAlert(baseInput(), okResolver);
 
     const payload = createMock.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_eventcategory).toBe(788190003); // Alert
@@ -107,13 +118,20 @@ describe('resolveAlert', () => {
       'AdminWorkspace/AlertBacklog/resolve',
     );
     expect(payload.cr664_auditeventname).toBe('AlertQueue Resolved');
+    // Phase 187H / G-5: ChangedBy is the resolved cr664_user bind — never a
+    // systemuser id — and the redundant ActorUser + owner/state are gone.
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(payload['cr664_ActorUser@odata.bind']).toBeUndefined();
+    expect(payload.ownerid).toBeUndefined();
+    expect(payload.owneridtype).toBeUndefined();
+    expect(payload.statecode).toBeUndefined();
   });
 
   it('returns audit-failed when the alert updates but the audit create fails', async () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(failedAudit('audit write rejected'));
 
-    const outcome = await resolveAlert(baseInput());
+    const outcome = await resolveAlert(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('audit-failed');
     if (outcome.kind === 'audit-failed') {
@@ -125,7 +143,7 @@ describe('resolveAlert', () => {
     updateMock.mockReturnValue(failedUpdate('lock conflict'));
     createMock.mockReturnValue(successAudit('audit-fail-trace'));
 
-    const outcome = await resolveAlert(baseInput());
+    const outcome = await resolveAlert(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('alert-failed');
     if (outcome.kind === 'alert-failed') {
@@ -137,9 +155,25 @@ describe('resolveAlert', () => {
   });
 
   it('rejects an empty note without touching either service', async () => {
-    const outcome = await resolveAlert(baseInput({ resolutionNote: '   ' }));
+    const outcome = await resolveAlert(baseInput({ resolutionNote: '   ' }), okResolver);
     expect(outcome.kind).toBe('unknown');
     expect(updateMock).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the actor cannot be resolved: alert updates, NO audit POST, audit-failed', async () => {
+    updateMock.mockReturnValue(successUpdate());
+    createMock.mockReturnValue(successAudit('should-not-be-used'));
+
+    const outcome = await resolveAlert(baseInput(), failResolver);
+
+    // Primary alert update still happens.
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(outcome.kind).toBe('audit-failed');
+    if (outcome.kind === 'audit-failed') {
+      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+    }
+    // No audit row is POSTed with an unresolved actor — never a systemuser bind.
     expect(createMock).not.toHaveBeenCalled();
   });
 });
@@ -149,7 +183,7 @@ describe('dismissAlert', () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('audit-d1'));
 
-    await dismissAlert(baseInput());
+    await dismissAlert(baseInput(), okResolver);
 
     expect(updateMock).toHaveBeenCalledWith(
       'alert-1',
@@ -163,7 +197,7 @@ describe('dismissAlert', () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('audit-d2'));
 
-    await dismissAlert(baseInput());
+    await dismissAlert(baseInput(), okResolver);
 
     const payload = createMock.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_afterstate).toBe('Closed');
@@ -179,15 +213,15 @@ describe('alertActions correlation id discipline', () => {
   it('generates a distinct correlation id per attempt across resolve and dismiss', async () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('a1'));
-    await resolveAlert(baseInput());
+    await resolveAlert(baseInput(), okResolver);
 
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('a2'));
-    await resolveAlert(baseInput());
+    await resolveAlert(baseInput(), okResolver);
 
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('a3'));
-    await dismissAlert(baseInput());
+    await dismissAlert(baseInput(), okResolver);
 
     const ids = createMock.mock.calls.map(
       (c) => (c[0] as Record<string, unknown>).cr664_correlationid,

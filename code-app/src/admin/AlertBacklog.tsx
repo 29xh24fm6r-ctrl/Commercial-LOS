@@ -46,6 +46,7 @@ export function AlertBacklog() {
       alertName: pending.alert.alertName,
       priorStatus: pending.alert.alertStatus,
       systemUserId: admin.systemUserId,
+      actorEmail: admin.upn,
       resolutionNote: note,
     };
     const outcome =

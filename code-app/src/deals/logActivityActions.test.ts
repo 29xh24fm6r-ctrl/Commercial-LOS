@@ -10,15 +10,26 @@ vi.mock('../generated/services/Cr664_dealtimelineeventsService', () => ({
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
 import { logActivity } from './logActivityActions';
+import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
 
 const auditCreate = vi.mocked(Cr664_auditeventsService.create);
 const timelineCreate = vi.mocked(Cr664_dealtimelineeventsService.create);
+
+// Phase 187H / G-5: the audit actor (cr664_ChangedBy) is resolved fail-closed to
+// a cr664_user bind via the platform-user bridge. Tests inject the resolver.
+const CORE_USER_BIND = '/cr664_users(core-1)';
+const okResolver: ResolveActorChangedBy = async () => ({ ok: true, changedByBind: CORE_USER_BIND });
+const failResolver: ResolveActorChangedBy = async () => ({
+  ok: false,
+  reason: 'matched platform-user has no linked cr664_user (CoreUser is empty)',
+});
 
 function input(overrides: Partial<Parameters<typeof logActivity>[0]> = {}) {
   return {
     dealId: 'deal-1',
     dealName: 'Expansion Loan',
     systemUserId: 'sys-user-1',
+    actorEmail: 'banker@oldglorybank.com',
     bankerName: 'Matt Paller',
     note: 'Client called to confirm diligence timing.',
     ...overrides,
@@ -77,18 +88,27 @@ describe('Phase 160 -- logActivity', () => {
     timelineCreate.mockReturnValue(successTimeline('activity-1'));
     auditCreate.mockReturnValue(successAudit('audit-1'));
 
-    const outcome = await logActivity(input());
+    const outcome = await logActivity(input(), okResolver);
 
     expect(outcome).toEqual({ kind: 'success', activityId: 'activity-1' });
     expect(timelineCreate).toHaveBeenCalledTimes(1);
     expect(auditCreate).toHaveBeenCalledTimes(1);
+
+    // Phase 187H / G-5: ChangedBy is the resolved cr664_user bind — never a
+    // systemuser id — and the redundant ActorUser + owner/state are gone.
+    const auditPayload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(auditPayload['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(auditPayload['cr664_ActorUser@odata.bind']).toBeUndefined();
+    expect(auditPayload.ownerid).toBeUndefined();
+    expect(auditPayload.owneridtype).toBeUndefined();
+    expect(auditPayload.statecode).toBeUndefined();
   });
 
   it('uses only minimum safe timeline fields and binds to the selected deal/user', async () => {
     timelineCreate.mockReturnValue(successTimeline('activity-1'));
     auditCreate.mockReturnValue(successAudit('audit-1'));
 
-    await logActivity(input({ note: '  trimmed note  ' }));
+    await logActivity(input({ note: '  trimmed note  ' }), okResolver);
 
     const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(Object.keys(payload).sort()).toEqual(
@@ -120,7 +140,7 @@ describe('Phase 160 -- logActivity', () => {
     timelineCreate.mockReturnValue(failedTimeline('timeline denied'));
     auditCreate.mockReturnValue(successAudit('audit-failed-1'));
 
-    const outcome = await logActivity(input());
+    const outcome = await logActivity(input(), okResolver);
 
     expect(outcome).toEqual({
       kind: 'activity-failed',
@@ -136,7 +156,7 @@ describe('Phase 160 -- logActivity', () => {
     timelineCreate.mockReturnValue(successTimeline('activity-1'));
     auditCreate.mockReturnValue(failedAudit('audit denied'));
 
-    const outcome = await logActivity(input());
+    const outcome = await logActivity(input(), okResolver);
 
     expect(outcome).toEqual({
       kind: 'governance-partial',
@@ -147,10 +167,27 @@ describe('Phase 160 -- logActivity', () => {
   });
 
   it('blocks empty notes without creating local or Dataverse activity', async () => {
-    const outcome = await logActivity(input({ note: '   ' }));
+    const outcome = await logActivity(input({ note: '   ' }), okResolver);
 
     expect(outcome.kind).toBe('unknown');
     expect(timelineCreate).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the actor cannot be resolved: timeline persists, NO audit POST, governance-partial', async () => {
+    timelineCreate.mockReturnValue(successTimeline('activity-1'));
+    auditCreate.mockReturnValue(successAudit('should-not-be-used'));
+
+    const outcome = await logActivity(input(), failResolver);
+
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.activityId).toBe('activity-1');
+      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+    }
+    // The primary timeline write still happened.
+    expect(timelineCreate).toHaveBeenCalledTimes(1);
+    // No audit row is POSTed with an unresolved actor — never a systemuser bind.
     expect(auditCreate).not.toHaveBeenCalled();
   });
 });

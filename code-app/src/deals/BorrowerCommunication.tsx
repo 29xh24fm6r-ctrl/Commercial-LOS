@@ -52,7 +52,7 @@ export function BorrowerCommunication({
   // should reflect whatever did land). Validation failures that
   // happen BEFORE the action call short-circuit and do NOT refresh.
   const handleSendBorrowerUpdate = useCallback(
-    async (input: SendBorrowerUpdateEmailInput) => {
+    async (input: Omit<SendBorrowerUpdateEmailInput, 'actorEmail'>) => {
       if (!banker?.systemUserId) {
         return {
           kind: 'unknown' as const,
@@ -60,11 +60,14 @@ export function BorrowerCommunication({
             'Cannot send: missing system user id. The modal Send button should already be disabled in this state.',
         };
       }
-      const outcome = await sendBorrowerUpdateEmail(input);
+      const outcome = await sendBorrowerUpdateEmail({
+        ...input,
+        actorEmail: banker.email,
+      });
       refresh('after-borrower-update-email');
       return outcome;
     },
-    [banker?.systemUserId, refresh],
+    [banker?.systemUserId, banker?.email, refresh],
   );
   // Phase 66: borrower-safe status packet (local preview + copy).
   // Local-only flow — no write. Surfaced alongside the Phase-23

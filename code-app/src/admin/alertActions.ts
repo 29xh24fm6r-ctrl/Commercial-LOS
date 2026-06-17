@@ -2,6 +2,12 @@ import { Cr664_alertqueuesService } from '../generated/services/Cr664_alertqueue
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
+import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
+import {
+  createActorChangedByResolver,
+  type ActorChangedByResolution,
+  type ResolveActorChangedBy,
+} from '../deals/newDealAuditActorResolver';
 
 /**
  * Phase 19: governed writes for cr664_AlertQueue remediation.
@@ -42,6 +48,10 @@ export interface AlertActionInput {
    *  prior to remediation. */
   priorStatus: string | undefined;
   systemUserId: string;
+  /** Acting admin's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   resolutionNote: string;
 }
 
@@ -77,10 +87,17 @@ const DISMISS_PARAMS: RemediationParams = {
 async function emitAuditEvent(opts: {
   input: AlertActionInput;
   params: RemediationParams;
+  actor: ActorChangedByResolution;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const nowIso = new Date().toISOString();
   const beforeState = opts.input.priorStatus ?? 'Open';
   const payload = {
@@ -94,8 +111,10 @@ async function emitAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'cr664_alertstatus',
     cr664_oldvalue: beforeState,
     cr664_newvalue: opts.params.afterStateLabel,
@@ -104,9 +123,6 @@ async function emitAuditEvent(opts: {
     cr664_notes: opts.input.resolutionNote,
     cr664_sourcescreensourceprocess: `AdminWorkspace/AlertBacklog/${opts.params.mode}`,
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
 
   try {
@@ -128,6 +144,7 @@ async function emitAuditEvent(opts: {
 async function applyAlertRemediation(
   params: RemediationParams,
   input: AlertActionInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<AlertOutcome> {
   const note = input.resolutionNote.trim();
   if (note.length === 0) {
@@ -136,6 +153,8 @@ async function applyAlertRemediation(
 
   const correlationId = newCorrelationId('al');
   const nowIso = new Date().toISOString();
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: update the alert lifecycle fields.
   try {
@@ -150,6 +169,7 @@ async function applyAlertRemediation(
       void emitAuditEvent({
         input,
         params,
+        actor,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
         failureReason: update.error?.message ?? 'Unknown alert update error',
@@ -164,6 +184,7 @@ async function applyAlertRemediation(
     void emitAuditEvent({
       input,
       params,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
@@ -176,6 +197,7 @@ async function applyAlertRemediation(
   const audit = await emitAuditEvent({
     input,
     params,
+    actor,
     correlationId,
     outcome: AUDIT_OUTCOME_SUCCEEDED,
     failureReason: undefined,
@@ -186,10 +208,16 @@ async function applyAlertRemediation(
   return { kind: 'success', auditEventId: audit.id };
 }
 
-export function resolveAlert(input: AlertActionInput): Promise<AlertOutcome> {
-  return applyAlertRemediation(RESOLVE_PARAMS, input);
+export function resolveAlert(
+  input: AlertActionInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
+): Promise<AlertOutcome> {
+  return applyAlertRemediation(RESOLVE_PARAMS, input, resolveActorChangedBy);
 }
 
-export function dismissAlert(input: AlertActionInput): Promise<AlertOutcome> {
-  return applyAlertRemediation(DISMISS_PARAMS, input);
+export function dismissAlert(
+  input: AlertActionInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
+): Promise<AlertOutcome> {
+  return applyAlertRemediation(DISMISS_PARAMS, input, resolveActorChangedBy);
 }

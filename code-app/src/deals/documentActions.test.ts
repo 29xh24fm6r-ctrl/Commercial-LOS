@@ -18,10 +18,20 @@ import {
   markDocumentReviewed,
   requestDocument,
 } from './documentActions';
+import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
 
 const docUpdate = vi.mocked(Cr664_documentchecklistsService.update);
 const auditCreate = vi.mocked(Cr664_auditeventsService.create);
 const timelineCreate = vi.mocked(Cr664_dealtimelineeventsService.create);
+
+// Phase 187H / G-5: the audit actor (cr664_ChangedBy) is resolved fail-closed to
+// a cr664_user bind via the platform-user bridge. Tests inject the resolver.
+const CORE_USER_BIND = '/cr664_users(core-1)';
+const okResolver: ResolveActorChangedBy = async () => ({ ok: true, changedByBind: CORE_USER_BIND });
+const failResolver: ResolveActorChangedBy = async () => ({
+  ok: false,
+  reason: 'matched platform-user has no linked cr664_user (CoreUser is empty)',
+});
 
 function baseInput(overrides: Partial<Parameters<typeof requestDocument>[0]> = {}) {
   return {
@@ -30,6 +40,7 @@ function baseInput(overrides: Partial<Parameters<typeof requestDocument>[0]> = {
     dealId: 'deal-77',
     priorRequestDate: undefined,
     systemUserId: 'sys-user-1',
+    actorEmail: 'banker@oldglorybank.com',
     requestNote: 'kindly upload most recent PFS',
     ...overrides,
   };
@@ -104,7 +115,7 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    const outcome = await requestDocument(baseInput());
+    const outcome = await requestDocument(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('success');
     expect(docUpdate).toHaveBeenCalledTimes(1);
@@ -117,7 +128,7 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await requestDocument(baseInput({ requestNote: '  trimmed note  ' }));
+    await requestDocument(baseInput({ requestNote: '  trimmed note  ' }), okResolver);
 
     expect(docUpdate).toHaveBeenCalledWith(
       'doc-1',
@@ -135,7 +146,7 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await requestDocument(baseInput());
+    await requestDocument(baseInput(), okResolver);
 
     const payload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_eventcategory).toBe(788190002); // Lifecycle
@@ -146,8 +157,13 @@ describe('requestDocument', () => {
     expect(payload.cr664_relatedentitytype).toBe('cr664_documentchecklist');
     expect(payload.cr664_relatedentityid).toBe('doc-1');
     expect(payload['cr664_LoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
-    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/systemusers(sys-user-1)');
-    expect(payload['cr664_ActorUser@odata.bind']).toBe('/systemusers(sys-user-1)');
+    // Phase 187H / G-5: ChangedBy is the resolved cr664_user bind — never a
+    // systemuser id — and the redundant ActorUser + owner/state are gone.
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(payload['cr664_ActorUser@odata.bind']).toBeUndefined();
+    expect(payload.ownerid).toBeUndefined();
+    expect(payload.owneridtype).toBeUndefined();
+    expect(payload.statecode).toBeUndefined();
     expect(payload.cr664_fieldname).toBe('cr664_requestdate');
     expect(payload.cr664_beforestate).toBe('Not yet requested');
     expect(payload.cr664_afterstate).toBe('Requested');
@@ -163,7 +179,7 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(successAudit('a-2'));
     timelineCreate.mockReturnValue(successTimeline('t-2'));
 
-    await requestDocument(baseInput({ priorRequestDate: '2026-04-01T00:00:00Z' }));
+    await requestDocument(baseInput({ priorRequestDate: '2026-04-01T00:00:00Z' }), okResolver);
 
     const payload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_beforestate).toBe(
@@ -177,7 +193,7 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await requestDocument(baseInput());
+    await requestDocument(baseInput(), okResolver);
 
     const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_eventtype).toBe(788190009);
@@ -196,7 +212,7 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(successAudit('a-fail-trace'));
     timelineCreate.mockReturnValue(successTimeline('t-not-called'));
 
-    const outcome = await requestDocument(baseInput());
+    const outcome = await requestDocument(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('doc-failed');
     if (outcome.kind === 'doc-failed') {
@@ -217,7 +233,7 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(failedAudit('audit write blocked'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    const outcome = await requestDocument(baseInput());
+    const outcome = await requestDocument(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -231,7 +247,7 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(failedTimeline('timeline 500'));
 
-    const outcome = await requestDocument(baseInput());
+    const outcome = await requestDocument(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -245,7 +261,7 @@ describe('requestDocument', () => {
     auditCreate.mockReturnValue(failedAudit('audit boom'));
     timelineCreate.mockReturnValue(failedTimeline('timeline boom'));
 
-    const outcome = await requestDocument(baseInput());
+    const outcome = await requestDocument(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -255,23 +271,40 @@ describe('requestDocument', () => {
   });
 
   it('rejects an empty request note without touching any service', async () => {
-    const outcome = await requestDocument(baseInput({ requestNote: '   ' }));
+    const outcome = await requestDocument(baseInput({ requestNote: '   ' }), okResolver);
     expect(outcome.kind).toBe('unknown');
     expect(docUpdate).not.toHaveBeenCalled();
     expect(auditCreate).not.toHaveBeenCalled();
     expect(timelineCreate).not.toHaveBeenCalled();
   });
 
+  it('fails closed when the actor cannot be resolved: doc updates, NO audit POST, governance-partial', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('should-not-be-used'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    const outcome = await requestDocument(baseInput(), failResolver);
+
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+    }
+    // The primary write still happened.
+    expect(docUpdate).toHaveBeenCalledTimes(1);
+    // No audit row is POSTed with an unresolved actor — never a systemuser bind.
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
   it('generates a distinct correlation id per attempt; same id ties audit and timeline within one attempt', async () => {
     docUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
-    await requestDocument(baseInput());
+    await requestDocument(baseInput(), okResolver);
 
     docUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-2'));
     timelineCreate.mockReturnValue(successTimeline('t-2'));
-    await requestDocument(baseInput());
+    await requestDocument(baseInput(), okResolver);
 
     const audit1 = (auditCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_correlationid;
     const audit2 = (auditCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_correlationid;
@@ -296,6 +329,7 @@ function baseReceiveInput(
     documentName: 'Personal Financial Statement',
     dealId: 'deal-77',
     systemUserId: 'sys-user-1',
+    actorEmail: 'banker@oldglorybank.com',
     receiveNote: 'received via email from borrower',
     ...overrides,
   };
@@ -307,7 +341,7 @@ describe('markDocumentReceived', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    const outcome = await markDocumentReceived(baseReceiveInput());
+    const outcome = await markDocumentReceived(baseReceiveInput(), okResolver);
 
     expect(outcome.kind).toBe('success');
     expect(docUpdate).toHaveBeenCalledTimes(1);
@@ -320,7 +354,7 @@ describe('markDocumentReceived', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await markDocumentReceived(baseReceiveInput());
+    await markDocumentReceived(baseReceiveInput(), okResolver);
 
     expect(docUpdate).toHaveBeenCalledWith(
       'doc-1',
@@ -341,7 +375,7 @@ describe('markDocumentReceived', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await markDocumentReceived(baseReceiveInput());
+    await markDocumentReceived(baseReceiveInput(), okResolver);
 
     const payload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_auditeventname).toBe('DocumentChecklist Received');
@@ -353,8 +387,13 @@ describe('markDocumentReceived', () => {
     expect(payload.cr664_relatedentitytype).toBe('cr664_documentchecklist');
     expect(payload.cr664_relatedentityid).toBe('doc-1');
     expect(payload['cr664_LoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
-    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/systemusers(sys-user-1)');
-    expect(payload['cr664_ActorUser@odata.bind']).toBe('/systemusers(sys-user-1)');
+    // Phase 187H / G-5: ChangedBy is the resolved cr664_user bind — never a
+    // systemuser id — and the redundant ActorUser + owner/state are gone.
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(payload['cr664_ActorUser@odata.bind']).toBeUndefined();
+    expect(payload.ownerid).toBeUndefined();
+    expect(payload.owneridtype).toBeUndefined();
+    expect(payload.statecode).toBeUndefined();
     expect(payload.cr664_fieldname).toBe('cr664_receiveddate');
     expect(payload.cr664_beforestate).toBe('Outstanding');
     expect(payload.cr664_afterstate).toBe('Received');
@@ -370,7 +409,7 @@ describe('markDocumentReceived', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await markDocumentReceived(baseReceiveInput());
+    await markDocumentReceived(baseReceiveInput(), okResolver);
 
     const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_eventtype).toBe(788190010);
@@ -389,7 +428,7 @@ describe('markDocumentReceived', () => {
     auditCreate.mockReturnValue(successAudit('a-fail-trace'));
     timelineCreate.mockReturnValue(successTimeline('t-not-called'));
 
-    const outcome = await markDocumentReceived(baseReceiveInput());
+    const outcome = await markDocumentReceived(baseReceiveInput(), okResolver);
 
     expect(outcome.kind).toBe('receive-failed');
     if (outcome.kind === 'receive-failed') {
@@ -408,7 +447,7 @@ describe('markDocumentReceived', () => {
     auditCreate.mockReturnValue(failedAudit('audit write blocked'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    const outcome = await markDocumentReceived(baseReceiveInput());
+    const outcome = await markDocumentReceived(baseReceiveInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -422,7 +461,7 @@ describe('markDocumentReceived', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(failedTimeline('timeline 500'));
 
-    const outcome = await markDocumentReceived(baseReceiveInput());
+    const outcome = await markDocumentReceived(baseReceiveInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -434,6 +473,7 @@ describe('markDocumentReceived', () => {
   it('rejects an empty receipt note without touching any service', async () => {
     const outcome = await markDocumentReceived(
       baseReceiveInput({ receiveNote: '   ' }),
+      okResolver,
     );
     expect(outcome.kind).toBe('unknown');
     expect(docUpdate).not.toHaveBeenCalled();
@@ -441,16 +481,31 @@ describe('markDocumentReceived', () => {
     expect(timelineCreate).not.toHaveBeenCalled();
   });
 
+  it('fails closed when the actor cannot be resolved: doc updates, NO audit POST, governance-partial', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('should-not-be-used'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    const outcome = await markDocumentReceived(baseReceiveInput(), failResolver);
+
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+    }
+    expect(docUpdate).toHaveBeenCalledTimes(1);
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
   it('generates a distinct correlation id per attempt; same id ties audit and timeline within one attempt', async () => {
     docUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
-    await markDocumentReceived(baseReceiveInput());
+    await markDocumentReceived(baseReceiveInput(), okResolver);
 
     docUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-2'));
     timelineCreate.mockReturnValue(successTimeline('t-2'));
-    await markDocumentReceived(baseReceiveInput());
+    await markDocumentReceived(baseReceiveInput(), okResolver);
 
     const audit1 = (auditCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_correlationid;
     const audit2 = (auditCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_correlationid;
@@ -475,6 +530,7 @@ function baseReviewInput(
     documentName: 'Personal Financial Statement',
     dealId: 'deal-77',
     systemUserId: 'sys-user-1',
+    actorEmail: 'banker@oldglorybank.com',
     reviewerName: 'M. Paller',
     reviewNote: 'reviewed; ratios within expected range',
     ...overrides,
@@ -487,7 +543,7 @@ describe('markDocumentReviewed', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    const outcome = await markDocumentReviewed(baseReviewInput());
+    const outcome = await markDocumentReviewed(baseReviewInput(), okResolver);
 
     expect(outcome.kind).toBe('success');
     expect(docUpdate).toHaveBeenCalledTimes(1);
@@ -500,7 +556,7 @@ describe('markDocumentReviewed', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await markDocumentReviewed(baseReviewInput({ reviewerName: '  M. Paller  ' }));
+    await markDocumentReviewed(baseReviewInput({ reviewerName: '  M. Paller  ' }), okResolver);
 
     expect(docUpdate).toHaveBeenCalledWith(
       'doc-1',
@@ -519,7 +575,7 @@ describe('markDocumentReviewed', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await markDocumentReviewed(baseReviewInput());
+    await markDocumentReviewed(baseReviewInput(), okResolver);
 
     const payload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_auditeventname).toBe('DocumentChecklist Reviewed');
@@ -530,8 +586,13 @@ describe('markDocumentReviewed', () => {
     expect(payload.cr664_entityid).toBe('doc-1');
     expect(payload.cr664_relatedentitytype).toBe('cr664_documentchecklist');
     expect(payload['cr664_LoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
-    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/systemusers(sys-user-1)');
-    expect(payload['cr664_ActorUser@odata.bind']).toBe('/systemusers(sys-user-1)');
+    // Phase 187H / G-5: ChangedBy is the resolved cr664_user bind — never a
+    // systemuser id — and the redundant ActorUser + owner/state are gone.
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(payload['cr664_ActorUser@odata.bind']).toBeUndefined();
+    expect(payload.ownerid).toBeUndefined();
+    expect(payload.owneridtype).toBeUndefined();
+    expect(payload.statecode).toBeUndefined();
     expect(payload.cr664_fieldname).toBe('cr664_reviewer');
     expect(payload.cr664_newvalue).toBe('M. Paller');
     expect(payload.cr664_beforestate).toBe('Received');
@@ -548,7 +609,7 @@ describe('markDocumentReviewed', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await markDocumentReviewed(baseReviewInput());
+    await markDocumentReviewed(baseReviewInput(), okResolver);
 
     const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_eventtype).toBe(788190002); // NoteLogged
@@ -567,7 +628,7 @@ describe('markDocumentReviewed', () => {
     auditCreate.mockReturnValue(successAudit('a-fail-trace'));
     timelineCreate.mockReturnValue(successTimeline('t-not-called'));
 
-    const outcome = await markDocumentReviewed(baseReviewInput());
+    const outcome = await markDocumentReviewed(baseReviewInput(), okResolver);
 
     expect(outcome.kind).toBe('review-failed');
     if (outcome.kind === 'review-failed') {
@@ -586,7 +647,7 @@ describe('markDocumentReviewed', () => {
     auditCreate.mockReturnValue(failedAudit('audit write blocked'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    const outcome = await markDocumentReviewed(baseReviewInput());
+    const outcome = await markDocumentReviewed(baseReviewInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -598,6 +659,7 @@ describe('markDocumentReviewed', () => {
   it('rejects an empty review note without touching any service', async () => {
     const outcome = await markDocumentReviewed(
       baseReviewInput({ reviewNote: '   ' }),
+      okResolver,
     );
     expect(outcome.kind).toBe('unknown');
     expect(docUpdate).not.toHaveBeenCalled();
@@ -608,6 +670,7 @@ describe('markDocumentReviewed', () => {
   it('rejects an empty reviewer name without touching any service', async () => {
     const outcome = await markDocumentReviewed(
       baseReviewInput({ reviewerName: '   ' }),
+      okResolver,
     );
     expect(outcome.kind).toBe('unknown');
     expect(docUpdate).not.toHaveBeenCalled();
@@ -615,16 +678,31 @@ describe('markDocumentReviewed', () => {
     expect(timelineCreate).not.toHaveBeenCalled();
   });
 
+  it('fails closed when the actor cannot be resolved: doc updates, NO audit POST, governance-partial', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('should-not-be-used'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    const outcome = await markDocumentReviewed(baseReviewInput(), failResolver);
+
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+    }
+    expect(docUpdate).toHaveBeenCalledTimes(1);
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
   it('generates a distinct correlation id per attempt; audit and timeline share it within one attempt', async () => {
     docUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
-    await markDocumentReviewed(baseReviewInput());
+    await markDocumentReviewed(baseReviewInput(), okResolver);
 
     docUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-2'));
     timelineCreate.mockReturnValue(successTimeline('t-2'));
-    await markDocumentReviewed(baseReviewInput());
+    await markDocumentReviewed(baseReviewInput(), okResolver);
 
     const audit1 = (auditCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_correlationid as string;
     const audit2 = (auditCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_correlationid as string;

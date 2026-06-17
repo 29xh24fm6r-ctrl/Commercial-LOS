@@ -2,6 +2,12 @@ import { Cr664_dataqualityflagsService } from '../generated/services/Cr664_dataq
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
+import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
+import {
+  createActorChangedByResolver,
+  type ActorChangedByResolution,
+  type ResolveActorChangedBy,
+} from '../deals/newDealAuditActorResolver';
 
 /**
  * First write in the rebuild: resolve an open cr664_DataQualityFlag.
@@ -41,6 +47,10 @@ export interface ResolveFlagInput {
   flagName: string;
   flagType: string | undefined;
   systemUserId: string;
+  /** Acting admin's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   resolutionNote: string;
 }
 
@@ -53,10 +63,17 @@ const ENTITY_TYPE_CONFIGURATION = 788190005;
 
 async function emitAuditEvent(opts: {
   input: ResolveFlagInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const nowIso = new Date().toISOString();
   // Cast through unknown — required fields on the generated Base
   // interface include lookups and an ownerid that the server can
@@ -73,8 +90,10 @@ async function emitAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'cr664_resolutionstatus',
     cr664_oldvalue: 'Open',
     cr664_newvalue: 'Resolved',
@@ -83,9 +102,6 @@ async function emitAuditEvent(opts: {
     cr664_notes: opts.input.resolutionNote,
     cr664_sourcescreensourceprocess: 'AdminWorkspace/DataQualityFlags',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
 
   try {
@@ -106,6 +122,7 @@ async function emitAuditEvent(opts: {
 
 export async function resolveDataQualityFlag(
   input: ResolveFlagInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<ResolveOutcome> {
   const note = input.resolutionNote.trim();
   if (note.length === 0) {
@@ -114,9 +131,10 @@ export async function resolveDataQualityFlag(
   }
 
   const correlationId = newCorrelationId('dq');
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: update the flag itself.
-  let flagUpdateOk = false;
   try {
     const updateResult = await Cr664_dataqualityflagsService.update(input.flagId, {
       cr664_resolutionstatus: RESOLUTION_STATUS_RESOLVED,
@@ -128,6 +146,7 @@ export async function resolveDataQualityFlag(
       // primary outcome is already the flag update failure.
       void emitAuditEvent({
         input,
+        actor,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
         failureReason: updateResult.error?.message ?? 'Unknown flag update error',
@@ -137,11 +156,11 @@ export async function resolveDataQualityFlag(
         flagError: updateResult.error?.message ?? 'Flag update failed',
       };
     }
-    flagUpdateOk = true;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     void emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
@@ -149,21 +168,18 @@ export async function resolveDataQualityFlag(
     return { kind: 'flag-failed', flagError: message };
   }
 
-  // Step 2: emit a Succeeded audit event. Critical to surface failure
-  // here separately — the flag IS updated server-side, but the audit
-  // trail is incomplete.
-  if (flagUpdateOk) {
-    const audit = await emitAuditEvent({
-      input,
-      correlationId,
-      outcome: AUDIT_OUTCOME_SUCCEEDED,
-      failureReason: undefined,
-    });
-    if (audit.error) {
-      return { kind: 'audit-failed', auditError: audit.error };
-    }
-    return { kind: 'success', auditEventId: audit.id };
+  // Step 2: the flag IS updated server-side now. Emit a Succeeded audit
+  // event, surfacing audit failure separately (the flag update stands but
+  // the audit trail would be incomplete).
+  const audit = await emitAuditEvent({
+    input,
+    actor,
+    correlationId,
+    outcome: AUDIT_OUTCOME_SUCCEEDED,
+    failureReason: undefined,
+  });
+  if (audit.error) {
+    return { kind: 'audit-failed', auditError: audit.error };
   }
-
-  return { kind: 'unknown', message: 'Unknown action path.' };
+  return { kind: 'success', auditEventId: audit.id };
 }

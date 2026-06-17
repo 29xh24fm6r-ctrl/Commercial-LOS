@@ -17,10 +17,20 @@ import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sS
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
 import { completeTask } from './dealTaskActions';
+import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
 
 const taskUpdate = vi.mocked(Cr664_dealtask1sService.update);
 const auditCreate = vi.mocked(Cr664_auditeventsService.create);
 const timelineCreate = vi.mocked(Cr664_dealtimelineeventsService.create);
+
+// Phase 187H / G-5: the audit actor (cr664_ChangedBy) is resolved fail-closed to
+// a cr664_user bind via the platform-user bridge. Tests inject the resolver.
+const CORE_USER_BIND = '/cr664_users(core-1)';
+const okResolver: ResolveActorChangedBy = async () => ({ ok: true, changedByBind: CORE_USER_BIND });
+const failResolver: ResolveActorChangedBy = async () => ({
+  ok: false,
+  reason: 'matched platform-user has no linked cr664_user (CoreUser is empty)',
+});
 
 function baseInput(overrides: Partial<Parameters<typeof completeTask>[0]> = {}) {
   return {
@@ -29,6 +39,7 @@ function baseInput(overrides: Partial<Parameters<typeof completeTask>[0]> = {}) 
     dealId: 'deal-77',
     priorAssigneeName: 'Jane Banker',
     systemUserId: 'sys-user-1',
+    actorEmail: 'banker@oldglorybank.com',
     completionNote: 'received and filed',
     ...overrides,
   };
@@ -103,7 +114,7 @@ describe('completeTask', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    const outcome = await completeTask(baseInput());
+    const outcome = await completeTask(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('success');
     expect(taskUpdate).toHaveBeenCalledTimes(1);
@@ -116,7 +127,7 @@ describe('completeTask', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await completeTask(baseInput({ completionNote: '  trimmed note  ' }));
+    await completeTask(baseInput({ completionNote: '  trimmed note  ' }), okResolver);
 
     expect(taskUpdate).toHaveBeenCalledWith(
       'task-1',
@@ -129,7 +140,7 @@ describe('completeTask', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await completeTask(baseInput());
+    await completeTask(baseInput(), okResolver);
 
     const payload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_eventcategory).toBe(788190002); // Lifecycle
@@ -140,8 +151,13 @@ describe('completeTask', () => {
     expect(payload.cr664_relatedentitytype).toBe('cr664_dealtask1');
     expect(payload.cr664_relatedentityid).toBe('task-1');
     expect(payload['cr664_LoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
-    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/systemusers(sys-user-1)');
-    expect(payload['cr664_ActorUser@odata.bind']).toBe('/systemusers(sys-user-1)');
+    // Phase 187H / G-5: ChangedBy is the resolved cr664_user bind — never a
+    // systemuser id — and the redundant ActorUser + owner/state are gone.
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(payload['cr664_ActorUser@odata.bind']).toBeUndefined();
+    expect(payload.ownerid).toBeUndefined();
+    expect(payload.owneridtype).toBeUndefined();
+    expect(payload.statecode).toBeUndefined();
     expect(payload.cr664_fieldname).toBe('cr664_completed');
     expect(payload.cr664_oldvalue).toBe('false');
     expect(payload.cr664_newvalue).toBe('true');
@@ -159,7 +175,7 @@ describe('completeTask', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    await completeTask(baseInput());
+    await completeTask(baseInput(), okResolver);
 
     const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_eventtype).toBe(788190005);
@@ -178,7 +194,7 @@ describe('completeTask', () => {
     auditCreate.mockReturnValue(successAudit('a-fail-trace'));
     timelineCreate.mockReturnValue(successTimeline('t-not-called'));
 
-    const outcome = await completeTask(baseInput());
+    const outcome = await completeTask(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('task-failed');
     if (outcome.kind === 'task-failed') {
@@ -199,7 +215,7 @@ describe('completeTask', () => {
     auditCreate.mockReturnValue(failedAudit('audit write blocked'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
 
-    const outcome = await completeTask(baseInput());
+    const outcome = await completeTask(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -213,7 +229,7 @@ describe('completeTask', () => {
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(failedTimeline('timeline endpoint 500'));
 
-    const outcome = await completeTask(baseInput());
+    const outcome = await completeTask(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -227,7 +243,7 @@ describe('completeTask', () => {
     auditCreate.mockReturnValue(failedAudit('audit boom'));
     timelineCreate.mockReturnValue(failedTimeline('timeline boom'));
 
-    const outcome = await completeTask(baseInput());
+    const outcome = await completeTask(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -236,8 +252,23 @@ describe('completeTask', () => {
     }
   });
 
+  it('fails closed when the actor cannot be resolved: task completes, NO audit POST, governance-partial', async () => {
+    taskUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('should-not-be-used'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    const outcome = await completeTask(baseInput(), failResolver);
+
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+    }
+    // No audit row is POSTed with an unresolved actor — never a systemuser bind.
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
   it('rejects an empty completion note without touching any service', async () => {
-    const outcome = await completeTask(baseInput({ completionNote: '   ' }));
+    const outcome = await completeTask(baseInput({ completionNote: '   ' }), okResolver);
     expect(outcome.kind).toBe('unknown');
     expect(taskUpdate).not.toHaveBeenCalled();
     expect(auditCreate).not.toHaveBeenCalled();
@@ -248,12 +279,12 @@ describe('completeTask', () => {
     taskUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
-    await completeTask(baseInput());
+    await completeTask(baseInput(), okResolver);
 
     taskUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-2'));
     timelineCreate.mockReturnValue(successTimeline('t-2'));
-    await completeTask(baseInput());
+    await completeTask(baseInput(), okResolver);
 
     const audit1 = (auditCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_correlationid;
     const audit2 = (auditCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_correlationid;
@@ -283,6 +314,7 @@ function reviewTaskInput(
     documentId: 'doc-1',
     documentName: 'Personal Financial Statement',
     systemUserId: 'sys-user-1',
+    actorEmail: 'banker@oldglorybank.com',
     bankerName: 'M. Paller',
     followUpNote: 'Defer review until Friday — checking against memo.',
     ...overrides,
@@ -319,7 +351,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
       auditCreate.mockReturnValueOnce(successAudit('aud-1'));
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
-      const result = await createDocumentReviewTask(reviewTaskInput());
+      const result = await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(result.kind).toBe('success');
       if (result.kind === 'success') {
         expect(result.taskId).toBe('task-new-1');
@@ -330,7 +362,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
       auditCreate.mockReturnValueOnce(successAudit('aud-1'));
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
-      await createDocumentReviewTask(reviewTaskInput());
+      await createDocumentReviewTask(reviewTaskInput(), okResolver);
       const payload = taskCreate.mock.calls[0]![0] as Record<string, unknown>;
       expect(payload.cr664_taskname).toBe(
         'Follow up on document review: Personal Financial Statement',
@@ -350,7 +382,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
       auditCreate.mockReturnValueOnce(successAudit('aud-1'));
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
-      await createDocumentReviewTask(reviewTaskInput());
+      await createDocumentReviewTask(reviewTaskInput(), okResolver);
       const audit = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
       expect(audit.cr664_auditeventname).toBe('DealTask Created');
       expect(audit.cr664_entityid).toBe('task-new-1');
@@ -372,7 +404,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
       auditCreate.mockReturnValueOnce(successAudit('aud-1'));
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
-      await createDocumentReviewTask(reviewTaskInput());
+      await createDocumentReviewTask(reviewTaskInput(), okResolver);
       const tl = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
       expect(tl.cr664_eventtype).toBe(788190004); // TaskCreated
       const audit = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
@@ -395,7 +427,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
       auditCreate.mockReturnValueOnce(successAudit('aud-1'));
       timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
-      await createDocumentReviewTask(reviewTaskInput());
+      await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(taskCreate).toHaveBeenCalledTimes(1);
       expect(auditCreate).toHaveBeenCalledTimes(1);
       expect(timelineCreate).toHaveBeenCalledTimes(1);
@@ -406,6 +438,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
     it('rejects an empty follow-up note before any write', async () => {
       const result = await createDocumentReviewTask(
         reviewTaskInput({ followUpNote: '   ' }),
+        okResolver,
       );
       expect(result.kind).toBe('unknown');
       expect(taskCreate).not.toHaveBeenCalled();
@@ -416,6 +449,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
     it('rejects an empty document name before any write', async () => {
       const result = await createDocumentReviewTask(
         reviewTaskInput({ documentName: '   ' }),
+        okResolver,
       );
       expect(result.kind).toBe('unknown');
       expect(taskCreate).not.toHaveBeenCalled();
@@ -428,7 +462,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       // The best-effort failure audit row is fire-and-forget;
       // mock it as success so the assertion focuses on the outcome.
       auditCreate.mockReturnValueOnce(successAudit('aud-failed'));
-      const result = await createDocumentReviewTask(reviewTaskInput());
+      const result = await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(result.kind).toBe('task-create-failed');
       if (result.kind === 'task-create-failed') {
         expect(result.taskError).toBe('schema rejected payload');
@@ -441,7 +475,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
         throw new Error('network error');
       });
       auditCreate.mockReturnValueOnce(successAudit('aud-failed'));
-      const result = await createDocumentReviewTask(reviewTaskInput());
+      const result = await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(result.kind).toBe('task-create-failed');
       if (result.kind === 'task-create-failed') {
         expect(result.taskError).toContain('network error');
@@ -455,7 +489,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       taskCreate.mockReturnValueOnce(successCreate('task-new-2'));
       auditCreate.mockReturnValueOnce(failedAudit('audit boom'));
       timelineCreate.mockReturnValueOnce(successTimeline('tl-2'));
-      const result = await createDocumentReviewTask(reviewTaskInput());
+      const result = await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
         expect(result.taskId).toBe('task-new-2');
@@ -468,7 +502,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       taskCreate.mockReturnValueOnce(successCreate('task-new-3'));
       auditCreate.mockReturnValueOnce(successAudit('aud-3'));
       timelineCreate.mockReturnValueOnce(failedTimeline('timeline boom'));
-      const result = await createDocumentReviewTask(reviewTaskInput());
+      const result = await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
         expect(result.taskId).toBe('task-new-3');
@@ -481,7 +515,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       taskCreate.mockReturnValueOnce(successCreate('task-new-4'));
       auditCreate.mockReturnValueOnce(failedAudit('audit boom'));
       timelineCreate.mockReturnValueOnce(failedTimeline('timeline boom'));
-      const result = await createDocumentReviewTask(reviewTaskInput());
+      const result = await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
         expect(result.auditError).toBe('audit boom');
@@ -495,7 +529,7 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       taskCreate.mockReturnValueOnce(successCreate('task-new-5'));
       auditCreate.mockReturnValueOnce(successAudit('aud-5'));
       timelineCreate.mockReturnValueOnce(successTimeline('tl-5'));
-      await createDocumentReviewTask(reviewTaskInput());
+      await createDocumentReviewTask(reviewTaskInput(), okResolver);
       const audit = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
       const tl = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
       const cid = audit.cr664_correlationid as string;

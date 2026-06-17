@@ -18,11 +18,21 @@ import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr66
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
 import { saveCreditMemoDraft } from './creditMemoActions';
+import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
 
 const memoCreate = vi.mocked(Cr664_creditmemo1sService.create);
 const sectionCreate = vi.mocked(Cr664_creditmemodraftsectionsService.create);
 const auditCreate = vi.mocked(Cr664_auditeventsService.create);
 const timelineCreate = vi.mocked(Cr664_dealtimelineeventsService.create);
+
+// Phase 187H / G-5: the audit actor (cr664_ChangedBy) is resolved fail-closed to
+// a cr664_user bind via the platform-user bridge. Tests inject the resolver.
+const CORE_USER_BIND = '/cr664_users(core-1)';
+const okResolver: ResolveActorChangedBy = async () => ({ ok: true, changedByBind: CORE_USER_BIND });
+const failResolver: ResolveActorChangedBy = async () => ({
+  ok: false,
+  reason: 'matched platform-user has no linked cr664_user (CoreUser is empty)',
+});
 
 function memoOk(id: string) {
   return Promise.resolve({
@@ -117,6 +127,7 @@ function baseInput(
     dealName: 'Acme Tooling 2026 Working Capital',
     workspaceId: 'workspace-banker',
     systemUserId: 'sys-user-1',
+    actorEmail: 'banker@oldglorybank.com',
     memoName: 'Acme Tooling — Draft v1',
     memoType: 'Banker draft',
     memoBody: 'Memo body content',
@@ -152,7 +163,7 @@ describe('saveCreditMemoDraft', () => {
     auditCreate.mockReturnValue(auditOk('a-1'));
     timelineCreate.mockReturnValue(timelineOk('t-1'));
 
-    const outcome = await saveCreditMemoDraft(baseInput());
+    const outcome = await saveCreditMemoDraft(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('success');
     if (outcome.kind === 'success') {
@@ -171,7 +182,7 @@ describe('saveCreditMemoDraft', () => {
     auditCreate.mockReturnValue(auditOk('a-1'));
     timelineCreate.mockReturnValue(timelineOk('t-1'));
 
-    await saveCreditMemoDraft(baseInput({ sections: [] }));
+    await saveCreditMemoDraft(baseInput({ sections: [] }), okResolver);
 
     const payload = memoCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_status).toBe(788190000);
@@ -189,7 +200,7 @@ describe('saveCreditMemoDraft', () => {
     auditCreate.mockReturnValue(auditOk('a-1'));
     timelineCreate.mockReturnValue(timelineOk('t-1'));
 
-    await saveCreditMemoDraft(baseInput());
+    await saveCreditMemoDraft(baseInput(), okResolver);
 
     expect(sectionCreate).toHaveBeenCalledTimes(2);
     for (const call of sectionCreate.mock.calls) {
@@ -205,7 +216,7 @@ describe('saveCreditMemoDraft', () => {
     memoCreate.mockReturnValue(memoFail('memo row locked'));
     auditCreate.mockReturnValue(auditOk('a-fail'));
 
-    const outcome = await saveCreditMemoDraft(baseInput());
+    const outcome = await saveCreditMemoDraft(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('memo-failed');
     if (outcome.kind === 'memo-failed') {
@@ -231,7 +242,7 @@ describe('saveCreditMemoDraft', () => {
     auditCreate.mockReturnValue(auditOk('a-1'));
     timelineCreate.mockReturnValue(timelineOk('t-1'));
 
-    const outcome = await saveCreditMemoDraft(baseInput());
+    const outcome = await saveCreditMemoDraft(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -250,7 +261,7 @@ describe('saveCreditMemoDraft', () => {
     auditCreate.mockReturnValue(auditFail('audit blocked'));
     timelineCreate.mockReturnValue(timelineOk('t-1'));
 
-    const outcome = await saveCreditMemoDraft(baseInput());
+    const outcome = await saveCreditMemoDraft(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -266,7 +277,7 @@ describe('saveCreditMemoDraft', () => {
     auditCreate.mockReturnValue(auditOk('a-1'));
     timelineCreate.mockReturnValue(timelineFail('timeline 500'));
 
-    const outcome = await saveCreditMemoDraft(baseInput());
+    const outcome = await saveCreditMemoDraft(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -282,7 +293,7 @@ describe('saveCreditMemoDraft', () => {
     auditCreate.mockReturnValue(auditFail('audit boom'));
     timelineCreate.mockReturnValue(timelineFail('timeline boom'));
 
-    const outcome = await saveCreditMemoDraft(baseInput());
+    const outcome = await saveCreditMemoDraft(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
@@ -293,7 +304,7 @@ describe('saveCreditMemoDraft', () => {
   });
 
   it('rejects an empty save note without touching any service', async () => {
-    const outcome = await saveCreditMemoDraft(baseInput({ saveNote: '   ' }));
+    const outcome = await saveCreditMemoDraft(baseInput({ saveNote: '   ' }), okResolver);
     expect(outcome.kind).toBe('unknown');
     expect(memoCreate).not.toHaveBeenCalled();
     expect(sectionCreate).not.toHaveBeenCalled();
@@ -302,7 +313,7 @@ describe('saveCreditMemoDraft', () => {
   });
 
   it('rejects an empty memo body without touching any service', async () => {
-    const outcome = await saveCreditMemoDraft(baseInput({ memoBody: '   ' }));
+    const outcome = await saveCreditMemoDraft(baseInput({ memoBody: '   ' }), okResolver);
     expect(outcome.kind).toBe('unknown');
     expect(memoCreate).not.toHaveBeenCalled();
   });
@@ -319,12 +330,20 @@ describe('saveCreditMemoDraft', () => {
         saveNote: '  Save note text  ',
         sections: [],
       }),
+      okResolver,
     );
 
     const memoP = memoCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(memoP.cr664_memotext).toBe('A very specific body  ');
 
     const auditP = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+    // Phase 187H / G-5: ChangedBy is the resolved cr664_user bind — never a
+    // systemuser id — and the redundant ActorUser + owner/state are gone.
+    expect(auditP['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(auditP['cr664_ActorUser@odata.bind']).toBeUndefined();
+    expect(auditP.ownerid).toBeUndefined();
+    expect(auditP.owneridtype).toBeUndefined();
+    expect(auditP.statecode).toBeUndefined();
     expect(auditP.cr664_notes).toBe('Save note text');
     expect(auditP.cr664_beforestate).toBe('Not yet drafted');
     expect(auditP.cr664_afterstate).toBe('Draft');
@@ -349,8 +368,8 @@ describe('saveCreditMemoDraft', () => {
     auditCreate.mockReturnValueOnce(auditOk('a-A')).mockReturnValueOnce(auditOk('a-B'));
     timelineCreate.mockReturnValueOnce(timelineOk('t-A')).mockReturnValueOnce(timelineOk('t-B'));
 
-    await saveCreditMemoDraft(baseInput({ sections: [] }));
-    await saveCreditMemoDraft(baseInput({ sections: [] }));
+    await saveCreditMemoDraft(baseInput({ sections: [] }), okResolver);
+    await saveCreditMemoDraft(baseInput({ sections: [] }), okResolver);
 
     const c1 = (auditCreate.mock.calls[0]![0] as Record<string, unknown>).cr664_correlationid;
     const c2 = (auditCreate.mock.calls[1]![0] as Record<string, unknown>).cr664_correlationid;
@@ -373,7 +392,7 @@ describe('saveCreditMemoDraft', () => {
     auditCreate.mockReturnValue(auditOk('a-1'));
     timelineCreate.mockReturnValue(timelineOk('t-1'));
 
-    await saveCreditMemoDraft(baseInput({ sections: [] }));
+    await saveCreditMemoDraft(baseInput({ sections: [] }), okResolver);
 
     // The service module is fully mocked, so the only memo-side call
     // can be `create`. Confirm via the mock module that no other
@@ -388,5 +407,24 @@ describe('saveCreditMemoDraft', () => {
         (k) => k !== 'create' && typeof memoServiceAny[k] === 'function',
       ),
     ).toEqual([]);
+  });
+
+  it('fails closed when the actor cannot be resolved: memo persists, NO audit POST, governance-partial', async () => {
+    memoCreate.mockReturnValue(memoOk('memo-1'));
+    sectionCreate.mockReturnValue(sectionOk('s-1'));
+    auditCreate.mockReturnValue(auditOk('should-not-be-used'));
+    timelineCreate.mockReturnValue(timelineOk('t-1'));
+
+    const outcome = await saveCreditMemoDraft(baseInput({ sections: [] }), failResolver);
+
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.memoId).toBe('memo-1');
+      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+    }
+    // The primary memo write still happened.
+    expect(memoCreate).toHaveBeenCalledTimes(1);
+    // No audit row is POSTed with an unresolved actor — never a systemuser bind.
+    expect(auditCreate).not.toHaveBeenCalled();
   });
 });

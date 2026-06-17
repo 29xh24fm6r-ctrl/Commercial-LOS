@@ -3,6 +3,12 @@ import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dea
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
+import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
+import {
+  createActorChangedByResolver,
+  type ActorChangedByResolution,
+  type ResolveActorChangedBy,
+} from './newDealAuditActorResolver';
 import { getEmailAdapter, isLikelyValidEmail } from './emailDelivery/outlookEmailAdapters';
 import { maskRecipient } from './emailDelivery/recipientMasking';
 import type { EmailMode } from './emailDelivery/emailMode';
@@ -87,6 +93,10 @@ export type SendBorrowerUpdateEmailOutcome =
 export interface SendBorrowerUpdateEmailInput {
   dealId: string;
   systemUserId: string;
+  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   /** Unmasked recipient — the banker typed it. Goes to the audit
    *  event verbatim; appears in masked form everywhere else. */
   recipient: string;
@@ -146,6 +156,7 @@ function describeSendOutcome(result: OutlookSendResult): {
 
 async function emitAuditEvent(opts: {
   input: SendBorrowerUpdateEmailInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
@@ -154,6 +165,12 @@ async function emitAuditEvent(opts: {
   mode: EmailMode;
   providerMessageId: string | undefined;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const notes =
     `Mode: ${opts.mode}. ` +
     `Template: ${opts.input.template}. ` +
@@ -174,8 +191,10 @@ async function emitAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: opts.nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'borrower_update_send_attempt',
     cr664_oldvalue: '',
     cr664_newvalue: opts.afterState,
@@ -184,9 +203,6 @@ async function emitAuditEvent(opts: {
     cr664_notes: notes,
     cr664_sourcescreensourceprocess: 'DealWorkspace/BorrowerCommunication/borrower-update-email',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -257,6 +273,7 @@ async function emitTimelineEvent(opts: {
 export async function sendBorrowerUpdateEmail(
   input: SendBorrowerUpdateEmailInput,
   deps: SendBorrowerUpdateEmailDependencies = {},
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<SendBorrowerUpdateEmailOutcome> {
   const recipient = input.recipient.trim();
   if (!isLikelyValidEmail(recipient)) {
@@ -282,6 +299,8 @@ export async function sendBorrowerUpdateEmail(
   const correlationId = newCorrelationId('bue');
   const nowIso = new Date().toISOString();
   const maskedRecipient = maskRecipient(recipient);
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   let sendResult: OutlookSendResult;
   try {
@@ -295,6 +314,7 @@ export async function sendBorrowerUpdateEmail(
     const message = err instanceof Error ? err.message : String(err);
     void emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
@@ -313,6 +333,7 @@ export async function sendBorrowerUpdateEmail(
   if (!describe.succeeded) {
     void emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: describe.failureReason,
@@ -332,6 +353,7 @@ export async function sendBorrowerUpdateEmail(
   const [audit, timeline] = await Promise.all([
     emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_SUCCEEDED,
       failureReason: undefined,

@@ -102,6 +102,7 @@ export function CreditMemo({ readOnly = false }: CreditMemoProps = {}) {
         dealName: deal.name,
         workspaceId: bootstrap.workspaceId,
         systemUserId: banker.systemUserId,
+        actorEmail: banker.email,
         memoName,
         memoType: 'Banker draft',
         memoBody: args.memoBody,
@@ -112,7 +113,7 @@ export function CreditMemo({ readOnly = false }: CreditMemoProps = {}) {
       refresh('after-credit-memo-draft-saved');
       return outcome;
     },
-    [banker?.systemUserId, bootstrap.workspaceId, deal.id, deal.name, memosData, refresh],
+    [banker?.systemUserId, banker?.email, bootstrap.workspaceId, deal.id, deal.name, memosData, refresh],
   );
 
   // Phase 125E — memo widget count (number of memo versions).

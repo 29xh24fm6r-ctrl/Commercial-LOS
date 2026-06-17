@@ -49,7 +49,9 @@ export interface DraftBorrowerUpdateModalProps {
    *  (banker workspace) — keeping the modal free of Dataverse SDK
    *  imports and easy to test. When undefined (e.g. older callers
    *  not yet updated), the modal renders Copy-only behavior. */
-  onSendEmail?: (input: SendBorrowerUpdateEmailInput) => Promise<SendBorrowerUpdateEmailOutcome>;
+  onSendEmail?: (
+    input: Omit<SendBorrowerUpdateEmailInput, 'actorEmail'>,
+  ) => Promise<SendBorrowerUpdateEmailOutcome>;
   /** Phase 105: dealId is passed through to the send action. */
   dealId: string;
   /** Phase 105: systemUserId is required for the audit/timeline

@@ -3,14 +3,18 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
- * BUGFIX-IDENTITY-AUDIT-GRAPH-WORKSPACECONTEXT-NODE-1 — script contract pins.
+ * Phase 187H / G-2 — WorkspaceContext is a PICKLIST, not a table dependency.
  *
- * WorkspaceContext (cr664_workspacecontext) is now a first-class recursive
- * dependency of WorkspaceType: the walker probes the LookupAttributeMetadata
- * cast (authoritative) to recognise cr664_workspacetype.cr664_workspacecontext
- * as a lookup, descends into the target table, classifies/seeds it with its own
- * policy, and binds it on the WorkspaceType create — instead of blocking it as
- * an "uncovered required field". Source-level pins only.
+ * CORRECTION of the earlier "WorkspaceContext node" model: live Dataverse
+ * metadata proves cr664_workspacecontext is a REQUIRED Picklist column on
+ * cr664_workspacetype (OptionSet 788190000 EXECUTIVE_CONTEXT / 788190001
+ * OPERATIONAL_CONTEXT / 788190002 ADMIN_CONTEXT) — NOT a lookup to a table. The
+ * LookupAttributeMetadata cast 404s for it, so the old "walk it as a lookup"
+ * path never worked and WorkspaceType create blocked as an uncovered required
+ * field. The walker now SEEDS the picklist with a pinned production-safe value
+ * (OPERATIONAL_CONTEXT for a Banker Workspace) via IDENTITY_REQUIRED_PICKLIST_SEED,
+ * classifying it ALLOWLISTED_PICKLIST and setting it on the WorkspaceType create.
+ * Source-level pins only.
  */
 
 const SCRIPT = readFileSync(
@@ -39,34 +43,36 @@ describe('lookup detection is probe-based (robust to AttributeType mislabels)', 
     expect(SECTION).not.toMatch(/AttributeType === 'Lookup'/);
   });
 
-  it('WorkspaceType is no longer blocked merely because cr664_workspacecontext is required', () => {
-    // The uncovered-scalar block fires only when the probe found NO lookup target,
-    // so a resolvable WorkspaceContext lookup is walked, not blocked.
+  it('WorkspaceType is not blocked by cr664_workspacecontext (seeded picklist, not uncovered)', () => {
+    // The uncovered-scalar block still exists for genuinely-uncovered required
+    // fields, but a seeded picklist short-circuits to ALLOWLISTED_PICKLIST before
+    // the probe, so it never reaches the uncovered-scalar branch.
     expect(SECTION).toMatch(/uncoveredScalars\.length > 0/);
     expect(SECTION).toMatch(/REJECTED_MISSING_REQUIRED_FIELD/);
+    expect(SECTION).toMatch(/classification: 'ALLOWLISTED_PICKLIST'/);
   });
 });
 
-describe('WorkspaceContext is a first-class dependency node', () => {
-  it('has an explicit policy with the approved names + OGB LOS seed', () => {
-    expect(SECTION).toMatch(/cr664_workspacecontext:\s*\{/);
-    expect(SECTION).toMatch(/seedName:\s*'OGB LOS'/);
-    expect(SECTION).toMatch(/seedCode:\s*'OGB_LOS'/);
-    for (const name of ['lending os', 'commercial lending los', 'commercial lending', 'ogb los', 'banker workspace context']) {
-      expect(SECTION).toMatch(new RegExp(`'${name}'`));
-    }
+describe('WorkspaceContext is a seeded picklist on WorkspaceType (not a node)', () => {
+  it('has a metadata-backed picklist seed with the OPERATIONAL_CONTEXT value', () => {
+    expect(SECTION).toMatch(/IDENTITY_REQUIRED_PICKLIST_SEED/);
+    expect(SECTION).toMatch(/cr664_workspacetype:\s*\{\s*\n\s*cr664_workspacecontext:\s*\{\s*value:\s*788190001,\s*label:\s*'OPERATIONAL_CONTEXT'/);
   });
 
-  it('reuse/create/classification flows through the same generic node resolver', () => {
-    // No bespoke WorkspaceContext code path — it uses classifyIdentityRow +
-    // listReferenceRows + the seed policy like every other reference node.
-    expect(SECTION).toMatch(/classifyIdentityRow\(r, info, policy\)/);
-    expect(SECTION).toMatch(/listReferenceRows\(info/);
+  it('removed the old WorkspaceContext-as-table node policy entry', () => {
+    expect(SECTION).not.toMatch(/cr664_workspacecontext:\s*\{\s*\n\s*label:\s*'WorkspaceContext'/);
+    expect(SECTION).not.toMatch(/seedName:\s*'OGB LOS'/);
   });
 
-  it('WorkspaceType create binds the resolved WorkspaceContext via its metadata nav property', () => {
-    expect(SECTION).toMatch(/binds = children\.map\(\(c\) => \(\{ nav: `\$\{c\.navProperty\}@odata\.bind`/);
-    expect(SECTION).toMatch(/payloadKeys = \[\.\.\.scalarKeys, \.\.\.binds\.map\(\(b\) => b\.nav\)\]/);
+  it('the seed is classified ALLOWLISTED_PICKLIST and set on the WorkspaceType create body', () => {
+    expect(SECTION).toMatch(/picklistSeeds && picklistSeeds\.has\(lnLower\)/);
+    expect(SECTION).toMatch(/for \(const seed of node\.fields\.picklistSeeds/);
+    expect(SECTION).toMatch(/body\[seed\.attr\] = seed\.value/);
+  });
+
+  it('WorkspaceType create payload allow-list includes the seeded picklist key', () => {
+    expect(SECTION).toMatch(/const picklistKeys = \[\.\.\.fields\.picklistSeeds\.values\(\)\]\.map\(\(s\) => s\.attr\)/);
+    expect(SECTION).toMatch(/payloadKeys = \[\.\.\.scalarKeys, \.\.\.picklistKeys, \.\.\.binds\.map\(\(b\) => b\.nav\)\]/);
   });
 });
 
@@ -83,7 +89,7 @@ describe('dependency-safe ordering (context before type before coreuser)', () =>
   });
 });
 
-describe('fail-closed candidate policy for WorkspaceContext', () => {
+describe('fail-closed candidate policy for the reference nodes (WorkspaceType / UserRole)', () => {
   it('reuses one approved, blocks on multiple approved, plans a create on zero', () => {
     expect(SECTION).toMatch(/approved\.length === 1/);
     expect(SECTION).toMatch(/REJECTED_AMBIGUOUS/);

@@ -244,6 +244,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
         dealName: 'Expansion Loan',
         bankerName: 'Matt Paller',
         systemUserId: 'sys-1',
+        actorEmail: 'mpaller@oldglorybank.com',
         note: 'Client confirmed diligence timeline.',
       });
     });

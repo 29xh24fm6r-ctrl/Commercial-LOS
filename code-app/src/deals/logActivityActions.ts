@@ -3,6 +3,12 @@ import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dea
 import { AUDIT_OUTCOME_FAILED, AUDIT_OUTCOME_SUCCEEDED } from '../shared/governance/auditEnums';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
+import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
+import {
+  createActorChangedByResolver,
+  type ActorChangedByResolution,
+  type ResolveActorChangedBy,
+} from './newDealAuditActorResolver';
 
 /**
  * Phase 160: governed write for banker-authored activity notes.
@@ -31,17 +37,28 @@ export interface LogActivityInput {
   dealId: string;
   dealName: string;
   systemUserId: string;
+  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   bankerName: string | undefined;
   note: string;
 }
 
 async function emitAuditEvent(opts: {
   input: LogActivityInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   activityId: string;
   outcome: number;
   failureReason: string | undefined;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   const nowIso = new Date().toISOString();
   const payload = {
     cr664_auditeventname: 'Deal Activity Logged',
@@ -55,8 +72,10 @@ async function emitAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'cr664_dealtimelineeventid',
     cr664_oldvalue: 'No banker activity note',
     cr664_newvalue: opts.activityId,
@@ -68,9 +87,6 @@ async function emitAuditEvent(opts: {
       `Note: ${opts.input.note}`,
     cr664_sourcescreensourceprocess: 'BankerWorkspace/GreetingHeader/log-activity',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -125,7 +141,10 @@ async function createTimelineEvent(opts: {
   }
 }
 
-export async function logActivity(input: LogActivityInput): Promise<LogActivityOutcome> {
+export async function logActivity(
+  input: LogActivityInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
+): Promise<LogActivityOutcome> {
   const note = input.note.trim();
   if (note.length === 0) {
     return { kind: 'unknown', message: 'Activity note must not be empty.' };
@@ -140,11 +159,14 @@ export async function logActivity(input: LogActivityInput): Promise<LogActivityO
     dealName: input.dealName.trim() || 'Selected deal',
   };
   const correlationId = newCorrelationId('la');
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
   const timeline = await createTimelineEvent({ input: normalized, correlationId });
 
   if (timeline.error || !timeline.id) {
     void emitAuditEvent({
       input: normalized,
+      actor,
       correlationId,
       activityId: 'unknown',
       outcome: AUDIT_OUTCOME_FAILED,
@@ -158,6 +180,7 @@ export async function logActivity(input: LogActivityInput): Promise<LogActivityO
 
   const audit = await emitAuditEvent({
     input: normalized,
+    actor,
     correlationId,
     activityId: timeline.id,
     outcome: AUDIT_OUTCOME_SUCCEEDED,

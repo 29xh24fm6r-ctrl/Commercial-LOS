@@ -34,6 +34,7 @@ export function DealTasks({ readOnly = false }: DealTasksProps = {}) {
       dealId: deal.id,
       priorAssigneeName: pendingTask.assigneeName,
       systemUserId: banker.systemUserId,
+      actorEmail: banker.email,
       completionNote: note,
     });
     refresh('after-task-complete');

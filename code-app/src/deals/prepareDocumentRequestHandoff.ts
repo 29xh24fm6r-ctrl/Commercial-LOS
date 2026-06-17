@@ -3,6 +3,12 @@ import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dea
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED } from '../shared/governance/auditEnums';
 import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
+import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
+import {
+  createActorChangedByResolver,
+  type ActorChangedByResolution,
+  type ResolveActorChangedBy,
+} from './newDealAuditActorResolver';
 import { maskRecipient } from './emailDelivery/recipientMasking';
 
 /**
@@ -92,6 +98,10 @@ export interface PrepareDocumentRequestHandoffInput {
   documentName: string;
   dealId: string;
   systemUserId: string;
+  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+   *  cr664_ChangedBy (cr664_user lookup) via the platform-user bridge.
+   *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
+  actorEmail: string;
   /** Unmasked recipient — the banker typed it. Goes to the audit
    *  event verbatim; appears in masked form everywhere else. */
   recipient: string;
@@ -129,12 +139,19 @@ function afterStateForMethod(method: HandoffMethod): string {
 
 async function emitAuditEvent(opts: {
   input: PrepareDocumentRequestHandoffInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   outcome: number;
   failureReason: string | undefined;
   afterState: string;
   nowIso: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
+  // Fail closed: never POST an audit row without a resolved cr664_user actor.
+  // No systemuser id is ever bound into cr664_ChangedBy (it targets cr664_user).
+  if (!opts.actor.ok || !opts.actor.changedByBind) {
+    return { id: undefined, error: opts.actor.reason ?? 'audit actor identity unresolved' };
+  }
+  assertChangedByCoreUserBind(opts.actor.changedByBind);
   // Notes carry verbatim subject + full recipient. The audit row is
   // the privileged ledger; full recipient lives here and ONLY here.
   const notes =
@@ -154,8 +171,10 @@ async function emitAuditEvent(opts: {
     cr664_outcomestatus: opts.outcome,
     cr664_failurereason: opts.failureReason,
     cr664_changeddate: opts.nowIso,
-    'cr664_ChangedBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    'cr664_ActorUser@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; value resolved
+    // fail-closed from the actor email via the platform-user bridge. No
+    // cr664_ActorUser, no ownerid/owneridtype/statecode (server-defaulted).
+    'cr664_ChangedBy@odata.bind': opts.actor.changedByBind,
     cr664_fieldname: 'outlook_handoff_prepared',
     cr664_oldvalue: '',
     cr664_newvalue: opts.afterState,
@@ -164,9 +183,6 @@ async function emitAuditEvent(opts: {
     cr664_notes: notes,
     cr664_sourcescreensourceprocess: 'DealWorkspace/DealDocuments/request-handoff',
     cr664_correlationid: opts.correlationId,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_auditeventsService.create(
@@ -233,6 +249,7 @@ async function emitTimelineEvent(opts: {
 
 export async function prepareDocumentRequestHandoff(
   input: PrepareDocumentRequestHandoffInput,
+  resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
 ): Promise<PrepareDocumentRequestHandoffOutcome> {
   // Pre-flight input checks. A handoff with a malformed recipient
   // is meaningless: there is no audit row worth writing because no
@@ -266,6 +283,8 @@ export async function prepareDocumentRequestHandoff(
   const nowIso = new Date().toISOString();
   const maskedRecipient = maskRecipient(recipient);
   const afterState = afterStateForMethod(input.method);
+  // Resolve the audit actor's cr664_user bind once, fail-closed.
+  const actor = await resolveActorChangedBy(input.actorEmail);
 
   let audit: { id: string | undefined; error: string | undefined };
   let timeline: { id: string | undefined; error: string | undefined };
@@ -273,6 +292,7 @@ export async function prepareDocumentRequestHandoff(
     [audit, timeline] = await Promise.all([
       emitAuditEvent({
         input,
+        actor,
         correlationId,
         outcome: AUDIT_OUTCOME_SUCCEEDED,
         failureReason: undefined,
@@ -292,6 +312,7 @@ export async function prepareDocumentRequestHandoff(
     // Suppress its own error — we already have a message to surface.
     void emitAuditEvent({
       input,
+      actor,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,

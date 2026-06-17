@@ -14,9 +14,19 @@ vi.mock('../generated/services/Cr664_auditeventsService', () => ({
 import { Cr664_dataqualityflagsService } from '../generated/services/Cr664_dataqualityflagsService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { resolveDataQualityFlag } from './dataQualityActions';
+import type { ResolveActorChangedBy } from '../deals/newDealAuditActorResolver';
 
 const updateMock = vi.mocked(Cr664_dataqualityflagsService.update);
 const createMock = vi.mocked(Cr664_auditeventsService.create);
+
+// Phase 187H / G-5: the audit actor (cr664_ChangedBy) is resolved fail-closed to
+// a cr664_user bind via the platform-user bridge. Tests inject the resolver.
+const CORE_USER_BIND = '/cr664_users(core-1)';
+const okResolver: ResolveActorChangedBy = async () => ({ ok: true, changedByBind: CORE_USER_BIND });
+const failResolver: ResolveActorChangedBy = async () => ({
+  ok: false,
+  reason: 'matched platform-user has no linked cr664_user (CoreUser is empty)',
+});
 
 function baseInput(overrides: Partial<Parameters<typeof resolveDataQualityFlag>[0]> = {}) {
   return {
@@ -24,6 +34,7 @@ function baseInput(overrides: Partial<Parameters<typeof resolveDataQualityFlag>[
     flagName: 'Orphan record',
     flagType: 'OrphanRecord',
     systemUserId: 'sys-user-1',
+    actorEmail: 'admin@oldglorybank.com',
     resolutionNote: 'investigated and fixed',
     ...overrides,
   };
@@ -80,7 +91,7 @@ describe('resolveDataQualityFlag', () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('audit-42'));
 
-    const outcome = await resolveDataQualityFlag(baseInput());
+    const outcome = await resolveDataQualityFlag(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('success');
     if (outcome.kind === 'success') {
@@ -94,7 +105,7 @@ describe('resolveDataQualityFlag', () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('audit-1'));
 
-    await resolveDataQualityFlag(baseInput({ resolutionNote: '   trimmed note  ' }));
+    await resolveDataQualityFlag(baseInput({ resolutionNote: '   trimmed note  ' }), okResolver);
 
     expect(updateMock).toHaveBeenCalledWith(
       'flag-1',
@@ -109,7 +120,7 @@ describe('resolveDataQualityFlag', () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('audit-7'));
 
-    await resolveDataQualityFlag(baseInput());
+    await resolveDataQualityFlag(baseInput(), okResolver);
 
     const payload = createMock.mock.calls[0]![0] as Record<string, unknown>;
     expect(payload.cr664_outcomestatus).toBe(788190000); // Succeeded
@@ -123,8 +134,13 @@ describe('resolveDataQualityFlag', () => {
     expect(payload.cr664_oldvalue).toBe('Open');
     expect(payload.cr664_newvalue).toBe('Resolved');
     expect(payload.cr664_fieldname).toBe('cr664_resolutionstatus');
-    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/systemusers(sys-user-1)');
-    expect(payload['cr664_ActorUser@odata.bind']).toBe('/systemusers(sys-user-1)');
+    // Phase 187H / G-5: ChangedBy is the resolved cr664_user bind — never a
+    // systemuser id — and the redundant ActorUser + owner/state are gone.
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(payload['cr664_ActorUser@odata.bind']).toBeUndefined();
+    expect(payload.ownerid).toBeUndefined();
+    expect(payload.owneridtype).toBeUndefined();
+    expect(payload.statecode).toBeUndefined();
     expect(payload.cr664_sourcescreensourceprocess).toBe(
       'AdminWorkspace/DataQualityFlags',
     );
@@ -139,7 +155,7 @@ describe('resolveDataQualityFlag', () => {
     // promise so the action completes cleanly.
     createMock.mockReturnValue(successAudit('audit-fail-trace'));
 
-    const outcome = await resolveDataQualityFlag(baseInput());
+    const outcome = await resolveDataQualityFlag(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('flag-failed');
     if (outcome.kind === 'flag-failed') {
@@ -160,7 +176,7 @@ describe('resolveDataQualityFlag', () => {
     });
     createMock.mockReturnValue(successAudit('audit-fail-thrown'));
 
-    const outcome = await resolveDataQualityFlag(baseInput());
+    const outcome = await resolveDataQualityFlag(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('flag-failed');
     if (outcome.kind === 'flag-failed') {
@@ -172,7 +188,7 @@ describe('resolveDataQualityFlag', () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(failedAudit('audit table not writable'));
 
-    const outcome = await resolveDataQualityFlag(baseInput());
+    const outcome = await resolveDataQualityFlag(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('audit-failed');
     if (outcome.kind === 'audit-failed') {
@@ -187,7 +203,7 @@ describe('resolveDataQualityFlag', () => {
       throw new Error('audit endpoint 500');
     });
 
-    const outcome = await resolveDataQualityFlag(baseInput());
+    const outcome = await resolveDataQualityFlag(baseInput(), okResolver);
 
     expect(outcome.kind).toBe('audit-failed');
     if (outcome.kind === 'audit-failed') {
@@ -196,21 +212,37 @@ describe('resolveDataQualityFlag', () => {
   });
 
   it('rejects an empty note without calling either service', async () => {
-    const outcome = await resolveDataQualityFlag(baseInput({ resolutionNote: '   ' }));
+    const outcome = await resolveDataQualityFlag(baseInput({ resolutionNote: '   ' }), okResolver);
 
     expect(outcome.kind).toBe('unknown');
     expect(updateMock).not.toHaveBeenCalled();
     expect(createMock).not.toHaveBeenCalled();
   });
 
+  it('fails closed when the actor cannot be resolved: flag updates, NO audit POST, audit-failed', async () => {
+    updateMock.mockReturnValue(successUpdate());
+    createMock.mockReturnValue(successAudit('should-not-be-used'));
+
+    const outcome = await resolveDataQualityFlag(baseInput(), failResolver);
+
+    // Primary flag update still happens.
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(outcome.kind).toBe('audit-failed');
+    if (outcome.kind === 'audit-failed') {
+      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+    }
+    // No audit row is POSTed with an unresolved actor — never a systemuser bind.
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
   it('generates a distinct correlation id for each attempt', async () => {
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('audit-a'));
-    await resolveDataQualityFlag(baseInput());
+    await resolveDataQualityFlag(baseInput(), okResolver);
 
     updateMock.mockReturnValue(successUpdate());
     createMock.mockReturnValue(successAudit('audit-b'));
-    await resolveDataQualityFlag(baseInput());
+    await resolveDataQualityFlag(baseInput(), okResolver);
 
     const first = (createMock.mock.calls[0]![0] as Record<string, unknown>).cr664_correlationid;
     const second = (createMock.mock.calls[1]![0] as Record<string, unknown>).cr664_correlationid;

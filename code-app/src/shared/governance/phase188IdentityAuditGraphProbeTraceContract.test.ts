@@ -37,7 +37,7 @@ describe('version marker', () => {
 
 describe('centralized classifier', () => {
   it('exists and is the single decision point', () => {
-    expect(SECTION).toMatch(/async function classifyRequiredFieldForGraph\(\s*tableLogical, attr, coveredLower, autodefaultedLower, token, envUrl\s*\)/);
+    expect(SECTION).toMatch(/async function classifyRequiredFieldForGraph\(\s*tableLogical, attr, coveredLower, autodefaultedLower, picklistSeeds, token, envUrl\s*\)/);
     expect(SECTION).toMatch(/const c = await classifyRequiredFieldForGraph\(/);
   });
 
@@ -49,10 +49,17 @@ describe('centralized classifier', () => {
     expect(CLASSIFIER).toMatch(/const tg = await getLookupTargetsForAttribute\(tableLogical, ln, token, envUrl\)/);
   });
 
-  it('emits the four classifications', () => {
-    for (const t of ['SERVER_DEFAULTED', 'ALLOWLISTED_SCALAR', 'WALK_LOOKUP_DEPENDENCY', 'BLOCK_UNCOVERED_SCALAR']) {
+  it('emits the five classifications (incl. the seeded-picklist case)', () => {
+    for (const t of ['SERVER_DEFAULTED', 'ALLOWLISTED_SCALAR', 'ALLOWLISTED_PICKLIST', 'WALK_LOOKUP_DEPENDENCY', 'BLOCK_UNCOVERED_SCALAR']) {
       expect(CLASSIFIER).toMatch(new RegExp(`classification: '${t}'`));
     }
+  });
+
+  it('a required Picklist with a pinned seed (cr664_workspacecontext) is ALLOWLISTED_PICKLIST, not blocked', () => {
+    // Live metadata: the LookupAttributeMetadata cast 404s for the picklist, so the
+    // old "walk it as a lookup" path never worked; it is seeded instead.
+    expect(CLASSIFIER).toMatch(/picklistSeeds && picklistSeeds\.has\(lnLower\)/);
+    expect(CLASSIFIER).toMatch(/classification: 'ALLOWLISTED_PICKLIST'/);
   });
 
   it('targets present -> WALK_LOOKUP_DEPENDENCY', () => {
