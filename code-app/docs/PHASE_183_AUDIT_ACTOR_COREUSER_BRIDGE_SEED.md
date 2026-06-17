@@ -1,5 +1,11 @@
 # BUGFIX — audit actor CoreUser bridge inspect + guarded seed
 
+> **Superseded for new operators** by the canonical
+> [identity / audit graph provisioning](./PHASE_186_IDENTITY_AUDIT_GRAPH_CANONICAL_PROVISIONING.md)
+> (`--inspect-identity-audit-graph` / `--plan-identity-audit-provisioning` /
+> `--provision-identity-audit-graph` / `--verify-identity-audit-graph`). The
+> modes below still work for a targeted single-step repair.
+
 ## Why
 
 Banker New Deal create now creates the Loan Deal successfully, but the audit

@@ -139,6 +139,12 @@ Before creating it, query `cr664_auditevents` for any existing row with that
 
 ## Next proof
 
+> **Update:** the actor → `cr664_user` resolution is now owned end-to-end by the
+> canonical
+> [identity / audit graph provisioning](./PHASE_186_IDENTITY_AUDIT_GRAPH_CANONICAL_PROVISIONING.md).
+> Run it to `GRAPH STATUS: READY` before any further proof — the steps below
+> remain valid but the bridge prerequisite is provisioned there.
+
 Do NOT create another proof deal immediately. After this fix is deployed:
 
 1. **Hard-refresh / close the old tab and reopen the app URL** so the new bundle

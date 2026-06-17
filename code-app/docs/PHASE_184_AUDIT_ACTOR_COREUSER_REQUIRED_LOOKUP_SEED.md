@@ -1,5 +1,9 @@
 # BUGFIX — CoreUser required-lookup seed
 
+> **Superseded for new operators** by the canonical
+> [identity / audit graph provisioning](./PHASE_186_IDENTITY_AUDIT_GRAPH_CANONICAL_PROVISIONING.md).
+> The modes below still work for a targeted single-step repair.
+
 ## Why
 
 [Phase 183](./PHASE_183_AUDIT_ACTOR_COREUSER_BRIDGE_SEED.md) added the audit-actor

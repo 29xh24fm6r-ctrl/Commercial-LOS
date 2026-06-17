@@ -423,6 +423,14 @@ function parseArgs(argv) {
     inspectCoreUserDependencySeeds: false,
     seedCoreUserDependencies: false,
     commitSeedCoreUserDependencies: false,
+    // SPEC — canonical identity/audit graph: inspect (read-only), plan
+    // (dry-run), provision (guarded; writes require the commit flag), verify
+    // (read-only). One walker maps the FULL dependency graph before any write.
+    inspectIdentityAuditGraph: false,
+    planIdentityAuditProvisioning: false,
+    provisionIdentityAuditGraph: false,
+    commitProvisionIdentityAuditGraph: false,
+    verifyIdentityAuditGraph: false,
     // Phase 170H-A — Platform Workspace listing + seed (workspace row only).
     listPlatformWorkspaces: false,
     seedPlatformWorkspace: false,
@@ -847,6 +855,32 @@ function parseArgs(argv) {
       flags.dryRun = false;
     } else if (arg === '--commit-seed-coreuser-dependencies') {
       flags.commitSeedCoreUserDependencies = true;
+    } else if (arg === '--inspect-identity-audit-graph') {
+      // SPEC — canonical READ-ONLY walk of the ENTIRE audit-actor identity
+      // dependency graph (cr664_user -> workspacetype -> workspacecontext,
+      // cr664_user -> userrole, recursively) with full metadata + candidate
+      // classification. Pure GETs.
+      flags.inspectIdentityAuditGraph = true;
+      flags.dryRun = false;
+    } else if (arg === '--plan-identity-audit-provisioning') {
+      // SPEC — canonical DRY-RUN provisioning plan: reuse/create/blocked per
+      // node in dependency order. Never writes.
+      flags.planIdentityAuditProvisioning = true;
+      flags.dryRun = false;
+    } else if (arg === '--provision-identity-audit-graph') {
+      // SPEC — canonical guarded provisioning. Dry-run by default; writes
+      // require --commit-provision-identity-audit-graph. Creates missing rows in
+      // dependency order, creates cr664_user, and patches ONLY
+      // cr664_platformuser.cr664_CoreUser. Never a Loan Deal / audit / gate.
+      flags.provisionIdentityAuditGraph = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-provision-identity-audit-graph') {
+      flags.commitProvisionIdentityAuditGraph = true;
+    } else if (arg === '--verify-identity-audit-graph') {
+      // SPEC — canonical READ-ONLY verification that the bridge is provisioned
+      // (GRAPH STATUS: READY). Pure GETs.
+      flags.verifyIdentityAuditGraph = true;
+      flags.dryRun = false;
     } else if (arg === '--list-platform-workspaces') {
       // Phase 170H-A — read-only listing of cr664_platformworkspace rows
       // (id + name). Pure GET; never writes.
@@ -991,6 +1025,10 @@ function parseArgs(argv) {
     flags.seedCoreUserForPlatformUser,
     flags.inspectCoreUserDependencySeeds,
     flags.seedCoreUserDependencies,
+    flags.inspectIdentityAuditGraph,
+    flags.planIdentityAuditProvisioning,
+    flags.provisionIdentityAuditGraph,
+    flags.verifyIdentityAuditGraph,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -1060,6 +1098,16 @@ function parseArgs(argv) {
   ) {
     bailParseArgs(
       '--commit-seed-coreuser-dependencies has no effect without --seed-coreuser-dependencies.',
+    );
+  }
+  // SPEC — the canonical provisioning commit flag only authorizes a write
+  // alongside the provision mode; on its own (or with inspect/plan/verify) fail.
+  if (
+    flags.commitProvisionIdentityAuditGraph &&
+    !flags.provisionIdentityAuditGraph
+  ) {
+    bailParseArgs(
+      '--commit-provision-identity-audit-graph has no effect without --provision-identity-audit-graph.',
     );
   }
   // Phase 170H-A — the platform-workspace seed commit flag only authorizes
@@ -1263,7 +1311,11 @@ function parseArgs(argv) {
     flags.inspectCoreUserCreateDependencies ||
     flags.seedCoreUserForPlatformUser ||
     flags.inspectCoreUserDependencySeeds ||
-    flags.seedCoreUserDependencies
+    flags.seedCoreUserDependencies ||
+    flags.inspectIdentityAuditGraph ||
+    flags.planIdentityAuditProvisioning ||
+    flags.provisionIdentityAuditGraph ||
+    flags.verifyIdentityAuditGraph
   ) {
     // BUGFIX — the audit-actor-bridge + CoreUser-seed modes require ONLY --upn.
     // The workspace/deal/team seed inputs may not ride along, so they cannot
@@ -1278,7 +1330,15 @@ function parseArgs(argv) {
             ? '--seed-coreuser-for-platform-user'
             : flags.inspectCoreUserDependencySeeds
               ? '--inspect-coreuser-dependency-seeds'
-              : '--seed-coreuser-dependencies';
+              : flags.seedCoreUserDependencies
+                ? '--seed-coreuser-dependencies'
+                : flags.inspectIdentityAuditGraph
+                  ? '--inspect-identity-audit-graph'
+                  : flags.planIdentityAuditProvisioning
+                    ? '--plan-identity-audit-provisioning'
+                    : flags.provisionIdentityAuditGraph
+                      ? '--provision-identity-audit-graph'
+                      : '--verify-identity-audit-graph';
     if (!flags.seedUpn) {
       bailParseArgs(`${mode} requires --upn <email>`);
     }
@@ -1293,7 +1353,7 @@ function parseArgs(argv) {
     }
   } else {
     if (flags.seedUpn) {
-      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace or --seed-primary-workspace or --inspect-audit-actor-bridge or --seed-audit-actor-bridge or --inspect-coreuser-create-dependencies or --seed-coreuser-for-platform-user or --inspect-coreuser-dependency-seeds or --seed-coreuser-dependencies');
+      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace or --seed-primary-workspace or --inspect-audit-actor-bridge or --seed-audit-actor-bridge or --inspect-coreuser-create-dependencies or --seed-coreuser-for-platform-user or --inspect-coreuser-dependency-seeds or --seed-coreuser-dependencies or --inspect-identity-audit-graph or --plan-identity-audit-provisioning or --provision-identity-audit-graph or --verify-identity-audit-graph');
     }
     if (flags.seedTeamName) {
       bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
@@ -6491,6 +6551,654 @@ async function runSeedCoreUserDependencies({ upn, doCommit }, token, envUrl) {
 }
 
 // ---------------------------------------------------------------------------
+// SPEC — canonical identity/audit graph provisioning.
+//
+// ONE recursive metadata walker maps the ENTIRE audit-actor dependency graph
+// (cr664_auditevents.cr664_ChangedBy -> cr664_user -> {cr664_primaryworkspace ->
+// workspace-type -> workspace-context, cr664_role -> user-role}) BEFORE any
+// write, classifies every candidate row, and produces a single dependency-
+// ordered plan that reuses production-safe rows, creates the exact missing rows,
+// or stops with a precise no-write blocker. inspect/plan/verify are read-only;
+// provision writes only with --commit-provision-identity-audit-graph and only
+// the allow-listed create payloads + the single CoreUser PATCH. Never a Loan
+// Deal, audit row, or gate. No hardcoded GUIDs.
+// ---------------------------------------------------------------------------
+
+const IDENTITY_MAX_DEPTH = 6;
+const IDENTITY_COREUSER_LOGICAL = 'cr664_user';
+const IDENTITY_AUDIT_TABLE_LOGICAL = 'cr664_auditevent';
+const IDENTITY_AUDIT_CHANGEDBY_ATTR = 'cr664_changedby';
+
+// Production-safe naming/seed policy per dependency table (keyed by the logical
+// name discovered from metadata). A table with no policy is REJECTED_UNKNOWN_
+// METADATA (the walker will not guess a name/seed for it).
+const IDENTITY_NODE_POLICY = {
+  cr664_workspacecontext: {
+    label: 'WorkspaceContext',
+    approvedNames: ['lending os', 'commercial lending los', 'commercial lending', 'ogb los', 'banker workspace context'],
+    seedName: 'OGB LOS',
+    seedCode: 'OGB_LOS',
+  },
+  cr664_workspacetype: {
+    label: 'WorkspaceType',
+    approvedNames: ['banker workspace', 'banker', 'commercial lending', 'commercial lending los', 'lending os banker'],
+    seedName: 'Banker Workspace',
+    seedCode: 'BANKER_WORKSPACE',
+  },
+  cr664_userrole: {
+    label: 'UserRole',
+    approvedNames: ['banker', 'commercial banker', 'lending banker', 'relationship manager'],
+    seedName: 'Banker',
+    seedCode: 'BANKER',
+  },
+};
+
+// The scalar cr664_user create fields the graph may set (lookups are added from
+// metadata). Pinned, allow-listed.
+const IDENTITY_COREUSER_SCALAR_ALLOWLIST = Object.freeze([
+  'cr664_username',
+  'cr664_email',
+  'cr664_activeaccessflag',
+]);
+
+// Required lookups Dataverse server-defaults — never walked, never blocking.
+const IDENTITY_SERVER_DEFAULTED_LOOKUPS = Object.freeze([
+  'ownerid',
+  'owningbusinessunit',
+  'owningteam',
+  'owninguser',
+  'createdby',
+  'modifiedby',
+  'createdonbehalfby',
+  'modifiedonbehalfby',
+  'businessunitid',
+  'transactioncurrencyid',
+]);
+
+function identityRowIsActive(row) {
+  return row.statecode === undefined || row.statecode === 0;
+}
+
+// Classify a candidate row into one of the 11 tokens (REJECTED_AMBIGUOUS is set
+// at selection time, not here).
+function classifyIdentityRow(row, info, policy) {
+  const id = row[info.primaryId];
+  const name = String(row[info.primaryName] ?? '');
+  const lower = name.trim().toLowerCase();
+  const active = identityRowIsActive(row);
+  let classification;
+  if (!active) classification = 'REJECTED_INACTIVE';
+  else if (lower.length === 0) classification = 'REJECTED_UNSUPPORTED';
+  else if (/\bphase\b/.test(lower) || /phase\s*\d+/.test(lower)) classification = 'REJECTED_PHASE';
+  else if (/\btest\b/.test(lower)) classification = 'REJECTED_TEST';
+  else if (/\bdemo\b/.test(lower)) classification = 'REJECTED_DEMO';
+  else if (/\bsample\b/.test(lower)) classification = 'REJECTED_SAMPLE';
+  else if (/\b(admin|administrator)\b/.test(lower) || lower.includes('super admin')) classification = 'REJECTED_ADMIN_ONLY';
+  else if (!policy) classification = 'REJECTED_UNKNOWN_METADATA';
+  else if (!policy.approvedNames.includes(lower)) classification = 'REJECTED_UNSUPPORTED';
+  else classification = 'APPROVED';
+  return { id, name, active, classification };
+}
+
+async function getIdentityNodeInfo(tableLogical, token, envUrl) {
+  const meta = await getTableMetadata(tableLogical, token, envUrl);
+  if (!meta.ok) return { ok: false, error: meta.error };
+  const t = meta.table;
+  if (!t.EntitySetName || !t.PrimaryIdAttribute || !t.PrimaryNameAttribute) {
+    return { ok: false, error: `incomplete metadata for ${tableLogical} (entity set / primary attribute missing)` };
+  }
+  return {
+    ok: true,
+    info: {
+      logical: tableLogical,
+      entitySetName: t.EntitySetName,
+      primaryId: t.PrimaryIdAttribute,
+      primaryName: t.PrimaryNameAttribute,
+      attributes: Array.isArray(t.Attributes) ? t.Attributes : [],
+    },
+  };
+}
+
+// Partition a table's create requirements into name/code/active/email fields,
+// required LOOKUPS (to walk), uncovered required SCALARS (blockers), and the
+// server-defaulted required set (informational).
+function analyzeIdentityNodeFields(info) {
+  const attrs = info.attributes;
+  const byLower = new Map(
+    attrs.filter((a) => typeof a.LogicalName === 'string').map((a) => [a.LogicalName.toLowerCase(), a]),
+  );
+  const nameField = info.primaryName;
+  const codeField = byLower.has(DEP_SEED_CODE_FIELD) ? DEP_SEED_CODE_FIELD : null;
+  let activeField = null;
+  for (const cand of DEP_SEED_ACTIVE_FIELD_CANDIDATES) {
+    const a = byLower.get(cand);
+    if (a && a.AttributeType === 'Boolean') { activeField = a.LogicalName; break; }
+  }
+  const emailField = byLower.has('cr664_email') ? 'cr664_email' : null;
+  const pkLower = info.primaryId.toLowerCase();
+  const isAutodefaulted = (ln) =>
+    AUDIT_ACTOR_CORE_USER_AUTODEFAULTED.includes(ln) ||
+    IDENTITY_SERVER_DEFAULTED_LOOKUPS.includes(ln) ||
+    ln === pkLower;
+  const required = attrs.filter((a) => {
+    if (!a.IsValidForCreate) return false;
+    const lvl = a.RequiredLevel?.Value ?? 'None';
+    return lvl === 'SystemRequired' || lvl === 'ApplicationRequired';
+  });
+  const requiredLookups = required.filter(
+    (a) => a.AttributeType === 'Lookup' && !isAutodefaulted(a.LogicalName.toLowerCase()),
+  );
+  const serverDefaultedRequired = required
+    .filter((a) => isAutodefaulted(a.LogicalName.toLowerCase()))
+    .map((a) => a.LogicalName);
+  const covered = new Set([nameField, codeField, activeField, emailField].filter(Boolean).map((f) => f.toLowerCase()));
+  const uncoveredScalars = required
+    .filter((a) => a.AttributeType !== 'Lookup')
+    .filter((a) => !covered.has(a.LogicalName.toLowerCase()) && !isAutodefaulted(a.LogicalName.toLowerCase()))
+    .map((a) => a.LogicalName);
+  return { nameField, codeField, activeField, emailField, requiredLookups, serverDefaultedRequired, uncoveredScalars };
+}
+
+// Recursively resolve one graph node. Always walks required-lookup children (for
+// the full map); marks reuse / create / blocked. Cached + depth-guarded.
+async function resolveIdentityNode(ctx, tableLogical, depth) {
+  if (ctx.cache.has(tableLogical)) return ctx.cache.get(tableLogical);
+  const blockedNode = (classification, reason, extra = {}) => {
+    const n = { table: tableLogical, label: tableLogical, action: 'blocked', blocked: true, classification, reason, children: [], ...extra };
+    ctx.cache.set(tableLogical, n);
+    return n;
+  };
+  if (depth > IDENTITY_MAX_DEPTH) {
+    return blockedNode('REJECTED_UNKNOWN_METADATA', `dependency deeper than the walker supports (>${IDENTITY_MAX_DEPTH})`);
+  }
+  const metaRes = await getIdentityNodeInfo(tableLogical, ctx.token, ctx.envUrl);
+  if (!metaRes.ok) return blockedNode('REJECTED_UNKNOWN_METADATA', metaRes.error);
+  const info = metaRes.info;
+  const fields = analyzeIdentityNodeFields(info);
+  const isCoreUser = tableLogical === IDENTITY_COREUSER_LOGICAL;
+  const policy = IDENTITY_NODE_POLICY[tableLogical] ?? null;
+
+  // Guard cycles before recursing.
+  ctx.cache.set(tableLogical, { table: tableLogical, pending: true });
+
+  const children = [];
+  for (const lk of fields.requiredLookups) {
+    const navProperty = lk.SchemaName;
+    const tg = await getLookupTargetsForAttribute(tableLogical, lk.LogicalName, ctx.token, ctx.envUrl);
+    if (!tg.ok || !Array.isArray(tg.targets) || tg.targets.length === 0) {
+      children.push({ navProperty, attrLogical: lk.LogicalName, targetLogical: null, child: { table: `${lk.LogicalName}->?`, action: 'blocked', blocked: true, classification: 'REJECTED_UNKNOWN_METADATA', reason: `no lookup target metadata for ${lk.LogicalName}`, children: [] } });
+      continue;
+    }
+    if (tg.targets.length > 1) {
+      children.push({ navProperty, attrLogical: lk.LogicalName, targetLogical: tg.targets.join('|'), child: { table: tg.targets.join('|'), action: 'blocked', blocked: true, classification: 'REJECTED_UNKNOWN_METADATA', reason: `polymorphic required lookup ${lk.LogicalName}; refusing to guess`, children: [] } });
+      continue;
+    }
+    const child = await resolveIdentityNode(ctx, tg.targets[0], depth + 1);
+    children.push({ navProperty, attrLogical: lk.LogicalName, targetLogical: tg.targets[0], child });
+  }
+
+  let action = 'blocked';
+  let id = null;
+  let classification = null;
+  let candidates = null;
+  let reason = null;
+  let blocked = false;
+
+  if (isCoreUser) {
+    const matchRes = await findAuditActorCoreUsers(ctx.upn, ctx.platformUser?.cr664_fullname, ctx.token, ctx.envUrl);
+    if (!matchRes.ok) { blocked = true; classification = 'REJECTED_UNKNOWN_METADATA'; reason = matchRes.error; }
+    else {
+      const active = matchRes.records.filter(auditActorCoreUserIsActive);
+      const distinct = [...new Set(active.map((r) => r.cr664_userid))];
+      if (distinct.length === 1) { action = 'reuse'; id = distinct[0]; classification = 'APPROVED'; }
+      else if (distinct.length > 1) { action = 'blocked'; blocked = true; classification = 'REJECTED_AMBIGUOUS'; reason = 'multiple matching cr664_user rows'; }
+      else action = 'create';
+    }
+  } else {
+    const listRes = await listReferenceRows(info, ctx.token, ctx.envUrl);
+    if (!listRes.ok) { blocked = true; classification = 'REJECTED_UNKNOWN_METADATA'; reason = listRes.error; }
+    else {
+      candidates = listRes.records.map((r) => classifyIdentityRow(r, info, policy));
+      const approved = candidates.filter((c) => c.classification === 'APPROVED');
+      if (approved.length === 1) { action = 'reuse'; id = approved[0].id; classification = 'APPROVED'; }
+      else if (approved.length > 1) {
+        const pinned = approved.find((c) => ctx.platformUserLookupValues.includes(c.id));
+        if (pinned) { action = 'reuse'; id = pinned.id; classification = 'APPROVED'; reason = 'disambiguated by the platform user\'s existing lookup'; }
+        else { action = 'blocked'; blocked = true; classification = 'REJECTED_AMBIGUOUS'; reason = `${approved.length} approved candidates`; }
+      } else action = 'create';
+    }
+  }
+
+  if (action === 'create') {
+    if (!policy && !isCoreUser) { blocked = true; classification = 'REJECTED_UNKNOWN_METADATA'; reason = 'no production-safe naming/seed policy for this table'; }
+    else if (fields.uncoveredScalars.length > 0) { blocked = true; classification = 'REJECTED_MISSING_REQUIRED_FIELD'; reason = `required field(s) not covered by allow-list: ${fields.uncoveredScalars.join(', ')}`; }
+    else {
+      for (const c of children) {
+        if (c.child && c.child.blocked) { blocked = true; reason = reason || `dependency ${c.child.table} is blocked`; }
+      }
+    }
+    if (blocked) action = 'blocked';
+  }
+
+  let payloadKeys = null;
+  let binds = null;
+  if (action === 'create') {
+    binds = children.map((c) => ({ nav: `${c.navProperty}@odata.bind`, targetEntitySet: c.child.entitySet || null, childTable: c.targetLogical }));
+    const scalarKeys = isCoreUser
+      ? [fields.nameField, fields.emailField, fields.activeField].filter(Boolean)
+      : [fields.nameField, fields.codeField, fields.activeField].filter(Boolean);
+    payloadKeys = [...scalarKeys, ...binds.map((b) => b.nav)];
+  }
+
+  const node = {
+    table: tableLogical,
+    label: policy?.label || (isCoreUser ? 'CoreUser' : tableLogical),
+    entitySet: info.entitySetName,
+    primaryId: info.primaryId,
+    primaryName: info.primaryName,
+    isCoreUser,
+    policy,
+    fields,
+    action,
+    id,
+    classification,
+    candidates,
+    reason,
+    blocked,
+    children,
+    payloadKeys,
+    binds,
+  };
+  ctx.cache.set(tableLogical, node);
+  return node;
+}
+
+function collectRelevantNodes(node, arr, seen) {
+  if (!node || !node.table || seen.has(node.table)) return;
+  seen.add(node.table);
+  arr.push(node);
+  if (node.action === 'create' || node.blocked) {
+    for (const c of node.children || []) collectRelevantNodes(c.child, arr, seen);
+  }
+}
+
+function collectCreateOrder(node, arr, seen) {
+  if (!node || node.action !== 'create' || node.blocked) return;
+  for (const c of node.children || []) collectCreateOrder(c.child, arr, seen);
+  if (!seen.has(node.table)) { seen.add(node.table); arr.push(node); }
+}
+
+// Build the whole plan: resolve the platform user, short-circuit if the bridge
+// is already valid, walk the cr664_user graph, and compute create order +
+// blockers. NEVER writes.
+async function buildIdentityAuditGraphPlan(upn, token, envUrl) {
+  const userRes = await findAuditActorPlatformUser(upn, token, envUrl);
+  if (!userRes.ok) return { ok: false, status: 'BLOCKED', platformUser: null, blockers: [`platform-user lookup failed: ${userRes.error}`] };
+  if (userRes.records.length === 0) return { ok: false, status: 'BLOCKED', platformUser: null, blockers: [`no cr664_platformusers row matches "${upn}"`] };
+  if (userRes.records.length > 1) return { ok: false, status: 'BLOCKED', platformUser: null, blockers: [`${userRes.records.length} cr664_platformusers rows match "${upn}"`] };
+  const pu = userRes.records[0];
+  if (!auditActorPlatformUserIsActive(pu)) return { ok: false, status: 'BLOCKED', platformUser: pu, blockers: ['platform user is inactive'] };
+
+  const coreVal = pu[AUDIT_ACTOR_COREUSER_VALUE_FIELD];
+  let alreadyReady = false;
+  if (typeof coreVal === 'string' && coreVal.trim().length > 0) {
+    const core = await readAuditActorCoreUserById(coreVal, token, envUrl);
+    if (core.ok && core.exists && auditActorCoreUserIsActive(core.record)) alreadyReady = true;
+    else if (core.ok && core.exists && !auditActorCoreUserIsActive(core.record)) {
+      return { ok: false, status: 'BLOCKED', platformUser: pu, blockers: ['existing cr664_CoreUser points at an INACTIVE cr664_user'] };
+    } else if (core.ok && !core.exists) {
+      return { ok: false, status: 'BLOCKED', platformUser: pu, blockers: ['existing cr664_CoreUser points at a MISSING cr664_user'] };
+    }
+  }
+
+  const ctx = {
+    token,
+    envUrl,
+    upn,
+    platformUser: pu,
+    cache: new Map(),
+    platformUserLookupValues: [pu._cr664_role_value, pu._cr664_primaryworkspace_value].filter(Boolean),
+  };
+  const root = await resolveIdentityNode(ctx, IDENTITY_COREUSER_LOGICAL, 0);
+  const relevant = [];
+  collectRelevantNodes(root, relevant, new Set());
+  const blockers = relevant
+    .filter((n) => n.blocked)
+    .map((n) => `${n.label} (${n.table}): ${n.classification}${n.reason ? ` — ${n.reason}` : ''}`);
+  const createOrder = [];
+  collectCreateOrder(root, createOrder, new Set());
+
+  const status = alreadyReady ? 'ALREADY_READY' : blockers.length ? 'BLOCKED' : 'READY_TO_COMMIT';
+  return {
+    ok: blockers.length === 0,
+    status,
+    alreadyReady,
+    platformUser: pu,
+    root,
+    relevant,
+    createOrder,
+    blockers,
+    coreUserBind: { nav: `${AUDIT_ACTOR_COREUSER_NAV}@odata.bind`, entitySet: AUDIT_ACTOR_CORE_USER_ENTITY_SET },
+  };
+}
+
+function renderIdentityNode(node, indent) {
+  const pad = '  '.repeat(indent);
+  const tag =
+    node.action === 'reuse'
+      ? `REUSE ${node.id}`
+      : node.action === 'create'
+        ? 'CREATE'
+        : `BLOCKED (${node.classification})`;
+  console.log(`${pad}- ${node.label} [${node.table}] : ${tag}${node.reason ? `  — ${node.reason}` : ''}`);
+  if (node.entitySet) console.log(`${pad}    entitySet=${node.entitySet}`);
+  if (node.fields) {
+    const sd = node.fields.serverDefaultedRequired ?? [];
+    if (sd.length) console.log(`${pad}    server-defaulted required: ${sd.join(', ')}`);
+  }
+  if (node.payloadKeys) console.log(`${pad}    payload keys: ${node.payloadKeys.join(', ')}`);
+  if (node.binds && node.binds.length) {
+    for (const b of node.binds) console.log(`${pad}    bind: ${b.nav} -> /${b.targetEntitySet}(<${b.childTable}>)`);
+  }
+  if (node.candidates && node.candidates.length) {
+    for (const c of node.candidates) console.log(`${pad}    candidate [${c.classification}] ${c.name || '(blank)'}  id=${c.id}`);
+  }
+  for (const c of node.children || []) renderIdentityNode(c.child, indent + 1);
+}
+
+// Section A — confirm the audit ChangedBy lookup target (read-only).
+async function printAuditChangedByTarget(token, envUrl) {
+  const tg = await getLookupTargetsForAttribute(
+    IDENTITY_AUDIT_TABLE_LOGICAL,
+    IDENTITY_AUDIT_CHANGEDBY_ATTR,
+    token,
+    envUrl,
+  );
+  if (tg.ok && Array.isArray(tg.targets)) {
+    const targetsCoreUser = tg.targets.includes(IDENTITY_COREUSER_LOGICAL);
+    console.log(
+      `A. cr664_auditevents.${IDENTITY_AUDIT_CHANGEDBY_ATTR} Targets[]: ${JSON.stringify(tg.targets)} ` +
+        `${targetsCoreUser ? '✓ targets cr664_user (bind /cr664_users(<id>))' : '⚠ does NOT target cr664_user'}`,
+    );
+  } else {
+    console.log(`A. cr664_auditevents.${IDENTITY_AUDIT_CHANGEDBY_ATTR}: could not read lookup target (${tg.error})`);
+  }
+}
+
+// === READ-ONLY: full identity/audit graph audit ===
+async function runInspectIdentityAuditGraph({ upn }, token, envUrl) {
+  console.log('');
+  console.log('IDENTITY AUDIT GRAPH — read-only inspection');
+  console.log(`   Actor: ${upn}`);
+  console.log('   GETs only; no create/patch/delete, no Loan Deal, no audit, no gate.');
+  console.log('');
+  await printAuditChangedByTarget(token, envUrl);
+  const plan = await buildIdentityAuditGraphPlan(upn, token, envUrl);
+  console.log('');
+  if (!plan.platformUser) {
+    console.log('B. PlatformUser: BLOCKED');
+    for (const b of plan.blockers) console.log(`     - ${b}`);
+    console.log('');
+    console.log('WRITES: 0');
+    console.log('GRAPH STATUS: BLOCKED');
+    return { ok: false };
+  }
+  console.log(`B. PlatformUser: cr664_platformuserid=${plan.platformUser.cr664_platformuserid} (active); CoreUser=${plan.platformUser[AUDIT_ACTOR_COREUSER_VALUE_FIELD] ?? '(empty)'}`);
+  console.log('');
+  if (plan.alreadyReady) {
+    console.log('   CoreUser already points at an active cr664_user — bridge already provisioned.');
+  } else if (plan.root) {
+    console.log('Dependency tree (C–G, recursive):');
+    renderIdentityNode(plan.root, 1);
+  }
+  console.log('');
+  if (plan.blockers && plan.blockers.length) {
+    console.log('Blockers:');
+    for (const b of plan.blockers) console.log(`   - ${b}`);
+  }
+  console.log('');
+  console.log('WRITES: 0');
+  console.log(`GRAPH STATUS: ${plan.alreadyReady ? 'READY' : plan.blockers.length ? 'BLOCKED' : 'PROVISIONABLE'}`);
+  return { ok: true, status: plan.status };
+}
+
+function printIdentityPlan(plan) {
+  console.log('');
+  console.log('IDENTITY AUDIT GRAPH PLAN');
+  console.log(`Actor: ${plan.platformUser ? plan.platformUser.cr664_email ?? '(no email)' : '(unresolved)'}`);
+  console.log('');
+  if (!plan.platformUser) {
+    for (const b of plan.blockers) console.log(`   BLOCKED: ${b}`);
+    console.log('');
+    console.log('WRITES: 0 in dry-run');
+    console.log('PLAN STATUS: BLOCKED');
+    return;
+  }
+  let step = 0;
+  console.log(`${++step}. PlatformUser`);
+  console.log('   status: reuse existing active row');
+  console.log(`   id: ${plan.platformUser.cr664_platformuserid}`);
+  if (plan.alreadyReady) {
+    console.log('');
+    console.log('   CoreUser already valid — nothing to provision.');
+    console.log('');
+    console.log('WRITES: 0 in dry-run');
+    console.log('PLAN STATUS: ALREADY_READY');
+    return;
+  }
+  // Dependency creates, in order.
+  for (const node of plan.createOrder) {
+    console.log('');
+    console.log(`${++step}. ${node.label}`);
+    console.log('   status: create');
+    console.log(`   payload keys: ${(node.payloadKeys || []).join(', ')}`);
+    if (node.binds && node.binds.length) {
+      console.log('   binds:');
+      for (const b of node.binds) console.log(`     ${b.nav} -> /${b.targetEntitySet}(<${b.childTable}>)`);
+    }
+  }
+  // CoreUser node (root) — reuse or create already counted above if create.
+  if (plan.root && plan.root.action === 'reuse') {
+    console.log('');
+    console.log(`${++step}. CoreUser`);
+    console.log(`   status: reuse existing active cr664_user`);
+    console.log(`   id: ${plan.root.id}`);
+  }
+  console.log('');
+  console.log(`${++step}. PlatformUser.CoreUser`);
+  console.log('   status: patch');
+  console.log(`   payload:`);
+  console.log(`     ${plan.coreUserBind.nav} -> /${plan.coreUserBind.entitySet}(${plan.root && plan.root.action === 'reuse' ? plan.root.id : '<new cr664_userid>'})`);
+  console.log('');
+  console.log('WRITES: 0 in dry-run');
+  console.log(`PLAN STATUS: ${plan.blockers.length ? 'BLOCKED' : 'READY_TO_COMMIT'}`);
+  if (plan.blockers.length) {
+    console.log('');
+    console.log('Blockers:');
+    for (const b of plan.blockers) console.log(`   - ${b}`);
+  }
+}
+
+// === DRY-RUN: full provisioning plan ===
+async function runPlanIdentityAuditProvisioning({ upn }, token, envUrl) {
+  const plan = await buildIdentityAuditGraphPlan(upn, token, envUrl);
+  printIdentityPlan(plan);
+  return { ok: plan.ok, status: plan.status };
+}
+
+// Build the real create body for a node at commit time using resolved ids.
+function buildIdentityCreateBody(node, ctx, idMap) {
+  const body = {};
+  if (node.isCoreUser) {
+    body[node.fields.nameField] = (ctx.platformUser?.cr664_fullname && ctx.platformUser.cr664_fullname.trim()) || ctx.upn;
+    if (node.fields.emailField) body[node.fields.emailField] = ctx.upn;
+    if (node.fields.activeField) body[node.fields.activeField] = true;
+  } else {
+    body[node.fields.nameField] = node.policy.seedName;
+    if (node.fields.codeField) body[node.fields.codeField] = node.policy.seedCode;
+    if (node.fields.activeField) body[node.fields.activeField] = true;
+  }
+  for (const b of node.binds || []) {
+    const childId = idMap.get(b.childTable);
+    if (!childId) return { ok: false, error: `missing resolved id for ${b.childTable}` };
+    body[b.nav] = `/${b.targetEntitySet}(${childId})`;
+  }
+  return { ok: true, body, allowedKeys: node.payloadKeys };
+}
+
+// === GUARDED COMMIT: execute the provisioning plan ===
+async function runProvisionIdentityAuditGraph({ upn, doCommit }, token, envUrl) {
+  const plan = await buildIdentityAuditGraphPlan(upn, token, envUrl);
+  printIdentityPlan(plan);
+
+  if (!doCommit) {
+    console.log('');
+    console.log('Dry-run only — no write issued. Re-run with `--commit-provision-identity-audit-graph` to execute a READY_TO_COMMIT plan.');
+    return { ok: plan.ok, status: plan.status, planned: true };
+  }
+
+  if (plan.alreadyReady) {
+    console.log('');
+    console.log('✓ Bridge already provisioned — no write needed.');
+    return { ok: true, status: 'ALREADY_READY' };
+  }
+  if (plan.status !== 'READY_TO_COMMIT') {
+    bail(
+      'Refusing to commit — plan is not READY_TO_COMMIT. Resolve every blocker above first ' +
+        '(create/activate production-safe rows or remove ambiguity). No write issued.',
+    );
+  }
+
+  console.log('');
+  console.log('Committing provisioning plan in dependency order …');
+  const ctx = { upn, platformUser: plan.platformUser };
+  const idMap = new Map();
+  // Seed reuse ids (so parents can bind to existing rows).
+  for (const n of plan.relevant) {
+    if (n.action === 'reuse' && n.id) idMap.set(n.table, n.id);
+  }
+  // Create missing dependency rows (children before parents).
+  for (const node of plan.createOrder) {
+    if (node.isCoreUser) continue; // cr664_user is created after its deps, below.
+    const built = buildIdentityCreateBody(node, ctx, idMap);
+    if (!built.ok) bail(`Could not build ${node.label} create body: ${built.error}`);
+    console.log(`   ⚙ POST ${node.entitySet} (${node.label}) body=${JSON.stringify(built.body)}`);
+    const res = await createDependencyRow(
+      { entitySetName: node.entitySet, primaryId: node.primaryId },
+      built.body,
+      built.allowedKeys,
+      token,
+      envUrl,
+    );
+    if (!res.ok) bail(`Create ${node.label} failed: ${res.error}`);
+    idMap.set(node.table, res.id);
+    console.log(`   ✓ ${node.entitySet}(${res.id})`);
+  }
+  // Create or reuse cr664_user.
+  let coreUserId;
+  if (plan.root.action === 'reuse') {
+    coreUserId = plan.root.id;
+    console.log(`   ✓ Reusing cr664_user(${coreUserId})`);
+  } else {
+    const built = buildIdentityCreateBody(plan.root, ctx, idMap);
+    if (!built.ok) bail(`Could not build cr664_user create body: ${built.error}`);
+    console.log(`   ⚙ POST ${plan.root.entitySet} (CoreUser) body=${JSON.stringify(built.body)}`);
+    const res = await createDependencyRow(
+      { entitySetName: plan.root.entitySet, primaryId: plan.root.primaryId },
+      built.body,
+      built.allowedKeys,
+      token,
+      envUrl,
+    );
+    if (!res.ok) bail(`Create cr664_user failed: ${res.error}`);
+    coreUserId = res.id;
+    console.log(`   ✓ ${plan.root.entitySet}(${coreUserId})`);
+  }
+  // Patch ONLY the platform user CoreUser bind.
+  console.log(`   ⚙ PATCH ${AUDIT_ACTOR_PLATFORM_USER_ENTITY_SET}(${plan.platformUser.cr664_platformuserid}) ${AUDIT_ACTOR_COREUSER_NAV}@odata.bind …`);
+  const patch = await patchPlatformUserCoreUser(plan.platformUser.cr664_platformuserid, coreUserId, token, envUrl);
+  if (!patch.ok) bail(`PATCH platform user CoreUser failed: ${patch.error}`);
+  console.log('   ✓ CoreUser bound.');
+
+  console.log('');
+  console.log('✓ Provisioning commit complete. Verify with:');
+  console.log(`  node scripts/phase122-lookup-repair.mjs --verify-identity-audit-graph --upn ${upn}`);
+  return { ok: true, coreUserId };
+}
+
+// === READ-ONLY: verify the provisioned bridge ===
+async function runVerifyIdentityAuditGraph({ upn }, token, envUrl) {
+  console.log('');
+  console.log('IDENTITY AUDIT GRAPH — verification (read-only)');
+  console.log(`   Actor: ${upn}`);
+  console.log('');
+  const checks = [];
+  const fail = (msg) => checks.push({ ok: false, msg });
+  const pass = (msg) => checks.push({ ok: true, msg });
+
+  const userRes = await findAuditActorPlatformUser(upn, token, envUrl);
+  if (!userRes.ok || userRes.records.length !== 1) {
+    fail(`PlatformUser: expected exactly one row (${userRes.ok ? userRes.records.length : userRes.error})`);
+    return printVerifyResult(checks);
+  }
+  const pu = userRes.records[0];
+  auditActorPlatformUserIsActive(pu) ? pass('PlatformUser active') : fail('PlatformUser inactive');
+  const coreVal = pu[AUDIT_ACTOR_COREUSER_VALUE_FIELD];
+  if (!(typeof coreVal === 'string' && coreVal.trim().length > 0)) {
+    fail('CoreUser populated: NO');
+    return printVerifyResult(checks);
+  }
+  pass('CoreUser populated');
+
+  // Read cr664_user active state.
+  const core = await readAuditActorCoreUserById(coreVal, token, envUrl);
+  if (!(core.ok && core.exists)) { fail('cr664_user: missing'); return printVerifyResult(checks); }
+  auditActorCoreUserIsActive(core.record) ? pass('cr664_user active') : fail('cr664_user inactive');
+
+  // Read the cr664_user's Role + PrimaryWorkspace lookup values, then classify.
+  const detailUrl =
+    `${envUrl}/api/data/v9.2/${AUDIT_ACTOR_CORE_USER_ENTITY_SET}(${coreVal})` +
+    `?$select=_cr664_primaryworkspace_value,_cr664_role_value`;
+  let pwVal = null;
+  let roleVal = null;
+  try {
+    const r = await fetch(detailUrl, { method: 'GET', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' } });
+    if (r.ok) { const j = await r.json(); pwVal = j._cr664_primaryworkspace_value ?? null; roleVal = j._cr664_role_value ?? null; }
+  } catch { /* reported via the unresolved branches below */ }
+
+  const roleInfo = await resolveCoreUserLookupTarget(COREUSER_ROLE_ATTR, token, envUrl);
+  if (roleInfo.ok && roleVal) {
+    const row = await readReferenceRowById(roleInfo, roleVal, token, envUrl);
+    if (row.ok && row.exists) {
+      const c = classifyIdentityRow(row.record, roleInfo, IDENTITY_NODE_POLICY[roleInfo.targetLogical] ?? null);
+      c.classification === 'APPROVED' ? pass(`Role active and approved (${c.name})`) : fail(`Role not approved: ${c.classification} (${c.name})`);
+    } else fail('Role row missing');
+  } else fail('Role: unresolved');
+
+  const pwInfo = await resolveCoreUserLookupTarget(COREUSER_PW_ATTR, token, envUrl);
+  if (pwInfo.ok && pwVal) {
+    const row = await readReferenceRowById(pwInfo, pwVal, token, envUrl);
+    if (row.ok && row.exists) {
+      const c = classifyIdentityRow(row.record, pwInfo, IDENTITY_NODE_POLICY[pwInfo.targetLogical] ?? null);
+      c.classification === 'APPROVED' ? pass(`PrimaryWorkspace active and approved (${c.name})`) : fail(`PrimaryWorkspace not approved: ${c.classification} (${c.name})`);
+    } else fail('PrimaryWorkspace row missing');
+  } else fail('PrimaryWorkspace: unresolved');
+
+  return printVerifyResult(checks);
+}
+
+function printVerifyResult(checks) {
+  for (const c of checks) console.log(`   ${c.ok ? '✓' : '✗'} ${c.msg}`);
+  const ready = checks.every((c) => c.ok);
+  console.log('');
+  console.log(`GRAPH STATUS: ${ready ? 'READY' : 'BLOCKED'}`);
+  if (ready) {
+    console.log('Audit can bind cr664_ChangedBy = /cr664_users(<CoreUser>). You may run exactly one final proof.');
+  }
+  return { ok: ready };
+}
+
+// ---------------------------------------------------------------------------
 // Audit phase — publishers + tables + columns
 // ---------------------------------------------------------------------------
 
@@ -11317,6 +12025,28 @@ async function main() {
     return;
   }
 
+  // === SPEC -- canonical identity/audit graph: inspect / plan / provision / verify ===
+  if (FLAGS.inspectIdentityAuditGraph) {
+    await runInspectIdentityAuditGraph({ upn: FLAGS.seedUpn }, mainToken, mainEnvUrl);
+    return;
+  }
+  if (FLAGS.planIdentityAuditProvisioning) {
+    await runPlanIdentityAuditProvisioning({ upn: FLAGS.seedUpn }, mainToken, mainEnvUrl);
+    return;
+  }
+  if (FLAGS.provisionIdentityAuditGraph) {
+    await runProvisionIdentityAuditGraph(
+      { upn: FLAGS.seedUpn, doCommit: FLAGS.commitProvisionIdentityAuditGraph },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+  if (FLAGS.verifyIdentityAuditGraph) {
+    await runVerifyIdentityAuditGraph({ upn: FLAGS.seedUpn }, mainToken, mainEnvUrl);
+    return;
+  }
+
   // === Phase 170H-A -- read-only Platform Workspace listing ===
   if (FLAGS.listPlatformWorkspaces) {
     await runListPlatformWorkspaces(mainToken, mainEnvUrl);
@@ -11689,6 +12419,10 @@ Usage:
   node scripts/phase122-lookup-repair.mjs --inspect-coreuser-dependency-seeds --upn <email>     # read-only: inspect/classify the cr664_user dependency target rows
   node scripts/phase122-lookup-repair.mjs --seed-coreuser-dependencies --upn <email>            # dry-run: plan production-safe PrimaryWorkspace + Banker Role rows
   node scripts/phase122-lookup-repair.mjs --seed-coreuser-dependencies --upn <email> --commit-seed-coreuser-dependencies  # create the missing dependency rows
+  node scripts/phase122-lookup-repair.mjs --inspect-identity-audit-graph --upn <email>          # CANONICAL read-only: full audit-actor identity dependency graph
+  node scripts/phase122-lookup-repair.mjs --plan-identity-audit-provisioning --upn <email>       # CANONICAL dry-run: single dependency-ordered provisioning plan
+  node scripts/phase122-lookup-repair.mjs --provision-identity-audit-graph --upn <email> --commit-provision-identity-audit-graph  # CANONICAL commit
+  node scripts/phase122-lookup-repair.mjs --verify-identity-audit-graph --upn <email>            # CANONICAL read-only: GRAPH STATUS: READY|BLOCKED
   node scripts/phase122-lookup-repair.mjs --commit                                              # execute writes after every safety gate passes
   node scripts/phase122-lookup-repair.mjs --help
 
@@ -11976,6 +12710,41 @@ Modes:
       PlatformUser.CoreUser, NEVER creates a cr664_user (run
       --seed-coreuser-for-platform-user afterwards), NEVER mutates an existing
       row, Loan Deal, audit, or gate.
+
+  --inspect-identity-audit-graph --upn <email>
+      SPEC (CANONICAL) — read-only walk of the ENTIRE audit-actor identity
+      dependency graph. Confirms cr664_auditevents.cr664_ChangedBy targets
+      cr664_user, resolves the platform user, then recursively maps
+      cr664_user -> {cr664_primaryworkspace -> workspace-type ->
+      workspace-context, cr664_role -> user-role} via Dataverse metadata
+      (entity sets, required-for-create fields, nav property names, lookup
+      targets), classifying every candidate row (APPROVED / REJECTED_TEST /
+      REJECTED_PHASE / REJECTED_DEMO / REJECTED_SAMPLE / REJECTED_INACTIVE /
+      REJECTED_ADMIN_ONLY / REJECTED_AMBIGUOUS / REJECTED_UNSUPPORTED /
+      REJECTED_MISSING_REQUIRED_FIELD / REJECTED_UNKNOWN_METADATA). Pure GETs.
+      This is the canonical replacement for the piecemeal
+      --inspect-coreuser-* / --inspect-audit-actor-bridge modes.
+
+  --plan-identity-audit-provisioning --upn <email>
+      SPEC (CANONICAL) — the same walk rendered as ONE dependency-ordered
+      provisioning plan: reuse existing production-safe rows, create the exact
+      missing rows (with payload keys + binds), or stop with a precise
+      no-write blocker. Prints "WRITES: 0 in dry-run" and
+      "PLAN STATUS: READY_TO_COMMIT | BLOCKED | ALREADY_READY". Never writes.
+
+  --provision-identity-audit-graph --upn <email> [--commit-provision-identity-audit-graph]
+      SPEC (CANONICAL) — execute the plan. Dry-run by default (identical to
+      --plan-...). With the commit flag AND a READY_TO_COMMIT plan, creates the
+      missing dependency rows in dependency-safe order (each payload allow-listed
+      per table), creates cr664_user with its PrimaryWorkspace + Role binds, then
+      PATCHes ONLY cr664_platformuser.cr664_CoreUser. Refuses to commit a BLOCKED
+      plan. NEVER creates a Loan Deal, writes audit, or enables a gate.
+
+  --verify-identity-audit-graph --upn <email>
+      SPEC (CANONICAL) — read-only verification: PlatformUser active, CoreUser
+      populated, cr664_user active, Role active+approved, PrimaryWorkspace
+      active+approved (+ WorkspaceContext if required). Prints
+      "GRAPH STATUS: READY | BLOCKED". Run before the one final New Deal proof.
 
   --commit
       Run the plan against the live env. Refuses to run unless every

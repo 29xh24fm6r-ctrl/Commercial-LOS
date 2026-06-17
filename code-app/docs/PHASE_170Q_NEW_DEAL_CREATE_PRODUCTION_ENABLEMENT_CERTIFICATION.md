@@ -95,6 +95,14 @@ IO and no Dataverse record was created, patched, or deleted.
    in-app (a created deal would be corrected by an authorized manual delete /
    maker-portal action; a governed super-user correction surface is a future
    phase).
+6. **Audit actor identity graph not provisioned.** `cr664_auditevents.cr664_ChangedBy`
+   is a required lookup to `cr664_user`, and the acting banker's
+   `cr664_platformuser.cr664_CoreUser` is empty, so audit fails closed
+   (`audit_failed_partial`). Resolve via the canonical
+   [identity / audit graph provisioning](./PHASE_186_IDENTITY_AUDIT_GRAPH_CANONICAL_PROVISIONING.md)
+   (`--inspect-identity-audit-graph` → `--plan-…` → `--provision-…
+   --commit-…` → `--verify-identity-audit-graph` must report
+   `GRAPH STATUS: READY`) before the one final live create+audit proof.
 
 ## Recommendation
 
