@@ -17,18 +17,25 @@ const SCRIPT = readFileSync(
   'utf8',
 );
 
+/** This section ends where the follow-up CoreUser DEPENDENCY seed begins (it
+ *  has its own contract test), falling back to the audit-phase marker. */
+const NEXT_SECTION = '// BUGFIX — CoreUser DEPENDENCY seed.';
+const AUDIT_PHASE = '// Audit phase — publishers + tables + columns';
+function sectionEnd(start: number): number {
+  const next = SCRIPT.indexOf(NEXT_SECTION, start);
+  return next !== -1 ? next : SCRIPT.indexOf(AUDIT_PHASE, start);
+}
+
 /** Slice the CoreUser required-lookup seed section. */
 const SECTION_START = SCRIPT.indexOf('// BUGFIX — CoreUser required-lookup seed.');
-const SECTION_END = SCRIPT.indexOf('// Audit phase — publishers + tables + columns', SECTION_START);
-const SECTION = SCRIPT.slice(SECTION_START, SECTION_END);
+const SECTION = SCRIPT.slice(SECTION_START, sectionEnd(SECTION_START));
 
 const INSPECT_START = SCRIPT.indexOf('async function runInspectCoreUserCreateDependencies');
 const INSPECT_END = SCRIPT.indexOf('async function runSeedCoreUserForPlatformUser');
 const INSPECT = SCRIPT.slice(INSPECT_START, INSPECT_END);
 
 const SEED_START = SCRIPT.indexOf('async function runSeedCoreUserForPlatformUser');
-const SEED_END = SCRIPT.indexOf('// Audit phase — publishers + tables + columns', SEED_START);
-const SEED = SCRIPT.slice(SEED_START, SEED_END);
+const SEED = SCRIPT.slice(SEED_START, sectionEnd(SEED_START));
 
 describe('flags & dry-run default', () => {
   it('defines the three new flags', () => {

@@ -415,6 +415,14 @@ function parseArgs(argv) {
     inspectCoreUserCreateDependencies: false,
     seedCoreUserForPlatformUser: false,
     commitSeedCoreUserForPlatformUser: false,
+    // BUGFIX — CoreUser DEPENDENCY seed (production-safe PrimaryWorkspace +
+    // Banker Role rows in the cr664_user lookup target tables). inspect is
+    // READ-ONLY. seed is dry-run by default; row creates require
+    // --commit-seed-coreuser-dependencies. Never patches CoreUser, never
+    // creates a cr664_user.
+    inspectCoreUserDependencySeeds: false,
+    seedCoreUserDependencies: false,
+    commitSeedCoreUserDependencies: false,
     // Phase 170H-A — Platform Workspace listing + seed (workspace row only).
     listPlatformWorkspaces: false,
     seedPlatformWorkspace: false,
@@ -822,6 +830,23 @@ function parseArgs(argv) {
       flags.dryRun = false;
     } else if (arg === '--commit-seed-coreuser-for-platform-user') {
       flags.commitSeedCoreUserForPlatformUser = true;
+    } else if (arg === '--inspect-coreuser-dependency-seeds') {
+      // BUGFIX (CoreUser dependency seed) — READ-ONLY inspection of the
+      // cr664_user required-lookup TARGET tables (cr664_primaryworkspace ->
+      // workspace-type, cr664_role -> user-role): their entity sets, required-
+      // for-create fields, and the CLASSIFIED existing rows. Pure GETs.
+      flags.inspectCoreUserDependencySeeds = true;
+      flags.dryRun = false;
+    } else if (arg === '--seed-coreuser-dependencies') {
+      // BUGFIX (CoreUser dependency seed) — guarded reuse/create of the
+      // production-safe PrimaryWorkspace + Banker Role rows the cr664_user
+      // create needs. Dry-run by default; writes require
+      // --commit-seed-coreuser-dependencies. NEVER patches PlatformUser.CoreUser
+      // and NEVER creates a cr664_user (left to --seed-coreuser-for-platform-user).
+      flags.seedCoreUserDependencies = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-coreuser-dependencies') {
+      flags.commitSeedCoreUserDependencies = true;
     } else if (arg === '--list-platform-workspaces') {
       // Phase 170H-A — read-only listing of cr664_platformworkspace rows
       // (id + name). Pure GET; never writes.
@@ -964,6 +989,8 @@ function parseArgs(argv) {
     flags.seedAuditActorBridge,
     flags.inspectCoreUserCreateDependencies,
     flags.seedCoreUserForPlatformUser,
+    flags.inspectCoreUserDependencySeeds,
+    flags.seedCoreUserDependencies,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -1023,6 +1050,16 @@ function parseArgs(argv) {
   ) {
     bailParseArgs(
       '--commit-seed-coreuser-for-platform-user has no effect without --seed-coreuser-for-platform-user.',
+    );
+  }
+  // BUGFIX — the CoreUser dependency seed commit flag only authorizes a write
+  // alongside its seed mode; on its own (or with inspect) it must fail.
+  if (
+    flags.commitSeedCoreUserDependencies &&
+    !flags.seedCoreUserDependencies
+  ) {
+    bailParseArgs(
+      '--commit-seed-coreuser-dependencies has no effect without --seed-coreuser-dependencies.',
     );
   }
   // Phase 170H-A — the platform-workspace seed commit flag only authorizes
@@ -1224,7 +1261,9 @@ function parseArgs(argv) {
     flags.inspectAuditActorBridge ||
     flags.seedAuditActorBridge ||
     flags.inspectCoreUserCreateDependencies ||
-    flags.seedCoreUserForPlatformUser
+    flags.seedCoreUserForPlatformUser ||
+    flags.inspectCoreUserDependencySeeds ||
+    flags.seedCoreUserDependencies
   ) {
     // BUGFIX — the audit-actor-bridge + CoreUser-seed modes require ONLY --upn.
     // The workspace/deal/team seed inputs may not ride along, so they cannot
@@ -1235,7 +1274,11 @@ function parseArgs(argv) {
         ? '--seed-audit-actor-bridge'
         : flags.inspectCoreUserCreateDependencies
           ? '--inspect-coreuser-create-dependencies'
-          : '--seed-coreuser-for-platform-user';
+          : flags.seedCoreUserForPlatformUser
+            ? '--seed-coreuser-for-platform-user'
+            : flags.inspectCoreUserDependencySeeds
+              ? '--inspect-coreuser-dependency-seeds'
+              : '--seed-coreuser-dependencies';
     if (!flags.seedUpn) {
       bailParseArgs(`${mode} requires --upn <email>`);
     }
@@ -1250,7 +1293,7 @@ function parseArgs(argv) {
     }
   } else {
     if (flags.seedUpn) {
-      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace or --seed-primary-workspace or --inspect-audit-actor-bridge or --seed-audit-actor-bridge or --inspect-coreuser-create-dependencies or --seed-coreuser-for-platform-user');
+      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace or --seed-primary-workspace or --inspect-audit-actor-bridge or --seed-audit-actor-bridge or --inspect-coreuser-create-dependencies or --seed-coreuser-for-platform-user or --inspect-coreuser-dependency-seeds or --seed-coreuser-dependencies');
     }
     if (flags.seedTeamName) {
       bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
@@ -5600,6 +5643,7 @@ async function resolveCoreUserLookupTarget(attrLogical, token, envUrl) {
     entitySetName: tmeta.table.EntitySetName,
     primaryId: tmeta.table.PrimaryIdAttribute,
     primaryName: tmeta.table.PrimaryNameAttribute,
+    attributes: Array.isArray(tmeta.table.Attributes) ? tmeta.table.Attributes : [],
   };
 }
 
@@ -6078,6 +6122,372 @@ async function runSeedCoreUserForPlatformUser({ upn, doCommit }, token, envUrl) 
   console.log('✓ Seed commit complete. Re-run --inspect-audit-actor-bridge to confirm BRIDGE STATUS: READY,');
   console.log('  then run exactly one final banker create proof.');
   return { ok: true, coreUserId: selectedCoreUserId, created: Boolean(createBody) };
+}
+
+// ---------------------------------------------------------------------------
+// BUGFIX — CoreUser DEPENDENCY seed.
+//
+// The cr664_user create needs two REQUIRED lookups whose TARGET tables had no
+// production-safe rows: cr664_primaryworkspace -> (workspace-type) and
+// cr664_role -> (user-role). These modes inspect those target tables and
+// (guardedly) reuse or create exactly ONE production-safe row each, so the
+// existing --seed-coreuser-for-platform-user mode can then create the cr664_user.
+//
+// Hard non-goals (enforced): never patch PlatformUser.CoreUser, never create a
+// cr664_user, never touch a Loan Deal / audit / gate, never mutate an existing
+// row (System Super Admin, TEST/PHASE rows, etc.), never create a duplicate.
+// Dry-run by default; row creates require --commit-seed-coreuser-dependencies.
+// ---------------------------------------------------------------------------
+
+const DEP_SEED_CODE_FIELD = 'cr664_code';
+const DEP_SEED_ACTIVE_FIELD_CANDIDATES = Object.freeze([
+  'cr664_activeflag',
+  'cr664_active',
+  'cr664_isactive',
+  'cr664_activestatus',
+]);
+const DEP_APPROVED_WORKSPACE_NAMES = Object.freeze([
+  'banker workspace',
+  'banker',
+  'commercial lending',
+  'commercial lending los',
+  'lending os',
+]);
+const DEP_APPROVED_ROLE_NAMES = Object.freeze([
+  'banker',
+  'commercial banker',
+  'lending banker',
+  'relationship manager',
+]);
+const DEP_WORKSPACE_SEED_NAME = 'Banker Workspace';
+const DEP_WORKSPACE_SEED_CODE = 'BANKER_WORKSPACE';
+const DEP_ROLE_SEED_NAME = 'Banker';
+const DEP_ROLE_SEED_CODE = 'BANKER';
+
+// Classify one dependency-target row into one of the 6 row-level tokens (the
+// 7th, REJECTED_AMBIGUOUS, is a selection-level outcome).
+function classifyDependencyRow(row, info, approvedNames) {
+  const id = row[info.primaryId];
+  const name = String(row[info.primaryName] ?? '');
+  const lower = name.trim().toLowerCase();
+  const active = row.statecode === undefined || row.statecode === 0;
+  let classification;
+  if (!active) {
+    classification = 'REJECTED_INACTIVE';
+  } else if (/\bphase\b/.test(lower) || /phase\s*\d+/.test(lower) || lower.startsWith('phase')) {
+    classification = 'REJECTED_PHASE';
+  } else if (/\btest\b/.test(lower)) {
+    classification = 'REJECTED_TEST';
+  } else if (/\b(demo|sample)\b/.test(lower)) {
+    classification = 'REJECTED_DEMO';
+  } else if (!approvedNames.includes(lower)) {
+    classification = 'REJECTED_UNSUPPORTED';
+  } else {
+    classification = 'APPROVED';
+  }
+  return { id, name, active, classification };
+}
+
+// Detect the createable scalar fields on a dependency-target table (name +
+// optional code + optional active) and any required-for-create field the seed
+// does NOT know how to fill. Returns { ok, nameField, codeField, activeField,
+// allowedKeys, blocking }.
+function detectDependencyCreateFields(info) {
+  const attrs = Array.isArray(info.attributes) ? info.attributes : [];
+  const byLower = new Map(
+    attrs
+      .filter((a) => typeof a.LogicalName === 'string')
+      .map((a) => [a.LogicalName.toLowerCase(), a]),
+  );
+  const nameField = info.primaryName;
+  const codeAttr = byLower.get(DEP_SEED_CODE_FIELD);
+  const codeField = codeAttr ? codeAttr.LogicalName : null;
+  let activeField = null;
+  for (const cand of DEP_SEED_ACTIVE_FIELD_CANDIDATES) {
+    const a = byLower.get(cand);
+    if (a && a.AttributeType === 'Boolean') {
+      activeField = a.LogicalName;
+      break;
+    }
+  }
+  const allowedKeys = [nameField, codeField, activeField].filter(Boolean);
+  const required = attrs.filter((a) => {
+    if (!a.IsValidForCreate) return false;
+    const lvl = a.RequiredLevel?.Value ?? 'None';
+    return lvl === 'SystemRequired' || lvl === 'ApplicationRequired';
+  });
+  const blocking = required
+    .map((a) => a.LogicalName)
+    .filter(
+      (ln) =>
+        !allowedKeys.includes(ln) &&
+        !AUDIT_ACTOR_CORE_USER_AUTODEFAULTED.includes(ln) &&
+        ln !== info.primaryId,
+    );
+  return { ok: true, nameField, codeField, activeField, allowedKeys, blocking };
+}
+
+// Build the create body + allow-list for one dependency row. Returns
+// { ok:false, blocking } when metadata requires a field the seed cannot fill.
+function buildDependencyCreatePlan(info, seedName, seedCode) {
+  const fields = detectDependencyCreateFields(info);
+  if (fields.blocking.length > 0) {
+    return { ok: false, blocking: fields.blocking };
+  }
+  const body = { [fields.nameField]: seedName };
+  if (fields.codeField) body[fields.codeField] = seedCode;
+  if (fields.activeField) body[fields.activeField] = true;
+  return { ok: true, body, allowedKeys: Object.keys(body), fields };
+}
+
+// POST one dependency row. body keys must be a subset of allowedKeys.
+async function createDependencyRow(info, body, allowedKeys, token, envUrl) {
+  const stray = Object.keys(body).filter((k) => !allowedKeys.includes(k));
+  if (stray.length > 0) {
+    return { ok: false, error: `refusing to create ${info.entitySetName} row — disallowed field(s): ${stray.join(', ')}` };
+  }
+  const url = `${envUrl}/api/data/v9.2/${info.entitySetName}`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `POST ${info.entitySetName} → ${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    const id = json[info.primaryId];
+    if (!id) return { ok: false, error: `POST succeeded but response is missing ${info.primaryId}` };
+    return { ok: true, id, record: json };
+  } catch (err) {
+    return { ok: false, error: `POST network error: ${err.message}` };
+  }
+}
+
+// Reuse-or-plan one dependency row. Reuses the single APPROVED row; fails closed
+// on multiple (REJECTED_AMBIGUOUS); plans a create when none is approved.
+async function selectOrPlanDependency({ info, approvedNames, seedName, seedCode }, token, envUrl) {
+  const list = await listReferenceRows(info, token, envUrl);
+  if (!list.ok) return { ok: false, error: `could not list ${info.entitySetName}: ${list.error}` };
+  const classified = list.records.map((r) => classifyDependencyRow(r, info, approvedNames));
+  const approved = classified.filter((c) => c.classification === 'APPROVED');
+  if (approved.length === 1) {
+    return { ok: true, action: 'reuse', id: approved[0].id, name: approved[0].name, classified };
+  }
+  if (approved.length > 1) {
+    return { ok: false, classified, reason: `REJECTED_AMBIGUOUS (${approved.length} approved candidates)` };
+  }
+  const plan = buildDependencyCreatePlan(info, seedName, seedCode);
+  if (!plan.ok) {
+    return { ok: false, classified, blocking: plan.blocking, reason: 'required-for-create fields unknown' };
+  }
+  return { ok: true, action: 'create', body: plan.body, allowedKeys: plan.allowedKeys, classified };
+}
+
+function printDependencyClassification(label, classified) {
+  console.log(`     ${label} rows (${classified.length}):`);
+  if (classified.length === 0) {
+    console.log('       (none)');
+    return;
+  }
+  for (const c of classified) {
+    console.log(`       - [${c.classification}] ${c.name || '(no name)'}  id=${c.id}`);
+  }
+}
+
+// === READ-ONLY: inspect the cr664_user dependency target tables ===
+async function runInspectCoreUserDependencySeeds({ upn }, token, envUrl) {
+  console.log('');
+  console.log('BUGFIX — cr664_user dependency-target inspection (read-only)');
+  console.log(`   UPN:   ${upn}`);
+  console.log('   GETs only; no create/patch/delete, no CoreUser patch, no cr664_user, no Loan Deal, no audit, no gate.');
+  console.log('');
+
+  // 1. Resolve exactly one active platform user (fail closed otherwise).
+  const userRes = await findAuditActorPlatformUser(upn, token, envUrl);
+  if (!userRes.ok) bail(`Could not resolve platform user by upn "${upn}": ${userRes.error}`);
+  if (userRes.records.length === 0) bail(`No cr664_platformusers row matches "${upn}". Fail closed.`);
+  if (userRes.records.length > 1) bail(`${userRes.records.length} cr664_platformusers rows match "${upn}". Fail closed.`);
+  const pu = userRes.records[0];
+  if (!auditActorPlatformUserIsActive(pu)) bail('Platform user is inactive. Fail closed.');
+  console.log(`   ✓ Platform user: cr664_platformuserid=${pu.cr664_platformuserid} (active)`);
+
+  // 2. cr664_user required-for-create fields.
+  const reqs = await getAuditActorCoreUserCreateRequirements(token, envUrl);
+  if (reqs.ok) {
+    console.log('');
+    console.log(`   cr664_user EntitySetName: ${reqs.entitySetName}`);
+    console.log(
+      `   REQUIRED FOR CREATE (${reqs.required.length}): ` +
+        (reqs.required.length === 0
+          ? '(none)'
+          : reqs.required.map((r) => `${r.logicalName}[${r.type}/${r.level}]`).join(', ')),
+    );
+  } else {
+    console.log(`   ⚠ could not read cr664_user metadata: ${reqs.error}`);
+  }
+
+  // 3. Each dependency target: lookup target + entity set + classified rows.
+  for (const dep of [
+    { attr: COREUSER_PW_ATTR, label: 'PrimaryWorkspace', approved: DEP_APPROVED_WORKSPACE_NAMES, seedName: DEP_WORKSPACE_SEED_NAME, seedCode: DEP_WORKSPACE_SEED_CODE },
+    { attr: COREUSER_ROLE_ATTR, label: 'Role', approved: DEP_APPROVED_ROLE_NAMES, seedName: DEP_ROLE_SEED_NAME, seedCode: DEP_ROLE_SEED_CODE },
+  ]) {
+    console.log('');
+    const info = await resolveCoreUserLookupTarget(dep.attr, token, envUrl);
+    if (!info.ok) {
+      console.log(`   ⚠ could not resolve cr664_user.${dep.attr}: ${info.error}`);
+      continue;
+    }
+    console.log(
+      `   cr664_user.${info.navProperty} -> ${info.targetLogical} (entitySet=${info.entitySetName})`,
+    );
+    const fields = detectDependencyCreateFields(info);
+    console.log(
+      `     create fields: name=${fields.nameField}` +
+        `${fields.codeField ? `, code=${fields.codeField}` : ', code=(none)'}` +
+        `${fields.activeField ? `, active=${fields.activeField}` : ', active=(none)'}`,
+    );
+    if (fields.blocking.length > 0) {
+      console.log(`     ⚠ blocking required-for-create field(s): ${fields.blocking.join(', ')} — create not possible until known`);
+    }
+    const sel = await selectOrPlanDependency(
+      { info, approvedNames: dep.approved, seedName: dep.seedName, seedCode: dep.seedCode },
+      token,
+      envUrl,
+    );
+    if (sel.classified) printDependencyClassification(dep.label, sel.classified);
+    if (sel.ok && sel.action === 'reuse') {
+      console.log(`     ✓ would REUSE existing approved ${dep.label}: ${sel.name} (${sel.id})`);
+    } else if (sel.ok && sel.action === 'create') {
+      console.log(`     ✓ would CREATE one ${dep.label}: ${JSON.stringify(sel.body)}`);
+    } else {
+      console.log(`     ✗ ${dep.label} BLOCKED: ${sel.reason ?? sel.error}`);
+      if (sel.blocking) console.log(`        required fields: ${sel.blocking.join(', ')}`);
+    }
+  }
+
+  console.log('');
+  console.log('   (read-only; nothing written)');
+  return { ok: true, platformUserId: pu.cr664_platformuserid };
+}
+
+// === GUARDED: reuse/create the cr664_user dependency rows ===
+async function runSeedCoreUserDependencies({ upn, doCommit }, token, envUrl) {
+  console.log('');
+  console.log('BUGFIX — cr664_user dependency seed (PrimaryWorkspace + Banker Role)');
+  console.log(`   UPN:    ${upn}`);
+  console.log(
+    `   Mode:   ${
+      doCommit
+        ? 'COMMIT-SEED-COREUSER-DEPENDENCIES (may POST up to two dependency rows)'
+        : 'dry-run (no write)'
+    }`,
+  );
+  console.log(
+    '   Scope:  reuses/creates ONLY production-safe dependency rows. NEVER patches ' +
+      'CoreUser, NEVER creates a cr664_user, NEVER mutates an existing row, Loan ' +
+      'Deal, audit, or gate.',
+  );
+  console.log('');
+
+  // 1. Resolve exactly one active platform user (fail closed otherwise).
+  const userRes = await findAuditActorPlatformUser(upn, token, envUrl);
+  if (!userRes.ok) bail(`Could not resolve platform user by upn "${upn}": ${userRes.error}`);
+  if (userRes.records.length === 0) bail(`No cr664_platformusers row matches "${upn}". Fail closed.`);
+  if (userRes.records.length > 1) bail(`${userRes.records.length} cr664_platformusers rows match "${upn}". Fail closed.`);
+  const pu = userRes.records[0];
+  if (!auditActorPlatformUserIsActive(pu)) bail('Platform user is inactive. Fail closed.');
+  console.log(`   ✓ Platform user: cr664_platformuserid=${pu.cr664_platformuserid} (active)`);
+
+  // 2. Resolve + plan each dependency. Fail closed (with operator instructions)
+  //    on multiple approved rows or unknown required fields.
+  const deps = [
+    { attr: COREUSER_PW_ATTR, label: 'PrimaryWorkspace', approved: DEP_APPROVED_WORKSPACE_NAMES, seedName: DEP_WORKSPACE_SEED_NAME, seedCode: DEP_WORKSPACE_SEED_CODE },
+    { attr: COREUSER_ROLE_ATTR, label: 'Role', approved: DEP_APPROVED_ROLE_NAMES, seedName: DEP_ROLE_SEED_NAME, seedCode: DEP_ROLE_SEED_CODE },
+  ];
+  const planned = [];
+  for (const dep of deps) {
+    const info = await resolveCoreUserLookupTarget(dep.attr, token, envUrl);
+    if (!info.ok) bail(`Could not resolve cr664_user.${dep.attr}: ${info.error}. Fail closed.`);
+    const sel = await selectOrPlanDependency(
+      { info, approvedNames: dep.approved, seedName: dep.seedName, seedCode: dep.seedCode },
+      token,
+      envUrl,
+    );
+    if (!sel.ok) {
+      if (sel.classified) printDependencyClassification(dep.label, sel.classified);
+      if (sel.blocking) {
+        bail(
+          `Cannot seed ${dep.label}: required-for-create field(s) unknown — ` +
+            `${sel.blocking.join(', ')}. Fail closed — NOT guessing.\n` +
+            `   Operator action: create one production-safe ${dep.label} row in the ` +
+            'maker portal supplying those fields, then re-run.',
+        );
+      }
+      bail(
+        `Cannot seed ${dep.label}: ${sel.reason ?? sel.error}. Fail closed.\n` +
+          `   Operator action: ensure EXACTLY ONE active production-safe ${dep.label} ` +
+          'row exists (remove ambiguity), then re-run.',
+      );
+    }
+    if (sel.action === 'reuse') {
+      console.log(`   ✓ ${dep.label}: reuse existing approved row ${sel.name} (${sel.id})`);
+    } else {
+      console.log(`   ✓ ${dep.label}: will create ${JSON.stringify(sel.body)}`);
+    }
+    planned.push({ dep, info, sel });
+  }
+
+  // 3. Plan summary.
+  console.log('');
+  console.log('   Planned action(s):');
+  let stepNo = 0;
+  for (const { dep, info, sel } of planned) {
+    if (sel.action === 'create') {
+      stepNo += 1;
+      console.log(`     [${stepNo}] POST /api/data/v9.2/${info.entitySetName}`);
+      console.log(`         body: ${JSON.stringify(sel.body)}`);
+      console.log('         POST sets ONLY allow-listed fields.');
+    } else {
+      console.log(`     (—) ${dep.label}: reuse ${info.entitySetName}(${sel.id}); no write.`);
+    }
+  }
+  console.log('   No PlatformUser.CoreUser patch and no cr664_user create in this mode.');
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no write issued.');
+    console.log('   Re-run with `--commit-seed-coreuser-dependencies` to create the missing rows,');
+    console.log('   then run `--seed-coreuser-for-platform-user` to create the cr664_user + bind CoreUser.');
+    return { ok: true, planned: true };
+  }
+
+  // 4. Commit — POST only the dependency rows that need creating.
+  const created = {};
+  for (const { dep, info, sel } of planned) {
+    if (sel.action !== 'create') continue;
+    console.log('');
+    console.log(`   ⚙ POST ${info.entitySetName} (${dep.label}) …`);
+    const res = await createDependencyRow(info, sel.body, sel.allowedKeys, token, envUrl);
+    if (!res.ok) bail(`Create ${dep.label} failed: ${res.error}`);
+    console.log(`   ✓ Created ${info.entitySetName}(${res.id})`);
+    created[dep.label] = res.id;
+  }
+
+  console.log('');
+  console.log('✓ Dependency seed commit complete. Next:');
+  console.log('  node scripts/phase122-lookup-repair.mjs --seed-coreuser-for-platform-user --upn ' + upn);
+  console.log('  (dry-run first; then --commit-seed-coreuser-for-platform-user), then --inspect-audit-actor-bridge.');
+  return { ok: true, created };
 }
 
 // ---------------------------------------------------------------------------
@@ -10884,6 +11294,29 @@ async function main() {
     return;
   }
 
+  // === BUGFIX -- read-only cr664_user dependency-target inspection ===
+  if (FLAGS.inspectCoreUserDependencySeeds) {
+    await runInspectCoreUserDependencySeeds(
+      { upn: FLAGS.seedUpn },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
+  // === BUGFIX -- guarded seed of cr664_user dependency rows (workspace/role) ===
+  // Dry-run by default; row creates require --commit-seed-coreuser-dependencies.
+  // Never patches CoreUser, never creates a cr664_user (left to the
+  // --seed-coreuser-for-platform-user mode after dependencies are ready).
+  if (FLAGS.seedCoreUserDependencies) {
+    await runSeedCoreUserDependencies(
+      { upn: FLAGS.seedUpn, doCommit: FLAGS.commitSeedCoreUserDependencies },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
   // === Phase 170H-A -- read-only Platform Workspace listing ===
   if (FLAGS.listPlatformWorkspaces) {
     await runListPlatformWorkspaces(mainToken, mainEnvUrl);
@@ -11253,6 +11686,9 @@ Usage:
   node scripts/phase122-lookup-repair.mjs --inspect-coreuser-create-dependencies --upn <email>  # read-only: cr664_user create dependencies + candidate workspace/role
   node scripts/phase122-lookup-repair.mjs --seed-coreuser-for-platform-user --upn <email>       # dry-run: plan cr664_user create (required lookups) + CoreUser bind
   node scripts/phase122-lookup-repair.mjs --seed-coreuser-for-platform-user --upn <email> --commit-seed-coreuser-for-platform-user  # create cr664_user + bind CoreUser
+  node scripts/phase122-lookup-repair.mjs --inspect-coreuser-dependency-seeds --upn <email>     # read-only: inspect/classify the cr664_user dependency target rows
+  node scripts/phase122-lookup-repair.mjs --seed-coreuser-dependencies --upn <email>            # dry-run: plan production-safe PrimaryWorkspace + Banker Role rows
+  node scripts/phase122-lookup-repair.mjs --seed-coreuser-dependencies --upn <email> --commit-seed-coreuser-dependencies  # create the missing dependency rows
   node scripts/phase122-lookup-repair.mjs --commit                                              # execute writes after every safety gate passes
   node scripts/phase122-lookup-repair.mjs --help
 
@@ -11512,6 +11948,34 @@ Modes:
       Loan Deal, writes audit, enables a gate, mutates other platform-user
       fields or any existing role/workspace row, or creates a duplicate
       cr664_user.
+
+  --inspect-coreuser-dependency-seeds --upn <email>
+      BUGFIX — read-only inspection of the cr664_user required-lookup TARGET
+      tables (cr664_primaryworkspace -> workspace-type, cr664_role ->
+      user-role). Resolves one active platform user, prints each target's
+      entity set + detected create fields (name / code / active) + any blocking
+      required field, and CLASSIFIES the existing rows: APPROVED /
+      REJECTED_TEST / REJECTED_PHASE / REJECTED_DEMO / REJECTED_INACTIVE /
+      REJECTED_UNSUPPORTED / REJECTED_AMBIGUOUS. Pure GETs — no write, no
+      CoreUser patch, no cr664_user, no Loan Deal, no audit, no gate.
+
+  --seed-coreuser-dependencies --upn <email> [--commit-seed-coreuser-dependencies]
+      BUGFIX — guarded reuse/create of the production-safe dependency rows the
+      cr664_user create needs. Dry-run by default. For PrimaryWorkspace and
+      Role each: reuse the single APPROVED active production-safe row; else
+      create exactly one (PrimaryWorkspace name "Banker Workspace" / code
+      BANKER_WORKSPACE; Role name "Banker" / code BANKER — code/active set only
+      if those fields exist). Approved workspace names: Banker Workspace /
+      Banker / Commercial Lending / Commercial Lending LOS / Lending OS.
+      Approved role names: Banker / Commercial Banker / Lending Banker /
+      Relationship Manager. TEST/PHASE/demo/sample, inactive, System Super
+      Admin / admin-only, ambiguous (>1 approved), and unknown-required-field
+      cases all fail closed with operator instructions. The POST body is
+      allow-listed (name + optional code + optional active). The row creates
+      require --commit-seed-coreuser-dependencies. NEVER patches
+      PlatformUser.CoreUser, NEVER creates a cr664_user (run
+      --seed-coreuser-for-platform-user afterwards), NEVER mutates an existing
+      row, Loan Deal, audit, or gate.
 
   --commit
       Run the plan against the live env. Refuses to run unless every
