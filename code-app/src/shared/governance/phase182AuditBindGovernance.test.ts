@@ -3,11 +3,15 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
- * BUGFIX -- source-wide governance: no New Deal / audit source may bind the
- * actor's systemuser id into a custom cr664_user lookup (e.g. cr664_ActorUser).
- * The first/second/third live proofs failed audit with
+ * BUGFIX -- source-wide governance for the New Deal audit actor bind.
+ *
+ * The live proofs failed audit with
  *   "Entity 'cr664_User' With Id = <actor systemuser id> Does Not Exist"
- * because cr664_ActorUser targets cr664_user while we bound /systemusers(id).
+ * because cr664_ChangedBy is a REQUIRED lookup to the custom cr664_user table
+ * while we bound /systemusers(<actor>). The fix: cr664_ChangedBy carries a
+ * caller-resolved /cr664_users(<id>) bind (from the platform-user bridge,
+ * fail-closed) and NO New Deal audit source may bind a systemuser id into any
+ * lookup, nor set cr664_ActorUser.
  */
 
 const ROOT = resolve(__dirname, '..', '..', '..');
@@ -36,19 +40,22 @@ describe('BUGFIX -- no cr664_user / ActorUser bind receives a systemuser id', ()
       expect(src).not.toMatch(/@odata\.bind'\s*:\s*`?\/cr664_[Uu]sers?\(/);
     });
 
-    it(`${rel} binds a systemuser id only via cr664_ChangedBy`, () => {
+    it(`${rel} binds NO systemuser id into any audit lookup`, () => {
       const src = read(rel);
+      // cr664_ChangedBy targets cr664_user, so a /systemusers bind into any
+      // audit lookup is a regression. The bind value is a resolved variable.
       const binds = src.match(/'(cr664_\w+)@odata\.bind'\s*:\s*`\/systemusers\(/g) ?? [];
-      for (const b of binds) expect(b).toMatch(/cr664_ChangedBy/);
+      expect(binds).toEqual([]);
     });
   }
 
-  it('the canonical builder + the adapter agree: ChangedBy is the only actor bind', async () => {
+  it('the canonical builder binds ChangedBy to /cr664_users (resolved) and no systemuser bind', async () => {
     const audit = await import('../../deals/dealOriginationAudit');
     const payload = audit.buildNewDealAuditPayload(
       {
         eventName: 'New Deal Created',
         dealId: 'deal-x',
+        changedByBind: '/cr664_users(core-x)',
         actorSystemUserId: 'sys-x',
         correlationId: 'corr-x',
         outcome: audit.AUDIT_OUTCOME_SUCCEEDED,
@@ -57,10 +64,11 @@ describe('BUGFIX -- no cr664_user / ActorUser bind receives a systemuser id', ()
       },
       '2026-06-16T00:00:00.000Z',
     );
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/cr664_users(core-x)');
     const systemuserBinds = Object.entries(payload).filter(
       ([k, v]) => k.endsWith('@odata.bind') && typeof v === 'string' && v.startsWith('/systemusers('),
     );
-    expect(systemuserBinds.map(([k]) => k)).toEqual(['cr664_ChangedBy@odata.bind']);
+    expect(systemuserBinds).toEqual([]);
     expect(payload).not.toHaveProperty('cr664_ActorUser@odata.bind');
   });
 });

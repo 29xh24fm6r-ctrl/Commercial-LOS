@@ -95,10 +95,13 @@ correlation id and **verified** option-set values —
 create-task governed write uses for a record creation),
 `cr664_entitytype = LoanDeal (788190000)`,
 `cr664_outcomestatus = Succeeded/Failed`,
-`cr664_ChangedBy@odata.bind = /systemusers(<actor>)`. No enum is guessed and no
-audit is faked: a created-deal-with-failed-audit honestly returns
-`audit_failed_partial`. Because the adapter is disabled by default, no audit
-row is written in this phase.
+`cr664_ChangedBy@odata.bind = /cr664_users(<resolved cr664_userid>)` —
+`cr664_ChangedBy` is a REQUIRED lookup to the custom `cr664_user` table, so the
+actor's email is resolved fail-closed to a `cr664_user` id via the registered
+`cr664_platformusers` bridge; a systemuser id is never bound there. No enum is
+guessed and no audit is faked: a created-deal-with-failed-audit (including an
+unresolvable actor) honestly returns `audit_failed_partial`. Because the adapter
+is disabled by default, no audit row is written in this phase.
 
 ## Why public + New Deal remains disabled
 

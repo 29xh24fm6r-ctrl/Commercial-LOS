@@ -3726,7 +3726,7 @@ describe('Phase 170Q -- New Deal create production enablement certification doc 
     expect(doc).toMatch(/PHASE121_STATUS/);
     expect(doc).toMatch(/no Dataverse record GUID is hardcoded/i);
     expect(doc).toMatch(/AssignmentChange \(788190002\)/);
-    expect(doc).toMatch(/cr664_ChangedBy@odata\.bind = \/systemusers/);
+    expect(doc).toMatch(/cr664_ChangedBy@odata\.bind = \/cr664_users/);
   });
 
   it('pins the production blockers and the disabled / pilot-only recommendation', () => {

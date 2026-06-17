@@ -48,7 +48,7 @@ function gateMessage(state: BankerCreateRolloutState): string {
 }
 
 export function BankerNewDealCreate() {
-  const { bankerId, systemUserId, writeDisabledReason } = useBanker();
+  const { bankerId, systemUserId, writeDisabledReason, email } = useBanker();
   const [dealName, setDealName] = useState('');
   const [amount, setAmount] = useState('');
   const [submit, setSubmit] = useState<SubmitState>({ kind: 'idle' });
@@ -89,6 +89,8 @@ export function BankerNewDealCreate() {
             dealName: dealName.trim(),
             assignedBankerId: bankerId,
             actorSystemUserId: systemUserId,
+            // Resolves the audit cr664_ChangedBy cr664_user bind (fail-closed).
+            actorEmail: email,
             amount: amt,
           },
           // Downstream automations all disabled this pilot.

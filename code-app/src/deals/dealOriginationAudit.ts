@@ -21,7 +21,21 @@ export { AUDIT_OUTCOME_SUCCEEDED, AUDIT_OUTCOME_FAILED };
 export interface OriginationAuditInput {
   readonly eventName: string;
   readonly dealId: string;
-  readonly actorSystemUserId: string;
+  /**
+   * The resolved `cr664_ChangedBy@odata.bind` value -- ALWAYS
+   * `/cr664_users(<cr664_userid>)`. cr664_ChangedBy is a REQUIRED lookup that
+   * targets the custom cr664_user table (NOT systemuser), so a systemuser id can
+   * never be bound here. The caller resolves this fail-closed via the
+   * platform-user bridge (`newDealAuditActorResolver`) and never builds an audit
+   * payload at all when it cannot.
+   */
+  readonly changedByBind: string;
+  /**
+   * The actor's Dataverse systemuserid -- recorded for correlation context only.
+   * It is NOT bound anywhere: cr664_ChangedBy targets cr664_user, so this id must
+   * never reach any @odata.bind.
+   */
+  readonly actorSystemUserId?: string;
   readonly correlationId: string;
   readonly outcome: number;
   readonly sourceProcess: string;
@@ -38,12 +52,14 @@ export interface OriginationAuditInput {
 /**
  * The allow-listed audit payload keys -- the ONLY keys any New Deal audit
  * payload may contain. Critically:
- *   - `cr664_ChangedBy@odata.bind` is the ONLY user/actor bind, and it targets
- *     systemuser (`/systemusers(<actor>)`).
- *   - `cr664_ActorUser@odata.bind` is NOT allow-listed: it targets the custom
- *     `cr664_user` table, so binding a systemuser id there fails the audit POST
- *     ("Entity 'cr664_User' ... Does Not Exist"). No systemuser->cr664_user
- *     resolver exists.
+ *   - `cr664_ChangedBy@odata.bind` is the ONLY user/actor bind. It is REQUIRED
+ *     and targets the custom `cr664_user` table, so its value is ALWAYS
+ *     `/cr664_users(<cr664_userid>)` -- resolved fail-closed from the actor's
+ *     email via the platform-user bridge. A systemuser id is NEVER bound here
+ *     (doing so failed the live audit POST: "Entity 'cr664_User' ... Does Not
+ *     Exist").
+ *   - `cr664_ActorUser@odata.bind` is NOT allow-listed (also targets cr664_user;
+ *     redundant with ChangedBy, so it is omitted).
  *   - `ownerid` / `owneridtype` / `statecode` are NOT set on create (Dataverse
  *     defaults them).
  */
@@ -71,8 +87,9 @@ export const ORIGINATION_AUDIT_ALLOWED_FIELDS = Object.freeze([
 /**
  * THE single canonical New Deal audit payload builder. Both the adapter's live
  * emit and any shared origination audit route through this. The ONLY user bind
- * is `cr664_ChangedBy@odata.bind = /systemusers(<actor>)`; no cr664_user /
- * cr664_users bind, no ActorUser, no owner/state. `nowIso` is injected.
+ * is `cr664_ChangedBy@odata.bind`, set to the caller-resolved
+ * `input.changedByBind` (always `/cr664_users(<cr664_userid>)`); no systemuser
+ * bind, no ActorUser, no owner/state. `nowIso` is injected.
  */
 export function buildNewDealAuditPayload(
   input: OriginationAuditInput,
@@ -88,8 +105,9 @@ export function buildNewDealAuditPayload(
     cr664_outcomestatus: input.outcome,
     cr664_failurereason: input.failureReason,
     cr664_changeddate: nowIso,
-    // The ONLY actor/user bind. Targets systemuser.
-    'cr664_ChangedBy@odata.bind': `/systemusers(${input.actorSystemUserId})`,
+    // The ONLY actor/user bind. REQUIRED, targets cr664_user; the value is the
+    // caller-resolved /cr664_users(<id>) bind (never a systemuser id).
+    'cr664_ChangedBy@odata.bind': input.changedByBind,
     cr664_notes: input.notes,
     cr664_sourcescreensourceprocess: input.sourceProcess,
     cr664_correlationid: input.correlationId,

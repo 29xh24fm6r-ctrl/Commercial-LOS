@@ -51,6 +51,9 @@ export interface DealOriginationFormInput {
   readonly dealName: string;
   readonly assignedBankerId: string;
   readonly actorSystemUserId: string;
+  /** Actor email (UPN) -- used only to resolve the audit's cr664_ChangedBy
+   *  cr664_user bind; never affects the loan-deal create. */
+  readonly actorEmail?: string;
   readonly amount?: number;
   readonly existingClientId?: string;
 }

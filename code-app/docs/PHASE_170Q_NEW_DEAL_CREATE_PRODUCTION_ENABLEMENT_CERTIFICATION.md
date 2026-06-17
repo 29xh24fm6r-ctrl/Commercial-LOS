@@ -56,9 +56,14 @@ a correlation id and verified, pinned option-set values —
 `cr664_eventtype = AssignmentChange (788190002)`,
 `cr664_entitytype = LoanDeal (788190000)`,
 `cr664_outcomestatus = Succeeded/Failed`,
-`cr664_ChangedBy@odata.bind = /systemusers(<actor>)`. A created deal whose
-audit fails returns `audit_failed_partial` (never `success`). No audit row is
-written while the path is disabled.
+`cr664_ChangedBy@odata.bind = /cr664_users(<resolved cr664_userid>)`.
+`cr664_ChangedBy` is a REQUIRED lookup that targets the custom `cr664_user`
+table (NOT systemuser), so the actor's email is resolved fail-closed to a
+`cr664_user` row id via the registered `cr664_platformusers` bridge
+(`cr664_CoreUser`); a systemuser id is never bound there. A created deal whose
+audit fails — including when the actor cannot be resolved to a `cr664_user` —
+returns `audit_failed_partial` (never `success`). No audit row is written while
+the path is disabled.
 
 ## Created record evidence
 

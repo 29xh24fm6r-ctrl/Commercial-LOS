@@ -270,8 +270,9 @@ describe('Phase 170P / BUGFIX -- audit payload discipline (canonical builder)', 
     expect(SRC).toMatch(/summarizeAuditPayloadShape\(/);
   });
 
-  it('the canonical builder binds cr664_ChangedBy to /systemusers(<actor>) and carries the correlation id', () => {
-    expect(AUDIT_SRC).toMatch(/'cr664_ChangedBy@odata\.bind':\s*`\/systemusers\(\$\{input\.actorSystemUserId\}\)`/);
+  it('the canonical builder binds cr664_ChangedBy to the resolved changedByBind (cr664_user), never a systemuser id', () => {
+    expect(AUDIT_SRC).toMatch(/'cr664_ChangedBy@odata\.bind':\s*input\.changedByBind/);
+    expect(AUDIT_SRC).not.toMatch(/'cr664_ChangedBy@odata\.bind':\s*`\/systemusers/);
     expect(AUDIT_SRC).toMatch(/cr664_correlationid:\s*input\.correlationId/);
   });
 
@@ -285,16 +286,19 @@ describe('Phase 170P / BUGFIX -- audit payload discipline (canonical builder)', 
     expect(block).not.toMatch(/cr664_ActorUser/);
   });
 
-  it('BUGFIX -- the ONLY /systemusers bind in the canonical builder is cr664_ChangedBy; no cr664_user(s) bind anywhere', () => {
+  it('BUGFIX -- the canonical builder binds NO /systemusers id and NO hardcoded /cr664_users GUID', () => {
     const start = AUDIT_SRC.indexOf('export function buildNewDealAuditPayload');
     const end = AUDIT_SRC.indexOf('Back-compat alias', start);
     const block = AUDIT_SRC.slice(start, end);
+    // Zero systemuser binds -- cr664_ChangedBy targets cr664_user.
     const systemuserBinds = block.match(/'(cr664_\w+)@odata\.bind':\s*`\/systemusers\(/g) ?? [];
-    expect(systemuserBinds.length).toBe(1);
-    for (const b of systemuserBinds) expect(b).toMatch(/cr664_ChangedBy/);
-    // No bind targets the custom cr664_user / cr664_users table anywhere.
-    expect(AUDIT_SRC).not.toMatch(/@odata\.bind[^\n]*\/cr664_[Uu]sers?\(/);
-    expect(SRC).not.toMatch(/@odata\.bind[^\n]*\/cr664_[Uu]sers?\(/);
+    expect(systemuserBinds.length).toBe(0);
+    // The ChangedBy value is the caller-resolved variable, NEVER a literal
+    // /systemusers or /cr664_users GUID embedded in source.
+    expect(AUDIT_SRC).not.toMatch(/@odata\.bind':\s*`\/systemusers\(/);
+    expect(AUDIT_SRC).not.toMatch(/@odata\.bind':\s*`\/cr664_[Uu]sers?\(/);
+    expect(SRC).not.toMatch(/@odata\.bind':\s*`\/systemusers\(/);
+    expect(SRC).not.toMatch(/@odata\.bind':\s*`\/cr664_[Uu]sers?\(/);
   });
 
   it('the canonical builder is NOT allow-listing cr664_ActorUser / ownerid / statecode', () => {

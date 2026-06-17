@@ -21,6 +21,7 @@ import {
 const input: OriginationAuditInput = {
   eventName: 'New Deal Created',
   dealId: 'deal-1',
+  changedByBind: '/cr664_users(core-1)',
   actorSystemUserId: 'sys-1',
   correlationId: 'corr-1',
   outcome: AUDIT_OUTCOME_SUCCEEDED,
@@ -45,21 +46,22 @@ describe('BUGFIX -- origination audit payload omits system-managed owner/state',
     }
   });
 
-  it('binds ChangedBy to /systemusers(<actor>) (authoritative) and carries the correlation id', () => {
-    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/systemusers(sys-1)');
+  it('binds ChangedBy to the resolved /cr664_users(<id>) and carries the correlation id', () => {
+    // cr664_ChangedBy is REQUIRED and targets cr664_user, so it carries the
+    // caller-resolved /cr664_users bind -- never a systemuser id.
+    expect(payload['cr664_ChangedBy@odata.bind']).toBe('/cr664_users(core-1)');
     expect(payload.cr664_correlationid).toBe('corr-1');
     expect(payload['cr664_LoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-1)');
   });
 
-  it('does NOT bind a systemuser id into the cr664_user-targeted cr664_ActorUser lookup', () => {
-    // cr664_ActorUser targets the custom cr664_user table; binding a systemuser
-    // id there failed the live audit POST. It is omitted (optional, no resolver).
+  it('binds NO systemuser id anywhere and sets no cr664_ActorUser lookup', () => {
+    // Binding a systemuser id into a cr664_user-targeted lookup failed the live
+    // audit POST. No payload bind may target systemusers now.
     expect(payload).not.toHaveProperty('cr664_ActorUser@odata.bind');
     expect(ORIGINATION_AUDIT_ALLOWED_FIELDS).not.toContain('cr664_ActorUser@odata.bind');
-    // No systemusers bind targets anything other than ChangedBy.
-    for (const [key, value] of Object.entries(payload)) {
-      if (typeof value === 'string' && value.startsWith('/systemusers(')) {
-        expect(key).toBe('cr664_ChangedBy@odata.bind');
+    for (const value of Object.values(payload)) {
+      if (typeof value === 'string') {
+        expect(value.startsWith('/systemusers(')).toBe(false);
       }
     }
   });
@@ -99,15 +101,15 @@ describe('BUGFIX -- summarizeAuditPayloadShape is a safe, conclusive diagnostic'
 
   it('lists the payload keys and the bind TARGET entity sets', () => {
     expect(shape).toMatch(/keys=\[/);
-    expect(shape).toMatch(/cr664_ChangedBy@odata\.bind->systemusers/);
+    expect(shape).toMatch(/cr664_ChangedBy@odata\.bind->cr664_users/);
     expect(shape).toMatch(/cr664_LoanDeal@odata\.bind->cr664_loandeals/);
   });
 
-  it('the ONLY ->systemusers bind shown is cr664_ChangedBy; no cr664_user target appears', () => {
+  it('shows ChangedBy targeting cr664_users and NO ->systemusers bind anywhere', () => {
     const systemuserTargets = shape.match(/([a-zA-Z0-9_@.]+)->systemusers/g) ?? [];
-    expect(systemuserTargets.length).toBe(1);
-    expect(systemuserTargets[0]).toMatch(/cr664_ChangedBy/);
-    expect(shape).not.toMatch(/->cr664_users?\b/i);
+    expect(systemuserTargets.length).toBe(0);
+    const changedByTargets = shape.match(/cr664_ChangedBy@odata\.bind->(\w+)/) ?? [];
+    expect(changedByTargets[1]).toBe('cr664_users');
   });
 
   it('exposes NO record ids / GUIDs / tokens (key names + entity sets only)', () => {

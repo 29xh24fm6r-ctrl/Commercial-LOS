@@ -14,26 +14,61 @@ All three live banker New Deal create proofs created the Loan Deal but returned
 This confirmed the create path works and the audit failure was surfaced
 honestly (not faked).
 
-## Why the third proof still failed (stale bundle vs ChangedBy)
+## CONFIRMED root cause: `cr664_ChangedBy` targets `cr664_user` (required)
 
-The second fix removed `cr664_ActorUser@odata.bind`, but the third proof failed
-identically. Two possibilities, now made conclusive by diagnostics:
+The diagnostic banner from the post-third-fix proof was conclusive. The audit
+payload shape showed:
 
-1. **Stale bundle** — Power Apps cached the pre-fix JS, so the third proof ran
-   the old payload (still binding `cr664_ActorUser`). **Hard-refresh / reopen the
-   app** before the next proof.
-2. **`cr664_ChangedBy` itself targets `cr664_user`** — then even the correct
-   `/systemusers(<actor>)` bind is validated against `cr664_user` and rejected.
+```
+binds=[cr664_ChangedBy@odata.bind->systemusers, cr664_LoanDeal@odata.bind->cr664_loandeals]
+```
 
-This fix routes the audit payload through ONE canonical builder
-(`buildNewDealAuditPayload`) and appends a **sanitized payload-shape diagnostic**
-to the audit error (key list + each bind's TARGET entity set; no ids/secrets),
-plus the correlation id in the UI. The next proof's banner will read e.g.
-`binds=[cr664_ChangedBy@odata.bind->systemusers, cr664_LoanDeal@odata.bind->cr664_loandeals]`
-— if it still errors on `cr664_User` with ONLY that ChangedBy bind shown, the
-cause is conclusively #2 (a schema/metadata decision requiring a
-systemuser→cr664_user resolver, separate + Matt-approved). If `cr664_ActorUser`
-reappears in the shape, it was a stale bundle.
+i.e. `cr664_ActorUser` was ABSENT (a fresh, not stale, bundle) and the ONLY
+actor bind was `cr664_ChangedBy -> /systemusers(<actor>)` — yet Dataverse still
+rejected the POST with `Entity 'cr664_User' With Id = <actor systemuser id>
+Does Not Exist`. That conclusively proves **`cr664_ChangedBy` is a REQUIRED
+lookup that targets the custom `cr664_user` table, not `systemuser`.** A
+systemuser id can never be bound there.
+
+### Metadata facts established
+
+- `cr664_auditevents.cr664_ChangedBy@odata.bind` is REQUIRED (non-nullable in
+  the generated model) and targets `cr664_user`. It cannot be omitted (rules out
+  omission) and cannot take a `/systemusers(...)` id.
+- `cr664_users` is NOT a registered runtime data source, so it cannot be read
+  directly by the app. BUT an `@odata.bind` only needs a valid id + entity-set
+  path (validated Dataverse-side), so the app does not need to read `cr664_users`
+  to bind it — it only needs a valid `cr664_user` row id.
+- The REGISTERED `cr664_platformusers` bridge table carries the actor's email
+  (`cr664_email` / `cr664_normalizedemail`) AND a `cr664_CoreUser` lookup whose
+  value (`_cr664_coreuser_value`) is a `cr664_user` row id.
+
+## Fix: resolve the actor to a `cr664_user` id via the platform-user bridge
+
+`cr664_ChangedBy@odata.bind` now carries a caller-resolved
+`/cr664_users(<cr664_userid>)` value. A new fail-closed resolver
+([newDealAuditActorResolver.ts](../src/deals/newDealAuditActorResolver.ts))
+maps the acting banker's email to exactly one ACTIVE `cr664_platformusers` row
+and returns `/cr664_users(<its _cr664_coreuser_value>)`. It fails closed on:
+no actor email, no matched row, an inactive row, a missing `CoreUser` link,
+multiple distinct `cr664_user` matches, or a read error — returning a clear,
+id-free reason.
+
+The governed audit emit
+([newDealCreateAdapter.ts](../src/deals/newDealCreateAdapter.ts)
+`emitNewDealAuditEvent`) resolves the bind BEFORE building any payload. If it
+cannot resolve, it returns `audit_failed_partial` with the reason and writes NO
+audit row — it never binds `/systemusers` into the `cr664_user` lookup and never
+fakes an audit success. The canonical builder still routes through
+`buildNewDealAuditPayload`, and the sanitized payload-shape diagnostic
+(`summarizeAuditPayloadShape`) + correlation id remain surfaced in the UI; a
+successful proof's shape now reads
+`binds=[cr664_ChangedBy@odata.bind->cr664_users, cr664_LoanDeal@odata.bind->cr664_loandeals]`.
+
+> Note: the same `cr664_ChangedBy -> /systemusers` binding is used by the other
+> governed writes (dealTaskActions, documentActions, …). Those have never been
+> exercised live; if/when they are, they will need the same resolver treatment.
+> That is OUT OF SCOPE here — this fix touches only the New Deal create audit.
 
 ## Diagnosis
 
@@ -93,9 +128,11 @@ do NOT set `cr664_ActorUser`, `ownerid`, `owneridtype`, or `statecode`):
 - `cr664_entityid`: `387a1ecd-c669-f111-ab0c-70a8a596e491`
 - `cr664_LoanDeal@odata.bind`: `/cr664_loandeals(387a1ecd-c669-f111-ab0c-70a8a596e491)`
 - `cr664_outcomestatus`: 788190000 (Succeeded)
-- `cr664_ChangedBy@odata.bind`: `/systemusers(<the proof banker's systemuserid>)`
+- `cr664_ChangedBy@odata.bind`: `/cr664_users(<the proof banker's cr664_user id>)`
+  — the `cr664_user` row id (e.g. the `cr664_CoreUser` of the banker's
+  `cr664_platformusers` row), NEVER a systemuser id.
 - `cr664_correlationid`: a new correlation id (record it)
-- Do NOT set `ownerid` / `owneridtype` / `statecode`.
+- Do NOT set `ownerid` / `owneridtype` / `statecode` / `cr664_ActorUser`.
 
 Before creating it, query `cr664_auditevents` for any existing row with that
 `cr664_entityid` to avoid a duplicate.
@@ -105,13 +142,19 @@ Before creating it, query `cr664_auditevents` for any existing row with that
 Do NOT create another proof deal immediately. After this fix is deployed:
 
 1. **Hard-refresh / close the old tab and reopen the app URL** so the new bundle
-   loads (a stale bundle is the prime suspect for the third failure).
-2. Run **exactly one** final banker create proof only after Matt approval, named
+   loads.
+2. Confirm the payload shape FIRST: the next proof's banner (or a dry check)
+   must show `cr664_ChangedBy@odata.bind->cr664_users` — NOT `->systemusers`.
+   Only proceed once ChangedBy is no longer bound to systemusers.
+3. Run **exactly one** final banker create proof only after Matt approval, named
    `V1 Banker Create Proof - 2026-06-16 4`.
-3. Read the `audit_failed_partial` banner if it recurs: it now shows the
+4. Read the `audit_failed_partial` banner if it recurs: it now shows the
    correlation id, the raw Dataverse error, AND the sanitized payload shape
-   (`binds=[…]`). That conclusively identifies which bind/target caused it.
-4. Confirm a clean `success` (create + audit). Public create and all downstream
+   (`binds=[…]`). If it reads `audit blocked: cr664_ChangedBy … could not be
+   resolved`, the acting banker has no active `cr664_platformusers` row with a
+   `CoreUser` link — an operator must provision/repair that bridge row (the
+   resolver is correct and fail-closed; it is not faking success).
+5. Confirm a clean `success` (create + audit). Public create and all downstream
    automations remain disabled.
 
 Three proof deals (`387a1ecd-…`, `33829cbc-…`, and the third) are missing audit

@@ -97,7 +97,7 @@ describe('Phase 182A -- banker New Deal create surface', () => {
       kind: 'audit_failed_partial',
       createdDealId: 'deal-xyz',
       correlationId: 'corr-abc',
-      auditOutcome: { kind: 'failed', error: "Entity 'cr664_User' ... | auditPayload keys=[...]; binds=[cr664_ChangedBy@odata.bind->systemusers]" },
+      auditOutcome: { kind: 'failed', error: 'AuditEvent create returned non-success. | auditPayload keys=[...]; binds=[cr664_ChangedBy@odata.bind->cr664_users,cr664_LoanDeal@odata.bind->cr664_loandeals]' },
       userFacingMessage: 'partial',
     });
     const user = userEvent.setup();
@@ -113,7 +113,7 @@ describe('Phase 182A -- banker New Deal create surface', () => {
     // surfaced so the operator can capture them for diagnosis.
     const banner = container.querySelector('[data-banker-new-deal-result="audit_failed_partial"]');
     expect(banner?.textContent).toMatch(/Correlation id: corr-abc/);
-    expect(container.querySelector('[data-banker-new-deal-audit-error]')?.textContent).toMatch(/binds=\[cr664_ChangedBy@odata\.bind->systemusers\]/);
+    expect(container.querySelector('[data-banker-new-deal-audit-error]')?.textContent).toMatch(/binds=\[cr664_ChangedBy@odata\.bind->cr664_users/);
   });
 
   it('create_failed shows no confirmed deal id', async () => {

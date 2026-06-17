@@ -34,6 +34,10 @@ import {
   buildNewDealAuditPayload,
   summarizeAuditPayloadShape,
 } from './dealOriginationAudit';
+import {
+  createActorChangedByResolver,
+  type ResolveActorChangedBy,
+} from './newDealAuditActorResolver';
 
 /**
  * The ONLY keys allowed in the cr664_loandeals create body. The adapter
@@ -62,6 +66,13 @@ export interface GovernedNewDealCreateInput {
    *  ownerid). Its presence is the authorization proof -- an unauthenticated
    *  / unprovisioned caller has none and the adapter fails closed. */
   readonly actorSystemUserId: string;
+  /**
+   * The authorized actor's email (UPN). Used ONLY by the audit emit to resolve
+   * the REQUIRED cr664_ChangedBy lookup to a cr664_user row id via the
+   * platform-user bridge. Absent/unmatched email fails the audit closed
+   * (audit_failed_partial); it never affects the loan-deal create.
+   */
+  readonly actorEmail?: string;
   /** Optional loan amount. Included only when a finite, non-negative number. */
   readonly amount?: number;
   /** Optional EXISTING client relationship id for cr664_Client. Included only
@@ -312,17 +323,50 @@ async function liveCreateLoanDeal(
   }
 }
 
-async function liveEmitNewDealAuditEvent(
+/** Injected dependencies for the New Deal audit emit (testable, SDK-free). */
+export interface EmitNewDealAuditDeps {
+  /** Resolve the actor email -> the REQUIRED cr664_ChangedBy /cr664_users bind. */
+  readonly resolveActorChangedBy: ResolveActorChangedBy;
+  /** Create the cr664_AuditEvent row (live: Cr664_auditeventsService.create). */
+  readonly createAudit: (
+    payload: Record<string, unknown>,
+  ) => Promise<{ success: boolean; error?: { message?: string } }>;
+  /** ISO timestamp factory for cr664_changeddate. */
+  readonly now: () => string;
+}
+
+/**
+ * Emit the governed New Deal audit event. Pure given its injected deps.
+ *
+ * It first resolves the REQUIRED cr664_ChangedBy lookup to a cr664_user row id
+ * (via the platform-user bridge, fail-closed). If that cannot be resolved it
+ * returns `ok: false` WITHOUT building or POSTing any payload -- so a systemuser
+ * id is never bound into the cr664_user lookup and an audit is never faked. The
+ * caller maps the failure to `audit_failed_partial`.
+ */
+export async function emitNewDealAuditEvent(
   opts: EmitNewDealAuditInput,
+  deps: EmitNewDealAuditDeps,
 ): Promise<EmitAuditResult> {
-  const nowIso = new Date().toISOString();
-  // THE single canonical builder. The ONLY user bind it emits is
-  // cr664_ChangedBy -> /systemusers(<actor>); it never emits cr664_ActorUser /
-  // cr664_user / ownerid / statecode.
+  const resolution = await deps.resolveActorChangedBy(opts.input.actorEmail);
+  if (!resolution.ok || !resolution.changedByBind) {
+    return {
+      ok: false,
+      error:
+        'audit blocked: cr664_ChangedBy (a REQUIRED lookup to cr664_user) could not be ' +
+        `resolved for the actor -- ${resolution.reason ?? 'no cr664_user identity'}. ` +
+        'No audit row was written (fail-closed; the deal exists but is unaudited).',
+    };
+  }
+
+  // THE single canonical builder. The ONLY user bind it emits is cr664_ChangedBy
+  // -> /cr664_users(<id>) (the resolved bind); it never emits a systemuser bind,
+  // cr664_ActorUser, ownerid, or statecode.
   const payload = buildNewDealAuditPayload(
     {
       eventName: 'New Deal Created',
       dealId: opts.dealId,
+      changedByBind: resolution.changedByBind,
       actorSystemUserId: opts.input.actorSystemUserId,
       correlationId: opts.correlationId,
       outcome: opts.outcome,
@@ -335,15 +379,13 @@ async function liveEmitNewDealAuditEvent(
       beforeState: 'No deal',
       afterState: 'Deal created',
     },
-    nowIso,
+    deps.now(),
   );
   // Sanitized payload-shape diagnostic (key names + bind target entity sets;
   // no ids/secrets) so any failure is conclusively traceable in the UI.
   const shape = summarizeAuditPayloadShape(payload);
   try {
-    const result = await Cr664_auditeventsService.create(
-      payload as unknown as Parameters<typeof Cr664_auditeventsService.create>[0],
-    );
+    const result = await deps.createAudit(payload);
     if (!result.success) {
       return {
         ok: false,
@@ -355,6 +397,19 @@ async function liveEmitNewDealAuditEvent(
     const msg = err instanceof Error ? err.message : String(err);
     return { ok: false, error: `${msg} | ${shape}` };
   }
+}
+
+async function liveEmitNewDealAuditEvent(
+  opts: EmitNewDealAuditInput,
+): Promise<EmitAuditResult> {
+  return emitNewDealAuditEvent(opts, {
+    resolveActorChangedBy: createActorChangedByResolver(),
+    createAudit: (payload) =>
+      Cr664_auditeventsService.create(
+        payload as unknown as Parameters<typeof Cr664_auditeventsService.create>[0],
+      ),
+    now: () => new Date().toISOString(),
+  });
 }
 
 /**
