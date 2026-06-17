@@ -61,12 +61,27 @@ Final status: `PROOF_CREATED` / `PROOF_ALREADY_GENERATED` / `PROOF_BLOCKED` /
 - **Approved names:** `2024 Business Tax Return`, `2025 Interim Financial
   Statements`, `Debt Schedule`.
 
-## Proof execution status — pending operator run
+## Proof execution status — COMPLETED (PROOF_CREATED)
 
-The proof **code is built and committed**, but the **live Dataverse write was
-NOT executed in this environment** (no bearer token is available here; the live
-write requires the operator's `DATAVERSE_BEARER_TOKEN`). The operator runs the
-sequence below in this isolated worktree with a fresh token:
+The live proof was executed once against deal
+`1a10a165-756a-f111-ab0c-70a8a59be491` with actor `mpaller@oldglorybank.com`
+(correlation id `phase188e-document-checklist-proof-1a10a165`):
+
+- **Proof status:** `PROOF_CREATED` — 3 checklist rows created, then one audit
+  written. Created row ids `7a674efc-…`, `7c674efc-…`, `7e674efc-…`
+  (2026-06-17T23:26:38–39Z).
+- **Post-proof re-plan:** `ALREADY_GENERATED` — `would_create` = 0,
+  `already_present` = 3 (idempotent).
+- **Actor bind:** `/cr664_users(940a202e-756a-f111-ab0c-70a8a59be491)` (never
+  `/systemusers`). Audit event written. Row payload excluded
+  `cr664_correlationid` (audit-only). No borrower contact.
+
+Certified in
+[Phase 188F](./PHASE_188F_DOCUMENT_CHECKLIST_PILOT_CERTIFICATION.md).
+
+### Sequence used (for the record)
+
+The operator ran the sequence below in this isolated worktree with a fresh token:
 
 ```
 # 1. inspect (read-only)

@@ -3926,3 +3926,35 @@ describe('Phase 187I — banker New Deal create certification', () => {
     expect(doc).toMatch(/Downstream automation remains disabled/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 188F — document checklist generation pilot certification
+// ---------------------------------------------------------------------------
+
+describe('Phase 188F — document checklist pilot certification', () => {
+  const rel = 'docs/PHASE_188F_DOCUMENT_CHECKLIST_PILOT_CERTIFICATION.md';
+
+  it('the certification doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('certifies PILOT_LIVE_CONTROLLED with the proof deal id + created rows', () => {
+    expect(doc).toMatch(/PILOT_LIVE_CONTROLLED/);
+    expect(doc).toMatch(/1a10a165-756a-f111-ab0c-70a8a59be491/);
+    expect(doc).toMatch(/7a674efc-a36a-f111-ab0c-70a8a59be491/);
+  });
+
+  it('records PROOF_CREATED, ALREADY_GENERATED, and the /cr664_users actor bind', () => {
+    expect(doc).toMatch(/PROOF_CREATED/);
+    expect(doc).toMatch(/ALREADY_GENERATED/);
+    expect(doc).toMatch(/\/cr664_users\(940a202e/);
+  });
+
+  it('pins no borrower comms, audit-only correlation id, and the gate stays false', () => {
+    expect(doc).toMatch(/No borrower communication/i);
+    expect(doc).toMatch(/[Cc]orrelation id was audit-only/);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED/);
+  });
+});
