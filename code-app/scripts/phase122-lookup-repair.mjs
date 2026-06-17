@@ -431,6 +431,12 @@ function parseArgs(argv) {
     provisionIdentityAuditGraph: false,
     commitProvisionIdentityAuditGraph: false,
     verifyIdentityAuditGraph: false,
+    // Phase 188B — read-only document-checklist pilot readiness inspector / planner.
+    inspectDocumentChecklistGraph: false,
+    planDocumentChecklistGeneration: false,
+    docChecklistDealId: null,
+    docChecklistNames: null,
+    json: false,
     // Phase 170H-A — Platform Workspace listing + seed (workspace row only).
     listPlatformWorkspaces: false,
     seedPlatformWorkspace: false,
@@ -881,6 +887,34 @@ function parseArgs(argv) {
       // (GRAPH STATUS: READY). Pure GETs.
       flags.verifyIdentityAuditGraph = true;
       flags.dryRun = false;
+    } else if (arg === '--inspect-document-checklist-graph') {
+      // Phase 188B — READ-ONLY readiness inspection for the document-checklist
+      // pilot on a target deal. Pure GETs + static source-safety scans; never
+      // writes, never contacts a borrower, never imports a comms module.
+      flags.inspectDocumentChecklistGraph = true;
+      flags.dryRun = false;
+    } else if (arg === '--plan-document-checklist-generation') {
+      // Phase 188B — READ-ONLY dry-run plan (would_create / already_present /
+      // blocked) for checklist names on a target deal. Never writes.
+      flags.planDocumentChecklistGeneration = true;
+      flags.dryRun = false;
+    } else if (arg === '--deal-id') {
+      const next = args[i + 1];
+      if (!next || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(next)) {
+        bailParseArgs(`--deal-id expects a GUID; got "${next ?? ''}"`);
+      }
+      flags.docChecklistDealId = next;
+      i += 1;
+    } else if (arg === '--document-names') {
+      const next = args[i + 1];
+      if (!next || next.length === 0) {
+        bailParseArgs('--document-names requires a pipe-separated list, e.g. "Name A|Name B"');
+      }
+      flags.docChecklistNames = next;
+      i += 1;
+    } else if (arg === '--json') {
+      // Optional machine-readable output for the read-only document-checklist modes.
+      flags.json = true;
     } else if (arg === '--list-platform-workspaces') {
       // Phase 170H-A — read-only listing of cr664_platformworkspace rows
       // (id + name). Pure GET; never writes.
@@ -1029,6 +1063,8 @@ function parseArgs(argv) {
     flags.planIdentityAuditProvisioning,
     flags.provisionIdentityAuditGraph,
     flags.verifyIdentityAuditGraph,
+    flags.inspectDocumentChecklistGraph,
+    flags.planDocumentChecklistGeneration,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -1235,11 +1271,37 @@ function parseArgs(argv) {
     !flags.seedProductReferences &&
     !flags.seedManagerEntitlement &&
     !flags.seedExecutivePrimaryWorkspace &&
-    !flags.smokeCreateNewDeal
+    !flags.smokeCreateNewDeal &&
+    !flags.inspectDocumentChecklistGraph &&
+    !flags.planDocumentChecklistGeneration
   ) {
     bailParseArgs(
-      '--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, or --smoke-create-new-deal',
+      '--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, --smoke-create-new-deal, --inspect-document-checklist-graph, or --plan-document-checklist-generation',
     );
+  }
+  // Phase 188B — document-checklist readiness modes cross-flag validation.
+  if (flags.inspectDocumentChecklistGraph || flags.planDocumentChecklistGeneration) {
+    const mode = flags.inspectDocumentChecklistGraph
+      ? '--inspect-document-checklist-graph'
+      : '--plan-document-checklist-generation';
+    const haveName = Boolean(flags.seedDealName);
+    const haveId = Boolean(flags.docChecklistDealId);
+    if (haveName === haveId) {
+      bailParseArgs(`${mode} requires exactly one of --deal-name "<name>" or --deal-id <guid>`);
+    }
+    if (flags.planDocumentChecklistGeneration && !flags.docChecklistNames) {
+      bailParseArgs('--plan-document-checklist-generation requires --document-names "Name A|Name B|Name C"');
+    }
+    if (flags.inspectDocumentChecklistGraph && flags.docChecklistNames) {
+      bailParseArgs('--document-names is only valid alongside --plan-document-checklist-generation');
+    }
+  } else {
+    if (flags.docChecklistDealId) {
+      bailParseArgs('--deal-id is only valid alongside --inspect-document-checklist-graph or --plan-document-checklist-generation');
+    }
+    if (flags.docChecklistNames) {
+      bailParseArgs('--document-names is only valid alongside --plan-document-checklist-generation');
+    }
   }
   // Phase 124D — manager-entitlement seed cross-flag validation.
   // --seed-manager-entitlement requires all three of --upn,
@@ -7316,6 +7378,318 @@ function printVerifyResult(checks) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 188B — Document checklist pilot readiness inspector / planner.
+//
+// READ-ONLY. Resolves a target Loan Deal, confirms the cr664_documentchecklists
+// table metadata (required-for-create stays {cr664_Deal bind, cr664_documentname}),
+// confirms the audit actor bind shape is /cr664_users(<CoreUser>) (never
+// /systemusers), lists existing checklist rows for idempotency, and statically
+// scans the checklist generation code path for any borrower-communication
+// import. Emits one terminal status: READY_TO_COMMIT / ALREADY_GENERATED /
+// BLOCKED / UNSAFE_EXTERNAL_COMMUNICATION. Never POST/PATCH/DELETE, never
+// contacts a borrower, never enables anything.
+// ---------------------------------------------------------------------------
+
+const DOC_CHECKLIST_TABLE_LOGICAL = 'cr664_documentchecklist';
+const DOC_CHECKLIST_ENTITY_SET = 'cr664_documentchecklists';
+const DOC_CHECKLIST_DEAL_FK = '_cr664_deal_value';
+// Required-for-create that the generator supplies (lower-cased). Anything else
+// required-for-create (beyond server-defaulted) blocks the pilot.
+const DOC_CHECKLIST_EXPECTED_REQUIRED = ['cr664_deal', 'cr664_documentname'];
+// Source files for the static safety scans (read-only).
+const DOC_CHECKLIST_ADAPTER_SRC = resolve(REPO_ROOT, 'src/deals/newDealChecklistGenerationAdapter.ts');
+const DOC_CHECKLIST_ACTOR_RESOLVER_SRC = resolve(REPO_ROOT, 'src/deals/newDealAuditActorResolver.ts');
+const DOC_CHECKLIST_ACTOR_BIND_SRC = resolve(REPO_ROOT, 'src/shared/governance/auditActorBind.ts');
+// Prohibited borrower-communication module specifiers in the generation path.
+const DOC_CHECKLIST_PROHIBITED_IMPORTS = [
+  /sendDocumentRequestEmail/i,
+  /prepareDocumentRequestHandoff/i,
+  /emailDelivery/i,
+  /outlook/i,
+  /\bsms\b/i,
+  /handoff/i,
+  /mailto/i,
+];
+
+function docChecklistReadSource(path) {
+  try {
+    return { ok: true, text: readFileSync(path, 'utf8') };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+function docChecklistImportSpecifiers(text) {
+  const specs = [];
+  const re = /(?:from\s+|import\s+)['"]([^'"]+)['"]/g;
+  let m;
+  while ((m = re.exec(text)) !== null) specs.push(m[1]);
+  return specs;
+}
+
+// Static scan: the checklist generation path must import NO borrower-comms module.
+function scanChecklistCommsSafety() {
+  const src = docChecklistReadSource(DOC_CHECKLIST_ADAPTER_SRC);
+  if (!src.ok) {
+    return { ok: false, safe: false, offenders: [], error: `could not read generator source: ${src.error}` };
+  }
+  const specs = docChecklistImportSpecifiers(src.text);
+  const offenders = specs.filter((s) => DOC_CHECKLIST_PROHIBITED_IMPORTS.some((re) => re.test(s)));
+  return { ok: true, safe: offenders.length === 0, offenders };
+}
+
+// Static scan: the audit actor bind shape is /cr664_users(...), never /systemusers,
+// and the assertChangedByCoreUserBind guard exists.
+function scanIdentityBindShape() {
+  const resolver = docChecklistReadSource(DOC_CHECKLIST_ACTOR_RESOLVER_SRC);
+  const guard = docChecklistReadSource(DOC_CHECKLIST_ACTOR_BIND_SRC);
+  if (!resolver.ok) return { ok: false, coreUsersBind: false, systemusersBind: false, guardPresent: false, error: resolver.error };
+  const coreUsersBind = /\/cr664_users\(\$\{/.test(resolver.text);
+  const systemusersBind = /changedByBind[\s\S]{0,80}\/systemusers\(|'cr664_ChangedBy@odata\.bind':\s*`?\/systemusers\(/.test(resolver.text);
+  const guardPresent = guard.ok && /assertChangedByCoreUserBind/.test(guard.text) && /cr664_users/.test(guard.text);
+  return { ok: true, coreUsersBind, systemusersBind, guardPresent };
+}
+
+// Static scan: cr664_documenttype is NOT in the generator allow-list (it is a
+// file-type picklist, never a checklist category/template); cr664_documentname is.
+function scanDocumentTypeNotCategory() {
+  const src = docChecklistReadSource(DOC_CHECKLIST_ADAPTER_SRC);
+  if (!src.ok) return { ok: false, documenttypeInAllowlist: false, documentnamePresent: false, error: src.error };
+  const start = src.text.indexOf('DOCUMENT_CHECKLIST_ALLOWED_FIELDS');
+  const block = start >= 0 ? src.text.slice(start, src.text.indexOf(']', start) + 1) : src.text;
+  return {
+    ok: true,
+    documenttypeInAllowlist: /cr664_documenttype/.test(block),
+    documentnamePresent: /cr664_documentname/.test(block),
+  };
+}
+
+async function resolveTargetLoanDeal({ dealName, dealId }, token, envUrl) {
+  if (dealId) {
+    const url =
+      `${envUrl}/api/data/v9.2/cr664_loandeals(${dealId})` +
+      `?$select=cr664_loandealid,cr664_dealname`;
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
+      });
+      if (res.status === 404) return { ok: false, reason: `no Loan Deal with id ${dealId}` };
+      if (!res.ok) return { ok: false, reason: `${res.status}: ${await res.text()}` };
+      const j = await res.json();
+      return { ok: true, deal: { id: j.cr664_loandealid, name: j.cr664_dealname ?? '(no name)' } };
+    } catch (err) {
+      return { ok: false, reason: `network error: ${err.message}` };
+    }
+  }
+  const res = await findLoanDealByName(dealName, token, envUrl);
+  if (!res.ok) return { ok: false, reason: `deal lookup failed: ${res.error}` };
+  if (res.records.length === 0) return { ok: false, reason: `no Loan Deal matches cr664_dealname = "${dealName}"` };
+  if (res.records.length > 1) return { ok: false, reason: `${res.records.length} Loan Deals match "${dealName}" — ambiguous` };
+  const d = res.records[0];
+  return { ok: true, deal: { id: d.cr664_loandealid, name: d.cr664_dealname ?? '(no name)' } };
+}
+
+async function inspectDocChecklistMetadata(token, envUrl) {
+  const meta = await getTableMetadata(DOC_CHECKLIST_TABLE_LOGICAL, token, envUrl);
+  if (!meta.ok) return { ok: false, error: meta.error };
+  const t = meta.table;
+  const attrs = Array.isArray(t.Attributes) ? t.Attributes : [];
+  const pkLower = String(t.PrimaryIdAttribute ?? '').toLowerCase();
+  const isServerDefaulted = (ln) =>
+    AUDIT_ACTOR_CORE_USER_AUTODEFAULTED.includes(ln) ||
+    IDENTITY_SERVER_DEFAULTED_LOOKUPS.includes(ln) ||
+    ln === pkLower;
+  const requiredCreate = attrs
+    .filter((a) => {
+      if (!a.IsValidForCreate) return false;
+      const lvl = a.RequiredLevel?.Value ?? 'None';
+      return lvl === 'SystemRequired' || lvl === 'ApplicationRequired';
+    })
+    .map((a) => a.LogicalName)
+    .filter((ln) => !isServerDefaulted(ln.toLowerCase()));
+  const unexpected = requiredCreate.filter((ln) => !DOC_CHECKLIST_EXPECTED_REQUIRED.includes(ln.toLowerCase()));
+  const hasDocumentType = attrs.some((a) => String(a.LogicalName).toLowerCase() === 'cr664_documenttype');
+  return { ok: true, entitySet: t.EntitySetName, requiredCreate, unexpected, hasDocumentType };
+}
+
+async function listDealChecklistRows(dealId, token, envUrl) {
+  const select = 'cr664_documentchecklistid,cr664_documentname,createdon,modifiedon';
+  const url =
+    `${envUrl}/api/data/v9.2/${DOC_CHECKLIST_ENTITY_SET}` +
+    `?$filter=${encodeURIComponent(`${DOC_CHECKLIST_DEAL_FK} eq ${dealId}`)}` +
+    `&$select=${encodeURIComponent(select)}`;
+  const res = await fetchODataList(url, token);
+  if (!res.ok) return { ok: false, error: res.error };
+  return {
+    ok: true,
+    rows: res.records.map((r) => ({
+      id: r.cr664_documentchecklistid,
+      name: r.cr664_documentname ?? '',
+      createdon: r.createdon ?? null,
+      modifiedon: r.modifiedon ?? null,
+    })),
+  };
+}
+
+// Gather every read-only check shared by inspect + plan. NEVER writes.
+async function gatherDocChecklistChecks({ dealName, dealId }, token, envUrl) {
+  const comms = scanChecklistCommsSafety();
+  const identity = scanIdentityBindShape();
+  const documenttype = scanDocumentTypeNotCategory();
+
+  const blockedReasons = [];
+  const unsafe = comms.ok ? !comms.safe : false;
+  if (!comms.ok) blockedReasons.push(comms.error);
+  if (!identity.ok) blockedReasons.push(`identity bind scan failed: ${identity.error}`);
+  else {
+    if (!identity.coreUsersBind) blockedReasons.push('actor resolver does not produce a /cr664_users(<id>) bind');
+    if (identity.systemusersBind) blockedReasons.push('actor resolver binds /systemusers into cr664_ChangedBy (forbidden)');
+    if (!identity.guardPresent) blockedReasons.push('assertChangedByCoreUserBind guard not found');
+  }
+  if (!documenttype.ok) blockedReasons.push(`documenttype scan failed: ${documenttype.error}`);
+  else if (documenttype.documenttypeInAllowlist) blockedReasons.push('cr664_documenttype is in the generator allow-list (must not be a checklist category)');
+
+  const dealRes = await resolveTargetLoanDeal({ dealName, dealId }, token, envUrl);
+  let deal = null;
+  let metadata = null;
+  let existing = [];
+  if (!dealRes.ok) {
+    blockedReasons.push(dealRes.reason);
+  } else {
+    deal = dealRes.deal;
+    metadata = await inspectDocChecklistMetadata(token, envUrl);
+    if (!metadata.ok) blockedReasons.push(`cr664_documentchecklists metadata unavailable: ${metadata.error}`);
+    else if (metadata.unexpected.length > 0) blockedReasons.push(`unexpected required-for-create field(s): ${metadata.unexpected.join(', ')}`);
+    const rowsRes = await listDealChecklistRows(deal.id, token, envUrl);
+    if (!rowsRes.ok) blockedReasons.push(`could not list existing checklist rows: ${rowsRes.error}`);
+    else existing = rowsRes.rows;
+  }
+
+  return { unsafe, unsafeOffenders: comms.offenders ?? [], blockedReasons, deal, metadata, existing, identity, documenttype };
+}
+
+function deriveDocChecklistStatus({ unsafe, blockedReasons, planMode, wouldCreateCount, existingCount }) {
+  if (unsafe) return 'UNSAFE_EXTERNAL_COMMUNICATION';
+  if (blockedReasons.length > 0) return 'BLOCKED';
+  if (planMode) return wouldCreateCount > 0 ? 'READY_TO_COMMIT' : 'ALREADY_GENERATED';
+  return existingCount > 0 ? 'ALREADY_GENERATED' : 'READY_TO_COMMIT';
+}
+
+function printDocChecklistChecks(checks) {
+  console.log(`   Comms-safety (static import scan of the generator): ${checks.unsafe ? `UNSAFE (${checks.unsafeOffenders.join(', ')})` : 'safe (no borrower-comms import)'}`);
+  if (checks.identity.ok) {
+    console.log(`   Audit actor bind shape: ${checks.identity.coreUsersBind ? '/cr664_users(<CoreUser>)' : '(missing)'}; /systemusers bind: ${checks.identity.systemusersBind ? 'PRESENT (forbidden)' : 'absent'}; guard: ${checks.identity.guardPresent ? 'present' : 'MISSING'}`);
+  }
+  if (checks.documenttype.ok) {
+    console.log(`   cr664_documenttype as checklist category: ${checks.documenttype.documenttypeInAllowlist ? 'YES (forbidden)' : 'no (file-type only)'}`);
+  }
+  if (checks.deal) {
+    console.log(`   Target Loan Deal: ${checks.deal.name} (${checks.deal.id})`);
+  }
+  if (checks.metadata && checks.metadata.ok) {
+    console.log(`   cr664_documentchecklists required-for-create: ${checks.metadata.requiredCreate.join(', ') || '(none)'}${checks.metadata.unexpected.length ? ` — UNEXPECTED: ${checks.metadata.unexpected.join(', ')}` : ''}`);
+  }
+  if (checks.deal) {
+    console.log(`   Existing checklist rows on deal: ${checks.existing.length}`);
+    for (const r of checks.existing) console.log(`     - ${r.name || '(blank)'}  id=${r.id}${r.createdon ? `  created=${r.createdon}` : ''}`);
+  }
+  if (checks.blockedReasons.length) {
+    console.log('   Blockers:');
+    for (const b of checks.blockedReasons) console.log(`     - ${b}`);
+  }
+}
+
+async function runInspectDocumentChecklistGraph({ dealName, dealId, json }, token, envUrl) {
+  console.log('');
+  console.log('DOCUMENT CHECKLIST GRAPH — read-only inspection (Phase 188B)');
+  console.log('   GETs + static source scans only; no POST/PATCH/DELETE, no borrower comms, no enablement.');
+  console.log('');
+  const checks = await gatherDocChecklistChecks({ dealName, dealId }, token, envUrl);
+  printDocChecklistChecks(checks);
+  const status = deriveDocChecklistStatus({
+    unsafe: checks.unsafe,
+    blockedReasons: checks.blockedReasons,
+    planMode: false,
+    existingCount: checks.existing.length,
+  });
+  console.log('');
+  console.log('WRITES: 0');
+  console.log(`CHECKLIST STATUS: ${status}`);
+  if (json) {
+    console.log(JSON.stringify({
+      mode: 'inspect-document-checklist-graph',
+      status,
+      deal: checks.deal,
+      requiredCreate: checks.metadata?.requiredCreate ?? null,
+      existingCount: checks.existing.length,
+      blockedReasons: checks.blockedReasons,
+      unsafeOffenders: checks.unsafeOffenders,
+    }, null, 2));
+  }
+  return { ok: status === 'READY_TO_COMMIT' || status === 'ALREADY_GENERATED', status };
+}
+
+async function runPlanDocumentChecklistGeneration({ dealName, dealId, namesRaw, json }, token, envUrl) {
+  console.log('');
+  console.log('DOCUMENT CHECKLIST GENERATION — read-only DRY-RUN plan (Phase 188B)');
+  console.log('   GETs + static source scans only; no POST/PATCH/DELETE, no generator call, no borrower comms.');
+  console.log('');
+  const checks = await gatherDocChecklistChecks({ dealName, dealId }, token, envUrl);
+  printDocChecklistChecks(checks);
+
+  // Parse + normalize the caller-supplied approved names (mirror the adapter:
+  // trim, compare case-insensitively).
+  const rawNames = String(namesRaw ?? '').split('|').map((n) => n.trim());
+  const blockedReasons = [...checks.blockedReasons];
+  if (rawNames.some((n) => n.length === 0)) blockedReasons.push('invalid empty checklist name in --document-names');
+  const seenLower = new Set();
+  const dupes = new Set();
+  for (const n of rawNames) {
+    const low = n.toLowerCase();
+    if (n.length > 0 && seenLower.has(low)) dupes.add(n);
+    seenLower.add(low);
+  }
+  if (dupes.size > 0) blockedReasons.push(`duplicate name(s) in --document-names: ${[...dupes].join(', ')}`);
+
+  const existingLower = new Set(checks.existing.map((r) => r.name.trim().toLowerCase()));
+  const approved = rawNames.filter((n) => n.length > 0);
+  const wouldCreate = approved.filter((n) => !existingLower.has(n.toLowerCase()));
+  const alreadyPresent = approved.filter((n) => existingLower.has(n.toLowerCase()));
+
+  console.log('');
+  console.log('   Plan:');
+  console.log(`     would_create (${wouldCreate.length}): ${wouldCreate.join(' | ') || '(none)'}`);
+  console.log(`     already_present (${alreadyPresent.length}): ${alreadyPresent.join(' | ') || '(none)'}`);
+  if (blockedReasons.length) {
+    console.log('     blocked_reasons:');
+    for (const b of blockedReasons) console.log(`       - ${b}`);
+  }
+
+  const status = deriveDocChecklistStatus({
+    unsafe: checks.unsafe,
+    blockedReasons,
+    planMode: true,
+    wouldCreateCount: wouldCreate.length,
+  });
+  console.log('');
+  console.log('WRITES: 0 (dry-run)');
+  console.log(`CHECKLIST STATUS: ${status}`);
+  if (json) {
+    console.log(JSON.stringify({
+      mode: 'plan-document-checklist-generation',
+      status,
+      deal: checks.deal,
+      would_create: wouldCreate,
+      already_present: alreadyPresent,
+      blocked_reasons: blockedReasons,
+      unsafeOffenders: checks.unsafeOffenders,
+    }, null, 2));
+  }
+  return { ok: status === 'READY_TO_COMMIT' || status === 'ALREADY_GENERATED', status };
+}
+
+// ---------------------------------------------------------------------------
 // Audit phase — publishers + tables + columns
 // ---------------------------------------------------------------------------
 
@@ -12164,6 +12538,29 @@ async function main() {
     return;
   }
 
+  // === Phase 188B -- read-only document-checklist readiness inspector / planner ===
+  if (FLAGS.inspectDocumentChecklistGraph) {
+    await runInspectDocumentChecklistGraph(
+      { dealName: FLAGS.seedDealName, dealId: FLAGS.docChecklistDealId, json: FLAGS.json },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+  if (FLAGS.planDocumentChecklistGeneration) {
+    await runPlanDocumentChecklistGeneration(
+      {
+        dealName: FLAGS.seedDealName,
+        dealId: FLAGS.docChecklistDealId,
+        namesRaw: FLAGS.docChecklistNames,
+        json: FLAGS.json,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
   // === Phase 170H-A -- read-only Platform Workspace listing ===
   if (FLAGS.listPlatformWorkspaces) {
     await runListPlatformWorkspaces(mainToken, mainEnvUrl);
@@ -12540,6 +12937,8 @@ Usage:
   node scripts/phase122-lookup-repair.mjs --plan-identity-audit-provisioning --upn <email>       # CANONICAL dry-run: single dependency-ordered provisioning plan
   node scripts/phase122-lookup-repair.mjs --provision-identity-audit-graph --upn <email> --commit-provision-identity-audit-graph  # CANONICAL commit
   node scripts/phase122-lookup-repair.mjs --verify-identity-audit-graph --upn <email>            # CANONICAL read-only: GRAPH STATUS: READY|BLOCKED
+  node scripts/phase122-lookup-repair.mjs --inspect-document-checklist-graph --deal-name "<deal>"  # Phase 188B read-only checklist readiness
+  node scripts/phase122-lookup-repair.mjs --plan-document-checklist-generation --deal-name "<deal>" --document-names "A|B|C"  # Phase 188B read-only dry-run plan
   node scripts/phase122-lookup-repair.mjs --commit                                              # execute writes after every safety gate passes
   node scripts/phase122-lookup-repair.mjs --help
 
@@ -12862,6 +13261,29 @@ Modes:
       populated, cr664_user active, Role active+approved, PrimaryWorkspace
       active+approved (+ WorkspaceContext if required). Prints
       "GRAPH STATUS: READY | BLOCKED". Run before the one final New Deal proof.
+
+  --inspect-document-checklist-graph (--deal-name "<name>" | --deal-id <guid>) [--json]
+      Phase 188B — READ-ONLY readiness inspection for the document-checklist
+      pilot on a target deal. Resolves exactly one Loan Deal; confirms the
+      cr664_documentchecklists required-for-create set stays {cr664_Deal bind,
+      cr664_documentname} (any extra required field blocks); confirms the audit
+      actor bind shape is /cr664_users(<CoreUser>) (never /systemusers) and the
+      assertChangedByCoreUserBind guard exists; lists existing checklist rows on
+      the deal; and statically scans the generator code path for ANY
+      borrower-communication import (sendDocumentRequestEmail /
+      prepareDocumentRequestHandoff / Outlook / email / SMS / handoff / mailto).
+      Emits one terminal status: READY_TO_COMMIT / ALREADY_GENERATED / BLOCKED /
+      UNSAFE_EXTERNAL_COMMUNICATION. Pure GETs + static scans — no POST/PATCH/
+      DELETE, no borrower comms, no enablement.
+
+  --plan-document-checklist-generation (--deal-name "<name>" | --deal-id <guid>) --document-names "A|B|C" [--json]
+      Phase 188B — READ-ONLY dry-run plan. Runs all inspect checks, parses the
+      caller-supplied approved checklist names (trim + case-insensitive, mirroring
+      newDealChecklistGenerationAdapter), and reports would_create (names not yet
+      on the deal) / already_present / blocked_reasons (missing graph, ambiguous
+      deal, missing/unexpected required metadata, unsafe comms import, empty or
+      duplicate input names). Same terminal statuses. NEVER calls the generator,
+      writes a row, or contacts a borrower.
 
   --commit
       Run the plan against the live env. Refuses to run unless every
