@@ -400,6 +400,14 @@ function parseArgs(argv) {
     // Existing-user only; never creates a user or a workspace.
     seedPrimaryWorkspace: false,
     commitSeedPrimaryWorkspace: false,
+    // BUGFIX — audit actor CoreUser bridge inspect / guarded seed.
+    // inspect is READ-ONLY (GET only). seed is dry-run by default; the lone
+    // PATCH (cr664_platformuser.cr664_CoreUser) + any cr664_user create require
+    // --commit-seed-audit-actor-bridge. Never patches a Loan Deal, writes
+    // audit, or enables a gate.
+    inspectAuditActorBridge: false,
+    seedAuditActorBridge: false,
+    commitSeedAuditActorBridge: false,
     // Phase 170H-A — Platform Workspace listing + seed (workspace row only).
     listPlatformWorkspaces: false,
     seedPlatformWorkspace: false,
@@ -768,6 +776,27 @@ function parseArgs(argv) {
       flags.dryRun = false;
     } else if (arg === '--commit-seed-primary-workspace') {
       flags.commitSeedPrimaryWorkspace = true;
+    } else if (arg === '--inspect-audit-actor-bridge') {
+      // BUGFIX (audit actor CoreUser bridge) — READ-ONLY inspection of the
+      // Platform User -> Core User bridge that the New Deal audit needs to bind
+      // cr664_ChangedBy = /cr664_users(<id>). Resolves the platform user by
+      // --upn, prints whether exactly one active row exists, whether
+      // cr664_CoreUser is populated, and (when populated) whether the target
+      // cr664_user row exists and is active — plus the metadata the seed mode
+      // relies on. Pure GETs; never writes.
+      flags.inspectAuditActorBridge = true;
+      flags.dryRun = false;
+    } else if (arg === '--seed-audit-actor-bridge') {
+      // BUGFIX (audit actor CoreUser bridge) — guarded seed/repair of the
+      // Platform User cr664_CoreUser lookup so New Deal audit can bind a valid
+      // /cr664_users(<id>). Dry-run by default; the lone PATCH (and any
+      // cr664_user create) requires --commit-seed-audit-actor-bridge. Patches
+      // ONLY cr664_platformuser.cr664_CoreUser@odata.bind. Never touches a Loan
+      // Deal, never writes audit, never enables a gate.
+      flags.seedAuditActorBridge = true;
+      flags.dryRun = false;
+    } else if (arg === '--commit-seed-audit-actor-bridge') {
+      flags.commitSeedAuditActorBridge = true;
     } else if (arg === '--list-platform-workspaces') {
       // Phase 170H-A — read-only listing of cr664_platformworkspace rows
       // (id + name). Pure GET; never writes.
@@ -906,6 +935,8 @@ function parseArgs(argv) {
     flags.inspectCrmSchema,
     flags.planCrmSchema,
     flags.seedCrmSchema,
+    flags.inspectAuditActorBridge,
+    flags.seedAuditActorBridge,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -947,6 +978,14 @@ function parseArgs(argv) {
   if (flags.commitSeedPrimaryWorkspace && !flags.seedPrimaryWorkspace) {
     bailParseArgs(
       '--commit-seed-primary-workspace has no effect without --seed-primary-workspace.',
+    );
+  }
+  // BUGFIX — the audit-actor-bridge seed commit flag only authorizes a write
+  // alongside its seed mode; on its own (or with the read-only inspect mode)
+  // it must fail.
+  if (flags.commitSeedAuditActorBridge && !flags.seedAuditActorBridge) {
+    bailParseArgs(
+      '--commit-seed-audit-actor-bridge has no effect without --seed-audit-actor-bridge.',
     );
   }
   // Phase 170H-A — the platform-workspace seed commit flag only authorizes
@@ -1144,9 +1183,28 @@ function parseArgs(argv) {
         '--commit-seed-executive-primary-workspace has no effect without --seed-executive-primary-workspace.',
       );
     }
+  } else if (flags.inspectAuditActorBridge || flags.seedAuditActorBridge) {
+    // BUGFIX — the audit-actor-bridge modes require ONLY --upn. The
+    // workspace/deal/team seed inputs may not ride along, so they cannot
+    // silently attach to a bridge inspect/seed.
+    const mode = flags.inspectAuditActorBridge
+      ? '--inspect-audit-actor-bridge'
+      : '--seed-audit-actor-bridge';
+    if (!flags.seedUpn) {
+      bailParseArgs(`${mode} requires --upn <email>`);
+    }
+    if (flags.seedWorkspaceName) {
+      bailParseArgs('--workspace-name is only valid alongside --seed-executive-primary-workspace or --seed-primary-workspace or --seed-platform-workspace');
+    }
+    if (flags.seedDealName) {
+      bailParseArgs('--deal-name is only valid alongside --seed-manager-entitlement or --seed-product-references');
+    }
+    if (flags.seedTeamName) {
+      bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
+    }
   } else {
     if (flags.seedUpn) {
-      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace or --seed-primary-workspace');
+      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace or --seed-primary-workspace or --inspect-audit-actor-bridge or --seed-audit-actor-bridge');
     }
     if (flags.seedTeamName) {
       bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
@@ -4855,6 +4913,564 @@ async function runSeedPrimaryWorkspace({ upn, workspaceName, doCommit }, token, 
     workspaceId,
     platformUserId: platformUser.cr664_platformuserid,
   };
+}
+
+// ---------------------------------------------------------------------------
+// BUGFIX — audit actor CoreUser bridge inspect + guarded seed/repair.
+//
+// The New Deal audit binds the REQUIRED cr664_auditevents.cr664_ChangedBy
+// lookup (target: the custom cr664_user table) to /cr664_users(<id>). The
+// runtime resolver derives that id from the acting banker's
+// cr664_platformusers row via its cr664_CoreUser lookup. When cr664_CoreUser is
+// empty the resolver fails closed and audit stays audit_failed_partial. These
+// modes inspect and (guardedly) repair that Platform User -> Core User bridge.
+//
+// Hard non-goals (enforced below):
+//   - Never patch a Loan Deal. Never write an audit row. Never enable a gate.
+//   - The ONLY write is PATCH cr664_platformusers(<id>) cr664_CoreUser@odata.bind
+//     (plus, when metadata supports it, ONE minimal cr664_user POST). Both
+//     require --commit-seed-audit-actor-bridge.
+//   - Never create a duplicate cr664_user. Never mutate unrelated platform-user
+//     fields. Never guess required cr664_user create fields — stop instead.
+// ---------------------------------------------------------------------------
+
+const AUDIT_ACTOR_PLATFORM_USER_LOGICAL = 'cr664_platformuser';
+const AUDIT_ACTOR_PLATFORM_USER_ENTITY_SET = 'cr664_platformusers';
+const AUDIT_ACTOR_CORE_USER_LOGICAL = 'cr664_user';
+const AUDIT_ACTOR_CORE_USER_ENTITY_SET = 'cr664_users';
+// The platform-user -> core-user lookup. Nav property name (used in the
+// @odata.bind PATCH) and the read-side foreign-key value column.
+const AUDIT_ACTOR_COREUSER_NAV = 'cr664_CoreUser';
+const AUDIT_ACTOR_COREUSER_ATTR = 'cr664_coreuser';
+const AUDIT_ACTOR_COREUSER_VALUE_FIELD = '_cr664_coreuser_value';
+
+// The ONLY cr664_user columns the seed will ever set on a create. Dataverse
+// defaults the rest (PK / owner / state). If live metadata says ANY other field
+// is required for create, the seed STOPS with operator instructions — it never
+// guesses a Role / Workspace / other lookup value.
+const AUDIT_ACTOR_CORE_USER_CREATE_ALLOWLIST = Object.freeze([
+  'cr664_username',
+  'cr664_email',
+  'cr664_activeaccessflag',
+]);
+// Required-for-create fields Dataverse supplies itself (PK / owner / state) —
+// excluded from the "blocking required field" remainder check.
+const AUDIT_ACTOR_CORE_USER_AUTODEFAULTED = Object.freeze([
+  'cr664_userid',
+  'ownerid',
+  'owneridtype',
+  'statecode',
+  'statuscode',
+  'createdon',
+  'modifiedon',
+]);
+
+function auditActorPlatformUserIsActive(row) {
+  return (
+    row.cr664_activestatus === true &&
+    (row.statecode === undefined || row.statecode === 0)
+  );
+}
+
+function auditActorCoreUserIsActive(row) {
+  // Active = state Active (statecode 0). The activeaccessflag is reported
+  // separately but a false flag is NOT treated as "deleted/inactive state".
+  return row.statecode === undefined || row.statecode === 0;
+}
+
+// Resolve the acting banker's cr664_platformusers row by email/UPN. Matches the
+// runtime resolver: cr664_email OR cr664_normalizedemail (lowercased).
+async function findAuditActorPlatformUser(upn, token, envUrl) {
+  const esc = odataEscapeStringLiteral(upn);
+  const escLower = odataEscapeStringLiteral(String(upn).toLowerCase());
+  const filter =
+    `cr664_email eq '${esc}' or cr664_normalizedemail eq '${escLower}'`;
+  const select =
+    'cr664_platformuserid,cr664_email,cr664_normalizedemail,cr664_fullname,' +
+    'cr664_activestatus,statecode,' +
+    AUDIT_ACTOR_COREUSER_VALUE_FIELD;
+  const url =
+    `${envUrl}/api/data/v9.2/${AUDIT_ACTOR_PLATFORM_USER_ENTITY_SET}` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+// Read a single cr664_user by id. 404 → exists:false (not an error).
+async function readAuditActorCoreUserById(coreUserId, token, envUrl) {
+  const select =
+    'cr664_userid,cr664_username,cr664_email,cr664_activeaccessflag,statecode';
+  const url =
+    `${envUrl}/api/data/v9.2/${AUDIT_ACTOR_CORE_USER_ENTITY_SET}(${coreUserId})` +
+    `?$select=${encodeURIComponent(select)}`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+      },
+    });
+    if (res.status === 404) return { ok: true, exists: false };
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    return { ok: true, exists: true, record: json };
+  } catch (err) {
+    return { ok: false, error: `network error: ${err.message}` };
+  }
+}
+
+// Find existing cr664_user rows that match the actor by email or username/name.
+// Used to REUSE an existing identity before ever creating one.
+async function findAuditActorCoreUsers(upn, fullName, token, envUrl) {
+  const parts = [
+    `cr664_email eq '${odataEscapeStringLiteral(upn)}'`,
+    `cr664_username eq '${odataEscapeStringLiteral(upn)}'`,
+  ];
+  if (fullName && fullName.trim().length > 0) {
+    parts.push(`cr664_username eq '${odataEscapeStringLiteral(fullName.trim())}'`);
+  }
+  const filter = parts.join(' or ');
+  const select =
+    'cr664_userid,cr664_username,cr664_email,cr664_activeaccessflag,statecode';
+  const url =
+    `${envUrl}/api/data/v9.2/${AUDIT_ACTOR_CORE_USER_ENTITY_SET}` +
+    `?$filter=${encodeURIComponent(filter)}&$select=${encodeURIComponent(select)}`;
+  return fetchODataList(url, token);
+}
+
+// Compute cr664_user required-for-create fields from live metadata, and which
+// of them are NOT covered by the create allow-list / Dataverse defaults.
+async function getAuditActorCoreUserCreateRequirements(token, envUrl) {
+  const meta = await getTableMetadata(AUDIT_ACTOR_CORE_USER_LOGICAL, token, envUrl);
+  if (!meta.ok) return { ok: false, error: meta.error };
+  const attrs = Array.isArray(meta.table.Attributes) ? meta.table.Attributes : [];
+  const required = [];
+  for (const a of attrs) {
+    if (!a.IsValidForCreate) continue;
+    const lvl = a.RequiredLevel?.Value ?? 'None';
+    if (lvl === 'SystemRequired' || lvl === 'ApplicationRequired') {
+      required.push({
+        logicalName: a.LogicalName,
+        type: a.AttributeType,
+        level: lvl,
+      });
+    }
+  }
+  required.sort((a, b) => a.logicalName.localeCompare(b.logicalName));
+  const blocking = required.filter(
+    (r) =>
+      !AUDIT_ACTOR_CORE_USER_CREATE_ALLOWLIST.includes(r.logicalName) &&
+      !AUDIT_ACTOR_CORE_USER_AUTODEFAULTED.includes(r.logicalName),
+  );
+  return {
+    ok: true,
+    entitySetName: meta.table.EntitySetName ?? AUDIT_ACTOR_CORE_USER_ENTITY_SET,
+    required,
+    blocking,
+  };
+}
+
+// PATCH ONLY cr664_CoreUser@odata.bind on the platform user. No other column is
+// touched — bootstrap reads every other field unchanged on next login.
+async function patchPlatformUserCoreUser(platformUserId, coreUserId, token, envUrl) {
+  const url =
+    `${envUrl}/api/data/v9.2/${AUDIT_ACTOR_PLATFORM_USER_ENTITY_SET}(${platformUserId})`;
+  const body = {
+    [`${AUDIT_ACTOR_COREUSER_NAV}@odata.bind`]:
+      `/${AUDIT_ACTOR_CORE_USER_ENTITY_SET}(${coreUserId})`,
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return {
+        ok: false,
+        error: `PATCH ${AUDIT_ACTOR_PLATFORM_USER_ENTITY_SET}(${platformUserId}) → ${res.status}: ${text}`,
+      };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `PATCH network error: ${err.message}` };
+  }
+}
+
+// POST a minimal cr664_user. Body is restricted to the create allow-list; the
+// caller has already proven (via metadata) that no other field is required.
+async function createAuditActorCoreUser(body, token, envUrl) {
+  // Defense in depth: never POST a field outside the allow-list.
+  const stray = Object.keys(body).filter(
+    (k) => !AUDIT_ACTOR_CORE_USER_CREATE_ALLOWLIST.includes(k),
+  );
+  if (stray.length > 0) {
+    return { ok: false, error: `refusing to create cr664_user — disallowed field(s): ${stray.join(', ')}` };
+  }
+  const url = `${envUrl}/api/data/v9.2/${AUDIT_ACTOR_CORE_USER_ENTITY_SET}`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `POST ${AUDIT_ACTOR_CORE_USER_ENTITY_SET} → ${res.status}: ${text}` };
+    }
+    const json = await res.json();
+    if (!json.cr664_userid) {
+      return { ok: false, error: 'POST succeeded but response is missing cr664_userid' };
+    }
+    return { ok: true, id: json.cr664_userid, record: json };
+  } catch (err) {
+    return { ok: false, error: `POST network error: ${err.message}` };
+  }
+}
+
+// Print the cr664_user create-metadata block shared by inspect + seed. Returns
+// the requirements object (or null on metadata error, already logged).
+async function printAuditActorCoreUserCreateMetadata(token, envUrl) {
+  console.log('');
+  console.log('   Metadata — cr664_user create requirements:');
+  const lookup = await getLookupTargetsForAttribute(
+    AUDIT_ACTOR_PLATFORM_USER_LOGICAL,
+    AUDIT_ACTOR_COREUSER_ATTR,
+    token,
+    envUrl,
+  );
+  if (lookup.ok) {
+    const targetsOk = lookup.targets.includes(AUDIT_ACTOR_CORE_USER_LOGICAL);
+    console.log(
+      `     - ${AUDIT_ACTOR_PLATFORM_USER_LOGICAL}.${AUDIT_ACTOR_COREUSER_NAV} Targets[]: ` +
+        `${JSON.stringify(lookup.targets)} ${targetsOk ? '✓ targets cr664_user' : '⚠ does NOT target cr664_user'}`,
+    );
+  } else {
+    console.log(`     - could not read CoreUser lookup targets: ${lookup.error}`);
+  }
+  const reqs = await getAuditActorCoreUserCreateRequirements(token, envUrl);
+  if (!reqs.ok) {
+    console.log(`     - could not read cr664_user metadata: ${reqs.error}`);
+    return null;
+  }
+  console.log(`     - cr664_user EntitySetName: ${reqs.entitySetName}`);
+  console.log(
+    `     - REQUIRED FOR CREATE (${reqs.required.length}): ` +
+      (reqs.required.length === 0
+        ? '(none)'
+        : reqs.required.map((r) => `${r.logicalName}[${r.type}/${r.level}]`).join(', ')),
+  );
+  console.log(
+    `     - create allow-list: ${AUDIT_ACTOR_CORE_USER_CREATE_ALLOWLIST.join(', ')}`,
+  );
+  if (reqs.blocking.length === 0) {
+    console.log('     - blocking required fields beyond allow-list: NONE (a minimal create is possible)');
+  } else {
+    console.log(
+      `     - blocking required fields beyond allow-list: ${reqs.blocking
+        .map((r) => `${r.logicalName}[${r.type}]`)
+        .join(', ')} — a safe minimal create is NOT possible; reuse or operator action required`,
+    );
+  }
+  return reqs;
+}
+
+// === READ-ONLY: inspect the Platform User -> Core User bridge ===
+async function runInspectAuditActorBridge({ upn }, token, envUrl) {
+  console.log('');
+  console.log('BUGFIX — audit actor CoreUser bridge inspection (read-only)');
+  console.log(`   UPN:   ${upn}`);
+  console.log('   GETs only; no create/patch/delete, no audit, no gate change.');
+  console.log('');
+
+  // 1. Resolve the platform user — fail closed on zero/multiple.
+  const userRes = await findAuditActorPlatformUser(upn, token, envUrl);
+  if (!userRes.ok) {
+    bail(`Could not resolve platform user by upn "${upn}": ${userRes.error}`);
+  }
+  console.log(`   Platform users matching "${upn}": ${userRes.records.length}`);
+  if (userRes.records.length === 0) {
+    bail(
+      `No cr664_platformusers row matches cr664_email/cr664_normalizedemail = ` +
+        `"${upn}". Fail closed — provision the platform user before binding the ` +
+        `audit actor.`,
+    );
+  }
+  if (userRes.records.length > 1) {
+    bail(
+      `${userRes.records.length} cr664_platformusers rows match "${upn}". Fail ` +
+        `closed — the operator must resolve the ambiguity.`,
+    );
+  }
+  const pu = userRes.records[0];
+  console.log(`   ✓ Exactly one platform user: cr664_platformuserid=${pu.cr664_platformuserid}`);
+
+  // 2. Active?
+  const puActive = auditActorPlatformUserIsActive(pu);
+  console.log(
+    `   Platform user active: ${puActive ? 'YES' : 'NO'} ` +
+      `(cr664_activestatus=${pu.cr664_activestatus}, statecode=${pu.statecode ?? '(unset)'})`,
+  );
+  if (!puActive) {
+    bail('Platform user is inactive. Fail closed — activate it before binding the audit actor.');
+  }
+
+  // 3. CoreUser populated?
+  const coreUserId = pu[AUDIT_ACTOR_COREUSER_VALUE_FIELD];
+  const corePopulated = typeof coreUserId === 'string' && coreUserId.trim().length > 0;
+  console.log(
+    `   cr664_CoreUser populated: ${corePopulated ? `YES (${coreUserId})` : 'NO (empty)'}`,
+  );
+
+  let bridgeReady = false;
+  if (corePopulated) {
+    // 4. Verify the referenced cr664_user exists and is active.
+    const core = await readAuditActorCoreUserById(coreUserId, token, envUrl);
+    if (!core.ok) {
+      console.log(`   ⚠ Could not read the referenced cr664_user: ${core.error}`);
+    } else if (!core.exists) {
+      console.log('   ⚠ The referenced cr664_user row does NOT exist (dangling CoreUser).');
+    } else {
+      const active = auditActorCoreUserIsActive(core.record);
+      console.log(
+        `   ✓ Referenced cr664_user exists: cr664_userid=${core.record.cr664_userid} ` +
+          `active=${active ? 'YES' : 'NO'} ` +
+          `(statecode=${core.record.statecode ?? '(unset)'}, ` +
+          `cr664_activeaccessflag=${core.record.cr664_activeaccessflag ?? '(unset)'})`,
+      );
+      bridgeReady = active;
+    }
+  }
+
+  // 5. Metadata the seed relies on.
+  await printAuditActorCoreUserCreateMetadata(token, envUrl);
+
+  console.log('');
+  console.log(
+    `   BRIDGE STATUS: ${
+      bridgeReady
+        ? 'READY — audit can bind cr664_ChangedBy = /cr664_users(<CoreUser>).'
+        : 'BLOCKED — run --seed-audit-actor-bridge to inspect/repair (dry-run by default).'
+    }`,
+  );
+  console.log('   (read-only; nothing written)');
+  return { ok: true, bridgeReady, platformUserId: pu.cr664_platformuserid };
+}
+
+// === GUARDED SEED/REPAIR of the Platform User -> Core User bridge ===
+async function runSeedAuditActorBridge({ upn, doCommit }, token, envUrl) {
+  console.log('');
+  console.log('BUGFIX — audit actor CoreUser bridge seed/repair');
+  console.log(`   UPN:    ${upn}`);
+  console.log(
+    `   Mode:   ${
+      doCommit
+        ? 'COMMIT-SEED-AUDIT-ACTOR-BRIDGE (may POST one cr664_user and PATCH CoreUser)'
+        : 'dry-run (no write)'
+    }`,
+  );
+  console.log(
+    '   Scope:  PATCHes ONLY cr664_platformuser.cr664_CoreUser. Never patches a ' +
+      'Loan Deal, never writes audit, never enables a gate.',
+  );
+  console.log('');
+
+  // 1. Resolve the platform user — fail closed on zero/multiple/inactive.
+  const userRes = await findAuditActorPlatformUser(upn, token, envUrl);
+  if (!userRes.ok) {
+    bail(`Could not resolve platform user by upn "${upn}": ${userRes.error}`);
+  }
+  if (userRes.records.length === 0) {
+    bail(
+      `No cr664_platformusers row matches "${upn}". Fail closed — this mode does ` +
+        `NOT create a platform user.`,
+    );
+  }
+  if (userRes.records.length > 1) {
+    bail(
+      `${userRes.records.length} cr664_platformusers rows match "${upn}". Fail ` +
+        `closed — resolve the ambiguity before seeding.`,
+    );
+  }
+  const pu = userRes.records[0];
+  if (!auditActorPlatformUserIsActive(pu)) {
+    bail('Platform user is inactive. Fail closed — activate it before seeding the bridge.');
+  }
+  console.log(`   ✓ Platform user: cr664_platformuserid=${pu.cr664_platformuserid} (active)`);
+
+  // 2. CoreUser already populated?
+  const existingCoreId = pu[AUDIT_ACTOR_COREUSER_VALUE_FIELD];
+  if (typeof existingCoreId === 'string' && existingCoreId.trim().length > 0) {
+    const core = await readAuditActorCoreUserById(existingCoreId, token, envUrl);
+    if (core.ok && core.exists && auditActorCoreUserIsActive(core.record)) {
+      console.log(
+        `   ✓ cr664_CoreUser already points at an active cr664_user ` +
+          `(cr664_userid=${existingCoreId}). No-op success.`,
+      );
+      return { ok: true, alreadyLinked: true, coreUserId: existingCoreId };
+    }
+    bail(
+      `cr664_CoreUser is populated (${existingCoreId}) but the referenced ` +
+        `cr664_user is missing or inactive. Fail closed — refusing to silently ` +
+        `re-point a populated bridge. An operator must investigate the existing ` +
+        `link before any repair.`,
+    );
+  }
+
+  // 3. CoreUser empty — try to REUSE an existing cr664_user before creating one.
+  console.log('   cr664_CoreUser is empty — resolving a cr664_user to bind …');
+  const matchRes = await findAuditActorCoreUsers(upn, pu.cr664_fullname, token, envUrl);
+  if (!matchRes.ok) {
+    bail(`Could not query cr664_users for a match: ${matchRes.error}`);
+  }
+  const activeMatches = matchRes.records.filter(auditActorCoreUserIsActive);
+  const distinctMatchIds = [...new Set(activeMatches.map((r) => r.cr664_userid))];
+  if (distinctMatchIds.length > 1) {
+    bail(
+      `${distinctMatchIds.length} distinct active cr664_user rows match the actor ` +
+        `(by email/username). Fail closed — the operator must pick the correct ` +
+        `identity; this mode will not guess.`,
+    );
+  }
+
+  let selectedCoreUserId = null;
+  let willCreate = false;
+  let plannedCreateBody = null;
+
+  if (distinctMatchIds.length === 1) {
+    selectedCoreUserId = distinctMatchIds[0];
+    console.log(`   ✓ Reusing existing active cr664_user: cr664_userid=${selectedCoreUserId}`);
+  } else {
+    // 4. No existing match — consider a minimal create, gated by metadata.
+    console.log('   No existing cr664_user matches — checking whether a safe minimal create is possible …');
+    const reqs = await printAuditActorCoreUserCreateMetadata(token, envUrl);
+    if (!reqs) {
+      bail('Could not read cr664_user create metadata. Fail closed — cannot decide safely.');
+    }
+    if (reqs.blocking.length > 0) {
+      bail(
+        'Cannot safely create a cr664_user: required-for-create field(s) outside ' +
+          `the allow-list — ${reqs.blocking.map((r) => `${r.logicalName}[${r.type}]`).join(', ')}. ` +
+          'Fail closed — NOT guessing these values.\n' +
+          '   Operator action: either (a) create/activate a cr664_user for ' +
+          `"${upn}" in the maker portal supplying those fields, then re-run this ` +
+          'mode to bind it; or (b) extend the script allow-list ONLY once the safe ' +
+          'source for each field is known. Banker create audit stays blocked until then.',
+      );
+    }
+    willCreate = true;
+    plannedCreateBody = {
+      cr664_username: (pu.cr664_fullname && pu.cr664_fullname.trim()) || upn,
+      cr664_email: upn,
+      cr664_activeaccessflag: true,
+    };
+    console.log('   ✓ A minimal cr664_user create is metadata-safe (allow-listed fields only).');
+  }
+
+  // 5. Plan summary.
+  console.log('');
+  console.log('   Planned action(s):');
+  if (willCreate) {
+    console.log(`     [1] POST /api/data/v9.2/${AUDIT_ACTOR_CORE_USER_ENTITY_SET}`);
+    console.log(`         body: ${JSON.stringify(plannedCreateBody)}`);
+    console.log('         POST sets ONLY allow-listed cr664_user fields.');
+    console.log(
+      `     [2] PATCH /api/data/v9.2/${AUDIT_ACTOR_PLATFORM_USER_ENTITY_SET}(${pu.cr664_platformuserid})`,
+    );
+    console.log(
+      `         body: { "${AUDIT_ACTOR_COREUSER_NAV}@odata.bind": "/${AUDIT_ACTOR_CORE_USER_ENTITY_SET}(<new cr664_userid>)" }`,
+    );
+  } else {
+    console.log(
+      `     [1] PATCH /api/data/v9.2/${AUDIT_ACTOR_PLATFORM_USER_ENTITY_SET}(${pu.cr664_platformuserid})`,
+    );
+    console.log(
+      `         body: { "${AUDIT_ACTOR_COREUSER_NAV}@odata.bind": "/${AUDIT_ACTOR_CORE_USER_ENTITY_SET}(${selectedCoreUserId})" }`,
+    );
+  }
+  console.log(
+    `         PATCH body sets ONLY ${AUDIT_ACTOR_COREUSER_NAV}@odata.bind — no other ` +
+      'platform-user column, no Loan Deal, no audit row, no gate.',
+  );
+
+  if (!doCommit) {
+    console.log('');
+    console.log('   Dry-run only — no write issued.');
+    console.log('   Re-run with `--commit-seed-audit-actor-bridge` to execute the plan above.');
+    return { ok: true, planned: true, willCreate, platformUserId: pu.cr664_platformuserid };
+  }
+
+  // 6. Commit — create (if needed) then PATCH CoreUser.
+  if (willCreate) {
+    console.log('');
+    console.log(`   ⚙ POST ${AUDIT_ACTOR_CORE_USER_ENTITY_SET} (minimal cr664_user) …`);
+    const created = await createAuditActorCoreUser(plannedCreateBody, token, envUrl);
+    if (!created.ok) {
+      bail(`Create cr664_user failed: ${created.error}`);
+    }
+    selectedCoreUserId = created.id;
+    console.log(`   ✓ Created cr664_userid=${selectedCoreUserId}`);
+  }
+
+  console.log('');
+  console.log(
+    `   ⚙ PATCH ${AUDIT_ACTOR_PLATFORM_USER_ENTITY_SET}(${pu.cr664_platformuserid}) ${AUDIT_ACTOR_COREUSER_NAV}@odata.bind …`,
+  );
+  const patch = await patchPlatformUserCoreUser(
+    pu.cr664_platformuserid,
+    selectedCoreUserId,
+    token,
+    envUrl,
+  );
+  if (!patch.ok) {
+    bail(`PATCH platform user CoreUser failed: ${patch.error}`);
+  }
+  console.log('   ✓ Platform user CoreUser PATCH succeeded.');
+
+  // 7. Verify by re-reading the platform user + the referenced cr664_user.
+  console.log('');
+  console.log('   ⚙ Re-reading the bridge to verify …');
+  const verifyUser = await findAuditActorPlatformUser(upn, token, envUrl);
+  if (verifyUser.ok && verifyUser.records.length === 1) {
+    const got = verifyUser.records[0][AUDIT_ACTOR_COREUSER_VALUE_FIELD];
+    if (got === selectedCoreUserId) {
+      console.log(`     ✓ cr664_CoreUser now points at cr664_users(${selectedCoreUserId}).`);
+    } else {
+      console.log(`     ⚠ Verification mismatch — CoreUser reads "${got ?? '(empty)'}".`);
+    }
+  } else {
+    console.log('     ⚠ Could not re-read the platform user to verify.');
+  }
+  const verifyCore = await readAuditActorCoreUserById(selectedCoreUserId, token, envUrl);
+  if (verifyCore.ok && verifyCore.exists) {
+    console.log(
+      `     ✓ Referenced cr664_user active=${auditActorCoreUserIsActive(verifyCore.record) ? 'YES' : 'NO'}.`,
+    );
+  }
+
+  console.log('');
+  console.log('✓ Seed commit complete. Re-run --inspect-audit-actor-bridge to confirm READY,');
+  console.log('  then run exactly one final banker create proof.');
+  return { ok: true, coreUserId: selectedCoreUserId, created: willCreate };
 }
 
 // ---------------------------------------------------------------------------
@@ -9618,6 +10234,25 @@ async function main() {
     return;
   }
 
+  // === BUGFIX -- read-only audit actor CoreUser bridge inspection ===
+  if (FLAGS.inspectAuditActorBridge) {
+    await runInspectAuditActorBridge({ upn: FLAGS.seedUpn }, mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === BUGFIX -- guarded audit actor CoreUser bridge seed/repair ===
+  // Dry-run by default; the lone PATCH (and any cr664_user create) requires
+  // --commit-seed-audit-actor-bridge. Patches ONLY the Platform User
+  // cr664_CoreUser lookup. Never touches a Loan Deal, audit, or any gate.
+  if (FLAGS.seedAuditActorBridge) {
+    await runSeedAuditActorBridge(
+      { upn: FLAGS.seedUpn, doCommit: FLAGS.commitSeedAuditActorBridge },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
   // === Phase 170H-A -- read-only Platform Workspace listing ===
   if (FLAGS.listPlatformWorkspaces) {
     await runListPlatformWorkspaces(mainToken, mainEnvUrl);
@@ -9981,6 +10616,9 @@ Usage:
   node scripts/phase122-lookup-repair.mjs --inspect-new-deal-create-references                  # read-only: classify Stage/Status rows PRODUCTION-SAFE vs REJECTED
   node scripts/phase122-lookup-repair.mjs --seed-new-deal-create-references                     # dry-run: plan production-safe Intake/Open reference rows
   node scripts/phase122-lookup-repair.mjs --seed-new-deal-create-references --commit-seed-new-deal-create-references  # create missing Intake/Open reference rows
+  node scripts/phase122-lookup-repair.mjs --inspect-audit-actor-bridge --upn <email>           # read-only: inspect the Platform User -> Core User audit-actor bridge
+  node scripts/phase122-lookup-repair.mjs --seed-audit-actor-bridge --upn <email>              # dry-run: plan the CoreUser bridge seed/repair
+  node scripts/phase122-lookup-repair.mjs --seed-audit-actor-bridge --upn <email> --commit-seed-audit-actor-bridge  # repair the CoreUser bridge
   node scripts/phase122-lookup-repair.mjs --commit                                              # execute writes after every safety gate passes
   node scripts/phase122-lookup-repair.mjs --help
 
@@ -10184,6 +10822,32 @@ Modes:
       --commit-seed-copilot-audit-table-metadata prints a notice and still
       performs no write. No table/attribute/index is created; no publish is
       run; no live enablement.
+
+  --inspect-audit-actor-bridge --upn <email>
+      BUGFIX — read-only inspection of the Platform User -> Core User bridge
+      the New Deal audit needs to bind cr664_ChangedBy = /cr664_users(<id>).
+      Resolves exactly one cr664_platformusers row by cr664_email /
+      cr664_normalizedemail; reports whether it is active, whether
+      cr664_CoreUser is populated, and (when populated) whether the referenced
+      cr664_user exists and is active. Also prints the cr664_user create
+      metadata (CoreUser lookup Targets[], EntitySetName, required-for-create
+      fields). Fails closed on zero/multiple/inactive platform users. Pure
+      GETs — no create/patch/delete, no Loan Deal write, no audit row, no gate.
+
+  --seed-audit-actor-bridge --upn <email> [--commit-seed-audit-actor-bridge]
+      BUGFIX — guarded seed/repair of the Platform User cr664_CoreUser lookup.
+      Dry-run by default. If the platform user already has an active CoreUser:
+      no-op. If CoreUser is populated but its target is missing/inactive: fails
+      closed (refuses to silently re-point). If CoreUser is empty: reuses one
+      existing active cr664_user matched by email/username, or — only if live
+      metadata shows the required-for-create set is covered by the allow-list
+      (cr664_username, cr664_email, cr664_activeaccessflag) — creates ONE
+      minimal cr664_user; otherwise STOPS with operator instructions and never
+      guesses. The lone write (PATCH cr664_CoreUser@odata.bind, plus any
+      cr664_user POST) requires --commit-seed-audit-actor-bridge. Fails closed
+      on multiple platform users / multiple cr664_user matches. NEVER patches a
+      Loan Deal, NEVER writes audit, NEVER enables a gate, NEVER mutates any
+      other platform-user field.
 
   --commit
       Run the plan against the live env. Refuses to run unless every
