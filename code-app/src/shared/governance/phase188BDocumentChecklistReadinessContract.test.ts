@@ -14,10 +14,14 @@ import { resolve } from 'node:path';
 const ROOT = resolve(__dirname, '..', '..', '..');
 const SCRIPT = readFileSync(resolve(ROOT, 'scripts', 'phase122-lookup-repair.mjs'), 'utf8');
 
-const SECTION = SCRIPT.slice(
-  SCRIPT.indexOf('// Phase 188B — Document checklist pilot readiness inspector / planner.'),
-  SCRIPT.indexOf('// Audit phase — publishers + tables + columns', SCRIPT.indexOf('// Phase 188B —')),
-);
+const SECTION = (() => {
+  const start = SCRIPT.indexOf('// Phase 188B — Document checklist pilot readiness inspector / planner.');
+  // The follow-on Phase 188E live-proof section has its own contract test; bound
+  // the 188B (read-only) slice to its start, falling back to the audit marker.
+  const next = SCRIPT.indexOf('// Phase 188E — document checklist pilot LIVE proof', start);
+  const end = next !== -1 ? next : SCRIPT.indexOf('// Audit phase — publishers + tables + columns', start);
+  return SCRIPT.slice(start, end);
+})();
 
 describe('flags & mutual exclusivity', () => {
   it('defines the two read-only modes + their args', () => {
@@ -34,7 +38,7 @@ describe('flags & mutual exclusivity', () => {
   it('each mode requires exactly one of --deal-name / --deal-id; plan requires --document-names', () => {
     expect(SCRIPT).toMatch(/requires exactly one of --deal-name "<name>" or --deal-id <guid>/);
     expect(SCRIPT).toMatch(/--plan-document-checklist-generation requires --document-names/);
-    expect(SCRIPT).toMatch(/--deal-id is only valid alongside --inspect-document-checklist-graph or --plan-document-checklist-generation/);
+    expect(SCRIPT).toMatch(/--deal-id is only valid alongside --inspect-document-checklist-graph, --plan-document-checklist-generation, or --commit-document-checklist-generation-proof/);
   });
 });
 

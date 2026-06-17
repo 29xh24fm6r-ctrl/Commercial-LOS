@@ -437,6 +437,10 @@ function parseArgs(argv) {
     docChecklistDealId: null,
     docChecklistNames: null,
     json: false,
+    // Phase 188E — the one controlled live checklist-row proof (write-gated).
+    commitDocChecklistProof: false,
+    docChecklistActorUpn: null,
+    docChecklistCorrelationId: null,
     // Phase 170H-A — Platform Workspace listing + seed (workspace row only).
     listPlatformWorkspaces: false,
     seedPlatformWorkspace: false,
@@ -898,6 +902,30 @@ function parseArgs(argv) {
       // blocked) for checklist names on a target deal. Never writes.
       flags.planDocumentChecklistGeneration = true;
       flags.dryRun = false;
+    } else if (arg === '--commit-document-checklist-generation-proof') {
+      // Phase 188E — the ONLY mode that writes checklist rows. One controlled
+      // pilot proof: re-runs the 188B readiness checks, then creates ONLY the
+      // missing cr664_documentchecklists rows for the EXACT --deal-id, emits one
+      // audit (cr664_ChangedBy = /cr664_users; never /systemusers) after all rows
+      // succeed, fails closed on partial/audit failure, and reads back. Requires
+      // --deal-id, --document-names, --actor-upn, --correlation-id. Never
+      // contacts a borrower, never touches another deal, never bulk-operates.
+      flags.commitDocChecklistProof = true;
+      flags.dryRun = false;
+    } else if (arg === '--actor-upn') {
+      const next = args[i + 1];
+      if (!next || !/^[^@\s]+@[^@\s]+$/.test(next)) {
+        bailParseArgs(`--actor-upn expects a "<local>@<domain>" value; got "${next ?? ''}"`);
+      }
+      flags.docChecklistActorUpn = next;
+      i += 1;
+    } else if (arg === '--correlation-id') {
+      const next = args[i + 1];
+      if (!next || next.trim().length === 0) {
+        bailParseArgs('--correlation-id requires a non-empty value');
+      }
+      flags.docChecklistCorrelationId = next;
+      i += 1;
     } else if (arg === '--deal-id') {
       const next = args[i + 1];
       if (!next || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(next)) {
@@ -1065,6 +1093,7 @@ function parseArgs(argv) {
     flags.verifyIdentityAuditGraph,
     flags.inspectDocumentChecklistGraph,
     flags.planDocumentChecklistGeneration,
+    flags.commitDocChecklistProof,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -1279,7 +1308,7 @@ function parseArgs(argv) {
       '--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, --smoke-create-new-deal, --inspect-document-checklist-graph, or --plan-document-checklist-generation',
     );
   }
-  // Phase 188B — document-checklist readiness modes cross-flag validation.
+  // Phase 188B/188E — document-checklist modes cross-flag validation.
   if (flags.inspectDocumentChecklistGraph || flags.planDocumentChecklistGeneration) {
     const mode = flags.inspectDocumentChecklistGraph
       ? '--inspect-document-checklist-graph'
@@ -1295,12 +1324,36 @@ function parseArgs(argv) {
     if (flags.inspectDocumentChecklistGraph && flags.docChecklistNames) {
       bailParseArgs('--document-names is only valid alongside --plan-document-checklist-generation');
     }
+    if (flags.docChecklistActorUpn || flags.docChecklistCorrelationId) {
+      bailParseArgs('--actor-upn / --correlation-id are only valid alongside --commit-document-checklist-generation-proof');
+    }
+  } else if (flags.commitDocChecklistProof) {
+    // Phase 188E — the live proof requires the EXACT deal id (no --deal-name),
+    // explicit names, an explicit actor UPN, and an explicit correlation id.
+    if (!flags.docChecklistDealId) {
+      bailParseArgs('--commit-document-checklist-generation-proof requires --deal-id <guid> (exact id only; --deal-name is not accepted for the live commit)');
+    }
+    if (flags.seedDealName) {
+      bailParseArgs('--commit-document-checklist-generation-proof does not accept --deal-name; use --deal-id <guid> only');
+    }
+    if (!flags.docChecklistNames) {
+      bailParseArgs('--commit-document-checklist-generation-proof requires --document-names "Name A|Name B|Name C"');
+    }
+    if (!flags.docChecklistActorUpn) {
+      bailParseArgs('--commit-document-checklist-generation-proof requires --actor-upn <email>');
+    }
+    if (!flags.docChecklistCorrelationId) {
+      bailParseArgs('--commit-document-checklist-generation-proof requires --correlation-id <id>');
+    }
   } else {
     if (flags.docChecklistDealId) {
-      bailParseArgs('--deal-id is only valid alongside --inspect-document-checklist-graph or --plan-document-checklist-generation');
+      bailParseArgs('--deal-id is only valid alongside --inspect-document-checklist-graph, --plan-document-checklist-generation, or --commit-document-checklist-generation-proof');
     }
     if (flags.docChecklistNames) {
-      bailParseArgs('--document-names is only valid alongside --plan-document-checklist-generation');
+      bailParseArgs('--document-names is only valid alongside --plan-document-checklist-generation or --commit-document-checklist-generation-proof');
+    }
+    if (flags.docChecklistActorUpn || flags.docChecklistCorrelationId) {
+      bailParseArgs('--actor-upn / --correlation-id are only valid alongside --commit-document-checklist-generation-proof');
     }
   }
   // Phase 124D — manager-entitlement seed cross-flag validation.
@@ -7690,6 +7743,228 @@ async function runPlanDocumentChecklistGeneration({ dealName, dealId, namesRaw, 
 }
 
 // ---------------------------------------------------------------------------
+// Phase 188E — document checklist pilot LIVE proof (one controlled deal only).
+//
+// The ONLY mode that writes checklist rows. It mirrors the certified
+// generateAuditedDocumentChecklist algorithm (188C): re-run the 188B readiness
+// checks, resolve the actor to /cr664_users(<CoreUser>) (never /systemusers),
+// create ONLY the missing rows for the EXACT --deal-id, emit ONE audit after all
+// rows succeed, fail closed on partial/audit failure, read back. Allow-listed
+// ROW payload = {cr664_documentname, cr664_Deal@odata.bind} ONLY -- cr664_correlationid
+// is NOT a column on cr664_documentchecklists (188C discrepancy), so the
+// correlation id lives ONLY on the audit event. Never contacts a borrower,
+// never touches another deal, never bulk-operates.
+// ---------------------------------------------------------------------------
+
+// The ONLY columns the live checklist-row POST may set (both metadata-confirmed
+// required-for-create). NO cr664_documenttype, NO cr664_correlationid (absent
+// from the table), NO stage/status/portfolio/CRM/borrower field.
+const DOC_CHECKLIST_PROOF_ROW_ALLOWLIST = ['cr664_documentname', 'cr664_Deal@odata.bind'];
+
+// Verified, pinned cr664_auditevents option-set values (match dealOriginationAudit.ts).
+const DOC_CHECKLIST_AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002;
+const DOC_CHECKLIST_AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE = 788190002;
+const DOC_CHECKLIST_AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
+const DOC_CHECKLIST_AUDIT_OUTCOME_SUCCEEDED = 788190000;
+
+// Resolve the actor UPN to a /cr664_users(<CoreUser>) bind via the platform-user
+// bridge (mirrors the runtime resolver). Fail closed on zero/multiple/inactive
+// platform users or an empty CoreUser. NEVER returns a /systemusers bind.
+async function resolveProofActorChangedByBind(actorUpn, token, envUrl) {
+  const res = await findAuditActorPlatformUser(actorUpn, token, envUrl);
+  if (!res.ok) return { ok: false, reason: `platform-user lookup failed: ${res.error}` };
+  if (res.records.length === 0) return { ok: false, reason: `no cr664_platformusers row matches "${actorUpn}"` };
+  if (res.records.length > 1) return { ok: false, reason: `${res.records.length} cr664_platformusers rows match "${actorUpn}" — ambiguous` };
+  const pu = res.records[0];
+  if (!auditActorPlatformUserIsActive(pu)) return { ok: false, reason: 'platform user is inactive' };
+  const coreId = pu[AUDIT_ACTOR_COREUSER_VALUE_FIELD];
+  if (!(typeof coreId === 'string' && coreId.trim().length > 0)) {
+    return { ok: false, reason: 'platform user cr664_CoreUser is empty — provision the identity graph first' };
+  }
+  return { ok: true, changedByBind: `/cr664_users(${coreId})`, platformUserId: pu.cr664_platformuserid };
+}
+
+// Emit ONE cr664_auditevents row for the checklist generation. Asserts the
+// cr664_ChangedBy bind targets /cr664_users; refuses /systemusers.
+async function emitProofChecklistAudit(
+  { dealId, changedByBind, createdNames, skippedNames, correlationId, nowIso },
+  token,
+  envUrl,
+) {
+  if (!String(changedByBind).startsWith('/cr664_users(')) {
+    return { ok: false, error: `refusing audit: cr664_ChangedBy must bind /cr664_users(<id>); got ${changedByBind}` };
+  }
+  const body = {
+    cr664_auditeventname: 'Document Checklist Generated',
+    cr664_eventcategory: DOC_CHECKLIST_AUDIT_EVENT_CATEGORY_LIFECYCLE,
+    cr664_eventtype: DOC_CHECKLIST_AUDIT_EVENT_TYPE_ASSIGNMENT_CHANGE,
+    cr664_entitytype: DOC_CHECKLIST_AUDIT_ENTITY_TYPE_LOAN_DEAL,
+    cr664_entityid: dealId,
+    'cr664_LoanDeal@odata.bind': `/cr664_loandeals(${dealId})`,
+    cr664_outcomestatus: DOC_CHECKLIST_AUDIT_OUTCOME_SUCCEEDED,
+    cr664_changeddate: nowIso,
+    'cr664_ChangedBy@odata.bind': changedByBind,
+    cr664_notes:
+      `Document checklist generated for deal ${dealId}. ` +
+      `Created: [${createdNames.join(', ')}]. Skipped existing: [${skippedNames.join(', ')}].`,
+    cr664_sourcescreensourceprocess: 'phase122-lookup-repair/document-checklist-proof',
+    cr664_correlationid: correlationId,
+    cr664_fieldname: 'cr664_documentname',
+    cr664_newvalue: createdNames.join(', '),
+    cr664_beforestate: `${skippedNames.length} existing`,
+    cr664_afterstate: `${createdNames.length} created`,
+  };
+  const url = `${envUrl}/api/data/v9.2/cr664_auditevents`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return { ok: false, error: `POST cr664_auditevents → ${res.status}: ${await res.text()}` };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `audit POST network error: ${err.message}` };
+  }
+}
+
+async function runCommitDocumentChecklistGenerationProof(
+  { dealId, namesRaw, actorUpn, correlationId },
+  token,
+  envUrl,
+) {
+  console.log('');
+  console.log('DOCUMENT CHECKLIST PILOT — LIVE PROOF (Phase 188E, one deal only)');
+  console.log(`   Deal id:        ${dealId}`);
+  console.log(`   Actor UPN:      ${actorUpn}`);
+  console.log(`   Correlation id: ${correlationId}`);
+  console.log('   Writes ONLY missing cr664_documentchecklists rows + ONE audit. No borrower contact.');
+  console.log('');
+
+  // 1. Re-run the 188B readiness checks (deal-id only).
+  const checks = await gatherDocChecklistChecks({ dealId }, token, envUrl);
+  printDocChecklistChecks(checks);
+
+  // 2. Parse + validate the approved names (refuse blank/duplicate).
+  const rawNames = String(namesRaw ?? '').split('|').map((n) => n.trim());
+  const blockedReasons = [...checks.blockedReasons];
+  if (rawNames.some((n) => n.length === 0)) blockedReasons.push('invalid empty checklist name in --document-names');
+  const seenLower = new Set();
+  for (const n of rawNames) {
+    const low = n.toLowerCase();
+    if (n.length > 0 && seenLower.has(low)) blockedReasons.push(`duplicate name in --document-names: ${n}`);
+    seenLower.add(low);
+  }
+  const approved = rawNames.filter((n) => n.length > 0);
+  const existingLower = new Set(checks.existing.map((r) => r.name.trim().toLowerCase()));
+  const wouldCreate = approved.filter((n) => !existingLower.has(n.toLowerCase()));
+  const skipped = approved.filter((n) => existingLower.has(n.toLowerCase()));
+
+  // 3. Gate: only proceed when READY_TO_COMMIT or ALREADY_GENERATED.
+  const status = deriveDocChecklistStatus({
+    unsafe: checks.unsafe,
+    blockedReasons,
+    planMode: true,
+    wouldCreateCount: wouldCreate.length,
+  });
+  console.log('');
+  console.log(`   Plan: would_create (${wouldCreate.length})=[${wouldCreate.join(', ')}]; already_present (${skipped.length})=[${skipped.join(', ')}]`);
+  console.log(`   Readiness: ${status}`);
+  if (status === 'UNSAFE_EXTERNAL_COMMUNICATION') {
+    console.log('');
+    console.log('PROOF STATUS: PROOF_BLOCKED (UNSAFE_EXTERNAL_COMMUNICATION)');
+    return { ok: false, status: 'PROOF_BLOCKED' };
+  }
+  if (status === 'BLOCKED') {
+    console.log('');
+    console.log('PROOF STATUS: PROOF_BLOCKED');
+    return { ok: false, status: 'PROOF_BLOCKED' };
+  }
+  if (status === 'ALREADY_GENERATED') {
+    console.log('');
+    console.log('   All approved names already present — no rows written (idempotent).');
+    console.log('PROOF STATUS: PROOF_ALREADY_GENERATED');
+    return { ok: true, status: 'PROOF_ALREADY_GENERATED' };
+  }
+
+  // 4. Resolve the actor to /cr664_users(<CoreUser>) BEFORE writing (fail closed).
+  const actor = await resolveProofActorChangedByBind(actorUpn, token, envUrl);
+  if (!actor.ok) {
+    console.log('');
+    console.log(`   Actor bind could not be resolved: ${actor.reason}`);
+    console.log('PROOF STATUS: PROOF_BLOCKED (actor not provisioned)');
+    return { ok: false, status: 'PROOF_BLOCKED' };
+  }
+  console.log(`   Actor cr664_ChangedBy bind: ${actor.changedByBind}`);
+
+  // 5. Create ONLY the missing rows (allow-listed 2-field payload). Fail closed.
+  const created = [];
+  for (const name of wouldCreate) {
+    const body = {
+      cr664_documentname: name,
+      'cr664_Deal@odata.bind': `/cr664_loandeals(${dealId})`,
+    };
+    console.log(`   ⚙ POST ${DOC_CHECKLIST_ENTITY_SET} { cr664_documentname: "${name}" } …`);
+    const res = await createDependencyRow(
+      { entitySetName: DOC_CHECKLIST_ENTITY_SET, primaryId: 'cr664_documentchecklistid' },
+      body,
+      DOC_CHECKLIST_PROOF_ROW_ALLOWLIST,
+      token,
+      envUrl,
+    );
+    if (!res.ok) {
+      console.log(`   ✗ create failed: ${res.error}`);
+      console.log('');
+      console.log(
+        created.length === 0
+          ? 'PROOF STATUS: PROOF_BLOCKED (first create failed; no rows persisted; no audit)'
+          : `PROOF STATUS: PROOF_PARTIAL_FAILURE (${created.length} created, then a failure; NO audit emitted)`,
+      );
+      return { ok: false, status: created.length === 0 ? 'PROOF_BLOCKED' : 'PROOF_PARTIAL_FAILURE' };
+    }
+    created.push(name);
+    console.log(`   ✓ ${DOC_CHECKLIST_ENTITY_SET}(${res.id})`);
+  }
+
+  // 6. Emit ONE audit only AFTER all rows succeeded.
+  const nowIso = new Date().toISOString();
+  const audit = await emitProofChecklistAudit(
+    { dealId, changedByBind: actor.changedByBind, createdNames: created, skippedNames: skipped, correlationId, nowIso },
+    token,
+    envUrl,
+  );
+  if (!audit.ok) {
+    console.log('');
+    console.log(`   ⚠ ${created.length} row(s) created but the audit POST failed: ${audit.error}`);
+    console.log('PROOF STATUS: PROOF_AUDIT_FAILED (rows exist; audit not written — NOT a clean success)');
+    return { ok: false, status: 'PROOF_AUDIT_FAILED' };
+  }
+  console.log('   ✓ Audit event written (cr664_ChangedBy -> /cr664_users).');
+
+  // 7. Readback for idempotency proof.
+  console.log('');
+  console.log('   ⚙ Reading back checklist rows on the deal …');
+  const readback = await listDealChecklistRows(dealId, token, envUrl);
+  if (readback.ok) {
+    for (const r of readback.rows) console.log(`     - ${r.name}  id=${r.id}`);
+    console.log(`   rows now on deal: ${readback.rows.length}`);
+  }
+
+  console.log('');
+  console.log(`   created=[${created.join(', ')}]; skipped=[${skipped.join(', ')}]; correlationId=${correlationId}`);
+  console.log('PROOF STATUS: PROOF_CREATED');
+  console.log('Re-run --plan-document-checklist-generation to confirm ALREADY_GENERATED (idempotent).');
+  return { ok: true, status: 'PROOF_CREATED', created, skipped };
+}
+
+// ---------------------------------------------------------------------------
 // Audit phase — publishers + tables + columns
 // ---------------------------------------------------------------------------
 
@@ -12561,6 +12836,21 @@ async function main() {
     return;
   }
 
+  // === Phase 188E -- the one controlled live checklist-row proof (write-gated) ===
+  if (FLAGS.commitDocChecklistProof) {
+    await runCommitDocumentChecklistGenerationProof(
+      {
+        dealId: FLAGS.docChecklistDealId,
+        namesRaw: FLAGS.docChecklistNames,
+        actorUpn: FLAGS.docChecklistActorUpn,
+        correlationId: FLAGS.docChecklistCorrelationId,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
+    return;
+  }
+
   // === Phase 170H-A -- read-only Platform Workspace listing ===
   if (FLAGS.listPlatformWorkspaces) {
     await runListPlatformWorkspaces(mainToken, mainEnvUrl);
@@ -12939,6 +13229,7 @@ Usage:
   node scripts/phase122-lookup-repair.mjs --verify-identity-audit-graph --upn <email>            # CANONICAL read-only: GRAPH STATUS: READY|BLOCKED
   node scripts/phase122-lookup-repair.mjs --inspect-document-checklist-graph --deal-name "<deal>"  # Phase 188B read-only checklist readiness
   node scripts/phase122-lookup-repair.mjs --plan-document-checklist-generation --deal-name "<deal>" --document-names "A|B|C"  # Phase 188B read-only dry-run plan
+  node scripts/phase122-lookup-repair.mjs --commit-document-checklist-generation-proof --deal-id <guid> --document-names "A|B|C" --actor-upn <email> --correlation-id <id>  # Phase 188E one live proof
   node scripts/phase122-lookup-repair.mjs --commit                                              # execute writes after every safety gate passes
   node scripts/phase122-lookup-repair.mjs --help
 
@@ -13284,6 +13575,22 @@ Modes:
       deal, missing/unexpected required metadata, unsafe comms import, empty or
       duplicate input names). Same terminal statuses. NEVER calls the generator,
       writes a row, or contacts a borrower.
+
+  --commit-document-checklist-generation-proof --deal-id <guid> --document-names "A|B|C" --actor-upn <email> --correlation-id <id>
+      Phase 188E — the ONE controlled live checklist proof, and the ONLY mode
+      that writes cr664_documentchecklists rows. Requires the EXACT --deal-id
+      (no --deal-name), explicit names, an explicit actor UPN, and an explicit
+      correlation id. Re-runs the 188B readiness checks; proceeds ONLY on
+      READY_TO_COMMIT or ALREADY_GENERATED (stops on BLOCKED /
+      UNSAFE_EXTERNAL_COMMUNICATION). Resolves the actor to /cr664_users(<CoreUser>)
+      via the platform-user bridge (rejects /systemusers); creates ONLY the
+      missing rows (payload = cr664_documentname + cr664_Deal@odata.bind ONLY —
+      cr664_correlationid is NOT a column here, it goes on the audit); emits ONE
+      cr664_auditevents row AFTER all rows succeed; fails closed on partial /
+      audit failure; reads back. Refuses blank/duplicate names. NEVER contacts a
+      borrower, touches another deal, or bulk-operates. Final status:
+      PROOF_CREATED / PROOF_ALREADY_GENERATED / PROOF_BLOCKED /
+      PROOF_PARTIAL_FAILURE / PROOF_AUDIT_FAILED.
 
   --commit
       Run the plan against the live env. Refuses to run unless every
