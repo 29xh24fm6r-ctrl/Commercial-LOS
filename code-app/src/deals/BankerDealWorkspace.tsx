@@ -11,6 +11,7 @@ import { DealWorkstreamPanel } from './DealWorkstreamPanel';
 import { DealSummary } from './DealSummary';
 import { DealAutopilotPanel } from './DealAutopilotPanel';
 import { RelationshipContext } from './RelationshipContext';
+import { DealCrmRelationshipPanel } from '../crm/CrmRelationshipPanel';
 import { DealBlockers } from './DealBlockers';
 import { DealStageProgressionCard } from './DealStageProgressionCard';
 import { DealTasks } from './DealTasks';
@@ -213,6 +214,18 @@ export function BankerDealWorkspace({
               </div>
               <div id="relationship" data-cockpit-anchor="relationship">
                 <RelationshipContext />
+              </div>
+              {/* Phase 189C — read-only CRM Relationship panel. Renders the
+                  Phase 189B view-model projection of the live relationship
+                  graph (Deal → Client/Team/AssignedTo) behind the existing
+                  authorized deal-workspace render path. No writes, no schema
+                  change, no live persistence, no fabricated CRM spine. */}
+              <div
+                id="crm-relationship"
+                data-deal-card="crm-relationship"
+                data-cockpit-anchor="crm-relationship"
+              >
+                <DealCrmRelationshipPanel />
               </div>
               <div
                 id="credit-memo"
