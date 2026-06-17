@@ -54,8 +54,9 @@ describe('recursive graph walk', () => {
   it('walks required-lookup children recursively (does NOT stop at PrimaryWorkspace)', () => {
     // The walker recurses per required lookup, so WorkspaceType -> WorkspaceContext
     // is reached via the generic recursion, not a hand-stop at one level.
-    expect(SECTION).toMatch(/resolveIdentityNode\(ctx, tg\.targets\[0\], depth \+ 1\)/);
-    expect(SECTION).toMatch(/fields\.requiredToProvide/);
+    expect(SECTION).toMatch(/resolveIdentityNode\(ctx, c\.targets\[0\], depth \+ 1\)/);
+    expect(SECTION).toMatch(/for \(const attr of fields\.required\)/);
+    expect(SECTION).toMatch(/classifyRequiredFieldForGraph/);
     expect(SECTION).toMatch(/IDENTITY_MAX_DEPTH/);
   });
 

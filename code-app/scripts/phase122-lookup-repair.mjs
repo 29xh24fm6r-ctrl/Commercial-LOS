@@ -6564,6 +6564,9 @@ async function runSeedCoreUserDependencies({ upn, doCommit }, token, envUrl) {
 // Deal, audit row, or gate. No hardcoded GUIDs.
 // ---------------------------------------------------------------------------
 
+// Bump this whenever the required-field classification logic changes so an
+// operator can confirm (from the inspect output) which script version is live.
+const IDENTITY_WALKER_VERSION = 'probe-required-lookups-v2';
 const IDENTITY_MAX_DEPTH = 6;
 const IDENTITY_COREUSER_LOGICAL = 'cr664_user';
 const IDENTITY_AUDIT_TABLE_LOGICAL = 'cr664_auditevent';
@@ -6660,13 +6663,11 @@ async function getIdentityNodeInfo(tableLogical, token, envUrl) {
 }
 
 // Analyze a table's create requirements: the name/code/active/email scalar
-// fields the seed can fill, the server-defaulted required set (informational),
-// and `requiredToProvide` — every required-for-create field NOT covered by the
-// seed scalars and NOT server-defaulted. Each requiredToProvide field is later
-// classified (in the async resolver) as a LOOKUP dependency to walk or an
-// uncovered scalar that blocks. Lookup-vs-scalar is decided by PROBING the
-// LookupAttributeMetadata cast (authoritative), not by the `$select`ed
-// AttributeType — which can mislabel a custom lookup (e.g.
+// fields the seed can fill, the full required-for-create attribute list, and the
+// covered + server-defaulted lower-cased name sets. The lookup-vs-scalar
+// decision for each required field is made ONLY by classifyRequiredFieldForGraph
+// (which PROBES the LookupAttributeMetadata cast) — never by the `$select`ed
+// AttributeType, which can mislabel a custom lookup (e.g.
 // cr664_workspacetype.cr664_workspacecontext).
 function analyzeIdentityNodeFields(info) {
   const attrs = info.attributes;
@@ -6691,14 +6692,46 @@ function analyzeIdentityNodeFields(info) {
     const lvl = a.RequiredLevel?.Value ?? 'None';
     return lvl === 'SystemRequired' || lvl === 'ApplicationRequired';
   });
-  const serverDefaultedRequired = required
-    .filter((a) => isAutodefaulted(a.LogicalName.toLowerCase()))
-    .map((a) => a.LogicalName);
-  const covered = new Set([nameField, codeField, activeField, emailField].filter(Boolean).map((f) => f.toLowerCase()));
-  const requiredToProvide = required.filter(
-    (a) => !covered.has(a.LogicalName.toLowerCase()) && !isAutodefaulted(a.LogicalName.toLowerCase()),
-  );
-  return { nameField, codeField, activeField, emailField, requiredToProvide, serverDefaultedRequired };
+  const coveredLower = new Set([nameField, codeField, activeField, emailField].filter(Boolean).map((f) => f.toLowerCase()));
+  const autodefaultedLower = new Set(required.map((a) => a.LogicalName.toLowerCase()).filter(isAutodefaulted));
+  const serverDefaultedRequired = [...autodefaultedLower];
+  return { nameField, codeField, activeField, emailField, required, coveredLower, autodefaultedLower, serverDefaultedRequired };
+}
+
+// THE single required-field classifier used by every graph mode. For one
+// required-for-create attribute it returns a trace row whose `classification` is
+// one of:
+//   - SERVER_DEFAULTED        — Dataverse fills it (ownerid/owneridtype/state/PK)
+//   - ALLOWLISTED_SCALAR      — covered by the seed scalars (name/code/active/email)
+//   - WALK_LOOKUP_DEPENDENCY  — the LookupAttributeMetadata probe returned targets
+//   - BLOCK_UNCOVERED_SCALAR  — no lookup targets (or the probe ERRORED) and not
+//                               allow-listed; the exact probe error is surfaced.
+// The lookup decision is ALWAYS the live probe result — never the `$select`ed
+// AttributeType (kept only for the trace).
+async function classifyRequiredFieldForGraph(tableLogical, attr, coveredLower, autodefaultedLower, token, envUrl) {
+  const ln = attr.LogicalName;
+  const lnLower = ln.toLowerCase();
+  const attributeType = attr.AttributeType ?? '(unknown)';
+  const base = { table: tableLogical, attribute: ln, attributeType, navProperty: attr.SchemaName, targets: null, error: null };
+  if (autodefaultedLower.has(lnLower)) {
+    return { ...base, classification: 'SERVER_DEFAULTED', reason: 'system-required but server-defaulted (ownerid/owneridtype/state/PK)' };
+  }
+  if (coveredLower.has(lnLower)) {
+    return { ...base, classification: 'ALLOWLISTED_SCALAR', reason: 'covered by the seed scalar allow-list (name/code/active/email)' };
+  }
+  const tg = await getLookupTargetsForAttribute(tableLogical, ln, token, envUrl);
+  if (tg.ok && Array.isArray(tg.targets) && tg.targets.length > 0) {
+    return { ...base, classification: 'WALK_LOOKUP_DEPENDENCY', targets: tg.targets, reason: `lookup -> ${tg.targets.join('|')}` };
+  }
+  return {
+    ...base,
+    classification: 'BLOCK_UNCOVERED_SCALAR',
+    targets: tg.ok ? [] : null,
+    error: tg.ok ? null : tg.error,
+    reason: tg.ok
+      ? `not a lookup (probe returned no targets); attributeType=${attributeType}; not in the seed allow-list`
+      : `lookup-target probe FAILED: ${tg.error}`,
+  };
 }
 
 // Recursively resolve one graph node. Always walks required-lookup children (for
@@ -6723,25 +6756,28 @@ async function resolveIdentityNode(ctx, tableLogical, depth) {
   // Guard cycles before recursing.
   ctx.cache.set(tableLogical, { table: tableLogical, pending: true });
 
-  // Classify each required-to-provide field: a LOOKUP (probe the
-  // LookupAttributeMetadata cast — authoritative) is walked recursively as a
-  // dependency node; anything else is an uncovered scalar that blocks the create.
+  // Classify EVERY required-for-create field through the single canonical
+  // classifier (probe-based). A WALK_LOOKUP_DEPENDENCY is walked recursively as a
+  // dependency node; a BLOCK_UNCOVERED_SCALAR blocks the create (with the exact
+  // probe error surfaced). The full per-field trace is kept for the inspector.
   const children = [];
   const uncoveredScalars = [];
-  for (const a of fields.requiredToProvide) {
-    const navProperty = a.SchemaName;
-    const tg = await getLookupTargetsForAttribute(tableLogical, a.LogicalName, ctx.token, ctx.envUrl);
-    if (!tg.ok || !Array.isArray(tg.targets) || tg.targets.length === 0) {
-      // Not a lookup (cast failed / no targets) -> an uncovered required scalar.
-      uncoveredScalars.push(a.LogicalName);
-      continue;
+  const requiredFieldTrace = [];
+  for (const attr of fields.required) {
+    const c = await classifyRequiredFieldForGraph(
+      tableLogical, attr, fields.coveredLower, fields.autodefaultedLower, ctx.token, ctx.envUrl,
+    );
+    requiredFieldTrace.push(c);
+    if (c.classification === 'WALK_LOOKUP_DEPENDENCY') {
+      if (c.targets.length > 1) {
+        children.push({ navProperty: c.navProperty, attrLogical: attr.LogicalName, targetLogical: c.targets.join('|'), child: { table: c.targets.join('|'), action: 'blocked', blocked: true, classification: 'REJECTED_UNKNOWN_METADATA', reason: `polymorphic required lookup ${attr.LogicalName}; refusing to guess`, children: [] } });
+        continue;
+      }
+      const child = await resolveIdentityNode(ctx, c.targets[0], depth + 1);
+      children.push({ navProperty: c.navProperty, attrLogical: attr.LogicalName, targetLogical: c.targets[0], child });
+    } else if (c.classification === 'BLOCK_UNCOVERED_SCALAR') {
+      uncoveredScalars.push(attr.LogicalName);
     }
-    if (tg.targets.length > 1) {
-      children.push({ navProperty, attrLogical: a.LogicalName, targetLogical: tg.targets.join('|'), child: { table: tg.targets.join('|'), action: 'blocked', blocked: true, classification: 'REJECTED_UNKNOWN_METADATA', reason: `polymorphic required lookup ${a.LogicalName}; refusing to guess`, children: [] } });
-      continue;
-    }
-    const child = await resolveIdentityNode(ctx, tg.targets[0], depth + 1);
-    children.push({ navProperty, attrLogical: a.LogicalName, targetLogical: tg.targets[0], child });
   }
 
   let action = 'blocked';
@@ -6816,6 +6852,7 @@ async function resolveIdentityNode(ctx, tableLogical, depth) {
     payloadKeys,
     binds,
     uncoveredScalars,
+    requiredFieldTrace,
   };
   ctx.cache.set(tableLogical, node);
   return node;
@@ -6827,6 +6864,35 @@ function collectRelevantNodes(node, arr, seen) {
   arr.push(node);
   if (node.action === 'create' || node.blocked) {
     for (const c of node.children || []) collectRelevantNodes(c.child, arr, seen);
+  }
+}
+
+// Collect the per-field probe trace across the whole tree (every visited node).
+function collectRequiredFieldTraces(node, arr, seen) {
+  if (!node || !node.table || seen.has(node.table)) return;
+  seen.add(node.table);
+  if (Array.isArray(node.requiredFieldTrace)) for (const t of node.requiredFieldTrace) arr.push(t);
+  for (const c of node.children || []) collectRequiredFieldTraces(c.child, arr, seen);
+}
+
+// Print the required-field probe trace (proves what getLookupTargetsForAttribute
+// returned for each required field — e.g. cr664_workspacetype.cr664_workspacecontext).
+function printRequiredFieldProbeTrace(root) {
+  const traces = [];
+  collectRequiredFieldTraces(root, traces, new Set());
+  console.log('Required field probe:');
+  if (traces.length === 0) {
+    console.log('   (no required-for-create fields walked)');
+    return;
+  }
+  for (const t of traces) {
+    console.log(`- table=${t.table} attribute=${t.attribute}`);
+    console.log(
+      `    attributeType=${t.attributeType}  ` +
+        `targets=${t.targets ? JSON.stringify(t.targets) : '(probe error)'}` +
+        `${t.error ? `  error=${t.error}` : ''}`,
+    );
+    console.log(`    classification=${t.classification}  reason=${t.reason}`);
   }
 }
 
@@ -6937,6 +7003,7 @@ async function printAuditChangedByTarget(token, envUrl) {
 async function runInspectIdentityAuditGraph({ upn }, token, envUrl) {
   console.log('');
   console.log('IDENTITY AUDIT GRAPH — read-only inspection');
+  console.log(`Identity graph walker: ${IDENTITY_WALKER_VERSION}`);
   console.log(`   Actor: ${upn}`);
   console.log('   GETs only; no create/patch/delete, no Loan Deal, no audit, no gate.');
   console.log('');
@@ -6956,6 +7023,10 @@ async function runInspectIdentityAuditGraph({ upn }, token, envUrl) {
   if (plan.alreadyReady) {
     console.log('   CoreUser already points at an active cr664_user — bridge already provisioned.');
   } else if (plan.root) {
+    // Probe trace FIRST — proves what getLookupTargetsForAttribute returned for
+    // every required field (e.g. cr664_workspacetype.cr664_workspacecontext).
+    printRequiredFieldProbeTrace(plan.root);
+    console.log('');
     console.log('Dependency tree (C–G, recursive):');
     renderIdentityNode(plan.root, 1);
   }
@@ -6973,7 +7044,10 @@ async function runInspectIdentityAuditGraph({ upn }, token, envUrl) {
 function printIdentityPlan(plan) {
   console.log('');
   console.log('IDENTITY AUDIT GRAPH PLAN');
+  console.log(`Identity graph walker: ${IDENTITY_WALKER_VERSION}`);
   console.log(`Actor: ${plan.platformUser ? plan.platformUser.cr664_email ?? '(no email)' : '(unresolved)'}`);
+  // Probe trace — proves the lookup-vs-scalar decision for every required field.
+  if (plan.root) printRequiredFieldProbeTrace(plan.root);
   console.log('');
   if (!plan.platformUser) {
     for (const b of plan.blockers) console.log(`   BLOCKED: ${b}`);
@@ -7138,6 +7212,7 @@ async function runProvisionIdentityAuditGraph({ upn, doCommit }, token, envUrl) 
 async function runVerifyIdentityAuditGraph({ upn }, token, envUrl) {
   console.log('');
   console.log('IDENTITY AUDIT GRAPH — verification (read-only)');
+  console.log(`Identity graph walker: ${IDENTITY_WALKER_VERSION}`);
   console.log(`   Actor: ${upn}`);
   console.log('');
   const checks = [];

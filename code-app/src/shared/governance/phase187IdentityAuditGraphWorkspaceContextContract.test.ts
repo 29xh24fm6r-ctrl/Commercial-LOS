@@ -23,14 +23,15 @@ const SECTION_END = SCRIPT.indexOf('// Audit phase — publishers + tables + col
 const SECTION = SCRIPT.slice(SECTION_START, SECTION_END);
 
 describe('lookup detection is probe-based (robust to AttributeType mislabels)', () => {
-  it('classifies each required-to-provide field by probing getLookupTargetsForAttribute', () => {
-    expect(SECTION).toMatch(/for \(const a of fields\.requiredToProvide\)/);
-    expect(SECTION).toMatch(/getLookupTargetsForAttribute\(tableLogical, a\.LogicalName/);
+  it('classifies each required field through the centralized probe-based classifier', () => {
+    expect(SECTION).toMatch(/for \(const attr of fields\.required\)/);
+    expect(SECTION).toMatch(/classifyRequiredFieldForGraph\(/);
+    expect(SECTION).toMatch(/getLookupTargetsForAttribute\(tableLogical, ln, token, envUrl\)/);
   });
 
   it('a probed lookup is walked recursively; a non-lookup becomes an uncovered scalar', () => {
-    expect(SECTION).toMatch(/const child = await resolveIdentityNode\(ctx, tg\.targets\[0\], depth \+ 1\)/);
-    expect(SECTION).toMatch(/uncoveredScalars\.push\(a\.LogicalName\)/);
+    expect(SECTION).toMatch(/const child = await resolveIdentityNode\(ctx, c\.targets\[0\], depth \+ 1\)/);
+    expect(SECTION).toMatch(/uncoveredScalars\.push\(attr\.LogicalName\)/);
   });
 
   it('does NOT decide lookup-vs-scalar from the $select-ed AttributeType alone', () => {

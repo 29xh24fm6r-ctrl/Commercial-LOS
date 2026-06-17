@@ -47,11 +47,12 @@ Starting from `cr664_user`, it reads Dataverse metadata for each table
 (EntitySetName, required-for-create fields, lookup nav property names + targets),
 and **recursively** resolves every required lookup — so WorkspaceType →
 WorkspaceContext (and any deeper required dependency, up to a depth guard) is
-reached generically, not by a hand-coded stop. Each required-to-provide field is
-classified lookup-vs-scalar by **probing the LookupAttributeMetadata cast**
-(authoritative), not by the `$select`ed `AttributeType` — which can mislabel a
-custom lookup such as `cr664_workspacetype.cr664_workspacecontext` and would
-otherwise wrongly block WorkspaceType (see Phase 187). For each node it:
+reached generically, not by a hand-coded stop. Each required field is classified
+lookup-vs-scalar by the single `classifyRequiredFieldForGraph` function, which
+**probes the LookupAttributeMetadata cast** (authoritative), not the `$select`ed
+`AttributeType` — which can mislabel a custom lookup such as
+`cr664_workspacetype.cr664_workspacecontext` and would otherwise wrongly block
+WorkspaceType (see Phase 187). For each node it:
 
 - classifies existing rows: `APPROVED` / `REJECTED_TEST` / `REJECTED_PHASE` /
   `REJECTED_DEMO` / `REJECTED_SAMPLE` / `REJECTED_INACTIVE` /
@@ -99,6 +100,20 @@ mutation outside the new rows is the single
 5. `cr664_user` (create with WorkspaceType + Role binds, or reuse).
 6. PATCH `cr664_platformuser.cr664_CoreUser`.
 7. Verify. (No audit row and no Loan Deal are created here.)
+
+## Diagnosing the lookup probe
+
+Every mode prints a version marker — `Identity graph walker:
+probe-required-lookups-v2` — so you can confirm the expected script version is
+running. `--inspect-identity-audit-graph` (and the plan) also print a
+`Required field probe:` trace: per required field, the table, attribute,
+metadata `AttributeType`, the `getLookupTargetsForAttribute` result, and the
+resulting `classification` (`WALK_LOOKUP_DEPENDENCY` / `BLOCK_UNCOVERED_SCALAR` /
+`SERVER_DEFAULTED` / `ALLOWLISTED_SCALAR`) with a reason. A probe **error** is
+surfaced verbatim, never silently treated as a scalar. Look for the
+`cr664_workspacetype` / `cr664_workspacecontext` line to prove whether the lookup
+resolved (`targets=["cr664_workspacecontext"] classification=WALK_LOOKUP_DEPENDENCY`)
+or why it could not.
 
 ## Operator runbook
 
