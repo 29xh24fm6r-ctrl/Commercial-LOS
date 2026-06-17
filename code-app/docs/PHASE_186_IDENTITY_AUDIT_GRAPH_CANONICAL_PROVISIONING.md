@@ -47,7 +47,11 @@ Starting from `cr664_user`, it reads Dataverse metadata for each table
 (EntitySetName, required-for-create fields, lookup nav property names + targets),
 and **recursively** resolves every required lookup — so WorkspaceType →
 WorkspaceContext (and any deeper required dependency, up to a depth guard) is
-reached generically, not by a hand-coded stop. For each node it:
+reached generically, not by a hand-coded stop. Each required-to-provide field is
+classified lookup-vs-scalar by **probing the LookupAttributeMetadata cast**
+(authoritative), not by the `$select`ed `AttributeType` — which can mislabel a
+custom lookup such as `cr664_workspacetype.cr664_workspacecontext` and would
+otherwise wrongly block WorkspaceType (see Phase 187). For each node it:
 
 - classifies existing rows: `APPROVED` / `REJECTED_TEST` / `REJECTED_PHASE` /
   `REJECTED_DEMO` / `REJECTED_SAMPLE` / `REJECTED_INACTIVE` /

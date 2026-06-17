@@ -55,7 +55,7 @@ describe('recursive graph walk', () => {
     // The walker recurses per required lookup, so WorkspaceType -> WorkspaceContext
     // is reached via the generic recursion, not a hand-stop at one level.
     expect(SECTION).toMatch(/resolveIdentityNode\(ctx, tg\.targets\[0\], depth \+ 1\)/);
-    expect(SECTION).toMatch(/fields\.requiredLookups/);
+    expect(SECTION).toMatch(/fields\.requiredToProvide/);
     expect(SECTION).toMatch(/IDENTITY_MAX_DEPTH/);
   });
 
@@ -111,7 +111,7 @@ describe('classification — all eleven tokens', () => {
   it('admin / super admin roles are rejected, and an unsupported required field names the field', () => {
     expect(SECTION).toMatch(/REJECTED_ADMIN_ONLY/);
     expect(SECTION).toMatch(/super admin/);
-    expect(SECTION).toMatch(/required field\(s\) not covered by allow-list: \$\{fields\.uncoveredScalars\.join/);
+    expect(SECTION).toMatch(/required field\(s\) not covered by allow-list: \$\{uncoveredScalars\.join/);
   });
 });
 

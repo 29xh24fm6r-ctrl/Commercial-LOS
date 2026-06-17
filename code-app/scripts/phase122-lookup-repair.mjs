@@ -6659,9 +6659,15 @@ async function getIdentityNodeInfo(tableLogical, token, envUrl) {
   };
 }
 
-// Partition a table's create requirements into name/code/active/email fields,
-// required LOOKUPS (to walk), uncovered required SCALARS (blockers), and the
-// server-defaulted required set (informational).
+// Analyze a table's create requirements: the name/code/active/email scalar
+// fields the seed can fill, the server-defaulted required set (informational),
+// and `requiredToProvide` — every required-for-create field NOT covered by the
+// seed scalars and NOT server-defaulted. Each requiredToProvide field is later
+// classified (in the async resolver) as a LOOKUP dependency to walk or an
+// uncovered scalar that blocks. Lookup-vs-scalar is decided by PROBING the
+// LookupAttributeMetadata cast (authoritative), not by the `$select`ed
+// AttributeType — which can mislabel a custom lookup (e.g.
+// cr664_workspacetype.cr664_workspacecontext).
 function analyzeIdentityNodeFields(info) {
   const attrs = info.attributes;
   const byLower = new Map(
@@ -6685,18 +6691,14 @@ function analyzeIdentityNodeFields(info) {
     const lvl = a.RequiredLevel?.Value ?? 'None';
     return lvl === 'SystemRequired' || lvl === 'ApplicationRequired';
   });
-  const requiredLookups = required.filter(
-    (a) => a.AttributeType === 'Lookup' && !isAutodefaulted(a.LogicalName.toLowerCase()),
-  );
   const serverDefaultedRequired = required
     .filter((a) => isAutodefaulted(a.LogicalName.toLowerCase()))
     .map((a) => a.LogicalName);
   const covered = new Set([nameField, codeField, activeField, emailField].filter(Boolean).map((f) => f.toLowerCase()));
-  const uncoveredScalars = required
-    .filter((a) => a.AttributeType !== 'Lookup')
-    .filter((a) => !covered.has(a.LogicalName.toLowerCase()) && !isAutodefaulted(a.LogicalName.toLowerCase()))
-    .map((a) => a.LogicalName);
-  return { nameField, codeField, activeField, emailField, requiredLookups, serverDefaultedRequired, uncoveredScalars };
+  const requiredToProvide = required.filter(
+    (a) => !covered.has(a.LogicalName.toLowerCase()) && !isAutodefaulted(a.LogicalName.toLowerCase()),
+  );
+  return { nameField, codeField, activeField, emailField, requiredToProvide, serverDefaultedRequired };
 }
 
 // Recursively resolve one graph node. Always walks required-lookup children (for
@@ -6721,20 +6723,25 @@ async function resolveIdentityNode(ctx, tableLogical, depth) {
   // Guard cycles before recursing.
   ctx.cache.set(tableLogical, { table: tableLogical, pending: true });
 
+  // Classify each required-to-provide field: a LOOKUP (probe the
+  // LookupAttributeMetadata cast — authoritative) is walked recursively as a
+  // dependency node; anything else is an uncovered scalar that blocks the create.
   const children = [];
-  for (const lk of fields.requiredLookups) {
-    const navProperty = lk.SchemaName;
-    const tg = await getLookupTargetsForAttribute(tableLogical, lk.LogicalName, ctx.token, ctx.envUrl);
+  const uncoveredScalars = [];
+  for (const a of fields.requiredToProvide) {
+    const navProperty = a.SchemaName;
+    const tg = await getLookupTargetsForAttribute(tableLogical, a.LogicalName, ctx.token, ctx.envUrl);
     if (!tg.ok || !Array.isArray(tg.targets) || tg.targets.length === 0) {
-      children.push({ navProperty, attrLogical: lk.LogicalName, targetLogical: null, child: { table: `${lk.LogicalName}->?`, action: 'blocked', blocked: true, classification: 'REJECTED_UNKNOWN_METADATA', reason: `no lookup target metadata for ${lk.LogicalName}`, children: [] } });
+      // Not a lookup (cast failed / no targets) -> an uncovered required scalar.
+      uncoveredScalars.push(a.LogicalName);
       continue;
     }
     if (tg.targets.length > 1) {
-      children.push({ navProperty, attrLogical: lk.LogicalName, targetLogical: tg.targets.join('|'), child: { table: tg.targets.join('|'), action: 'blocked', blocked: true, classification: 'REJECTED_UNKNOWN_METADATA', reason: `polymorphic required lookup ${lk.LogicalName}; refusing to guess`, children: [] } });
+      children.push({ navProperty, attrLogical: a.LogicalName, targetLogical: tg.targets.join('|'), child: { table: tg.targets.join('|'), action: 'blocked', blocked: true, classification: 'REJECTED_UNKNOWN_METADATA', reason: `polymorphic required lookup ${a.LogicalName}; refusing to guess`, children: [] } });
       continue;
     }
     const child = await resolveIdentityNode(ctx, tg.targets[0], depth + 1);
-    children.push({ navProperty, attrLogical: lk.LogicalName, targetLogical: tg.targets[0], child });
+    children.push({ navProperty, attrLogical: a.LogicalName, targetLogical: tg.targets[0], child });
   }
 
   let action = 'blocked';
@@ -6771,7 +6778,7 @@ async function resolveIdentityNode(ctx, tableLogical, depth) {
 
   if (action === 'create') {
     if (!policy && !isCoreUser) { blocked = true; classification = 'REJECTED_UNKNOWN_METADATA'; reason = 'no production-safe naming/seed policy for this table'; }
-    else if (fields.uncoveredScalars.length > 0) { blocked = true; classification = 'REJECTED_MISSING_REQUIRED_FIELD'; reason = `required field(s) not covered by allow-list: ${fields.uncoveredScalars.join(', ')}`; }
+    else if (uncoveredScalars.length > 0) { blocked = true; classification = 'REJECTED_MISSING_REQUIRED_FIELD'; reason = `required field(s) not covered by allow-list: ${uncoveredScalars.join(', ')}`; }
     else {
       for (const c of children) {
         if (c.child && c.child.blocked) { blocked = true; reason = reason || `dependency ${c.child.table} is blocked`; }
@@ -6808,6 +6815,7 @@ async function resolveIdentityNode(ctx, tableLogical, depth) {
     children,
     payloadKeys,
     binds,
+    uncoveredScalars,
   };
   ctx.cache.set(tableLogical, node);
   return node;
