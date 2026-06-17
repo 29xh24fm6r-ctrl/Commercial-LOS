@@ -1569,9 +1569,10 @@ describe('Phase 122E Pt 2 — --seed-product-references guarded write mode', () 
   });
 
   it('--deal-name is valid alongside any seed mode (client / product-references / manager-entitlement / smoke-create)', () => {
-    // BUGFIX-170K appended --smoke-create-new-deal to the valid-mode list.
+    // BUGFIX-170K appended --smoke-create-new-deal; Phase 188B appended the two
+    // read-only document-checklist modes to the same valid-mode list.
     expect(SCRIPT).toMatch(
-      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, or --smoke-create-new-deal/,
+      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, --smoke-create-new-deal, --inspect-document-checklist-graph, or --plan-document-checklist-generation/,
     );
   });
 
@@ -3164,7 +3165,7 @@ describe('Phase 133C — --seed-executive-primary-workspace guarded write mode',
     // appended after the executive-mode exclusion. The executive exclusion
     // must remain present so the in-branch executive guard stays reachable.
     expect(SCRIPT).toMatch(
-      /flags\.seedDealName &&[\s\S]*?!flags\.seedManagerEntitlement &&\s*\n\s*!flags\.seedExecutivePrimaryWorkspace\s*&&\s*\n\s*!flags\.smokeCreateNewDeal\s*\n\s*\)/,
+      /flags\.seedDealName &&[\s\S]*?!flags\.seedManagerEntitlement &&\s*\n\s*!flags\.seedExecutivePrimaryWorkspace\s*&&\s*\n\s*!flags\.smokeCreateNewDeal\s*&&\s*\n\s*!flags\.inspectDocumentChecklistGraph\s*&&\s*\n\s*!flags\.planDocumentChecklistGeneration\s*\n\s*\)/,
     );
   });
 
@@ -3260,16 +3261,14 @@ describe('Phase 133C — executive seed runner + helpers', () => {
   });
 
   it('the runner touches no Banker / Team / Loan Deal table', () => {
-    // sliceFunction over-captures here because the runner is the last
-    // function before the audit section; bound the slice to the runner
-    // body (up to the audit-phase marker that immediately follows it).
+    // sliceFunction over-captures here; bound the slice to the runner body —
+    // the next top-level function declaration after it (later sections such as
+    // the Phase 188B document-checklist inspector legitimately reference
+    // cr664_loandeals and must not be swept into this runner's slice).
     const start = SCRIPT.indexOf(
       'async function runSeedExecutivePrimaryWorkspace(',
     );
-    const end = SCRIPT.indexOf(
-      '// Audit phase — publishers + tables + columns',
-      start,
-    );
+    const end = SCRIPT.indexOf('\nasync function ', start + 1);
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
     const block = SCRIPT.slice(start, end);

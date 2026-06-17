@@ -105,8 +105,10 @@ describe('Phase 170K — BUGFIX: --deal-name is valid with --smoke-create-new-de
   });
 
   it('the bail message lists --smoke-create-new-deal', () => {
+    // Phase 188B appended the two read-only document-checklist modes after
+    // --smoke-create-new-deal in the same valid-mode list.
     expect(SCRIPT).toMatch(
-      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, or --smoke-create-new-deal/,
+      /--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, --smoke-create-new-deal, --inspect-document-checklist-graph, or --plan-document-checklist-generation/,
     );
   });
 
