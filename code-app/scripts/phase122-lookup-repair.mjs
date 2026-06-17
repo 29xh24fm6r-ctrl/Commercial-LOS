@@ -363,6 +363,14 @@ function parseArgs(argv) {
     inspectTableName: null,
     inspectAttributeItems: null,
     inspectNewDealReferences: false,
+    // Phase 189A — read-only CRM relationship-spine audit. Resolves exactly
+    // ONE Loan Deal and walks its live CRM relationship graph (Client /
+    // Banker / Team / Platform User / activity) using pure metadata + data
+    // GETs. Never writes, never contacts a borrower, never imports a
+    // comms/checklist/handoff module.
+    inspectCrmRelationshipGraph: false,
+    crmDealId: null,
+    json: false,
     // Phase 170D — read-only inspection of actual Stage/Status reference
     // ROWS (data GET, not metadata). Pure GET; never writes.
     inspectStageStatusValues: false,
@@ -983,6 +991,26 @@ function parseArgs(argv) {
       // Phase 141K — the ONLY flag that authorizes live CRM schema metadata
       // creation. Valid only alongside --seed-crm-schema.
       flags.commitSeedCrmSchema = true;
+    } else if (arg === '--inspect-crm-relationship-graph') {
+      // Phase 189A — READ-ONLY audit of ONE Loan Deal's CRM relationship
+      // graph (Client / Banker / Team / Platform User / activity). Pure
+      // metadata + data GETs and a static source-safety scan; never writes,
+      // never contacts a borrower, never imports a comms/checklist module.
+      flags.inspectCrmRelationshipGraph = true;
+      flags.dryRun = false;
+    } else if (arg === '--deal-id') {
+      const next = args[i + 1];
+      if (
+        !next ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(next)
+      ) {
+        bailParseArgs(`--deal-id expects a GUID; got "${next ?? ''}"`);
+      }
+      flags.crmDealId = next;
+      i += 1;
+    } else if (arg === '--json') {
+      // Optional machine-readable output for the read-only CRM audit mode.
+      flags.json = true;
     } else if (arg === '--help' || arg === '-h') flags.help = true;
     else bailParseArgs(`Unknown argument: ${arg}`);
   }
@@ -1029,6 +1057,7 @@ function parseArgs(argv) {
     flags.planIdentityAuditProvisioning,
     flags.provisionIdentityAuditGraph,
     flags.verifyIdentityAuditGraph,
+    flags.inspectCrmRelationshipGraph,
   ].filter(Boolean);
   if (exclusiveModes.length > 1) {
     bailParseArgs(
@@ -1235,10 +1264,28 @@ function parseArgs(argv) {
     !flags.seedProductReferences &&
     !flags.seedManagerEntitlement &&
     !flags.seedExecutivePrimaryWorkspace &&
-    !flags.smokeCreateNewDeal
+    !flags.smokeCreateNewDeal &&
+    !flags.inspectCrmRelationshipGraph
   ) {
     bailParseArgs(
-      '--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, or --smoke-create-new-deal',
+      '--deal-name is only valid alongside --seed-client-relationship, --seed-product-references, --seed-manager-entitlement, --smoke-create-new-deal, or --inspect-crm-relationship-graph',
+    );
+  }
+  // Phase 189A — CRM relationship-spine audit cross-flag validation. The mode
+  // resolves EXACTLY ONE deal, so exactly one of --deal-name / --deal-id is
+  // required; supplying both (or neither) is ambiguous and must bail. The
+  // --deal-id input is meaningless outside this read-only mode.
+  if (flags.inspectCrmRelationshipGraph) {
+    const haveName = Boolean(flags.seedDealName);
+    const haveId = Boolean(flags.crmDealId);
+    if (haveName === haveId) {
+      bailParseArgs(
+        '--inspect-crm-relationship-graph requires exactly one of --deal-name "<name>" or --deal-id <guid>',
+      );
+    }
+  } else if (flags.crmDealId) {
+    bailParseArgs(
+      '--deal-id is only valid alongside --inspect-crm-relationship-graph',
     );
   }
   // Phase 124D — manager-entitlement seed cross-flag validation.
@@ -1351,9 +1398,20 @@ function parseArgs(argv) {
     if (flags.seedTeamName) {
       bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
     }
+  } else if (flags.inspectCrmRelationshipGraph) {
+    // Phase 189A — the CRM relationship-spine audit accepts --upn OPTIONALLY
+    // (to also resolve + cross-check the assigned banker against the deal's
+    // Team). --deal-name / --deal-id are its own resolved inputs (validated
+    // above); the seed-only team/workspace inputs may not ride along.
+    if (flags.seedTeamName) {
+      bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
+    }
+    if (flags.seedWorkspaceName) {
+      bailParseArgs('--workspace-name is only valid alongside --seed-executive-primary-workspace or --seed-primary-workspace or --seed-platform-workspace');
+    }
   } else {
     if (flags.seedUpn) {
-      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace or --seed-primary-workspace or --inspect-audit-actor-bridge or --seed-audit-actor-bridge or --inspect-coreuser-create-dependencies or --seed-coreuser-for-platform-user or --inspect-coreuser-dependency-seeds or --seed-coreuser-dependencies or --inspect-identity-audit-graph or --plan-identity-audit-provisioning or --provision-identity-audit-graph or --verify-identity-audit-graph');
+      bailParseArgs('--upn is only valid alongside --seed-manager-entitlement or --seed-executive-primary-workspace or --seed-primary-workspace or --inspect-audit-actor-bridge or --seed-audit-actor-bridge or --inspect-coreuser-create-dependencies or --seed-coreuser-for-platform-user or --inspect-coreuser-dependency-seeds or --seed-coreuser-dependencies or --inspect-identity-audit-graph or --plan-identity-audit-provisioning or --provision-identity-audit-graph or --verify-identity-audit-graph or --inspect-crm-relationship-graph');
     }
     if (flags.seedTeamName) {
       bailParseArgs('--team-name is only valid alongside --seed-manager-entitlement');
@@ -1429,7 +1487,9 @@ if (FLAGS.help) {
 // Header
 // ---------------------------------------------------------------------------
 
-const MODE = FLAGS.listPlatformWorkspaces
+const MODE = FLAGS.inspectCrmRelationshipGraph
+  ? 'INSPECT-CRM-RELATIONSHIP-GRAPH (read-only)'
+  : FLAGS.listPlatformWorkspaces
   ? 'LIST-PLATFORM-WORKSPACES (read-only)'
   : FLAGS.seedPlatformWorkspace
   ? FLAGS.commitSeedPlatformWorkspace
@@ -11765,6 +11825,565 @@ async function runSeedCrmSchema(token, envUrl, commit) {
   console.log('Done. CRM schema metadata created. No CRM records, no outreach, no app-runtime writes.');
 }
 
+// ---------------------------------------------------------------------------
+// Phase 189A — CRM relationship-spine read-only audit.
+//
+// READ-ONLY. Resolves EXACTLY ONE Loan Deal (by --deal-name or --deal-id),
+// then walks the live CRM relationship graph around it using pure metadata
+// (EntityDefinitions) + data GETs only:
+//   - the cr664_loandeal relationship columns (real Dataverse lookups vs
+//     legacy pseudo GUID/text columns), classified by the certified
+//     classifyAttribute() probe used by --verify-lookups;
+//   - the currently-linked Client / Owning Team / Assigned banker records;
+//   - the Client target table (cr664_clientrelationship) — the de-facto
+//     canonical CRM entity today;
+//   - the Banker -> Team graph (optionally cross-checked against --upn);
+//   - presence/absence of the planned Salesforce-style spine tables
+//     (organization / person / contact / role / relationship / activity),
+//     which are modeled in src/crm/crmDataverseSchemaPlan.ts but may not be
+//     seeded live yet.
+//
+// A REAL lookup exposes LookupAttributeMetadata.Targets and the OData
+// `_<attribute>_value` projection. A PSEUDO column merely stores a GUID
+// string with no relational integrity. If a CRM relationship is found riding
+// a pseudo column, the graph is UNSAFE.
+//
+// Emits EXACTLY ONE terminal status (precedence top-to-bottom):
+//   CRM_GRAPH_BLOCKED              — 0 or >1 deal match, or deal/Client table
+//                                    metadata unreadable, or a relationship
+//                                    probe failed (cannot honestly certify).
+//   CRM_GRAPH_UNSAFE_PSEUDO_LOOKUP — a CRM relationship is carried by a
+//                                    pseudo GUID/text column, not a lookup.
+//   CRM_GRAPH_PARTIAL              — deal resolved; some canonical links
+//                                    present but the Salesforce-style spine
+//                                    is incomplete/absent (the honest result
+//                                    today — never a fake success).
+//   CRM_GRAPH_READY                — full canonical spine present and the
+//                                    deal fully linked on real lookups.
+//
+// This mode performs reads only: no record writes, no metadata publish, no
+// solution mutation, no borrower outreach, no document-requirement changes,
+// and it enables nothing. Every Dataverse call below is an explicit GET.
+// ---------------------------------------------------------------------------
+
+const CRM_AUDIT_VERSION = 'crm-relationship-spine-audit-v1';
+const CRM_AUDIT_DEAL_TABLE = 'cr664_loandeal';
+const CRM_AUDIT_DEAL_ENTITY_SET = 'cr664_loandeals';
+const CRM_AUDIT_CLIENT_TABLE = 'cr664_clientrelationship';
+const CRM_AUDIT_TEAM_TABLE = 'cr664_team';
+const CRM_AUDIT_FORMATTED_VALUE_ANNOTATION =
+  'OData.Community.Display.V1.FormattedValue';
+
+// The Loan Deal relationship columns that carry the CRM spine today. `logical`
+// is the metadata attribute LogicalName (what classifyAttribute probes);
+// `valueProjection` is the OData FK projection that only exists for a genuine
+// lookup; `canonical` marks links a Salesforce-style spine requires.
+const CRM_AUDIT_DEAL_LOOKUPS = Object.freeze([
+  {
+    role: 'client',
+    label: 'Client (borrower relationship)',
+    logical: 'cr664_client',
+    valueProjection: '_cr664_client_value',
+    expectedTarget: CRM_AUDIT_CLIENT_TABLE,
+    canonical: true,
+  },
+  {
+    role: 'team',
+    label: 'Owning Team',
+    logical: 'cr664_team',
+    valueProjection: '_cr664_team_value',
+    expectedTarget: CRM_AUDIT_TEAM_TABLE,
+    canonical: true,
+  },
+  {
+    role: 'assignedBanker',
+    label: 'Assigned banker',
+    logical: 'cr664_assignedto',
+    valueProjection: '_cr664_assignedto_value',
+    // Historically systemuser; cr664_banker in some envs. Reported, not
+    // asserted, so the audit never invents a target it did not observe.
+    expectedTarget: null,
+    canonical: true,
+  },
+]);
+
+// The planned Salesforce-style relationship-spine tables (Phase 141J-K,
+// modeled in src/crm/crmDataverseSchemaPlan.ts). The audit reports
+// presence/absence honestly; it NEVER creates them.
+const CRM_AUDIT_SPINE_TABLES = Object.freeze([
+  { logical: 'cr664_crmorganization', role: 'account / company profile' },
+  { logical: 'cr664_crmperson', role: 'contacts / individuals' },
+  { logical: 'cr664_crmcontactpoint', role: 'emails / phones / addresses' },
+  {
+    logical: 'cr664_crmrelationship',
+    role: 'relationship edges (owners / principals / guarantors)',
+  },
+  { logical: 'cr664_crmroleassignment', role: 'relationship roles' },
+  {
+    logical: 'cr664_crmcommunicationpreference',
+    role: 'communication preferences',
+  },
+  { logical: 'cr664_crmcontactauthorization', role: 'contact authorization' },
+  { logical: 'cr664_crmvendorprofile', role: 'vendors / advisors' },
+  {
+    logical: 'cr664_crmtimelineevent',
+    role: 'activity timeline (calls / emails / tasks / notes)',
+  },
+  { logical: 'cr664_crmauditentry', role: 'CRM audit trail' },
+]);
+
+function crmAuditLooksLikeGuid(value) {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+  );
+}
+
+// Pure GET with FormattedValue annotations. Returns notFound on 404 so the
+// caller can treat a by-id miss as "zero matches" rather than an error.
+async function crmAuditFetch(url, token) {
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Accept: 'application/json',
+        Prefer: `odata.include-annotations="${CRM_AUDIT_FORMATTED_VALUE_ANNOTATION}"`,
+      },
+    });
+    if (res.status === 404) return { ok: false, notFound: true, error: '404' };
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `${res.status}: ${text}` };
+    }
+    return { ok: true, json: await res.json() };
+  } catch (err) {
+    return { ok: false, error: `network error: ${err.message}` };
+  }
+}
+
+// Resolve EXACTLY ONE Loan Deal. Selects only the always-safe primary id +
+// name (relationship values are read per-column AFTER classification, so a
+// pseudo column never 400s a `_value` $select).
+async function resolveCrmAuditDeal({ dealName, dealId }, token, envUrl) {
+  const select = encodeURIComponent('cr664_loandealid,cr664_dealname');
+  if (dealId) {
+    const url = `${envUrl}/api/data/v9.2/${CRM_AUDIT_DEAL_ENTITY_SET}(${dealId})?$select=${select}`;
+    const r = await crmAuditFetch(url, token);
+    if (r.notFound) return { ok: true, matchCount: 0, deal: null };
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true, matchCount: 1, deal: r.json };
+  }
+  const filter = encodeURIComponent(
+    `cr664_dealname eq '${odataEscapeStringLiteral(dealName)}'`,
+  );
+  const url =
+    `${envUrl}/api/data/v9.2/${CRM_AUDIT_DEAL_ENTITY_SET}` +
+    `?$filter=${filter}&$select=${select}`;
+  const r = await crmAuditFetch(url, token);
+  if (!r.ok) return { ok: false, error: r.error };
+  const records = Array.isArray(r.json.value) ? r.json.value : [];
+  return {
+    ok: true,
+    matchCount: records.length,
+    deal: records.length === 1 ? records[0] : null,
+  };
+}
+
+// Read ONE relationship column's value for the resolved deal. Real lookups
+// read the `_value` projection (+ formatted display name); pseudo scalars read
+// the raw column. Pure GET; missing links read as null.
+async function crmAuditReadLinkValue(dealId, rel, classification, token, envUrl) {
+  if (classification === 'real-lookup') {
+    const url =
+      `${envUrl}/api/data/v9.2/${CRM_AUDIT_DEAL_ENTITY_SET}(${dealId})` +
+      `?$select=${encodeURIComponent(rel.valueProjection)}`;
+    const r = await crmAuditFetch(url, token);
+    if (!r.ok) return { ok: false, error: r.error };
+    return {
+      ok: true,
+      value: r.json[rel.valueProjection] ?? null,
+      formatted:
+        r.json[`${rel.valueProjection}@${CRM_AUDIT_FORMATTED_VALUE_ANNOTATION}`] ??
+        null,
+    };
+  }
+  if (classification === 'pseudo-scalar') {
+    const url =
+      `${envUrl}/api/data/v9.2/${CRM_AUDIT_DEAL_ENTITY_SET}(${dealId})` +
+      `?$select=${encodeURIComponent(rel.logical)}`;
+    const r = await crmAuditFetch(url, token);
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true, value: r.json[rel.logical] ?? null, formatted: null };
+  }
+  return { ok: true, value: null, formatted: null };
+}
+
+// Existence probe via the shared metadata GET. getTableMetadata returns a
+// "table not found" error on 404; anything else is an environmental failure
+// the caller surfaces honestly.
+async function crmAuditTableExists(logical, token, envUrl) {
+  const meta = await getTableMetadata(logical, token, envUrl);
+  if (meta.ok) return { logical, exists: true, table: meta.table };
+  const absent = /not found/i.test(meta.error || '');
+  return { logical, exists: false, absent, error: meta.error };
+}
+
+async function runInspectCrmRelationshipGraph(
+  { dealName, dealId, upn, asJson },
+  token,
+  envUrl,
+) {
+  /** @type {{ status: string|null, deal: any, dealMatchCount: number, relationships: any[], dealLookupInventory: any[], dealPicklistInventory: string[], clientTable: any, spineTables: any[], standardTables: any[], activityTables: any[], banker: any, missing: string[], unsafe: any[], notes: string[] }} */
+  const report = {
+    version: CRM_AUDIT_VERSION,
+    status: null,
+    selector: dealId ? { by: 'deal-id', value: dealId } : { by: 'deal-name', value: dealName },
+    deal: null,
+    dealMatchCount: 0,
+    relationships: [],
+    dealLookupInventory: [],
+    dealPicklistInventory: [],
+    clientTable: null,
+    spineTables: [],
+    standardTables: [],
+    activityTables: [],
+    banker: null,
+    missing: [],
+    unsafe: [],
+    notes: [],
+  };
+
+  // --- 1. Resolve EXACTLY ONE deal -----------------------------------------
+  const resolved = await resolveCrmAuditDeal({ dealName, dealId }, token, envUrl);
+  if (!resolved.ok) {
+    report.status = 'CRM_GRAPH_BLOCKED';
+    report.notes.push(`Loan Deal lookup failed: ${resolved.error}`);
+    return finishCrmAudit(report, asJson);
+  }
+  report.dealMatchCount = resolved.matchCount;
+  if (resolved.matchCount === 0) {
+    report.status = 'CRM_GRAPH_BLOCKED';
+    report.notes.push(
+      dealId
+        ? `No cr664_loandeals row with id ${dealId}.`
+        : `No cr664_loandeals row with cr664_dealname = "${dealName}".`,
+    );
+    return finishCrmAudit(report, asJson);
+  }
+  if (resolved.matchCount > 1) {
+    report.status = 'CRM_GRAPH_BLOCKED';
+    report.notes.push(
+      `${resolved.matchCount} cr664_loandeals rows match cr664_dealname = "${dealName}". ` +
+        'Re-run with --deal-id <guid> to disambiguate.',
+    );
+    return finishCrmAudit(report, asJson);
+  }
+  const deal = resolved.deal;
+  report.deal = {
+    id: deal.cr664_loandealid,
+    name: deal.cr664_dealname ?? null,
+  };
+
+  // --- 2. Deal table metadata (lookup + picklist inventory) ----------------
+  const dealMeta = await getTableMetadata(CRM_AUDIT_DEAL_TABLE, token, envUrl);
+  if (!dealMeta.ok) {
+    report.status = 'CRM_GRAPH_BLOCKED';
+    report.notes.push(`cr664_loandeal metadata unreadable: ${dealMeta.error}`);
+    return finishCrmAudit(report, asJson);
+  }
+  const dealAttrs = Array.isArray(dealMeta.table.Attributes)
+    ? dealMeta.table.Attributes
+    : [];
+  report.dealLookupInventory = dealAttrs
+    .filter((a) => a.AttributeType === 'Lookup')
+    .map((a) => ({
+      logical: a.LogicalName,
+      schemaName: a.SchemaName,
+      valueProjection: `_${a.LogicalName}_value`,
+    }))
+    .sort((a, b) => a.logical.localeCompare(b.logical));
+  report.dealPicklistInventory = dealAttrs
+    .filter((a) => a.AttributeType === 'Picklist')
+    .map((a) => a.LogicalName)
+    .sort();
+
+  // --- 3. Classify each canonical relationship (real vs pseudo) ------------
+  let probeFailed = false;
+  for (const rel of CRM_AUDIT_DEAL_LOOKUPS) {
+    const c = await classifyAttribute(CRM_AUDIT_DEAL_TABLE, rel.logical, token, envUrl);
+    const finding = {
+      role: rel.role,
+      label: rel.label,
+      logical: rel.logical,
+      valueProjection: rel.valueProjection,
+      expectedTarget: rel.expectedTarget,
+      canonical: rel.canonical,
+      classification: c.classification,
+      isRealLookup: c.classification === 'real-lookup',
+      targets: Array.isArray(c.targets) ? c.targets : [],
+      schemaName: c.schemaName ?? null,
+      linkedValue: null,
+      linkedDisplay: null,
+      linked: false,
+      error: c.error ?? null,
+    };
+    if (c.classification === 'probe-failed') {
+      probeFailed = true;
+      report.notes.push(
+        `Relationship probe failed for ${rel.logical}: ${c.error ?? 'unknown error'}`,
+      );
+    }
+    if (c.classification === 'real-lookup' || c.classification === 'pseudo-scalar') {
+      const v = await crmAuditReadLinkValue(
+        deal.cr664_loandealid,
+        rel,
+        c.classification,
+        token,
+        envUrl,
+      );
+      if (v.ok) {
+        finding.linkedValue = v.value;
+        finding.linkedDisplay = v.formatted;
+        finding.linked = Boolean(v.value);
+      } else {
+        probeFailed = true;
+        report.notes.push(`Could not read ${rel.logical} value: ${v.error}`);
+      }
+    }
+    // A relationship carried by a pseudo column that actually holds a GUID is
+    // the unsafe case: a link with NO relational integrity behind it.
+    if (
+      c.classification === 'pseudo-scalar' &&
+      crmAuditLooksLikeGuid(finding.linkedValue)
+    ) {
+      report.unsafe.push({
+        role: rel.role,
+        logical: rel.logical,
+        value: finding.linkedValue,
+        reason:
+          'CRM relationship is stored in a pseudo GUID/text column, not a real Dataverse lookup.',
+      });
+    }
+    if (rel.canonical && !finding.linked && c.classification !== 'pseudo-scalar') {
+      report.missing.push(`canonical link unset: ${rel.label} (${rel.logical})`);
+    }
+    report.relationships.push(finding);
+  }
+
+  // --- 4. Client target table (de-facto canonical CRM entity today) --------
+  const clientMeta = await getTableMetadata(CRM_AUDIT_CLIENT_TABLE, token, envUrl);
+  if (!clientMeta.ok) {
+    report.status = 'CRM_GRAPH_BLOCKED';
+    report.notes.push(`cr664_clientrelationship metadata unreadable: ${clientMeta.error}`);
+    return finishCrmAudit(report, asJson);
+  }
+  const clientAttrs = Array.isArray(clientMeta.table.Attributes)
+    ? clientMeta.table.Attributes
+    : [];
+  report.clientTable = {
+    logical: CRM_AUDIT_CLIENT_TABLE,
+    exists: true,
+    hasClientName: clientAttrs.some((a) => a.LogicalName === 'cr664_clientname'),
+    borrowerTypeIsPicklist: clientAttrs.some(
+      (a) => a.LogicalName === 'cr664_borrowertype' && a.AttributeType === 'Picklist',
+    ),
+    lookupColumns: clientAttrs
+      .filter((a) => a.AttributeType === 'Lookup')
+      .map((a) => a.LogicalName)
+      .sort(),
+  };
+
+  // --- 5. Salesforce-style spine tables (presence/absence, honest) ---------
+  for (const t of CRM_AUDIT_SPINE_TABLES) {
+    const ex = await crmAuditTableExists(t.logical, token, envUrl);
+    report.spineTables.push({ logical: t.logical, role: t.role, exists: ex.exists });
+    if (!ex.exists) report.missing.push(`spine table absent: ${t.logical} (${t.role})`);
+  }
+
+  // --- 6. Standard Dataverse account/contact equivalents -------------------
+  for (const logical of ['account', 'contact']) {
+    const ex = await crmAuditTableExists(logical, token, envUrl);
+    report.standardTables.push({ logical, exists: ex.exists, referencedByDeal: false });
+  }
+
+  // --- 7. Activity / task / note entities ----------------------------------
+  for (const logical of ['cr664_dealtask', 'cr664_auditevent', 'cr664_crmtimelineevent']) {
+    const ex = await crmAuditTableExists(logical, token, envUrl);
+    report.activityTables.push({ logical, exists: ex.exists });
+  }
+
+  // --- 8. Optional banker -> team cross-check (only with --upn) -------------
+  if (upn) {
+    const bankerRes = await findBankerByEmail(upn, token, envUrl);
+    if (!bankerRes.ok) {
+      report.banker = { upn, resolved: false, error: bankerRes.error };
+      report.notes.push(`Banker lookup failed for ${upn}: ${bankerRes.error}`);
+    } else if (bankerRes.records.length !== 1) {
+      report.banker = { upn, resolved: false, matchCount: bankerRes.records.length };
+      report.notes.push(
+        `${bankerRes.records.length} cr664_banker rows match cr664_email = "${upn}" (need exactly 1).`,
+      );
+    } else {
+      const banker = bankerRes.records[0];
+      const teamRel = report.relationships.find((r) => r.role === 'team');
+      const dealTeam = teamRel ? teamRel.linkedValue : null;
+      report.banker = {
+        upn,
+        resolved: true,
+        id: banker.cr664_bankerid,
+        fullName: banker.cr664_fullname ?? null,
+        teamValue: banker._cr664_team_value ?? null,
+        dealTeamValue: dealTeam,
+        teamMatchesDeal:
+          Boolean(banker._cr664_team_value) &&
+          Boolean(dealTeam) &&
+          banker._cr664_team_value === dealTeam,
+      };
+    }
+  }
+
+  // --- 9. Terminal status (precedence) -------------------------------------
+  if (probeFailed) {
+    report.status = 'CRM_GRAPH_BLOCKED';
+  } else if (report.unsafe.length > 0) {
+    report.status = 'CRM_GRAPH_UNSAFE_PSEUDO_LOOKUP';
+  } else if (report.missing.length > 0) {
+    report.status = 'CRM_GRAPH_PARTIAL';
+  } else {
+    report.status = 'CRM_GRAPH_READY';
+  }
+  return finishCrmAudit(report, asJson);
+}
+
+// Single exit point — prints the report (JSON or human) and sets the process
+// exit code. BLOCKED/UNSAFE are non-zero (operator must act); PARTIAL/READY
+// are zero (the audit itself succeeded). Never writes anything.
+function finishCrmAudit(report, asJson) {
+  if (asJson) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    printCrmAuditHuman(report);
+  }
+  if (report.status === 'CRM_GRAPH_BLOCKED' || report.status === 'CRM_GRAPH_UNSAFE_PSEUDO_LOOKUP') {
+    process.exitCode = 1;
+  } else {
+    process.exitCode = 0;
+  }
+  return { status: report.status };
+}
+
+function printCrmAuditHuman(report) {
+  const line = '-'.repeat(70);
+  console.log(line);
+  console.log(`Phase 189A — CRM relationship-spine audit (${report.version})`);
+  console.log(line);
+  console.log(`Selector:        ${report.selector.by} = ${report.selector.value}`);
+  if (report.deal) {
+    console.log(`Loan Deal:       ${report.deal.name ?? '(unnamed)'} [${report.deal.id}]`);
+  } else {
+    console.log(`Loan Deal:       (not uniquely resolved; matches=${report.dealMatchCount})`);
+  }
+  console.log('');
+
+  if (report.relationships.length > 0) {
+    console.log('Deal relationship columns:');
+    for (const r of report.relationships) {
+      const kind =
+        r.classification === 'real-lookup'
+          ? 'REAL LOOKUP'
+          : r.classification === 'pseudo-scalar'
+            ? 'PSEUDO COLUMN ⚠'
+            : r.classification.toUpperCase();
+      const tgt = r.targets.length ? ` → ${r.targets.join(', ')}` : '';
+      const linked = r.linked
+        ? `linked: ${r.linkedDisplay ?? r.linkedValue}`
+        : 'linked: (unset)';
+      console.log(`  · ${r.label} [${r.logical}] — ${kind}${tgt}; ${linked}`);
+    }
+    console.log('');
+  }
+
+  if (report.dealLookupInventory.length > 0) {
+    console.log(
+      `Deal lookup inventory (${report.dealLookupInventory.length}): ` +
+        report.dealLookupInventory.map((l) => l.logical).join(', '),
+    );
+  }
+  if (report.dealPicklistInventory.length > 0) {
+    console.log(
+      `Deal choice/picklist fields (${report.dealPicklistInventory.length}): ` +
+        report.dealPicklistInventory.join(', '),
+    );
+  }
+  console.log('');
+
+  if (report.clientTable) {
+    console.log(
+      `Client table ${report.clientTable.logical}: present ` +
+        `(clientname=${report.clientTable.hasClientName}, ` +
+        `borrowertype picklist=${report.clientTable.borrowerTypeIsPicklist}).`,
+    );
+  }
+  console.log('');
+
+  console.log('Salesforce-style spine tables (planned in crmDataverseSchemaPlan.ts):');
+  for (const t of report.spineTables) {
+    console.log(`  · ${t.logical} — ${t.exists ? 'PRESENT' : 'ABSENT'} (${t.role})`);
+  }
+  console.log('');
+
+  console.log('Standard Dataverse account/contact:');
+  for (const t of report.standardTables) {
+    console.log(`  · ${t.logical} — ${t.exists ? 'present (not referenced by deal)' : 'absent'}`);
+  }
+  console.log('');
+
+  console.log('Activity / task / note entities:');
+  for (const t of report.activityTables) {
+    console.log(`  · ${t.logical} — ${t.exists ? 'PRESENT' : 'ABSENT'}`);
+  }
+  console.log('');
+
+  if (report.banker) {
+    if (report.banker.resolved) {
+      console.log(
+        `Banker ${report.banker.upn}: ${report.banker.fullName ?? '(no name)'} ` +
+          `[${report.banker.id}]; team matches deal: ${report.banker.teamMatchesDeal}`,
+      );
+    } else {
+      console.log(`Banker ${report.banker.upn}: NOT uniquely resolved.`);
+    }
+    console.log('');
+  }
+
+  if (report.unsafe.length > 0) {
+    console.log('UNSAFE pseudo-lookup findings:');
+    for (const u of report.unsafe) {
+      console.log(`  ⚠ ${u.logical} (${u.role}): ${u.reason}`);
+    }
+    console.log('');
+  }
+
+  if (report.missing.length > 0) {
+    console.log(`Missing for a complete spine (${report.missing.length}):`);
+    for (const m of report.missing) console.log(`  · ${m}`);
+    console.log('');
+  }
+
+  if (report.notes.length > 0) {
+    console.log('Notes:');
+    for (const n of report.notes) console.log(`  · ${n}`);
+    console.log('');
+  }
+
+  console.log(line);
+  console.log(`STATUS: ${report.status}`);
+  console.log(line);
+}
+
 async function main() {
   // === Pure diagnostic: print the lookup-creation payload(s) ===
   // No pac auth, no Web API call, no write. Useful when an operator
@@ -11846,6 +12465,23 @@ async function main() {
   // === Standalone Web API metadata verification (read-only) ===
   if (FLAGS.verifyLookups) {
     await runVerifyLookups(mainToken, mainEnvUrl);
+    return;
+  }
+
+  // === Phase 189A — read-only CRM relationship-spine audit ===
+  // Resolves ONE Loan Deal and walks its CRM relationship graph with pure
+  // GETs. Emits one CRM_GRAPH_* status. Never POST/PATCH/DELETE/PublishXml.
+  if (FLAGS.inspectCrmRelationshipGraph) {
+    await runInspectCrmRelationshipGraph(
+      {
+        dealName: FLAGS.seedDealName,
+        dealId: FLAGS.crmDealId,
+        upn: FLAGS.seedUpn,
+        asJson: FLAGS.json,
+      },
+      mainToken,
+      mainEnvUrl,
+    );
     return;
   }
 
