@@ -3958,3 +3958,45 @@ describe('Phase 188F — document checklist pilot certification', () => {
     expect(doc).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 188I — document checklist controlled UI-enable readiness plan
+// ---------------------------------------------------------------------------
+
+describe('Phase 188I — document checklist UI-enable readiness plan', () => {
+  const rel = 'docs/PHASE_188I_DOCUMENT_CHECKLIST_UI_ENABLE_READINESS.md';
+
+  it('the readiness plan doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('records the plan enables nothing: no live writes, no UI enablement, both gates false', () => {
+    expect(doc).toMatch(/no live writes/i);
+    expect(doc).toMatch(/No UI enablement/i);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false/);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = false/);
+  });
+
+  it('documents the two-gate 188J enable condition and required identities', () => {
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED/);
+    expect(doc).toMatch(/\/cr664_users\(<CoreUser>\)/);
+    expect(doc).toMatch(/exact deal id/i);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_PILOT_APPROVED_NAMES/);
+  });
+
+  it('pins forbidden borrower comms, forbidden New Deal auto-run, and the rollback switch', () => {
+    expect(doc).toMatch(/No borrower communication/i);
+    expect(doc).toMatch(/No New Deal auto-run/i);
+    expect(doc).toMatch(/[Rr]ollback/);
+  });
+
+  it('the future-state UI-action flag is shipped as a disabled constant', () => {
+    const config = readFileSync(
+      resolve(REPO_ROOT, 'src/deals/documentChecklistPilotConfig.ts'),
+      'utf8',
+    );
+    expect(config).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = false as const/);
+  });
+});
