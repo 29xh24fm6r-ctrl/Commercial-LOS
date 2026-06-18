@@ -122,10 +122,44 @@ describe('DealCrmRelationshipPanel (connected container)', () => {
     const panel = screen.getByTestId('crm-relationship-panel');
     // All three canonical edges present as real lookups → ready.
     expect(panel.getAttribute('data-relationship-status')).toBe('ready');
-    expect(screen.getByText('Commercial East')).toBeInTheDocument();
-    expect(screen.getByText(/Real Assigned Banker/)).toBeInTheDocument();
+    // Scope to the panel — the detail cards also render the team/banker names.
+    expect(within(panel).getByText('Commercial East')).toBeInTheDocument();
+    expect(within(panel).getByText(/Real Assigned Banker/)).toBeInTheDocument();
     // No edge-to-wire section when the current graph is complete.
     expect(screen.queryByLabelText('Relationship edges to wire')).toBeNull();
+  });
+
+  it('Phase 189F — renders the readiness-gated detail cards alongside the panel', () => {
+    mockState.deal = {
+      id: 'd1',
+      name: 'Mock Deal',
+      clientName: 'Mock Client LLC',
+      clientId: 'client-guid',
+      clientLookupClassification: 'real-lookup',
+      teamId: 'team-guid',
+      teamName: 'Commercial East',
+      teamLookupClassification: 'real-lookup',
+      assignedBankerId: 'banker-guid',
+      bankerName: 'Real Assigned Banker',
+      assignedBankerLookupClassification: 'real-lookup',
+    };
+    render(<DealCrmRelationshipPanel />);
+    const cards = screen.getByTestId('crm-relationship-detail-cards');
+    expect(cards.getAttribute('data-readiness-status')).toBe('ready');
+    // Real ids → client detail section is safe and shows the real GUID.
+    const clientSection = cards.querySelector('[data-section="clientIdentity"]')!;
+    expect(clientSection.getAttribute('data-section-state')).toBe('safe');
+    expect(within(clientSection as HTMLElement).getByText('client-guid')).toBeInTheDocument();
+  });
+
+  it('Phase 189F — the readiness gate blocks the client detail card for a name-only client', () => {
+    // Default mock deal has clientName but no clientId → surrogate → blocked.
+    render(<DealCrmRelationshipPanel />);
+    const cards = screen.getByTestId('crm-relationship-detail-cards');
+    const clientSection = cards.querySelector('[data-section="clientIdentity"]')!;
+    expect(clientSection.getAttribute('data-section-state')).toBe('blocked');
+    // No real client GUID is shown for a name-only client.
+    expect(clientSection.textContent).not.toMatch(/name:Mock Client LLC/);
   });
 
   it('exposes no buttons, forms, or write affordances (read-only surface)', () => {

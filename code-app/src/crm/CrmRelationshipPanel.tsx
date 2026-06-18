@@ -10,6 +10,8 @@ import {
   type CrmRelationshipViewModel,
   type CrmRelationshipStatus,
 } from './crmRelationshipViewModel';
+import { deriveCrmRelationshipDetailReadiness } from './crmRelationshipDetailReadiness';
+import { CrmRelationshipDetailCards } from './CrmRelationshipDetailCards';
 
 /**
  * Phase 189C — read-only CRM Relationship panel.
@@ -185,40 +187,48 @@ export function DealCrmRelationshipPanel() {
   const { deal } = useDealData();
   const banker = useOptionalBanker();
 
-  const viewModel = deriveCrmRelationshipViewModel(
-    buildCrmRelationshipInput({
-      deal: { id: deal.id, name: deal.name },
-      // Phase 189D — the already-authorized deal row now carries real lookup
-      // ids + classifications (no second Dataverse GET). A real client GUID
-      // wins; the builder still falls back to a `name:` surrogate when only a
-      // label exists.
-      clientId: deal.clientId ?? null,
-      clientName: deal.clientName ?? null,
-      clientLookupClassification: deal.clientLookupClassification,
-      team: deal.teamId
-        ? {
-            id: deal.teamId,
-            name: deal.teamName ?? null,
-            lookupClassification: deal.teamLookupClassification,
-          }
+  // Phase 189D — the already-authorized deal row carries real lookup ids +
+  // classifications (no second Dataverse GET). A real client GUID wins; the
+  // builder still falls back to a `name:` surrogate when only a label exists.
+  // Build the graph input ONCE, then derive BOTH the view-model (189B) and the
+  // detail readiness gate (189E) from the same input.
+  const input = buildCrmRelationshipInput({
+    deal: { id: deal.id, name: deal.name },
+    clientId: deal.clientId ?? null,
+    clientName: deal.clientName ?? null,
+    clientLookupClassification: deal.clientLookupClassification,
+    team: deal.teamId
+      ? {
+          id: deal.teamId,
+          name: deal.teamName ?? null,
+          lookupClassification: deal.teamLookupClassification,
+        }
+      : null,
+    // Prefer the deal's real cr664_AssignedBanker lookup id when present;
+    // otherwise fall back to the current banker context (the deal was
+    // authorized to them, so they ARE the assigned banker).
+    assignedBanker: deal.assignedBankerId
+      ? {
+          id: deal.assignedBankerId,
+          name: deal.bankerName ?? null,
+          email: banker?.email ?? null,
+          lookupClassification: deal.assignedBankerLookupClassification,
+        }
+      : banker
+        ? { id: banker.bankerId, name: banker.fullName, email: banker.email }
         : null,
-      // Prefer the deal's real cr664_AssignedBanker lookup id when present;
-      // otherwise fall back to the current banker context (the deal was
-      // authorized to them, so they ARE the assigned banker).
-      assignedBanker: deal.assignedBankerId
-        ? {
-            id: deal.assignedBankerId,
-            name: deal.bankerName ?? null,
-            email: banker?.email ?? null,
-            lookupClassification: deal.assignedBankerLookupClassification,
-          }
-        : banker
-          ? { id: banker.bankerId, name: banker.fullName, email: banker.email }
-          : null,
-    }),
-  );
+  });
 
-  return <CrmRelationshipPanel viewModel={viewModel} />;
+  const viewModel = deriveCrmRelationshipViewModel(input);
+  // Phase 189F — gate the read-only detail cards on the 189E readiness audit.
+  const readiness = deriveCrmRelationshipDetailReadiness(input);
+
+  return (
+    <>
+      <CrmRelationshipPanel viewModel={viewModel} />
+      <CrmRelationshipDetailCards viewModel={viewModel} readiness={readiness} />
+    </>
+  );
 }
 
 const bannerStyle: CSSProperties = {
