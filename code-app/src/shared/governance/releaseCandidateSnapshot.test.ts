@@ -4045,3 +4045,51 @@ describe('Phase 191 — banker V1 release-candidate hardening', () => {
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 192 — credit / committee / compliance V1 readiness (go/no-go snapshot)
+// ---------------------------------------------------------------------------
+
+describe('Phase 192 — credit / committee / compliance V1 readiness', () => {
+  const rel = 'docs/PHASE_192_CREDIT_COMMITTEE_COMPLIANCE_V1_READINESS.md';
+
+  it('the Phase 192 readiness doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('records a go/no-go recommendation with P0/P1/P2 blocker tiers', () => {
+    expect(doc).toMatch(/CONDITIONAL GO|NO-GO|\bGO\b/);
+    expect(doc).toMatch(/P0/);
+    expect(doc).toMatch(/P1/);
+    expect(doc).toMatch(/P2/);
+  });
+
+  it('pins the no-fake-approval + no-fake-source-facts + no-borrower-comms statements', () => {
+    expect(doc).toMatch(/no fake approval|no fabricated approval|no false.*approv/i);
+    expect(doc).toMatch(/no fake.*source|no fabricated source|sourced or.*missing/i);
+    expect(doc).toMatch(/no borrower comms|no borrower communication/i);
+  });
+
+  it('keeps all three checklist gates documented false', () => {
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_PILOT_UI_ENABLED\s*=\s*false/);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED\s*=\s*false/);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED\s*=\s*false/);
+  });
+
+  it('records the build-from-no-.power + no-schema posture and preserves Phase 191', () => {
+    expect(doc).toMatch(/\.power/);
+    expect(doc).toMatch(/pnpm build/);
+    expect(doc).toMatch(/no schema|no migration/i);
+    expect(doc).toMatch(/191/);
+  });
+
+  it('the Phase 192 governance contract test exists on disk', () => {
+    expect(
+      existsSync(
+        resolve(REPO_ROOT, 'src/shared/governance/phase192CreditCommitteeComplianceReadinessContract.test.ts'),
+      ),
+    ).toBe(true);
+  });
+});
