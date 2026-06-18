@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { DocumentChecklistPilotPanel } from './DocumentChecklistPilotPanel';
 
 /**
@@ -67,5 +67,50 @@ describe('DocumentChecklistPilotPanel — disabled UX', () => {
     expect(within(would as HTMLElement).getByText('2024 Business Tax Return')).toBeInTheDocument();
     // Even with pilotEnabled, the generate button stays disabled.
     expect(container.querySelector('[data-doc-checklist-pilot-generate]')).toBeDisabled();
+  });
+});
+
+/**
+ * Phase 188J — the TEST-ONLY dependency-injected action seam. By default the
+ * button stays disabled; an injected callback alone is not enough; only an
+ * explicitly-enabled action gate + injected callback makes one click reach the
+ * bridge. The default runtime posture remains disabled.
+ */
+describe('DocumentChecklistPilotPanel — 188J controlled action seam', () => {
+  it('stays disabled by default even when an onGenerate callback is injected', () => {
+    const onGenerate = vi.fn();
+    const { container } = render(
+      <DocumentChecklistPilotPanel existingDocumentNames={[]} pilotEnabled onGenerate={onGenerate} />,
+    );
+    const btn = container.querySelector('[data-doc-checklist-pilot-generate]') as HTMLButtonElement;
+    expect(btn).toBeDisabled();
+    fireEvent.click(btn);
+    expect(onGenerate).not.toHaveBeenCalled();
+  });
+
+  it('stays disabled when the action gate is enabled but no callback is injected', () => {
+    const { container } = render(
+      <DocumentChecklistPilotPanel existingDocumentNames={[]} pilotEnabled generateActionEnabled />,
+    );
+    expect(container.querySelector('[data-doc-checklist-pilot-generate]')).toBeDisabled();
+  });
+
+  it('one controlled click reaches the injected callback ONLY when fully enabled (test-only)', () => {
+    const onGenerate = vi.fn();
+    const { container } = render(
+      <DocumentChecklistPilotPanel
+        existingDocumentNames={[]}
+        pilotEnabled
+        generateActionEnabled
+        onGenerate={onGenerate}
+      />,
+    );
+    const btn = container.querySelector('[data-doc-checklist-pilot-generate]') as HTMLButtonElement;
+    expect(btn).not.toBeDisabled();
+    fireEvent.click(btn);
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+    // Still exactly one button — no borrower-send / request control was added.
+    expect(Array.from(container.querySelectorAll('button'))).toHaveLength(1);
+    expect((container.textContent ?? '').toLowerCase()).not.toContain('send request');
   });
 });

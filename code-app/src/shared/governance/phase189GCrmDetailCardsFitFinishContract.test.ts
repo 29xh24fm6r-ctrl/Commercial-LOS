@@ -24,6 +24,7 @@ const tryRead = (...p: string[]) => {
 };
 
 const CARDS = read('crm', 'CrmRelationshipDetailCards.tsx');
+const PANEL = read('crm', 'CrmRelationshipPanel.tsx');
 const FLAGS = read('crm', 'crmFeatureFlags.ts');
 const APP = read('App.tsx');
 const WORKSPACE_GATE = read('bootstrap', 'WorkspaceGate.tsx');
@@ -48,6 +49,14 @@ describe('read-only — no write verbs / network / broad queries', () => {
     expect(CARDS).not.toMatch(/api\/data\/v9/);
     expect(CARDS).not.toMatch(/retrieveMultiple|RetrieveMultiple|\.list\(/);
     expect(CARDS).not.toMatch(/\$filter|\$select|\$expand/);
+  });
+
+  it('the panel mounts the detail cards read-only (no write verb / fetch)', () => {
+    expect(PANEL).toMatch(/CrmRelationshipDetailCards/);
+    expect(PANEL).not.toMatch(/['"]POST['"]/);
+    expect(PANEL).not.toMatch(/['"]PATCH['"]/);
+    expect(PANEL).not.toMatch(/['"]DELETE['"]/);
+    expect(PANEL).not.toMatch(/\bfetch\s*\(/);
   });
 });
 
@@ -148,3 +157,4 @@ describe('source-fact traceability language present + deterministic order', () =
     expect(CARDS).toMatch(/CRM_NAME_REF_PREFIX/);
   });
 });
+
