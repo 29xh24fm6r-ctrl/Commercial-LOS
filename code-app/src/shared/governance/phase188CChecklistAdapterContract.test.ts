@@ -56,10 +56,14 @@ describe('gate stays disabled by default', () => {
 });
 
 describe('payload allow-list — no documenttype / stage / status / portfolio / CRM', () => {
-  it('the allow-list is exactly the three approved keys', () => {
+  it('the allow-list is exactly the two approved keys (Phase 188G: no correlationid column)', () => {
     expect(ADAPTER).toMatch(
-      /DOCUMENT_CHECKLIST_ALLOWED_FIELDS = Object\.freeze\(\[\s*'cr664_documentname',\s*'cr664_Deal@odata\.bind',\s*'cr664_correlationid',\s*\]/,
+      /DOCUMENT_CHECKLIST_ALLOWED_FIELDS = Object\.freeze\(\[\s*'cr664_documentname',\s*'cr664_Deal@odata\.bind',\s*\]/,
     );
+    // cr664_correlationid is NOT in the row allow-list (it is audit-only).
+    const start = ADAPTER.indexOf('DOCUMENT_CHECKLIST_ALLOWED_FIELDS');
+    const block = ADAPTER.slice(start, ADAPTER.indexOf('] as const)', start));
+    expect(block).not.toMatch(/cr664_correlationid/);
   });
 
   it('the create payload sets none of cr664_documenttype / stage / status / portfolio / crm', () => {

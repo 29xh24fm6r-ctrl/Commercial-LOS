@@ -33,11 +33,16 @@ import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
 
 const MODULE = 'document-checklist';
 
-/** Allow-listed checklist row payload keys (internal generation only). */
+/**
+ * Allow-listed checklist row payload keys (internal generation only).
+ *
+ * Phase 188G: `cr664_correlationid` is NOT a column on cr664_documentchecklists
+ * (the 188E live proof confirmed a POST of it is rejected), so it is excluded
+ * from the row payload. The correlation id lives on the AUDIT event only.
+ */
 export const DOCUMENT_CHECKLIST_ALLOWED_FIELDS = Object.freeze([
   'cr664_documentname',
   'cr664_Deal@odata.bind',
-  'cr664_correlationid',
 ] as const);
 
 export interface DocumentChecklistInput {
@@ -90,7 +95,6 @@ export async function runNewDealChecklistGeneration(
     const payload = {
       cr664_documentname: name,
       'cr664_Deal@odata.bind': `/cr664_loandeals(${input.dealId})`,
-      cr664_correlationid: input.correlationId,
     };
     const stray = Object.keys(payload).filter(
       (k) => !(DOCUMENT_CHECKLIST_ALLOWED_FIELDS as readonly string[]).includes(k),
@@ -119,11 +123,10 @@ export async function runNewDealChecklistGeneration(
 // newDealChecklistGenerationLiveDeps.ts. NEVER imports a borrower-comms module.
 // ---------------------------------------------------------------------------
 
-/** The allow-listed checklist row create payload. */
+/** The allow-listed checklist row create payload (Phase 188G: no correlationid). */
 export interface ChecklistRowPayload {
   readonly cr664_documentname: string;
   readonly 'cr664_Deal@odata.bind': string;
-  readonly cr664_correlationid: string;
 }
 
 /** Detail passed to the audit emitter once all intended rows are created. */
@@ -236,7 +239,6 @@ export async function generateAuditedDocumentChecklist(
     const payload: ChecklistRowPayload = {
       cr664_documentname: cleanName,
       'cr664_Deal@odata.bind': `/cr664_loandeals(${input.dealId})`,
-      cr664_correlationid: correlationId,
     };
     const stray = Object.keys(payload).filter(
       (k) => !(DOCUMENT_CHECKLIST_ALLOWED_FIELDS as readonly string[]).includes(k),

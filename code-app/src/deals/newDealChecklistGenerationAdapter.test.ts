@@ -101,22 +101,32 @@ describe('idempotency', () => {
 });
 
 describe('payload allow-list', () => {
-  it('every create payload contains ONLY the approved fields (no documenttype/stage/status/portfolio/crm/borrower)', async () => {
+  it('every create payload contains ONLY the approved fields (no correlationid/documenttype/stage/status/portfolio/crm/borrower)', async () => {
     const { d, created } = deps();
     await generateAuditedDocumentChecklist(baseInput(), d);
     for (const p of created) {
+      // Phase 188G: the row payload is exactly two fields; correlationid is
+      // audit-only (not a column on cr664_documentchecklists).
       expect(Object.keys(p).sort()).toEqual(
-        ['cr664_Deal@odata.bind', 'cr664_correlationid', 'cr664_documentname'],
+        ['cr664_Deal@odata.bind', 'cr664_documentname'],
       );
       for (const key of Object.keys(p)) {
         expect(DOCUMENT_CHECKLIST_ALLOWED_FIELDS).toContain(key);
       }
+      expect(p).not.toHaveProperty('cr664_correlationid');
       expect(p).not.toHaveProperty('cr664_documenttype');
       const blob = JSON.stringify(p);
       expect(blob).not.toMatch(/cr664_(stage|status|portfolio|stagereference|statusreference)/i);
       expect(blob).not.toMatch(/email|phone|borrower|recipient/i);
       expect(p['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-1)');
     }
+  });
+
+  it('the audit event still carries the correlation id (audit-only)', async () => {
+    const { d, auditCalls } = deps();
+    await generateAuditedDocumentChecklist(baseInput(), d);
+    expect(auditCalls).toHaveLength(1);
+    expect(auditCalls[0]!.correlationId).toBe('corr-fixed');
   });
 });
 

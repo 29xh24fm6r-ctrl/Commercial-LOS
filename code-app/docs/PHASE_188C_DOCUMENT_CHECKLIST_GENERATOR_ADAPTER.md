@@ -29,9 +29,11 @@ and never contacting a borrower. No deploy.
     creates only names not already present — comparison is **trim +
     case-insensitive** (the same normalization 188B pins). Duplicate requested
     names never create duplicate rows. The stored name is trimmed clean.
-  - **Allow-listed payload only**: `cr664_documentname`, `cr664_Deal@odata.bind`,
-    `cr664_correlationid`. No `cr664_documenttype`, no stage/status/portfolio/CRM
-    field, no borrower/contact field.
+  - **Allow-listed payload only**: `cr664_documentname`, `cr664_Deal@odata.bind`.
+    (Phase 188G removed `cr664_correlationid` — it is **not** a column on
+    `cr664_documentchecklists`; the correlation id is recorded on the audit event
+    only.) No `cr664_documenttype`, no stage/status/portfolio/CRM field, no
+    borrower/contact field.
   - **Fail-closed**: a read error, any create failure (first → `failed`, later →
     `partial_success`), or an audit failure (`audit_failed_partial`) never
     reports clean success and never emits a success audit for partial work.
@@ -77,8 +79,8 @@ created.
 
 - [newDealChecklistGenerationAdapter.test.ts](../src/deals/newDealChecklistGenerationAdapter.test.ts)
   (16): disabled gate; idempotency (skip existing, create missing, trim +
-  case-insensitive, dedup requested); payload allow-list (only the three keys,
-  no documenttype/stage/status/portfolio/CRM/borrower); audit emits only after
+  case-insensitive, dedup requested); payload allow-list (only the two keys —
+  no correlationid/documenttype/stage/status/portfolio/CRM/borrower); audit emits only after
   all creates succeed with created/skipped + correlation id; fail-closed on
   read/first-create/later-create/throw/audit failures; the emitter binds
   `/cr664_users`, fails closed on unresolved actor, **rejects `/systemusers`**,

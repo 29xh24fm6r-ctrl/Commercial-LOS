@@ -72,19 +72,22 @@ script-gated.
 - **No New Deal create / auto-run, no CRM / portfolio / stage automation, no
   route change, no deploy.**
 
-## Follow-up (tracked, not a certification blocker)
+## Follow-up
 
-- **188C adapter `cr664_correlationid` discrepancy:** the Phase 176A/188C
-  generator allow-list includes `cr664_correlationid`, which is **not** a column
-  on `cr664_documentchecklists`. The live proof mode already excludes it (row
-  payload = 2 fields; correlation id audit-only). Before the **app-runtime**
-  generator path performs a live create, drop `cr664_correlationid` from the
-  adapter row allow-list (keep it on the audit) or add the column.
+- **188C adapter `cr664_correlationid` discrepancy — RESOLVED (Phase 188G).** The
+  Phase 176A/188C generator row allow-list previously included
+  `cr664_correlationid`, which is **not** a column on `cr664_documentchecklists`.
+  Phase 188G removed it from the app-runtime row payload + allow-list
+  (`DOCUMENT_CHECKLIST_ALLOWED_FIELDS` and `ChecklistRowPayload` are now the two
+  metadata-confirmed fields `cr664_documentname` + `cr664_Deal@odata.bind`); the
+  correlation id remains on the **audit event** only. The app-runtime generator
+  path and the proof mode now use the same correct 2-field row payload.
 
 ## Recommendation
 
 Continue the one-domain-at-a-time rollout. Document checklist generation is
-certified `PILOT_LIVE_CONTROLLED`; the app-runtime gate stays disabled until the
-188C row-allow-list correction lands and a controlled UI-enable phase is run with
-the same systems-integrity pattern. Public create, borrower messaging, and
+certified `PILOT_LIVE_CONTROLLED`; the row-allow-list correction has landed
+(Phase 188G), so the remaining step before app-runtime enablement is a controlled
+UI-enable phase run with the same systems-integrity pattern. The app-runtime gate
+stays disabled until then. Public create, borrower messaging, and
 CRM/portfolio/stage automation remain disabled.
