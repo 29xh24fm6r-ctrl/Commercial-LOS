@@ -24,6 +24,7 @@ const tryRead = (...p: string[]) => {
 };
 
 const CARDS = read('crm', 'CrmRelationshipDetailCards.tsx');
+const PANEL = read('crm', 'CrmRelationshipPanel.tsx');
 const FLAGS = read('crm', 'crmFeatureFlags.ts');
 const APP = read('App.tsx');
 const WORKSPACE_GATE = read('bootstrap', 'WorkspaceGate.tsx');
@@ -156,3 +157,4 @@ describe('source-fact traceability language present + deterministic order', () =
     expect(CARDS).toMatch(/CRM_NAME_REF_PREFIX/);
   });
 });
+
