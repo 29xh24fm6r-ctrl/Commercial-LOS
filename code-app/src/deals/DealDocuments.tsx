@@ -32,6 +32,7 @@ import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
 import { CreateDocumentReviewTaskModal } from './CreateDocumentReviewTaskModal';
+import { DocumentChecklistPilotPanel } from './DocumentChecklistPilotPanel';
 import { Card } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { WidgetHeader } from '../shared/cockpitPrimitives';
@@ -245,6 +246,21 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           onCreateReviewTask={(doc) => setPendingReviewTaskDoc(doc)}
         />
       </Card>
+      {/* Phase 188D: banker-only, pilot-DISABLED read-only checklist preview.
+          Never creates rows, sends requests, or contacts a borrower. */}
+      {!readOnly && banker && (
+        <DocumentChecklistPilotPanel
+          existingDocumentNames={
+            documents.kind === 'ready'
+              ? [
+                  ...documents.data.outstanding,
+                  ...documents.data.received,
+                  ...documents.data.reviewed,
+                ].map((d) => d.name)
+              : []
+          }
+        />
+      )}
       {!readOnly && pendingRequestDoc && (
         <RequestDocumentModal
           doc={pendingRequestDoc}

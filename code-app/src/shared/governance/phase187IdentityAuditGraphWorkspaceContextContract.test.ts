@@ -23,7 +23,10 @@ const SCRIPT = readFileSync(
 );
 
 const SECTION_START = SCRIPT.indexOf('// SPEC — canonical identity/audit graph provisioning.');
-const SECTION_END = SCRIPT.indexOf('// Audit phase — publishers + tables + columns', SECTION_START);
+const SECTION_END = (() => {
+  const next = SCRIPT.indexOf('// Phase 188B — Document checklist pilot readiness inspector', SECTION_START);
+  return next !== -1 ? next : SCRIPT.indexOf('// Audit phase — publishers + tables + columns', SECTION_START);
+})();
 const SECTION = SCRIPT.slice(SECTION_START, SECTION_END);
 
 describe('lookup detection is probe-based (robust to AttributeType mislabels)', () => {
