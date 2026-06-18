@@ -4000,3 +4000,48 @@ describe('Phase 188I — document checklist UI-enable readiness plan', () => {
     expect(config).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = false as const/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 191 — Banker V1 release-candidate hardening (go/no-go snapshot)
+// ---------------------------------------------------------------------------
+
+describe('Phase 191 — banker V1 release-candidate hardening', () => {
+  const rel = 'docs/PHASE_191_BANKER_V1_RELEASE_CANDIDATE_HARDENING.md';
+
+  it('the Phase 191 release-candidate doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('records a go/no-go recommendation with P0/P1/P2 blocker tiers', () => {
+    expect(doc).toMatch(/CONDITIONAL GO|NO-GO|\bGO\b/);
+    expect(doc).toMatch(/P0/);
+    expect(doc).toMatch(/P1/);
+    expect(doc).toMatch(/P2/);
+  });
+
+  it('pins the no-fake-data + no-borrower-comms release statements', () => {
+    expect(doc).toMatch(/no fake.*data|no sample.*data|no fabricated/i);
+    expect(doc).toMatch(/no borrower comms|no borrower communication/i);
+  });
+
+  it('keeps all three checklist gates documented false', () => {
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_PILOT_UI_ENABLED\s*=\s*false/);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED\s*=\s*false/);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED\s*=\s*false/);
+  });
+
+  it('records the build-from-no-.power (Phase 190A) verification', () => {
+    expect(doc).toMatch(/\.power/);
+    expect(doc).toMatch(/pnpm build/);
+  });
+
+  it('the Phase 191 governance contract test exists on disk', () => {
+    expect(
+      existsSync(
+        resolve(REPO_ROOT, 'src/shared/governance/phase191BankerV1ReleaseCandidateContract.test.ts'),
+      ),
+    ).toBe(true);
+  });
+});
