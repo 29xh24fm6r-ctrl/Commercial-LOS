@@ -188,13 +188,33 @@ export function DealCrmRelationshipPanel() {
   const viewModel = deriveCrmRelationshipViewModel(
     buildCrmRelationshipInput({
       deal: { id: deal.id, name: deal.name },
+      // Phase 189D — the already-authorized deal row now carries real lookup
+      // ids + classifications (no second Dataverse GET). A real client GUID
+      // wins; the builder still falls back to a `name:` surrogate when only a
+      // label exists.
+      clientId: deal.clientId ?? null,
       clientName: deal.clientName ?? null,
-      // The deal was authorized to the current banker, so they ARE the
-      // assigned banker (real bankerId). Classification stays 'unknown' — the
-      // panel does not run the Phase 189A metadata probe.
-      assignedBanker: banker
-        ? { id: banker.bankerId, name: banker.fullName, email: banker.email }
+      clientLookupClassification: deal.clientLookupClassification,
+      team: deal.teamId
+        ? {
+            id: deal.teamId,
+            name: deal.teamName ?? null,
+            lookupClassification: deal.teamLookupClassification,
+          }
         : null,
+      // Prefer the deal's real cr664_AssignedBanker lookup id when present;
+      // otherwise fall back to the current banker context (the deal was
+      // authorized to them, so they ARE the assigned banker).
+      assignedBanker: deal.assignedBankerId
+        ? {
+            id: deal.assignedBankerId,
+            name: deal.bankerName ?? null,
+            email: banker?.email ?? null,
+            lookupClassification: deal.assignedBankerLookupClassification,
+          }
+        : banker
+          ? { id: banker.bankerId, name: banker.fullName, email: banker.email }
+          : null,
     }),
   );
 

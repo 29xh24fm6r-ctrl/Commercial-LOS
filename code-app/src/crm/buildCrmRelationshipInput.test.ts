@@ -103,3 +103,42 @@ describe('end-to-end with the view-model', () => {
     expect(vm.relationshipStatus).toBe('blocked');
   });
 });
+
+describe('Phase 189D — enriched lookup classifications pass through', () => {
+  it('threads the deal-supplied client/team/banker classifications into the input', () => {
+    const input = buildCrmRelationshipInput({
+      deal: { id: 'd', name: 'Deal' },
+      clientId: 'client-guid',
+      clientName: 'Real Client',
+      clientLookupClassification: 'real-lookup',
+      team: { id: 'team-guid', name: 'Team', lookupClassification: 'real-lookup' },
+      assignedBanker: {
+        id: 'banker-guid',
+        name: 'Banker',
+        lookupClassification: 'real-lookup',
+      },
+    });
+    expect(input.client?.id).toBe('client-guid');
+    expect(input.client?.lookupClassification).toBe('real-lookup');
+    expect(input.team?.lookupClassification).toBe('real-lookup');
+    expect(input.assignedBanker?.lookupClassification).toBe('real-lookup');
+  });
+
+  it('a real client GUID wins over the name surrogate even when both are supplied', () => {
+    const input = buildCrmRelationshipInput({
+      deal: { id: 'd', name: 'Deal' },
+      clientId: 'client-guid',
+      clientName: 'Real Client',
+    });
+    expect(input.client?.id).toBe('client-guid');
+    expect(input.client?.id.startsWith(CRM_NAME_REF_PREFIX)).toBe(false);
+  });
+
+  it('a label-only client (no GUID) still produces a name: surrogate', () => {
+    const input = buildCrmRelationshipInput({
+      deal: { id: 'd', name: 'Deal' },
+      clientName: 'Label Only Client',
+    });
+    expect(input.client?.id).toBe(`${CRM_NAME_REF_PREFIX}Label Only Client`);
+  });
+});

@@ -1,4 +1,5 @@
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
+import type { CrmEdgeLookupClassification } from '../crm/crmRelationshipViewModel';
 
 /**
  * Parsed, UI-facing shape of one cr664_loandeal record. Only fields that
@@ -31,6 +32,24 @@ export interface DealDetail {
   // Blocker-derivation inputs (rendered in <DealBlockers />)
   stageEntryDate: string | undefined;
   isClosed: boolean;
+
+  // Phase 189D — CRM relationship enrichment. These come off the SAME
+  // already-authorized retrieve (no second Dataverse GET): real lookup ids +
+  // a classification so the read-only CRM panel can use real GUIDs instead of
+  // a name surrogate. `clientName` (above) remains the display label.
+  //
+  // Optional on the interface ONLY so the many existing hand-built DealDetail
+  // test fixtures keep compiling without edits (Phase 189D touches no fixture
+  // outside its scope). `mapDealDetail` — the single real producer, used by
+  // every loadDealFor* path — ALWAYS sets all seven, so the authorized runtime
+  // row carries definite values.
+  clientId?: string | undefined;
+  clientLookupClassification?: CrmEdgeLookupClassification;
+  teamId?: string | undefined;
+  teamName?: string | undefined;
+  teamLookupClassification?: CrmEdgeLookupClassification;
+  assignedBankerId?: string | undefined;
+  assignedBankerLookupClassification?: CrmEdgeLookupClassification;
 }
 
 export type DealLoadResult =
@@ -184,6 +203,33 @@ function mapDealDetail(
   // Web API when the SDK forwards them.
   const raw = deal as unknown as Record<string, unknown>;
 
+  // Phase 189D — CRM relationship enrichment off the SAME retrieve. A real
+  // `_<lookup>_value` GUID classifies the edge as a real lookup; a display
+  // label without a GUID is `unknown` (we have a name but no verified lookup);
+  // nothing at all is `missing`.
+  const clientId = deal._cr664_client_value;
+  const clientLabel =
+    getLookupFormattedValue(raw, 'cr664_client') ?? deal.cr664_clientname;
+  const clientLookupClassification: CrmEdgeLookupClassification = clientId
+    ? 'real-lookup'
+    : clientLabel
+      ? 'unknown'
+      : 'missing';
+
+  const teamId = deal._cr664_team_value;
+  const teamName = getLookupFormattedValue(raw, 'cr664_team') ?? deal.cr664_teamname;
+  const teamLookupClassification: CrmEdgeLookupClassification = teamId
+    ? 'real-lookup'
+    : 'missing';
+
+  const assignedBankerId = deal._cr664_assignedbanker_value;
+  const assignedBankerLabel =
+    getLookupFormattedValue(raw, 'cr664_assignedbanker') ??
+    deal.cr664_assignedbankername ??
+    deal.owneridname;
+  const assignedBankerLookupClassification: CrmEdgeLookupClassification =
+    assignedBankerId ? 'real-lookup' : assignedBankerLabel ? 'unknown' : 'missing';
+
   // Display-value resolution priority for every choice / lookup
   // column:
   //   1. `@OData.Community.Display.V1.FormattedValue` annotation
@@ -283,5 +329,14 @@ function mapDealDetail(
       deal.cr664_closedflag === true ||
       deal.cr664_isterminalstatus === true ||
       deal.statecode === 1,
+
+    // Phase 189D — CRM relationship enrichment (same retrieve, no new GET).
+    clientId,
+    clientLookupClassification,
+    teamId,
+    teamName,
+    teamLookupClassification,
+    assignedBankerId,
+    assignedBankerLookupClassification,
   };
 }

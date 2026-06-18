@@ -440,3 +440,99 @@ describe('loadDealForBanker — cockpit missing-field check after Phase 122C hyd
     expect(metrics.missingFieldLabels).toContain('Pricing type');
   });
 });
+
+/**
+ * Phase 189D — CRM relationship enrichment. The same already-authorized
+ * retrieve now carries real lookup ids + a classification so the read-only CRM
+ * panel can use real GUIDs without a second Dataverse GET. No new query, no
+ * write.
+ */
+describe('loadDealForBanker — Phase 189D CRM relationship enrichment', () => {
+  it('maps _cr664_client_value to clientId and classifies the Client edge real-lookup', async () => {
+    dealGet.mockReturnValue(
+      Promise.resolve({ success: true, data: liveShapedDealRow() } as never),
+    );
+    const result = await loadDealForBanker('deal-test-122', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.clientId).toBe('client-guid');
+      expect(result.deal.clientLookupClassification).toBe('real-lookup');
+      // The display label still resolves independently.
+      expect(result.deal.clientName).toBe('TEST Client');
+    }
+  });
+
+  it('maps _cr664_team_value + its formatted value to teamId/teamName and real-lookup', async () => {
+    dealGet.mockReturnValue(
+      Promise.resolve({
+        success: true,
+        data: liveShapedDealRow({
+          '_cr664_team_value@OData.Community.Display.V1.FormattedValue':
+            'Commercial East',
+        }),
+      } as never),
+    );
+    const result = await loadDealForBanker('deal-test-122', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.teamId).toBe('team-A');
+      expect(result.deal.teamName).toBe('Commercial East');
+      expect(result.deal.teamLookupClassification).toBe('real-lookup');
+    }
+  });
+
+  it('maps _cr664_assignedbanker_value to assignedBankerId and real-lookup', async () => {
+    dealGet.mockReturnValue(
+      Promise.resolve({ success: true, data: liveShapedDealRow() } as never),
+    );
+    const result = await loadDealForBanker('deal-test-122', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.assignedBankerId).toBe('banker-A');
+      expect(result.deal.assignedBankerLookupClassification).toBe('real-lookup');
+    }
+  });
+
+  it('classifies a label-only client (shadow name, no _value GUID) as unknown', async () => {
+    // dealRow() has cr664_clientname but no _cr664_client_value.
+    dealGet.mockReturnValue(
+      Promise.resolve({ success: true, data: dealRow() } as never),
+    );
+    const result = await loadDealForBanker('deal-1', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.clientId).toBeUndefined();
+      expect(result.deal.clientLookupClassification).toBe('unknown');
+    }
+  });
+
+  it('classifies a Client edge with neither GUID nor label as missing', async () => {
+    dealGet.mockReturnValue(
+      Promise.resolve({
+        success: true,
+        data: dealRow({ _cr664_client_value: undefined, cr664_clientname: undefined }),
+      } as never),
+    );
+    const result = await loadDealForBanker('deal-1', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.clientLookupClassification).toBe('missing');
+    }
+  });
+
+  it('classifies a Team edge with no _cr664_team_value as missing', async () => {
+    dealGet.mockReturnValue(
+      Promise.resolve({
+        success: true,
+        // Keep the banker FK (auth must still pass) but drop the team FK.
+        data: dealRow({ _cr664_team_value: undefined }),
+      } as never),
+    );
+    const result = await loadDealForBanker('deal-1', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.teamId).toBeUndefined();
+      expect(result.deal.teamLookupClassification).toBe('missing');
+    }
+  });
+});
