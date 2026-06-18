@@ -47,8 +47,11 @@ describe('detail cards import no Dataverse service/client/fetch', () => {
   it('import only pure local modules + shared UI', () => {
     expect(CARDS_IMPORTS.length).toBeGreaterThan(0);
     for (const line of CARDS_IMPORTS) {
+      // Phase 189G added a pure import of CRM_NAME_REF_PREFIX from
+      // buildCrmRelationshipInput for the defensive surrogate-id guard — still
+      // a pure local module, no Dataverse service/client.
       expect(line).toMatch(
-        /from '(\.\/(crmRelationshipViewModel|crmRelationshipDetailReadiness)|\.\.\/shared\/[A-Za-z]+|react)';/,
+        /from '(\.\/(crmRelationshipViewModel|crmRelationshipDetailReadiness|buildCrmRelationshipInput)|\.\.\/shared\/[A-Za-z]+|react)';/,
       );
     }
   });

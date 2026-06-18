@@ -2,6 +2,7 @@ import { type CSSProperties, type ReactNode } from 'react';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, spacing, typography, type SeverityKey } from '../shared/theme';
+import { CRM_NAME_REF_PREFIX } from './buildCrmRelationshipInput';
 import type { CrmRelationshipViewModel } from './crmRelationshipViewModel';
 import type {
   CrmRelationshipDetailReadiness,
@@ -9,13 +10,21 @@ import type {
 } from './crmRelationshipDetailReadiness';
 
 /**
- * Phase 189F — read-only CRM detail cards, gated by Phase 189E readiness.
+ * Phase 189F/G — read-only CRM detail cards, gated by Phase 189E readiness.
  *
- * Presentational only. Renders record-detail content ONLY for sections the
- * readiness audit marked safe (real ids + verified real-lookup classification).
- * Blocked sections render compact explanatory copy — never a fake placeholder
- * record. No Dataverse IO, no service/client/fetch, no write affordances, no
- * fabricated Salesforce-style spine.
+ * Presentational only (banker workspace). Renders record-detail content ONLY
+ * for sections the readiness audit marked safe (real ids + verified real-lookup
+ * classification). Blocked sections render compact explanatory copy — never a
+ * fake placeholder record.
+ *
+ * Phase 189G fit-and-finish: every visible value is explicitly traceable to its
+ * provenance — the already-AUTHORIZED deal row, projected by the 189B
+ * view-model, gated by the 189E readiness audit — and NO new CRM lookup is
+ * performed. Source-fact chips/footer make that chain visible. `name:` surrogate
+ * ids are never displayed.
+ *
+ * No Dataverse IO, no service/client/fetch, no write affordances, no fabricated
+ * Salesforce-style spine, no manager/team/executive mount.
  */
 
 interface Props {
@@ -23,7 +32,8 @@ interface Props {
   readiness: CrmRelationshipDetailReadiness;
 }
 
-// Stable render order for the detail sections.
+// Deterministic render order (Phase 189G): client → team → banker → platform →
+// integrity → spine.
 const SECTION_ORDER: ReadonlyArray<CrmDetailSectionKey> = [
   'clientIdentity',
   'teamOwnership',
@@ -41,6 +51,30 @@ const SECTION_LABEL: Record<CrmDetailSectionKey, string> = {
   relationshipIntegrity: 'Relationship integrity',
   salesforceSpine: 'Salesforce-style spine',
 };
+
+// Per-section provenance: names the authorized deal row, the 189B view-model,
+// and the 189E readiness gate. No new CRM lookup is performed.
+const SECTION_SOURCE_FACT: Record<CrmDetailSectionKey, string> = {
+  clientIdentity:
+    'Source: authorized deal row (cr664_Client lookup) → 189B view-model · gated by 189E readiness. No new CRM lookup.',
+  teamOwnership:
+    'Source: authorized deal row (cr664_Team lookup) → 189B view-model · gated by 189E readiness. No new CRM lookup.',
+  assignedBanker:
+    'Source: authorized deal row (cr664_AssignedBanker lookup) → 189B view-model · gated by 189E readiness. No new CRM lookup.',
+  platformWorkspaceBridge:
+    'Source: already-authorized workspace context → 189B view-model · gated by 189E readiness. No new CRM lookup.',
+  relationshipIntegrity:
+    'Source: 189E readiness audit facts over the authorized deal context (read-only). No new CRM lookup.',
+  salesforceSpine:
+    'Source: 189E readiness gate. The cr664_crm* spine is not seeded and not wired.',
+};
+
+const PROVENANCE =
+  'Every value below is derived from the already-authorized deal row via the 189B view-model and gated by the 189E readiness audit — no new CRM lookup is performed.';
+
+function isSurrogateId(id: string): boolean {
+  return id.startsWith(CRM_NAME_REF_PREFIX);
+}
 
 export function CrmRelationshipDetailCards({ viewModel, readiness }: Props) {
   const vm = viewModel;
@@ -65,42 +99,51 @@ export function CrmRelationshipDetailCards({ viewModel, readiness }: Props) {
         }
       />
 
-      <div
-        data-testid="crm-relationship-detail-cards"
-        data-readiness-status={readiness.readinessStatus}
-      >
-        {SECTION_ORDER.map((section) => (
-          <section
-            key={section}
-            style={sectionStyle}
-            aria-label={SECTION_LABEL[section]}
-            data-section={section}
-            data-section-state={safe(section) ? 'safe' : 'blocked'}
-          >
-            <div style={sectionHeadStyle}>
-              <span style={labelStyle}>{SECTION_LABEL[section]}</span>
-              {safe(section) ? (
-                <Badge variant="clear" appearance="outline">
-                  safe
-                </Badge>
-              ) : (
-                <Badge
-                  variant={section === 'salesforceSpine' ? 'neutral' : 'atRisk'}
-                  appearance="outline"
-                >
-                  {section === 'salesforceSpine' ? 'not seeded' : 'blocked'}
-                </Badge>
-              )}
-            </div>
-            {safe(section) ? (
-              <SafeSection section={section} vm={vm} readiness={readiness} />
-            ) : (
-              <div style={blockedStyle} data-section-reason>
-                {reasonFor(section)}
+      <div data-testid="crm-relationship-detail-cards" data-readiness-status={readiness.readinessStatus}>
+        <div style={provenanceStyle} data-testid="crm-detail-provenance">
+          {PROVENANCE}
+        </div>
+
+        {SECTION_ORDER.map((section) => {
+          const isSafe = safe(section);
+          return (
+            <section
+              key={section}
+              style={sectionStyle}
+              aria-label={SECTION_LABEL[section]}
+              data-section={section}
+              data-section-state={isSafe ? 'safe' : 'blocked'}
+            >
+              <div style={sectionHeadStyle}>
+                <span style={labelStyle}>{SECTION_LABEL[section]}</span>
+                {isSafe ? (
+                  <Badge variant="clear" appearance="outline">
+                    safe
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant={section === 'salesforceSpine' ? 'neutral' : 'atRisk'}
+                    appearance="outline"
+                  >
+                    {section === 'salesforceSpine' ? 'not seeded' : 'blocked'}
+                  </Badge>
+                )}
               </div>
-            )}
-          </section>
-        ))}
+              {isSafe ? (
+                <>
+                  <SafeSection section={section} vm={vm} readiness={readiness} />
+                  <div style={sourceFactStyle} data-source-fact>
+                    {SECTION_SOURCE_FACT[section]}
+                  </div>
+                </>
+              ) : (
+                <div style={blockedStyle} data-section-reason>
+                  {reasonFor(section)}
+                </div>
+              )}
+            </section>
+          );
+        })}
 
         {readiness.unsafeAssumptionsRejected.length > 0 && (
           <section style={sectionStyle} aria-label="Rejected unsafe assumptions" data-section="rejected">
@@ -117,9 +160,10 @@ export function CrmRelationshipDetailCards({ viewModel, readiness }: Props) {
       </div>
 
       <CardFooter>
-        <span>
-          Read-only detail — no Dataverse write, no schema change, no external contact. Blocked
-          sections show only the readiness reason; no records are fabricated.
+        <span data-testid="crm-detail-source-footer">
+          Read-only detail — every value is derived from the existing authorized deal context, not a
+          new CRM lookup. No Dataverse write, no schema change, no external contact. Blocked sections
+          show only the readiness reason; no records are fabricated.
         </span>
       </CardFooter>
     </Card>
@@ -139,8 +183,12 @@ function SafeSection({
     case 'clientIdentity':
       return vm.canonicalClient ? (
         <div style={detailStyle}>
-          <Field label="Name" value={vm.canonicalClient.name ?? '(unnamed)'} />
-          <Field label="Record id" value={vm.canonicalClient.id} mono />
+          <Field label="Name" value={vm.canonicalClient.name ?? '(no name on record)'} />
+          {/* Defensive: a real-lookup id is never a surrogate, but never print
+              a `name:` surrogate id even if one somehow reached here. */}
+          {!isSurrogateId(vm.canonicalClient.id) && (
+            <Field label="Record id" value={vm.canonicalClient.id} mono />
+          )}
           <Field label="Type" value="borrower/client stub (cr664_clientrelationship)" />
           {vm.canonicalClient.borrowerType && (
             <Field label="Borrower type" value={vm.canonicalClient.borrowerType} />
@@ -152,8 +200,8 @@ function SafeSection({
     case 'teamOwnership':
       return vm.team ? (
         <div style={detailStyle}>
-          <Field label="Name" value={vm.team.name ?? `team ${vm.team.id}`} />
-          <Field label="Record id" value={vm.team.id} mono />
+          <Field label="Name" value={vm.team.name ?? '(no name on record)'} />
+          {!isSurrogateId(vm.team.id) && <Field label="Record id" value={vm.team.id} mono />}
           <ClassificationChip value="real-lookup" />
         </div>
       ) : null;
@@ -161,8 +209,10 @@ function SafeSection({
     case 'assignedBanker':
       return vm.assignedBanker ? (
         <div style={detailStyle}>
-          <Field label="Name" value={vm.assignedBanker.name ?? `banker ${vm.assignedBanker.id}`} />
-          <Field label="Record id" value={vm.assignedBanker.id} mono />
+          <Field label="Name" value={vm.assignedBanker.name ?? '(no name on record)'} />
+          {!isSurrogateId(vm.assignedBanker.id) && (
+            <Field label="Record id" value={vm.assignedBanker.id} mono />
+          )}
           {vm.assignedBanker.email && <Field label="Email" value={vm.assignedBanker.email} />}
           {vm.assignedBanker.teamMatchesDeal !== null && (
             <Field
@@ -182,7 +232,7 @@ function SafeSection({
             value={
               vm.platformUserContext.primaryWorkspaceName ??
               vm.platformUserContext.primaryWorkspaceId ??
-              '(workspace)'
+              '(workspace on record)'
             }
           />
           {vm.platformUserContext.coreUserId && (
@@ -249,6 +299,14 @@ const READINESS_VARIANT: Record<CrmRelationshipDetailReadiness['readinessStatus'
   blocked: 'blocked',
 };
 
+const provenanceStyle: CSSProperties = {
+  fontSize: typography.size.xs,
+  color: palette.textMuted,
+  background: palette.panelBg,
+  padding: spacing.sm,
+  borderRadius: 4,
+  marginBottom: spacing.xs,
+};
 const sectionStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -274,6 +332,12 @@ const blockedStyle: CSSProperties = {
   fontSize: typography.size.sm,
   color: palette.textSubtle,
   fontStyle: 'italic',
+};
+const sourceFactStyle: CSSProperties = {
+  fontSize: typography.size.xs,
+  color: palette.textSubtle,
+  fontStyle: 'italic',
+  marginTop: 2,
 };
 const fieldRowStyle: CSSProperties = { display: 'flex', gap: spacing.sm, alignItems: 'baseline' };
 const fieldLabelStyle: CSSProperties = {

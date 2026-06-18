@@ -122,3 +122,90 @@ describe('read-only surface', () => {
     expect(container.querySelectorAll('[onclick]').length).toBe(0);
   });
 });
+
+describe('Phase 189G — fit-and-finish + source-fact traceability', () => {
+  it('renders the six detail sections in deterministic order', () => {
+    renderCards(realGraph);
+    const order = Array.from(document.querySelectorAll('[data-section]'))
+      .map((el) => el.getAttribute('data-section'))
+      .filter((s) => s !== 'rejected');
+    expect(order).toEqual([
+      'clientIdentity',
+      'teamOwnership',
+      'assignedBanker',
+      'platformWorkspaceBridge',
+      'relationshipIntegrity',
+      'salesforceSpine',
+    ]);
+  });
+
+  it('shows a provenance banner naming the authorized deal row, 189B view-model, and 189E gate', () => {
+    renderCards(realGraph);
+    const banner = screen.getByTestId('crm-detail-provenance');
+    expect(banner.textContent).toMatch(/already-authorized deal row/i);
+    expect(banner.textContent).toMatch(/189B view-model/);
+    expect(banner.textContent).toMatch(/189E readiness/);
+    expect(banner.textContent).toMatch(/no new CRM lookup/i);
+  });
+
+  it('every safe section carries a source-fact chip tracing it to authorized context (not a new lookup)', () => {
+    renderCards(realGraph);
+    for (const key of ['clientIdentity', 'teamOwnership', 'assignedBanker']) {
+      const sec = section(key)!;
+      expect(sec.getAttribute('data-section-state')).toBe('safe');
+      const fact = sec.querySelector('[data-source-fact]') as HTMLElement;
+      expect(fact).not.toBeNull();
+      expect(fact.textContent).toMatch(/189B view-model/);
+      expect(fact.textContent).toMatch(/189E readiness/);
+      expect(fact.textContent).toMatch(/No new CRM lookup/i);
+    }
+  });
+
+  it('the footer states values are derived from existing authorized context, not a new CRM lookup', () => {
+    renderCards(realGraph);
+    const footer = screen.getByTestId('crm-detail-source-footer');
+    expect(footer.textContent).toMatch(/existing authorized deal context/i);
+    expect(footer.textContent).toMatch(/not a\s+new CRM lookup/i);
+  });
+
+  it('blocked cards show a compact reason but no fake placeholder values', () => {
+    renderCards({ ...realGraph, team: null, assignedBanker: null });
+    for (const key of ['teamOwnership', 'assignedBanker']) {
+      const sec = section(key)!;
+      expect(sec.getAttribute('data-section-state')).toBe('blocked');
+      expect(sec.querySelector('[data-section-reason]')).not.toBeNull();
+      // No fabricated placeholders.
+      expect(sec.textContent).not.toMatch(/\bTBD\b|unknown contact|sample role|placeholder|lorem/i);
+      // No source-fact chip on a blocked section (only safe sections trace).
+      expect(sec.querySelector('[data-source-fact]')).toBeNull();
+    }
+  });
+
+  it('never displays a name: surrogate id, even when a safe section would otherwise show an id', () => {
+    // Whole-card guarantee: no rendered text contains the surrogate prefix.
+    const { container } = renderCards(
+      buildCrmRelationshipInput({
+        deal: { id: 'd', name: 'Deal' },
+        clientName: 'Surrogate Co',
+        team: { id: 'team-guid', name: 'T', lookupClassification: 'real-lookup' },
+        assignedBanker: { id: 'banker-guid', name: 'B', lookupClassification: 'real-lookup' },
+      }),
+    );
+    expect(container.textContent).not.toMatch(/name:Surrogate Co/);
+  });
+
+  it('keeps unsafe assumptions as rejected labels only (no record fields)', () => {
+    renderCards(realGraph);
+    const rejected = section('rejected')!;
+    // Labels present, but no "Record id" detail fields are rendered for them.
+    expect(rejected.textContent).not.toMatch(/Record id/);
+    expect(within(rejected).getByText(/communication preferences/i)).toBeInTheDocument();
+  });
+
+  it('keeps the Salesforce-style spine blocked / not seeded', () => {
+    renderCards(realGraph);
+    const spine = section('salesforceSpine')!;
+    expect(spine.getAttribute('data-section-state')).toBe('blocked');
+    expect(spine.textContent).toMatch(/not seeded/i);
+  });
+});
