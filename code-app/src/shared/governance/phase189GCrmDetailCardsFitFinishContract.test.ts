@@ -50,6 +50,14 @@ describe('read-only — no write verbs / network / broad queries', () => {
     expect(CARDS).not.toMatch(/retrieveMultiple|RetrieveMultiple|\.list\(/);
     expect(CARDS).not.toMatch(/\$filter|\$select|\$expand/);
   });
+
+  it('the panel mounts the detail cards read-only (no write verb / fetch)', () => {
+    expect(PANEL).toMatch(/CrmRelationshipDetailCards/);
+    expect(PANEL).not.toMatch(/['"]POST['"]/);
+    expect(PANEL).not.toMatch(/['"]PATCH['"]/);
+    expect(PANEL).not.toMatch(/['"]DELETE['"]/);
+    expect(PANEL).not.toMatch(/\bfetch\s*\(/);
+  });
 });
 
 describe('imports no Dataverse service/client/fetch', () => {

@@ -8,6 +8,7 @@ import {
 import {
   DOCUMENT_CHECKLIST_PILOT_UI_ENABLED,
   DOCUMENT_CHECKLIST_PILOT_APPROVED_NAMES,
+  DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED,
 } from './documentChecklistPilotConfig';
 
 /**
@@ -19,6 +20,14 @@ import {
  * generated service, or invokes the generator adapter. The generate control is
  * permanently disabled in this phase (`canGenerate` is always false). No borrower
  * messaging / email / SMS / Outlook / handoff is imported or referenced.
+ *
+ * Phase 188J -- a TEST-ONLY dependency-injected action seam. The panel may
+ * receive an optional `onGenerate` callback AND a `generateActionEnabled` flag.
+ * Both default to the disabled posture (no callback; the false
+ * DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED flag), so the button stays
+ * disabled in normal runtime. The panel NEVER imports a live Dataverse dep, the
+ * generator adapter, or a borrower-comms module -- the bridge
+ * (`runDocumentChecklistUiGenerationAction`) is wired only by tests.
  */
 
 export interface DocumentChecklistPilotPanelProps {
@@ -30,6 +39,18 @@ export interface DocumentChecklistPilotPanelProps {
   readonly pilotEnabled?: boolean;
   /** Optional deal context (display only). */
   readonly deal?: DocumentChecklistPilotInput['deal'];
+  /**
+   * 188J TEST-ONLY: an injected generate callback. Never wired to a live dep in
+   * runtime. Present only so a controlled component test can prove one click
+   * reaches the injected bridge. Absent by default.
+   */
+  readonly onGenerate?: () => void;
+  /**
+   * 188J TEST-ONLY: the UI generate-action gate. Defaults to the disabled
+   * DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED config flag (false). The button
+   * is enabled ONLY when this is true AND an onGenerate callback is injected.
+   */
+  readonly generateActionEnabled?: boolean;
 }
 
 export function DocumentChecklistPilotPanel({
@@ -37,6 +58,8 @@ export function DocumentChecklistPilotPanel({
   approvedChecklistNames = DOCUMENT_CHECKLIST_PILOT_APPROVED_NAMES,
   pilotEnabled = DOCUMENT_CHECKLIST_PILOT_UI_ENABLED,
   deal,
+  onGenerate,
+  generateActionEnabled = DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED,
 }: DocumentChecklistPilotPanelProps) {
   const vm = buildDocumentChecklistPilotViewModel({
     deal,
@@ -45,8 +68,15 @@ export function DocumentChecklistPilotPanel({
     pilotEnabled,
   });
 
-  // 188D invariant: the UI can NEVER trigger generation.
-  const generateDisabled = true; // vm.canGenerate is always false this phase.
+  // 188D invariant (pinned by the 188I governance contract): generation via this
+  // panel is disabled by default; vm.canGenerate is always false this phase.
+  const generateDisabled = true;
+
+  // 188J: the button becomes clickable ONLY in a test-only configuration where
+  // the action gate is explicitly true AND a callback is injected. Default
+  // runtime keeps both at their disabled defaults, so the control stays disabled.
+  const actionInjected = typeof onGenerate === 'function';
+  const buttonDisabled = generateDisabled && !(generateActionEnabled === true && actionInjected);
 
   return (
     <section
@@ -112,12 +142,13 @@ export function DocumentChecklistPilotPanel({
 
       <button
         type="button"
-        disabled={generateDisabled}
-        aria-disabled={generateDisabled}
-        style={styles.disabledAction}
+        disabled={buttonDisabled}
+        aria-disabled={buttonDisabled}
+        style={buttonDisabled ? styles.disabledAction : styles.enabledAction}
         data-doc-checklist-pilot-generate
+        onClick={buttonDisabled ? undefined : onGenerate}
       >
-        Generate checklist — disabled
+        {buttonDisabled ? 'Generate checklist — disabled' : 'Generate checklist'}
       </button>
     </section>
   );
@@ -193,5 +224,18 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: typography.weight.semibold,
     fontFamily: typography.family,
     cursor: 'not-allowed',
+  },
+  // 188J: only rendered in a test-only enabled configuration; never in runtime.
+  enabledAction: {
+    alignSelf: 'flex-start',
+    background: palette.surface,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    fontFamily: typography.family,
+    cursor: 'pointer',
   },
 };
