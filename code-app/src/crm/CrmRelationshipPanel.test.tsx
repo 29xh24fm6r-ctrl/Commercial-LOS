@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { CrmRelationshipPanel, DealCrmRelationshipPanel } from './CrmRelationshipPanel';
 import {
@@ -8,15 +8,25 @@ import {
 } from './crmRelationshipViewModel';
 import { buildCrmRelationshipInput } from './buildCrmRelationshipInput';
 
-/** Mock the workspace context the connected container reads. */
+/** Mutable mock of the workspace context the connected container reads. */
+const DEFAULT_MOCK_DEAL: Record<string, unknown> = {
+  id: 'd1',
+  name: 'Mock Deal',
+  clientName: 'Mock Client LLC',
+};
+const mockState = vi.hoisted(() => ({
+  deal: { id: 'd1', name: 'Mock Deal', clientName: 'Mock Client LLC' } as Record<string, unknown>,
+}));
 vi.mock('../deals/DealDataProvider', () => ({
-  useDealData: () => ({
-    deal: { id: 'd1', name: 'Mock Deal', clientName: 'Mock Client LLC' },
-  }),
+  useDealData: () => ({ deal: mockState.deal }),
 }));
 vi.mock('../banker/BankerContext', () => ({
   useOptionalBanker: () => ({ bankerId: 'b1', fullName: 'Mock Banker', email: 'b@x.com' }),
 }));
+
+beforeEach(() => {
+  mockState.deal = { ...DEFAULT_MOCK_DEAL };
+});
 
 const fullGraph: CrmRelationshipGraphInput = {
   deal: { id: 'deal-1', name: 'Acme Term Loan' },
@@ -90,6 +100,41 @@ describe('DealCrmRelationshipPanel (connected container)', () => {
     // deal + client(name) + banker, no team → partial.
     expect(panel.getAttribute('data-relationship-status')).toBe('partial');
     expect(screen.getByText(/Mock Client LLC/)).toBeInTheDocument();
+  });
+
+  it('Phase 189D — renders real client + team when the authorized DealDetail carries IDs', () => {
+    // The enriched, already-authorized deal row (no second GET) supplies real
+    // lookup ids + real-lookup classifications for client, team, and banker.
+    mockState.deal = {
+      id: 'd1',
+      name: 'Mock Deal',
+      clientName: 'Mock Client LLC',
+      clientId: 'client-guid',
+      clientLookupClassification: 'real-lookup',
+      teamId: 'team-guid',
+      teamName: 'Commercial East',
+      teamLookupClassification: 'real-lookup',
+      assignedBankerId: 'banker-guid',
+      bankerName: 'Real Assigned Banker',
+      assignedBankerLookupClassification: 'real-lookup',
+    };
+    render(<DealCrmRelationshipPanel />);
+    const panel = screen.getByTestId('crm-relationship-panel');
+    // All three canonical edges present as real lookups → ready.
+    expect(panel.getAttribute('data-relationship-status')).toBe('ready');
+    expect(screen.getByText('Commercial East')).toBeInTheDocument();
+    expect(screen.getByText(/Real Assigned Banker/)).toBeInTheDocument();
+    // No edge-to-wire section when the current graph is complete.
+    expect(screen.queryByLabelText('Relationship edges to wire')).toBeNull();
+  });
+
+  it('exposes no buttons, forms, or write affordances (read-only surface)', () => {
+    const { container } = render(<DealCrmRelationshipPanel />);
+    expect(container.querySelectorAll('button').length).toBe(0);
+    expect(container.querySelectorAll('form').length).toBe(0);
+    expect(container.querySelectorAll('input').length).toBe(0);
+    expect(container.querySelectorAll('textarea').length).toBe(0);
+    expect(container.querySelectorAll('select').length).toBe(0);
   });
 });
 

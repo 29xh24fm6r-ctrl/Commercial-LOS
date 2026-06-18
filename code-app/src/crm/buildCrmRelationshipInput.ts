@@ -73,6 +73,9 @@ export function buildCrmRelationshipInput(
 
   // Canonical client: prefer a real id; otherwise fall back to a clearly
   // name-derived surrogate so the edge can render without faking a GUID.
+  // Phase 189D — when the authorized deal row supplies the real
+  // `_cr664_client_value` GUID, it ALWAYS wins over the name surrogate; a
+  // label-only client still produces the `name:`-prefixed surrogate.
   let client: CrmRelationshipGraphInput['client'] = null;
   const clientRef =
     source.clientId != null && source.clientId !== ''
