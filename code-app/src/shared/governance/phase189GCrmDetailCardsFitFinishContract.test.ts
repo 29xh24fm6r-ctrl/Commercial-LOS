@@ -24,6 +24,8 @@ const tryRead = (...p: string[]) => {
 };
 
 const CARDS = read('crm', 'CrmRelationshipDetailCards.tsx');
+// Phase 189I: restore the PANEL source read that a prior merge dropped while its
+// usages below (the "panel mounts the detail cards read-only" pin) remained.
 const PANEL = read('crm', 'CrmRelationshipPanel.tsx');
 const FLAGS = read('crm', 'crmFeatureFlags.ts');
 const APP = read('App.tsx');
@@ -100,15 +102,18 @@ describe('no route / App / WorkspaceGate change', () => {
   });
 });
 
-describe('banker-only — no manager/team/executive mount expansion', () => {
-  it('only BankerDealWorkspace mounts the CRM relationship panel', () => {
+describe('CRM relationship panel mount surfaces', () => {
+  // NOTE: Phase 189I superseded the original 189G banker-only invariant.
+  // The read-only DealCrmRelationshipPanel is now mounted at parity in the
+  // manager and team deal workspaces too (mount parity). The banker mount is
+  // unchanged and executive surfaces remain unmounted.
+  it('BankerDealWorkspace still mounts the CRM relationship panel', () => {
     expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel \/>/);
   });
 
-  it('manager and team deal workspaces do NOT mount the CRM panel or detail cards', () => {
+  it('manager and team deal workspaces mount the read-only CRM panel (Phase 189I parity)', () => {
     for (const src of [MANAGER_WORKSPACE, TEAM_WORKSPACE]) {
-      expect(src).not.toMatch(/DealCrmRelationshipPanel/);
-      expect(src).not.toMatch(/CrmRelationshipDetailCards/);
+      expect(src).toMatch(/<DealCrmRelationshipPanel \/>/);
     }
   });
 });
