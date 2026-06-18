@@ -13,6 +13,7 @@ import { CreditMemo } from '../deals/CreditMemo';
 import { ActivityTimeline } from '../deals/ActivityTimeline';
 import { BorrowerCommunication } from '../deals/BorrowerCommunication';
 import { DealDataProvider } from '../deals/DealDataProvider';
+import { DealCrmRelationshipPanel } from '../crm/CrmRelationshipPanel';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
 import { Badge } from '../shared/Badge';
@@ -32,6 +33,15 @@ import { palette, spacing, typography } from '../shared/theme';
  * components from src/deals/ (they are the deal-workspace render
  * surface, not banker-specific code). It does NOT import anything
  * from src/banker/.
+ *
+ * Phase 189I — mount parity. Mounts the existing read-only
+ * DealCrmRelationshipPanel container (the same one the banker workspace
+ * uses) behind this already-authorized, team-scoped DealDataProvider
+ * context. The panel reads the assigned banker via useOptionalBanker and
+ * degrades honestly to the authorized deal row's lookup ids when (as here)
+ * no banker context is present. No new data loading, no route, no write,
+ * no schema — the Phase 189H readiness audit deemed this surface
+ * mount-capable, and 189I enacts the mount.
  */
 
 interface ManagerDealWorkspaceProps {
@@ -119,6 +129,12 @@ export function ManagerDealWorkspace({ dealId }: ManagerDealWorkspaceProps) {
           <CreditMemo readOnly />
           <ActivityTimeline />
           <BorrowerCommunication readOnly />
+          {/* Phase 189I — read-only CRM relationship panel/cards mounted at
+              parity with the banker workspace, behind this team-scoped
+              authorized context. Read-only: no writes, no new query. */}
+          <div data-deal-card="crm-relationship">
+            <DealCrmRelationshipPanel />
+          </div>
         </DealDataProvider>
       </main>
     </div>

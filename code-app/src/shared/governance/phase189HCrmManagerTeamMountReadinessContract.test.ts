@@ -7,11 +7,14 @@ import { resolve } from 'node:path';
  *
  * Audit/readiness ONLY. These static pins guarantee: the audit module is pure
  * (no IO, no writes, no Dataverse service/client/transport/adapter import, no
- * broad query, no React, no JSX), it adds NO new mount, the Manager and Team
- * deal workspaces still do NOT mount the CRM panel or detail cards,
- * BankerDealWorkspace remains the ONLY active DealCrmRelationshipPanel mount, no
- * App/router/WorkspaceGate change, no CRM_LIVE_PERSISTENCE_ENABLED flip, and no
- * schema/migration files.
+ * broad query, no React, no JSX), no App/router/WorkspaceGate change, no
+ * CRM_LIVE_PERSISTENCE_ENABLED flip, and no schema/migration files.
+ *
+ * Mount-surface note: the 189H audit module is pure and adds no mount itself.
+ * Phase 189I subsequently enacted the mount the audit deemed safe, so the
+ * Manager and Team deal workspaces now mount the read-only CRM panel at parity
+ * with the banker workspace (pinned in the "CRM relationship panel mount
+ * surfaces" block below).
  */
 
 const here = (...p: string[]) => resolve(__dirname, '..', '..', ...p);
@@ -98,16 +101,20 @@ describe('no route / App / WorkspaceGate change', () => {
   });
 });
 
-describe('no new mount — banker remains the only active mount', () => {
+describe('CRM relationship panel mount surfaces', () => {
+  // As of Phase 189H this audit pinned a banker-only mount. Phase 189I then
+  // enacted the mount the audit deemed safe: the read-only
+  // DealCrmRelationshipPanel is now mounted at parity in the manager and team
+  // deal workspaces. The banker mount is unchanged. (The 189H audit module
+  // itself is unchanged — it remains a point-in-time readiness assessment.)
   it('BankerDealWorkspace still mounts the CRM relationship panel', () => {
     expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel \/>/);
   });
 
-  it('manager and team deal workspaces do NOT import or mount the CRM panel / detail cards', () => {
+  it('manager and team deal workspaces mount the read-only CRM panel via the existing crm container (Phase 189I)', () => {
     for (const src of [MANAGER_WORKSPACE, TEAM_WORKSPACE]) {
-      expect(src).not.toMatch(/DealCrmRelationshipPanel/);
-      expect(src).not.toMatch(/CrmRelationshipDetailCards/);
-      expect(src).not.toMatch(/from '\.\.\/crm\//);
+      expect(src).toMatch(/<DealCrmRelationshipPanel \/>/);
+      expect(src).toMatch(/from '\.\.\/crm\/CrmRelationshipPanel'/);
     }
   });
 });
