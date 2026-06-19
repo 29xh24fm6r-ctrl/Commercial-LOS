@@ -4233,3 +4233,65 @@ describe('Phase 196 — V1 pilot enablement evidence certification', () => {
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 197 — full system launch readiness (CONDITIONAL GO snapshot)
+// ---------------------------------------------------------------------------
+
+describe('Phase 197 — full system launch readiness', () => {
+  const rel = 'docs/PHASE_197_FULL_SYSTEM_LAUNCH_READINESS.md';
+
+  it('the Phase 197 doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  it('the Phase 197 model / console / contract / component-test files exist', () => {
+    for (const f of [
+      'src/admin/fullSystemLaunchReadinessModel.ts',
+      'src/admin/FullSystemLaunchReadinessConsole.tsx',
+      'src/admin/FullSystemLaunchReadinessConsole.test.tsx',
+      'src/shared/governance/phase197FullSystemLaunchReadinessContract.test.ts',
+    ]) {
+      expect(existsSync(resolve(REPO_ROOT, f)), f).toBe(true);
+    }
+  });
+
+  const doc = readDoc(rel);
+
+  it('records the CONDITIONAL GO recommendation', () => {
+    expect(doc).toMatch(/CONDITIONAL GO/);
+  });
+
+  it('records Salesforce/nCino CRM readiness built but writeback gated', () => {
+    expect(doc).toMatch(/Salesforce \/ nCino|Salesforce\/nCino/i);
+    expect(doc).toMatch(/built, mounted, and certified/i);
+    expect(doc).toMatch(/CRM writeback remains gated/i);
+  });
+
+  it('records controlled New Deal create with global gates false + operator enablement', () => {
+    expect(doc).toMatch(/controlled live New Deal create path exists/i);
+    expect(doc).toMatch(/global create gates remain false/i);
+    expect(doc).toMatch(/operator enablement is required/i);
+  });
+
+  it('records workflow writes/generation gated', () => {
+    expect(doc).toMatch(/Workflow writes \/ generation remain gated|workflow writes\/generation remain gated/i);
+  });
+
+  it('records no borrower comms / no checklist generation / no CRM writeback', () => {
+    expect(doc).toMatch(/no borrower comms|no borrower communication/i);
+    expect(doc).toMatch(/no checklist generation/i);
+    expect(doc).toMatch(/no CRM writeback/i);
+  });
+
+  it('records no schema / no migration / no gate flip / no uncontrolled writes', () => {
+    expect(doc).toMatch(/no schema/i);
+    expect(doc).toMatch(/no migration/i);
+    expect(doc).toMatch(/no live gate flip|flips no gate/i);
+    expect(doc).toMatch(/no uncontrolled writes/i);
+  });
+
+  it('records the required operator actions to move to GO', () => {
+    expect(doc).toMatch(/required operator actions to move from CONDITIONAL GO to GO/i);
+  });
+});
