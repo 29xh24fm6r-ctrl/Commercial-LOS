@@ -9,7 +9,7 @@
 | Capability | Module(s) | PR | Status |
 |---|---|---|---|
 | Live gates + schema apply orchestrator (inspect/plan/dry-run/live) | `crmSalesforceSpineLiveGates.ts`, `crmSalesforceSpineApplyOrchestrator.ts` | 193A | ✅ gated |
-| Live persistence adapter + audit (11 entities) | `crmSalesforceSpinePersistenceAdapter.ts`, `crmSalesforceSpineAudit.ts` | 193B | ✅ gated |
+| Live persistence adapter + audit (8 direct mappings; 3 modeled non-persisted entities) | `crmSalesforceSpinePersistenceAdapter.ts`, `crmSalesforceSpineAudit.ts` | 193B | ✅ gated |
 | Operator recovery console | `CrmSpineRecoveryConsole.tsx` | 193C | ✅ |
 | Account / Contact / Coverage surfaces | `crmAccountViewModel.ts`, `CrmAccountSurfaces.tsx` | 193D | ✅ |
 | Activities / Tasks / Timeline | `crmActivityTaskModel.ts`, `CrmActivityTimeline.tsx` | 193E | ✅ |
