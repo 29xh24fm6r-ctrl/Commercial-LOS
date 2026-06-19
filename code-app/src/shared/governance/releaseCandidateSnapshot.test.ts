@@ -4355,3 +4355,34 @@ describe('Phase 199 — certified New Deal create pilot enablement', () => {
     expect(doc).toMatch(/CONDITIONAL_GO/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 200 — V1 cutover execution evidence
+// ---------------------------------------------------------------------------
+
+describe('Phase 200 — V1 cutover execution evidence', () => {
+  const rel = 'docs/PHASE_200_V1_CUTOVER_EXECUTION_EVIDENCE.md';
+
+  it('the Phase 200 doc + contract test exist on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    expect(
+      existsSync(resolve(REPO_ROOT, 'src/shared/governance/phase200V1CutoverExecutionEvidenceContract.test.ts')),
+    ).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('records CONDITIONAL_GO with structured evidence and the 10-domain gate table', () => {
+    expect(doc).toMatch(/CONDITIONAL_GO/);
+    expect(doc).toMatch(/Final V1\.0 Launch Decision \| conditional/);
+    expect(doc).toMatch(/Check:/);
+    expect(doc).toMatch(/Residual Risk:/);
+  });
+
+  it('records no schema / no migration / no fake data / no secrets posture', () => {
+    expect(doc).toMatch(/no schema/i);
+    expect(doc).toMatch(/no migration/i);
+    expect(doc).toMatch(/no fake data/i);
+    expect(doc).toMatch(/outside the repository/i);
+  });
+});
