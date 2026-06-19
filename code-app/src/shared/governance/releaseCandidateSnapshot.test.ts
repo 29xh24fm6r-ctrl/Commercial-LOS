@@ -4180,3 +4180,56 @@ describe('Phase 195 — V1 controlled production pilot cutover', () => {
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 196 — V1 pilot enablement evidence certification (evidence-gate snapshot)
+// ---------------------------------------------------------------------------
+
+describe('Phase 196 — V1 pilot enablement evidence certification', () => {
+  const rel = 'docs/PHASE_196_V1_PILOT_ENABLEMENT_EVIDENCE_CERTIFICATION.md';
+
+  it('the Phase 196 evidence-certification doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('declares pilot evidence certification (not the live pilot, not a feature build)', () => {
+    expect(doc).toMatch(/evidence-certification only/i);
+    expect(doc).toMatch(/not the live pilot/i);
+    expect(doc).toMatch(/not a feature build/i);
+  });
+
+  it('pins the outside-repo / evidence-vault / redaction posture', () => {
+    expect(doc).toMatch(/outside the repository|outside repo/i);
+    expect(doc).toMatch(/evidence vault|release record/i);
+    expect(doc).toMatch(/<system-user-id-redacted>/);
+    expect(doc).toMatch(/<created-deal-id-redacted>/);
+  });
+
+  it('pins the no-code / no-schema / no-migration / no-gate-flip posture', () => {
+    expect(doc).toMatch(/no production code change/i);
+    expect(doc).toMatch(/no schema change/i);
+    expect(doc).toMatch(/no migration/i);
+    expect(doc).toMatch(/no feature-flag flip|flips no gate/i);
+  });
+
+  it('pins no borrower comms / no checklist generation / no CRM writeback', () => {
+    expect(doc).toMatch(/no borrower communication|no borrower comms/i);
+    expect(doc).toMatch(/no checklist generation/i);
+    expect(doc).toMatch(/no CRM writeback/i);
+  });
+
+  it('records V1.0 GO / NO-GO criteria', () => {
+    expect(doc).toMatch(/Final V1\.0 GO criteria/i);
+    expect(doc).toMatch(/Final V1\.0 NO-GO criteria/i);
+  });
+
+  it('the Phase 196 governance contract test exists on disk', () => {
+    expect(
+      existsSync(
+        resolve(REPO_ROOT, 'src/shared/governance/phase196V1PilotEnablementEvidenceCertificationContract.test.ts'),
+      ),
+    ).toBe(true);
+  });
+});
