@@ -4325,3 +4325,33 @@ describe('Phase 198 — safe full-system launch readiness exposure', () => {
     expect(doc).toMatch(/no checklist generation/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 199 — certified New Deal create pilot enablement
+// ---------------------------------------------------------------------------
+
+describe('Phase 199 — certified New Deal create pilot enablement', () => {
+  const rel = 'docs/PHASE_199_CERTIFIED_NEW_DEAL_CREATE_PILOT.md';
+
+  it('the Phase 199 doc + contract test exist on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    expect(
+      existsSync(resolve(REPO_ROOT, 'src/shared/governance/phase199CertifiedNewDealCreatePilotContract.test.ts')),
+    ).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('records pilot-only enablement with the three global gates still false', () => {
+    expect(doc).toMatch(/BANKER_CREATE_PILOT_ENABLED/);
+    expect(doc).toMatch(/BANKER_NEW_DEAL_CREATE_ENABLED = false/);
+    expect(doc).toMatch(/NEW_DEAL_CREATE_ADAPTER_ENABLED = false/);
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false/);
+  });
+
+  it('records no broad write enablement and CONDITIONAL_GO unchanged', () => {
+    expect(doc).toMatch(/no broad create enablement/i);
+    expect(doc).toMatch(/no actorless create/i);
+    expect(doc).toMatch(/CONDITIONAL_GO/);
+  });
+});
