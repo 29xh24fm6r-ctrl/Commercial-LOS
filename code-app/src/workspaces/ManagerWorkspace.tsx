@@ -33,6 +33,7 @@ import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { PortfolioCommandCenter } from '../portfolio/PortfolioCommandCenter';
 import { CrmManagerWorkingSurface } from '../crm/workspaceIntegration/CrmManagerWorkingSurface';
 import { managerCrmPreviewInput } from '../crm/workspaceIntegration/crmWorkspacePreviewInputs';
+import { ManagerWorkflowLaunchReadinessPanel } from '../workflow/ManagerWorkflowLaunchReadinessPanel';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function ManagerWorkspace() {
@@ -143,6 +144,7 @@ function ManagerWorkspaceContent() {
               both modes (their data scope is the same authorized
               team pipeline). */}
           {isPortfolio ? <PortfolioCommandCenter /> : <ManagerBloombergControlPanel />}
+          <ManagerWorkflowLaunchReadinessPanel />
           {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 — visible read-only CRM
               team intelligence (honest preview posture; no assignment mutation,
               no CRM writes, no permission widening). */}
