@@ -26,6 +26,7 @@ import { ProductStrategyNavigationCard } from '../competitive/ProductStrategyNav
 import { buildExecutiveProductStrategySurfaceState } from '../competitive/buildExecutiveProductStrategySurfaceState';
 import { CrmExecutiveWorkingSurface } from '../crm/workspaceIntegration/CrmExecutiveWorkingSurface';
 import { executiveCrmPreviewInput } from '../crm/workspaceIntegration/crmWorkspacePreviewInputs';
+import { ExecutiveWorkflowLaunchReadinessPanel } from '../workflow/ExecutiveWorkflowLaunchReadinessPanel';
 import { palette, spacing, typography } from '../shared/theme';
 
 /**
@@ -114,6 +115,7 @@ function ExecutiveWorkspaceContent() {
           <main style={styles.main}>
             {/* Phase 133A — the command center is the lead executive cockpit. */}
             <ExecutiveCommandCenter />
+            <ExecutiveWorkflowLaunchReadinessPanel />
             {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 — visible read-only CRM
                 strategy intelligence (honest preview posture; no fake revenue/ROE,
                 no credit decisioning, no write controls, no permission widening). */}

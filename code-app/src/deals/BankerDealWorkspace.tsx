@@ -23,6 +23,10 @@ import { TeamsChatHandoff } from './TeamsChatHandoff';
 import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
 import { DealCopilotAssist } from '../copilot/DealCopilotAssist';
 import { DealDataProvider } from './DealDataProvider';
+import { LoanWorkflowCommandCenter } from '../workflow/LoanWorkflowCommandCenter';
+import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
+import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
+import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
 import { DealIntelligenceProvider } from '../shared/dealIntelligenceContext';
 import { DealIntelligenceBeacon } from '../shared/DealIntelligenceBeacon';
 import { LoadingState } from '../shared/LoadingState';
@@ -202,6 +206,13 @@ export function BankerDealWorkspace({
               >
                 <DealStageProgressionCard />
               </div>
+              <div
+                id="loan-workflow-command-center"
+                data-deal-card="loan-workflow-command-center"
+                data-cockpit-anchor="loan-workflow-command-center"
+              >
+                <LoanWorkflowCommandCenter />
+              </div>
               {/* Phase 125E — Action Console. Deterministic
                   next-best actions. Banker decides. */}
               <div id="action-console" data-cockpit-anchor="action-console">
@@ -235,6 +246,20 @@ export function BankerDealWorkspace({
                 <CreditMemo />
               </div>
               <div
+                id="credit-approval-readiness"
+                data-deal-card="credit-approval-readiness"
+                data-cockpit-anchor="credit-approval-readiness"
+              >
+                <CreditApprovalReadinessPanel />
+              </div>
+              <div
+                id="closing-booking-readiness"
+                data-deal-card="closing-booking-readiness"
+                data-cockpit-anchor="closing-booking-readiness"
+              >
+                <ClosingBookingReadinessPanel />
+              </div>
+              <div
                 id="activity-timeline"
                 data-deal-card="activity-timeline"
                 data-cockpit-anchor="activity-timeline"
@@ -261,6 +286,9 @@ export function BankerDealWorkspace({
               </div>
               <div data-deal-card="borrower-communication">
                 <BorrowerCommunication />
+              </div>
+              <div data-deal-card="borrower-package-prep">
+                <BorrowerPackagePrepPanel />
               </div>
               {/* Phase 86: no-admin Teams chat handoff. */}
               <div data-deal-card="teams-chat-handoff">
