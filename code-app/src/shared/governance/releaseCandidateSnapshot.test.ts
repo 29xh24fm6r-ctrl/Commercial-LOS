@@ -4135,3 +4135,48 @@ describe('Phase 194 — controlled live New Deal create enablement', () => {
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 195 — V1 controlled production pilot cutover (cutover runbook snapshot)
+// ---------------------------------------------------------------------------
+
+describe('Phase 195 — V1 controlled production pilot cutover', () => {
+  const rel = 'docs/PHASE_195_V1_CONTROLLED_PRODUCTION_PILOT_CUTOVER.md';
+
+  it('the Phase 195 cutover doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('documents the preflight / smoke / evidence / rollback / stop-condition checklists', () => {
+    expect(doc).toMatch(/preflight checklist/i);
+    expect(doc).toMatch(/smoke checklist/i);
+    expect(doc).toMatch(/evidence checklist/i);
+    expect(doc).toMatch(/rollback checklist/i);
+    expect(doc).toMatch(/stop conditions/i);
+  });
+
+  it('pins the no-code-change posture (gates not flipped) and a GO/NO-GO recommendation', () => {
+    expect(doc).toMatch(/BANKER_NEW_DEAL_CREATE_ENABLED/);
+    expect(doc).toMatch(/NEW_DEAL_CREATE_ADAPTER_ENABLED/);
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED/);
+    expect(doc).toMatch(/READY FOR CONTROLLED PILOT CUTOVER/i);
+    expect(doc).toMatch(/NO-GO/);
+  });
+
+  it('pins no-borrower-comms, no-checklist-generation, no-CRM-write, and gates false', () => {
+    expect(doc).toMatch(/no borrower comms|no borrower communication/i);
+    expect(doc).toMatch(/checklist generation/i);
+    expect(doc).toMatch(/CRM write/i);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED/);
+  });
+
+  it('the Phase 195 governance contract test exists on disk', () => {
+    expect(
+      existsSync(
+        resolve(REPO_ROOT, 'src/shared/governance/phase195V1ControlledProductionPilotCutoverContract.test.ts'),
+      ),
+    ).toBe(true);
+  });
+});
