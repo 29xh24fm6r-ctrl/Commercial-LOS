@@ -4386,3 +4386,39 @@ describe('Phase 200 — V1 cutover execution evidence', () => {
     expect(doc).toMatch(/outside the repository/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 201 — V1.0 final release decision (required final release docs present)
+// ---------------------------------------------------------------------------
+
+describe('Phase 201 — V1.0 final release decision', () => {
+  const rel = 'docs/PHASE_201_V1_FINAL_RELEASE_DECISION.md';
+
+  it('all required final-release-sequence docs + tests exist', () => {
+    for (const f of [
+      'docs/PHASE_198_SAFE_LAUNCH_READINESS_EXPOSURE.md',
+      'docs/PHASE_199_CERTIFIED_NEW_DEAL_CREATE_PILOT.md',
+      'docs/PHASE_200_V1_CUTOVER_EXECUTION_EVIDENCE.md',
+      'docs/PHASE_201_V1_FINAL_RELEASE_DECISION.md',
+      'src/admin/finalV1ReleaseDecisionModel.ts',
+      'src/shared/governance/phase201V1FinalReleaseDecisionContract.test.ts',
+    ]) {
+      expect(existsSync(resolve(REPO_ROOT, f)), f).toBe(true);
+    }
+  });
+
+  const doc = readDoc(rel);
+
+  it('records a deterministic, evidence-driven CONDITIONAL_GO decision (no hardcoded GO)', () => {
+    expect(doc).toMatch(/release recommendation: (GO|CONDITIONAL_GO|NO_GO)/);
+    expect(doc).toMatch(/CONDITIONAL_GO/);
+    expect(doc).toMatch(/no hardcoded GO/i);
+  });
+
+  it('records the deterministic decision logic + all gate constants false', () => {
+    expect(doc).toMatch(/anyDomainBlocked/);
+    expect(doc).toMatch(/finalSignoffPresent/);
+    expect(doc).toMatch(/BANKER_NEW_DEAL_CREATE_ENABLED = false/);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false/);
+  });
+});
