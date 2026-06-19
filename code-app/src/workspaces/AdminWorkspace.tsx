@@ -10,6 +10,7 @@ import { AlertBacklog } from '../admin/AlertBacklog';
 import { ConfigurationOverview } from '../admin/ConfigurationOverview';
 import { StageGovernanceDiagnostics } from '../admin/StageGovernanceDiagnostics';
 import { ReleaseReadinessGate } from '../admin/ReleaseReadinessGate';
+import { FullSystemLaunchReadinessConsole } from '../admin/FullSystemLaunchReadinessConsole';
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { palette, spacing, typography } from '../shared/theme';
@@ -47,6 +48,10 @@ function AdminWorkspaceContent() {
       <main style={styles.main}>
         <AdminOperationsConsole />
         <ReleaseReadinessGate />
+        {/* Phase 198: read-only full-system launch readiness, admin-only (inherits
+            the WorkspaceGate admin route + AdminProvider identity gate). No new
+            route, no entitlement widening, no action affordance. */}
+        <FullSystemLaunchReadinessConsole />
         <SystemHealthSummary />
         <div style={styles.twoCol}>
           <DataQualityFlags />

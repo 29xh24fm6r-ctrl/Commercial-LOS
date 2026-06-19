@@ -4295,3 +4295,33 @@ describe('Phase 197 — full system launch readiness', () => {
     expect(doc).toMatch(/required operator actions to move from CONDITIONAL GO to GO/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 198 — safe launch readiness exposure (admin-only mount)
+// ---------------------------------------------------------------------------
+
+describe('Phase 198 — safe full-system launch readiness exposure', () => {
+  const rel = 'docs/PHASE_198_SAFE_LAUNCH_READINESS_EXPOSURE.md';
+
+  it('the Phase 198 doc + contract test exist on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+    expect(
+      existsSync(resolve(REPO_ROOT, 'src/shared/governance/phase198SafeLaunchReadinessExposureContract.test.ts')),
+    ).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('records the admin-only, read-only, no-new-route exposure decision', () => {
+    expect(doc).toMatch(/admin workspace/i);
+    expect(doc).toMatch(/No new route/i);
+    expect(doc).toMatch(/read-only/i);
+  });
+
+  it('records the unchanged CONDITIONAL_GO posture and gated writes', () => {
+    expect(doc).toMatch(/CONDITIONAL_GO/);
+    expect(doc).toMatch(/no live gate flip/i);
+    expect(doc).toMatch(/no CRM writeback/i);
+    expect(doc).toMatch(/no checklist generation/i);
+  });
+});
