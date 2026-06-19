@@ -4093,3 +4093,45 @@ describe('Phase 192 — credit / committee / compliance V1 readiness', () => {
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 194 — controlled live New Deal create enablement (launch-unlock snapshot)
+// ---------------------------------------------------------------------------
+
+describe('Phase 194 — controlled live New Deal create enablement', () => {
+  const rel = 'docs/PHASE_194_CONTROLLED_LIVE_NEW_DEAL_CREATE_ENABLEMENT.md';
+
+  it('the Phase 194 enablement doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('names all three create gates and a controlled-enablement recommendation', () => {
+    expect(doc).toMatch(/BANKER_NEW_DEAL_CREATE_ENABLED/);
+    expect(doc).toMatch(/NEW_DEAL_CREATE_ADAPTER_ENABLED/);
+    expect(doc).toMatch(/NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED/);
+    expect(doc).toMatch(/READY FOR CONTROLLED ENABLEMENT|NOT READY FOR CONTROLLED ENABLEMENT/);
+  });
+
+  it('documents rollback + pre-enable + smoke checklists', () => {
+    expect(doc).toMatch(/rollback|kill[- ]switch/i);
+    expect(doc).toMatch(/pre-enable/i);
+    expect(doc).toMatch(/smoke/i);
+  });
+
+  it('pins no-borrower-comms, no-schema, no-checklist-generation, and gates false', () => {
+    expect(doc).toMatch(/no borrower comms|no borrower communication/i);
+    expect(doc).toMatch(/no schema|no migration/i);
+    expect(doc).toMatch(/no checklist generation/i);
+    expect(doc).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED\s*=\s*false/);
+  });
+
+  it('the Phase 194 governance contract test exists on disk', () => {
+    expect(
+      existsSync(
+        resolve(REPO_ROOT, 'src/shared/governance/phase194ControlledLiveNewDealCreateEnablementContract.test.ts'),
+      ),
+    ).toBe(true);
+  });
+});
