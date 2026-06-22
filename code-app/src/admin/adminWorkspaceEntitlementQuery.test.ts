@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   deriveHasAdminWorkspaceEntitlement,
   strictAdminEntitlementName,
+  resolveAccessLevelKind,
   ADMIN_ACCESS_LEVEL_NAMES,
+  ADMIN_ACCESS_LEVEL_KINDS,
+  ACCESS_LEVEL_OPTION_SET,
   type AdminEntitlementCandidate,
 } from './adminWorkspaceEntitlementQuery';
 import { resolveWorkspaceRoute, WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
@@ -170,5 +173,94 @@ describe('204C — authorization over the live (blank-Workspace) row shape', () 
   });
   it('entitlement name alone (no profile match) does not authorize', () => {
     expect(authorize([liveRow({ losUserProfileId: 'someone-else' })], [MATT])).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 204D — access-level option-set mapping (cr664_accesslevel)
+// ---------------------------------------------------------------------------
+
+/** A live operator row whose access level is the AUTHORITATIVE numeric option-set. */
+function numericRow(over: Partial<AdminEntitlementCandidate> = {}): AdminEntitlementCandidate {
+  return {
+    entitlementName: 'Matthew Paller - Admin Full Access',
+    accessLevel: 788190002, // Admin
+    accessLevelName: undefined, // formatted name NOT relied upon live
+    workspaceName: undefined, // blank Workspace
+    losUserProfileId: MATT,
+    active: true,
+    ...over,
+  };
+}
+
+describe('204D — resolveAccessLevelKind maps the cr664_accesslevel option-set', () => {
+  it('the option-set constants match the generated Dataverse model', () => {
+    expect(ACCESS_LEVEL_OPTION_SET[788190000]).toBe('Full');
+    expect(ACCESS_LEVEL_OPTION_SET[788190001]).toBe('ReadOnly');
+    expect(ACCESS_LEVEL_OPTION_SET[788190002]).toBe('Admin');
+  });
+  it('resolves numeric option-set values', () => {
+    expect(resolveAccessLevelKind(788190000)).toBe('Full');
+    expect(resolveAccessLevelKind(788190001)).toBe('ReadOnly');
+    expect(resolveAccessLevelKind(788190002)).toBe('Admin');
+  });
+  it('resolves numeric-as-string option-set values', () => {
+    expect(resolveAccessLevelKind('788190002')).toBe('Admin');
+    expect(resolveAccessLevelKind('788190000')).toBe('Full');
+  });
+  it('falls back to the string name when no numeric value is present', () => {
+    expect(resolveAccessLevelKind(undefined, 'Admin')).toBe('Admin');
+    expect(resolveAccessLevelKind(undefined, 'Full')).toBe('Full');
+    expect(resolveAccessLevelKind(undefined, 'ReadOnly')).toBe('ReadOnly');
+  });
+  it('resolves unknown / missing values to Unknown (fail closed)', () => {
+    expect(resolveAccessLevelKind(undefined, undefined)).toBe('Unknown');
+    expect(resolveAccessLevelKind(999999)).toBe('Unknown');
+    expect(resolveAccessLevelKind('', '')).toBe('Unknown');
+    expect(resolveAccessLevelKind(undefined, 'Administrator')).toBe('Unknown');
+  });
+  it('only Full and Admin kinds authorize', () => {
+    expect([...ADMIN_ACCESS_LEVEL_KINDS].sort()).toEqual(['Admin', 'Full']);
+  });
+});
+
+describe('204D — authorization over the numeric access-level row shape', () => {
+  it('numeric 788190002 (Admin) + admin name + blank Workspace => authorized', () => {
+    expect(authorize([numericRow({ accessLevel: 788190002 })])).toBe(true);
+  });
+  it('numeric 788190000 (Full) + admin name + blank Workspace => authorized', () => {
+    expect(authorize([numericRow({ accessLevel: 788190000 })])).toBe(true);
+  });
+  it('numeric 788190001 (ReadOnly) + admin name => not authorized', () => {
+    expect(authorize([numericRow({ accessLevel: 788190001 })])).toBe(false);
+  });
+  it('undefined access level + admin name => not authorized (fail closed)', () => {
+    expect(authorize([numericRow({ accessLevel: undefined })])).toBe(false);
+  });
+  it('numeric Admin but non-admin name AND blank Workspace => not authorized', () => {
+    expect(authorize([numericRow({ accessLevel: 788190002, entitlementName: 'Banker Full Access' })])).toBe(false);
+  });
+  it('string fallback "Admin" still authorizes in the pure deriver', () => {
+    expect(authorize([numericRow({ accessLevel: undefined, accessLevelName: 'Admin' })])).toBe(true);
+  });
+  it('string fallback "Full" still authorizes in the pure deriver', () => {
+    expect(authorize([numericRow({ accessLevel: undefined, accessLevelName: 'Full' })])).toBe(true);
+  });
+  it('string fallback "ReadOnly" does not authorize', () => {
+    expect(authorize([numericRow({ accessLevel: undefined, accessLevelName: 'ReadOnly' })])).toBe(false);
+  });
+  it('ckingma numeric-Admin row does not authorize Matthew', () => {
+    expect(authorize([numericRow({ accessLevel: 788190002, losUserProfileId: CKINGMA })], [MATT])).toBe(false);
+  });
+  it('owner Matthew without LOS profile match does not authorize (numeric Admin)', () => {
+    expect(authorize([numericRow({ accessLevel: 788190002, losUserProfileId: 'profile-other' })], [MATT])).toBe(false);
+  });
+  it('inactive numeric-Admin row does not authorize', () => {
+    expect(authorize([numericRow({ accessLevel: 788190002, active: false })])).toBe(false);
+  });
+  it('numeric Admin with Workspace = Admin Control Center (generic name) authorizes', () => {
+    expect(
+      authorize([numericRow({ accessLevel: 788190002, workspaceName: 'Admin Control Center', entitlementName: 'Generic Access' })]),
+    ).toBe(true);
   });
 });

@@ -13,10 +13,12 @@ import { resolveWorkspaceRoute, WORKSPACE_ROUTES } from '../bootstrap/workspaceR
  *     → cr664_losuserprofiles (_cr664_user_value = coreUserId)
  *     → cr664_workspaceentitlements (_cr664_losuserprofile_value = profileId)
  *
- * An entitlement authorizes admin iff its workspace resolves to the admin route
- * AND its access level is Full or Admin. Any missing hop, inactive user, or read
- * error returns a not-entitled / failed result — never a coerced "entitled".
- * No create/update/delete, no fabricated data.
+ * An entitlement authorizes admin iff it is active, its LOS profile matches the
+ * current user, its access level resolves to Full or Admin (from the authoritative
+ * cr664_accesslevel option-set — Phase 204D), and EITHER its workspace resolves to
+ * the admin route OR its entitlement name strictly resolves to admin (Phase 204C).
+ * Any missing hop, inactive user, or read error returns a not-entitled / failed
+ * result — never a coerced "entitled". No create/update/delete, no fabricated data.
  */
 
 export type AdminWorkspaceEntitlementResult =
@@ -28,7 +30,37 @@ export type AdminWorkspaceEntitlementResult =
 /** Access-level names (cr664_accesslevelname) that authorize admin-workspace access. */
 export const ADMIN_ACCESS_LEVEL_NAMES: ReadonlySet<string> = new Set(['Full', 'Admin']);
 
+/**
+ * Phase 204D — the authoritative Dataverse option-set for the entitlement's
+ * access level (cr664_accesslevel). The formatted name field (cr664_accesslevelname)
+ * is optional and is frequently NOT returned by the Power Apps data client, so the
+ * numeric option-set value is the source of truth for the access-level gate.
+ */
+export const ACCESS_LEVEL_OPTION_SET: Readonly<Record<number, AccessLevelKind>> = {
+  788190000: 'Full',
+  788190001: 'ReadOnly',
+  788190002: 'Admin',
+};
+
+export type AccessLevelKind = 'Full' | 'Admin' | 'ReadOnly' | 'Unknown';
+
+/** Access-level kinds that authorize admin-workspace access (not ReadOnly / Unknown). */
+export const ADMIN_ACCESS_LEVEL_KINDS: ReadonlySet<AccessLevelKind> = new Set<AccessLevelKind>([
+  'Full',
+  'Admin',
+]);
+
 export interface AdminEntitlementCandidate {
+  /**
+   * The authoritative access-level option-set value (cr664_accesslevel): a number
+   * (788190000=Full / 788190001=ReadOnly / 788190002=Admin) on live rows. A numeric
+   * string is also accepted for clients that stringify option-set values.
+   */
+  readonly accessLevel?: number | string;
+  /**
+   * The optional formatted access-level name (cr664_accesslevelname). String fallback
+   * only — NOT relied upon for live reads because the client may omit it.
+   */
   readonly accessLevelName?: string;
   readonly workspaceName?: string;
   /** The entitlement display name (cr664_entitlementname). */
@@ -37,6 +69,33 @@ export interface AdminEntitlementCandidate {
   readonly losUserProfileId?: string;
   /** True when the entitlement row is Active (statecode === 0). */
   readonly active?: boolean;
+}
+
+/**
+ * Phase 204D — resolve the entitlement's access level to a stable kind. The
+ * authoritative numeric option-set value (cr664_accesslevel) is preferred; a
+ * numeric string is parsed; the formatted name (cr664_accesslevelname) is a
+ * last-resort fallback (used by pure tests, not relied upon live). Anything
+ * unrecognized resolves to 'Unknown' so the access gate fails closed.
+ */
+export function resolveAccessLevelKind(
+  accessLevel: number | string | undefined,
+  accessLevelName?: string,
+): AccessLevelKind {
+  if (typeof accessLevel === 'number') {
+    return ACCESS_LEVEL_OPTION_SET[accessLevel] ?? 'Unknown';
+  }
+  if (typeof accessLevel === 'string' && accessLevel.trim().length > 0) {
+    const trimmed = accessLevel.trim();
+    const asNum = Number(trimmed);
+    if (Number.isInteger(asNum) && Object.prototype.hasOwnProperty.call(ACCESS_LEVEL_OPTION_SET, asNum)) {
+      return ACCESS_LEVEL_OPTION_SET[asNum];
+    }
+    if (trimmed === 'Full' || trimmed === 'Admin' || trimmed === 'ReadOnly') return trimmed;
+  }
+  const name = (accessLevelName ?? '').trim();
+  if (name === 'Full' || name === 'Admin' || name === 'ReadOnly') return name;
+  return 'Unknown';
 }
 
 export interface AdminEntitlementDecisionInput {
@@ -64,12 +123,14 @@ export function strictAdminEntitlementName(entitlementName: string | undefined):
 }
 
 /**
- * Phase 204C — PURE admin-authorization decision over the LIVE row shape.
+ * Phase 204C / 204D — PURE admin-authorization decision over the LIVE row shape.
  * Authorizes iff at least one entitlement satisfies ALL gates (defense in depth
  * — never authorize from name, access level, or owner alone):
  *   1. the entitlement is ACTIVE;
  *   2. its LOS user profile matches the CURRENT user's profile (not owner);
- *   3. its access level is Admin or Full (not ReadOnly);
+ *   3. its access level resolves to Admin or Full (not ReadOnly / Unknown) — from
+ *      the authoritative numeric option-set (cr664_accesslevel) or a string
+ *      fallback (Phase 204D);
  *   4. EITHER its workspace name resolves to the admin route (when the optional
  *      Workspace lookup is populated) OR its entitlement name strictly resolves
  *      to admin access (the live rows carry meaning in the name, with Workspace
@@ -86,7 +147,7 @@ export function deriveHasAdminWorkspaceEntitlement(
       e.active === true &&
       typeof e.losUserProfileId === 'string' &&
       profileSet.has(e.losUserProfileId) &&
-      ADMIN_ACCESS_LEVEL_NAMES.has((e.accessLevelName ?? '').trim()) &&
+      ADMIN_ACCESS_LEVEL_KINDS.has(resolveAccessLevelKind(e.accessLevel, e.accessLevelName)) &&
       (resolveWorkspaceRoute(e.workspaceName) === WORKSPACE_ROUTES.admin ||
         strictAdminEntitlementName(e.entitlementName)),
   );
@@ -142,9 +203,13 @@ export async function loadAdminWorkspaceEntitlement(
 
     const filter = profileIds.map((id) => `_cr664_losuserprofile_value eq ${id}`).join(' or ');
     const entRes = await Cr664_workspaceentitlementsesService.getAll({
+      // Phase 204D — select the authoritative numeric access-level option-set
+      // (cr664_accesslevel), NOT the optional formatted name (cr664_accesslevelname)
+      // which the client may omit. cr664_workspacename stays selected because the
+      // Workspace path is still one of the two OR conditions in the deriver.
       select: [
         'cr664_entitlementname',
-        'cr664_accesslevelname',
+        'cr664_accesslevel',
         'cr664_workspacename',
         '_cr664_losuserprofile_value',
         'statecode',
@@ -157,7 +222,8 @@ export async function loadAdminWorkspaceEntitlement(
     }
     const entitlements: AdminEntitlementCandidate[] = (entRes.data ?? []).map((r) => ({
       entitlementName: r.cr664_entitlementname,
-      accessLevelName: r.cr664_accesslevelname,
+      // Authoritative option-set value (788190000=Full / 788190002=Admin).
+      accessLevel: r.cr664_accesslevel,
       workspaceName: r.cr664_workspacename,
       losUserProfileId: r._cr664_losuserprofile_value,
       // statecode 0 = Active (Cr664_workspaceentitlementsesstatecode).
