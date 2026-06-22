@@ -1,17 +1,17 @@
 import { resolveWorkspaceRoute, WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 
 /**
- * Phase 204 / 204E — admin / superadmin workspace entitlement probe.
+ * Phase 204 / 204E â€” admin / superadmin workspace entitlement probe.
  *
  * READ-ONLY, FAIL-CLOSED. Resolves whether the signed-in user holds an existing
  * Admin-workspace entitlement so the workspace switcher can surface Admin
- * Workspace for authorized admins/superadmins ONLY — without widening access or
+ * Workspace for authorized admins/superadmins ONLY â€” without widening access or
  * inventing schema.
  *
- * Phase 204E — identity follows the LIVE Phase 115 bootstrap contract: the
+ * Phase 204E â€” identity follows the LIVE Phase 115 bootstrap contract: the
  * canonical current user is the active `cr664_platformuser` matched by
- * `cr664_email` (NOT the legacy cr664_user → cr664_losuserprofile chain, which the
- * live environment does not populate — see bootstrapFlow.ts). The probe therefore
+ * `cr664_email` (NOT the legacy cr664_user â†’ cr664_losuserprofile chain, which the
+ * live environment does not populate â€” see bootstrapFlow.ts). The probe therefore
  * does NOT require `_cr664_coreuser_value` or a resolved LOS profile; those remain
  * an OPTIONAL match signal when present. `cr664_workspaceentitlements` carries no
  * PlatformUser FK, so the probe queries active Admin/Full entitlements and then
@@ -19,11 +19,11 @@ import { resolveWorkspaceRoute, WORKSPACE_ROUTES } from '../bootstrap/workspaceR
  * (profile-id, profile-label == UPN, or user-specific entitlement name).
  *
  * An entitlement authorizes admin iff it is active, its access level resolves to
- * Full or Admin (authoritative cr664_accesslevel option-set — Phase 204D), EITHER
+ * Full or Admin (authoritative cr664_accesslevel option-set â€” Phase 204D), EITHER
  * its workspace resolves to the admin route OR its entitlement name strictly
  * resolves to admin (Phase 204C), AND it is attributed to the current user
  * (Phase 204E). Any inactive user or read error returns a not-entitled / failed
- * result — never a coerced "entitled". No create/update/delete, no fabricated data.
+ * result â€” never a coerced "entitled". No create/update/delete, no fabricated data.
  */
 
 export type AdminWorkspaceEntitlementResult =
@@ -33,7 +33,7 @@ export type AdminWorkspaceEntitlementResult =
   | { kind: 'failed'; message: string };
 
 // ---------------------------------------------------------------------------
-// Phase 204F — PlatformUser validity gate (aligned with bootstrapFlow.ts)
+// Phase 204F â€” PlatformUser validity gate (aligned with bootstrapFlow.ts)
 // ---------------------------------------------------------------------------
 
 /** cr664_platformusers.statecode value meaning the row is Inactive. */
@@ -50,7 +50,7 @@ export interface AdminProbePlatformUser {
 }
 
 /**
- * Phase 204F — is this PlatformUser usable for the admin probe? Aligned with
+ * Phase 204F â€” is this PlatformUser usable for the admin probe? Aligned with
  * `bootstrapFlow.ts`, which lets a user boot the app on the strength of a
  * PlatformUser row + a primary workspace and does NOT gate on `cr664_activestatus`.
  *
@@ -58,8 +58,8 @@ export interface AdminProbePlatformUser {
  * normally could fail the admin probe before entitlement evaluation. So
  * `cr664_activestatus` (optional, sometimes omitted/false) is NOT a required gate.
  * The row is usable unless it is EXPLICITLY disabled:
- *   - `statecode === 1` (Inactive)               → not usable;
- *   - `cr664_identitystatus` Disabled/Suspended   → not usable.
+ *   - `statecode === 1` (Inactive)               â†’ not usable;
+ *   - `cr664_identitystatus` Disabled/Suspended   â†’ not usable.
  * A missing row is not usable. Everything else (including undefined/false
  * activestatus, undefined statecode/identitystatus, or identitystatus Pending)
  * is usable and proceeds to entitlement evaluation. Fail-closed on explicit
@@ -83,7 +83,7 @@ export function resolvePlatformUserUsableForAdminProbe(
 export const ADMIN_ACCESS_LEVEL_NAMES: ReadonlySet<string> = new Set(['Full', 'Admin']);
 
 /**
- * Phase 204D — the authoritative Dataverse option-set for the entitlement's
+ * Phase 204D â€” the authoritative Dataverse option-set for the entitlement's
  * access level (cr664_accesslevel). The formatted name field (cr664_accesslevelname)
  * is optional and is frequently NOT returned by the Power Apps data client, so the
  * numeric option-set value is the source of truth for the access-level gate.
@@ -111,7 +111,7 @@ export interface AdminEntitlementCandidate {
   readonly accessLevel?: number | string;
   /**
    * The optional formatted access-level name (cr664_accesslevelname). String fallback
-   * only — NOT relied upon for live reads because the client may omit it.
+   * only â€” NOT relied upon for live reads because the client may omit it.
    */
   readonly accessLevelName?: string;
   readonly workspaceName?: string;
@@ -120,7 +120,7 @@ export interface AdminEntitlementCandidate {
   /** The entitlement's LOS user profile lookup (_cr664_losuserprofile_value). */
   readonly losUserProfileId?: string;
   /**
-   * Phase 204E — the formatted LOS-profile label (cr664_losuserprofilename), the
+   * Phase 204E â€” the formatted LOS-profile label (LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE), the
    * user's UPN. Phase 204H: this property is NOT selectable on the live
    * cr664_workspaceentitlements table (selecting it failed the whole query), so the
    * live probe no longer requests or maps it. The field is retained for pure
@@ -130,7 +130,7 @@ export interface AdminEntitlementCandidate {
    */
   readonly losUserProfileName?: string;
   /**
-   * Phase 204E — the formatted owner name (owneridname). Carried for completeness /
+   * Phase 204E â€” the formatted owner name (owneridname). Carried for completeness /
    * diagnostics ONLY. Owner is NEVER an authorization signal.
    */
   readonly ownerName?: string;
@@ -139,9 +139,9 @@ export interface AdminEntitlementCandidate {
 }
 
 /**
- * Phase 204E — the canonical current-user identity, sourced from the live
+ * Phase 204E â€” the canonical current-user identity, sourced from the live
  * `cr664_platformuser` row (Phase 115 bootstrap contract), NOT the legacy
- * cr664_user → losuserprofile chain. `losUserProfileIds` is an OPTIONAL legacy
+ * cr664_user â†’ losuserprofile chain. `losUserProfileIds` is an OPTIONAL legacy
  * signal: in the live env it is usually empty, so identity is matched by the
  * stronger available signals (profile-label == UPN, or user-specific entitlement
  * name) instead.
@@ -166,7 +166,7 @@ export interface AdminEntitlementUserDecisionInput {
 }
 
 /**
- * Phase 204D — resolve the entitlement's access level to a stable kind. The
+ * Phase 204D â€” resolve the entitlement's access level to a stable kind. The
  * authoritative numeric option-set value (cr664_accesslevel) is preferred; a
  * numeric string is parsed; the formatted name (cr664_accesslevelname) is a
  * last-resort fallback (used by pure tests, not relied upon live). Anything
@@ -200,16 +200,16 @@ export interface AdminEntitlementDecisionInput {
 }
 
 /**
- * Phase 204C — strict admin-entitlement-NAME resolver. The live Workspace
+ * Phase 204C â€” strict admin-entitlement-NAME resolver. The live Workspace
  * Entitlements.Workspace lookup is optional and often blank, so admin meaning is
  * carried by the entitlement name. An entitlement name "resolves to admin
- * access" iff it contains the standalone word "admin" (case-insensitive) — so
+ * access" iff it contains the standalone word "admin" (case-insensitive) â€” so
  * "Admin Full Access", "Executive Admin Access", "Admin Control Center Access",
  * and "Matthew Paller - Admin Full Access" qualify, while "Banker Full Access",
  * "Team Member Full Access", and "Manager ReadOnly Access" do not. The word
  * boundary keeps unsafe substrings ("administrator", "badminton") from matching.
  *
- * This is NOT authorization on its own — the deriver still requires the active /
+ * This is NOT authorization on its own â€” the deriver still requires the active /
  * profile-match / access-level gates to pass.
  */
 export function strictAdminEntitlementName(entitlementName: string | undefined): boolean {
@@ -217,15 +217,15 @@ export function strictAdminEntitlementName(entitlementName: string | undefined):
 }
 
 /**
- * Phase 204C / 204D — the NON-identity admin gates an entitlement must satisfy:
+ * Phase 204C / 204D â€” the NON-identity admin gates an entitlement must satisfy:
  *   1. the entitlement is ACTIVE;
- *   2. its access level resolves to Admin or Full (not ReadOnly / Unknown) — from
+ *   2. its access level resolves to Admin or Full (not ReadOnly / Unknown) â€” from
  *      the authoritative numeric option-set (cr664_accesslevel) or a string
  *      fallback (Phase 204D);
  *   3. EITHER its workspace name resolves to the admin route (when the optional
  *      Workspace lookup is populated) OR its entitlement name strictly resolves
  *      to admin access (the live rows carry meaning in the name, Workspace blank).
- * Identity (current-user match) is enforced SEPARATELY by the callers below — an
+ * Identity (current-user match) is enforced SEPARATELY by the callers below â€” an
  * entitlement passing these gates is admin-shaped but not yet attributed to the
  * signed-in user.
  */
@@ -239,11 +239,11 @@ export function entitlementMeetsAdminGates(e: AdminEntitlementCandidate): boolea
 }
 
 /**
- * Phase 204C / 204D — PURE admin-authorization over LOS-profile-id matching.
+ * Phase 204C / 204D â€” PURE admin-authorization over LOS-profile-id matching.
  * Retained for the legacy chain: authorizes iff at least one entitlement passes
  * the admin gates AND its LOS user profile is in the current user's resolved
  * profile-id set. Never authorize from name, access level, or owner alone.
- * No profile → fail closed.
+ * No profile â†’ fail closed.
  */
 export function deriveHasAdminWorkspaceEntitlement(
   input: AdminEntitlementDecisionInput,
@@ -259,13 +259,13 @@ export function deriveHasAdminWorkspaceEntitlement(
 }
 
 /**
- * Phase 204E — does this admin-shaped entitlement belong to the CURRENT user?
+ * Phase 204E â€” does this admin-shaped entitlement belong to the CURRENT user?
  * Identity is matched by the strongest available SAFE signal (never owner):
- *   a. profile-id match — the entitlement's LOS profile id is in the user's
+ *   a. profile-id match â€” the entitlement's LOS profile id is in the user's
  *      resolved profile-id set (legacy chain, usually empty in live env);
- *   b. profile-label match — cr664_losuserprofilename equals the UPN exactly
+ *   b. profile-label match â€” LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE equals the UPN exactly
  *      (case-insensitive); the live LOS-profile label is the user's UPN;
- *   c. user-specific entitlement name — the name begins with the user's full name
+ *   c. user-specific entitlement name â€” the name begins with the user's full name
  *      or email followed by " - Admin" (e.g. "Matthew Paller - Admin Full Access").
  * A generic admin name (e.g. "Executive Admin Access") with none of these matches
  * is NOT attributed to the user. Returns false when no signal is available.
@@ -278,7 +278,7 @@ export type AdminIdentityMatchReason =
   | 'none';
 
 /**
- * Phase 204G — classify WHICH safe identity signal (if any) attributes this
+ * Phase 204G â€” classify WHICH safe identity signal (if any) attributes this
  * entitlement to the current user, in priority order. Same logic as
  * `matchesCurrentUserIdentity`; it additionally names the matching signal so the
  * read-only diagnostic can show exactly why a row did or did not attribute.
@@ -325,7 +325,7 @@ export function matchesCurrentUserIdentity(
 }
 
 /**
- * Phase 204E — PURE identity-aware admin authorization over the LIVE PlatformUser
+ * Phase 204E â€” PURE identity-aware admin authorization over the LIVE PlatformUser
  * identity. Authorizes iff at least one entitlement passes the admin gates AND is
  * attributed to the current user by a safe identity signal. This is the live path:
  * it does NOT require the legacy cr664_user / losuserprofile chain. Never authorize
@@ -362,10 +362,10 @@ export async function loadAdminWorkspaceEntitlement(
         import('../generated/services/Cr664_workspaceentitlementsesService'),
       ]);
 
-    // Phase 204E/204F — canonical identity is the live PlatformUser (Phase 115),
+    // Phase 204E/204F â€” canonical identity is the live PlatformUser (Phase 115),
     // matched by cr664_email exactly as bootstrapFlow.ts does. We DO NOT require the
     // legacy _cr664_coreuser_value / losuserprofile chain (the live env does not
-    // populate it), and (204F) we DO NOT require cr664_activestatus — a PlatformUser
+    // populate it), and (204F) we DO NOT require cr664_activestatus â€” a PlatformUser
     // that boots the app (row present, not explicitly Inactive/Disabled/Suspended)
     // is usable identity for the probe.
     const userRes = await Cr664_platformusersService.getAll({
@@ -385,14 +385,14 @@ export async function loadAdminWorkspaceEntitlement(
       return { kind: 'failed', message: userRes.error?.message ?? 'Failed to load platform user.' };
     }
     const user = userRes.data?.[0];
-    // Phase 204F — align with bootstrapFlow.ts: do NOT require cr664_activestatus.
+    // Phase 204F â€” align with bootstrapFlow.ts: do NOT require cr664_activestatus.
     // Fail closed only on explicit deactivation (Inactive statecode or
     // Disabled/Suspended identity status).
     if (!resolvePlatformUserUsableForAdminProbe(user)) return { kind: 'not-entitled' };
 
     // Optional legacy signal: resolve LOS profile id(s) ONLY when the legacy core
     // user link is present. A blank core user no longer fails the probe, and a
-    // failed/empty optional read is non-fatal — identity falls back to the live
+    // failed/empty optional read is non-fatal â€” identity falls back to the live
     // PlatformUser signals (profile label == UPN, or user-specific entitlement name).
     let profileIds: string[] = [];
     const coreUserId = user._cr664_coreuser_value;
@@ -409,16 +409,16 @@ export async function loadAdminWorkspaceEntitlement(
       }
     }
 
-    // Phase 204E — query active Admin/Full entitlements directly (server-side gate),
+    // Phase 204E â€” query active Admin/Full entitlements directly (server-side gate),
     // then attribute to the current user client-side by the strongest safe signal.
     // There is no PlatformUser FK on cr664_workspaceentitlements, so we cannot filter
     // by the current user server-side; the identity gate is enforced in the deriver.
     const entRes = await Cr664_workspaceentitlementsesService.getAll({
-      // Phase 204D — select the authoritative numeric access-level option-set
+      // Phase 204D â€” select the authoritative numeric access-level option-set
       // (cr664_accesslevel), NOT the optional formatted name (cr664_accesslevelname)
       // which the client may omit. cr664_workspacename stays selected (one OR branch).
-      // Phase 204H — cr664_losuserprofilename is NOT selectable on this table in live
-      // Dataverse ("Could not find a property named 'cr664_losuserprofilename'");
+      // Phase 204H â€” LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE is NOT selectable on this table in live
+      // Dataverse ("Could not find a property named 'LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE'");
       // selecting it failed the whole query. Identity attribution falls back to the
       // entitlement-name prefix and the optional legacy profile-id signal.
       select: [
@@ -442,7 +442,7 @@ export async function loadAdminWorkspaceEntitlement(
       accessLevel: r.cr664_accesslevel,
       workspaceName: r.cr664_workspacename,
       losUserProfileId: r._cr664_losuserprofile_value,
-      // Phase 204H — losUserProfileName intentionally NOT mapped: the formatted
+      // Phase 204H â€” losUserProfileName intentionally NOT mapped: the formatted
       // label is not selectable live, so identity uses the name prefix / profile id.
       // statecode 0 = Active (Cr664_workspaceentitlementsesstatecode).
       active: r.statecode === 0,
@@ -463,13 +463,13 @@ export async function loadAdminWorkspaceEntitlement(
 }
 
 // ---------------------------------------------------------------------------
-// Phase 204G — TEMPORARY read-only live admin-probe gate diagnostic
+// Phase 204G â€” TEMPORARY read-only live admin-probe gate diagnostic
 //
 // Exposes the exact gate-by-gate outcome of the live admin probe so an operator
 // can see which production value fails. READ-ONLY: no writes, no auth change, no
 // access widening. The card is feature-flagged off-by-default in spirit (the flag
 // below is the single on switch for this temporary phase) and renders sanitized
-// values only — own UPN/full name (already shown in the app shell), counts, gate
+// values only â€” own UPN/full name (already shown in the app shell), counts, gate
 // booleans; NO GUIDs and NO other users' identities.
 // ---------------------------------------------------------------------------
 
@@ -514,7 +514,7 @@ export interface AdminEntitlementDiagnosticInput {
   readonly failureSummary?: string;
 }
 
-const REDACTED_OTHER = '«redacted-other-identity»';
+const REDACTED_OTHER = 'Â«redacted-other-identityÂ»';
 
 /** Show a profile label only when it is the current user's own UPN; else redact. */
 function sanitizeProfileLabel(label: string | undefined, upn: string): string {
@@ -534,7 +534,7 @@ function sanitizeEntitlementName(
 }
 
 /**
- * Phase 204G — PURE diagnostic builder. Recomputes each gate from the same pure
+ * Phase 204G â€” PURE diagnostic builder. Recomputes each gate from the same pure
  * helpers the live probe uses, with identity fields SANITIZED so the card never
  * leaks GUIDs or other users' identities. Fully unit-testable without the SDK.
  */
@@ -576,7 +576,7 @@ export function buildAdminEntitlementDiagnostic(
   return {
     platformUserFound: input.platformUserFound,
     platformUserUsable: input.platformUserUsable,
-    // Own identity — already shown in the app shell; safe to surface here.
+    // Own identity â€” already shown in the app shell; safe to surface here.
     platformUserFullName: (input.currentUser.fullName ?? '').trim() || '(unknown)',
     platformUserEmail: upn || '(none)',
     profileIdsCount: input.profileIdsCount,
@@ -589,7 +589,7 @@ export function buildAdminEntitlementDiagnostic(
 }
 
 /**
- * Phase 204G — TEMPORARY live, read-only diagnostic loader. Runs the SAME query
+ * Phase 204G â€” TEMPORARY live, read-only diagnostic loader. Runs the SAME query
  * path as `loadAdminWorkspaceEntitlement` and returns the sanitized gate detail.
  * Fail-closed and side-effect-free (no writes). The SDK-bound services load via
  * dynamic import so the static graph stays SDK-free.
@@ -680,7 +680,7 @@ export async function loadAdminWorkspaceEntitlementDiagnostic(
     const currentUserWithProfiles: AdminCurrentUser = { ...currentUser, losUserProfileIds: profileIds };
 
     const entRes = await Cr664_workspaceentitlementsesService.getAll({
-      // Phase 204H — mirror the live probe: cr664_losuserprofilename is NOT
+      // Phase 204H â€” mirror the live probe: LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE is NOT
       // selectable on this table, so it is omitted here too.
       select: [
         'cr664_entitlementname',
@@ -708,7 +708,7 @@ export async function loadAdminWorkspaceEntitlementDiagnostic(
       accessLevel: r.cr664_accesslevel,
       workspaceName: r.cr664_workspacename,
       losUserProfileId: r._cr664_losuserprofile_value,
-      // Phase 204H — losUserProfileName not selectable live; left undefined so the
+      // Phase 204H â€” losUserProfileName not selectable live; left undefined so the
       // diagnostic shows it blank rather than failing the query.
       active: r.statecode === 0,
     }));
