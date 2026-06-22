@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { useBootstrap } from './BootstrapContext';
 import { WORKSPACE_ROUTES } from './workspaceRoutes';
 import { loadManagerIdentity } from '../manager/managerQueries';
+import {
+  loadAdminWorkspaceEntitlement,
+  type AdminWorkspaceEntitlementResult,
+} from '../admin/adminWorkspaceEntitlementQuery';
 
 /**
  * Phase 124C — Workspace entitlements (foundation).
@@ -44,10 +48,65 @@ export type ManagerEntitlementState =
 
 const managerProbeCache = new Map<string, Promise<ManagerEntitlementState>>();
 
-/** Test-only: clear the module-level probe cache so each test starts
+/** Test-only: clear the module-level probe caches so each test starts
  *  with a clean slate. App code never calls this. */
 export function _resetWorkspaceEntitlementCacheForTests(): void {
   managerProbeCache.clear();
+  adminProbeCache.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Phase 204 — admin / superadmin entitlement probe
+// ---------------------------------------------------------------------------
+
+export type AdminEntitlementState =
+  | { kind: 'loading' }
+  | { kind: 'entitled' }
+  /** Active read confirmed no admin entitlement. Not an error. */
+  | { kind: 'not-entitled' }
+  | { kind: 'failed'; message: string };
+
+const adminProbeCache = new Map<string, Promise<AdminEntitlementState>>();
+
+function probeAdminEntitlement(upn: string): Promise<AdminEntitlementState> {
+  const cached = adminProbeCache.get(upn);
+  if (cached) return cached;
+  const promise: Promise<AdminEntitlementState> = loadAdminWorkspaceEntitlement(upn)
+    .then((result: AdminWorkspaceEntitlementResult): AdminEntitlementState => {
+      if (result.kind === 'entitled') return { kind: 'entitled' };
+      if (result.kind === 'failed') return { kind: 'failed', message: result.message };
+      return { kind: 'not-entitled' };
+    })
+    .catch(
+      (err: unknown): AdminEntitlementState => ({
+        kind: 'failed',
+        message: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  adminProbeCache.set(upn, promise);
+  return promise;
+}
+
+/**
+ * Hook: probe and expose the admin-entitlement state for the signed-in UPN.
+ * Cached at module level (one probe per upn per session). Fail-closed: only an
+ * explicit `entitled` result surfaces the admin route; loading / not-entitled /
+ * failed never leak it.
+ */
+export function useAdminEntitlement(): AdminEntitlementState {
+  const { upn } = useBootstrap();
+  const [state, setState] = useState<AdminEntitlementState>({ kind: 'loading' });
+  useEffect(() => {
+    let cancelled = false;
+    setState({ kind: 'loading' });
+    probeAdminEntitlement(upn).then((resolved) => {
+      if (!cancelled) setState(resolved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [upn]);
+  return state;
 }
 
 function probeManagerEntitlement(
@@ -133,11 +192,24 @@ export interface EntitledRoutesState {
  */
 export function useEntitledRoutes(): EntitledRoutesState {
   const m = useManagerEntitlement();
-  if (m.kind === 'loading') return { kind: 'loading', routes: [] };
+  const a = useAdminEntitlement();
+  // Wait until BOTH probes resolve so the switcher never mis-classifies an
+  // entitled user mid-flight.
+  if (m.kind === 'loading' || a.kind === 'loading') {
+    return { kind: 'loading', routes: [] };
+  }
   const routes: string[] = [];
   if (m.kind === 'entitled') {
     routes.push(WORKSPACE_ROUTES.manager);
     routes.push(WORKSPACE_ROUTES.team);
+  }
+  // Phase 204 — admit the admin route only when the user holds an existing
+  // Admin-workspace entitlement (Full/Admin). The admin route's own gate
+  // (WorkspaceGate + isAdminConsoleAuthorized) re-verifies before rendering, so
+  // this does not widen access — it surfaces an entitlement the user already
+  // has. Non-admin users (not-entitled / failed) never receive the admin route.
+  if (a.kind === 'entitled') {
+    routes.push(WORKSPACE_ROUTES.admin);
   }
   return { kind: 'ready', routes };
 }

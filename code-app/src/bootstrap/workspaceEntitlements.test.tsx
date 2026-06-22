@@ -7,6 +7,7 @@ import {
   deriveWorkspaceLinks,
   _resetWorkspaceEntitlementCacheForTests,
   useManagerEntitlement,
+  useAdminEntitlement,
   useEntitledRoutes,
 } from './workspaceEntitlements';
 import { WORKSPACE_ROUTES, resolveWorkspaceRoute } from './workspaceRoutes';
@@ -40,8 +41,21 @@ vi.mock('../manager/managerQueries', () => ({
   loadManagerIdentity: loadManagerIdentityMock,
 }));
 
+// Phase 204 — mock the admin-entitlement probe. Defaults to not-entitled so
+// every pre-Phase-204 test (which only configures the manager probe) keeps its
+// exact behaviour; the Phase 204 cases set it explicitly.
+const { loadAdminWorkspaceEntitlementMock } = vi.hoisted(() => ({
+  loadAdminWorkspaceEntitlementMock: vi.fn(),
+}));
+
+vi.mock('../admin/adminWorkspaceEntitlementQuery', () => ({
+  loadAdminWorkspaceEntitlement: loadAdminWorkspaceEntitlementMock,
+}));
+
 beforeEach(() => {
   loadManagerIdentityMock.mockReset();
+  loadAdminWorkspaceEntitlementMock.mockReset();
+  loadAdminWorkspaceEntitlementMock.mockResolvedValue({ kind: 'not-entitled' });
   _resetWorkspaceEntitlementCacheForTests();
 });
 
@@ -603,5 +617,94 @@ describe('Phase 134A — executive link derives from the resolved primary-worksp
       includePortfolioSurface: true,
     });
     expect(links.map((l) => l.key)).not.toContain('executive');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 204 — admin / superadmin entitlement → admin workspace reachability
+// ---------------------------------------------------------------------------
+
+describe('Phase 204 — useAdminEntitlement + admin route admission', () => {
+  it('resolves to entitled when the admin probe returns entitled', async () => {
+    loadAdminWorkspaceEntitlementMock.mockResolvedValue({ kind: 'entitled' });
+    const { result } = renderHook(() => useAdminEntitlement(), {
+      wrapper: withBootstrap(bootstrapResult('superadmin@oldglorybank.com')),
+    });
+    expect(result.current.kind).toBe('loading');
+    await waitFor(() => expect(result.current.kind).toBe('entitled'));
+  });
+
+  it('resolves to not-entitled for a non-admin user', async () => {
+    loadAdminWorkspaceEntitlementMock.mockResolvedValue({ kind: 'not-entitled' });
+    const { result } = renderHook(() => useAdminEntitlement(), {
+      wrapper: withBootstrap(bootstrapResult('banker@oldglorybank.com')),
+    });
+    await waitFor(() => expect(result.current.kind).toBe('not-entitled'));
+  });
+
+  it('useEntitledRoutes admits the admin route ONLY when the admin probe is entitled', async () => {
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    loadAdminWorkspaceEntitlementMock.mockResolvedValue({ kind: 'entitled' });
+    const { result } = renderHook(() => useEntitledRoutes(), {
+      wrapper: withBootstrap(bootstrapResult('superadmin@oldglorybank.com')),
+    });
+    await waitFor(() => expect(result.current.kind).toBe('ready'));
+    expect(result.current.routes).toContain(WORKSPACE_ROUTES.admin);
+  });
+
+  it('useEntitledRoutes never admits admin for a non-admin banker (fail-closed)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    loadAdminWorkspaceEntitlementMock.mockResolvedValue({ kind: 'not-entitled' });
+    const { result } = renderHook(() => useEntitledRoutes(), {
+      wrapper: withBootstrap(bootstrapResult('banker@oldglorybank.com')),
+    });
+    await waitFor(() => expect(result.current.kind).toBe('ready'));
+    expect(result.current.routes).not.toContain(WORKSPACE_ROUTES.admin);
+  });
+
+  it('useEntitledRoutes never admits admin when the admin probe fails (no fake widening)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    loadAdminWorkspaceEntitlementMock.mockResolvedValue({ kind: 'failed', message: 'read error' });
+    const { result } = renderHook(() => useEntitledRoutes(), {
+      wrapper: withBootstrap(bootstrapResult('banker@oldglorybank.com')),
+    });
+    await waitFor(() => expect(result.current.kind).toBe('ready'));
+    expect(result.current.routes).not.toContain(WORKSPACE_ROUTES.admin);
+  });
+
+  it('manager-and-admin-entitled user gets manager + team + admin routes', async () => {
+    loadManagerIdentityMock.mockResolvedValue({
+      kind: 'ready',
+      identity: { bankerId: 'b1', fullName: 'T', email: 'x@oldglorybank.com', teamId: 't1', teamName: 'CM' },
+    });
+    loadAdminWorkspaceEntitlementMock.mockResolvedValue({ kind: 'entitled' });
+    const { result } = renderHook(() => useEntitledRoutes(), {
+      wrapper: withBootstrap(bootstrapResult('x@oldglorybank.com')),
+    });
+    await waitFor(() => expect(result.current.kind).toBe('ready'));
+    expect(result.current.routes).toEqual([
+      WORKSPACE_ROUTES.manager,
+      WORKSPACE_ROUTES.team,
+      WORKSPACE_ROUTES.admin,
+    ]);
+  });
+
+  it('deriveWorkspaceLinks surfaces the Admin Workspace link only when admin is in the allowed set', () => {
+    const withAdmin = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      currentRoute: WORKSPACE_ROUTES.banker,
+      entitledRoutes: [WORKSPACE_ROUTES.admin],
+    });
+    const adminLink = withAdmin.find((l) => l.key === 'admin');
+    expect(adminLink).toBeDefined();
+    expect(adminLink!.label).toBe('Admin Workspace');
+    expect(adminLink!.route).toBe(WORKSPACE_ROUTES.admin);
+
+    const withoutAdmin = deriveWorkspaceLinks({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      currentRoute: WORKSPACE_ROUTES.banker,
+      entitledRoutes: [WORKSPACE_ROUTES.manager, WORKSPACE_ROUTES.team],
+    });
+    expect(withoutAdmin.map((l) => l.key)).not.toContain('admin');
   });
 });

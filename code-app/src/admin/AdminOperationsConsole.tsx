@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
 import { useBootstrap } from '../bootstrap/BootstrapContext';
+import { useEntitledRoutes } from '../bootstrap/workspaceEntitlements';
+import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { useAdmin } from './AdminContext';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
@@ -32,9 +34,13 @@ import {
  */
 export function AdminOperationsConsole() {
   const { route } = useBootstrap();
+  // Phase 204 — admin is authorized when it is the primary route OR the user
+  // holds a confirmed Admin-workspace entitlement (the same probe that let
+  // WorkspaceGate admit them). Fail-closed: anything but `entitled` omits it.
+  const adminEntitled = useEntitledRoutes().routes.includes(WORKSPACE_ROUTES.admin);
   const { writeDisabledReason } = useAdmin();
 
-  if (!isAdminConsoleAuthorized(route)) {
+  if (!isAdminConsoleAuthorized(route, adminEntitled)) {
     return (
       <section
         style={styles.deniedWrap}

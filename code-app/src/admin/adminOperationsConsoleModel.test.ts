@@ -17,7 +17,7 @@ describe('Phase 169A -- admin console authorization (fails closed)', () => {
     expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.admin)).toBe(true);
   });
 
-  it('denies every non-admin route and missing/empty routes', () => {
+  it('denies every non-admin route and missing/empty routes (no admin entitlement)', () => {
     expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.banker)).toBe(false);
     expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.manager)).toBe(false);
     expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.team)).toBe(false);
@@ -25,6 +25,17 @@ describe('Phase 169A -- admin console authorization (fails closed)', () => {
     expect(isAdminConsoleAuthorized(undefined)).toBe(false);
     expect(isAdminConsoleAuthorized('')).toBe(false);
     expect(isAdminConsoleAuthorized('/workspaces/admin-not')).toBe(false);
+  });
+
+  it('Phase 204 — authorizes an admin-entitled user even on a non-admin primary route', () => {
+    expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.banker, true)).toBe(true);
+    expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.manager, true)).toBe(true);
+    expect(isAdminConsoleAuthorized(undefined, true)).toBe(true);
+  });
+
+  it('Phase 204 — stays fail-closed when not admin-entitled (default false)', () => {
+    expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.banker, false)).toBe(false);
+    expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.banker)).toBe(false);
   });
 });
 
