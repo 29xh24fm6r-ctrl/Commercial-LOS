@@ -31,6 +31,8 @@ export const ADMIN_ACCESS_LEVEL_NAMES: ReadonlySet<string> = new Set(['Full', 'A
 export interface AdminEntitlementCandidate {
   readonly accessLevelName?: string;
   readonly workspaceName?: string;
+  /** The entitlement display name (cr664_entitlementname). */
+  readonly entitlementName?: string;
   /** The entitlement's LOS user profile lookup (_cr664_losuserprofile_value). */
   readonly losUserProfileId?: string;
   /** True when the entitlement row is Active (statecode === 0). */
@@ -45,16 +47,33 @@ export interface AdminEntitlementDecisionInput {
 }
 
 /**
- * Phase 204B — PURE admin-authorization decision. Authorizes iff at least one
- * entitlement satisfies ALL FOUR gates (defense in depth — never authorize from
- * any single field):
+ * Phase 204C — strict admin-entitlement-NAME resolver. The live Workspace
+ * Entitlements.Workspace lookup is optional and often blank, so admin meaning is
+ * carried by the entitlement name. An entitlement name "resolves to admin
+ * access" iff it contains the standalone word "admin" (case-insensitive) — so
+ * "Admin Full Access", "Executive Admin Access", "Admin Control Center Access",
+ * and "Matthew Paller - Admin Full Access" qualify, while "Banker Full Access",
+ * "Team Member Full Access", and "Manager ReadOnly Access" do not. The word
+ * boundary keeps unsafe substrings ("administrator", "badminton") from matching.
+ *
+ * This is NOT authorization on its own — the deriver still requires the active /
+ * profile-match / access-level gates to pass.
+ */
+export function strictAdminEntitlementName(entitlementName: string | undefined): boolean {
+  return /\badmin\b/i.test((entitlementName ?? '').trim());
+}
+
+/**
+ * Phase 204C — PURE admin-authorization decision over the LIVE row shape.
+ * Authorizes iff at least one entitlement satisfies ALL gates (defense in depth
+ * — never authorize from name, access level, or owner alone):
  *   1. the entitlement is ACTIVE;
- *   2. its LOS user profile matches the CURRENT user's profile (not owner, not
- *      entitlement name);
+ *   2. its LOS user profile matches the CURRENT user's profile (not owner);
  *   3. its access level is Admin or Full (not ReadOnly);
- *   4. its workspace name resolves (via the canonical resolver) to the admin
- *      route — so the live "Admin Control Center" reference row counts, but a
- *      non-admin workspace never does.
+ *   4. EITHER its workspace name resolves to the admin route (when the optional
+ *      Workspace lookup is populated) OR its entitlement name strictly resolves
+ *      to admin access (the live rows carry meaning in the name, with Workspace
+ *      blank).
  * No profile → fail closed. Fully unit-testable.
  */
 export function deriveHasAdminWorkspaceEntitlement(
@@ -68,7 +87,8 @@ export function deriveHasAdminWorkspaceEntitlement(
       typeof e.losUserProfileId === 'string' &&
       profileSet.has(e.losUserProfileId) &&
       ADMIN_ACCESS_LEVEL_NAMES.has((e.accessLevelName ?? '').trim()) &&
-      resolveWorkspaceRoute(e.workspaceName) === WORKSPACE_ROUTES.admin,
+      (resolveWorkspaceRoute(e.workspaceName) === WORKSPACE_ROUTES.admin ||
+        strictAdminEntitlementName(e.entitlementName)),
   );
 }
 
@@ -122,7 +142,13 @@ export async function loadAdminWorkspaceEntitlement(
 
     const filter = profileIds.map((id) => `_cr664_losuserprofile_value eq ${id}`).join(' or ');
     const entRes = await Cr664_workspaceentitlementsesService.getAll({
-      select: ['cr664_accesslevelname', 'cr664_workspacename', '_cr664_losuserprofile_value', 'statecode'],
+      select: [
+        'cr664_entitlementname',
+        'cr664_accesslevelname',
+        'cr664_workspacename',
+        '_cr664_losuserprofile_value',
+        'statecode',
+      ],
       filter,
       top: 100,
     });
@@ -130,6 +156,7 @@ export async function loadAdminWorkspaceEntitlement(
       return { kind: 'failed', message: entRes.error?.message ?? 'Failed to load workspace entitlements.' };
     }
     const entitlements: AdminEntitlementCandidate[] = (entRes.data ?? []).map((r) => ({
+      entitlementName: r.cr664_entitlementname,
       accessLevelName: r.cr664_accesslevelname,
       workspaceName: r.cr664_workspacename,
       losUserProfileId: r._cr664_losuserprofile_value,
