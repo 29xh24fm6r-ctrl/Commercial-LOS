@@ -356,19 +356,19 @@ describe('Phase 128A §7 — Team route shares the Manager entitlement source', 
     expect(match![0]).toContain('WORKSPACE_ROUTES.team');
   });
 
-  it('Manager probe is the ONLY entitlement source today (no second probe wired silently)', () => {
+  it('entitlement sources are the explicit, reviewed manager + admin probes only', () => {
     const src = read('bootstrap/workspaceEntitlements.ts');
-    // useEntitledRoutes reads exactly one probe: useManagerEntitlement.
-    // A future edit that secretly adds a second entitlement source
-    // should be explicit + reviewed; this pin makes it a conscious
-    // change.
+    // useEntitledRoutes reads exactly two probes: useManagerEntitlement and
+    // (Phase 204) useAdminEntitlement. A future edit that secretly adds a THIRD
+    // entitlement source should be explicit + reviewed; this pin makes it a
+    // conscious change.
     const probeImports = src.match(/use[A-Z][A-Za-z]*Entitlement\b/g) ?? [];
     const unique = new Set(probeImports);
     expect(unique.has('useManagerEntitlement')).toBe(true);
-    // The only allowed entitlement-hook identifier is the manager one
-    // (we count usage sites for that name only).
+    expect(unique.has('useAdminEntitlement')).toBe(true);
+    const allowed = new Set(['useManagerEntitlement', 'useAdminEntitlement']);
     for (const id of unique) {
-      expect(id).toBe('useManagerEntitlement');
+      expect(allowed.has(id), `unexpected entitlement hook ${id}`).toBe(true);
     }
   });
 

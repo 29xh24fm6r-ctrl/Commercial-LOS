@@ -28,6 +28,16 @@ vi.mock('../deals/newDealReferenceReader', () => ({
     .mockResolvedValue({ kind: 'notConfigured', reason: 'mocked in console test' }),
 }));
 
+// Phase 204 — the console reads admin entitlement via useEntitledRoutes; mock it
+// (the real module statically pulls SDK-bound queries). Default: no admin route
+// (so authorization stays purely route-based unless a test opts in).
+const { useEntitledRoutesMock } = vi.hoisted(() => ({
+  useEntitledRoutesMock: vi.fn(() => ({ kind: 'ready' as const, routes: [] as string[] })),
+}));
+vi.mock('../bootstrap/workspaceEntitlements', () => ({
+  useEntitledRoutes: useEntitledRoutesMock,
+}));
+
 import type { BootstrapResult } from '../bootstrap/bootstrapFlow';
 import { AdminIdentityProvider, type AdminIdentity } from './AdminContext';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
@@ -175,5 +185,20 @@ describe('Phase 169A -- Admin Operations Console source discipline', () => {
 
   it('does not import from another role directory (banker/manager/team/executive)', () => {
     expect(SRC).not.toMatch(/from\s+['"]\.\.\/(banker|manager|team|executive)\//);
+  });
+});
+
+describe('Phase 204 -- admin-entitled (non-primary) authorization', () => {
+  it('authorizes the console for an admin-entitled user even when the primary route is not admin', () => {
+    useEntitledRoutesMock.mockReturnValueOnce({ kind: 'ready', routes: [WORKSPACE_ROUTES.admin] });
+    const { container } = renderConsole(WORKSPACE_ROUTES.banker);
+    // Not the denied state — the admin-entitlement signal authorizes it.
+    expect(container.querySelector('[data-admin-ops-console="denied"]')).toBeNull();
+  });
+
+  it('stays denied for a non-admin user with no admin entitlement (fail-closed)', () => {
+    useEntitledRoutesMock.mockReturnValueOnce({ kind: 'ready', routes: [WORKSPACE_ROUTES.manager] });
+    const { container } = renderConsole(WORKSPACE_ROUTES.banker);
+    expect(container.querySelector('[data-admin-ops-console="denied"]')).not.toBeNull();
   });
 });

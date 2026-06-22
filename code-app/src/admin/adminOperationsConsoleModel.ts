@@ -130,12 +130,18 @@ export const ADMIN_CONSOLE_SECURITY_DISCLAIMER =
  * Admin authorization proof for the console (defense in depth).
  *
  * The admin workspace route is already gated by `WorkspaceGate`. The
- * console re-derives authorization from the bootstrap-resolved route so
- * that, even if it were ever mounted outside the gate, it fails closed
- * rather than rendering admin surfaces. Admin is a primary-route-gated
- * workspace today (entitled additional routes surface only the manager
- * workspace), mirroring the Executive primary-name gating pattern.
+ * console re-derives authorization so that, even if it were ever mounted
+ * outside the gate, it fails closed rather than rendering admin surfaces.
+ *
+ * A user is authorized when admin is their bootstrap-resolved PRIMARY route,
+ * OR (Phase 204) they hold an existing Admin-workspace entitlement that the
+ * `useEntitledRoutes` admin probe confirmed — the same entitlement that let
+ * `WorkspaceGate` admit them to the admin route. `adminEntitled` defaults to
+ * false so the check stays fail-closed for any caller that does not pass it.
  */
-export function isAdminConsoleAuthorized(route: string | undefined): boolean {
-  return route === WORKSPACE_ROUTES.admin;
+export function isAdminConsoleAuthorized(
+  route: string | undefined,
+  adminEntitled = false,
+): boolean {
+  return route === WORKSPACE_ROUTES.admin || adminEntitled === true;
 }
