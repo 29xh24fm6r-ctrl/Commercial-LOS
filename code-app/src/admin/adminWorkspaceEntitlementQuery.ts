@@ -120,9 +120,13 @@ export interface AdminEntitlementCandidate {
   /** The entitlement's LOS user profile lookup (_cr664_losuserprofile_value). */
   readonly losUserProfileId?: string;
   /**
-   * Phase 204E — the optional formatted LOS-profile label (cr664_losuserprofilename).
-   * In the live env the LOS-profile label is the user's UPN, so this is an identity
-   * signal when the client returns it.
+   * Phase 204E — the formatted LOS-profile label (cr664_losuserprofilename), the
+   * user's UPN. Phase 204H: this property is NOT selectable on the live
+   * cr664_workspaceentitlements table (selecting it failed the whole query), so the
+   * live probe no longer requests or maps it. The field is retained for pure
+   * tests/backward compatibility and the profile-label-upn match still works for any
+   * candidate that naturally carries it. Live identity uses the entitlement-name
+   * prefix and the optional legacy profile-id signal instead.
    */
   readonly losUserProfileName?: string;
   /**
@@ -412,14 +416,16 @@ export async function loadAdminWorkspaceEntitlement(
     const entRes = await Cr664_workspaceentitlementsesService.getAll({
       // Phase 204D — select the authoritative numeric access-level option-set
       // (cr664_accesslevel), NOT the optional formatted name (cr664_accesslevelname)
-      // which the client may omit. cr664_workspacename stays selected (one OR branch);
-      // cr664_losuserprofilename is the live identity label (Phase 204E).
+      // which the client may omit. cr664_workspacename stays selected (one OR branch).
+      // Phase 204H — cr664_losuserprofilename is NOT selectable on this table in live
+      // Dataverse ("Could not find a property named 'cr664_losuserprofilename'");
+      // selecting it failed the whole query. Identity attribution falls back to the
+      // entitlement-name prefix and the optional legacy profile-id signal.
       select: [
         'cr664_entitlementname',
         'cr664_accesslevel',
         'cr664_workspacename',
         '_cr664_losuserprofile_value',
-        'cr664_losuserprofilename',
         'statecode',
       ],
       // Active + Admin(788190002)/Full(788190000) only. Reduces the candidate set
@@ -436,7 +442,8 @@ export async function loadAdminWorkspaceEntitlement(
       accessLevel: r.cr664_accesslevel,
       workspaceName: r.cr664_workspacename,
       losUserProfileId: r._cr664_losuserprofile_value,
-      losUserProfileName: r.cr664_losuserprofilename,
+      // Phase 204H — losUserProfileName intentionally NOT mapped: the formatted
+      // label is not selectable live, so identity uses the name prefix / profile id.
       // statecode 0 = Active (Cr664_workspaceentitlementsesstatecode).
       active: r.statecode === 0,
     }));
@@ -673,12 +680,13 @@ export async function loadAdminWorkspaceEntitlementDiagnostic(
     const currentUserWithProfiles: AdminCurrentUser = { ...currentUser, losUserProfileIds: profileIds };
 
     const entRes = await Cr664_workspaceentitlementsesService.getAll({
+      // Phase 204H — mirror the live probe: cr664_losuserprofilename is NOT
+      // selectable on this table, so it is omitted here too.
       select: [
         'cr664_entitlementname',
         'cr664_accesslevel',
         'cr664_workspacename',
         '_cr664_losuserprofile_value',
-        'cr664_losuserprofilename',
         'statecode',
       ],
       filter: 'statecode eq 0 and (cr664_accesslevel eq 788190002 or cr664_accesslevel eq 788190000)',
@@ -700,7 +708,8 @@ export async function loadAdminWorkspaceEntitlementDiagnostic(
       accessLevel: r.cr664_accesslevel,
       workspaceName: r.cr664_workspacename,
       losUserProfileId: r._cr664_losuserprofile_value,
-      losUserProfileName: r.cr664_losuserprofilename,
+      // Phase 204H — losUserProfileName not selectable live; left undefined so the
+      // diagnostic shows it blank rather than failing the query.
       active: r.statecode === 0,
     }));
     return buildAdminEntitlementDiagnostic({

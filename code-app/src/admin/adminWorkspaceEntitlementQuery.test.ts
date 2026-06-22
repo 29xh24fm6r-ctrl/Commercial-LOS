@@ -572,3 +572,51 @@ describe('204G — buildAdminEntitlementDiagnostic gate reporting', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 204H — identity attribution without the (non-selectable) profile label
+// ---------------------------------------------------------------------------
+
+describe('204H — live identity works with NO losUserProfileName field', () => {
+  it('Matthew-style entitlement name prefix authorizes without losUserProfileName', () => {
+    expect(
+      authorizeUser([eRow({ entitlementName: 'Matthew Paller - Admin Full Access', losUserProfileName: undefined })]),
+    ).toBe(true);
+  });
+  it('legacy profile-id still attributes without losUserProfileName', () => {
+    expect(
+      authorizeUser(
+        [eRow({ losUserProfileId: 'p1', losUserProfileName: undefined, entitlementName: 'Generic Access', workspaceName: 'Admin Control Center' })],
+        currentUser({ losUserProfileIds: ['p1'] }),
+      ),
+    ).toBe(true);
+  });
+  it('ckingma row (no profile label) still does not authorize Matthew', () => {
+    expect(
+      authorizeUser([eRow({ entitlementName: 'ckingma - Admin Full Access', losUserProfileName: undefined })]),
+    ).toBe(false);
+  });
+  it('generic Executive Admin Access (no profile label) still does not authorize', () => {
+    expect(authorizeUser([eRow({ entitlementName: 'Executive Admin Access', losUserProfileName: undefined })])).toBe(false);
+  });
+  it('owner is still never an authorization signal', () => {
+    expect(
+      authorizeUser([eRow({ entitlementName: 'Executive Admin Access', ownerName: 'Matthew Paller', losUserProfileName: undefined })]),
+    ).toBe(false);
+  });
+  it('profile-label-upn match remains supported for candidates that DO carry it (pure tests)', () => {
+    expect(matchesCurrentUserIdentity(currentUser(), eRow({ losUserProfileName: UPN, entitlementName: 'Generic' }))).toBe(true);
+    expect(classifyCurrentUserIdentityMatch(currentUser(), eRow({ losUserProfileName: UPN, entitlementName: 'Generic' }))).toBe('profile-label-upn');
+  });
+  it('diagnostic reports query SUCCESS and a blank profile label when rows omit losUserProfileName', () => {
+    const d = buildAdminEntitlementDiagnostic(
+      diagInput({
+        entitlements: [eRow({ entitlementName: 'Matthew Paller - Admin Full Access', losUserProfileName: undefined })],
+      }),
+    );
+    expect(d.entitlementQuerySuccess).toBe(true);
+    expect(d.finalResult).toBe('entitled');
+    expect(d.rows[0]!.losUserProfileName).toBe('(blank)');
+    expect(d.rows[0]!.identityMatchReason).toBe('full-name-admin-prefix');
+  });
+});
