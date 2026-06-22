@@ -3,15 +3,19 @@ import {
   deriveHasAdminWorkspaceEntitlement,
   deriveHasAdminWorkspaceEntitlementForUser,
   matchesCurrentUserIdentity,
+  classifyCurrentUserIdentityMatch,
   resolvePlatformUserUsableForAdminProbe,
+  buildAdminEntitlementDiagnostic,
   strictAdminEntitlementName,
   resolveAccessLevelKind,
   ADMIN_ACCESS_LEVEL_NAMES,
   ADMIN_ACCESS_LEVEL_KINDS,
   ACCESS_LEVEL_OPTION_SET,
+  ADMIN_ENTITLEMENT_DIAGNOSTIC_ENABLED,
   type AdminCurrentUser,
   type AdminEntitlementCandidate,
   type AdminProbePlatformUser,
+  type AdminEntitlementDiagnosticInput,
 } from './adminWorkspaceEntitlementQuery';
 import { resolveWorkspaceRoute, WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 
@@ -450,5 +454,121 @@ describe('204F — usable PlatformUser then unchanged entitlement gates', () => 
     expect(
       authorizeUser([eRow({ entitlementName: 'Executive Admin Access', ownerName: 'Matthew Paller', losUserProfileName: undefined })]),
     ).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 204G — read-only diagnostic builder
+// ---------------------------------------------------------------------------
+
+function diagInput(over: Partial<AdminEntitlementDiagnosticInput> = {}): AdminEntitlementDiagnosticInput {
+  return {
+    currentUser: currentUser(),
+    platformUserFound: true,
+    platformUserUsable: true,
+    entitlementQuerySuccess: true,
+    profileIdsCount: 0,
+    entitlements: [],
+    ...over,
+  };
+}
+
+describe('204G — buildAdminEntitlementDiagnostic gate reporting', () => {
+  it('the diagnostic flag is on for this temporary phase', () => {
+    expect(ADMIN_ENTITLEMENT_DIAGNOSTIC_ENABLED).toBe(true);
+  });
+
+  it('reports zero rows as not-entitled', () => {
+    const d = buildAdminEntitlementDiagnostic(diagInput({ entitlements: [] }));
+    expect(d.entitlementRowsReturned).toBe(0);
+    expect(d.rows).toEqual([]);
+    expect(d.finalResult).toBe('not-entitled');
+  });
+
+  it('reports query failure as failed with a summary', () => {
+    const d = buildAdminEntitlementDiagnostic(diagInput({ entitlementQuerySuccess: false, failureSummary: 'boom' }));
+    expect(d.finalResult).toBe('failed');
+    expect(d.failureSummary).toBe('boom');
+  });
+
+  it('reports an unusable PlatformUser as not-entitled regardless of rows', () => {
+    const d = buildAdminEntitlementDiagnostic(diagInput({ platformUserUsable: false, entitlements: [eRow({ losUserProfileName: UPN })] }));
+    expect(d.finalResult).toBe('not-entitled');
+  });
+
+  it('reports each gate for an eligible Matthew row (label identity)', () => {
+    const d = buildAdminEntitlementDiagnostic(diagInput({ entitlements: [eRow({ losUserProfileName: UPN })] }));
+    const r = d.rows[0]!;
+    expect(r.accessLevelRaw).toBe('788190002');
+    expect(r.accessLevelKind).toBe('Admin');
+    expect(r.active).toBe(true);
+    expect(r.hasAdminName).toBe(true);
+    expect(r.hasAdminWorkspace).toBe(false);
+    expect(r.identityMatched).toBe(true);
+    expect(r.identityMatchReason).toBe('profile-label-upn');
+    expect(r.finalEligible).toBe(true);
+    expect(d.finalResult).toBe('entitled');
+  });
+
+  it('reports the identity match reason for each safe signal', () => {
+    const byProfileId = buildAdminEntitlementDiagnostic(
+      diagInput({
+        currentUser: currentUser({ losUserProfileIds: ['p1'] }),
+        entitlements: [eRow({ losUserProfileId: 'p1', losUserProfileName: undefined, entitlementName: 'Generic Access', workspaceName: 'Admin Control Center' })],
+      }),
+    );
+    expect(byProfileId.rows[0]!.identityMatchReason).toBe('profile-id');
+
+    const byFullName = buildAdminEntitlementDiagnostic(diagInput({ entitlements: [eRow({ entitlementName: 'Matthew Paller - Admin Full Access', losUserProfileName: undefined })] }));
+    expect(byFullName.rows[0]!.identityMatchReason).toBe('full-name-admin-prefix');
+
+    const byUpn = buildAdminEntitlementDiagnostic(diagInput({ entitlements: [eRow({ entitlementName: `${UPN} - Admin Access`, losUserProfileName: undefined })] }));
+    expect(byUpn.rows[0]!.identityMatchReason).toBe('upn-admin-prefix');
+
+    const none = buildAdminEntitlementDiagnostic(diagInput({ entitlements: [eRow({ entitlementName: 'Executive Admin Access', losUserProfileName: undefined })] }));
+    expect(none.rows[0]!.identityMatchReason).toBe('none');
+    expect(none.rows[0]!.finalEligible).toBe(false);
+  });
+
+  it('reports a ReadOnly row as ineligible with the resolved kind', () => {
+    const d = buildAdminEntitlementDiagnostic(diagInput({ entitlements: [eRow({ losUserProfileName: UPN, accessLevel: 788190001 })] }));
+    expect(d.rows[0]!.accessLevelKind).toBe('ReadOnly');
+    expect(d.rows[0]!.finalEligible).toBe(false);
+  });
+
+  it('sanitizes other identities and never surfaces GUID profile ids', () => {
+    const guid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const d = buildAdminEntitlementDiagnostic(
+      diagInput({
+        entitlements: [
+          eRow({ entitlementName: 'ckingma - Admin Full Access', losUserProfileName: 'ckingma@oldglorybank.com', losUserProfileId: guid }),
+        ],
+      }),
+    );
+    const r = d.rows[0]!;
+    // Another user's email and entitlement name are redacted.
+    expect(r.losUserProfileName).not.toMatch(/ckingma/);
+    expect(r.entitlementName).not.toMatch(/ckingma/);
+    expect(r.losUserProfileName).toMatch(/redacted/);
+    // The raw GUID profile id is never present anywhere in the diagnostic.
+    expect(JSON.stringify(d)).not.toContain(guid);
+    expect(JSON.stringify(d)).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  });
+
+  it('shows the current user own UPN/full name (already visible in the app shell)', () => {
+    const d = buildAdminEntitlementDiagnostic(diagInput());
+    expect(d.platformUserEmail).toBe(UPN);
+    expect(d.platformUserFullName).toBe('Matthew Paller');
+  });
+
+  it('classifyCurrentUserIdentityMatch agrees with matchesCurrentUserIdentity', () => {
+    const cu = currentUser();
+    const rows = [
+      eRow({ losUserProfileName: UPN }),
+      eRow({ entitlementName: 'Executive Admin Access', losUserProfileName: undefined }),
+    ];
+    for (const r of rows) {
+      expect(classifyCurrentUserIdentityMatch(cu, r) !== 'none').toBe(matchesCurrentUserIdentity(cu, r));
+    }
   });
 });

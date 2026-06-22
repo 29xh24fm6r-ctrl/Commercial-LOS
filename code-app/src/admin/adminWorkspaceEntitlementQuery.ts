@@ -225,7 +225,7 @@ export function strictAdminEntitlementName(entitlementName: string | undefined):
  * entitlement passing these gates is admin-shaped but not yet attributed to the
  * signed-in user.
  */
-function entitlementMeetsAdminGates(e: AdminEntitlementCandidate): boolean {
+export function entitlementMeetsAdminGates(e: AdminEntitlementCandidate): boolean {
   return (
     e.active === true &&
     ADMIN_ACCESS_LEVEL_KINDS.has(resolveAccessLevelKind(e.accessLevel, e.accessLevelName)) &&
@@ -266,12 +266,25 @@ export function deriveHasAdminWorkspaceEntitlement(
  * A generic admin name (e.g. "Executive Admin Access") with none of these matches
  * is NOT attributed to the user. Returns false when no signal is available.
  */
-export function matchesCurrentUserIdentity(
+export type AdminIdentityMatchReason =
+  | 'profile-id'
+  | 'profile-label-upn'
+  | 'full-name-admin-prefix'
+  | 'upn-admin-prefix'
+  | 'none';
+
+/**
+ * Phase 204G — classify WHICH safe identity signal (if any) attributes this
+ * entitlement to the current user, in priority order. Same logic as
+ * `matchesCurrentUserIdentity`; it additionally names the matching signal so the
+ * read-only diagnostic can show exactly why a row did or did not attribute.
+ */
+export function classifyCurrentUserIdentityMatch(
   currentUser: AdminCurrentUser,
   e: AdminEntitlementCandidate,
-): boolean {
+): AdminIdentityMatchReason {
   const upn = (currentUser.upn ?? '').trim().toLowerCase();
-  if (upn.length === 0) return false;
+  if (upn.length === 0) return 'none';
 
   // (a) profile-id match (legacy chain)
   const profileIds = (currentUser.losUserProfileIds ?? []).filter(
@@ -282,24 +295,29 @@ export function matchesCurrentUserIdentity(
     e.losUserProfileId.length > 0 &&
     profileIds.includes(e.losUserProfileId)
   ) {
-    return true;
+    return 'profile-id';
   }
 
   // (b) profile-label equals UPN exactly (case-insensitive)
   const profileLabel = (e.losUserProfileName ?? '').trim().toLowerCase();
-  if (profileLabel.length > 0 && profileLabel === upn) return true;
+  if (profileLabel.length > 0 && profileLabel === upn) return 'profile-label-upn';
 
   // (c) user-specific entitlement name begins with fullName/email + " - Admin"
   const name = (e.entitlementName ?? '').trim().toLowerCase();
   if (name.length > 0) {
     const fullName = (currentUser.fullName ?? '').trim().toLowerCase();
-    const candidates = [fullName, upn].filter((s) => s.length > 0);
-    for (const id of candidates) {
-      if (name.startsWith(`${id} - admin`)) return true;
-    }
+    if (fullName.length > 0 && name.startsWith(`${fullName} - admin`)) return 'full-name-admin-prefix';
+    if (name.startsWith(`${upn} - admin`)) return 'upn-admin-prefix';
   }
 
-  return false;
+  return 'none';
+}
+
+export function matchesCurrentUserIdentity(
+  currentUser: AdminCurrentUser,
+  e: AdminEntitlementCandidate,
+): boolean {
+  return classifyCurrentUserIdentityMatch(currentUser, e) !== 'none';
 }
 
 /**
@@ -434,5 +452,274 @@ export async function loadAdminWorkspaceEntitlement(
       : { kind: 'not-entitled' };
   } catch (err: unknown) {
     return { kind: 'failed', message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 204G — TEMPORARY read-only live admin-probe gate diagnostic
+//
+// Exposes the exact gate-by-gate outcome of the live admin probe so an operator
+// can see which production value fails. READ-ONLY: no writes, no auth change, no
+// access widening. The card is feature-flagged off-by-default in spirit (the flag
+// below is the single on switch for this temporary phase) and renders sanitized
+// values only — own UPN/full name (already shown in the app shell), counts, gate
+// booleans; NO GUIDs and NO other users' identities.
+// ---------------------------------------------------------------------------
+
+/** Single on-switch for the temporary Phase 204G diagnostic card. */
+export const ADMIN_ENTITLEMENT_DIAGNOSTIC_ENABLED = true;
+
+export interface AdminEntitlementDiagnosticRow {
+  readonly entitlementName: string;
+  /** Sanitized raw cr664_accesslevel value (option-set number as text). */
+  readonly accessLevelRaw: string;
+  readonly accessLevelKind: AccessLevelKind;
+  readonly active: boolean;
+  readonly workspaceName: string;
+  readonly losUserProfileName: string;
+  readonly hasAdminName: boolean;
+  readonly hasAdminWorkspace: boolean;
+  readonly identityMatched: boolean;
+  readonly identityMatchReason: AdminIdentityMatchReason;
+  readonly finalEligible: boolean;
+}
+
+export interface AdminEntitlementDiagnostic {
+  readonly platformUserFound: boolean;
+  readonly platformUserUsable: boolean;
+  readonly platformUserFullName: string;
+  readonly platformUserEmail: string;
+  readonly profileIdsCount: number;
+  readonly entitlementQuerySuccess: boolean;
+  readonly entitlementRowsReturned: number;
+  readonly rows: ReadonlyArray<AdminEntitlementDiagnosticRow>;
+  readonly finalResult: 'entitled' | 'not-entitled' | 'failed';
+  readonly failureSummary: string;
+}
+
+export interface AdminEntitlementDiagnosticInput {
+  readonly currentUser: AdminCurrentUser;
+  readonly platformUserFound: boolean;
+  readonly platformUserUsable: boolean;
+  readonly entitlementQuerySuccess: boolean;
+  readonly profileIdsCount: number;
+  readonly entitlements: ReadonlyArray<AdminEntitlementCandidate>;
+  readonly failureSummary?: string;
+}
+
+const REDACTED_OTHER = '«redacted-other-identity»';
+
+/** Show a profile label only when it is the current user's own UPN; else redact. */
+function sanitizeProfileLabel(label: string | undefined, upn: string): string {
+  const v = (label ?? '').trim();
+  if (v.length === 0) return '(blank)';
+  return v.toLowerCase() === upn.trim().toLowerCase() ? v : REDACTED_OTHER;
+}
+
+/** Show an entitlement name only when the row attributes to the current user; else redact. */
+function sanitizeEntitlementName(
+  name: string | undefined,
+  attributedToCurrentUser: boolean,
+): string {
+  const v = (name ?? '').trim();
+  if (v.length === 0) return '(blank)';
+  return attributedToCurrentUser ? v : REDACTED_OTHER;
+}
+
+/**
+ * Phase 204G — PURE diagnostic builder. Recomputes each gate from the same pure
+ * helpers the live probe uses, with identity fields SANITIZED so the card never
+ * leaks GUIDs or other users' identities. Fully unit-testable without the SDK.
+ */
+export function buildAdminEntitlementDiagnostic(
+  input: AdminEntitlementDiagnosticInput,
+): AdminEntitlementDiagnostic {
+  const upn = (input.currentUser.upn ?? '').trim();
+  const rows: AdminEntitlementDiagnosticRow[] = input.entitlements.map((e) => {
+    const accessLevelKind = resolveAccessLevelKind(e.accessLevel, e.accessLevelName);
+    const hasAdminName = strictAdminEntitlementName(e.entitlementName);
+    const hasAdminWorkspace = resolveWorkspaceRoute(e.workspaceName) === WORKSPACE_ROUTES.admin;
+    const reason = classifyCurrentUserIdentityMatch(input.currentUser, e);
+    const identityMatched = reason !== 'none';
+    const finalEligible = entitlementMeetsAdminGates(e) && identityMatched;
+    return {
+      entitlementName: sanitizeEntitlementName(e.entitlementName, identityMatched),
+      accessLevelRaw: e.accessLevel === undefined ? '(none)' : String(e.accessLevel),
+      accessLevelKind,
+      active: e.active === true,
+      workspaceName: (e.workspaceName ?? '').trim() || '(blank)',
+      losUserProfileName: sanitizeProfileLabel(e.losUserProfileName, upn),
+      hasAdminName,
+      hasAdminWorkspace,
+      identityMatched,
+      identityMatchReason: reason,
+      finalEligible,
+    };
+  });
+
+  let finalResult: AdminEntitlementDiagnostic['finalResult'];
+  if (!input.entitlementQuerySuccess) {
+    finalResult = 'failed';
+  } else if (!input.platformUserFound || !input.platformUserUsable) {
+    finalResult = 'not-entitled';
+  } else {
+    finalResult = rows.some((r) => r.finalEligible) ? 'entitled' : 'not-entitled';
+  }
+
+  return {
+    platformUserFound: input.platformUserFound,
+    platformUserUsable: input.platformUserUsable,
+    // Own identity — already shown in the app shell; safe to surface here.
+    platformUserFullName: (input.currentUser.fullName ?? '').trim() || '(unknown)',
+    platformUserEmail: upn || '(none)',
+    profileIdsCount: input.profileIdsCount,
+    entitlementQuerySuccess: input.entitlementQuerySuccess,
+    entitlementRowsReturned: input.entitlements.length,
+    rows,
+    finalResult,
+    failureSummary: input.failureSummary ?? '',
+  };
+}
+
+/**
+ * Phase 204G — TEMPORARY live, read-only diagnostic loader. Runs the SAME query
+ * path as `loadAdminWorkspaceEntitlement` and returns the sanitized gate detail.
+ * Fail-closed and side-effect-free (no writes). The SDK-bound services load via
+ * dynamic import so the static graph stays SDK-free.
+ */
+export async function loadAdminWorkspaceEntitlementDiagnostic(
+  upn: string,
+): Promise<AdminEntitlementDiagnostic> {
+  const trimmed = (upn ?? '').trim();
+  const emptyUser: AdminCurrentUser = { upn: trimmed };
+  if (trimmed.length === 0) {
+    return buildAdminEntitlementDiagnostic({
+      currentUser: emptyUser,
+      platformUserFound: false,
+      platformUserUsable: false,
+      entitlementQuerySuccess: true,
+      profileIdsCount: 0,
+      entitlements: [],
+      failureSummary: 'No UPN in context.',
+    });
+  }
+  try {
+    const [{ Cr664_platformusersService }, { Cr664_losuserprofilesService }, { Cr664_workspaceentitlementsesService }] =
+      await Promise.all([
+        import('../generated/services/Cr664_platformusersService'),
+        import('../generated/services/Cr664_losuserprofilesService'),
+        import('../generated/services/Cr664_workspaceentitlementsesService'),
+      ]);
+
+    const userRes = await Cr664_platformusersService.getAll({
+      select: [
+        'cr664_platformuserid',
+        'cr664_email',
+        'cr664_fullname',
+        'cr664_activestatus',
+        'cr664_identitystatus',
+        'statecode',
+        '_cr664_coreuser_value',
+      ],
+      filter: `cr664_email eq '${escapeOData(trimmed)}'`,
+      top: 1,
+    });
+    if (!userRes.success) {
+      return buildAdminEntitlementDiagnostic({
+        currentUser: emptyUser,
+        platformUserFound: false,
+        platformUserUsable: false,
+        entitlementQuerySuccess: false,
+        profileIdsCount: 0,
+        entitlements: [],
+        failureSummary: userRes.error?.message ?? 'Failed to load platform user.',
+      });
+    }
+    const user = userRes.data?.[0];
+    const platformUserFound = !!user;
+    const platformUserUsable = resolvePlatformUserUsableForAdminProbe(user);
+    const currentUser: AdminCurrentUser = {
+      upn: trimmed,
+      platformUserId: user?.cr664_platformuserid,
+      fullName: user?.cr664_fullname,
+      losUserProfileIds: [],
+    };
+    if (!platformUserFound || !platformUserUsable) {
+      return buildAdminEntitlementDiagnostic({
+        currentUser,
+        platformUserFound,
+        platformUserUsable,
+        entitlementQuerySuccess: true,
+        profileIdsCount: 0,
+        entitlements: [],
+        failureSummary: platformUserFound ? 'PlatformUser is explicitly deactivated.' : 'No PlatformUser row for UPN.',
+      });
+    }
+
+    let profileIds: string[] = [];
+    const coreUserId = user!._cr664_coreuser_value;
+    if (coreUserId) {
+      const profileRes = await Cr664_losuserprofilesService.getAll({
+        select: ['cr664_losuserprofileid'],
+        filter: `_cr664_user_value eq ${coreUserId}`,
+        top: 10,
+      });
+      if (profileRes.success) {
+        profileIds = (profileRes.data ?? [])
+          .map((r) => r.cr664_losuserprofileid)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0);
+      }
+    }
+    const currentUserWithProfiles: AdminCurrentUser = { ...currentUser, losUserProfileIds: profileIds };
+
+    const entRes = await Cr664_workspaceentitlementsesService.getAll({
+      select: [
+        'cr664_entitlementname',
+        'cr664_accesslevel',
+        'cr664_workspacename',
+        '_cr664_losuserprofile_value',
+        'cr664_losuserprofilename',
+        'statecode',
+      ],
+      filter: 'statecode eq 0 and (cr664_accesslevel eq 788190002 or cr664_accesslevel eq 788190000)',
+      top: 200,
+    });
+    if (!entRes.success) {
+      return buildAdminEntitlementDiagnostic({
+        currentUser: currentUserWithProfiles,
+        platformUserFound,
+        platformUserUsable,
+        entitlementQuerySuccess: false,
+        profileIdsCount: profileIds.length,
+        entitlements: [],
+        failureSummary: entRes.error?.message ?? 'Failed to load workspace entitlements.',
+      });
+    }
+    const entitlements: AdminEntitlementCandidate[] = (entRes.data ?? []).map((r) => ({
+      entitlementName: r.cr664_entitlementname,
+      accessLevel: r.cr664_accesslevel,
+      workspaceName: r.cr664_workspacename,
+      losUserProfileId: r._cr664_losuserprofile_value,
+      losUserProfileName: r.cr664_losuserprofilename,
+      active: r.statecode === 0,
+    }));
+    return buildAdminEntitlementDiagnostic({
+      currentUser: currentUserWithProfiles,
+      platformUserFound,
+      platformUserUsable,
+      entitlementQuerySuccess: true,
+      profileIdsCount: profileIds.length,
+      entitlements,
+    });
+  } catch (err: unknown) {
+    return buildAdminEntitlementDiagnostic({
+      currentUser: emptyUser,
+      platformUserFound: false,
+      platformUserUsable: false,
+      entitlementQuerySuccess: false,
+      profileIdsCount: 0,
+      entitlements: [],
+      failureSummary: err instanceof Error ? err.message : String(err),
+    });
   }
 }
