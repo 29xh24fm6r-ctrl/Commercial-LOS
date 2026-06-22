@@ -31,19 +31,44 @@ export const ADMIN_ACCESS_LEVEL_NAMES: ReadonlySet<string> = new Set(['Full', 'A
 export interface AdminEntitlementCandidate {
   readonly accessLevelName?: string;
   readonly workspaceName?: string;
+  /** The entitlement's LOS user profile lookup (_cr664_losuserprofile_value). */
+  readonly losUserProfileId?: string;
+  /** True when the entitlement row is Active (statecode === 0). */
+  readonly active?: boolean;
+}
+
+export interface AdminEntitlementDecisionInput {
+  /** The signed-in user's resolved LOS user profile id(s). */
+  readonly userLosProfileIds: ReadonlyArray<string>;
+  /** Candidate workspace entitlements to evaluate. */
+  readonly entitlements: ReadonlyArray<AdminEntitlementCandidate>;
 }
 
 /**
- * PURE: does any of the user's workspace entitlements grant Admin-workspace
- * access (admin workspace + Full/Admin level)? Fully unit-testable.
+ * Phase 204B — PURE admin-authorization decision. Authorizes iff at least one
+ * entitlement satisfies ALL FOUR gates (defense in depth — never authorize from
+ * any single field):
+ *   1. the entitlement is ACTIVE;
+ *   2. its LOS user profile matches the CURRENT user's profile (not owner, not
+ *      entitlement name);
+ *   3. its access level is Admin or Full (not ReadOnly);
+ *   4. its workspace name resolves (via the canonical resolver) to the admin
+ *      route — so the live "Admin Control Center" reference row counts, but a
+ *      non-admin workspace never does.
+ * No profile → fail closed. Fully unit-testable.
  */
 export function deriveHasAdminWorkspaceEntitlement(
-  entitlements: ReadonlyArray<AdminEntitlementCandidate>,
+  input: AdminEntitlementDecisionInput,
 ): boolean {
-  return entitlements.some(
+  const profileSet = new Set(input.userLosProfileIds.filter((id) => typeof id === 'string' && id.length > 0));
+  if (profileSet.size === 0) return false;
+  return input.entitlements.some(
     (e) =>
-      resolveWorkspaceRoute(e.workspaceName) === WORKSPACE_ROUTES.admin &&
-      ADMIN_ACCESS_LEVEL_NAMES.has((e.accessLevelName ?? '').trim()),
+      e.active === true &&
+      typeof e.losUserProfileId === 'string' &&
+      profileSet.has(e.losUserProfileId) &&
+      ADMIN_ACCESS_LEVEL_NAMES.has((e.accessLevelName ?? '').trim()) &&
+      resolveWorkspaceRoute(e.workspaceName) === WORKSPACE_ROUTES.admin,
   );
 }
 
@@ -97,7 +122,7 @@ export async function loadAdminWorkspaceEntitlement(
 
     const filter = profileIds.map((id) => `_cr664_losuserprofile_value eq ${id}`).join(' or ');
     const entRes = await Cr664_workspaceentitlementsesService.getAll({
-      select: ['cr664_accesslevelname', 'cr664_workspacename'],
+      select: ['cr664_accesslevelname', 'cr664_workspacename', '_cr664_losuserprofile_value', 'statecode'],
       filter,
       top: 100,
     });
@@ -107,8 +132,13 @@ export async function loadAdminWorkspaceEntitlement(
     const entitlements: AdminEntitlementCandidate[] = (entRes.data ?? []).map((r) => ({
       accessLevelName: r.cr664_accesslevelname,
       workspaceName: r.cr664_workspacename,
+      losUserProfileId: r._cr664_losuserprofile_value,
+      // statecode 0 = Active (Cr664_workspaceentitlementsesstatecode).
+      active: r.statecode === 0,
     }));
-    return deriveHasAdminWorkspaceEntitlement(entitlements) ? { kind: 'entitled' } : { kind: 'not-entitled' };
+    return deriveHasAdminWorkspaceEntitlement({ userLosProfileIds: profileIds, entitlements })
+      ? { kind: 'entitled' }
+      : { kind: 'not-entitled' };
   } catch (err: unknown) {
     return { kind: 'failed', message: err instanceof Error ? err.message : String(err) };
   }
