@@ -4457,3 +4457,37 @@ describe('Phase 202 — OGB-native CRM + lending workflow activation', () => {
     expect(doc).toMatch(/CONDITIONAL_GO/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 203 — V1 activation readiness console (final conditional-GO gate)
+// ---------------------------------------------------------------------------
+
+describe('Phase 203 — V1 activation readiness console', () => {
+  const rel = 'docs/PHASE_203_V1_ACTIVATION_READINESS_CONSOLE.md';
+
+  it('the Phase 203 doc + model/panel/contract exist on disk', () => {
+    for (const f of [
+      rel,
+      'src/shared/readiness/v1ActivationReadinessModel.ts',
+      'src/admin/V1ActivationReadinessPanel.tsx',
+      'src/shared/governance/phase203V1ActivationReadinessContract.test.ts',
+    ]) {
+      expect(existsSync(resolve(REPO_ROOT, f)), f).toBe(true);
+    }
+  });
+
+  const doc = readDoc(rel);
+
+  it('records a deterministic CONDITIONAL_GO posture derived from gate constants', () => {
+    expect(doc).toMatch(/CONDITIONAL_GO/);
+    expect(doc).toMatch(/CRM_LIVE_PERSISTENCE_ENABLED/);
+    expect(doc).toMatch(/deterministic/i);
+  });
+
+  it('records the read-only, no-schema, no-widening, gated-writes posture', () => {
+    expect(doc).toMatch(/read-only/i);
+    expect(doc).toMatch(/no schema|no migration/i);
+    expect(doc).toMatch(/route ?\/ ?(entitlement|permission)|permissionRouteExpansion/i);
+    expect(doc).toMatch(/gated/i);
+  });
+});
