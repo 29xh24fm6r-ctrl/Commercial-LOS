@@ -4422,3 +4422,38 @@ describe('Phase 201 — V1.0 final release decision', () => {
     expect(doc).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 202 — OGB-native CRM + lending workflow activation
+// ---------------------------------------------------------------------------
+
+describe('Phase 202 — OGB-native CRM + lending workflow activation', () => {
+  const rel = 'docs/PHASE_202_OGB_NATIVE_CRM_WORKFLOW_ACTIVATION.md';
+
+  it('the Phase 202 doc + activation model/panel/contract exist on disk', () => {
+    for (const f of [
+      rel,
+      'src/admin/ogbCrmWorkflowActivationModel.ts',
+      'src/admin/OgbCrmWorkflowActivationPanel.tsx',
+      'src/shared/governance/phase202OgbNativeCrmWorkflowActivationContract.test.ts',
+    ]) {
+      expect(existsSync(resolve(REPO_ROOT, f)), f).toBe(true);
+    }
+  });
+
+  const doc = readDoc(rel);
+
+  it('records OGB-native internal activation with gated writes (no external connector)', () => {
+    expect(doc).toMatch(/OGB CRM active/i);
+    expect(doc).toMatch(/Internal lending workflow active/i);
+    expect(doc).toMatch(/No external Salesforce \/ nCino connector/i);
+    expect(doc).toMatch(/writeback/i);
+  });
+
+  it('records the no-fake-data / no-broad-write / no-widening posture', () => {
+    expect(doc).toMatch(/No fake \/ sample data|no fake data/i);
+    expect(doc).toMatch(/No broad write enablement/i);
+    expect(doc).toMatch(/No permission bypass|route widening/i);
+    expect(doc).toMatch(/CONDITIONAL_GO/);
+  });
+});

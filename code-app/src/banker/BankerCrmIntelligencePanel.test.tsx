@@ -34,8 +34,8 @@ vi.mock('../crm/workspaceIntegration/CrmBankerWorkingSurface', () => ({
 vi.mock('../crm/workspaceIntegration/crmWorkspacePreviewInputs', () => ({
   bankerCrmPreviewInput: () => ({
     relationshipOverview: undefined,
-    salesforceReadiness: 'Preview — external connection disabled',
-    ncinoReadiness: 'Preview — external connection disabled',
+    salesforceReadiness: 'OGB CRM active — internal relationship intelligence (writeback gated)',
+    ncinoReadiness: 'Internal lending workflow active (writeback gated)',
     entityMatchStatus: 'Awaiting human review',
     sourceOfTruthGaps: 0,
     syncPreviewBlockers: 0,
@@ -50,10 +50,15 @@ describe('Phase 157 — BankerCrmIntelligencePanel premium cockpit', () => {
     expect(screen.getByTestId('drill-banker-crm-command-center')).toBeInTheDocument();
   });
 
-  it('renders Read-only and Preview-only badges', () => {
+  it('renders active OGB CRM and writeback-gated badges', () => {
     render(<BankerCrmIntelligencePanel />);
-    expect(screen.getByText('Read-only')).toBeInTheDocument();
-    expect(screen.getByText('Preview-only')).toBeInTheDocument();
+    expect(screen.getByText('OGB CRM active')).toBeInTheDocument();
+    expect(screen.getByText('Writeback gated')).toBeInTheDocument();
+  });
+
+  it('does not present an external-connection-disabled posture', () => {
+    const { container } = render(<BankerCrmIntelligencePanel />);
+    expect(container.innerHTML).not.toMatch(/external connection disabled/i);
   });
 
   it('hero drill-through card is self-contained (no standalone floating action)', () => {
@@ -74,7 +79,7 @@ describe('Phase 157 — BankerCrmIntelligencePanel premium cockpit', () => {
     render(<BankerCrmIntelligencePanel />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-command-center').querySelector('summary')!);
     expect(screen.getByTestId('panel-banker-crm-command-center')).toBeInTheDocument();
-    expect(screen.getByText(/Read-only, preview-only/)).toBeInTheDocument();
+    expect(screen.getByText(/Read-only\. Writeback gated\./)).toBeInTheDocument();
   });
 
   it('renders CRM Readiness lane', () => {

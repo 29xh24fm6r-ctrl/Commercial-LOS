@@ -1,62 +1,65 @@
 /**
- * BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 — honest CRM preview inputs.
+ * Phase 202 — OGB-native CRM working-surface inputs (honest, internal).
  *
  * The CRM working surfaces (banker / manager / executive) are pure presentational
- * components that take fully-formed read-only inputs. The live workspaces have no
- * CRM data provider wired in yet, so these builders return an HONEST preview /
- * not-yet-connected posture — NOT fabricated readiness or fake sync success. Every
- * readiness field states it is preview / not connected, all counts are an honest
- * zero (nothing has been loaded), and the next step is a real, safe review action
- * with no live connection. No fetch, no write, no credentials, no fake data.
+ * components that take fully-formed read-only inputs. These are the OGB-NATIVE
+ * internal CRM surfaces (LOS / Dataverse-native) — NOT an external Salesforce /
+ * nCino connector. The posture is "internal OGB CRM active, read-only, writeback
+ * gated", with honest empty counts (an honest zero — nothing linked yet) where no
+ * internal records are available. No fabricated readiness, no fake sync success,
+ * no fetch, no write, no credentials, no fake data, and no external connection.
  */
 
 import type { CrmBankerSurfaceInput } from './CrmBankerWorkingSurface';
 import type { CrmManagerSurfaceInput } from './CrmManagerWorkingSurface';
 import type { CrmExecutiveSurfaceInput } from './CrmExecutiveWorkingSurface';
 
-const NOT_CONNECTED = 'Preview — external connection disabled';
+/** OGB-native internal CRM posture: active, read-only, writeback gated. */
+const INTERNAL_CRM_ACTIVE = 'OGB CRM active — internal relationship intelligence (writeback gated)';
+/** OGB-native internal lending-workflow posture: active, read-only. */
+const INTERNAL_WORKFLOW_ACTIVE = 'Internal lending workflow active (writeback gated)';
 
-/** Honest banker CRM preview posture (no provider data available yet). */
+/** Honest banker OGB CRM posture (internal active; no records linked yet). */
 export function bankerCrmPreviewInput(): CrmBankerSurfaceInput {
   return {
     relationshipOverview: undefined,
-    salesforceReadiness: NOT_CONNECTED,
-    ncinoReadiness: NOT_CONNECTED,
+    salesforceReadiness: INTERNAL_CRM_ACTIVE,
+    ncinoReadiness: INTERNAL_WORKFLOW_ACTIVE,
     entityMatchStatus: 'Awaiting human review',
     sourceOfTruthGaps: 0,
     syncPreviewBlockers: 0,
     nextSafeBankerStep:
-      'Review CRM source-of-truth, matching, sync preview, and dry-run posture (no live connection).',
+      'Review OGB CRM source-of-truth, relationship matching, and internal readiness (read-only; writeback gated).',
     crmCommandCenterHref: undefined,
   };
 }
 
-/** Honest manager CRM preview posture (no provider data available yet). */
+/** Honest manager OGB CRM posture (internal active; read-only). */
 export function managerCrmPreviewInput(): CrmManagerSurfaceInput {
   return {
-    teamCrmReadiness: NOT_CONNECTED,
+    teamCrmReadiness: INTERNAL_CRM_ACTIVE,
     bankerFollowUpWorkload: 0,
     sourceOfTruthConflicts: 0,
-    salesforceReadinessByPipeline: NOT_CONNECTED,
-    ncinoReadinessByPipeline: NOT_CONNECTED,
+    salesforceReadinessByPipeline: INTERNAL_CRM_ACTIVE,
+    ncinoReadinessByPipeline: INTERNAL_WORKFLOW_ACTIVE,
     syncPreviewBlockedCount: 0,
     nextSafeManagerStep:
-      'Review team CRM readiness and source-of-truth conflicts (read-only; no assignment changes).',
+      'Review team OGB CRM readiness and source-of-truth conflicts (read-only; no assignment changes).',
     crmCommandCenterHref: undefined,
   };
 }
 
-/** Honest executive CRM preview posture (no provider data; no fake revenue). */
+/** Honest executive OGB CRM posture (internal active; no fake revenue). */
 export function executiveCrmPreviewInput(): CrmExecutiveSurfaceInput {
   return {
-    crmCoverageStatus: NOT_CONNECTED,
-    salesforceActivationPosture: 'Disabled by default (read-only)',
-    ncinoActivationPosture: 'Disabled by default (read-only)',
+    crmCoverageStatus: INTERNAL_CRM_ACTIVE,
+    salesforceActivationPosture: 'Internal — active, read-only (writeback gated)',
+    ncinoActivationPosture: 'Internal — active, read-only (writeback gated)',
     relationshipIntelligenceGaps: 0,
-    productStrategyCrmReadiness: NOT_CONNECTED,
+    productStrategyCrmReadiness: INTERNAL_CRM_ACTIVE,
     revenueDataAvailability: 'Not available (no revenue figures shown)',
     nextExecutiveStep:
-      'Review CRM coverage and activation posture (read-only; no live writes).',
+      'Review OGB CRM coverage and internal activation posture (read-only; no live writes).',
     crmCommandCenterHref: undefined,
   };
 }

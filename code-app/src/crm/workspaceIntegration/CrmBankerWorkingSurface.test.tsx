@@ -30,8 +30,8 @@ vi.mock('../../shared/drillthrough/DrillThroughCard', () => ({
 
 const INPUT: CrmBankerSurfaceInput = {
   relationshipOverview: undefined,
-  salesforceReadiness: 'Preview — external connection disabled',
-  ncinoReadiness: 'Preview — external connection disabled',
+  salesforceReadiness: 'OGB CRM active — internal relationship intelligence (writeback gated)',
+  ncinoReadiness: 'Internal lending workflow active (writeback gated)',
   entityMatchStatus: 'Awaiting human review',
   sourceOfTruthGaps: 2,
   syncPreviewBlockers: 1,
@@ -60,21 +60,21 @@ describe('Phase 150 — CRM Command Center interaction wiring', () => {
     expect(panel.textContent).toContain('Next safe step');
   });
 
-  it('clicking CRM opens details explaining external connection disabled', () => {
+  it('clicking CRM opens details showing active internal OGB CRM, writeback gated', () => {
     render(<CrmBankerWorkingSurface input={INPUT} />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-salesforce').querySelector('summary')!);
     const panel = screen.getByTestId('panel-banker-crm-salesforce');
-    expect(panel.textContent).toContain('Disabled. No live connection to any external CRM platform.');
-    expect(panel.textContent).toContain('Preview-only');
-    expect(panel.textContent).toContain('What would be required');
+    expect(panel.textContent).toContain('Active. Internal relationship intelligence');
+    expect(panel.textContent).toContain('Writeback gated');
+    expect(panel.textContent).not.toMatch(/external connection disabled/i);
   });
 
-  it('clicking Lending Workflow opens details explaining sync disabled', () => {
+  it('clicking Lending Workflow opens details showing active internal workflow, writeback gated', () => {
     render(<CrmBankerWorkingSurface input={INPUT} />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-ncino').querySelector('summary')!);
     const panel = screen.getByTestId('panel-banker-crm-ncino');
-    expect(panel.textContent).toContain('Disabled. No live sync to any external lending workflow platform.');
-    expect(panel.textContent).toContain('Why disabled');
+    expect(panel.textContent).toContain('Active. Internal OGB lending workflow readiness');
+    expect(panel.textContent).toContain('Gated');
   });
 
   it('clicking Match Status opens details explaining human review requirement', () => {
@@ -101,10 +101,11 @@ describe('Phase 150 — CRM Command Center interaction wiring', () => {
     expect(panel.textContent).toContain('conflict requires human review');
   });
 
-  it('read-only / preview-only badges remain in footer', () => {
+  it('footer shows active OGB CRM with writeback gated', () => {
     render(<CrmBankerWorkingSurface input={INPUT} />);
-    expect(screen.getByText(/Preview-only CRM intelligence/)).toBeInTheDocument();
-    expect(screen.getByText(/Live writes disabled/)).toBeInTheDocument();
+    expect(screen.getAllByText(/OGB CRM active — internal relationship intelligence/).length).toBeGreaterThanOrEqual(1);
+    // Footer-unique copy.
+    expect(screen.getByText(/Writeback gated\. No sync or push actions\./)).toBeInTheDocument();
   });
 
   it('no write/sync/connect buttons exist', () => {

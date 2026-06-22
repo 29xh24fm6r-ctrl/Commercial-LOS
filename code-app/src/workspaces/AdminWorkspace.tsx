@@ -10,6 +10,7 @@ import { AlertBacklog } from '../admin/AlertBacklog';
 import { ConfigurationOverview } from '../admin/ConfigurationOverview';
 import { StageGovernanceDiagnostics } from '../admin/StageGovernanceDiagnostics';
 import { ReleaseReadinessGate } from '../admin/ReleaseReadinessGate';
+import { OgbCrmWorkflowActivationPanel } from '../admin/OgbCrmWorkflowActivationPanel';
 import { FullSystemLaunchReadinessConsole } from '../admin/FullSystemLaunchReadinessConsole';
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
@@ -48,6 +49,9 @@ function AdminWorkspaceContent() {
       <main style={styles.main}>
         <AdminOperationsConsole />
         <ReleaseReadinessGate />
+        {/* Phase 202: read-only OGB CRM / Lending Workflow activation status,
+            admin-only (inherits the admin route + AdminProvider gate). */}
+        <OgbCrmWorkflowActivationPanel />
         {/* Phase 198: read-only full-system launch readiness, admin-only (inherits
             the WorkspaceGate admin route + AdminProvider identity gate). No new
             route, no entitlement widening, no action affordance. */}

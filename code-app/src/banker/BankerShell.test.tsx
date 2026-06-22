@@ -487,7 +487,7 @@ describe('BUGFIX-CRM-VISIBLE — Banker dashboard mounts the CRM Command Center 
     const crm = await screen.findByRole('region', { name: 'CRM Command Center' });
     // DrillThroughCard renders the title in a face span; use getAllByText for multiple matches.
     expect(within(crm).getAllByText('CRM Command Center').length).toBeGreaterThanOrEqual(1);
-    expect(within(crm).getAllByText(/CRM and lending workflow preview intelligence/).length).toBeGreaterThanOrEqual(1);
+    expect(within(crm).getAllByText(/OGB CRM and internal lending workflow intelligence/).length).toBeGreaterThanOrEqual(1);
     // Read-only CRM working surface is mounted alongside the entry.
     expect(within(crm).getByText('CRM Intelligence')).toBeInTheDocument();
   });
