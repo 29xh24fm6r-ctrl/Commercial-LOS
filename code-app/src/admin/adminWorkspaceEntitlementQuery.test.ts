@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveHasAdminWorkspaceEntitlement,
+  strictAdminEntitlementName,
   ADMIN_ACCESS_LEVEL_NAMES,
   type AdminEntitlementCandidate,
 } from './adminWorkspaceEntitlementQuery';
@@ -65,9 +66,10 @@ describe('204B — admin authorization gates', () => {
   it('7. ckingma admin entitlement does NOT authorize Matthew (profile scoping)', () => {
     expect(authorize([ent({ losUserProfileId: CKINGMA })], [MATT])).toBe(false);
   });
-  it('8. an admin-named but non-admin-workspace entitlement does NOT authorize', () => {
-    // The decision ignores entitlement name; the workspace must resolve to admin.
-    expect(authorize([ent({ workspaceName: 'Banker Workspace', accessLevelName: 'Admin' })])).toBe(false);
+  it('8. a non-admin name AND non-admin workspace does NOT authorize (even at Admin level)', () => {
+    expect(
+      authorize([ent({ workspaceName: 'Banker Workspace', accessLevelName: 'Admin', entitlementName: 'Banker Full Access' })]),
+    ).toBe(false);
   });
   it('9. owner = Matthew does NOT authorize without a LOS profile match', () => {
     // A fully-admin entitlement whose LOS profile is someone else, even if owned
@@ -93,5 +95,80 @@ describe('204B — admin authorization gates', () => {
 
   it('only Full and Admin authorize (ReadOnly does not)', () => {
     expect([...ADMIN_ACCESS_LEVEL_NAMES].sort()).toEqual(['Admin', 'Full']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 204C — live row shape: Workspace optional/blank, name carries meaning
+// ---------------------------------------------------------------------------
+
+/** The live operator row shape for Matthew (blank Workspace by default). */
+function liveRow(over: Partial<AdminEntitlementCandidate> = {}): AdminEntitlementCandidate {
+  return {
+    entitlementName: 'Matthew Paller - Admin Full Access',
+    accessLevelName: 'Admin',
+    workspaceName: undefined, // Workspace lookup is optional / blank in live data
+    losUserProfileId: MATT,
+    active: true,
+    ...over,
+  };
+}
+
+describe('204C — strictAdminEntitlementName resolver', () => {
+  it('resolves admin-access names to true', () => {
+    for (const name of [
+      'Matthew Paller - Admin Full Access',
+      'Admin Full Access',
+      'Admin Access',
+      'Executive Admin Access',
+      'Admin Control Center Access',
+    ]) {
+      expect(strictAdminEntitlementName(name), name).toBe(true);
+    }
+  });
+  it('resolves non-admin names to false', () => {
+    for (const name of ['Banker Full Access', 'Team Member Full Access', 'Manager ReadOnly Access', '', undefined]) {
+      expect(strictAdminEntitlementName(name), String(name)).toBe(false);
+    }
+  });
+  it('does not match unsafe substrings (administrator / badminton)', () => {
+    expect(strictAdminEntitlementName('Administrator Reporting Access')).toBe(false);
+    expect(strictAdminEntitlementName('Badminton Club Access')).toBe(false);
+  });
+});
+
+describe('204C — authorization over the live (blank-Workspace) row shape', () => {
+  it('Matthew + Active + Admin + admin name + blank Workspace => authorized', () => {
+    expect(authorize([liveRow({ accessLevelName: 'Admin' })])).toBe(true);
+  });
+  it('Matthew + Active + Full + admin name + blank Workspace => authorized', () => {
+    expect(authorize([liveRow({ accessLevelName: 'Full' })])).toBe(true);
+  });
+  it('Matthew + Active + Full + "Banker Full Access" + blank Workspace => not authorized', () => {
+    expect(authorize([liveRow({ accessLevelName: 'Full', entitlementName: 'Banker Full Access' })])).toBe(false);
+  });
+  it('Matthew + Active + Full + "Team Member Full Access" + blank Workspace => not authorized', () => {
+    expect(authorize([liveRow({ accessLevelName: 'Full', entitlementName: 'Team Member Full Access' })])).toBe(false);
+  });
+  it('Matthew + Active + ReadOnly + admin name => not authorized', () => {
+    expect(authorize([liveRow({ accessLevelName: 'ReadOnly' })])).toBe(false);
+  });
+  it('inactive admin entitlement => not authorized', () => {
+    expect(authorize([liveRow({ active: false })])).toBe(false);
+  });
+  it('ckingma profile + admin entitlement does not authorize Matthew', () => {
+    expect(authorize([liveRow({ losUserProfileId: CKINGMA })], [MATT])).toBe(false);
+  });
+  it('Owner Matthew without LOS profile match does not authorize', () => {
+    expect(authorize([liveRow({ losUserProfileId: 'profile-other' })], [MATT])).toBe(false);
+  });
+  it('Workspace = Admin Control Center (populated) still authorizes', () => {
+    expect(authorize([liveRow({ workspaceName: 'Admin Control Center', entitlementName: 'Generic Access' })])).toBe(true);
+  });
+  it('no current LOS profile ids => fail-closed', () => {
+    expect(authorize([liveRow()], [])).toBe(false);
+  });
+  it('entitlement name alone (no profile match) does not authorize', () => {
+    expect(authorize([liveRow({ losUserProfileId: 'someone-else' })], [MATT])).toBe(false);
   });
 });
