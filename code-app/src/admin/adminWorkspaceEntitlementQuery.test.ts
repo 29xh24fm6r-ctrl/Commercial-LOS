@@ -2,67 +2,91 @@ import { describe, it, expect } from 'vitest';
 import {
   deriveHasAdminWorkspaceEntitlement,
   ADMIN_ACCESS_LEVEL_NAMES,
+  type AdminEntitlementCandidate,
 } from './adminWorkspaceEntitlementQuery';
+import { resolveWorkspaceRoute, WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 
 /**
- * Phase 204 — admin-entitlement derivation contract.
+ * Phase 204 / 204B — admin-entitlement derivation contract.
  *
- * The pure predicate decides whether the user's workspace entitlements grant
- * Admin-workspace access (admin workspace + Full/Admin level). Fail-closed.
+ * Authorization requires ALL FOUR gates: active entitlement, current LOS profile
+ * match, access level Admin/Full, and a workspace name that resolves (via the
+ * canonical resolver) to the admin route. Never authorize from entitlement name,
+ * access level, or owner alone.
  */
 
-describe('204 — deriveHasAdminWorkspaceEntitlement', () => {
-  it('is true for an Admin workspace entitlement at Full level', () => {
-    expect(
-      deriveHasAdminWorkspaceEntitlement([
-        { workspaceName: 'Admin Control Center', accessLevelName: 'Full' },
-      ]),
-    ).toBe(true);
+const MATT = 'profile-matt';
+const CKINGMA = 'profile-ckingma';
+
+/** A valid admin entitlement for Matthew (override individual fields per test). */
+function ent(over: Partial<AdminEntitlementCandidate> = {}): AdminEntitlementCandidate {
+  return {
+    accessLevelName: 'Admin',
+    workspaceName: 'Admin Control Center',
+    losUserProfileId: MATT,
+    active: true,
+    ...over,
+  };
+}
+
+const authorize = (entitlements: AdminEntitlementCandidate[], profiles: string[] = [MATT]) =>
+  deriveHasAdminWorkspaceEntitlement({ userLosProfileIds: profiles, entitlements });
+
+describe('204B — canonical workspace-route resolver alignment', () => {
+  it('1. "Admin Control Center" resolves to the admin route', () => {
+    expect(resolveWorkspaceRoute('Admin Control Center')).toBe(WORKSPACE_ROUTES.admin);
+  });
+  it('2. "Admin Workspace" resolves to the admin route (backward compatibility)', () => {
+    expect(resolveWorkspaceRoute('Admin Workspace')).toBe(WORKSPACE_ROUTES.admin);
+  });
+  it('preserves the other live reference mappings', () => {
+    expect(resolveWorkspaceRoute('Banker Workspace')).toBe(WORKSPACE_ROUTES.banker);
+    expect(resolveWorkspaceRoute('Team Workspace')).toBe(WORKSPACE_ROUTES.team);
+    expect(resolveWorkspaceRoute('Manager Command Center')).toBe(WORKSPACE_ROUTES.manager);
+    expect(resolveWorkspaceRoute('Executive Dashboard')).toBe(WORKSPACE_ROUTES.executive);
+    // Portfolio Management is rendered as a surface under the manager route.
+    expect(resolveWorkspaceRoute('Portfolio Management')).toBe(WORKSPACE_ROUTES.manager);
+  });
+});
+
+describe('204B — admin authorization gates', () => {
+  it('3. Matthew + Admin Control Center + Admin access authorizes', () => {
+    expect(authorize([ent({ accessLevelName: 'Admin' })])).toBe(true);
+  });
+  it('4. Matthew + Admin Control Center + Full access authorizes', () => {
+    expect(authorize([ent({ accessLevelName: 'Full' })])).toBe(true);
+  });
+  it('5. Matthew + Banker Workspace + Full does NOT authorize admin', () => {
+    expect(authorize([ent({ workspaceName: 'Banker Workspace', accessLevelName: 'Full' })])).toBe(false);
+  });
+  it('6. Matthew + Team Workspace + Full does NOT authorize admin', () => {
+    expect(authorize([ent({ workspaceName: 'Team Workspace', accessLevelName: 'Full' })])).toBe(false);
+  });
+  it('7. ckingma admin entitlement does NOT authorize Matthew (profile scoping)', () => {
+    expect(authorize([ent({ losUserProfileId: CKINGMA })], [MATT])).toBe(false);
+  });
+  it('8. an admin-named but non-admin-workspace entitlement does NOT authorize', () => {
+    // The decision ignores entitlement name; the workspace must resolve to admin.
+    expect(authorize([ent({ workspaceName: 'Banker Workspace', accessLevelName: 'Admin' })])).toBe(false);
+  });
+  it('9. owner = Matthew does NOT authorize without a LOS profile match', () => {
+    // A fully-admin entitlement whose LOS profile is someone else, even if owned
+    // by Matthew, is not the current user's profile → not authorized.
+    expect(authorize([ent({ losUserProfileId: 'profile-someone-else' })], [MATT])).toBe(false);
+  });
+  it('10. fail-closed: inactive entitlement, ReadOnly access, or no profile', () => {
+    expect(authorize([ent({ active: false })])).toBe(false);
+    expect(authorize([ent({ accessLevelName: 'ReadOnly' })])).toBe(false);
+    expect(authorize([ent()], [])).toBe(false); // no user profile → fail closed
+    expect(authorize([])).toBe(false);
   });
 
-  it('is true for an Admin workspace entitlement at Admin level', () => {
+  it('finds the admin grant among mixed entitlements', () => {
     expect(
-      deriveHasAdminWorkspaceEntitlement([
-        { workspaceName: 'Admin Control Center', accessLevelName: 'Admin' },
-      ]),
-    ).toBe(true);
-  });
-
-  it('is false for an Admin workspace at ReadOnly level (insufficient)', () => {
-    expect(
-      deriveHasAdminWorkspaceEntitlement([
-        { workspaceName: 'Admin Control Center', accessLevelName: 'ReadOnly' },
-      ]),
-    ).toBe(false);
-  });
-
-  it('is false for a non-admin workspace even at Full level', () => {
-    expect(
-      deriveHasAdminWorkspaceEntitlement([
-        { workspaceName: 'Banker Workspace', accessLevelName: 'Full' },
-      ]),
-    ).toBe(false);
-  });
-
-  it('is false for an empty entitlement set (fail-closed)', () => {
-    expect(deriveHasAdminWorkspaceEntitlement([])).toBe(false);
-  });
-
-  it('is false when the workspace name does not resolve to a known workspace', () => {
-    expect(
-      deriveHasAdminWorkspaceEntitlement([
-        { workspaceName: undefined, accessLevelName: 'Full' },
-        { workspaceName: 'Totally Unknown', accessLevelName: 'Admin' },
-      ]),
-    ).toBe(false);
-  });
-
-  it('finds the admin grant among multiple entitlements', () => {
-    expect(
-      deriveHasAdminWorkspaceEntitlement([
-        { workspaceName: 'Banker Workspace', accessLevelName: 'Full' },
-        { workspaceName: 'Manager Command Center', accessLevelName: 'ReadOnly' },
-        { workspaceName: 'Admin Control Center', accessLevelName: 'Admin' },
+      authorize([
+        ent({ workspaceName: 'Banker Workspace', accessLevelName: 'Full' }),
+        ent({ workspaceName: 'Manager Command Center', accessLevelName: 'ReadOnly' }),
+        ent({ workspaceName: 'Admin Control Center', accessLevelName: 'Admin' }),
       ]),
     ).toBe(true);
   });

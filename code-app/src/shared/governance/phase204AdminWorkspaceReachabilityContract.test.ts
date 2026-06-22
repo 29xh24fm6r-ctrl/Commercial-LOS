@@ -35,11 +35,21 @@ describe('204 — doc + probe behavior', () => {
     }
   });
 
-  it('admin entitlement requires the admin workspace at Full/Admin level', () => {
-    expect(deriveHasAdminWorkspaceEntitlement([{ workspaceName: 'Admin Control Center', accessLevelName: 'Full' }])).toBe(true);
-    expect(deriveHasAdminWorkspaceEntitlement([{ workspaceName: 'Admin Control Center', accessLevelName: 'ReadOnly' }])).toBe(false);
-    expect(deriveHasAdminWorkspaceEntitlement([{ workspaceName: 'Banker Workspace', accessLevelName: 'Full' }])).toBe(false);
-    expect(deriveHasAdminWorkspaceEntitlement([])).toBe(false);
+  it('admin entitlement requires admin workspace + Full/Admin + active + profile match', () => {
+    const P = ['profile-1'];
+    const ent = (over = {}) => ({
+      accessLevelName: 'Full',
+      workspaceName: 'Admin Control Center',
+      losUserProfileId: 'profile-1',
+      active: true,
+      ...over,
+    });
+    expect(deriveHasAdminWorkspaceEntitlement({ userLosProfileIds: P, entitlements: [ent()] })).toBe(true);
+    expect(deriveHasAdminWorkspaceEntitlement({ userLosProfileIds: P, entitlements: [ent({ accessLevelName: 'ReadOnly' })] })).toBe(false);
+    expect(deriveHasAdminWorkspaceEntitlement({ userLosProfileIds: P, entitlements: [ent({ workspaceName: 'Banker Workspace' })] })).toBe(false);
+    expect(deriveHasAdminWorkspaceEntitlement({ userLosProfileIds: P, entitlements: [ent({ active: false })] })).toBe(false);
+    expect(deriveHasAdminWorkspaceEntitlement({ userLosProfileIds: P, entitlements: [ent({ losUserProfileId: 'other' })] })).toBe(false);
+    expect(deriveHasAdminWorkspaceEntitlement({ userLosProfileIds: P, entitlements: [] })).toBe(false);
   });
 });
 
