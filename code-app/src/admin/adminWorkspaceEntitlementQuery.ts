@@ -32,6 +32,53 @@ export type AdminWorkspaceEntitlementResult =
   | { kind: 'not-entitled' }
   | { kind: 'failed'; message: string };
 
+// ---------------------------------------------------------------------------
+// Phase 204F — PlatformUser validity gate (aligned with bootstrapFlow.ts)
+// ---------------------------------------------------------------------------
+
+/** cr664_platformusers.statecode value meaning the row is Inactive. */
+const PLATFORM_USER_STATECODE_INACTIVE = 1;
+/** cr664_identitystatus option-set values that explicitly BLOCK the probe. */
+const IDENTITY_STATUS_DISABLED = 788190002;
+const IDENTITY_STATUS_SUSPENDED = 788190003;
+
+/** The PlatformUser fields the admin probe inspects for usability. */
+export interface AdminProbePlatformUser {
+  readonly cr664_activestatus?: boolean;
+  readonly cr664_identitystatus?: number;
+  readonly statecode?: number;
+}
+
+/**
+ * Phase 204F — is this PlatformUser usable for the admin probe? Aligned with
+ * `bootstrapFlow.ts`, which lets a user boot the app on the strength of a
+ * PlatformUser row + a primary workspace and does NOT gate on `cr664_activestatus`.
+ *
+ * The probe must not be STRICTER than bootstrap, or a user who boots the app
+ * normally could fail the admin probe before entitlement evaluation. So
+ * `cr664_activestatus` (optional, sometimes omitted/false) is NOT a required gate.
+ * The row is usable unless it is EXPLICITLY disabled:
+ *   - `statecode === 1` (Inactive)               → not usable;
+ *   - `cr664_identitystatus` Disabled/Suspended   → not usable.
+ * A missing row is not usable. Everything else (including undefined/false
+ * activestatus, undefined statecode/identitystatus, or identitystatus Pending)
+ * is usable and proceeds to entitlement evaluation. Fail-closed on explicit
+ * deactivation only.
+ */
+export function resolvePlatformUserUsableForAdminProbe(
+  user: AdminProbePlatformUser | undefined | null,
+): boolean {
+  if (!user) return false;
+  if (user.statecode === PLATFORM_USER_STATECODE_INACTIVE) return false;
+  if (
+    user.cr664_identitystatus === IDENTITY_STATUS_DISABLED ||
+    user.cr664_identitystatus === IDENTITY_STATUS_SUSPENDED
+  ) {
+    return false;
+  }
+  return true;
+}
+
 /** Access-level names (cr664_accesslevelname) that authorize admin-workspace access. */
 export const ADMIN_ACCESS_LEVEL_NAMES: ReadonlySet<string> = new Set(['Full', 'Admin']);
 
@@ -293,16 +340,20 @@ export async function loadAdminWorkspaceEntitlement(
         import('../generated/services/Cr664_workspaceentitlementsesService'),
       ]);
 
-    // Phase 204E — canonical identity is the live PlatformUser (Phase 115), matched
-    // by cr664_email exactly as bootstrapFlow.ts does. We DO NOT require the legacy
-    // _cr664_coreuser_value / losuserprofile chain (the live env does not populate
-    // it); a valid active PlatformUser is sufficient identity.
+    // Phase 204E/204F — canonical identity is the live PlatformUser (Phase 115),
+    // matched by cr664_email exactly as bootstrapFlow.ts does. We DO NOT require the
+    // legacy _cr664_coreuser_value / losuserprofile chain (the live env does not
+    // populate it), and (204F) we DO NOT require cr664_activestatus — a PlatformUser
+    // that boots the app (row present, not explicitly Inactive/Disabled/Suspended)
+    // is usable identity for the probe.
     const userRes = await Cr664_platformusersService.getAll({
       select: [
         'cr664_platformuserid',
         'cr664_email',
         'cr664_fullname',
         'cr664_activestatus',
+        'cr664_identitystatus',
+        'statecode',
         '_cr664_coreuser_value',
       ],
       filter: `cr664_email eq '${escapeOData(trimmed)}'`,
@@ -312,7 +363,10 @@ export async function loadAdminWorkspaceEntitlement(
       return { kind: 'failed', message: userRes.error?.message ?? 'Failed to load platform user.' };
     }
     const user = userRes.data?.[0];
-    if (!user || user.cr664_activestatus !== true) return { kind: 'not-entitled' };
+    // Phase 204F — align with bootstrapFlow.ts: do NOT require cr664_activestatus.
+    // Fail closed only on explicit deactivation (Inactive statecode or
+    // Disabled/Suspended identity status).
+    if (!resolvePlatformUserUsableForAdminProbe(user)) return { kind: 'not-entitled' };
 
     // Optional legacy signal: resolve LOS profile id(s) ONLY when the legacy core
     // user link is present. A blank core user no longer fails the probe, and a

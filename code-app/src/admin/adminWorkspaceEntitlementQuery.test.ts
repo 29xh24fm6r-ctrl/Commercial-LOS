@@ -3,6 +3,7 @@ import {
   deriveHasAdminWorkspaceEntitlement,
   deriveHasAdminWorkspaceEntitlementForUser,
   matchesCurrentUserIdentity,
+  resolvePlatformUserUsableForAdminProbe,
   strictAdminEntitlementName,
   resolveAccessLevelKind,
   ADMIN_ACCESS_LEVEL_NAMES,
@@ -10,6 +11,7 @@ import {
   ACCESS_LEVEL_OPTION_SET,
   type AdminCurrentUser,
   type AdminEntitlementCandidate,
+  type AdminProbePlatformUser,
 } from './adminWorkspaceEntitlementQuery';
 import { resolveWorkspaceRoute, WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 
@@ -376,5 +378,77 @@ describe('204E — matchesCurrentUserIdentity safe-signal contract', () => {
     // not owner, not a generic admin name, not a different user's label
     expect(matchesCurrentUserIdentity(cu, eRow({ entitlementName: 'Executive Admin Access', losUserProfileName: undefined, ownerName: 'Matthew Paller' }))).toBe(false);
     expect(matchesCurrentUserIdentity(cu, eRow({ losUserProfileName: 'ckingma@oldglorybank.com', entitlementName: 'Generic' }))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 204F — PlatformUser active-gate alignment with bootstrapFlow.ts
+// ---------------------------------------------------------------------------
+
+const IDENTITY_ACTIVE = 788190000;
+const IDENTITY_PENDING = 788190001;
+const IDENTITY_DISABLED = 788190002;
+const IDENTITY_SUSPENDED = 788190003;
+
+/** A bootable PlatformUser (active state + identity), activestatus overridable. */
+function platformUser(over: Partial<AdminProbePlatformUser> = {}): AdminProbePlatformUser {
+  return {
+    statecode: 0,
+    cr664_identitystatus: IDENTITY_ACTIVE,
+    cr664_activestatus: true,
+    ...over,
+  };
+}
+
+describe('204F — resolvePlatformUserUsableForAdminProbe (bootstrap-aligned)', () => {
+  it('no user row => false', () => {
+    expect(resolvePlatformUserUsableForAdminProbe(undefined)).toBe(false);
+    expect(resolvePlatformUserUsableForAdminProbe(null)).toBe(false);
+  });
+  it('explicit Inactive statecode => false', () => {
+    expect(resolvePlatformUserUsableForAdminProbe(platformUser({ statecode: 1 }))).toBe(false);
+  });
+  it('Disabled / Suspended identity status => false', () => {
+    expect(resolvePlatformUserUsableForAdminProbe(platformUser({ cr664_identitystatus: IDENTITY_DISABLED }))).toBe(false);
+    expect(resolvePlatformUserUsableForAdminProbe(platformUser({ cr664_identitystatus: IDENTITY_SUSPENDED }))).toBe(false);
+  });
+  it('statecode 0 + identity Active + activestatus UNDEFINED => true (not blocked)', () => {
+    expect(resolvePlatformUserUsableForAdminProbe(platformUser({ cr664_activestatus: undefined }))).toBe(true);
+  });
+  it('statecode 0 + identity Active + activestatus FALSE => true (bootstrap does not gate on it)', () => {
+    expect(resolvePlatformUserUsableForAdminProbe(platformUser({ cr664_activestatus: false }))).toBe(true);
+  });
+  it('activestatus true => true', () => {
+    expect(resolvePlatformUserUsableForAdminProbe(platformUser({ cr664_activestatus: true }))).toBe(true);
+  });
+  it('missing statecode / identitystatus is non-fatal (not explicitly deactivated)', () => {
+    expect(resolvePlatformUserUsableForAdminProbe({ cr664_activestatus: undefined })).toBe(true);
+    // identity Pending is not Disabled/Suspended => usable
+    expect(resolvePlatformUserUsableForAdminProbe(platformUser({ cr664_identitystatus: IDENTITY_PENDING }))).toBe(true);
+  });
+  it('explicit deactivation wins even when activestatus is true', () => {
+    expect(resolvePlatformUserUsableForAdminProbe(platformUser({ cr664_activestatus: true, statecode: 1 }))).toBe(false);
+    expect(
+      resolvePlatformUserUsableForAdminProbe(platformUser({ cr664_activestatus: true, cr664_identitystatus: IDENTITY_DISABLED })),
+    ).toBe(false);
+  });
+});
+
+describe('204F — usable PlatformUser then unchanged entitlement gates', () => {
+  it('app-boot-compatible user (activestatus false) is usable AND a Matthew row authorizes', () => {
+    const user = platformUser({ cr664_activestatus: false });
+    expect(resolvePlatformUserUsableForAdminProbe(user)).toBe(true);
+    expect(authorizeUser([eRow({ losUserProfileName: UPN })])).toBe(true);
+  });
+  it('usable user + ckingma admin row does not authorize Matthew', () => {
+    expect(resolvePlatformUserUsableForAdminProbe(platformUser({ cr664_activestatus: undefined }))).toBe(true);
+    expect(
+      authorizeUser([eRow({ entitlementName: 'ckingma - Admin Full Access', losUserProfileName: 'ckingma@oldglorybank.com' })]),
+    ).toBe(false);
+  });
+  it('usable user + owner-only row does not authorize', () => {
+    expect(
+      authorizeUser([eRow({ entitlementName: 'Executive Admin Access', ownerName: 'Matthew Paller', losUserProfileName: undefined })]),
+    ).toBe(false);
   });
 });
