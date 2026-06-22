@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveHasAdminWorkspaceEntitlement,
+  deriveHasAdminWorkspaceEntitlementForUser,
+  matchesCurrentUserIdentity,
   strictAdminEntitlementName,
   resolveAccessLevelKind,
   ADMIN_ACCESS_LEVEL_NAMES,
   ADMIN_ACCESS_LEVEL_KINDS,
   ACCESS_LEVEL_OPTION_SET,
+  type AdminCurrentUser,
   type AdminEntitlementCandidate,
 } from './adminWorkspaceEntitlementQuery';
 import { resolveWorkspaceRoute, WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
@@ -262,5 +265,116 @@ describe('204D — authorization over the numeric access-level row shape', () =>
     expect(
       authorize([numericRow({ accessLevel: 788190002, workspaceName: 'Admin Control Center', entitlementName: 'Generic Access' })]),
     ).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 204E — live PlatformUser identity (no legacy core-user chain required)
+// ---------------------------------------------------------------------------
+
+const UPN = 'mpaller@oldglorybank.com';
+
+/** The live current user: an active PlatformUser, NO legacy LOS profile ids. */
+function currentUser(over: Partial<AdminCurrentUser> = {}): AdminCurrentUser {
+  return {
+    upn: UPN,
+    platformUserId: 'pu-matt',
+    fullName: 'Matthew Paller',
+    losUserProfileIds: [],
+    ...over,
+  };
+}
+
+/** An admin-shaped entitlement row (numeric Admin, blank Workspace). */
+function eRow(over: Partial<AdminEntitlementCandidate> = {}): AdminEntitlementCandidate {
+  return {
+    entitlementName: 'Matthew Paller - Admin Full Access',
+    accessLevel: 788190002,
+    workspaceName: undefined,
+    losUserProfileId: undefined,
+    losUserProfileName: undefined,
+    active: true,
+    ...over,
+  };
+}
+
+const authorizeUser = (
+  entitlements: AdminEntitlementCandidate[],
+  cu: AdminCurrentUser = currentUser(),
+) => deriveHasAdminWorkspaceEntitlementForUser({ currentUser: cu, entitlements });
+
+describe('204E — identity-aware authorization over live PlatformUser identity', () => {
+  it('active platform user with NO core-user / LOS profile ids no longer auto-fails', () => {
+    // currentUser has losUserProfileIds: [] — identity is matched by the row label;
+    // admin shape comes from the Workspace so the label signal is isolated.
+    expect(
+      authorizeUser([eRow({ losUserProfileName: UPN, entitlementName: 'Generic Access', workspaceName: 'Admin Control Center' })]),
+    ).toBe(true);
+  });
+  it('row with losUserProfileName == UPN, numeric Admin, admin name, blank workspace authorizes', () => {
+    expect(authorizeUser([eRow({ losUserProfileName: UPN })])).toBe(true);
+  });
+  it('row with entitlementName "Matthew Paller - Admin Full Access" authorizes when fullName matches', () => {
+    expect(authorizeUser([eRow({ entitlementName: 'Matthew Paller - Admin Full Access', losUserProfileName: undefined })])).toBe(true);
+  });
+  it('user-specific name keyed on the UPN + " - Admin" also authorizes', () => {
+    expect(authorizeUser([eRow({ entitlementName: `${UPN} - Admin Full Access`, losUserProfileName: undefined })])).toBe(true);
+  });
+  it('ckingma admin row does not authorize Matthew', () => {
+    expect(
+      authorizeUser([
+        eRow({ entitlementName: 'ckingma - Admin Full Access', losUserProfileName: 'ckingma@oldglorybank.com' }),
+      ]),
+    ).toBe(false);
+  });
+  it('generic "Executive Admin Access" without a current-user match does not authorize', () => {
+    expect(authorizeUser([eRow({ entitlementName: 'Executive Admin Access', losUserProfileName: undefined })])).toBe(false);
+  });
+  it('owner = Matthew, by itself, does not authorize (owner is never an identity signal)', () => {
+    expect(
+      authorizeUser([eRow({ entitlementName: 'Executive Admin Access', ownerName: 'Matthew Paller', losUserProfileName: undefined })]),
+    ).toBe(false);
+  });
+  it('ReadOnly / inactive rows do not authorize even with an identity match', () => {
+    expect(authorizeUser([eRow({ losUserProfileName: UPN, accessLevel: 788190001 })])).toBe(false);
+    expect(authorizeUser([eRow({ losUserProfileName: UPN, active: false })])).toBe(false);
+  });
+  it('numeric cr664_accesslevel option-set remains required (undefined access => not authorized)', () => {
+    expect(authorizeUser([eRow({ losUserProfileName: UPN, accessLevel: undefined, accessLevelName: undefined })])).toBe(false);
+  });
+  it('Workspace = Admin Control Center authorizes when an identity match passes', () => {
+    expect(
+      authorizeUser([eRow({ workspaceName: 'Admin Control Center', entitlementName: 'Generic Access', losUserProfileName: UPN })]),
+    ).toBe(true);
+  });
+  it('Workspace = Admin Control Center WITHOUT identity does not authorize', () => {
+    expect(
+      authorizeUser([eRow({ workspaceName: 'Admin Control Center', entitlementName: 'Generic Access', losUserProfileName: undefined })]),
+    ).toBe(false);
+  });
+  it('legacy profile-id match still works when LOS profile ids are present', () => {
+    expect(
+      authorizeUser(
+        [eRow({ losUserProfileId: 'profile-matt', entitlementName: 'Generic Access', workspaceName: 'Admin Control Center' })],
+        currentUser({ losUserProfileIds: ['profile-matt'] }),
+      ),
+    ).toBe(true);
+  });
+  it('empty UPN fails closed', () => {
+    expect(authorizeUser([eRow({ losUserProfileName: UPN })], currentUser({ upn: '' }))).toBe(false);
+  });
+});
+
+describe('204E — matchesCurrentUserIdentity safe-signal contract', () => {
+  it('matches on profile-id, profile-label==UPN, or user-specific name; not owner / generic', () => {
+    const cu = currentUser();
+    expect(matchesCurrentUserIdentity(cu, eRow({ losUserProfileName: UPN }))).toBe(true);
+    expect(matchesCurrentUserIdentity(cu, eRow({ entitlementName: 'Matthew Paller - Admin Full Access' }))).toBe(true);
+    expect(
+      matchesCurrentUserIdentity(currentUser({ losUserProfileIds: ['p1'] }), eRow({ losUserProfileId: 'p1' })),
+    ).toBe(true);
+    // not owner, not a generic admin name, not a different user's label
+    expect(matchesCurrentUserIdentity(cu, eRow({ entitlementName: 'Executive Admin Access', losUserProfileName: undefined, ownerName: 'Matthew Paller' }))).toBe(false);
+    expect(matchesCurrentUserIdentity(cu, eRow({ losUserProfileName: 'ckingma@oldglorybank.com', entitlementName: 'Generic' }))).toBe(false);
   });
 });
