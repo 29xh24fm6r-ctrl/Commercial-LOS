@@ -47,8 +47,8 @@ describe('BUGFIX-CRM-VISIBLE — Banker workspace mounts the CRM entry', () => {
 
   it('the panel renders the required CRM Command Center entry copy', () => {
     expect(panel).toContain('CRM Command Center');
-    expect(panel).toContain('CRM and lending workflow preview intelligence');
-    expect(panel).toContain('Review source-of-truth, matching, sync preview, and dry-run posture.');
+    expect(panel).toContain('OGB CRM and internal lending workflow intelligence');
+    expect(panel).toContain('Review source-of-truth, relationship matching, and internal readiness posture.');
   });
 
   it('the panel renders the read-only CRM banker working surface', () => {
@@ -117,17 +117,17 @@ describe('BUGFIX-CRM-VISIBLE — mount is read-only, preview-honest, no writes /
 describe('BUGFIX-CRM-VISIBLE — preview inputs are honest (not-connected, zero counts, no live href)', () => {
   it('banker preview is not-connected and exposes no command-center href', () => {
     const i = bankerCrmPreviewInput();
-    expect(i.salesforceReadiness).toMatch(/preview/i);
-    expect(i.ncinoReadiness).toMatch(/preview/i);
+    expect(i.salesforceReadiness).toMatch(/OGB CRM active/i);
+    expect(i.ncinoReadiness).toMatch(/Internal lending workflow active/i);
     expect(i.sourceOfTruthGaps).toBe(0);
     expect(i.syncPreviewBlockers).toBe(0);
     expect(i.crmCommandCenterHref).toBeUndefined();
-    expect(i.nextSafeBankerStep).toMatch(/no live connection/i);
+    expect(i.nextSafeBankerStep).toMatch(/writeback gated/i);
   });
 
   it('manager preview is not-connected with no assignment changes', () => {
     const i = managerCrmPreviewInput();
-    expect(i.teamCrmReadiness).toMatch(/preview/i);
+    expect(i.teamCrmReadiness).toMatch(/OGB CRM active/i);
     expect(i.syncPreviewBlockedCount).toBe(0);
     expect(i.crmCommandCenterHref).toBeUndefined();
     expect(i.nextSafeManagerStep).toMatch(/no assignment changes/i);

@@ -103,11 +103,11 @@ export function deriveFullSystemLaunchReadiness(): FullSystemLaunchReadiness {
     },
     {
       id: 'crm-salesforce-ncino',
-      label: 'CRM / Salesforce / nCino Readiness',
+      label: 'OGB CRM / Relationship Command Center',
       status: 'conditional',
       details: [
-        'The CRM / Salesforce / nCino-style relationship foundation is built, mounted, and certified.',
-        'Read-only relationship and live-readiness surfaces are available.',
+        'The OGB-native CRM relationship foundation (Relationship Command Center) is built, mounted, and certified.',
+        'Read-only relationship and internal live-readiness surfaces are available.',
         'CRM writeback remains gated / fail-closed unless separately enabled.',
       ],
       requiredActions: [

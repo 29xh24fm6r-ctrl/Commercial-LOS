@@ -98,7 +98,7 @@ describe('BUGFIX-CRM-VENDOR-BRAND-COPY-REMOVAL-1 — neutral labels present', ()
     const src = readSrc('banker/BankerCrmIntelligencePanel.tsx');
     const literals = extractStringLiterals(src);
     const allCopy = literals.join(' ');
-    expect(allCopy).toContain('CRM and lending workflow preview intelligence');
+    expect(allCopy).toContain('OGB CRM and internal lending workflow intelligence');
   });
 
   it('CrmCommandCenter VM uses neutral labels', () => {

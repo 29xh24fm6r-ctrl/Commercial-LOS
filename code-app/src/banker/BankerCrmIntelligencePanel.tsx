@@ -19,7 +19,7 @@ export function BankerCrmIntelligencePanel() {
   const commandCenterTarget = buildDrillThroughTarget({
     id: 'banker-crm-command-center',
     title: 'CRM Command Center',
-    subtitle: 'CRM and lending workflow preview intelligence',
+    subtitle: 'OGB CRM and internal lending workflow intelligence',
     surface: 'crm_relationship_intelligence',
     entityKind: 'cockpit_widget',
     summary: 'Review source-of-truth, relationship matching, sync preview, and dry-run readiness from the current banker workspace.',
@@ -27,8 +27,8 @@ export function BankerCrmIntelligencePanel() {
       {
         title: 'Posture',
         rows: [
-          { label: 'Safety', value: 'Read-only, preview-only. No sync, push, or write actions.' },
-          { label: 'Next safe step', value: 'Review source-of-truth, matching, sync preview, and dry-run posture.' },
+          { label: 'Safety', value: 'Read-only. Writeback gated. No sync, push, or write actions.' },
+          { label: 'Next safe step', value: 'Review source-of-truth, relationship matching, and internal readiness posture.' },
           { label: 'Derivation', value: 'Derived from local preview input / current banker workspace context.' },
         ],
       },
@@ -45,8 +45,8 @@ export function BankerCrmIntelligencePanel() {
       title: 'CRM Readiness',
       rows: [
         { label: 'Status', value: input.salesforceReadiness },
-        { label: 'Posture', value: 'Preview-only. External connection disabled.' },
-        { label: 'Next step', value: 'Review CRM readiness prerequisites and connector configuration.' },
+        { label: 'Posture', value: 'OGB CRM active — internal relationship intelligence. Writeback gated.' },
+        { label: 'Next step', value: 'Review OGB CRM source-of-truth and relationship matching.' },
       ],
     }],
   });
@@ -61,8 +61,8 @@ export function BankerCrmIntelligencePanel() {
       title: 'Lending Workflow Readiness',
       rows: [
         { label: 'Status', value: input.ncinoReadiness },
-        { label: 'Posture', value: 'Preview-only. External connection disabled.' },
-        { label: 'Next step', value: 'Review lending workflow readiness and document checklist configuration.' },
+        { label: 'Posture', value: 'Internal lending workflow active. Writeback gated.' },
+        { label: 'Next step', value: 'Review internal lending workflow readiness and routing.' },
       ],
     }],
   });
@@ -94,10 +94,10 @@ export function BankerCrmIntelligencePanel() {
             <div style={s.heroLeft}>
               <div style={s.heroTitleRow}>
                 <span style={s.heroTitle}>CRM Command Center</span>
-                <span style={s.badge}>Read-only</span>
-                <span style={s.badgePreview}>Preview-only</span>
+                <span style={s.badge}>OGB CRM active</span>
+                <span style={s.badgePreview}>Writeback gated</span>
               </div>
-              <span style={s.heroSubtitle}>CRM and lending workflow preview intelligence</span>
+              <span style={s.heroSubtitle}>OGB CRM and internal lending workflow intelligence</span>
               <span style={s.heroDesc}>
                 Review source-of-truth, relationship matching, sync preview, and dry-run readiness from the current banker workspace.
               </span>

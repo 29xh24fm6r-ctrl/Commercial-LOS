@@ -23,37 +23,37 @@ const DETAIL_CONTENT: Record<string, { rows: { label: string; value: string }[] 
   relationship: {
     rows: [
       { label: 'Status', value: 'Relationship context derived from authorized banker workspace data' },
-      { label: 'Source-of-truth posture', value: 'LOS is authoritative for borrower identity; external CRM is reference only' },
-      { label: 'Missing data', value: 'No external relationship records loaded (external connection disabled)' },
-      { label: 'Data source', value: 'Authorized banker workspace context — no external lookup performed' },
+      { label: 'Source-of-truth posture', value: 'LOS is authoritative for borrower identity; OGB CRM is the internal relationship system of reference' },
+      { label: 'Missing data', value: 'No relationship records linked yet (honest internal empty state)' },
+      { label: 'Data source', value: 'Authorized banker workspace context — internal OGB CRM, no external lookup' },
       { label: 'Next safe step', value: 'Review relationship ownership and source-of-truth map' },
     ],
   },
   salesforce: {
     rows: [
-      { label: 'External CRM connection', value: 'Disabled. No live connection to any external CRM platform.' },
-      { label: 'Posture', value: 'Preview-only. Read-only intelligence from local workspace context.' },
-      { label: 'What would be required', value: 'Secure transport, connector configuration, auth configuration, read scope documentation, operator approval' },
-      { label: 'Writes', value: 'All external CRM writes are disabled by default' },
-      { label: 'Next safe step', value: 'Review connector readiness prerequisites in the CRM Command Center' },
+      { label: 'OGB CRM', value: 'Active. Internal relationship intelligence from authorized LOS workspace context.' },
+      { label: 'Posture', value: 'Internal, read-only. Writeback gated (no records created, updated, or linked).' },
+      { label: 'What writeback would require', value: 'Writeback policy enablement, persistence adapter, runtime schema gate, and operator approval' },
+      { label: 'Writes', value: 'Writeback gated — disabled by default' },
+      { label: 'Next safe step', value: 'Review OGB CRM source-of-truth and relationship matching' },
     ],
   },
   ncino: {
     rows: [
-      { label: 'Lending workflow sync', value: 'Disabled. No live sync to any external lending workflow platform.' },
-      { label: 'Why disabled', value: 'Secure transport not configured. Auth not configured. Operator approval required before enablement.' },
-      { label: 'Posture', value: 'Preview-only. No loan boarding, booking, or approval actions from this surface.' },
-      { label: 'Writes', value: 'All lending workflow writes are disabled by default' },
-      { label: 'Next safe step', value: 'Review lending workflow readiness and document checklist mapping' },
+      { label: 'Lending workflow', value: 'Active. Internal OGB lending workflow readiness from authorized LOS context.' },
+      { label: 'Writeback', value: 'Gated. No stage, task, or workflow write occurs from this surface.' },
+      { label: 'Posture', value: 'Internal, read-only. No loan boarding, booking, or approval actions from this surface.' },
+      { label: 'Writes', value: 'Workflow writes gated — disabled by default' },
+      { label: 'Next safe step', value: 'Review lending workflow readiness, routing, and document checklist mapping' },
     ],
   },
   'match-status': {
     rows: [
       { label: 'Entity matching', value: 'Awaiting human review. No auto-link performed.' },
-      { label: 'Confidence', value: 'No external records available for comparison (external connection disabled)' },
+      { label: 'Confidence', value: 'Source-of-truth review on internal records (no records linked yet)' },
       { label: 'Matching mode', value: 'Review-only. Matching operates on authorized labels only.' },
       { label: 'Auto-link', value: 'Disabled. No automatic record linking without explicit human confirmation.' },
-      { label: 'Next safe step', value: 'Review match candidates when external read-only pull is enabled' },
+      { label: 'Next safe step', value: 'Review match candidates as internal records are linked' },
     ],
   },
   'sot-gaps': {
@@ -102,16 +102,16 @@ export function CrmBankerWorkingSurface({ input }: Props) {
 
   const targets = [
     { id: 'relationship', label: 'Relationship', value: input.relationshipOverview ?? 'Not available', highlight: false, meaning: 'Relationship context from authorized workspace data' },
-    { id: 'salesforce', label: 'CRM', value: input.salesforceReadiness, highlight: false, meaning: 'External CRM platform readiness posture' },
-    { id: 'ncino', label: 'Lending Workflow', value: input.ncinoReadiness, highlight: false, meaning: 'External lending workflow platform readiness' },
-    { id: 'match-status', label: 'Match Status', value: input.entityMatchStatus, highlight: false, meaning: 'Entity matching confidence against external records' },
+    { id: 'salesforce', label: 'CRM', value: input.salesforceReadiness, highlight: false, meaning: 'Internal OGB CRM readiness posture' },
+    { id: 'ncino', label: 'Lending Workflow', value: input.ncinoReadiness, highlight: false, meaning: 'Internal OGB lending workflow readiness' },
+    { id: 'match-status', label: 'Match Status', value: input.entityMatchStatus, highlight: false, meaning: 'Source-of-truth matching on internal records' },
     { id: 'sot-gaps', label: 'SoT Gaps', value: String(input.sourceOfTruthGaps), highlight: input.sourceOfTruthGaps > 0, meaning: 'Source-of-truth ownership gaps requiring review' },
     { id: 'sync-blocked', label: 'Sync Blocked', value: String(input.syncPreviewBlockers), highlight: input.syncPreviewBlockers > 0, meaning: 'Sync preview operations blocked by policy or conflict' },
   ];
 
   return (
     <Card>
-      <CardHeader title="CRM Intelligence" subtitle="CRM readiness — read-only" />
+      <CardHeader title="CRM Intelligence" subtitle="OGB CRM active — internal relationship intelligence (read-only)" />
       <div style={gridStyle} data-crm-grid="command">
         {targets.map((t) => (
           <DrillThroughCard key={t.id} target={metricTarget(t.id, t.label, t.value, nextStep)} variant="tile">
@@ -131,7 +131,7 @@ export function CrmBankerWorkingSurface({ input }: Props) {
         <a href={input.crmCommandCenterHref} style={linkStyle}>Open CRM Command Center</a>
       )}
       <CardFooter>
-        <span>Preview-only CRM intelligence. Live writes disabled. No sync or push actions.</span>
+        <span>OGB CRM active — internal relationship intelligence. Writeback gated. No sync or push actions.</span>
       </CardFooter>
     </Card>
   );

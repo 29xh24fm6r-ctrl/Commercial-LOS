@@ -15,7 +15,7 @@ import { FullSystemLaunchReadinessConsole } from './FullSystemLaunchReadinessCon
 const REQUIRED_DOMAIN_LABELS = [
   'Banker Workspace',
   'New Deal Create',
-  'CRM / Salesforce / nCino Readiness',
+  'OGB CRM / Relationship Command Center',
   'Workflow Factory',
   'Credit / Committee / Compliance',
   'Data Quality / No Fake Data',

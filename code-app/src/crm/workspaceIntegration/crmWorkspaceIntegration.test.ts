@@ -12,7 +12,7 @@ describe('Phase 148A — CRM workspace placement route safety', () => {
   it('CrmBankerWorkingSurface exists and is read-only', () => {
     const src = readSrc('crm/workspaceIntegration/CrmBankerWorkingSurface.tsx');
     expect(src).toContain('read-only');
-    expect(src).toContain('Live writes disabled');
+    expect(src).toContain('Writeback gated');
     expect(src).not.toMatch(/syncNow|pushNow|writeNow|enableLive/);
   });
 
