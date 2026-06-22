@@ -9,13 +9,13 @@ import {
 } from '../../admin/adminWorkspaceEntitlementQuery';
 
 /**
- * PHASE 204E — admin probe uses the live PlatformUser identity.
+ * PHASE 204E â€” admin probe uses the live PlatformUser identity.
  *
  * Phase 204D fixed the access-level option-set; 204E fixes the deeper identity
  * mismatch with the Phase 115 bootstrap: the probe must resolve the current user
  * from the live cr664_platformuser (by cr664_email), NOT the legacy
- * cr664_user → losuserprofile chain, and must not auto-fail when the legacy core
- * user link is blank. Identity is matched by safe signals only — never the owner.
+ * cr664_user â†’ losuserprofile chain, and must not auto-fail when the legacy core
+ * user link is blank. Identity is matched by safe signals only â€” never the owner.
  */
 
 const ROOT = resolve(__dirname, '..', '..', '..');
@@ -41,7 +41,7 @@ const eRow = (over: Partial<AdminEntitlementCandidate> = {}): AdminEntitlementCa
 const authorize = (e: AdminEntitlementCandidate[], user = cu()) =>
   deriveHasAdminWorkspaceEntitlementForUser({ currentUser: user, entitlements: e });
 
-describe('204E — live PlatformUser identity in the probe source', () => {
+describe('204E â€” live PlatformUser identity in the probe source', () => {
   it('resolves the current user from cr664_platformuser by cr664_email', () => {
     expect(QUERY).toMatch(/Cr664_platformusersService\.getAll/);
     expect(QUERY).toMatch(/cr664_email eq/);
@@ -53,7 +53,8 @@ describe('204E — live PlatformUser identity in the probe source', () => {
   });
   it('uses the identity-aware deriver with a currentUser, not the legacy-only deriver', () => {
     expect(QUERY).toMatch(/deriveHasAdminWorkspaceEntitlementForUser\(\{\s*currentUser/);
-    expect(QUERY).toMatch(/cr664_losuserprofilename/);
+    expect(QUERY).toMatch(/losUserProfileName/);
+    expect(QUERY).not.toMatch(/cr664_losuserprofilename/);
   });
   it('stops claiming the legacy chain is authoritative', () => {
     expect(QUERY).toMatch(/Phase 115/);
@@ -61,7 +62,7 @@ describe('204E — live PlatformUser identity in the probe source', () => {
   });
 });
 
-describe('204E — identity-aware authorization (pure)', () => {
+describe('204E â€” identity-aware authorization (pure)', () => {
   it('authorizes without legacy LOS profile ids via the live label / name signals', () => {
     // label identity + admin shape from Workspace (isolates the label signal)
     expect(authorize([eRow({ losUserProfileName: UPN, entitlementName: 'Generic Access', workspaceName: 'Admin Control Center' })])).toBe(true);
@@ -83,7 +84,7 @@ describe('204E — identity-aware authorization (pure)', () => {
   });
 });
 
-describe('204E — doc records the identity-chain fix', () => {
+describe('204E â€” doc records the identity-chain fix', () => {
   it('the doc exists and contrasts 204D (access level) with 204E (identity chain)', () => {
     expect(existsSync(resolve(ROOT, DOC_REL))).toBe(true);
     expect(DOC).toMatch(/PlatformUser/);
