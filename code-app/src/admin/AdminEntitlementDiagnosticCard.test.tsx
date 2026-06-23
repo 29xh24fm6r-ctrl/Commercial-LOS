@@ -67,10 +67,17 @@ describe('Phase 204G — AdminEntitlementDiagnosticCard', () => {
     expect(screen.getByText('profile-label-upn')).toBeInTheDocument();
   });
 
-  it('renders the Phase 204J visible build stamp so the live UI proves it is current', () => {
+  it('renders the Phase 204K visible build stamp so the live UI proves it is current', () => {
     render(<AdminEntitlementDiagnosticCard />);
     expect(
-      screen.getByText('Diagnostic build: Phase 204J / post-204I runtime-clean / master 3756077'),
+      screen.getByText('Diagnostic build: Phase 204K / four-field workspace entitlement read / master 6d806e3'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the Phase 204K workspace-not-selected note', () => {
+    render(<AdminEntitlementDiagnosticCard />);
+    expect(
+      screen.getByText('Workspace display name not selected; entitlement-name gate used.'),
     ).toBeInTheDocument();
   });
 

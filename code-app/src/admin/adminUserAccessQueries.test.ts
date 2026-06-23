@@ -18,6 +18,7 @@ import { Cr664_workspaceentitlementsesService } from '../generated/services/Cr66
 import {
   loadAdminUserAccessSummary,
   loadAdminUserRows,
+  loadAdminEntitlementRows,
   ADMIN_USER_ACCESS_ROW_CAP,
 } from './adminUserAccessQueries';
 
@@ -44,6 +45,22 @@ describe('Phase 169B -- read-only queries', () => {
     expect(opts.select).toContain('cr664_fullname');
     // Never selects security/role columns.
     expect(opts.select?.join(' ')).not.toMatch(/roleid|securityrole|businessunit/i);
+  });
+
+  it('selects only the four live-safe workspace entitlement fields', async () => {
+    entGetAll.mockResolvedValue(ok([]));
+    await loadAdminEntitlementRows();
+    const opts = entGetAll.mock.calls[0]![0]!;
+    expect(opts.top).toBe(ADMIN_USER_ACCESS_ROW_CAP);
+    expect(opts.select).toEqual([
+      'cr664_entitlementname',
+      'cr664_accesslevel',
+      '_cr664_losuserprofile_value',
+      'statecode',
+    ]);
+    expect(opts.select?.join(' ')).not.toMatch(
+      /cr664_workspacename|cr664_accesslevelname|cr664_losuserprofilename|cr664_isdefault|cr664_workspaceentitlementsid/,
+    );
   });
 
   it('maps real rows without fabricating data', async () => {

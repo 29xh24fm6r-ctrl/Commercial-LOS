@@ -414,17 +414,17 @@ export async function loadAdminWorkspaceEntitlement(
     // There is no PlatformUser FK on cr664_workspaceentitlements, so we cannot filter
     // by the current user server-side; the identity gate is enforced in the deriver.
     const entRes = await Cr664_workspaceentitlementsesService.getAll({
-      // Phase 204D â€” select the authoritative numeric access-level option-set
-      // (cr664_accesslevel), NOT the optional formatted name (cr664_accesslevelname)
-      // which the client may omit. cr664_workspacename stays selected (one OR branch).
-      // Phase 204H â€” LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE is NOT selectable on this table in live
-      // Dataverse ("Could not find a property named 'LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE'");
-      // selecting it failed the whole query. Identity attribution falls back to the
-      // entitlement-name prefix and the optional legacy profile-id signal.
+      // Phase 204K — FOUR-FIELD read. Direct Dataverse Web API testing proved that
+      // selecting the formatted display/name fields (the workspace display name and
+      // LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE) FAILS the whole query on this table,
+      // while a read of exactly these four fields SUCCEEDS and returns the real admin
+      // row. So we select ONLY: cr664_entitlementname, cr664_accesslevel,
+      // _cr664_losuserprofile_value, statecode. Admin shape comes from the
+      // entitlement-name gate (strictAdminEntitlementName); the Workspace lookup is
+      // not readable here and is not required.
       select: [
         'cr664_entitlementname',
         'cr664_accesslevel',
-        'cr664_workspacename',
         '_cr664_losuserprofile_value',
         'statecode',
       ],
@@ -440,10 +440,11 @@ export async function loadAdminWorkspaceEntitlement(
       entitlementName: r.cr664_entitlementname,
       // Authoritative option-set value (788190000=Full / 788190002=Admin).
       accessLevel: r.cr664_accesslevel,
-      workspaceName: r.cr664_workspacename,
+      // Phase 204K — workspaceName NOT mapped: cr664_workspacename is not selectable
+      // on this table. Admin shape is carried by the entitlement name. Phase 204H —
+      // losUserProfileName likewise not mapped; identity uses the name prefix /
+      // optional legacy profile id.
       losUserProfileId: r._cr664_losuserprofile_value,
-      // Phase 204H â€” losUserProfileName intentionally NOT mapped: the formatted
-      // label is not selectable live, so identity uses the name prefix / profile id.
       // statecode 0 = Active (Cr664_workspaceentitlementsesstatecode).
       active: r.statecode === 0,
     }));
@@ -554,7 +555,9 @@ export function buildAdminEntitlementDiagnostic(
       accessLevelRaw: e.accessLevel === undefined ? '(none)' : String(e.accessLevel),
       accessLevelKind,
       active: e.active === true,
-      workspaceName: (e.workspaceName ?? '').trim() || '(blank)',
+      // Phase 204K — cr664_workspacename is not selectable on this table, so it is
+      // never read live; show "(not selected)" rather than implying a blank value.
+      workspaceName: (e.workspaceName ?? '').trim() || '(not selected)',
       losUserProfileName: sanitizeProfileLabel(e.losUserProfileName, upn),
       hasAdminName,
       hasAdminWorkspace,
@@ -680,12 +683,12 @@ export async function loadAdminWorkspaceEntitlementDiagnostic(
     const currentUserWithProfiles: AdminCurrentUser = { ...currentUser, losUserProfileIds: profileIds };
 
     const entRes = await Cr664_workspaceentitlementsesService.getAll({
-      // Phase 204H â€” mirror the live probe: LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE is NOT
-      // selectable on this table, so it is omitted here too.
+      // Phase 204K — mirror the live probe's FOUR-FIELD read. Neither the workspace
+      // display name nor LOS_PROFILE_FORMATTED_LABEL_UNSELECTABLE is selectable on
+      // this table (direct Web API testing failed on both); the diagnostic omits them.
       select: [
         'cr664_entitlementname',
         'cr664_accesslevel',
-        'cr664_workspacename',
         '_cr664_losuserprofile_value',
         'statecode',
       ],
@@ -706,10 +709,9 @@ export async function loadAdminWorkspaceEntitlementDiagnostic(
     const entitlements: AdminEntitlementCandidate[] = (entRes.data ?? []).map((r) => ({
       entitlementName: r.cr664_entitlementname,
       accessLevel: r.cr664_accesslevel,
-      workspaceName: r.cr664_workspacename,
+      // Phase 204K — workspaceName not selectable live; left undefined so the
+      // diagnostic shows it "(not selected)" rather than failing the query.
       losUserProfileId: r._cr664_losuserprofile_value,
-      // Phase 204H â€” losUserProfileName not selectable live; left undefined so the
-      // diagnostic shows it blank rather than failing the query.
       active: r.statecode === 0,
     }));
     return buildAdminEntitlementDiagnostic({
