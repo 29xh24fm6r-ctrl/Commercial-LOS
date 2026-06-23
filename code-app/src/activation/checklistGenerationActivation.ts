@@ -5,16 +5,16 @@ import {
 import { evaluateLaunchGates, type CapabilityReadiness } from './launchReadiness';
 
 /**
- * Phase 221 — Deterministic checklist generation + governed write seam.
+ * Phase 221 â€” Deterministic checklist generation + governed write seam.
  *
  * PURE and fail-closed. Checklist items are produced by DETERMINISTIC rules over
- * product/stage inputs — never AI-generated, never fabricated. Missing product /
+ * product/stage inputs â€” never AI-generated, never fabricated. Missing product /
  * stage / schema blocks generation. A preview is produced first and the written
  * items must equal the preview. Duplicate generation fails closed unless an
- * explicit override is supplied. No test writes a real checklist.
+ * explicit override is supplied. Phase 228B enables the governed checklist write seam; runtime still requires authorized actor, preview confirmation, transport, audit sink, and duplicate protection.
  */
 
-export const CHECKLIST_WRITE_ENABLED = false;
+export const CHECKLIST_WRITE_ENABLED = true;
 
 export interface ChecklistRule {
   readonly key: string;
@@ -84,7 +84,7 @@ export interface ChecklistWriteInput {
   readonly correlationId: string;
   readonly dealId: string;
   readonly context: ChecklistGenerationContext;
-  /** The exact preview the operator confirmed — written items must match it. */
+  /** The exact preview the operator confirmed â€” written items must match it. */
   readonly confirmedPreviewKeys: ReadonlyArray<string>;
   /** True when a checklist already exists for this deal. */
   readonly existingChecklistPresent: boolean;

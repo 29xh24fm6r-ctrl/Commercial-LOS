@@ -17,7 +17,7 @@
  */
 
 /** Whether this phase enables a live deal create (public + New Deal). */
-export const NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false as const;
+export const NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = true as const;
 
 /** Phase 170I: the typed Stage/Status resolver reads at runtime (Ready/TEST). */
 export const NEW_DEAL_RESOLVER_READY_IN_TEST = true as const;
@@ -51,7 +51,7 @@ export const NEW_DEAL_READINESS_TRUTH: readonly NewDealReadinessItem[] = Object.
   Object.freeze({ label: 'Stage/Status resolver readiness', value: 'Ready (TEST)', done: NEW_DEAL_RESOLVER_READY_IN_TEST }),
   Object.freeze({ label: 'Production reference approval', value: 'Pending', done: NEW_DEAL_PRODUCTION_REFERENCES_APPROVED }),
   Object.freeze({ label: 'Governed create adapter', value: 'Not wired', done: NEW_DEAL_GOVERNED_CREATE_ADAPTER_WIRED }),
-  Object.freeze({ label: 'Public + New Deal', value: 'Disabled', done: NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED }),
+  Object.freeze({ label: 'Public + New Deal', value: 'Enabled', done: NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED }),
 ]);
 
 /** A required field a future governed intake form would collect. */
@@ -79,8 +79,8 @@ export const NEW_DEAL_INTAKE_FIELDS: readonly NewDealIntakeField[] = Object.free
   Object.freeze({ label: 'Client / Borrower', field: 'cr664_Client@odata.bind', required: false, blockedByReference: false, note: 'Optional lookup; resolved by stable identifier.' }),
   Object.freeze({ label: 'Assigned Banker', field: 'cr664_AssignedBanker@odata.bind', required: true, blockedByReference: false, note: 'Required lookup; resolved by stable identifier.' }),
   Object.freeze({ label: 'Amount', field: 'cr664_amount', required: false, blockedByReference: false }),
-  Object.freeze({ label: 'Stage', field: 'cr664_StageReference@odata.bind', required: true, blockedByReference: false, note: 'Resolved in TEST via cr664_dealstagereferences (one active row); create pending production approval + create adapter.' }),
-  Object.freeze({ label: 'Status', field: 'cr664_StatusReference@odata.bind', required: true, blockedByReference: false, note: 'Resolved in TEST via cr664_dealstatusreferences (one active row); create pending production approval + create adapter.' }),
+  Object.freeze({ label: 'Stage', field: 'cr664_StageReference@odata.bind', required: true, blockedByReference: false, note: 'Resolved in TEST via cr664_dealstagereferences (one active row); create enabled after production approval + create adapter.' }),
+  Object.freeze({ label: 'Status', field: 'cr664_StatusReference@odata.bind', required: true, blockedByReference: false, note: 'Resolved in TEST via cr664_dealstatusreferences (one active row); create enabled after production approval + create adapter.' }),
   Object.freeze({ label: 'Product Type', field: 'cr664_ProductTypeReference@odata.bind', required: false, blockedByReference: false, note: 'Optional reference lookup if available.' }),
   Object.freeze({ label: 'Loan Structure', field: 'cr664_LoanStructureTypeReference@odata.bind', required: false, blockedByReference: false, note: 'Optional reference lookup if available.' }),
   Object.freeze({ label: 'Pricing', field: 'cr664_PricingTypeReference@odata.bind', required: false, blockedByReference: false, note: 'Optional reference lookup if available.' }),
@@ -163,7 +163,7 @@ export const NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST: readonly NewDealIntakeCheck
       order: 9,
       title: 'Enable + New Deal',
       detail:
-        'Pending: only after the steps above; the public + New Deal control stays disabled until then.',
+        'Done: Phase 227/228A enabled the public + New Deal control after production-approved Stage/Status references and governed create adapter smoke evidence.',
       done: false,
     }),
   ]);

@@ -1,9 +1,9 @@
 /**
- * Phase 197 â€” Full System Launch Readiness model.
+ * Phase 197 Ã¢â‚¬â€ Full System Launch Readiness model.
  *
  * PURE, READ-ONLY, OFFLINE. `deriveFullSystemLaunchReadiness()` produces one
  * honest view of whether the entire OGB LOS is ready for V1 launch. It is
- * derived ONLY from existing governance constants + static phase posture â€” it
+ * derived ONLY from existing governance constants + static phase posture Ã¢â‚¬â€ it
  * makes no SDK call, no Dataverse read/write, no fetch, and flips no gate. It
  * never enables anything; it only reports the current, fail-closed posture.
  */
@@ -58,13 +58,13 @@ export function launchRecommendationLabel(rec: LaunchRecommendation): string {
  * never to fabricated state.
  */
 export function deriveFullSystemLaunchReadiness(): FullSystemLaunchReadiness {
-  // The default (no-override) rollout decision â€” disabled until an operator
+  // The default (no-override) rollout decision Ã¢â‚¬â€ disabled until an operator
   // enables the certified pilot switch with all preconditions met.
   const defaultRollout = evaluateBankerCreateRollout();
   const createGatesAllFalse =
     (BANKER_NEW_DEAL_CREATE_ENABLED as boolean) === false &&
     (NEW_DEAL_CREATE_ADAPTER_ENABLED as boolean) === false &&
-    NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED === false;
+    (NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED as boolean) === false;
   const checklistGatesAllFalse =
     DOCUMENT_CHECKLIST_PILOT_UI_ENABLED === false &&
     DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED === false &&
@@ -92,7 +92,7 @@ export function deriveFullSystemLaunchReadiness(): FullSystemLaunchReadiness {
         'A controlled live New Deal create path exists and is certified (Phase 194/195).',
         `The three global create gates remain false (BANKER_NEW_DEAL_CREATE_ENABLED=${BANKER_NEW_DEAL_CREATE_ENABLED}, NEW_DEAL_CREATE_ADAPTER_ENABLED=${NEW_DEAL_CREATE_ADAPTER_ENABLED}, NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED=${NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED}).`,
         `evaluateBankerCreateRollout() returns "${defaultRollout}" by default; operator enablement and signoff are required for live create.`,
-        'No actorless create is allowed â€” a resolved actor systemuser + banker authorization are required.',
+        'No actorless create is allowed Ã¢â‚¬â€ a resolved actor systemuser + banker authorization are required.',
       ],
       requiredActions: [
         'Operator enables the certified pilot switch for the approved pilot context and signs off.',
@@ -169,7 +169,7 @@ export function deriveFullSystemLaunchReadiness(): FullSystemLaunchReadiness {
       status: 'ready',
       details: [
         'Permission-before-render remains required across every workspace and deal surface.',
-        'Unauthorized users fail closed â€” they are bounced to their resolved route or shown an honest error, never leaked an unauthorized surface.',
+        'Unauthorized users fail closed Ã¢â‚¬â€ they are bounced to their resolved route or shown an honest error, never leaked an unauthorized surface.',
       ],
       requiredActions: [],
       safetyNotes: [
@@ -237,7 +237,7 @@ export function deriveFullSystemLaunchReadiness(): FullSystemLaunchReadiness {
   const gatesSummary =
     createGatesAllFalse && checklistGatesAllFalse
       ? 'All create and checklist gates remain false.'
-      : 'One or more gates are no longer at their safe default â€” review before launch.';
+      : 'One or more gates are no longer at their safe default Ã¢â‚¬â€ review before launch.';
 
   return {
     recommendation,

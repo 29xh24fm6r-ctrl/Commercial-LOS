@@ -19,8 +19,8 @@ import { NOT_WIRED } from '../shared/governance/platformInventory';
  */
 
 describe('Phase 170J -- New Deal create readiness truth', () => {
-  it('keeps the public + New Deal create disabled', () => {
-    expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
+  it('records the public + New Deal create as enabled after Phase 227/228A smoke', () => {
+    expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(true);
   });
 
   it('marks the resolver Ready in TEST but production/adapter pending', () => {
@@ -29,15 +29,15 @@ describe('Phase 170J -- New Deal create readiness truth', () => {
     expect(NEW_DEAL_GOVERNED_CREATE_ADAPTER_WIRED).toBe(false);
   });
 
-  it('the truth table shows Ready(TEST) / Pending / Not wired / Disabled', () => {
+  it('the truth table shows Ready(TEST) / Pending / Not wired / Enabled', () => {
     const byLabel = new Map(NEW_DEAL_READINESS_TRUTH.map((t) => [t.label, t]));
     expect(byLabel.get('Stage/Status resolver readiness')?.value).toBe('Ready (TEST)');
     expect(byLabel.get('Stage/Status resolver readiness')?.done).toBe(true);
     expect(byLabel.get('Production reference approval')?.value).toBe('Pending');
     expect(byLabel.get('Production reference approval')?.done).toBe(false);
     expect(byLabel.get('Governed create adapter')?.value).toBe('Not wired');
-    expect(byLabel.get('Public + New Deal')?.value).toBe('Disabled');
-    expect(byLabel.get('Public + New Deal')?.done).toBe(false);
+    expect(byLabel.get('Public + New Deal')?.value).toBe('Enabled');
+    expect(byLabel.get('Public + New Deal')?.done).toBe(true);
   });
 
   it('the blocker no longer claims the data source is missing; it states Ready(TEST) + pending reasons', () => {
