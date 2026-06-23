@@ -83,6 +83,20 @@ describe('Phase 169B -- panel renders real read-only data', () => {
     });
     expect(screen.getAllByText(/Not available/i).length).toBeGreaterThanOrEqual(1);
   });
+
+  it('shows a sanitized failure category labeling which read failed (Phase 204M)', async () => {
+    loadMock.mockRejectedValue(
+      new Error('Admin user access platform-user read failed: boom'),
+    );
+    const { container } = render(<UserAccessManagementPanel />);
+    await waitFor(() => {
+      expect(container.querySelector('[data-admin-user-access-failure]')).not.toBeNull();
+    });
+    const note = container.querySelector('[data-admin-user-access-failure]')!;
+    expect(note.textContent).toMatch(/Platform-user read failed\./);
+    // The raw payload detail is NOT surfaced.
+    expect(note.textContent).not.toMatch(/boom/);
+  });
 });
 
 describe('Phase 169B -- panel keeps writes disabled and discloses scope', () => {

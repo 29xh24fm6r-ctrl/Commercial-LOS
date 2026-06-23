@@ -67,6 +67,11 @@ export function UserAccessManagementPanel() {
       </div>
 
       <SummaryCounts state={state} />
+      {state.kind === 'failed' && (
+        <div style={styles.failNote} role="alert" data-admin-user-access-failure>
+          User &amp; Access data is not available. {failureCategory(state.message)} Refresh to retry.
+        </div>
+      )}
       <UsersTable state={state} />
       <EntitlementsTable state={state} />
       <GrantAccessPreviewForm />
@@ -95,6 +100,17 @@ function SummaryCounts({ state }: { state: LoadState }) {
 
 function notAvailable(state: LoadState): string {
   return state.kind === 'loading' ? 'Loading…' : 'Not available';
+}
+
+/**
+ * Phase 204M — derive a SANITIZED failure category from the labeled read error so
+ * the operator sees which read failed (platform-user vs entitlement) without any
+ * raw payload. The labels are produced by loadAdminUserAccessSummary.
+ */
+function failureCategory(message: string): string {
+  if (/platform-user read failed/i.test(message)) return 'Platform-user read failed.';
+  if (/entitlement read failed/i.test(message)) return 'Entitlement read failed.';
+  return 'Read failed.';
 }
 
 function CountTile({ label, value }: { label: string; value: string }) {
@@ -308,6 +324,15 @@ const styles: Record<string, CSSProperties> = {
     fontSize: typography.size.sm,
     fontStyle: 'italic',
     padding: `${spacing.sm} 0`,
+  },
+  failNote: {
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.borderStrong}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.sm} ${spacing.md}`,
+    color: palette.text,
+    fontSize: typography.size.sm,
+    lineHeight: typography.lineHeight.snug,
   },
   table: {
     width: '100%',

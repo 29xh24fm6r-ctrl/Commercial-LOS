@@ -63,6 +63,24 @@ describe('Phase 169B -- read-only queries', () => {
     );
   });
 
+  it('selects only live-safe platform user fields', async () => {
+    usersGetAll.mockResolvedValue(ok([]));
+
+    await loadAdminUserRows();
+
+    const opts = usersGetAll.mock.calls[0]![0]!;
+    expect(opts.top).toBe(ADMIN_USER_ACCESS_ROW_CAP);
+    expect(opts.select).toEqual([
+      'cr664_platformuserid',
+      'cr664_email',
+      'cr664_fullname',
+      'cr664_activestatus',
+    ]);
+    expect(opts.select?.join(' ')).not.toMatch(
+      /cr664_identitystatusname|cr664_primaryworkspacename/,
+    );
+  });
+
   it('maps real rows without fabricating data', async () => {
     usersGetAll.mockResolvedValue(
       ok([
@@ -82,9 +100,10 @@ describe('Phase 169B -- read-only queries', () => {
         id: 'u1',
         email: 'a@b.com',
         fullName: 'A B',
-        primaryWorkspaceName: 'Banker Workspace',
+        // Phase 204M — formatted display fields are no longer read live.
+        primaryWorkspaceName: undefined,
         active: true,
-        identityStatus: 'Active',
+        identityStatus: undefined,
       },
     ]);
   });
@@ -98,6 +117,24 @@ describe('Phase 169B -- read-only queries', () => {
     usersGetAll.mockResolvedValue(ok([]));
     entGetAll.mockResolvedValue(fail('ent denied'));
     await expect(loadAdminUserAccessSummary()).rejects.toThrow(/ent denied/);
+  });
+
+  it('labels platform-user read failures', async () => {
+    usersGetAll.mockResolvedValue(fail('platform denied'));
+    entGetAll.mockResolvedValue(ok([]));
+
+    await expect(loadAdminUserAccessSummary()).rejects.toThrow(
+      /platform-user read failed/i,
+    );
+  });
+
+  it('labels entitlement read failures', async () => {
+    usersGetAll.mockResolvedValue(ok([]));
+    entGetAll.mockResolvedValue(fail('ent denied'));
+
+    await expect(loadAdminUserAccessSummary()).rejects.toThrow(
+      /entitlement read failed/i,
+    );
   });
 
   it('aggregates counts from the two reads', async () => {

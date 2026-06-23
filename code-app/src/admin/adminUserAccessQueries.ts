@@ -45,6 +45,15 @@ export interface AdminUserAccessSummary {
   readonly entitlementsTruncated: boolean;
 }
 
+/**
+ * Phase 204M — SAFE-BASE read of cr664_platformusers. The formatted/display fields
+ * (cr664_identitystatusname, cr664_primaryworkspacename) are NOT selectable in live
+ * Dataverse (same class of failure that broke the entitlement reads in 204K/204L);
+ * selecting them failed the whole platform-user query and showed "App Users: Not
+ * available". This read selects ONLY the four live-safe base fields. The removed
+ * display fields are surfaced as `undefined` — honest blank data is preferred over a
+ * failing live read.
+ */
 export async function loadAdminUserRows(): Promise<readonly AdminUserRow[]> {
   const result = await Cr664_platformusersService.getAll({
     select: [
@@ -52,8 +61,6 @@ export async function loadAdminUserRows(): Promise<readonly AdminUserRow[]> {
       'cr664_email',
       'cr664_fullname',
       'cr664_activestatus',
-      'cr664_identitystatusname',
-      'cr664_primaryworkspacename',
     ],
     orderBy: ['cr664_fullname asc'],
     top: ADMIN_USER_ACCESS_ROW_CAP,
@@ -66,9 +73,10 @@ export async function loadAdminUserRows(): Promise<readonly AdminUserRow[]> {
       id: r.cr664_platformuserid,
       email: r.cr664_email,
       fullName: r.cr664_fullname,
-      primaryWorkspaceName: r.cr664_primaryworkspacename,
+      // Phase 204M — not read live (formatted fields are not selectable here).
+      primaryWorkspaceName: undefined,
       active: r.cr664_activestatus === true,
-      identityStatus: r.cr664_identitystatusname,
+      identityStatus: undefined,
     }),
   );
 }
@@ -121,11 +129,22 @@ export async function loadAdminEntitlementRows(): Promise<readonly AdminEntitlem
  * Load both lists for the admin panel. Fails closed: if either read
  * throws, the whole summary rejects so the UI shows "Not available"
  * rather than a half-populated, misleading table.
+ *
+ * Phase 204M — each read is wrapped so the rejection names WHICH side failed
+ * (platform-user vs entitlement). This makes the live failure actionable in the UI
+ * and in tests instead of an anonymous "Not available". Both reads still run; the
+ * first failure to settle determines the labeled rejection (Promise.all semantics).
  */
 export async function loadAdminUserAccessSummary(): Promise<AdminUserAccessSummary> {
   const [users, entitlements] = await Promise.all([
-    loadAdminUserRows(),
-    loadAdminEntitlementRows(),
+    loadAdminUserRows().catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Admin user access platform-user read failed: ${message}`);
+    }),
+    loadAdminEntitlementRows().catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Admin user access entitlement read failed: ${message}`);
+    }),
   ]);
   return {
     userCount: users.length,
