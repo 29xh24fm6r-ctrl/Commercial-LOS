@@ -10,6 +10,27 @@ import {
   USER_ACCESS_SCOPE_DISCLAIMER,
   USER_ACCESS_WRITE_BLOCKER,
 } from './adminUserAccessModel';
+import {
+  formatAdminAccessLevel,
+  formatProfileReference,
+  formatSafeReadWorkspaceName,
+} from './adminUserAccessDisplay';
+
+/**
+ * Phase 204N — read-only detail polish. The console explains WHY workspace/profile
+ * display names are blank (safe-read contract), shows access levels as friendly
+ * label + raw option-set value, and surfaces profile GUIDs honestly. No query
+ * select list changed; no write path added.
+ */
+const SAFE_READ_EXPLANATION =
+  'Workspace and profile display names are intentionally not selected from Dataverse. ' +
+  'This console uses the live-safe entitlement fields only and shows raw profile IDs where available.';
+
+const PHASE_204N_READONLY_NOTE =
+  'Grant access is still disabled. This phase improves read-only visibility only. ' +
+  'A future governed-write phase must add authorization, audit, correlation ID, ' +
+  'fail-closed outcome handling, and a controlled single-record smoke test before ' +
+  'any access grant can be created here.';
 
 /**
  * Phase 169B -- User & Access Management panel (read-only + preview).
@@ -150,7 +171,7 @@ function UsersTable({ state }: { state: LoadState }) {
           <tr key={u.id}>
             <td style={styles.td}>{u.fullName}</td>
             <td style={styles.td}>{u.email}</td>
-            <td style={styles.td}>{u.primaryWorkspaceName ?? '—'}</td>
+            <td style={styles.td}>{u.primaryWorkspaceName ?? 'Not selected'}</td>
             <td style={styles.td}>
               <Badge variant={u.active ? 'clear' : 'neutral'} appearance="outline">
                 {u.active ? 'Active' : 'Inactive'}
@@ -165,30 +186,42 @@ function UsersTable({ state }: { state: LoadState }) {
 
 function EntitlementsTable({ state }: { state: LoadState }) {
   if (state.kind !== 'ready') return null;
-  if (state.summary.entitlements.length === 0) {
-    return <div style={styles.muted}>No workspace entitlement records found.</div>;
-  }
   return (
-    <table style={styles.table} data-admin-user-access-entitlements="table">
-      <thead>
-        <tr>
-          <th style={styles.th}>Entitlement</th>
-          <th style={styles.th}>Access level</th>
-          <th style={styles.th}>Workspace</th>
-          <th style={styles.th}>Profile</th>
-        </tr>
-      </thead>
-      <tbody>
-        {state.summary.entitlements.map((e) => (
-          <tr key={e.id}>
-            <td style={styles.td}>{e.entitlementName}</td>
-            <td style={styles.td}>{e.accessLevel ?? '—'}</td>
-            <td style={styles.td}>{e.workspaceName ?? '—'}</td>
-            <td style={styles.td}>{e.profileName ?? '—'}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <>
+      <div style={styles.safeReadNote} role="note" data-admin-user-access-safe-read-note>
+        {SAFE_READ_EXPLANATION}
+      </div>
+      {state.summary.entitlements.length === 0 ? (
+        <div style={styles.muted}>No workspace entitlement records found.</div>
+      ) : (
+        <table style={styles.table} data-admin-user-access-entitlements="table">
+          <thead>
+            <tr>
+              <th style={styles.th}>Entitlement</th>
+              <th style={styles.th}>Access level</th>
+              <th style={styles.th}>Profile link</th>
+              <th style={styles.th}>Workspace display</th>
+            </tr>
+          </thead>
+          <tbody>
+            {state.summary.entitlements.map((e) => (
+              <tr key={e.id}>
+                <td style={styles.td}>{e.entitlementName}</td>
+                <td style={styles.td} data-admin-entitlement-access>
+                  {formatAdminAccessLevel(e.accessLevel)}
+                </td>
+                <td style={styles.td} data-admin-entitlement-profile>
+                  {formatProfileReference(e.profileName)}
+                </td>
+                <td style={styles.td} data-admin-entitlement-workspace>
+                  {formatSafeReadWorkspaceName(e.workspaceName)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
   );
 }
 
@@ -253,6 +286,9 @@ function GrantAccessPreviewForm() {
       </button>
       <p style={styles.blocker} data-admin-user-access-blocker>
         <strong>Blocker:</strong> {USER_ACCESS_WRITE_BLOCKER}
+      </p>
+      <p style={styles.blocker} data-admin-user-access-readonly-note>
+        {PHASE_204N_READONLY_NOTE}
       </p>
       <p style={styles.roleNotice} data-admin-user-access-role-notice>
         Dataverse security roles must be managed in the Power Platform admin
@@ -333,6 +369,13 @@ const styles: Record<string, CSSProperties> = {
     color: palette.text,
     fontSize: typography.size.sm,
     lineHeight: typography.lineHeight.snug,
+  },
+  safeReadNote: {
+    color: palette.textMuted,
+    fontSize: typography.size.xs,
+    lineHeight: typography.lineHeight.snug,
+    fontStyle: 'italic',
+    padding: `${spacing.xs} 0`,
   },
   table: {
     width: '100%',
