@@ -53,6 +53,47 @@ describe('Phase 213 — production reference readiness', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 225 — live findings: the Deal Stage/Status reference tables expose NO
+// production-approved marker, so every active row arrives productionApproved=false.
+// An apparent production candidate (INTAKE / OPEN) must still resolve ready-test —
+// never ready-production — and production must never be inferred from Code/Name.
+// ---------------------------------------------------------------------------
+
+describe('Phase 225 — active rows without a production marker never authorize production', () => {
+  // Exactly the live rows, all active, none production-approved (no marker column).
+  const liveStageRows = [
+    { id: 'stage-intake', name: 'Intake', active: true, productionApproved: false },
+    { id: 'stage-phase121', name: 'TEST - Stage Phase 121', active: true, productionApproved: false },
+  ];
+  const liveStatusRows = [
+    { id: 'status-open', name: 'Open', active: true, productionApproved: false },
+    { id: 'status-phase121', name: 'TEST - Status Phase 121', active: true, productionApproved: false },
+  ];
+
+  it('an apparent production candidate (INTAKE) without the marker resolves ready-test, not ready-production', () => {
+    const r = resolveReferenceReadiness('Stage', [liveStageRows[0]!]);
+    expect(r.kind).toBe('ready-test');
+    expect(r.kind).not.toBe('ready-production');
+    expect(r.resolvedProductionId).toBeNull();
+  });
+
+  it('the full live Stage/Status sets are blocked and not production-approved', () => {
+    const r = deriveNewDealReferenceReadiness({ stageRows: liveStageRows, statusRows: liveStatusRows });
+    expect(r.productionReferencesApproved).toBe(false);
+    expect(r.stage.kind).not.toBe('ready-production');
+    expect(r.status.kind).not.toBe('ready-production');
+    expect(r.resolvedStageId).toBeNull();
+    expect(r.resolvedStatusId).toBeNull();
+  });
+
+  it('does not infer production from Code/Name — a well-named active row is still ready-test', () => {
+    // Even a row named exactly like a production stage cannot become production-approved.
+    const r = resolveReferenceReadiness('Stage', [{ id: 'x', name: 'Intake', active: true, productionApproved: false }]);
+    expect(r.kind).toBe('ready-test');
+  });
+});
+
 function activation(over: Partial<NewDealCreateActivationInput> = {}): NewDealCreateActivationInput {
   return {
     singleRecordSmokeEnabled: false,
