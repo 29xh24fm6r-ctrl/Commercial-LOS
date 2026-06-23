@@ -15,12 +15,12 @@
 // Hard default constants (all OFF this phase)
 // ---------------------------------------------------------------------------
 
-export const BANKER_NEW_DEAL_CREATE_ENABLED = false as const;
+export const BANKER_NEW_DEAL_CREATE_ENABLED = true as const;
 export const CRM_AUTOMATION_ENABLED = false as const;
 export const BORROWER_INVITE_AUTOMATION_ENABLED = false as const;
 export const AUTO_STAGE_ADVANCE_ENABLED = false as const;
-export const TASK_GENERATION_ENABLED = false as const;
-export const DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const;
+export const TASK_GENERATION_ENABLED = true as const;
+export const DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const;
 export const PORTFOLIO_SIDE_EFFECTS_ENABLED = false as const;
 export const BORROWER_MESSAGING_ENABLED = false as const;
 /** Transports stay independently OFF; no external HTTP by default. */
@@ -28,7 +28,7 @@ export const BORROWER_EMAIL_TRANSPORT_ENABLED = false as const;
 export const BORROWER_SMS_TRANSPORT_ENABLED = false as const;
 export const BORROWER_TWILIO_TRANSPORT_ENABLED = false as const;
 /** Duplicate detection may run as a warning; merge is never auto-applied. */
-export const DUPLICATE_DETECTION_ENABLED = false as const;
+export const DUPLICATE_DETECTION_ENABLED = true as const;
 export const DUPLICATE_MERGE_APPLY_ENABLED = false as const;
 
 /** Borrower-invite / messaging mode for the controlled path. */

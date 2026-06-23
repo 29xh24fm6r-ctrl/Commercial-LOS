@@ -9,18 +9,18 @@ import {
 } from './platformInventory';
 
 /**
- * Phase 111 — Release-Candidate Readiness Snapshot pin.
+ * Phase 111 Ã¢â‚¬â€ Release-Candidate Readiness Snapshot pin.
  *
  * This file is the lightweight CI-time guard that the
  * `docs/PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md` doc's headline
  * counts stay in sync with the actual inventory data. It does NOT
- * pin behavior — that's the job of the Phase 104–110 governance
+ * pin behavior Ã¢â‚¬â€ that's the job of the Phase 104Ã¢â‚¬â€œ110 governance
  * sweeps. It pins ONLY:
  *
  *   1. The Phase 111 doc exists on disk.
  *   2. The four inventory counts the doc cites match what the
  *      `platformInventory.ts` module reports.
- *   3. The Phase 104–110 governance pin files all exist on disk,
+ *   3. The Phase 104Ã¢â‚¬â€œ110 governance pin files all exist on disk,
  *      so an operator running this test can trust that the rest
  *      of the release-lock evidence is in place.
  *
@@ -45,7 +45,7 @@ function readDoc(rel: string): string {
 
 /**
  * Snapshot anchor at Phase 111. If any value drifts, refresh
- * `docs/PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md` §0 to match and
+ * `docs/PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md` Ã‚Â§0 to match and
  * update the value here in the same commit.
  */
 const PHASE_111_SNAPSHOT = Object.freeze({
@@ -55,7 +55,7 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   deliberatelyBlocked: 1,
 });
 
-describe('Phase 111 — Release-candidate snapshot exists and is current', () => {
+describe('Phase 111 Ã¢â‚¬â€ Release-candidate snapshot exists and is current', () => {
   it('docs/PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md exists on disk', () => {
     expect(
       existsSync(resolve(REPO_ROOT, 'docs/PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md')),
@@ -106,18 +106,18 @@ describe('Phase 111 — Release-candidate snapshot exists and is current', () =>
   });
 });
 
-describe('Phase 111 — Phase 104–110 governance pin files all still exist', () => {
+describe('Phase 111 Ã¢â‚¬â€ Phase 104Ã¢â‚¬â€œ110 governance pin files all still exist', () => {
   const REQUIRED_PIN_FILES: readonly string[] = [
-    // Phase 106 — operator-safety release-readiness pin.
+    // Phase 106 Ã¢â‚¬â€ operator-safety release-readiness pin.
     'src/shared/governance/emailLiveReleaseReadiness.test.ts',
-    // Phase 107 — activity-evidence consistency pin.
+    // Phase 107 Ã¢â‚¬â€ activity-evidence consistency pin.
     'src/shared/governance/communicationActivityLedger.test.ts',
-    // Phase 108 — post-send refresh wiring.
+    // Phase 108 Ã¢â‚¬â€ post-send refresh wiring.
     'src/deals/borrowerUpdateRefresh.test.tsx',
-    // Phase 109 — operator smoke-test harness.
+    // Phase 109 Ã¢â‚¬â€ operator smoke-test harness.
     'src/admin/emailLiveSmokeTest.test.ts',
     'src/admin/EmailLiveDiagnostics.test.tsx',
-    // Phase 110 — final communication-lane release lock.
+    // Phase 110 Ã¢â‚¬â€ final communication-lane release lock.
     'src/shared/governance/communicationLaneReleaseLock.test.ts',
   ];
 
@@ -128,7 +128,7 @@ describe('Phase 111 — Phase 104–110 governance pin files all still exist', (
   }
 });
 
-describe('Phase 111 — Phase 104–110 release doc files all still exist', () => {
+describe('Phase 111 Ã¢â‚¬â€ Phase 104Ã¢â‚¬â€œ110 release doc files all still exist', () => {
   const REQUIRED_DOC_FILES: readonly string[] = [
     'docs/PHASE_104_OUTLOOK_LIVE_SEND.md',
     'docs/PHASE_105_BORROWER_UPDATE_LIVE_SEND.md',
@@ -138,79 +138,79 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     'docs/PHASE_109_EMAIL_LIVE_SMOKE_TEST.md',
     'docs/PHASE_110_COMMUNICATION_LANE_RELEASE_LOCK.md',
     'docs/PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md',
-    // Phase 112 — operator-facing release-candidate validation script.
+    // Phase 112 Ã¢â‚¬â€ operator-facing release-candidate validation script.
     // Pin added alongside the Phase 112 doc itself so a future docs-only
     // edit cannot quietly delete the operator script.
     'docs/PHASE_112_OPERATOR_RC_VALIDATION_SCRIPT.md',
-    // Phase 113 — Microsoft environment landing plan. Phase 112 cannot
-    // execute against a deployed app until §G.1–G.6 of Phase 113 are
+    // Phase 113 Ã¢â‚¬â€ Microsoft environment landing plan. Phase 112 cannot
+    // execute against a deployed app until Ã‚Â§G.1Ã¢â‚¬â€œG.6 of Phase 113 are
     // green; deleting the landing plan would silently strand the
     // operator validation script.
     'docs/PHASE_113_MICROSOFT_ENVIRONMENT_LANDING_PLAN.md',
-    // Phase 115 — first-launch identity provisioning. Documents the
-    // legacy cr664_user → cr664_platformuser entry-point swap that
+    // Phase 115 Ã¢â‚¬â€ first-launch identity provisioning. Documents the
+    // legacy cr664_user Ã¢â€ â€™ cr664_platformuser entry-point swap that
     // unblocked the deployed app's AuthGate.
     'docs/PHASE_115_FIRST_LAUNCH_IDENTITY_PROVISIONING.md',
-    // Phase 116 — first-live-launch stabilization. Documents the
+    // Phase 116 Ã¢â‚¬â€ first-live-launch stabilization. Documents the
     // explicit Platform Workspace alias map + the maker-portal grid
-    // pitfall + the Portfolio Management → manager routing decision.
+    // pitfall + the Portfolio Management Ã¢â€ â€™ manager routing decision.
     'docs/PHASE_116_FIRST_LIVE_LAUNCH_STABILIZATION.md',
-    // Phase 117 — banker workspace UX parity. Documents the
+    // Phase 117 Ã¢â‚¬â€ banker workspace UX parity. Documents the
     // product-grade shell (dark sidebar, KPI grid, tabs, right rail)
     // that replaces the pre-Phase-117 bare stacked-card surface, plus
     // the deliberate omission of Contacts / Due Diligence / Alerts
     // tabs and New Deal / Log Activity buttons.
     'docs/PHASE_117_BANKER_WORKSPACE_UX_PARITY.md',
-    // Phase 118 — original UI/UX inventory + restoration backlog.
+    // Phase 118 Ã¢â‚¬â€ original UI/UX inventory + restoration backlog.
     // Classifies every original Banker Workspace UI surface against
-    // the Phase 117 shell into A–F buckets (already-implemented-
+    // the Phase 117 shell into AÃ¢â‚¬â€œF buckets (already-implemented-
     // not-composed, implemented-needs-seed, loader-missing, write-
     // missing, deliberately-blocked, pure polish). Sequences the
     // restoration phases against governance reality. Docs-only: no
     // production code change.
     'docs/PHASE_118_ORIGINAL_UI_UX_INVENTORY.md',
-    // Phase 119 — restore original Banker Workspace UI/UX, part 1
+    // Phase 119 Ã¢â‚¬â€ restore original Banker Workspace UI/UX, part 1
     // (bucket-A wave 1 from the Phase 118 backlog). Stage-grouped
     // pipeline + 3 new derived KPI tiles (Urgent items, In
     // Underwriting, Stale 14d+) + My-Tasks right-rail panel. No
     // schema change, no new loader, no governed write, no email-
     // lane change.
     'docs/PHASE_119_RESTORE_ORIGINAL_BANKER_WORKSPACE_UI_UX_PART_1.md',
-    // Phase 120 — restore original Banker Workspace UI/UX, part 2
+    // Phase 120 Ã¢â‚¬â€ restore original Banker Workspace UI/UX, part 2
     // (bucket-A wave 2 from the Phase 118 backlog). Activity tab +
     // Due Diligence tab (both composition-only, no new query) +
     // per-row stale badges in PersonalPipeline + sidebar-footer
     // workspace switcher rendering the honest single-workspace
     // state from the bootstrap result. No schema change, no new
     // loader, no governed write, no email-lane change. Tab bar
-    // grew 5 → 7.
+    // grew 5 Ã¢â€ â€™ 7.
     'docs/PHASE_120_RESTORE_ORIGINAL_BANKER_WORKSPACE_UI_UX_PART_2.md',
-    // Phase 121 — live banker data seed (deferred). Manual seed
+    // Phase 121 Ã¢â‚¬â€ live banker data seed (deferred). Manual seed
     // recipe the operator runs in make.powerapps.com so the
     // restored workspace can be validated in a populated state.
     // Now unblocked once Phase 120 ships. Docs-only: no schema
     // change, no React fake data, no automation, no email-lane
     // exercise.
     'docs/PHASE_121_LIVE_BANKER_DATA_SEED.md',
-    // Phase 121 — simplified click-by-click operator checklist
+    // Phase 121 Ã¢â‚¬â€ simplified click-by-click operator checklist
     // produced after a `pac env fetch` pre-flight against the
     // deployed environment. Carries pre-verified live values
-    // (Matt's banker row id, environment id, the §2.3 reference-
+    // (Matt's banker row id, environment id, the Ã‚Â§2.3 reference-
     // table-empty fallback path made mandatory by audit findings).
     // The streamlined entry point for execution; the longer
     // PHASE_121_LIVE_BANKER_DATA_SEED.md doc remains as the
     // reference runbook. Docs-only.
     'docs/PHASE_121_OPERATOR_SEED_CHECKLIST.md',
-    // Phase 122 — Dataverse-config phase that retargets the
+    // Phase 122 Ã¢â‚¬â€ Dataverse-config phase that retargets the
     // modern operational child-table Deal lookups (confirmed:
     // cr664_documentchecklist.cr664_Deal; candidates: dealtask1
     // / creditmemo1 / creditmemodraftsection / dealtimelineevent)
     // from legacy cr664_deal to cr664_loandeal. Explicitly NOT a
-    // React phase — production app already binds correctly to
+    // React phase Ã¢â‚¬â€ production app already binds correctly to
     // /cr664_loandeals(...); Phase 122 makes the live schema
     // match. Unblocks the deferred Phase 121 Steps 6 + 7.
     'docs/PHASE_122_RETARGET_DEAL_LOOKUPS.md',
-    // Phase 122B — Automated Dataverse lookup repair. Replaces the
+    // Phase 122B Ã¢â‚¬â€ Automated Dataverse lookup repair. Replaces the
     // manual Maker Portal click-path with a Node script
     // (scripts/phase122-lookup-repair.mjs) that audits the live
     // env, prints a full plan with exact Web API payloads, and
@@ -225,28 +225,28 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // Phase 122 react-side contract pins (22 cases) and Phase
     // 110 communication lock.
     'docs/PHASE_122B_AUTOMATED_LOOKUP_REPAIR.md',
-    // Phase 122A — OGB LOS original UI/UX recovery audit.
+    // Phase 122A Ã¢â‚¬â€ OGB LOS original UI/UX recovery audit.
     // Documentation-only. Headline finding: no archived richer
     // UI exists in the repo; the Phase 117/119/120 shell IS the
     // only banker UI ever built here. Audit produces a forward-
     // looking visual restoration backlog (A/B/C/D buckets) and
-    // proposes Phases 123–129 covering banker-shell visual
+    // proposes Phases 123Ã¢â‚¬â€œ129 covering banker-shell visual
     // polish, Kanban pipeline, deal-workspace cockpit, signals/
     // relationships polish, credit-memo workspace, task/doc UX
     // after Phase 122, and manager/team/executive visual parity.
     'docs/PHASE_122A_OGB_LOS_ORIGINAL_UI_UX_RECOVERY_AUDIT.md',
-    // Phase 123 — Premium OGB Banker Command Center visual
+    // Phase 123 Ã¢â‚¬â€ Premium OGB Banker Command Center visual
     // shell. First wave of bucket-A visual restoration: hero
     // header band, KPI grid grouped into Pipeline / Work items /
     // Attention with hero anchor tiles (Active deals + Pipeline),
     // premium tab bar, accent-striped right-rail panels,
     // polished sidebar + workspace switcher pill, framed empty
     // states across PersonalPipeline / Activity / Due Diligence
-    // / right rail. Composition-only — no Dataverse / loader /
+    // / right rail. Composition-only Ã¢â‚¬â€ no Dataverse / loader /
     // governed-write changes, no new dependencies, no email-
     // lane changes. Two additive theme shadow tokens added.
     'docs/PHASE_123_PREMIUM_BANKER_COMMAND_CENTER_VISUAL_SHELL.md',
-    // Phase 124 — Rich pipeline / stage-board. Replaces the
+    // Phase 124 Ã¢â‚¬â€ Rich pipeline / stage-board. Replaces the
     // Phase 119 flat-table-per-stage Pipeline tab with a
     // horizontal Kanban: one lane per canonical non-terminal
     // STAGE_CATALOG stage + custom lanes for operator-named
@@ -255,12 +255,12 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // "Amount not set" + target-close-if-real + last-touched).
     // Lane headers with deal-count pill + compact-currency
     // amount summary (honestly omitted when no parseable
-    // amounts). Terminal stages excluded — loader already
-    // filters them out. Composition-only — no Dataverse /
+    // amounts). Terminal stages excluded Ã¢â‚¬â€ loader already
+    // filters them out. Composition-only Ã¢â‚¬â€ no Dataverse /
     // loader / governed-write / email-lane changes. 8 new
     // regression tests added.
     'docs/PHASE_124_RICH_PIPELINE_STAGE_BOARD.md',
-    // Phase 125 — Deal workspace cockpit. DealHeader becomes a
+    // Phase 125 Ã¢â‚¬â€ Deal workspace cockpit. DealHeader becomes a
     // hero band (primary accent stripe + hero name + amount
     // hero block + relative target-close countdown + honest
     // "Not set" copy for missing fields). DealBlockers +
@@ -269,22 +269,22 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // DealDocuments / CreditMemo / ActivityTimeline /
     // BorrowerCommunication honest-empty states become framed
     // dashed-border cards consistent with Phase 123/124
-    // pattern. Composition-only — no Dataverse / loader /
+    // pattern. Composition-only Ã¢â‚¬â€ no Dataverse / loader /
     // governed-write / email-lane changes. 10 new test cases
     // in new src/deals/DealHeader.test.tsx.
     'docs/PHASE_125_DEAL_WORKSPACE_COCKPIT.md',
-    // Phase 125B — Deal workspace visual redesign. Implements
+    // Phase 125B Ã¢â‚¬â€ Deal workspace visual redesign. Implements
     // the design-pass-first critique against the live deal
     // workspace screenshot: navy hero band with glass metric
     // strip, two-column cockpit layout (left = intelligence,
     // right = attention + work), honest "Not set" copy across
     // every metric cell. Preserves the Phase 125 hook hoist in
-    // DealAutopilotPanel. Composition-only — no Dataverse /
+    // DealAutopilotPanel. Composition-only Ã¢â‚¬â€ no Dataverse /
     // loader / governed-write / email-lane changes. 10 new
     // BankerDealWorkspace cockpit tests + updated DealHeader
     // markup assertions.
     'docs/PHASE_125B_DEAL_WORKSPACE_VISUAL_REDESIGN.md',
-    // Phase 125C — Premium deal cockpit visual upgrade. Adds the
+    // Phase 125C Ã¢â‚¬â€ Premium deal cockpit visual upgrade. Adds the
     // cobalt / teal / cyan / violet accent families to the Phase
     // 79 theme tokens (light + dark + explicit data-theme="dark"
     // blocks). Adds a layered shadow.glow + shadow.hero stack on
@@ -296,15 +296,15 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // circle / info circle) replacing the small color dot on
     // DealBlockers signal rows and DealStageProgressionCard reason
     // rows. Adds a cobalt liquid-glass overlay backdrop to the
-    // BankerDealWorkspace right column (column-level backdrop —
+    // BankerDealWorkspace right column (column-level backdrop Ã¢â‚¬â€
     // each card keeps its own framing). Refreshes the
     // DealAutopilotPanel priority stripe color system (high
-    // → at-risk, medium → cobalt, low → teal). Phase 125 hook
-    // hoist preserved verbatim. Composition-only — no Dataverse
+    // Ã¢â€ â€™ at-risk, medium Ã¢â€ â€™ cobalt, low Ã¢â€ â€™ teal). Phase 125 hook
+    // hoist preserved verbatim. Composition-only Ã¢â‚¬â€ no Dataverse
     // / loader / governed-write / email-lane changes. 10 new
     // Phase 125C invariant tests across two new files.
     'docs/PHASE_125C_PREMIUM_DEAL_COCKPIT_VISUAL_UPGRADE.md',
-    // Phase 125D — Bloomberg / Apple deal cockpit redesign.
+    // Phase 125D Ã¢â‚¬â€ Bloomberg / Apple deal cockpit redesign.
     // Promotes the workspace to a fully instrumented operating
     // cockpit: slate panel backdrop (Phase 79 token system gains
     // panelBg / deckBg / deckTile / glassPanel / panelBorder),
@@ -320,13 +320,13 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // Action Console (priority meter header), DealSummary
     // grouped metric sections, right-rail count badges on
     // Tasks + Documents. Phase 125 hook hoist preserved.
-    // Composition-only — no Dataverse / loader / governed-write
+    // Composition-only Ã¢â‚¬â€ no Dataverse / loader / governed-write
     // / email-lane changes. 37 new Phase 125D invariant tests
     // across three new files.
     'docs/PHASE_125D_BLOOMBERG_APPLE_DEAL_COCKPIT.md',
-    // Phase 125E — Full deal cockpit recomposition. Replaces
+    // Phase 125E Ã¢â‚¬â€ Full deal cockpit recomposition. Replaces
     // the Phase 125D layout with a recomposed visual hierarchy:
-    // command hero (no metric strip — identity slots only) +
+    // command hero (no metric strip Ã¢â‚¬â€ identity slots only) +
     // 6 large tonal KPI tiles + completeness ring + a big
     // Attention Console (severity meter + missing-data
     // checklist + signal rows) + a large connected-node
@@ -340,11 +340,11 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // halo wrapper), LargeMetricTile + WidgetHeader added
     // to cockpitPrimitives.tsx. New typography.size.display
     // scale token. Phase 125 hook hoist preserved.
-    // Composition-only — no Dataverse / loader / governed-
+    // Composition-only Ã¢â‚¬â€ no Dataverse / loader / governed-
     // write / email-lane changes. 13 new Phase 125E invariant
     // tests in phase125ERecomposition.test.tsx.
     'docs/PHASE_125E_FULL_DEAL_COCKPIT_RECOMPOSITION.md',
-    // Phase 125F — Lending OS shell restoration. Restores the
+    // Phase 125F Ã¢â‚¬â€ Lending OS shell restoration. Restores the
     // original Lending OS reference shell ACROSS the banker home
     // AND the per-deal cockpit (unified chrome). Extracts a
     // shared LendingOSLayout (dark sidebar with grouped nav,
@@ -362,16 +362,16 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // BankerDealWorkspace inside LendingOSLayout so the dark
     // sidebar persists when a banker clicks a deal. Phase 48
     // cross-role-import allowlist extended. Phase 125 hook hoist
-    // preserved. Composition-only — no Dataverse / loader /
+    // preserved. Composition-only Ã¢â‚¬â€ no Dataverse / loader /
     // governed-write / email-lane changes. 13 new Phase 125F
     // invariant tests + BankerShell.test.tsx rewrite.
     'docs/PHASE_125F_LENDING_OS_SHELL_RESTORATION.md',
-    // Phase 125G — Lending OS cockpit fit-and-finish. Polish
+    // Phase 125G Ã¢â‚¬â€ Lending OS cockpit fit-and-finish. Polish
     // pass after Phase 125F. Six targeted changes: (1) stable
-    // .cc-kpi-grid CSS class for the banker KPI grid (5×2 /
-    // 4×3 / 2×5 explicit breakpoints — no orphan tile);
+    // .cc-kpi-grid CSS class for the banker KPI grid (5Ãƒâ€”2 /
+    // 4Ãƒâ€”3 / 2Ãƒâ€”5 explicit breakpoints Ã¢â‚¬â€ no orphan tile);
     // (2) stable .cc-metric-deck-tiles class for the deal
-    // metric deck (3×2 / 2×3 / 1) + tighter padding + ring
+    // metric deck (3Ãƒâ€”2 / 2Ãƒâ€”3 / 1) + tighter padding + ring
     // divider; (3) new DealCockpitNav 8-anchor strip under
     // the deck with smooth-scroll links to every cockpit
     // module (anchor IDs declared on each module's outer
@@ -380,19 +380,19 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
     // Parties / Timing / Stage & status / Structure);
     // (5) DealHeader "Deal Cockpit" lockup pill + brighter
     // eyebrow accent; (6) right-rail widget minHeight for
-    // consistent height. Composition-only — no Dataverse /
+    // consistent height. Composition-only Ã¢â‚¬â€ no Dataverse /
     // loader / governed-write / email-lane changes. Phase
     // 125 hook hoist preserved. 16 new Phase 125G invariant
     // tests.
     'docs/PHASE_125G_LENDING_OS_COCKPIT_FIT_AND_FINISH.md',
-    // Phase 126 — Relationships + Signals visual restoration.
+    // Phase 126 Ã¢â‚¬â€ Relationships + Signals visual restoration.
     // RelationshipMemory client rows gain a primary-accent left
     // stripe + bumped client-name typography. BankerAutopilotRollup
     // rows gain a severity-tinted left stripe driven by row
     // priority. Both cards' empty / loading states become
     // framed dashed-border cards. All Phase 76 / 82 / 83 / 100
     // / 101 derivations + local ledgers + clipboard / mailto
-    // handoffs preserved verbatim. Composition-only — no
+    // handoffs preserved verbatim. Composition-only Ã¢â‚¬â€ no
     // Dataverse / loader / governed-write / email-lane changes.
     // 8 new static-source pin cases added (4 per file) asserting
     // Phase 110 lock + no fabricated-AI claim vocabulary on
@@ -407,7 +407,7 @@ describe('Phase 111 — Phase 104–110 release doc files all still exist', () =
   }
 });
 
-describe('Phase 112 — Operator validation script cross-references', () => {
+describe('Phase 112 Ã¢â‚¬â€ Operator validation script cross-references', () => {
   it('docs/PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md references Phase 112 as the operator validation script', () => {
     const doc = readDoc('docs/PHASE_111_RELEASE_CANDIDATE_SNAPSHOT.md');
     expect(doc).toMatch(/PHASE_112_OPERATOR_RC_VALIDATION_SCRIPT\.md/);
@@ -424,7 +424,7 @@ describe('Phase 112 — Operator validation script cross-references', () => {
   });
 });
 
-describe('Phase 111 — Stable cross-doc pointers', () => {
+describe('Phase 111 Ã¢â‚¬â€ Stable cross-doc pointers', () => {
   it('STABILIZATION_CHECKLIST.md points at the current snapshot (Phase 111), not the previous one (Phase 103)', () => {
     const doc = readDoc('docs/STABILIZATION_CHECKLIST.md');
     // The header pointer block must reference Phase 111 as the
@@ -442,10 +442,10 @@ describe('Phase 111 — Stable cross-doc pointers', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 135A — Executive demo readiness + release snapshot
+// Phase 135A Ã¢â‚¬â€ Executive demo readiness + release snapshot
 // ---------------------------------------------------------------------------
 
-describe('Phase 135A — Executive workspace release docs exist on disk', () => {
+describe('Phase 135A Ã¢â‚¬â€ Executive workspace release docs exist on disk', () => {
   const REQUIRED_EXECUTIVE_DOCS: readonly string[] = [
     'docs/PHASE_133A_EXECUTIVE_WORKSPACE_COMMAND_CENTER.md',
     'docs/PHASE_133B_EXECUTIVE_WORKSPACE_REACHABILITY.md',
@@ -462,7 +462,7 @@ describe('Phase 135A — Executive workspace release docs exist on disk', () => 
   }
 });
 
-describe('Phase 135A — Executive demo contract is pinned in the doc', () => {
+describe('Phase 135A Ã¢â‚¬â€ Executive demo contract is pinned in the doc', () => {
   const doc = readDoc('docs/PHASE_135A_EXECUTIVE_DEMO_READINESS.md');
 
   it('pins that Executive is primary-workspace-name gated', () => {
@@ -508,7 +508,7 @@ describe('Phase 135A — Executive demo contract is pinned in the doc', () => {
   });
 });
 
-describe('Phase 135B — Executive final demo smoke contract is pinned in the doc', () => {
+describe('Phase 135B Ã¢â‚¬â€ Executive final demo smoke contract is pinned in the doc', () => {
   const doc = readDoc('docs/PHASE_135B_EXECUTIVE_FINAL_DEMO_SMOKE.md');
 
   it('declares itself a finish pass, not a feature expansion', () => {
@@ -544,10 +544,10 @@ describe('Phase 135B — Executive final demo smoke contract is pinned in the do
 });
 
 // ---------------------------------------------------------------------------
-// Phase 136A — Cross-workspace final parity smoke
+// Phase 136A Ã¢â‚¬â€ Cross-workspace final parity smoke
 // ---------------------------------------------------------------------------
 
-describe('Phase 136A — Cross-workspace final smoke doc exists and is smoke-only', () => {
+describe('Phase 136A Ã¢â‚¬â€ Cross-workspace final smoke doc exists and is smoke-only', () => {
   it('docs/PHASE_136A_CROSS_WORKSPACE_FINAL_SMOKE.md exists on disk', () => {
     expect(
       existsSync(
@@ -589,10 +589,10 @@ describe('Phase 136A — Cross-workspace final smoke doc exists and is smoke-onl
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137A — Copilot live connector implementation DECISION (doc-only)
+// Phase 137A Ã¢â‚¬â€ Copilot live connector implementation DECISION (doc-only)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137A — Copilot live connector decision is recorded and runtime stays not-configured', () => {
+describe('Phase 137A Ã¢â‚¬â€ Copilot live connector decision is recorded and runtime stays not-configured', () => {
   const rel = 'docs/PHASE_137A_COPILOT_LIVE_CONNECTOR_DECISION.md';
 
   it('the Phase 137A decision doc exists on disk', () => {
@@ -601,7 +601,7 @@ describe('Phase 137A — Copilot live connector decision is recorded and runtime
 
   const doc = readDoc(rel);
 
-  it('pins the doc as a decision/spec/governance phase — not an implementation', () => {
+  it('pins the doc as a decision/spec/governance phase Ã¢â‚¬â€ not an implementation', () => {
     expect(doc).toMatch(/decision ?\/ ?spec ?\/ ?governance phase, not an\s+implementation/i);
   });
 
@@ -618,10 +618,10 @@ describe('Phase 137A — Copilot live connector decision is recorded and runtime
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137B — Copilot Custom API CONTRACT (docs + tests only)
+// Phase 137B Ã¢â‚¬â€ Copilot Custom API CONTRACT (docs + tests only)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137B — Copilot Custom API contract is recorded and runtime stays not_configured', () => {
+describe('Phase 137B Ã¢â‚¬â€ Copilot Custom API contract is recorded and runtime stays not_configured', () => {
   const rel = 'docs/PHASE_137B_COPILOT_CUSTOM_API_CONTRACT.md';
 
   it('the Phase 137B contract doc exists on disk', () => {
@@ -630,13 +630,13 @@ describe('Phase 137B — Copilot Custom API contract is recorded and runtime sta
 
   const doc = readDoc(rel);
 
-  it('pins the doc as contract/spec only — no implementation in this phase', () => {
+  it('pins the doc as contract/spec only Ã¢â‚¬â€ no implementation in this phase', () => {
     expect(doc).toMatch(/Contract ?\/ ?spec only/i);
     expect(doc).toMatch(/No implementation\./i);
     expect(doc).toMatch(/No live traffic\./i);
   });
 
-  it('pins the future Custom API boundary (browser → Dataverse Custom API → server-side Azure OpenAI)', () => {
+  it('pins the future Custom API boundary (browser Ã¢â€ â€™ Dataverse Custom API Ã¢â€ â€™ server-side Azure OpenAI)', () => {
     expect(doc).toMatch(/cr664_RunLosCopilotAssist|cr664_RunCopilotAssist/);
     expect(doc).toMatch(/The browser calls the Dataverse Custom API only/i);
     expect(doc).toMatch(/calls Azure OpenAI server-side/i);
@@ -648,10 +648,10 @@ describe('Phase 137B — Copilot Custom API contract is recorded and runtime sta
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137C — Copilot connector adapter skeleton (disabled by default)
+// Phase 137C Ã¢â‚¬â€ Copilot connector adapter skeleton (disabled by default)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137C — Copilot connector skeleton is inert and runtime stays not_configured', () => {
+describe('Phase 137C Ã¢â‚¬â€ Copilot connector skeleton is inert and runtime stays not_configured', () => {
   const rel = 'docs/PHASE_137C_COPILOT_CONNECTOR_SKELETON.md';
 
   it('the Phase 137C skeleton doc exists on disk', () => {
@@ -678,10 +678,10 @@ describe('Phase 137C — Copilot connector skeleton is inert and runtime stays n
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137D — Copilot transport seam + config resolver (disabled by default)
+// Phase 137D Ã¢â‚¬â€ Copilot transport seam + config resolver (disabled by default)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137D — Copilot transport seam adds config gating only, no concrete transport', () => {
+describe('Phase 137D Ã¢â‚¬â€ Copilot transport seam adds config gating only, no concrete transport', () => {
   const rel = 'docs/PHASE_137D_COPILOT_TRANSPORT_SEAM.md';
 
   it('the Phase 137D transport-seam doc exists on disk', () => {
@@ -709,10 +709,10 @@ describe('Phase 137D — Copilot transport seam adds config gating only, no conc
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137E — Copilot Custom API transport stub (no concrete live transport)
+// Phase 137E Ã¢â‚¬â€ Copilot Custom API transport stub (no concrete live transport)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137E — Copilot transport stub is fail-closed and no live transport is enabled', () => {
+describe('Phase 137E Ã¢â‚¬â€ Copilot transport stub is fail-closed and no live transport is enabled', () => {
   const rel = 'docs/PHASE_137E_COPILOT_CUSTOM_API_TRANSPORT_STUB.md';
 
   it('the Phase 137E transport-stub doc exists on disk', () => {
@@ -721,7 +721,7 @@ describe('Phase 137E — Copilot transport stub is fail-closed and no live trans
 
   const doc = readDoc(rel);
 
-  it('pins the doc as a stub/factory only — no concrete live transport', () => {
+  it('pins the doc as a stub/factory only Ã¢â‚¬â€ no concrete live transport', () => {
     expect(doc).toMatch(/transport stub/i);
     expect(doc).toMatch(/fail(?:s|ing)? closed/i);
     expect(doc).toMatch(/no network call/i);
@@ -740,10 +740,10 @@ describe('Phase 137E — Copilot transport stub is fail-closed and no live trans
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137G — Copilot Custom API metadata script (guarded dry-run first)
+// Phase 137G Ã¢â‚¬â€ Copilot Custom API metadata script (guarded dry-run first)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137G — Copilot Custom API metadata script is dry-run-first with no live connector', () => {
+describe('Phase 137G Ã¢â‚¬â€ Copilot Custom API metadata script is dry-run-first with no live connector', () => {
   const rel = 'docs/PHASE_137G_COPILOT_CUSTOM_API_METADATA_SCRIPT.md';
 
   it('the Phase 137G metadata-script doc exists on disk', () => {
@@ -772,10 +772,10 @@ describe('Phase 137G — Copilot Custom API metadata script is dry-run-first wit
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137H — Copilot server-side plugin / Azure Function skeleton spec
+// Phase 137H Ã¢â‚¬â€ Copilot server-side plugin / Azure Function skeleton spec
 // ---------------------------------------------------------------------------
 
-describe('Phase 137H — Copilot server-side skeleton spec is docs-only with no runtime/live behavior', () => {
+describe('Phase 137H Ã¢â‚¬â€ Copilot server-side skeleton spec is docs-only with no runtime/live behavior', () => {
   const rel = 'docs/PHASE_137H_COPILOT_SERVER_SIDE_SKELETON_SPEC.md';
 
   it('the Phase 137H server-side skeleton-spec doc exists on disk', () => {
@@ -784,7 +784,7 @@ describe('Phase 137H — Copilot server-side skeleton spec is docs-only with no 
 
   const doc = readDoc(rel);
 
-  it('pins the doc as server-side skeleton/spec only — nothing created', () => {
+  it('pins the doc as server-side skeleton/spec only Ã¢â‚¬â€ nothing created', () => {
     expect(doc).toMatch(/server-side skeleton ?\/ ?spec only/i);
     expect(doc).toMatch(/No plugin code\./i);
     expect(doc).toMatch(/No live traffic\./i);
@@ -805,10 +805,10 @@ describe('Phase 137H — Copilot server-side skeleton spec is docs-only with no 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137I — Copilot audit / event ledger design (docs-only)
+// Phase 137I Ã¢â‚¬â€ Copilot audit / event ledger design (docs-only)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137I — Copilot audit/event ledger design is docs-only with no runtime/live behavior', () => {
+describe('Phase 137I Ã¢â‚¬â€ Copilot audit/event ledger design is docs-only with no runtime/live behavior', () => {
   const rel = 'docs/PHASE_137I_COPILOT_AUDIT_EVENT_LEDGER_DESIGN.md';
 
   it('the Phase 137I audit-ledger design doc exists on disk', () => {
@@ -817,7 +817,7 @@ describe('Phase 137I — Copilot audit/event ledger design is docs-only with no 
 
   const doc = readDoc(rel);
 
-  it('pins the doc as audit-design only — no table/migration/runtime created', () => {
+  it('pins the doc as audit-design only Ã¢â‚¬â€ no table/migration/runtime created', () => {
     expect(doc).toMatch(/audit ?\/ ?event ledger design only/i);
     expect(doc).toMatch(/No Dataverse table creation\./i);
     expect(doc).toMatch(/No live enablement\./i);
@@ -839,10 +839,10 @@ describe('Phase 137I — Copilot audit/event ledger design is docs-only with no 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137J — Copilot audit-event table metadata script (dry-run first)
+// Phase 137J Ã¢â‚¬â€ Copilot audit-event table metadata script (dry-run first)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137J — Copilot audit-table metadata script is dry-run-only with no live/runtime behavior', () => {
+describe('Phase 137J Ã¢â‚¬â€ Copilot audit-table metadata script is dry-run-only with no live/runtime behavior', () => {
   const rel = 'docs/PHASE_137J_COPILOT_AUDIT_TABLE_METADATA_SCRIPT.md';
 
   it('the Phase 137J audit-table metadata-script doc exists on disk', () => {
@@ -851,7 +851,7 @@ describe('Phase 137J — Copilot audit-table metadata script is dry-run-only wit
 
   const doc = readDoc(rel);
 
-  it('pins the script as dry-run metadata script/spec only — no table created', () => {
+  it('pins the script as dry-run metadata script/spec only Ã¢â‚¬â€ no table created', () => {
     expect(doc).toMatch(/Dry-run metadata script ?\/ ?spec only/i);
     expect(doc).toMatch(/No table creation in Phase 137J/i);
     expect(doc).toMatch(/not implemented/i);
@@ -871,10 +871,10 @@ describe('Phase 137J — Copilot audit-table metadata script is dry-run-only wit
 });
 
 // ---------------------------------------------------------------------------
-// Phase 138B — Copilot audit-table guarded commit path (future-only)
+// Phase 138B Ã¢â‚¬â€ Copilot audit-table guarded commit path (future-only)
 // ---------------------------------------------------------------------------
 
-describe('Phase 138B — Copilot audit-table commit path is operator-only and live stays not_configured', () => {
+describe('Phase 138B Ã¢â‚¬â€ Copilot audit-table commit path is operator-only and live stays not_configured', () => {
   const rel = 'docs/PHASE_138B_COPILOT_AUDIT_TABLE_COMMIT_PATH.md';
 
   it('the Phase 138B audit-table commit-path doc exists on disk', () => {
@@ -904,10 +904,10 @@ describe('Phase 138B — Copilot audit-table commit path is operator-only and li
 });
 
 // ---------------------------------------------------------------------------
-// Phase 138C — Copilot controlled live-enablement bundle (guarded, blocked)
+// Phase 138C Ã¢â‚¬â€ Copilot controlled live-enablement bundle (guarded, blocked)
 // ---------------------------------------------------------------------------
 
-describe('Phase 138C — Copilot controlled live-enablement bundle: guarded, production blocked', () => {
+describe('Phase 138C Ã¢â‚¬â€ Copilot controlled live-enablement bundle: guarded, production blocked', () => {
   const DOCS = [
     'docs/PHASE_138C_COPILOT_SERVER_HANDLER_DEPLOYMENT_PLAN.md',
     'docs/PHASE_138C_COPILOT_CONTROLLED_TEST_TENANT_ENABLEMENT.md',
@@ -938,10 +938,10 @@ describe('Phase 138C — Copilot controlled live-enablement bundle: guarded, pro
 });
 
 // ---------------------------------------------------------------------------
-// Phase 139A — Copilot final completion bundle (repo complete, live blocked)
+// Phase 139A Ã¢â‚¬â€ Copilot final completion bundle (repo complete, live blocked)
 // ---------------------------------------------------------------------------
 
-describe('Phase 139A — Copilot final completion: repo complete, live disabled, production blocked', () => {
+describe('Phase 139A Ã¢â‚¬â€ Copilot final completion: repo complete, live disabled, production blocked', () => {
   const DOCS = [
     'docs/PHASE_139A_COPILOT_FINAL_OPERATOR_COMMANDS.md',
     'docs/PHASE_139A_COPILOT_SERVER_HANDLER_PACKAGE_PLAN.md',
@@ -971,10 +971,10 @@ describe('Phase 139A — Copilot final completion: repo complete, live disabled,
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137K — Copilot audit-logger skeleton (disabled)
+// Phase 137K Ã¢â‚¬â€ Copilot audit-logger skeleton (disabled)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137K — Copilot audit-logger skeleton is inert with no live write/runtime behavior', () => {
+describe('Phase 137K Ã¢â‚¬â€ Copilot audit-logger skeleton is inert with no live write/runtime behavior', () => {
   const rel = 'docs/PHASE_137K_COPILOT_AUDIT_LOGGER_SKELETON.md';
 
   it('the Phase 137K audit-logger skeleton doc exists on disk', () => {
@@ -983,7 +983,7 @@ describe('Phase 137K — Copilot audit-logger skeleton is inert with no live wri
 
   const doc = readDoc(rel);
 
-  it('pins the doc as skeleton/interface only — no Dataverse table write, no table creation', () => {
+  it('pins the doc as skeleton/interface only Ã¢â‚¬â€ no Dataverse table write, no table creation', () => {
     expect(doc).toMatch(/Skeleton ?\/ ?interface only/i);
     expect(doc).toMatch(/No Dataverse table write\./i);
     expect(doc).toMatch(/No table creation\./i);
@@ -1002,10 +1002,10 @@ describe('Phase 137K — Copilot audit-logger skeleton is inert with no live wri
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137L — Copilot server handler + readiness bundle (disabled)
+// Phase 137L Ã¢â‚¬â€ Copilot server handler + readiness bundle (disabled)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137L — Copilot server-handler readiness bundle is disabled with no live behavior', () => {
+describe('Phase 137L Ã¢â‚¬â€ Copilot server-handler readiness bundle is disabled with no live behavior', () => {
   const rel = 'docs/PHASE_137L_COPILOT_SERVER_HANDLER_READINESS_BUNDLE.md';
 
   it('the Phase 137L readiness-bundle doc exists on disk', () => {
@@ -1033,10 +1033,10 @@ describe('Phase 137L — Copilot server-handler readiness bundle is disabled wit
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137M — Copilot governance checkpoint packet (docs-only)
+// Phase 137M Ã¢â‚¬â€ Copilot governance checkpoint packet (docs-only)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137M — Copilot governance checkpoint is docs-only with no runtime/live behavior', () => {
+describe('Phase 137M Ã¢â‚¬â€ Copilot governance checkpoint is docs-only with no runtime/live behavior', () => {
   const rel = 'docs/PHASE_137M_COPILOT_GOVERNANCE_CHECKPOINT.md';
 
   it('the Phase 137M governance checkpoint doc exists on disk', () => {
@@ -1045,16 +1045,16 @@ describe('Phase 137M — Copilot governance checkpoint is docs-only with no runt
 
   const doc = readDoc(rel);
 
-  it('pins the doc as a governance checkpoint only — no live enablement, no runtime change', () => {
+  it('pins the doc as a governance checkpoint only Ã¢â‚¬â€ no live enablement, no runtime change', () => {
     expect(doc).toMatch(/Governance checkpoint only/i);
     expect(doc).toMatch(/No live enablement in 137M/i);
     expect(doc).toMatch(/No runtime behavior change\./i);
   });
 
-  it('pins the full 137A–137L summary + architecture + gates + runtime not_configured', () => {
+  it('pins the full 137AÃ¢â‚¬â€œ137L summary + architecture + gates + runtime not_configured', () => {
     expect(doc).toMatch(/137A/);
     expect(doc).toMatch(/137L/);
-    expect(doc).toMatch(/Browser → Dataverse Custom API/i);
+    expect(doc).toMatch(/Browser.*Dataverse Custom API/i);
     expect(doc).toMatch(/Gate 1/);
     expect(doc).toMatch(/Gate 9/);
     expect(doc).toMatch(/Runtime default remains `?not_configured`?/i);
@@ -1062,17 +1062,17 @@ describe('Phase 137M — Copilot governance checkpoint is docs-only with no runt
 });
 
 // ---------------------------------------------------------------------------
-// Phase 138A — Copilot completion certification (docs-only)
+// Phase 138A Ã¢â‚¬â€ Copilot completion certification (docs-only)
 // ---------------------------------------------------------------------------
 
-describe('Phase 138A — Copilot completion certification is docs-only and live not enabled', () => {
+describe('Phase 138A Ã¢â‚¬â€ Copilot completion certification is docs-only and live not enabled', () => {
   const rel = 'docs/PHASE_138A_COPILOT_COMPLETION_CERTIFICATION.md';
 
   it('the Phase 138A completion certification doc exists on disk', () => {
     expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
   });
 
-  it('the full 137A–137M Copilot doc set still exists', () => {
+  it('the full 137AÃ¢â‚¬â€œ137M Copilot doc set still exists', () => {
     const DOCS = [
       'docs/PHASE_137A_COPILOT_LIVE_CONNECTOR_DECISION.md',
       'docs/PHASE_137B_COPILOT_CUSTOM_API_CONTRACT.md',
@@ -1110,10 +1110,10 @@ describe('Phase 138A — Copilot completion certification is docs-only and live 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 137F — Copilot Custom API registration runbook (docs/spec only)
+// Phase 137F Ã¢â‚¬â€ Copilot Custom API registration runbook (docs/spec only)
 // ---------------------------------------------------------------------------
 
-describe('Phase 137F — Copilot Custom API registration runbook is spec-only, no runtime change', () => {
+describe('Phase 137F Ã¢â‚¬â€ Copilot Custom API registration runbook is spec-only, no runtime change', () => {
   const rel = 'docs/PHASE_137F_COPILOT_CUSTOM_API_REGISTRATION_RUNBOOK.md';
 
   it('the Phase 137F runbook doc exists on disk', () => {
@@ -1122,7 +1122,7 @@ describe('Phase 137F — Copilot Custom API registration runbook is spec-only, n
 
   const doc = readDoc(rel);
 
-  it('pins the doc as registration/runbook/spec only — nothing is created', () => {
+  it('pins the doc as registration/runbook/spec only Ã¢â‚¬â€ nothing is created', () => {
     expect(doc).toMatch(/registration ?\/ ?runbook ?\/ ?spec only/i);
     expect(doc).toMatch(/No Custom API is created in this phase/i);
     expect(doc).toMatch(/No client runtime behavior change\./i);
@@ -1142,10 +1142,10 @@ describe('Phase 137F — Copilot Custom API registration runbook is spec-only, n
 });
 
 // ---------------------------------------------------------------------------
-// Phase 140A — FDIC Remediation Lending OS Mega Foundation (model/docs/tests)
+// Phase 140A Ã¢â‚¬â€ FDIC Remediation Lending OS Mega Foundation (model/docs/tests)
 // ---------------------------------------------------------------------------
 
-describe('Phase 140A — FDIC remediation foundation docs + model files exist', () => {
+describe('Phase 140A Ã¢â‚¬â€ FDIC remediation foundation docs + model files exist', () => {
   const REQUIRED_FDIC_DOCS: readonly string[] = [
     'docs/PHASE_140A_FDIC_REMEDIATION_OPERATING_MODEL.md',
     'docs/FDIC_REMEDIATION_PLATFORM_BLUEPRINT.md',
@@ -1172,7 +1172,7 @@ describe('Phase 140A — FDIC remediation foundation docs + model files exist', 
   }
 });
 
-describe('Phase 140A — FDIC foundation pins the no-fake-compliance rule and is model/docs/tests only', () => {
+describe('Phase 140A Ã¢â‚¬â€ FDIC foundation pins the no-fake-compliance rule and is model/docs/tests only', () => {
   const opModel = readDoc('docs/PHASE_140A_FDIC_REMEDIATION_OPERATING_MODEL.md');
   const blueprint = readDoc('docs/FDIC_REMEDIATION_PLATFORM_BLUEPRINT.md');
 
@@ -1201,10 +1201,10 @@ describe('Phase 140A — FDIC foundation pins the no-fake-compliance rule and is
 });
 
 // ---------------------------------------------------------------------------
-// Phase 140B — Portfolio Loan Boarding System of Record (model/tests/docs)
+// Phase 140B Ã¢â‚¬â€ Portfolio Loan Boarding System of Record (model/tests/docs)
 // ---------------------------------------------------------------------------
 
-describe('Phase 140B — portfolio loan boarding system of record exists', () => {
+describe('Phase 140B Ã¢â‚¬â€ portfolio loan boarding system of record exists', () => {
   const REQUIRED_BOARDING_FILES: readonly string[] = [
     'src/shared/portfolioBoarding/portfolioLoanBoardingTypes.ts',
     'src/shared/portfolioBoarding/portfolioLoanBoardingCatalog.ts',
@@ -1236,7 +1236,7 @@ describe('Phase 140B — portfolio loan boarding system of record exists', () =>
   });
 });
 
-describe('Phase 140B — boarding doc pins foundation-only scope', () => {
+describe('Phase 140B Ã¢â‚¬â€ boarding doc pins foundation-only scope', () => {
   const doc = readDoc(
     'docs/PHASE_140B_PORTFOLIO_LOAN_BOARDING_SYSTEM_OF_RECORD.md',
   );
@@ -1262,10 +1262,10 @@ describe('Phase 140B — boarding doc pins foundation-only scope', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 140B-H — Portfolio Loan Boarding mega phase files
+// Phase 140B-H Ã¢â‚¬â€ Portfolio Loan Boarding mega phase files
 // ---------------------------------------------------------------------------
 
-describe('Phase 140B-H — all mega-phase files exist on disk', () => {
+describe('Phase 140B-H Ã¢â‚¬â€ all mega-phase files exist on disk', () => {
   const REQUIRED_140BH_FILES: readonly string[] = [
     'docs/PHASE_140B_H_PORTFOLIO_LOAN_BOARDING_SYSTEM_OF_RECORD.md',
     'src/shared/portfolioBoarding/portfolioLoanBoardingTypes.ts',
@@ -1296,10 +1296,10 @@ describe('Phase 140B-H — all mega-phase files exist on disk', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 140I — Portfolio Boarding Dataverse schema inspection + plan
+// Phase 140I Ã¢â‚¬â€ Portfolio Boarding Dataverse schema inspection + plan
 // ---------------------------------------------------------------------------
 
-describe('Phase 140I — portfolio boarding Dataverse schema inspection foundation exists', () => {
+describe('Phase 140I Ã¢â‚¬â€ portfolio boarding Dataverse schema inspection foundation exists', () => {
   const REQUIRED_140I_FILES: readonly string[] = [
     'docs/PHASE_140I_PORTFOLIO_BOARDING_DATAVERSE_SCHEMA_INSPECTION.md',
     'src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.ts',
@@ -1337,10 +1337,10 @@ describe('Phase 140I — portfolio boarding Dataverse schema inspection foundati
 });
 
 // ---------------------------------------------------------------------------
-// Phase 140J — Guarded portfolio boarding schema seed mode
+// Phase 140J Ã¢â‚¬â€ Guarded portfolio boarding schema seed mode
 // ---------------------------------------------------------------------------
 
-describe('Phase 140J — guarded portfolio boarding schema seed foundation exists', () => {
+describe('Phase 140J Ã¢â‚¬â€ guarded portfolio boarding schema seed foundation exists', () => {
   const REQUIRED_140J_FILES: readonly string[] = [
     'docs/PHASE_140J_PORTFOLIO_BOARDING_DATAVERSE_SCHEMA_SEED_MODE.md',
     'src/portfolioBoarding/derivePortfolioBoardingSchemaSeedPlan.ts',
@@ -1383,10 +1383,10 @@ describe('Phase 140J — guarded portfolio boarding schema seed foundation exist
 });
 
 // ---------------------------------------------------------------------------
-// Phase 140K — schema verification + optional-relationship repair
+// Phase 140K Ã¢â‚¬â€ schema verification + optional-relationship repair
 // ---------------------------------------------------------------------------
 
-describe('Phase 140K — schema verification + optional-relationship repair foundation exists', () => {
+describe('Phase 140K Ã¢â‚¬â€ schema verification + optional-relationship repair foundation exists', () => {
   const REQUIRED_140K_FILES: readonly string[] = [
     'docs/PHASE_140K_PORTFOLIO_BOARDING_SCHEMA_VERIFICATION_AND_OPTIONAL_RELATIONSHIP_REPAIR.md',
     'src/portfolioBoarding/derivePortfolioBoardingSchemaVerificationReport.ts',
@@ -1430,10 +1430,10 @@ describe('Phase 140K — schema verification + optional-relationship repair foun
 });
 
 // ---------------------------------------------------------------------------
-// Phase 140L — live persistence adapter (disabled by default)
+// Phase 140L Ã¢â‚¬â€ live persistence adapter (disabled by default)
 // ---------------------------------------------------------------------------
 
-describe('Phase 140L — portfolio boarding live persistence adapter foundation exists', () => {
+describe('Phase 140L Ã¢â‚¬â€ portfolio boarding live persistence adapter foundation exists', () => {
   const REQUIRED_140L_FILES: readonly string[] = [
     'docs/PHASE_140L_PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ADAPTER.md',
     'src/portfolioBoarding/portfolioLoanBoardingFeatureFlags.ts',
@@ -1462,10 +1462,10 @@ describe('Phase 140L — portfolio boarding live persistence adapter foundation 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 140M-P — operator UI, document/evidence persistence, FDIC package
+// Phase 140M-P Ã¢â‚¬â€ operator UI, document/evidence persistence, FDIC package
 // ---------------------------------------------------------------------------
 
-describe('Phase 140M-P — portfolio boarding operator workflow + FDIC package exist', () => {
+describe('Phase 140M-P Ã¢â‚¬â€ portfolio boarding operator workflow + FDIC package exist', () => {
   const REQUIRED_140MP_FILES: readonly string[] = [
     'docs/PHASE_140M_P_PORTFOLIO_BOARDING_OPERATOR_UI_AND_FDIC_PACKAGE.md',
     // Pure logic + hooks
@@ -1521,10 +1521,10 @@ describe('Phase 140M-P — portfolio boarding operator workflow + FDIC package e
 });
 
 // ---------------------------------------------------------------------------
-// Phase 140Q — final certification + release readiness
+// Phase 140Q Ã¢â‚¬â€ final certification + release readiness
 // ---------------------------------------------------------------------------
 
-describe('Phase 140Q — portfolio boarding final certification + runtime gate exist', () => {
+describe('Phase 140Q Ã¢â‚¬â€ portfolio boarding final certification + runtime gate exist', () => {
   const REQUIRED_140Q_FILES: readonly string[] = [
     'docs/PHASE_140Q_PORTFOLIO_BOARDING_FINAL_CERTIFICATION_AND_RELEASE_READINESS.md',
     'src/portfolioBoarding/portfolioBoardingRuntimeSchemaGate.ts',
@@ -1557,10 +1557,10 @@ describe('Phase 140Q — portfolio boarding final certification + runtime gate e
 });
 
 // ---------------------------------------------------------------------------
-// Phase 141A — annual portfolio review + financial collection
+// Phase 141A Ã¢â‚¬â€ annual portfolio review + financial collection
 // ---------------------------------------------------------------------------
 
-describe('Phase 141A — annual portfolio review command center exists', () => {
+describe('Phase 141A Ã¢â‚¬â€ annual portfolio review command center exists', () => {
   const REQUIRED_141A_FILES: readonly string[] = [
     'docs/PHASE_141A_ANNUAL_PORTFOLIO_REVIEW_AND_FINANCIAL_COLLECTION.md',
     'src/shared/annualReview/annualReviewTypes.ts',
@@ -1595,10 +1595,10 @@ describe('Phase 141A — annual portfolio review command center exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 141B-H — CRM relationship master
+// Phase 141B-H Ã¢â‚¬â€ CRM relationship master
 // ---------------------------------------------------------------------------
 
-describe('Phase 141B-H — CRM relationship master exists', () => {
+describe('Phase 141B-H Ã¢â‚¬â€ CRM relationship master exists', () => {
   const REQUIRED_141BH_FILES: readonly string[] = [
     'docs/PHASE_141B_H_CRM_RELATIONSHIP_MASTER.md',
     'src/shared/crm/crmTypes.ts',
@@ -1633,10 +1633,10 @@ describe('Phase 141B-H — CRM relationship master exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 141J-K — CRM Dataverse schema inspection + guarded seed
+// Phase 141J-K Ã¢â‚¬â€ CRM Dataverse schema inspection + guarded seed
 // ---------------------------------------------------------------------------
 
-describe('Phase 141J-K — CRM Dataverse schema inspection + seed foundation exists', () => {
+describe('Phase 141J-K Ã¢â‚¬â€ CRM Dataverse schema inspection + seed foundation exists', () => {
   const REQUIRED_141JK_FILES: readonly string[] = [
     'docs/PHASE_141J_K_CRM_DATAVERSE_SCHEMA_INSPECTION_AND_SEED.md',
     'src/crm/crmDataverseSchemaPlan.ts',
@@ -1654,7 +1654,7 @@ describe('Phase 141J-K — CRM Dataverse schema inspection + seed foundation exi
 
   const doc = readDoc('docs/PHASE_141J_K_CRM_DATAVERSE_SCHEMA_INSPECTION_AND_SEED.md');
 
-  it('the doc pins the inspect → plan → dry-run → commit → verify workflow', () => {
+  it('the doc pins the inspect Ã¢â€ â€™ plan Ã¢â€ â€™ dry-run Ã¢â€ â€™ commit Ã¢â€ â€™ verify workflow', () => {
     expect(doc).toMatch(/--inspect-crm-schema/);
     expect(doc).toMatch(/--plan-crm-schema/);
     expect(doc).toMatch(/--seed-crm-schema/);
@@ -1670,10 +1670,10 @@ describe('Phase 141J-K — CRM Dataverse schema inspection + seed foundation exi
 });
 
 // ---------------------------------------------------------------------------
-// Phase 141L — CRM live persistence adapter (disabled by default)
+// Phase 141L Ã¢â‚¬â€ CRM live persistence adapter (disabled by default)
 // ---------------------------------------------------------------------------
 
-describe('Phase 141L — CRM live persistence adapter foundation exists', () => {
+describe('Phase 141L Ã¢â‚¬â€ CRM live persistence adapter foundation exists', () => {
   const REQUIRED_141L_FILES: readonly string[] = [
     'docs/PHASE_141L_CRM_LIVE_PERSISTENCE_ADAPTER.md',
     'src/crm/crmFeatureFlags.ts',
@@ -1704,10 +1704,10 @@ describe('Phase 141L — CRM live persistence adapter foundation exists', () => 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 141M — annual review borrower request workflow (human-approved)
+// Phase 141M Ã¢â‚¬â€ annual review borrower request workflow (human-approved)
 // ---------------------------------------------------------------------------
 
-describe('Phase 141M — annual review borrower request workflow exists', () => {
+describe('Phase 141M Ã¢â‚¬â€ annual review borrower request workflow exists', () => {
   const REQUIRED_141M_FILES: readonly string[] = [
     'docs/PHASE_141M_ANNUAL_REVIEW_BORROWER_REQUEST_WORKFLOW.md',
     'src/annualReview/annualReviewBorrowerRequestTypes.ts',
@@ -1736,10 +1736,10 @@ describe('Phase 141M — annual review borrower request workflow exists', () => 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 141N — borrower delivery adapter seams (disabled by default)
+// Phase 141N Ã¢â‚¬â€ borrower delivery adapter seams (disabled by default)
 // ---------------------------------------------------------------------------
 
-describe('Phase 141N — borrower delivery adapter seams exist', () => {
+describe('Phase 141N Ã¢â‚¬â€ borrower delivery adapter seams exist', () => {
   const REQUIRED_141N_FILES: readonly string[] = [
     'docs/PHASE_141N_BORROWER_DELIVERY_ADAPTER_SEAMS.md',
     'src/annualReview/annualReviewDeliveryFeatureFlags.ts',
@@ -1770,10 +1770,10 @@ describe('Phase 141N — borrower delivery adapter seams exist', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 141O — annual review financial spreading + covenant testing
+// Phase 141O Ã¢â‚¬â€ annual review financial spreading + covenant testing
 // ---------------------------------------------------------------------------
 
-describe('Phase 141O — annual review financial spreading + covenants exist', () => {
+describe('Phase 141O Ã¢â‚¬â€ annual review financial spreading + covenants exist', () => {
   const REQUIRED_141O_FILES: readonly string[] = [
     'docs/PHASE_141O_ANNUAL_REVIEW_FINANCIAL_SPREADING_AND_COVENANTS.md',
     'src/annualReview/annualReviewFinancialTypes.ts',
@@ -1804,10 +1804,10 @@ describe('Phase 141O — annual review financial spreading + covenants exist', (
 });
 
 // ---------------------------------------------------------------------------
-// Phase 141P — annual review memo / board / FDIC packages
+// Phase 141P Ã¢â‚¬â€ annual review memo / board / FDIC packages
 // ---------------------------------------------------------------------------
 
-describe('Phase 141P — annual review memo / board / FDIC packages exist', () => {
+describe('Phase 141P Ã¢â‚¬â€ annual review memo / board / FDIC packages exist', () => {
   const REQUIRED_141P_FILES: readonly string[] = [
     'docs/PHASE_141P_ANNUAL_REVIEW_MEMO_BOARD_FDIC_PACKAGES.md',
     'src/annualReview/annualReviewPackageTypes.ts',
@@ -1839,10 +1839,10 @@ describe('Phase 141P — annual review memo / board / FDIC packages exist', () =
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142A — competitive platform convergence
+// Phase 142A Ã¢â‚¬â€ competitive platform convergence
 // ---------------------------------------------------------------------------
 
-describe('Phase 142A — competitive platform convergence exists', () => {
+describe('Phase 142A Ã¢â‚¬â€ competitive platform convergence exists', () => {
   const REQUIRED_142A_FILES: readonly string[] = [
     'docs/PHASE_142A_COMPETITIVE_PLATFORM_CONVERGENCE.md',
     'src/competitive/competitiveCapabilityTypes.ts',
@@ -1880,10 +1880,10 @@ describe('Phase 142A — competitive platform convergence exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142B — governed platform object/view metadata surfaces
+// Phase 142B Ã¢â‚¬â€ governed platform object/view metadata surfaces
 // ---------------------------------------------------------------------------
 
-describe('Phase 142B — governed platform metadata surfaces exist', () => {
+describe('Phase 142B Ã¢â‚¬â€ governed platform metadata surfaces exist', () => {
   const REQUIRED_142B_FILES: readonly string[] = [
     'docs/PHASE_142B_GOVERNED_PLATFORM_OBJECT_VIEW_SURFACES.md',
     'src/platform/platformSurfaceTypes.ts',
@@ -1915,10 +1915,10 @@ describe('Phase 142B — governed platform metadata surfaces exist', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142C — configurable workflow routing + credit committee
+// Phase 142C Ã¢â‚¬â€ configurable workflow routing + credit committee
 // ---------------------------------------------------------------------------
 
-describe('Phase 142C — configurable workflow routing exists', () => {
+describe('Phase 142C Ã¢â‚¬â€ configurable workflow routing exists', () => {
   const REQUIRED_142C_FILES: readonly string[] = [
     'docs/PHASE_142C_CONFIGURABLE_WORKFLOW_ROUTING_AND_CREDIT_COMMITTEE.md',
     'src/workflow/workflowRoutingConfigTypes.ts',
@@ -1948,10 +1948,10 @@ describe('Phase 142C — configurable workflow routing exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142D — product / process template registry
+// Phase 142D Ã¢â‚¬â€ product / process template registry
 // ---------------------------------------------------------------------------
 
-describe('Phase 142D — product / process template registry exists', () => {
+describe('Phase 142D Ã¢â‚¬â€ product / process template registry exists', () => {
   const REQUIRED_142D_FILES: readonly string[] = [
     'docs/PHASE_142D_PRODUCT_PROCESS_TEMPLATE_REGISTRY.md',
     'src/platform/productProcessTemplateTypes.ts',
@@ -1980,10 +1980,10 @@ describe('Phase 142D — product / process template registry exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142E — servicing / lifecycle model
+// Phase 142E Ã¢â‚¬â€ servicing / lifecycle model
 // ---------------------------------------------------------------------------
 
-describe('Phase 142E — servicing / lifecycle model exists', () => {
+describe('Phase 142E Ã¢â‚¬â€ servicing / lifecycle model exists', () => {
   const REQUIRED_142E_FILES: readonly string[] = [
     'docs/PHASE_142E_SERVICING_LIFECYCLE_MODEL.md',
     'src/servicing/servicingLifecycleTypes.ts',
@@ -2014,10 +2014,10 @@ describe('Phase 142E — servicing / lifecycle model exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142F — integration adapter registry
+// Phase 142F Ã¢â‚¬â€ integration adapter registry
 // ---------------------------------------------------------------------------
 
-describe('Phase 142F — integration adapter registry exists', () => {
+describe('Phase 142F Ã¢â‚¬â€ integration adapter registry exists', () => {
   const REQUIRED_142F_FILES: readonly string[] = [
     'docs/PHASE_142F_INTEGRATION_ADAPTER_REGISTRY.md',
     'src/integrations/integrationAdapterTypes.ts',
@@ -2048,10 +2048,10 @@ describe('Phase 142F — integration adapter registry exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142G — admin configuration review queue
+// Phase 142G Ã¢â‚¬â€ admin configuration review queue
 // ---------------------------------------------------------------------------
 
-describe('Phase 142G — admin configuration review queue exists', () => {
+describe('Phase 142G Ã¢â‚¬â€ admin configuration review queue exists', () => {
   const REQUIRED_142G_FILES: readonly string[] = [
     'docs/PHASE_142G_ADMIN_CONFIGURATION_REVIEW_QUEUE.md',
     'src/adminConfig/adminConfigurationTypes.ts',
@@ -2080,10 +2080,10 @@ describe('Phase 142G — admin configuration review queue exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142H — executive product strategy surface
+// Phase 142H Ã¢â‚¬â€ executive product strategy surface
 // ---------------------------------------------------------------------------
 
-describe('Phase 142H — executive product strategy surface exists', () => {
+describe('Phase 142H Ã¢â‚¬â€ executive product strategy surface exists', () => {
   const REQUIRED_142H_FILES: readonly string[] = [
     'docs/PHASE_142H_EXECUTIVE_PRODUCT_STRATEGY_SURFACE.md',
     'src/competitive/executiveStrategyTypes.ts',
@@ -2113,10 +2113,10 @@ describe('Phase 142H — executive product strategy surface exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142I — executive-safe product strategy route mounting
+// Phase 142I Ã¢â‚¬â€ executive-safe product strategy route mounting
 // ---------------------------------------------------------------------------
 
-describe('Phase 142I — executive-safe product strategy route exists', () => {
+describe('Phase 142I Ã¢â‚¬â€ executive-safe product strategy route exists', () => {
   const REQUIRED_142I_FILES: readonly string[] = [
     'docs/PHASE_142I_EXECUTIVE_SAFE_PRODUCT_STRATEGY_ROUTE.md',
     'src/workspaces/ExecutiveProductStrategyWorkspace.tsx',
@@ -2141,10 +2141,10 @@ describe('Phase 142I — executive-safe product strategy route exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142J — admin configuration persistence adapter
+// Phase 142J Ã¢â‚¬â€ admin configuration persistence adapter
 // ---------------------------------------------------------------------------
 
-describe('Phase 142J — admin configuration persistence adapter exists', () => {
+describe('Phase 142J Ã¢â‚¬â€ admin configuration persistence adapter exists', () => {
   const REQUIRED_142J_FILES: readonly string[] = [
     'docs/PHASE_142J_ADMIN_CONFIGURATION_PERSISTENCE_ADAPTER.md',
     'src/adminConfig/adminConfigurationPersistenceTypes.ts',
@@ -2176,10 +2176,10 @@ describe('Phase 142J — admin configuration persistence adapter exists', () => 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142K — admin configuration controlled apply workflow
+// Phase 142K Ã¢â‚¬â€ admin configuration controlled apply workflow
 // ---------------------------------------------------------------------------
 
-describe('Phase 142K — admin configuration controlled apply workflow exists', () => {
+describe('Phase 142K Ã¢â‚¬â€ admin configuration controlled apply workflow exists', () => {
   const REQUIRED_142K_FILES: readonly string[] = [
     'docs/PHASE_142K_ADMIN_CONFIGURATION_CONTROLLED_APPLY_WORKFLOW.md',
     'src/adminConfig/adminConfigurationApplyTypes.ts',
@@ -2208,10 +2208,10 @@ describe('Phase 142K — admin configuration controlled apply workflow exists', 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142L — integration transport proof-of-concept harness (fake only)
+// Phase 142L Ã¢â‚¬â€ integration transport proof-of-concept harness (fake only)
 // ---------------------------------------------------------------------------
 
-describe('Phase 142L — integration transport proof harness exists', () => {
+describe('Phase 142L Ã¢â‚¬â€ integration transport proof harness exists', () => {
   const REQUIRED_142L_FILES: readonly string[] = [
     'docs/PHASE_142L_INTEGRATION_TRANSPORT_PROOF_HARNESS.md',
     'src/adminConfig/adminConfigurationTransport.ts',
@@ -2234,10 +2234,10 @@ describe('Phase 142L — integration transport proof harness exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142M — credit committee package review queue (no voting)
+// Phase 142M Ã¢â‚¬â€ credit committee package review queue (no voting)
 // ---------------------------------------------------------------------------
 
-describe('Phase 142M — credit committee package review queue exists', () => {
+describe('Phase 142M Ã¢â‚¬â€ credit committee package review queue exists', () => {
   const REQUIRED_142M_FILES: readonly string[] = [
     'docs/PHASE_142M_CREDIT_COMMITTEE_PACKAGE_REVIEW_QUEUE.md',
     'src/committee/creditCommitteePackageQueue.ts',
@@ -2261,10 +2261,10 @@ describe('Phase 142M — credit committee package review queue exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142N — live package export adapter seam (disabled by default)
+// Phase 142N Ã¢â‚¬â€ live package export adapter seam (disabled by default)
 // ---------------------------------------------------------------------------
 
-describe('Phase 142N — live package export adapter seam exists', () => {
+describe('Phase 142N Ã¢â‚¬â€ live package export adapter seam exists', () => {
   const REQUIRED_142N_FILES: readonly string[] = [
     'docs/PHASE_142N_LIVE_PACKAGE_EXPORT_ADAPTER_SEAM.md',
     'src/committee/creditPackageExportAdapter.ts',
@@ -2288,10 +2288,10 @@ describe('Phase 142N — live package export adapter seam exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142O — e-sign envelope adapter seam (PandaDoc, disabled by default)
+// Phase 142O Ã¢â‚¬â€ e-sign envelope adapter seam (PandaDoc, disabled by default)
 // ---------------------------------------------------------------------------
 
-describe('Phase 142O — e-sign envelope adapter seam exists', () => {
+describe('Phase 142O Ã¢â‚¬â€ e-sign envelope adapter seam exists', () => {
   const REQUIRED_142O_FILES: readonly string[] = [
     'docs/PHASE_142O_ESIGN_ENVELOPE_ADAPTER_SEAM.md',
     'src/committee/eSignEnvelopeAdapter.ts',
@@ -2315,10 +2315,10 @@ describe('Phase 142O — e-sign envelope adapter seam exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142P — core banking read-only lookup adapter seam (disabled by default)
+// Phase 142P Ã¢â‚¬â€ core banking read-only lookup adapter seam (disabled by default)
 // ---------------------------------------------------------------------------
 
-describe('Phase 142P — core banking read-only lookup adapter seam exists', () => {
+describe('Phase 142P Ã¢â‚¬â€ core banking read-only lookup adapter seam exists', () => {
   const REQUIRED_142P_FILES: readonly string[] = [
     'docs/PHASE_142P_CORE_BANKING_READ_ONLY_LOOKUP_ADAPTER.md',
     'src/integrations/coreBanking/coreBankingLookupAdapter.ts',
@@ -2343,10 +2343,10 @@ describe('Phase 142P — core banking read-only lookup adapter seam exists', () 
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142Q — AML/KYC and credit bureau policy gate (no live pull)
+// Phase 142Q Ã¢â‚¬â€ AML/KYC and credit bureau policy gate (no live pull)
 // ---------------------------------------------------------------------------
 
-describe('Phase 142Q — AML/KYC and credit bureau policy gate exists', () => {
+describe('Phase 142Q Ã¢â‚¬â€ AML/KYC and credit bureau policy gate exists', () => {
   const REQUIRED_142Q_FILES: readonly string[] = [
     'docs/PHASE_142Q_AML_KYC_CREDIT_BUREAU_POLICY_GATE.md',
     'src/integrations/policyGates/amlKycCreditBureauPolicyGate.ts',
@@ -2371,10 +2371,10 @@ describe('Phase 142Q — AML/KYC and credit bureau policy gate exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142R — servicing lifecycle read-only Dataverse mapper
+// Phase 142R Ã¢â‚¬â€ servicing lifecycle read-only Dataverse mapper
 // ---------------------------------------------------------------------------
 
-describe('Phase 142R — servicing lifecycle read-only mapper exists', () => {
+describe('Phase 142R Ã¢â‚¬â€ servicing lifecycle read-only mapper exists', () => {
   const REQUIRED_142R_FILES: readonly string[] = [
     'docs/PHASE_142R_SERVICING_LIFECYCLE_READ_ONLY_DATAVERSE_MAPPER.md',
     'src/servicing/servicingLifecycleMapper.ts',
@@ -2399,10 +2399,10 @@ describe('Phase 142R — servicing lifecycle read-only mapper exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142S — executive product profitability / ROE availability model
+// Phase 142S Ã¢â‚¬â€ executive product profitability / ROE availability model
 // ---------------------------------------------------------------------------
 
-describe('Phase 142S — product profitability / ROE availability model exists', () => {
+describe('Phase 142S Ã¢â‚¬â€ product profitability / ROE availability model exists', () => {
   const REQUIRED_142S_FILES: readonly string[] = [
     'docs/PHASE_142S_EXECUTIVE_PRODUCT_PROFITABILITY_ROE_AVAILABILITY_MODEL.md',
     'src/executive/productProfitabilityAvailabilityModel.ts',
@@ -2426,10 +2426,10 @@ describe('Phase 142S — product profitability / ROE availability model exists',
 });
 
 // ---------------------------------------------------------------------------
-// Phase 142T — platform convergence release readiness certification
+// Phase 142T Ã¢â‚¬â€ platform convergence release readiness certification
 // ---------------------------------------------------------------------------
 
-describe('Phase 142T — platform convergence release readiness certification exists', () => {
+describe('Phase 142T Ã¢â‚¬â€ platform convergence release readiness certification exists', () => {
   const REQUIRED_142T_FILES: readonly string[] = [
     'docs/PHASE_142T_PLATFORM_CONVERGENCE_RELEASE_READINESS_CERTIFICATION.md',
     'src/shared/governance/platformConvergenceReleaseReadiness.test.ts',
@@ -2452,10 +2452,10 @@ describe('Phase 142T — platform convergence release readiness certification ex
 });
 
 // ---------------------------------------------------------------------------
-// Phase 143A-143J — controlled CRM activation stack
+// Phase 143A-143J Ã¢â‚¬â€ controlled CRM activation stack
 // ---------------------------------------------------------------------------
 
-describe('Phase 143 — controlled CRM activation stack exists', () => {
+describe('Phase 143 Ã¢â‚¬â€ controlled CRM activation stack exists', () => {
   const REQUIRED_143_FILES: readonly string[] = [
     'docs/PHASE_143A_CRM_ACTIVATION_INVENTORY_SOURCE_OF_TRUTH.md',
     'docs/PHASE_143B_SALESFORCE_NCINO_CONNECTOR_READINESS_AUDIT.md',
@@ -2496,10 +2496,10 @@ describe('Phase 143 — controlled CRM activation stack exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 144A — system-wide drill-through contract
+// Phase 144A Ã¢â‚¬â€ system-wide drill-through contract
 // ---------------------------------------------------------------------------
 
-describe('Phase 144A — system-wide drill-through contract exists', () => {
+describe('Phase 144A Ã¢â‚¬â€ system-wide drill-through contract exists', () => {
   const REQUIRED_144A_FILES: readonly string[] = [
     'docs/PHASE_144A_SYSTEM_WIDE_DRILL_THROUGH_CONTRACT.md',
     'src/shared/drillthrough/drillThroughTypes.ts',
@@ -2530,10 +2530,10 @@ describe('Phase 144A — system-wide drill-through contract exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 144B — legacy cockpit drill-through retrofit
+// Phase 144B Ã¢â‚¬â€ legacy cockpit drill-through retrofit
 // ---------------------------------------------------------------------------
 
-describe('Phase 144B — legacy cockpit drill-through retrofit exists', () => {
+describe('Phase 144B Ã¢â‚¬â€ legacy cockpit drill-through retrofit exists', () => {
   const REQUIRED_144B_FILES: readonly string[] = [
     'docs/PHASE_144B_LEGACY_COCKPIT_DRILL_THROUGH_RETROFIT.md',
     'src/manager/managerDrillThrough.ts',
@@ -2568,10 +2568,10 @@ describe('Phase 144B — legacy cockpit drill-through retrofit exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 144C — chart segment drill-through
+// Phase 144C Ã¢â‚¬â€ chart segment drill-through
 // ---------------------------------------------------------------------------
 
-describe('Phase 144C — chart segment drill-through exists', () => {
+describe('Phase 144C Ã¢â‚¬â€ chart segment drill-through exists', () => {
   const REQUIRED_144C_FILES: readonly string[] = [
     'docs/PHASE_144C_CHART_SEGMENT_DRILL_THROUGH.md',
     'src/shared/drillthrough/chartDrillThrough.ts',
@@ -2604,10 +2604,10 @@ describe('Phase 144C — chart segment drill-through exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 144D — drill-through deep-link support
+// Phase 144D Ã¢â‚¬â€ drill-through deep-link support
 // ---------------------------------------------------------------------------
 
-describe('Phase 144D — drill-through deep-link support exists', () => {
+describe('Phase 144D Ã¢â‚¬â€ drill-through deep-link support exists', () => {
   const REQUIRED_144D_FILES: readonly string[] = [
     'docs/PHASE_144D_DRILL_THROUGH_ROUTE_DEEP_LINK_SUPPORT.md',
     'src/shared/drillthrough/drillThroughDeepLink.ts',
@@ -2640,10 +2640,10 @@ describe('Phase 144D — drill-through deep-link support exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 144E — extend drill-through deep-links across cockpits
+// Phase 144E Ã¢â‚¬â€ extend drill-through deep-links across cockpits
 // ---------------------------------------------------------------------------
 
-describe('Phase 144E — drill-through deep-link expansion exists', () => {
+describe('Phase 144E Ã¢â‚¬â€ drill-through deep-link expansion exists', () => {
   const REQUIRED_144E_FILES: readonly string[] = [
     'docs/PHASE_144E_EXTEND_DRILL_THROUGH_DEEP_LINKS.md',
     'src/crm/relationshipIntelligence/crmRelationshipDrillThrough.ts',
@@ -2674,10 +2674,10 @@ describe('Phase 144E — drill-through deep-link expansion exists', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 164 — V1.0 controlled pilot release package
+// Phase 164 Ã¢â‚¬â€ V1.0 controlled pilot release package
 // ---------------------------------------------------------------------------
 
-describe('Phase 164 — V1.0 controlled pilot release package exists and is honest', () => {
+describe('Phase 164 Ã¢â‚¬â€ V1.0 controlled pilot release package exists and is honest', () => {
   it('docs/PHASE_164_V1_CONTROLLED_PILOT_RELEASE_PACKAGE.md exists on disk', () => {
     expect(
       existsSync(
@@ -2731,10 +2731,10 @@ describe('Phase 164 — V1.0 controlled pilot release package exists and is hone
 });
 
 // ---------------------------------------------------------------------------
-// Phase 168 — V1.0 release notes carry the pushed controlled-pilot tag
+// Phase 168 Ã¢â‚¬â€ V1.0 release notes carry the pushed controlled-pilot tag
 // ---------------------------------------------------------------------------
 
-describe('Phase 168 — V1.0 release notes pin the final controlled-pilot tag', () => {
+describe('Phase 168 Ã¢â‚¬â€ V1.0 release notes pin the final controlled-pilot tag', () => {
   const doc = readDoc('docs/V1_0_RELEASE_NOTES.md');
 
   it('pins the release tag and tagged commit', () => {
@@ -3409,7 +3409,7 @@ describe('Phase 170H -- resolver readiness surface doc exists and is governed', 
   });
 
   it('pins the TEST not-production-approved warning', () => {
-    expect(doc).toMatch(/TEST reference rows — not production-approved|TEST-environment labels/i);
+    expect(doc).toMatch(/TEST reference rows Ã¢â‚¬â€ not production-approved|TEST-environment labels/i);
     expect(doc).toMatch(/REFERENCE_SELECTION_PRODUCTION_APPROVED = false/);
   });
 
@@ -3683,7 +3683,7 @@ describe('Phase 170M -- governed New Deal create adapter doc exists and is hones
 
   it('pins the resolver dependency and the WIRED audit (no faked audit)', () => {
     expect(doc).toMatch(/fail-closed resolver|by stable\s+code\/name/i);
-    expect(doc).toMatch(/Audit status\s*[—-]\s*WIRED/i);
+    expect(doc).toMatch(/Audit status.*WIRED/i);
     expect(doc).toMatch(/AssignmentChange \(788190002\)/);
     expect(doc).toMatch(/no audit is faked|audit_failed_partial/);
   });
@@ -3895,10 +3895,10 @@ describe('Phase 182E -- banker create certification (pilot live, public disabled
 });
 
 // ---------------------------------------------------------------------------
-// Phase 187I — V1 systems-integrity certification (PILOT_LIVE_CONTROLLED)
+// Phase 187I Ã¢â‚¬â€ V1 systems-integrity certification (PILOT_LIVE_CONTROLLED)
 // ---------------------------------------------------------------------------
 
-describe('Phase 187I — banker New Deal create certification', () => {
+describe('Phase 187I Ã¢â‚¬â€ banker New Deal create certification', () => {
   const rel = 'docs/PHASE_187I_V1_SYSTEMS_INTEGRITY_CERTIFICATION.md';
 
   it('the certification doc exists on disk', () => {
@@ -3928,10 +3928,10 @@ describe('Phase 187I — banker New Deal create certification', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 188F — document checklist generation pilot certification
+// Phase 188F Ã¢â‚¬â€ document checklist generation pilot certification
 // ---------------------------------------------------------------------------
 
-describe('Phase 188F — document checklist pilot certification', () => {
+describe('Phase 188F Ã¢â‚¬â€ document checklist pilot certification', () => {
   const rel = 'docs/PHASE_188F_DOCUMENT_CHECKLIST_PILOT_CERTIFICATION.md';
 
   it('the certification doc exists on disk', () => {
@@ -3960,10 +3960,10 @@ describe('Phase 188F — document checklist pilot certification', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 188I — document checklist controlled UI-enable readiness plan
+// Phase 188I Ã¢â‚¬â€ document checklist controlled UI-enable readiness plan
 // ---------------------------------------------------------------------------
 
-describe('Phase 188I — document checklist UI-enable readiness plan', () => {
+describe('Phase 188I Ã¢â‚¬â€ document checklist UI-enable readiness plan', () => {
   const rel = 'docs/PHASE_188I_DOCUMENT_CHECKLIST_UI_ENABLE_READINESS.md';
 
   it('the readiness plan doc exists on disk', () => {
@@ -4002,10 +4002,10 @@ describe('Phase 188I — document checklist UI-enable readiness plan', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 191 — Banker V1 release-candidate hardening (go/no-go snapshot)
+// Phase 191 Ã¢â‚¬â€ Banker V1 release-candidate hardening (go/no-go snapshot)
 // ---------------------------------------------------------------------------
 
-describe('Phase 191 — banker V1 release-candidate hardening', () => {
+describe('Phase 191 Ã¢â‚¬â€ banker V1 release-candidate hardening', () => {
   const rel = 'docs/PHASE_191_BANKER_V1_RELEASE_CANDIDATE_HARDENING.md';
 
   it('the Phase 191 release-candidate doc exists on disk', () => {
@@ -4047,10 +4047,10 @@ describe('Phase 191 — banker V1 release-candidate hardening', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 192 — credit / committee / compliance V1 readiness (go/no-go snapshot)
+// Phase 192 Ã¢â‚¬â€ credit / committee / compliance V1 readiness (go/no-go snapshot)
 // ---------------------------------------------------------------------------
 
-describe('Phase 192 — credit / committee / compliance V1 readiness', () => {
+describe('Phase 192 Ã¢â‚¬â€ credit / committee / compliance V1 readiness', () => {
   const rel = 'docs/PHASE_192_CREDIT_COMMITTEE_COMPLIANCE_V1_READINESS.md';
 
   it('the Phase 192 readiness doc exists on disk', () => {
@@ -4095,10 +4095,10 @@ describe('Phase 192 — credit / committee / compliance V1 readiness', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 194 — controlled live New Deal create enablement (launch-unlock snapshot)
+// Phase 194 Ã¢â‚¬â€ controlled live New Deal create enablement (launch-unlock snapshot)
 // ---------------------------------------------------------------------------
 
-describe('Phase 194 — controlled live New Deal create enablement', () => {
+describe('Phase 194 Ã¢â‚¬â€ controlled live New Deal create enablement', () => {
   const rel = 'docs/PHASE_194_CONTROLLED_LIVE_NEW_DEAL_CREATE_ENABLEMENT.md';
 
   it('the Phase 194 enablement doc exists on disk', () => {
@@ -4137,10 +4137,10 @@ describe('Phase 194 — controlled live New Deal create enablement', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 195 — V1 controlled production pilot cutover (cutover runbook snapshot)
+// Phase 195 Ã¢â‚¬â€ V1 controlled production pilot cutover (cutover runbook snapshot)
 // ---------------------------------------------------------------------------
 
-describe('Phase 195 — V1 controlled production pilot cutover', () => {
+describe('Phase 195 Ã¢â‚¬â€ V1 controlled production pilot cutover', () => {
   const rel = 'docs/PHASE_195_V1_CONTROLLED_PRODUCTION_PILOT_CUTOVER.md';
 
   it('the Phase 195 cutover doc exists on disk', () => {
@@ -4182,10 +4182,10 @@ describe('Phase 195 — V1 controlled production pilot cutover', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 196 — V1 pilot enablement evidence certification (evidence-gate snapshot)
+// Phase 196 Ã¢â‚¬â€ V1 pilot enablement evidence certification (evidence-gate snapshot)
 // ---------------------------------------------------------------------------
 
-describe('Phase 196 — V1 pilot enablement evidence certification', () => {
+describe('Phase 196 Ã¢â‚¬â€ V1 pilot enablement evidence certification', () => {
   const rel = 'docs/PHASE_196_V1_PILOT_ENABLEMENT_EVIDENCE_CERTIFICATION.md';
 
   it('the Phase 196 evidence-certification doc exists on disk', () => {
@@ -4235,10 +4235,10 @@ describe('Phase 196 — V1 pilot enablement evidence certification', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 197 — full system launch readiness (CONDITIONAL GO snapshot)
+// Phase 197 Ã¢â‚¬â€ full system launch readiness (CONDITIONAL GO snapshot)
 // ---------------------------------------------------------------------------
 
-describe('Phase 197 — full system launch readiness', () => {
+describe('Phase 197 Ã¢â‚¬â€ full system launch readiness', () => {
   const rel = 'docs/PHASE_197_FULL_SYSTEM_LAUNCH_READINESS.md';
 
   it('the Phase 197 doc exists on disk', () => {
@@ -4297,10 +4297,10 @@ describe('Phase 197 — full system launch readiness', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 198 — safe launch readiness exposure (admin-only mount)
+// Phase 198 Ã¢â‚¬â€ safe launch readiness exposure (admin-only mount)
 // ---------------------------------------------------------------------------
 
-describe('Phase 198 — safe full-system launch readiness exposure', () => {
+describe('Phase 198 Ã¢â‚¬â€ safe full-system launch readiness exposure', () => {
   const rel = 'docs/PHASE_198_SAFE_LAUNCH_READINESS_EXPOSURE.md';
 
   it('the Phase 198 doc + contract test exist on disk', () => {
@@ -4327,10 +4327,10 @@ describe('Phase 198 — safe full-system launch readiness exposure', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 199 — certified New Deal create pilot enablement
+// Phase 199 Ã¢â‚¬â€ certified New Deal create pilot enablement
 // ---------------------------------------------------------------------------
 
-describe('Phase 199 — certified New Deal create pilot enablement', () => {
+describe('Phase 199 Ã¢â‚¬â€ certified New Deal create pilot enablement', () => {
   const rel = 'docs/PHASE_199_CERTIFIED_NEW_DEAL_CREATE_PILOT.md';
 
   it('the Phase 199 doc + contract test exist on disk', () => {
@@ -4357,10 +4357,10 @@ describe('Phase 199 — certified New Deal create pilot enablement', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 200 — V1 cutover execution evidence
+// Phase 200 Ã¢â‚¬â€ V1 cutover execution evidence
 // ---------------------------------------------------------------------------
 
-describe('Phase 200 — V1 cutover execution evidence', () => {
+describe('Phase 200 Ã¢â‚¬â€ V1 cutover execution evidence', () => {
   const rel = 'docs/PHASE_200_V1_CUTOVER_EXECUTION_EVIDENCE.md';
 
   it('the Phase 200 doc + contract test exist on disk', () => {
@@ -4388,10 +4388,10 @@ describe('Phase 200 — V1 cutover execution evidence', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 201 — V1.0 final release decision (required final release docs present)
+// Phase 201 Ã¢â‚¬â€ V1.0 final release decision (required final release docs present)
 // ---------------------------------------------------------------------------
 
-describe('Phase 201 — V1.0 final release decision', () => {
+describe('Phase 201 Ã¢â‚¬â€ V1.0 final release decision', () => {
   const rel = 'docs/PHASE_201_V1_FINAL_RELEASE_DECISION.md';
 
   it('all required final-release-sequence docs + tests exist', () => {
@@ -4424,10 +4424,10 @@ describe('Phase 201 — V1.0 final release decision', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 202 — OGB-native CRM + lending workflow activation
+// Phase 202 Ã¢â‚¬â€ OGB-native CRM + lending workflow activation
 // ---------------------------------------------------------------------------
 
-describe('Phase 202 — OGB-native CRM + lending workflow activation', () => {
+describe('Phase 202 Ã¢â‚¬â€ OGB-native CRM + lending workflow activation', () => {
   const rel = 'docs/PHASE_202_OGB_NATIVE_CRM_WORKFLOW_ACTIVATION.md';
 
   it('the Phase 202 doc + activation model/panel/contract exist on disk', () => {
@@ -4459,10 +4459,10 @@ describe('Phase 202 — OGB-native CRM + lending workflow activation', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 203 — V1 activation readiness console (final conditional-GO gate)
+// Phase 203 Ã¢â‚¬â€ V1 activation readiness console (final conditional-GO gate)
 // ---------------------------------------------------------------------------
 
-describe('Phase 203 — V1 activation readiness console', () => {
+describe('Phase 203 Ã¢â‚¬â€ V1 activation readiness console', () => {
   const rel = 'docs/PHASE_203_V1_ACTIVATION_READINESS_CONSOLE.md';
 
   it('the Phase 203 doc + model/panel/contract exist on disk', () => {
@@ -4493,10 +4493,10 @@ describe('Phase 203 — V1 activation readiness console', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 227 � V1 production release smoke and New Deal create enablement
+// Phase 227 â€” V1 production release smoke and New Deal create enablement
 // ---------------------------------------------------------------------------
 
-describe('Phase 227 � V1 production release smoke and New Deal create enablement', () => {
+describe('Phase 227 â€” V1 production release smoke and New Deal create enablement', () => {
   const rel = 'docs/PHASE_227_V1_PRODUCTION_RELEASE_SMOKE.md';
 
   it('the Phase 227 production release smoke doc exists on disk', () => {
@@ -4519,13 +4519,14 @@ describe('Phase 227 � V1 production release smoke and New Deal create enablement
 
   it('requires release smoke evidence before New Deal create enablement', () => {
     expect(doc).toMatch(/production release smoke evidence/i);
-    expect(doc).toMatch(/Created deal lands with correct Stage and Status/i);
-    expect(doc).toMatch(/Actor\/audit binding is correct/i);
+    expect(doc).toMatch(/Created deal landed with Stage = Intake and Status = Open/i);
+    expect(doc).toMatch(/Audit marker was present in the UI as "public \+ New Deal"; named actor was not visible in the UI/i);
     expect(doc).toMatch(/Disable\/rollback path remains available/i);
   });
 
-  it('keeps write flags blocked until the evidence path is completed', () => {
-    expect(doc).toMatch(/New Deal create remains blocked/i);
-    expect(doc).toMatch(/write flags must not be enabled/i);
+  it('records post-smoke production enablement with downstream limits', () => {
+    expect(doc).toMatch(/certified for V1 production release use/i);
+    expect(doc).toMatch(/Downstream automation remains governed separately/i);
+    expect(doc).toMatch(/Borrower communication remains governed separately/i);
   });
 });

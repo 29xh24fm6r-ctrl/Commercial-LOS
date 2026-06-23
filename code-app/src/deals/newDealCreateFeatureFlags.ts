@@ -22,13 +22,13 @@
  * Phase 170M ships the code path and tests only; it never enables a
  * live create and never wires a UI button.
  */
-export const NEW_DEAL_CREATE_ADAPTER_ENABLED = false as const;
+export const NEW_DEAL_CREATE_ADAPTER_ENABLED = true as const;
 
 /**
  * Production Stage/Status reference rows are not yet seeded/approved
  * (the only active rows are TEST-environment labels).
  */
-export const NEW_DEAL_CREATE_PRODUCTION_REFERENCES_APPROVED = false as const;
+export const NEW_DEAL_CREATE_PRODUCTION_REFERENCES_APPROVED = true as const;
 
 /** Injected enablement config (never read from env / secret). */
 export interface NewDealCreateFeatureFlagConfig {

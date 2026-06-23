@@ -31,21 +31,22 @@ import {
  * Phase 171-180 -- origination feature flags fail-closed by default.
  */
 
-describe('origination flags -- hard constants all OFF this phase', () => {
-  it('every domain hard constant is false', () => {
+describe('origination flags -- Phase 228A production core constants', () => {
+  it('enables only the safe internal production core constants', () => {
+    expect(BANKER_NEW_DEAL_CREATE_ENABLED).toBe(true);
+    expect(TASK_GENERATION_ENABLED).toBe(true);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(DUPLICATE_DETECTION_ENABLED).toBe(true);
+
     for (const c of [
-      BANKER_NEW_DEAL_CREATE_ENABLED,
       CRM_AUTOMATION_ENABLED,
       BORROWER_INVITE_AUTOMATION_ENABLED,
       AUTO_STAGE_ADVANCE_ENABLED,
-      TASK_GENERATION_ENABLED,
-      DOCUMENT_CHECKLIST_GENERATION_ENABLED,
       PORTFOLIO_SIDE_EFFECTS_ENABLED,
       BORROWER_MESSAGING_ENABLED,
       BORROWER_EMAIL_TRANSPORT_ENABLED,
       BORROWER_SMS_TRANSPORT_ENABLED,
       BORROWER_TWILIO_TRANSPORT_ENABLED,
-      DUPLICATE_DETECTION_ENABLED,
       DUPLICATE_MERGE_APPLY_ENABLED,
     ]) {
       expect(c).toBe(false);
@@ -53,7 +54,7 @@ describe('origination flags -- hard constants all OFF this phase', () => {
   });
 });
 
-describe('origination flags -- every gate fails closed even with config "true"', () => {
+describe('origination flags -- Phase 228A production core gates', () => {
   const fullyTrue = {
     bankerCreateEnabled: true,
     crmAutomationEnabled: true,
@@ -70,18 +71,19 @@ describe('origination flags -- every gate fails closed even with config "true"',
     borrowerMessagingMode: 'send_enabled' as const,
   };
 
-  it('all gate readers return false / disabled because the hard constants are false', () => {
-    expect(isBankerCreateEnabled(fullyTrue)).toBe(false);
+  it('gate readers enable only the safe internal production core when config is true', () => {
+    expect(isBankerCreateEnabled(fullyTrue)).toBe(true);
+    expect(isTaskGenerationEnabled(fullyTrue)).toBe(true);
+    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(true);
+    expect(isDuplicateDetectionEnabled(fullyTrue)).toBe(true);
+
     expect(isCrmAutomationEnabled(fullyTrue)).toBe(false);
     expect(isAutoStageAdvanceEnabled(fullyTrue)).toBe(false);
-    expect(isTaskGenerationEnabled(fullyTrue)).toBe(false);
-    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(false);
     expect(isPortfolioSideEffectsEnabled(fullyTrue)).toBe(false);
-    expect(isDuplicateDetectionEnabled(fullyTrue)).toBe(false);
     expect(isDuplicateMergeApplyEnabled(fullyTrue)).toBe(false);
-    expect(isAnyBorrowerTransportEnabled(fullyTrue)).toBe(false);
     expect(resolveBorrowerInviteMode(fullyTrue)).toBe('disabled');
     expect(resolveBorrowerMessagingMode(fullyTrue)).toBe('disabled');
+    expect(isAnyBorrowerTransportEnabled(fullyTrue)).toBe(false);
   });
 
   it('default (no config) is disabled everywhere', () => {
