@@ -67,6 +67,13 @@ describe('Phase 204G — AdminEntitlementDiagnosticCard', () => {
     expect(screen.getByText('profile-label-upn')).toBeInTheDocument();
   });
 
+  it('renders the Phase 204J visible build stamp so the live UI proves it is current', () => {
+    render(<AdminEntitlementDiagnosticCard />);
+    expect(
+      screen.getByText('Diagnostic build: Phase 204J / post-204I runtime-clean / master 3756077'),
+    ).toBeInTheDocument();
+  });
+
   it('is strictly read-only — no buttons, no forms, no write handlers in the DOM', async () => {
     const { container } = render(<AdminEntitlementDiagnosticCard />);
     await waitFor(() => expect(screen.getByText('entitled')).toBeInTheDocument());

@@ -45,6 +45,8 @@ export function AdminEntitlementDiagnosticCard() {
   return (
     <section style={styles.card} aria-label="Admin Entitlement Diagnostic — temporary Phase 204G">
       <div style={styles.title}>Admin Entitlement Diagnostic — temporary Phase 204G</div>
+      {/* Phase 204J — visible build stamp so the live UI proves the deployed card is current. */}
+      <div style={styles.buildStamp}>Diagnostic build: Phase 204J / post-204I runtime-clean / master 3756077</div>
       <div style={styles.subtitle}>
         Read-only diagnostic of the live admin-workspace probe. No actions, no writes — sanitized values only.
       </div>
@@ -132,6 +134,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: typography.size.md,
     fontWeight: typography.weight.bold,
     color: palette.text,
+  },
+  buildStamp: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: palette.cobaltFg ?? palette.text,
+    fontFamily: 'monospace',
   },
   subtitle: {
     fontSize: typography.size.xs,
