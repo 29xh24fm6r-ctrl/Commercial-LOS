@@ -73,13 +73,23 @@ export async function loadAdminUserRows(): Promise<readonly AdminUserRow[]> {
   );
 }
 
+/**
+ * Phase 204L — FOUR-FIELD read. Direct Dataverse Web API testing (Phase 204K)
+ * proved that selecting the formatted display/name fields on
+ * cr664_workspaceentitlements (the workspace display name, the LOS-profile label,
+ * the access-level name, isdefault, and the row id) FAILS the whole query live,
+ * while a read of exactly these four fields SUCCEEDS. So this read selects ONLY:
+ * cr664_entitlementname, cr664_accesslevel, _cr664_losuserprofile_value, statecode.
+ * The display-only columns (workspaceName, isDefault) are derived as undefined/false
+ * rather than read, and accessLevel is surfaced as the numeric option-set value.
+ */
 export async function loadAdminEntitlementRows(): Promise<readonly AdminEntitlementRow[]> {
   const result = await Cr664_workspaceentitlementsesService.getAll({
     select: [
-      'cr664_workspaceentitlementsid',
       'cr664_entitlementname',
-      'cr664_accesslevelname',
-      'cr664_workspacename',      'cr664_isdefault',
+      'cr664_accesslevel',
+      '_cr664_losuserprofile_value',
+      'statecode',
     ],
     orderBy: ['cr664_entitlementname asc'],
     top: ADMIN_USER_ACCESS_ROW_CAP,
@@ -90,14 +100,20 @@ export async function loadAdminEntitlementRows(): Promise<readonly AdminEntitlem
     );
   }
   return (result.data ?? []).map(
-    (r): AdminEntitlementRow => ({
-      id: r.cr664_workspaceentitlementsid,
-      entitlementName: r.cr664_entitlementname,
-      accessLevel: r.cr664_accesslevelname,
-      workspaceName: r.cr664_workspacename,
-      profileName: undefined,
-      isDefault: r.cr664_isdefault === true,
-    }),
+    (r): AdminEntitlementRow => {
+      const entitlementName = r.cr664_entitlementname;
+      const accessLevel = r.cr664_accesslevel;
+      const profileId = r._cr664_losuserprofile_value;
+      const stateCode = r.statecode;
+      return {
+        id: `${entitlementName}:${accessLevel ?? 'none'}:${profileId ?? 'none'}:${stateCode ?? 'none'}`,
+        entitlementName,
+        accessLevel: accessLevel === undefined || accessLevel === null ? undefined : String(accessLevel),
+        workspaceName: undefined,
+        profileName: profileId,
+        isDefault: false,
+      };
+    },
   );
 }
 
