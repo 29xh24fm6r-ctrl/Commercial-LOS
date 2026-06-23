@@ -51,6 +51,12 @@ export interface ReferenceRow {
   readonly name: string;
   readonly code: string;
   readonly activeFlag: boolean;
+  /**
+   * Phase 226 — the governed production-approval marker (`new_productionapproved`).
+   * True ONLY when the operator has explicitly approved the row for production.
+   * Never inferred from code/name; absent/false means not production-approved.
+   */
+  readonly productionApproved?: boolean;
 }
 
 /**

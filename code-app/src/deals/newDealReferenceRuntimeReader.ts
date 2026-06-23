@@ -17,13 +17,15 @@ import { STAGE_REFERENCE, STATUS_REFERENCE } from './newDealReferenceTargets';
 
 const STAGE_DATA_SOURCE = STAGE_REFERENCE.entitySetName; // cr664_dealstagereferences
 const STATUS_DATA_SOURCE = STATUS_REFERENCE.entitySetName; // cr664_dealstatusreferences
-const STAGE_SELECT = [STAGE_REFERENCE.primaryId, 'cr664_name', 'cr664_code', 'cr664_activeflag'];
-const STATUS_SELECT = [STATUS_REFERENCE.primaryId, 'cr664_name', 'cr664_code', 'cr664_activeflag'];
+// Phase 226 — `new_productionapproved` is the governed production-approval marker.
+const STAGE_SELECT = [STAGE_REFERENCE.primaryId, 'cr664_name', 'cr664_code', 'cr664_activeflag', 'new_productionapproved'];
+const STATUS_SELECT = [STATUS_REFERENCE.primaryId, 'cr664_name', 'cr664_code', 'cr664_activeflag', 'new_productionapproved'];
 
 interface RawReferenceRow {
   cr664_name?: string;
   cr664_code?: string;
   cr664_activeflag?: boolean;
+  new_productionapproved?: boolean;
   [key: string]: unknown;
 }
 
@@ -46,6 +48,8 @@ function mapRow(idAttr: string, r: RawReferenceRow): ReferenceRow {
     name: r.cr664_name ?? '',
     code: r.cr664_code ?? '',
     activeFlag: r.cr664_activeflag === true,
+    // Phase 226 — production-approved ONLY when the governed marker is exactly true.
+    productionApproved: r.new_productionapproved === true,
   };
 }
 

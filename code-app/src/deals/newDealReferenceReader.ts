@@ -31,17 +31,22 @@ import {
 } from './newDealReferenceTargets';
 import { createNewDealReferenceRuntimeReader } from './newDealReferenceRuntimeReader';
 
+// Phase 226 — `new_productionapproved` is the governed production-approval marker;
+// it is selected read-only and mapped to productionApproved. Production approval is
+// never inferred from code/name.
 const STAGE_SELECT = [
   STAGE_REFERENCE.primaryId,
   'cr664_name',
   'cr664_code',
   'cr664_activeflag',
+  'new_productionapproved',
 ];
 const STATUS_SELECT = [
   STATUS_REFERENCE.primaryId,
   'cr664_name',
   'cr664_code',
   'cr664_activeflag',
+  'new_productionapproved',
 ];
 
 function mapStageRow(r: {
@@ -49,12 +54,14 @@ function mapStageRow(r: {
   cr664_name?: string;
   cr664_code?: string;
   cr664_activeflag?: boolean;
+  new_productionapproved?: boolean;
 }): ReferenceRow {
   return {
     id: r.cr664_dealstagereferenceid,
     name: r.cr664_name ?? '',
     code: r.cr664_code ?? '',
     activeFlag: r.cr664_activeflag === true,
+    productionApproved: r.new_productionapproved === true,
   };
 }
 
@@ -63,12 +70,14 @@ function mapStatusRow(r: {
   cr664_name?: string;
   cr664_code?: string;
   cr664_activeflag?: boolean;
+  new_productionapproved?: boolean;
 }): ReferenceRow {
   return {
     id: r.cr664_dealstatusreferenceid,
     name: r.cr664_name ?? '',
     code: r.cr664_code ?? '',
     activeFlag: r.cr664_activeflag === true,
+    productionApproved: r.new_productionapproved === true,
   };
 }
 

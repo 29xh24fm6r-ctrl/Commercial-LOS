@@ -94,6 +94,55 @@ describe('Phase 225 — active rows without a production marker never authorize 
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 226 — once the governed marker (new_productionapproved) is seeded true on
+// exactly one active Stage and one active Status, INTAKE/Open resolve production.
+// ---------------------------------------------------------------------------
+
+describe('Phase 226 — production-approved marker authorizes production readiness', () => {
+  it('INTAKE/Open with productionApproved true resolve ready-production (one each)', () => {
+    const stage = resolveReferenceReadiness('Stage', [{ id: 'stage-intake', name: 'Intake', active: true, productionApproved: true }]);
+    const status = resolveReferenceReadiness('Status', [{ id: 'status-open', name: 'Open', active: true, productionApproved: true }]);
+    expect(stage.kind).toBe('ready-production');
+    expect(status.kind).toBe('ready-production');
+    const refs = deriveNewDealReferenceReadiness({
+      stageRows: [
+        { id: 'stage-intake', name: 'Intake', active: true, productionApproved: true },
+        { id: 'stage-phase121', name: 'TEST - Stage Phase 121', active: true, productionApproved: false },
+      ],
+      statusRows: [
+        { id: 'status-open', name: 'Open', active: true, productionApproved: true },
+        { id: 'status-phase121', name: 'TEST - Status Phase 121', active: true, productionApproved: false },
+      ],
+    });
+    expect(refs.productionReferencesApproved).toBe(true);
+    expect(refs.resolvedStageId).toBe('stage-intake');
+    expect(refs.resolvedStatusId).toBe('status-open');
+  });
+
+  it('a TEST/PHASE row with the marker false can never authorize production', () => {
+    const r = resolveReferenceReadiness('Stage', [
+      { id: 'stage-phase121', name: 'TEST - Stage Phase 121', active: true, productionApproved: false },
+    ]);
+    expect(r.kind).not.toBe('ready-production');
+  });
+
+  it('two active production-approved Stage rows fail closed (duplicate)', () => {
+    const r = resolveReferenceReadiness('Stage', [
+      { id: 'a', name: 'Intake', active: true, productionApproved: true },
+      { id: 'b', name: 'Intake 2', active: true, productionApproved: true },
+    ]);
+    expect(r.kind).toBe('blocked');
+    expect(r.blockers.join(' ')).toMatch(/duplicate/i);
+  });
+
+  it('an inactive production-approved row fails closed', () => {
+    const r = resolveReferenceReadiness('Stage', [{ id: 'a', name: 'Intake', active: false, productionApproved: true }]);
+    expect(r.kind).toBe('blocked');
+    expect(r.blockers.join(' ')).toMatch(/inactive/i);
+  });
+});
+
 function activation(over: Partial<NewDealCreateActivationInput> = {}): NewDealCreateActivationInput {
   return {
     singleRecordSmokeEnabled: false,
