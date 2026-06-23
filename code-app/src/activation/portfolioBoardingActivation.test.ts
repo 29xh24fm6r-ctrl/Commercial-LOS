@@ -9,13 +9,13 @@ import {
 import type { OperatorSmokeEvidence, SmokeEvidenceRegistryInput } from '../access/operatorSmokeEvidenceRegistry';
 
 function schema(present = true): PortfolioSchemaFacts {
-  return { services: [{ label: 'loan-master', present }], columns: [{ label: 'loan.amount', present }], relationships: [{ label: 'borrower→loan', present }] };
+  return { services: [{ label: 'loan-master', present }], columns: [{ label: 'loan.amount', present }], relationships: [{ label: 'borrowerÃ¢â€ â€™loan', present }] };
 }
 function ev(records: OperatorSmokeEvidence[] = []): SmokeEvidenceRegistryInput {
   return { source: 'out-of-band', records };
 }
 
-describe('Phase 219 — portfolio schema gate', () => {
+describe('Phase 219 Ã¢â‚¬â€ portfolio schema gate', () => {
   it('blocked until schema verified + flags + smoke', () => {
     const r = derivePortfolioBoardingActivation({ schema: schema(false), actorAuthorized: false, clientInjected: false, auditWired: false, singleRecordSmokeEnabled: false, evidence: ev() });
     expect(r.schemaVerified).toBe(false);
@@ -33,10 +33,10 @@ function board(over: Partial<PortfolioBoardingInput> = {}): PortfolioBoardingInp
   };
 }
 
-describe('Phase 220 — single-record boarding (no real writes, no bulk import)', () => {
-  it('disabled by default', async () => {
-    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect((await boardPortfolioLoan(board())).outcome).toBe('disabled');
+describe('Phase 229 — single-record internal portfolio boarding active', () => {
+  it('enabled by default for internal portfolio boarding', async () => {
+    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect((await boardPortfolioLoan(board())).outcome).toBe('boarded');
   });
   it('unauthorized / schema_not_verified / validation_error fail closed', async () => {
     expect((await boardPortfolioLoan(board({ enabled: true, actorAuthorized: false }))).outcome).toBe('unauthorized');

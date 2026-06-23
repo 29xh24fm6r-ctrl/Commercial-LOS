@@ -22,7 +22,7 @@ import { CRM_CONNECTOR_MODE } from '../crm/connectors/crmConnectorReadiness';
  * Whether THIS admin surface enables a live CRM write/import/sync.
  * Always false in Phase 169E, independent of the underlying feature flag.
  */
-export const CRM_ADMIN_LIVE_WRITE_ENABLED = false as const;
+export const CRM_ADMIN_LIVE_WRITE_ENABLED = true as const;
 
 /** The real default state of the CRM runtime persistence flag. */
 export const CRM_LIVE_PERSISTENCE_DEFAULT: boolean =
@@ -33,7 +33,7 @@ export const CRM_ADMIN_CONNECTOR_MODE = CRM_CONNECTOR_MODE;
 
 /** Why the CRM admin surface stays disabled-by-default. */
 export const CRM_ONBOARDING_DISABLED_REASON =
-  'Live CRM persistence is disabled by default. The resolver fails closed: it returns the live adapter only when the live persistence flag is enabled, an authorized operator is present, the runtime schema gate verifies the target Dataverse schema, AND a transport is injected. None of these are wired in the app runtime, and the external CRM connector mode is disabled_by_default. This admin surface intentionally enables no write, import, or sync.';
+  'Internal OGB CRM persistence is enabled. The resolver fails closed: it returns the live adapter only when the live persistence flag is enabled, an authorized operator is present, the runtime schema gate verifies the target Dataverse schema, AND a transport is injected. None of these are wired in the app runtime, and the external CRM connector mode is disabled_by_default. This admin surface enables governed internal CRM management only; no external sync.';
 
 export interface CrmOnboardingDataGroup {
   readonly id: string;
@@ -101,4 +101,4 @@ export const CRM_ONBOARDING_NEXT_STEPS: readonly CrmOnboardingNextStep[] =
 
 /** The explicit no-record-creation / no-sync note shown on the panel. */
 export const CRM_ONBOARDING_NO_RECORD_NOTE =
-  'This surface does not create CRM records or sync external CRM data until live persistence is explicitly enabled and certified.';
+  'This surface manages internal OGB CRM records through governed Dataverse persistence. No external Salesforce or nCino sync is implied.';

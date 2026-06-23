@@ -15,34 +15,34 @@ import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/p
  * Phase 169D -- Admin Portfolio Boarding model (Case B, disabled-by-default).
  */
 
-describe('Phase 169D -- no live admin write (Case B)', () => {
-  it('the admin surface enables no live write', () => {
-    expect(PORTFOLIO_BOARDING_ADMIN_LIVE_WRITE_ENABLED).toBe(false);
+describe('Phase 229 -- internal portfolio boarding admin active', () => {
+  it('the admin surface enables governed internal portfolio boarding', () => {
+    expect(PORTFOLIO_BOARDING_ADMIN_LIVE_WRITE_ENABLED).toBe(true);
   });
 
-  it('reads the real (default-off) live persistence flag, not a hardcoded value', () => {
+  it('reads the real active live persistence flag, not a hardcoded value', () => {
     expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT).toBe(
       PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
     );
-    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT).toBe(false);
+    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT).toBe(true);
   });
 
-  it('explains the fail-closed disabled-by-default reason', () => {
-    expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/disabled by default/i);
+  it('explains the governed internal portfolio activation reason', () => {
+    expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/enabled/i);
     expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/fails closed/i);
     expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/injected/i);
   });
 });
 
 describe('Phase 169D -- readiness and data groups', () => {
-  it('reports the boarding stack present but live persistence off', () => {
+  it('reports the boarding stack present with live persistence active', () => {
     const labels = PORTFOLIO_BOARDING_READINESS.map((r) => r.label);
     expect(labels).toContain('Persistence adapter');
     expect(labels).toContain('Runtime schema gate');
     const live = PORTFOLIO_BOARDING_READINESS.find(
       (r) => r.label === 'Live runtime persistence enabled',
     );
-    expect(live?.present).toBe(false);
+    expect(live?.present).toBe(true);
   });
 
   it('lists all nine required boarding data groups', () => {

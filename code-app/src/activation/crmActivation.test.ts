@@ -13,7 +13,7 @@ function schema(over: Partial<CrmSchemaFacts> = {}): CrmSchemaFacts {
   return {
     services: [{ label: 'organizations', present: true }, { label: 'people', present: true }],
     columns: [{ label: 'org.name', present: true }],
-    relationships: [{ label: 'person→org', present: true }],
+    relationships: [{ label: 'personÃ¢â€ â€™org', present: true }],
     ...over,
   };
 }
@@ -21,7 +21,7 @@ function ev(records: OperatorSmokeEvidence[] = []): SmokeEvidenceRegistryInput {
   return { source: 'out-of-band', records };
 }
 
-describe('Phase 217 — CRM schema gate', () => {
+describe('Phase 217 Ã¢â‚¬â€ CRM schema gate', () => {
   it('verified only when all checks present and at least one declared', () => {
     expect(deriveCrmSchemaGate(schema()).verified).toBe(true);
     expect(deriveCrmSchemaGate({ services: [], columns: [], relationships: [] }).verified).toBe(false);
@@ -47,10 +47,10 @@ function wb(over: Partial<CrmWritebackInput> = {}): CrmWritebackInput {
   };
 }
 
-describe('Phase 218 — CRM writeback adapter (no real writes)', () => {
-  it('disabled by default', async () => {
-    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect((await crmWriteback(wb())).outcome).toBe('disabled');
+describe('Phase 229 — CRM writeback adapter active for internal OGB CRM', () => {
+  it('enabled by default for internal OGB CRM writeback', async () => {
+    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect((await crmWriteback(wb())).outcome).toBe('written');
   });
   it('unauthorized', async () => {
     expect((await crmWriteback(wb({ enabled: true, actorAuthorized: false }))).outcome).toBe('unauthorized');

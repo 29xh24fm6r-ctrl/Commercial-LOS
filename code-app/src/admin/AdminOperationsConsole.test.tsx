@@ -28,7 +28,7 @@ vi.mock('../deals/newDealReferenceReader', () => ({
     .mockResolvedValue({ kind: 'notConfigured', reason: 'mocked in console test' }),
 }));
 
-// Phase 204 — the console reads admin entitlement via useEntitledRoutes; mock it
+// Phase 204 Ã¢â‚¬â€ the console reads admin entitlement via useEntitledRoutes; mock it
 // (the real module statically pulls SDK-bound queries). Default: no admin route
 // (so authorization stays purely route-based unless a test opts in).
 const { useEntitledRoutesMock } = vi.hoisted(() => ({
@@ -116,20 +116,20 @@ describe('Phase 169A -- Admin Operations Console rendering', () => {
     expect(disclaimer?.textContent).toMatch(/Power Platform admin center/i);
   });
 
-  it('renders honest blocker / next-step copy on the cards', () => {
+  it('renders active internal CRM and portfolio blocker / next-step copy', () => {
     renderConsole(WORKSPACE_ROUTES.admin);
     expect(
       screen.getByText(/data sources are registered and the fail-closed resolver reads them at runtime \(Ready in TEST\)/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED defaults to false/),
+      screen.getByText(/internal OGB nCino-like workflow\/boarding system/),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/CRM_LIVE_PERSISTENCE_ENABLED defaults to false/),
+      screen.getByText(/internal OGB CRM relationship system/),
     ).toBeInTheDocument();
   });
 
-  it('exposes NO enabled write buttons -- every action is a disabled placeholder', () => {
+  it('exposes active management buttons only for CRM and portfolio', () => {
     const { container } = renderConsole(WORKSPACE_ROUTES.admin);
     const buttons = Array.from(container.querySelectorAll('button'));
     expect(buttons.length).toBeGreaterThan(0);
@@ -192,7 +192,7 @@ describe('Phase 204 -- admin-entitled (non-primary) authorization', () => {
   it('authorizes the console for an admin-entitled user even when the primary route is not admin', () => {
     useEntitledRoutesMock.mockReturnValueOnce({ kind: 'ready', routes: [WORKSPACE_ROUTES.admin] });
     const { container } = renderConsole(WORKSPACE_ROUTES.banker);
-    // Not the denied state — the admin-entitlement signal authorizes it.
+    // Not the denied state Ã¢â‚¬â€ the admin-entitlement signal authorizes it.
     expect(container.querySelector('[data-admin-ops-console="denied"]')).toBeNull();
   });
 

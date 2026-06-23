@@ -27,19 +27,19 @@ describe('Phase 169A -- admin console authorization (fails closed)', () => {
     expect(isAdminConsoleAuthorized('/workspaces/admin-not')).toBe(false);
   });
 
-  it('Phase 204 — authorizes an admin-entitled user even on a non-admin primary route', () => {
+  it('Phase 204 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â authorizes an admin-entitled user even on a non-admin primary route', () => {
     expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.banker, true)).toBe(true);
     expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.manager, true)).toBe(true);
     expect(isAdminConsoleAuthorized(undefined, true)).toBe(true);
   });
 
-  it('Phase 204 — stays fail-closed when not admin-entitled (default false)', () => {
+  it('Phase 204 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â stays fail-closed when not admin-entitled (default false)', () => {
     expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.banker, false)).toBe(false);
     expect(isAdminConsoleAuthorized(WORKSPACE_ROUTES.banker)).toBe(false);
   });
 });
 
-describe('Phase 169A -- admin console modules are honest and write-free', () => {
+describe('Phase 229 -- admin console internal CRM and portfolio active', () => {
   it('exposes exactly the five required modules', () => {
     expect(ADMIN_CONSOLE_MODULES.map((m) => m.id)).toEqual([
       'user-access',
@@ -50,10 +50,13 @@ describe('Phase 169A -- admin console modules are honest and write-free', () => 
     ]);
   });
 
-  it('enables NO live write surface in this phase', () => {
-    for (const m of ADMIN_CONSOLE_MODULES) {
-      expect(m.liveWriteEnabledHere, `${m.id} must not enable a live write`).toBe(false);
-    }
+  it('enables only CRM and portfolio internal management surfaces', () => {
+    const active = ADMIN_CONSOLE_MODULES
+      .filter((m) => m.liveWriteEnabledHere)
+      .map((m) => m.id)
+      .sort();
+
+    expect(active).toEqual(['crm-onboarding', 'portfolio-boarding']);
   });
 
   it('every module carries a status line, a blocker, and a next safe step', () => {
@@ -76,13 +79,13 @@ describe('Phase 169A -- admin console modules are honest and write-free', () => 
     expect(newDeal?.nextStep).toMatch(/Phase 170J\+/);
   });
 
-  it('pins portfolio and CRM as adapter-disabled by default', () => {
+  it('pins portfolio and CRM as active internal systems', () => {
     const portfolio = ADMIN_CONSOLE_MODULES.find((m) => m.id === 'portfolio-boarding');
     const crm = ADMIN_CONSOLE_MODULES.find((m) => m.id === 'crm-onboarding');
-    expect(portfolio?.status).toBe('disabled');
-    expect(portfolio?.blocker).toMatch(/PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED/);
-    expect(crm?.status).toBe('disabled');
-    expect(crm?.blocker).toMatch(/CRM_LIVE_PERSISTENCE_ENABLED/);
+    expect(portfolio?.status).toBe('active');
+    expect(portfolio?.blocker).toMatch(/internal OGB nCino-like workflow\/boarding system/);
+    expect(crm?.status).toBe('active');
+    expect(crm?.blocker).toMatch(/internal OGB CRM relationship system/);
   });
 
   it('pins security roles as app-level-only with Power Platform admin center handoff', () => {
