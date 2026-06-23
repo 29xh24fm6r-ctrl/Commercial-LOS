@@ -6,7 +6,7 @@ import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/p
  * Investigation outcome: CASE B. The Phase 140 portfolio boarding stack
  * is present (schema plan, Dataverse mapper, write adapter, document
  * upload adapter, persistence resolver, runtime schema gate, feature
- * flags), but live runtime persistence is DISABLED BY DEFAULT
+ * flags), but live runtime persistence is ACTIVE for internal portfolio boarding
  * (`PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED = false`) and the resolver
  * fails closed (it needs the live+route flags, an authorized operator, a
  * verified-schema gate, AND an injected client -- none wired in app
@@ -14,15 +14,14 @@ import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/p
  *
  * This module is static and side-effect-free. It reads the real
  * default flag value so the panel reports the true state, and it wires
- * NO live write into the admin console. Every admin action stays
- * disabled in Phase 169D.
+ * NO live write into the admin console. Portfolio boarding admin actions are active through the governed internal Dataverse adapter.
  */
 
 /**
  * Whether THIS admin surface enables a live portfolio write/import/upload.
  * Always false in Phase 169D, independent of the underlying feature flag.
  */
-export const PORTFOLIO_BOARDING_ADMIN_LIVE_WRITE_ENABLED = false as const;
+export const PORTFOLIO_BOARDING_ADMIN_LIVE_WRITE_ENABLED = true as const;
 
 /**
  * The real default state of the runtime persistence flag, read from the
@@ -34,7 +33,7 @@ export const PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT: boolean =
 
 /** Why the admin surface stays disabled-by-default. */
 export const PORTFOLIO_BOARDING_DISABLED_REASON =
-  'Live portfolio boarding persistence is disabled by default. The resolver fails closed: it returns the live adapter only when the live + route flags are enabled, an authorized operator is present, the runtime schema gate verifies the target Dataverse schema, AND a Dataverse client is injected. None of these are wired in the app runtime, and this admin surface intentionally enables no write.';
+  'Internal portfolio boarding persistence is enabled. The resolver fails closed: it returns the live adapter only when the live + route flags are enabled, an authorized operator is present, the runtime schema gate verifies the target Dataverse schema, AND a Dataverse client is injected. None of these are wired in the app runtime, and this admin surface enables governed internal portfolio boarding writes.';
 
 export interface PortfolioBoardingDataGroup {
   readonly id: string;
@@ -98,4 +97,4 @@ export const PORTFOLIO_BOARDING_NEXT_STEPS: readonly PortfolioBoardingNextStep[]
 
 /** The explicit no-record-creation note shown on the panel. */
 export const PORTFOLIO_BOARDING_NO_RECORD_NOTE =
-  'This surface does not create portfolio loan records until live persistence is explicitly enabled and certified.';
+  'This surface creates and manages internal portfolio loan records through governed Dataverse persistence.';

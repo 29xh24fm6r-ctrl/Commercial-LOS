@@ -6,17 +6,17 @@ import { evaluateLaunchGates, type CapabilityReadiness } from './launchReadiness
 import { deriveCrmSchemaGate, type CrmSchemaFacts } from './crmActivation';
 
 /**
- * Phase 219 — Portfolio Boarding schema verification + persistence gate, and
- * Phase 220 — single-record boarding adapter seam.
+ * Phase 219 â€” Portfolio Boarding schema verification + persistence gate, and
+ * Phase 220 â€” single-record boarding adapter seam.
  *
  * PURE and fail-closed. Boarding cannot be claimed ready until the portfolio schema
  * is verified. The adapter boards exactly ONE loan over an injected transport, then
  * reports each child data group as written / skipped / failed HONESTLY. No
- * uncontrolled bulk import, no real write (no test boards a real loan).
+ * uncontrolled bulk import, governed internal portfolio writes through injected transport + audit.
  */
 
-export const PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED = false;
-export const PORTFOLIO_BOARDING_ROUTE_ENABLED = false;
+export const PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED = true;
+export const PORTFOLIO_BOARDING_ROUTE_ENABLED = true;
 
 /** Reuse the shared schema-check shape; a portfolio schema gate is the same shape. */
 export type PortfolioSchemaFacts = CrmSchemaFacts;
@@ -53,7 +53,7 @@ export function derivePortfolioBoardingActivation(input: PortfolioBoardingActiva
 }
 
 // ---------------------------------------------------------------------------
-// Phase 220 — single-record portfolio boarding adapter seam
+// Phase 220 â€” single-record portfolio boarding adapter seam
 // ---------------------------------------------------------------------------
 
 export const PORTFOLIO_CHILD_GROUPS = ['borrower', 'collateral', 'guarantor', 'covenant', 'tickler', 'insurance'] as const;

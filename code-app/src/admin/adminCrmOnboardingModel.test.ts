@@ -16,38 +16,38 @@ import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
  * Phase 169E -- Admin CRM Onboarding model (Case B, disabled-by-default).
  */
 
-describe('Phase 169E -- no live admin CRM write (Case B)', () => {
-  it('the admin surface enables no live CRM write/import/sync', () => {
-    expect(CRM_ADMIN_LIVE_WRITE_ENABLED).toBe(false);
+describe('Phase 229 -- internal OGB CRM admin active', () => {
+  it('the admin surface enables governed internal CRM management', () => {
+    expect(CRM_ADMIN_LIVE_WRITE_ENABLED).toBe(true);
   });
 
-  it('reads the real (default-off) live persistence flag, not a hardcoded value', () => {
+  it('reads the real active live persistence flag, not a hardcoded value', () => {
     expect(CRM_LIVE_PERSISTENCE_DEFAULT).toBe(
       CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED,
     );
-    expect(CRM_LIVE_PERSISTENCE_DEFAULT).toBe(false);
+    expect(CRM_LIVE_PERSISTENCE_DEFAULT).toBe(true);
   });
 
   it('reports the external connector as disabled_by_default', () => {
     expect(CRM_ADMIN_CONNECTOR_MODE).toBe('disabled_by_default');
   });
 
-  it('explains the fail-closed disabled-by-default reason incl. external connector', () => {
-    expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/disabled by default/i);
+  it('explains the governed internal CRM activation reason', () => {
+    expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/enabled/i);
     expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/fails closed/i);
     expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/disabled_by_default/);
   });
 });
 
 describe('Phase 169E -- readiness and data groups', () => {
-  it('reports the CRM stack present but live persistence + connector off', () => {
+  it('reports the CRM stack present with internal persistence active and external connector off', () => {
     const live = CRM_ONBOARDING_READINESS.find(
       (r) => r.label === 'Live runtime persistence enabled',
     );
     const connector = CRM_ONBOARDING_READINESS.find(
       (r) => r.label === 'External CRM connector enabled',
     );
-    expect(live?.present).toBe(false);
+    expect(live?.present).toBe(true);
     expect(connector?.present).toBe(false);
     expect(CRM_ONBOARDING_READINESS.some((r) => r.label === 'Persistence adapter' && r.present)).toBe(true);
   });

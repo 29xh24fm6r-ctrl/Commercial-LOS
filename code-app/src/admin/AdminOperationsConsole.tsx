@@ -34,7 +34,7 @@ import {
  */
 export function AdminOperationsConsole() {
   const { route } = useBootstrap();
-  // Phase 204 — admin is authorized when it is the primary route OR the user
+  // Phase 204 Ã¢â‚¬â€ admin is authorized when it is the primary route OR the user
   // holds a confirmed Admin-workspace entitlement (the same probe that let
   // WorkspaceGate admit them). Fail-closed: anything but `entitled` omits it.
   const adminEntitled = useEntitledRoutes().routes.includes(WORKSPACE_ROUTES.admin);
@@ -65,7 +65,7 @@ export function AdminOperationsConsole() {
       data-admin-ops-console="ready"
     >
       <header style={styles.head}>
-        <div style={styles.eyebrow}>Commercial Lending · Administration</div>
+        <div style={styles.eyebrow}>Commercial Lending Ã‚Â· Administration</div>
         <h2 style={styles.title}>Operations Console</h2>
         <p style={styles.subtitle}>
           Add people, grant app-level rights, and onboard deals, portfolio
@@ -143,6 +143,7 @@ const STATUS_TONE: Record<
   AdminConsoleModuleStatus,
   { label: string; variant: SeverityKey }
 > = {
+  active: { label: 'Active', variant: 'neutral' },
   'read-only': { label: 'Read-only', variant: 'neutral' },
   blocked: { label: 'Blocked', variant: 'atRisk' },
   disabled: { label: 'Disabled', variant: 'neutral' },
@@ -223,6 +224,19 @@ const styles: Record<string, CSSProperties> = {
     fontSize: typography.size.sm,
     color: palette.textMuted,
     lineHeight: typography.lineHeight.snug,
+  },
+  enabledAction: {
+    alignSelf: 'flex-start',
+    marginTop: 'auto',
+    background: palette.primary,
+    color: palette.surface,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    fontFamily: typography.family,
+    cursor: 'pointer',
   },
   disabledAction: {
     alignSelf: 'flex-start',

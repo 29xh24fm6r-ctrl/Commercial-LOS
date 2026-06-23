@@ -18,6 +18,7 @@ import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 
 /** Coarse status badge for an admin console module. */
 export type AdminConsoleModuleStatus =
+  | 'active'
   | 'read-only' // a read/list path exists; no write wired here yet
   | 'blocked' // a hard upstream blocker prevents enablement
   | 'disabled' // capability exists but its live adapter is off by default
@@ -84,26 +85,26 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
   Object.freeze({
     id: 'portfolio-boarding',
     title: 'Portfolio Boarding',
-    status: 'disabled',
-    liveWriteEnabledHere: false,
+    status: 'active',
+    liveWriteEnabledHere: true,
     statusLine:
-      'Phase 140 boarding schema plans and derivations exist; the live Dataverse persistence adapter is disabled by default.',
+      'Internal portfolio boarding is active through governed Dataverse persistence.',
     blocker:
-      'PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED defaults to false; no boarding write is wired into this console.',
+      'No external boarding sync is enabled; this is the internal OGB nCino-like workflow/boarding system.',
     nextStep:
-      'Phase 169D: mount the boarding intake surface read-only with the persistence adapter explicitly gated and audited.',
+      'Use Portfolio Workspace / Portfolio Boarding for internal loan boarding and servicing workflow.',
   }),
   Object.freeze({
     id: 'crm-onboarding',
     title: 'CRM Onboarding',
-    status: 'disabled',
-    liveWriteEnabledHere: false,
+    status: 'active',
+    liveWriteEnabledHere: true,
     statusLine:
-      'CRM Dataverse schema plan and persistence adapter exist; live persistence is disabled by default.',
+      'Internal OGB CRM is active through governed Dataverse persistence.',
     blocker:
-      'CRM_LIVE_PERSISTENCE_ENABLED defaults to false; no CRM organization/person/relationship write is wired into this console.',
+      'No external Salesforce or nCino sync is enabled; this is the internal OGB CRM relationship system.',
     nextStep:
-      'Phase 169E: mount CRM org/person/relationship onboarding read-only with the persistence adapter explicitly gated and audited.',
+      'Use CRM relationship management, contacts, vendors, and timeline as the internal CRM system.',
   }),
   Object.freeze({
     id: 'security-roles',
@@ -135,7 +136,7 @@ export const ADMIN_CONSOLE_SECURITY_DISCLAIMER =
  *
  * A user is authorized when admin is their bootstrap-resolved PRIMARY route,
  * OR (Phase 204) they hold an existing Admin-workspace entitlement that the
- * `useEntitledRoutes` admin probe confirmed — the same entitlement that let
+ * `useEntitledRoutes` admin probe confirmed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the same entitlement that let
  * `WorkspaceGate` admit them to the admin route. `adminEntitled` defaults to
  * false so the check stays fail-closed for any caller that does not pass it.
  */
