@@ -45,11 +45,13 @@ export function AdminEntitlementDiagnosticCard() {
   return (
     <section style={styles.card} aria-label="Admin Entitlement Diagnostic — temporary Phase 204G">
       <div style={styles.title}>Admin Entitlement Diagnostic — temporary Phase 204G</div>
-      {/* Phase 204J — visible build stamp so the live UI proves the deployed card is current. */}
-      <div style={styles.buildStamp}>Diagnostic build: Phase 204J / post-204I runtime-clean / master 3756077</div>
+      {/* Phase 204J/204K — visible build stamp so the live UI proves the deployed card is current. */}
+      <div style={styles.buildStamp}>Diagnostic build: Phase 204K / four-field workspace entitlement read / master 6d806e3</div>
       <div style={styles.subtitle}>
         Read-only diagnostic of the live admin-workspace probe. No actions, no writes — sanitized values only.
       </div>
+      {/* Phase 204K — workspace display name is not selectable on this table. */}
+      <div style={styles.note}>Workspace display name not selected; entitlement-name gate used.</div>
       {state.kind === 'loading' && <div style={styles.muted}>Running probe…</div>}
       {state.kind === 'ready' && <DiagnosticBody diagnostic={state.diagnostic} />}
     </section>
@@ -144,6 +146,11 @@ const styles: Record<string, React.CSSProperties> = {
   subtitle: {
     fontSize: typography.size.xs,
     color: palette.textMuted,
+  },
+  note: {
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
+    fontStyle: 'italic',
   },
   body: { display: 'flex', flexDirection: 'column', gap: spacing.sm },
   summary: {

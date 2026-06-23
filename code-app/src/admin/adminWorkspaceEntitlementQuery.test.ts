@@ -620,3 +620,36 @@ describe('204H — live identity works with NO losUserProfileName field', () => 
     expect(d.rows[0]!.identityMatchReason).toBe('full-name-admin-prefix');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 204K — four-field read: no workspace display name selected live
+// ---------------------------------------------------------------------------
+
+describe('204K — admin shape works with workspaceName undefined', () => {
+  it('Matthew-style entitlement-name row authorizes with workspaceName undefined', () => {
+    expect(
+      authorizeUser([eRow({ entitlementName: 'Matthew Paller - Admin Full Access', workspaceName: undefined, losUserProfileName: undefined })]),
+    ).toBe(true);
+  });
+  it('generic Executive Admin Access still does not authorize Matthew', () => {
+    expect(authorizeUser([eRow({ entitlementName: 'Executive Admin Access', workspaceName: undefined, losUserProfileName: undefined })])).toBe(false);
+  });
+  it('ckingma row still does not authorize Matthew', () => {
+    expect(authorizeUser([eRow({ entitlementName: 'ckingma - Admin Full Access', workspaceName: undefined, losUserProfileName: undefined })])).toBe(false);
+  });
+  it('owner is still never an authorization signal', () => {
+    expect(
+      authorizeUser([eRow({ entitlementName: 'Executive Admin Access', ownerName: 'Matthew Paller', workspaceName: undefined, losUserProfileName: undefined })]),
+    ).toBe(false);
+  });
+  it('diagnostic renders workspaceName as "(not selected)" when no workspace field is read', () => {
+    const d = buildAdminEntitlementDiagnostic(
+      diagInput({
+        entitlements: [eRow({ entitlementName: 'Matthew Paller - Admin Full Access', workspaceName: undefined, losUserProfileName: undefined })],
+      }),
+    );
+    expect(d.rows[0]!.workspaceName).toBe('(not selected)');
+    expect(d.rows[0]!.hasAdminWorkspace).toBe(false);
+    expect(d.rows[0]!.finalEligible).toBe(true);
+  });
+});
