@@ -18,19 +18,28 @@ schema and evidence gates below are satisfied.
 
 ### 1. Add or identify a governed production-approved marker
 
-For **both** Deal Stage Reference and Deal Status Reference, add or identify a
-single governed marker that distinguishes operator-approved production references
-from TEST/other rows. Recommended logical meaning:
+The governed marker logical field is **`new_productionapproved`** on **both** Deal
+Stage Reference and Deal Status Reference. Recommended logical meaning:
 
-- a **boolean** ("Production approved", default false), or
-- a **controlled choice** (e.g. Environment Designation = `Production` vs `Test`),
+- a **boolean** (`new_productionapproved`, default false), or
+- a **controlled choice** mapped to that boolean (e.g. Environment Designation =
+  `Production` → true),
 
-true/`Production` **only** for rows an operator has explicitly approved for
-production. The marker must be a governed column, not derived from Code/Name.
+true **only** for rows an operator has explicitly approved for production. The
+marker must be a governed column, never derived from Code or Name.
 
-The resolver already consumes a per-row `productionApproved` boolean, so the
-mapping is: marker column value → `ReferenceRow.productionApproved`. No GUID is
-hardcoded; the row id is supplied by the caller from the live read.
+**Code wiring (done in Phase 226):** the reference readers now select
+`new_productionapproved` and map it to `ReferenceRow.productionApproved` — true
+**only** when `new_productionapproved === true`:
+
+- `src/deals/newDealReferenceReader.ts` (typed generated-service reader)
+- `src/deals/newDealReferenceRuntimeReader.ts` (runtime data-client reader)
+
+A row with the marker absent or false is **not** production-approved. No GUID is
+hardcoded; the row id is supplied by the caller from the live read. The activation
+resolver (`src/activation/newDealCreateActivation.ts`) already authorizes
+production only when exactly one active row per table has `productionApproved`
+true, so seeding the marker is the remaining operator step.
 
 ### 2. Seed exactly one active production-approved Stage and Status
 

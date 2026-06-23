@@ -59,18 +59,34 @@ describe('Phase 170F2 -- reader reads least-privilege, code/name (never GUID)', 
       'cr664_name',
       'cr664_code',
       'cr664_activeflag',
+      'new_productionapproved',
     ]);
+    const statusOpts = statusGetAll.mock.calls[0]![0]!;
+    // Phase 226 — both select arrays carry the governed production-approval marker.
+    expect(statusOpts.select).toContain('new_productionapproved');
     // No GUID-shaped filter anywhere in the call options.
     const blob = JSON.stringify(stageGetAll.mock.calls) + JSON.stringify(statusGetAll.mock.calls);
     expect(blob).not.toMatch(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
   });
 
-  it('maps rows to ReferenceRow shape', async () => {
+  it('maps rows to ReferenceRow shape (productionApproved false without the marker)', async () => {
     stageGetAll.mockResolvedValue(ok([activeStage]));
     const rows = await createNewDealReferenceReader().readStageReferences();
     expect(rows).toEqual([
-      { id: 'stage-id-1', name: 'TEST - Stage Phase 121', code: 'PHASE121_STAGE', activeFlag: true },
+      { id: 'stage-id-1', name: 'TEST - Stage Phase 121', code: 'PHASE121_STAGE', activeFlag: true, productionApproved: false },
     ]);
+  });
+
+  it('Phase 226 — productionApproved is true ONLY when new_productionapproved === true', async () => {
+    stageGetAll.mockResolvedValue(
+      ok([
+        { cr664_dealstagereferenceid: 'a', cr664_name: 'Intake', cr664_code: 'INTAKE', cr664_activeflag: true, new_productionapproved: true },
+        { cr664_dealstagereferenceid: 'b', cr664_name: 'TEST - Stage Phase 121', cr664_code: 'PHASE121_STAGE', cr664_activeflag: true, new_productionapproved: false },
+        { cr664_dealstagereferenceid: 'c', cr664_name: 'No marker', cr664_code: 'NOMARK', cr664_activeflag: true },
+      ]),
+    );
+    const rows = await createNewDealReferenceReader().readStageReferences();
+    expect(rows.map((r) => r.productionApproved)).toEqual([true, false, false]);
   });
 });
 

@@ -51,9 +51,47 @@ describe('runtime reader -- maps rows and throws on failure', () => {
   it('reads the two reference tables by data-source name and maps to ReferenceRow', async () => {
     const reader = buildNewDealReferenceRuntimeReader(retrieveFrom([stage()], [status()]));
     const s = await reader.readStageReferences();
-    expect(s).toEqual([{ id: 'stage-1', name: 'Intake', code: 'INTAKE', activeFlag: true }]);
+    // Phase 226 — productionApproved defaults false without the governed marker.
+    expect(s).toEqual([{ id: 'stage-1', name: 'Intake', code: 'INTAKE', activeFlag: true, productionApproved: false }]);
     const t = await reader.readStatusReferences();
-    expect(t[0]).toMatchObject({ code: 'OPEN', activeFlag: true });
+    expect(t[0]).toMatchObject({ code: 'OPEN', activeFlag: true, productionApproved: false });
+  });
+
+  it('Phase 226 — maps INTAKE/Open rows with new_productionapproved: true to productionApproved true', async () => {
+    const reader = buildNewDealReferenceRuntimeReader(
+      retrieveFrom(
+        [stage({ new_productionapproved: true })],
+        [status({ new_productionapproved: true })],
+      ),
+    );
+    const s = await reader.readStageReferences();
+    const t = await reader.readStatusReferences();
+    expect(s[0]).toMatchObject({ code: 'INTAKE', activeFlag: true, productionApproved: true });
+    expect(t[0]).toMatchObject({ code: 'OPEN', activeFlag: true, productionApproved: true });
+  });
+
+  it('Phase 226 — a TEST/PHASE row with a false marker is never production-approved', async () => {
+    const reader = buildNewDealReferenceRuntimeReader(
+      retrieveFrom(
+        [stage({ cr664_code: 'PHASE121_STAGE', cr664_name: 'TEST - Stage Phase 121', new_productionapproved: false })],
+        [status()],
+      ),
+    );
+    const s = await reader.readStageReferences();
+    expect(s[0]!.productionApproved).toBe(false);
+  });
+
+  it('Phase 226 — selects the new_productionapproved marker for both tables', async () => {
+    const seen: Record<string, readonly string[]> = {};
+    const retrieve: RetrieveMultiple = async (dataSourceName, select) => {
+      seen[dataSourceName] = select;
+      return { success: true, data: [] };
+    };
+    const reader = buildNewDealReferenceRuntimeReader(retrieve);
+    await reader.readStageReferences();
+    await reader.readStatusReferences();
+    expect(seen['cr664_dealstagereferences']).toContain('new_productionapproved');
+    expect(seen['cr664_dealstatusreferences']).toContain('new_productionapproved');
   });
 
   it('throws on a non-success read so the resolver fails closed to serviceError', async () => {
