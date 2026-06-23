@@ -47,11 +47,13 @@ function summary() {
     entitlements: [
       {
         id: 'e1',
-        entitlementName: 'Banker Workspace (ReadOnly)',
-        accessLevel: 'ReadOnly',
-        workspaceName: 'Banker Workspace',
-        profileName: 'Matt Paller',
-        isDefault: true,
+        // Phase 204N — live shape: numeric access level, raw profile GUID,
+        // workspace display name not selected.
+        entitlementName: 'Matthew Paller - Admin Full Access',
+        accessLevel: '788190002',
+        workspaceName: undefined,
+        profileName: '4fa22088-0c56-f111-bec7-70a8a59be491',
+        isDefault: false,
       },
     ],
     usersTruncated: false,
@@ -70,7 +72,53 @@ describe('Phase 169B -- panel renders real read-only data', () => {
     expect(within(counts).getByText('2')).toBeInTheDocument(); // userCount
     expect(within(counts).getByText('1')).toBeInTheDocument(); // entitlementCount
     expect(screen.getByText('matt@oldglorybank.com')).toBeInTheDocument();
-    expect(screen.getByText('Banker Workspace (ReadOnly)')).toBeInTheDocument();
+    expect(screen.getByText('Matthew Paller - Admin Full Access')).toBeInTheDocument();
+  });
+
+  it('shows access levels as a friendly label plus the raw option-set number (Phase 204N)', async () => {
+    loadMock.mockResolvedValue(summary());
+    const { container } = render(<UserAccessManagementPanel />);
+    await waitFor(() => {
+      expect(container.querySelector('[data-admin-entitlement-access]')).not.toBeNull();
+    });
+    expect(
+      container.querySelector('[data-admin-entitlement-access]')!.textContent,
+    ).toBe('Admin — 788190002');
+  });
+
+  it('shows the raw profile GUID and an honest blank workspace label (Phase 204N)', async () => {
+    loadMock.mockResolvedValue(summary());
+    const { container } = render(<UserAccessManagementPanel />);
+    await waitFor(() => {
+      expect(container.querySelector('[data-admin-entitlement-profile]')).not.toBeNull();
+    });
+    expect(container.querySelector('[data-admin-entitlement-profile]')!.textContent).toBe(
+      '4fa22088-0c56-f111-bec7-70a8a59be491',
+    );
+    expect(container.querySelector('[data-admin-entitlement-workspace]')!.textContent).toBe(
+      'Not selected by safe-read contract',
+    );
+  });
+
+  it('renders the safe-read explanation copy (Phase 204N)', async () => {
+    loadMock.mockResolvedValue(summary());
+    const { container } = render(<UserAccessManagementPanel />);
+    await waitFor(() => {
+      expect(container.querySelector('[data-admin-user-access-safe-read-note]')).not.toBeNull();
+    });
+    const note = container.querySelector('[data-admin-user-access-safe-read-note]')!;
+    expect(note.textContent).toMatch(/intentionally not selected from Dataverse/i);
+    expect(note.textContent).toMatch(/live-safe entitlement fields only/i);
+  });
+
+  it('keeps grant access disabled with the read-only-phase note (Phase 204N)', async () => {
+    loadMock.mockResolvedValue(summary());
+    const { container } = render(<UserAccessManagementPanel />);
+    const submit = container.querySelector('[data-admin-grant-submit]') as HTMLButtonElement;
+    expect(submit).toBeDisabled();
+    const note = container.querySelector('[data-admin-user-access-readonly-note]');
+    expect(note?.textContent).toMatch(/Grant access is still disabled/i);
+    expect(note?.textContent).toMatch(/governed-write phase/i);
   });
 
   it('fails closed to "Not available" when the read rejects', async () => {
