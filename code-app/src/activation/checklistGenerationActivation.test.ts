@@ -21,7 +21,7 @@ function ev(records: OperatorSmokeEvidence[] = []): SmokeEvidenceRegistryInput {
   return { source: 'out-of-band', records };
 }
 
-describe('Phase 221 — deterministic preview', () => {
+describe('Phase 221 Ã¢â‚¬â€ deterministic preview', () => {
   it('blocks generation when product/stage/schema missing', () => {
     expect(generateChecklistPreview(ctx({ product: null })).status).toBe('blocked');
     expect(generateChecklistPreview(ctx({ stage: null })).status).toBe('blocked');
@@ -47,10 +47,10 @@ function wInput(over: Partial<ChecklistWriteInput> = {}): ChecklistWriteInput {
   };
 }
 
-describe('Phase 221 — governed checklist write (no real writes)', () => {
-  it('disabled by default', async () => {
-    expect(CHECKLIST_WRITE_ENABLED).toBe(false);
-    expect((await generateAndWriteChecklist(wInput())).outcome).toBe('disabled');
+describe('Phase 228B — governed checklist write enabled with fail-closed controls', () => {
+  it('is enabled by default but still requires transport and audit sink', async () => {
+    expect(CHECKLIST_WRITE_ENABLED).toBe(true);
+    expect((await generateAndWriteChecklist(wInput({ transport: undefined }))).outcome).toBe('blocked_generation');
   });
   it('unauthorized / blocked_generation fail closed', async () => {
     expect((await generateAndWriteChecklist(wInput({ enabled: true, actorAuthorized: false }))).outcome).toBe('unauthorized');

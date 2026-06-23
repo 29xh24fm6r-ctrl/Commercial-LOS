@@ -33,7 +33,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
     expect(blocker?.textContent).toMatch(/Advance Stage|stage-progression/i);
   });
 
-  it('shows the reconciled readiness truth table (Ready(TEST) / Pending / Not wired / Disabled)', () => {
+  it('shows the reconciled readiness truth table (Ready(TEST) / Pending / Not wired / Enabled)', () => {
     const { container } = render(<NewDealIntakePanel />);
     const truth = container.querySelector('[data-admin-new-deal-truth]') as HTMLElement;
     expect(truth).not.toBeNull();
@@ -44,7 +44,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
     expect(within(truth).getByText('Governed create adapter')).toBeInTheDocument();
     expect(within(truth).getByText('Not wired')).toBeInTheDocument();
     expect(within(truth).getByText('Public + New Deal')).toBeInTheDocument();
-    expect(within(truth).getByText('Disabled')).toBeInTheDocument();
+    expect(within(truth).getByText('Enabled')).toBeInTheDocument();
   });
 
   it('shows the required future fields including Stage and Status (now Ready, not Blocked)', () => {
