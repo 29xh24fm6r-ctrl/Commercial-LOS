@@ -10,13 +10,13 @@ This phase activates and verifies only the production Stage/Status readiness pat
 
 
 
-No CRM writeback.  
+No CRM writeback.
 
-No portfolio boarding.  
+No portfolio boarding.
 
-No document upload.  
+No document upload.
 
-No borrower communications.  
+No borrower communications.
 
 No global GO claim.
 
@@ -151,4 +151,74 @@ Stage/Status may be marked ready only after the live environment confirms exactl
 
 
 All other Phase 212–224 capabilities remain gated.
+
+
+
+
+
+\### Stage Reference
+
+
+
+\- Table inspected: Deal Stage Reference
+
+\- Production-approved column/field: not present
+
+\- Active/inactive column/field: Active Flag and Status
+
+\- Active production-approved row count: not computable because production-approved marker is absent
+
+\- Duplicate check result: not computable for production-approved rows; visible active rows include INTAKE / Intake and PHASE121\_STAGE / TEST - Stage Phase 121
+
+\- Inactive production reference check: not computable because production-approved marker is absent
+
+\- TEST-only exclusion confirmed: TEST row exists and must not authorize production
+
+\- Result: blocked
+
+
+
+\### Status Reference
+
+
+
+\- Table inspected: Deal Status Reference
+
+\- Production-approved column/field: not present
+
+\- Active/inactive column/field: Active Flag and Status
+
+\- Active production-approved row count: not computable because production-approved marker is absent
+
+\- Duplicate check result: not computable for production-approved rows; visible active rows include OPEN / Open and PHASE121\_STATUS / TEST - Status Phase 121
+
+\- Inactive production reference check: not computable because production-approved marker is absent
+
+\- TEST-only exclusion confirmed: TEST row exists and must not authorize production
+
+\- Result: blocked
+
+
+
+\## Phase 225 Decision
+
+
+
+Result: blocked
+
+
+
+The live environment contains Deal Stage Reference and Deal Status Reference rows, including apparent production candidates (`INTAKE` / `OPEN`) and TEST rows from Phase 121. However, neither reference table exposes an explicit production-approved marker column. Because Phase 213/214 readiness requires exactly one active production-approved Stage and exactly one active production-approved Status, production readiness cannot be certified from the current schema.
+
+
+
+No New Deal create live flag was enabled. No live create smoke was run. All other Phase 212–224 capabilities remain gated.
+
+
+
+Required remediation: add or identify a governed production-approved marker for both Deal Stage Reference and Deal Status Reference, then re-run Phase 225 verification.
+
+
+
+
 
