@@ -4491,3 +4491,41 @@ describe('Phase 203 â€” V1 activation readiness console', () => {
     expect(doc).toMatch(/gated/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 227 — V1 production release smoke and New Deal create enablement
+// ---------------------------------------------------------------------------
+
+describe('Phase 227 — V1 production release smoke and New Deal create enablement', () => {
+  const rel = 'docs/PHASE_227_V1_PRODUCTION_RELEASE_SMOKE.md';
+
+  it('the Phase 227 production release smoke doc exists on disk', () => {
+    expect(existsSync(resolve(REPO_ROOT, rel))).toBe(true);
+  });
+
+  const doc = readDoc(rel);
+
+  it('declares production release readiness, not pilot readiness', () => {
+    expect(doc).toMatch(/production release readiness/i);
+    expect(doc).toMatch(/not a pilot/i);
+  });
+
+  it('pins the deployed Phase 226 marker and production Stage\/Status references', () => {
+    expect(doc).toMatch(/new_productionapproved/);
+    expect(doc).toMatch(/INTAKE \/ Intake/);
+    expect(doc).toMatch(/OPEN \/ Open/);
+    expect(doc).toMatch(/TEST\/PHASE rows remain not production-approved/i);
+  });
+
+  it('requires release smoke evidence before New Deal create enablement', () => {
+    expect(doc).toMatch(/production release smoke evidence/i);
+    expect(doc).toMatch(/Created deal lands with correct Stage and Status/i);
+    expect(doc).toMatch(/Actor\/audit binding is correct/i);
+    expect(doc).toMatch(/Disable\/rollback path remains available/i);
+  });
+
+  it('keeps write flags blocked until the evidence path is completed', () => {
+    expect(doc).toMatch(/New Deal create remains blocked/i);
+    expect(doc).toMatch(/write flags must not be enabled/i);
+  });
+});
