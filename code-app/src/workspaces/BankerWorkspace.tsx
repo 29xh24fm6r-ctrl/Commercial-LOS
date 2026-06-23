@@ -6,9 +6,6 @@ import {
   useEntitledRoutes,
 } from '../bootstrap/workspaceEntitlements';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
-// Phase 204G — TEMPORARY read-only admin-probe diagnostic. Composed at the
-// workspace layer (not inside src/banker/) to respect Phase 48 role isolation.
-import { AdminEntitlementDiagnosticCard } from '../admin/AdminEntitlementDiagnosticCard';
 
 /**
  * Phase 117: BankerWorkspace is the route entry point only. Identity
@@ -31,7 +28,7 @@ import { AdminEntitlementDiagnosticCard } from '../admin/AdminEntitlementDiagnos
 export function BankerWorkspace() {
   const bootstrap = useBootstrap();
   const entitled = useEntitledRoutes();
-  // Phase 126C — surface the Portfolio Workspace switcher entry only
+  // Phase 126C - surface the Portfolio Workspace switcher entry only
   // for bankers who are ALSO manager-entitled (the same Phase 124C
   // probe that already widens the gate for the manager route adds
   // the portfolio rendering option). Banker-only users never see it.
@@ -44,8 +41,6 @@ export function BankerWorkspace() {
   });
   return (
     <BankerProvider>
-      {/* Phase 204G — temporary read-only diagnostic; self-hides behind its flag. */}
-      <AdminEntitlementDiagnosticCard />
       <BankerShell
         workspaceName={bootstrap.workspaceName}
         workspaceLinks={workspaceLinks}
