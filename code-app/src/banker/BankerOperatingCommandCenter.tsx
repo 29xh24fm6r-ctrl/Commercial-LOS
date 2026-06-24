@@ -75,7 +75,8 @@ export function BankerOperatingCommandCenter() {
 
 const styles: Record<string, CSSProperties> = {
   posture: {
-    ...typography.body,
+    fontSize: typography.size.md,
+    lineHeight: typography.lineHeight.snug,
     color: palette.textMuted,
     margin: 0,
     marginBottom: spacing.lg,
@@ -103,20 +104,23 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'flex-start',
   },
   domainTitle: {
-    ...typography.h3,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
     margin: 0,
   },
   value: {
-    ...typography.h2,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
     color: palette.cobalt,
   },
   summary: {
-    ...typography.bodySmall,
+    fontSize: typography.size.sm,
     color: palette.textMuted,
     margin: 0,
   },
   next: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: palette.text,
     margin: 0,
     borderTop: `1px solid ${palette.panelBorder}`,
@@ -135,11 +139,13 @@ const styles: Record<string, CSSProperties> = {
     padding: spacing.md,
   },
   panelTitle: {
-    ...typography.h3,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
     marginTop: 0,
   },
   list: {
-    ...typography.bodySmall,
+    fontSize: typography.size.sm,
     margin: 0,
     paddingLeft: spacing.lg,
   },

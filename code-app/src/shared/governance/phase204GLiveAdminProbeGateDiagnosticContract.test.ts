@@ -52,9 +52,12 @@ describe('204G — diagnostic does not change authorization', () => {
 });
 
 describe('204G — composed at the workspace layer (role isolation preserved)', () => {
-  it('BankerWorkspace mounts the card; the card lives in src/admin (not imported by src/banker)', () => {
-    expect(WORKSPACE).toMatch(/AdminEntitlementDiagnosticCard/);
+  it('the card lives in src/admin (not in src/banker); the temporary banker-workspace diagnostic banner was removed in Phase 230B', () => {
+    // Phase 230B removed the temporary diagnostic banner from the banker workspace
+    // (production header cleanup); the card module remains in src/admin for any
+    // future admin-surfaced use. It is no longer mounted in BankerWorkspace.
     expect(existsSync(resolve(ROOT, 'src/admin/AdminEntitlementDiagnosticCard.tsx'))).toBe(true);
+    expect(WORKSPACE).not.toMatch(/<AdminEntitlementDiagnosticCard/);
   });
 });
 

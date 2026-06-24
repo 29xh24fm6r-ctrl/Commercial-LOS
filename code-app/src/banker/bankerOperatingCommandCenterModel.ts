@@ -4,7 +4,7 @@
   DOCUMENT_CHECKLIST_GENERATION_ENABLED,
   DUPLICATE_DETECTION_ENABLED,
   BORROWER_MESSAGING_ENABLED,
-  STAGE_ADVANCEMENT_ENABLED,
+  AUTO_STAGE_ADVANCE_ENABLED,
 } from '../deals/dealOriginationFeatureFlags';
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
 import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
@@ -137,7 +137,7 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
     certifications: [
       `Duplicate detection safe internal core: ${String(DUPLICATE_DETECTION_ENABLED)}`,
       `Task generation safe internal core: ${String(TASK_GENERATION_ENABLED)}`,
-      `Stage advancement live gate: ${String(STAGE_ADVANCEMENT_ENABLED)}`,
+      `Stage advancement live gate: ${String(AUTO_STAGE_ADVANCE_ENABLED)}`,
       `CRM route default: ${String(CRM_FEATURE_FLAG_DEFAULTS.CRM_ROUTE_ENABLED)}`,
       'No external platform sync or borrower send is triggered by this dashboard.',
       'No hidden create/update/delete action is introduced by this command center.',

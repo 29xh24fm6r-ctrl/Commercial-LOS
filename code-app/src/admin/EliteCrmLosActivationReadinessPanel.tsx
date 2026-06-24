@@ -1,5 +1,5 @@
 ﻿import type { CSSProperties } from 'react';
-import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
+import { palette, radius, severityPalette, spacing, typography, type SeverityKey } from '../shared/theme';
 import {
   deriveEliteCrmLosActivationReadiness,
   type EliteReadinessState,
@@ -80,20 +80,14 @@ export function EliteCrmLosActivationReadinessPanel() {
 }
 
 function Badge({ state, children }: { state: EliteReadinessState; children: React.ReactNode }) {
-  const severity = STATE_SEVERITY[state];
-  const color =
-    severity === 'clear'
-      ? palette.clear
-      : severity === 'atRisk'
-        ? palette.atRisk
-        : palette.neutral;
+  const tone = severityPalette[STATE_SEVERITY[state]];
   return (
     <span
       style={{
         ...styles.badge,
-        borderColor: color.border,
-        color: color.text,
-        background: color.background,
+        borderColor: tone.bar,
+        color: tone.fg,
+        background: tone.bg,
       }}
     >
       {children}
@@ -118,15 +112,21 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'flex-start',
   },
   eyebrow: {
-    ...typography.overline,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
     color: palette.textMuted,
   },
   title: {
-    ...typography.h2,
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
     margin: 0,
   },
   posture: {
-    ...typography.body,
+    fontSize: typography.size.md,
+    lineHeight: typography.lineHeight.snug,
     margin: 0,
     color: palette.textMuted,
     maxWidth: 980,
@@ -140,7 +140,7 @@ const styles: Record<string, CSSProperties> = {
     border: `1px solid ${palette.border}`,
     borderRadius: radius.md,
     padding: spacing.md,
-    background: palette.panel,
+    background: palette.panelBg,
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.sm,
@@ -152,22 +152,24 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'flex-start',
   },
   cardTitle: {
-    ...typography.h3,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
     margin: 0,
   },
   summary: {
-    ...typography.bodySmall,
+    fontSize: typography.size.sm,
     color: palette.textMuted,
     margin: 0,
   },
   evidence: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     margin: 0,
     paddingLeft: spacing.lg,
     color: palette.text,
   },
   next: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     color: palette.text,
     borderTop: `1px solid ${palette.border}`,
     paddingTop: spacing.sm,
@@ -181,19 +183,21 @@ const styles: Record<string, CSSProperties> = {
     border: `1px solid ${palette.border}`,
     borderRadius: radius.md,
     padding: spacing.md,
-    background: palette.panel,
+    background: palette.panelBg,
   },
   panelTitle: {
-    ...typography.h3,
+    fontSize: typography.size.base,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
     marginTop: 0,
   },
   list: {
-    ...typography.bodySmall,
+    fontSize: typography.size.sm,
     margin: 0,
     paddingLeft: spacing.lg,
   },
   footer: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
     display: 'flex',
     flexWrap: 'wrap',
     gap: spacing.sm,
@@ -202,9 +206,10 @@ const styles: Record<string, CSSProperties> = {
     paddingTop: spacing.md,
   },
   badge: {
-    ...typography.caption,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
     border: '1px solid',
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
     padding: '0.2rem 0.55rem',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
