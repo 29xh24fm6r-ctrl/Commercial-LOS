@@ -15,6 +15,7 @@ import { EliteCrmLosActivationReadinessPanel } from '../admin/EliteCrmLosActivat
 import { V1ActivationReadinessPanel } from '../admin/V1ActivationReadinessPanel';
 import { FullSystemLaunchReadinessConsole } from '../admin/FullSystemLaunchReadinessConsole';
 import { AdminOperatorActionQueue } from '../admin/AdminOperatorActionQueue';
+import { V1GoLiveReleaseCertificationPanel } from '../admin/V1GoLiveReleaseCertificationPanel';
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { palette, spacing, typography } from '../shared/theme';
@@ -52,6 +53,10 @@ function AdminWorkspaceContent() {
       <main style={styles.main}>
         <AdminOperationsConsole />
         <ReleaseReadinessGate />
+        {/* Phase 236: read-only V1.0 go-live release certification — the single
+            leadership answer (operating restart ready; live-write expansion gated).
+            No mutation, no gate flip, no action affordance. Admin-only. */}
+        <V1GoLiveReleaseCertificationPanel />
         {/* Phase 202: read-only OGB CRM / Lending Workflow activation status,
             admin-only (inherits the admin route + AdminProvider gate). */}
         <EliteCrmLosActivationReadinessPanel />
