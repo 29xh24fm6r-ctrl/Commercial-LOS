@@ -1,4 +1,4 @@
-import { AdminProvider } from '../admin/AdminProvider';
+﻿import { AdminProvider } from '../admin/AdminProvider';
 import { AdminDataProvider } from '../admin/AdminDataProvider';
 import { useAdmin } from '../admin/AdminContext';
 import { AdminOperationsConsole } from '../admin/AdminOperationsConsole';
@@ -11,6 +11,7 @@ import { ConfigurationOverview } from '../admin/ConfigurationOverview';
 import { StageGovernanceDiagnostics } from '../admin/StageGovernanceDiagnostics';
 import { ReleaseReadinessGate } from '../admin/ReleaseReadinessGate';
 import { OgbCrmWorkflowActivationPanel } from '../admin/OgbCrmWorkflowActivationPanel';
+import { EliteCrmLosActivationReadinessPanel } from '../admin/EliteCrmLosActivationReadinessPanel';
 import { V1ActivationReadinessPanel } from '../admin/V1ActivationReadinessPanel';
 import { FullSystemLaunchReadinessConsole } from '../admin/FullSystemLaunchReadinessConsole';
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
@@ -33,7 +34,7 @@ function AdminWorkspaceContent() {
     <div style={styles.page}>
       <header style={styles.header}>
         <div style={styles.titleBlock}>
-          <div style={styles.eyebrow}>Commercial Lending · Governance</div>
+          <div style={styles.eyebrow}>Commercial Lending Â· Governance</div>
           <h1 style={styles.title}>Admin Diagnostics</h1>
           <p style={styles.subtitle}>
             Operational control tower: data quality, audit anomalies, alert backlog,
@@ -52,6 +53,7 @@ function AdminWorkspaceContent() {
         <ReleaseReadinessGate />
         {/* Phase 202: read-only OGB CRM / Lending Workflow activation status,
             admin-only (inherits the admin route + AdminProvider gate). */}
+        <EliteCrmLosActivationReadinessPanel />
         <OgbCrmWorkflowActivationPanel />
         {/* Phase 203: read-only final V1 activation readiness gate, admin-only
             (inherits the admin route + AdminProvider gate). */}
