@@ -8,6 +8,10 @@ import {
 import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from '../deals/newDealCreateFeatureFlags';
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
 import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
+import {
+  deriveProductionEnvironmentVerification,
+  type ActivationDomainKey,
+} from './productionEnvironmentVerification';
 
 /**
  * Phase 237A — Full system activation launch certification model.
@@ -250,16 +254,31 @@ function buildSpecs(): DomainSpec[] {
   ];
 }
 
+/** Maps the activation domain id to the production-verification domain key. */
+const ID_TO_VERIFICATION_KEY: Record<ActivationDomainId, ActivationDomainKey> = {
+  'new-deal-create': 'newDealCreate',
+  'crm-writeback': 'crmWriteback',
+  'document-checklist-generation': 'documentChecklist',
+  'borrower-communication-send': 'borrowerSend',
+  'stage-advancement': 'stageAdvancement',
+  'portfolio-boarding-persistence': 'portfolioBoarding',
+};
+
 export function deriveFullActivationLaunchCertification(): FullActivationLaunchCertification {
+  // Phase 241 — "enabled" requires BOTH the operator environment certification AND
+  // the underlying gate flag (Phase 241 verification artifact). Both default false,
+  // so every domain is disabled by default. No fake live success.
+  const verification = deriveProductionEnvironmentVerification();
+  const verByKey = new Map(verification.domains.map((d) => [d.key, d]));
+
   const domains: ActivationDomainAssessment[] = buildSpecs().map((s) => {
-    // A domain is only "enabled" when its gate flag is actually on; otherwise it is
-    // "blocked" (no domain is CERTIFIABLE_NOW from the repo). Never "ready" on a fake.
-    const status: ActivationStatus = s.flagEnabled
+    const ver = verByKey.get(ID_TO_VERIFICATION_KEY[s.id])!;
+    const status: ActivationStatus = ver.enabled
       ? 'enabled'
       : s.classification === 'CERTIFIABLE_NOW'
         ? 'ready-to-enable'
         : 'blocked';
-    return { ...s, status };
+    return { ...s, flagEnabled: ver.gateFlagOn, status };
   });
 
   const enabledCount = domains.filter((d) => d.status === 'enabled').length;
