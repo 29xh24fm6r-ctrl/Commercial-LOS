@@ -16,6 +16,7 @@ import { V1ActivationReadinessPanel } from '../admin/V1ActivationReadinessPanel'
 import { FullSystemLaunchReadinessConsole } from '../admin/FullSystemLaunchReadinessConsole';
 import { AdminOperatorActionQueue } from '../admin/AdminOperatorActionQueue';
 import { V1GoLiveReleaseCertificationPanel } from '../admin/V1GoLiveReleaseCertificationPanel';
+import { FullSystemActivationLaunchPanel } from '../admin/FullSystemActivationLaunchPanel';
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { palette, spacing, typography } from '../shared/theme';
@@ -57,6 +58,11 @@ function AdminWorkspaceContent() {
             leadership answer (operating restart ready; live-write expansion gated).
             No mutation, no gate flip, no action affordance. Admin-only. */}
         <V1GoLiveReleaseCertificationPanel />
+        {/* Phase 237: read-only full system activation launch certification — the
+            six live-write domains classified CERTIFIABLE_NOW / NEEDS_COMPLETION /
+            NOT_SAFE_TO_ENABLE with exact blockers and operator unblock actions. No
+            gate flip, no mutation, no action affordance. Admin-only. */}
+        <FullSystemActivationLaunchPanel />
         {/* Phase 202: read-only OGB CRM / Lending Workflow activation status,
             admin-only (inherits the admin route + AdminProvider gate). */}
         <EliteCrmLosActivationReadinessPanel />
