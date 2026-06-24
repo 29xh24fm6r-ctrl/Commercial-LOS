@@ -1,0 +1,123 @@
+{
+  "$comment": "Phase 243 — Internal OGB CRM spine schema definition. Derived from src/crm/crmDataverseSchemaPlan.ts (CRM_TARGET_TABLES/COLUMNS/RELATIONSHIPS) and the crmWritebackAdapter allow-list (CRM_ENTITIES). Internal OGB CRM only — NOT vendor-branded (no nCino/Salesforce tables). Columns listed are the required minimum for the certified writeback; the complete column set is the plan referenced in fullColumnSourceOfTruth.",
+  "domain": "internal-ogb-crm-spine",
+  "publisherPrefix": "cr664",
+  "solutionUniqueName": "cr664_ogblos",
+  "fullColumnSourceOfTruth": "src/crm/crmDataverseSchemaPlan.ts#CRM_TARGET_COLUMNS",
+  "tables": [
+    {
+      "logicalName": "cr664_crmorganization",
+      "schemaName": "cr664_CrmOrganization",
+      "entitySetName": "cr664_crmorganizations",
+      "displayName": "CRM Organization",
+      "displayCollectionName": "CRM Organizations",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "requiredColumns": [
+        { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 },
+        { "logicalName": "cr664_organizationidtext", "displayName": "Organization id (text)", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_displayname", "displayName": "Display name", "type": "String", "maxLength": 200 },
+        { "logicalName": "cr664_organizationtype", "displayName": "Organization type", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_taxidpresent", "displayName": "Tax id present", "type": "Boolean" },
+        { "logicalName": "cr664_status", "displayName": "Status", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_sourcesystem", "displayName": "Source system", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_sourcerecordid", "displayName": "Source record id", "type": "String", "maxLength": 100 }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmperson",
+      "schemaName": "cr664_CrmPerson",
+      "entitySetName": "cr664_crmpersons",
+      "displayName": "CRM Person",
+      "displayCollectionName": "CRM People",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "requiredColumns": [
+        { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 },
+        { "logicalName": "cr664_personidtext", "displayName": "Person id (text)", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_firstname", "displayName": "First name", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_lastname", "displayName": "Last name", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_displayname", "displayName": "Display name", "type": "String", "maxLength": 200 },
+        { "logicalName": "cr664_title", "displayName": "Title", "type": "String", "maxLength": 150 },
+        { "logicalName": "cr664_status", "displayName": "Status", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_sourcerecordid", "displayName": "Source record id", "type": "String", "maxLength": 100 }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmrelationship",
+      "schemaName": "cr664_CrmRelationship",
+      "entitySetName": "cr664_crmrelationships",
+      "displayName": "CRM Relationship",
+      "displayCollectionName": "CRM Relationships",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "requiredColumns": [
+        { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 },
+        { "logicalName": "cr664_relationshipidtext", "displayName": "Relationship id (text)", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_sourceentitytype", "displayName": "Source entity type", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_sourceentityid", "displayName": "Source entity id", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_targetentitytype", "displayName": "Target entity type", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_targetentityid", "displayName": "Target entity id", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_relationshiptype", "displayName": "Relationship type", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_active", "displayName": "Active", "type": "Boolean" }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmroleassignment",
+      "schemaName": "cr664_CrmRoleAssignment",
+      "entitySetName": "cr664_crmroleassignments",
+      "displayName": "CRM Role Assignment",
+      "displayCollectionName": "CRM Role Assignments",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "requiredColumns": [
+        { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 },
+        { "logicalName": "cr664_roleassignmentidtext", "displayName": "Role assignment id (text)", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_entitytype", "displayName": "Entity type", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_entityid", "displayName": "Entity id", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_roletype", "displayName": "Role type", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_assignedtotype", "displayName": "Assigned to type", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_assignedtoid", "displayName": "Assigned to id", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_active", "displayName": "Active", "type": "Boolean" }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmtimelineevent",
+      "schemaName": "cr664_CrmTimelineEvent",
+      "entitySetName": "cr664_crmtimelineevents",
+      "displayName": "CRM Timeline Event",
+      "displayCollectionName": "CRM Timeline Events",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "requiredColumns": [
+        { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 },
+        { "logicalName": "cr664_eventidtext", "displayName": "Event id (text)", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_entitytype", "displayName": "Entity type", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_entityid", "displayName": "Entity id", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_eventtype", "displayName": "Event type", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_occurredat", "displayName": "Occurred at", "type": "DateTime" },
+        { "logicalName": "cr664_actor", "displayName": "Actor", "type": "String", "maxLength": 150 },
+        { "logicalName": "cr664_summary", "displayName": "Summary", "type": "Memo" }
+      ]
+    }
+  ],
+  "relationships": [
+    { "schemaName": "cr664_crmrelationship_sourceorganization", "fromTable": "cr664_crmrelationship", "fromColumn": "cr664_SourceOrganization", "toTable": "cr664_crmorganization", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_crmrelationship_targetorganization", "fromTable": "cr664_crmrelationship", "fromColumn": "cr664_TargetOrganization", "toTable": "cr664_crmorganization", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_crmrelationship_sourceperson", "fromTable": "cr664_crmrelationship", "fromColumn": "cr664_SourcePerson", "toTable": "cr664_crmperson", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_crmrelationship_targetperson", "fromTable": "cr664_crmrelationship", "fromColumn": "cr664_TargetPerson", "toTable": "cr664_crmperson", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_crmroleassignment_organization", "fromTable": "cr664_crmroleassignment", "fromColumn": "cr664_Organization", "toTable": "cr664_crmorganization", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_crmroleassignment_person", "fromTable": "cr664_crmroleassignment", "fromColumn": "cr664_Person", "toTable": "cr664_crmperson", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_crmtimelineevent_organization", "fromTable": "cr664_crmtimelineevent", "fromColumn": "cr664_Organization", "toTable": "cr664_crmorganization", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_crmtimelineevent_person", "fromTable": "cr664_crmtimelineevent", "fromColumn": "cr664_Person", "toTable": "cr664_crmperson", "type": "ManyToOne", "required": false }
+  ],
+  "rollback": {
+    "posture": "create-missing-only; non-destructive",
+    "guidance": "These scripts never delete or overwrite metadata. To roll back, an operator manually deletes the newly-created cr664_crm* tables in the maker portal (a destructive, manually-confirmed action outside these scripts) or removes them from the solution. Records created after table creation must be handled separately. There is no automated table delete in this pack."
+  }
+}

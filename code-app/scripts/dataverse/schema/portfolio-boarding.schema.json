@@ -1,0 +1,53 @@
+{
+  "$comment": "Phase 243 — Portfolio boarding schema definition. Derived EXACTLY from src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.ts (PORTFOLIO_BOARDING_ROOT_TABLE, PORTFOLIO_BOARDING_RELATED_TABLES, PORTFOLIO_BOARDING_TARGET_RELATIONSHIPS) and portfolioLoanBoardingLivePersistence.ts. Internal OGB names only (cr664_*). No vendor (nCino/Salesforce) tables. The complete column set is the plan referenced in fullColumnSourceOfTruth; requiredColumns here is the create minimum.",
+  "domain": "portfolio-boarding",
+  "publisherPrefix": "cr664",
+  "solutionUniqueName": "cr664_ogblos",
+  "fullColumnSourceOfTruth": "src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.ts#PORTFOLIO_BOARDING_TARGET_COLUMNS",
+  "rootTable": "cr664_portfolioboardedloan",
+  "rootLookupColumn": "cr664_PortfolioBoardedLoan",
+  "tables": [
+    {
+      "logicalName": "cr664_portfolioboardedloan",
+      "schemaName": "cr664_PortfolioBoardedLoan",
+      "entitySetName": "cr664_portfolioboardedloans",
+      "displayName": "Portfolio Boarded Loan",
+      "displayCollectionName": "Portfolio Boarded Loans",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": true,
+      "requiredColumns": [
+        { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 },
+        { "logicalName": "cr664_boardedloanidtext", "displayName": "Boarded loan id (text)", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_boardingstatus", "displayName": "Boarding status", "type": "String", "maxLength": 100 },
+        { "logicalName": "cr664_loanstatus", "displayName": "Loan status", "type": "String", "maxLength": 100 }
+      ]
+    },
+    { "logicalName": "cr664_portfolioboardedloanborrower", "schemaName": "cr664_PortfolioBoardedLoanBorrower", "entitySetName": "cr664_portfolioboardedloanborrowers", "displayName": "Boarded Loan Borrower", "displayCollectionName": "Boarded Loan Borrowers", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloancollateral", "schemaName": "cr664_PortfolioBoardedLoanCollateral", "entitySetName": "cr664_portfolioboardedloancollaterals", "displayName": "Boarded Loan Collateral", "displayCollectionName": "Boarded Loan Collateral", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloanguarantor", "schemaName": "cr664_PortfolioBoardedLoanGuarantor", "entitySetName": "cr664_portfolioboardedloanguarantors", "displayName": "Boarded Loan Guarantor", "displayCollectionName": "Boarded Loan Guarantors", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloancovenant", "schemaName": "cr664_PortfolioBoardedLoanCovenant", "entitySetName": "cr664_portfolioboardedloancovenants", "displayName": "Boarded Loan Covenant", "displayCollectionName": "Boarded Loan Covenants", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloantickler", "schemaName": "cr664_PortfolioBoardedLoanTickler", "entitySetName": "cr664_portfolioboardedloanticklers", "displayName": "Boarded Loan Tickler", "displayCollectionName": "Boarded Loan Ticklers", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloaninsurance", "schemaName": "cr664_PortfolioBoardedLoanInsurance", "entitySetName": "cr664_portfolioboardedloaninsurances", "displayName": "Boarded Loan Insurance", "displayCollectionName": "Boarded Loan Insurance", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloandocument", "schemaName": "cr664_PortfolioBoardedLoanDocument", "entitySetName": "cr664_portfolioboardedloandocuments", "displayName": "Boarded Loan Document", "displayCollectionName": "Boarded Loan Documents", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloanevidence", "schemaName": "cr664_PortfolioBoardedLoanEvidence", "entitySetName": "cr664_portfolioboardedloanevidences", "displayName": "Boarded Loan Evidence", "displayCollectionName": "Boarded Loan Evidence", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloanexception", "schemaName": "cr664_PortfolioBoardedLoanException", "entitySetName": "cr664_portfolioboardedloanexceptions", "displayName": "Boarded Loan Exception", "displayCollectionName": "Boarded Loan Exceptions", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloanreview", "schemaName": "cr664_PortfolioBoardedLoanReview", "entitySetName": "cr664_portfolioboardedloanreviews", "displayName": "Boarded Loan Review", "displayCollectionName": "Boarded Loan Reviews", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloanexaminernote", "schemaName": "cr664_PortfolioBoardedLoanExaminerNote", "entitySetName": "cr664_portfolioboardedloanexaminernotes", "displayName": "Boarded Loan Examiner Note", "displayCollectionName": "Boarded Loan Examiner Notes", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] },
+    { "logicalName": "cr664_portfolioboardedloanauditentry", "schemaName": "cr664_PortfolioBoardedLoanAuditEntry", "entitySetName": "cr664_portfolioboardedloanauditentries", "displayName": "Boarded Loan Audit Entry", "displayCollectionName": "Boarded Loan Audit Entries", "primaryNameColumn": "cr664_name", "ownershipType": "UserOwned", "auditEnabled": true, "rootLookup": "cr664_PortfolioBoardedLoan", "requiredColumns": [ { "logicalName": "cr664_name", "displayName": "Name", "type": "String", "requiredLevel": "ApplicationRequired", "maxLength": 200 } ] }
+  ],
+  "relationships": [
+    { "schemaName": "cr664_portfolioboardedloan_originatedloandeal", "fromTable": "cr664_portfolioboardedloan", "fromColumn": "cr664_OriginatedLoanDeal", "toTable": "cr664_loandeal", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_portfolioboardedloan_client", "fromTable": "cr664_portfolioboardedloan", "fromColumn": "cr664_Client", "toTable": "cr664_clientrelationship", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_portfolioboardedloan_portfoliomanager", "fromTable": "cr664_portfolioboardedloan", "fromColumn": "cr664_PortfolioManager", "toTable": "cr664_banker", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_portfolioboardedloan_assignedservicingowner", "fromTable": "cr664_portfolioboardedloan", "fromColumn": "cr664_AssignedServicingOwner", "toTable": "cr664_banker", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_portfolioboardedloan_team", "fromTable": "cr664_portfolioboardedloan", "fromColumn": "cr664_Team", "toTable": "cr664_team", "type": "ManyToOne", "required": false },
+    { "schemaName": "cr664_portfolioboardedloandocument_evidence", "fromTable": "cr664_portfolioboardedloandocument", "fromColumn": "cr664_Evidence", "toTable": "cr664_portfolioboardedloanevidence", "type": "ManyToOne", "required": false },
+    { "$comment": "Each child belongs to one root via cr664_PortfolioBoardedLoan (see rootLookup per table)." }
+  ],
+  "rollback": {
+    "posture": "create-missing-only; non-destructive",
+    "guidance": "These scripts never delete or overwrite metadata. Rollback is a manual maker-portal table delete of the newly-created cr664_portfolioboardedloan* tables (destructive, operator-confirmed, outside this pack). No automated table delete exists here."
+  }
+}
