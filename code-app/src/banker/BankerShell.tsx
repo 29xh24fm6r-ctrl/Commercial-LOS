@@ -23,7 +23,7 @@ import { CountBadge } from '../shared/cockpitPrimitives';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 
 /**
- * Phase 125F ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Banker Workspace shell (Lending OS recomposition).
+ * Phase 125F ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Banker Workspace shell (Lending OS recomposition).
  *
  * Replaces the Phase 117 institutional shell with the original
  * Lending OS reference: dark left sidebar (LendingOSLayout) +
@@ -80,7 +80,7 @@ type LoadState =
 export interface BankerShellProps {
   workspaceName: string;
   /**
-   * Phase 124C ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â optional entitled-workspace links forwarded to
+   * Phase 124C ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â optional entitled-workspace links forwarded to
    * LendingOSLayout so the sidebar can render the workspace
    * switcher for manager-entitled users. When undefined, the shell
    * falls back to the single-workspace pill.
@@ -223,7 +223,7 @@ function TabBar({
   kpis: ReturnType<typeof deriveBankerPersonalActivity> | null;
   state: LoadState;
 }) {
-  // Phase 125F ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â count badges derived from the loaded KPIs. We
+  // Phase 125F ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â count badges derived from the loaded KPIs. We
   // surface counts only when the parent state is `ready`; on
   // loading / failed we render the tab without a badge so the
   // banker doesn't see a transient "0" that resolves to a real
@@ -364,9 +364,9 @@ function RightRail({
           </Badge>
         </div>
         <div style={styles.railSubtitle}>
-          Target-close dates within 14 days. <em>Not a calendar integration ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Outlook is not wired.</em>
+          Target-close dates within 14 days. <em>Not a calendar integration ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Outlook is not wired.</em>
         </div>
-        {state.kind === 'loading' && <div style={styles.railMuted}>LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</div>}
+        {state.kind === 'loading' && <div style={styles.railMuted}>LoadingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦</div>}
         {state.kind === 'failed' && (
           <div style={styles.railMuted}>
             Could not load schedule preview. Refresh to retry.
@@ -413,9 +413,9 @@ function MyTasksRailPanel({
         )}
       </div>
       <div style={styles.railSubtitle}>
-        Top 3 open tasks ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â overdue first.
+        Top 3 open tasks ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â overdue first.
       </div>
-      {state.kind === 'loading' && <div style={styles.railMuted}>LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</div>}
+      {state.kind === 'loading' && <div style={styles.railMuted}>LoadingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦</div>}
       {state.kind === 'failed' && (
         <div style={styles.railMuted}>Could not load tasks. Refresh to retry.</div>
       )}
@@ -453,9 +453,9 @@ function formatTaskDue(iso: string | undefined): string {
 }
 
 function formatRelativeDate(iso: string | undefined): string {
-  if (!iso) return 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
+  if (!iso) return 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â';
+  if (Number.isNaN(d.getTime())) return 'ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â';
   const absolute = d.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -534,6 +534,26 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: spacing.lg,
   },
+  workflowGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: spacing.md,
+  },
+  workflowCard: {
+    background: palette.surface,
+    border: `1px solid ${palette.panelBorder}`,
+    borderRadius: radius.md,
+    boxShadow: shadow.card,
+    padding: `${spacing.lg} ${spacing.xl}`,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.sm,
+  },
+  workflowValue: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: palette.cobalt,
+  },
   rightRail: {
     position: 'sticky',
     top: spacing.md,
@@ -554,7 +574,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: spacing.xs,
-    // Phase 125G ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â consistent minimum widget height so the rail
+    // Phase 125G ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â consistent minimum widget height so the rail
     // reads as a row of equal-height operating widgets rather
     // than ragged cards keyed to their content length.
     minHeight: 160,

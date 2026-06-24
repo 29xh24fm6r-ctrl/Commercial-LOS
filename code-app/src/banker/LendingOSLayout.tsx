@@ -19,7 +19,7 @@ import type { WorkspaceLink } from '../bootstrap/workspaceEntitlements';
 import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
 
 /**
- * Phase 125F — Lending OS shell layout.
+ * Phase 125F â€” Lending OS shell layout.
  *
  * Shared dark-sidebar + content-frame chrome used by BOTH the
  * Banker Workspace home page (BankerShell) AND the per-deal
@@ -38,7 +38,7 @@ import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
  *     with explicit "Not yet wired" tooltips so the shell
  *     matches the reference visually without implying
  *     unsupported surfaces.
- *   - No fake "+ New Deal" / "Log Activity" handlers — those
+ *   - No fake "+ New Deal" / "Log Activity" handlers â€” those
  *     live in `GreetingHeader` as disabled placeholders.
  *   - No global search loader exists today; the search input
  *     in `GreetingHeader` is also a disabled placeholder.
@@ -52,6 +52,8 @@ export type LendingOSNavKey =
   | 'due-diligence'
   | 'activity'
   | 'relationships'
+  | 'crm-hub'
+  | 'loan-workflow'
   | 'signals';
 
 export interface LendingOSLayoutProps {
@@ -74,7 +76,7 @@ export interface LendingOSLayoutProps {
   /** Bootstrap-resolved workspace name (for the switcher). */
   workspaceName: string;
   /**
-   * Phase 124C — optional entitled-workspace links. When two or
+   * Phase 124C â€” optional entitled-workspace links. When two or
    * more links are supplied, the sidebar renders a navigation
    * switcher so manager-entitled users can reach the manager
    * workspace from the banker sidebar. When `undefined` or a
@@ -132,6 +134,7 @@ const NAV_SECTIONS: ReadonlyArray<NavSection> = [
   {
     label: 'Relationships',
     items: [
+      { kind: 'real', key: 'crm-hub', label: 'CRM Hub', icon: <ClientIcon /> },
       {
         kind: 'placeholder',
         id: 'contacts',
@@ -145,6 +148,7 @@ const NAV_SECTIONS: ReadonlyArray<NavSection> = [
   {
     label: 'Resources',
     items: [
+      { kind: 'real', key: 'loan-workflow', label: 'Loan Workflow', icon: <RelationshipIcon /> },
       {
         kind: 'placeholder',
         id: 'vendors',
@@ -324,7 +328,7 @@ function NavPlaceholder({ item }: { item: PlaceholderNavItem }) {
 
 function deriveInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '—';
+  if (parts.length === 0) return 'â€”';
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
   return (parts[0]!.charAt(0) + parts[parts.length - 1]!.charAt(0)).toUpperCase();
 }

@@ -10,17 +10,17 @@ import {
 import { logActivity } from '../deals/logActivityActions';
 
 /**
- * Phase 125F â€” Banker Workspace greeting header.
+ * Phase 125F Ã¢â‚¬â€ Banker Workspace greeting header.
  *
  * Replaces the Phase 117 institutional eyebrow with a personal
  * greeting card matching the original Lending OS reference:
  *
- *   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
- *   â”‚ Good afternoon, Matthew      [search â–¢] [Log Activity][+New]â”‚
- *   â”‚ You have 4 tasks pending and 0 meetings today              â”‚
- *   â”‚                                                            â”‚
- *   â”‚ Email: LIVE  Â· Banker Workspace                            â”‚
- *   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+ *   Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â
+ *   Ã¢â€â€š Good afternoon, Matthew      [search Ã¢â€“Â¢] [Log Activity][+New]Ã¢â€â€š
+ *   Ã¢â€â€š You have 4 tasks pending and 0 meetings today              Ã¢â€â€š
+ *   Ã¢â€â€š                                                            Ã¢â€â€š
+ *   Ã¢â€â€š Email: LIVE  Ã‚Â· Banker Workspace                            Ã¢â€â€š
+ *   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ
  *
  * Honest discipline:
  *   - Greeting uses the signed-in banker's first name (or the
@@ -89,7 +89,7 @@ export function GreetingHeader({
           </h1>
           <p style={styles.subtitle}>
             {openTaskCount === undefined ? (
-              <span style={styles.subtitleLoading}>Loading workloadâ€¦</span>
+              <span style={styles.subtitleLoading}>Loading workloadÃ¢â‚¬Â¦</span>
             ) : (
               <>
                 You have{' '}
@@ -148,7 +148,7 @@ export function GreetingHeader({
         <div style={styles.readOnlyBanner} role="status">
           <strong>Read-only mode.</strong> {writeDisabledReason} Write actions
           remain disabled until the underlying issue is resolved.
-          (Identity chip: {fullName} Â· {email}.)
+          (Identity chip: {fullName} Ã‚Â· {email}.)
         </div>
       )}
       {showLogActivityModal && systemUserId && (
@@ -190,7 +190,7 @@ function SearchPlaceholder() {
       <input
         type="text"
         style={styles.searchInput}
-        placeholder="Search deals, loans, contactsâ€¦ (not yet wired)"
+        placeholder="Search deals, loans, contacts... (not yet wired)"
         disabled
         aria-disabled="true"
         data-search-placeholder="lending-os-search"
