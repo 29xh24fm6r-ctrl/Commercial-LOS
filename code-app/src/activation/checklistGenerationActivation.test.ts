@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import {
   generateChecklistPreview,
   generateAndWriteChecklist,
@@ -21,7 +21,7 @@ function ev(records: OperatorSmokeEvidence[] = []): SmokeEvidenceRegistryInput {
   return { source: 'out-of-band', records };
 }
 
-describe('Phase 221 Ã¢â‚¬â€ deterministic preview', () => {
+describe('Phase 221 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â deterministic preview', () => {
   it('blocks generation when product/stage/schema missing', () => {
     expect(generateChecklistPreview(ctx({ product: null })).status).toBe('blocked');
     expect(generateChecklistPreview(ctx({ stage: null })).status).toBe('blocked');
@@ -47,10 +47,11 @@ function wInput(over: Partial<ChecklistWriteInput> = {}): ChecklistWriteInput {
   };
 }
 
-describe('Phase 228B — governed checklist write enabled with fail-closed controls', () => {
+describe('Phase 228B â€” governed checklist write enabled with fail-closed controls', () => {
   it('is enabled by default but still requires transport and audit sink', async () => {
-    expect(CHECKLIST_WRITE_ENABLED).toBe(true);
-    expect((await generateAndWriteChecklist(wInput({ transport: undefined }))).outcome).toBe('blocked_generation');
+    expect(CHECKLIST_WRITE_ENABLED).toBe(false);
+    expect((await generateAndWriteChecklist(wInput())).outcome).toBe('disabled');
+    expect((await generateAndWriteChecklist(wInput({ enabled: true, transport: undefined }))).outcome).toBe('blocked_generation');
   });
   it('unauthorized / blocked_generation fail closed', async () => {
     expect((await generateAndWriteChecklist(wInput({ enabled: true, actorAuthorized: false }))).outcome).toBe('unauthorized');

@@ -1,21 +1,21 @@
-import {
+﻿import {
   deriveCapabilitySmokeReadiness,
   type SmokeEvidenceRegistryInput,
 } from '../access/operatorSmokeEvidenceRegistry';
 import { evaluateLaunchGates, type CapabilityReadiness } from './launchReadiness';
 
 /**
- * Phase 223 â€” Document upload schema gate + governed upload adapter seam.
+ * Phase 223 Ã¢â‚¬â€ Document upload schema gate + governed upload adapter seam.
  *
  * PURE and fail-closed. Phase 228B enables the governed upload seam. Upload still requires a File column on the document checklist
  * table; if the File column/upload target is missing, upload stays blocked with
  * exact diagnostics. The adapter validates type/size, requires a target item +
  * authorized actor, uploads via an injected transport, and only updates metadata
- * (marks received) AFTER the upload succeeds â€” a failed upload NEVER marks
+ * (marks received) AFTER the upload succeeds Ã¢â‚¬â€ a failed upload NEVER marks
  * received. No test uploads a real file.
  */
 
-export const DOCUMENT_UPLOAD_ENABLED = true;
+export const DOCUMENT_UPLOAD_ENABLED = false;
 
 export interface DocumentUploadSchemaFacts {
   /** True when the document checklist table has a File column / upload target. */
@@ -96,7 +96,7 @@ export async function uploadDocument(input: DocumentUploadInput): Promise<Docume
   const fileId = up.fileId;
 
   // Metadata (mark received) only AFTER a successful upload. A metadata failure is a
-  // partial success â€” the file is uploaded but NOT marked received.
+  // partial success Ã¢â‚¬â€ the file is uploaded but NOT marked received.
   const meta = await input.transport.markReceived(input.targetItemId, fileId);
   if (!meta.ok) {
     await input.auditSink.write({ correlationId: input.correlationId, targetItemId: input.targetItemId, fileId, outcome: 'metadata_failed_partial_success' });

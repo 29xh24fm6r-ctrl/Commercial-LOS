@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import {
   deriveDocumentUploadSchemaGate,
   uploadDocument,
@@ -12,7 +12,7 @@ function ev(records: OperatorSmokeEvidence[] = []): SmokeEvidenceRegistryInput {
   return { source: 'out-of-band', records };
 }
 
-describe('Phase 223 Ã¢â‚¬â€ document upload schema gate', () => {
+describe('Phase 223 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â document upload schema gate', () => {
   it('blocks with remediation when File column / upload method missing', () => {
     const g = deriveDocumentUploadSchemaGate({ fileColumnPresent: false, uploadMethodAvailable: false });
     expect(g.uploadTargetReady).toBe(false);
@@ -34,11 +34,12 @@ function up(over: Partial<DocumentUploadInput> = {}): DocumentUploadInput {
   };
 }
 
-describe('Phase 228B — governed upload adapter enabled with fail-closed controls', () => {
+describe('Phase 228B â€” governed upload adapter enabled with fail-closed controls', () => {
   it('is enabled by default but still blocks when target or transport is not ready', async () => {
-    expect(DOCUMENT_UPLOAD_ENABLED).toBe(true);
-    expect((await uploadDocument(up({ transport: undefined }))).outcome).toBe('disabled');
-    expect((await uploadDocument(up({ uploadTargetReady: false }))).outcome).toBe('disabled');
+    expect(DOCUMENT_UPLOAD_ENABLED).toBe(false);
+    expect((await uploadDocument(up())).outcome).toBe('disabled');
+    expect((await uploadDocument(up({ enabled: true, transport: undefined }))).outcome).toBe('disabled');
+    expect((await uploadDocument(up({ enabled: true, uploadTargetReady: false }))).outcome).toBe('disabled');
   });
   it('unauthorized / missing_file / invalid_file_type / file_too_large / target_not_found', async () => {
     expect((await uploadDocument(up({ enabled: true, actorAuthorized: false }))).outcome).toBe('unauthorized');

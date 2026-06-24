@@ -1,12 +1,12 @@
-/**
- * Phase 140L â€” Portfolio Loan Boarding feature flags.
+﻿/**
+ * Phase 140L Ã¢â‚¬â€ Portfolio Loan Boarding feature flags.
  *
  * Gates the first real app-runtime write capability for portfolio boarding.
- * Flags are resolved from an injected config object only â€” never from an
- * environment secret in client code â€” and they FAIL CLOSED: a flag is enabled
+ * Flags are resolved from an injected config object only Ã¢â‚¬â€ never from an
+ * environment secret in client code Ã¢â‚¬â€ and they FAIL CLOSED: a flag is enabled
  * only when its config value is exactly `true`.
  *
- * Discipline (HARD rules â€” pinned by tests):
+ * Discipline (HARD rules Ã¢â‚¬â€ pinned by tests):
  *   - Pure. No IO, no secrets, no env reads.
  *   - Default is DISABLED. An absent / undefined / non-`true` config value
  *     leaves the flag off.
@@ -15,13 +15,13 @@
 export interface PortfolioBoardingFeatureFlagConfig {
   /** Enables the live Dataverse persistence adapter. Default: disabled. */
   livePersistenceEnabled?: boolean;
-  /** Phase 140M â€” exposes the operator boarding route. Default: disabled. */
+  /** Phase 140M Ã¢â‚¬â€ exposes the operator boarding route. Default: disabled. */
   routeEnabled?: boolean;
-  /** Phase 140N â€” enables document/evidence metadata persistence. Default: off. */
+  /** Phase 140N Ã¢â‚¬â€ enables document/evidence metadata persistence. Default: off. */
   documentMetadataEnabled?: boolean;
-  /** Phase 140O â€” includes boarded loans in command centers. Default: off. */
+  /** Phase 140O Ã¢â‚¬â€ includes boarded loans in command centers. Default: off. */
   commandCenterEnabled?: boolean;
-  /** Phase 140P â€” exposes the FDIC/board package surface. Default: off. */
+  /** Phase 140P Ã¢â‚¬â€ exposes the FDIC/board package surface. Default: off. */
   fdicPackageEnabled?: boolean;
 }
 
@@ -36,7 +36,7 @@ export interface PortfolioBoardingFeatureFlags {
 /** The safe defaults: every portfolio boarding runtime capability is off. */
 export const PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS: PortfolioBoardingFeatureFlags =
   Object.freeze({
-    PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: true,
+    PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: false,
     PORTFOLIO_BOARDING_ROUTE_ENABLED: true,
     PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED: true,
     PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED: true,

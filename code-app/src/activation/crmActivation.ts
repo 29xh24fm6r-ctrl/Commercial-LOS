@@ -1,23 +1,23 @@
-import {
+﻿import {
   deriveCapabilitySmokeReadiness,
   type SmokeEvidenceRegistryInput,
 } from '../access/operatorSmokeEvidenceRegistry';
 import { evaluateLaunchGates, type CapabilityReadiness } from './launchReadiness';
 
 /**
- * Phase 217 â€” CRM schema verification + persistence activation gate, and
- * Phase 218 â€” CRM writeback / onboarding adapter seam.
+ * Phase 217 Ã¢â‚¬â€ CRM schema verification + persistence activation gate, and
+ * Phase 218 Ã¢â‚¬â€ CRM writeback / onboarding adapter seam.
  *
  * PURE and fail-closed. CRM live persistence cannot be claimed ready until the
  * required generated services, columns, and relationships are verified present
- * (caller-supplied facts â€” code inspects what it can, never fabricates). The
+ * (caller-supplied facts Ã¢â‚¬â€ code inspects what it can, never fabricates). The
  * writeback adapter is a SEAM over an injected transport + audit + timeline sink;
  * it returns schema_not_verified / disabled / unauthorized rather than a fake
  * success, and performs governed internal CRM writes only through injected transport + audit. This implies NO
  * external Salesforce / nCino sync.
  */
 
-export const CRM_LIVE_PERSISTENCE_ENABLED = true;
+export const CRM_LIVE_PERSISTENCE_ENABLED = false;
 export const CRM_CONTACT_EDITING_ENABLED = true;
 export const CRM_VENDOR_EDITING_ENABLED = true;
 export const CRM_TIMELINE_ENABLED = true;
@@ -28,7 +28,7 @@ export interface SchemaCheck {
 }
 
 export interface CrmSchemaFacts {
-  /** Required generated services present (organizations, people, contact points, relationships, â€¦). */
+  /** Required generated services present (organizations, people, contact points, relationships, Ã¢â‚¬Â¦). */
   readonly services: ReadonlyArray<SchemaCheck>;
   /** Required columns present. */
   readonly columns: ReadonlyArray<SchemaCheck>;
@@ -84,7 +84,7 @@ export function deriveCrmPersistenceActivation(input: CrmPersistenceActivationIn
 }
 
 // ---------------------------------------------------------------------------
-// Phase 218 â€” CRM writeback adapter seam
+// Phase 218 Ã¢â‚¬â€ CRM writeback adapter seam
 // ---------------------------------------------------------------------------
 
 export type CrmEntity = 'organization' | 'person' | 'contact-point' | 'relationship';
