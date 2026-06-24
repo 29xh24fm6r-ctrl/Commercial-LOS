@@ -27,8 +27,8 @@ import {
 export type EnvironmentEvidenceStatus = 'PASS' | 'BLOCKED' | 'UNKNOWN';
 
 /** Commit + timestamp of the recorded verification run transcribed below. */
-export const ENVIRONMENT_EVIDENCE_COMMIT = '641c0cc';
-export const ENVIRONMENT_EVIDENCE_VERIFIED_AT = '2026-06-24T16:02:46-04:00';
+export const ENVIRONMENT_EVIDENCE_COMMIT = '0d5f303';
+export const ENVIRONMENT_EVIDENCE_VERIFIED_AT = '2026-06-24T17:22:44-04:00';
 
 export interface DomainEnvironmentEvidence {
   readonly key: ActivationDomainKey;
@@ -65,13 +65,12 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
   crmWriteback: {
     key: 'crmWriteback',
     label: DOMAIN_LABELS.crmWriteback,
-    environmentStatus: 'BLOCKED',
+    environmentStatus: 'PASS',
     verificationScript: 'scripts/activation/verify-crm-schema.ps1',
-    evidenceLine: '[242B][crm-schema] STATUS=BLOCKED present=0/5 datasource=False',
+    evidenceLine: '[243][verify-crm-spine] STATUS=PASS services=5/5 datasources=5/5 live=0/0; [242B][crm-schema] STATUS=PASS present=5/5 datasource=True',
     missingOperatorActions: [
-      'In the Power Apps maker portal create the cr664_crm* spine tables (organization, person, relationship, role assignment, timeline event) with columns + relationships.',
-      'Register each table as an app data source (pac code add-data-source -a dataverse -t cr664_crmorganizations, repeat per table), then regenerate the typed SDK so the five Cr664_crm*Service.ts generated services exist.',
-      'Re-run verify-crm-schema.ps1 until STATUS=PASS, then certify CRM_LIVE_PERSISTENCE_ENABLED with success/disallowed-field/rollback smoke.',
+      'Technical prerequisites PASS at commit 0d5f303 (5/5 generated Cr664_crm*Service.ts services, 5/5 data sources registered). The live gate stays controlled.',
+      'Remaining (governed cutover): inject the VerifiedCrmSchemaState, flip CRM_LIVE_PERSISTENCE_ENABLED, and record success / disallowed-field / rollback smoke. The sensitive-field reject and audit stay active.',
     ],
     rollbackControl: 'Set CRM_LIVE_PERSISTENCE_ENABLED to false.',
   },
@@ -115,12 +114,12 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
   portfolioBoarding: {
     key: 'portfolioBoarding',
     label: DOMAIN_LABELS.portfolioBoarding,
-    environmentStatus: 'BLOCKED',
+    environmentStatus: 'PASS',
     verificationScript: 'scripts/activation/verify-portfolio-boarding-schema.ps1',
-    evidenceLine: '[242B][portfolio-boarding] STATUS=BLOCKED service=False datasource=False child-groups=portal-review',
+    evidenceLine: '[243][verify-portfolio-boarding] STATUS=PASS services=13/13 datasources=13/13 live=0/0; [242B][portfolio-boarding] STATUS=PASS service=True datasource=True',
     missingOperatorActions: [
-      'In the portal verify the portfolio boarded-loan table + child group tables exist with required columns/relationships; register the boarded-loan table as a data source and regenerate the SDK.',
-      'Inject the VerifiedBoardingSchemaState, enable the route for an authorized operator/workspace, enable PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED, and record single-record boarding + failure smokes.',
+      'Technical prerequisites PASS at commit 0d5f303 (13/13 generated boarded-loan + child-group services, 13/13 data sources registered). The live gate + route stay controlled.',
+      'Remaining (governed cutover): inject the VerifiedBoardingSchemaState, enable the route for an authorized operator/workspace, flip PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED, and record single-record boarding + failure smoke.',
     ],
     rollbackControl: 'Set PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED + the portfolio boarding route to false.',
   },

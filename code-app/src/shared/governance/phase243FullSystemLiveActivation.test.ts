@@ -61,8 +61,7 @@ describe('Phase 243 — full system live activation governance contract', () => 
     expect(src).not.toMatch(/\bfetch\s*\(/);
     expect(src).not.toMatch(/\bcreateRecord\b|\bupdateRecord\b|\bdeleteRecord\b/i);
     expect(src).not.toMatch(/\bsendMail\b|\bsendBorrower|autoSend/i);
-    // Blocked + unknown statuses are present (the honest recorded evidence), not faked PASS.
-    expect(src).toMatch(/environmentStatus:\s*'BLOCKED'/);
+    // Unknown statuses are present (the honest recorded pending evidence), not faked PASS.
     expect(src).toMatch(/environmentStatus:\s*'UNKNOWN'/);
   });
 

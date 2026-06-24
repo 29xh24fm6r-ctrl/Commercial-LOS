@@ -19,20 +19,23 @@ param([switch]$Apply, [switch]$Force)
 
 . (Join-Path $PSScriptRoot '_common.ps1')
 $schemaDir = Join-Path $PSScriptRoot 'schema'
-$entitySets = @()
+# Dataverse `pac code add-data-source -t` expects the SINGULAR logical table name
+# (e.g. cr664_crmorganization), NOT the plural entity-set name (cr664_crmorganizations).
+# Registering with the plural entity-set name produces an invalid/duplicate data source.
+$logicalNames = @()
 foreach ($f in @('crm-spine.schema.json', 'portfolio-boarding.schema.json')) {
   $s = Get-Content -Raw -LiteralPath (Join-Path $schemaDir $f) | ConvertFrom-Json
-  $entitySets += ($s.tables | ForEach-Object { $_.entitySetName })
+  $logicalNames += ($s.tables | ForEach-Object { $_.logicalName })
 }
 
 Write-Host '== Phase 243 :: Register data sources + regenerate Power Apps SDK =='
-Write-Host ("Mode: {0}  Data sources: {1}" -f $(if ($Apply) { 'APPLY' } else { 'DRY-RUN (default)' }), $entitySets.Count)
+Write-Host ("Mode: {0}  Data sources: {1}" -f $(if ($Apply) { 'APPLY' } else { 'DRY-RUN (default)' }), $logicalNames.Count)
 
-foreach ($es in $entitySets) {
-  $cmd = "pac code add-data-source -a dataverse -t $es"
+foreach ($t in $logicalNames) {
+  $cmd = "pac code add-data-source -a dataverse -t $t"
   if (-not $Apply) { Write-Host ("WOULD RUN: {0}" -f $cmd); continue }
   Write-Host ("RUN: {0}" -f $cmd)
-  & pac code add-data-source -a dataverse -t $es
+  & pac code add-data-source -a dataverse -t $t
 }
 
 if ($Apply) {
@@ -42,4 +45,4 @@ if ($Apply) {
   Write-Host 'RUN: npm run build  (operator should rebuild to confirm the regenerated SDK compiles)'
 }
 
-Write-Host ("EVIDENCE: [243][sdk-regen] mode={0} datasources={1} ts={2}" -f $(if ($Apply) { 'apply' } else { 'dry-run' }), $entitySets.Count, (Get-Date -Format o))
+Write-Host ("EVIDENCE: [243][sdk-regen] mode={0} datasources={1} ts={2}" -f $(if ($Apply) { 'apply' } else { 'dry-run' }), $logicalNames.Count, (Get-Date -Format o))

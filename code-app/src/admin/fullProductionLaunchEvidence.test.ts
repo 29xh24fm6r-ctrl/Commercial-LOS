@@ -14,35 +14,32 @@ describe('Phase 243 — full production launch evidence ledger', () => {
     expect(vm.commit).toBe(ENVIRONMENT_EVIDENCE_COMMIT);
     const byKey = new Map(vm.domains.map((d) => [d.key, d]));
     expect(byKey.get('newDealCreate')?.environmentStatus).toBe('PASS');
-    expect(byKey.get('crmWriteback')?.environmentStatus).toBe('BLOCKED');
+    expect(byKey.get('crmWriteback')?.environmentStatus).toBe('PASS');
     expect(byKey.get('documentChecklist')?.environmentStatus).toBe('UNKNOWN');
     expect(byKey.get('borrowerSend')?.environmentStatus).toBe('UNKNOWN');
     expect(byKey.get('stageAdvancement')?.environmentStatus).toBe('PASS');
-    expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('BLOCKED');
+    expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
   });
 
-  it('does NOT claim full launch: only New Deal create is live (1/6), four domains blocking', () => {
+  it('does NOT claim full launch: only New Deal create is live (1/6), checklist + Outlook blocking', () => {
     const vm = deriveFullProductionLaunchEvidence();
     expect(vm.fullLaunchAchieved).toBe(false);
     expect(vm.enabledCount).toBe(1);
-    expect(vm.blockingDomains).toEqual([
-      'crmWriteback',
-      'documentChecklist',
-      'borrowerSend',
-      'portfolioBoarding',
-    ]);
+    expect(vm.blockingDomains).toEqual(['documentChecklist', 'borrowerSend']);
   });
 
   it('separates environment-PASS from live-enabled (PASS prerequisite is not activation)', () => {
     const vm = deriveFullProductionLaunchEvidence();
     const byKey = new Map(vm.domains.map((d) => [d.key, d]));
-    // Stage advancement environment is PASS, but it is NOT yet live (smoke + gate pending).
-    const stage = byKey.get('stageAdvancement')!;
-    expect(stage.environmentStatus).toBe('PASS');
-    expect(stage.enabled).toBe(false);
-    expect(stage.missingOperatorActions.length).toBeGreaterThan(0);
-    // Two domains have PASS environment evidence; only one is actually enabled.
-    expect(vm.environmentPassCount).toBe(2);
+    // CRM, portfolio, and stage environments are PASS, but they are NOT live (gate/smoke pending).
+    for (const key of ['crmWriteback', 'portfolioBoarding', 'stageAdvancement'] as const) {
+      const d = byKey.get(key)!;
+      expect(d.environmentStatus, key).toBe('PASS');
+      expect(d.enabled, key).toBe(false);
+      expect(d.missingOperatorActions.length, key).toBeGreaterThan(0);
+    }
+    // Four domains have PASS environment evidence; only one is actually enabled.
+    expect(vm.environmentPassCount).toBe(4);
     expect(vm.enabledCount).toBe(1);
   });
 

@@ -28,14 +28,20 @@ foreach ($v in @('verify-crm-schema.ps1', 'verify-checklist-rules.ps1', 'verify-
 $evidence = @()
 foreach ($s in $steps) {
   Write-Host ("---- running {0} ----" -f (Split-Path $s -Leaf))
-  $out = & $s
+  # The child verifiers emit via Write-Host (Information stream). Without *>&1 their
+  # EVIDENCE lines are NOT captured into $out, leaving $evidence empty and ALL-PASS
+  # vacuously true. Merge all streams so BLOCKED/UNKNOWN evidence is actually seen.
+  $out = & $s *>&1
   $out | ForEach-Object { Write-Host $_ }
-  $evidence += ($out | Where-Object { $_ -match '^EVIDENCE: ' })
+  $evidence += ($out | ForEach-Object { "$_" } | Where-Object { $_ -match '^EVIDENCE: ' })
 }
 
 $commit = 'unknown'
 try { $commit = (& git -C $repo rev-parse --short HEAD).Trim() } catch { }
-$allPass = -not ($evidence | Where-Object { $_ -notmatch 'STATUS=PASS' })
+# ALL-PASS requires at least one evidence line AND zero non-PASS (BLOCKED/UNKNOWN) lines.
+# An empty evidence set is NOT a pass.
+$nonPass = @($evidence | Where-Object { $_ -notmatch 'STATUS=PASS' })
+$allPass = ($evidence.Count -gt 0) -and ($nonPass.Count -eq 0)
 
 Write-Host ''
 Write-Host '============ Phase 243 full activation verification (copy/paste) ============'
