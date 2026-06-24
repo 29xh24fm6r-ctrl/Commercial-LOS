@@ -147,6 +147,78 @@
           "entitySetName": "cr664_kpithresholdconfigurations",
           "logicalName": "cr664_kpithresholdconfiguration",
           "isHidden": false
+        },
+        "crmorganizations": {
+          "entitySetName": "cr664_crmorganizations",
+          "logicalName": "cr664_crmorganization"
+        },
+        "crmpeople": {
+          "entitySetName": "cr664_crmpersons",
+          "logicalName": "cr664_crmperson"
+        },
+        "crmrelationships": {
+          "entitySetName": "cr664_crmrelationships",
+          "logicalName": "cr664_crmrelationship"
+        },
+        "crmroleassignments": {
+          "entitySetName": "cr664_crmroleassignments",
+          "logicalName": "cr664_crmroleassignment"
+        },
+        "crmtimelineevents": {
+          "entitySetName": "cr664_crmtimelineevents",
+          "logicalName": "cr664_crmtimelineevent"
+        },
+        "portfolioboardedloans": {
+          "entitySetName": "cr664_portfolioboardedloans",
+          "logicalName": "cr664_portfolioboardedloan"
+        },
+        "portfolioboardedloanborrowers": {
+          "entitySetName": "cr664_portfolioboardedloanborrowers",
+          "logicalName": "cr664_portfolioboardedloanborrower"
+        },
+        "portfolioboardedloancollateral": {
+          "entitySetName": "cr664_portfolioboardedloancollaterals",
+          "logicalName": "cr664_portfolioboardedloancollateral"
+        },
+        "portfolioboardedloanguarantors": {
+          "entitySetName": "cr664_portfolioboardedloanguarantors",
+          "logicalName": "cr664_portfolioboardedloanguarantor"
+        },
+        "portfolioboardedloancovenants": {
+          "entitySetName": "cr664_portfolioboardedloancovenants",
+          "logicalName": "cr664_portfolioboardedloancovenant"
+        },
+        "portfolioboardedloanticklers": {
+          "entitySetName": "cr664_portfolioboardedloanticklers",
+          "logicalName": "cr664_portfolioboardedloantickler"
+        },
+        "portfolioboardedloaninsurance": {
+          "entitySetName": "cr664_portfolioboardedloaninsurances",
+          "logicalName": "cr664_portfolioboardedloaninsurance"
+        },
+        "portfolioboardedloandocuments": {
+          "entitySetName": "cr664_portfolioboardedloandocuments",
+          "logicalName": "cr664_portfolioboardedloandocument"
+        },
+        "portfolioboardedloanevidence": {
+          "entitySetName": "cr664_portfolioboardedloanevidences",
+          "logicalName": "cr664_portfolioboardedloanevidence"
+        },
+        "portfolioboardedloanexceptions": {
+          "entitySetName": "cr664_portfolioboardedloanexceptions",
+          "logicalName": "cr664_portfolioboardedloanexception"
+        },
+        "portfolioboardedloanreviews": {
+          "entitySetName": "cr664_portfolioboardedloanreviews",
+          "logicalName": "cr664_portfolioboardedloanreview"
+        },
+        "portfolioboardedloanexaminernotes": {
+          "entitySetName": "cr664_portfolioboardedloanexaminernotes",
+          "logicalName": "cr664_portfolioboardedloanexaminernote"
+        },
+        "portfolioboardedloanauditentries": {
+          "entitySetName": "cr664_portfolioboardedloanauditentries",
+          "logicalName": "cr664_portfolioboardedloanauditentry"
         }
       },
       "environmentVariableName": ""
