@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+﻿// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { _resetWorkspaceEntitlementCacheForTests } from '../bootstrap/workspaceE
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 
 /**
- * Phase 127B — TeamWorkspace switcher + TeamOpsQueue mount tests.
+ * Phase 127B â€” TeamWorkspace switcher + TeamOpsQueue mount tests.
  *
  * Pins:
  *   - TeamWorkspace mounts TeamOpsQueue as the FIRST cockpit (Phase 127A
@@ -134,7 +134,7 @@ function renderTeamWorkspace() {
 // TeamOpsQueue first-cockpit pin (Phase 127A ordering preserved)
 // ---------------------------------------------------------------------------
 
-describe('Phase 127B — TeamWorkspace mounts TeamOpsQueue as the first cockpit', () => {
+describe('Phase 127B â€” TeamWorkspace mounts TeamOpsQueue as the first cockpit', () => {
   it('renders the Team Ops Queue inside the team workspace', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.team }));
     loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
@@ -154,10 +154,10 @@ describe('Phase 127B — TeamWorkspace mounts TeamOpsQueue as the first cockpit'
 });
 
 // ---------------------------------------------------------------------------
-// Workspace switcher rendering — Phase 127B widening
+// Workspace switcher rendering â€” Phase 127B widening
 // ---------------------------------------------------------------------------
 
-describe('Phase 127B / 127C — TeamWorkspace switcher visibility', () => {
+describe('Phase 127B / 127C â€” TeamWorkspace switcher visibility', () => {
   it('renders the inline workspace switcher AND the dark sidebar switcher for a manager-entitled banker', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.banker }));
     loadManagerIdentityMock.mockResolvedValue({
@@ -171,7 +171,7 @@ describe('Phase 127B / 127C — TeamWorkspace switcher visibility', () => {
       },
     });
     renderTeamWorkspace();
-    // Phase 127C — both the dark Lending OS sidebar switcher and the
+    // Phase 127C â€” both the dark Lending OS sidebar switcher and the
     // inline team-header switcher render (Manager parity). Each
     // surface emits its own banker / manager / portfolio link, so
     // every "Switch to <Workspace>" lookup expects at least one
@@ -220,7 +220,7 @@ describe('Phase 127B / 127C — TeamWorkspace switcher visibility', () => {
 
   it('hides the inline switcher when the user has no additional entitlements (team-bootstrap, no manager probe)', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.team }));
-    // Probe returns not-entitled — only the bootstrap (team) is in the
+    // Probe returns not-entitled â€” only the bootstrap (team) is in the
     // allowed set. Both switcher gates (links.length >= 2) hide
     // themselves; the Lending OS sidebar falls back to the static
     // CurrentWorkspacePill instead.
@@ -240,12 +240,12 @@ describe('Phase 127B / 127C — TeamWorkspace switcher visibility', () => {
     loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
     renderTeamWorkspace();
     expect(await screen.findByTestId('team-ops-queue')).toBeInTheDocument();
-    // Banker-only user (or team-bootstrap with no manager probe) →
+    // Banker-only user (or team-bootstrap with no manager probe) â†’
     // no portfolio link in either switcher, no banker-only widening.
     expect(screen.queryByLabelText('Switch to Portfolio Workspace')).toBeNull();
   });
 
-  it('Team Workspace link in the switcher points to /workspaces/team (existing route — no new path invented)', async () => {
+  it('Team Workspace link in the switcher points to /workspaces/team (existing route â€” no new path invented)', async () => {
     // From a manager-bootstrap user's perspective the team link is a
     // navigation link, not the current entry. Verify the href on
     // whichever switcher emits it.
@@ -273,10 +273,10 @@ describe('Phase 127B / 127C — TeamWorkspace switcher visibility', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Phase 127C — Lending OS shell parity
+// Phase 127C â€” Lending OS shell parity
 // ---------------------------------------------------------------------------
 
-describe('Phase 127C — TeamWorkspace renders the Lending OS shell', () => {
+describe('Phase 127C â€” TeamWorkspace renders the Lending OS shell', () => {
   it('mounts the Lending OS dark sidebar (same shell as Banker/Manager/Portfolio)', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.team }));
     loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
@@ -294,12 +294,12 @@ describe('Phase 127C — TeamWorkspace renders the Lending OS shell', () => {
     loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
     renderTeamWorkspace();
     await screen.findByTestId('team-ops-queue');
-    // Phase 127C — single-link team-bootstrap user → sidebar falls
+    // Phase 127C â€” single-link team-bootstrap user â†’ sidebar falls
     // back to the static CurrentWorkspacePill ('Banker Workspace' is
     // the brand label; the dynamic name is the workspaceName prop).
     // We assert the dynamic name ('Team Workspace') is present in the
     // sidebar.
-    expect(screen.getByText('Team Workspace')).toBeInTheDocument();
+    expect(screen.getAllByText('Team Workspace').length).toBeGreaterThan(0);
   });
 
   it('renders the sidebar workspace switcher when the user has additional entitlements (manager-entitled banker)', async () => {
@@ -329,12 +329,12 @@ describe('Phase 127C — TeamWorkspace renders the Lending OS shell', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Read-only discipline — scoped to the team body (the Lending OS sidebar
-// uses <button disabled> placeholders by design — same posture as Banker /
+// Read-only discipline â€” scoped to the team body (the Lending OS sidebar
+// uses <button disabled> placeholders by design â€” same posture as Banker /
 // Manager workspaces).
 // ---------------------------------------------------------------------------
 
-describe('Phase 127C — TeamWorkspace body stays read-only', () => {
+describe('Phase 127C â€” TeamWorkspace body stays read-only', () => {
   it('renders no <button> or <form> inside the team workspace body (lanes / queue / cards)', async () => {
     useBootstrapMock.mockReturnValue(bootstrap({ route: WORKSPACE_ROUTES.banker }));
     loadManagerIdentityMock.mockResolvedValue({

@@ -1,4 +1,4 @@
-import { TeamProvider } from '../team/TeamProvider';
+﻿import { TeamProvider } from '../team/TeamProvider';
 import { TeamDataProvider } from '../team/TeamDataProvider';
 import { useTeam } from '../team/TeamContext';
 import { TeamOpsQueue } from '../team/TeamOpsQueue';
@@ -35,7 +35,7 @@ function TeamWorkspaceContent() {
   const { fullName, email, teamName } = useTeam();
   const bootstrap = useBootstrap();
   const entitled = useEntitledRoutes();
-  // Phase 127B — surface the workspace switcher in the team header so
+  // Phase 127B â€” surface the workspace switcher in the team header so
   // manager-entitled users who reached the team route via the Phase
   // 127B entitlement widening can navigate back. Banker-only users
   // are still bounced by WorkspaceGate and never see this page; team-
@@ -44,19 +44,22 @@ function TeamWorkspaceContent() {
   // Portfolio surface is opt-in only when the manager route is in the
   // user's allowed set (same rule as banker/manager workspaces).
   const managerEntitled = entitled.routes.includes(WORKSPACE_ROUTES.manager);
+  const teamWorkspaceRoutes = managerEntitled
+    ? Array.from(new Set([WORKSPACE_ROUTES.banker, WORKSPACE_ROUTES.team, WORKSPACE_ROUTES.manager, ...entitled.routes]))
+    : entitled.routes;
   const workspaceLinks = deriveWorkspaceLinks({
     bootstrapRoute: bootstrap.route,
     currentRoute: WORKSPACE_ROUTES.team,
-    entitledRoutes: entitled.routes,
-    includePortfolioSurface: managerEntitled,
+    entitledRoutes: teamWorkspaceRoutes,
+    includePortfolioSurface: teamWorkspaceRoutes.includes(WORKSPACE_ROUTES.manager),
   });
   const showInlineSwitcher = workspaceLinks.length >= 2;
 
-  // Phase 127C — wrap the team body in the same Lending OS shell the
+  // Phase 127C â€” wrap the team body in the same Lending OS shell the
   // banker / manager / portfolio surfaces use, so the dark left
   // sidebar (brand block, sidebar workspace switcher, My Pipeline /
   // Work Queue / Relationships / Resources nav) renders consistently
-  // across role surfaces. `onNavSelect` is intentionally undefined —
+  // across role surfaces. `onNavSelect` is intentionally undefined â€”
   // the Lending OS nav items are banker-coded and remain
   // non-interactive on the team surface for now.
   return (
@@ -96,7 +99,7 @@ function TeamWorkspaceContent() {
           </div>
         </header>
         <main style={styles.main}>
-          {/* Phase 127A — Team Ops Queue mounts as the FIRST cockpit
+          {/* Phase 127A â€” Team Ops Queue mounts as the FIRST cockpit
               at the top of the team workspace: 10-tile command ribbon
               + 8 lanes + banker workload matrix + execution board +
               analytics row. Existing cards below render unchanged. */}
