@@ -26,8 +26,9 @@ describe('Phase 237 — Full System Activation Launch panel', () => {
     ]) {
       expect(within(region).getByText(label)).toBeInTheDocument();
     }
-    // Every domain reports Blocked (nothing faked as enabled).
-    expect(within(region).getAllByText('Blocked').length).toBe(6);
+    // New Deal create is Enabled (live via the approved pilot); the other five report Blocked.
+    expect(within(region).getAllByText('Enabled').length).toBe(1);
+    expect(within(region).getAllByText('Blocked').length).toBe(5);
   });
 
   it('exposes no buttons, forms, inputs, or write controls (read-only)', () => {

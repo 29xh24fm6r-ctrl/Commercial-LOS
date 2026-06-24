@@ -32,31 +32,35 @@ describe('Phase 237 — full system activation launch certification model', () =
     }
   });
 
-  it('reflects the current fail-closed flag posture: nothing enabled, nothing faked', () => {
+  it('reflects the Phase 242A posture: only New Deal create enabled, nothing else faked', () => {
     const vm = deriveFullActivationLaunchCertification();
-    expect(vm.enabledCount).toBe(0);
+    expect(vm.enabledCount).toBe(1);
     expect(vm.fullLaunchAchieved).toBe(false);
-    for (const d of vm.domains) {
+    const byId = new Map(vm.domains.map((d) => [d.id, d]));
+    const newDeal = byId.get('new-deal-create')!;
+    expect(newDeal.status).toBe('enabled');
+    expect(newDeal.flagEnabled).toBe(true);
+    for (const d of vm.domains.filter((x) => x.id !== 'new-deal-create')) {
       expect(d.flagEnabled, d.id).toBe(false);
       expect(d.status, d.id).toBe('blocked');
     }
   });
 
-  it('classifies each domain honestly (no domain is CERTIFIABLE_NOW from the repo alone)', () => {
+  it('classifies each domain honestly (only New Deal create is certifiable now, from recorded smoke evidence)', () => {
     const vm = deriveFullActivationLaunchCertification();
     const byId = new Map(vm.domains.map((d) => [d.id, d]));
-    expect(byId.get('new-deal-create')?.classification).toBe('NEEDS_COMPLETION');
+    expect(byId.get('new-deal-create')?.classification).toBe('CERTIFIABLE_NOW');
     expect(byId.get('crm-writeback')?.classification).toBe('NEEDS_COMPLETION');
     expect(byId.get('document-checklist-generation')?.classification).toBe('NEEDS_COMPLETION');
     expect(byId.get('borrower-communication-send')?.classification).toBe('NOT_SAFE_TO_ENABLE');
     expect(byId.get('stage-advancement')?.classification).toBe('NEEDS_COMPLETION');
     expect(byId.get('portfolio-boarding-persistence')?.classification).toBe('NEEDS_COMPLETION');
-    expect(vm.certifiableCount).toBe(0);
-    // None are repo-completable — every blocker is operator-owned environment work.
+    expect(vm.certifiableCount).toBe(1);
+    // No domain's remaining blocker is clearable purely within the repo — the rest is operator-owned.
     expect(vm.domains.every((d) => d.repoCompletable === false)).toBe(true);
   });
 
-  it('records the operator-confirmed environment-ready domains without flipping any gate', () => {
+  it('records the operator-confirmed environment-ready domains; only New Deal create is enabled', () => {
     const vm = deriveFullActivationLaunchCertification();
     const byId = new Map(vm.domains.map((d) => [d.id, d]));
     expect(byId.get('new-deal-create')?.operatorEnvironmentConfirmed).toBe(true);
@@ -64,9 +68,10 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(byId.get('portfolio-boarding-persistence')?.operatorEnvironmentConfirmed).toBe(true);
     expect(byId.get('borrower-communication-send')?.operatorEnvironmentConfirmed).toBe(false);
     expect(vm.environmentConfirmedCount).toBe(3);
-    // Environment-confirmed does NOT mean enabled — every flag stays off, fail-closed.
-    expect(vm.enabledCount).toBe(0);
-    for (const d of vm.domains) expect(d.flagEnabled, d.id).toBe(false);
+    // Only New Deal create is live; the other env-confirmed domains stay gated, fail-closed.
+    expect(vm.enabledCount).toBe(1);
+    expect(byId.get('crm-writeback')?.flagEnabled).toBe(false);
+    expect(byId.get('portfolio-boarding-persistence')?.flagEnabled).toBe(false);
   });
 
   it('surfaces the newly-built certified governed adapters as evidence', () => {

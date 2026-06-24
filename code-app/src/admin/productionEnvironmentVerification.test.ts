@@ -19,20 +19,34 @@ const ALL_TRUE: DomainEnvironmentCertification = {
   portfolioBoarding: true,
 };
 
-describe('Phase 241 — production environment verification', () => {
-  it('defaults to NOT certified and NOT enabled for all six (no fake live success)', () => {
+describe('Phase 241/242A — production environment verification', () => {
+  it('certifies ONLY New Deal create by default; the other five stay not-certified and not-enabled', () => {
     const vm = deriveProductionEnvironmentVerification();
-    expect(vm.enabledCount).toBe(0);
+    expect(vm.enabledCount).toBe(1);
     expect(vm.allCertified).toBe(false);
     expect(vm.fullLaunchReady).toBe(false);
-    for (const d of vm.domains) {
+
+    const newDeal = vm.domains.find((d) => d.key === 'newDealCreate')!;
+    expect(newDeal.certified).toBe(true);
+    expect(newDeal.gateFlagOn).toBe(true);
+    expect(newDeal.enabled).toBe(true);
+    expect(newDeal.missingSteps).toEqual([]);
+
+    for (const d of vm.domains.filter((x) => x.key !== 'newDealCreate')) {
       expect(d.certified, d.key).toBe(false);
       expect(d.gateFlagOn, d.key).toBe(false);
       expect(d.enabled, d.key).toBe(false);
       expect(d.missingSteps.length, d.key).toBeGreaterThan(0);
     }
-    // The committed certification constant must ship all-false.
-    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).every((v) => v === false)).toBe(true);
+
+    // The committed certification constant ships exactly one true toggle (newDealCreate),
+    // backed by recorded Phase 227/228A smoke evidence; the rest are false (no fake success).
+    expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
+    expect(
+      Object.entries(PRODUCTION_ENVIRONMENT_CERTIFICATION)
+        .filter(([, v]) => v === true)
+        .map(([k]) => k),
+    ).toEqual(['newDealCreate']);
   });
 
   it('every domain has explicit external verification steps', () => {
@@ -74,10 +88,15 @@ describe('Phase 241 — production environment verification', () => {
     expect(vm.domains.find((d) => d.key === 'newDealCreate')?.enabled).toBe(true);
   });
 
-  it('the committed source ships every certification toggle false (must not fake verification)', () => {
+  it('the committed source certifies exactly one toggle (New Deal create) and never fakes the rest', () => {
     const src = readFileSync(resolve(__dirname, 'productionEnvironmentVerification.ts'), 'utf8');
-    const certBlock = src.slice(src.indexOf('PRODUCTION_ENVIRONMENT_CERTIFICATION'), src.indexOf('ENVIRONMENT_VERIFICATION_STEPS'));
-    expect(certBlock).not.toMatch(/:\s*true/);
+    const certBlock = src.slice(
+      src.indexOf('export const PRODUCTION_ENVIRONMENT_CERTIFICATION'),
+      src.indexOf('export const ENVIRONMENT_VERIFICATION_STEPS'),
+    );
+    expect(certBlock).toMatch(/newDealCreate:\s*true/);
+    // Exactly one true toggle in the committed certification constant.
+    expect(certBlock.match(/:\s*true/g) ?? []).toHaveLength(1);
     expect(src).not.toMatch(/\bfetch\s*\(/);
   });
 });

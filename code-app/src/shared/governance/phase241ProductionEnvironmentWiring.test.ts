@@ -24,36 +24,54 @@ const ALL_TRUE: DomainEnvironmentCertification = {
   portfolioBoarding: true,
 };
 
+const ALL_FALSE: DomainEnvironmentCertification = {
+  newDealCreate: false,
+  crmWriteback: false,
+  documentChecklist: false,
+  borrowerSend: false,
+  stageAdvancement: false,
+  portfolioBoarding: false,
+};
+
 describe('Phase 241 — production environment wiring governance contract', () => {
-  it('ships every operator certification toggle false (no faked verification)', () => {
-    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).every((v) => v === false)).toBe(true);
+  it('certifies only New Deal create (evidence-backed) and ships the other five false', () => {
+    expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
+    const others = Object.entries(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter(([k]) => k !== 'newDealCreate');
+    expect(others.every(([, v]) => v === false)).toBe(true);
+
     const src = read(ARTIFACT_REL);
     const certBlock = src.slice(
-      src.indexOf('PRODUCTION_ENVIRONMENT_CERTIFICATION'),
-      src.indexOf('ENVIRONMENT_VERIFICATION_STEPS'),
+      src.indexOf('export const PRODUCTION_ENVIRONMENT_CERTIFICATION'),
+      src.indexOf('export const ENVIRONMENT_VERIFICATION_STEPS'),
     );
-    expect(certBlock).not.toMatch(/:\s*true/);
+    // Exactly one true toggle in the committed certification constant.
+    expect(certBlock.match(/:\s*true/g) ?? []).toHaveLength(1);
   });
 
-  it('defaults to full launch NOT achieved: 0/6 enabled, fail-closed', () => {
+  it('enables ONLY New Deal create by default: 1/6, full launch NOT achieved, others blocked', () => {
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(0);
+    expect(verification.enabledCount).toBe(1);
     expect(verification.fullLaunchReady).toBe(false);
+    expect(verification.domains.find((d) => d.key === 'newDealCreate')?.enabled).toBe(true);
 
     const model = deriveFullActivationLaunchCertification();
-    expect(model.enabledCount).toBe(0);
+    expect(model.enabledCount).toBe(1);
     expect(model.fullLaunchAchieved).toBe(false);
-    for (const d of model.domains) expect(d.status, d.id).toBe('blocked');
+    const byId = new Map(model.domains.map((d) => [d.id, d]));
+    expect(byId.get('new-deal-create')?.status).toBe('enabled');
+    for (const d of model.domains.filter((x) => x.id !== 'new-deal-create')) {
+      expect(d.status, d.id).toBe('blocked');
+    }
   });
 
   it('a domain resolves enabled ONLY when certified AND its gate flag is on', () => {
-    // Certified but flag still off → not enabled.
-    const certOnly = deriveProductionEnvironmentVerification({ certification: ALL_TRUE });
+    // Certified but every flag off → nothing enabled.
+    const certOnly = deriveProductionEnvironmentVerification({ certification: ALL_TRUE, gateFlags: ALL_FALSE });
     expect(certOnly.enabledCount).toBe(0);
     expect(certOnly.domains.every((d) => d.enabled)).toBe(false);
 
-    // Flag on but not certified → not enabled.
-    const flagOnly = deriveProductionEnvironmentVerification({ gateFlags: ALL_TRUE });
+    // Flags on but nothing certified → nothing enabled.
+    const flagOnly = deriveProductionEnvironmentVerification({ certification: ALL_FALSE, gateFlags: ALL_TRUE });
     expect(flagOnly.enabledCount).toBe(0);
 
     // Both → enabled, full launch ready.

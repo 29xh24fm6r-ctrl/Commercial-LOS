@@ -1,13 +1,12 @@
 import {
-  BANKER_NEW_DEAL_CREATE_ENABLED,
   AUTO_STAGE_ADVANCE_ENABLED,
   DOCUMENT_CHECKLIST_GENERATION_ENABLED,
   BORROWER_MESSAGING_ENABLED,
   BORROWER_EMAIL_TRANSPORT_ENABLED,
 } from '../deals/dealOriginationFeatureFlags';
-import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from '../deals/newDealCreateFeatureFlags';
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
 import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
+import { bankerCreatePilotGateValues } from '../deals/bankerCreatePilotConfig';
 
 /**
  * Phase 241 — Production environment verification artifact.
@@ -49,13 +48,21 @@ export const DOMAIN_LABELS: Record<ActivationDomainKey, string> = {
 };
 
 /**
- * OPERATOR-OWNED certification toggles. DEFAULT: all false — the external production
- * environment work has not been completed/verified in this repo. Setting any toggle
- * true asserts the operator has finished the matching ENVIRONMENT_VERIFICATION_STEPS;
- * never set true to "make the dashboard green". No value here is a runtime probe.
+ * OPERATOR-OWNED certification toggles. Setting a toggle true asserts the operator
+ * has finished AND verified the matching ENVIRONMENT_VERIFICATION_STEPS; never set
+ * true to "make the dashboard green". No value here is a runtime probe.
+ *
+ * Phase 242A — `newDealCreate` is certified true based on RECORDED production smoke
+ * evidence (docs/PHASE_227_V1_PRODUCTION_RELEASE_SMOKE.md and
+ * docs/PHASE_228A_PRODUCTION_CORE_ORIGINATION_DEPLOYMENT_SMOKE.md): the INTAKE/Open
+ * production-approved Stage/Status rows were seeded + verified and single-record
+ * create smokes PASSED. Banker New Deal create is already live-controlled through the
+ * approved pilot switch (BANKER_CREATE_PILOT_ENABLED), so the global create-gate
+ * constants intentionally STAY false (public + downstream provably off; one-line
+ * rollback). The other five toggles remain false — their environment work is not done.
  */
 export const PRODUCTION_ENVIRONMENT_CERTIFICATION: DomainEnvironmentCertification = Object.freeze({
-  newDealCreate: false,
+  newDealCreate: true,
   crmWriteback: false,
   documentChecklist: false,
   borrowerSend: false,
@@ -92,10 +99,25 @@ export const ENVIRONMENT_VERIFICATION_STEPS: Record<ActivationDomainKey, readonl
   ],
 };
 
-/** Read the live underlying feature gate flags (all false by default). */
+/**
+ * Read the live underlying gate state per domain.
+ *
+ * `newDealCreate` reflects the ACTUAL build-time enablement path: banker create is
+ * gated by the approved pilot switch (Phase 182B), which supplies the create gate
+ * values directly to the rollout instead of flipping the global governance
+ * constants. The global constants (NEW_DEAL_CREATE_ADAPTER_ENABLED, etc.) stay false
+ * by design — public + downstream create are provably off — so this reads the pilot
+ * gate values rather than those constants. Runtime authorization, approved
+ * references, and audit are still enforced fail-closed by the governed adapter at
+ * submit. The remaining five are plain build-time flags, all false by default.
+ */
 export function readLiveGateFlags(): DomainEnvironmentCertification {
+  const pilotCreateGates = bankerCreatePilotGateValues();
   return {
-    newDealCreate: Boolean(NEW_DEAL_CREATE_ADAPTER_ENABLED) && Boolean(BANKER_NEW_DEAL_CREATE_ENABLED),
+    newDealCreate:
+      pilotCreateGates?.banker === true &&
+      pilotCreateGates?.adapter === true &&
+      pilotCreateGates?.intake === true,
     crmWriteback: Boolean(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED),
     documentChecklist: Boolean(DOCUMENT_CHECKLIST_GENERATION_ENABLED),
     borrowerSend: Boolean(BORROWER_MESSAGING_ENABLED) && Boolean(BORROWER_EMAIL_TRANSPORT_ENABLED),

@@ -1,11 +1,9 @@
 import {
-  BANKER_NEW_DEAL_CREATE_ENABLED,
   AUTO_STAGE_ADVANCE_ENABLED,
   DOCUMENT_CHECKLIST_GENERATION_ENABLED,
   BORROWER_MESSAGING_ENABLED,
   BORROWER_EMAIL_TRANSPORT_ENABLED,
 } from '../deals/dealOriginationFeatureFlags';
-import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from '../deals/newDealCreateFeatureFlags';
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
 import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
 import {
@@ -115,23 +113,27 @@ function buildSpecs(): DomainSpec[] {
     {
       id: 'new-deal-create',
       label: 'New Deal create',
-      classification: 'NEEDS_COMPLETION',
-      flagNames: ['NEW_DEAL_CREATE_ADAPTER_ENABLED', 'NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED', 'BANKER_NEW_DEAL_CREATE_ENABLED'],
-      flagEnabled: Boolean(NEW_DEAL_CREATE_ADAPTER_ENABLED) && Boolean(BANKER_NEW_DEAL_CREATE_ENABLED),
+      classification: 'CERTIFIABLE_NOW',
+      flagNames: ['BANKER_CREATE_PILOT_ENABLED', 'NEW_DEAL_CREATE_ADAPTER_ENABLED', 'NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED', 'BANKER_NEW_DEAL_CREATE_ENABLED'],
+      // Build-time enablement flows through the approved pilot switch (Phase 182B);
+      // the verification artifact reads that pilot gate. The global create-gate
+      // constants intentionally stay false (public + downstream provably off).
+      flagEnabled: false,
       adapterPath: 'src/deals/newDealCreateAdapter.ts',
-      gatePath: 'src/deals/newDealCreateEnablement.ts',
+      gatePath: 'src/deals/bankerNewDealCreateRollout.ts',
       evidencePresent: [
         'Governed create adapter with required-field validation and duplicate detection.',
-        'Fail-closed enablement reader (disabled by default; production needs explicit approval).',
-        'Phase 226 production-approval marker (new_productionapproved) wired into the reference readers.',
+        'Banker create is live-controlled through the approved pilot switch (BANKER_CREATE_PILOT_ENABLED); the global create-gate constants stay false so public + downstream create remain off.',
+        'Recorded production smoke evidence (PASSED): Phase 227 (Stage INTAKE / Status Open production-approved) and Phase 228A (core origination deployment smoke) — see docs/PHASE_227_V1_PRODUCTION_RELEASE_SMOKE.md and docs/PHASE_228A_PRODUCTION_CORE_ORIGINATION_DEPLOYMENT_SMOKE.md.',
+        'Phase 226 production-approval marker (new_productionapproved) wired into the reference readers; production create still requires it.',
       ],
       blockers: [
-        'No active production-approved Stage/Status reference rows exist in Dataverse (new_productionapproved=true).',
-        'No explicit production rollout approval config + single-record smoke evidence.',
+        'Live create is intentionally scoped to the controlled banker pilot; the public/intake create surface stays disabled by design (NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED remains false).',
+        'Runtime authorization, approved-production references, and audit are still enforced fail-closed at submit by the governed adapter.',
       ],
       unblockActions: [
-        'Operator seeds exactly one active Stage and one active Status row with new_productionapproved=true in cr664_dealstagereferences / cr664_dealstatusreferences.',
-        'Re-run Phase 225 reference verification to ready-production, then provide the approved production rollout config and record one single-record create smoke evidence.',
+        'No further activation required for banker create — it is live-controlled via the pilot with recorded Phase 227/228A smoke evidence.',
+        'One-line rollback: set BANKER_CREATE_PILOT_ENABLED to false in src/deals/bankerCreatePilotConfig.ts.',
       ],
       repoCompletable: false,
       operatorEnvironmentConfirmed: true,
@@ -300,7 +302,7 @@ export function deriveFullActivationLaunchCertification(): FullActivationLaunchC
     fullLaunchAchieved,
     posture: fullLaunchAchieved
       ? 'All six live-write domains are certified and enabled.'
-      : `Full launch not yet achieved: ${enabledCount} of ${ACTIVATION_DOMAIN_IDS.length} live-write domains enabled. Certified governed write adapters now exist for document checklist generation, stage advancement, and internal CRM writeback (default-off, fail-closed, tested). ${environmentConfirmedCount} domain(s) are operator-confirmed environment-ready; their remaining repo step is wiring the live transport and the certified enablement flip, which is deferred so the fail-closed governance stays intact. No gate is flipped and no live readiness is faked.`,
+      : `Full launch not yet achieved: ${enabledCount} of ${ACTIVATION_DOMAIN_IDS.length} live-write domains enabled. New Deal create is live-controlled through the approved banker pilot with recorded Phase 227/228A production smoke evidence; the global create-gate constants stay false so public + downstream create remain off. Certified governed write adapters now exist for document checklist generation, stage advancement, and internal CRM writeback (default-off, fail-closed, tested). ${environmentConfirmedCount} domain(s) are operator-confirmed environment-ready; their remaining repo step is wiring the live transport and the certified enablement flip, which is deferred so the fail-closed governance stays intact. No gate is flipped and no live readiness is faked.`,
     certifications: [
       'No live-write domain is enabled without a real adapter/path and certified success + failure tests.',
       'No live readiness is faked: schema gates require an injected verified state and never probe or fabricate.',
