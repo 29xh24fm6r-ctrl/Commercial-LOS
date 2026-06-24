@@ -27,6 +27,7 @@ import { buildExecutiveProductStrategySurfaceState } from '../competitive/buildE
 import { CrmExecutiveWorkingSurface } from '../crm/workspaceIntegration/CrmExecutiveWorkingSurface';
 import { executiveCrmPreviewInput } from '../crm/workspaceIntegration/crmWorkspacePreviewInputs';
 import { ExecutiveWorkflowLaunchReadinessPanel } from '../workflow/ExecutiveWorkflowLaunchReadinessPanel';
+import { ExecutiveRestartReadinessCommandCenter } from '../executive/ExecutiveRestartReadinessCommandCenter';
 import { palette, spacing, typography } from '../shared/theme';
 
 /**
@@ -115,6 +116,10 @@ function ExecutiveWorkspaceContent() {
           <main style={styles.main}>
             {/* Phase 133A — the command center is the lead executive cockpit. */}
             <ExecutiveCommandCenter />
+            {/* Phase 233 — Executive Restart Readiness Command Center: high-visibility
+                lending-restart posture across banker/manager/admin/CRM/LOS/portfolio
+                and live gate categories. Read-only; no hidden writes. */}
+            <ExecutiveRestartReadinessCommandCenter />
             <ExecutiveWorkflowLaunchReadinessPanel />
             {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 — visible read-only CRM
                 strategy intelligence (honest preview posture; no fake revenue/ROE,

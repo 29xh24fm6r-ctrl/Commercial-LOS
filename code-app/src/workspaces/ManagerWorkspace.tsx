@@ -34,6 +34,7 @@ import { PortfolioCommandCenter } from '../portfolio/PortfolioCommandCenter';
 import { CrmManagerWorkingSurface } from '../crm/workspaceIntegration/CrmManagerWorkingSurface';
 import { managerCrmPreviewInput } from '../crm/workspaceIntegration/crmWorkspacePreviewInputs';
 import { ManagerWorkflowLaunchReadinessPanel } from '../workflow/ManagerWorkflowLaunchReadinessPanel';
+import { ManagerOperatingCommandCenter } from '../manager/ManagerOperatingCommandCenter';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function ManagerWorkspace() {
@@ -144,6 +145,10 @@ function ManagerWorkspaceContent() {
               both modes (their data scope is the same authorized
               team pipeline). */}
           {isPortfolio ? <PortfolioCommandCenter /> : <ManagerBloombergControlPanel />}
+          {/* Phase 233 — Manager Operating Command Center: team CRM + LOS
+              supervision clarity. Read-only; mounted only in manager mode so it
+              never disrupts the portfolio surface. */}
+          {!isPortfolio && <ManagerOperatingCommandCenter />}
           <ManagerWorkflowLaunchReadinessPanel />
           {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 â€” visible read-only CRM
               team intelligence (honest preview posture; no assignment mutation,
