@@ -33,6 +33,42 @@ seeding, Office 365 Outlook connector registration, or SDK regeneration.
 flipped on in this phase; all remain fail-closed. This is the honest outcome — not a
 fake activation.
 
+## Certified governed write adapters built this arc (237E / 237F / 237G)
+
+To advance the launch safely without flipping gates, three genuinely-missing
+governed write paths were implemented as **default-OFF, injected-transport,
+fully-tested** adapters (no direct SDK in the static graph, so they are unit-testable
+and perform no real write until an operator wires the live transport AND flips the
+certified gate):
+
+- **Document checklist** — `src/workflow/checklistWriteDependency.ts`
+  (`createChecklistWriteDependency`): allow-listed `cr664_documentname` +
+  `cr664_Deal@odata.bind` only, audit per row, fail-closed; certified by
+  success/duplicate/unauthorized/missing-dependency/adapter-failure tests.
+- **Stage advancement** — `src/workflow/stageAdvanceWriteDependency.ts`
+  (`advanceWorkflowStage`): enforces `evaluateStageTransitionPolicy` before any write,
+  audit + timeline, no auto-advance, fail-closed; certified by
+  blocked/no-next-stage/success/update-failed/audit-partial/timeline-partial tests.
+- **Internal CRM writeback** — `src/crm/crmWritebackAdapter.ts` (`crmWriteback`):
+  allow-listed `cr664_crm*` entities only, raw-sensitive-field rejection, audit on
+  every write, fail-closed, no broad sync, **no external dependency**; certified by
+  success/disallowed-entity/disallowed-field/unauthorized/adapter-failure tests.
+
+These adapters are the certified live-safe paths an operator wires when the
+environment is ready. They remain **default-off**; nothing is enabled by their
+existence.
+
+## Operator-confirmed environment-ready domains
+
+The operator has reported the production environment is provisioned for **New Deal
+create, CRM writeback, and Portfolio boarding** (references seeded / schema verified
+/ client available). This is recorded as `operatorEnvironmentConfirmed=true` for
+those domains. It is **not** treated as a live enable: the remaining repo step is
+wiring the live transport and the certified enablement flip, which is intentionally
+deferred so the fail-closed governance suite stays intact and no unverifiable live
+write is claimed. Enablement happens only when that wiring + flip is certified by
+end-to-end tests in a follow-up.
+
 ## Per-domain status and exact blockers
 
 ### 1. New Deal create — NEEDS_COMPLETION (blocked)

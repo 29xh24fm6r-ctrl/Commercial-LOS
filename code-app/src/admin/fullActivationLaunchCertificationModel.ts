@@ -61,6 +61,13 @@ export interface ActivationDomainAssessment {
   readonly unblockActions: readonly string[];
   /** True only when the blocker can be cleared purely within the repo. */
   readonly repoCompletable: boolean;
+  /**
+   * Phase 237 (full-activation arc): the operator has reported the production
+   * environment is provisioned for this domain. The remaining repo step is wiring
+   * the live transport and the certified enablement flip; until that is done the
+   * gate stays fail-closed, so this is reported, never treated as a live enable.
+   */
+  readonly operatorEnvironmentConfirmed: boolean;
 }
 
 export interface FullActivationLaunchCertification {
@@ -71,6 +78,8 @@ export interface FullActivationLaunchCertification {
   readonly certifiableCount: number;
   readonly needsCompletionCount: number;
   readonly notSafeCount: number;
+  /** Domains for which the operator reports the production environment is provisioned. */
+  readonly environmentConfirmedCount: number;
   /** True ONLY when all six domains are genuinely enabled. Never faked. */
   readonly fullLaunchAchieved: boolean;
   readonly posture: string;
@@ -94,6 +103,7 @@ interface DomainSpec {
   readonly blockers: readonly string[];
   readonly unblockActions: readonly string[];
   readonly repoCompletable: boolean;
+  readonly operatorEnvironmentConfirmed: boolean;
 }
 
 function buildSpecs(): DomainSpec[] {
@@ -120,6 +130,7 @@ function buildSpecs(): DomainSpec[] {
         'Re-run Phase 225 reference verification to ready-production, then provide the approved production rollout config and record one single-record create smoke evidence.',
       ],
       repoCompletable: false,
+      operatorEnvironmentConfirmed: true,
     },
     {
       id: 'crm-writeback',
@@ -127,11 +138,11 @@ function buildSpecs(): DomainSpec[] {
       classification: 'NEEDS_COMPLETION',
       flagNames: ['CRM_LIVE_PERSISTENCE_ENABLED'],
       flagEnabled: Boolean(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED),
-      adapterPath: 'src/crm/crmLiveDataverseAdapter.ts',
+      adapterPath: 'src/crm/crmWritebackAdapter.ts',
       gatePath: 'src/crm/crmRuntimeSchemaGate.ts',
       evidencePresent: [
-        'Live Dataverse CRM adapter with schema/payload mapping and failure handling.',
-        'Fail-closed runtime schema gate that compares an injected verified-schema state to the plan.',
+        'Phase 237G governed internal CRM writeback adapter (crmWriteback): allow-listed cr664_crm* entities only, raw-sensitive-field rejection, audit on every write, default-off and fail-closed — certified by success/disallowed-entity/disallowed-field/unauthorized/adapter-failure tests.',
+        'Live Dataverse CRM adapter with schema/payload mapping and failure handling; fail-closed runtime schema gate comparing an injected verified-schema state to the plan.',
         'Persistence resolver returns a live adapter only when the gate passes and an operator is authorized.',
       ],
       blockers: [
@@ -143,6 +154,7 @@ function buildSpecs(): DomainSpec[] {
         'With the schema gate green and an authorized operator, enable CRM_LIVE_PERSISTENCE_ENABLED and certify the writeback success/failure/rollback tests.',
       ],
       repoCompletable: false,
+      operatorEnvironmentConfirmed: true,
     },
     {
       id: 'document-checklist-generation',
@@ -150,21 +162,22 @@ function buildSpecs(): DomainSpec[] {
       classification: 'NEEDS_COMPLETION',
       flagNames: ['DOCUMENT_CHECKLIST_GENERATION_ENABLED', 'DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED'],
       flagEnabled: Boolean(DOCUMENT_CHECKLIST_GENERATION_ENABLED),
-      adapterPath: 'src/deals/documentChecklistUiEnableReadiness.ts',
+      adapterPath: 'src/workflow/checklistWriteDependency.ts',
       gatePath: 'src/deals/documentChecklistUiEnableReadiness.ts',
       evidencePresent: [
+        'Phase 237E governed checklist write dependency (createChecklistWriteDependency): allow-listed cr664_documentname + cr664_Deal@odata.bind only, audit per row, default-off and fail-closed — certified by success/duplicate/unauthorized/missing-dependency/adapter-failure tests.',
+        'Action already enforces authorization + duplicate detection and delegates the write to the injected dependency.',
         'Dual fail-closed gates (runtime DOCUMENT_CHECKLIST_GENERATION_ENABLED + UI action gate), both default false.',
-        'Tightly-scoped write (cr664_documentname + cr664_Deal@odata.bind only) with an explicit forbidden-after-enablement list.',
       ],
       blockers: [
-        'The deterministic checklist generation adapter + approved checklist rule set are not certified (success/failure/audit tests).',
-        'Both the runtime and UI action gates are intentionally false until that certification clears.',
+        'The approved checklist rule set is not signed off and both the runtime + UI action gates are intentionally false.',
+        'The live checklist write transport is not injected into the workflow provider yet.',
       ],
       unblockActions: [
-        'Certify the deterministic checklist generation adapter (preview = written items, duplicate prevention, audit) and the approved checklist rule set.',
-        'Then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED and the UI action gate together.',
+        'Sign off the approved checklist rule set, inject the live checklist write transport via createChecklistWriteDependency, then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED + the UI action gate together.',
       ],
       repoCompletable: false,
+      operatorEnvironmentConfirmed: false,
     },
     {
       id: 'borrower-communication-send',
@@ -187,28 +200,29 @@ function buildSpecs(): DomainSpec[] {
         'Certify the explicit user-confirmation send path with audited acceptance (connector acceptance is not delivery) before enabling.',
       ],
       repoCompletable: false,
+      operatorEnvironmentConfirmed: false,
     },
     {
       id: 'stage-advancement',
       label: 'Stage advancement',
-      classification: 'NOT_SAFE_TO_ENABLE',
+      classification: 'NEEDS_COMPLETION',
       flagNames: ['AUTO_STAGE_ADVANCE_ENABLED'],
       flagEnabled: Boolean(AUTO_STAGE_ADVANCE_ENABLED),
-      adapterPath: 'src/activation/stageProgressionActivation.ts',
-      gatePath: 'src/activation/stageProgressionActivation.ts',
+      adapterPath: 'src/workflow/stageAdvanceWriteDependency.ts',
+      gatePath: 'src/workflow/stageTransitionPolicy.ts',
       evidencePresent: [
-        'Governed advanceStage adapter seam with typed outcomes (resolver_not_ready / no_next_stage / stale_stage / audit+timeline partial-success).',
-        'Explicit stage guard and deterministic next-stage resolution by order.',
+        'Phase 237F governed stage-advancement write dependency (advanceWorkflowStage): enforces evaluateStageTransitionPolicy before any write, updates via injected transport, emits audit + timeline, default-off and fail-closed — certified by blocked/no-next-stage/success/update-failed/audit-partial/timeline-partial tests.',
+        'No auto-advance: the explicit banker action supplies the requested next stage.',
       ],
       blockers: [
-        'The stage reference data source + deterministic order/sequence field are not registered/regenerated, so the ordering contract is unproven.',
-        'No injected advance-stage transport + audit + timeline sinks for a live write.',
+        'The live stage transport + audit + timeline sinks are not injected into the workflow provider yet.',
+        'AUTO_STAGE_ADVANCE_ENABLED is intentionally false until the live sinks are wired and certified end-to-end.',
       ],
       unblockActions: [
-        'Operator registers the stage reference data source with a deterministic order field and regenerates the SDK (Phase 215).',
-        'Wire the advanceStage transport/audit/timeline sinks and certify the success + stale + no-next-stage tests before enabling AUTO_STAGE_ADVANCE_ENABLED.',
+        'Inject the live stage transport/audit/timeline sinks into AdvanceWorkflowStageButton via advanceWorkflowStage, then enable AUTO_STAGE_ADVANCE_ENABLED and certify the end-to-end success path.',
       ],
       repoCompletable: false,
+      operatorEnvironmentConfirmed: false,
     },
     {
       id: 'portfolio-boarding-persistence',
@@ -231,6 +245,7 @@ function buildSpecs(): DomainSpec[] {
         'With the schema gate green, the route enabled, and an authorized operator, enable PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and certify the single-record boarding tests.',
       ],
       repoCompletable: false,
+      operatorEnvironmentConfirmed: true,
     },
   ];
 }
@@ -251,6 +266,7 @@ export function deriveFullActivationLaunchCertification(): FullActivationLaunchC
   const certifiableCount = domains.filter((d) => d.classification === 'CERTIFIABLE_NOW').length;
   const needsCompletionCount = domains.filter((d) => d.classification === 'NEEDS_COMPLETION').length;
   const notSafeCount = domains.filter((d) => d.classification === 'NOT_SAFE_TO_ENABLE').length;
+  const environmentConfirmedCount = domains.filter((d) => d.operatorEnvironmentConfirmed).length;
   const fullLaunchAchieved = enabledCount === ACTIVATION_DOMAIN_IDS.length;
 
   return {
@@ -261,14 +277,16 @@ export function deriveFullActivationLaunchCertification(): FullActivationLaunchC
     certifiableCount,
     needsCompletionCount,
     notSafeCount,
+    environmentConfirmedCount,
     fullLaunchAchieved,
     posture: fullLaunchAchieved
       ? 'All six live-write domains are certified and enabled.'
-      : `Full launch not yet achieved: ${enabledCount} of ${ACTIVATION_DOMAIN_IDS.length} live-write domains enabled. Every remaining domain has a real governed adapter in the repo but is blocked on operator-owned environment certification (Dataverse schema verification, production reference seeding, Outlook connector registration, or SDK regeneration). No gate is flipped and no live readiness is faked.`,
+      : `Full launch not yet achieved: ${enabledCount} of ${ACTIVATION_DOMAIN_IDS.length} live-write domains enabled. Certified governed write adapters now exist for document checklist generation, stage advancement, and internal CRM writeback (default-off, fail-closed, tested). ${environmentConfirmedCount} domain(s) are operator-confirmed environment-ready; their remaining repo step is wiring the live transport and the certified enablement flip, which is deferred so the fail-closed governance stays intact. No gate is flipped and no live readiness is faked.`,
     certifications: [
       'No live-write domain is enabled without a real adapter/path and certified success + failure tests.',
       'No live readiness is faked: schema gates require an injected verified state and never probe or fabricate.',
       'No feature gate is flipped by this certification; every gate remains at its source default.',
+      'Governed write adapters (checklist, stage advancement, internal CRM writeback) are default-off and fail-closed until an operator wires the live transport and flips the certified gate.',
       'No external Salesforce or nCino dependency is implied; all paths are internal OGB CRM / internal lending workflow.',
     ],
   };

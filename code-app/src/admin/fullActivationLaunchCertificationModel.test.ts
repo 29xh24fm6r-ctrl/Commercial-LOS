@@ -49,11 +49,33 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(byId.get('crm-writeback')?.classification).toBe('NEEDS_COMPLETION');
     expect(byId.get('document-checklist-generation')?.classification).toBe('NEEDS_COMPLETION');
     expect(byId.get('borrower-communication-send')?.classification).toBe('NOT_SAFE_TO_ENABLE');
-    expect(byId.get('stage-advancement')?.classification).toBe('NOT_SAFE_TO_ENABLE');
+    expect(byId.get('stage-advancement')?.classification).toBe('NEEDS_COMPLETION');
     expect(byId.get('portfolio-boarding-persistence')?.classification).toBe('NEEDS_COMPLETION');
     expect(vm.certifiableCount).toBe(0);
     // None are repo-completable — every blocker is operator-owned environment work.
     expect(vm.domains.every((d) => d.repoCompletable === false)).toBe(true);
+  });
+
+  it('records the operator-confirmed environment-ready domains without flipping any gate', () => {
+    const vm = deriveFullActivationLaunchCertification();
+    const byId = new Map(vm.domains.map((d) => [d.id, d]));
+    expect(byId.get('new-deal-create')?.operatorEnvironmentConfirmed).toBe(true);
+    expect(byId.get('crm-writeback')?.operatorEnvironmentConfirmed).toBe(true);
+    expect(byId.get('portfolio-boarding-persistence')?.operatorEnvironmentConfirmed).toBe(true);
+    expect(byId.get('borrower-communication-send')?.operatorEnvironmentConfirmed).toBe(false);
+    expect(vm.environmentConfirmedCount).toBe(3);
+    // Environment-confirmed does NOT mean enabled — every flag stays off, fail-closed.
+    expect(vm.enabledCount).toBe(0);
+    for (const d of vm.domains) expect(d.flagEnabled, d.id).toBe(false);
+  });
+
+  it('surfaces the newly-built certified governed adapters as evidence', () => {
+    const vm = deriveFullActivationLaunchCertification();
+    const byId = new Map(vm.domains.map((d) => [d.id, d]));
+    expect(byId.get('document-checklist-generation')?.adapterPath).toBe('src/workflow/checklistWriteDependency.ts');
+    expect(byId.get('stage-advancement')?.adapterPath).toBe('src/workflow/stageAdvanceWriteDependency.ts');
+    expect(byId.get('crm-writeback')?.adapterPath).toBe('src/crm/crmWritebackAdapter.ts');
+    expect(byId.get('crm-writeback')?.evidencePresent.join(' ')).toMatch(/crmWriteback/);
   });
 
   it('borrower send names the Outlook connector + SDK regeneration as the exact blocker', () => {
@@ -66,7 +88,8 @@ describe('Phase 237 — full system activation launch certification model', () =
   it('does not claim full launch and explains why honestly', () => {
     const vm = deriveFullActivationLaunchCertification();
     expect(vm.posture).toMatch(/Full launch not yet achieved/i);
-    expect(vm.posture).toMatch(/operator-owned environment certification/i);
+    expect(vm.posture).toMatch(/Certified governed write adapters now exist/i);
+    expect(vm.posture).toMatch(/operator-confirmed environment-ready/i);
     expect(vm.posture).toMatch(/No gate is flipped and no live readiness is faked/i);
   });
 

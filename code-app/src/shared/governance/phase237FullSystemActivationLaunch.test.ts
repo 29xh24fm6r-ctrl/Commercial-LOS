@@ -10,6 +10,11 @@ const FILES = [
   'src/admin/fullActivationLaunchCertificationModel.ts',
   'src/admin/FullSystemActivationLaunchPanel.tsx',
 ];
+const ADAPTER_FILES = [
+  'src/workflow/checklistWriteDependency.ts',
+  'src/workflow/stageAdvanceWriteDependency.ts',
+  'src/crm/crmWritebackAdapter.ts',
+];
 const DOC_REL = 'docs/PHASE_237_FULL_SYSTEM_ACTIVATION_CERTIFICATION.md';
 
 describe('Phase 237 — full system activation launch governance contract', () => {
@@ -92,6 +97,26 @@ describe('Phase 237 — full system activation launch governance contract', () =
     expect(ws.indexOf('<FullSystemActivationLaunchPanel />')).toBeLessThan(
       ws.indexOf('<FullSystemLaunchReadinessConsole />'),
     );
+  });
+
+  it('the new governed write adapters are default-OFF, fail-closed, and flip no gate', () => {
+    for (const file of ADAPTER_FILES) {
+      const src = read(file);
+      // No source-default flip and no direct SDK in the static graph.
+      expect(src, file).not.toMatch(/_ENABLED\s*=\s*true/);
+      expect(src, file).not.toMatch(/from ['"][^'"]*\/generated\//);
+      expect(src, file).not.toMatch(/@microsoft\/power-apps/);
+      expect(src, file).not.toMatch(/\bfetch\s*\(/);
+      // Each adapter reads its gate flag and is disabled by default.
+      expect(src, file).toMatch(/enabled\s*\?\?\s*Boolean\(/);
+    }
+  });
+
+  it('the CRM writeback adapter is internal-only (allow-listed cr664_crm* entities, no external dependency)', () => {
+    const src = read('src/crm/crmWritebackAdapter.ts');
+    expect(src).toMatch(/CRM_ENTITIES/);
+    expect(src).toMatch(/disallowed_entity/);
+    expect(src).not.toMatch(/salesforce|ncino/i);
   });
 
   it('the activation certification doc exists with the required sections', () => {
