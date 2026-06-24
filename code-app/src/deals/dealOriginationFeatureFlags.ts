@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Phase 171-180 -- Deal origination operating arc: feature flags.
  *
  * Pure, fail-closed gates for the banker create path and EVERY downstream
@@ -15,12 +15,12 @@
 // Hard default constants (all OFF this phase)
 // ---------------------------------------------------------------------------
 
-export const BANKER_NEW_DEAL_CREATE_ENABLED = true as const;
+export const BANKER_NEW_DEAL_CREATE_ENABLED = false as const;
 export const CRM_AUTOMATION_ENABLED = false as const;
 export const BORROWER_INVITE_AUTOMATION_ENABLED = false as const;
 export const AUTO_STAGE_ADVANCE_ENABLED = false as const;
 export const TASK_GENERATION_ENABLED = true as const;
-export const DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const;
+export const DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const;
 export const PORTFOLIO_SIDE_EFFECTS_ENABLED = false as const;
 export const BORROWER_MESSAGING_ENABLED = false as const;
 /** Transports stay independently OFF; no external HTTP by default. */

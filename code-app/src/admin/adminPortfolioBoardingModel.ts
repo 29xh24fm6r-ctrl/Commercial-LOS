@@ -1,4 +1,4 @@
-import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
+﻿import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
 
 /**
  * Phase 169D -- Admin Portfolio Boarding model (readiness / onboarding).
@@ -97,4 +97,4 @@ export const PORTFOLIO_BOARDING_NEXT_STEPS: readonly PortfolioBoardingNextStep[]
 
 /** The explicit no-record-creation note shown on the panel. */
 export const PORTFOLIO_BOARDING_NO_RECORD_NOTE =
-  'This surface creates and manages internal portfolio loan records through governed Dataverse persistence.';
+  'This surface does not create portfolio loan records until live persistence is explicitly enabled and certified.';

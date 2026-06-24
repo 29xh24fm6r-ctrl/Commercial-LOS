@@ -37,10 +37,10 @@ export interface PortfolioBoardingFeatureFlags {
 export const PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS: PortfolioBoardingFeatureFlags =
   Object.freeze({
     PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: false,
-    PORTFOLIO_BOARDING_ROUTE_ENABLED: true,
-    PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED: true,
-    PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED: true,
-    PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: true,
+    PORTFOLIO_BOARDING_ROUTE_ENABLED: false,
+    PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED: false,
+    PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED: false,
+    PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: false,
   });
 
 /**
@@ -52,12 +52,12 @@ export function resolvePortfolioBoardingFeatureFlags(
 ): PortfolioBoardingFeatureFlags {
   return {
     PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED:
-      config?.livePersistenceEnabled !== false,
-    PORTFOLIO_BOARDING_ROUTE_ENABLED: config?.routeEnabled !== false,
+      config?.livePersistenceEnabled === true,
+    PORTFOLIO_BOARDING_ROUTE_ENABLED: config?.routeEnabled === true,
     PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED:
-      config?.documentMetadataEnabled !== false,
+      config?.documentMetadataEnabled === true,
     PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED:
-      config?.commandCenterEnabled !== false,
-    PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: config?.fdicPackageEnabled !== false,
+      config?.commandCenterEnabled === true,
+    PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: config?.fdicPackageEnabled === true,
   };
 }

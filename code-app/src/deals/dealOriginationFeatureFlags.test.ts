@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import {
   BANKER_NEW_DEAL_CREATE_ENABLED,
   CRM_AUTOMATION_ENABLED,
@@ -33,9 +33,9 @@ import {
 
 describe('origination flags -- Phase 228A production core constants', () => {
   it('enables only the safe internal production core constants', () => {
-    expect(BANKER_NEW_DEAL_CREATE_ENABLED).toBe(true);
+    expect(BANKER_NEW_DEAL_CREATE_ENABLED).toBe(false);
     expect(TASK_GENERATION_ENABLED).toBe(true);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
     expect(DUPLICATE_DETECTION_ENABLED).toBe(true);
 
     for (const c of [
@@ -72,9 +72,9 @@ describe('origination flags -- Phase 228A production core gates', () => {
   };
 
   it('gate readers enable only the safe internal production core when config is true', () => {
-    expect(isBankerCreateEnabled(fullyTrue)).toBe(true);
+    expect(isBankerCreateEnabled(fullyTrue)).toBe(false);
     expect(isTaskGenerationEnabled(fullyTrue)).toBe(true);
-    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(true);
+    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(false);
     expect(isDuplicateDetectionEnabled(fullyTrue)).toBe(true);
 
     expect(isCrmAutomationEnabled(fullyTrue)).toBe(false);

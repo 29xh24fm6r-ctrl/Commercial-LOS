@@ -1,4 +1,4 @@
-import { ManagerProvider } from '../manager/ManagerProvider';
+﻿import { ManagerProvider } from '../manager/ManagerProvider';
 import { ManagerDataProvider } from '../manager/ManagerDataProvider';
 import { useManager } from '../manager/ManagerContext';
 import { ManagerBloombergControlPanel } from '../manager/ManagerBloombergControlPanel';
@@ -53,7 +53,7 @@ function ManagerWorkspaceContent() {
   const bootstrap = useBootstrap();
   const entitled = useEntitledRoutes();
   const [searchParams] = useSearchParams();
-  // Phase 126C — the `?surface=portfolio` query is the explicit
+  // Phase 126C â€” the `?surface=portfolio` query is the explicit
   // user-driven signal that they want the Portfolio cockpit. Falls
   // back to Phase 126B's bootstrap workspace-name rule when the
   // query is absent, so portfolio-primary users (whose bootstrap
@@ -64,7 +64,7 @@ function ManagerWorkspaceContent() {
   const isPortfolio =
     surfaceParam === PORTFOLIO_SURFACE_PARAM_VALUE ||
     (surfaceParam === null && isPortfolioWorkspaceName(bootstrap.workspaceName));
-  // Phase 126C — surface the portfolio link in the workspace
+  // Phase 126C â€” surface the portfolio link in the workspace
   // switcher for everyone on the manager route. By contract the
   // user already passed the manager-route gate (bootstrap-primary or
   // Phase 124C entitled probe), so adding the portfolio rendering
@@ -73,12 +73,12 @@ function ManagerWorkspaceContent() {
   const workspaceLinks = deriveWorkspaceLinks({
     bootstrapRoute: bootstrap.route,
     currentRoute: WORKSPACE_ROUTES.manager,
-    entitledRoutes: entitled.routes,
+    entitledRoutes: Array.from(new Set([WORKSPACE_ROUTES.banker, WORKSPACE_ROUTES.manager, ...entitled.routes])),
     includePortfolioSurface: true,
     currentSurface: isPortfolio ? 'portfolio' : undefined,
   });
   const showInlineSwitcher = workspaceLinks.length >= 2;
-  // Phase 126B — header / shell label copy swaps with the lead
+  // Phase 126B â€” header / shell label copy swaps with the lead
   // cockpit. Manager and Portfolio surfaces share the manager route
   // and the manager data provider chain; only the cockpit and the
   // wrapper labels swap.
@@ -96,10 +96,10 @@ function ManagerWorkspaceContent() {
     ? 'Portfolio workspace switcher'
     : 'Manager workspace switcher';
 
-  // Phase 124E — wrap the manager body in the same LendingOSLayout
+  // Phase 124E â€” wrap the manager body in the same LendingOSLayout
   // shell the banker workspace uses so the dark left toolbar +
   // workspace switcher render consistently across role surfaces.
-  // `onNavSelect` is intentionally undefined — the Lending OS
+  // `onNavSelect` is intentionally undefined â€” the Lending OS
   // sidebar nav items are banker-coded and remain non-interactive
   // on the manager + portfolio surfaces for now.
   return (
@@ -137,7 +137,7 @@ function ManagerWorkspaceContent() {
           </div>
         </header>
         <main style={styles.main}>
-          {/* Phase 124A/B/E + 126B — Lead cockpit: Manager Bloomberg
+          {/* Phase 124A/B/E + 126B â€” Lead cockpit: Manager Bloomberg
               Control Panel for manager-name workspaces, Portfolio
               Command Center for portfolio-name workspaces. The
               existing nine manager cards below render unchanged in
@@ -145,7 +145,7 @@ function ManagerWorkspaceContent() {
               team pipeline). */}
           {isPortfolio ? <PortfolioCommandCenter /> : <ManagerBloombergControlPanel />}
           <ManagerWorkflowLaunchReadinessPanel />
-          {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 — visible read-only CRM
+          {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 â€” visible read-only CRM
               team intelligence (honest preview posture; no assignment mutation,
               no CRM writes, no permission widening). */}
           <CrmManagerWorkingSurface input={managerCrmPreviewInput()} />

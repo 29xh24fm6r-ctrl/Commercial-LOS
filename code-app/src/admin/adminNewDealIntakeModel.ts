@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Phase 169C / 170J -- Admin New Deal Intake truth model.
  *
  * Reconciled in Phase 170J. The Stage/Status reference data sources are
@@ -17,7 +17,7 @@
  */
 
 /** Whether this phase enables a live deal create (public + New Deal). */
-export const NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = true as const;
+export const NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED = false as const;
 
 /** Phase 170I: the typed Stage/Status resolver reads at runtime (Ready/TEST). */
 export const NEW_DEAL_RESOLVER_READY_IN_TEST = true as const;
@@ -51,7 +51,7 @@ export const NEW_DEAL_READINESS_TRUTH: readonly NewDealReadinessItem[] = Object.
   Object.freeze({ label: 'Stage/Status resolver readiness', value: 'Ready (TEST)', done: NEW_DEAL_RESOLVER_READY_IN_TEST }),
   Object.freeze({ label: 'Production reference approval', value: 'Pending', done: NEW_DEAL_PRODUCTION_REFERENCES_APPROVED }),
   Object.freeze({ label: 'Governed create adapter', value: 'Not wired', done: NEW_DEAL_GOVERNED_CREATE_ADAPTER_WIRED }),
-  Object.freeze({ label: 'Public + New Deal', value: 'Enabled', done: NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED }),
+  Object.freeze({ label: 'Public + New Deal', value: 'Gated', done: NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED }),
 ]);
 
 /** A required field a future governed intake form would collect. */

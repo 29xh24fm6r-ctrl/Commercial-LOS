@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
@@ -25,7 +25,7 @@ describe('Phase 229 -- internal OGB CRM admin active', () => {
     expect(CRM_LIVE_PERSISTENCE_DEFAULT).toBe(
       CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED,
     );
-    expect(CRM_LIVE_PERSISTENCE_DEFAULT).toBe(true);
+    expect(CRM_LIVE_PERSISTENCE_DEFAULT).toBe(false);
   });
 
   it('reports the external connector as disabled_by_default', () => {
@@ -40,14 +40,14 @@ describe('Phase 229 -- internal OGB CRM admin active', () => {
 });
 
 describe('Phase 169E -- readiness and data groups', () => {
-  it('reports the CRM stack present with internal persistence active and external connector off', () => {
+  it('reports the CRM stack present with internal persistence gated and external connector off', () => {
     const live = CRM_ONBOARDING_READINESS.find(
       (r) => r.label === 'Live runtime persistence enabled',
     );
     const connector = CRM_ONBOARDING_READINESS.find(
       (r) => r.label === 'External CRM connector enabled',
     );
-    expect(live?.present).toBe(true);
+    expect(live?.present).toBe(false);
     expect(connector?.present).toBe(false);
     expect(CRM_ONBOARDING_READINESS.some((r) => r.label === 'Persistence adapter' && r.present)).toBe(true);
   });

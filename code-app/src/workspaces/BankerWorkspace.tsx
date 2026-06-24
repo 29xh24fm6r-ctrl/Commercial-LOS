@@ -1,5 +1,6 @@
-import { BankerProvider } from '../banker/BankerProvider';
+﻿import { BankerProvider } from '../banker/BankerProvider';
 import { BankerShell } from '../banker/BankerShell';
+import { AdminEntitlementDiagnosticCard } from '../admin/AdminEntitlementDiagnosticCard';
 import { useBootstrap } from '../bootstrap/BootstrapContext';
 import {
   deriveWorkspaceLinks,

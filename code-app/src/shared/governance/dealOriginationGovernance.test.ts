@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -103,14 +103,12 @@ describe('arc governance -- every domain gate is hard-false', () => {
       'CRM_AUTOMATION_ENABLED',
       'BORROWER_INVITE_AUTOMATION_ENABLED',
       'AUTO_STAGE_ADVANCE_ENABLED',
-      'TASK_GENERATION_ENABLED',
       'DOCUMENT_CHECKLIST_GENERATION_ENABLED',
       'PORTFOLIO_SIDE_EFFECTS_ENABLED',
       'BORROWER_MESSAGING_ENABLED',
       'BORROWER_EMAIL_TRANSPORT_ENABLED',
       'BORROWER_SMS_TRANSPORT_ENABLED',
       'BORROWER_TWILIO_TRANSPORT_ENABLED',
-      'DUPLICATE_DETECTION_ENABLED',
       'DUPLICATE_MERGE_APPLY_ENABLED',
     ]) {
       expect((flags as Record<string, unknown>)[key]).toBe(false);

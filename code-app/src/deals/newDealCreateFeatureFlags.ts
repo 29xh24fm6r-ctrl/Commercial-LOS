@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Phase 170M -- Governed New Deal create adapter feature flags.
  *
  * Gates the in-app governed cr664_loandeal create path. Mirrors the
@@ -22,7 +22,7 @@
  * Phase 170M ships the code path and tests only; it never enables a
  * live create and never wires a UI button.
  */
-export const NEW_DEAL_CREATE_ADAPTER_ENABLED = true as const;
+export const NEW_DEAL_CREATE_ADAPTER_ENABLED = false as const;
 
 /**
  * Production Stage/Status reference rows are not yet seeded/approved

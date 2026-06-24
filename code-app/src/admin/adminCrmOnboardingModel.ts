@@ -1,4 +1,4 @@
-import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
+﻿import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
 import { CRM_CONNECTOR_MODE } from '../crm/connectors/crmConnectorReadiness';
 
 /**
@@ -101,4 +101,4 @@ export const CRM_ONBOARDING_NEXT_STEPS: readonly CrmOnboardingNextStep[] =
 
 /** The explicit no-record-creation / no-sync note shown on the panel. */
 export const CRM_ONBOARDING_NO_RECORD_NOTE =
-  'This surface manages internal OGB CRM records through governed Dataverse persistence. No external Salesforce or nCino sync is implied.';
+  'This surface does not create CRM records or sync external CRM data until live persistence is explicitly enabled and certified.';

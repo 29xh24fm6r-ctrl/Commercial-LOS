@@ -1,4 +1,4 @@
-// @vitest-environment jsdom
+﻿// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -33,7 +33,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
     expect(blocker?.textContent).toMatch(/Advance Stage|stage-progression/i);
   });
 
-  it('shows the reconciled readiness truth table (Ready(TEST) / Pending / Not wired / Enabled)', () => {
+  it('shows the reconciled readiness truth table (Ready(TEST) / Pending / Not wired / Gated)', () => {
     const { container } = render(<NewDealIntakePanel />);
     const truth = container.querySelector('[data-admin-new-deal-truth]') as HTMLElement;
     expect(truth).not.toBeNull();
@@ -44,7 +44,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
     expect(within(truth).getByText('Governed create adapter')).toBeInTheDocument();
     expect(within(truth).getByText('Not wired')).toBeInTheDocument();
     expect(within(truth).getByText('Public + New Deal')).toBeInTheDocument();
-    expect(within(truth).getByText('Enabled')).toBeInTheDocument();
+    expect(within(truth).getByText('Gated')).toBeInTheDocument();
   });
 
   it('shows the required future fields including Stage and Status (now Ready, not Blocked)', () => {
