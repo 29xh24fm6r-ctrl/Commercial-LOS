@@ -69,8 +69,8 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
     verificationScript: 'scripts/activation/verify-crm-schema.ps1',
     evidenceLine: '[243][verify-crm-spine] STATUS=PASS services=5/5 datasources=5/5 live=0/0; [242B][crm-schema] STATUS=PASS present=5/5 datasource=True',
     missingOperatorActions: [
-      'Technical prerequisites PASS at commit 0d5f303 (5/5 generated Cr664_crm*Service.ts services, 5/5 data sources registered). The live gate stays controlled.',
-      'Remaining (governed cutover): inject the VerifiedCrmSchemaState, flip CRM_LIVE_PERSISTENCE_ENABLED, and record success / disallowed-field / rollback smoke. The sensitive-field reject and audit stay active.',
+      'Technical prerequisites PASS at commit 0d5f303 (5/5 generated Cr664_crm*Service.ts services, 5/5 data sources registered); governed-adapter cutover smokes pass (Phase 245). The live gate stays controlled.',
+      'Remaining (governed cutover): inject the VerifiedCrmSchemaState (live schema currently unverified — live=0/0), record a controlled production writeback smoke, then flip CRM_LIVE_PERSISTENCE_ENABLED. The sensitive-field reject and audit stay active.',
     ],
     rollbackControl: 'Set CRM_LIVE_PERSISTENCE_ENABLED to false.',
   },
@@ -106,7 +106,7 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
     verificationScript: 'scripts/activation/verify-stage-advancement-sinks.ps1',
     evidenceLine: '[242B][stage-sinks] STATUS=PASS sinks=3/3',
     missingOperatorActions: [
-      'Inject the live stage transport + audit + timeline sinks into AdvanceWorkflowStageButton via advanceWorkflowStage.',
+      'Sinks PASS (3/3); governed-adapter cutover smokes pass (Phase 245). Inject the live stage transport + audit + timeline sinks into AdvanceWorkflowStageButton via advanceWorkflowStage.',
       'Record controlled single-record advancement + blocked-transition + update-failed smokes, then enable the governed explicit-advancement gate (AUTO_STAGE_ADVANCE_ENABLED). Production use is governed explicit advancement, never uncontrolled automatic movement.',
     ],
     rollbackControl: 'Set AUTO_STAGE_ADVANCE_ENABLED to false (governed explicit-advancement gate).',
@@ -118,8 +118,8 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
     verificationScript: 'scripts/activation/verify-portfolio-boarding-schema.ps1',
     evidenceLine: '[243][verify-portfolio-boarding] STATUS=PASS services=13/13 datasources=13/13 live=0/0; [242B][portfolio-boarding] STATUS=PASS service=True datasource=True',
     missingOperatorActions: [
-      'Technical prerequisites PASS at commit 0d5f303 (13/13 generated boarded-loan + child-group services, 13/13 data sources registered). The live gate + route stay controlled.',
-      'Remaining (governed cutover): inject the VerifiedBoardingSchemaState, enable the route for an authorized operator/workspace, flip PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED, and record single-record boarding + failure smoke.',
+      'Technical prerequisites PASS at commit 0d5f303 (13/13 generated boarded-loan + child-group services, 13/13 data sources registered); governed-adapter cutover smokes pass (Phase 245). The live gate + route stay controlled.',
+      'Remaining (governed cutover): inject the VerifiedBoardingSchemaState (live schema currently unverified — live=0/0), enable the route for an authorized operator/workspace, record a controlled single-record boarding + failure smoke, then flip PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED.',
     ],
     rollbackControl: 'Set PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED + the portfolio boarding route to false.',
   },

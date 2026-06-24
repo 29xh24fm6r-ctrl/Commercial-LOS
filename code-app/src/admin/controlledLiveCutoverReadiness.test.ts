@@ -1,0 +1,55 @@
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import {
+  deriveControlledLiveCutoverReadiness,
+  CUTOVER_DOMAIN_KEYS,
+  CUTOVER_LIVE_SCHEMA_VERIFIED,
+  CUTOVER_OPERATOR_SMOKE_RECORDED,
+} from './controlledLiveCutoverReadiness';
+
+describe('Phase 245 — controlled live cutover readiness ledger', () => {
+  it('covers exactly the three PASS domains', () => {
+    expect([...CUTOVER_DOMAIN_KEYS]).toEqual(['crmWriteback', 'portfolioBoarding', 'stageAdvancement']);
+    const vm = deriveControlledLiveCutoverReadiness();
+    expect(vm.domains.map((d) => d.key)).toEqual(['crmWriteback', 'portfolioBoarding', 'stageAdvancement']);
+  });
+
+  it('reports cutover PREPARED but NOT complete: prereqs + adapter proven, live schema + smoke pending', () => {
+    const vm = deriveControlledLiveCutoverReadiness();
+    for (const d of vm.domains) {
+      expect(d.technicalPrerequisitesPass, d.key).toBe(true);
+      expect(d.governedAdapterProven, d.key).toBe(true);
+      // The two operator-owned items are NOT done — so the cutover is not complete.
+      expect(d.liveSchemaVerified, d.key).toBe(false);
+      expect(d.operatorSmokeRecorded, d.key).toBe(false);
+      expect(d.gateFlagOn, d.key).toBe(false);
+      expect(d.enabled, d.key).toBe(false);
+      expect(d.cutoverComplete, d.key).toBe(false);
+      expect(d.remainingEvidence.length, d.key).toBeGreaterThan(0);
+      expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
+    }
+  });
+
+  it('does not claim launch or allow deployment', () => {
+    const vm = deriveControlledLiveCutoverReadiness();
+    expect(vm.cutoverCompleteCount).toBe(0);
+    expect(vm.deploymentAllowed).toBe(false);
+    expect(vm.fullLaunchAchieved).toBe(false);
+    expect(vm.enabledCount).toBe(1);
+  });
+
+  it('ships the operator-owned evidence toggles all false (no fake live-schema or smoke)', () => {
+    expect(Object.values(CUTOVER_LIVE_SCHEMA_VERIFIED).every((v) => v === false)).toBe(true);
+    expect(Object.values(CUTOVER_OPERATOR_SMOKE_RECORDED).every((v) => v === false)).toBe(true);
+  });
+
+  it('the source is read-only and never hardcodes deployment-allowed or launch-achieved true', () => {
+    const src = readFileSync(resolve(__dirname, 'controlledLiveCutoverReadiness.ts'), 'utf8');
+    expect(src).not.toMatch(/\bfetch\s*\(/);
+    expect(src).not.toMatch(/deploymentAllowed\s*[:=]\s*true/);
+    expect(src).not.toMatch(/fullLaunchAchieved\s*[:=]\s*true/);
+    expect(src).toMatch(/fullLaunchAchieved:\s*verification\.fullLaunchReady/);
+  });
+});
