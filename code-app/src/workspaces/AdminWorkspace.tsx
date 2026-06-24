@@ -14,6 +14,7 @@ import { OgbCrmWorkflowActivationPanel } from '../admin/OgbCrmWorkflowActivation
 import { EliteCrmLosActivationReadinessPanel } from '../admin/EliteCrmLosActivationReadinessPanel';
 import { V1ActivationReadinessPanel } from '../admin/V1ActivationReadinessPanel';
 import { FullSystemLaunchReadinessConsole } from '../admin/FullSystemLaunchReadinessConsole';
+import { AdminOperatorActionQueue } from '../admin/AdminOperatorActionQueue';
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { palette, spacing, typography } from '../shared/theme';
@@ -62,6 +63,10 @@ function AdminWorkspaceContent() {
             the WorkspaceGate admin route + AdminProvider identity gate). No new
             route, no entitlement widening, no action affordance. */}
         <FullSystemLaunchReadinessConsole />
+        {/* Phase 234: read-only admin operator action queue — groups remaining
+            readiness blockers into operator tasks by category. No mutation, no
+            gate flip, no action affordance. Admin-only (inherits the route gate). */}
+        <AdminOperatorActionQueue />
         <SystemHealthSummary />
         <div style={styles.twoCol}>
           <DataQualityFlags />
