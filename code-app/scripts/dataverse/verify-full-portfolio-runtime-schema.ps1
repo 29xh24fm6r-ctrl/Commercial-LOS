@@ -62,7 +62,41 @@ $liveChecked = 0; $liveFound = 0
 $colsExpected = 0; $colsFound = 0
 $reqRel = 0; $reqRelFound = 0; $optRel = 0; $optRelFound = 0
 $conflicts = 0; $measured = $null
-$missingColumns = @(); $missingRels = @()
+$missingColumns = @(); $missingRels = @(); $mismatchRels = @(); $unknownRels = @()
+
+# --- Tri-state relationship coverage (read-only): present / missing / unknown / mismatch ---
+# Mirrors src/portfolioBoarding/portfolioRelationshipIdempotency.ts :: resolvePortfolioRelationshipCoverage.
+# A relationship counts as covered by EITHER the expected relationship schema name OR a
+# correctly-targeted referencing lookup attribute. A wrong type/target NEVER counts as covered.
+function Test-PortfolioRelExists([string]$OrgUrl, [string]$Token, [string]$schemaName) {
+  try { Invoke-DataverseGet $OrgUrl $Token ("RelationshipDefinitions(SchemaName='{0}')?`$select=SchemaName" -f $schemaName) | Out-Null; return $true }
+  catch { if ($_.Exception.Response.StatusCode.value__ -eq 404) { return $false } return $null }
+}
+function Get-PortfolioLookupState([string]$OrgUrl, [string]$Token, [string]$fromTable, [string]$lookupLogical) {
+  try {
+    $attr = Invoke-DataverseGet $OrgUrl $Token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')?`$select=LogicalName,AttributeType" -f $fromTable, $lookupLogical)
+  } catch {
+    if ($_.Exception.Response.StatusCode.value__ -eq 404) { return @{ exists = $false; isLookup = $false; targets = @() } }
+    return $null
+  }
+  $isLookup = ($attr.AttributeType -eq 'Lookup'); $targets = @()
+  if ($isLookup) {
+    try {
+      $lk = Invoke-DataverseGet $OrgUrl $Token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')/Microsoft.Dynamics.CRM.LookupAttributeMetadata?`$select=Targets" -f $fromTable, $lookupLogical)
+      if ($lk.Targets) { $targets = @($lk.Targets) }
+    } catch { }
+  }
+  return @{ exists = $true; isLookup = $isLookup; targets = $targets }
+}
+function Resolve-PortfolioRelCoverage([string]$OrgUrl, [string]$Token, $r) {
+  if ((Test-PortfolioRelExists $OrgUrl $Token $r.schemaName) -eq $true) { return 'present' }
+  $lookup = Get-PortfolioLookupState $OrgUrl $Token $r.fromTable $r.fromColumn.ToLower()
+  if ($lookup -eq $null) { return 'unknown' }              # transient - not a confirmed miss
+  if (-not $lookup.exists) { return 'missing' }
+  if (-not $lookup.isLookup) { return 'mismatch' }
+  if ($lookup.targets -contains $r.toTable) { return 'present' }
+  return 'mismatch'
+}
 
 if ($tokenOk) {
   foreach ($t in $schema.tables) {
@@ -88,10 +122,12 @@ if ($tokenOk) {
     if (-not $r.schemaName) { continue }
     $isReq = [bool]$r.required
     if ($isReq) { $reqRel++ } else { $optRel++ }
-    try {
-      Invoke-DataverseGet $orgUrl $token ("RelationshipDefinitions(SchemaName='{0}')?`$select=SchemaName" -f $r.schemaName) | Out-Null
-      if ($isReq) { $reqRelFound++ } else { $optRelFound++ }
-    } catch { if ($isReq) { $missingRels += $r.schemaName } else { $missingRels += $r.schemaName } }
+    switch (Resolve-PortfolioRelCoverage $orgUrl $token $r) {
+      'present'  { if ($isReq) { $reqRelFound++ } else { $optRelFound++ } }
+      'missing'  { $missingRels += $r.schemaName }
+      'mismatch' { $missingRels += ("{0} (MISMATCH wrong lookup type/target)" -f $r.schemaName); $mismatchRels += $r.schemaName }
+      'unknown'  { $unknownRels += $r.schemaName }   # transient - NOT counted as a false missing
+    }
   }
   # A complete measurement is recorded only when every table is live (matches the bridge's expectation).
   if ($liveChecked -gt 0 -and $liveFound -eq $liveChecked) {
@@ -105,7 +141,7 @@ if ($tokenOk) {
   }
 }
 
-$contractMet = ($svcFound -eq $n) -and ($dsFound -eq $n) -and ($tokenOk) -and ($liveChecked -gt 0) -and ($liveFound -eq $liveChecked) -and ($colsFound -eq $expCols) -and ($reqRelFound -eq $expReq) -and ($conflicts -eq 0)
+$contractMet = ($svcFound -eq $n) -and ($dsFound -eq $n) -and ($tokenOk) -and ($liveChecked -gt 0) -and ($liveFound -eq $liveChecked) -and ($colsFound -eq $expCols) -and ($reqRelFound -eq $expReq) -and ($conflicts -eq 0) -and ($mismatchRels.Count -eq 0)
 $status = if ($contractMet) { 'PASS' } elseif (-not $tokenOk) { 'UNKNOWN' } else { 'BLOCKED' }
 
 $artifact = [ordered]@{
@@ -116,9 +152,10 @@ $artifact = [ordered]@{
   liveTables     = [ordered]@{ found = $liveFound; checked = $liveChecked }
   measured       = $measured
   expectedCounts = [ordered]@{ tables = $n; columns = $expCols; requiredRelationships = $expReq; optionalRelationships = $expOpt }
+  relationshipCoverage = [ordered]@{ requiredFound = $reqRelFound; optionalFound = $optRelFound; mismatch = $mismatchRels.Count; unknownTransient = $unknownRels.Count }
   verifiedAtIso  = $ts
   tokenValidated = [bool]$tokenOk
-  notes          = if ($tokenOk) { 'token-backed FULL portfolio live measurement (Phase 253P)' } else { 'live measurement NOT performed (no usable Dataverse token); fail-closed live=0/0' }
+  notes          = if ($tokenOk) { 'token-backed FULL portfolio live measurement (Phase 254A); relationship coverage by schema name OR correctly-targeted referencing lookup' } else { 'live measurement NOT performed (no usable Dataverse token); fail-closed live=0/0' }
 }
 
 $outFile = Join-Path $outDir 'runtime-schema-evidence.portfolio.json'
@@ -128,7 +165,9 @@ Write-Host '----'
 Write-Host ("== portfolio FULL: services {0}/{1} datasources {2}/{3} live {4}/{5} columns {6}/{7} requiredRels {8}/{9} optionalRels {10}/{11} conflicts {12} => {13}" -f $svcFound, $n, $dsFound, $n, $liveFound, $liveChecked, $colsFound, $expCols, $reqRelFound, $expReq, $optRelFound, $expOpt, $conflicts, $status)
 if ($missingColumns.Count -gt 0) { Write-Host ("MISSING COLUMNS ({0}): {1}{2}" -f $missingColumns.Count, (($missingColumns | Select-Object -First 12) -join ', '), $(if ($missingColumns.Count -gt 12) { ' ...' } else { '' })) }
 if ($missingRels.Count -gt 0) { Write-Host ("MISSING RELATIONSHIPS ({0}): {1}" -f $missingRels.Count, ($missingRels -join ', ')) }
-Write-Host ("EVIDENCE: [253P][verify-portfolio-full] STATUS={0} services={1}/{2} datasources={3}/{4} live={5}/{6} columns={7}/{8} requiredRels={9}/{10} tokenOk={11} ts={12}" -f $status, $svcFound, $n, $dsFound, $n, $liveFound, $liveChecked, $colsFound, $expCols, $reqRelFound, $expReq, [bool]$tokenOk, $ts)
+if ($mismatchRels.Count -gt 0) { Write-Host ("MISMATCH RELATIONSHIPS ({0}, wrong lookup type/target - fail closed): {1}" -f $mismatchRels.Count, ($mismatchRels -join ', ')) }
+if ($unknownRels.Count -gt 0) { Write-Host ("UNKNOWN/TRANSIENT RELATIONSHIPS ({0}, not counted as missing - rerun): {1}" -f $unknownRels.Count, ($unknownRels -join ', ')) }
+Write-Host ("EVIDENCE: [254A][verify-portfolio-full] STATUS={0} services={1}/{2} datasources={3}/{4} live={5}/{6} columns={7}/{8} requiredRels={9}/{10} mismatch={11} unknown={12} tokenOk={13} ts={14}" -f $status, $svcFound, $n, $dsFound, $n, $liveFound, $liveChecked, $colsFound, $expCols, $reqRelFound, $expReq, $mismatchRels.Count, $unknownRels.Count, [bool]$tokenOk, $ts)
 Write-Host ("WROTE: {0}" -f $outFile)
 
 if ($contractMet) { exit 0 } else { exit 1 }

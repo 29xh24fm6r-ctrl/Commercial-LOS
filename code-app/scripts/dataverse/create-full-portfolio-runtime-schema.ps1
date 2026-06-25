@@ -129,16 +129,62 @@ function New-PortfolioColumnIfMissing {
   return 'created'
 }
 
-# --- Faithful relationship creator (required level + cascade from the plan). Existence-checked. ---
+# --- Relationship idempotency probes (schema name AND referencing lookup attribute) ---
+# Returns $true / $false / $null(unknown - no token or transient).
+function Test-PortfolioRelationshipExists([string]$OrgUrl, [string]$Token, [string]$schemaName) {
+  if (-not $Token -or -not $OrgUrl) { return $null }
+  try { Invoke-DataverseGet $OrgUrl $Token ("RelationshipDefinitions(SchemaName='{0}')?`$select=SchemaName" -f $schemaName) | Out-Null; return $true }
+  catch { if ($_.Exception.Response.StatusCode.value__ -eq 404) { return $false } return $null }
+}
+
+# Returns @{ exists; isLookup; targets } or $null when it cannot be inspected (no token / transient).
+function Get-PortfolioLookupAttributeState([string]$OrgUrl, [string]$Token, [string]$fromTable, [string]$lookupLogical) {
+  if (-not $Token -or -not $OrgUrl) { return $null }
+  try {
+    $attr = Invoke-DataverseGet $OrgUrl $Token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')?`$select=LogicalName,AttributeType" -f $fromTable, $lookupLogical)
+  } catch {
+    if ($_.Exception.Response.StatusCode.value__ -eq 404) { return @{ exists = $false; isLookup = $false; targets = @() } }
+    return $null
+  }
+  $isLookup = ($attr.AttributeType -eq 'Lookup')
+  $targets = @()
+  if ($isLookup) {
+    try {
+      $lk = Invoke-DataverseGet $OrgUrl $Token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')/Microsoft.Dynamics.CRM.LookupAttributeMetadata?`$select=Targets" -f $fromTable, $lookupLogical)
+      if ($lk.Targets) { $targets = @($lk.Targets) }
+    } catch { }
+  }
+  return @{ exists = $true; isLookup = $isLookup; targets = $targets }
+}
+
+# Idempotent by BOTH relationship schema name and referencing lookup attribute. Mirrors
+# src/portfolioBoarding/portfolioRelationshipIdempotency.ts :: resolvePortfolioRelationshipAction.
+# Create-missing-only; never overwrites/renames/deletes an existing lookup attribute.
 function New-PortfolioRelationshipIfMissing {
   param([Parameter(Mandatory)]$RelDef, [string]$OrgUrl, [string]$Token, [bool]$Apply)
   if (-not $RelDef.schemaName) { return 'skipped' }
-  $exists = $null
-  if ($Token -and $OrgUrl) {
-    try { Invoke-DataverseGet $OrgUrl $Token ("RelationshipDefinitions(SchemaName='{0}')?`$select=SchemaName" -f $RelDef.schemaName) | Out-Null; $exists = $true }
-    catch { if ($_.Exception.Response.StatusCode.value__ -eq 404) { $exists = $false } }
+  $lookupLogical = $RelDef.fromColumn.ToLower()
+
+  $exists = Test-PortfolioRelationshipExists $OrgUrl $Token $RelDef.schemaName
+  if ($exists -eq $true) { Write-Status $RelDef.schemaName 'PASS' 'relationship schema exists (skip - never overwritten)'; return 'present' }
+
+  # The relationship schema name was not found (or is unknown). Inspect the referencing lookup
+  # attribute: the spine may have created the child->root lookup under a different relationship
+  # name, so the attribute already exists even though our schema-name probe found nothing.
+  $lookup = Get-PortfolioLookupAttributeState $OrgUrl $Token $RelDef.fromTable $lookupLogical
+  if ($lookup -ne $null -and $lookup.exists) {
+    if (-not $lookup.isLookup) {
+      Write-Status $RelDef.schemaName 'BLOCKED' ("attribute {0} on {1} exists but is NOT a lookup - mismatch (fail closed)" -f $lookupLogical, $RelDef.fromTable)
+      return 'mismatch'
+    }
+    if ($lookup.targets -contains $RelDef.toTable) {
+      Write-Status $RelDef.schemaName 'PASS' ("referencing lookup {0} already exists with target {1} (skip - idempotent)" -f $lookupLogical, $RelDef.toTable)
+      return 'present'
+    }
+    Write-Status $RelDef.schemaName 'BLOCKED' ("referencing lookup {0} targets [{1}], expected {2} - mismatch (fail closed)" -f $lookupLogical, ($lookup.targets -join ','), $RelDef.toTable)
+    return 'mismatch'
   }
-  if ($exists -eq $true) { Write-Status $RelDef.schemaName 'PASS' 'relationship exists (skip - never overwritten)'; return 'present' }
+
   if (-not $Apply) { Write-Status $RelDef.schemaName 'UNKNOWN' ("WOULD CREATE {0} relationship (dry-run)" -f $(if ($RelDef.required) { 'required' } else { 'optional' })); return 'planned' }
 
   $cascade = if ($RelDef.cascadeBehavior -eq 'Parental') {
@@ -195,12 +241,17 @@ $present = (@($tStates + $cStates + $rStates) | Where-Object { $_ -eq 'present' 
 $planned = (@($tStates + $cStates + $rStates) | Where-Object { $_ -eq 'planned' }).Count
 $colCreated = (@($cStates) | Where-Object { $_ -eq 'created' }).Count
 $relCreated = (@($rStates) | Where-Object { $_ -eq 'created' }).Count
+$relPresent = (@($rStates) | Where-Object { $_ -eq 'present' }).Count
+$mismatch = (@($rStates) | Where-Object { $_ -eq 'mismatch' }).Count
 
 Write-Host '----'
-Write-Host ("SUMMARY: tables={0}  columns(present/planned/created)={1}/{2}/{3}  relationships(created={4})" -f $schema.tables.Count, ($cStates | Where-Object { $_ -eq 'present' }).Count, ($cStates | Where-Object { $_ -eq 'planned' }).Count, $colCreated, $relCreated)
+if ($mismatch -gt 0) { Write-Host ("WARNING: {0} relationship(s) failed closed on a lookup-attribute MISMATCH (wrong type/target; see BLOCKED lines above). No mutation was attempted for those." -f $mismatch) }
+Write-Host ("SUMMARY: tables={0}  columns(present/planned/created)={1}/{2}/{3}  relationships(present/created/mismatch)={4}/{5}/{6}" -f $schema.tables.Count, ($cStates | Where-Object { $_ -eq 'present' }).Count, ($cStates | Where-Object { $_ -eq 'planned' }).Count, $colCreated, $relPresent, $relCreated, $mismatch)
 Write-Host 'NEXT (operator): after -Apply, run publish-customizations.ps1, then regenerate-powerapps-sdk.ps1, then verify-full-portfolio-runtime-schema.ps1 to measure 219/219 + 12/12 and emit fresh runtime evidence.'
-Write-Host ("EVIDENCE: [253P][portfolio-full] mode={0} tables={1} expCols={2} expReqRel={3} created={4} present={5} planned={6} colCreated={7} relCreated={8} ts={9}" -f $(if ($Apply) { 'apply' } else { 'dry-run' }), $schema.tables.Count, $expCols, $expReq, $created, $present, $planned, $colCreated, $relCreated, (Get-Date -Format o))
+Write-Host ("EVIDENCE: [254A][portfolio-full] mode={0} tables={1} expCols={2} expReqRel={3} created={4} present={5} planned={6} colCreated={7} relCreated={8} relPresent={9} mismatch={10} ts={11}" -f $(if ($Apply) { 'apply' } else { 'dry-run' }), $schema.tables.Count, $expCols, $expReq, $created, $present, $planned, $colCreated, $relCreated, $relPresent, $mismatch, (Get-Date -Format o))
 
-# Fail-closed in APPLY mode if anything remained planned (i.e. could not be created).
+# Fail-closed in APPLY mode on any lookup-attribute mismatch (wrong type/target) ...
+if ($Apply -and $mismatch -gt 0) { Write-Status 'portfolio-full' 'BLOCKED' ("{0} relationship(s) blocked on a lookup-attribute mismatch - resolve the conflicting attribute(s) before rerun." -f $mismatch); exit 1 }
+# ... or if anything remained planned (i.e. could not be created).
 if ($Apply -and $planned -gt 0) { Write-Status 'portfolio-full' 'BLOCKED' ("{0} item(s) still planned after apply - rerun to resume." -f $planned); exit 1 }
 exit 0

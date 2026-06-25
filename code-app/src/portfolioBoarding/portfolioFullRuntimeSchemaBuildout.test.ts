@@ -13,7 +13,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   hydrateVerifiedBoardingSchemaState,
+  hydrateVerifiedCrmSchemaState,
   CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE,
+  CURRENT_CRM_VERIFICATION_EVIDENCE,
   type BoardingSchemaVerificationEvidence,
 } from '../admin/runtimeVerifiedSchemaBridge';
 import { EXPECTED_BOARDING_SCHEMA } from './portfolioBoardingRuntimeSchemaGate';
@@ -175,5 +177,61 @@ describe('Phase 253P — no governed gate is flipped by this phase', () => {
     for (const [k, v] of Object.entries(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS)) {
       expect(v, k).toBe(false);
     }
+  });
+});
+
+describe('Phase 254A — relationship idempotency hotfix is wired into the scripts', () => {
+  it('the create script is idempotent by the referencing lookup attribute (not just the schema name)', () => {
+    const create = read(CREATE_SCRIPT);
+    // Probes the referencing lookup attribute and its Targets, mirroring the CRM 253A fix.
+    expect(create).toMatch(/Get-PortfolioLookupAttributeState/);
+    expect(create).toMatch(/LookupAttributeMetadata\?.{0,8}\$select=Targets/);
+    // Correct existing target → present (skip, no recreate); wrong type/target → fail closed.
+    expect(create).toMatch(/already exists with target/);
+    expect(create).toMatch(/mismatch \(fail closed\)/);
+    // Never destructive.
+    expect(create).not.toMatch(/Invoke-RestMethod -Method (Patch|Delete)/);
+  });
+
+  it('the verifier recognizes coverage by schema name OR correctly-targeted lookup, with a tri-state', () => {
+    const verify = read(VERIFY_SCRIPT);
+    expect(verify).toMatch(/Resolve-PortfolioRelCoverage/);
+    expect(verify).toMatch(/LookupAttributeMetadata\?.{0,8}\$select=Targets/);
+    // tri-state: present / missing / unknown / mismatch; unknown is NOT a false missing.
+    expect(verify).toMatch(/'unknown'/);
+    expect(verify).toMatch(/'mismatch'/);
+    expect(verify).toMatch(/NOT counted as a false missing/i);
+    // A wrong-target lookup must block PASS.
+    expect(verify).toMatch(/mismatchRels\.Count -eq 0/);
+    expect(verify).toMatch(/READ-ONLY/i);
+    expect(verify).not.toMatch(/Invoke-RestMethod -Method (Post|Patch|Delete)/);
+  });
+});
+
+describe('Phase 254A — hydration unchanged by the hotfix', () => {
+  it('required relationship coverage is still REQUIRED for hydration (11/12 fails closed)', () => {
+    const r = hydrateVerifiedBoardingSchemaState(
+      { ...FULL_BOARDING, measured: { ...FULL_BOARDING.measured!, requiredRelationshipsFound: 11 } },
+      { nowEpochMs: NOW },
+    );
+    expect(r.hydrated).toBe(false);
+    expect(r.blockers.join(' ')).toMatch(/required relationships/);
+  });
+
+  it('portfolio still does NOT hydrate until fresh measured PASS evidence is consumed', () => {
+    const r = hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE, {
+      nowEpochMs: NOW,
+      maxAgeMs: Number.MAX_SAFE_INTEGER,
+    });
+    expect(r.hydrated).toBe(false);
+    expect(r.verified).toBeNull();
+  });
+
+  it('CRM hydration (Phase 253C) remains unchanged — the hotfix touches portfolio only', () => {
+    const r = hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE, {
+      nowEpochMs: NOW,
+      maxAgeMs: Number.MAX_SAFE_INTEGER,
+    });
+    expect(r.hydrated).toBe(true);
   });
 });

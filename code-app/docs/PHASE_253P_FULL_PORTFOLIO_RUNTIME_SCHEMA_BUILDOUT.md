@@ -62,6 +62,30 @@ plan, so it can never silently diverge). Regenerate with:
 WRITE_FULL_SCHEMA=1 npx vitest run src/portfolioBoarding/portfolioFullSchemaArtifact.test.ts
 ```
 
+## Phase 254A hotfix — relationship idempotency by referencing lookup attribute
+
+The first `-Apply` run failed on the first required relationship with
+`An attribute with the specified name cr664_PortfolioBoardedLoan already exists for entity
+cr664_Portfolioboardedloanborrower.` **Root cause:** the boarding spine had already created
+the child→root lookup attribute (under its own relationship schema name, e.g.
+`cr664_portfolioboardedloanborrower_root`), so probing only for the runtime relationship name
+`cr664_portfolioboardedloan_borrower` found nothing and the POST collided with the existing
+attribute. The buildout + verifier are now idempotent by **both** the relationship schema
+name **and** the referencing lookup attribute (mirrors the CRM 253A fix;
+`src/portfolioBoarding/portfolioRelationshipIdempotency.ts`):
+
+- existing relationship schema name → present (skip);
+- existing lookup attribute that targets the expected entity → present (skip, no recreate);
+- attribute exists but is not a lookup, or targets the wrong entity → **BLOCKED mismatch**
+  (fail closed, no mutation attempted);
+- neither present → create (apply) / planned (dry-run).
+
+The verifier counts a relationship as covered by the schema name **or** a correctly-targeted
+referencing lookup, using a tri-state (`present` / `missing` / `unknown-transient` /
+`mismatch`); a wrong-target lookup never counts as covered, and an uninspectable probe is
+recorded as transient, not a false missing. **Operator action: simply rerun the same
+`-Apply` command** — it is now fully idempotent and resume-safe.
+
 ## Operator commands — apply the full portfolio schema
 
 Run from `code-app/` with a Dataverse-authorized context (the same identity Phase 252 used).
