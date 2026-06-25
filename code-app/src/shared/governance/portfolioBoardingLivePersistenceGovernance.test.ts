@@ -52,11 +52,12 @@ describe('Phase 140L — live persistence files exist', () => {
 // 2. Disabled by default
 // ---------------------------------------------------------------------------
 
-describe('Phase 140L — disabled by default', () => {
-  it('the feature flag default is off', () => {
+describe('Phase 140L — launched default, but resolver/adapter still fail closed', () => {
+  it('the feature flag default is launched ON, yet the injected resolver fails closed', () => {
     expect(
       PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
-    ).toBe(false);
+    ).toBe(true);
+    // The resolver reads ONLY injected config; with no config it stays off.
     expect(
       resolvePortfolioBoardingFeatureFlags().PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
     ).toBe(false);

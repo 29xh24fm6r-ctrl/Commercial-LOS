@@ -80,6 +80,19 @@ function isStringArray(v: unknown): v is string[] {
 }
 
 /**
+ * Optional id-list fields (affectedRecordIds / cleanupRecordIds) are provenance only and do
+ * NOT affect GO. Accept a string array OR a bare string (the PowerShell harness unwraps a
+ * single-element array to a scalar when serializing one id) and normalize to a string array.
+ * Anything else (e.g. numbers) is rejected, so the parser stays fail-closed.
+ */
+function normalizeIdList(v: unknown): { readonly ok: true; readonly value?: readonly string[] } | { readonly ok: false } {
+  if (v === undefined) return { ok: true };
+  if (typeof v === 'string') return { ok: true, value: [v] };
+  if (isStringArray(v)) return { ok: true, value: [...v] };
+  return { ok: false };
+}
+
+/**
  * Parse + validate a single record. Fail-closed: any missing/invalid required field
  * yields { ok:false, errors }. It NEVER coerces a malformed record into a pass and it
  * NEVER infers verification booleans that are absent.
@@ -119,8 +132,10 @@ export function parseFinalLaunchSmokeEvidence(raw: unknown): FinalLaunchParseRes
   }
   if (r.auditVerified !== undefined && typeof r.auditVerified !== 'boolean') errors.push('auditVerified, when present, must be a boolean');
 
-  if (r.affectedRecordIds !== undefined && !isStringArray(r.affectedRecordIds)) errors.push('affectedRecordIds, when present, must be a string array');
-  if (r.cleanupRecordIds !== undefined && !isStringArray(r.cleanupRecordIds)) errors.push('cleanupRecordIds, when present, must be a string array');
+  const affected = normalizeIdList(r.affectedRecordIds);
+  if (!affected.ok) errors.push('affectedRecordIds, when present, must be a string or string array');
+  const cleanup = normalizeIdList(r.cleanupRecordIds);
+  if (!cleanup.ok) errors.push('cleanupRecordIds, when present, must be a string or string array');
 
   if (errors.length > 0) return { ok: false, errors };
 
@@ -139,8 +154,8 @@ export function parseFinalLaunchSmokeEvidence(raw: unknown): FinalLaunchParseRes
     ...(typeof r.deliveryVerified === 'boolean' ? { deliveryVerified: r.deliveryVerified } : {}),
     ...(typeof r.auditVerified === 'boolean' ? { auditVerified: r.auditVerified } : {}),
     evidenceNote: String(r.evidenceNote),
-    ...(isStringArray(r.affectedRecordIds) ? { affectedRecordIds: r.affectedRecordIds } : {}),
-    ...(isStringArray(r.cleanupRecordIds) ? { cleanupRecordIds: r.cleanupRecordIds } : {}),
+    ...(affected.ok && affected.value !== undefined ? { affectedRecordIds: affected.value } : {}),
+    ...(cleanup.ok && cleanup.value !== undefined ? { cleanupRecordIds: cleanup.value } : {}),
   };
   return { ok: true, evidence };
 }

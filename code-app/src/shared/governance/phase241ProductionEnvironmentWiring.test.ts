@@ -34,33 +34,33 @@ const ALL_FALSE: DomainEnvironmentCertification = {
 };
 
 describe('Phase 241 — production environment wiring governance contract', () => {
-  it('certifies only New Deal create (evidence-backed) and ships the other five false', () => {
+  it('certifies all six domains after the GO smoke artifacts (Phase 256B full activation)', () => {
     expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
     const others = Object.entries(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter(([k]) => k !== 'newDealCreate');
-    expect(others.every(([, v]) => v === false)).toBe(true);
+    expect(others.every(([, v]) => v === true)).toBe(true);
 
     const src = read(ARTIFACT_REL);
     const certBlock = src.slice(
       src.indexOf('export const PRODUCTION_ENVIRONMENT_CERTIFICATION'),
       src.indexOf('export const ENVIRONMENT_VERIFICATION_STEPS'),
     );
-    // Exactly one true toggle in the committed certification constant.
-    expect(certBlock.match(/:\s*true/g) ?? []).toHaveLength(1);
+    // All six true toggles in the committed certification constant.
+    expect(certBlock.match(/:\s*true/g) ?? []).toHaveLength(6);
   });
 
-  it('enables ONLY New Deal create by default: 1/6, full launch NOT achieved, others blocked', () => {
+  it('enables all six domains by default: 6/6, full launch achieved (Phase 256B)', () => {
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
-    expect(verification.fullLaunchReady).toBe(false);
+    expect(verification.enabledCount).toBe(6);
+    expect(verification.fullLaunchReady).toBe(true);
     expect(verification.domains.find((d) => d.key === 'newDealCreate')?.enabled).toBe(true);
 
     const model = deriveFullActivationLaunchCertification();
-    expect(model.enabledCount).toBe(1);
-    expect(model.fullLaunchAchieved).toBe(false);
+    expect(model.enabledCount).toBe(6);
+    expect(model.fullLaunchAchieved).toBe(true);
     const byId = new Map(model.domains.map((d) => [d.id, d]));
     expect(byId.get('new-deal-create')?.status).toBe('enabled');
     for (const d of model.domains.filter((x) => x.id !== 'new-deal-create')) {
-      expect(d.status, d.id).toBe('blocked');
+      expect(d.status, d.id).toBe('enabled');
     }
   });
 

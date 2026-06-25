@@ -1,0 +1,18 @@
+{
+    "capability":  "portfolioBoarding",
+    "outcome":  "passed",
+    "operatorUpn":  "unknown-operator",
+    "environmentUrl":  "https://org3a57b8d4.crm.dynamics.com/",
+    "environmentId":  "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+    "correlationId":  "ec5eeca8-c85d-4ecb-9fb0-330086ae325b",
+    "startedAtIso":  "2026-06-25T20:48:29.6116897Z",
+    "completedAtIso":  "2026-06-25T20:48:30.8317606Z",
+    "liveOperationPerformed":  true,
+    "readbackVerified":  true,
+    "rollbackVerified":  true,
+    "evidenceNote":  "Live create/readback/update/readback/cleanup on cr664_portfolioboardedloans succeeded (launch-test marker).",
+    "affectedRecordIds":  [
+                              "65177b38-d770-f111-ab0d-70a8a59be491"
+                          ],
+    "cleanupRecordIds":  "65177b38-d770-f111-ab0d-70a8a59be491"
+}

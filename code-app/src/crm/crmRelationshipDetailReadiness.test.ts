@@ -90,7 +90,9 @@ describe('future Salesforce-style spine', () => {
   it('remains blocked / not seeded even when the rest is ready', () => {
     const r = deriveCrmRelationshipDetailReadiness(realGraph);
     expect(r.spineSeeded).toBe(false);
-    expect(r.liveSpinePersistenceEnabled).toBe(false);
+    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+    // the spine is still not seeded — live persistence and spine seeding are separate concerns.
+    expect(r.liveSpinePersistenceEnabled).toBe(true);
     expect(r.blockedDetailSections.map((b) => b.section)).toContain('salesforceSpine');
     expect(r.safeDetailSections).not.toContain('salesforceSpine');
   });

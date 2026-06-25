@@ -30,28 +30,28 @@ import { NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED } from '../../admin/adminNewDealInt
  */
 
 describe('Phase 242A — restore certified New Deal create activation', () => {
-  it('enables ONLY New Deal create: enabledCount=1, full launch NOT achieved', () => {
+  it('enables all six domains: enabledCount=6, full launch achieved (Phase 256B)', () => {
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
-    expect(verification.fullLaunchReady).toBe(false);
+    expect(verification.enabledCount).toBe(6);
+    expect(verification.fullLaunchReady).toBe(true);
     expect(verification.domains.find((d) => d.key === 'newDealCreate')?.enabled).toBe(true);
 
     const model = deriveFullActivationLaunchCertification();
-    expect(model.enabledCount).toBe(1);
-    expect(model.fullLaunchAchieved).toBe(false);
+    expect(model.enabledCount).toBe(6);
+    expect(model.fullLaunchAchieved).toBe(true);
     const byId = new Map(model.domains.map((d) => [d.id, d]));
     expect(byId.get('new-deal-create')?.status).toBe('enabled');
     for (const d of model.domains.filter((x) => x.id !== 'new-deal-create')) {
-      expect(d.status, d.id).toBe('blocked');
+      expect(d.status, d.id).toBe('enabled');
     }
   });
 
-  it('keeps the other five live-write domains disabled', () => {
+  it('the other five live-write domains are now certified and live-enabled (Phase 256B)', () => {
     const verification = deriveProductionEnvironmentVerification();
     for (const d of verification.domains.filter((x) => x.key !== 'newDealCreate')) {
-      expect(d.certified, d.key).toBe(false);
-      expect(d.gateFlagOn, d.key).toBe(false);
-      expect(d.enabled, d.key).toBe(false);
+      expect(d.certified, d.key).toBe(true);
+      expect(d.gateFlagOn, d.key).toBe(true);
+      expect(d.enabled, d.key).toBe(true);
     }
   });
 

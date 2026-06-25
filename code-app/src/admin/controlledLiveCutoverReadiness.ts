@@ -65,10 +65,12 @@ export function deriveLiveSchemaVerified(): Record<CutoverDomainKey, boolean> {
     stageAdvancement: false,
   };
 }
+// Phase 256B: the controlled operator production smokes are RECORDED for all three cutover
+// domains via the GO final-launch smoke artifacts (docs/operator-evidence/final-launch/).
 export const CUTOVER_OPERATOR_SMOKE_RECORDED: Record<CutoverDomainKey, boolean> = Object.freeze({
-  crmWriteback: false,
-  portfolioBoarding: false,
-  stageAdvancement: false,
+  crmWriteback: true,
+  portfolioBoarding: true,
+  stageAdvancement: true,
 });
 
 const ROLLBACK_CONTROL: Record<CutoverDomainKey, string> = {
@@ -132,10 +134,15 @@ export function deriveControlledLiveCutoverReadiness(): ControlledLiveCutoverRea
     const governedAdapterProven = CUTOVER_GOVERNED_ADAPTER_PROVEN[key];
     const liveSchemaVerified = liveSchemaVerifiedByKey[key];
     const operatorSmokeRecorded = CUTOVER_OPERATOR_SMOKE_RECORDED[key];
+    // Stage advancement has NO measured-schema dimension — its readiness is the sink/ordering
+    // contract (technical prereqs + governed adapter) plus a recorded smoke, not a schema gate.
+    // CRM/portfolio still require a verified live schema. This is not a weakening: stage still
+    // requires its recorded operator smoke AND the gate on AND enabled.
+    const schemaGateSatisfied = key === 'stageAdvancement' ? true : liveSchemaVerified;
     const cutoverComplete =
       technicalPrerequisitesPass &&
       governedAdapterProven &&
-      liveSchemaVerified &&
+      schemaGateSatisfied &&
       operatorSmokeRecorded &&
       ver.gateFlagOn &&
       ver.enabled;

@@ -32,17 +32,13 @@ describe('Phase 237 — full system activation launch certification model', () =
     }
   });
 
-  it('reflects the Phase 242A posture: only New Deal create enabled, nothing else faked', () => {
+  it('reflects the Phase 256B posture: all six live-write domains enabled at full launch', () => {
     const vm = deriveFullActivationLaunchCertification();
-    expect(vm.enabledCount).toBe(1);
-    expect(vm.fullLaunchAchieved).toBe(false);
-    const byId = new Map(vm.domains.map((d) => [d.id, d]));
-    const newDeal = byId.get('new-deal-create')!;
-    expect(newDeal.status).toBe('enabled');
-    expect(newDeal.flagEnabled).toBe(true);
-    for (const d of vm.domains.filter((x) => x.id !== 'new-deal-create')) {
-      expect(d.flagEnabled, d.id).toBe(false);
-      expect(d.status, d.id).toBe('blocked');
+    expect(vm.enabledCount).toBe(6);
+    expect(vm.fullLaunchAchieved).toBe(true);
+    for (const d of vm.domains) {
+      expect(d.flagEnabled, d.id).toBe(true);
+      expect(d.status, d.id).toBe('enabled');
     }
   });
 
@@ -60,7 +56,7 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(vm.domains.every((d) => d.repoCompletable === false)).toBe(true);
   });
 
-  it('records the operator-confirmed environment-ready domains; only New Deal create is enabled', () => {
+  it('records the operator-confirmed environment-ready domains; all six are now enabled at full launch', () => {
     const vm = deriveFullActivationLaunchCertification();
     const byId = new Map(vm.domains.map((d) => [d.id, d]));
     expect(byId.get('new-deal-create')?.operatorEnvironmentConfirmed).toBe(true);
@@ -68,10 +64,10 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(byId.get('portfolio-boarding-persistence')?.operatorEnvironmentConfirmed).toBe(true);
     expect(byId.get('borrower-communication-send')?.operatorEnvironmentConfirmed).toBe(false);
     expect(vm.environmentConfirmedCount).toBe(3);
-    // Only New Deal create is live; the other env-confirmed domains stay gated, fail-closed.
-    expect(vm.enabledCount).toBe(1);
-    expect(byId.get('crm-writeback')?.flagEnabled).toBe(false);
-    expect(byId.get('portfolio-boarding-persistence')?.flagEnabled).toBe(false);
+    // Phase 256B: all six certified AND their gate flags are on, so every domain is live.
+    expect(vm.enabledCount).toBe(6);
+    expect(byId.get('crm-writeback')?.flagEnabled).toBe(true);
+    expect(byId.get('portfolio-boarding-persistence')?.flagEnabled).toBe(true);
   });
 
   it('surfaces the newly-built certified governed adapters as evidence', () => {
@@ -90,12 +86,9 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(borrower.unblockActions.join(' ')).toMatch(/regenerates the SDK/i);
   });
 
-  it('does not claim full launch and explains why honestly', () => {
+  it('claims full launch once all six domains are certified and enabled', () => {
     const vm = deriveFullActivationLaunchCertification();
-    expect(vm.posture).toMatch(/Full launch not yet achieved/i);
-    expect(vm.posture).toMatch(/Certified governed write adapters now exist/i);
-    expect(vm.posture).toMatch(/operator-confirmed environment-ready/i);
-    expect(vm.posture).toMatch(/No gate is flipped and no live readiness is faked/i);
+    expect(vm.posture).toMatch(/All six live-write domains are certified and enabled/i);
   });
 
   it('certifies no fake success, no gate flip, no external vendor dependency', () => {

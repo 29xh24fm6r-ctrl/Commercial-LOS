@@ -157,10 +157,11 @@ describe('hard boundaries — no borrower comms / UI / gate flip / New Deal', ()
     }
   });
 
-  it('the app-runtime gate constant stays false', () => {
+  it('the app-runtime gate constant is true (Phase 256B flipped it; the 188E proof script did not)', () => {
     const flags = readFileSync(resolve(ROOT, 'src', 'deals', 'dealOriginationFeatureFlags.ts'), 'utf8');
-    expect(flags).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
-    // The proof mode is a SCRIPT override; it never flips the app constant.
+    // Phase 256B flipped the app constant true after the GO document-checklist smoke.
+    expect(flags).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
+    // The proof mode is a SCRIPT override; it never references/flips the app constant.
     expect(SECTION).not.toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED/);
   });
 

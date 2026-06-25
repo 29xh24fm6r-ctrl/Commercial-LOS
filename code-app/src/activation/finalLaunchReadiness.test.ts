@@ -1,18 +1,13 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { deriveFinalLaunchReadiness } from './finalLaunchReadiness';
 import {
   FINAL_LAUNCH_CAPABILITIES,
   type FinalLaunchCapability,
   type FinalLaunchSmokeEvidence,
 } from '../access/finalLaunchSmokeEvidence';
-import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
-import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
-import {
-  AUTO_STAGE_ADVANCE_ENABLED,
-  DOCUMENT_CHECKLIST_GENERATION_ENABLED,
-  BORROWER_MESSAGING_ENABLED,
-} from '../deals/dealOriginationFeatureFlags';
 
 function validRecord(capability: FinalLaunchCapability, over: Partial<FinalLaunchSmokeEvidence> = {}): FinalLaunchSmokeEvidence {
   const base: FinalLaunchSmokeEvidence = {
@@ -36,14 +31,16 @@ function validRecord(capability: FinalLaunchCapability, over: Partial<FinalLaunc
 const allFiveValid = () => FINAL_LAUNCH_CAPABILITIES.map((c) => validRecord(c));
 
 describe('Phase 256A — final-launch readiness projection', () => {
-  it('with NO artifacts: deployment withheld; current enabledCount stays 1/6, fullLaunch false', () => {
+  it('with NO artifacts: this projection withholds deployment and projects only 1/6, even though the real gates are already live (6/6)', () => {
     const r = deriveFinalLaunchReadiness({ records: [] });
     expect(r.deploymentAllowed).toBe(false);
     expect(r.allCapabilitiesGo).toBe(false);
     expect(r.capabilities.every((c) => !c.smokeGo && c.blockReason)).toBe(true);
-    expect(r.currentEnabledCount).toBe(1);
-    expect(r.currentFullLaunchAchieved).toBe(false);
-    expect(r.projectedEnabledCount).toBe(1); // only New Deal
+    // The real, current state comes from the (now-flipped) fail-closed verification: 6/6 live.
+    expect(r.currentEnabledCount).toBe(6);
+    expect(r.currentFullLaunchAchieved).toBe(true);
+    // The projection itself, fed NO smoke records, still only projects New Deal (1).
+    expect(r.projectedEnabledCount).toBe(1);
   });
 
   it('backend is hydrated (CRM + portfolio) — the prerequisite for deployment', () => {
@@ -54,15 +51,15 @@ describe('Phase 256A — final-launch readiness projection', () => {
     expect(r.newDealCertified).toBe(true);
   });
 
-  it('with VALID artifacts for all five: deploymentAllowed true and projection reaches 6/6 — but real gates stay off', () => {
+  it('with VALID artifacts for all five: deploymentAllowed true and projection reaches 6/6; the real gates are live too (Phase 256B)', () => {
     const r = deriveFinalLaunchReadiness({ records: allFiveValid() });
     expect(r.allCapabilitiesGo).toBe(true);
     expect(r.deploymentAllowed).toBe(true);
     expect(r.projectedEnabledCount).toBe(6);
     expect(r.projectedFullLaunchAchieved).toBe(true);
-    // CRITICAL: the projection does NOT flip gates — the real state is unchanged.
-    expect(r.currentEnabledCount).toBe(1);
-    expect(r.currentFullLaunchAchieved).toBe(false);
+    // The projection still does NOT flip gates itself — but the real verification is already 6/6 live.
+    expect(r.currentEnabledCount).toBe(6);
+    expect(r.currentFullLaunchAchieved).toBe(true);
   });
 
   it('a single failed/missing artifact blocks that capability and withholds deployment', () => {
@@ -91,12 +88,9 @@ describe('Phase 256A — final-launch readiness projection', () => {
     expect(r.capabilities.find((c) => c.capability === 'borrowerSend')?.smokeGo).toBe(false);
   });
 
-  it('this module flips NO live gate constant', () => {
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
-    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(false);
+  it('this module (the projection) assigns NO live gate constant — the 256B gate flips live in the flag-source files, not here', () => {
+    const src = readFileSync(resolve(__dirname, 'finalLaunchReadiness.ts'), 'utf8');
+    // The projection module must never assign a gate constant (true or false); it only derives.
+    expect(src).not.toMatch(/_ENABLED\s*=\s*(true|false)/);
   });
 });

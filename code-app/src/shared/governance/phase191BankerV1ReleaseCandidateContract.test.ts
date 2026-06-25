@@ -243,18 +243,18 @@ describe('191 — document checklist pilot safe/controlled', () => {
 // 7. All checklist gates remain false.
 // ---------------------------------------------------------------------------
 describe('191 — checklist gates remain false', () => {
-  it('all three runtime gates are false (constants)', () => {
+  it('the two pilot-UI gates are false; generation is launched (constants)', () => {
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
   });
 
-  it('the three gates are still declared false in source', () => {
+  it('the two pilot-UI gates stay declared false; generation is true in source', () => {
     const config = read('src/deals/documentChecklistPilotConfig.ts');
     const flags = read('src/deals/dealOriginationFeatureFlags.ts');
     expect(config).toMatch(/DOCUMENT_CHECKLIST_PILOT_UI_ENABLED = false as const/);
     expect(config).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = false as const/);
-    expect(flags).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
+    expect(flags).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
   });
 });
 

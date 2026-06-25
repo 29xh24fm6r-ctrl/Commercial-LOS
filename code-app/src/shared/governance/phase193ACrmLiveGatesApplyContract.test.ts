@@ -66,8 +66,8 @@ describe('default behavior is no-write (runtime)', () => {
 });
 
 describe('no flag flip / no schema files', () => {
-  it('flag default stays false; modules never assign it', () => {
-    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
+  it('flag is launched true; modules never assign it', () => {
+    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
     for (const { file, code } of SOURCES) {
       expect(code, file).not.toMatch(/CRM_LIVE_PERSISTENCE_ENABLED\s*=[^=]/);
     }

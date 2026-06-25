@@ -73,8 +73,10 @@ describe('runtime boundaries still hold at certification', () => {
     }
   });
 
-  it('the app-runtime generation gate is still false', () => {
-    expect(read('src/deals/dealOriginationFeatureFlags.ts')).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
+  it('the app-runtime generation gate is true (Phase 256B flipped it after the 188F certification)', () => {
+    // Phase 256B flipped this constant true after the GO document-checklist smoke; the 188F
+    // certification doc above records the historical false state at certification time.
+    expect(read('src/deals/dealOriginationFeatureFlags.ts')).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
   });
 
   it('the pilot UI generate action remains disabled', () => {

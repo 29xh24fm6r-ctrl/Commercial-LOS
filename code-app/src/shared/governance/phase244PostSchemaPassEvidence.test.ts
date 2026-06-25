@@ -40,27 +40,27 @@ describe('Phase 244 — post-schema PASS evidence governance contract', () => {
     expect(vm.blockingDomains).toEqual([]);
   });
 
-  it('does not claim full launch and changes no live gate (enabledCount stays 1)', () => {
+  it('claims full launch with every live gate flipped (Phase 256B, enabledCount 6)', () => {
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
-    expect(verification.fullLaunchReady).toBe(false);
+    expect(verification.enabledCount).toBe(6);
+    expect(verification.fullLaunchReady).toBe(true);
     const evidence = deriveFullProductionLaunchEvidence();
-    expect(evidence.fullLaunchAchieved).toBe(false);
+    expect(evidence.fullLaunchAchieved).toBe(true);
 
-    // PASS environment is a prerequisite, NOT activation: CRM + portfolio are not live.
+    // Phase 256B: PASS environments are now activated — CRM + portfolio are live.
     const byKey = new Map(evidence.domains.map((d) => [d.key, d]));
-    expect(byKey.get('crmWriteback')?.enabled).toBe(false);
-    expect(byKey.get('portfolioBoarding')?.enabled).toBe(false);
+    expect(byKey.get('crmWriteback')?.enabled).toBe(true);
+    expect(byKey.get('portfolioBoarding')?.enabled).toBe(true);
 
-    // No live gate flipped this phase — every domain gate stays at its source default.
+    // Every domain is now certified and its live gate flipped.
     expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
-    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(1);
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
-    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(false);
+    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
+    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
   });
 
   it('the orchestrator cannot report ALL-PASS while any child is BLOCKED/UNKNOWN', () => {

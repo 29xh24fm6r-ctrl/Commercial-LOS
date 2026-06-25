@@ -67,8 +67,10 @@ describe('detail cards import no Dataverse service/client/fetch', () => {
 });
 
 describe('does not change CRM_LIVE_PERSISTENCE_ENABLED', () => {
-  it('flag default stays false; cards + panel never assign it', () => {
-    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
+  it('flag default is true (flipped by Phase 256B); cards + panel never assign it', () => {
+    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+    // the cards and panel still never assign the flag.
+    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
     expect(`${CARDS}\n${PANEL}`).not.toMatch(/CRM_LIVE_PERSISTENCE_ENABLED\s*=/);
   });
 });

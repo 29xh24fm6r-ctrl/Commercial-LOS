@@ -139,9 +139,10 @@ describe('194 — create path requires a certified actor + context', () => {
   });
 
   it('the create surface disables downstream automation (no checklist generation triggered)', () => {
-    // The banker create passes an empty automation config → no downstream module runs.
+    // The banker create passes an empty automation config → no downstream module runs
+    // from the create surface even though generation is launched platform-wide.
     expect(NEW_DEAL_SURFACE).toMatch(/config:\s*\{\}/);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
   });
 });
 
@@ -222,10 +223,10 @@ describe('194 — release alignment', () => {
   it('the Phase 190A build preflight remains wired into the build', () => {
     expect(PKG).toMatch(/"build":\s*"node scripts\/phase190A-power-artifact-preflight\.mjs --ensure && tsc -b && vite build"/);
   });
-  it('all three checklist gates remain false', () => {
+  it('the two pilot-UI gates remain false; generation is launched', () => {
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
   });
 });
 

@@ -152,7 +152,14 @@ describe('seed mode — disabled and inert', () => {
   });
 
   it('a partial gate (confirmed but no live persistence) is not satisfied', () => {
-    const r = runCrmSpineSchemaSeed(plan, { explicitlyConfirmed: true, acknowledgement: 'ok' });
+    // Phase 256B flipped the build-time CRM_LIVE_PERSISTENCE_ENABLED to true, so the
+    // "no live persistence" condition is now made explicit; the seed gate still
+    // fails closed without it.
+    const r = runCrmSpineSchemaSeed(plan, {
+      explicitlyConfirmed: true,
+      acknowledgement: 'ok',
+      liveCrmPersistenceEnabled: false,
+    });
     expect(r.gateSatisfied).toBe(false);
     expect(r.executed).toBe(false);
   });

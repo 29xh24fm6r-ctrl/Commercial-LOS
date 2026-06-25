@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveCrmPersistenceAdapter } from '../crm/resolveCrmPersistenceAdapter';
-import { deriveCrmFeatureFlagState, CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
+import { deriveCrmFeatureFlagState } from '../crm/crmFeatureFlags';
 import { EXPECTED_CRM_SCHEMA } from '../crm/crmRuntimeSchemaGate';
 import type { CrmDataverseTransport } from '../crm/crmLiveDataverseTransport';
 import { crmWriteback } from './crmActivation';
@@ -82,9 +82,9 @@ describe('Phase 245 cutover smoke — CRM writeback', () => {
     expect(out.recordId).toBeNull();
   });
 
-  it('rollback/disable: flag off (committed default) fails closed even with transport + ready schema', async () => {
+  it('rollback/disable: flag off (injected) fails closed even with transport + ready schema', async () => {
     const r = resolveCrmPersistenceAdapter({
-      flags: CRM_FEATURE_FLAG_DEFAULTS,
+      flags: deriveCrmFeatureFlagState({ livePersistenceEnabled: false }),
       verified: CRM_READY,
       isAuthorizedOperator: true,
       transport: crmTransport,

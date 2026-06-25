@@ -19,12 +19,12 @@ const ALL_TRUE: DomainEnvironmentCertification = {
   portfolioBoarding: true,
 };
 
-describe('Phase 241/242A — production environment verification', () => {
-  it('certifies ONLY New Deal create by default; the other five stay not-certified and not-enabled', () => {
+describe('Phase 241/242A/256B — production environment verification', () => {
+  it('Phase 256B FULL LIVE: all six domains are certified, gate-flagged, and enabled', () => {
     const vm = deriveProductionEnvironmentVerification();
-    expect(vm.enabledCount).toBe(1);
-    expect(vm.allCertified).toBe(false);
-    expect(vm.fullLaunchReady).toBe(false);
+    expect(vm.enabledCount).toBe(6);
+    expect(vm.allCertified).toBe(true);
+    expect(vm.fullLaunchReady).toBe(true);
 
     const newDeal = vm.domains.find((d) => d.key === 'newDealCreate')!;
     expect(newDeal.certified).toBe(true);
@@ -33,20 +33,20 @@ describe('Phase 241/242A — production environment verification', () => {
     expect(newDeal.missingSteps).toEqual([]);
 
     for (const d of vm.domains.filter((x) => x.key !== 'newDealCreate')) {
-      expect(d.certified, d.key).toBe(false);
-      expect(d.gateFlagOn, d.key).toBe(false);
-      expect(d.enabled, d.key).toBe(false);
-      expect(d.missingSteps.length, d.key).toBeGreaterThan(0);
+      expect(d.certified, d.key).toBe(true);
+      expect(d.gateFlagOn, d.key).toBe(true);
+      expect(d.enabled, d.key).toBe(true);
+      expect(d.missingSteps.length, d.key).toBe(0);
     }
 
-    // The committed certification constant ships exactly one true toggle (newDealCreate),
-    // backed by recorded Phase 227/228A smoke evidence; the rest are false (no fake success).
+    // Phase 256B: the committed certification constant now ships all six true toggles,
+    // each backed by a GO final-launch smoke artifact (no fake success).
     expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
     expect(
       Object.entries(PRODUCTION_ENVIRONMENT_CERTIFICATION)
         .filter(([, v]) => v === true)
         .map(([k]) => k),
-    ).toEqual(['newDealCreate']);
+    ).toEqual(['newDealCreate', 'crmWriteback', 'documentChecklist', 'borrowerSend', 'stageAdvancement', 'portfolioBoarding']);
   });
 
   it('every domain has explicit external verification steps', () => {
@@ -56,8 +56,8 @@ describe('Phase 241/242A — production environment verification', () => {
   });
 
   it('a domain resolves enabled ONLY when certified AND its gate flag is on', () => {
-    // certified but gate flag still off → not enabled (flip step remains)
-    const certOnly = deriveProductionEnvironmentVerification({ certification: { crmWriteback: true } });
+    // certified but gate flag off (injected) → not enabled (flip step remains)
+    const certOnly = deriveProductionEnvironmentVerification({ certification: { crmWriteback: true }, gateFlags: { crmWriteback: false } });
     const crm = certOnly.domains.find((d) => d.key === 'crmWriteback')!;
     expect(crm.certified).toBe(true);
     expect(crm.gateFlagOn).toBe(false);
@@ -88,15 +88,15 @@ describe('Phase 241/242A — production environment verification', () => {
     expect(vm.domains.find((d) => d.key === 'newDealCreate')?.enabled).toBe(true);
   });
 
-  it('the committed source certifies exactly one toggle (New Deal create) and never fakes the rest', () => {
+  it('the committed source certifies all six toggles (Phase 256B full launch) and never fakes via fetch', () => {
     const src = readFileSync(resolve(__dirname, 'productionEnvironmentVerification.ts'), 'utf8');
     const certBlock = src.slice(
       src.indexOf('export const PRODUCTION_ENVIRONMENT_CERTIFICATION'),
       src.indexOf('export const ENVIRONMENT_VERIFICATION_STEPS'),
     );
     expect(certBlock).toMatch(/newDealCreate:\s*true/);
-    // Exactly one true toggle in the committed certification constant.
-    expect(certBlock.match(/:\s*true/g) ?? []).toHaveLength(1);
+    // All six toggles are true in the committed certification constant (Phase 256B).
+    expect(certBlock.match(/:\s*true/g) ?? []).toHaveLength(6);
     expect(src).not.toMatch(/\bfetch\s*\(/);
   });
 });

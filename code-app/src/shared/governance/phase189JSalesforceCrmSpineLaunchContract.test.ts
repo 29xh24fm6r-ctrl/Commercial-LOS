@@ -90,8 +90,10 @@ describe('no schema/migration mutation or files', () => {
 });
 
 describe('does not flip CRM_LIVE_PERSISTENCE_ENABLED', () => {
-  it('flag default stays false; the modules never assign it', () => {
-    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
+  it('flag default is true (flipped by Phase 256B); the modules never assign it', () => {
+    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+    // these spine modules still never assign the flag.
+    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
     for (const src of SPINE_MODULES) {
       expect(src).not.toMatch(/CRM_LIVE_PERSISTENCE_ENABLED\s*=/);
     }

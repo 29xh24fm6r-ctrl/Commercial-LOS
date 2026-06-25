@@ -9,8 +9,8 @@ describe('Phase 237 — Full System Activation Launch panel', () => {
     expect(
       screen.getByRole('region', { name: /Full System Activation Launch Certification/i }),
     ).toBeInTheDocument();
-    // Honest: full launch not achieved while domains are blocked.
-    expect(screen.getByText(/Full launch not achieved/i)).toBeInTheDocument();
+    // After the 256B full launch, all six domains are certified and enabled.
+    expect(screen.getByText(/Full launch achieved/i)).toBeInTheDocument();
   });
 
   it('shows all six live-write domains with a status', () => {
@@ -26,9 +26,9 @@ describe('Phase 237 — Full System Activation Launch panel', () => {
     ]) {
       expect(within(region).getByText(label)).toBeInTheDocument();
     }
-    // New Deal create is Enabled (live via the approved pilot); the other five report Blocked.
-    expect(within(region).getAllByText('Enabled').length).toBe(1);
-    expect(within(region).getAllByText('Blocked').length).toBe(5);
+    // After the 256B full launch, all six live-write domains report Enabled.
+    expect(within(region).getAllByText('Enabled').length).toBe(6);
+    expect(within(region).queryAllByText('Blocked').length).toBe(0);
   });
 
   it('exposes no buttons, forms, inputs, or write controls (read-only)', () => {

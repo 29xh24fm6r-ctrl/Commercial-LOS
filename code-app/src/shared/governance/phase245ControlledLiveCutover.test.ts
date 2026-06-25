@@ -34,45 +34,47 @@ describe('Phase 245 — controlled live gate cutover governance contract', () =>
     expect(CUTOVER_DOMAIN_KEYS).not.toContain('borrowerSend');
   });
 
-  it('flips NO live gate this phase (all targeted gates remain at their source default)', () => {
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(false);
+  it('Phase 256B: the targeted live gates are now flipped on (the uncontrolled auto-advance write gate stays off)', () => {
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
+    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
+    // The uncontrolled automatic-advancement write gate intentionally stays off (production
+    // uses governed explicit advancement, never uncontrolled automatic movement).
     expect(ADVANCE_STAGE_WRITE_ENABLED).toBe(false);
-    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(false);
-    // Only New Deal create stays certified (Phase 227/228A) — no new certification flipped.
-    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(1);
+    // All six domains are now certified (Phase 256B), backed by GO final-launch smoke artifacts.
+    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
   });
 
-  it('keeps checklist + borrower gates false and their evidence UNKNOWN (no fake signoff / connector)', () => {
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
+  it('Phase 256B: checklist + borrower gates are now live and their environments PASS', () => {
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
     const evidence = deriveFullProductionLaunchEvidence();
     const byKey = new Map(evidence.domains.map((d) => [d.key, d]));
-    // Phase 251: lending-owner signoff recorded → documentChecklist env PASS; its live gate stays false above.
     expect(byKey.get('documentChecklist')?.environmentStatus).toBe('PASS');
-    // Phase 250: Outlook connector registered (power.config.json) → borrowerSend env PASS; its send gate stays false above.
     expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
   });
 
-  it('does not claim full launch and enabledCount stays 1', () => {
+  it('Phase 256B: full launch achieved and enabledCount is 6', () => {
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
-    expect(verification.fullLaunchReady).toBe(false);
+    expect(verification.enabledCount).toBe(6);
+    expect(verification.fullLaunchReady).toBe(true);
     const cutover = deriveControlledLiveCutoverReadiness();
-    expect(cutover.cutoverCompleteCount).toBe(0);
-    expect(cutover.deploymentAllowed).toBe(false);
-    expect(cutover.fullLaunchAchieved).toBe(false);
+    // All three controlled cutovers complete (stage is not schema-gated — sink/ordering contract
+    // + recorded smoke), so the ledger's own deploymentAllowed is true at full launch.
+    expect(cutover.cutoverCompleteCount).toBe(3);
+    expect(cutover.deploymentAllowed).toBe(true);
+    expect(cutover.fullLaunchAchieved).toBe(true);
   });
 
-  it('every targeted domain has a rollback control and stays fail-closed (gate off)', () => {
+  it('every targeted domain has a rollback control and is now live (gate on)', () => {
     const cutover = deriveControlledLiveCutoverReadiness();
     for (const d of cutover.domains) {
       expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
-      expect(d.gateFlagOn, d.key).toBe(false);
-      expect(d.enabled, d.key).toBe(false);
+      expect(d.gateFlagOn, d.key).toBe(true);
+      expect(d.enabled, d.key).toBe(true);
     }
   });
 

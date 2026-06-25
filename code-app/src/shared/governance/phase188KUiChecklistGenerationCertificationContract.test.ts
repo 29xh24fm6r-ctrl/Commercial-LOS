@@ -97,17 +97,24 @@ describe('188K — all three gates remain false (default runtime disabled)', () 
     expect(CONFIG).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = false as const/);
   });
 
-  it('the runtime generation gate is false (constant + source)', () => {
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
+  it('the runtime generation gate is true (Phase 256B flipped it; 188K enables nothing)', () => {
+    // Phase 256B flipped this constant true after the GO document-checklist smoke. 188K is
+    // certification + rollback control only and enables nothing of its own.
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
   });
 
-  it('nothing flips any checklist gate to true', () => {
-    for (const src of [CONFIG, FLAGS, PANEL, ACTION]) {
+  it('nothing in 188K flips a checklist gate to true (the runtime gate is Phase 256B, not 188K)', () => {
+    // 188K's own files (config, panel, action bridge) flip none of the three gates.
+    for (const src of [CONFIG, PANEL, ACTION]) {
       expect(src).not.toMatch(
         /DOCUMENT_CHECKLIST_(GENERATION_ENABLED|PILOT_UI_ENABLED|UI_GENERATE_ACTION_ENABLED)\s*=\s*true/,
       );
     }
+    // In the flags source only the runtime generation gate is true (flipped by Phase 256B); the
+    // two UI gates are not assigned there.
+    expect(FLAGS).not.toMatch(/DOCUMENT_CHECKLIST_PILOT_UI_ENABLED\s*=\s*true/);
+    expect(FLAGS).not.toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED\s*=\s*true/);
   });
 });
 

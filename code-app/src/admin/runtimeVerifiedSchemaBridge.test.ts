@@ -11,7 +11,7 @@ import {
 import { EXPECTED_CRM_SCHEMA } from '../crm/crmRuntimeSchemaGate';
 import { EXPECTED_BOARDING_SCHEMA } from '../portfolioBoarding/portfolioBoardingRuntimeSchemaGate';
 import { resolveCrmPersistenceAdapter } from '../crm/resolveCrmPersistenceAdapter';
-import { deriveCrmFeatureFlagState, CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
+import { deriveCrmFeatureFlagState } from '../crm/crmFeatureFlags';
 import type { CrmDataverseTransport } from '../crm/crmLiveDataverseTransport';
 
 const FRESH_ISO = '2026-06-25T00:00:00.000Z';
@@ -153,10 +153,10 @@ describe('Phase 246 — the runtime gate stays disabled unless flag AND verified
     expect(r.live).toBe(true);
   });
 
-  it('hydrated verified state but flag OFF (committed default) → fails closed', () => {
+  it('hydrated verified state but flag OFF (injected) → fails closed', () => {
     const hydrated = hydrateVerifiedCrmSchemaState(VALID_CRM, { nowEpochMs: NOW });
     const r = resolveCrmPersistenceAdapter({
-      flags: CRM_FEATURE_FLAG_DEFAULTS,
+      flags: deriveCrmFeatureFlagState({ livePersistenceEnabled: false }),
       verified: hydrated.verified!,
       isAuthorizedOperator: true,
       transport: noopTransport,

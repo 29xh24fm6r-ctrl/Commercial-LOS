@@ -42,7 +42,9 @@ describe('default foundation (authorized deal+client+banker+team, spine not seed
     expect(r.spineSeeded).toBe(false);
     expect(r.schemaMutated).toBe(false);
     expect(r.migrationExecuted).toBe(false);
-    expect(r.liveCrmPersistenceEnabled).toBe(false);
+    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+    // the spine is still not seeded — live persistence and spine seeding are separate concerns.
+    expect(r.liveCrmPersistenceEnabled).toBe(true);
   });
 
   it('renders provenance, visibility policy, and coverage team now', () => {

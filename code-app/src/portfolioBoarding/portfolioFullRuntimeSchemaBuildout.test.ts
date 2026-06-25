@@ -173,20 +173,22 @@ describe('Phase 253P — the buildout artifacts reference the COMPLETE contract'
   });
 });
 
-describe('Phase 253P — no governed gate is flipped by this phase', () => {
-  it('enabledCount stays 1/6 and fullLaunchAchieved stays false', () => {
+describe('Phase 256B — the portfolio boarding gates are now flipped (full activation)', () => {
+  it('enabledCount is 6/6 and fullLaunchAchieved is true', () => {
     const vm = deriveFullProductionLaunchEvidence();
-    expect(vm.enabledCount).toBe(1);
-    expect(vm.fullLaunchAchieved).toBe(false);
+    expect(vm.enabledCount).toBe(6);
+    expect(vm.fullLaunchAchieved).toBe(true);
     const portfolio = vm.domains.find((d) => d.key === 'portfolioBoarding')!;
-    expect(portfolio.enabled).toBe(false);
-    expect(portfolio.gateFlagOn).toBe(false);
+    expect(portfolio.enabled).toBe(true);
+    expect(portfolio.gateFlagOn).toBe(true);
   });
 
-  it('every portfolio boarding feature flag default remains OFF (fail-closed)', () => {
-    for (const [k, v] of Object.entries(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS)) {
-      expect(v, k).toBe(false);
-    }
+  it('live persistence + route are now ON; the remaining boarding capability flags stay OFF', () => {
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED).toBe(false);
   });
 });
 

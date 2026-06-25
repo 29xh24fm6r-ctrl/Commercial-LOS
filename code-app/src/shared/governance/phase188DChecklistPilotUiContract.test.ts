@@ -66,8 +66,10 @@ describe('adapter / live-deps / service boundary', () => {
 });
 
 describe('gate stays disabled', () => {
-  it('DOCUMENT_CHECKLIST_GENERATION_ENABLED remains false', () => {
-    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
+  it('DOCUMENT_CHECKLIST_GENERATION_ENABLED is true (Phase 256B flipped it; the pilot UI did not)', () => {
+    // Phase 256B flipped the runtime gate true after the GO document-checklist smoke. The pilot
+    // UI flag below stays false and the view-model still forces canGenerate false.
+    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
   });
 
   it('the pilot UI flag is a disabled constant; the view-model forces canGenerate false', () => {

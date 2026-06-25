@@ -16,18 +16,18 @@ const DOC_REL = 'docs/PHASE_243_FULL_SYSTEM_LIVE_ACTIVATION.md';
  * fail-closed; full launch must remain not-achieved until all six are genuinely live.
  */
 describe('Phase 243 — full system live activation governance contract', () => {
-  it('does not claim full launch: enabledCount=1, fullLaunchAchieved=false', () => {
+  it('claims full launch: enabledCount=6, fullLaunchAchieved=true (Phase 256B)', () => {
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
-    expect(verification.fullLaunchReady).toBe(false);
+    expect(verification.enabledCount).toBe(6);
+    expect(verification.fullLaunchReady).toBe(true);
 
     const model = deriveFullActivationLaunchCertification();
-    expect(model.enabledCount).toBe(1);
-    expect(model.fullLaunchAchieved).toBe(false);
+    expect(model.enabledCount).toBe(6);
+    expect(model.fullLaunchAchieved).toBe(true);
 
     const evidence = deriveFullProductionLaunchEvidence();
-    expect(evidence.enabledCount).toBe(1);
-    expect(evidence.fullLaunchAchieved).toBe(false);
+    expect(evidence.enabledCount).toBe(6);
+    expect(evidence.fullLaunchAchieved).toBe(true);
   });
 
   it('ties the launch decision to the fail-closed verification (single source of truth)', () => {
@@ -38,20 +38,20 @@ describe('Phase 243 — full system live activation governance contract', () => 
     expect(evidence.enabledCount).toBe(verification.enabledCount);
   });
 
-  it('certifies only New Deal create; the four blocked/unknown domains stay false (no fake flips)', () => {
+  it('certifies all six domains after the GO smoke artifacts (Phase 256B full activation)', () => {
     expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
     for (const key of ['crmWriteback', 'documentChecklist', 'borrowerSend', 'portfolioBoarding'] as const) {
-      expect(PRODUCTION_ENVIRONMENT_CERTIFICATION[key], key).toBe(false);
+      expect(PRODUCTION_ENVIRONMENT_CERTIFICATION[key], key).toBe(true);
     }
-    // Exactly one certification toggle is true in the committed constant.
-    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(1);
+    // All six certification toggles are true in the committed constant.
+    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
   });
 
-  it('keeps every not-yet-live domain disabled and fail-closed in the verification', () => {
+  it('every domain is now certified and live-enabled in the verification (Phase 256B)', () => {
     const verification = deriveProductionEnvironmentVerification();
     for (const d of verification.domains.filter((x) => x.key !== 'newDealCreate')) {
-      expect(d.certified, d.key).toBe(false);
-      expect(d.enabled, d.key).toBe(false);
+      expect(d.certified, d.key).toBe(true);
+      expect(d.enabled, d.key).toBe(true);
     }
   });
 

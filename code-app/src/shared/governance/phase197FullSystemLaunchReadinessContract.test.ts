@@ -171,13 +171,13 @@ describe('197 — model recommendation + domains', () => {
 // 3. Gates remain false + rollout disabled.
 // ---------------------------------------------------------------------------
 describe('197 — no gate flipped', () => {
-  it('all create + checklist gates remain false', () => {
+  it('create + pilot-UI gates remain false; checklist generation is launched', () => {
     expect(BANKER_NEW_DEAL_CREATE_ENABLED).toBe(false);
     expect(NEW_DEAL_CREATE_ADAPTER_ENABLED).toBe(false);
     expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
   });
   it('evaluateBankerCreateRollout() returns disabled by default', () => {
     expect(evaluateBankerCreateRollout()).toBe('disabled');

@@ -98,10 +98,13 @@ describe('Phase 140M-P — no fake borrower / loan / dollar data in source', () 
 });
 
 describe('Phase 140M-P — feature flags default safe + persistence disabled by default', () => {
-  it('every flag default is false', () => {
-    for (const v of Object.values(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS)) {
-      expect(v).toBe(false);
-    }
+  it('live persistence + route launched ON; downstream domains stay false', () => {
+    const f = PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS;
+    expect(f.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(f.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
+    expect(f.PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED).toBe(false);
+    expect(f.PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED).toBe(false);
+    expect(f.PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED).toBe(false);
   });
 
   it('the resolved adapter is disabled with no flags/transport', () => {

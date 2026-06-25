@@ -10,13 +10,13 @@ import { PortfolioBoardingAdminPanel } from './PortfolioBoardingAdminPanel';
  */
 
 describe('Phase 169D -- Portfolio Boarding admin panel', () => {
-  it('renders the panel marked Disabled by default with the fail-closed reason', () => {
+  it('renders the panel marked Live persistence ON with the fail-closed reason', () => {
     const { container } = render(<PortfolioBoardingAdminPanel />);
     expect(
       screen.getByRole('region', { name: 'Portfolio Boarding' }),
     ).toBeInTheDocument();
     // The status badge (exact text) -- distinct from the longer note copy.
-    expect(screen.getByText('Disabled by default')).toBeInTheDocument();
+    expect(screen.getByText('Live persistence ON')).toBeInTheDocument();
     const reason = container.querySelector('[data-admin-portfolio-disabled-reason]');
     expect(reason?.textContent).toMatch(/disabled by default/i);
     expect(reason?.textContent).toMatch(/fails closed/i);

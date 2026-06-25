@@ -66,10 +66,10 @@ describe('196 — evidence-certification-only posture', () => {
     expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
   });
 
-  it('all three checklist gates remain false', () => {
+  it('the two pilot-UI gates remain false; generation is launched', () => {
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
   });
 
   it('evaluateBankerCreateRollout() still returns disabled by default', () => {

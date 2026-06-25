@@ -80,8 +80,10 @@ describe('audit imports no Dataverse service/client/fetch/adapter', () => {
 });
 
 describe('does not change CRM_LIVE_PERSISTENCE_ENABLED', () => {
-  it('flag default stays false; the audit never assigns it', () => {
-    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
+  it('flag default is true (flipped by Phase 256B); the audit never assigns it', () => {
+    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+    // this audit module still never assigns the flag.
+    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
     expect(AUDIT).not.toMatch(/CRM_LIVE_PERSISTENCE_ENABLED\s*=/);
   });
 });

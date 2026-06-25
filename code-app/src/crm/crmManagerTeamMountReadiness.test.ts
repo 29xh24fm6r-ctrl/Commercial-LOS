@@ -173,13 +173,15 @@ describe('unsafe assumptions are always rejected', () => {
 });
 
 describe('safety posture is constant', () => {
-  it('always read-only, never adds a mount, never flips live persistence', () => {
+  it('always read-only, never adds a mount; reflects the build-time live-persistence flag', () => {
     for (const surfaces of [[banker, manager, team], [banker], [manager]]) {
       const r = deriveCrmManagerTeamMountReadiness({ surfaces });
       expect(r.readOnly).toBe(true);
       expect(r.newMountsAdded).toBe(false);
       expect(r.bankerRemainsOnlyActiveMount).toBe(true);
-      expect(r.liveCrmPersistenceEnabled).toBe(false);
+      // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+      // this audit reflects the build-time default and still mounts nothing.
+      expect(r.liveCrmPersistenceEnabled).toBe(true);
     }
   });
 });

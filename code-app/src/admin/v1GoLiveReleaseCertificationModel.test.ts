@@ -20,23 +20,22 @@ describe('Phase 236 — V1.0 go-live release certification model', () => {
     ]);
   });
 
-  it('certifies operating restart readiness while live mutation expansion stays NOT ready', () => {
+  it('reports live mutation expansion ready after Phase 256B launch (the final V1 decision now reads the enabled gates)', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    expect(vm.operatingRestartReady).toBe(true);
-    expect(vm.liveMutationExpansionReady).toBe(false);
-    expect(vm.restartStatement).toMatch(/restart can proceed within the governed read\/operate posture/i);
-    expect(vm.restartStatement).toMatch(/Live-write expansion remains intentionally gated/i);
+    // Phase 256B: launched live-write categories make expansion ready.
+    expect(vm.liveMutationExpansionReady).toBe(true);
+    // The final V1 release decision now sees the enabled checklist/create gates and reports
+    // NO_GO for the pre-launch read/operate posture, so the certification is no longer
+    // certifying the old gated-restart story.
+    expect(vm.operatingRestartReady).toBe(false);
+    expect(vm.restartStatement).toMatch(/Operating restart is not yet certified/i);
   });
 
-  it('names every intentionally gated live-write category by default', () => {
+  it('names the live-write categories that remain gated after Phase 256B launch', () => {
     const vm = deriveV1GoLiveReleaseCertification();
+    // Phase 256B launched the five live-write domains; only New Deal create stays gated.
     expect(vm.gatedLiveWriteCategories).toEqual([
       'New Deal create',
-      'CRM writeback / live persistence',
-      'Document checklist generation',
-      'Borrower communication send',
-      'Stage advancement',
-      'Portfolio boarding live persistence',
     ]);
   });
 

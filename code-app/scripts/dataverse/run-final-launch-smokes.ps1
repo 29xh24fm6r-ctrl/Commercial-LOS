@@ -154,8 +154,8 @@ function Invoke-CrudSmoke($capability, $orgUrl, $token, $envId, $set, $nameCol, 
     readbackVerified      = $readback
     rollbackVerified      = $rolledBack
     evidenceNote          = $note
-    affectedRecordIds     = $affected
-    cleanupRecordIds      = $(if ($rolledBack) { $affected } else { @() })
+    affectedRecordIds     = @($affected)
+    cleanupRecordIds      = @($(if ($rolledBack) { $affected } else { @() }))
   }
 }
 

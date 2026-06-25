@@ -83,6 +83,12 @@ describe('Phase 256A — final-launch smoke evidence parser (fail-closed)', () =
     expect(parseFinalLaunchSmokeEvidence({ ...validRecord('crmLivePersistence'), completedAtIso: 'not-a-date' }).ok).toBe(false);
     expect(parseFinalLaunchSmokeEvidence({ ...validRecord('crmLivePersistence'), affectedRecordIds: [1, 2] }).ok).toBe(false);
   });
+
+  it('normalizes a scalar-string id list to an array (PowerShell single-element serialization)', () => {
+    const res = parseFinalLaunchSmokeEvidence({ ...validRecord('crmLivePersistence'), cleanupRecordIds: 'fa1e612c-d770-f111-ab0d-70a8a59be491' });
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.evidence.cleanupRecordIds).toEqual(['fa1e612c-d770-f111-ab0d-70a8a59be491']);
+  });
 });
 
 describe('Phase 256A — GO predicate + registry mapping', () => {

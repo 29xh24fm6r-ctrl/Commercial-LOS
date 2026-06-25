@@ -54,22 +54,22 @@ describe('202 — internal activation model', () => {
     expect(a.internalWorkflowActive).toBe(true);
   });
 
-  it('unsafe write categories remain gated; certified pilot is enabled', () => {
-    expect(a.writebackStatus).toBe('gated');
-    expect(a.checklistGenerationStatus).toBe('gated');
-    expect(a.borrowerCommunicationStatus).toBe('gated');
+  it('launched write categories are enabled; certified pilot is enabled', () => {
+    expect(a.writebackStatus).toBe('enabled');
+    expect(a.checklistGenerationStatus).toBe('enabled');
+    expect(a.borrowerCommunicationStatus).toBe('enabled');
     expect(a.pilotCreateStatus).toBe('enabled');
   });
 
   it('is derived from the real gate constants', () => {
-    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(false); // writeback gated
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
+    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(true); // writeback launched
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
     expect(BANKER_CREATE_PILOT_ENABLED).toBe(true); // certified pilot
   });
 
-  it('surfaces honest remaining-gated blockers', () => {
-    expect(a.remainingBlockers.join(' ')).toMatch(/writeback gated/i);
+  it('surfaces honest remaining-gated blockers (broad workflow writes stay gated)', () => {
+    expect(a.remainingBlockers.join(' ')).toMatch(/broad workflow writes gated/i);
     expect(a.remainingBlockers.length).toBeGreaterThan(0);
   });
 });

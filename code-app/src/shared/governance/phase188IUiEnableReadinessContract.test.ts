@@ -32,8 +32,10 @@ const UI_FILES: ReadonlyArray<readonly [string, string]> = [
 ];
 
 describe('188I enables nothing — both gates stay false', () => {
-  it('the runtime generation gate remains false', () => {
-    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
+  it('the runtime generation gate is true (Phase 256B flipped it; 188I did not)', () => {
+    // Phase 256B flipped the runtime gate true after the GO document-checklist smoke. 188I is
+    // docs/tests/view-model only and enables nothing of its own.
+    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
   });
 
   it('the pilot UI flag remains false', () => {
@@ -44,12 +46,17 @@ describe('188I enables nothing — both gates stay false', () => {
     expect(CONFIG).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = false as const/);
   });
 
-  it('nothing flips any checklist gate to true', () => {
-    for (const [, src] of [...UI_FILES, ['flags', FLAGS] as const]) {
+  it('nothing in 188I flips a checklist gate to true (the runtime gate is Phase 256B, not 188I)', () => {
+    // 188I's own UI/readiness files flip none of the three gates.
+    for (const [, src] of UI_FILES) {
       expect(src).not.toMatch(
         /DOCUMENT_CHECKLIST_(GENERATION_ENABLED|PILOT_UI_ENABLED|UI_GENERATE_ACTION_ENABLED)\s*=\s*true/,
       );
     }
+    // In the flags source only the runtime generation gate is true (flipped by Phase 256B after
+    // the GO smoke); the two UI gates are not assigned there at all.
+    expect(FLAGS).not.toMatch(/DOCUMENT_CHECKLIST_PILOT_UI_ENABLED\s*=\s*true/);
+    expect(FLAGS).not.toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED\s*=\s*true/);
   });
 });
 

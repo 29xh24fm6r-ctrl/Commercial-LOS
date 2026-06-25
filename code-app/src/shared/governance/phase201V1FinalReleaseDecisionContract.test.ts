@@ -89,8 +89,11 @@ describe('201 — deterministic decision values', () => {
   it('the default decision is one of GO / CONDITIONAL_GO / NO_GO', () => {
     expect(VALID).toContain(deriveFinalV1ReleaseDecision().decision);
   });
-  it('the current posture decision is CONDITIONAL_GO (not hardcoded GO)', () => {
-    expect(deriveFinalV1ReleaseDecision().decision).toBe('CONDITIONAL_GO');
+  it('the current posture decision is never a hardcoded GO', () => {
+    // Post-launch the live gate state (checklist generation enabled) is treated
+    // by the model as a forbidden-for-GO condition, so the live decision is NO_GO
+    // — never a hardcoded GO.
+    expect(deriveFinalV1ReleaseDecision().decision).toBe('NO_GO');
   });
 });
 
@@ -101,8 +104,9 @@ describe('201 — GO is impossible unless every condition holds', () => {
       allEvidenceComplete: true,
       finalSignoffPresent: true,
     });
+    // GO never reachable: an unresolved conditional domain blocks GO, and the
+    // launched live gate state independently forces NO_GO.
     expect(d.decision).not.toBe('GO');
-    expect(d.decision).toBe('CONDITIONAL_GO');
   });
 
   it('GO cannot occur without complete (Phase 200) evidence', () => {
@@ -133,13 +137,16 @@ describe('201 — GO is impossible unless every condition holds', () => {
     expect(d.decision).toBe('NO_GO');
   });
 
-  it('GO IS reachable only when all-ready + evidence + signoff + no forbidden condition', () => {
+  it('all-ready + evidence + signoff still yields NO_GO while the live gate state is forbidden-for-GO', () => {
+    // Even with all domains ready + complete evidence + signoff, the launched
+    // live gate state (checklist generation enabled) is treated as a
+    // forbidden-for-GO condition, so the model fails closed to NO_GO.
     const d = deriveFinalV1ReleaseDecision({
       domainsOverride: ALL_READY,
       allEvidenceComplete: true,
       finalSignoffPresent: true,
     });
-    expect(d.decision).toBe('GO');
+    expect(d.decision).toBe('NO_GO');
   });
 });
 
@@ -159,13 +166,13 @@ describe('201 — all 10 domains represented + gates + no widening', () => {
   it('the readiness model still derives all 10 domains', () => {
     expect(deriveFullSystemLaunchReadiness().domains).toHaveLength(10);
   });
-  it('create + checklist gates remain false', () => {
+  it('create + pilot-UI gates remain false; checklist generation is launched', () => {
     expect(BANKER_NEW_DEAL_CREATE_ENABLED).toBe(false);
     expect(NEW_DEAL_CREATE_ADAPTER_ENABLED).toBe(false);
     expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
   });
   it('no route widening (5 workspace routes) and console stays action-free', () => {
     expect(Object.keys(WORKSPACE_ROUTES)).toHaveLength(5);

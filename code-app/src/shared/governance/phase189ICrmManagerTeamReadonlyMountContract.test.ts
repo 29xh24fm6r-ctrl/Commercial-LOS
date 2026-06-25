@@ -134,8 +134,10 @@ describe('read-only — no new Dataverse IO / writes in the changed workspaces',
 });
 
 describe('does not flip CRM_LIVE_PERSISTENCE_ENABLED', () => {
-  it('flag default stays false; the workspaces never assign it', () => {
-    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
+  it('flag default is true (flipped by Phase 256B); the workspaces never assign it', () => {
+    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+    // these workspaces still never reference or assign the flag.
+    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
     for (const src of CHANGED_WORKSPACES) {
       expect(src).not.toMatch(/CRM_LIVE_PERSISTENCE_ENABLED/);
     }

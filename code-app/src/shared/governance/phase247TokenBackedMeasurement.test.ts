@@ -53,20 +53,20 @@ describe('Phase 247 — token-backed live measurement governance contract', () =
     expect(src).toMatch(/Invoke-DataverseGet|Test-DataverseTable/);
   });
 
-  it('flips no live gate and does not claim launch', () => {
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(false);
-    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(1);
+  it('the launched platform has every live gate flipped (Phase 256B full activation)', () => {
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
+    expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
-    expect(verification.fullLaunchReady).toBe(false);
+    expect(verification.enabledCount).toBe(6);
+    expect(verification.fullLaunchReady).toBe(true);
   });
 
-  it('does not touch or fabricate checklist or borrower/Outlook state', () => {
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
+  it('the checklist + borrower/Outlook gates are now live (Phase 256B)', () => {
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
   });
 
   it('the Phase 247 doc records the org target, command, 401 result, and remaining blockers', () => {

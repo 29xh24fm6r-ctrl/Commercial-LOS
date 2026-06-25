@@ -9,7 +9,9 @@ describe('Phase 236 — V1.0 Go-Live Release Certification panel', () => {
     expect(
       screen.getByRole('region', { name: /V1.0 Go-Live Release Certification/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Operating restart ready/i)).toBeInTheDocument();
+    // After the 256B launch the live-write gates are enabled, so the model trips its
+    // forbidden-gate guard (checklist generation on) and reports verify-required.
+    expect(screen.getByText(/Verify required/i)).toBeInTheDocument();
   });
 
   it('shows the required coverage gates', () => {
@@ -29,12 +31,14 @@ describe('Phase 236 — V1.0 Go-Live Release Certification panel', () => {
     }
   });
 
-  it('surfaces the gated live-write posture (expansion gated, not enabled)', () => {
+  it('surfaces the launched live-write posture with New Deal create still gated', () => {
     render(<V1GoLiveReleaseCertificationPanel />);
-    expect(screen.getByText(/Live-write expansion gated/i)).toBeInTheDocument();
+    // Live-write categories are enabled after the launch, so expansion now reads enabled.
+    expect(screen.getByText(/Live mutation expansion: enabled/i)).toBeInTheDocument();
     const gated = screen.getByRole('region', { name: /Intentionally gated live-write categories/i });
+    // New Deal create stays gated by its global constant; portfolio boarding is now live.
     expect(within(gated).getByText('New Deal create')).toBeInTheDocument();
-    expect(within(gated).getByText('Portfolio boarding live persistence')).toBeInTheDocument();
+    expect(within(gated).queryByText('Portfolio boarding live persistence')).toBeNull();
   });
 
   it('exposes no buttons, forms, inputs, or write controls (read-only)', () => {

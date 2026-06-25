@@ -31,17 +31,11 @@ describe('Phase 233 — Executive Restart Readiness model', () => {
     expect(vm.overallState).toBe('gated-activation');
   });
 
-  it('lists the gated live-write categories by default', () => {
+  it('lists the live-write categories that remain gated after Phase 256B launch', () => {
     const vm = deriveExecutiveRestartReadinessModel();
-    expect(vm.gatedActivationCategories).toEqual(
-      expect.arrayContaining([
-        'New Deal create',
-        'CRM writeback / live persistence',
-        'Document checklist generation',
-        'Borrower communication send',
-        'Portfolio boarding live persistence',
-      ]),
-    );
+    // Phase 256B launched CRM writeback, checklist, borrower send, and portfolio boarding;
+    // only New Deal create stays gated.
+    expect(vm.gatedActivationCategories).toEqual(['New Deal create']);
   });
 
   it('uses leadership restart language and asserts no hidden writes / no route widening', () => {

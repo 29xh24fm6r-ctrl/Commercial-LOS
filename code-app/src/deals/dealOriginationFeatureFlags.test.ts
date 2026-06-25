@@ -32,19 +32,21 @@ import {
  */
 
 describe('origination flags -- Phase 228A production core constants', () => {
-  it('enables only the safe internal production core constants', () => {
+  it('enables the launched production core constants; risk domains stay off', () => {
     expect(BANKER_NEW_DEAL_CREATE_ENABLED).toBe(false);
     expect(TASK_GENERATION_ENABLED).toBe(true);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
     expect(DUPLICATE_DETECTION_ENABLED).toBe(true);
+
+    // Phase 256B: launched ON.
+    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
 
     for (const c of [
       CRM_AUTOMATION_ENABLED,
       BORROWER_INVITE_AUTOMATION_ENABLED,
-      AUTO_STAGE_ADVANCE_ENABLED,
       PORTFOLIO_SIDE_EFFECTS_ENABLED,
-      BORROWER_MESSAGING_ENABLED,
-      BORROWER_EMAIL_TRANSPORT_ENABLED,
       BORROWER_SMS_TRANSPORT_ENABLED,
       BORROWER_TWILIO_TRANSPORT_ENABLED,
       DUPLICATE_MERGE_APPLY_ENABLED,
@@ -71,19 +73,21 @@ describe('origination flags -- Phase 228A production core gates', () => {
     borrowerMessagingMode: 'send_enabled' as const,
   };
 
-  it('gate readers enable only the safe internal production core when config is true', () => {
+  it('gate readers enable the launched production core when config is true', () => {
     expect(isBankerCreateEnabled(fullyTrue)).toBe(false);
     expect(isTaskGenerationEnabled(fullyTrue)).toBe(true);
-    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(false);
     expect(isDuplicateDetectionEnabled(fullyTrue)).toBe(true);
 
+    // Phase 256B: launched domains now resolve enabled with explicit true config.
+    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(true);
+    expect(isAutoStageAdvanceEnabled(fullyTrue)).toBe(true);
+    expect(resolveBorrowerMessagingMode(fullyTrue)).toBe('send_enabled');
+    expect(isAnyBorrowerTransportEnabled(fullyTrue)).toBe(true);
+
     expect(isCrmAutomationEnabled(fullyTrue)).toBe(false);
-    expect(isAutoStageAdvanceEnabled(fullyTrue)).toBe(false);
     expect(isPortfolioSideEffectsEnabled(fullyTrue)).toBe(false);
     expect(isDuplicateMergeApplyEnabled(fullyTrue)).toBe(false);
     expect(resolveBorrowerInviteMode(fullyTrue)).toBe('disabled');
-    expect(resolveBorrowerMessagingMode(fullyTrue)).toBe('disabled');
-    expect(isAnyBorrowerTransportEnabled(fullyTrue)).toBe(false);
   });
 
   it('default (no config) is disabled everywhere', () => {

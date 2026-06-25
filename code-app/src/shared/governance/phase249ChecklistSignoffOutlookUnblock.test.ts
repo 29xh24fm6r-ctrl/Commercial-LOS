@@ -30,28 +30,28 @@ const read = (rel: string) => readFileSync(resolve(ROOT, rel), 'utf8');
 const DOC_REL = 'docs/PHASE_249_CHECKLIST_SIGNOFF_AND_OUTLOOK_CONNECTOR_UNBLOCK.md';
 
 describe('Phase 249 — checklist signoff + Outlook connector governance contract', () => {
-  it('consumes the recorded checklist signoff (Phase 251) → SIGNED, but the live gate stays false', () => {
+  it('consumes the recorded checklist signoff (Phase 251) → SIGNED, and the live gate is now flipped (Phase 256B)', () => {
     expect(CHECKLIST_RULESET_SIGNOFF).not.toBeNull();
     const vm = deriveChecklistSignoffReadiness();
     expect(vm.status).toBe('SIGNED');
-    // Signoff recorded does NOT flip the live checklist gate.
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(CHECKLIST_WRITE_ENABLED).toBe(false);
+    // Phase 256B: the live checklist gates are now flipped after the GO smoke.
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(CHECKLIST_WRITE_ENABLED).toBe(true);
     expect(vm.gateFlipBlocked).toBe(true);
     // The signoff is grounded in a real committed artifact, not fabricated.
     expect(existsSync(resolve(ROOT, CHECKLIST_SIGNOFF_ARTIFACT_PATH))).toBe(true);
     expect(parseChecklistSignoffArtifact(read(CHECKLIST_SIGNOFF_ARTIFACT_PATH))).not.toBeNull();
   });
 
-  it('Outlook connector registered via power.config.json (real) → PASS, but live send stays gated', () => {
-    // Phase 250: registration is REAL (power.config.json), not fabricated; gates stay false.
+  it('Outlook connector registered via power.config.json (real) → PASS, and live send is now enabled (Phase 256B)', () => {
+    // Phase 250: registration is REAL (power.config.json), not fabricated. Phase 256B flips the gates.
     expect(OUTLOOK_CONNECTOR_STATE.connectorRegisteredInManifest).toBe(true);
     expect(OUTLOOK_CONNECTOR_STATE.emailModeLive).toBe(false);
     const vm = deriveOutlookConnectorReadiness();
     expect(vm.status).toBe('PASS');
-    expect(vm.liveSendEnabled).toBe(false);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
+    expect(vm.liveSendEnabled).toBe(true);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
     // The generated service genuinely exists, and the real power.config.json carries the registration.
     expect(existsSync(resolve(ROOT, OUTLOOK_GENERATED_SERVICE_PATH))).toBe(true);
     expect(detectOutlookConnectorRegistration(read('power.config.json'))).toBe(true);
@@ -65,25 +65,25 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(true);
   });
 
-  it('the ledger marks checklist + borrower environments PASS but still does not claim launch', () => {
+  it('the ledger marks checklist + borrower environments PASS and now claims full launch (Phase 256B)', () => {
     const ledger = deriveFullProductionLaunchEvidence();
     const byKey = new Map(ledger.domains.map((d) => [d.key, d]));
-    // Phase 251: signoff recorded → documentChecklist environment PASS (still not live-enabled).
+    // Phase 251: signoff recorded → documentChecklist environment PASS; Phase 256B enables it.
     expect(byKey.get('documentChecklist')?.environmentStatus).toBe('PASS');
-    expect(byKey.get('documentChecklist')?.enabled).toBe(false);
-    // Phase 250: connector registered → borrowerSend environment PASS (still not live-enabled).
+    expect(byKey.get('documentChecklist')?.enabled).toBe(true);
+    // Phase 250: connector registered → borrowerSend environment PASS; Phase 256B enables it.
     expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
-    expect(byKey.get('borrowerSend')?.enabled).toBe(false);
+    expect(byKey.get('borrowerSend')?.enabled).toBe(true);
     expect(byKey.get('newDealCreate')?.enabled).toBe(true);
     expect(byKey.get('crmWriteback')?.environmentStatus).toBe('PASS');
     expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
     expect(ledger.blockingDomains).toEqual([]);
-    expect(ledger.enabledCount).toBe(1);
-    expect(ledger.fullLaunchAchieved).toBe(false);
+    expect(ledger.enabledCount).toBe(6);
+    expect(ledger.fullLaunchAchieved).toBe(true);
 
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
-    expect(verification.fullLaunchReady).toBe(false);
+    expect(verification.enabledCount).toBe(6);
+    expect(verification.fullLaunchReady).toBe(true);
   });
 
   it('the Phase 249 doc has the signoff pack + Outlook runbook sections', () => {

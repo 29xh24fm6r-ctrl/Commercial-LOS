@@ -1,0 +1,18 @@
+{
+    "capability":  "crmLivePersistence",
+    "outcome":  "passed",
+    "operatorUpn":  "unknown-operator",
+    "environmentUrl":  "https://org3a57b8d4.crm.dynamics.com/",
+    "environmentId":  "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+    "correlationId":  "62ef7a34-f0b7-4494-8c64-c1bdbfe2df7b",
+    "startedAtIso":  "2026-06-25T20:48:09.8759148Z",
+    "completedAtIso":  "2026-06-25T20:48:12.9971028Z",
+    "liveOperationPerformed":  true,
+    "readbackVerified":  true,
+    "rollbackVerified":  true,
+    "evidenceNote":  "Live create/readback/update/readback/cleanup on cr664_crmorganizations succeeded (launch-test marker).",
+    "affectedRecordIds":  [
+                              "fa1e612c-d770-f111-ab0d-70a8a59be491"
+                          ],
+    "cleanupRecordIds":  "fa1e612c-d770-f111-ab0d-70a8a59be491"
+}

@@ -14,7 +14,10 @@ import { evaluateLaunchGates, type CapabilityReadiness } from './launchReadiness
  * explicit override is supplied. Phase 228B enables the governed checklist write seam; runtime still requires authorized actor, preview confirmation, transport, audit sink, and duplicate protection.
  */
 
-export const CHECKLIST_WRITE_ENABLED = false;
+// Phase 256B: the governed checklist write seam is enabled together with
+// DOCUMENT_CHECKLIST_GENERATION_ENABLED after the GO checklist smoke. Runtime still requires
+// an authorized actor, preview confirmation, transport, audit sink, and duplicate protection.
+export const CHECKLIST_WRITE_ENABLED = true;
 
 export interface ChecklistRule {
   readonly key: string;

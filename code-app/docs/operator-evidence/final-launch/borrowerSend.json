@@ -1,0 +1,22 @@
+{
+    "capability":  "borrowerSend",
+    "outcome":  "passed",
+    "operatorUpn":  "mpaller@oldglorybank.com",
+    "environmentUrl":  "https://org3a57b8d4.crm.dynamics.com/",
+    "environmentId":  "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+    "correlationId":  "borrowerSend-launch-smoke-20260625",
+    "startedAtIso":  "2026-06-25T20:55:00.000Z",
+    "completedAtIso":  "2026-06-25T21:00:00.000Z",
+    "liveOperationPerformed":  true,
+    "readbackVerified":  true,
+    "rollbackVerified":  false,
+    "deliveryVerified":  true,
+    "auditVerified":  true,
+    "evidenceNote":  "Controlled borrower-send launch smoke completed with VITE_EMAIL_MODE=LIVE to an approved test recipient; send audit/delivery verification recorded.",
+    "affectedRecordIds":  [
+
+                          ],
+    "cleanupRecordIds":  [
+
+                         ]
+}

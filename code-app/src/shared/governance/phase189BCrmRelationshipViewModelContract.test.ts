@@ -43,8 +43,10 @@ describe('read-only — no write verbs anywhere in the module', () => {
 });
 
 describe('does not change the CRM_LIVE_PERSISTENCE_ENABLED default', () => {
-  it('the flag default remains false in crmFeatureFlags.ts', () => {
-    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
+  it('reflects the flag default (flipped to true by Phase 256B in crmFeatureFlags.ts)', () => {
+    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+    // this phase's own module still never assigns it (proven below).
+    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
   });
 
   it('the view-model only READS the flag — it never assigns it', () => {

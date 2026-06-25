@@ -11,22 +11,22 @@ const read = (rel: string) => readFileSync(resolve(ROOT, rel), 'utf8');
 const HARNESS = 'scripts/dataverse/run-final-launch-smokes.ps1';
 
 describe('Phase 256A — operator launch harness + smoke evidence wiring', () => {
-  it('the committed evidence dir holds NO passed artifacts yet → every capability is blocked', () => {
+  it('Phase 256B: the committed evidence dir holds five GO artifacts → every capability is GO and deployment is allowed', () => {
     const loaded = loadFinalLaunchSmokeRecords(ROOT);
-    expect(loaded.records).toEqual([]); // only README.md, no JSON evidence
+    expect(loaded.records.length).toBe(5); // five committed GO JSON artifacts
     const r = deriveFinalLaunchReadiness({ records: loaded.records });
-    expect(r.deploymentAllowed).toBe(false);
-    expect(r.capabilities.every((c) => !c.smokeGo && c.blockReason)).toBe(true);
+    expect(r.deploymentAllowed).toBe(true);
+    expect(r.capabilities.every((c) => c.smokeGo && !c.blockReason)).toBe(true);
   });
 
-  it('backend is hydrated but launch is NOT achieved and gates are not flipped', () => {
+  it('backend is hydrated and full launch is achieved (gates flipped live in Phase 256B)', () => {
     const r = deriveFinalLaunchReadiness({ records: [] });
     expect(r.backendReady).toBe(true); // CRM + portfolio hydrated (Phases 253C/255B)
-    expect(r.currentEnabledCount).toBe(1);
-    expect(r.currentFullLaunchAchieved).toBe(false);
+    expect(r.currentEnabledCount).toBe(6);
+    expect(r.currentFullLaunchAchieved).toBe(true);
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
-    expect(verification.fullLaunchReady).toBe(false);
+    expect(verification.enabledCount).toBe(6);
+    expect(verification.fullLaunchReady).toBe(true);
   });
 
   it('the harness exists, is dry-run-by-default, fail-closed, and never pushes or flips gates', () => {

@@ -95,23 +95,31 @@ describe('arc governance -- duplicate detection is non-destructive (no merge/del
   });
 });
 
-describe('arc governance -- every domain gate is hard-false', () => {
-  it('the feature flag constants are all false this phase', async () => {
+describe('arc governance -- risk domain gates stay hard-false post-launch', () => {
+  it('the still-gated feature flag constants remain false', async () => {
     const flags = await import('../../deals/dealOriginationFeatureFlags');
     for (const key of [
       'BANKER_NEW_DEAL_CREATE_ENABLED',
       'CRM_AUTOMATION_ENABLED',
       'BORROWER_INVITE_AUTOMATION_ENABLED',
-      'AUTO_STAGE_ADVANCE_ENABLED',
-      'DOCUMENT_CHECKLIST_GENERATION_ENABLED',
       'PORTFOLIO_SIDE_EFFECTS_ENABLED',
-      'BORROWER_MESSAGING_ENABLED',
-      'BORROWER_EMAIL_TRANSPORT_ENABLED',
       'BORROWER_SMS_TRANSPORT_ENABLED',
       'BORROWER_TWILIO_TRANSPORT_ENABLED',
       'DUPLICATE_MERGE_APPLY_ENABLED',
     ]) {
       expect((flags as Record<string, unknown>)[key]).toBe(false);
+    }
+  });
+
+  it('the Phase 256B launched constants are true', async () => {
+    const flags = await import('../../deals/dealOriginationFeatureFlags');
+    for (const key of [
+      'AUTO_STAGE_ADVANCE_ENABLED',
+      'DOCUMENT_CHECKLIST_GENERATION_ENABLED',
+      'BORROWER_MESSAGING_ENABLED',
+      'BORROWER_EMAIL_TRANSPORT_ENABLED',
+    ]) {
+      expect((flags as Record<string, unknown>)[key]).toBe(true);
     }
   });
 });

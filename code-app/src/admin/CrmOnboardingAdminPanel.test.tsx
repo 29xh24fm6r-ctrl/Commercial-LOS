@@ -10,13 +10,13 @@ import { CrmOnboardingAdminPanel } from './CrmOnboardingAdminPanel';
  */
 
 describe('Phase 169E -- CRM Onboarding admin panel', () => {
-  it('renders the panel marked Disabled by default with the fail-closed reason', () => {
+  it('renders the panel marked Live persistence ON with the fail-closed reason', () => {
     const { container } = render(<CrmOnboardingAdminPanel />);
     expect(
       screen.getByRole('region', { name: 'CRM Onboarding' }),
     ).toBeInTheDocument();
     // Status badge (exact text), distinct from the longer note copy.
-    expect(screen.getByText('Disabled by default')).toBeInTheDocument();
+    expect(screen.getByText('Live persistence ON')).toBeInTheDocument();
     const reason = container.querySelector('[data-admin-crm-disabled-reason]');
     expect(reason?.textContent).toMatch(/disabled by default/i);
     expect(reason?.textContent).toMatch(/fails closed/i);

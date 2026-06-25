@@ -22,6 +22,9 @@ const sources = sourceFiles.map((f) => ({ f, src: read(`src/activation/${f}`) })
 const tests = testFiles.map((f) => ({ f, src: read(`src/activation/${f}`) }));
 
 describe('212–224 — write flags are disabled by default in source', () => {
+  // Phase 256B: CHECKLIST_WRITE_ENABLED is launched (initialized true after its GO
+  // document-checklist smoke); it is no longer asserted false here. The remaining
+  // activation write flags stay fail-closed by default.
   const flags = [
     'NEW_DEAL_CREATE_ADAPTER_ENABLED',
     'NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED',
@@ -30,14 +33,18 @@ describe('212–224 — write flags are disabled by default in source', () => {
     'CRM_LIVE_PERSISTENCE_ENABLED',
     'PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED',
     'PORTFOLIO_BOARDING_ROUTE_ENABLED',
-    'CHECKLIST_WRITE_ENABLED',
     'DOCUMENT_UPLOAD_ENABLED',
   ];
-  it('every launch write flag is initialized to false', () => {
+  it('every still-gated launch write flag is initialized to false', () => {
     const all = sources.map((s) => s.src).join('\n');
     for (const flag of flags) {
       expect(all).toMatch(new RegExp(`${flag}\\s*=\\s*false`));
     }
+  });
+
+  it('the launched checklist write flag is initialized true (Phase 256B)', () => {
+    const all = sources.map((s) => s.src).join('\n');
+    expect(all).toMatch(/CHECKLIST_WRITE_ENABLED\s*=\s*true/);
   });
 });
 

@@ -13,12 +13,12 @@ const READONLY_FILES = [
 const DOC_REL = 'docs/PHASE_236_V1_GO_LIVE_RELEASE_CERTIFICATION.md';
 
 describe('Phase 236 — V1.0 go-live release certification contract', () => {
-  it('the release certification model exists and certifies operating-restart vs live-mutation posture', () => {
+  it('the release certification model exists and reflects the Phase 256B live-mutation launch', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    expect(vm.operatingRestartReady).toBe(true);
-    expect(vm.liveMutationExpansionReady).toBe(false);
-    // It must never claim a live-write category is enabled.
-    expect(vm.certifications.join(' ')).toMatch(/Not ready for live mutation expansion/i);
+    // Phase 256B: live-write domains are launched, so live mutation expansion is ready and the
+    // final V1 release decision no longer certifies the pre-launch read/operate restart story.
+    expect(vm.liveMutationExpansionReady).toBe(true);
+    expect(vm.operatingRestartReady).toBe(false);
   });
 
   it('the admin panel is mounted high in the admin workspace', () => {
@@ -90,17 +90,9 @@ describe('Phase 236 — V1.0 go-live release certification contract', () => {
     expect(withoutCerts).not.toMatch(/salesforce|ncino/i);
   });
 
-  it('explicitly names the intentionally gated live-write categories', () => {
+  it('names the live-write categories that remain gated after Phase 256B launch', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    expect(vm.gatedLiveWriteCategories).toEqual(
-      expect.arrayContaining([
-        'New Deal create',
-        'CRM writeback / live persistence',
-        'Document checklist generation',
-        'Borrower communication send',
-        'Stage advancement',
-        'Portfolio boarding live persistence',
-      ]),
-    );
+    // Phase 256B launched the five live-write domains; only New Deal create stays gated.
+    expect(vm.gatedLiveWriteCategories).toEqual(['New Deal create']);
   });
 });

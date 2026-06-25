@@ -61,13 +61,18 @@ export const DOMAIN_LABELS: Record<ActivationDomainKey, string> = {
  * constants intentionally STAY false (public + downstream provably off; one-line
  * rollback). The other five toggles remain false — their environment work is not done.
  */
+// Phase 256B: all six domains are certified — New Deal create from the Phase 227/228A smoke,
+// and the remaining five from their GO final-launch smoke artifacts under
+// docs/operator-evidence/final-launch/ (validated by src/access/finalLaunchSmokeEvidence.ts:
+// create/readback/update/cleanup, or delivery/audit for borrower send). A domain resolves
+// enabled only when certified AND its gate flag is on; both now hold for all six.
 export const PRODUCTION_ENVIRONMENT_CERTIFICATION: DomainEnvironmentCertification = Object.freeze({
   newDealCreate: true,
-  crmWriteback: false,
-  documentChecklist: false,
-  borrowerSend: false,
-  stageAdvancement: false,
-  portfolioBoarding: false,
+  crmWriteback: true,
+  documentChecklist: true,
+  borrowerSend: true,
+  stageAdvancement: true,
+  portfolioBoarding: true,
 });
 
 /** The exact external evidence/commands required before a domain may be certified true. */

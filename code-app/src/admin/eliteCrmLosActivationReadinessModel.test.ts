@@ -17,15 +17,17 @@ describe('Phase 231 — Elite CRM + LOS full activation readiness model', () => 
     ]);
   });
 
-  it('marks internal CRM and internal lending workflow ready while unsafe live writes stay gated', () => {
+  it('marks internal CRM, lending workflow, and launched live-write domains ready while remaining categories stay gated', () => {
     const vm = deriveEliteCrmLosActivationReadiness();
     const byId = new Map(vm.domains.map((d) => [d.id, d]));
     expect(byId.get('internal-crm')?.state).toBe('ready');
     expect(byId.get('loan-workflow')?.state).toBe('ready');
-    expect(byId.get('crm-writeback')?.state).toBe('gated');
+    // Phase 256B: CRM live persistence, document checklist, and portfolio boarding are launched.
+    expect(byId.get('crm-writeback')?.state).toBe('ready');
+    expect(byId.get('document-checklist')?.state).toBe('ready');
+    expect(byId.get('portfolio-boarding')?.state).toBe('ready');
+    // New Deal create stays gated by its global constant.
     expect(byId.get('new-deal-create')?.state).toBe('gated');
-    expect(byId.get('document-checklist')?.state).toBe('gated');
-    expect(byId.get('portfolio-boarding')?.state).toBe('gated');
     expect(vm.goLiveState).toBe('gated');
   });
 

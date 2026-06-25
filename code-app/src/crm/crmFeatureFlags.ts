@@ -20,7 +20,10 @@
 // ---------------------------------------------------------------------------
 
 export const CRM_ROUTE_ENABLED = false;
-export const CRM_LIVE_PERSISTENCE_ENABLED = false;
+// Phase 256B: flipped ON after the GO CRM live-persistence smoke (create/readback/update/
+// cleanup verified) + hydrated runtime schema. Runtime writes still additionally require an
+// authorized operator + injected transport + the hydrated VerifiedCrmSchemaState.
+export const CRM_LIVE_PERSISTENCE_ENABLED = true;
 export const CRM_CONTACT_EDITING_ENABLED = false;
 export const CRM_VENDOR_EDITING_ENABLED = false;
 export const CRM_TIMELINE_ENABLED = false;
@@ -53,7 +56,7 @@ export interface CrmFeatureFlagState {
 /** The safe defaults: every CRM runtime capability is off. */
 export const CRM_FEATURE_FLAG_DEFAULTS: CrmFeatureFlagState = Object.freeze({
   CRM_ROUTE_ENABLED: false,
-  CRM_LIVE_PERSISTENCE_ENABLED: false,
+  CRM_LIVE_PERSISTENCE_ENABLED: true,
   CRM_CONTACT_EDITING_ENABLED: false,
   CRM_VENDOR_EDITING_ENABLED: false,
   CRM_TIMELINE_ENABLED: false,

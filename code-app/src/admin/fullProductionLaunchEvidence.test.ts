@@ -23,26 +23,24 @@ describe('Phase 243 — full production launch evidence ledger', () => {
     expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
   });
 
-  it('all six environments are PASS but only New Deal create is live (1/6); no launch claimed', () => {
+  it('Phase 256B FULL LAUNCH: all six environments PASS and all six are live (6/6); no blocking domains', () => {
     const vm = deriveFullProductionLaunchEvidence();
-    expect(vm.fullLaunchAchieved).toBe(false);
-    expect(vm.enabledCount).toBe(1);
+    expect(vm.fullLaunchAchieved).toBe(true);
+    expect(vm.enabledCount).toBe(6);
     expect(vm.blockingDomains).toEqual([]);
   });
 
-  it('separates environment-PASS from live-enabled (PASS prerequisite is not activation)', () => {
+  it('all six PASS environments are now live-enabled (Phase 256B activation)', () => {
     const vm = deriveFullProductionLaunchEvidence();
     const byKey = new Map(vm.domains.map((d) => [d.key, d]));
-    // Five non-New-Deal domains have PASS environments, but NONE are live (gates/smoke pending).
     for (const key of ['crmWriteback', 'portfolioBoarding', 'stageAdvancement', 'borrowerSend', 'documentChecklist'] as const) {
       const d = byKey.get(key)!;
       expect(d.environmentStatus, key).toBe('PASS');
-      expect(d.enabled, key).toBe(false);
-      expect(d.missingOperatorActions.length, key).toBeGreaterThan(0);
+      expect(d.enabled, key).toBe(true);
     }
-    // All six domains have PASS environment evidence; only one is actually enabled.
+    // All six domains have PASS environment evidence and all six are enabled.
     expect(vm.environmentPassCount).toBe(6);
-    expect(vm.enabledCount).toBe(1);
+    expect(vm.enabledCount).toBe(6);
   });
 
   it('no enabled domain lacks PASS environment evidence (fail-closed honesty)', () => {

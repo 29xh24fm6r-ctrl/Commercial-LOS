@@ -22,7 +22,7 @@ describe('Phase 233 — Manager Operating Command Center model', () => {
     ]);
   });
 
-  it('keeps read-side supervision surfaces operational while live mutation categories stay gated', () => {
+  it('keeps read-side supervision surfaces operational and reflects the Phase 256B launched live-write domains', () => {
     const vm = deriveManagerOperatingCommandCenterModel();
     const byId = new Map(vm.domains.map((d) => [d.id, d]));
 
@@ -31,11 +31,13 @@ describe('Phase 233 — Manager Operating Command Center model', () => {
     expect(byId.get('crm-coverage')?.state).toBe('operational');
     expect(byId.get('workflow-bottlenecks')?.state).toBe('operational');
 
+    // Phase 256B: checklist, CRM writeback, borrower send, and portfolio boarding are launched.
+    expect(byId.get('document-readiness')?.state).toBe('operational');
+    expect(byId.get('crm-writeback')?.state).toBe('operational');
+    expect(byId.get('borrower-communication')?.state).toBe('operational');
+    expect(byId.get('portfolio-boarding')?.state).toBe('operational');
+    // New Deal create stays gated by its global constant.
     expect(byId.get('new-deal-intake')?.state).toBe('gated');
-    expect(byId.get('document-readiness')?.state).toBe('gated');
-    expect(byId.get('crm-writeback')?.state).toBe('gated');
-    expect(byId.get('borrower-communication')?.state).toBe('gated');
-    expect(byId.get('portfolio-boarding')?.state).toBe('gated');
   });
 
   it('points managers to existing supervision surfaces instead of inventing a parallel engine', () => {

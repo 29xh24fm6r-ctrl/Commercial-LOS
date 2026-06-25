@@ -101,9 +101,11 @@ describe('no route / App / WorkspaceGate change', () => {
 });
 
 describe('no schema / migration coupling, no fabricated CRM spine', () => {
-  it('does not flip CRM_LIVE_PERSISTENCE_ENABLED', () => {
+  it('does not itself flip CRM_LIVE_PERSISTENCE_ENABLED (Phase 256B did, in crmFeatureFlags.ts)', () => {
     const flags = read('crm', 'crmFeatureFlags.ts');
-    expect(flags).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
+    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+    // this phase's panel/builder/loader still never assign it (proven below).
+    expect(flags).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
     expect(`${PANEL}\n${BUILDER}\n${DEAL_QUERIES}`).not.toMatch(
       /CRM_LIVE_PERSISTENCE_ENABLED\s*=/,
     );

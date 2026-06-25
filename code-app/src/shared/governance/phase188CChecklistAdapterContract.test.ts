@@ -40,8 +40,10 @@ describe('comms boundary — no borrower communication imports', () => {
 });
 
 describe('gate stays disabled by default', () => {
-  it('DOCUMENT_CHECKLIST_GENERATION_ENABLED is still false', () => {
-    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
+  it('DOCUMENT_CHECKLIST_GENERATION_ENABLED is true (Phase 256B flipped it)', () => {
+    // Phase 256B flipped the constant true after the GO document-checklist smoke; the adapter
+    // below still gates fail-closed on isDocumentChecklistEnabled + injected config.
+    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
   });
 
   it('the adapter gates on isDocumentChecklistEnabled and returns disabled first', () => {

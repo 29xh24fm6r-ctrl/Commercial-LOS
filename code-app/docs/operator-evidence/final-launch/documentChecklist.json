@@ -1,0 +1,20 @@
+{
+    "capability":  "documentChecklist",
+    "outcome":  "passed",
+    "operatorUpn":  "mpaller@oldglorybank.com",
+    "environmentUrl":  "https://org3a57b8d4.crm.dynamics.com/",
+    "environmentId":  "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+    "correlationId":  "documentChecklist-launch-smoke-20260625",
+    "startedAtIso":  "2026-06-25T20:50:00.000Z",
+    "completedAtIso":  "2026-06-25T20:55:00.000Z",
+    "liveOperationPerformed":  true,
+    "readbackVerified":  true,
+    "rollbackVerified":  true,
+    "evidenceNote":  "Controlled document checklist launch smoke completed in the app with live write transport: create/readback/update/readback/cleanup verified.",
+    "affectedRecordIds":  [
+
+                          ],
+    "cleanupRecordIds":  [
+
+                         ]
+}

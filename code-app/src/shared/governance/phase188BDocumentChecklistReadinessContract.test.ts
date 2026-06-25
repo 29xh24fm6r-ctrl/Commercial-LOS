@@ -132,9 +132,11 @@ describe('safety scans — identity bind + comms + documenttype', () => {
 });
 
 describe('no runtime enablement changed by 188B', () => {
-  it('the checklist generation gate constant is still false', () => {
+  it('the checklist generation gate constant (Phase 256B flipped it true; 188B did not)', () => {
     const flags = readFileSync(resolve(ROOT, 'src', 'deals', 'dealOriginationFeatureFlags.ts'), 'utf8');
-    expect(flags).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
+    // Phase 256B flipped this to true after the GO document-checklist smoke; 188B's read-only
+    // inspector/planner path never assigns it.
+    expect(flags).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
   });
 
   it('the generator adapter is unchanged (still IO-injected, no document service import, no audit yet)', () => {
