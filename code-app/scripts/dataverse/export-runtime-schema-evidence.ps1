@@ -43,7 +43,10 @@ if ($token -and -not $tokenOk) {
 
 $ts = (Get-Date -Format o)
 
-foreach ($f in @(@{ domain = 'crm'; file = 'crm-spine.schema.json' }, @{ domain = 'portfolio'; file = 'portfolio-boarding.schema.json' })) {
+# Phase 253: CRM measures the FULL runtime schema (crm-full.schema.json, 10 tables / 147
+# columns) so the bridge can hydrate once the operator builds it. Portfolio still uses the
+# spine plan (portfolio full buildout is a later phase).
+foreach ($f in @(@{ domain = 'crm'; file = 'crm-full.schema.json' }, @{ domain = 'portfolio'; file = 'portfolio-boarding.schema.json' })) {
   $s = Get-Content -Raw -LiteralPath (Join-Path $schemaDir $f.file) | ConvertFrom-Json
   $n = $s.tables.Count
 

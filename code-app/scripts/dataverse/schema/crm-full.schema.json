@@ -1,0 +1,1479 @@
+{
+  "$comment": "GENERATED from src/crm/crmDataverseSchemaPlan.ts. Full CRM runtime schema contract. requiredColumns excludes the primary name (created with the table). Do not hand-edit; regenerate from the plan. Used by create-full-crm-runtime-schema.ps1 + verify-full-crm-schema.ps1.",
+  "domain": "crm-full",
+  "publisherPrefix": "cr664",
+  "schemaVersion": "141J-K.1",
+  "expected": {
+    "tables": 10,
+    "columns": 147,
+    "relationships": 28
+  },
+  "tables": [
+    {
+      "logicalName": "cr664_crmorganization",
+      "schemaName": "cr664_Crmorganization",
+      "entitySetName": "cr664_crmorganizations",
+      "displayName": "CRM Organization",
+      "displayCollectionName": "CRM Organizations",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 1,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_organizationidtext",
+          "schemaName": "cr664_Organizationidtext",
+          "displayName": "Organization id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_legalname",
+          "schemaName": "cr664_Legalname",
+          "displayName": "Legal name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_dbaname",
+          "schemaName": "cr664_Dbaname",
+          "displayName": "DBA name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_displayname",
+          "schemaName": "cr664_Displayname",
+          "displayName": "Display name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_organizationtype",
+          "schemaName": "cr664_Organizationtype",
+          "displayName": "Organization type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "organizationType"
+        },
+        {
+          "logicalName": "cr664_taxidpresent",
+          "schemaName": "cr664_Taxidpresent",
+          "displayName": "Tax id present",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_industry",
+          "schemaName": "cr664_Industry",
+          "displayName": "Industry",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_naicscode",
+          "schemaName": "cr664_Naicscode",
+          "displayName": "NAICS code",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_stateofformation",
+          "schemaName": "cr664_Stateofformation",
+          "displayName": "State of formation",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_primaryaddressjson",
+          "schemaName": "cr664_Primaryaddressjson",
+          "displayName": "Primary address JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_mailingaddressjson",
+          "schemaName": "cr664_Mailingaddressjson",
+          "displayName": "Mailing address JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_website",
+          "schemaName": "cr664_Website",
+          "displayName": "Website",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_status",
+          "schemaName": "cr664_Status",
+          "displayName": "Status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "crmRecordStatus"
+        },
+        {
+          "logicalName": "cr664_relationshipstartdate",
+          "schemaName": "cr664_Relationshipstartdate",
+          "displayName": "Relationship start date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relationshipenddate",
+          "schemaName": "cr664_Relationshipenddate",
+          "displayName": "Relationship end date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_sourcesystem",
+          "schemaName": "cr664_Sourcesystem",
+          "displayName": "Source system",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_sourcerecordid",
+          "schemaName": "cr664_Sourcerecordid",
+          "displayName": "Source record id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_createdbytext",
+          "schemaName": "cr664_Createdbytext",
+          "displayName": "Created by (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_createdat",
+          "schemaName": "cr664_Createdat",
+          "displayName": "Created at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_updatedbytext",
+          "schemaName": "cr664_Updatedbytext",
+          "displayName": "Updated by (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_updatedat",
+          "schemaName": "cr664_Updatedat",
+          "displayName": "Updated at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmperson",
+      "schemaName": "cr664_Crmperson",
+      "entitySetName": "cr664_crmpersons",
+      "displayName": "CRM Person",
+      "displayCollectionName": "CRM People",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 2,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_personidtext",
+          "schemaName": "cr664_Personidtext",
+          "displayName": "Person id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_firstname",
+          "schemaName": "cr664_Firstname",
+          "displayName": "First name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_lastname",
+          "schemaName": "cr664_Lastname",
+          "displayName": "Last name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_displayname",
+          "schemaName": "cr664_Displayname",
+          "displayName": "Display name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_title",
+          "schemaName": "cr664_Title",
+          "displayName": "Title",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_rolesummary",
+          "schemaName": "cr664_Rolesummary",
+          "displayName": "Role summary",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_status",
+          "schemaName": "cr664_Status",
+          "displayName": "Status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "crmRecordStatus"
+        },
+        {
+          "logicalName": "cr664_sourcesystem",
+          "schemaName": "cr664_Sourcesystem",
+          "displayName": "Source system",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_sourcerecordid",
+          "schemaName": "cr664_Sourcerecordid",
+          "displayName": "Source record id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_createdbytext",
+          "schemaName": "cr664_Createdbytext",
+          "displayName": "Created by (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_createdat",
+          "schemaName": "cr664_Createdat",
+          "displayName": "Created at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_updatedbytext",
+          "schemaName": "cr664_Updatedbytext",
+          "displayName": "Updated by (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_updatedat",
+          "schemaName": "cr664_Updatedat",
+          "displayName": "Updated at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmcontactpoint",
+      "schemaName": "cr664_Crmcontactpoint",
+      "entitySetName": "cr664_crmcontactpoints",
+      "displayName": "CRM Contact Point",
+      "displayCollectionName": "CRM Contact Points",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 3,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_contactpointidtext",
+          "schemaName": "cr664_Contactpointidtext",
+          "displayName": "Contact point id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_ownertype",
+          "schemaName": "cr664_Ownertype",
+          "displayName": "Owner type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_owneridtext",
+          "schemaName": "cr664_Owneridtext",
+          "displayName": "Owner id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_contacttype",
+          "schemaName": "cr664_Contacttype",
+          "displayName": "Contact type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "contactType"
+        },
+        {
+          "logicalName": "cr664_value",
+          "schemaName": "cr664_Value",
+          "displayName": "Value",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_label",
+          "schemaName": "cr664_Label",
+          "displayName": "Label",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_preferred",
+          "schemaName": "cr664_Preferred",
+          "displayName": "Preferred",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_verified",
+          "schemaName": "cr664_Verified",
+          "displayName": "Verified",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_donotcontact",
+          "schemaName": "cr664_Donotcontact",
+          "displayName": "Do not contact",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_restricteduse",
+          "schemaName": "cr664_Restricteduse",
+          "displayName": "Restricted use",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizationstatus",
+          "schemaName": "cr664_Authorizationstatus",
+          "displayName": "Authorization status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "authorizationStatus"
+        },
+        {
+          "logicalName": "cr664_lastverifieddate",
+          "schemaName": "cr664_Lastverifieddate",
+          "displayName": "Last verified date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_staleafterdays",
+          "schemaName": "cr664_Staleafterdays",
+          "displayName": "Stale after days",
+          "type": "Integer",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmrelationship",
+      "schemaName": "cr664_Crmrelationship",
+      "entitySetName": "cr664_crmrelationships",
+      "displayName": "CRM Relationship",
+      "displayCollectionName": "CRM Relationships",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 4,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_relationshipidtext",
+          "schemaName": "cr664_Relationshipidtext",
+          "displayName": "Relationship id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_sourceentitytype",
+          "schemaName": "cr664_Sourceentitytype",
+          "displayName": "Source entity type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_sourceentityid",
+          "schemaName": "cr664_Sourceentityid",
+          "displayName": "Source entity id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_targetentitytype",
+          "schemaName": "cr664_Targetentitytype",
+          "displayName": "Target entity type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_targetentityid",
+          "schemaName": "cr664_Targetentityid",
+          "displayName": "Target entity id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relationshiptype",
+          "schemaName": "cr664_Relationshiptype",
+          "displayName": "Relationship type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "relationshipType"
+        },
+        {
+          "logicalName": "cr664_role",
+          "schemaName": "cr664_Role",
+          "displayName": "Role",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_startdate",
+          "schemaName": "cr664_Startdate",
+          "displayName": "Start date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_enddate",
+          "schemaName": "cr664_Enddate",
+          "displayName": "End date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_active",
+          "schemaName": "cr664_Active",
+          "displayName": "Active",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_evidencedocumentid",
+          "schemaName": "cr664_Evidencedocumentid",
+          "displayName": "Evidence document id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmroleassignment",
+      "schemaName": "cr664_Crmroleassignment",
+      "entitySetName": "cr664_crmroleassignments",
+      "displayName": "CRM Role Assignment",
+      "displayCollectionName": "CRM Role Assignments",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 5,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_roleassignmentidtext",
+          "schemaName": "cr664_Roleassignmentidtext",
+          "displayName": "Role assignment id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_entitytype",
+          "schemaName": "cr664_Entitytype",
+          "displayName": "Entity type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_entityid",
+          "schemaName": "cr664_Entityid",
+          "displayName": "Entity id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_roletype",
+          "schemaName": "cr664_Roletype",
+          "displayName": "Role type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "roleType"
+        },
+        {
+          "logicalName": "cr664_assignedtotype",
+          "schemaName": "cr664_Assignedtotype",
+          "displayName": "Assigned to type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_assignedtoid",
+          "schemaName": "cr664_Assignedtoid",
+          "displayName": "Assigned to id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_loanid",
+          "schemaName": "cr664_Loanid",
+          "displayName": "Loan id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_boardedloanid",
+          "schemaName": "cr664_Boardedloanid",
+          "displayName": "Boarded loan id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_annualreviewpackageid",
+          "schemaName": "cr664_Annualreviewpackageid",
+          "displayName": "Annual review package id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_startdate",
+          "schemaName": "cr664_Startdate",
+          "displayName": "Start date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_enddate",
+          "schemaName": "cr664_Enddate",
+          "displayName": "End date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_active",
+          "schemaName": "cr664_Active",
+          "displayName": "Active",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authoritylevel",
+          "schemaName": "cr664_Authoritylevel",
+          "displayName": "Authority level",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmcommunicationpreference",
+      "schemaName": "cr664_Crmcommunicationpreference",
+      "entitySetName": "cr664_crmcommunicationpreferences",
+      "displayName": "CRM Communication Preference",
+      "displayCollectionName": "CRM Communication Preferences",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 6,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_preferenceidtext",
+          "schemaName": "cr664_Preferenceidtext",
+          "displayName": "Preference id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_ownertype",
+          "schemaName": "cr664_Ownertype",
+          "displayName": "Owner type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_ownerid",
+          "schemaName": "cr664_Ownerid",
+          "displayName": "Owner id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_preferredmethod",
+          "schemaName": "cr664_Preferredmethod",
+          "displayName": "Preferred method",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "communicationMethod"
+        },
+        {
+          "logicalName": "cr664_allowedmethodsjson",
+          "schemaName": "cr664_Allowedmethodsjson",
+          "displayName": "Allowed methods JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_prohibitedmethodsjson",
+          "schemaName": "cr664_Prohibitedmethodsjson",
+          "displayName": "Prohibited methods JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_consentstatus",
+          "schemaName": "cr664_Consentstatus",
+          "displayName": "Consent status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "consentStatus"
+        },
+        {
+          "logicalName": "cr664_statementdeliverypreference",
+          "schemaName": "cr664_Statementdeliverypreference",
+          "displayName": "Statement delivery preference",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_annualreviewrequestpreference",
+          "schemaName": "cr664_Annualreviewrequestpreference",
+          "displayName": "Annual review request preference",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_covenantnoticepreference",
+          "schemaName": "cr664_Covenantnoticepreference",
+          "displayName": "Covenant notice preference",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_insurancenoticepreference",
+          "schemaName": "cr664_Insurancenoticepreference",
+          "displayName": "Insurance notice preference",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_escalationpreference",
+          "schemaName": "cr664_Escalationpreference",
+          "displayName": "Escalation preference",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_uploadlinkpreference",
+          "schemaName": "cr664_Uploadlinkpreference",
+          "displayName": "Upload link preference",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_effectivedate",
+          "schemaName": "cr664_Effectivedate",
+          "displayName": "Effective date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_expiresat",
+          "schemaName": "cr664_Expiresat",
+          "displayName": "Expires at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_evidencedocumentid",
+          "schemaName": "cr664_Evidencedocumentid",
+          "displayName": "Evidence document id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmcontactauthorization",
+      "schemaName": "cr664_Crmcontactauthorization",
+      "entitySetName": "cr664_crmcontactauthorizations",
+      "displayName": "CRM Contact Authorization",
+      "displayCollectionName": "CRM Contact Authorizations",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 7,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_authorizationidtext",
+          "schemaName": "cr664_Authorizationidtext",
+          "displayName": "Authorization id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_ownertype",
+          "schemaName": "cr664_Ownertype",
+          "displayName": "Owner type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_ownerid",
+          "schemaName": "cr664_Ownerid",
+          "displayName": "Owner id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedforfinancialrequests",
+          "schemaName": "cr664_Authorizedforfinancialrequests",
+          "displayName": "Authorized for financial requests",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedforuploadlinks",
+          "schemaName": "cr664_Authorizedforuploadlinks",
+          "displayName": "Authorized for upload links",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedforloannotices",
+          "schemaName": "cr664_Authorizedforloannotices",
+          "displayName": "Authorized for loan notices",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedforinsurancerequests",
+          "schemaName": "cr664_Authorizedforinsurancerequests",
+          "displayName": "Authorized for insurance requests",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedforcovenantrequests",
+          "schemaName": "cr664_Authorizedforcovenantrequests",
+          "displayName": "Authorized for covenant requests",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedforpayoffrequests",
+          "schemaName": "cr664_Authorizedforpayoffrequests",
+          "displayName": "Authorized for payoff requests",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedforboardpackagecorrespondence",
+          "schemaName": "cr664_Authorizedforboardpackagecorrespondence",
+          "displayName": "Authorized for board package correspondence",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedforexaminerpackagecorrespondence",
+          "schemaName": "cr664_Authorizedforexaminerpackagecorrespondence",
+          "displayName": "Authorized for examiner package correspondence",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedforservicingrequests",
+          "schemaName": "cr664_Authorizedforservicingrequests",
+          "displayName": "Authorized for servicing requests",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizedby",
+          "schemaName": "cr664_Authorizedby",
+          "displayName": "Authorized by",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_authorizationdate",
+          "schemaName": "cr664_Authorizationdate",
+          "displayName": "Authorization date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_expiresat",
+          "schemaName": "cr664_Expiresat",
+          "displayName": "Expires at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_evidencedocumentid",
+          "schemaName": "cr664_Evidencedocumentid",
+          "displayName": "Evidence document id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmvendorprofile",
+      "schemaName": "cr664_Crmvendorprofile",
+      "entitySetName": "cr664_crmvendorprofiles",
+      "displayName": "CRM Vendor Profile",
+      "displayCollectionName": "CRM Vendor Profiles",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 8,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_vendoridtext",
+          "schemaName": "cr664_Vendoridtext",
+          "displayName": "Vendor id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_vendortype",
+          "schemaName": "cr664_Vendortype",
+          "displayName": "Vendor type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "vendorType"
+        },
+        {
+          "logicalName": "cr664_approvedvendor",
+          "schemaName": "cr664_Approvedvendor",
+          "displayName": "Approved vendor",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_approvalstatus",
+          "schemaName": "cr664_Approvalstatus",
+          "displayName": "Approval status",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_approvaldate",
+          "schemaName": "cr664_Approvaldate",
+          "displayName": "Approval date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_expirationdate",
+          "schemaName": "cr664_Expirationdate",
+          "displayName": "Expiration date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_insuranceonfile",
+          "schemaName": "cr664_Insuranceonfile",
+          "displayName": "Insurance on file",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_lastuseddate",
+          "schemaName": "cr664_Lastuseddate",
+          "displayName": "Last used date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_servicecategoriesjson",
+          "schemaName": "cr664_Servicecategoriesjson",
+          "displayName": "Service categories JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relateddocumenttypesjson",
+          "schemaName": "cr664_Relateddocumenttypesjson",
+          "displayName": "Related document types JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmtimelineevent",
+      "schemaName": "cr664_Crmtimelineevent",
+      "entitySetName": "cr664_crmtimelineevents",
+      "displayName": "CRM Timeline Event",
+      "displayCollectionName": "CRM Timeline Events",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 9,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_eventidtext",
+          "schemaName": "cr664_Eventidtext",
+          "displayName": "Event id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_entitytype",
+          "schemaName": "cr664_Entitytype",
+          "displayName": "Entity type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_entityid",
+          "schemaName": "cr664_Entityid",
+          "displayName": "Entity id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_eventtype",
+          "schemaName": "cr664_Eventtype",
+          "displayName": "Event type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "timelineEventType"
+        },
+        {
+          "logicalName": "cr664_occurredat",
+          "schemaName": "cr664_Occurredat",
+          "displayName": "Occurred at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_actor",
+          "schemaName": "cr664_Actor",
+          "displayName": "Actor",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_summary",
+          "schemaName": "cr664_Summary",
+          "displayName": "Summary",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relatedloanid",
+          "schemaName": "cr664_Relatedloanid",
+          "displayName": "Related loan id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relatedboardedloanid",
+          "schemaName": "cr664_Relatedboardedloanid",
+          "displayName": "Related boarded loan id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relatedannualreviewpackageid",
+          "schemaName": "cr664_Relatedannualreviewpackageid",
+          "displayName": "Related annual review package id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relateddocumentid",
+          "schemaName": "cr664_Relateddocumentid",
+          "displayName": "Related document id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relatedevidenceid",
+          "schemaName": "cr664_Relatedevidenceid",
+          "displayName": "Related evidence id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_crmauditentry",
+      "schemaName": "cr664_Crmauditentry",
+      "entitySetName": "cr664_crmauditentries",
+      "displayName": "CRM Audit Entry",
+      "displayCollectionName": "CRM Audit Entries",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 10,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_auditidtext",
+          "schemaName": "cr664_Auditidtext",
+          "displayName": "Audit id (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_actor",
+          "schemaName": "cr664_Actor",
+          "displayName": "Actor",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_action",
+          "schemaName": "cr664_Action",
+          "displayName": "Action",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_timestamp",
+          "schemaName": "cr664_Timestamp",
+          "displayName": "Timestamp",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_entitytype",
+          "schemaName": "cr664_Entitytype",
+          "displayName": "Entity type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_entityid",
+          "schemaName": "cr664_Entityid",
+          "displayName": "Entity id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_fieldkey",
+          "schemaName": "cr664_Fieldkey",
+          "displayName": "Field key",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_previousvaluesummary",
+          "schemaName": "cr664_Previousvaluesummary",
+          "displayName": "Previous value summary",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_newvaluesummary",
+          "schemaName": "cr664_Newvaluesummary",
+          "displayName": "New value summary",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_reason",
+          "schemaName": "cr664_Reason",
+          "displayName": "Reason",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_evidencedocumentid",
+          "schemaName": "cr664_Evidencedocumentid",
+          "displayName": "Evidence document id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_redacted",
+          "schemaName": "cr664_Redacted",
+          "displayName": "Redacted",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "schemaName": "cr664_crmperson_employerorganization",
+      "fromTable": "cr664_crmperson",
+      "fromColumn": "cr664_EmployerOrganization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmcontactpoint_organization",
+      "fromTable": "cr664_crmcontactpoint",
+      "fromColumn": "cr664_Organization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmcontactpoint_person",
+      "fromTable": "cr664_crmcontactpoint",
+      "fromColumn": "cr664_Person",
+      "toTable": "cr664_crmperson",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmrelationship_sourceorganization",
+      "fromTable": "cr664_crmrelationship",
+      "fromColumn": "cr664_SourceOrganization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmrelationship_targetorganization",
+      "fromTable": "cr664_crmrelationship",
+      "fromColumn": "cr664_TargetOrganization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmrelationship_sourceperson",
+      "fromTable": "cr664_crmrelationship",
+      "fromColumn": "cr664_SourcePerson",
+      "toTable": "cr664_crmperson",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmrelationship_targetperson",
+      "fromTable": "cr664_crmrelationship",
+      "fromColumn": "cr664_TargetPerson",
+      "toTable": "cr664_crmperson",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmrelationship_boardedloan",
+      "fromTable": "cr664_crmrelationship",
+      "fromColumn": "cr664_BoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmrelationship_originatedloandeal",
+      "fromTable": "cr664_crmrelationship",
+      "fromColumn": "cr664_OriginatedLoanDeal",
+      "toTable": "cr664_loandeal",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmroleassignment_organization",
+      "fromTable": "cr664_crmroleassignment",
+      "fromColumn": "cr664_Organization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmroleassignment_person",
+      "fromTable": "cr664_crmroleassignment",
+      "fromColumn": "cr664_Person",
+      "toTable": "cr664_crmperson",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmroleassignment_boardedloan",
+      "fromTable": "cr664_crmroleassignment",
+      "fromColumn": "cr664_BoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmroleassignment_originatedloandeal",
+      "fromTable": "cr664_crmroleassignment",
+      "fromColumn": "cr664_OriginatedLoanDeal",
+      "toTable": "cr664_loandeal",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmroleassignment_team",
+      "fromTable": "cr664_crmroleassignment",
+      "fromColumn": "cr664_Team",
+      "toTable": "cr664_team",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmroleassignment_platformuser",
+      "fromTable": "cr664_crmroleassignment",
+      "fromColumn": "cr664_PlatformUser",
+      "toTable": "cr664_platformuser",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmcommunicationpreference_organization",
+      "fromTable": "cr664_crmcommunicationpreference",
+      "fromColumn": "cr664_Organization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmcommunicationpreference_person",
+      "fromTable": "cr664_crmcommunicationpreference",
+      "fromColumn": "cr664_Person",
+      "toTable": "cr664_crmperson",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmcontactauthorization_organization",
+      "fromTable": "cr664_crmcontactauthorization",
+      "fromColumn": "cr664_Organization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmcontactauthorization_person",
+      "fromTable": "cr664_crmcontactauthorization",
+      "fromColumn": "cr664_Person",
+      "toTable": "cr664_crmperson",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmvendorprofile_organization",
+      "fromTable": "cr664_crmvendorprofile",
+      "fromColumn": "cr664_Organization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmtimelineevent_organization",
+      "fromTable": "cr664_crmtimelineevent",
+      "fromColumn": "cr664_Organization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmtimelineevent_person",
+      "fromTable": "cr664_crmtimelineevent",
+      "fromColumn": "cr664_Person",
+      "toTable": "cr664_crmperson",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmtimelineevent_boardedloan",
+      "fromTable": "cr664_crmtimelineevent",
+      "fromColumn": "cr664_BoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmtimelineevent_originatedloandeal",
+      "fromTable": "cr664_crmtimelineevent",
+      "fromColumn": "cr664_OriginatedLoanDeal",
+      "toTable": "cr664_loandeal",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmauditentry_organization",
+      "fromTable": "cr664_crmauditentry",
+      "fromColumn": "cr664_Organization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmauditentry_person",
+      "fromTable": "cr664_crmauditentry",
+      "fromColumn": "cr664_Person",
+      "toTable": "cr664_crmperson",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmauditentry_boardedloan",
+      "fromTable": "cr664_crmauditentry",
+      "fromColumn": "cr664_BoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    },
+    {
+      "schemaName": "cr664_crmauditentry_originatedloandeal",
+      "fromTable": "cr664_crmauditentry",
+      "fromColumn": "cr664_OriginatedLoanDeal",
+      "toTable": "cr664_loandeal",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true
+    }
+  ],
+  "optionSets": [
+    {
+      "key": "organizationType",
+      "schemaName": "cr664_organizationtype",
+      "displayName": "Organization type"
+    },
+    {
+      "key": "crmRecordStatus",
+      "schemaName": "cr664_crmrecordstatus",
+      "displayName": "CRM record status"
+    },
+    {
+      "key": "contactType",
+      "schemaName": "cr664_contacttype",
+      "displayName": "Contact type"
+    },
+    {
+      "key": "authorizationStatus",
+      "schemaName": "cr664_authorizationstatus",
+      "displayName": "Authorization status"
+    },
+    {
+      "key": "relationshipType",
+      "schemaName": "cr664_relationshiptype",
+      "displayName": "Relationship type"
+    },
+    {
+      "key": "roleType",
+      "schemaName": "cr664_roletype",
+      "displayName": "Role type"
+    },
+    {
+      "key": "vendorType",
+      "schemaName": "cr664_vendortype",
+      "displayName": "Vendor type"
+    },
+    {
+      "key": "consentStatus",
+      "schemaName": "cr664_consentstatus",
+      "displayName": "Consent status"
+    },
+    {
+      "key": "communicationMethod",
+      "schemaName": "cr664_communicationmethod",
+      "displayName": "Communication method"
+    },
+    {
+      "key": "timelineEventType",
+      "schemaName": "cr664_timelineeventtype",
+      "displayName": "Timeline event type"
+    }
+  ]
+}
