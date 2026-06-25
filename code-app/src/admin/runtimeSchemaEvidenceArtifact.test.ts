@@ -49,17 +49,18 @@ describe('Phase 252 — committed REAL token-backed evidence artifacts', () => {
     expect(hydrateVerifiedCrmSchemaState(base, stale).hydrated).toBe(false);
   });
 
-  it('the portfolio artifact is a real token-backed PASS measurement (live 13/13) but does NOT hydrate — columns/required relationships below the plan', () => {
+  it('the portfolio artifact is a real token-backed FULL PASS measurement (live 13/13, 219 columns / 12 required relationships) and HYDRATES', () => {
     const a = load(PORTFOLIO_ARTIFACT);
     expect(a.tokenValidated).toBe(true);
     expect(a.status).toBe('PASS');
     expect(a.liveTables.checked).toBe(EXPECTED_BOARDING_SCHEMA.tables);
     expect(a.liveTables.found).toBe(a.liveTables.checked);
     expect(a.measured).not.toBeNull();
-    expect(a.measured.columnsFound).toBeLessThan(EXPECTED_BOARDING_SCHEMA.columns);
+    expect(a.measured.columnsFound).toBe(EXPECTED_BOARDING_SCHEMA.columns);
+    expect(a.measured.requiredRelationshipsFound).toBe(EXPECTED_BOARDING_SCHEMA.requiredRelationships);
     const r = hydrateVerifiedBoardingSchemaState(a, { nowEpochMs: NOW, maxAgeMs: Number.MAX_SAFE_INTEGER });
-    expect(r.hydrated).toBe(false);
-    expect(r.blockers.join(' ')).toMatch(/columns|required relationships/);
+    expect(r.hydrated).toBe(true);
+    expect(r.verified?.columnsFound).toBe(EXPECTED_BOARDING_SCHEMA.columns);
   });
 
   it('an AUTHORIZED token-backed measurement (live N/N + measured) hydrates — proving the export format is bridge-compatible', () => {

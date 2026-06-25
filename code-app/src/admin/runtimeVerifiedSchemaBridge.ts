@@ -196,9 +196,9 @@ export function hydrateVerifiedBoardingSchemaState(
  * measured schema of 10 tables / 147 columns (relationshipsFound is a warning-only input for
  * CRM; the full-CRM verifier separately confirmed 28/28). This evidence HYDRATES the runtime
  * verified state. Hydration is a prerequisite, NOT activation: the CRM live-persistence gate
- * (CRM_LIVE_PERSISTENCE_ENABLED) stays false, so no live write occurs. (Portfolio remains the
- * spine: 13 tables but ~15/219 columns — does not hydrate.) These are committed facts —
- * runtime-schema-evidence.*.json carries the same values.
+ * (CRM_LIVE_PERSISTENCE_ENABLED) stays false, so no live write occurs. (Phase 255B: the
+ * portfolio is now also FULL and HYDRATES — see CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE below.)
+ * These are committed facts — runtime-schema-evidence.*.json carries the same values.
  */
 export const CURRENT_CRM_VERIFICATION_EVIDENCE: CrmSchemaVerificationEvidence = Object.freeze({
   status: 'PASS',
@@ -209,11 +209,24 @@ export const CURRENT_CRM_VERIFICATION_EVIDENCE: CrmSchemaVerificationEvidence = 
   verifiedAtIso: '2026-06-25T14:25:05-04:00',
 });
 
+/**
+ * Phase 253P/254A/255B: the FULL live portfolio runtime schema is applied and measured.
+ * verify-full-portfolio-runtime-schema.ps1 (the single writer of
+ * runtime-schema-evidence.portfolio.json — Phase 255A removed the export clobber) reports
+ * STATUS=PASS: services 13/13, data sources 13/13, live 13/13, with a measured schema of 13
+ * tables / 219 columns / 12 required + 6 optional relationships, mismatch=0, unknown=0,
+ * tokenOk. Relationship coverage is by relationship schema name OR a correctly-targeted
+ * referencing lookup attribute; a wrong type/target NEVER counts (fail-closed). This evidence
+ * HYDRATES the portfolio runtime verified state. Hydration is a prerequisite, NOT activation:
+ * PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and the boarding route stay false, so no live
+ * write occurs. These are committed facts — runtime-schema-evidence.portfolio.json carries the
+ * same values (verifiedAtIso 2026-06-25T16:00:29).
+ */
 export const CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE: BoardingSchemaVerificationEvidence = Object.freeze({
   status: 'PASS',
   services: { found: 13, expected: 13 },
   dataSources: { found: 13, expected: 13 },
   liveTables: { found: 13, checked: 13 },
-  measured: { tablesFound: 13, columnsFound: 15, requiredRelationshipsFound: 0, optionalRelationshipsFound: 0, conflicts: 0 },
-  verifiedAtIso: '2026-06-25T12:24:31-04:00',
+  measured: { tablesFound: 13, columnsFound: 219, requiredRelationshipsFound: 12, optionalRelationshipsFound: 6, conflicts: 0 },
+  verifiedAtIso: '2026-06-25T16:00:29.8324546-04:00',
 });

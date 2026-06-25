@@ -117,10 +117,11 @@ describe('Phase 246 — runtime verified-state bridge (portfolio)', () => {
     expect(r.verified?.conflicts).toBe(0);
   });
 
-  it('the CURRENT recorded evidence (live=0/0) does NOT hydrate', () => {
-    const r = hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE, { nowEpochMs: NOW });
-    expect(r.hydrated).toBe(false);
-    expect(r.verified).toBeNull();
+  it('the CURRENT recorded evidence (full 219/12 build) HYDRATES', () => {
+    const r = hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE, { nowEpochMs: NOW, maxAgeMs: Number.MAX_SAFE_INTEGER });
+    expect(r.hydrated).toBe(true);
+    expect(r.verified?.columnsFound).toBe(EXPECTED_BOARDING_SCHEMA.columns);
+    expect(r.verified?.requiredRelationshipsFound).toBe(EXPECTED_BOARDING_SCHEMA.requiredRelationships);
   });
 
   it('a missing required relationship does not hydrate', () => {

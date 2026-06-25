@@ -57,12 +57,12 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(detectOutlookConnectorRegistration(read('power.config.json'))).toBe(true);
   });
 
-  it('does NOT alter CRM/portfolio runtime hydration (CRM hydrates from its own schema; portfolio fails closed)', () => {
+  it('does NOT alter CRM/portfolio runtime hydration (both hydrate from their own full token-backed schema)', () => {
     // The checklist/Outlook work does not touch CRM/portfolio hydration: CRM hydrates from its
-    // full metadata (Phase 253C), portfolio still fails closed (incomplete schema).
+    // full metadata (Phase 253C), portfolio from its full build (219/12, Phase 255B).
     expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(true);
-    expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
-    expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(false);
+    expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(true);
+    expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(true);
   });
 
   it('the ledger marks checklist + borrower environments PASS but still does not claim launch', () => {

@@ -37,11 +37,11 @@ describe('Phase 247 — token-backed live measurement governance contract', () =
     }
   });
 
-  it('the current committed evidence: CRM hydrates (full schema + SDK), portfolio still does NOT', () => {
+  it('the current committed evidence: CRM hydrates (full schema + SDK) and portfolio hydrates (full 219/12)', () => {
     expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(true);
-    expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
-    // Portfolio remains the spine: tables live, but columns/required relationships below the plan.
-    expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.measured?.requiredRelationshipsFound).toBe(0);
+    // Phase 255B: portfolio is now the full build (219 columns / 12 required + 6 optional rels) → hydrates.
+    expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(true);
+    expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.measured?.requiredRelationshipsFound).toBe(12);
   });
 
   it('the export script is read-only (no mutation, no pac code push)', () => {

@@ -23,12 +23,12 @@ const BRIDGE_REL = 'src/admin/runtimeVerifiedSchemaBridge.ts';
 const DOC_REL = 'docs/PHASE_246_RUNTIME_VERIFIED_STATE_BRIDGE.md';
 
 describe('Phase 246 — runtime verified-state bridge governance contract', () => {
-  it('the CURRENT recorded evidence: CRM hydrates (full schema + SDK), portfolio does NOT (spine)', () => {
+  it('the CURRENT recorded evidence: CRM hydrates (full schema + SDK), portfolio hydrates (full 219/12)', () => {
     // Phase 253C: CRM is full PASS (10/10 services + 10/147 measured) → hydrates.
     expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(true);
-    // Portfolio is still the spine (0/12 required relationships, ~15/219 columns) → no fake hydration.
-    expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
-    expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.measured?.requiredRelationshipsFound).toBe(0);
+    // Phase 255B: portfolio is now the FULL build (219 columns / 12 required + 6 optional rels) → hydrates.
+    expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(true);
+    expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.measured?.requiredRelationshipsFound).toBe(12);
   });
 
   it('hydrates only on a complete, fresh, all-live PASS (bridge is not a constant stub)', () => {
@@ -69,8 +69,15 @@ describe('Phase 246 — runtime verified-state bridge governance contract', () =
     expect(src).not.toMatch(/\bcreateRecord\b|\bupdateRecord\b|\bdeleteRecord\b/i);
     expect(src).not.toMatch(/_ENABLED\s*=\s*true/);
     expect(src).not.toMatch(/from ['"][^'"]*\/generated\//);
-    // Hydration is derived from the data, never a literal: portfolio (spine) still fails closed.
-    expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
+    // Hydration is derived from the data, never a literal: the full portfolio evidence hydrates,
+    // but dropping its measured columns to the old spine count fails closed (proves it is not a constant).
+    expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(true);
+    expect(
+      hydrateVerifiedBoardingSchemaState({
+        ...CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE,
+        measured: { ...CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.measured!, columnsFound: 15, requiredRelationshipsFound: 0 },
+      }).hydrated,
+    ).toBe(false);
   });
 
   it('the Phase 246 doc exists with the required sections', () => {

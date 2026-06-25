@@ -15,12 +15,24 @@
                    },
     "measured":  {
                      "tablesFound":  13,
-                     "columnsFound":  15,
-                     "requiredRelationshipsFound":  0,
-                     "optionalRelationshipsFound":  0,
+                     "columnsFound":  219,
+                     "requiredRelationshipsFound":  12,
+                     "optionalRelationshipsFound":  6,
                      "conflicts":  0
                  },
-    "verifiedAtIso":  "2026-06-25T14:25:05.7650521-04:00",
+    "expectedCounts":  {
+                           "tables":  13,
+                           "columns":  219,
+                           "requiredRelationships":  12,
+                           "optionalRelationships":  6
+                       },
+    "relationshipCoverage":  {
+                                 "requiredFound":  12,
+                                 "optionalFound":  6,
+                                 "mismatch":  0,
+                                 "unknownTransient":  0
+                             },
+    "verifiedAtIso":  "2026-06-25T16:00:29.8324546-04:00",
     "tokenValidated":  true,
-    "notes":  "token-backed live measurement performed"
+    "notes":  "token-backed FULL portfolio live measurement (Phase 254A); relationship coverage by schema name OR correctly-targeted referencing lookup"
 }

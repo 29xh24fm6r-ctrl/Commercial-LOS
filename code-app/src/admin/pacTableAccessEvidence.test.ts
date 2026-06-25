@@ -41,13 +41,15 @@ describe('Phase 248 — PAC fetch classification', () => {
 });
 
 describe('Phase 248 — PAC table access readiness', () => {
-  it('records 18/18 table reachability but does NOT measure Web API metadata or hydrate', () => {
+  it('records 18/18 table reachability; PAC itself measures no Web API metadata, but the bridge now hydrates from the token-backed verifiers', () => {
     const vm = derivePacTableAccessReadiness();
     expect(vm.totalReachable).toBe(18);
     expect(vm.totalChecked).toBe(18);
     expect(vm.allTablesReachable).toBe(true);
+    // PAC reachability remains a distinct, metadata-free dimension.
     expect(vm.webApiMetadataMeasured).toBe(false);
-    expect(vm.runtimeHydrated).toBe(false);
+    // Phase 255B: CRM (10/147) + portfolio (219/12) are both full token-backed PASS → the bridge hydrates.
+    expect(vm.runtimeHydrated).toBe(true);
   });
 
   it('the committed counts match the recorded PAC verifier artifacts', () => {

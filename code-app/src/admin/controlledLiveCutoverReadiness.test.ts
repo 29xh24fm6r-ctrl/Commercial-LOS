@@ -29,10 +29,11 @@ describe('Phase 245 — controlled live cutover readiness ledger', () => {
       expect(d.remainingEvidence.length, d.key).toBeGreaterThan(0);
       expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
     }
-    // Phase 253C: CRM live schema is now verified (full schema + SDK hydrate); portfolio/stage are not.
+    // Phase 253C/255B: CRM and portfolio live schemas are now verified (full schema + SDK hydrate);
+    // stage advancement has no measured-schema bridge dimension and stays false. Smoke still pending for all.
     const byKey = new Map(vm.domains.map((d) => [d.key, d]));
     expect(byKey.get('crmWriteback')?.liveSchemaVerified).toBe(true);
-    expect(byKey.get('portfolioBoarding')?.liveSchemaVerified).toBe(false);
+    expect(byKey.get('portfolioBoarding')?.liveSchemaVerified).toBe(true);
     expect(byKey.get('stageAdvancement')?.liveSchemaVerified).toBe(false);
   });
 
@@ -44,10 +45,10 @@ describe('Phase 245 — controlled live cutover readiness ledger', () => {
     expect(vm.enabledCount).toBe(1);
   });
 
-  it('derives live-schema verification from the bridge: CRM verified (full schema), portfolio/stage not yet', () => {
+  it('derives live-schema verification from the bridge: CRM + portfolio verified (full schema), stage not a schema dimension', () => {
     const lsv = deriveLiveSchemaVerified();
     expect(lsv.crmWriteback).toBe(true);
-    expect(lsv.portfolioBoarding).toBe(false);
+    expect(lsv.portfolioBoarding).toBe(true);
     expect(lsv.stageAdvancement).toBe(false);
     // Operator smoke remains unrecorded for all (no fake activation).
     expect(Object.values(CUTOVER_OPERATOR_SMOKE_RECORDED).every((v) => v === false)).toBe(true);

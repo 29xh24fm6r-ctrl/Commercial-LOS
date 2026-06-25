@@ -105,8 +105,9 @@ export function derivePacTableAccessReadiness(): PacTableAccessReadiness {
     allTablesReachable,
     webApiMetadataMeasured: false,
     runtimeHydrated,
-    hydrationBlockedReason:
-      'Web API column/relationship metadata is not measured (token 401). PAC reachability + generated-schema presence do not satisfy the bridge measured-schema requirement, so runtime verified state does not hydrate.',
-    summary: `PAC live table reachability ${totalReachable}/${totalChecked} (CRM 5/5, portfolio 13/13). Web API metadata: UNKNOWN. Runtime hydration: ${runtimeHydrated ? 'yes' : 'no'} (bridge policy unchanged).`,
+    hydrationBlockedReason: runtimeHydrated
+      ? ''
+      : 'Web API column/relationship metadata is not measured (token 401). PAC reachability + generated-schema presence do not satisfy the bridge measured-schema requirement, so runtime verified state does not hydrate.',
+    summary: `PAC live table reachability ${totalReachable}/${totalChecked} (CRM 5/5, portfolio 13/13). PAC measures no Web API metadata. Runtime hydration (from the separate token-backed verifiers): ${runtimeHydrated ? 'yes' : 'no'} (bridge policy unchanged).`,
   };
 }

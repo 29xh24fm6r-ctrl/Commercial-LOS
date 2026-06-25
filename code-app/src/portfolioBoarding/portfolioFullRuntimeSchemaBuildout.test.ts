@@ -75,14 +75,24 @@ describe('Phase 253P — portfolio runtime contract', () => {
 });
 
 describe('Phase 253P — hydration fails closed on the live spine, succeeds on a full build', () => {
-  it('the live Phase 252 measured spine (15 columns, 0 required rels) does NOT hydrate', () => {
+  it('the CURRENT recorded evidence is now the FULL build (219/12) and hydrates; a synthetic spine still fails closed', () => {
+    // Phase 255B: the operator built the full portfolio schema and re-measured (219/12/6).
     const r = hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE, {
       nowEpochMs: NOW,
       maxAgeMs: Number.MAX_SAFE_INTEGER,
     });
-    expect(r.hydrated).toBe(false);
-    expect(r.verified).toBeNull();
-    expect(r.blockers.join(' ')).toMatch(/columns|required relationships/);
+    expect(r.hydrated).toBe(true);
+    expect(r.verified?.columnsFound).toBe(219);
+    // The pre-buildout spine (15 columns, 0 required rels) still fails closed — bridge unchanged.
+    const spine = hydrateVerifiedBoardingSchemaState(
+      {
+        ...CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE,
+        measured: { tablesFound: 13, columnsFound: 15, requiredRelationshipsFound: 0, optionalRelationshipsFound: 0, conflicts: 0 },
+      },
+      { nowEpochMs: NOW, maxAgeMs: Number.MAX_SAFE_INTEGER },
+    );
+    expect(spine.hydrated).toBe(false);
+    expect(spine.blockers.join(' ')).toMatch(/columns|required relationships/);
   });
 
   it('a synthetic FULL portfolio measurement (219/12) hydrates', () => {
@@ -218,13 +228,13 @@ describe('Phase 254A — hydration unchanged by the hotfix', () => {
     expect(r.blockers.join(' ')).toMatch(/required relationships/);
   });
 
-  it('portfolio still does NOT hydrate until fresh measured PASS evidence is consumed', () => {
+  it('portfolio hydrates now that fresh full measured PASS evidence is consumed (Phase 255B)', () => {
     const r = hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE, {
       nowEpochMs: NOW,
       maxAgeMs: Number.MAX_SAFE_INTEGER,
     });
-    expect(r.hydrated).toBe(false);
-    expect(r.verified).toBeNull();
+    expect(r.hydrated).toBe(true);
+    expect(r.verified?.requiredRelationshipsFound).toBe(12);
   });
 
   it('CRM hydration (Phase 253C) remains unchanged — the hotfix touches portfolio only', () => {
