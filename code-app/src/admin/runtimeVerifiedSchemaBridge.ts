@@ -187,23 +187,28 @@ export function hydrateVerifiedBoardingSchemaState(
 }
 
 /**
- * The ACTUAL recorded terminal verification evidence (verify-full-schema at commit
- * 0d5f303 / Phase 244–245). Services + data sources are full, but the live check did
- * not run (live=0/0) and no measured schema was captured — so this evidence does NOT
- * hydrate runtime verified state. These are committed facts, not a fabricated PASS.
+ * The ACTUAL recorded verification evidence, transcribed from
+ * scripts/dataverse/export-runtime-schema-evidence.ps1 (Phase 247 token-backed
+ * measurement attempt). Generated services + data sources are full (5/5, 13/13), but
+ * the live Dataverse measurement could NOT complete: the issued token was rejected by
+ * this org (WhoAmI 401 — the calling app is not a provisioned application user), so
+ * STATUS=UNKNOWN, live=0/0, and no measured schema was captured. This evidence does NOT
+ * hydrate runtime verified state. These are committed facts, not a fabricated PASS — the
+ * verifier output (scripts/dataverse/evidence/runtime-schema-evidence.*.json) carries
+ * the same values.
  */
 export const CURRENT_CRM_VERIFICATION_EVIDENCE: CrmSchemaVerificationEvidence = Object.freeze({
-  status: 'PASS',
+  status: 'UNKNOWN',
   services: { found: 5, expected: 5 },
   dataSources: { found: 5, expected: 5 },
   liveTables: { found: 0, checked: 0 },
-  verifiedAtIso: '2026-06-24T17:22:44-04:00',
+  verifiedAtIso: '2026-06-25T10:11:59-04:00',
 });
 
 export const CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE: BoardingSchemaVerificationEvidence = Object.freeze({
-  status: 'PASS',
+  status: 'UNKNOWN',
   services: { found: 13, expected: 13 },
   dataSources: { found: 13, expected: 13 },
   liveTables: { found: 0, checked: 0 },
-  verifiedAtIso: '2026-06-24T17:22:44-04:00',
+  verifiedAtIso: '2026-06-25T10:11:59-04:00',
 });

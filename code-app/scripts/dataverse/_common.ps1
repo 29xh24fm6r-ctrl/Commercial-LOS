@@ -35,15 +35,35 @@ function Resolve-DataverseEnv {
 
 # Best-effort read-only access token for the Dataverse Web API. Returns $null if
 # none is available (dry-run can still print the plan; -Apply requires one).
+# Sources, in order: DATAVERSE_ACCESS_TOKEN env, az CLI, Az PowerShell module.
 function Get-DataverseToken([string]$orgUrl) {
   if ($env:DATAVERSE_ACCESS_TOKEN) { return $env:DATAVERSE_ACCESS_TOKEN }
   if (-not $orgUrl) { return $null }
+  $resource = ([uri]$orgUrl).GetLeftPart([System.UriPartial]::Authority)
+  # 1) az CLI (if installed + logged in)
   try {
-    $resource = ([uri]$orgUrl).GetLeftPart([System.UriPartial]::Authority)
     $json = & az account get-access-token --resource $resource 2>$null | ConvertFrom-Json
     if ($json -and $json.accessToken) { return $json.accessToken }
   } catch { }
+  # 2) Az PowerShell module (Get-AzAccessToken) if a context is present.
+  try {
+    if (Get-Command Get-AzAccessToken -ErrorAction SilentlyContinue) {
+      $t = Get-AzAccessToken -ResourceUrl $resource -ErrorAction Stop
+      if ($t -and $t.Token) { return $t.Token }
+    }
+  } catch { }
   return $null
+}
+
+# Validates a token actually works against THIS org via WhoAmI. A token can be
+# issued for the user yet rejected by Dataverse (e.g. the calling app is not a
+# provisioned application user → 401). Returns $true only on a 200 WhoAmI.
+function Test-DataverseToken([string]$orgUrl, [string]$token) {
+  if (-not $token -or -not $orgUrl) { return $false }
+  try {
+    Invoke-DataverseGet $orgUrl $token 'WhoAmI' | Out-Null
+    return $true
+  } catch { return $false }
 }
 
 function Invoke-DataverseGet([string]$orgUrl, [string]$token, [string]$path) {

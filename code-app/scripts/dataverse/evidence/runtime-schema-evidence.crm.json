@@ -1,0 +1,20 @@
+{
+    "domain":  "crm",
+    "status":  "UNKNOWN",
+    "services":  {
+                     "found":  5,
+                     "expected":  5
+                 },
+    "dataSources":  {
+                        "found":  5,
+                        "expected":  5
+                    },
+    "liveTables":  {
+                       "found":  0,
+                       "checked":  0
+                   },
+    "measured":  null,
+    "verifiedAtIso":  "2026-06-25T10:16:23.8036330-04:00",
+    "tokenValidated":  false,
+    "notes":  "live measurement NOT performed (no usable Dataverse token); fail-closed live=0/0"
+}
