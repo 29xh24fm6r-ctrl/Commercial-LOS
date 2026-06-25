@@ -22,7 +22,13 @@ const readJson = (name: string) => JSON.parse(readFileSync(resolve(SCHEMA, name)
 function stripPsComments(src: string): string {
   return src.replace(/<#[\s\S]*?#>/g, ' ').replace(/#.*$/gm, ' ');
 }
-const ps1Files = () => readdirSync(DV).filter((f) => f.endsWith('.ps1'));
+// The record-level operator smoke harness (Phase 256A) is NOT a schema script: it
+// legitimately creates/updates/deletes the launch-test records IT creates (rollback/cleanup
+// is a required smoke dimension). It is governed separately by
+// phase256AOperatorLaunchHarness.test.ts (dry-run default, marker-only deletes, fail-closed,
+// no pac push, no flag flip, no auto-send). This schema contract excludes it.
+const SCHEMA_SCRIPT_EXCLUDE = new Set(['run-final-launch-smokes.ps1']);
+const ps1Files = () => readdirSync(DV).filter((f) => f.endsWith('.ps1') && !SCHEMA_SCRIPT_EXCLUDE.has(f));
 const code = (name: string) => stripPsComments(readFileSync(resolve(DV, name), 'utf8'));
 
 describe('pack is present', () => {
