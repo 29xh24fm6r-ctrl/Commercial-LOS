@@ -4,6 +4,8 @@ import {
   deriveProductionEnvironmentVerification,
   type ActivationDomainKey,
 } from './productionEnvironmentVerification';
+import { deriveChecklistSignoffReadiness } from './checklistSignoffEvidence';
+import { deriveOutlookConnectorReadiness } from './outlookConnectorEvidence';
 
 /**
  * Phase 243 — Full production CRM + LOS live activation evidence ledger.
@@ -156,10 +158,19 @@ export function deriveFullProductionLaunchEvidence(): FullProductionLaunchEviden
   const verification = deriveProductionEnvironmentVerification();
   const verByKey = new Map(verification.domains.map((d) => [d.key, d]));
 
+  // Phase 249: the checklist + borrower environment statuses are DERIVED from the
+  // signoff / Outlook-connector evidence (both UNKNOWN until real evidence is recorded),
+  // not hardcoded — so the ledger reflects evaluating the actual operator evidence.
+  const statusOverride: Partial<Record<ActivationDomainKey, EnvironmentEvidenceStatus>> = {
+    documentChecklist: deriveChecklistSignoffReadiness().status === 'SIGNED' ? 'PASS' : 'UNKNOWN',
+    borrowerSend: deriveOutlookConnectorReadiness().status,
+  };
+
   const domains: DomainLaunchEvidenceResolution[] = ACTIVATION_DOMAIN_KEYS.map((key) => {
     const evidence = PRODUCTION_LAUNCH_EVIDENCE[key];
     const ver = verByKey.get(key)!;
-    return { ...evidence, certified: ver.certified, gateFlagOn: ver.gateFlagOn, enabled: ver.enabled };
+    const environmentStatus = statusOverride[key] ?? evidence.environmentStatus;
+    return { ...evidence, environmentStatus, certified: ver.certified, gateFlagOn: ver.gateFlagOn, enabled: ver.enabled };
   });
 
   const environmentPassCount = domains.filter((d) => d.environmentStatus === 'PASS').length;
