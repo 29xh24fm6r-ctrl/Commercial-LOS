@@ -1,9 +1,19 @@
 <#
-  Phase 247 - export-runtime-schema-evidence.ps1
+  Phase 247 - export-runtime-schema-evidence.ps1  (Phase 255A: CRM-only)
 
-  READ-ONLY. Performs token-backed live Dataverse MEASUREMENT for the CRM spine +
-  portfolio boarding schema and emits a deterministic evidence artifact (JSON) in the
-  exact shape consumed by src/admin/runtimeVerifiedSchemaBridge.ts.
+  READ-ONLY. Performs token-backed live Dataverse MEASUREMENT for the FULL CRM runtime
+  schema (crm-full.schema.json, 10 tables / 147 columns) and emits a deterministic evidence
+  artifact (JSON) in the exact shape consumed by src/admin/runtimeVerifiedSchemaBridge.ts.
+
+  PORTFOLIO IS NOT MEASURED HERE. The portfolio runtime evidence
+  (runtime-schema-evidence.portfolio.json) is owned SOLELY by
+  verify-full-portfolio-runtime-schema.ps1, which measures the FULL 219-column /
+  12-required-relationship contract with lookup-attribute-aware, mismatch-detecting
+  relationship coverage (Phase 254A). This script previously ALSO wrote that file using the
+  minimal spine schema (portfolio-boarding.schema.json), so running it after the full
+  verifier CLOBBERED the real 219/12/6 measurement back down to the spine (15/0/0). Making
+  CRM the only domain here removes that two-writers-one-file clobber. Run the dedicated
+  portfolio verifier for portfolio evidence.
 
   It performs NO mutation, NO flag flip, NO deploy, NO email. It only issues GET
   requests (WhoAmI, EntityDefinitions, RelationshipDefinitions).
@@ -44,9 +54,11 @@ if ($token -and -not $tokenOk) {
 $ts = (Get-Date -Format o)
 
 # Phase 253: CRM measures the FULL runtime schema (crm-full.schema.json, 10 tables / 147
-# columns) so the bridge can hydrate once the operator builds it. Portfolio still uses the
-# spine plan (portfolio full buildout is a later phase).
-foreach ($f in @(@{ domain = 'crm'; file = 'crm-full.schema.json' }, @{ domain = 'portfolio'; file = 'portfolio-boarding.schema.json' })) {
+# columns) so the bridge can hydrate once the operator builds it.
+# Phase 255A: portfolio is NO LONGER measured here (see header) — verify-full-portfolio-
+# runtime-schema.ps1 is the single writer of runtime-schema-evidence.portfolio.json. This
+# loop intentionally handles CRM only so it can never clobber the full portfolio artifact.
+foreach ($f in @(@{ domain = 'crm'; file = 'crm-full.schema.json' })) {
   $s = Get-Content -Raw -LiteralPath (Join-Path $schemaDir $f.file) | ConvertFrom-Json
   $n = $s.tables.Count
 
