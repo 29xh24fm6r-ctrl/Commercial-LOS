@@ -1,0 +1,1983 @@
+{
+  "$comment": "Phase 253P — FULL portfolio boarding runtime schema. GENERATED from src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.ts via src/portfolioBoarding/portfolioFullSchemaArtifact.ts (regenerate: WRITE_FULL_SCHEMA=1 npx vitest run src/portfolioBoarding/portfolioFullSchemaArtifact.test.ts). Do not hand-edit. Internal OGB names only (cr664_*).",
+  "domain": "portfolio-boarding-full",
+  "publisherPrefix": "cr664",
+  "solutionUniqueName": "cr664_ogblos",
+  "generatedFromSourceOfTruth": "src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.ts#PORTFOLIO_BOARDING_TARGET_COLUMNS",
+  "rootTable": "cr664_portfolioboardedloan",
+  "rootLookupColumn": "cr664_PortfolioBoardedLoan",
+  "expectedCounts": {
+    "tables": 13,
+    "columns": 219,
+    "requiredRelationships": 12,
+    "optionalRelationships": 6
+  },
+  "tables": [
+    {
+      "logicalName": "cr664_portfolioboardedloan",
+      "schemaName": "cr664_PortfolioBoardedLoan",
+      "entitySetName": "cr664_portfolioboardedloans",
+      "displayName": "Portfolio Boarded Loan",
+      "displayCollectionName": "Portfolio Boarded Loans",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": true,
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_loannumber",
+          "schemaName": "cr664_Loannumber",
+          "displayName": "Loan number",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired"
+        },
+        {
+          "logicalName": "cr664_borrowerlegalname",
+          "schemaName": "cr664_Borrowerlegalname",
+          "displayName": "Borrower legal name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_borrowerdba",
+          "schemaName": "cr664_Borrowerdba",
+          "displayName": "Borrower DBA",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relationshipname",
+          "schemaName": "cr664_Relationshipname",
+          "displayName": "Relationship name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_loanstatus",
+          "schemaName": "cr664_Loanstatus",
+          "displayName": "Loan status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "loanStatus"
+        },
+        {
+          "logicalName": "cr664_boardingstatus",
+          "schemaName": "cr664_Boardingstatus",
+          "displayName": "Boarding status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "boardingStatus"
+        },
+        {
+          "logicalName": "cr664_boardingsource",
+          "schemaName": "cr664_Boardingsource",
+          "displayName": "Boarding source",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "boardingSource"
+        },
+        {
+          "logicalName": "cr664_originateddealid",
+          "schemaName": "cr664_Originateddealid",
+          "displayName": "Originated deal id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_legacysystemid",
+          "schemaName": "cr664_Legacysystemid",
+          "displayName": "Legacy system id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_coresystemloanid",
+          "schemaName": "cr664_Coresystemloanid",
+          "displayName": "Core system loan id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_originalcommitmentamount",
+          "schemaName": "cr664_Originalcommitmentamount",
+          "displayName": "Original commitment amount",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_currentoutstandingprincipal",
+          "schemaName": "cr664_Currentoutstandingprincipal",
+          "displayName": "Current outstanding principal",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_availablebalance",
+          "schemaName": "cr664_Availablebalance",
+          "displayName": "Available balance",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_interestratetype",
+          "schemaName": "cr664_Interestratetype",
+          "displayName": "Interest rate type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_index",
+          "schemaName": "cr664_Index",
+          "displayName": "Index",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_spread",
+          "schemaName": "cr664_Spread",
+          "displayName": "Spread",
+          "type": "Decimal",
+          "requiredLevel": "None",
+          "precision": 4
+        },
+        {
+          "logicalName": "cr664_floor",
+          "schemaName": "cr664_Floor",
+          "displayName": "Floor",
+          "type": "Decimal",
+          "requiredLevel": "None",
+          "precision": 4
+        },
+        {
+          "logicalName": "cr664_ceiling",
+          "schemaName": "cr664_Ceiling",
+          "displayName": "Ceiling",
+          "type": "Decimal",
+          "requiredLevel": "None",
+          "precision": 4
+        },
+        {
+          "logicalName": "cr664_paymentfrequency",
+          "schemaName": "cr664_Paymentfrequency",
+          "displayName": "Payment frequency",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_amortizationmonths",
+          "schemaName": "cr664_Amortizationmonths",
+          "displayName": "Amortization months",
+          "type": "Integer",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_termmonths",
+          "schemaName": "cr664_Termmonths",
+          "displayName": "Term months",
+          "type": "Integer",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_bookingdate",
+          "schemaName": "cr664_Bookingdate",
+          "displayName": "Booking date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_closingdate",
+          "schemaName": "cr664_Closingdate",
+          "displayName": "Closing date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_maturitydate",
+          "schemaName": "cr664_Maturitydate",
+          "displayName": "Maturity date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_renewaldate",
+          "schemaName": "cr664_Renewaldate",
+          "displayName": "Renewal date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_paidoffdate",
+          "schemaName": "cr664_Paidoffdate",
+          "displayName": "Paid off date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_currentriskrating",
+          "schemaName": "cr664_Currentriskrating",
+          "displayName": "Current risk rating",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_priorriskrating",
+          "schemaName": "cr664_Priorriskrating",
+          "displayName": "Prior risk rating",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_riskratingdate",
+          "schemaName": "cr664_Riskratingdate",
+          "displayName": "Risk rating date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_nextreviewdate",
+          "schemaName": "cr664_Nextreviewdate",
+          "displayName": "Next review date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_watchlistflag",
+          "schemaName": "cr664_Watchlistflag",
+          "displayName": "Watchlist flag",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_criticizedclassifiedstatus",
+          "schemaName": "cr664_Criticizedclassifiedstatus",
+          "displayName": "Criticized/classified status",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_accrualstatus",
+          "schemaName": "cr664_Accrualstatus",
+          "displayName": "Accrual status",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_pastduedays",
+          "schemaName": "cr664_Pastduedays",
+          "displayName": "Past due days",
+          "type": "Integer",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_exceptioncount",
+          "schemaName": "cr664_Exceptioncount",
+          "displayName": "Exception count",
+          "type": "Integer",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_highseverityexceptioncount",
+          "schemaName": "cr664_Highseverityexceptioncount",
+          "displayName": "High severity exception count",
+          "type": "Integer",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_fdicready",
+          "schemaName": "cr664_Fdicready",
+          "displayName": "FDIC ready",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_boardready",
+          "schemaName": "cr664_Boardready",
+          "displayName": "Board ready",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_portfoliomonitoringready",
+          "schemaName": "cr664_Portfoliomonitoringready",
+          "displayName": "Portfolio monitoring ready",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_boardingready",
+          "schemaName": "cr664_Boardingready",
+          "displayName": "Boarding ready",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_readinessjson",
+          "schemaName": "cr664_Readinessjson",
+          "displayName": "Readiness JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_snapshotjson",
+          "schemaName": "cr664_Snapshotjson",
+          "displayName": "Snapshot JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_originatedloandeal",
+          "schemaName": "cr664_OriginatedLoanDeal",
+          "displayName": "Originated loan deal",
+          "type": "Lookup",
+          "requiredLevel": "None",
+          "targets": [
+            "cr664_loandeal"
+          ]
+        },
+        {
+          "logicalName": "cr664_client",
+          "schemaName": "cr664_Client",
+          "displayName": "Client",
+          "type": "Lookup",
+          "requiredLevel": "None",
+          "targets": [
+            "cr664_clientrelationship"
+          ]
+        },
+        {
+          "logicalName": "cr664_portfoliomanager",
+          "schemaName": "cr664_PortfolioManager",
+          "displayName": "Portfolio manager",
+          "type": "Lookup",
+          "requiredLevel": "None",
+          "targets": [
+            "systemuser",
+            "cr664_banker"
+          ]
+        },
+        {
+          "logicalName": "cr664_assignedservicingowner",
+          "schemaName": "cr664_AssignedServicingOwner",
+          "displayName": "Assigned servicing owner",
+          "type": "Lookup",
+          "requiredLevel": "None",
+          "targets": [
+            "systemuser",
+            "cr664_banker"
+          ]
+        },
+        {
+          "logicalName": "cr664_team",
+          "schemaName": "cr664_Team",
+          "displayName": "Team",
+          "type": "Lookup",
+          "requiredLevel": "None",
+          "targets": [
+            "cr664_team"
+          ]
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloanborrower",
+      "schemaName": "cr664_PortfolioBoardedLoanBorrower",
+      "entitySetName": "cr664_portfolioboardedloanborrowers",
+      "displayName": "Portfolio Boarded Loan Borrower",
+      "displayCollectionName": "Boarded Loan Borrowers",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_legalentitytype",
+          "schemaName": "cr664_Legalentitytype",
+          "displayName": "Legal entity type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_taxidentifier",
+          "schemaName": "cr664_Taxidentifier",
+          "displayName": "Tax identifier",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_naicsindustry",
+          "schemaName": "cr664_Naicsindustry",
+          "displayName": "NAICS / industry",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_address",
+          "schemaName": "cr664_Address",
+          "displayName": "Address",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_stateofformation",
+          "schemaName": "cr664_Stateofformation",
+          "displayName": "State of formation",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_ownershipsummary",
+          "schemaName": "cr664_Ownershipsummary",
+          "displayName": "Ownership summary",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_managementsummary",
+          "schemaName": "cr664_Managementsummary",
+          "displayName": "Management summary",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_depositrelationshipsummary",
+          "schemaName": "cr664_Depositrelationshipsummary",
+          "displayName": "Deposit relationship summary",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloancollateral",
+      "schemaName": "cr664_PortfolioBoardedLoanCollateral",
+      "entitySetName": "cr664_portfolioboardedloancollaterals",
+      "displayName": "Portfolio Boarded Loan Collateral",
+      "displayCollectionName": "Boarded Loan Collateral",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_collateralid",
+          "schemaName": "cr664_Collateralid",
+          "displayName": "Collateral id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_collateraltype",
+          "schemaName": "cr664_Collateraltype",
+          "displayName": "Collateral type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "collateralType"
+        },
+        {
+          "logicalName": "cr664_description",
+          "schemaName": "cr664_Description",
+          "displayName": "Description",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_lienposition",
+          "schemaName": "cr664_Lienposition",
+          "displayName": "Lien position",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_perfected",
+          "schemaName": "cr664_Perfected",
+          "displayName": "Perfected",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_perfectionmethod",
+          "schemaName": "cr664_Perfectionmethod",
+          "displayName": "Perfection method",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_uccfilingnumber",
+          "schemaName": "cr664_Uccfilingnumber",
+          "displayName": "UCC filing number",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_uccfilingdate",
+          "schemaName": "cr664_Uccfilingdate",
+          "displayName": "UCC filing date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_ucccontinuationdate",
+          "schemaName": "cr664_Ucccontinuationdate",
+          "displayName": "UCC continuation date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_mortgageinstrumentnumber",
+          "schemaName": "cr664_Mortgageinstrumentnumber",
+          "displayName": "Mortgage instrument number",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_deedoftrustinstrumentnumber",
+          "schemaName": "cr664_Deedoftrustinstrumentnumber",
+          "displayName": "Deed of trust instrument number",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_titlepolicynumber",
+          "schemaName": "cr664_Titlepolicynumber",
+          "displayName": "Title policy number",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_titlepolicyamount",
+          "schemaName": "cr664_Titlepolicyamount",
+          "displayName": "Title policy amount",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_appraisalrequired",
+          "schemaName": "cr664_Appraisalrequired",
+          "displayName": "Appraisal required",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_appraisaldate",
+          "schemaName": "cr664_Appraisaldate",
+          "displayName": "Appraisal date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_appraisedvalue",
+          "schemaName": "cr664_Appraisedvalue",
+          "displayName": "Appraised value",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_valuationdate",
+          "schemaName": "cr664_Valuationdate",
+          "displayName": "Valuation date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_valuationamount",
+          "schemaName": "cr664_Valuationamount",
+          "displayName": "Valuation amount",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_advancerate",
+          "schemaName": "cr664_Advancerate",
+          "displayName": "Advance rate",
+          "type": "Decimal",
+          "requiredLevel": "None",
+          "precision": 4
+        },
+        {
+          "logicalName": "cr664_environmentalstatus",
+          "schemaName": "cr664_Environmentalstatus",
+          "displayName": "Environmental status",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_flooddeterminationstatus",
+          "schemaName": "cr664_Flooddeterminationstatus",
+          "displayName": "Flood determination status",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_insurancerequired",
+          "schemaName": "cr664_Insurancerequired",
+          "displayName": "Insurance required",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_collateralexceptionsjson",
+          "schemaName": "cr664_Collateralexceptionsjson",
+          "displayName": "Collateral exceptions JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_releasestatus",
+          "schemaName": "cr664_Releasestatus",
+          "displayName": "Release status",
+          "type": "String",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloanguarantor",
+      "schemaName": "cr664_PortfolioBoardedLoanGuarantor",
+      "entitySetName": "cr664_portfolioboardedloanguarantors",
+      "displayName": "Portfolio Boarded Loan Guarantor",
+      "displayCollectionName": "Boarded Loan Guarantors",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_guarantorid",
+          "schemaName": "cr664_Guarantorid",
+          "displayName": "Guarantor id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_guarantorname",
+          "schemaName": "cr664_Guarantorname",
+          "displayName": "Guarantor name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_guarantortype",
+          "schemaName": "cr664_Guarantortype",
+          "displayName": "Guarantor type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_guaranteetype",
+          "schemaName": "cr664_Guaranteetype",
+          "displayName": "Guarantee type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "guaranteeType"
+        },
+        {
+          "logicalName": "cr664_limitedorunlimited",
+          "schemaName": "cr664_Limitedorunlimited",
+          "displayName": "Limited or unlimited",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_guaranteeamount",
+          "schemaName": "cr664_Guaranteeamount",
+          "displayName": "Guarantee amount",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_spouseconsentrequired",
+          "schemaName": "cr664_Spouseconsentrequired",
+          "displayName": "Spouse consent required",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_spouseconsentreceived",
+          "schemaName": "cr664_Spouseconsentreceived",
+          "displayName": "Spouse consent received",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_pfsdate",
+          "schemaName": "cr664_Pfsdate",
+          "displayName": "PFS date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_liquidity",
+          "schemaName": "cr664_Liquidity",
+          "displayName": "Liquidity",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_networth",
+          "schemaName": "cr664_Networth",
+          "displayName": "Net worth",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_contingentliabilitiessummary",
+          "schemaName": "cr664_Contingentliabilitiessummary",
+          "displayName": "Contingent liabilities summary",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_globaldebtservicesupportnotes",
+          "schemaName": "cr664_Globaldebtservicesupportnotes",
+          "displayName": "Global debt service support notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_exceptionsjson",
+          "schemaName": "cr664_Exceptionsjson",
+          "displayName": "Exceptions JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloancovenant",
+      "schemaName": "cr664_PortfolioBoardedLoanCovenant",
+      "entitySetName": "cr664_portfolioboardedloancovenants",
+      "displayName": "Portfolio Boarded Loan Covenant",
+      "displayCollectionName": "Boarded Loan Covenants",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_covenantid",
+          "schemaName": "cr664_Covenantid",
+          "displayName": "Covenant id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_covenantname",
+          "schemaName": "cr664_Covenantname",
+          "displayName": "Covenant name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_covenanttype",
+          "schemaName": "cr664_Covenanttype",
+          "displayName": "Covenant type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_testingfrequency",
+          "schemaName": "cr664_Testingfrequency",
+          "displayName": "Testing frequency",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_nextduedate",
+          "schemaName": "cr664_Nextduedate",
+          "displayName": "Next due date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_requiredthreshold",
+          "schemaName": "cr664_Requiredthreshold",
+          "displayName": "Required threshold",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_currentstatus",
+          "schemaName": "cr664_Currentstatus",
+          "displayName": "Current status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "covenantStatus"
+        },
+        {
+          "logicalName": "cr664_lasttesteddate",
+          "schemaName": "cr664_Lasttesteddate",
+          "displayName": "Last tested date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_lastreportedvalue",
+          "schemaName": "cr664_Lastreportedvalue",
+          "displayName": "Last reported value",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_waiverhistoryjson",
+          "schemaName": "cr664_Waiverhistoryjson",
+          "displayName": "Waiver history JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_breachhistoryjson",
+          "schemaName": "cr664_Breachhistoryjson",
+          "displayName": "Breach history JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_owner",
+          "schemaName": "cr664_Owner",
+          "displayName": "Owner",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_severity",
+          "schemaName": "cr664_Severity",
+          "displayName": "Severity",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "exceptionSeverity"
+        },
+        {
+          "logicalName": "cr664_evidencedocumentidsjson",
+          "schemaName": "cr664_Evidencedocumentidsjson",
+          "displayName": "Evidence document ids JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloantickler",
+      "schemaName": "cr664_PortfolioBoardedLoanTickler",
+      "entitySetName": "cr664_portfolioboardedloanticklers",
+      "displayName": "Portfolio Boarded Loan Tickler",
+      "displayCollectionName": "Boarded Loan Ticklers",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_ticklerid",
+          "schemaName": "cr664_Ticklerid",
+          "displayName": "Tickler id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_ticklername",
+          "schemaName": "cr664_Ticklername",
+          "displayName": "Tickler name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_ticklertype",
+          "schemaName": "cr664_Ticklertype",
+          "displayName": "Tickler type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_owner",
+          "schemaName": "cr664_Owner",
+          "displayName": "Owner",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_duedate",
+          "schemaName": "cr664_Duedate",
+          "displayName": "Due date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_frequency",
+          "schemaName": "cr664_Frequency",
+          "displayName": "Frequency",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_status",
+          "schemaName": "cr664_Status",
+          "displayName": "Status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "ticklerStatus"
+        },
+        {
+          "logicalName": "cr664_severity",
+          "schemaName": "cr664_Severity",
+          "displayName": "Severity",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "exceptionSeverity"
+        },
+        {
+          "logicalName": "cr664_relateddocumenttype",
+          "schemaName": "cr664_Relateddocumenttype",
+          "displayName": "Related document type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relatedcovenantid",
+          "schemaName": "cr664_Relatedcovenantid",
+          "displayName": "Related covenant id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloaninsurance",
+      "schemaName": "cr664_PortfolioBoardedLoanInsurance",
+      "entitySetName": "cr664_portfolioboardedloaninsurances",
+      "displayName": "Portfolio Boarded Loan Insurance",
+      "displayCollectionName": "Boarded Loan Insurance",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_insuranceid",
+          "schemaName": "cr664_Insuranceid",
+          "displayName": "Insurance id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_insurancetype",
+          "schemaName": "cr664_Insurancetype",
+          "displayName": "Insurance type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_carrier",
+          "schemaName": "cr664_Carrier",
+          "displayName": "Carrier",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_policynumber",
+          "schemaName": "cr664_Policynumber",
+          "displayName": "Policy number",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_coverageamount",
+          "schemaName": "cr664_Coverageamount",
+          "displayName": "Coverage amount",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_effectivedate",
+          "schemaName": "cr664_Effectivedate",
+          "displayName": "Effective date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_expirationdate",
+          "schemaName": "cr664_Expirationdate",
+          "displayName": "Expiration date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_requiredcoverageamount",
+          "schemaName": "cr664_Requiredcoverageamount",
+          "displayName": "Required coverage amount",
+          "type": "Money",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_evidencedocumentid",
+          "schemaName": "cr664_Evidencedocumentid",
+          "displayName": "Evidence document id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_status",
+          "schemaName": "cr664_Status",
+          "displayName": "Status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "insuranceStatus"
+        },
+        {
+          "logicalName": "cr664_stale",
+          "schemaName": "cr664_Stale",
+          "displayName": "Stale",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_exception",
+          "schemaName": "cr664_Exception",
+          "displayName": "Exception",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloandocument",
+      "schemaName": "cr664_PortfolioBoardedLoanDocument",
+      "entitySetName": "cr664_portfolioboardedloandocuments",
+      "displayName": "Portfolio Boarded Loan Document",
+      "displayCollectionName": "Boarded Loan Documents",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_documentid",
+          "schemaName": "cr664_Documentid",
+          "displayName": "Document id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_documenttype",
+          "schemaName": "cr664_Documenttype",
+          "displayName": "Document type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "documentType"
+        },
+        {
+          "logicalName": "cr664_documentname",
+          "schemaName": "cr664_Documentname",
+          "displayName": "Document name",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_category",
+          "schemaName": "cr664_Category",
+          "displayName": "Category",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_borrowerorobligorassociation",
+          "schemaName": "cr664_Borrowerorobligorassociation",
+          "displayName": "Borrower / obligor association",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_effectivedate",
+          "schemaName": "cr664_Effectivedate",
+          "displayName": "Effective date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_periodenddate",
+          "schemaName": "cr664_Periodenddate",
+          "displayName": "Period end date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_receiveddate",
+          "schemaName": "cr664_Receiveddate",
+          "displayName": "Received date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_revieweddate",
+          "schemaName": "cr664_Revieweddate",
+          "displayName": "Reviewed date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_reviewer",
+          "schemaName": "cr664_Reviewer",
+          "displayName": "Reviewer",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_source",
+          "schemaName": "cr664_Source",
+          "displayName": "Source",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_status",
+          "schemaName": "cr664_Status",
+          "displayName": "Status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "documentStatus"
+        },
+        {
+          "logicalName": "cr664_exceptionflag",
+          "schemaName": "cr664_Exceptionflag",
+          "displayName": "Exception flag",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_missingflag",
+          "schemaName": "cr664_Missingflag",
+          "displayName": "Missing flag",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_staleflag",
+          "schemaName": "cr664_Staleflag",
+          "displayName": "Stale flag",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_filereference",
+          "schemaName": "cr664_Filereference",
+          "displayName": "File reference",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_extractedfactidsjson",
+          "schemaName": "cr664_Extractedfactidsjson",
+          "displayName": "Extracted fact ids JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_evidencelinkidsjson",
+          "schemaName": "cr664_Evidencelinkidsjson",
+          "displayName": "Evidence link ids JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloanexception",
+      "schemaName": "cr664_PortfolioBoardedLoanException",
+      "entitySetName": "cr664_portfolioboardedloanexceptions",
+      "displayName": "Portfolio Boarded Loan Exception",
+      "displayCollectionName": "Boarded Loan Exceptions",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_exceptionid",
+          "schemaName": "cr664_Exceptionid",
+          "displayName": "Exception id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_exceptiontype",
+          "schemaName": "cr664_Exceptiontype",
+          "displayName": "Exception type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_severity",
+          "schemaName": "cr664_Severity",
+          "displayName": "Severity",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "exceptionSeverity"
+        },
+        {
+          "logicalName": "cr664_status",
+          "schemaName": "cr664_Status",
+          "displayName": "Status",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "exceptionStatus"
+        },
+        {
+          "logicalName": "cr664_openeddate",
+          "schemaName": "cr664_Openeddate",
+          "displayName": "Opened date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_duedate",
+          "schemaName": "cr664_Duedate",
+          "displayName": "Due date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_resolveddate",
+          "schemaName": "cr664_Resolveddate",
+          "displayName": "Resolved date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_owner",
+          "schemaName": "cr664_Owner",
+          "displayName": "Owner",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_description",
+          "schemaName": "cr664_Description",
+          "displayName": "Description",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_remediationplan",
+          "schemaName": "cr664_Remediationplan",
+          "displayName": "Remediation plan",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_evidencedocumentidsjson",
+          "schemaName": "cr664_Evidencedocumentidsjson",
+          "displayName": "Evidence document ids JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloanreview",
+      "schemaName": "cr664_PortfolioBoardedLoanReview",
+      "entitySetName": "cr664_portfolioboardedloanreviews",
+      "displayName": "Portfolio Boarded Loan Review",
+      "displayCollectionName": "Boarded Loan Reviews",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_reviewid",
+          "schemaName": "cr664_Reviewid",
+          "displayName": "Review id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_reviewtype",
+          "schemaName": "cr664_Reviewtype",
+          "displayName": "Review type",
+          "type": "Picklist",
+          "requiredLevel": "None",
+          "optionSetKey": "reviewType"
+        },
+        {
+          "logicalName": "cr664_reviewer",
+          "schemaName": "cr664_Reviewer",
+          "displayName": "Reviewer",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_reviewdate",
+          "schemaName": "cr664_Reviewdate",
+          "displayName": "Review date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_outcome",
+          "schemaName": "cr664_Outcome",
+          "displayName": "Outcome",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_notes",
+          "schemaName": "cr664_Notes",
+          "displayName": "Notes",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_nextreviewdate",
+          "schemaName": "cr664_Nextreviewdate",
+          "displayName": "Next review date",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_evidencedocumentidsjson",
+          "schemaName": "cr664_Evidencedocumentidsjson",
+          "displayName": "Evidence document ids JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloanevidence",
+      "schemaName": "cr664_PortfolioBoardedLoanEvidence",
+      "entitySetName": "cr664_portfolioboardedloanevidences",
+      "displayName": "Portfolio Boarded Loan Evidence",
+      "displayCollectionName": "Boarded Loan Evidence",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_evidenceid",
+          "schemaName": "cr664_Evidenceid",
+          "displayName": "Evidence id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_sourcetype",
+          "schemaName": "cr664_Sourcetype",
+          "displayName": "Source type",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_sourceid",
+          "schemaName": "cr664_Sourceid",
+          "displayName": "Source id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_documentid",
+          "schemaName": "cr664_Documentid",
+          "displayName": "Document id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_factkey",
+          "schemaName": "cr664_Factkey",
+          "displayName": "Fact key",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_description",
+          "schemaName": "cr664_Description",
+          "displayName": "Description",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_createdbytext",
+          "schemaName": "cr664_Createdbytext",
+          "displayName": "Created by (text)",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_createdat",
+          "schemaName": "cr664_Createdat",
+          "displayName": "Created at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloandocument",
+          "schemaName": "cr664_PortfolioBoardedLoanDocument",
+          "displayName": "Portfolio Boarded Loan Document",
+          "type": "Lookup",
+          "requiredLevel": "None",
+          "targets": [
+            "cr664_portfolioboardedloandocument"
+          ]
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloanauditentry",
+      "schemaName": "cr664_PortfolioBoardedLoanAuditEntry",
+      "entitySetName": "cr664_portfolioboardedloanauditentries",
+      "displayName": "Portfolio Boarded Loan Audit Entry",
+      "displayCollectionName": "Boarded Loan Audit Entries",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_auditid",
+          "schemaName": "cr664_Auditid",
+          "displayName": "Audit id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_actor",
+          "schemaName": "cr664_Actor",
+          "displayName": "Actor",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_action",
+          "schemaName": "cr664_Action",
+          "displayName": "Action",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_timestamp",
+          "schemaName": "cr664_Timestamp",
+          "displayName": "Timestamp",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_fieldkey",
+          "schemaName": "cr664_Fieldkey",
+          "displayName": "Field key",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_previousvaluesummary",
+          "schemaName": "cr664_Previousvaluesummary",
+          "displayName": "Previous value summary",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_newvaluesummary",
+          "schemaName": "cr664_Newvaluesummary",
+          "displayName": "New value summary",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_reason",
+          "schemaName": "cr664_Reason",
+          "displayName": "Reason",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_evidencelinkidsjson",
+          "schemaName": "cr664_Evidencelinkidsjson",
+          "displayName": "Evidence link ids JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    },
+    {
+      "logicalName": "cr664_portfolioboardedloanexaminernote",
+      "schemaName": "cr664_PortfolioBoardedLoanExaminerNote",
+      "entitySetName": "cr664_portfolioboardedloanexaminernotes",
+      "displayName": "Portfolio Boarded Loan Examiner Note",
+      "displayCollectionName": "Boarded Loan Examiner Notes",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "auditEnabled": true,
+      "isRoot": false,
+      "rootLookup": "cr664_PortfolioBoardedLoan",
+      "fullColumns": [
+        {
+          "logicalName": "cr664_name",
+          "schemaName": "cr664_Name",
+          "displayName": "Name",
+          "type": "String",
+          "requiredLevel": "ApplicationRequired",
+          "maxLength": 200
+        },
+        {
+          "logicalName": "cr664_portfolioboardedloan",
+          "schemaName": "cr664_PortfolioBoardedLoan",
+          "displayName": "Portfolio Boarded Loan",
+          "type": "Lookup",
+          "requiredLevel": "ApplicationRequired",
+          "targets": [
+            "cr664_portfolioboardedloan"
+          ]
+        },
+        {
+          "logicalName": "cr664_noteid",
+          "schemaName": "cr664_Noteid",
+          "displayName": "Note id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_examinerrequestid",
+          "schemaName": "cr664_Examinerrequestid",
+          "displayName": "Examiner request id",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_note",
+          "schemaName": "cr664_Note",
+          "displayName": "Note",
+          "type": "Memo",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_responsestatus",
+          "schemaName": "cr664_Responsestatus",
+          "displayName": "Response status",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_owner",
+          "schemaName": "cr664_Owner",
+          "displayName": "Owner",
+          "type": "String",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_createdat",
+          "schemaName": "cr664_Createdat",
+          "displayName": "Created at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_updatedat",
+          "schemaName": "cr664_Updatedat",
+          "displayName": "Updated at",
+          "type": "DateTime",
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_relatedevidenceidsjson",
+          "schemaName": "cr664_Relatedevidenceidsjson",
+          "displayName": "Related evidence ids JSON",
+          "type": "Memo",
+          "requiredLevel": "None"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "schemaName": "cr664_portfolioboardedloan_borrower",
+      "fromTable": "cr664_portfolioboardedloanborrower",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_collateral",
+      "fromTable": "cr664_portfolioboardedloancollateral",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_guarantor",
+      "fromTable": "cr664_portfolioboardedloanguarantor",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_covenant",
+      "fromTable": "cr664_portfolioboardedloancovenant",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_tickler",
+      "fromTable": "cr664_portfolioboardedloantickler",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_insurance",
+      "fromTable": "cr664_portfolioboardedloaninsurance",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_document",
+      "fromTable": "cr664_portfolioboardedloandocument",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_exception",
+      "fromTable": "cr664_portfolioboardedloanexception",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_review",
+      "fromTable": "cr664_portfolioboardedloanreview",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_evidence",
+      "fromTable": "cr664_portfolioboardedloanevidence",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_auditentry",
+      "fromTable": "cr664_portfolioboardedloanauditentry",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_examinernote",
+      "fromTable": "cr664_portfolioboardedloanexaminernote",
+      "fromColumn": "cr664_PortfolioBoardedLoan",
+      "toTable": "cr664_portfolioboardedloan",
+      "type": "ManyToOne",
+      "required": true,
+      "cascadeBehavior": "Parental"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloandocument_evidence",
+      "fromTable": "cr664_portfolioboardedloanevidence",
+      "fromColumn": "cr664_PortfolioBoardedLoanDocument",
+      "toTable": "cr664_portfolioboardedloandocument",
+      "type": "ManyToOne",
+      "required": false,
+      "cascadeBehavior": "Referential"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_originatedloandeal",
+      "fromTable": "cr664_portfolioboardedloan",
+      "fromColumn": "cr664_OriginatedLoanDeal",
+      "toTable": "cr664_loandeal",
+      "type": "ManyToOne",
+      "required": false,
+      "cascadeBehavior": "Referential"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_client",
+      "fromTable": "cr664_portfolioboardedloan",
+      "fromColumn": "cr664_Client",
+      "toTable": "cr664_clientrelationship",
+      "type": "ManyToOne",
+      "required": false,
+      "cascadeBehavior": "Referential"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_portfoliomanager",
+      "fromTable": "cr664_portfolioboardedloan",
+      "fromColumn": "cr664_PortfolioManager",
+      "toTable": "systemuser",
+      "type": "ManyToOne",
+      "required": false,
+      "cascadeBehavior": "Referential"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_assignedservicingowner",
+      "fromTable": "cr664_portfolioboardedloan",
+      "fromColumn": "cr664_AssignedServicingOwner",
+      "toTable": "systemuser",
+      "type": "ManyToOne",
+      "required": false,
+      "cascadeBehavior": "Referential"
+    },
+    {
+      "schemaName": "cr664_portfolioboardedloan_team",
+      "fromTable": "cr664_portfolioboardedloan",
+      "fromColumn": "cr664_Team",
+      "toTable": "cr664_team",
+      "type": "ManyToOne",
+      "required": false,
+      "cascadeBehavior": "Referential"
+    }
+  ]
+}
