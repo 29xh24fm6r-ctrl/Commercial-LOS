@@ -39,6 +39,17 @@ function Test-RelExists([string]$s) {
   try { Invoke-DataverseGet $orgUrl $token ("RelationshipDefinitions(SchemaName='{0}')?`$select=SchemaName" -f $s) | Out-Null; return $true }
   catch { return $false }
 }
+# Phase 253A: a relationship is also COVERED when the referencing lookup attribute exists
+# and targets the expected referenced entity (idempotency may have created it under a
+# different relationship schema name). Target validation is NOT weakened — a lookup that
+# targets a different entity does NOT count as covered.
+function Test-RelCoveredByLookup([string]$fromTable, [string]$lookupSchema, [string]$expectedTarget) {
+  $lookupLogical = $lookupSchema.ToLower()
+  try {
+    $lk = Invoke-DataverseGet $orgUrl $token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')/Microsoft.Dynamics.CRM.LookupAttributeMetadata?`$select=Targets" -f $fromTable, $lookupLogical)
+    return ([bool]($lk.Targets -and (@($lk.Targets) -contains $expectedTarget)))
+  } catch { return $false }
+}
 
 if ($tokenOk) {
   foreach ($t in $schema.tables) {
@@ -49,7 +60,8 @@ if ($tokenOk) {
     }
   }
   foreach ($r in $schema.relationships) {
-    if (Test-RelExists $r.schemaName) { $relsFound++ } else { $missing += ("relationship:{0}" -f $r.schemaName) }
+    if ((Test-RelExists $r.schemaName) -or (Test-RelCoveredByLookup $r.fromTable $r.fromColumn $r.toTable)) { $relsFound++ }
+    else { $missing += ("relationship:{0}" -f $r.schemaName) }
   }
 }
 

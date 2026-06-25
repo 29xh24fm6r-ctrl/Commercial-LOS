@@ -55,6 +55,25 @@ describe('Phase 253 — full CRM schema buildout governance contract', () => {
     expect(src).toMatch(/DRY-RUN BY DEFAULT/i);
   });
 
+  it('the create script is idempotent by relationship schema AND referencing lookup attribute (Phase 253A)', () => {
+    const src = read(CREATE_REL);
+    // Inspects the referencing lookup attribute + its Targets, not just the relationship schema name.
+    expect(src).toMatch(/LookupAttributeMetadata/);
+    expect(src).toMatch(/Get-CrmLookupAttributeState/);
+    // Existing lookup with the expected target counts present; wrong target fails closed.
+    expect(src).toMatch(/targets\s+-contains\s+\$r\.toTable/);
+    expect(src).toMatch(/mismatch/);
+    // No destructive metadata op even on the relationship path.
+    expect(src).not.toMatch(/-Method\s+(Delete|Put|Patch)/i);
+  });
+
+  it('the verify script recognizes lookup-attribute coverage without weakening target validation', () => {
+    const src = read(VERIFY_REL);
+    expect(src).toMatch(/Test-RelCoveredByLookup/);
+    // Coverage requires the lookup to target the EXPECTED entity (target validation intact).
+    expect(src).toMatch(/-contains\s+\$expectedTarget/);
+  });
+
   it('the verify script is read-only (GET only, no mutation, no push) and fails closed', () => {
     const src = read(VERIFY_REL);
     expect(src).not.toMatch(/-Method\s+(Post|Patch|Delete|Put)/i);

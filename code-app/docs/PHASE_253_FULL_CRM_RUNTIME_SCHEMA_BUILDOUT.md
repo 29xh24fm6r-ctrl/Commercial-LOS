@@ -21,6 +21,37 @@ A real token-backed measurement showed the live CRM schema is only the minimal s
 Decision (per spec): build the live schema **up** to the full contract — do NOT reconcile
 the bridge down to the spine.
 
+## Phase 253A — relationship idempotency hotfix
+
+A first `-Apply` run created all 10 tables + 147 columns, then failed on the first
+relationship: `An attribute with the specified name cr664_EmployerOrganization already
+exists for entity cr664_Crmperson`.
+
+**Root cause:** relationship creation was idempotent only by the relationship **schema
+name**. When the referencing **lookup attribute** already exists (e.g. from a prior
+partial apply, or created under a different relationship schema name), Dataverse rejects
+the relationship create even though the schema-name probe found nothing.
+
+**Fix:** `create-full-crm-runtime-schema.ps1` now resolves each relationship by BOTH the
+relationship schema name AND the referencing lookup attribute (mirroring
+`src/crm/crmRelationshipIdempotency.ts :: resolveCrmRelationshipAction`):
+
+- relationship schema exists → **present** (skip);
+- referencing lookup attribute exists and targets the expected entity → **present** (skip,
+  even under a different relationship schema name);
+- an attribute with that name exists but is not a lookup, OR a lookup targeting a
+  **different** entity → **mismatch / FAIL CLOSED** (no mutation attempted);
+- neither exists → create (apply) / planned (dry-run).
+
+`verify-full-crm-schema.ps1` likewise counts a relationship covered by either the
+relationship metadata or a correctly-targeted lookup attribute — without weakening target
+validation. Still create-missing-only: no delete, rename, overwrite, or data mutation.
+
+**Operator retry:** simply re-run
+`powershell -File scripts/dataverse/create-full-crm-runtime-schema.ps1 -Apply` — it now
+skips the already-present `cr664_EmployerOrganization` lookup and continues; rerunning is
+safe and resumes from where it stopped.
+
 ## CRM schema delta
 
 The full contract is generated from `src/crm/crmDataverseSchemaPlan.ts` into

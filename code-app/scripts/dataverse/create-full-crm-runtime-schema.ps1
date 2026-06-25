@@ -87,6 +87,70 @@ function New-CrmColumnIfMissing($colDef, [string]$tableLogical) {
   return 'created'
 }
 
+# --- Relationship idempotency helpers (schema name AND referencing lookup attribute) ---
+function Test-CrmRelationshipExists([string]$schemaName) {
+  if (-not $token -or -not $orgUrl) { return $null }
+  try { Invoke-DataverseGet $orgUrl $token ("RelationshipDefinitions(SchemaName='{0}')?`$select=SchemaName" -f $schemaName) | Out-Null; return $true }
+  catch { if ($_.Exception.Response.StatusCode.value__ -eq 404) { return $false } return $null }
+}
+
+# Returns @{ exists; isLookup; targets } or $null when it cannot be inspected (no token).
+function Get-CrmLookupAttributeState([string]$fromTable, [string]$lookupLogical) {
+  if (-not $token -or -not $orgUrl) { return $null }
+  try {
+    $attr = Invoke-DataverseGet $orgUrl $token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')?`$select=LogicalName,AttributeType" -f $fromTable, $lookupLogical)
+  } catch {
+    if ($_.Exception.Response.StatusCode.value__ -eq 404) { return @{ exists = $false; isLookup = $false; targets = @() } }
+    return $null
+  }
+  $isLookup = ($attr.AttributeType -eq 'Lookup')
+  $targets = @()
+  if ($isLookup) {
+    try {
+      $lk = Invoke-DataverseGet $orgUrl $token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')/Microsoft.Dynamics.CRM.LookupAttributeMetadata?`$select=Targets" -f $fromTable, $lookupLogical)
+      if ($lk.Targets) { $targets = @($lk.Targets) }
+    } catch { }
+  }
+  return @{ exists = $true; isLookup = $isLookup; targets = $targets }
+}
+
+# Idempotent by BOTH relationship schema name and referencing lookup attribute. Mirrors
+# src/crm/crmRelationshipIdempotency.ts :: resolveCrmRelationshipAction. Create-missing-only.
+function New-CrmRelationshipIfMissing($r) {
+  $lookupSchema = $r.fromColumn        # e.g. cr664_EmployerOrganization
+  $lookupLogical = $lookupSchema.ToLower()
+  $relExists = Test-CrmRelationshipExists $r.schemaName
+  if ($relExists -eq $true) { Write-Status $r.schemaName 'PASS' 'relationship schema exists (skip)'; return 'present' }
+
+  $lookup = Get-CrmLookupAttributeState $r.fromTable $lookupLogical
+  if ($lookup -ne $null -and $lookup.exists) {
+    if (-not $lookup.isLookup) {
+      Write-Status $r.schemaName 'BLOCKED' ("attribute {0} on {1} exists but is NOT a lookup - mismatch (fail closed)" -f $lookupLogical, $r.fromTable)
+      return 'mismatch'
+    }
+    if ($lookup.targets -contains $r.toTable) {
+      Write-Status $r.schemaName 'PASS' ("referencing lookup {0} already exists with target {1} (skip)" -f $lookupLogical, $r.toTable)
+      return 'present'
+    }
+    Write-Status $r.schemaName 'BLOCKED' ("referencing lookup {0} targets [{1}], expected {2} - mismatch (fail closed)" -f $lookupLogical, ($lookup.targets -join ','), $r.toTable)
+    return 'mismatch'
+  }
+
+  if (-not $Apply) { Write-Status $r.schemaName 'PLAN' 'WOULD CREATE relationship (dry-run)'; return 'planned' }
+
+  $body = @{
+    '@odata.type'     = 'Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata'
+    SchemaName        = $r.schemaName
+    ReferencedEntity  = $r.toTable
+    ReferencingEntity = $r.fromTable
+    Lookup            = @{ '@odata.type' = 'Microsoft.Dynamics.CRM.LookupAttributeMetadata'; SchemaName = $lookupSchema; RequiredLevel = @{ Value = 'None' }; DisplayName = @{ LocalizedLabels = @(@{ Label = $lookupSchema; LanguageCode = 1033 }) } }
+  } | ConvertTo-Json -Depth 12
+  $headers = @{ Authorization = "Bearer $token"; 'OData-MaxVersion' = '4.0'; 'OData-Version' = '4.0'; 'Content-Type' = 'application/json' }
+  Invoke-RestMethod -Method Post -Uri ("{0}/api/data/v9.2/RelationshipDefinitions" -f $orgUrl.TrimEnd('/')) -Headers $headers -Body $body | Out-Null
+  Write-Status $r.schemaName 'PASS' 'relationship created (was missing)'
+  return 'created'
+}
+
 # --- 1. Tables (with primary name) -----------------------------------------
 $tStates = @()
 foreach ($t in ($schema.tables | Sort-Object seedOrder)) {
@@ -119,17 +183,18 @@ foreach ($r in $schema.relationships) {
     $rStates += 'blocked-missing-target'
     continue
   }
-  $relDef = [pscustomobject]@{ schemaName = $r.schemaName; fromTable = $r.fromTable; fromColumn = $r.fromColumn; toTable = $r.toTable }
-  $rStates += (New-DataverseRelationshipIfMissing -RelDef $relDef -OrgUrl $orgUrl -Token $token -Apply:$Apply.IsPresent)
+  $rStates += (New-CrmRelationshipIfMissing $r)
 }
 
 $all = @($tStates + $cStates + $rStates)
 $created = (@($all | Where-Object { $_ -eq 'created' })).Count
 $present = (@($all | Where-Object { $_ -eq 'present' })).Count
 $planned = (@($all | Where-Object { $_ -eq 'planned' })).Count
-$skipped = (@($rStates | Where-Object { $_ -like 'skipped*' -or $_ -like 'blocked*' })).Count
+$mismatch = (@($rStates | Where-Object { $_ -eq 'mismatch' })).Count
+$skipped = (@($rStates | Where-Object { $_ -like 'skipped*' -or $_ -like 'blocked-missing*' })).Count
+if ($mismatch -gt 0) { Write-Host ("WARNING: {0} relationship(s) failed closed on a lookup-attribute MISMATCH (see BLOCKED lines above). No mutation was attempted for those." -f $mismatch) }
 
 Write-Host '----'
 Write-Host 'NEXT (operator): after -Apply, run publish-customizations.ps1, then regenerate-powerapps-sdk.ps1,'
 Write-Host '                 then verify-full-crm-schema.ps1 and export-runtime-schema-evidence.ps1.'
-Write-Host ("EVIDENCE: [253][crm-full] mode={0} tables={1} columns={2} relationships={3} created={4} present={5} planned={6} skipped={7} ts={8}" -f $(if ($Apply) { 'apply' } else { 'dry-run' }), $schema.expected.tables, $schema.expected.columns, $schema.expected.relationships, $created, $present, $planned, $skipped, (Get-Date -Format o))
+Write-Host ("EVIDENCE: [253A][crm-full] mode={0} tables={1} columns={2} relationships={3} created={4} present={5} planned={6} skipped={7} mismatch={8} ts={9}" -f $(if ($Apply) { 'apply' } else { 'dry-run' }), $schema.expected.tables, $schema.expected.columns, $schema.expected.relationships, $created, $present, $planned, $skipped, $mismatch, (Get-Date -Format o))
