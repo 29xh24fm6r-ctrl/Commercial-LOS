@@ -31,8 +31,10 @@ describe('Phase 248 — PAC-backed live table access governance contract', () =>
     expect(vm.webApiMetadataMeasured).toBe(false);
   });
 
-  it('does NOT weaken the bridge: current evidence still fails closed (no metadata → no hydration)', () => {
-    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(false);
+  it('does NOT weaken the bridge: CRM hydrates only from real full metadata, portfolio still fails closed', () => {
+    // CRM hydrates from its real full token-backed metadata (Phase 253C) — NOT from PAC reachability.
+    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(true);
+    // Portfolio reachability is PASS but its metadata is incomplete → still fails closed (bridge not weakened).
     expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
     expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(false);
   });

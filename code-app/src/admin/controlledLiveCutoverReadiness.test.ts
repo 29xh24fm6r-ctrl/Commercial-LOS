@@ -16,13 +16,12 @@ describe('Phase 245 — controlled live cutover readiness ledger', () => {
     expect(vm.domains.map((d) => d.key)).toEqual(['crmWriteback', 'portfolioBoarding', 'stageAdvancement']);
   });
 
-  it('reports cutover PREPARED but NOT complete: prereqs + adapter proven, live schema + smoke pending', () => {
+  it('reports cutover PREPARED but NOT complete: prereqs + adapter proven, smoke + gate pending', () => {
     const vm = deriveControlledLiveCutoverReadiness();
     for (const d of vm.domains) {
       expect(d.technicalPrerequisitesPass, d.key).toBe(true);
       expect(d.governedAdapterProven, d.key).toBe(true);
-      // The two operator-owned items are NOT done — so the cutover is not complete.
-      expect(d.liveSchemaVerified, d.key).toBe(false);
+      // Operator smoke is NOT recorded for any → none is complete (even CRM, whose schema is now verified).
       expect(d.operatorSmokeRecorded, d.key).toBe(false);
       expect(d.gateFlagOn, d.key).toBe(false);
       expect(d.enabled, d.key).toBe(false);
@@ -30,6 +29,11 @@ describe('Phase 245 — controlled live cutover readiness ledger', () => {
       expect(d.remainingEvidence.length, d.key).toBeGreaterThan(0);
       expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
     }
+    // Phase 253C: CRM live schema is now verified (full schema + SDK hydrate); portfolio/stage are not.
+    const byKey = new Map(vm.domains.map((d) => [d.key, d]));
+    expect(byKey.get('crmWriteback')?.liveSchemaVerified).toBe(true);
+    expect(byKey.get('portfolioBoarding')?.liveSchemaVerified).toBe(false);
+    expect(byKey.get('stageAdvancement')?.liveSchemaVerified).toBe(false);
   });
 
   it('does not claim launch or allow deployment', () => {
@@ -40,9 +44,12 @@ describe('Phase 245 — controlled live cutover readiness ledger', () => {
     expect(vm.enabledCount).toBe(1);
   });
 
-  it('derives live-schema verification from the bridge (current evidence → all false) and ships smoke toggles false', () => {
-    // The current recorded verifier evidence (live=0/0) fails the bridge → no fake live-schema.
-    expect(Object.values(deriveLiveSchemaVerified()).every((v) => v === false)).toBe(true);
+  it('derives live-schema verification from the bridge: CRM verified (full schema), portfolio/stage not yet', () => {
+    const lsv = deriveLiveSchemaVerified();
+    expect(lsv.crmWriteback).toBe(true);
+    expect(lsv.portfolioBoarding).toBe(false);
+    expect(lsv.stageAdvancement).toBe(false);
+    // Operator smoke remains unrecorded for all (no fake activation).
     expect(Object.values(CUTOVER_OPERATOR_SMOKE_RECORDED).every((v) => v === false)).toBe(true);
   });
 

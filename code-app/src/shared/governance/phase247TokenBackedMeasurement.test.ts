@@ -37,11 +37,10 @@ describe('Phase 247 — token-backed live measurement governance contract', () =
     }
   });
 
-  it('the current committed evidence still does NOT hydrate (live spine incomplete vs the runtime plan)', () => {
-    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(false);
+  it('the current committed evidence: CRM hydrates (full schema + SDK), portfolio still does NOT', () => {
+    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(true);
     expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
-    // Real measurement: tables live, but columns/required relationships below the plan.
-    expect(CURRENT_CRM_VERIFICATION_EVIDENCE.liveTables.checked).toBeGreaterThan(0);
+    // Portfolio remains the spine: tables live, but columns/required relationships below the plan.
     expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.measured?.requiredRelationshipsFound).toBe(0);
   });
 

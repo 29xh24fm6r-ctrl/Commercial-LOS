@@ -1,0 +1,26 @@
+{
+    "domain":  "crm-full",
+    "status":  "PASS",
+    "tokenValidated":  true,
+    "inconclusive":  0,
+    "tables":  {
+                   "found":  10,
+                   "expected":  10
+               },
+    "columns":  {
+                    "found":  147,
+                    "expected":  147
+                },
+    "relationships":  {
+                          "found":  28,
+                          "expected":  28
+                      },
+    "measured":  {
+                     "tablesFound":  10,
+                     "columnsFound":  147,
+                     "relationshipsFound":  28,
+                     "conflicts":  0
+                 },
+    "verifiedAtIso":  "2026-06-25T14:25:01.9831526-04:00",
+    "notes":  "full CRM runtime contract satisfied"
+}

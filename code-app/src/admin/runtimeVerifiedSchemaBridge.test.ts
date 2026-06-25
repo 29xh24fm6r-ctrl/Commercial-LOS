@@ -59,12 +59,10 @@ describe('Phase 246 — runtime verified-state bridge (CRM)', () => {
     });
   });
 
-  it('the CURRENT recorded evidence does NOT hydrate — live schema complete (10/147) but SDK registration 5/10', () => {
+  it('the CURRENT recorded CRM evidence HYDRATES — full live schema (10/147) + full SDK registration (10/10)', () => {
     const r = hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE, { nowEpochMs: NOW });
-    expect(r.hydrated).toBe(false);
-    expect(r.verified).toBeNull();
-    // Fail-closed reason is the SDK/registration gap (services 5/10, status BLOCKED), not columns.
-    expect(r.blockers.join(' ')).toMatch(/services|status|datasources/i);
+    expect(r.hydrated).toBe(true);
+    expect(r.verified).not.toBeNull();
   });
 
   it('zero-total live count does not hydrate', () => {
@@ -165,8 +163,9 @@ describe('Phase 246 — the runtime gate stays disabled unless flag AND verified
     expect(r.live).toBe(false);
   });
 
-  it('flag ON but verified state NOT hydrated (current live=0/0) → fails closed', () => {
-    const hydrated = hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE, { nowEpochMs: NOW });
+  it('flag ON but verified state NOT hydrated (incomplete evidence) → fails closed', () => {
+    const incomplete = { ...VALID_CRM, liveTables: { found: 0, checked: 0 } };
+    const hydrated = hydrateVerifiedCrmSchemaState(incomplete, { nowEpochMs: NOW });
     expect(hydrated.verified).toBeNull();
     // With no hydrated state, the caller must pass a zeroed verified state → not schema-ready.
     const zeroed = { tablesFound: 0, columnsFound: 0, relationshipsFound: 0, conflicts: 0 };

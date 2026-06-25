@@ -21,8 +21,18 @@ const DOC_REL = 'docs/PHASE_253_FULL_CRM_RUNTIME_SCHEMA_BUILDOUT.md';
 const NOW = Date.parse('2026-06-25T13:00:00.000Z');
 
 describe('Phase 253 — full CRM schema buildout governance contract', () => {
-  it('the live Phase 252 spine measurement still does NOT hydrate, but a synthetic full one does', () => {
-    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(false);
+  it('the current full CRM evidence hydrates; a spine measurement (5/40) does NOT', () => {
+    // Phase 253C: the committed CRM evidence is the full schema + SDK → hydrates.
+    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(true);
+    const spine: CrmSchemaVerificationEvidence = {
+      status: 'BLOCKED',
+      services: { found: 5, expected: 10 },
+      dataSources: { found: 5, expected: 10 },
+      liveTables: { found: 5, checked: 5 },
+      measured: { tablesFound: 5, columnsFound: 40, relationshipsFound: 0, conflicts: 0 },
+      verifiedAtIso: '2026-06-25T12:59:00.000Z',
+    };
+    expect(hydrateVerifiedCrmSchemaState(spine, { nowEpochMs: NOW }).hydrated).toBe(false);
     const full: CrmSchemaVerificationEvidence = {
       status: 'PASS',
       services: { found: EXPECTED_CRM_SCHEMA.tables, expected: EXPECTED_CRM_SCHEMA.tables },

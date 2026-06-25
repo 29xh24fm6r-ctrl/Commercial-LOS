@@ -191,22 +191,22 @@ export function hydrateVerifiedBoardingSchemaState(
  * scripts/dataverse/export-runtime-schema-evidence.ps1 (real token-backed measurement in
  * Matthew Paller's Environment, WhoAmI 200).
  *
- * Phase 253/253A applied the FULL live CRM schema: CRM is now live 10/10 tables with a
- * measured schema of 10 tables / 147 columns (matching the runtime plan). BUT the LOCAL SDK
- * registration is still incomplete (services 5/10, data sources 5/10) — the 5 new tables'
- * generated services + manifest entries are not yet regenerated — so the export reports
- * STATUS=BLOCKED and this evidence does NOT hydrate. Per the contract, CRM hydrates only when
- * services=10/10 AND data sources=10/10 AND live=10/10 AND the measured schema is full.
- * (Portfolio remains the spine: 13 tables but ~15/219 columns.) These are committed facts,
- * not a fabricated PASS — runtime-schema-evidence.*.json carries the same values.
+ * Phase 253/253A/253B/253C: the FULL live CRM schema is applied AND the local SDK is fully
+ * registered. CRM is now STATUS=PASS: services 10/10, data sources 10/10, live 10/10, with a
+ * measured schema of 10 tables / 147 columns (relationshipsFound is a warning-only input for
+ * CRM; the full-CRM verifier separately confirmed 28/28). This evidence HYDRATES the runtime
+ * verified state. Hydration is a prerequisite, NOT activation: the CRM live-persistence gate
+ * (CRM_LIVE_PERSISTENCE_ENABLED) stays false, so no live write occurs. (Portfolio remains the
+ * spine: 13 tables but ~15/219 columns — does not hydrate.) These are committed facts —
+ * runtime-schema-evidence.*.json carries the same values.
  */
 export const CURRENT_CRM_VERIFICATION_EVIDENCE: CrmSchemaVerificationEvidence = Object.freeze({
-  status: 'BLOCKED',
-  services: { found: 5, expected: 10 },
-  dataSources: { found: 5, expected: 10 },
+  status: 'PASS',
+  services: { found: 10, expected: 10 },
+  dataSources: { found: 10, expected: 10 },
   liveTables: { found: 10, checked: 10 },
   measured: { tablesFound: 10, columnsFound: 147, relationshipsFound: 0, conflicts: 0 },
-  verifiedAtIso: '2026-06-25T13:36:17-04:00',
+  verifiedAtIso: '2026-06-25T14:25:05-04:00',
 });
 
 export const CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE: BoardingSchemaVerificationEvidence = Object.freeze({

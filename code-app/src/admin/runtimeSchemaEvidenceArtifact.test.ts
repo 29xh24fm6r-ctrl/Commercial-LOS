@@ -18,21 +18,35 @@ const PORTFOLIO_ARTIFACT = 'scripts/dataverse/evidence/runtime-schema-evidence.p
 const NOW = Date.parse('2026-06-25T12:00:00.000Z');
 
 describe('Phase 252 — committed REAL token-backed evidence artifacts', () => {
-  it('the CRM artifact: live schema is COMPLETE (10/147) but the local SDK is 5/10 → BLOCKED, does NOT hydrate', () => {
+  it('the CRM artifact is full PASS (services/datasources/live 10/10, measured 10/147) and HYDRATES', () => {
     const a = load(CRM_ARTIFACT);
     expect(a.tokenValidated).toBe(true);
-    // Phase 253/253A applied the full live schema: 10 tables, measured 147 columns.
+    expect(a.status).toBe('PASS');
+    expect(a.services).toEqual({ found: 10, expected: 10 });
+    expect(a.dataSources).toEqual({ found: 10, expected: 10 });
     expect(a.liveTables).toEqual({ found: 10, checked: 10 });
-    expect(a.measured).not.toBeNull();
     expect(a.measured.tablesFound).toBe(EXPECTED_CRM_SCHEMA.tables);
     expect(a.measured.columnsFound).toBe(EXPECTED_CRM_SCHEMA.columns);
-    // But the local SDK registration is incomplete (services 5/10) → BLOCKED.
-    expect(a.status).toBe('BLOCKED');
-    expect(a.services.found).toBeLessThan(a.services.expected);
     const r = hydrateVerifiedCrmSchemaState(a, { nowEpochMs: NOW, maxAgeMs: Number.MAX_SAFE_INTEGER });
-    expect(r.hydrated).toBe(false);
-    // Fail-closed reason is now the SDK/registration gap, not the schema columns.
-    expect(r.blockers.join(' ')).toMatch(/services|status|datasources/i);
+    expect(r.hydrated).toBe(true);
+    expect(r.verified).not.toBeNull();
+  });
+
+  it('CRM regression: the real PASS artifact fails closed on services/datasources 5/10, live=0/0, short measured, or stale', () => {
+    const base = load(CRM_ARTIFACT);
+    const opts = { nowEpochMs: NOW, maxAgeMs: Number.MAX_SAFE_INTEGER };
+    expect(hydrateVerifiedCrmSchemaState(base, opts).hydrated).toBe(true); // sanity
+    // SDK registration regressions.
+    expect(hydrateVerifiedCrmSchemaState({ ...base, status: 'BLOCKED', services: { found: 5, expected: 10 } }, opts).hydrated).toBe(false);
+    expect(hydrateVerifiedCrmSchemaState({ ...base, status: 'BLOCKED', dataSources: { found: 5, expected: 10 } }, opts).hydrated).toBe(false);
+    // Live + measured-schema regressions.
+    expect(hydrateVerifiedCrmSchemaState({ ...base, liveTables: { found: 0, checked: 0 } }, opts).hydrated).toBe(false);
+    expect(hydrateVerifiedCrmSchemaState({ ...base, measured: { ...base.measured, tablesFound: EXPECTED_CRM_SCHEMA.tables - 1 } }, opts).hydrated).toBe(false);
+    expect(hydrateVerifiedCrmSchemaState({ ...base, measured: { ...base.measured, columnsFound: EXPECTED_CRM_SCHEMA.columns - 1 } }, opts).hydrated).toBe(false);
+    expect(hydrateVerifiedCrmSchemaState({ ...base, measured: { ...base.measured, conflicts: 1 } }, opts).hydrated).toBe(false);
+    // Stale evidence (older than the freshness window).
+    const stale = { nowEpochMs: Date.parse(base.verifiedAtIso) + 48 * 60 * 60 * 1000, maxAgeMs: 24 * 60 * 60 * 1000 };
+    expect(hydrateVerifiedCrmSchemaState(base, stale).hydrated).toBe(false);
   });
 
   it('the portfolio artifact is a real token-backed PASS measurement (live 13/13) but does NOT hydrate — columns/required relationships below the plan', () => {

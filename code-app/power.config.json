@@ -219,6 +219,26 @@
         "portfolioboardedloanauditentries": {
           "entitySetName": "cr664_portfolioboardedloanauditentries",
           "logicalName": "cr664_portfolioboardedloanauditentry"
+        },
+        "crmcontactpoints": {
+          "entitySetName": "cr664_crmcontactpoints",
+          "logicalName": "cr664_crmcontactpoint"
+        },
+        "crmcommunicationpreferences": {
+          "entitySetName": "cr664_crmcommunicationpreferences",
+          "logicalName": "cr664_crmcommunicationpreference"
+        },
+        "crmcontactauthorizations": {
+          "entitySetName": "cr664_crmcontactauthorizations",
+          "logicalName": "cr664_crmcontactauthorization"
+        },
+        "crmvendorprofiles": {
+          "entitySetName": "cr664_crmvendorprofiles",
+          "logicalName": "cr664_crmvendorprofile"
+        },
+        "crmauditentries": {
+          "entitySetName": "cr664_crmauditentries",
+          "logicalName": "cr664_crmauditentry"
         }
       },
       "environmentVariableName": ""

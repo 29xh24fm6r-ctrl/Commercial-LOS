@@ -57,8 +57,10 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(detectOutlookConnectorRegistration(read('power.config.json'))).toBe(true);
   });
 
-  it('does NOT alter CRM/portfolio runtime hydration (still fails closed)', () => {
-    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(false);
+  it('does NOT alter CRM/portfolio runtime hydration (CRM hydrates from its own schema; portfolio fails closed)', () => {
+    // The checklist/Outlook work does not touch CRM/portfolio hydration: CRM hydrates from its
+    // full metadata (Phase 253C), portfolio still fails closed (incomplete schema).
+    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(true);
     expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
     expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(false);
   });

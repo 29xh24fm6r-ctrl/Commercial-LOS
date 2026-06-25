@@ -46,8 +46,12 @@ describe('Phase 253B — CRM SDK/data-source registration governance contract', 
     expect(src).toMatch(/PAC fetch reachability/);
   });
 
-  it('does not silently mark the current CRM evidence hydrated (spine still fails closed)', () => {
-    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(false);
+  it('CRM evidence hydrates only at full SDK (10/10); a 5/10 registration still fails closed', () => {
+    // Phase 253C: the committed CRM evidence is full PASS (services 10/10) → hydrates.
+    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(true);
+    // Regressing the SDK registration to 5/10 blocks hydration (fail-closed).
+    const blocked = { ...CURRENT_CRM_VERIFICATION_EVIDENCE, status: 'BLOCKED' as const, services: { found: 5, expected: 10 } };
+    expect(hydrateVerifiedCrmSchemaState(blocked).hydrated).toBe(false);
   });
 
   it('flips no feature gate and does not claim launch', () => {

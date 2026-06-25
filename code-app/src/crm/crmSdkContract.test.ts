@@ -49,10 +49,10 @@ describe('Phase 253B — full CRM SDK / data-source contract', () => {
     expect(deriveCrmSdkRegistrationStatus({ servicesPresent: 5, dataSourcesPresent: 10 }).status).toBe('BLOCKED');
   });
 
-  it('reflects the current repo: not all 10 CRM services are generated yet (operator must regenerate)', () => {
+  it('reflects the current repo: all 10 CRM services are now generated (operator regenerated the SDK)', () => {
     const present = EXPECTED_CRM_SDK_SERVICES.filter((f) => existsSync(resolve(SERVICES_DIR, f))).length;
-    // Until the operator runs the fixed regenerate-powerapps-sdk.ps1, fewer than 10 exist → BLOCKED.
-    expect(present).toBeLessThan(CRM_SDK_CONTRACT.services);
-    expect(deriveCrmSdkRegistrationStatus({ servicesPresent: present, dataSourcesPresent: present }).status).toBe('BLOCKED');
+    // Phase 253C: the operator ran the fixed regenerate-powerapps-sdk.ps1 → all 10 services exist.
+    expect(present).toBe(CRM_SDK_CONTRACT.services);
+    expect(deriveCrmSdkRegistrationStatus({ servicesPresent: present, dataSourcesPresent: present }).status).toBe('PASS');
   });
 });
