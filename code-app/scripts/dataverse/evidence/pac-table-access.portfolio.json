@@ -1,0 +1,65 @@
+{
+    "domain":  "portfolio",
+    "method":  "pac org fetch (FetchXML count=1)",
+    "status":  "PASS",
+    "reachable":  13,
+    "checked":  13,
+    "expected":  13,
+    "tables":  [
+                   {
+                       "table":  "cr664_portfolioboardedloan",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloanborrower",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloancollateral",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloanguarantor",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloancovenant",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloantickler",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloaninsurance",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloandocument",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloanevidence",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloanexception",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloanreview",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloanexaminernote",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_portfolioboardedloanauditentry",
+                       "outcome":  "reachable"
+                   }
+               ],
+    "webApiMetadataMeasured":  false,
+    "verifiedAtIso":  "2026-06-25T10:50:00.9625078-04:00",
+    "notes":  "table reachability only; Web API column/relationship metadata not measured (separate channel)"
+}

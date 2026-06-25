@@ -1,0 +1,33 @@
+{
+    "domain":  "crm",
+    "method":  "pac org fetch (FetchXML count=1)",
+    "status":  "PASS",
+    "reachable":  5,
+    "checked":  5,
+    "expected":  5,
+    "tables":  [
+                   {
+                       "table":  "cr664_crmorganization",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_crmperson",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_crmrelationship",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_crmroleassignment",
+                       "outcome":  "reachable"
+                   },
+                   {
+                       "table":  "cr664_crmtimelineevent",
+                       "outcome":  "reachable"
+                   }
+               ],
+    "webApiMetadataMeasured":  false,
+    "verifiedAtIso":  "2026-06-25T10:50:00.9625078-04:00",
+    "notes":  "table reachability only; Web API column/relationship metadata not measured (separate channel)"
+}
