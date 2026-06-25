@@ -81,10 +81,10 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
     label: DOMAIN_LABELS.documentChecklist,
     environmentStatus: 'UNKNOWN',
     verificationScript: 'scripts/activation/verify-checklist-rules.ps1',
-    evidenceLine: '[242B][checklist-rules] STATUS=UNKNOWN modules=3/3 datasource=True signoff=pending-operator',
+    evidenceLine: '[251][checklist-rules] modules=3/3 datasource=True signoff=RECORDED (lending owner, 2026-06-25); live gate still false',
     missingOperatorActions: [
-      'A Super-Admin / lending owner must review and SIGN OFF the active checklist rule-set (product/stage rules) and record the signoff (approver, date/time, scope, rollback).',
-      'Inject the live checklist write transport via createChecklistWriteDependency, then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED + the UI action gate together.',
+      'Lending-owner rule-set signoff is RECORDED (docs/operator-evidence/DOCUMENT_CHECKLIST_LENDING_OWNER_SIGNOFF_2026-06-25.md); modules + cr664_documentchecklists data source present.',
+      'Remaining: inject the live checklist write transport via createChecklistWriteDependency, record a controlled smoke, then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED + the UI action gate together (separate governed step).',
     ],
     rollbackControl: 'Set DOCUMENT_CHECKLIST_GENERATION_ENABLED to false.',
   },

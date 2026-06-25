@@ -2,7 +2,12 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { deriveChecklistSignoffReadiness, CHECKLIST_RULESET_SIGNOFF } from '../../admin/checklistSignoffEvidence';
+import {
+  deriveChecklistSignoffReadiness,
+  parseChecklistSignoffArtifact,
+  CHECKLIST_RULESET_SIGNOFF,
+  CHECKLIST_SIGNOFF_ARTIFACT_PATH,
+} from '../../admin/checklistSignoffEvidence';
 import { deriveOutlookConnectorReadiness, detectOutlookConnectorRegistration, OUTLOOK_CONNECTOR_STATE, OUTLOOK_GENERATED_SERVICE_PATH } from '../../admin/outlookConnectorEvidence';
 import { deriveFullProductionLaunchEvidence } from '../../admin/fullProductionLaunchEvidence';
 import { derivePacTableAccessReadiness } from '../../admin/pacTableAccessEvidence';
@@ -25,15 +30,17 @@ const read = (rel: string) => readFileSync(resolve(ROOT, rel), 'utf8');
 const DOC_REL = 'docs/PHASE_249_CHECKLIST_SIGNOFF_AND_OUTLOOK_CONNECTOR_UNBLOCK.md';
 
 describe('Phase 249 — checklist signoff + Outlook connector governance contract', () => {
-  it('fabricates no checklist signoff (committed null → UNKNOWN, gates false)', () => {
-    expect(CHECKLIST_RULESET_SIGNOFF).toBeNull();
+  it('consumes the recorded checklist signoff (Phase 251) → SIGNED, but the live gate stays false', () => {
+    expect(CHECKLIST_RULESET_SIGNOFF).not.toBeNull();
     const vm = deriveChecklistSignoffReadiness();
-    expect(vm.status).toBe('UNKNOWN');
+    expect(vm.status).toBe('SIGNED');
+    // Signoff recorded does NOT flip the live checklist gate.
     expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
     expect(CHECKLIST_WRITE_ENABLED).toBe(false);
-    // The committed source records no signoff value.
-    const src = read('src/admin/checklistSignoffEvidence.ts');
-    expect(src).toMatch(/CHECKLIST_RULESET_SIGNOFF:\s*ChecklistRulesetSignoff\s*\|\s*null\s*=\s*null/);
+    expect(vm.gateFlipBlocked).toBe(true);
+    // The signoff is grounded in a real committed artifact, not fabricated.
+    expect(existsSync(resolve(ROOT, CHECKLIST_SIGNOFF_ARTIFACT_PATH))).toBe(true);
+    expect(parseChecklistSignoffArtifact(read(CHECKLIST_SIGNOFF_ARTIFACT_PATH))).not.toBeNull();
   });
 
   it('Outlook connector registered via power.config.json (real) → PASS, but live send stays gated', () => {
@@ -56,17 +63,19 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(false);
   });
 
-  it('the ledger keeps checklist UNKNOWN (borrower connector now PASS) and does not claim launch', () => {
+  it('the ledger marks checklist + borrower environments PASS but still does not claim launch', () => {
     const ledger = deriveFullProductionLaunchEvidence();
     const byKey = new Map(ledger.domains.map((d) => [d.key, d]));
-    expect(byKey.get('documentChecklist')?.environmentStatus).toBe('UNKNOWN');
+    // Phase 251: signoff recorded → documentChecklist environment PASS (still not live-enabled).
+    expect(byKey.get('documentChecklist')?.environmentStatus).toBe('PASS');
+    expect(byKey.get('documentChecklist')?.enabled).toBe(false);
     // Phase 250: connector registered → borrowerSend environment PASS (still not live-enabled).
     expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
     expect(byKey.get('borrowerSend')?.enabled).toBe(false);
     expect(byKey.get('newDealCreate')?.enabled).toBe(true);
     expect(byKey.get('crmWriteback')?.environmentStatus).toBe('PASS');
     expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
-    expect(ledger.blockingDomains).toEqual(['documentChecklist']);
+    expect(ledger.blockingDomains).toEqual([]);
     expect(ledger.enabledCount).toBe(1);
     expect(ledger.fullLaunchAchieved).toBe(false);
 

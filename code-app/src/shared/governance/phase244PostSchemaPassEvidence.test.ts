@@ -35,9 +35,9 @@ describe('Phase 244 — post-schema PASS evidence governance contract', () => {
     const byKey = new Map(vm.domains.map((d) => [d.key, d]));
     expect(byKey.get('crmWriteback')?.environmentStatus).toBe('PASS');
     expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
-    expect(vm.environmentPassCount).toBe(5);
-    // Only checklist remains not-PASS (Phase 250: Outlook connector registered in power.config.json).
-    expect(vm.blockingDomains).toEqual(['documentChecklist']);
+    expect(vm.environmentPassCount).toBe(6);
+    // All six environments now PASS (Phase 250 Outlook connector + Phase 251 checklist signoff).
+    expect(vm.blockingDomains).toEqual([]);
   });
 
   it('does not claim full launch and changes no live gate (enabledCount stays 1)', () => {

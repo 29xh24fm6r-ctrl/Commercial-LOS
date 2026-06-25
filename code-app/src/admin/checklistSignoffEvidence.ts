@@ -51,11 +51,58 @@ export const REQUIRED_SIGNOFF_FIELDS: readonly (keyof ChecklistRulesetSignoff)[]
   'approvedBy', 'approverRole', 'signedAtIso', 'scope', 'rulesetVersion', 'rollback', 'evidenceRef',
 ];
 
+/** The committed lending-owner signoff artifact this evidence is transcribed from. */
+export const CHECKLIST_SIGNOFF_ARTIFACT_PATH =
+  'docs/operator-evidence/DOCUMENT_CHECKLIST_LENDING_OWNER_SIGNOFF_2026-06-25.md';
+
 /**
- * OPERATOR-OWNED: the recorded signoff. `null` until a Super-Admin / lending owner records
- * a real signed artifact. NEVER set to a fabricated value to make the dashboard green.
+ * Parse a committed lending-owner signoff artifact (Markdown) into a structured signoff.
+ * Returns null unless the artifact is explicitly APPROVED (and not NOT-APPROVED) and the
+ * signer fields are present. This is how the recorded constant below is grounded in the
+ * real committed file — it never invents a signoff.
  */
-export const CHECKLIST_RULESET_SIGNOFF: ChecklistRulesetSignoff | null = null;
+export function parseChecklistSignoffArtifact(
+  markdown: string,
+  evidenceRef: string = CHECKLIST_SIGNOFF_ARTIFACT_PATH,
+): ChecklistRulesetSignoff | null {
+  const text = (markdown ?? '').replace(/\\/g, '');
+  const approved = /\[x\]\s*APPROVED/i.test(text) && !/\[x\]\s*NOT\s+APPROVED/i.test(text);
+  if (!approved) return null;
+  const grab = (re: RegExp) => {
+    const m = text.match(re);
+    return m ? m[1].trim() : '';
+  };
+  const approvedBy = grab(/Super Admin name:\s*(.+)/i);
+  const approverRole = grab(/(?:^|\n)\s*-?\s*Role:\s*(.+)/i);
+  const signedAtIso = grab(/Date\/time:\s*(.+)/i);
+  const solution = grab(/Solution:\s*(.+)/i) || 'Commercial Lending LOS';
+  const signoff: ChecklistRulesetSignoff = {
+    approvedBy,
+    approverRole,
+    signedAtIso,
+    scope: `${solution} — document checklist rule-set (new deal generation, product/stage rules, required documents)`,
+    rulesetVersion: signedAtIso,
+    rollback: 'Set DOCUMENT_CHECKLIST_GENERATION_ENABLED to false',
+    evidenceRef,
+  };
+  return validateChecklistSignoff(signoff).valid ? signoff : null;
+}
+
+/**
+ * OPERATOR-OWNED: the recorded signoff, transcribed from the committed signed artifact
+ * (CHECKLIST_SIGNOFF_ARTIFACT_PATH, recorded in commit f91fa3c — lending owner Matthew
+ * Paller, APPROVED 2026-06-25). It reflects a REAL committed signoff, not a fabricated
+ * value. Consuming it makes checklist ENVIRONMENT readiness PASS; it flips NO live gate.
+ */
+export const CHECKLIST_RULESET_SIGNOFF: ChecklistRulesetSignoff | null = Object.freeze({
+  approvedBy: 'Matthew Paller',
+  approverRole: 'Super Admin / Operator',
+  signedAtIso: '2026-06-25',
+  scope: 'Commercial Lending LOS — document checklist rule-set (new deal generation, product/stage rules, required documents)',
+  rulesetVersion: '2026-06-25',
+  rollback: 'Set DOCUMENT_CHECKLIST_GENERATION_ENABLED to false',
+  evidenceRef: CHECKLIST_SIGNOFF_ARTIFACT_PATH,
+});
 
 export type ChecklistSignoffStatus = 'SIGNED' | 'UNKNOWN';
 

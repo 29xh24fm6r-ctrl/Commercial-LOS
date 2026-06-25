@@ -51,7 +51,8 @@ describe('Phase 245 — controlled live gate cutover governance contract', () =>
     expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
     const evidence = deriveFullProductionLaunchEvidence();
     const byKey = new Map(evidence.domains.map((d) => [d.key, d]));
-    expect(byKey.get('documentChecklist')?.environmentStatus).toBe('UNKNOWN');
+    // Phase 251: lending-owner signoff recorded → documentChecklist env PASS; its live gate stays false above.
+    expect(byKey.get('documentChecklist')?.environmentStatus).toBe('PASS');
     // Phase 250: Outlook connector registered (power.config.json) → borrowerSend env PASS; its send gate stays false above.
     expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
   });
