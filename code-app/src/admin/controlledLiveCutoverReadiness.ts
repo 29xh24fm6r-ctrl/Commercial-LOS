@@ -2,6 +2,12 @@ import {
   deriveProductionEnvironmentVerification,
   DOMAIN_LABELS,
 } from './productionEnvironmentVerification';
+import {
+  hydrateVerifiedCrmSchemaState,
+  hydrateVerifiedBoardingSchemaState,
+  CURRENT_CRM_VERIFICATION_EVIDENCE,
+  CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE,
+} from './runtimeVerifiedSchemaBridge';
 
 /**
  * Phase 245 — Controlled live gate cutover readiness ledger (READ-ONLY).
@@ -46,15 +52,19 @@ export const CUTOVER_GOVERNED_ADAPTER_PROVEN: Record<CutoverDomainKey, boolean> 
 });
 
 /**
- * OPERATOR-OWNED evidence, all false: the live Dataverse schema is NOT verified
- * (verify-full-schema live=0/0) so no VerifiedCrmSchemaState/VerifiedBoardingSchemaState
- * exists, and no controlled production smoke is recorded. Never set true to flip a gate.
+ * Live-schema verification is DERIVED from the Phase 246 runtime verified-state bridge
+ * applied to the actual recorded verifier evidence — never hardcoded. The current
+ * evidence reports live=0/0 (the live check did not run), so the bridge fails closed and
+ * every value resolves false. Stage advancement is not schema-gated (its readiness is the
+ * sink/ordering contract), so it is tracked separately and stays false here.
  */
-export const CUTOVER_LIVE_SCHEMA_VERIFIED: Record<CutoverDomainKey, boolean> = Object.freeze({
-  crmWriteback: false,
-  portfolioBoarding: false,
-  stageAdvancement: false,
-});
+export function deriveLiveSchemaVerified(): Record<CutoverDomainKey, boolean> {
+  return {
+    crmWriteback: hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated,
+    portfolioBoarding: hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated,
+    stageAdvancement: false,
+  };
+}
 export const CUTOVER_OPERATOR_SMOKE_RECORDED: Record<CutoverDomainKey, boolean> = Object.freeze({
   crmWriteback: false,
   portfolioBoarding: false,
@@ -114,12 +124,13 @@ export interface ControlledLiveCutoverReadiness {
 export function deriveControlledLiveCutoverReadiness(): ControlledLiveCutoverReadiness {
   const verification = deriveProductionEnvironmentVerification();
   const verByKey = new Map(verification.domains.map((d) => [d.key, d]));
+  const liveSchemaVerifiedByKey = deriveLiveSchemaVerified();
 
   const domains: CutoverDomainReadiness[] = CUTOVER_DOMAIN_KEYS.map((key) => {
     const ver = verByKey.get(key)!;
     const technicalPrerequisitesPass = CUTOVER_TECHNICAL_PREREQUISITES_PASS[key];
     const governedAdapterProven = CUTOVER_GOVERNED_ADAPTER_PROVEN[key];
-    const liveSchemaVerified = CUTOVER_LIVE_SCHEMA_VERIFIED[key];
+    const liveSchemaVerified = liveSchemaVerifiedByKey[key];
     const operatorSmokeRecorded = CUTOVER_OPERATOR_SMOKE_RECORDED[key];
     const cutoverComplete =
       technicalPrerequisitesPass &&

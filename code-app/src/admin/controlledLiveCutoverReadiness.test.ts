@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   deriveControlledLiveCutoverReadiness,
+  deriveLiveSchemaVerified,
   CUTOVER_DOMAIN_KEYS,
-  CUTOVER_LIVE_SCHEMA_VERIFIED,
   CUTOVER_OPERATOR_SMOKE_RECORDED,
 } from './controlledLiveCutoverReadiness';
 
@@ -40,8 +40,9 @@ describe('Phase 245 — controlled live cutover readiness ledger', () => {
     expect(vm.enabledCount).toBe(1);
   });
 
-  it('ships the operator-owned evidence toggles all false (no fake live-schema or smoke)', () => {
-    expect(Object.values(CUTOVER_LIVE_SCHEMA_VERIFIED).every((v) => v === false)).toBe(true);
+  it('derives live-schema verification from the bridge (current evidence → all false) and ships smoke toggles false', () => {
+    // The current recorded verifier evidence (live=0/0) fails the bridge → no fake live-schema.
+    expect(Object.values(deriveLiveSchemaVerified()).every((v) => v === false)).toBe(true);
     expect(Object.values(CUTOVER_OPERATOR_SMOKE_RECORDED).every((v) => v === false)).toBe(true);
   });
 
