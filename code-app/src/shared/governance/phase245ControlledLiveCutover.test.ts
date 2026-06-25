@@ -52,7 +52,8 @@ describe('Phase 245 — controlled live gate cutover governance contract', () =>
     const evidence = deriveFullProductionLaunchEvidence();
     const byKey = new Map(evidence.domains.map((d) => [d.key, d]));
     expect(byKey.get('documentChecklist')?.environmentStatus).toBe('UNKNOWN');
-    expect(byKey.get('borrowerSend')?.environmentStatus).toBe('UNKNOWN');
+    // Phase 250: Outlook connector registered (power.config.json) → borrowerSend env PASS; its send gate stays false above.
+    expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
   });
 
   it('does not claim full launch and enabledCount stays 1', () => {

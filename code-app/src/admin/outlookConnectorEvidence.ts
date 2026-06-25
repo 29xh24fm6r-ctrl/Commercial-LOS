@@ -15,10 +15,29 @@ import {
 
 export const OUTLOOK_GENERATED_SERVICE_PATH = 'src/generated/services/Office365OutlookService.ts';
 
+/**
+ * Real PAC manifest shapes for the Office 365 Outlook connector. PAC writes the
+ * registration to power.config.json (apis/shared_office365); dataSourcesInfo.ts may NOT
+ * contain the connector string. Mirrors scripts/activation/verify-outlook-connector.ps1.
+ */
+export const OUTLOOK_CONNECTOR_REGISTRATION_MARKERS = [
+  'shared_office365',
+  'office365',
+  'new_Office365Outlook',
+  'Office 365 Outlook',
+] as const;
+
+const REGISTRATION_REGEX = /shared_office365|office\s*365|new_Office365Outlook/i;
+
+/** Registered if ANY supplied source (dataSourcesInfo.ts and/or power.config.json) matches. */
+export function detectOutlookConnectorRegistration(...sources: ReadonlyArray<string | undefined | null>): boolean {
+  return sources.some((t) => typeof t === 'string' && REGISTRATION_REGEX.test(t));
+}
+
 export interface OutlookConnectorState {
   /** The generated Office365OutlookService typed client is present in the SDK. */
   readonly generatedServicePresent: boolean;
-  /** The connector is registered (and authorized) in the app data-source manifest. */
+  /** The connector is registered (and authorized) in dataSourcesInfo.ts OR power.config.json. */
   readonly connectorRegisteredInManifest: boolean;
   /** Deploy email mode is LIVE (VITE_EMAIL_MODE=LIVE). */
   readonly emailModeLive: boolean;
@@ -26,13 +45,13 @@ export interface OutlookConnectorState {
 
 /**
  * OPERATOR-OWNED, transcribed from scripts/activation/verify-outlook-connector.ps1:
- * the generated service is present, but the connector is NOT registered and email mode is
- * not LIVE. Set `connectorRegisteredInManifest`/`emailModeLive` true only from a real
- * recorded registration — never fabricate.
+ * the generated service is present AND the connector is now registered in power.config.json
+ * (apis/shared_office365 / new_Office365OutlookCommercialLOS). Email mode is NOT yet LIVE.
+ * Set `emailModeLive` true only from a real recorded LIVE deploy — never fabricate.
  */
 export const OUTLOOK_CONNECTOR_STATE: OutlookConnectorState = Object.freeze({
   generatedServicePresent: true,
-  connectorRegisteredInManifest: false,
+  connectorRegisteredInManifest: true,
   emailModeLive: false,
 });
 

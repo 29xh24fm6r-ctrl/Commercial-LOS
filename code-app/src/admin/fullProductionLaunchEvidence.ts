@@ -93,10 +93,10 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
     label: DOMAIN_LABELS.borrowerSend,
     environmentStatus: 'UNKNOWN',
     verificationScript: 'scripts/activation/verify-outlook-connector.ps1',
-    evidenceLine: '[242B][outlook-connector] STATUS=UNKNOWN service=True registered=False',
+    evidenceLine: '[250][outlook-connector] STATUS=PASS service=True registered=True (power.config.json apis/shared_office365)',
     missingOperatorActions: [
-      'In the maker portal add/authorize the Office 365 Outlook connector for the app and register it as a data source; regenerate the SDK.',
-      'Deploy with VITE_EMAIL_MODE=LIVE and certify the explicit banker-action, audited send path (connector acceptance is not delivery). No auto-send.',
+      'Office 365 Outlook connector registered in power.config.json (apis/shared_office365 / new_Office365OutlookCommercialLOS) and the generated service is present (verify-outlook-connector STATUS=PASS).',
+      'Remaining: deploy with VITE_EMAIL_MODE=LIVE and certify the explicit banker-action audited send path (connector acceptance is not delivery; no auto-send), then flip the governed borrower-send gate.',
     ],
     rollbackControl:
       'Set BORROWER_MESSAGING_ENABLED + BORROWER_EMAIL_TRANSPORT_ENABLED to false; deploy with VITE_EMAIL_MODE=DRY_RUN.',

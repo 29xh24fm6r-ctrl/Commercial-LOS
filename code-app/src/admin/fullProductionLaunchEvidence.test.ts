@@ -16,30 +16,31 @@ describe('Phase 243 — full production launch evidence ledger', () => {
     expect(byKey.get('newDealCreate')?.environmentStatus).toBe('PASS');
     expect(byKey.get('crmWriteback')?.environmentStatus).toBe('PASS');
     expect(byKey.get('documentChecklist')?.environmentStatus).toBe('UNKNOWN');
-    expect(byKey.get('borrowerSend')?.environmentStatus).toBe('UNKNOWN');
+    // Phase 250: Outlook connector registered in power.config.json → borrowerSend env PASS.
+    expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
     expect(byKey.get('stageAdvancement')?.environmentStatus).toBe('PASS');
     expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
   });
 
-  it('does NOT claim full launch: only New Deal create is live (1/6), checklist + Outlook blocking', () => {
+  it('does NOT claim full launch: only New Deal create is live (1/6), checklist blocking', () => {
     const vm = deriveFullProductionLaunchEvidence();
     expect(vm.fullLaunchAchieved).toBe(false);
     expect(vm.enabledCount).toBe(1);
-    expect(vm.blockingDomains).toEqual(['documentChecklist', 'borrowerSend']);
+    expect(vm.blockingDomains).toEqual(['documentChecklist']);
   });
 
   it('separates environment-PASS from live-enabled (PASS prerequisite is not activation)', () => {
     const vm = deriveFullProductionLaunchEvidence();
     const byKey = new Map(vm.domains.map((d) => [d.key, d]));
-    // CRM, portfolio, and stage environments are PASS, but they are NOT live (gate/smoke pending).
-    for (const key of ['crmWriteback', 'portfolioBoarding', 'stageAdvancement'] as const) {
+    // CRM, portfolio, stage, and borrower-connector environments are PASS, but NOT live.
+    for (const key of ['crmWriteback', 'portfolioBoarding', 'stageAdvancement', 'borrowerSend'] as const) {
       const d = byKey.get(key)!;
       expect(d.environmentStatus, key).toBe('PASS');
       expect(d.enabled, key).toBe(false);
       expect(d.missingOperatorActions.length, key).toBeGreaterThan(0);
     }
-    // Four domains have PASS environment evidence; only one is actually enabled.
-    expect(vm.environmentPassCount).toBe(4);
+    // Five domains have PASS environment evidence; only one is actually enabled.
+    expect(vm.environmentPassCount).toBe(5);
     expect(vm.enabledCount).toBe(1);
   });
 

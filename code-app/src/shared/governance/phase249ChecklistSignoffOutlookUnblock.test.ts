@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { deriveChecklistSignoffReadiness, CHECKLIST_RULESET_SIGNOFF } from '../../admin/checklistSignoffEvidence';
-import { deriveOutlookConnectorReadiness, OUTLOOK_CONNECTOR_STATE, OUTLOOK_GENERATED_SERVICE_PATH } from '../../admin/outlookConnectorEvidence';
+import { deriveOutlookConnectorReadiness, detectOutlookConnectorRegistration, OUTLOOK_CONNECTOR_STATE, OUTLOOK_GENERATED_SERVICE_PATH } from '../../admin/outlookConnectorEvidence';
 import { deriveFullProductionLaunchEvidence } from '../../admin/fullProductionLaunchEvidence';
 import { derivePacTableAccessReadiness } from '../../admin/pacTableAccessEvidence';
 import {
@@ -36,15 +36,18 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(src).toMatch(/CHECKLIST_RULESET_SIGNOFF:\s*ChecklistRulesetSignoff\s*\|\s*null\s*=\s*null/);
   });
 
-  it('fabricates no Outlook connector registration (committed not-registered → UNKNOWN, gates false)', () => {
-    expect(OUTLOOK_CONNECTOR_STATE.connectorRegisteredInManifest).toBe(false);
+  it('Outlook connector registered via power.config.json (real) → PASS, but live send stays gated', () => {
+    // Phase 250: registration is REAL (power.config.json), not fabricated; gates stay false.
+    expect(OUTLOOK_CONNECTOR_STATE.connectorRegisteredInManifest).toBe(true);
+    expect(OUTLOOK_CONNECTOR_STATE.emailModeLive).toBe(false);
     const vm = deriveOutlookConnectorReadiness();
-    expect(vm.status).toBe('UNKNOWN');
+    expect(vm.status).toBe('PASS');
+    expect(vm.liveSendEnabled).toBe(false);
     expect(BORROWER_MESSAGING_ENABLED).toBe(false);
     expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
-    // The generated service genuinely exists (grounds generatedServicePresent), but that alone is UNKNOWN.
+    // The generated service genuinely exists, and the real power.config.json carries the registration.
     expect(existsSync(resolve(ROOT, OUTLOOK_GENERATED_SERVICE_PATH))).toBe(true);
-    expect(vm.registrationRequired).toBe(true);
+    expect(detectOutlookConnectorRegistration(read('power.config.json'))).toBe(true);
   });
 
   it('does NOT alter CRM/portfolio runtime hydration (still fails closed)', () => {
@@ -53,15 +56,17 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(false);
   });
 
-  it('the ledger keeps checklist + borrower UNKNOWN and does not claim launch', () => {
+  it('the ledger keeps checklist UNKNOWN (borrower connector now PASS) and does not claim launch', () => {
     const ledger = deriveFullProductionLaunchEvidence();
     const byKey = new Map(ledger.domains.map((d) => [d.key, d]));
     expect(byKey.get('documentChecklist')?.environmentStatus).toBe('UNKNOWN');
-    expect(byKey.get('borrowerSend')?.environmentStatus).toBe('UNKNOWN');
+    // Phase 250: connector registered → borrowerSend environment PASS (still not live-enabled).
+    expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
+    expect(byKey.get('borrowerSend')?.enabled).toBe(false);
     expect(byKey.get('newDealCreate')?.enabled).toBe(true);
     expect(byKey.get('crmWriteback')?.environmentStatus).toBe('PASS');
     expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
-    expect(ledger.blockingDomains).toEqual(['documentChecklist', 'borrowerSend']);
+    expect(ledger.blockingDomains).toEqual(['documentChecklist']);
     expect(ledger.enabledCount).toBe(1);
     expect(ledger.fullLaunchAchieved).toBe(false);
 

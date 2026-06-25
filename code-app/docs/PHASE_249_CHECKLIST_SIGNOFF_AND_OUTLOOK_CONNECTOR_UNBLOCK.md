@@ -7,10 +7,20 @@ signoff or connector registration was fabricated. No live gate changed.
 `enabledCount = 1 / 6`. `fullLaunchAchieved = false`. `pac code push` NOT performed.**
 
 - **Checklist signoff status:** **UNKNOWN** — no lending-owner signoff recorded.
-- **Outlook connector status:** **UNKNOWN** — generated service present, connector NOT
-  registered in the manifest.
+- **Outlook connector status:** **PASS** (updated Phase 250) — generated service present AND
+  the connector is registered in `power.config.json` (`apis/shared_office365` /
+  `new_Office365OutlookCommercialLOS`). Live send is still gated (email mode not LIVE,
+  borrower-send flags false, explicit-send certification pending).
 - **CRM/portfolio hydration status:** unchanged — still NOT hydrated (Web API metadata
   unmeasured); the bridge was not touched.
+
+> **Phase 250 update — Outlook connector verifier:** PAC writes the connector registration
+> to `power.config.json` (the `/providers/Microsoft.PowerApps/apis/shared_office365` entry),
+> and `.power/schemas/appschemas/dataSourcesInfo.ts` may NOT contain the connector string.
+> `scripts/activation/verify-outlook-connector.ps1` now inspects BOTH sources and treats the
+> connector as registered if either matches `shared_office365` / `office 365` /
+> `new_Office365Outlook`. Result: `STATUS=PASS` (source: `power.config.json`). The generated
+> service alone is still UNKNOWN and registration alone (no service) is still BLOCKED.
 
 ## Document checklist signoff pack
 
@@ -61,10 +71,10 @@ Current recorded results:
 
 ```text
 [242B][checklist-rules]   STATUS=UNKNOWN modules=3/3 datasource=True signoff=pending-operator
-[242B][outlook-connector] STATUS=UNKNOWN service=True registered=False
+[250][outlook-connector]  STATUS=PASS service=True registered=True source=power.config.json
 ```
 
-## Launch evidence ledger (unchanged states)
+## Launch evidence ledger
 
 ```text
 New Deal create      : enabled (Phase 242A pilot)
@@ -72,7 +82,7 @@ CRM writeback        : PAC reachability 5/5 + SDK PASS; runtime NOT hydrated
 Portfolio boarding   : PAC reachability 13/13 + SDK PASS; runtime NOT hydrated
 Stage advancement    : sinks PASS; controlled smoke pending
 Document checklist   : UNKNOWN — lending-owner signoff pending
-Borrower send        : UNKNOWN — Outlook connector registration pending
+Borrower send        : PASS (connector registered in power.config.json); live send gated — VITE_EMAIL_MODE=LIVE + cert pending
 fullLaunchAchieved   : false   (enabledCount 1/6)
 ```
 
@@ -96,9 +106,9 @@ PRODUCTION_ENVIRONMENT_CERTIFICATION                            = only newDealCr
    review categories and records a complete `ChecklistRulesetSignoff`; re-run
    `verify-checklist-rules.ps1`; then the governed `DOCUMENT_CHECKLIST_GENERATION_ENABLED`
    gate flip may be considered (separate governed step).
-2. **Borrower send:** register + authorize the Office 365 Outlook connector, regenerate the
-   SDK, deploy `VITE_EMAIL_MODE=LIVE`, certify the explicit audited send; re-run
-   `verify-outlook-connector.ps1` until `STATUS=PASS`; then the governed borrower-send gate
+2. **Borrower send:** connector is registered (`power.config.json`) and `verify-outlook-connector.ps1`
+   reads `STATUS=PASS`. Remaining: deploy `VITE_EMAIL_MODE=LIVE`, certify the explicit audited
+   send (no auto-send); then the governed borrower-send gate
    flip may be considered.
 3. CRM/portfolio still need a Dataverse-authorized token to measure Web API metadata and
    hydrate; stage still needs a controlled production smoke. These are independent of the
