@@ -1,6 +1,6 @@
 {
     "domain":  "crm",
-    "status":  "UNKNOWN",
+    "status":  "PASS",
     "services":  {
                      "found":  5,
                      "expected":  5
@@ -10,11 +10,16 @@
                         "expected":  5
                     },
     "liveTables":  {
-                       "found":  0,
-                       "checked":  0
+                       "found":  5,
+                       "checked":  5
                    },
-    "measured":  null,
-    "verifiedAtIso":  "2026-06-25T10:16:23.8036330-04:00",
-    "tokenValidated":  false,
-    "notes":  "live measurement NOT performed (no usable Dataverse token); fail-closed live=0/0"
+    "measured":  {
+                     "tablesFound":  5,
+                     "columnsFound":  40,
+                     "relationshipsFound":  0,
+                     "conflicts":  0
+                 },
+    "verifiedAtIso":  "2026-06-25T12:24:31.4333395-04:00",
+    "tokenValidated":  true,
+    "notes":  "token-backed live measurement performed"
 }

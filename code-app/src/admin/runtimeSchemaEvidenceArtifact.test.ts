@@ -17,22 +17,33 @@ const CRM_ARTIFACT = 'scripts/dataverse/evidence/runtime-schema-evidence.crm.jso
 const PORTFOLIO_ARTIFACT = 'scripts/dataverse/evidence/runtime-schema-evidence.portfolio.json';
 const NOW = Date.parse('2026-06-25T12:00:00.000Z');
 
-describe('Phase 247 — committed token-backed evidence artifacts', () => {
-  it('the CRM artifact is honest fail-closed (token rejected, live=0/0, no measured) and does NOT hydrate', () => {
+describe('Phase 252 — committed REAL token-backed evidence artifacts', () => {
+  it('the CRM artifact is a real token-backed PASS measurement (live 5/5) but does NOT hydrate — spine incomplete vs the runtime plan', () => {
     const a = load(CRM_ARTIFACT);
-    expect(a.tokenValidated).toBe(false);
-    expect(a.liveTables).toEqual({ found: 0, checked: 0 });
-    expect(a.measured).toBeNull();
+    expect(a.tokenValidated).toBe(true);
+    expect(a.status).toBe('PASS');
+    expect(a.liveTables.found).toBe(a.liveTables.checked);
+    expect(a.liveTables.checked).toBeGreaterThan(0);
+    expect(a.measured).not.toBeNull();
+    // The deployed CRM spine (5 tables / 40 columns) is incomplete vs the runtime plan
+    // (EXPECTED_CRM_SCHEMA: 10 tables / 147 columns), so the bridge fails closed honestly.
+    expect(a.measured.columnsFound).toBeLessThan(EXPECTED_CRM_SCHEMA.columns);
     const r = hydrateVerifiedCrmSchemaState(a, { nowEpochMs: NOW, maxAgeMs: Number.MAX_SAFE_INTEGER });
     expect(r.hydrated).toBe(false);
+    expect(r.blockers.join(' ')).toMatch(/columns|tables/);
   });
 
-  it('the portfolio artifact is honest fail-closed and does NOT hydrate', () => {
+  it('the portfolio artifact is a real token-backed PASS measurement (live 13/13) but does NOT hydrate — columns/required relationships below the plan', () => {
     const a = load(PORTFOLIO_ARTIFACT);
-    expect(a.tokenValidated).toBe(false);
-    expect(a.liveTables).toEqual({ found: 0, checked: 0 });
+    expect(a.tokenValidated).toBe(true);
+    expect(a.status).toBe('PASS');
+    expect(a.liveTables.checked).toBe(EXPECTED_BOARDING_SCHEMA.tables);
+    expect(a.liveTables.found).toBe(a.liveTables.checked);
+    expect(a.measured).not.toBeNull();
+    expect(a.measured.columnsFound).toBeLessThan(EXPECTED_BOARDING_SCHEMA.columns);
     const r = hydrateVerifiedBoardingSchemaState(a, { nowEpochMs: NOW, maxAgeMs: Number.MAX_SAFE_INTEGER });
     expect(r.hydrated).toBe(false);
+    expect(r.blockers.join(' ')).toMatch(/columns|required relationships/);
   });
 
   it('an AUTHORIZED token-backed measurement (live N/N + measured) hydrates — proving the export format is bridge-compatible', () => {

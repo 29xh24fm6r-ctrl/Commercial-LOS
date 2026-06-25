@@ -25,20 +25,23 @@ const PORTFOLIO_ARTIFACT = 'scripts/dataverse/evidence/runtime-schema-evidence.p
 const DOC_REL = 'docs/PHASE_247_TOKEN_BACKED_LIVE_SCHEMA_MEASUREMENT.md';
 
 describe('Phase 247 — token-backed live measurement governance contract', () => {
-  it('the committed evidence artifacts are honest fail-closed (token not validated, live=0/0, no fake)', () => {
+  it('the committed evidence artifacts are a REAL token-backed PASS measurement (Phase 252), not fabricated', () => {
     for (const rel of [CRM_ARTIFACT, PORTFOLIO_ARTIFACT]) {
       const a = JSON.parse(read(rel).replace(/^﻿/, ''));
-      expect(a.tokenValidated, rel).toBe(false);
-      expect(a.liveTables, rel).toEqual({ found: 0, checked: 0 });
-      expect(a.measured, rel).toBeNull();
+      expect(a.tokenValidated, rel).toBe(true);
+      expect(a.status, rel).toBe('PASS');
+      expect(a.liveTables.found, rel).toBe(a.liveTables.checked);
+      expect(a.liveTables.checked, rel).toBeGreaterThan(0);
+      expect(a.measured, rel).not.toBeNull();
     }
   });
 
-  it('the current committed evidence does NOT hydrate (measurement did not complete)', () => {
+  it('the current committed evidence still does NOT hydrate (live spine incomplete vs the runtime plan)', () => {
     expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(false);
     expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
-    expect(CURRENT_CRM_VERIFICATION_EVIDENCE.liveTables).toEqual({ found: 0, checked: 0 });
-    expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.liveTables).toEqual({ found: 0, checked: 0 });
+    // Real measurement: tables live, but columns/required relationships below the plan.
+    expect(CURRENT_CRM_VERIFICATION_EVIDENCE.liveTables.checked).toBeGreaterThan(0);
+    expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.measured?.requiredRelationshipsFound).toBe(0);
   });
 
   it('the export script is read-only (no mutation, no pac code push)', () => {

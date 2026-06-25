@@ -59,11 +59,12 @@ describe('Phase 246 — runtime verified-state bridge (CRM)', () => {
     });
   });
 
-  it('the CURRENT recorded evidence (live=0/0) does NOT hydrate', () => {
+  it('the CURRENT recorded evidence (real spine measurement) does NOT hydrate — incomplete vs the plan', () => {
     const r = hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE, { nowEpochMs: NOW });
     expect(r.hydrated).toBe(false);
     expect(r.verified).toBeNull();
-    expect(r.blockers.join(' ')).toMatch(/zero-total|did not run/);
+    // CRM live spine is 5/10 plan tables and 40/147 plan columns → schema-completeness gap.
+    expect(r.blockers.join(' ')).toMatch(/columns|tables/);
   });
 
   it('zero-total live count does not hydrate', () => {

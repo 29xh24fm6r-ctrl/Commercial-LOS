@@ -23,12 +23,13 @@ const BRIDGE_REL = 'src/admin/runtimeVerifiedSchemaBridge.ts';
 const DOC_REL = 'docs/PHASE_246_RUNTIME_VERIFIED_STATE_BRIDGE.md';
 
 describe('Phase 246 — runtime verified-state bridge governance contract', () => {
-  it('the CURRENT recorded evidence (live=0/0) does NOT hydrate either domain', () => {
+  it('the CURRENT recorded evidence (real spine measurement) does NOT hydrate either domain', () => {
     expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(false);
     expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
-    // The committed current-evidence constants carry a zero-total live count (no fake live).
-    expect(CURRENT_CRM_VERIFICATION_EVIDENCE.liveTables).toEqual({ found: 0, checked: 0 });
-    expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.liveTables).toEqual({ found: 0, checked: 0 });
+    // The live schema is the minimal deployment spine, incomplete vs the runtime plan
+    // (no fake hydration): CRM columns below the plan; portfolio has 0/12 required relationships.
+    expect(CURRENT_CRM_VERIFICATION_EVIDENCE.measured?.columnsFound).toBeLessThan(EXPECTED_CRM_SCHEMA.columns);
+    expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.measured?.requiredRelationshipsFound).toBe(0);
   });
 
   it('hydrates only on a complete, fresh, all-live PASS (bridge is not a constant stub)', () => {
@@ -69,8 +70,8 @@ describe('Phase 246 — runtime verified-state bridge governance contract', () =
     expect(src).not.toMatch(/\bcreateRecord\b|\bupdateRecord\b|\bdeleteRecord\b/i);
     expect(src).not.toMatch(/_ENABLED\s*=\s*true/);
     expect(src).not.toMatch(/from ['"][^'"]*\/generated\//);
-    // The committed current evidence must keep a zero-total live count.
-    expect(src).toMatch(/liveTables:\s*\{\s*found:\s*0,\s*checked:\s*0\s*\}/);
+    // The committed current evidence is real but incomplete vs the plan → still fails closed.
+    expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(false);
   });
 
   it('the Phase 246 doc exists with the required sections', () => {

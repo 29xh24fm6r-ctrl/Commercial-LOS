@@ -188,27 +188,31 @@ export function hydrateVerifiedBoardingSchemaState(
 
 /**
  * The ACTUAL recorded verification evidence, transcribed from
- * scripts/dataverse/export-runtime-schema-evidence.ps1 (Phase 247 token-backed
- * measurement attempt). Generated services + data sources are full (5/5, 13/13), but
- * the live Dataverse measurement could NOT complete: the issued token was rejected by
- * this org (WhoAmI 401 — the calling app is not a provisioned application user), so
- * STATUS=UNKNOWN, live=0/0, and no measured schema was captured. This evidence does NOT
- * hydrate runtime verified state. These are committed facts, not a fabricated PASS — the
- * verifier output (scripts/dataverse/evidence/runtime-schema-evidence.*.json) carries
- * the same values.
+ * scripts/dataverse/export-runtime-schema-evidence.ps1 (Phase 252 token-backed
+ * measurement). A real Dataverse Web API token (Connect-AzAccount + Get-AzAccessToken,
+ * WhoAmI 200) measured the live schema in Matthew Paller's Environment: every expected
+ * table is live (CRM 5/5, portfolio 13/13). BUT the live schema is the MINIMAL deployment
+ * spine, incomplete vs the runtime plan: CRM has 5/10 plan tables and 40/147 plan columns;
+ * portfolio has 13/13 tables but only ~15/219 columns and 0/12 required relationships. So
+ * this evidence still does NOT hydrate runtime verified state — the bridge fails closed on
+ * the schema-completeness gap. These are committed facts, not a fabricated PASS — the
+ * verifier output (scripts/dataverse/evidence/runtime-schema-evidence.*.json) carries the
+ * same values.
  */
 export const CURRENT_CRM_VERIFICATION_EVIDENCE: CrmSchemaVerificationEvidence = Object.freeze({
-  status: 'UNKNOWN',
+  status: 'PASS',
   services: { found: 5, expected: 5 },
   dataSources: { found: 5, expected: 5 },
-  liveTables: { found: 0, checked: 0 },
-  verifiedAtIso: '2026-06-25T10:11:59-04:00',
+  liveTables: { found: 5, checked: 5 },
+  measured: { tablesFound: 5, columnsFound: 40, relationshipsFound: 0, conflicts: 0 },
+  verifiedAtIso: '2026-06-25T12:24:31-04:00',
 });
 
 export const CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE: BoardingSchemaVerificationEvidence = Object.freeze({
-  status: 'UNKNOWN',
+  status: 'PASS',
   services: { found: 13, expected: 13 },
   dataSources: { found: 13, expected: 13 },
-  liveTables: { found: 0, checked: 0 },
-  verifiedAtIso: '2026-06-25T10:11:59-04:00',
+  liveTables: { found: 13, checked: 13 },
+  measured: { tablesFound: 13, columnsFound: 15, requiredRelationshipsFound: 0, optionalRelationshipsFound: 0, conflicts: 0 },
+  verifiedAtIso: '2026-06-25T12:24:31-04:00',
 });
