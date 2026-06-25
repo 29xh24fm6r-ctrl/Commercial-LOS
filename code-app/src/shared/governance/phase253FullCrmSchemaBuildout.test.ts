@@ -69,9 +69,10 @@ describe('Phase 253 — full CRM schema buildout governance contract', () => {
 
   it('the verify script recognizes lookup-attribute coverage without weakening target validation', () => {
     const src = read(VERIFY_REL);
-    expect(src).toMatch(/Test-RelCoveredByLookup/);
+    expect(src).toMatch(/Get-RelPresence/);
+    expect(src).toMatch(/LookupAttributeMetadata/);
     // Coverage requires the lookup to target the EXPECTED entity (target validation intact).
-    expect(src).toMatch(/-contains\s+\$expectedTarget/);
+    expect(src).toMatch(/-contains\s+\$r\.toTable/);
   });
 
   it('the verify script is read-only (GET only, no mutation, no push) and fails closed', () => {

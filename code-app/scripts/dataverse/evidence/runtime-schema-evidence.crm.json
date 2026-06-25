@@ -1,25 +1,25 @@
 {
     "domain":  "crm",
-    "status":  "PASS",
+    "status":  "BLOCKED",
     "services":  {
                      "found":  5,
-                     "expected":  5
+                     "expected":  10
                  },
     "dataSources":  {
                         "found":  5,
-                        "expected":  5
+                        "expected":  10
                     },
     "liveTables":  {
-                       "found":  5,
-                       "checked":  5
+                       "found":  10,
+                       "checked":  10
                    },
     "measured":  {
-                     "tablesFound":  5,
-                     "columnsFound":  40,
+                     "tablesFound":  10,
+                     "columnsFound":  147,
                      "relationshipsFound":  0,
                      "conflicts":  0
                  },
-    "verifiedAtIso":  "2026-06-25T12:24:31.4333395-04:00",
+    "verifiedAtIso":  "2026-06-25T13:36:17.5595981-04:00",
     "tokenValidated":  true,
     "notes":  "token-backed live measurement performed"
 }

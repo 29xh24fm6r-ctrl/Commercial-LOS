@@ -59,12 +59,12 @@ describe('Phase 246 — runtime verified-state bridge (CRM)', () => {
     });
   });
 
-  it('the CURRENT recorded evidence (real spine measurement) does NOT hydrate — incomplete vs the plan', () => {
+  it('the CURRENT recorded evidence does NOT hydrate — live schema complete (10/147) but SDK registration 5/10', () => {
     const r = hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE, { nowEpochMs: NOW });
     expect(r.hydrated).toBe(false);
     expect(r.verified).toBeNull();
-    // CRM live spine is 5/10 plan tables and 40/147 plan columns → schema-completeness gap.
-    expect(r.blockers.join(' ')).toMatch(/columns|tables/);
+    // Fail-closed reason is the SDK/registration gap (services 5/10, status BLOCKED), not columns.
+    expect(r.blockers.join(' ')).toMatch(/services|status|datasources/i);
   });
 
   it('zero-total live count does not hydrate', () => {

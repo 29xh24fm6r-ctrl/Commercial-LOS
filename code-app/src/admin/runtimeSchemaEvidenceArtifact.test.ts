@@ -18,19 +18,21 @@ const PORTFOLIO_ARTIFACT = 'scripts/dataverse/evidence/runtime-schema-evidence.p
 const NOW = Date.parse('2026-06-25T12:00:00.000Z');
 
 describe('Phase 252 — committed REAL token-backed evidence artifacts', () => {
-  it('the CRM artifact is a real token-backed PASS measurement (live 5/5) but does NOT hydrate — spine incomplete vs the runtime plan', () => {
+  it('the CRM artifact: live schema is COMPLETE (10/147) but the local SDK is 5/10 → BLOCKED, does NOT hydrate', () => {
     const a = load(CRM_ARTIFACT);
     expect(a.tokenValidated).toBe(true);
-    expect(a.status).toBe('PASS');
-    expect(a.liveTables.found).toBe(a.liveTables.checked);
-    expect(a.liveTables.checked).toBeGreaterThan(0);
+    // Phase 253/253A applied the full live schema: 10 tables, measured 147 columns.
+    expect(a.liveTables).toEqual({ found: 10, checked: 10 });
     expect(a.measured).not.toBeNull();
-    // The deployed CRM spine (5 tables / 40 columns) is incomplete vs the runtime plan
-    // (EXPECTED_CRM_SCHEMA: 10 tables / 147 columns), so the bridge fails closed honestly.
-    expect(a.measured.columnsFound).toBeLessThan(EXPECTED_CRM_SCHEMA.columns);
+    expect(a.measured.tablesFound).toBe(EXPECTED_CRM_SCHEMA.tables);
+    expect(a.measured.columnsFound).toBe(EXPECTED_CRM_SCHEMA.columns);
+    // But the local SDK registration is incomplete (services 5/10) → BLOCKED.
+    expect(a.status).toBe('BLOCKED');
+    expect(a.services.found).toBeLessThan(a.services.expected);
     const r = hydrateVerifiedCrmSchemaState(a, { nowEpochMs: NOW, maxAgeMs: Number.MAX_SAFE_INTEGER });
     expect(r.hydrated).toBe(false);
-    expect(r.blockers.join(' ')).toMatch(/columns|tables/);
+    // Fail-closed reason is now the SDK/registration gap, not the schema columns.
+    expect(r.blockers.join(' ')).toMatch(/services|status|datasources/i);
   });
 
   it('the portfolio artifact is a real token-backed PASS measurement (live 13/13) but does NOT hydrate — columns/required relationships below the plan', () => {

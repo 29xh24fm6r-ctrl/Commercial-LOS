@@ -188,24 +188,25 @@ export function hydrateVerifiedBoardingSchemaState(
 
 /**
  * The ACTUAL recorded verification evidence, transcribed from
- * scripts/dataverse/export-runtime-schema-evidence.ps1 (Phase 252 token-backed
- * measurement). A real Dataverse Web API token (Connect-AzAccount + Get-AzAccessToken,
- * WhoAmI 200) measured the live schema in Matthew Paller's Environment: every expected
- * table is live (CRM 5/5, portfolio 13/13). BUT the live schema is the MINIMAL deployment
- * spine, incomplete vs the runtime plan: CRM has 5/10 plan tables and 40/147 plan columns;
- * portfolio has 13/13 tables but only ~15/219 columns and 0/12 required relationships. So
- * this evidence still does NOT hydrate runtime verified state — the bridge fails closed on
- * the schema-completeness gap. These are committed facts, not a fabricated PASS — the
- * verifier output (scripts/dataverse/evidence/runtime-schema-evidence.*.json) carries the
- * same values.
+ * scripts/dataverse/export-runtime-schema-evidence.ps1 (real token-backed measurement in
+ * Matthew Paller's Environment, WhoAmI 200).
+ *
+ * Phase 253/253A applied the FULL live CRM schema: CRM is now live 10/10 tables with a
+ * measured schema of 10 tables / 147 columns (matching the runtime plan). BUT the LOCAL SDK
+ * registration is still incomplete (services 5/10, data sources 5/10) — the 5 new tables'
+ * generated services + manifest entries are not yet regenerated — so the export reports
+ * STATUS=BLOCKED and this evidence does NOT hydrate. Per the contract, CRM hydrates only when
+ * services=10/10 AND data sources=10/10 AND live=10/10 AND the measured schema is full.
+ * (Portfolio remains the spine: 13 tables but ~15/219 columns.) These are committed facts,
+ * not a fabricated PASS — runtime-schema-evidence.*.json carries the same values.
  */
 export const CURRENT_CRM_VERIFICATION_EVIDENCE: CrmSchemaVerificationEvidence = Object.freeze({
-  status: 'PASS',
-  services: { found: 5, expected: 5 },
-  dataSources: { found: 5, expected: 5 },
-  liveTables: { found: 5, checked: 5 },
-  measured: { tablesFound: 5, columnsFound: 40, relationshipsFound: 0, conflicts: 0 },
-  verifiedAtIso: '2026-06-25T12:24:31-04:00',
+  status: 'BLOCKED',
+  services: { found: 5, expected: 10 },
+  dataSources: { found: 5, expected: 10 },
+  liveTables: { found: 10, checked: 10 },
+  measured: { tablesFound: 10, columnsFound: 147, relationshipsFound: 0, conflicts: 0 },
+  verifiedAtIso: '2026-06-25T13:36:17-04:00',
 });
 
 export const CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE: BoardingSchemaVerificationEvidence = Object.freeze({

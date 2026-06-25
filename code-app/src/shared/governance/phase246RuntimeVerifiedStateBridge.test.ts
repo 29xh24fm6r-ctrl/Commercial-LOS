@@ -26,9 +26,9 @@ describe('Phase 246 — runtime verified-state bridge governance contract', () =
   it('the CURRENT recorded evidence (real spine measurement) does NOT hydrate either domain', () => {
     expect(hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated).toBe(false);
     expect(hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE).hydrated).toBe(false);
-    // The live schema is the minimal deployment spine, incomplete vs the runtime plan
-    // (no fake hydration): CRM columns below the plan; portfolio has 0/12 required relationships.
-    expect(CURRENT_CRM_VERIFICATION_EVIDENCE.measured?.columnsFound).toBeLessThan(EXPECTED_CRM_SCHEMA.columns);
+    // No fake hydration: CRM live schema is complete (147 cols) but SDK registration is 5/10
+    // (status BLOCKED); portfolio still has 0/12 required relationships.
+    expect(CURRENT_CRM_VERIFICATION_EVIDENCE.services.found).toBeLessThan(CURRENT_CRM_VERIFICATION_EVIDENCE.services.expected);
     expect(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE.measured?.requiredRelationshipsFound).toBe(0);
   });
 

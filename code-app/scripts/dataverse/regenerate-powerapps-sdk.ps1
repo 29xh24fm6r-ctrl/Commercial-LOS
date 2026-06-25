@@ -22,8 +22,12 @@ $schemaDir = Join-Path $PSScriptRoot 'schema'
 # Dataverse `pac code add-data-source -t` expects the SINGULAR logical table name
 # (e.g. cr664_crmorganization), NOT the plural entity-set name (cr664_crmorganizations).
 # Registering with the plural entity-set name produces an invalid/duplicate data source.
+# Phase 253B: register the FULL CRM contract (crm-full.schema.json = 10 tables), not the
+# old 5-table spine — otherwise only 5/10 CRM services/data sources are generated and the
+# runtime evidence reports services=5/10 datasources=5/10 (BLOCKED). Portfolio still uses
+# its spine (full portfolio buildout is a later phase).
 $logicalNames = @()
-foreach ($f in @('crm-spine.schema.json', 'portfolio-boarding.schema.json')) {
+foreach ($f in @('crm-full.schema.json', 'portfolio-boarding.schema.json')) {
   $s = Get-Content -Raw -LiteralPath (Join-Path $schemaDir $f) | ConvertFrom-Json
   $logicalNames += ($s.tables | ForEach-Object { $_.logicalName })
 }

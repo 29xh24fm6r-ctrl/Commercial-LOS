@@ -52,6 +52,44 @@ validation. Still create-missing-only: no delete, rename, overwrite, or data mut
 skips the already-present `cr664_EmployerOrganization` lookup and continues; rerunning is
 safe and resumes from where it stopped.
 
+## Phase 253B — register full CRM SDK / data sources + stabilize the verifier
+
+After the live schema was applied (10 tables), `export-runtime-schema-evidence.ps1` reported
+CRM `services=5/10 datasources=5/10 live=10/10` → **BLOCKED**: the live tables exist, but only
+the old 5 generated services + 5 data-source registrations were present locally.
+
+**Root cause:** `regenerate-powerapps-sdk.ps1` enumerated the old **5-table spine**
+(`crm-spine.schema.json`), so re-running it only ever registered/generated 5 CRM tables. The
+5 new tables (contactpoint, communicationpreference, contactauthorization, vendorprofile,
+auditentry) were never added.
+
+**Fix:**
+- `regenerate-powerapps-sdk.ps1` now enumerates `crm-full.schema.json` (**10 CRM tables**), so
+  a regen registers all 10 data sources and generates all 10 `Cr664_crm*Service.ts` services.
+- A new contract (`src/crm/crmSdkContract.ts`) pins **10 generated services / 10 data
+  sources**, fail-closed: `services=5/10` or `datasources=5/10` stays **BLOCKED**; hydration
+  needs 10/10 services + 10/10 data sources + live 10/10 + the full measured schema.
+- The `.power` data-source manifest is operator-local (gitignored); the generated services are
+  pac output from live metadata. This commit fixes the path + contract + verifier — the
+  operator regenerates to actually produce the 10 services/registrations.
+
+**Verifier stabilization (`verify-full-crm-schema.ps1`):** metadata probes are now tri-state —
+`present` (200) / `missing` (404) / `unknown` (any other error = transient/throttle). A
+transient error is NEVER counted as missing (that caused 10/10 to regress to a false 3/10). If
+ANY check is inconclusive, STATUS is **UNKNOWN** ("re-run", not a missing-schema FAIL), and no
+`measured` block is emitted. Token-backed metadata (EntityDefinitions/Attributes) is treated
+distinctly from PAC fetch reachability (`verify-pac-table-access.ps1`).
+
+**Operator retry:**
+```powershell
+powershell -File scripts/dataverse/regenerate-powerapps-sdk.ps1 -Apply   # now registers all 10 CRM tables
+npm run build
+powershell -File scripts/dataverse/verify-full-crm-schema.ps1            # PASS at 10/10/147/147/28/28 (UNKNOWN if metadata unstable - re-run)
+powershell -File scripts/dataverse/export-runtime-schema-evidence.ps1    # CRM services=10/10 datasources=10/10
+```
+Then transcribe the fresh measured output into `CURRENT_CRM_VERIFICATION_EVIDENCE`. No gate is
+flipped and `pac code push` was **not performed**.
+
 ## CRM schema delta
 
 The full contract is generated from `src/crm/crmDataverseSchemaPlan.ts` into
