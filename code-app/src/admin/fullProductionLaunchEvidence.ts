@@ -121,7 +121,8 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
     evidenceLine: '[243][verify-portfolio-boarding] STATUS=PASS services=13/13 datasources=13/13 live=0/0; [242B][portfolio-boarding] STATUS=PASS service=True datasource=True',
     missingOperatorActions: [
       'Technical prerequisites PASS at commit 0d5f303 (13/13 generated boarded-loan + child-group services, 13/13 data sources registered); governed-adapter cutover smokes pass (Phase 245). The live gate + route stay controlled.',
-      'Remaining (governed cutover): inject the VerifiedBoardingSchemaState (live schema currently unverified — live=0/0), enable the route for an authorized operator/workspace, record a controlled single-record boarding + failure smoke, then flip PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED.',
+      'Schema buildout (Phase 253P): the live portfolio was only the minimal spine (13 tables / ~15 columns / 0 required relationships) vs the 219-column / 12-required-relationship runtime contract. Run scripts/dataverse/create-full-portfolio-runtime-schema.ps1 -Apply (additive, idempotent, resume-safe), publish, then scripts/dataverse/verify-full-portfolio-runtime-schema.ps1 to measure 219/219 + 12/12 and export fresh runtime evidence. See docs/PHASE_253P_FULL_PORTFOLIO_RUNTIME_SCHEMA_BUILDOUT.md.',
+      'Remaining (governed cutover): after the buildout, inject the hydrated VerifiedBoardingSchemaState, enable the route for an authorized operator/workspace, record a controlled single-record boarding + failure smoke, then flip PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED.',
     ],
     rollbackControl: 'Set PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED + the portfolio boarding route to false.',
   },

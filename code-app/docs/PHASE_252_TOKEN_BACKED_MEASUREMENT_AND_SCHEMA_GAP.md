@@ -10,6 +10,13 @@ deployment spine, incomplete vs the runtime bridge plan. No live gate changed.
 - **CRM runtime hydration status:** **NOT hydrated** (live 5/5 tables, but 5/10 plan tables, 40/147 plan columns).
 - **Portfolio runtime hydration status:** **NOT hydrated** (live 13/13 tables, but 15/219 plan columns, 0/12 required relationships).
 
+> **Follow-up — Phase 253P** closes the *portfolio* half of this gap: it ships an idempotent,
+> resume-safe, additive Dataverse buildout that raises the live portfolio to the full
+> 219-column / 12-required-relationship runtime contract. See
+> [PHASE_253P_FULL_PORTFOLIO_RUNTIME_SCHEMA_BUILDOUT.md](./PHASE_253P_FULL_PORTFOLIO_RUNTIME_SCHEMA_BUILDOUT.md).
+> No gate flipped; no `pac code push`; hydration occurs only after the operator applies the
+> schema and exports fresh evidence. The CRM half remains owned by the Phase 253 CRM track.
+
 ## The real measurement (Matthew Paller's Environment)
 
 A Dataverse Web API token was generated and validated by the operator:
