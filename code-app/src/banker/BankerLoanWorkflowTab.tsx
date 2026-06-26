@@ -5,23 +5,35 @@ import { ExistingPortfolioLoansPanel } from '../portfolioBoarding/ExistingPortfo
 import { spacing } from '../shared/theme';
 
 /**
- * Phase 257 / 258 / 259 — Banker Loan Workflow destination.
+ * Phase 257–260 — Banker Loan Workflow destination.
  *
- * Renders the lending workbench (deal sections + table → command center) and,
- * below it, the Existing Portfolio Loans panel so a banker/operator can board
- * a loan already in the bank's portfolio (manual existing-loan entry) and see
- * boarded loans in the portfolio/servicing context.
+ * The elite lending workbench (command header, work-queue cards, deal table →
+ * command center) plus the Existing Portfolio Loans section so a banker can
+ * board a loan already in the bank's portfolio and see boarded loans in the
+ * servicing context.
  */
-export function BankerLoanWorkflowTab() {
+const EXISTING_LOANS_ANCHOR = 'existing-portfolio-loans';
+
+function scrollToExistingLoans() {
+  try {
+    document.getElementById(EXISTING_LOANS_ANCHOR)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch {
+    // scrollIntoView is a no-op in non-DOM/test environments.
+  }
+}
+
+export function BankerLoanWorkflowTab({ onNewDeal }: { onNewDeal?: () => void }) {
   const { systemUserId, email, writeDisabledReason } = useBanker();
   return (
     <div data-banker-loan-workflow="panel" style={styles.stack}>
-      <BankerLoanWorkflowWorkbench />
-      <ExistingPortfolioLoansPanel
-        actorEmail={email}
-        actorSystemUserId={systemUserId}
-        writeDisabledReason={writeDisabledReason}
-      />
+      <BankerLoanWorkflowWorkbench onNewDeal={onNewDeal} onAddExistingLoan={scrollToExistingLoans} />
+      <div id={EXISTING_LOANS_ANCHOR}>
+        <ExistingPortfolioLoansPanel
+          actorEmail={email}
+          actorSystemUserId={systemUserId}
+          writeDisabledReason={writeDisabledReason}
+        />
+      </div>
     </div>
   );
 }

@@ -62,7 +62,7 @@ describe('Phase 258 — banker systems use bank-user copy', () => {
 
   it('CRM Hub workspace has no dev/readiness copy and shows the CRM system', async () => {
     const { container, findByText } = render(<CrmHubWorkspace loadData={async () => emptyCrm()} />);
-    await findByText('CRM');
+    await findByText('Relationship CRM');
     scan(container);
   });
 

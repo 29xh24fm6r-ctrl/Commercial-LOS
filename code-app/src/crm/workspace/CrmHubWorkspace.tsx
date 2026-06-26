@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Badge } from '../../shared/Badge';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
 import {
-  CRM_DOMAINS,
   loadCrmWorkspaceData,
   type CrmDomainKey,
   type CrmRecord,
@@ -10,17 +9,17 @@ import {
 } from './crmWorkspaceData';
 
 /**
- * Phase 258 — CRM Hub workspace.
+ * Phase 260 — Relationship CRM (elite CRM cockpit).
  *
- * A real bank-user CRM system: live records from the 10 internal CRM tables,
- * dashboard count cards, per-domain lists, a record detail drawer, and an
- * activity timeline. Read-only today (CRM live-write transport is not wired);
- * no fabricated records and honest per-domain unavailable states. Governance /
- * readiness detail lives in Admin Diagnostics, not here.
+ * A premium commercial-banking CRM workspace: a command header, a command bar
+ * (search + view tabs + filter), dashboard cards, a polished record table per
+ * view, an activity timeline, and a record detail drawer. The header / command
+ * bar / cards always render synchronously so the surface is never blank while
+ * data loads. Empty states are useful and branded — never bare "0" cards. No
+ * fabricated records; CRM stays read-only this pilot (stated once, subtly).
  */
 
 interface Props {
-  /** Injected for tests; defaults to the live CRM read. */
   loadData?: () => Promise<CrmWorkspaceData>;
 }
 
@@ -29,9 +28,34 @@ type LoadState =
   | { kind: 'ready'; data: CrmWorkspaceData }
   | { kind: 'failed'; message: string };
 
+type CrmView = 'companies' | 'contacts' | 'relationships' | 'activities' | 'vendors' | 'timeline';
+
+interface ViewSpec {
+  readonly key: CrmView;
+  readonly label: string;
+  readonly domain: CrmDomainKey;
+  readonly timeline?: boolean;
+  /** Column header for the record's primary field. */
+  readonly primaryCol: string;
+  readonly secondaryCol: string;
+  /** Bank-user empty heading + guidance. */
+  readonly emptyHeading: string;
+  readonly emptyGuidance: string;
+}
+
+const VIEWS: readonly ViewSpec[] = [
+  { key: 'companies', label: 'Companies', domain: 'organizations', primaryCol: 'Company', secondaryCol: 'Industry / type', emptyHeading: 'No companies yet', emptyGuidance: 'Companies you manage will appear here once relationships are loaded or entered.' },
+  { key: 'contacts', label: 'Contacts', domain: 'people', primaryCol: 'Name', secondaryCol: 'Role / title', emptyHeading: 'No contacts yet', emptyGuidance: 'Key people across your relationships will appear here as contacts are added.' },
+  { key: 'relationships', label: 'Relationships', domain: 'relationships', primaryCol: 'Relationship', secondaryCol: 'Role', emptyHeading: 'No relationships yet', emptyGuidance: 'Connections between companies, people, and deals will appear here.' },
+  { key: 'activities', label: 'Activities', domain: 'timelineEvents', timeline: true, primaryCol: 'Activity', secondaryCol: 'Summary', emptyHeading: 'No CRM activity yet', emptyGuidance: 'Log a call, meeting, or note once CRM updates are enabled.' },
+  { key: 'vendors', label: 'Vendors', domain: 'vendorProfiles', primaryCol: 'Vendor', secondaryCol: 'Type', emptyHeading: 'No vendors yet', emptyGuidance: 'Approved vendors (title, appraisal, insurance, legal) will appear here.' },
+  { key: 'timeline', label: 'Timeline', domain: 'timelineEvents', timeline: true, primaryCol: 'Activity', secondaryCol: 'Summary', emptyHeading: 'No CRM activity yet', emptyGuidance: 'Log a call, meeting, or note once CRM updates are enabled.' },
+];
+
 export function CrmHubWorkspace({ loadData = loadCrmWorkspaceData }: Props = {}) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
-  const [domain, setDomain] = useState<CrmDomainKey>('organizations');
+  const [view, setView] = useState<CrmView>('companies');
+  const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<CrmRecord | undefined>(undefined);
 
   useEffect(() => {
@@ -50,164 +74,275 @@ export function CrmHubWorkspace({ loadData = loadCrmWorkspaceData }: Props = {})
     };
   }, [loadData]);
 
-  const activeSpec = useMemo(() => CRM_DOMAINS.find((d) => d.key === domain)!, [domain]);
-  const activeResult = state.kind === 'ready' ? state.data[domain] : undefined;
+  const spec = useMemo(() => VIEWS.find((v) => v.key === view)!, [view]);
+
+  const count = (domain: CrmDomainKey): number | undefined => {
+    if (state.kind !== 'ready') return undefined;
+    const r = state.data[domain];
+    return r.status === 'ready' ? r.records.length : undefined;
+  };
+
+  const records = useMemo(() => {
+    if (state.kind !== 'ready') return undefined;
+    const r = state.data[spec.domain];
+    if (r.status !== 'ready') return null; // unavailable
+    const q = query.trim().toLowerCase();
+    if (q.length === 0) return r.records;
+    return r.records.filter(
+      (rec) => rec.title.toLowerCase().includes(q) || (rec.subtitle ?? '').toLowerCase().includes(q),
+    );
+  }, [state, spec.domain, query]);
 
   return (
-    <section style={styles.wrap} aria-label="CRM" data-crm-hub="workspace">
-      <header style={styles.head}>
-        <h2 style={styles.title}>CRM</h2>
-        <p style={styles.subtitle}>
-          Your relationship records — organizations, people, relationships,
-          vendors, and activity.
-        </p>
+    <section style={styles.wrap} aria-label="Relationship CRM" data-crm-hub="workspace">
+      {/* Command header */}
+      <header style={styles.header} data-crm-header>
+        <div style={styles.headerLeft}>
+          <h1 style={styles.title}>Relationship CRM</h1>
+          <p style={styles.subtitle}>Manage companies, contacts, relationships, activities, and follow-ups.</p>
+        </div>
+        <div style={styles.headerActions} aria-label="CRM actions">
+          <span style={styles.governChip} title="CRM updates are managed through governed admin workflows.">
+            Updates managed by admin
+          </span>
+        </div>
       </header>
 
-      {state.kind === 'loading' && <div style={styles.muted}>Loading CRM records…</div>}
-      {state.kind === 'failed' && (
-        <div style={styles.failNote} role="alert" data-crm-hub-failure>
-          CRM is not available right now. {state.message} Refresh to retry.
+      {/* Command bar */}
+      <div style={styles.commandBar} data-crm-command-bar>
+        <label style={styles.search} aria-label="Search relationships">
+          <span style={styles.searchIcon} aria-hidden="true">⌕</span>
+          <input
+            style={styles.searchInput}
+            placeholder="Search companies, contacts, relationships…"
+            value={query}
+            data-crm-search
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <div style={styles.viewTabs} role="tablist" aria-label="CRM views">
+          {VIEWS.map((v) => {
+            const active = v.key === view;
+            return (
+              <button
+                key={v.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                style={active ? styles.viewTabActive : styles.viewTab}
+                data-crm-view={v.key}
+                onClick={() => {
+                  setView(v.key);
+                  setSelected(undefined);
+                }}
+              >
+                {v.label}
+                {count(v.domain) !== undefined && count(v.domain)! > 0 && (
+                  <span style={styles.viewTabCount}>{count(v.domain)}</span>
+                )}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
 
-      {state.kind === 'ready' && (
-        <>
-          <div style={styles.cardGrid} data-crm-cards>
-            {CRM_DOMAINS.map((d) => {
-              const res = state.data[d.key];
-              const count = res.status === 'ready' ? res.records.length : undefined;
-              const active = d.key === domain;
-              return (
-                <button
-                  key={d.key}
-                  type="button"
-                  style={active ? styles.cardActive : styles.card}
-                  data-crm-card={d.key}
-                  aria-pressed={active}
-                  onClick={() => {
-                    setDomain(d.key);
-                    setSelected(undefined);
-                  }}
-                >
-                  <span style={styles.cardLabel}>{d.label}</span>
-                  <span style={styles.cardValue}>
-                    {res.status === 'failed' ? '—' : count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+      {/* Dashboard cards */}
+      <div style={styles.cardRow} data-crm-cards>
+        <DashCard label="Companies" value={count('organizations')} loading={state.kind === 'loading'} empty="Add companies to start" onClick={() => setView('companies')} />
+        <DashCard label="Contacts" value={count('people')} loading={state.kind === 'loading'} empty="Add people to relationships" onClick={() => setView('contacts')} />
+        <DashCard label="Active relationships" value={count('relationships')} loading={state.kind === 'loading'} empty="Map your relationships" onClick={() => setView('relationships')} />
+        <DashCard label="Follow-ups due" value={undefined} loading={false} empty="No follow-ups scheduled" />
+        <DashCard label="Recent activity" value={count('timelineEvents')} loading={state.kind === 'loading'} empty="No activity logged yet" onClick={() => setView('timeline')} />
+        <DashCard label="Open tasks" value={undefined} loading={false} empty="No CRM tasks yet" />
+      </div>
 
-          <div style={styles.body}>
-            <DomainList
-              spec={activeSpec}
-              result={activeResult}
-              selectedId={selected?.id}
-              onOpen={setSelected}
-            />
-            {selected && (
-              <DetailDrawer record={selected} domainLabel={activeSpec.singular} onClose={() => setSelected(undefined)} />
-            )}
-          </div>
-        </>
-      )}
+      {/* Main area */}
+      <div style={styles.main} data-crm-main>
+        {state.kind === 'loading' && <SkeletonRows />}
+        {state.kind === 'failed' && (
+          <FriendlyError
+            heading="CRM is taking a moment"
+            body="We couldn't load your relationship records just now. Refresh to try again — nothing is lost."
+          />
+        )}
+        {state.kind === 'ready' && records === null && (
+          <FriendlyError heading={`${spec.label} are unavailable`} body="This section couldn't load. Other CRM views may still be available." />
+        )}
+        {state.kind === 'ready' && records && records.length === 0 && (
+          <EmptyState heading={spec.emptyHeading} guidance={spec.emptyGuidance} />
+        )}
+        {state.kind === 'ready' && records && records.length > 0 && (
+          spec.timeline ? (
+            <ActivityTimeline records={records} onOpen={setSelected} />
+          ) : (
+            <RecordTable spec={spec} records={records} selectedId={selected?.id} onOpen={setSelected} />
+          )
+        )}
+      </div>
+
+      {selected && <DetailDrawer record={selected} view={spec.label} onClose={() => setSelected(undefined)} />}
+
+      <footer style={styles.footer} data-crm-footer>
+        CRM updates are currently managed through governed admin workflows.
+      </footer>
     </section>
   );
 }
 
-function DomainList({
-  spec,
-  result,
-  selectedId,
-  onOpen,
-}: {
-  spec: (typeof CRM_DOMAINS)[number];
-  result: CrmWorkspaceData[CrmDomainKey] | undefined;
-  selectedId: string | undefined;
-  onOpen: (r: CrmRecord) => void;
-}) {
-  return (
-    <div style={styles.listWrap} data-crm-list={spec.key} aria-label={`${spec.label} records`}>
-      <div style={styles.listHeader}>{spec.label}</div>
-      {!result || result.status === 'failed' ? (
-        <div style={styles.muted} data-crm-list-unavailable>
-          {spec.label} are not available right now.
-        </div>
-      ) : result.records.length === 0 ? (
-        <div style={styles.muted}>No {spec.singular} records yet.</div>
+function DashCard({ label, value, loading, empty, onClick }: { label: string; value: number | undefined; loading: boolean; empty: string; onClick?: () => void }) {
+  const interactive = typeof onClick === 'function';
+  const body = (
+    <>
+      <span style={styles.cardLabel}>{label}</span>
+      {loading ? (
+        <span style={styles.cardSkeleton} aria-hidden="true" />
+      ) : value === undefined || value === 0 ? (
+        <span style={styles.cardEmpty}>{empty}</span>
       ) : (
-        <ul style={styles.recordList}>
-          {result.records.map((r) => (
-            <li key={r.id}>
-              <button
-                type="button"
-                style={r.id === selectedId ? styles.recordRowActive : styles.recordRow}
-                data-crm-record={r.id}
-                onClick={() => onOpen(r)}
-              >
-                <span style={styles.recordMain}>
-                  <span style={styles.recordTitle}>{r.title}</span>
-                  {r.subtitle && <span style={styles.recordSubtitle}>{r.subtitle}</span>}
-                </span>
-                <span style={styles.recordTrail}>
-                  {spec.timeline && r.occurredAt && (
-                    <span style={styles.recordWhen}>{formatWhen(r.occurredAt)}</span>
-                  )}
-                  {r.badge && (
-                    <Badge variant="neutral" appearance="outline">
-                      {r.badge}
-                    </Badge>
-                  )}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <span style={styles.cardValue}>{value}</span>
       )}
+    </>
+  );
+  return interactive ? (
+    <button type="button" style={styles.card} data-crm-card={label} onClick={onClick}>{body}</button>
+  ) : (
+    <div style={styles.card} data-crm-card={label}>{body}</div>
+  );
+}
+
+function RecordTable({ spec, records, selectedId, onOpen }: { spec: ViewSpec; records: readonly CrmRecord[]; selectedId: string | undefined; onOpen: (r: CrmRecord) => void }) {
+  return (
+    <table style={styles.table} data-crm-table={spec.key}>
+      <thead>
+        <tr>
+          <th style={styles.th}>{spec.primaryCol}</th>
+          <th style={styles.th}>{spec.secondaryCol}</th>
+          <th style={styles.th}>Status</th>
+          <th style={styles.thRight}></th>
+        </tr>
+      </thead>
+      <tbody>
+        {records.map((r) => (
+          <tr
+            key={r.id}
+            style={r.id === selectedId ? styles.rowActive : styles.row}
+            data-crm-record={r.id}
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${r.title}`}
+            onClick={() => onOpen(r)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpen(r);
+              }
+            }}
+          >
+            <td style={styles.tdStrong}>{r.title}</td>
+            <td style={styles.td}>{r.subtitle ?? '—'}</td>
+            <td style={styles.td}>{r.badge ? <Badge variant="neutral" appearance="outline">{r.badge}</Badge> : '—'}</td>
+            <td style={styles.tdRight}><span style={styles.openLink}>Open →</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ActivityTimeline({ records, onOpen }: { records: readonly CrmRecord[]; onOpen: (r: CrmRecord) => void }) {
+  return (
+    <ol style={styles.timeline} data-crm-timeline>
+      {records.map((r) => (
+        <li key={r.id} style={styles.timelineItem}>
+          <span style={styles.timelineDot} aria-hidden="true" />
+          <button
+            type="button"
+            style={styles.timelineCard}
+            data-crm-record={r.id}
+            onClick={() => onOpen(r)}
+          >
+            <div style={styles.timelineHead}>
+              <span style={styles.timelineTitle}>{r.title}</span>
+              {r.occurredAt && <span style={styles.timelineWhen}>{formatWhen(r.occurredAt)}</span>}
+            </div>
+            {r.subtitle && <span style={styles.timelineSub}>{r.subtitle}</span>}
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function DetailDrawer({ record, view, onClose }: { record: CrmRecord; view: string; onClose: () => void }) {
+  return (
+    <aside style={styles.drawer} role="dialog" aria-label={`${view} detail`} data-crm-detail-drawer>
+      <div style={styles.drawerHead}>
+        <div>
+          <div style={styles.drawerEyebrow}>{view}</div>
+          <div style={styles.drawerTitle}>{record.title}</div>
+          {record.subtitle && <div style={styles.drawerSub}>{record.subtitle}</div>}
+        </div>
+        <button type="button" style={styles.drawerClose} aria-label="Close detail" data-crm-detail-close onClick={onClose}>✕</button>
+      </div>
+      {record.badge && <div><Badge variant="neutral" appearance="outline">{record.badge}</Badge></div>}
+
+      <DrawerSection title="Overview">
+        {record.detail.length === 0 ? (
+          <div style={styles.drawerMuted}>No additional detail recorded.</div>
+        ) : (
+          <dl style={styles.detailList}>
+            {record.detail.map((d) => (
+              <div key={d.label} style={styles.detailRow}>
+                <dt style={styles.detailLabel}>{d.label}</dt>
+                <dd style={styles.detailValue}>{d.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </DrawerSection>
+      <DrawerSection title="Linked deals"><div style={styles.drawerMuted}>No linked deals yet.</div></DrawerSection>
+      <DrawerSection title="Activities & notes"><div style={styles.drawerMuted}>No activity logged for this record yet.</div></DrawerSection>
+      <DrawerSection title="Tasks & follow-ups"><div style={styles.drawerMuted}>No follow-ups scheduled.</div></DrawerSection>
+    </aside>
+  );
+}
+
+function DrawerSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={styles.drawerSection}>
+      <div style={styles.drawerSectionTitle}>{title}</div>
+      {children}
     </div>
   );
 }
 
-function DetailDrawer({
-  record,
-  domainLabel,
-  onClose,
-}: {
-  record: CrmRecord;
-  domainLabel: string;
-  onClose: () => void;
-}) {
+function EmptyState({ heading, guidance }: { heading: string; guidance: string }) {
   return (
-    <aside style={styles.drawer} aria-label={`${domainLabel} detail`} data-crm-detail-drawer role="dialog">
-      <div style={styles.drawerHead}>
-        <div>
-          <div style={styles.drawerTitle}>{record.title}</div>
-          {record.subtitle && <div style={styles.drawerSubtitle}>{record.subtitle}</div>}
-        </div>
-        <button type="button" style={styles.drawerClose} aria-label="Close detail" data-crm-detail-close onClick={onClose}>
-          ✕
-        </button>
-      </div>
-      {record.badge && (
-        <div style={styles.drawerBadge}>
-          <Badge variant="neutral" appearance="outline">
-            {record.badge}
-          </Badge>
-        </div>
-      )}
-      {record.detail.length === 0 ? (
-        <div style={styles.muted}>No additional detail recorded.</div>
-      ) : (
-        <dl style={styles.detailList}>
-          {record.detail.map((d) => (
-            <div key={d.label} style={styles.detailRow}>
-              <dt style={styles.detailLabel}>{d.label}</dt>
-              <dd style={styles.detailValue}>{d.value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-    </aside>
+    <div style={styles.empty} data-crm-empty>
+      <div style={styles.emptyMark} aria-hidden="true">◎</div>
+      <div style={styles.emptyHeading}>{heading}</div>
+      <p style={styles.emptyGuidance}>{guidance}</p>
+    </div>
+  );
+}
+
+function FriendlyError({ heading, body }: { heading: string; body: string }) {
+  return (
+    <div style={styles.empty} role="alert" data-crm-error>
+      <div style={styles.emptyMark} aria-hidden="true">⟳</div>
+      <div style={styles.emptyHeading}>{heading}</div>
+      <p style={styles.emptyGuidance}>{body}</p>
+    </div>
+  );
+}
+
+function SkeletonRows() {
+  return (
+    <div style={styles.skeletonWrap} aria-hidden="true" data-crm-skeleton>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} style={styles.skeletonRow} />
+      ))}
+    </div>
   );
 }
 
@@ -217,117 +352,74 @@ function formatWhen(iso: string): string {
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+const card: CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: spacing.xs, padding: `${spacing.md} ${spacing.lg}`,
+  background: palette.surface, border: `1px solid ${palette.panelBorder}`, borderRadius: radius.md,
+  boxShadow: shadow.card, textAlign: 'left', fontFamily: typography.family, cursor: 'pointer', minHeight: 78,
+};
+
 const styles: Record<string, CSSProperties> = {
   wrap: { display: 'flex', flexDirection: 'column', gap: spacing.lg, width: '100%' },
-  head: { display: 'flex', flexDirection: 'column', gap: 2 },
-  title: { margin: 0, fontSize: typography.size.xl, fontWeight: typography.weight.bold, color: palette.text, letterSpacing: typography.letterSpacing.heading },
-  subtitle: { margin: 0, color: palette.textMuted, fontSize: typography.size.sm, lineHeight: typography.lineHeight.snug },
-  muted: { color: palette.textMuted, fontSize: typography.size.sm, fontStyle: 'italic', padding: `${spacing.md} 0` },
-  failNote: {
-    background: palette.surfaceAlt,
-    border: `1px solid ${palette.borderStrong}`,
-    borderRadius: radius.sm,
-    padding: `${spacing.sm} ${spacing.md}`,
-    color: palette.text,
-    fontSize: typography.size.sm,
+  header: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.lg,
+    padding: `${spacing.lg} ${spacing.xl}`, background: palette.primaryBg, border: `1px solid ${palette.panelBorder}`,
+    borderRadius: radius.lg, boxShadow: shadow.card,
   },
-  cardGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: spacing.sm,
-  },
-  card: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    padding: `${spacing.md} ${spacing.lg}`,
-    background: palette.surface,
-    border: `1px solid ${palette.panelBorder}`,
-    borderRadius: radius.md,
-    boxShadow: shadow.card,
-    cursor: 'pointer',
-    textAlign: 'left',
-    fontFamily: typography.family,
-  },
-  cardActive: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    padding: `${spacing.md} ${spacing.lg}`,
-    background: palette.cobaltBg,
-    border: `1px solid ${palette.cobalt}`,
-    borderRadius: radius.md,
-    boxShadow: shadow.card,
-    cursor: 'pointer',
-    textAlign: 'left',
-    fontFamily: typography.family,
-  },
-  cardLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.semibold },
+  headerLeft: { display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 },
+  title: { margin: 0, fontSize: typography.size.display, fontWeight: typography.weight.bold, color: palette.text, letterSpacing: typography.letterSpacing.hero, lineHeight: 1.05 },
+  subtitle: { margin: 0, color: palette.textMuted, fontSize: typography.size.md },
+  headerActions: { display: 'flex', alignItems: 'center', gap: spacing.sm, flexShrink: 0 },
+  governChip: { fontSize: typography.size.xs, color: palette.infoFg, background: palette.infoBg, border: `1px solid ${palette.info}`, padding: `4px ${spacing.md}`, borderRadius: radius.pill, fontWeight: typography.weight.semibold, whiteSpace: 'nowrap' },
+  commandBar: { display: 'flex', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' },
+  search: { display: 'inline-flex', alignItems: 'center', gap: spacing.xs, padding: `${spacing.xs} ${spacing.md}`, background: palette.surface, border: `1px solid ${palette.border}`, borderRadius: radius.pill, minWidth: 300, flex: 1, maxWidth: 460 },
+  searchIcon: { color: palette.textSubtle, fontSize: typography.size.md },
+  searchInput: { flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: typography.size.sm, color: palette.text, fontFamily: typography.family },
+  viewTabs: { display: 'inline-flex', gap: spacing.xxs, background: palette.surfaceAlt, border: `1px solid ${palette.border}`, borderRadius: radius.pill, padding: 3, flexWrap: 'wrap' },
+  viewTab: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', borderRadius: radius.pill, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.textMuted, cursor: 'pointer', fontFamily: typography.family },
+  viewTabActive: { display: 'inline-flex', alignItems: 'center', gap: 6, background: palette.surface, border: 'none', borderRadius: radius.pill, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.bold, color: palette.cobalt, cursor: 'pointer', boxShadow: shadow.card, fontFamily: typography.family },
+  viewTabCount: { fontSize: typography.size.xs, color: palette.textSubtle, background: palette.surfaceAlt, borderRadius: radius.pill, padding: '0 6px', fontWeight: typography.weight.bold },
+  cardRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: spacing.sm },
+  card,
+  cardLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
   cardValue: { fontSize: typography.size.xxl, fontWeight: typography.weight.bold, color: palette.text, fontVariantNumeric: 'tabular-nums' },
-  body: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: spacing.lg, position: 'relative' },
-  listWrap: {
-    background: palette.surface,
-    border: `1px solid ${palette.panelBorder}`,
-    borderRadius: radius.md,
-    boxShadow: shadow.card,
-    padding: `${spacing.md} ${spacing.lg}`,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.sm,
-  },
-  listHeader: { fontSize: typography.size.md, fontWeight: typography.weight.bold, color: palette.text },
-  recordList: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: spacing.xs },
-  recordRow: {
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: `${spacing.sm} ${spacing.md}`,
-    background: palette.surfaceAlt,
-    border: `1px solid ${palette.divider}`,
-    borderRadius: radius.sm,
-    cursor: 'pointer',
-    textAlign: 'left',
-    fontFamily: typography.family,
-  },
-  recordRowActive: {
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: `${spacing.sm} ${spacing.md}`,
-    background: palette.cobaltBg,
-    border: `1px solid ${palette.cobalt}`,
-    borderRadius: radius.sm,
-    cursor: 'pointer',
-    textAlign: 'left',
-    fontFamily: typography.family,
-  },
-  recordMain: { display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 },
-  recordTitle: { fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.text },
-  recordSubtitle: { fontSize: typography.size.xs, color: palette.textMuted },
-  recordTrail: { display: 'flex', alignItems: 'center', gap: spacing.sm, flexShrink: 0 },
-  recordWhen: { fontSize: typography.size.xs, color: palette.textSubtle },
-  drawer: {
-    marginTop: spacing.md,
-    background: palette.surface,
-    border: `1px solid ${palette.panelBorder}`,
-    borderRadius: radius.md,
-    boxShadow: shadow.elevated,
-    padding: `${spacing.md} ${spacing.lg}`,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: spacing.sm,
-  },
+  cardEmpty: { fontSize: typography.size.sm, color: palette.textMuted, fontWeight: typography.weight.medium },
+  cardSkeleton: { width: 48, height: 22, borderRadius: radius.sm, background: palette.surfaceAlt },
+  main: { minHeight: 220, position: 'relative' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: typography.size.sm, background: palette.surface, border: `1px solid ${palette.panelBorder}`, borderRadius: radius.md, boxShadow: shadow.card, overflow: 'hidden' },
+  th: { textAlign: 'left', padding: `${spacing.sm} ${spacing.md}`, color: palette.textSubtle, textTransform: 'uppercase', fontSize: typography.size.xs, letterSpacing: typography.letterSpacing.label, borderBottom: `1px solid ${palette.divider}` },
+  thRight: { padding: `${spacing.sm} ${spacing.md}`, borderBottom: `1px solid ${palette.divider}` },
+  row: { cursor: 'pointer', borderBottom: `1px solid ${palette.divider}` },
+  rowActive: { cursor: 'pointer', borderBottom: `1px solid ${palette.divider}`, background: palette.cobaltBg },
+  td: { padding: `${spacing.sm} ${spacing.md}`, color: palette.text, borderBottom: `1px solid ${palette.divider}` },
+  tdStrong: { padding: `${spacing.sm} ${spacing.md}`, color: palette.text, fontWeight: typography.weight.semibold, borderBottom: `1px solid ${palette.divider}` },
+  tdRight: { padding: `${spacing.sm} ${spacing.md}`, color: palette.text, borderBottom: `1px solid ${palette.divider}`, textAlign: 'right' },
+  openLink: { color: palette.cobalt, fontWeight: typography.weight.semibold, fontSize: typography.size.sm, whiteSpace: 'nowrap' },
+  timeline: { listStyle: 'none', margin: 0, padding: `${spacing.sm} 0 ${spacing.sm} ${spacing.lg}`, display: 'flex', flexDirection: 'column', gap: spacing.sm, borderLeft: `2px solid ${palette.divider}` },
+  timelineItem: { position: 'relative', paddingLeft: spacing.md },
+  timelineDot: { position: 'absolute', left: -7, top: 14, width: 10, height: 10, borderRadius: radius.pill, background: palette.cobalt, border: `2px solid ${palette.surface}` },
+  timelineCard: { width: '100%', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 2, padding: `${spacing.sm} ${spacing.md}`, background: palette.surface, border: `1px solid ${palette.panelBorder}`, borderRadius: radius.md, cursor: 'pointer', fontFamily: typography.family },
+  timelineHead: { display: 'flex', justifyContent: 'space-between', gap: spacing.sm },
+  timelineTitle: { fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.text },
+  timelineWhen: { fontSize: typography.size.xs, color: palette.textSubtle },
+  timelineSub: { fontSize: typography.size.xs, color: palette.textMuted },
+  drawer: { background: palette.surface, border: `1px solid ${palette.panelBorder}`, borderRadius: radius.md, boxShadow: shadow.elevated, padding: `${spacing.md} ${spacing.lg}`, display: 'flex', flexDirection: 'column', gap: spacing.md },
   drawerHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.sm },
+  drawerEyebrow: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
   drawerTitle: { fontSize: typography.size.lg, fontWeight: typography.weight.bold, color: palette.text },
-  drawerSubtitle: { fontSize: typography.size.sm, color: palette.textMuted },
-  drawerClose: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: typography.size.md, color: palette.textMuted, lineHeight: 1 },
-  drawerBadge: { display: 'flex' },
+  drawerSub: { fontSize: typography.size.sm, color: palette.textMuted },
+  drawerClose: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: typography.size.md, color: palette.textMuted },
+  drawerSection: { display: 'flex', flexDirection: 'column', gap: spacing.xs, borderTop: `1px solid ${palette.divider}`, paddingTop: spacing.sm },
+  drawerSectionTitle: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
+  drawerMuted: { color: palette.textMuted, fontSize: typography.size.sm, fontStyle: 'italic' },
   detailList: { margin: 0, display: 'flex', flexDirection: 'column', gap: spacing.xs },
-  detailRow: { display: 'grid', gridTemplateColumns: '160px 1fr', gap: spacing.sm },
+  detailRow: { display: 'grid', gridTemplateColumns: '150px 1fr', gap: spacing.sm },
   detailLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.semibold },
   detailValue: { margin: 0, fontSize: typography.size.sm, color: palette.text, wordBreak: 'break-word' },
+  empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing.xs, textAlign: 'center', padding: `${spacing.xxl} ${spacing.xl}`, background: palette.surface, border: `1px dashed ${palette.border}`, borderRadius: radius.md },
+  emptyMark: { fontSize: 34, color: palette.textSubtle },
+  emptyHeading: { fontSize: typography.size.lg, fontWeight: typography.weight.bold, color: palette.text },
+  emptyGuidance: { margin: 0, color: palette.textMuted, fontSize: typography.size.sm, maxWidth: 420, lineHeight: typography.lineHeight.snug },
+  skeletonWrap: { display: 'flex', flexDirection: 'column', gap: spacing.xs },
+  skeletonRow: { height: 44, borderRadius: radius.sm, background: palette.surfaceAlt, border: `1px solid ${palette.divider}` },
+  footer: { color: palette.textSubtle, fontSize: typography.size.xs, paddingTop: spacing.xs, borderTop: `1px solid ${palette.divider}` },
 };

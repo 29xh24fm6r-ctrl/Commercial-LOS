@@ -20,6 +20,7 @@ import { GreetingHeader } from './GreetingHeader';
 import { BankerKpiGrid } from './BankerKpiGrid';
 import { CrmHubWorkspace } from '../crm/workspace/CrmHubWorkspace';
 import { BankerOperatingCommandCenter } from './BankerOperatingCommandCenter';
+import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { Badge } from '../shared/Badge';
 import { CountBadge } from '../shared/cockpitPrimitives';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
@@ -225,7 +226,9 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
           <section style={styles.contentArea} aria-label="Banker workspace content">
             <TabBar active={tab} onSelect={setTab} kpis={kpis} state={state} />
             <div style={styles.tabPanel} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-              <TabContent tab={tab} />
+              <ErrorBoundary surface={TAB_SPECS.find((t) => t.key === tab)?.label ?? 'This section'}>
+                <TabContent tab={tab} onNewDeal={openNewDeal} />
+              </ErrorBoundary>
             </div>
           </section>
           <aside style={styles.rightRail} aria-label="Today's schedule and tasks">
@@ -316,7 +319,7 @@ function dedupeClients(
   return Array.from(set);
 }
 
-function TabContent({ tab }: { tab: ShellTab }) {
+function TabContent({ tab, onNewDeal }: { tab: ShellTab; onNewDeal: () => void }) {
   switch (tab) {
     case 'dashboard':
       return (
@@ -338,7 +341,7 @@ function TabContent({ tab }: { tab: ShellTab }) {
     case 'loan-workflow':
       return (
         <div style={styles.tabStack}>
-          <BankerLoanWorkflowTab />
+          <BankerLoanWorkflowTab onNewDeal={onNewDeal} />
         </div>
       );
     case 'crm-hub':
