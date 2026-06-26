@@ -46,3 +46,54 @@ Added `scripts/reachability-audit.mjs` (`npm run audit:reachability` wired in Ph
 Orphans by subsystem: crm 71 · portfolioBoarding 53 · annualReview 35 · shared 30 · integrations 27 · adminConfig 26 · platform 24 · workflow 12 · activation 11 · generated 11 · servicing 11 · copilot 9 · portfolioAnnualReview 9 · access 7 · admin 7 · committee 6 · deals 3 · executive 2 · banker 1 · navigation 1 · workspaces 1.
 
 ### Phase 0 status: ✅ COMPLETE — baseline green, analyzer reporting baseline.
+
+---
+
+## Phase 1 — PIVOTAL FINDING: the spec's baseline premise is contradicted by the repo
+
+Before writing the flag registry I inventoried every feature flag + the certification model. The spec assumes "all live-write flags default off, fail-closed, one operator flip away." **The actual repo is far past that state.**
+
+### Evidence (verified by reading source, not assumed)
+- `src/admin/productionEnvironmentVerification.ts:69-76` — `PRODUCTION_ENVIRONMENT_CERTIFICATION` has **all six operator certification toggles = `true`** (Phase 256B).
+- `readLiveGateFlags()` resolves all six gate flags `true` because the underlying defaults were flipped on:
+  - `CRM_LIVE_PERSISTENCE_ENABLED = true`, `PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED = true`, `PORTFOLIO_BOARDING_ROUTE_ENABLED = true`
+  - `AUTO_STAGE_ADVANCE_ENABLED = true`, `DOCUMENT_CHECKLIST_GENERATION_ENABLED = true`
+  - `BORROWER_MESSAGING_ENABLED = true`, `BORROWER_EMAIL_TRANSPORT_ENABLED = true`
+  - `newDealCreate` via the approved banker pilot (`BANKER_CREATE_PILOT_ENABLED = true`)
+- Therefore `deriveProductionEnvironmentVerification().fullLaunchReady === true` and `deriveFullActivationLaunchCertification().fullLaunchAchieved === true` — **the dashboard reports all six live-write domains LAUNCHED.**
+
+### The fail-closed architecture itself is intact (not faked at code level)
+- `src/access/finalLaunchSmokeEvidence.ts` is a genuine fail-closed parser: a capability is GO only with `outcome:passed` + `liveOperationPerformed` + `readbackVerified` + (`rollbackVerified` or borrowerSend delivery/audit). It never infers absent booleans.
+- Real evidence artifacts exist under `docs/operator-evidence/final-launch/*.json` — concrete environment (`org3a57b8d4.crm.dynamics.com`), env IDs, correlation IDs, ISO timestamps (2026-06-25), affected/cleanup record GUIDs.
+- The runtime write gates (e.g. `crmRuntimeSchemaGate.ts`) still require an **injected** `VerifiedCrmSchemaState` meeting the plan + an authorized operator before any actual write. Fail-closed at runtime is preserved.
+
+### One smell to flag for operator scrutiny
+- Every evidence record carries `operatorUpn: "unknown-operator"` — the harness did not capture a real operator identity. The records are otherwise environment-specific and validate as GO.
+
+### Consequence
+The spec (Phase 237-era baseline) is **stale**. Executing it verbatim would require writing assertions that are factually false against this repo (Phase 1 "all live-write flags default off"; Phase 7 "no production-approval markers exist"). Per house rule (repo wins over spec; note + proceed conservatively), the autonomous run is **PAUSED at Phase 1** pending an operator decision on scope.
+
+What remains genuinely valid & safe from the spec: the reachability audit confirms **357 orphaned files (44%) are still unrouted** — Phase 2 (reachability gate), Phase 3 (flag-gated read-only routing), and Phase 6 (governance truth-up) are real, additive, fail-safe work.
+
+### Phase 1 status: ⏭ DESCOPED by operator decision — "pivot to routing + truth-up"
+
+Operator decision: treat the go-live as intended/legitimate. Skip the now-moot live-write activation work:
+- **Phase 1 (unified flag registry)** — descoped. Route flags introduced in Phase 3 get a focused home; a full unified live-write registry is unnecessary now the domains are launched.
+- **Phase 4 (complete repo side of live-write domains)** — moot; all six already report launched with recorded evidence + fail-closed runtime gates intact.
+- **Phase 5 (email/Copilot transports)** — moot for activation; borrowerSend already certified, Copilot remains operator-configured.
+
+Remaining scope: **Phase 2** (reachability gate + intentionallyUnrouted registry), **Phase 3** (flag-gated read-only routing of the 357 orphans), **Phase 6** (governance truth-up), **Phase 7** (verification), and an updated run-log/operator note reflecting reality.
+
+---
+
+## Phase 2 — Reachability gate + intentional-unrouted registry
+
+- `src/navigation/intentionallyUnrouted.ts` — typed allow-list (`{ path, reason, plannedPhase }`) seeded with the full baseline orphan set (357 modules grouped by subsystem) + the allow-list file itself (`plannedPhase: 'never'`, since it is consumed by the gate, not the app graph). `INTENTIONALLY_UNROUTED_PATHS` set for O(1) lookups.
+- `npm run audit:reachability` wired in package.json → `node scripts/reachability-audit.mjs`. With the allow-file present the analyzer now GATES: exits non-zero on any orphan not in the allow-list.
+- `src/navigation/intentionallyUnrouted.test.ts` — pins allow-list integrity: every path exists on disk (no stale entries), no duplicates, every entry has a reason + plannedPhase.
+
+Gate result: 826 sources / 468 reachable / 358 orphaned — **all allow-listed, 0 unexpected** → `audit:reachability` exits 0. `tsc -b` ✅, integrity test ✅ (4), lint ✅.
+
+As Phase 3 routes a subsystem, its entries are deleted from the allow-list so the gate tightens automatically.
+
+### Phase 2 status: ✅ COMPLETE.
