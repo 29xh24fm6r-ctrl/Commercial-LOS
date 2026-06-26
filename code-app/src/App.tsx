@@ -9,6 +9,7 @@ import { ManagerWorkspace } from './workspaces/ManagerWorkspace';
 import { ExecutiveWorkspace } from './workspaces/ExecutiveWorkspace';
 import { AdminWorkspace } from './workspaces/AdminWorkspace';
 import { DealRoute } from './deals/DealRoute';
+import { FeatureSurfaceRoute } from './navigation/FeatureSurfaceRoute';
 
 export default function App() {
   return (
@@ -57,6 +58,10 @@ export default function App() {
             }
           />
           <Route path="/deals/:dealId" element={<DealRoute />} />
+          {/* Phase 3: previously-unrouted subsystem surfaces, each gated by its
+              owning workspace gate (inside the route component) AND a default-off
+              route flag. Read-only; no writes. */}
+          <Route path="/surfaces/:surfaceKey" element={<FeatureSurfaceRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

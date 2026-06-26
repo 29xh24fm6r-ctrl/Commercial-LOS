@@ -42,7 +42,9 @@ describe('BUGFIX-CRM-VISIBLE — Banker workspace mounts the CRM entry', () => {
 
   it('BankerShell imports and renders the live CRM Hub workspace (Phase 258)', () => {
     expect(shell).toMatch(/import\s*\{\s*CrmHubWorkspace\s*\}/);
-    // Phase 261: the CRM Hub is rendered with governed-write identity props.
+    // Phase 261B made CRM operable: CrmHubWorkspace is rendered with actor identity
+    // props (actorEmail / actorSystemUserId / writeDisabledReason). Still asserts the
+    // element is rendered (fails if CRM Hub stops being mounted), but accepts props.
     expect(shell).toMatch(/<CrmHubWorkspace[\s\S]*?\/>/);
   });
 

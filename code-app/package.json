@@ -9,6 +9,8 @@
     "power:schemas:check": "node scripts/phase190A-power-artifact-preflight.mjs --check",
     "build": "node scripts/phase190A-power-artifact-preflight.mjs --ensure && tsc -b && vite build",
     "lint": "eslint .",
+    "audit:reachability": "node scripts/reachability-audit.mjs",
+    "verify": "npm run power:schemas:ensure && tsc -b && vitest run && npm run audit:reachability && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

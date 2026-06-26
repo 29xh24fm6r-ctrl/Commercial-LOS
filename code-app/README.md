@@ -71,3 +71,34 @@ export default defineConfig([
   },
 ])
 ```
+
+## Activation: routing, reachability gate, and verification
+
+This app fans out from a single entry (`src/main.tsx`). Two governance aids keep the
+surface honest:
+
+### Reachability gate — `npm run audit:reachability`
+`scripts/reachability-audit.mjs` walks static + dynamic relative imports from
+`src/main.tsx` and reports reachable vs orphaned non-test sources. Any orphan that is
+**not** allow-listed in `src/navigation/intentionallyUnrouted.ts` (each entry carries a
+`reason` + `plannedPhase`) fails the gate, so orphaning can only ever go down. As a
+subsystem is routed, regenerate/trim the allow-list and the gate tightens automatically.
+
+### Feature surfaces — `/surfaces/:surfaceKey`
+Previously-unrouted subsystems are surfaced read-only behind **default-off** route flags
+(`src/navigation/featureSurfaceFlags.ts`) and the owning workspace's `WorkspaceGate`
+(`src/navigation/featureSurfaces.tsx`). Flag off → an honest "not yet enabled" state;
+flag on → a read-only preview wrapped in a fail-soft error boundary. These flags are
+routing/visibility only — they enable **no** writes. `featureSurfaceGovernance.test.ts`
+fails if a routed surface's entry module is still orphaned (claimed-wired vs reachable).
+
+### One-shot gate — `npm run verify`
+Chains `power:schemas:ensure → tsc -b → vitest run → audit:reachability → vite build`.
+(`npm run lint` is run separately; the repo currently carries pre-existing eslint-10 rule
+debt in files outside this work.)
+
+### Deploy manifest
+`.power/schemas/appschemas/dataSourcesInfo.ts` is gitignored. `npm run build` writes a
+**build-only fallback** via the preflight; a real deployment must use the genuine
+`pac code` artifact for the target environment (the fallback is offline-only and carries
+no secrets).
