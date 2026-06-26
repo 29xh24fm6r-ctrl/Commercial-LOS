@@ -34,6 +34,13 @@ export interface FeatureSurface {
   readonly description: string;
   /** Workspace whose gate authorizes this surface. */
   readonly workspace: WorkspaceKey;
+  /**
+   * Repo-relative path of the statically-imported entry component. Governance
+   * traceability: the reachability cross-check test asserts this module is NOT
+   * orphaned, so a routed surface can never silently claim "wired" while its
+   * component is unreachable.
+   */
+  readonly entryModule: string;
   /** Render the read-only preview (empty inputs; wrapped in an error boundary). */
   readonly render: () => ReactNode;
 }
@@ -56,6 +63,7 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     label: 'Platform metadata catalog',
     description: 'Read-only platform metadata / catalog dashboard (no schema mutation).',
     workspace: 'admin',
+    entryModule: 'src/platform/PlatformMetadataDashboard.tsx',
     render: () => <PlatformMetadataDashboard />,
   },
   {
@@ -64,6 +72,7 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     label: 'Integration adapter registry',
     description: 'Read-only core-banking / external integration adapter registry + readiness.',
     workspace: 'admin',
+    entryModule: 'src/integrations/IntegrationAdapterRegistryPanel.tsx',
     render: () => <IntegrationAdapterRegistryPanel />,
   },
   {
@@ -72,6 +81,7 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     label: 'Admin configuration review',
     description: 'Read-only admin configuration review queue preview (empty queue).',
     workspace: 'admin',
+    entryModule: 'src/adminConfig/AdminConfigurationSummaryPanel.tsx',
     render: () => (
       <AdminConfigurationSummaryPanel
         queue={deriveAdminConfigurationReviewQueue({
@@ -88,6 +98,7 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     label: 'Credit committee review queue',
     description: 'Read-only credit committee package review queue preview (no packages).',
     workspace: 'manager',
+    entryModule: 'src/committee/CreditCommitteePackageReviewQueuePanel.tsx',
     render: () => (
       <CreditCommitteePackageReviewQueuePanel queue={deriveCreditCommitteePackageQueue(undefined)} />
     ),
@@ -98,6 +109,7 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     label: 'Annual portfolio review',
     description: 'Read-only annual portfolio review command center preview (empty cycle).',
     workspace: 'manager',
+    entryModule: 'src/portfolioAnnualReview/AnnualPortfolioReviewCommandCenter.tsx',
     render: () => <AnnualPortfolioReviewCommandCenter cycle={PREVIEW_ANNUAL_REVIEW_CYCLE} />,
   },
   {
@@ -106,6 +118,7 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     label: 'Portfolio loan boarding',
     description: 'Read-only portfolio loan boarding package preview (empty package).',
     workspace: 'manager',
+    entryModule: 'src/portfolioBoarding/PortfolioLoanBoardingPreview.tsx',
     render: () => (
       <PortfolioLoanBoardingPreview package={createEmptyPortfolioLoanBoardingPackage()} />
     ),

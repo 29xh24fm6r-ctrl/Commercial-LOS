@@ -132,3 +132,17 @@ A SDK note: `@microsoft/power-apps/data` mis-resolves an extensionless internal 
 Gate: tsc ✅ · `featureSurfaces.test.tsx` ✅ (7) + `intentionallyUnrouted.test.ts` ✅ (4) · lint ✅ · `audit:reachability` exit 0.
 
 ### Phase 3 status: ✅ COMPLETE — 6 subsystems routed; residual orphans honestly allow-listed with wire/gate/delete tags.
+
+---
+
+## Phase 6 — Governance truth-up + observable cert dashboard
+
+Scoped honestly to what this session actually changed (read-only surface routing; no new writes):
+
+- **`platformInventory.ts` `NOT_WIRED` — unchanged (correct).** Its entries track live-write / binary-upload / AI capabilities (new-deal-create, document-upload, ai-generation, drill-throughs, borrower-portal, …). None of the 6 routed read-surfaces appear there, and read-only surfaces add no `GOVERNED_WRITES`. Editing it would have overstated reality. `releaseReadiness.ts` consumes `NOT_WIRED` → also correctly unchanged.
+- **Certification model already observable (no change needed).** `productionEnvironmentVerification.deriveProductionEnvironmentVerification()` reads `readLiveGateFlags()` (live flag values) and `PRODUCTION_ENVIRONMENT_CERTIFICATION` (operator-injected evidence); `fullActivationLaunchCertificationModel` consumes it. A domain turns green only when certified AND its gate flag is on — already data-driven, no hardcoded readiness.
+- **Closed the audit blind spot (new):** added `entryModule` traceability to each `FeatureSurface` and `featureSurfaceGovernance.test.ts`, which FAILS if a routed surface's entry module is still allow-listed as an intentional orphan (claimed-wired vs analyzer-orphaned), is missing on disk, or is not actually statically imported by the registry — plus pins every surface flag default-off.
+
+Gate: tsc ✅ · navigation suite ✅ (39 tests across 4 files) · lint ✅.
+
+### Phase 6 status: ✅ COMPLETE — governance matches reality; cross-check test enforces it.
