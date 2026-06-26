@@ -47,7 +47,7 @@ function emptyCrm(): CrmWorkspaceData {
     'organizations', 'people', 'relationships', 'roleAssignments', 'contactPoints',
     'communicationPreferences', 'contactAuthorizations', 'vendorProfiles', 'timelineEvents', 'auditEntries',
   ];
-  return Object.fromEntries(keys.map((k) => [k, r])) as CrmWorkspaceData;
+  return Object.fromEntries(keys.map((k) => [k, r])) as unknown as CrmWorkspaceData;
 }
 
 function emptyWorkQueue(): BankerWorkQueueData {

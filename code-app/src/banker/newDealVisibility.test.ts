@@ -91,7 +91,7 @@ describe('Phase 258 — created deal is included by the Loan Workflow query mode
   });
 
   it('returns the freshly-created deal with Intake stage and Open status', async () => {
-    getAllMock.mockResolvedValue({ success: true, data: [freshlyCreatedDealRow()] });
+    getAllMock.mockResolvedValue({ success: true, data: [freshlyCreatedDealRow()] } as never);
     const deals = await loadBankerPipeline(BANKER_ID);
     expect(deals).toHaveLength(1);
     const created = deals[0]!;
@@ -106,7 +106,7 @@ describe('Phase 258 — created deal is included by the Loan Workflow query mode
   it('does not drop the deal as closed when statecode=0 and isterminalstatus is null', async () => {
     const row = freshlyCreatedDealRow();
     const deals = await (async () => {
-      getAllMock.mockResolvedValue({ success: true, data: [row] });
+      getAllMock.mockResolvedValue({ success: true, data: [row] } as never);
       return loadBankerPipeline(BANKER_ID);
     })();
     expect(deals[0]!.isClosed).toBe(false);
