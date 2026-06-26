@@ -3,6 +3,7 @@ import { Badge } from '../shared/Badge';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import { loadBoardedLoans, type BoardedLoanRow } from './boardedLoansList';
 import { PortfolioImportWizard } from './PortfolioImportWizard';
+import { formatCurrency } from '../shared/formatters';
 import {
   boardExistingLoan,
   buildLiveExistingLoanDeps,
@@ -484,11 +485,8 @@ function BoardedDetailDrawer({ row, onClose }: { row: BoardedLoanRow; onClose: (
   );
 }
 
-function formatAmount(amount: number | undefined): string {
-  if (amount === undefined || Number.isNaN(amount)) return '—';
-  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
-  return `$${amount.toLocaleString()}`;
+function formatAmount(amount: number | null | undefined): string {
+  return formatCurrency(amount, { abbreviate: true, empty: '—' });
 }
 
 const styles: Record<string, CSSProperties> = {

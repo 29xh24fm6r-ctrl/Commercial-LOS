@@ -5,6 +5,7 @@ import { loadBankerWorkQueueData, type BankerWorkQueueData } from './workQueueQu
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { Badge } from '../shared/Badge';
 import { palette, radius, shadow, spacing, typography, type SeverityKey } from '../shared/theme';
+import { formatCurrency } from '../shared/formatters';
 import {
   deriveLoanWorkbench,
   rowsForSection,
@@ -306,11 +307,8 @@ function emptyGuidanceFor(q: QueueKey): string {
   }
 }
 
-function formatAmount(amount: number | undefined): string {
-  if (amount === undefined || Number.isNaN(amount)) return 'Not set';
-  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
-  return `$${amount.toLocaleString()}`;
+function formatAmount(amount: number | null | undefined): string {
+  return formatCurrency(amount, { abbreviate: true, empty: 'Not provided' });
 }
 function formatLastActivity(iso: string | undefined, now: Date): string {
   if (!iso) return 'No activity yet';

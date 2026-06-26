@@ -76,8 +76,10 @@ function readyMark(ready: boolean): string {
   return ready ? 'Ready' : 'Not ready';
 }
 
-function formatMoney(amount: number | undefined): string {
-  if (amount === undefined) return 'Not set';
+function formatMoney(amount: number | null | undefined): string {
+  // Null-safe: Dataverse returns null for empty numerics, and Number.isNaN(null)
+  // is false, so a bare .toLocaleString() on a nullable field would throw.
+  if (amount == null || Number.isNaN(amount)) return 'Not provided';
   return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 

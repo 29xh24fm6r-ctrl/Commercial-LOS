@@ -3,6 +3,7 @@ import type { PortfolioLoanBoardingPackage } from '../shared/portfolioBoarding/p
 import { derivePortfolioLoanBoardingSnapshot } from '../shared/portfolioBoarding/portfolioLoanBoardingSnapshot';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { palette, spacing, typography } from '../shared/theme';
+import { formatCurrency, formatPercent } from '../shared/formatters';
 import { PortfolioLoanBoardingReadOnlySections } from './PortfolioLoanBoardingReadOnlySections';
 import { PortfolioLoanBoardingReadinessPanel } from './PortfolioLoanBoardingReadinessPanel';
 import { PortfolioLoanBoardingDocumentInventory } from './PortfolioLoanBoardingDocumentInventory';
@@ -29,14 +30,14 @@ export function PortfolioLoanBoardingPreview({ package: pkg }: PortfolioLoanBoar
         />
         <div style={metricsRowStyle}>
           <MetricCell label="Loan #" value={snapshot.loanNumber} />
-          <MetricCell label="Balance" value={snapshot.currentBalance !== undefined ? `$${snapshot.currentBalance.toLocaleString()}` : undefined} />
+          <MetricCell label="Balance" value={snapshot.currentBalance != null ? formatCurrency(snapshot.currentBalance) : undefined} />
           <MetricCell label="Maturity" value={snapshot.maturityDate} />
           <MetricCell label="Risk Rating" value={snapshot.riskRating} />
           <MetricCell label="Next Review" value={snapshot.nextReviewDate} />
         </div>
         <div style={metricsRowStyle}>
-          <MetricCell label="Field completeness" value={snapshot.fieldCompletenessPct !== undefined ? `${snapshot.fieldCompletenessPct}%` : undefined} />
-          <MetricCell label="Doc completeness" value={snapshot.documentCompletenessPct !== undefined ? `${snapshot.documentCompletenessPct}%` : undefined} />
+          <MetricCell label="Field completeness" value={snapshot.fieldCompletenessPct != null ? formatPercent(snapshot.fieldCompletenessPct) : undefined} />
+          <MetricCell label="Doc completeness" value={snapshot.documentCompletenessPct != null ? formatPercent(snapshot.documentCompletenessPct) : undefined} />
         </div>
         <CardFooter>
           <span>Read-only preview. No edits from this view.</span>

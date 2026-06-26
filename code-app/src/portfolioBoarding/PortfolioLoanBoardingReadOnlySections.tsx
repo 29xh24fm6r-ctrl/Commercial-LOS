@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import type { PortfolioLoanBoardingPackage } from '../shared/portfolioBoarding/portfolioLoanBoardingTypes';
 import { Card, CardHeader } from '../shared/Card';
 import { palette, spacing, typography } from '../shared/theme';
+import { formatCurrency } from '../shared/formatters';
 
 interface Props {
   package: PortfolioLoanBoardingPackage;
@@ -28,8 +29,8 @@ export function PortfolioLoanBoardingReadOnlySections({ package: pkg }: Props) {
       </SectionCard>
 
       <SectionCard title="Loan Terms">
-        <Field label="Original Commitment" value={pkg.terms.originalCommitmentAmount !== undefined ? `$${pkg.terms.originalCommitmentAmount.toLocaleString()}` : undefined} />
-        <Field label="Outstanding Principal" value={pkg.terms.currentOutstandingPrincipal !== undefined ? `$${pkg.terms.currentOutstandingPrincipal.toLocaleString()}` : undefined} />
+        <Field label="Original Commitment" value={pkg.terms.originalCommitmentAmount != null ? formatCurrency(pkg.terms.originalCommitmentAmount) : undefined} />
+        <Field label="Outstanding Principal" value={pkg.terms.currentOutstandingPrincipal != null ? formatCurrency(pkg.terms.currentOutstandingPrincipal) : undefined} />
         <Field label="Rate Type" value={pkg.terms.interestRateType} />
         <Field label="Payment Frequency" value={pkg.terms.paymentFrequency} />
       </SectionCard>
@@ -56,7 +57,7 @@ export function PortfolioLoanBoardingReadOnlySections({ package: pkg }: Props) {
         {pkg.guarantors.guarantors.map((g, i) => (
           <div key={i} style={itemRowStyle}>
             <span style={itemLabelStyle}>{g.guarantorName ?? 'Name not set'}</span>
-            <span style={itemValueStyle}>{g.guaranteeScope ?? ''} {g.guaranteeAmount !== undefined ? `$${g.guaranteeAmount.toLocaleString()}` : ''}</span>
+            <span style={itemValueStyle}>{g.guaranteeScope ?? ''} {g.guaranteeAmount != null ? formatCurrency(g.guaranteeAmount) : ''}</span>
           </div>
         ))}
       </SectionCard>

@@ -7,6 +7,7 @@ import {
   buildLiveImportRunnerDeps,
   type ImportSummary,
 } from './portfolioImportRunner';
+import { formatCurrency } from '../shared/formatters';
 
 /**
  * Phase 261 (C) — Upload Existing Portfolio wizard.
@@ -305,11 +306,8 @@ function describeOutcome(kind: string): string {
   }
 }
 
-function formatAmount(amount: number | undefined): string {
-  if (amount === undefined || Number.isNaN(amount)) return '—';
-  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
-  return `$${amount.toLocaleString()}`;
+function formatAmount(amount: number | null | undefined): string {
+  return formatCurrency(amount, { abbreviate: true, empty: '—' });
 }
 
 const styles: Record<string, CSSProperties> = {
