@@ -226,7 +226,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
           <section style={styles.contentArea} aria-label="Banker workspace content">
             <TabBar active={tab} onSelect={setTab} kpis={kpis} state={state} />
             <div style={styles.tabPanel} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-              <ErrorBoundary surface={TAB_SPECS.find((t) => t.key === tab)?.label ?? 'This section'}>
+              <ErrorBoundary surface={TAB_SPECS.find((t) => t.key === tab)?.label ?? 'This section'} navKey={tab}>
                 <TabContent tab={tab} onNewDeal={openNewDeal} />
               </ErrorBoundary>
             </div>

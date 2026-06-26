@@ -80,13 +80,20 @@ function hasOverdueTask(dealId: string, tasks: readonly WorkQueueTaskRow[], nowM
 export function deriveLoanWorkbench(
   deals: readonly PipelineDeal[],
   tasks: readonly WorkQueueTaskRow[],
-  ownerName: string,
+  ownerName: string | undefined,
   now: Date,
 ): WorkbenchModel {
   const nowMs = now.getTime();
-  const owner = ownerName.trim().length > 0 ? ownerName : 'You';
+  // Defensive: ownerName is sourced from the resolved banker identity
+  // (cr664_fullname), which can be null/empty for a freshly provisioned
+  // banker record. A bare `.trim()` here would throw inside the render-phase
+  // useMemo and crash the whole Loan Workflow tab. Tasks/deals are likewise
+  // coerced so a partial live payload can never throw during derivation.
+  const owner = (ownerName ?? '').trim().length > 0 ? (ownerName as string) : 'You';
+  const safeDeals = deals ?? [];
+  const safeTasks = tasks ?? [];
 
-  const rows: WorkbenchRow[] = deals.map((d) => {
+  const rows: WorkbenchRow[] = safeDeals.map((d) => {
     const sections: WorkbenchSectionKey[] = ['active'];
 
     const created = parseTime(d.createdOn);
@@ -102,7 +109,7 @@ export function deriveLoanWorkbench(
     const lastAct = parseTime(d.lastActivityOn);
     const stale = lastAct !== undefined && nowMs - lastAct >= STALE_DAYS * MS_PER_DAY;
     const pastClose = close !== undefined && close < nowMs;
-    const overdueTask = hasOverdueTask(d.id, tasks, nowMs);
+    const overdueTask = hasOverdueTask(d.id, safeTasks, nowMs);
     if (stale || pastClose || overdueTask) {
       sections.push('attention');
     }
@@ -115,7 +122,7 @@ export function deriveLoanWorkbench(
       status: d.status,
       amount: d.amount,
       owner,
-      nextAction: nextActionFor(d.id, tasks),
+      nextAction: nextActionFor(d.id, safeTasks),
       lastActivity: d.lastActivityOn,
       createdOn: d.createdOn,
       targetCloseDate: d.targetCloseDate,

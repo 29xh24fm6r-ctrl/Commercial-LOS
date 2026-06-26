@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { useBanker } from './BankerContext';
 import { BankerLoanWorkflowWorkbench } from './BankerLoanWorkflowWorkbench';
 import { ExistingPortfolioLoansPanel } from '../portfolioBoarding/ExistingPortfolioLoansPanel';
+import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { spacing } from '../shared/theme';
 
 /**
@@ -26,13 +27,19 @@ export function BankerLoanWorkflowTab({ onNewDeal }: { onNewDeal?: () => void })
   const { systemUserId, email, writeDisabledReason } = useBanker();
   return (
     <div data-banker-loan-workflow="panel" style={styles.stack}>
-      <BankerLoanWorkflowWorkbench onNewDeal={onNewDeal} onAddExistingLoan={scrollToExistingLoans} />
+      {/* Secondary protection: each section is isolated so a failure in one
+          never blanks the whole Loan Workflow tab. */}
+      <ErrorBoundary surface="Loan Workflow" navKey="loan-workflow-workbench">
+        <BankerLoanWorkflowWorkbench onNewDeal={onNewDeal} onAddExistingLoan={scrollToExistingLoans} />
+      </ErrorBoundary>
       <div id={EXISTING_LOANS_ANCHOR}>
-        <ExistingPortfolioLoansPanel
-          actorEmail={email}
-          actorSystemUserId={systemUserId}
-          writeDisabledReason={writeDisabledReason}
-        />
+        <ErrorBoundary surface="Existing Portfolio Loans" navKey="loan-workflow-existing">
+          <ExistingPortfolioLoansPanel
+            actorEmail={email}
+            actorSystemUserId={systemUserId}
+            writeDisabledReason={writeDisabledReason}
+          />
+        </ErrorBoundary>
       </div>
     </div>
   );

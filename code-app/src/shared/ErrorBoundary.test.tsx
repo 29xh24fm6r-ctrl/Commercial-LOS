@@ -35,4 +35,27 @@ describe('Phase 260 — ErrorBoundary', () => {
     expect(screen.getByRole('button', { name: /Try again/i })).toBeInTheDocument();
     spy.mockRestore();
   });
+
+  it('captures structured diagnostics (surface, navKey, message, stack, correlation id)', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const diagnostics: Array<Record<string, unknown>> = [];
+    const { container } = render(
+      <ErrorBoundary surface="Loan Workflow" navKey="loan-workflow" onDiagnostic={(d) => diagnostics.push(d)}>
+        <Boom />
+      </ErrorBoundary>,
+    );
+    expect(diagnostics).toHaveLength(1);
+    const d = diagnostics[0]!;
+    expect(d.surface).toBe('Loan Workflow');
+    expect(d.navKey).toBe('loan-workflow');
+    expect(d.message).toBe('kaboom');
+    expect(typeof d.correlationId).toBe('string');
+    expect((d.correlationId as string).length).toBeGreaterThan(0);
+    expect(d.stack).toBeTruthy();
+    expect(d.componentStack).toBeTruthy();
+    // The fallback shows the correlation id + message for operator reporting.
+    expect(container.querySelector('[data-error-boundary-correlation]')?.textContent).toContain(d.correlationId as string);
+    expect(container.querySelector('[data-error-boundary-message]')?.textContent).toContain('kaboom');
+    spy.mockRestore();
+  });
 });

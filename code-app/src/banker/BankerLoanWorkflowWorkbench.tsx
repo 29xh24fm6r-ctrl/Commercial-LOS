@@ -96,8 +96,8 @@ export function BankerLoanWorkflowWorkbench({
   const diligenceDealIds = useMemo(() => {
     if (state.kind !== 'ready') return new Set<string>();
     const ids = new Set<string>();
-    for (const d of state.data.outstandingDocuments) ids.add(d.dealId);
-    for (const d of state.data.pendingReviewDocuments) ids.add(d.dealId);
+    for (const d of state.data.outstandingDocuments ?? []) ids.add(d.dealId);
+    for (const d of state.data.pendingReviewDocuments ?? []) ids.add(d.dealId);
     return ids;
   }, [state]);
 
