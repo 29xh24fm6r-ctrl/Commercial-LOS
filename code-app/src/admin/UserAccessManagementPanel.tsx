@@ -15,6 +15,7 @@ import {
   formatProfileReference,
   formatSafeReadWorkspaceName,
 } from './adminUserAccessDisplay';
+import { WorkspaceEntitlementManager } from './WorkspaceEntitlementManager';
 
 /**
  * Phase 204N — read-only detail polish. The console explains WHY workspace/profile
@@ -95,6 +96,7 @@ export function UserAccessManagementPanel() {
       )}
       <UsersTable state={state} />
       <EntitlementsTable state={state} />
+      <WorkspaceEntitlementManager />
       <GrantAccessPreviewForm />
     </section>
   );

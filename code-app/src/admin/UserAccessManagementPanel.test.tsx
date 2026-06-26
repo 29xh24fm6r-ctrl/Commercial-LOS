@@ -13,6 +13,14 @@ vi.mock('./adminUserAccessQueries', () => ({
   loadAdminUserAccessSummary: vi.fn(),
 }));
 
+// The governed workspace-entitlement dropdown is a separate concern with its
+// own admin-context + governed-write dependencies and dedicated test
+// (WorkspaceEntitlementManager.test.tsx). Stub it here so this panel test stays
+// scoped to the read-only user/entitlement read + grant-new-user preview.
+vi.mock('./WorkspaceEntitlementManager', () => ({
+  WorkspaceEntitlementManager: () => <div data-testid="entitlement-manager-stub" />,
+}));
+
 import { loadAdminUserAccessSummary } from './adminUserAccessQueries';
 import { UserAccessManagementPanel } from './UserAccessManagementPanel';
 
