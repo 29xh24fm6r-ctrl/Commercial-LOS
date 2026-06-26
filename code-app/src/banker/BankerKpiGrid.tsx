@@ -154,7 +154,7 @@ export function BankerKpiGrid({ state, now, onSelectTab }: BankerKpiGridProps) {
       icon: <SparkleIcon />,
       tone: 'neutral',
       value: undefined,
-      hint: 'Not yet wired',
+      hint: 'Not available',
       tooltip: NOT_YET_WIRED_TOOLTIP_WEIGHTED,
     },
     {
@@ -192,7 +192,7 @@ export function BankerKpiGrid({ state, now, onSelectTab }: BankerKpiGridProps) {
       icon: <CompletenessIcon />,
       tone: 'neutral',
       value: undefined,
-      hint: 'Not yet wired',
+      hint: 'Not available',
       tooltip: NOT_YET_WIRED_TOOLTIP_YTD_CLOSED,
     },
     {
@@ -201,7 +201,7 @@ export function BankerKpiGrid({ state, now, onSelectTab }: BankerKpiGridProps) {
       icon: <ActivityIcon />,
       tone: 'neutral',
       value: undefined,
-      hint: 'Not yet wired',
+      hint: 'Not available',
       tooltip: NOT_YET_WIRED_TOOLTIP_WIN_RATE,
     },
     {
@@ -210,7 +210,7 @@ export function BankerKpiGrid({ state, now, onSelectTab }: BankerKpiGridProps) {
       icon: <MemoIcon />,
       tone: 'neutral',
       value: undefined,
-      hint: 'Not yet wired',
+      hint: 'Not available',
       tooltip: NOT_YET_WIRED_TOOLTIP_HIGH_PROB,
     },
     {
@@ -294,7 +294,7 @@ function KpiTile({
           color: isMissing ? palette.textSubtle : tonePalette.fg,
         }}
       >
-        {spec.value ?? 'Not yet wired'}
+        {spec.value ?? 'Not available'}
       </div>
       {spec.hint && <div style={styles.hint}>{spec.hint}</div>}
     </>

@@ -1,6 +1,5 @@
 import { useState, type CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
-import { SparkleIcon } from '../shared/cockpitIcons';
 import { EMAIL_MODE } from '../deals/emailDelivery/emailMode';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import {
@@ -22,20 +21,16 @@ import { logActivity } from '../deals/logActivityActions';
  *   Ã¢â€â€š Email: LIVE  Ã‚Â· Banker Workspace                            Ã¢â€â€š
  *   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ
  *
- * Honest discipline:
+ * Honest discipline (updated Phase 257):
  *   - Greeting uses the signed-in banker's first name (or the
  *     fullName fallback). Time-of-day is derived from `now`.
  *   - Task count is derived from the parent shell's KPI snapshot
- *     (`openTaskCount`); meeting count is honestly 0 with a
- *     hover tooltip that says "Calendar integration not yet
- *     wired."
- *   - Search bar is a **disabled** input with a "Search not yet
- *     wired" placeholder/tooltip. No client-side filtering; no
- *     loader call.
+ *     (`openTaskCount`). The unbuilt calendar/meeting line and the
+ *     unbuilt global-search input are hidden from the launch UI.
  *   - "Log Activity" opens a governed activity-write modal when
  *     the banker has write entitlement and Dataverse identity.
- *   - "+ New Deal" remains disabled with an explicit schema
- *     blocker tooltip until stage/status reference defaults exist.
+ *   - "+ New Deal" is a real, enabled shortcut that routes to the
+ *     governed New Deal panel on the Active Deals tab (via onNewDeal).
  *   - The read-only banner from Phase 117 is preserved as a
  *     status row beneath the greeting when applicable.
  */
@@ -102,20 +97,12 @@ export function GreetingHeader({
               <>
                 You have{' '}
                 <strong style={styles.subtitleStrong}>{openTaskCount}</strong>{' '}
-                task{openTaskCount === 1 ? '' : 's'} pending and{' '}
-                <strong
-                  style={styles.subtitleStrong}
-                  title="Calendar integration not yet wired."
-                >
-                  0
-                </strong>{' '}
-                meetings today
+                task{openTaskCount === 1 ? '' : 's'} pending today
               </>
             )}
           </p>
         </div>
         <div style={styles.actions} aria-label="Workspace actions">
-          <SearchPlaceholder />
           {logActivityEnabled ? (
             <button
               type="button"
@@ -190,28 +177,6 @@ export function GreetingHeader({
   );
 }
 
-function SearchPlaceholder() {
-  return (
-    <label
-      style={styles.searchWrap}
-      title="Global search not yet wired."
-      aria-label="Search (not yet wired)"
-    >
-      <span style={styles.searchIcon} aria-hidden="true">
-        <SparkleIcon size={14} />
-      </span>
-      <input
-        type="text"
-        style={styles.searchInput}
-        placeholder="Search deals, loans, contacts... (not yet wired)"
-        disabled
-        aria-disabled="true"
-        data-search-placeholder="lending-os-search"
-      />
-    </label>
-  );
-}
-
 function ActionButton({
   label,
   tooltip,
@@ -227,7 +192,7 @@ function ActionButton({
       disabled
       aria-disabled="true"
       title={tooltip}
-      aria-label={`${label} (not yet wired)`}
+      aria-label={`${label} (unavailable)`}
       style={primary ? styles.primaryButton : styles.secondaryButton}
       data-action-placeholder={label.toLowerCase().replace(/\W+/g, '-')}
     >

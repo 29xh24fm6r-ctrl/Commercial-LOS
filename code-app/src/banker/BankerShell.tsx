@@ -404,13 +404,13 @@ function RightRail({
     <div style={styles.railStack}>
       <div style={styles.rail}>
         <div style={styles.railHeader}>
-          <div style={styles.railTitle}>Today's Schedule</div>
+          <div style={styles.railTitle}>Closing Soon</div>
           <Badge variant="neutral" appearance="outline">
             {closingSoonDeals.length}
           </Badge>
         </div>
         <div style={styles.railSubtitle}>
-          Target-close dates within 14 days. <em>Not a calendar integration ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â Outlook is not wired.</em>
+          Deals with a target close within 14 days.
         </div>
         {state.kind === 'loading' && <div style={styles.railMuted}>LoadingÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦</div>}
         {state.kind === 'failed' && (
@@ -419,7 +419,7 @@ function RightRail({
           </div>
         )}
         {state.kind === 'ready' && closingSoonDeals.length === 0 && (
-          <div style={styles.railMuted}>No meetings today.</div>
+          <div style={styles.railMuted}>No deals closing in the next 14 days.</div>
         )}
         {state.kind === 'ready' && closingSoonDeals.length > 0 && (
           <ul style={styles.railList}>

@@ -178,15 +178,15 @@ describe('Phase 125F — Lending OS shell layout', () => {
     }
   });
 
-  it('renders disabled placeholder sidebar items (Schedule / Contacts / Vendors / Settings / Help & Support)', () => {
+  it('hides unbuilt placeholder sidebar items (Schedule / Contacts / Vendors / Settings / Help) from the launch nav', () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
     for (const id of ['schedule', 'contacts', 'vendors', 'settings', 'help']) {
-      const placeholder = container.querySelector(`[data-nav-placeholder="${id}"]`);
-      expect(placeholder).not.toBeNull();
-      expect(placeholder?.getAttribute('aria-disabled')).toBe('true');
+      expect(container.querySelector(`[data-nav-placeholder="${id}"]`)).toBeNull();
     }
+    // No disabled "Soon" pill anywhere in the production sidebar.
+    expect(screen.queryByText('Soon')).toBeNull();
   });
 
   it('renders the personal greeting header (h1 + task-count subtitle)', async () => {
@@ -208,10 +208,8 @@ describe('Phase 125F — Lending OS shell layout', () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
-    // Search input is still rendered but disabled (roadmap surface).
-    const search = container.querySelector('[data-search-placeholder="lending-os-search"]');
-    expect(search).not.toBeNull();
-    expect(search?.getAttribute('disabled')).not.toBeNull();
+    // The disabled global-search placeholder is hidden from the launch UI.
+    expect(container.querySelector('[data-search-placeholder="lending-os-search"]')).toBeNull();
     expect(screen.getByRole('button', { name: /^Log Activity$/i })).not.toBeDisabled();
     // Phase 257: + New Deal is a real, enabled navigation shortcut (no longer a placeholder).
     const newDeal = container.querySelector('[data-action-new-deal]');
@@ -267,17 +265,17 @@ describe('Phase 125F — Lending OS shell layout', () => {
     });
   });
 
-  it('marks the "Not yet wired" KPI tiles (WEIGHTED / WIN RATE / HIGH PROB / YTD CLOSED) with italic placeholders', async () => {
+  it('marks the unavailable KPI tiles (WEIGHTED / WIN RATE / HIGH PROB / YTD CLOSED) with bank-user "Not available" copy', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
     await waitFor(() => {
       expect(container.querySelectorAll('[data-kpi-tile]').length).toBe(10);
     });
-    // The 4 placeholder tiles render "Not yet wired" copy.
-    const notYetWired = screen.getAllByText(/Not yet wired/i);
-    // 4 tile values + the matching 4 sub-hints (8 minimum).
-    expect(notYetWired.length).toBeGreaterThanOrEqual(4);
+    // The 4 unavailable tiles render "Not available" (no dev "not yet wired" copy).
+    const notAvailable = screen.getAllByText(/Not available/i);
+    expect(notAvailable.length).toBeGreaterThanOrEqual(4);
+    expect(screen.queryByText(/Not yet wired/i)).toBeNull();
   });
 
   it('renders the tab bar with the Phase 125F labels plus the Phase 257 Loan Workflow + CRM Hub tabs', async () => {
@@ -306,18 +304,17 @@ describe('Phase 125F — Lending OS shell layout', () => {
     }
   });
 
-  it('renders the right rail with Today\'s Schedule + My Tasks (Closing soon was renamed)', async () => {
+  it('renders the right rail with Closing Soon + My Tasks (no calendar/Outlook dev copy)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     render(<BankerShell workspaceName="Banker Workspace" />);
     await waitFor(() => {
-      expect(screen.getByText(/Today's Schedule/i)).toBeInTheDocument();
+      expect(screen.getByText(/Closing Soon/i)).toBeInTheDocument();
     });
     expect(screen.getByText(/^My Tasks$/i)).toBeInTheDocument();
-    // The honest "Not a calendar integration" subtitle.
-    expect(
-      screen.getByText(/Not a calendar integration/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Deals with a target close within 14 days/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Not a calendar integration/i)).toBeNull();
+    expect(screen.queryByText(/Outlook is not wired/i)).toBeNull();
   });
 
   it('switching tabs swaps the rendered card without leaking previous panel content', async () => {

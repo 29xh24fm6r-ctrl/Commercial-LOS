@@ -56,46 +56,36 @@ describe('Phase 125F — Lending OS shell composition', () => {
   });
 });
 
-describe('Phase 125F — Honest disabled placeholders', () => {
-  it('LendingOSLayout sidebar declares Schedule / Contacts / Vendors / Settings / Help as placeholders', () => {
+describe('Phase 257 — production launch nav (unbuilt placeholders hidden)', () => {
+  it('LendingOSLayout no longer declares Schedule / Contacts / Vendors / Settings / Help placeholders', () => {
     const src = READ('LendingOSLayout.tsx');
-    // The placeholder ids are stable strings exposed on data-nav-placeholder.
     for (const id of ['schedule', 'contacts', 'vendors', 'settings', 'help']) {
-      expect(src).toMatch(new RegExp(`id: '${id}'`));
+      expect(src).not.toMatch(new RegExp(`id: '${id}'`));
     }
+    // The disabled "Soon" placeholder machinery is removed.
+    expect(src).not.toMatch(/data-nav-placeholder/);
+    expect(src).not.toMatch(/function NavPlaceholder\b/);
+    expect(src).not.toMatch(/not yet wired/i);
   });
 
-  it('LendingOSLayout placeholder buttons carry aria-disabled + tooltip and never declare an onClick', () => {
-    const src = READ('LendingOSLayout.tsx');
-    // The NavPlaceholder component renders `disabled` + `aria-disabled`
-    // and explicitly omits an onClick attribute.
-    expect(src).toMatch(/function NavPlaceholder\b[\s\S]*aria-disabled="true"[\s\S]*disabled[\s\S]*data-nav-placeholder/);
-    // No onClick handler is wired in NavPlaceholder — search by name.
-    const navPlaceholderBlock = src.split('function NavPlaceholder')[1] ?? '';
-    expect(navPlaceholderBlock.split('function ')[0]).not.toMatch(/onClick=\{/);
-  });
-
-  it('GreetingHeader keeps "+ New Deal" disabled while Log Activity uses the Phase 160 governed action', () => {
+  it('GreetingHeader "+ New Deal" is a real, enabled governed shortcut (no disabled placeholder, no dev copy)', () => {
     const src = READ('GreetingHeader.tsx');
-    // ActionButton component is the disabled-placeholder factory.
-    expect(src).toMatch(/function ActionButton\b/);
-    expect(src).toMatch(/disabled\s*\n?\s*aria-disabled="true"/);
+    // The header create routes to the governed New Deal panel via onNewDeal.
+    expect(src).toMatch(/onNewDeal/);
+    expect(src).toMatch(/data-action-new-deal/);
     expect(src).toMatch(/\+ New Deal/);
     expect(src).toMatch(/Log Activity/);
     expect(src).toMatch(/from\s+['"]\.\.\/deals\/logActivityActions['"]/);
-    // The header "+ New Deal" stays a disabled placeholder; its tooltip now
-    // accurately points to the governed New Deal panel (Active Deals tab)
-    // instead of the stale "no generated data source" claim.
-    expect(src).toMatch(/New Deal panel on the Active Deals tab/);
-    expect(src).toMatch(/this header shortcut is not wired/);
-    expect(src).not.toMatch(/no generated stage\/status reference data source/);
+    // No stale "header shortcut is not wired" / "not yet wired" copy.
+    expect(src).not.toMatch(/this header shortcut is not wired/);
+    expect(src).not.toMatch(/not yet wired/i);
     expect(src).not.toMatch(/newDealActions|NewDealModal/);
   });
 
-  it('GreetingHeader search input is disabled with a "not yet wired" placeholder', () => {
+  it('GreetingHeader no longer renders a disabled global-search placeholder', () => {
     const src = READ('GreetingHeader.tsx');
-    expect(src).toMatch(/data-search-placeholder="lending-os-search"/);
-    expect(src).toMatch(/disabled\s*\n?\s*aria-disabled="true"/);
+    expect(src).not.toMatch(/data-search-placeholder/);
+    expect(src).not.toMatch(/Global search not yet wired/i);
   });
 });
 

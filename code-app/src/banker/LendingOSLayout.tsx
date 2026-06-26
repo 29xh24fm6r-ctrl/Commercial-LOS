@@ -8,11 +8,8 @@ import {
   PipelineIcon,
   StageIcon,
   AlertIcon,
-  CalendarIcon,
   BankerIcon,
-  SparkleIcon,
   RelationshipIcon,
-  TeamsIcon,
 } from '../shared/cockpitIcons';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import type { WorkspaceLink } from '../bootstrap/workspaceEntitlements';
@@ -29,19 +26,15 @@ import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
  * passed as `children` so each route renders the right body
  * inside the same chrome.
  *
- * Honest discipline (carried from Phase 117 / 118):
- *   - Sidebar nav surfaces real routes for surfaces with
- *     loaders (Dashboard, Active Deals, Tasks & Actions,
- *     Due Diligence, Activity Log).
- *   - "Schedule", "Contacts", "Vendors", "Settings", and
- *     "Help & Support" render as **disabled placeholders**
- *     with explicit "Not yet wired" tooltips so the shell
- *     matches the reference visually without implying
- *     unsupported surfaces.
- *   - No fake "+ New Deal" / "Log Activity" handlers â€” those
- *     live in `GreetingHeader` as disabled placeholders.
- *   - No global search loader exists today; the search input
- *     in `GreetingHeader` is also a disabled placeholder.
+ * Honest discipline (carried from Phase 117 / 118; updated Phase 257):
+ *   - Sidebar nav surfaces only real, working routes: Dashboard,
+ *     Active Deals, Loan Workflow, Tasks & Actions, Due Diligence,
+ *     CRM Hub, Activity Log, My Alerts.
+ *   - Unbuilt surfaces (Schedule/Calendar, Contacts, Vendors,
+ *     Settings, Help, global search) are HIDDEN from the bank-launch
+ *     nav rather than rendered as disabled "Soon" placeholders; they
+ *     return when they have real loaders.
+ *   - "+ New Deal" / "Log Activity" handlers live in `GreetingHeader`.
  */
 
 export type LendingOSNavKey =
@@ -89,91 +82,48 @@ export interface LendingOSLayoutProps {
 }
 
 interface RealNavItem {
-  readonly kind: 'real';
   readonly key: LendingOSNavKey;
   readonly label: string;
   readonly icon: ReactNode;
 }
 
-interface PlaceholderNavItem {
-  readonly kind: 'placeholder';
-  readonly id: string;
-  readonly label: string;
-  readonly icon: ReactNode;
-  readonly tooltip: string;
-}
-
 interface NavSection {
   readonly label: string;
-  readonly items: ReadonlyArray<RealNavItem | PlaceholderNavItem>;
+  readonly items: ReadonlyArray<RealNavItem>;
 }
 
+// Phase 257 — production launch nav. Only real, working destinations are
+// shown. Unbuilt surfaces (Schedule/Calendar, Contacts, Vendors, Settings,
+// Help, global search) are hidden from the bank-launch UI rather than rendered
+// as disabled "Soon" placeholders; they return when they have real loaders.
 const NAV_SECTIONS: ReadonlyArray<NavSection> = [
   {
     label: 'My Pipeline',
     items: [
-      { kind: 'real', key: 'dashboard', label: 'Dashboard', icon: <PipelineIcon /> },
-      { kind: 'real', key: 'active-deals', label: 'Active Deals', icon: <StageIcon /> },
-      { kind: 'real', key: 'my-alerts', label: 'My Alerts', icon: <AlertIcon /> },
+      { key: 'dashboard', label: 'Dashboard', icon: <PipelineIcon /> },
+      { key: 'active-deals', label: 'Active Deals', icon: <StageIcon /> },
+      { key: 'my-alerts', label: 'My Alerts', icon: <AlertIcon /> },
     ],
   },
   {
     label: 'Work Queue',
     items: [
-      { kind: 'real', key: 'tasks', label: 'Tasks & Actions', icon: <ChecklistIcon /> },
-      { kind: 'real', key: 'due-diligence', label: 'Due Diligence', icon: <DocumentsIcon /> },
-      {
-        kind: 'placeholder',
-        id: 'schedule',
-        label: 'Schedule',
-        icon: <CalendarIcon />,
-        tooltip: 'Calendar integration not yet wired.',
-      },
+      { key: 'tasks', label: 'Tasks & Actions', icon: <ChecklistIcon /> },
+      { key: 'due-diligence', label: 'Due Diligence', icon: <DocumentsIcon /> },
     ],
   },
   {
     label: 'Relationships',
     items: [
-      { kind: 'real', key: 'crm-hub', label: 'CRM Hub', icon: <ClientIcon /> },
-      {
-        kind: 'placeholder',
-        id: 'contacts',
-        label: 'Contacts',
-        icon: <ClientIcon />,
-        tooltip: 'Contacts entity not yet wired in this environment.',
-      },
-      { kind: 'real', key: 'activity', label: 'Activity Log', icon: <ActivityIcon /> },
+      { key: 'crm-hub', label: 'CRM Hub', icon: <ClientIcon /> },
+      { key: 'activity', label: 'Activity Log', icon: <ActivityIcon /> },
     ],
   },
   {
     label: 'Resources',
     items: [
-      { kind: 'real', key: 'loan-workflow', label: 'Loan Workflow', icon: <RelationshipIcon /> },
-      {
-        kind: 'placeholder',
-        id: 'vendors',
-        label: 'Vendors',
-        icon: <RelationshipIcon />,
-        tooltip: 'Vendor entity not yet wired in this environment.',
-      },
+      { key: 'loan-workflow', label: 'Loan Workflow', icon: <RelationshipIcon /> },
     ],
-  },
-];
-
-const FOOTER_PLACEHOLDERS: ReadonlyArray<PlaceholderNavItem> = [
-  {
-    kind: 'placeholder',
-    id: 'settings',
-    label: 'Settings',
-    icon: <SparkleIcon />,
-    tooltip: 'Banker-side settings surface not yet wired.',
-  },
-  {
-    kind: 'placeholder',
-    id: 'help',
-    label: 'Help & Support',
-    icon: <TeamsIcon />,
-    tooltip: 'Help & support routing not yet wired.',
   },
 ];
 
@@ -209,16 +159,12 @@ export function LendingOSLayout({
               <div style={styles.sectionLabel}>{section.label}</div>
               <ul style={styles.navList}>
                 {section.items.map((item) => (
-                  <li key={'key' in item ? item.key : item.id} style={styles.navItem}>
-                    {item.kind === 'real' ? (
-                      <NavButton
-                        item={item}
-                        active={item.key === activeNav}
-                        onSelect={onNavSelect}
-                      />
-                    ) : (
-                      <NavPlaceholder item={item} />
-                    )}
+                  <li key={item.key} style={styles.navItem}>
+                    <NavButton
+                      item={item}
+                      active={item.key === activeNav}
+                      onSelect={onNavSelect}
+                    />
                   </li>
                 ))}
               </ul>
@@ -227,13 +173,6 @@ export function LendingOSLayout({
         </div>
 
         <div style={styles.footer}>
-          <ul style={styles.navList}>
-            {FOOTER_PLACEHOLDERS.map((item) => (
-              <li key={item.id} style={styles.navItem}>
-                <NavPlaceholder item={item} />
-              </li>
-            ))}
-          </ul>
           <div style={styles.identityCard} aria-label="Signed in banker">
             <div style={styles.identityAvatar} aria-hidden="true">
               {initials}
@@ -300,28 +239,6 @@ function NavButton({
         {item.icon}
       </span>
       <span style={styles.navLabel}>{item.label}</span>
-    </button>
-  );
-}
-
-function NavPlaceholder({ item }: { item: PlaceholderNavItem }) {
-  return (
-    <button
-      type="button"
-      style={styles.navButtonPlaceholder}
-      aria-label={`${item.label} (not yet wired)`}
-      aria-disabled="true"
-      title={item.tooltip}
-      disabled
-      data-nav-placeholder={item.id}
-    >
-      <span style={styles.navIconMuted} aria-hidden="true">
-        {item.icon}
-      </span>
-      <span style={styles.navLabelMuted}>{item.label}</span>
-      <span style={styles.navPlaceholderPill} aria-hidden="true">
-        Soon
-      </span>
     </button>
   );
 }
