@@ -118,13 +118,13 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
     title: 'Banker Operating Command Center',
     subtitle: 'Unified CRM + LOS workflow cockpit for daily lending operations',
     posture:
-      'Banker can operate from CRM intelligence, active deal workflow, daily actions, and readiness surfaces. Live create, writeback, stage advancement, borrower send, checklist generation, and portfolio persistence remain governed by certified gates.',
+      'Operate from CRM, your active deal workflow, daily actions, and each deal’s readiness. Live create, stage advancement, borrower send, checklist generation, and portfolio boarding stay governed and are available where they are enabled for you.',
     domains,
     todayActions: [
-      'Start with CRM relationship intelligence and daily action queue.',
+      'Start with CRM and your daily action queue.',
       'Work active deals from the Loan Workflow Command Center and deal cockpit.',
-      'Use duplicate detection and task intelligence as safe internal core signals.',
-      'Do not treat gated create/writeback/send/boarding controls as enabled until admin certification clears them.',
+      'Use duplicate detection and task suggestions to prioritize your work.',
+      'Live create, send, and portfolio boarding are available only where they have been enabled for you.',
     ],
     dealCockpitAnchors: [
       'loan-workflow-command-center',

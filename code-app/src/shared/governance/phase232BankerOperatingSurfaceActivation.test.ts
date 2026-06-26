@@ -8,9 +8,9 @@ describe('Phase 232 — banker operating surface activation contract', () => {
     const vm = deriveBankerOperatingCommandCenterModel();
 
     expect(vm.title).toBe('Banker Operating Command Center');
-    expect(vm.posture).toMatch(/CRM intelligence/i);
+    expect(vm.posture).toMatch(/CRM/);
     expect(vm.posture).toMatch(/active deal workflow/i);
-    expect(vm.posture).toMatch(/certified gates/i);
+    expect(vm.posture).toMatch(/governed/i);
   });
 
   it('does not invent a parallel workflow; it points to the existing deal cockpit anchors', () => {
@@ -21,14 +21,15 @@ describe('Phase 232 — banker operating surface activation contract', () => {
     expect(vm.dealCockpitAnchors).toContain('crm-relationship');
   });
 
-  it('is mounted on the banker dashboard ahead of the legacy CRM panel', () => {
+  it('is mounted on the banker dashboard (Phase 258: CRM is now its own CRM Hub workspace)', () => {
     const shell = readFileSync(resolve(__dirname, '../../banker/BankerShell.tsx'), 'utf8');
 
     expect(shell).toMatch(/import \{ BankerOperatingCommandCenter \}/);
     expect(shell.indexOf('<BankerOperatingCommandCenter />')).toBeGreaterThan(-1);
-    expect(shell.indexOf('<BankerOperatingCommandCenter />')).toBeLessThan(
-      shell.indexOf('<BankerCrmIntelligencePanel />'),
-    );
+    // Phase 258 — the legacy CRM readiness panel is replaced by the live CRM
+    // Hub workspace on its own tab; the dashboard no longer mounts it.
+    expect(shell).not.toMatch(/<BankerCrmIntelligencePanel \/>/);
+    expect(shell).toMatch(/import \{ CrmHubWorkspace \}/);
   });
 
   it('does not add write primitives, fetches, external sync, or borrower-send controls', () => {
