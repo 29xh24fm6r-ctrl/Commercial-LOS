@@ -146,3 +146,24 @@ Scoped honestly to what this session actually changed (read-only surface routing
 Gate: tsc ✅ · navigation suite ✅ (39 tests across 4 files) · lint ✅.
 
 ### Phase 6 status: ✅ COMPLETE — governance matches reality; cross-check test enforces it.
+
+---
+
+## Phase 7 — Whole-system verification
+
+| Gate | Result |
+|---|---|
+| `phase190A-power-artifact-preflight --ensure` | ✅ (manifest already present) |
+| `tsc -b` | ✅ exit 0 |
+| `vitest run` (FULL) | ✅ **679 files / 10,353 tests passed**, 2 skipped (baseline was 676/10,335; +3 test files, +18 tests, +3 baseline fixes) |
+| `audit:reachability` | ✅ exit 0 (309 orphaned, all allow-listed, 0 unexpected) |
+| `npm run build` | ✅ exit 0 (benign `INEFFECTIVE_DYNAMIC_IMPORT` rollup warnings only — pre-existing) |
+| `npm run lint` | ⚠️ my files clean; **159 pre-existing errors in untouched files** (eslint 10 rules: `react-hooks/set-state-in-effect`, `no-explicit-any`, `no-unused-vars`, `react-refresh/only-export-components`) present at baseline `db54fda`. Out of scope to fix files this session never touched. |
+
+### Safety attestation (verified by `git diff db54fda..HEAD`)
+- **No live-write flag default changed.** No per-domain flag / rollout / pilot / emailMode / `productionEnvironmentVerification` / `fullActivationLaunchCertificationModel` / `finalLaunchSmokeEvidence` module was edited.
+- **No faked operator evidence introduced.** Grep of all added `src/navigation/*` for `VerifiedCrmSchemaState` / `VerifiedBoardingSchemaState` / connector-accepted / production-approval markers → none.
+- All new route/visibility flags default **off**. Disabling them returns the app to its prior five-route behavior (master rollback holds).
+- Changes are additive: 12 new files + `App.tsx` (+5 route lines) + `package.json` (+1 script), plus the 2 Phase-0 baseline fixes.
+
+### Phase 7 status: ✅ COMPLETE (lint caveat = pre-existing repo-wide debt, documented).
