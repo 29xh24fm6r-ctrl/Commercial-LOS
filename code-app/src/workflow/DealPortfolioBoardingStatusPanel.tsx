@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
 import { useDealData } from '../deals/DealDataProvider';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
@@ -27,9 +26,9 @@ export function DealPortfolioBoardingStatusPanel() {
       <p style={styles.note} data-portfolio-boarding-note>
         {status.note}
       </p>
-      <Link to={WORKSPACE_ROUTES.manager} className="cc-link" style={styles.link} data-portfolio-boarding-open>
+      <a href={WORKSPACE_ROUTES.manager} className="cc-link" style={styles.link} data-portfolio-boarding-open>
         Open Portfolio workspace
-      </Link>
+      </a>
       <CardFooter>
         <span>Boarding and servicing are governed in the Portfolio workspace.</span>
       </CardFooter>
