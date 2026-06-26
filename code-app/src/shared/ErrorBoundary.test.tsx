@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ErrorBoundary } from './ErrorBoundary';
+import { ErrorBoundary, type ErrorBoundaryDiagnostic } from './ErrorBoundary';
 
 /**
  * Phase 260 — a render throw never blanks the canvas; the boundary shows a
@@ -38,7 +38,7 @@ describe('Phase 260 — ErrorBoundary', () => {
 
   it('captures structured diagnostics (surface, navKey, message, stack, correlation id)', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const diagnostics: Array<Record<string, unknown>> = [];
+    const diagnostics: ErrorBoundaryDiagnostic[] = [];
     const { container } = render(
       <ErrorBoundary surface="Loan Workflow" navKey="loan-workflow" onDiagnostic={(d) => diagnostics.push(d)}>
         <Boom />

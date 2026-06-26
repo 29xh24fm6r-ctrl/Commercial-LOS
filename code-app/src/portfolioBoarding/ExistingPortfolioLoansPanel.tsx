@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import { loadBoardedLoans, type BoardedLoanRow } from './boardedLoansList';
+import { PortfolioImportWizard } from './PortfolioImportWizard';
 import {
   boardExistingLoan,
   buildLiveExistingLoanDeps,
@@ -134,6 +135,12 @@ export function ExistingPortfolioLoansPanel({
   const [draftSaved, setDraftSaved] = useState(false);
   const [selected, setSelected] = useState<BoardedLoanRow | undefined>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const existingLoanNumbers = useMemo(
+    () => (list.kind === 'ready' ? list.rows.map((r) => r.loanNumber).filter((n): n is string => Boolean(n)) : []),
+    [list],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -217,19 +224,30 @@ export function ExistingPortfolioLoansPanel({
       <header style={styles.head}>
         <div style={styles.headRow}>
           <h2 style={styles.title}>Existing Portfolio Loans</h2>
-          <button
-            type="button"
-            style={authorized ? styles.addBtn : styles.addBtnDisabled}
-            disabled={!authorized}
-            data-existing-loan-add
-            onClick={() => {
-              setFormOpen((v) => !v);
-              setSubmit({ kind: 'idle' });
-              setDraftSaved(false);
-            }}
-          >
-            {formOpen ? 'Close form' : '+ Add Existing Loan'}
-          </button>
+          <div style={styles.headActions}>
+            <button
+              type="button"
+              style={authorized ? styles.uploadBtn : styles.addBtnDisabled}
+              disabled={!authorized}
+              data-existing-portfolio-upload
+              onClick={() => setImportOpen((v) => !v)}
+            >
+              {importOpen ? 'Close upload' : '↥ Upload Existing Portfolio'}
+            </button>
+            <button
+              type="button"
+              style={authorized ? styles.addBtn : styles.addBtnDisabled}
+              disabled={!authorized}
+              data-existing-loan-add
+              onClick={() => {
+                setFormOpen((v) => !v);
+                setSubmit({ kind: 'idle' });
+                setDraftSaved(false);
+              }}
+            >
+              {formOpen ? 'Close form' : '+ Add Existing Loan'}
+            </button>
+          </div>
         </div>
         <p style={styles.subtitle}>
           Manually board a loan already in your portfolio (not originated through the LOS). Boarded loans
@@ -242,6 +260,16 @@ export function ExistingPortfolioLoansPanel({
           </div>
         )}
       </header>
+
+      {importOpen && (
+        <PortfolioImportWizard
+          authorized={authorized}
+          actorEmail={actorEmail}
+          actorSystemUserId={actorSystemUserId}
+          existingLoanNumbers={existingLoanNumbers}
+          onImported={() => setReloadKey((n) => n + 1)}
+        />
+      )}
 
       {formOpen && authorized && (
         <div style={styles.form} data-existing-loan-form>
@@ -466,7 +494,9 @@ function formatAmount(amount: number | undefined): string {
 const styles: Record<string, CSSProperties> = {
   wrap: { display: 'flex', flexDirection: 'column', gap: spacing.lg, width: '100%' },
   head: { display: 'flex', flexDirection: 'column', gap: spacing.xs },
-  headRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
+  headRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' },
+  headActions: { display: 'flex', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' },
+  uploadBtn: { background: palette.surface, color: palette.cobalt, border: `1px solid ${palette.cobalt}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, fontFamily: typography.family, cursor: 'pointer' },
   title: { margin: 0, fontSize: typography.size.xl, fontWeight: typography.weight.bold, color: palette.text },
   subtitle: { margin: 0, color: palette.textMuted, fontSize: typography.size.sm, lineHeight: typography.lineHeight.snug, maxWidth: 760 },
   note: { background: palette.surfaceAlt, border: `1px solid ${palette.borderStrong}`, borderRadius: radius.sm, padding: `${spacing.sm} ${spacing.md}`, color: palette.text, fontSize: typography.size.sm },
