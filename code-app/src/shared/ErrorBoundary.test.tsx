@@ -8,8 +8,9 @@ import { ErrorBoundary } from './ErrorBoundary';
  * branded, recoverable fallback.
  */
 
-function Boom(): JSX.Element {
+function Boom() {
   throw new Error('kaboom');
+  return null;
 }
 
 describe('Phase 260 — ErrorBoundary', () => {
