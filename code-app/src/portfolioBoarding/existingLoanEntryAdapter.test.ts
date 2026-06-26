@@ -88,7 +88,7 @@ describe('Phase 259 — boardExistingLoan fail-closed', () => {
   });
 
   it('builds the correct root payload (Manual Existing Loan Entry source, loan number, borrower, amounts)', async () => {
-    const createRoot = vi.fn(async () => ({ success: true, id: 'loan-1' }));
+    const createRoot = vi.fn(async (_p: Record<string, unknown>) => ({ success: true, id: 'loan-1' }));
     const d = deps({ createRoot });
     const out = await boardExistingLoan(baseInput(), d);
     expect(out.kind).toBe('success');
@@ -101,7 +101,7 @@ describe('Phase 259 — boardExistingLoan fail-closed', () => {
   });
 
   it('does NOT require an originated cr664_loandeal link (manual path works without it)', async () => {
-    const createRoot = vi.fn(async () => ({ success: true, id: 'loan-1' }));
+    const createRoot = vi.fn(async (_p: Record<string, unknown>) => ({ success: true, id: 'loan-1' }));
     const d = deps({ createRoot });
     const out = await boardExistingLoan(baseInput(), d);
     expect(out.kind).toBe('success');
@@ -110,7 +110,7 @@ describe('Phase 259 — boardExistingLoan fail-closed', () => {
   });
 
   it('supports an optional originated-deal link when provided', async () => {
-    const createRoot = vi.fn(async () => ({ success: true, id: 'loan-1' }));
+    const createRoot = vi.fn(async (_p: Record<string, unknown>) => ({ success: true, id: 'loan-1' }));
     const d = deps({ createRoot });
     await boardExistingLoan(baseInput({ originatedDealId: 'deal-9' }), d);
     const payload = createRoot.mock.calls[0]![0] as Record<string, unknown>;
@@ -118,7 +118,7 @@ describe('Phase 259 — boardExistingLoan fail-closed', () => {
   });
 
   it('creates entered child records linked to the boarded loan', async () => {
-    const createChild = vi.fn(async () => ({ success: true, id: 'c' }));
+    const createChild = vi.fn(async (_c: string, _p: Record<string, unknown>) => ({ success: true, id: 'c' }));
     const d = deps({ createChild });
     const out = await boardExistingLoan(
       baseInput({
@@ -139,7 +139,7 @@ describe('Phase 259 — boardExistingLoan fail-closed', () => {
   });
 
   it('surfaces partial child failures honestly (loan still boarded)', async () => {
-    const createChild = vi.fn(async () => ({ success: false, error: { message: 'child rejected' } }));
+    const createChild = vi.fn(async (_c: string, _p: Record<string, unknown>) => ({ success: false, error: { message: 'child rejected' } }));
     const d = deps({ createChild });
     const out = await boardExistingLoan(baseInput({ documents: [{ name: 'Note & DOT' }] }), d);
     expect(out.kind).toBe('success');

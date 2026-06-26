@@ -10,10 +10,10 @@ import type { BoardExistingLoanOutcome, ExistingLoanInput } from './existingLoan
  * Phase 259 — Existing Portfolio Loans panel UX.
  */
 
-const IDENTITY = {
+const IDENTITY: { actorEmail: string | undefined; actorSystemUserId: string | undefined; writeDisabledReason: string | undefined } = {
   actorEmail: 'op@oldglorybank.com',
   actorSystemUserId: 'sys-op-1',
-  writeDisabledReason: undefined as string | undefined,
+  writeDisabledReason: undefined,
 };
 
 function existingRows(): BoardedLoanRow[] {

@@ -128,7 +128,7 @@ export function ExistingPortfolioLoansPanel({
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<FormFields>(emptyForm);
   const [children, setChildren] = useState<Record<ExistingLoanChildKey, string[]>>(() =>
-    Object.fromEntries(EXISTING_LOAN_CHILD_KEYS.map((k) => [k, []])) as Record<ExistingLoanChildKey, string[]>,
+    Object.fromEntries(EXISTING_LOAN_CHILD_KEYS.map((k) => [k, []])) as unknown as Record<ExistingLoanChildKey, string[]>,
   );
   const [submit, setSubmit] = useState<SubmitState>({ kind: 'idle' });
   const [draftSaved, setDraftSaved] = useState(false);
@@ -208,7 +208,7 @@ export function ExistingPortfolioLoansPanel({
       });
       setFormOpen(false);
       setForm(emptyForm());
-      setChildren(Object.fromEntries(EXISTING_LOAN_CHILD_KEYS.map((k) => [k, []])) as Record<ExistingLoanChildKey, string[]>);
+      setChildren(Object.fromEntries(EXISTING_LOAN_CHILD_KEYS.map((k) => [k, []])) as unknown as Record<ExistingLoanChildKey, string[]>);
     }
   }
 
