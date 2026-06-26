@@ -68,10 +68,8 @@ export function AdminOperationsConsole() {
         <div style={styles.eyebrow}>Commercial Lending Ã‚Â· Administration</div>
         <h2 style={styles.title}>Operations Console</h2>
         <p style={styles.subtitle}>
-          Add people, grant app-level rights, and onboard deals, portfolio
-          loans, and CRM records. Read-only in this release: each module shows
-          its current status and the next safe step. No write actions are
-          enabled yet.
+          Manage app-level access, deals, portfolio loans, and CRM. Each module
+          shows its current status and where to manage it.
         </p>
       </header>
 
@@ -115,27 +113,44 @@ function ModuleCard({ module }: { module: AdminConsoleModule }) {
         <p style={styles.statusLine}>{module.statusLine}</p>
         <dl style={styles.detailList}>
           <div style={styles.detailRow}>
-            <dt style={styles.detailLabel}>Blocker</dt>
+            <dt style={styles.detailLabel}>{module.status === 'preview' ? 'Limitation' : 'Scope'}</dt>
             <dd style={styles.detailValue}>{module.blocker}</dd>
           </div>
           <div style={styles.detailRow}>
-            <dt style={styles.detailLabel}>Next safe step</dt>
+            <dt style={styles.detailLabel}>How to manage</dt>
             <dd style={styles.detailValue}>{module.nextStep}</dd>
           </div>
         </dl>
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          style={styles.disabledAction}
-          title="Not yet available. Live write surfaces arrive in a later, separately-gated phase."
-          aria-label={`${module.title}: management not yet available`}
-          data-admin-ops-action={module.id}
-        >
-          Manage (not yet available)
-        </button>
+        <ManageAffordance module={module} />
       </div>
     </Card>
+  );
+}
+
+function ManageAffordance({ module }: { module: AdminConsoleModule }) {
+  const m = module.manage;
+  if (m.kind === 'external') {
+    return (
+      <span
+        style={styles.manageExternal}
+        data-admin-ops-action={module.id}
+        data-admin-ops-manage="external"
+      >
+        {m.label}
+      </span>
+    );
+  }
+  const href = m.kind === 'route' ? m.route : `#${m.anchor}`;
+  return (
+    <a
+      href={href}
+      style={styles.manageLink}
+      data-admin-ops-action={module.id}
+      data-admin-ops-manage={m.kind}
+      aria-label={`${module.title}: ${m.label}`}
+    >
+      {m.label}
+    </a>
   );
 }
 
@@ -143,7 +158,7 @@ const STATUS_TONE: Record<
   AdminConsoleModuleStatus,
   { label: string; variant: SeverityKey }
 > = {
-  active: { label: 'Active', variant: 'neutral' },
+  active: { label: 'Active', variant: 'clear' },
   'read-only': { label: 'Read-only', variant: 'neutral' },
   blocked: { label: 'Blocked', variant: 'atRisk' },
   disabled: { label: 'Disabled', variant: 'neutral' },
@@ -250,6 +265,28 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: typography.weight.semibold,
     fontFamily: typography.family,
     cursor: 'not-allowed',
+  },
+  manageLink: {
+    alignSelf: 'flex-start',
+    marginTop: 'auto',
+    background: palette.primary,
+    color: palette.surface,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    fontFamily: typography.family,
+    textDecoration: 'none',
+    cursor: 'pointer',
+    display: 'inline-block',
+  },
+  manageExternal: {
+    alignSelf: 'flex-start',
+    marginTop: 'auto',
+    color: palette.textSubtle,
+    fontSize: typography.size.sm,
+    fontStyle: 'italic',
   },
   deniedWrap: {
     background: palette.surfaceAlt,

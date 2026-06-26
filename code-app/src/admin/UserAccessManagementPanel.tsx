@@ -72,6 +72,7 @@ export function UserAccessManagementPanel() {
 
   return (
     <section
+      id="admin-user-access"
       style={styles.wrap}
       aria-label="User and Access Management"
       data-admin-user-access="panel"

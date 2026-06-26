@@ -10,16 +10,16 @@ import { CrmOnboardingAdminPanel } from './CrmOnboardingAdminPanel';
  */
 
 describe('Phase 169E -- CRM Onboarding admin panel', () => {
-  it('renders the panel marked Live persistence ON with the fail-closed reason', () => {
+  it('renders the panel marked Active with the governed-persistence status note', () => {
     const { container } = render(<CrmOnboardingAdminPanel />);
     expect(
       screen.getByRole('region', { name: 'CRM Onboarding' }),
     ).toBeInTheDocument();
-    // Status badge (exact text), distinct from the longer note copy.
-    expect(screen.getByText('Live persistence ON')).toBeInTheDocument();
-    const reason = container.querySelector('[data-admin-crm-disabled-reason]');
-    expect(reason?.textContent).toMatch(/disabled by default/i);
-    expect(reason?.textContent).toMatch(/fails closed/i);
+    // Internal CRM live persistence is ON -> the badge reads Active.
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    const note = container.querySelector('[data-admin-crm-status-note]');
+    expect(note?.textContent).toMatch(/governed and audited/i);
+    expect(note?.textContent).toMatch(/No external Salesforce \/ nCino sync occurs/i);
   });
 
   it('reports the external CRM connector as not configured / disabled by default', () => {
@@ -55,23 +55,20 @@ describe('Phase 169E -- CRM Onboarding admin panel', () => {
     expect(steps.querySelectorAll('li').length).toBe(5);
   });
 
-  it('keeps create / import / sync actions all disabled', () => {
+  it('exposes a real Open CRM workspace link and keeps external sync honestly off', () => {
     const { container } = render(<CrmOnboardingAdminPanel />);
-    const actions = container.querySelectorAll('[data-admin-crm-action]');
-    expect(actions.length).toBe(3);
-    for (const a of Array.from(actions)) {
-      expect(a).toBeDisabled();
-      expect(a.getAttribute('aria-disabled')).toBe('true');
-    }
-    expect(screen.getByText('CRM create disabled')).toBeInTheDocument();
-    expect(screen.getByText('CRM import disabled')).toBeInTheDocument();
-    expect(screen.getByText('CRM sync disabled')).toBeInTheDocument();
+    const open = container.querySelector('[data-admin-crm-action="open"]');
+    expect(open).not.toBeNull();
+    expect(open?.getAttribute('href')).toBe('/workspaces/banker');
+    // External sync is genuinely off — surfaced honestly, not as a stale create blocker.
+    expect(screen.getByText('External CRM sync off')).toBeInTheDocument();
+    expect(screen.queryByText('CRM create disabled')).toBeNull();
   });
 
-  it('shows the explicit no-record / no-sync note', () => {
+  it('points CRM management to the CRM Hub (not this console)', () => {
     const { container } = render(<CrmOnboardingAdminPanel />);
     const note = container.querySelector('[data-admin-crm-no-record-note]');
-    expect(note?.textContent).toMatch(/does not create CRM records or sync external CRM data until live persistence is explicitly enabled and certified/i);
+    expect(note?.textContent).toMatch(/managed from the CRM Hub/i);
   });
 
   it('renders no fabricated CRM record', () => {

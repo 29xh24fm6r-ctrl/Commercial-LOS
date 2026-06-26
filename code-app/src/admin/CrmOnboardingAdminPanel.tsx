@@ -1,5 +1,6 @@
 ﻿import type { CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
+import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import {
   CRM_ADMIN_CONNECTOR_MODE,
@@ -12,15 +13,15 @@ import {
 } from './adminCrmOnboardingModel';
 
 /**
- * Phase 169E -- Admin CRM Onboarding panel (readiness / onboarding).
+ * Phase 169E / 257 -- Admin CRM Onboarding panel (readiness / onboarding).
  *
- * Case B surface: the CRM stack is present but live persistence is disabled
- * by default and the external connector is disabled_by_default, so this
- * panel shows readiness, the required data groups, the disabled-by-default
- * reason, and the safe next steps. Every action (create / import / sync) is
- * a disabled placeholder. No record is created and no external sync occurs.
- * Rendered only inside the authorized branch of AdminOperationsConsole, so
- * it inherits the admin route gate.
+ * Internal CRM persistence is active through governed Dataverse writes. The
+ * EXTERNAL connector (Salesforce / nCino) stays disabled by default, so no
+ * external sync occurs. Relationship management happens in the CRM Hub, not
+ * this console, so the action here links to that workspace. If live
+ * persistence is ever turned off the panel falls back to the honest
+ * disabled-by-default state. Rendered only inside the authorized branch of
+ * AdminOperationsConsole.
  */
 export function CrmOnboardingAdminPanel() {
   const liveEnabled = CRM_LIVE_PERSISTENCE_DEFAULT;
@@ -35,18 +36,27 @@ export function CrmOnboardingAdminPanel() {
         <div style={styles.titleRow}>
           <h3 style={styles.title}>CRM Onboarding</h3>
           <Badge variant={liveEnabled ? 'clear' : 'neutral'} appearance="outline">
-            {liveEnabled ? 'Live persistence ON' : 'Disabled by default'}
+            {liveEnabled ? 'Active' : 'Disabled by default'}
           </Badge>
         </div>
         <p style={styles.subtitle}>
-          Onboard CRM organizations, people, contacts, and relationships. The
-          CRM stack is present, but live persistence is disabled by default and
-          no record is created or synced here.
+          {liveEnabled
+            ? 'Manage CRM organizations, people, contacts, and relationships. Internal CRM persistence is active through governed, audited Dataverse writes; relationship management happens in the CRM Hub. External CRM sync stays off.'
+            : 'Onboard CRM organizations, people, contacts, and relationships. The CRM stack is present, but live persistence is disabled by default and no record is created or synced here.'}
         </p>
       </header>
 
-      <div style={styles.note} role="note" data-admin-crm-disabled-reason>
-        <strong>Disabled by default.</strong> {CRM_ONBOARDING_DISABLED_REASON}
+      <div style={styles.note} role="note" data-admin-crm-status-note>
+        {liveEnabled ? (
+          <>
+            <strong>Active.</strong> Internal CRM records are governed and
+            audited. No external Salesforce / nCino sync occurs.
+          </>
+        ) : (
+          <>
+            <strong>Disabled by default.</strong> {CRM_ONBOARDING_DISABLED_REASON}
+          </>
+        )}
       </div>
 
       <div style={styles.connectorRow} data-admin-crm-connector>
@@ -96,13 +106,30 @@ export function CrmOnboardingAdminPanel() {
       </div>
 
       <div style={styles.actions}>
-        <DisabledAction label="CRM create disabled" id="create" />
-        <DisabledAction label="CRM import disabled" id="import" />
-        <DisabledAction label="CRM sync disabled" id="sync" />
+        {liveEnabled ? (
+          <>
+            <a
+              href={WORKSPACE_ROUTES.banker}
+              style={styles.manageLink}
+              data-admin-crm-action="open"
+              aria-label="Open CRM workspace"
+            >
+              Open CRM workspace
+            </a>
+            <DisabledAction label="External CRM sync off" id="sync" />
+          </>
+        ) : (
+          <>
+            <DisabledAction label="CRM create disabled" id="create" />
+            <DisabledAction label="CRM import disabled" id="import" />
+            <DisabledAction label="CRM sync disabled" id="sync" />
+          </>
+        )}
       </div>
       <p style={styles.footnote} data-admin-crm-no-record-note>
-        {CRM_ONBOARDING_NO_RECORD_NOTE} No borrower outreach, upload links, or
-        external sync occur in this phase.
+        {liveEnabled
+          ? 'CRM records are managed from the CRM Hub in the Banker workspace, not this console. No external Salesforce / nCino sync occurs.'
+          : `${CRM_ONBOARDING_NO_RECORD_NOTE} No borrower outreach, upload links, or external sync occur in this phase.`}
       </p>
     </section>
   );
@@ -226,6 +253,18 @@ const styles: Record<string, CSSProperties> = {
   },
   stepRow: { paddingLeft: spacing.xs },
   actions: { display: 'flex', gap: spacing.sm, flexWrap: 'wrap' },
+  manageLink: {
+    background: palette.primary,
+    color: palette.surface,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    fontFamily: typography.family,
+    textDecoration: 'none',
+    display: 'inline-block',
+  },
   disabledAction: {
     background: palette.surfaceAlt,
     color: palette.textSubtle,

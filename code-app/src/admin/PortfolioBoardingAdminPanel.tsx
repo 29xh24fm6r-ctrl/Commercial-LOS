@@ -1,5 +1,6 @@
 ﻿import type { CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
+import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import {
   PORTFOLIO_BOARDING_DISABLED_REASON,
@@ -11,14 +12,14 @@ import {
 } from './adminPortfolioBoardingModel';
 
 /**
- * Phase 169D -- Admin Portfolio Boarding panel (readiness / onboarding).
+ * Phase 169D / 257 -- Admin Portfolio Boarding panel (readiness / onboarding).
  *
- * Case B surface: the boarding stack is present but live persistence is
- * disabled by default, so this panel shows readiness, the required data
- * groups, the disabled-by-default reason, and the safe next steps. Every
- * action (create / import / document upload) is a disabled placeholder.
- * No record is created. Rendered only inside the authorized branch of
- * AdminOperationsConsole, so it inherits the admin route gate.
+ * Internal portfolio boarding is active through governed Dataverse persistence
+ * (Phase 256B flipped the live-persistence flag on after the GO smoke). Boarding
+ * and servicing happen in the Portfolio workspace, not this console, so the
+ * action here is a direct link to that workspace. If the flag is ever turned
+ * off the panel falls back to the honest disabled-by-default state. Rendered
+ * only inside the authorized branch of AdminOperationsConsole.
  */
 export function PortfolioBoardingAdminPanel() {
   const liveEnabled = PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT;
@@ -32,17 +33,28 @@ export function PortfolioBoardingAdminPanel() {
         <div style={styles.titleRow}>
           <h3 style={styles.title}>Portfolio Boarding</h3>
           <Badge variant={liveEnabled ? 'clear' : 'neutral'} appearance="outline">
-            {liveEnabled ? 'Live persistence ON' : 'Disabled by default'}
+            {liveEnabled ? 'Active' : 'Disabled by default'}
           </Badge>
         </div>
         <p style={styles.subtitle}>
-          Load / board portfolio loans. The boarding stack is present, but live
-          persistence is disabled by default and no record is created here.
+          {liveEnabled
+            ? 'Board and service closed / legacy loans into the LOS. Internal portfolio boarding is active through governed, audited Dataverse persistence; boarding is performed from the Portfolio workspace.'
+            : 'Load / board portfolio loans. The boarding stack is present, but live persistence is disabled by default and no record is created here.'}
         </p>
       </header>
 
-      <div style={styles.note} role="note" data-admin-portfolio-disabled-reason>
-        <strong>Disabled by default.</strong> {PORTFOLIO_BOARDING_DISABLED_REASON}
+      <div style={styles.note} role="note" data-admin-portfolio-status-note>
+        {liveEnabled ? (
+          <>
+            <strong>Active.</strong> Internal portfolio boarding writes are
+            governed and audited. No external boarding sync is enabled; runtime
+            writes additionally require an authorized operator and verified state.
+          </>
+        ) : (
+          <>
+            <strong>Disabled by default.</strong> {PORTFOLIO_BOARDING_DISABLED_REASON}
+          </>
+        )}
       </div>
 
       <div style={styles.section}>
@@ -85,13 +97,27 @@ export function PortfolioBoardingAdminPanel() {
       </div>
 
       <div style={styles.actions}>
-        <DisabledAction label="Portfolio create disabled" id="create" />
-        <DisabledAction label="Import disabled" id="import" />
-        <DisabledAction label="Document upload disabled" id="upload" />
+        {liveEnabled ? (
+          <a
+            href={WORKSPACE_ROUTES.manager}
+            style={styles.manageLink}
+            data-admin-portfolio-action="open"
+            aria-label="Open Portfolio workspace"
+          >
+            Open Portfolio workspace
+          </a>
+        ) : (
+          <>
+            <DisabledAction label="Portfolio create disabled" id="create" />
+            <DisabledAction label="Import disabled" id="import" />
+            <DisabledAction label="Document upload disabled" id="upload" />
+          </>
+        )}
       </div>
       <p style={styles.footnote} data-admin-portfolio-no-record-note>
-        {PORTFOLIO_BOARDING_NO_RECORD_NOTE} No document upload is available
-        unless the upload adapter is present and explicitly gated.
+        {liveEnabled
+          ? 'Boarding, import, and document upload are performed from the Portfolio workspace, not this console. No external boarding sync is enabled.'
+          : `${PORTFOLIO_BOARDING_NO_RECORD_NOTE} No document upload is available unless the upload adapter is present and explicitly gated.`}
       </p>
     </section>
   );
@@ -210,6 +236,18 @@ const styles: Record<string, CSSProperties> = {
   },
   stepRow: { paddingLeft: spacing.xs },
   actions: { display: 'flex', gap: spacing.sm, flexWrap: 'wrap' },
+  manageLink: {
+    background: palette.primary,
+    color: palette.surface,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    fontFamily: typography.family,
+    textDecoration: 'none',
+    display: 'inline-block',
+  },
   disabledAction: {
     background: palette.surfaceAlt,
     color: palette.textSubtle,

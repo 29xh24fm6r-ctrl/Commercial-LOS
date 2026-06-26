@@ -96,7 +96,7 @@ function Body({ data }: { data: AsyncResult<ConfigurationSnapshot> }) {
 
       <CardFooter>
         <span>Sourced from cr664_SystemSetting and cr664_KPIThresholdConfiguration.</span>
-        <span>Edits to configuration land in a later phase (writes deferred).</span>
+        <span>Configuration values are read-only on this diagnostics surface.</span>
       </CardFooter>
     </>
   );

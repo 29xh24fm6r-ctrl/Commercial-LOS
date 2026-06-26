@@ -54,8 +54,8 @@ function AdminWorkspaceContent() {
           <h1 style={styles.title}>Admin Diagnostics</h1>
           <p style={styles.subtitle}>
             Operational control tower: data quality, audit anomalies, alert backlog,
-            snapshot freshness, and configuration. Read-only; remediation actions
-            land in a later phase.
+            snapshot freshness, configuration, and governed app-level access.
+            Governance and audit detail live here.
           </p>
         </div>
         <div style={styles.context} aria-label="Admin context">

@@ -20,12 +20,12 @@ import { NewDealIntakePanel } from './NewDealIntakePanel';
  */
 
 describe('Phase 170J -- New Deal Intake panel', () => {
-  it('renders the panel marked Create disabled with the reconciled status, not a missing-data-source claim', () => {
+  it('renders the panel marked Banker create live with the reconciled status, not a missing-data-source claim', () => {
     const { container } = render(<NewDealIntakePanel />);
     expect(
       screen.getByRole('region', { name: 'New Deal Intake' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Create disabled')).toBeInTheDocument();
+    expect(screen.getByText('Banker create live')).toBeInTheDocument();
     const blocker = container.querySelector('[data-admin-new-deal-blocker]');
     expect(blocker?.textContent).toMatch(/READY in TEST/i);
     expect(blocker?.textContent).not.toMatch(/data source registration is missing/i);
@@ -103,18 +103,23 @@ describe('Phase 170J -- New Deal Intake panel', () => {
     expect(within(checklist).getByText(/governed, audited create adapter/i)).toBeInTheDocument();
   });
 
-  it('keeps the Create action disabled (no live create)', () => {
+  it('keeps the PUBLIC create action gated (no console create) and links bankers to the workspace', () => {
     const { container } = render(<NewDealIntakePanel />);
     const create = container.querySelector('[data-admin-new-deal-create]') as HTMLButtonElement;
     expect(create).not.toBeNull();
     expect(create).toBeDisabled();
     expect(create.getAttribute('aria-disabled')).toBe('true');
+    // A real link to the Banker Workspace where governed create is live.
+    const open = container.querySelector('[data-admin-new-deal-open]');
+    expect(open?.getAttribute('href')).toBe('/workspaces/banker');
   });
 
-  it('notes that the + New Deal button remains disabled for the same reason', () => {
+  it('notes that authorized bankers create live from the Banker Workspace (public create gated)', () => {
     const { container } = render(<NewDealIntakePanel />);
     const footnote = container.querySelector('[data-admin-new-deal-footnote]');
-    expect(footnote?.textContent).toMatch(/\+ New Deal button elsewhere in the app remains disabled/i);
+    expect(footnote?.textContent).toMatch(/Banker Workspace/i);
+    expect(footnote?.textContent).toMatch(/Public \/ anonymous create stays gated/i);
+    expect(footnote?.textContent).not.toMatch(/remains disabled/i);
   });
 
   it('has no enabled button in the panel', () => {

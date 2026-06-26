@@ -50,42 +50,58 @@ describe('Phase 229 -- admin console internal CRM and portfolio active', () => {
     ]);
   });
 
-  it('enables only CRM and portfolio internal management surfaces', () => {
+  it('exposes live management surfaces for user-access, new-deal, CRM, and portfolio (only security is external)', () => {
     const active = ADMIN_CONSOLE_MODULES
       .filter((m) => m.liveWriteEnabledHere)
       .map((m) => m.id)
       .sort();
 
-    expect(active).toEqual(['crm-onboarding', 'portfolio-boarding']);
+    expect(active).toEqual(['crm-onboarding', 'new-deal-intake', 'portfolio-boarding', 'user-access']);
   });
 
-  it('every module carries a status line, a blocker, and a next safe step', () => {
+  it('every module carries a status line, a scope, a next step, and a manage affordance', () => {
     for (const m of ADMIN_CONSOLE_MODULES) {
       expect(m.statusLine.length).toBeGreaterThan(0);
       expect(m.blocker.length).toBeGreaterThan(0);
       expect(m.nextStep.length).toBeGreaterThan(0);
       expect(m.title.length).toBeGreaterThan(0);
+      expect(m.manage).toBeTruthy();
     }
   });
 
-  it('pins New Deal intake as Ready(TEST) but create-blocked pending production approval + adapter (Phase 170J)', () => {
-    const newDeal = ADMIN_CONSOLE_MODULES.find((m) => m.id === 'new-deal-intake');
-    expect(newDeal?.status).toBe('blocked');
-    expect(newDeal?.statusLine).toMatch(/Ready in TEST|Readiness proven in TEST/i);
-    expect(newDeal?.blocker).toMatch(/Ready in TEST/i);
-    expect(newDeal?.blocker).not.toMatch(/data source registration is missing/i);
-    expect(newDeal?.blocker).toMatch(/production-approved/i);
-    expect(newDeal?.blocker).toMatch(/Advance Stage|stage-progression/i);
-    expect(newDeal?.nextStep).toMatch(/Phase 170J\+/);
+  it('uses no stale launch-phase / blocked copy on any module (Phase 257 launched state)', () => {
+    for (const m of ADMIN_CONSOLE_MODULES) {
+      const text = `${m.statusLine} ${m.blocker} ${m.nextStep}`.toLowerCase();
+      expect(text).not.toContain('not yet available');
+      expect(text).not.toContain('later phase');
+      expect(text).not.toMatch(/phase \d/);
+    }
   });
 
-  it('pins portfolio and CRM as active internal systems', () => {
+  it('pins New Deal intake as active live banker create (no longer blocked)', () => {
+    const newDeal = ADMIN_CONSOLE_MODULES.find((m) => m.id === 'new-deal-intake');
+    expect(newDeal?.status).toBe('active');
+    expect(newDeal?.statusLine).toMatch(/live for authorized bankers/i);
+    expect(newDeal?.nextStep).toMatch(/Stage \(Intake\) and Status \(Open\)/i);
+    expect(newDeal?.manage).toEqual({ kind: 'route', route: WORKSPACE_ROUTES.banker, label: 'Open Banker Workspace' });
+  });
+
+  it('user-access manages workspace entitlement in-console (governed write)', () => {
+    const ua = ADMIN_CONSOLE_MODULES.find((m) => m.id === 'user-access');
+    expect(ua?.status).toBe('active');
+    expect(ua?.liveWriteEnabledHere).toBe(true);
+    expect(ua?.manage).toEqual({ kind: 'in-console', anchor: 'admin-user-access', label: 'Manage workspace entitlement below' });
+  });
+
+  it('pins portfolio and CRM as active internal systems with workspace links', () => {
     const portfolio = ADMIN_CONSOLE_MODULES.find((m) => m.id === 'portfolio-boarding');
     const crm = ADMIN_CONSOLE_MODULES.find((m) => m.id === 'crm-onboarding');
     expect(portfolio?.status).toBe('active');
-    expect(portfolio?.blocker).toMatch(/internal OGB nCino-like workflow\/boarding system/);
+    expect(portfolio?.blocker).toMatch(/internal OGB workflow \/ boarding system/);
+    expect(portfolio?.manage).toEqual({ kind: 'route', route: WORKSPACE_ROUTES.manager, label: 'Open Portfolio workspace' });
     expect(crm?.status).toBe('active');
     expect(crm?.blocker).toMatch(/internal OGB CRM relationship system/);
+    expect(crm?.manage).toEqual({ kind: 'route', route: WORKSPACE_ROUTES.banker, label: 'Open CRM workspace' });
   });
 
   it('pins security roles as app-level-only with Power Platform admin center handoff', () => {

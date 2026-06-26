@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
+import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import {
   NEW_DEAL_INTAKE_BLOCKER,
@@ -33,14 +34,16 @@ export function NewDealIntakePanel() {
       <header style={styles.head}>
         <div style={styles.titleRow}>
           <h3 style={styles.title}>New Deal Intake</h3>
-          <Badge variant="neutral" appearance="outline">
-            Create disabled
+          <Badge variant="clear" appearance="outline">
+            Banker create live
           </Badge>
         </div>
         <p style={styles.subtitle}>
-          Admin deal onboarding. Stage/Status reference resolution is ready in
-          TEST; + New Deal create stays disabled pending production reference
-          approval and a governed create adapter. No deal is created from here.
+          Deal create is live for authorized bankers from the Banker Workspace
+          “+ New Deal” action — governed, audited, and resolving the production
+          Stage (Intake) and Status (Open) references. This panel tracks the
+          broader public / admin create governance path, which stays gated. No
+          deal is created from this console.
         </p>
       </header>
 
@@ -163,24 +166,31 @@ export function NewDealIntakePanel() {
         </ol>
       </div>
 
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
-        style={styles.disabledAction}
-        title={NEW_DEAL_INTAKE_BLOCKER}
-        aria-label="Create deal (not yet available)"
-        data-admin-new-deal-create
-      >
-        Create deal (not yet available)
-      </button>
+      <div style={styles.actions}>
+        <a
+          href={WORKSPACE_ROUTES.banker}
+          style={styles.manageLink}
+          data-admin-new-deal-open
+          aria-label="Open Banker Workspace to create a deal"
+        >
+          Open Banker Workspace
+        </a>
+        <button
+          type="button"
+          disabled
+          aria-disabled="true"
+          style={styles.disabledAction}
+          title={NEW_DEAL_INTAKE_BLOCKER}
+          aria-label="Public create gated"
+          data-admin-new-deal-create
+        >
+          Public create gated
+        </button>
+      </div>
       <p style={styles.footnote} data-admin-new-deal-footnote>
-        The + New Deal button elsewhere in the app remains disabled. The
-        fail-closed Stage/Status resolver is ready in TEST; deal creation will
-        be enabled only after the remaining checklist items (production
-        reference approval and a governed, audited create adapter) are complete.
-        This is separate from Advance Stage / stage-progression, which remains
-        its own blocker.
+        Authorized bankers create deals from the Banker Workspace “+ New Deal”
+        action (live). Public / anonymous create stays gated — see the readiness
+        detail above. Stage progression (Advance Stage) is governed separately.
       </p>
     </section>
   );
@@ -273,6 +283,19 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: typography.lineHeight.snug,
   },
   checklistMark: { color: palette.textSubtle, flexShrink: 0 },
+  actions: { display: 'flex', gap: spacing.sm, flexWrap: 'wrap', alignItems: 'center' },
+  manageLink: {
+    background: palette.primary,
+    color: palette.surface,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    fontFamily: typography.family,
+    textDecoration: 'none',
+    display: 'inline-block',
+  },
   disabledAction: {
     alignSelf: 'flex-start',
     background: palette.surfaceAlt,

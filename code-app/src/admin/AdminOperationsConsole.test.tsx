@@ -116,28 +116,47 @@ describe('Phase 169A -- Admin Operations Console rendering', () => {
     expect(disclaimer?.textContent).toMatch(/Power Platform admin center/i);
   });
 
-  it('renders active internal CRM and portfolio blocker / next-step copy', () => {
+  it('renders active internal CRM and portfolio scope copy', () => {
     renderConsole(WORKSPACE_ROUTES.admin);
     expect(
-      screen.getByText(/data sources are registered and the fail-closed resolver reads them at runtime \(Ready in TEST\)/i),
+      screen.getByText(/New Deal create is live for authorized bankers/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/internal OGB nCino-like workflow\/boarding system/),
+      screen.getByText(/internal OGB workflow \/ boarding system/),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/internal OGB CRM relationship system/),
     ).toBeInTheDocument();
   });
 
-  it('exposes active management buttons only for CRM and portfolio', () => {
+  it('exposes a real Manage affordance per module and no stale launch-phase copy', () => {
     const { container } = renderConsole(WORKSPACE_ROUTES.admin);
-    const buttons = Array.from(container.querySelectorAll('button'));
-    expect(buttons.length).toBeGreaterThan(0);
-    for (const b of buttons) {
-      expect(b).toBeDisabled();
-      expect(b.getAttribute('aria-disabled')).toBe('true');
+    const grid = container.querySelector('[data-admin-ops-grid]') as HTMLElement;
+    // Five manage affordances, one per module.
+    expect(grid.querySelectorAll('[data-admin-ops-action]').length).toBe(5);
+    // Active modules link to their real workspaces.
+    expect(
+      grid.querySelector('[data-admin-ops-action="new-deal-intake"]')?.getAttribute('href'),
+    ).toBe(WORKSPACE_ROUTES.banker);
+    expect(
+      grid.querySelector('[data-admin-ops-action="portfolio-boarding"]')?.getAttribute('href'),
+    ).toBe(WORKSPACE_ROUTES.manager);
+    expect(
+      grid.querySelector('[data-admin-ops-action="crm-onboarding"]')?.getAttribute('href'),
+    ).toBe(WORKSPACE_ROUTES.banker);
+    // User & Access manages entitlement in-console (anchors to the panel below).
+    expect(
+      grid.querySelector('[data-admin-ops-action="user-access"]')?.getAttribute('href'),
+    ).toBe('#admin-user-access');
+    // Security roles are honestly external (no in-app affordance).
+    expect(
+      grid.querySelector('[data-admin-ops-action="security-roles"]')?.getAttribute('data-admin-ops-manage'),
+    ).toBe('external');
+    // No stale launch-phase / not-yet-available copy anywhere in the grid.
+    const text = (grid.textContent ?? '').toLowerCase();
+    for (const banned of ['not yet available', 'later phase', 'later, separately-gated', 'blocked']) {
+      expect(text).not.toContain(banned);
     }
-    expect(container.querySelectorAll('[data-admin-ops-action]').length).toBe(5);
   });
 
   it('surfaces the write-attribution reason when admin identity has no systemuser', () => {

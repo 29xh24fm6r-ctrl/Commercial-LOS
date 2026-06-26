@@ -24,22 +24,36 @@ export type AdminConsoleModuleStatus =
   | 'disabled' // capability exists but its live adapter is off by default
   | 'preview'; // informational / plan-only surface
 
+/**
+ * Phase 257 — a module's management affordance.
+ *   - `route`      a real link to the active workspace where the capability
+ *                  is managed.
+ *   - `in-console` the capability is managed directly inside this console
+ *                  (e.g. the governed workspace-entitlement dropdown).
+ *   - `external`   the capability is genuinely outside the app (e.g. Microsoft
+ *                  tenant security roles) — no in-app affordance, by design.
+ */
+export type AdminConsoleManageAction =
+  | { readonly kind: 'route'; readonly route: string; readonly label: string }
+  | { readonly kind: 'in-console'; readonly anchor: string; readonly label: string }
+  | { readonly kind: 'external'; readonly label: string };
+
 export interface AdminConsoleModule {
   readonly id: string;
   readonly title: string;
   readonly status: AdminConsoleModuleStatus;
   /**
-   * Whether THIS console exposes a live write surface for the module.
-   * Phase 169A: always false. This is the honest gate the UI reads to
-   * keep every action a disabled placeholder.
+   * Whether THIS console / app exposes a live write surface for the module.
    */
   readonly liveWriteEnabledHere: boolean;
   /** One-line current-state summary. */
   readonly statusLine: string;
-  /** What blocks live enablement of this module in the console. */
+  /** Scope / honest limitation for the module (not a launch blocker unless status='preview'). */
   readonly blocker: string;
-  /** The next safe step (named phase / governed prerequisite). */
+  /** Where / how to manage the module. */
   readonly nextStep: string;
+  /** Phase 257 — the management affordance for the module. */
+  readonly manage: AdminConsoleManageAction;
 }
 
 /**
@@ -61,26 +75,28 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
   Object.freeze({
     id: 'user-access',
     title: 'User & Access Management',
-    status: 'read-only',
-    liveWriteEnabledHere: false,
+    status: 'active',
+    liveWriteEnabledHere: true,
     statusLine:
-      'Platform user, workspace entitlement, and LOS profile tables are registered read data sources.',
+      'Change a user’s workspace with a governed, audited write — attributed to you, verified by readback, and recorded.',
     blocker:
-      'No governed app-level entitlement write path is wired into this console yet.',
+      'Creating a brand-new platform user (with their Dataverse identity) is provisioned by an operator, not from the app.',
     nextStep:
-      'Phase 169B: add a permission-gated, audited app-level entitlement write only where an existing Dataverse service supports it.',
+      'Use the Workspace entitlement controls below to set each user’s primary workspace.',
+    manage: { kind: 'in-console', anchor: 'admin-user-access', label: 'Manage workspace entitlement below' },
   }),
   Object.freeze({
     id: 'new-deal-intake',
     title: 'New Deal Intake',
-    status: 'blocked',
-    liveWriteEnabledHere: false,
+    status: 'active',
+    liveWriteEnabledHere: true,
     statusLine:
-      'Readiness proven in TEST; create disabled pending production reference approval and a governed create adapter.',
+      'New Deal create is live for authorized bankers through the governed, audited create path.',
     blocker:
-      'The Stage/Status reference data sources are registered and the fail-closed resolver reads them at runtime (Ready in TEST), but the active rows are TEST labels (not production-approved) and no governed audited create adapter is wired. Separate from Advance Stage / stage-progression ordering.',
+      'Public / anonymous create stays disabled; only authorized bankers create deals.',
     nextStep:
-      'Phase 170J+: approve/seed production Stage/Status reference rows, add a governed audited create adapter, run a single-record create smoke, then enable + New Deal.',
+      'Create deals from the Banker Workspace “+ New Deal” action — each create resolves the production Stage (Intake) and Status (Open) references and is audited.',
+    manage: { kind: 'route', route: WORKSPACE_ROUTES.banker, label: 'Open Banker Workspace' },
   }),
   Object.freeze({
     id: 'portfolio-boarding',
@@ -90,9 +106,10 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
     statusLine:
       'Internal portfolio boarding is active through governed Dataverse persistence.',
     blocker:
-      'No external boarding sync is enabled; this is the internal OGB nCino-like workflow/boarding system.',
+      'No external boarding sync is enabled; this is the internal OGB workflow / boarding system.',
     nextStep:
-      'Use Portfolio Workspace / Portfolio Boarding for internal loan boarding and servicing workflow.',
+      'Board and service closed / legacy loans from the Portfolio workspace.',
+    manage: { kind: 'route', route: WORKSPACE_ROUTES.manager, label: 'Open Portfolio workspace' },
   }),
   Object.freeze({
     id: 'crm-onboarding',
@@ -104,7 +121,8 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
     blocker:
       'No external Salesforce or nCino sync is enabled; this is the internal OGB CRM relationship system.',
     nextStep:
-      'Use CRM relationship management, contacts, vendors, and timeline as the internal CRM system.',
+      'Manage relationships, contacts, and activity from the CRM Hub in the Banker workspace.',
+    manage: { kind: 'route', route: WORKSPACE_ROUTES.banker, label: 'Open CRM workspace' },
   }),
   Object.freeze({
     id: 'security-roles',
@@ -113,9 +131,10 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
     liveWriteEnabledHere: false,
     statusLine: 'This console manages LOS app-level entitlements only.',
     blocker:
-      'Microsoft tenant / Dataverse security roles cannot be granted from here; no governed platform security-role API is present in-app.',
+      'Microsoft tenant / Dataverse security roles cannot be granted from here; there is no in-app platform security-role API.',
     nextStep:
-      'Assign platform security roles in the Power Platform admin center. App-level entitlement management arrives in Phase 169B.',
+      'Assign platform security roles in the Power Platform admin center.',
+    manage: { kind: 'external', label: 'Managed in the Power Platform admin center' },
   }),
 ]);
 

@@ -10,16 +10,16 @@ import { PortfolioBoardingAdminPanel } from './PortfolioBoardingAdminPanel';
  */
 
 describe('Phase 169D -- Portfolio Boarding admin panel', () => {
-  it('renders the panel marked Live persistence ON with the fail-closed reason', () => {
+  it('renders the panel marked Active with the governed-persistence status note', () => {
     const { container } = render(<PortfolioBoardingAdminPanel />);
     expect(
       screen.getByRole('region', { name: 'Portfolio Boarding' }),
     ).toBeInTheDocument();
-    // The status badge (exact text) -- distinct from the longer note copy.
-    expect(screen.getByText('Live persistence ON')).toBeInTheDocument();
-    const reason = container.querySelector('[data-admin-portfolio-disabled-reason]');
-    expect(reason?.textContent).toMatch(/disabled by default/i);
-    expect(reason?.textContent).toMatch(/fails closed/i);
+    // Live persistence is ON (Phase 256B) -> the badge reads Active.
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    const note = container.querySelector('[data-admin-portfolio-status-note]');
+    expect(note?.textContent).toMatch(/governed and audited/i);
+    expect(note?.textContent).toMatch(/No external boarding sync/i);
   });
 
   it('shows all nine required data groups', () => {
@@ -48,23 +48,20 @@ describe('Phase 169D -- Portfolio Boarding admin panel', () => {
     expect(steps.querySelectorAll('li').length).toBe(5);
   });
 
-  it('keeps create / import / document upload actions all disabled', () => {
+  it('exposes a real Open Portfolio workspace link (no disabled placeholders) when active', () => {
     const { container } = render(<PortfolioBoardingAdminPanel />);
-    const actions = container.querySelectorAll('[data-admin-portfolio-action]');
-    expect(actions.length).toBe(3);
-    for (const a of Array.from(actions)) {
-      expect(a).toBeDisabled();
-      expect(a.getAttribute('aria-disabled')).toBe('true');
-    }
-    expect(screen.getByText('Portfolio create disabled')).toBeInTheDocument();
-    expect(screen.getByText('Import disabled')).toBeInTheDocument();
-    expect(screen.getByText('Document upload disabled')).toBeInTheDocument();
+    const open = container.querySelector('[data-admin-portfolio-action="open"]');
+    expect(open).not.toBeNull();
+    expect(open?.getAttribute('href')).toBe('/workspaces/manager');
+    // No stale disabled create/import/upload placeholders.
+    expect(screen.queryByText('Portfolio create disabled')).toBeNull();
+    expect(screen.queryByText('Import disabled')).toBeNull();
   });
 
-  it('shows the explicit no-record-creation note', () => {
+  it('points boarding actions to the Portfolio workspace (not this console)', () => {
     const { container } = render(<PortfolioBoardingAdminPanel />);
     const note = container.querySelector('[data-admin-portfolio-no-record-note]');
-    expect(note?.textContent).toMatch(/does not create portfolio loan records until live persistence is explicitly enabled and certified/i);
+    expect(note?.textContent).toMatch(/performed from the Portfolio workspace/i);
   });
 
   it('renders no fabricated loan / document / evidence record', () => {
