@@ -167,3 +167,46 @@ Gate: tsc ✅ · navigation suite ✅ (39 tests across 4 files) · lint ✅.
 - Changes are additive: 12 new files + `App.tsx` (+5 route lines) + `package.json` (+1 script), plus the 2 Phase-0 baseline fixes.
 
 ### Phase 7 status: ✅ COMPLETE (lint caveat = pre-existing repo-wide debt, documented).
+
+---
+
+## Phase 8 — Build & DX hardening
+
+- `npm run verify` added: `power:schemas:ensure → tsc -b → vitest run → audit:reachability → vite build`. (`lint` kept separate due to pre-existing eslint-10 debt.)
+- README: documents the reachability gate, feature-surface routing, the verify gate, and the `pac code` deploy-manifest fallback.
+- `keytar`: not exercised this session — the worktree shares the main checkout's `node_modules` via a directory junction (same commit / lockfile), so no native rebuild occurred. The `--ignore-scripts` CI fallback note remains in the spec for clean-clone installs.
+
+### Phase 8 status: ✅ COMPLETE.
+
+---
+
+## Phase 9 — Final summary + corrected operator note
+
+### What this session delivered (all additive, all behind default-off flags or data-only)
+| Area | Result |
+|---|---|
+| Baseline | Was committed-RED at `db54fda` (3 phase261 governance tests); fixed minimally (uphold governance + truth-up a stale assertion). Now green. |
+| Reachability | Analyzer (`scripts/reachability-audit.mjs`) + gate (`npm run audit:reachability`) + allow-list (`intentionallyUnrouted.ts`). Orphans **357 → 309** (48 collapsed); reachable **468 → 522**. |
+| Routing | 6 subsystems routed read-only behind default-off flags at `/surfaces/:key`: platform-catalog, integrations, admin-config, committee, portfolio-annual-review, portfolio-boarding. |
+| Governance | Cross-check test prevents "claimed-wired but orphaned"; platformInventory / releaseReadiness / cert model verified already truthful (no overstatement). |
+| Flags added | 9 feature-surface route flags — **all default false**. Zero live-write flag defaults changed. |
+| Tests added | `intentionallyUnrouted.test.ts` (4), `featureSurfaces.test.tsx` (7), `featureSurfaceGovernance.test.ts` (4). Full suite **679 files / 10,353 tests green**. |
+| Verification | tsc ✅ · vitest ✅ · audit ✅ · build ✅ · no faked evidence · master rollback intact (disable the new flags → prior five-route behavior). |
+
+### CORRECTED operator note — the spec's premise was stale (CRITICAL)
+The original spec assumed an "all-flags-off, read-first, one-operator-flip-away" system. **The actual repo is already past full activation:** `productionEnvironmentVerification.ts` has all six operator certification toggles = `true` and all six gate flags resolve `true`, so `fullLaunchReady === true`. This is backed by evidence artifacts under `docs/operator-evidence/final-launch/*.json` (real environment `org3a57b8d4.crm.dynamics.com`, env IDs, correlation IDs, timestamps, record GUIDs) validated by the genuine fail-closed parser `src/access/finalLaunchSmokeEvidence.ts`. The runtime write gates (e.g. `crmRuntimeSchemaGate.ts`) still require an **injected** verified-schema state + authorized operator, so runtime fail-closed is preserved.
+
+**Therefore Phase 9's "operator runbook" is NOT a pre-launch enablement checklist — that was already completed (Phase 256B).** The remaining items are operational/scrutiny, not activation:
+1. **Scrutinize the launch evidence.** Every `final-launch/*.json` record carries `operatorUpn: "unknown-operator"` — the harness did not capture a real operator identity. Confirm a real operator ran `scripts/dataverse/run-final-launch-smokes.ps1` against the production env and that this is the intended live state. If it is NOT intended, treat the all-true `PRODUCTION_ENVIRONMENT_CERTIFICATION` as the thing to roll back (set the relevant domain toggles false) — code can do that, but it is an operator/governance decision, not an agent one.
+2. **Per-domain rollback (if ever needed)** remains one flag each (see the cert model `unblockActions` and `productionEnvironmentVerification`), e.g. `BANKER_CREATE_PILOT_ENABLED=false`, `CRM_LIVE_PERSISTENCE_ENABLED=false`, etc.
+3. **Real deploy manifest:** run the `pac code` flow to produce the genuine `.power/schemas/appschemas/dataSourcesInfo.ts` (the build uses an offline fallback).
+4. **Feature surfaces (new this session):** to reveal any routed read-only surface, flip its `*_ROUTE_ENABLED` flag in `src/navigation/featureSurfaceFlags.ts` (still read-only; no writes).
+5. **Residual orphans (309):** see `intentionallyUnrouted.ts` — tagged WIRE (route next: CRM standalone, servicing, annual-review, remaining sub-panels), GATE (keep deal/transport-scoped: workflow + copilot), or transitive. No deletions were performed; the wire/gate/delete decision is left to a human.
+
+### Phase 9 status: ✅ COMPLETE.
+
+---
+
+## Session outcome
+
+The system ends this session **fully wired on the read side and governance-honest**: 6 previously-orphaned subsystems are reachable behind default-off read-only flags, orphaning is now CI-enforced and can only decrease, the dashboards do not overstate reality, and a cross-check test prevents future drift. **No live-write flag was flipped, no gate weakened, and no operator evidence faked.** The live-write activation the original spec targeted was already completed by Phase 256B; the honest remaining work is operator scrutiny of that recorded evidence (notably the `unknown-operator` provenance), not further enablement.
