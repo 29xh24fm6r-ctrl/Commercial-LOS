@@ -27,6 +27,7 @@ import { LoanWorkflowCommandCenter } from '../workflow/LoanWorkflowCommandCenter
 import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
 import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
+import { DealPortfolioBoardingStatusPanel } from '../workflow/DealPortfolioBoardingStatusPanel';
 import { DealIntelligenceProvider } from '../shared/dealIntelligenceContext';
 import { DealIntelligenceBeacon } from '../shared/DealIntelligenceBeacon';
 import { LoadingState } from '../shared/LoadingState';
@@ -258,6 +259,13 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="closing-booking-readiness"
               >
                 <ClosingBookingReadinessPanel />
+              </div>
+              <div
+                id="portfolio-boarding-status"
+                data-deal-card="portfolio-boarding-status"
+                data-cockpit-anchor="portfolio-boarding-status"
+              >
+                <DealPortfolioBoardingStatusPanel />
               </div>
               <div
                 id="activity-timeline"

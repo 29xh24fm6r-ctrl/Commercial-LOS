@@ -10,6 +10,9 @@ export interface PipelineDeal {
   amount: number | undefined;
   targetCloseDate: string | undefined;
   lastActivityOn: string | undefined;
+  /** Dataverse system createdon — used by the Loan Workflow workbench to
+   *  surface "Recently Created" deals (e.g. a deal just made via + New Deal). */
+  createdOn?: string | undefined;
   /** When the deal entered its current stage. Used by Phase-32 work
    *  queue to flag stale-stage at-risk signals. */
   stageEntryDate: string | undefined;
@@ -84,6 +87,7 @@ function toPipelineDeal(d: Cr664_loandeals): PipelineDeal {
     amount: d.cr664_amount,
     targetCloseDate: d.cr664_targetclosedate,
     lastActivityOn: d.modifiedon,
+    createdOn: d.createdon,
     stageEntryDate: d.cr664_stageentrydate,
     isClosed:
       d.cr664_closedflag === true ||

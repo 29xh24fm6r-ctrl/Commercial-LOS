@@ -94,6 +94,15 @@ vi.mock('../crm/workspace/CrmHubWorkspace', () => ({
     </section>
   ),
 }));
+// Phase 258 — Loan Workflow tab now opens the lending workbench (own loader +
+// router + tests). Stub it so the shell tests stay scoped.
+vi.mock('./BankerLoanWorkflowWorkbench', () => ({
+  BankerLoanWorkflowWorkbench: () => (
+    <section data-loan-workbench="workspace" data-testid="loan-workbench">
+      <h2>Loan Workflow</h2>
+    </section>
+  ),
+}));
 
 import { loadBankerWorkQueueData } from './workQueueQueries';
 import { useBanker } from './BankerContext';
@@ -503,8 +512,8 @@ describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', 
     expect(
       screen.getByRole('heading', { name: /^Loan Workflow$/i }),
     ).toBeInTheDocument();
-    // The real authorized pipeline list (entry into per-deal workflow) renders.
-    expect(screen.getByTestId('card-personal-pipeline')).toBeInTheDocument();
+    // The lending workbench (entry into per-deal command center) renders.
+    expect(screen.getByTestId('loan-workbench')).toBeInTheDocument();
   });
 
   it('every real sidebar nav button is clickable AND lands on a non-empty content panel (no dead nav)', async () => {
