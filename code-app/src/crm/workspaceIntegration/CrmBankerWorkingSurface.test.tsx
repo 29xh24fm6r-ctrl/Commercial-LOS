@@ -30,12 +30,12 @@ vi.mock('../../shared/drillthrough/DrillThroughCard', () => ({
 
 const INPUT: CrmBankerSurfaceInput = {
   relationshipOverview: undefined,
-  salesforceReadiness: 'OGB CRM active — internal relationship intelligence (writeback gated)',
-  ncinoReadiness: 'Internal lending workflow active (writeback gated)',
+  salesforceReadiness: 'CRM is active — relationship records are available',
+  ncinoReadiness: 'Loan workflow is active',
   entityMatchStatus: 'Awaiting human review',
   sourceOfTruthGaps: 2,
   syncPreviewBlockers: 1,
-  nextSafeBankerStep: 'Review CRM source-of-truth',
+  nextSafeBankerStep: 'Review relationship records and matching',
   crmCommandCenterHref: undefined,
 };
 
@@ -50,31 +50,31 @@ describe('Phase 150 — CRM Command Center interaction wiring', () => {
     expect(screen.getByTestId('drill-banker-crm-sync-blocked')).toBeInTheDocument();
   });
 
-  it('clicking Relationship opens details with relationship status and source-of-truth', () => {
+  it('clicking Relationship opens details with relationship status and ownership', () => {
     render(<CrmBankerWorkingSurface input={INPUT} />);
     const el = screen.getByTestId('drill-banker-crm-relationship');
     fireEvent.click(el.querySelector('summary')!);
     const panel = screen.getByTestId('panel-banker-crm-relationship');
-    expect(panel.textContent).toContain('Relationship context derived from authorized banker workspace data');
-    expect(panel.textContent).toContain('Source-of-truth posture');
-    expect(panel.textContent).toContain('Next safe step');
+    expect(panel.textContent).toContain('Relationship context from your authorized workspace data');
+    expect(panel.textContent).toContain('Relationship ownership');
+    expect(panel.textContent).toContain('Next step');
   });
 
-  it('clicking CRM opens details showing active internal OGB CRM, writeback gated', () => {
+  it('clicking CRM opens details showing the CRM is active and records are available', () => {
     render(<CrmBankerWorkingSurface input={INPUT} />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-salesforce').querySelector('summary')!);
     const panel = screen.getByTestId('panel-banker-crm-salesforce');
-    expect(panel.textContent).toContain('Active. Internal relationship intelligence');
-    expect(panel.textContent).toContain('Writeback gated');
-    expect(panel.textContent).not.toMatch(/external connection disabled/i);
+    expect(panel.textContent).toContain('Active. Relationship records from your authorized workspace.');
+    expect(panel.textContent).toContain('Relationship records are available');
+    expect(panel.textContent).not.toMatch(/writeback gated/i);
   });
 
-  it('clicking Lending Workflow opens details showing active internal workflow, writeback gated', () => {
+  it('clicking Loan Workflow opens details showing the loan workflow is active', () => {
     render(<CrmBankerWorkingSurface input={INPUT} />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-ncino').querySelector('summary')!);
     const panel = screen.getByTestId('panel-banker-crm-ncino');
-    expect(panel.textContent).toContain('Active. Internal OGB lending workflow readiness');
-    expect(panel.textContent).toContain('Gated');
+    expect(panel.textContent).toContain('Active. Loan workflow readiness from your authorized workspace.');
+    expect(panel.textContent).toContain('Open a deal to manage its loan workflow.');
   });
 
   it('clicking Match Status opens details explaining human review requirement', () => {
@@ -82,30 +82,28 @@ describe('Phase 150 — CRM Command Center interaction wiring', () => {
     fireEvent.click(screen.getByTestId('drill-banker-crm-match-status').querySelector('summary')!);
     const panel = screen.getByTestId('panel-banker-crm-match-status');
     expect(panel.textContent).toContain('Awaiting human review');
-    expect(panel.textContent).toContain('No auto-link');
+    expect(panel.textContent).toContain('No automatic link');
   });
 
-  it('clicking SoT Gaps opens details listing source-of-truth gaps', () => {
+  it('clicking Ownership Gaps opens details listing ownership gaps', () => {
     render(<CrmBankerWorkingSurface input={INPUT} />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-sot-gaps').querySelector('summary')!);
     const panel = screen.getByTestId('panel-banker-crm-sot-gaps');
-    expect(panel.textContent).toContain('Source-of-truth gaps');
+    expect(panel.textContent).toContain('Ownership gaps');
     expect(panel.textContent).toContain('ownership is unresolved');
   });
 
-  it('clicking Sync Blocked opens details explaining blocking reason', () => {
+  it('clicking Needs Review opens details explaining the review reason', () => {
     render(<CrmBankerWorkingSurface input={INPUT} />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-sync-blocked').querySelector('summary')!);
     const panel = screen.getByTestId('panel-banker-crm-sync-blocked');
-    expect(panel.textContent).toContain('Writeback policy gate not ready');
-    expect(panel.textContent).toContain('conflict requires human review');
+    expect(panel.textContent).toContain('match needs confirmation');
+    expect(panel.textContent).toContain('need a human review');
   });
 
-  it('footer shows active OGB CRM with writeback gated', () => {
+  it('footer shows the CRM is active with records available', () => {
     render(<CrmBankerWorkingSurface input={INPUT} />);
-    expect(screen.getAllByText(/OGB CRM active — internal relationship intelligence/).length).toBeGreaterThanOrEqual(1);
-    // Footer-unique copy.
-    expect(screen.getByText(/Writeback gated\. No sync or push actions\./)).toBeInTheDocument();
+    expect(screen.getByText(/CRM is active\. Relationship records are available\./)).toBeInTheDocument();
   });
 
   it('no write/sync/connect buttons exist', () => {

@@ -34,12 +34,12 @@ vi.mock('../crm/workspaceIntegration/CrmBankerWorkingSurface', () => ({
 vi.mock('../crm/workspaceIntegration/crmWorkspacePreviewInputs', () => ({
   bankerCrmPreviewInput: () => ({
     relationshipOverview: undefined,
-    salesforceReadiness: 'OGB CRM active — internal relationship intelligence (writeback gated)',
-    ncinoReadiness: 'Internal lending workflow active (writeback gated)',
+    salesforceReadiness: 'CRM is active — relationship records are available',
+    ncinoReadiness: 'Loan workflow is active',
     entityMatchStatus: 'Awaiting human review',
     sourceOfTruthGaps: 0,
     syncPreviewBlockers: 0,
-    nextSafeBankerStep: 'Review CRM source-of-truth',
+    nextSafeBankerStep: 'Review relationship records and matching',
     crmCommandCenterHref: undefined,
   }),
 }));
@@ -50,10 +50,10 @@ describe('Phase 157 — BankerCrmIntelligencePanel premium cockpit', () => {
     expect(screen.getByTestId('drill-banker-crm-command-center')).toBeInTheDocument();
   });
 
-  it('renders active OGB CRM and writeback-gated badges', () => {
+  it('renders CRM active and read-only badges (bank-user copy)', () => {
     render(<BankerCrmIntelligencePanel />);
-    expect(screen.getByText('OGB CRM active')).toBeInTheDocument();
-    expect(screen.getByText('Writeback gated')).toBeInTheDocument();
+    expect(screen.getByText('CRM active')).toBeInTheDocument();
+    expect(screen.getByText('Read-only')).toBeInTheDocument();
   });
 
   it('does not present an external-connection-disabled posture', () => {
@@ -79,7 +79,7 @@ describe('Phase 157 — BankerCrmIntelligencePanel premium cockpit', () => {
     render(<BankerCrmIntelligencePanel />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-command-center').querySelector('summary')!);
     expect(screen.getByTestId('panel-banker-crm-command-center')).toBeInTheDocument();
-    expect(screen.getByText(/Read-only\. Writeback gated\./)).toBeInTheDocument();
+    expect(screen.getByText(/CRM is active\. Relationship records are available to view/)).toBeInTheDocument();
   });
 
   it('renders CRM Readiness lane', () => {
@@ -130,9 +130,9 @@ describe('Phase 157 — BankerCrmIntelligencePanel premium cockpit', () => {
     expect(html).not.toMatch(/synced successfully|pushed successfully|connected successfully/i);
   });
 
-  it('detail panel includes derivation source note', () => {
+  it('detail panel includes a source note', () => {
     render(<BankerCrmIntelligencePanel />);
     fireEvent.click(screen.getByTestId('drill-banker-crm-command-center').querySelector('summary')!);
-    expect(screen.getByText(/Derived from local preview input/)).toBeInTheDocument();
+    expect(screen.getByText(/Derived from your current workspace context/)).toBeInTheDocument();
   });
 });

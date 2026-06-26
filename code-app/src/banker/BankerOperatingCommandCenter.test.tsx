@@ -27,7 +27,7 @@ describe('Phase 232 — Banker Operating Command Center', () => {
       'New Deal intake',
       'Document checklist readiness',
       'Borrower communications',
-      'CRM writeback',
+      'CRM records',
       'Portfolio boarding handoff',
     ]) {
       expect(within(region).getByText(label)).toBeInTheDocument();

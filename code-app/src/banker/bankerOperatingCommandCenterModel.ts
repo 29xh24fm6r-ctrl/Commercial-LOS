@@ -42,7 +42,7 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
       state: 'operational',
       value: 'Active',
       summary:
-        'Internal OGB CRM relationship context, contact readiness, source-of-truth posture, and activity review are available from banker operating surfaces.',
+        'Relationship context, contact readiness, record ownership, and activity review are available from your operating surfaces.',
       nextAction: 'Review CRM intelligence and relationship context before advancing deal work.',
     },
     {
@@ -92,12 +92,12 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
     },
     {
       id: 'crm-writeback',
-      label: 'CRM writeback',
+      label: 'CRM records',
       state: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'operational' : 'gated',
-      value: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'Writeback enabled' : 'Writeback gated',
+      value: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'Active' : 'Read-only',
       summary:
-        'CRM intelligence is active, but live CRM persistence/writeback remains fail-closed unless explicitly enabled and certified.',
-      nextAction: 'Use CRM as read-side intelligence; require schema, adapter, policy, and operator certification before writeback.',
+        'CRM is active and relationship records are available; the bank’s CRM is the relationship system of record.',
+      nextAction: 'Use CRM relationship records in your daily work.',
     },
     {
       id: 'portfolio-handoff',

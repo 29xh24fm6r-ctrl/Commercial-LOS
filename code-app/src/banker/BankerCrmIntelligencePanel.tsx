@@ -22,14 +22,14 @@ export function BankerCrmIntelligencePanel() {
     subtitle: 'OGB CRM and internal lending workflow intelligence',
     surface: 'crm_relationship_intelligence',
     entityKind: 'cockpit_widget',
-    summary: 'Review source-of-truth, relationship matching, sync preview, and dry-run readiness from the current banker workspace.',
+    summary: 'Review relationship records, matching, and readiness from your current workspace.',
     detailSections: [
       {
-        title: 'Posture',
+        title: 'Overview',
         rows: [
-          { label: 'Safety', value: 'Read-only. Writeback gated. No sync, push, or write actions.' },
-          { label: 'Next safe step', value: 'Review source-of-truth, relationship matching, and internal readiness posture.' },
-          { label: 'Derivation', value: 'Derived from local preview input / current banker workspace context.' },
+          { label: 'Status', value: 'CRM is active. Relationship records are available to view (read-only here).' },
+          { label: 'Next step', value: 'Review relationship records and matching.' },
+          { label: 'Source', value: 'Derived from your current workspace context.' },
         ],
       },
     ],
@@ -45,8 +45,8 @@ export function BankerCrmIntelligencePanel() {
       title: 'CRM Readiness',
       rows: [
         { label: 'Status', value: input.salesforceReadiness },
-        { label: 'Posture', value: 'OGB CRM active — internal relationship intelligence. Writeback gated.' },
-        { label: 'Next step', value: 'Review OGB CRM source-of-truth and relationship matching.' },
+        { label: 'Availability', value: 'CRM is active — relationship records are available.' },
+        { label: 'Next step', value: 'Review relationship records and matching.' },
       ],
     }],
   });
@@ -61,8 +61,8 @@ export function BankerCrmIntelligencePanel() {
       title: 'Lending Workflow Readiness',
       rows: [
         { label: 'Status', value: input.ncinoReadiness },
-        { label: 'Posture', value: 'Internal lending workflow active. Writeback gated.' },
-        { label: 'Next step', value: 'Review internal lending workflow readiness and routing.' },
+        { label: 'Availability', value: 'Loan workflow is active.' },
+        { label: 'Next step', value: 'Review loan workflow readiness and routing.' },
       ],
     }],
   });
@@ -72,14 +72,14 @@ export function BankerCrmIntelligencePanel() {
     title: 'Relationship Intelligence Summary',
     surface: 'crm_relationship_intelligence',
     entityKind: 'intelligence_panel',
-    summary: 'Relationship status, match review, source-of-truth gaps, and sync blockers.',
+    summary: 'Relationship status, match review, ownership gaps, and items needing review.',
     detailSections: [{
       title: 'Relationship Intelligence',
       rows: [
         { label: 'Relationship', value: input.relationshipOverview ?? 'Not available' },
         { label: 'Match review', value: input.entityMatchStatus },
-        { label: 'Source-of-truth gaps', value: String(input.sourceOfTruthGaps) },
-        { label: 'Sync blockers', value: String(input.syncPreviewBlockers) },
+        { label: 'Ownership gaps', value: String(input.sourceOfTruthGaps) },
+        { label: 'Needs review', value: String(input.syncPreviewBlockers) },
         { label: 'Next step', value: input.nextSafeBankerStep },
       ],
     }],
@@ -94,17 +94,17 @@ export function BankerCrmIntelligencePanel() {
             <div style={s.heroLeft}>
               <div style={s.heroTitleRow}>
                 <span style={s.heroTitle}>CRM Command Center</span>
-                <span style={s.badge}>OGB CRM active</span>
-                <span style={s.badgePreview}>Writeback gated</span>
+                <span style={s.badge}>CRM active</span>
+                <span style={s.badgePreview}>Read-only</span>
               </div>
-              <span style={s.heroSubtitle}>OGB CRM and internal lending workflow intelligence</span>
+              <span style={s.heroSubtitle}>Relationship and loan workflow intelligence</span>
               <span style={s.heroDesc}>
-                Review source-of-truth, relationship matching, sync preview, and dry-run readiness from the current banker workspace.
+                Review relationship records, matching, and readiness from your current workspace.
               </span>
             </div>
             <div style={s.heroRight}>
-              <span style={s.heroNextLabel}>Next safe step</span>
-              <span style={s.heroNextValue}>Review source-of-truth and matching posture</span>
+              <span style={s.heroNextLabel}>Next step</span>
+              <span style={s.heroNextValue}>Review relationship records and matching</span>
             </div>
           </div>
         </div>
@@ -140,8 +140,8 @@ export function BankerCrmIntelligencePanel() {
           <div style={s.relMetrics}>
             <span style={s.relMetric}>Relationship: {input.relationshipOverview ?? 'Not available'}</span>
             <span style={s.relMetric}>Match: {input.entityMatchStatus}</span>
-            <span style={s.relMetric}>SoT Gaps: {input.sourceOfTruthGaps}</span>
-            <span style={s.relMetric}>Sync Blocked: {input.syncPreviewBlockers}</span>
+            <span style={s.relMetric}>Ownership Gaps: {input.sourceOfTruthGaps}</span>
+            <span style={s.relMetric}>Needs Review: {input.syncPreviewBlockers}</span>
           </div>
           <span style={s.relNext}>Next: {input.nextSafeBankerStep}</span>
         </div>

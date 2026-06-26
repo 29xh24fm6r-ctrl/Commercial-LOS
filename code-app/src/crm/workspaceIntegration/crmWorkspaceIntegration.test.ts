@@ -9,11 +9,15 @@ function readSrc(rel: string): string {
 }
 
 describe('Phase 148A — CRM workspace placement route safety', () => {
-  it('CrmBankerWorkingSurface exists and is read-only', () => {
+  it('CrmBankerWorkingSurface exists, uses bank-user copy, and performs no writes', () => {
     const src = readSrc('crm/workspaceIntegration/CrmBankerWorkingSurface.tsx');
-    expect(src).toContain('read-only');
-    expect(src).toContain('Writeback gated');
+    // Bank-user copy (no dev/internal posture language).
+    expect(src).toContain('CRM is active');
+    expect(src).not.toMatch(/writeback gated/i);
+    expect(src).not.toMatch(/source-of-truth posture/i);
+    // No write / sync action surface.
     expect(src).not.toMatch(/syncNow|pushNow|writeNow|enableLive/);
+    expect(src).not.toMatch(/createRecordAsync|updateRecordAsync|deleteRecordAsync/);
   });
 
   it('CrmManagerWorkingSurface exists and has no assignment mutation', () => {

@@ -1,65 +1,63 @@
 /**
- * Phase 202 — OGB-native CRM working-surface inputs (honest, internal).
+ * Phase 202 / 257 — CRM working-surface inputs (bank-user copy).
  *
  * The CRM working surfaces (banker / manager / executive) are pure presentational
- * components that take fully-formed read-only inputs. These are the OGB-NATIVE
- * internal CRM surfaces (LOS / Dataverse-native) — NOT an external Salesforce /
- * nCino connector. The posture is "internal OGB CRM active, read-only, writeback
- * gated", with honest empty counts (an honest zero — nothing linked yet) where no
- * internal records are available. No fabricated readiness, no fake sync success,
- * no fetch, no write, no credentials, no fake data, and no external connection.
+ * components that take fully-formed read-only inputs. The CRM is the bank's own
+ * relationship system (LOS / Dataverse-native), not an external Salesforce /
+ * nCino connector. Bank-user copy: "CRM is active", "Relationship records are
+ * available". Honest empty counts (an honest zero — no records yet) where none
+ * are available. No fabricated readiness, no fake sync success, no fetch, no
+ * write, no credentials, no fake data, and no external connection. Governance /
+ * audit framing lives in Admin Diagnostics, not on these banker surfaces.
  */
 
 import type { CrmBankerSurfaceInput } from './CrmBankerWorkingSurface';
 import type { CrmManagerSurfaceInput } from './CrmManagerWorkingSurface';
 import type { CrmExecutiveSurfaceInput } from './CrmExecutiveWorkingSurface';
 
-/** OGB-native internal CRM posture: active, read-only, writeback gated. */
-const INTERNAL_CRM_ACTIVE = 'OGB CRM active — internal relationship intelligence (writeback gated)';
-/** OGB-native internal lending-workflow posture: active, read-only. */
-const INTERNAL_WORKFLOW_ACTIVE = 'Internal lending workflow active (writeback gated)';
+/** CRM posture (bank-user copy). */
+const CRM_ACTIVE = 'CRM is active — relationship records are available';
+/** Loan workflow posture (bank-user copy). */
+const WORKFLOW_ACTIVE = 'Loan workflow is active';
 
-/** Honest banker OGB CRM posture (internal active; no records linked yet). */
+/** Banker CRM posture (active; no records linked yet). */
 export function bankerCrmPreviewInput(): CrmBankerSurfaceInput {
   return {
     relationshipOverview: undefined,
-    salesforceReadiness: INTERNAL_CRM_ACTIVE,
-    ncinoReadiness: INTERNAL_WORKFLOW_ACTIVE,
+    salesforceReadiness: CRM_ACTIVE,
+    ncinoReadiness: WORKFLOW_ACTIVE,
     entityMatchStatus: 'Awaiting human review',
     sourceOfTruthGaps: 0,
     syncPreviewBlockers: 0,
-    nextSafeBankerStep:
-      'Review OGB CRM source-of-truth, relationship matching, and internal readiness (read-only; writeback gated).',
+    nextSafeBankerStep: 'Review relationship records and matching.',
     crmCommandCenterHref: undefined,
   };
 }
 
-/** Honest manager OGB CRM posture (internal active; read-only). */
+/** Manager CRM posture (active; read-only). */
 export function managerCrmPreviewInput(): CrmManagerSurfaceInput {
   return {
-    teamCrmReadiness: INTERNAL_CRM_ACTIVE,
+    teamCrmReadiness: CRM_ACTIVE,
     bankerFollowUpWorkload: 0,
     sourceOfTruthConflicts: 0,
-    salesforceReadinessByPipeline: INTERNAL_CRM_ACTIVE,
-    ncinoReadinessByPipeline: INTERNAL_WORKFLOW_ACTIVE,
+    salesforceReadinessByPipeline: CRM_ACTIVE,
+    ncinoReadinessByPipeline: WORKFLOW_ACTIVE,
     syncPreviewBlockedCount: 0,
-    nextSafeManagerStep:
-      'Review team OGB CRM readiness and source-of-truth conflicts (read-only; no assignment changes).',
+    nextSafeManagerStep: 'Review team relationship coverage.',
     crmCommandCenterHref: undefined,
   };
 }
 
-/** Honest executive OGB CRM posture (internal active; no fake revenue). */
+/** Executive CRM posture (active; no fake revenue). */
 export function executiveCrmPreviewInput(): CrmExecutiveSurfaceInput {
   return {
-    crmCoverageStatus: INTERNAL_CRM_ACTIVE,
-    salesforceActivationPosture: 'Internal — active, read-only (writeback gated)',
-    ncinoActivationPosture: 'Internal — active, read-only (writeback gated)',
+    crmCoverageStatus: CRM_ACTIVE,
+    salesforceActivationPosture: 'Active',
+    ncinoActivationPosture: 'Active',
     relationshipIntelligenceGaps: 0,
-    productStrategyCrmReadiness: INTERNAL_CRM_ACTIVE,
+    productStrategyCrmReadiness: CRM_ACTIVE,
     revenueDataAvailability: 'Not available (no revenue figures shown)',
-    nextExecutiveStep:
-      'Review OGB CRM coverage and internal activation posture (read-only; no live writes).',
+    nextExecutiveStep: 'Review CRM coverage and activation.',
     crmCommandCenterHref: undefined,
   };
 }
