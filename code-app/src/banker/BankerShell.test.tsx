@@ -85,6 +85,15 @@ vi.mock('./BankerDueDiligenceView', () => ({
     <div data-testid="card-due-diligence">BankerDueDiligenceView</div>
   ),
 }));
+// Phase 258 — CRM Hub now opens the live CRM workspace (own loader + tests).
+// Stub it so the shell tests stay scoped and never hit a live CRM read.
+vi.mock('../crm/workspace/CrmHubWorkspace', () => ({
+  CrmHubWorkspace: () => (
+    <section data-crm-hub="workspace" data-testid="crm-hub-workspace">
+      <h2>CRM</h2>
+    </section>
+  ),
+}));
 
 import { loadBankerWorkQueueData } from './workQueueQueries';
 import { useBanker } from './BankerContext';
@@ -446,12 +455,8 @@ describe('Phase 166 — dashboard KPI card interactions', () => {
     expect(tile?.getAttribute('aria-label')).toMatch(/Open the Active Deals tab\.$/);
   });
 
-  it('CRM Command Center still renders and + New Deal stays an enabled shortcut / Log Activity stays available after the KPI change', async () => {
+  it('+ New Deal stays an enabled shortcut / Log Activity stays available after the KPI change', async () => {
     await renderReady();
-    // CRM drill-through entry still present on the dashboard.
-    expect(
-      await screen.findByRole('region', { name: 'CRM Command Center' }),
-    ).toBeInTheDocument();
     // Phase 257: + New Deal is an enabled governed shortcut.
     const newDeal = document.querySelector('[data-action-new-deal]');
     expect(newDeal).not.toBeNull();
@@ -467,7 +472,7 @@ describe('Phase 166 — dashboard KPI card interactions', () => {
 // ---------------------------------------------------------------------------
 
 describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', () => {
-  it('CRM Hub sidebar nav click swaps dashboard content for the real CRM relationship workspace', async () => {
+  it('CRM Hub sidebar nav click opens the live CRM workspace (Phase 258 system)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
@@ -477,13 +482,10 @@ describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', 
 
     await user.click(screen.getByRole('button', { name: /^CRM Hub$/i }));
 
-    // Content changed: dashboard-only cards are gone, the CRM relationship
-    // workspace (CRM Command Center region) is now the visible content.
+    // Content changed: dashboard cards are gone, the CRM workspace is shown.
     expect(screen.queryByTestId('card-personal-activity-summary')).toBeNull();
-    expect(
-      await screen.findByRole('region', { name: 'CRM Command Center' }),
-    ).toBeInTheDocument();
-    expect(within(container).getByText('CRM Intelligence')).toBeInTheDocument();
+    expect(container.querySelector('[data-crm-hub="workspace"]')).not.toBeNull();
+    expect(screen.getByTestId('crm-hub-workspace')).toBeInTheDocument();
   });
 
   it('Loan Workflow sidebar nav click navigates to the real Loan Workflow workspace surface', async () => {
@@ -586,17 +588,15 @@ describe('Phase 125F — BankerShell.tsx static-source pins', () => {
 // BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 — CRM entry visible on dashboard
 // ---------------------------------------------------------------------------
 
-describe('BUGFIX-CRM-VISIBLE — Banker dashboard mounts the CRM Command Center entry', () => {
-  it('renders the CRM Command Center entry + CRM preview copy on the default dashboard tab', async () => {
+describe('Phase 258 — CRM is reachable via the CRM Hub tab (its own system)', () => {
+  it('opens the live CRM workspace from the CRM Hub tab', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
-    const crm = await screen.findByRole('region', { name: 'CRM Command Center' });
-    // DrillThroughCard renders the title in a face span; use getAllByText for multiple matches.
-    expect(within(crm).getAllByText('CRM Command Center').length).toBeGreaterThanOrEqual(1);
-    expect(within(crm).getAllByText(/Relationship and loan workflow intelligence/).length).toBeGreaterThanOrEqual(1);
-    // Read-only CRM working surface is mounted alongside the entry.
-    expect(within(crm).getByText('CRM Intelligence')).toBeInTheDocument();
+    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('tab', { name: /^CRM Hub$/i }));
+    expect(container.querySelector('[data-crm-hub="workspace"]')).not.toBeNull();
+    expect(screen.getByTestId('crm-hub-workspace')).toBeInTheDocument();
   });
 
   it('keeps existing dashboard cards (Personal Activity + Morning Catch-Up) rendered', async () => {
@@ -607,17 +607,12 @@ describe('BUGFIX-CRM-VISIBLE — Banker dashboard mounts the CRM Command Center 
     expect(screen.getByTestId('card-morning-catchup')).toBeInTheDocument();
   });
 
-  it('exposes NO sync/push/write/enable-live controls and no fake sync success copy in the CRM entry', async () => {
+  it('the dashboard no longer mounts the CRM readiness command center (moved to its own tab)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     render(<BankerShell workspaceName="Banker Workspace" />);
-    const crm = await screen.findByRole('region', { name: 'CRM Command Center' });
-    expect(crm.querySelectorAll('button, form, input, select, textarea').length).toBe(0);
-    const text = (crm.textContent ?? '').toLowerCase();
-    for (const banned of ['sync now', 'push now', 'enable live', 'synced successfully', 'salesforce updated', 'ncino updated', 'write now']) {
-      expect(text).not.toContain(banned);
-    }
-    // Honest read-only framing is present.
-    expect(text).toContain('read-only');
+    await screen.findByTestId('card-personal-activity-summary');
+    // No CRM Command Center region on the dashboard anymore.
+    expect(screen.queryByRole('region', { name: 'CRM Command Center' })).toBeNull();
   });
 });

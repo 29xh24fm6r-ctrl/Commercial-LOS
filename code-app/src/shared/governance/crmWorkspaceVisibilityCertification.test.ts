@@ -40,9 +40,9 @@ describe('BUGFIX-CRM-VISIBLE — Banker workspace mounts the CRM entry', () => {
   const shell = read('src/banker/BankerShell.tsx');
   const panel = read('src/banker/BankerCrmIntelligencePanel.tsx');
 
-  it('BankerShell imports and renders the CRM intelligence panel', () => {
-    expect(shell).toMatch(/import\s*\{\s*BankerCrmIntelligencePanel\s*\}/);
-    expect(shell).toMatch(/<BankerCrmIntelligencePanel\s*\/>/);
+  it('BankerShell imports and renders the live CRM Hub workspace (Phase 258)', () => {
+    expect(shell).toMatch(/import\s*\{\s*CrmHubWorkspace\s*\}/);
+    expect(shell).toMatch(/<CrmHubWorkspace\s*\/>/);
   });
 
   it('the panel renders the required CRM Command Center entry copy (bank-user)', () => {

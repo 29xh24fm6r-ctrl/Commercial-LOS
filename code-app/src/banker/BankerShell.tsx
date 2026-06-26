@@ -18,7 +18,7 @@ import { BankerLoanWorkflowTab } from './BankerLoanWorkflowTab';
 import { LendingOSLayout, type LendingOSNavKey } from './LendingOSLayout';
 import { GreetingHeader } from './GreetingHeader';
 import { BankerKpiGrid } from './BankerKpiGrid';
-import { BankerCrmIntelligencePanel } from './BankerCrmIntelligencePanel';
+import { CrmHubWorkspace } from '../crm/workspace/CrmHubWorkspace';
 import { BankerOperatingCommandCenter } from './BankerOperatingCommandCenter';
 import { Badge } from '../shared/Badge';
 import { CountBadge } from '../shared/cockpitPrimitives';
@@ -322,7 +322,6 @@ function TabContent({ tab }: { tab: ShellTab }) {
       return (
         <div style={styles.tabStack}>
           <BankerOperatingCommandCenter />
-          <BankerCrmIntelligencePanel />
           <PersonalActivitySummary />
           <BankerMorningCatchUp />
         </div>
@@ -345,7 +344,7 @@ function TabContent({ tab }: { tab: ShellTab }) {
     case 'crm-hub':
       return (
         <div style={styles.tabStack}>
-          <BankerCrmIntelligencePanel />
+          <CrmHubWorkspace />
         </div>
       );
     case 'tasks':
