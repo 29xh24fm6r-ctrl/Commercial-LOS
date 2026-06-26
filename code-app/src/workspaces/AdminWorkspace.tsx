@@ -19,6 +19,7 @@ import { V1GoLiveReleaseCertificationPanel } from '../admin/V1GoLiveReleaseCerti
 import { FullSystemActivationLaunchPanel } from '../admin/FullSystemActivationLaunchPanel';
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
+import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { palette, spacing, typography } from '../shared/theme';
 
 export function AdminWorkspace() {
@@ -34,7 +35,19 @@ export function AdminWorkspace() {
 function AdminWorkspaceContent() {
   const { fullName, upn } = useAdmin();
   return (
-    <div style={styles.page}>
+    // Phase 257 — admin shares the same Lending OS left-sidebar shell as the
+    // banker/manager/executive/team workspaces so the admin route keeps the
+    // left hero/sidebar visible. `onNavSelect` is intentionally omitted: the
+    // banker nav items are non-interactive here (admin is a distinct route),
+    // matching the Manager/Executive/Team shells. Authorization is unchanged:
+    // the surrounding WorkspaceGate + AdminProvider gate still apply.
+    <LendingOSLayout
+      activeNav="dashboard"
+      fullName={fullName}
+      email={upn}
+      workspaceName="Admin Control Center"
+    >
+      <div style={styles.page} data-admin-workspace-shell="lending-os">
       <header style={styles.header}>
         <div style={styles.titleBlock}>
           <div style={styles.eyebrow}>Commercial Lending Â· Governance</div>
@@ -92,7 +105,8 @@ function AdminWorkspaceContent() {
         <EmailLiveDiagnostics />
         <PerformanceDiagnostics />
       </main>
-    </div>
+      </div>
+    </LendingOSLayout>
   );
 }
 
