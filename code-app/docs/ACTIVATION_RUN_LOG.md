@@ -97,3 +97,38 @@ Gate result: 826 sources / 468 reachable / 358 orphaned — **all allow-listed, 
 As Phase 3 routes a subsystem, its entries are deleted from the allow-list so the gate tightens automatically.
 
 ### Phase 2 status: ✅ COMPLETE.
+
+---
+
+## Phase 3 — Route orphaned subsystems (read-only, flag-gated)
+
+Added a uniform feature-surface routing scaffold under `src/navigation/`:
+- `featureSurfaceFlags.ts` — 9 default-OFF route flags (routing/visibility only; independent of live-write governance flags).
+- `featureSurfaces.tsx` — registry: each entry statically imports a subsystem's top component (→ reachable) and renders a READ-ONLY preview fed with **empty** inputs (never live data, never a write).
+- `FeatureSurfaceRoute.tsx` — `/surfaces/:surfaceKey` route; gates by the owning `WorkspaceGate` AND the default-off flag. Exposes pure `FeatureSurfaceView` for unit testing without bootstrap.
+- `FeatureSurfaceNotEnabled.tsx` — honest "not yet enabled" state (names the flag; never blank).
+- `FeatureSurfaceErrorBoundary.tsx` — fail-soft: a preview that can't render without its live data context shows "preview unavailable" instead of crashing the app.
+- `App.tsx` — added the `/surfaces/:surfaceKey` route inside the `AuthGate` boundary.
+
+**Six subsystems routed as real read-only surfaces** (flag-off → not-enabled; flag-on → mounts cleanly, verified by `featureSurfaces.test.tsx`):
+| surface | flag (default off) | workspace | entry component (empty input) |
+|---|---|---|---|
+| platform-catalog | PLATFORM_CATALOG_ROUTE_ENABLED | admin | PlatformMetadataDashboard |
+| integrations | INTEGRATIONS_ROUTE_ENABLED | admin | IntegrationAdapterRegistryPanel |
+| admin-config | ADMIN_CONFIG_ROUTE_ENABLED | admin | AdminConfigurationSummaryPanel (empty queue) |
+| committee | COMMITTEE_ROUTE_ENABLED | manager | CreditCommitteePackageReviewQueuePanel (no packages) |
+| portfolio-annual-review | PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED | manager | AnnualPortfolioReviewCommandCenter (empty cycle) |
+| portfolio-boarding | PORTFOLIO_BOARDING_SURFACE_ROUTE_ENABLED | manager | PortfolioLoanBoardingPreview (empty package) |
+
+**Reachability delta:** 357 → **309 orphaned** (48 collapsed); reachable 468 → 522. The allow-list (`intentionallyUnrouted.ts`) was regenerated to exactly the current orphan set, so the gate stays at 0 unexpected and tightens automatically.
+
+**Residual orphans (309) — human decision deferred (no deletions):** reasons in `intentionallyUnrouted.ts` are tagged:
+- **WIRE candidate** — route next (e.g. CRM standalone surface — `CrmHubWorkspace` is already mounted in the banker workspace; servicing/annual-review panels need a live data context; remaining adminConfig/integrations/committee sub-panels).
+- **GATE candidate** — keep deal/transport-scoped (workflow stage-gate panels + copilot transports require `DealDataProvider`; surfaced inside the deal workspace, not standalone).
+- **transitive** — shared/generated helpers reachable once their consumer routes.
+
+A SDK note: `@microsoft/power-apps/data` mis-resolves an extensionless internal import under vitest; the surface test mocks `getClient` (the only runtime use) to let the registry's transitive graph load. Production build is unaffected.
+
+Gate: tsc ✅ · `featureSurfaces.test.tsx` ✅ (7) + `intentionallyUnrouted.test.ts` ✅ (4) · lint ✅ · `audit:reachability` exit 0.
+
+### Phase 3 status: ✅ COMPLETE — 6 subsystems routed; residual orphans honestly allow-listed with wire/gate/delete tags.

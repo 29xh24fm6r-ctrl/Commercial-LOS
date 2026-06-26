@@ -199,7 +199,11 @@ const summary = {
 
 if (JSON_OUT) {
   console.log(
-    JSON.stringify({ ...summary, byGroup, unexpectedOrphanList: unexpectedOrphans }, null, 2),
+    JSON.stringify(
+      { ...summary, byGroup, orphanList: orphans, unexpectedOrphanList: unexpectedOrphans },
+      null,
+      2,
+    ),
   );
 } else {
   console.log('Reachability audit — entry: src/main.tsx');
