@@ -227,7 +227,11 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
             <TabBar active={tab} onSelect={setTab} kpis={kpis} state={state} />
             <div style={styles.tabPanel} role="tabpanel" aria-labelledby={`tab-${tab}`}>
               <ErrorBoundary surface={TAB_SPECS.find((t) => t.key === tab)?.label ?? 'This section'} navKey={tab}>
-                <TabContent tab={tab} onNewDeal={openNewDeal} />
+                <TabContent
+                  tab={tab}
+                  onNewDeal={openNewDeal}
+                  crmIdentity={{ email, systemUserId, writeDisabledReason }}
+                />
               </ErrorBoundary>
             </div>
           </section>
@@ -319,7 +323,15 @@ function dedupeClients(
   return Array.from(set);
 }
 
-function TabContent({ tab, onNewDeal }: { tab: ShellTab; onNewDeal: () => void }) {
+function TabContent({
+  tab,
+  onNewDeal,
+  crmIdentity,
+}: {
+  tab: ShellTab;
+  onNewDeal: () => void;
+  crmIdentity: { email: string | undefined; systemUserId: string | undefined; writeDisabledReason: string | undefined };
+}) {
   switch (tab) {
     case 'dashboard':
       return (
@@ -347,7 +359,11 @@ function TabContent({ tab, onNewDeal }: { tab: ShellTab; onNewDeal: () => void }
     case 'crm-hub':
       return (
         <div style={styles.tabStack}>
-          <CrmHubWorkspace />
+          <CrmHubWorkspace
+            actorEmail={crmIdentity.email}
+            actorSystemUserId={crmIdentity.systemUserId}
+            writeDisabledReason={crmIdentity.writeDisabledReason}
+          />
         </div>
       );
     case 'tasks':

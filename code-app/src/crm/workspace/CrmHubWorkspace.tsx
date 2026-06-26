@@ -7,6 +7,8 @@ import {
   type CrmRecord,
   type CrmWorkspaceData,
 } from './crmWorkspaceData';
+import { CrmWriteActions, type CrmOption } from './CrmWriteActions';
+import type { CrmWriteFns } from '../write/crmWriteActions';
 
 /**
  * Phase 260 — Relationship CRM (elite CRM cockpit).
@@ -21,6 +23,13 @@ import {
 
 interface Props {
   loadData?: () => Promise<CrmWorkspaceData>;
+  /** Signed-in identity for governed CRM writes. */
+  actorEmail?: string;
+  actorSystemUserId?: string;
+  /** Reason writes are disabled (no identity); when set, actions are inert. */
+  writeDisabledReason?: string;
+  /** Injected for tests; defaults to the live governed writes. */
+  writeFns?: CrmWriteFns;
 }
 
 type LoadState =
@@ -52,11 +61,20 @@ const VIEWS: readonly ViewSpec[] = [
   { key: 'timeline', label: 'Timeline', domain: 'timelineEvents', timeline: true, primaryCol: 'Activity', secondaryCol: 'Summary', emptyHeading: 'No CRM activity yet', emptyGuidance: 'Log a call, meeting, or note once CRM updates are enabled.' },
 ];
 
-export function CrmHubWorkspace({ loadData = loadCrmWorkspaceData }: Props = {}) {
+export function CrmHubWorkspace({
+  loadData = loadCrmWorkspaceData,
+  actorEmail,
+  actorSystemUserId,
+  writeDisabledReason,
+  writeFns,
+}: Props = {}) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [view, setView] = useState<CrmView>('companies');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<CrmRecord | undefined>(undefined);
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  const authorized = !writeDisabledReason && Boolean(actorSystemUserId);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,9 +90,17 @@ export function CrmHubWorkspace({ loadData = loadCrmWorkspaceData }: Props = {})
     return () => {
       cancelled = true;
     };
-  }, [loadData]);
+  }, [loadData, reloadNonce]);
 
   const spec = useMemo(() => VIEWS.find((v) => v.key === view)!, [view]);
+
+  const optionsFor = (domain: CrmDomainKey): CrmOption[] => {
+    if (state.kind !== 'ready') return [];
+    const r = state.data[domain];
+    return r.status === 'ready' ? r.records.map((rec) => ({ id: rec.id, label: rec.title })) : [];
+  };
+  const companyOptions = useMemo(() => optionsFor('organizations'), [state]);
+  const personOptions = useMemo(() => optionsFor('people'), [state]);
 
   const count = (domain: CrmDomainKey): number | undefined => {
     if (state.kind !== 'ready') return undefined;
@@ -102,9 +128,16 @@ export function CrmHubWorkspace({ loadData = loadCrmWorkspaceData }: Props = {})
           <p style={styles.subtitle}>Manage companies, contacts, relationships, activities, and follow-ups.</p>
         </div>
         <div style={styles.headerActions} aria-label="CRM actions">
-          <span style={styles.governChip} title="CRM updates are managed through governed admin workflows.">
-            Updates managed by admin
-          </span>
+          <CrmWriteActions
+            authorized={authorized}
+            actorEmail={actorEmail}
+            actorSystemUserId={actorSystemUserId}
+            disabledReason={writeDisabledReason}
+            companyOptions={companyOptions}
+            personOptions={personOptions}
+            writeFns={writeFns}
+            onWritten={() => setReloadNonce((n) => n + 1)}
+          />
         </div>
       </header>
 
@@ -183,7 +216,7 @@ export function CrmHubWorkspace({ loadData = loadCrmWorkspaceData }: Props = {})
       {selected && <DetailDrawer record={selected} view={spec.label} onClose={() => setSelected(undefined)} />}
 
       <footer style={styles.footer} data-crm-footer>
-        CRM updates are currently managed through governed admin workflows.
+        Every change you make here is verified and recorded for the relationship file.
       </footer>
     </section>
   );

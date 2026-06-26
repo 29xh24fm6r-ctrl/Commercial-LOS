@@ -105,7 +105,7 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
     for (const banned of ['not wired', 'writeback gated', 'future phase', 'command center readiness', 'no governed', 'read-only in this release', 'diagnostics']) {
       expect(text).not.toContain(banned);
     }
-    // The single subtle governed-admin footer line is allowed.
-    expect(text).toContain('governed admin workflows');
+    // The footer states writes are verified + recorded (governed, bank-friendly).
+    expect(text).toContain('verified and recorded');
   });
 });
