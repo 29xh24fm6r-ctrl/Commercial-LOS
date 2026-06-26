@@ -17,6 +17,8 @@ const BANNED = [
   /writeback gated/i,
   /source-of-truth posture/i,
   /internal relationship intelligence/i,
+  /internal lending workflow/i,
+  /OGB CRM active/i,
   /not yet available/i,
   // The specific dev phrase "read-only detail — no write" (a bare "Read-only"
   // badge is acceptable bank-user copy).

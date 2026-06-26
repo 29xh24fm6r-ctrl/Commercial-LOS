@@ -85,20 +85,22 @@ describe('BUGFIX-CRM-VENDOR-BRAND-COPY-REMOVAL-1 — no vendor names in UI strin
 });
 
 describe('BUGFIX-CRM-VENDOR-BRAND-COPY-REMOVAL-1 — neutral labels present', () => {
-  it('CrmBankerWorkingSurface uses neutral CRM and Lending Workflow labels', () => {
+  it('CrmBankerWorkingSurface uses neutral CRM and Loan Workflow labels (bank-user copy)', () => {
     const src = readSrc('crm/workspaceIntegration/CrmBankerWorkingSurface.tsx');
     const literals = extractStringLiterals(src);
     const labels = literals.join(' ');
     expect(labels).toContain('CRM');
-    expect(labels).toContain('Lending Workflow');
-    expect(labels).toContain('read-only');
+    expect(labels).toContain('Loan Workflow');
+    expect(labels).toContain('CRM is active');
+    // No external vendor brands.
+    expect(labels).not.toMatch(/\bSalesforce\b|\bnCino\b/);
   });
 
-  it('BankerCrmIntelligencePanel uses neutral subtitle', () => {
+  it('BankerCrmIntelligencePanel uses neutral bank-user subtitle', () => {
     const src = readSrc('banker/BankerCrmIntelligencePanel.tsx');
     const literals = extractStringLiterals(src);
     const allCopy = literals.join(' ');
-    expect(allCopy).toContain('OGB CRM and internal lending workflow intelligence');
+    expect(allCopy).toContain('Relationship and loan workflow intelligence');
   });
 
   it('CrmCommandCenter VM uses neutral labels', () => {

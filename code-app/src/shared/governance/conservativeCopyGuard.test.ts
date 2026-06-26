@@ -253,7 +253,6 @@ const RULES: readonly CopyRule[] = [
       'src/shared/governance/stageProgressionAvailability.ts',
       'src/admin/StageGovernanceDiagnostics.tsx',
       'src/admin/adminNewDealIntakeModel.ts',
-      'src/admin/adminOperationsConsoleModel.ts',
       'src/admin/NewDealIntakePanel.tsx',
       'docs/STAGE_GOVERNANCE.md',
       'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md',
@@ -269,8 +268,6 @@ const RULES: readonly CopyRule[] = [
         'Admin diagnostic card surfaces the blocked write as a governance row.',
       'src/admin/adminNewDealIntakeModel.ts':
         'Phase 170J: names Advance Stage only to state it is a SEPARATE blocker from New Deal create (does not imply it is available).',
-      'src/admin/adminOperationsConsoleModel.ts':
-        'Phase 170J: names Advance Stage only to keep the New-Deal-create vs stage-progression distinction explicit (still blocked).',
       'src/admin/NewDealIntakePanel.tsx':
         'Phase 170J: footnote names Advance Stage only to mark it as a separate, still-blocked capability.',
       'docs/STAGE_GOVERNANCE.md':

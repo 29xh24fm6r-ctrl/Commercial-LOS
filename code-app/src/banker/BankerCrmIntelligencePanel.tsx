@@ -19,7 +19,7 @@ export function BankerCrmIntelligencePanel() {
   const commandCenterTarget = buildDrillThroughTarget({
     id: 'banker-crm-command-center',
     title: 'CRM Command Center',
-    subtitle: 'OGB CRM and internal lending workflow intelligence',
+    subtitle: 'Relationship and loan workflow intelligence',
     surface: 'crm_relationship_intelligence',
     entityKind: 'cockpit_widget',
     summary: 'Review relationship records, matching, and readiness from your current workspace.',

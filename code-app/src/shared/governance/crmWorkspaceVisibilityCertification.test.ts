@@ -45,10 +45,10 @@ describe('BUGFIX-CRM-VISIBLE — Banker workspace mounts the CRM entry', () => {
     expect(shell).toMatch(/<BankerCrmIntelligencePanel\s*\/>/);
   });
 
-  it('the panel renders the required CRM Command Center entry copy', () => {
+  it('the panel renders the required CRM Command Center entry copy (bank-user)', () => {
     expect(panel).toContain('CRM Command Center');
-    expect(panel).toContain('OGB CRM and internal lending workflow intelligence');
-    expect(panel).toContain('Review source-of-truth, relationship matching, and internal readiness posture.');
+    expect(panel).toContain('Relationship and loan workflow intelligence');
+    expect(panel).toContain('Review relationship records, matching, and readiness');
   });
 
   it('the panel renders the read-only CRM banker working surface', () => {
@@ -115,29 +115,29 @@ describe('BUGFIX-CRM-VISIBLE — mount is read-only, preview-honest, no writes /
 });
 
 describe('BUGFIX-CRM-VISIBLE — preview inputs are honest (not-connected, zero counts, no live href)', () => {
-  it('banker preview is not-connected and exposes no command-center href', () => {
+  it('banker preview is not-connected and exposes no command-center href (bank-user copy)', () => {
     const i = bankerCrmPreviewInput();
-    expect(i.salesforceReadiness).toMatch(/OGB CRM active/i);
-    expect(i.ncinoReadiness).toMatch(/Internal lending workflow active/i);
+    expect(i.salesforceReadiness).toMatch(/CRM is active/i);
+    expect(i.ncinoReadiness).toMatch(/Loan workflow is active/i);
     expect(i.sourceOfTruthGaps).toBe(0);
     expect(i.syncPreviewBlockers).toBe(0);
     expect(i.crmCommandCenterHref).toBeUndefined();
-    expect(i.nextSafeBankerStep).toMatch(/writeback gated/i);
+    expect(i.nextSafeBankerStep).toMatch(/relationship records/i);
   });
 
-  it('manager preview is not-connected with no assignment changes', () => {
+  it('manager preview is not-connected (bank-user copy)', () => {
     const i = managerCrmPreviewInput();
-    expect(i.teamCrmReadiness).toMatch(/OGB CRM active/i);
+    expect(i.teamCrmReadiness).toMatch(/CRM is active/i);
     expect(i.syncPreviewBlockedCount).toBe(0);
     expect(i.crmCommandCenterHref).toBeUndefined();
-    expect(i.nextSafeManagerStep).toMatch(/no assignment changes/i);
+    expect(i.nextSafeManagerStep).toMatch(/relationship coverage/i);
   });
 
-  it('executive preview shows no revenue figures and no live writes', () => {
+  it('executive preview shows no revenue figures and is not-connected', () => {
     const i = executiveCrmPreviewInput();
     expect(i.revenueDataAvailability).toMatch(/no revenue figures/i);
     expect(i.relationshipIntelligenceGaps).toBe(0);
     expect(i.crmCommandCenterHref).toBeUndefined();
-    expect(i.nextExecutiveStep).toMatch(/no live writes/i);
+    expect(i.nextExecutiveStep).toMatch(/CRM coverage and activation/i);
   });
 });

@@ -111,12 +111,12 @@ describe('202 — user-facing surfaces are OGB-native active (no external/brand 
     expect(bankerSurfaceTest).toMatch(/not\.toMatch\(\/\\bnCino\\b\/\)/);
   });
 
-  it('the banker CRM surfaces present active OGB CRM + internal lending workflow posture', () => {
-    expect(PREVIEW_INPUTS).toMatch(/OGB CRM active/);
-    expect(PREVIEW_INPUTS).toMatch(/Internal lending workflow active/);
-    expect(BANKER_PANEL).toMatch(/OGB CRM active/);
-    expect(BANKER_PANEL).toMatch(/Internal lending workflow active/);
-    expect(BANKER_SURFACE).toMatch(/OGB CRM active/);
+  it('the banker CRM surfaces present an active CRM + loan workflow posture (bank-user copy)', () => {
+    expect(PREVIEW_INPUTS).toMatch(/CRM is active/);
+    expect(PREVIEW_INPUTS).toMatch(/Loan workflow is active/);
+    expect(BANKER_PANEL).toMatch(/CRM active/);
+    expect(BANKER_PANEL).toMatch(/Loan workflow is active/);
+    expect(BANKER_SURFACE).toMatch(/CRM is active/);
   });
 
   it('the launch-readiness CRM domain label is OGB-native (no external brand)', () => {
