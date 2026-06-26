@@ -78,9 +78,11 @@ describe('204N — panel polish is read-only and explains the safe-read', () => 
     expect(PANEL).toMatch(/formatProfileReference/);
     expect(PANEL).toMatch(/formatSafeReadWorkspaceName/);
   });
-  it('includes safe-read / read-only explanatory copy', () => {
+  it('includes safe-read explanatory copy and (Phase 259) honest add-user operator guidance', () => {
     expect(PANEL).toMatch(/intentionally not selected from Dataverse/i);
-    expect(PANEL).toMatch(/read-only visibility only/i);
+    // Phase 259 (Remediation A): the disabled preview grant form is replaced
+    // by honest operator guidance for provisioning a new user.
+    expect(PANEL).toMatch(/provisioned by an operator/i);
   });
   it('introduces no write call in the panel', () => {
     expect(PANEL).not.toMatch(/\bfetch\s*\(/);
