@@ -194,7 +194,11 @@ function ResultBanner({ submit }: { submit: SubmitState }) {
     case 'success_created_with_automation':
       return (
         <div style={styles.bannerOk} role="status" data-banker-new-deal-result="success">
-          ✓ Deal created. Id {r.createdDealId}. Stage {r.stageLabel} · Status {r.statusLabel}.
+          ✓ Deal created. Id {r.createdDealId}. Stage {r.stageLabel} · Status {r.statusLabel}.{' '}
+          It now appears in your Active Deals and Loan Workflow.{' '}
+          <a href={`/deals/${r.createdDealId}`} style={styles.openDealLink} data-banker-new-deal-open>
+            Open deal →
+          </a>
         </div>
       );
     case 'audit_failed_partial':
@@ -304,6 +308,12 @@ const styles: Record<string, CSSProperties> = {
     padding: `${spacing.sm} ${spacing.md}`,
     color: palette.text,
     fontSize: typography.size.sm,
+  },
+  openDealLink: {
+    color: palette.cobalt,
+    fontWeight: typography.weight.bold,
+    textDecoration: 'none',
+    whiteSpace: 'nowrap',
   },
   bannerWarn: {
     background: palette.atRiskBg,

@@ -85,6 +85,10 @@ describe('Phase 182A -- banker New Deal create surface', () => {
       expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
     );
     expect(screen.getByText(/Deal created\. Id deal-xyz/)).toBeInTheDocument();
+    // Phase 258: success routes to the created deal and confirms visibility.
+    const open = container.querySelector('[data-banker-new-deal-open]');
+    expect(open?.getAttribute('href')).toBe('/deals/deal-xyz');
+    expect(screen.getByText(/appears in your Active Deals and Loan Workflow/i)).toBeInTheDocument();
     // Orchestrator called with downstream config empty (all disabled).
     const callArg = orchestrateMock.mock.calls[0]![0] as { config: unknown; form: { dealName: string } };
     expect(callArg.config).toEqual({});
