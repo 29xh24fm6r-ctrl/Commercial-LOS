@@ -69,8 +69,8 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
       state: gateState(BANKER_NEW_DEAL_CREATE_ENABLED),
       value: BANKER_NEW_DEAL_CREATE_ENABLED ? 'Create enabled' : 'Create gated',
       summary:
-        'New Deal intake/readiness is visible. Banker create remains governed by production reference approval and certified create adapter gates.',
-      nextAction: 'Use intake readiness and duplicate detection; enable create only through certified pilot/go-live controls.',
+        'New Deal create is live for authorized bankers — deals open at Intake / Open and are audited.',
+      nextAction: 'Create deals from the “+ New Deal” action; duplicate detection runs before a deal is created.',
     },
     {
       id: 'document-readiness',

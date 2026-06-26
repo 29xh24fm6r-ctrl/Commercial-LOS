@@ -119,14 +119,16 @@ describe('Phase 169B -- panel renders real read-only data', () => {
     expect(note.textContent).toMatch(/live-safe entitlement fields only/i);
   });
 
-  it('keeps grant access disabled with the read-only-phase note (Phase 204N)', async () => {
+  it('Phase 259: replaces the disabled grant-access preview form with operator guidance', async () => {
     loadMock.mockResolvedValue(summary());
     const { container } = render(<UserAccessManagementPanel />);
-    const submit = container.querySelector('[data-admin-grant-submit]') as HTMLButtonElement;
-    expect(submit).toBeDisabled();
-    const note = container.querySelector('[data-admin-user-access-readonly-note]');
-    expect(note?.textContent).toMatch(/Grant access is still disabled/i);
-    expect(note?.textContent).toMatch(/governed-write phase/i);
+    // The disabled preview form is gone.
+    expect(container.querySelector('[data-admin-grant-submit]')).toBeNull();
+    expect(container.querySelector('[data-admin-grant-field="email"]')).toBeNull();
+    // Honest operator guidance is shown instead.
+    const guidance = container.querySelector('[data-admin-user-access-add-guidance]');
+    expect(guidance?.textContent).toMatch(/provisioned by an operator/i);
+    expect(guidance?.textContent).toMatch(/Workspace entitlement/i);
   });
 
   it('fails closed to "Not available" when the read rejects', async () => {
@@ -163,15 +165,11 @@ describe('Phase 169B -- panel keeps writes disabled and discloses scope', () => 
     expect(disclaimer?.textContent).toMatch(/does not grant Microsoft tenant access or Dataverse security roles/i);
   });
 
-  it('renders the grant form with a DISABLED submit and the exact blocker', async () => {
+  it('Phase 259: exposes no disabled add-user write control', async () => {
     loadMock.mockResolvedValue(summary());
     const { container } = render(<UserAccessManagementPanel />);
-    const submit = container.querySelector('[data-admin-grant-submit]') as HTMLButtonElement;
-    expect(submit).not.toBeNull();
-    expect(submit).toBeDisabled();
-    expect(submit.getAttribute('aria-disabled')).toBe('true');
-    const blocker = container.querySelector('[data-admin-user-access-blocker]');
-    expect(blocker?.textContent).toMatch(/No governed app-level entitlement write adapter exists/i);
+    expect(container.querySelector('[data-admin-grant-submit]')).toBeNull();
+    expect(container.querySelector('[data-admin-user-access-blocker]')).toBeNull();
   });
 
   it('shows the Power Platform admin center role notice', async () => {

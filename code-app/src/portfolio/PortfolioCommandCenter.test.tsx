@@ -281,14 +281,14 @@ describe('Phase 126A — KPI ribbon', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders "Not yet wired" for Avg days in stage when no deal has a stageEntryDate (honest absence)', () => {
+  it('renders "Not available" for Avg days in stage when no deal has a stageEntryDate (honest absence)', () => {
     setAllReady({
       pipeline: [deal({ stageEntryDate: undefined })],
       bankers: [banker()],
     });
     renderCockpit();
     const ribbon = screen.getByLabelText('Portfolio KPI ribbon');
-    expect(within(ribbon).getByText(/Not yet wired/i)).toBeInTheDocument();
+    expect(within(ribbon).getByText(/Not available/i)).toBeInTheDocument();
   });
 });
 

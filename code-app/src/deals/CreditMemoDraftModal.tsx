@@ -225,7 +225,7 @@ export function CreditMemoDraftModal({
           Generated locally from the deal record only. No AI was used.
           {onSave
             ? ' Save Draft persists a Draft memo record (and Pending section drafts) plus governance events; it never finalizes, exports, or sends.'
-            : ' No memo will be saved, exported, or finalized from this dialog. Persistence and export are a later phase.'}
+            : ' This draft is not saved, exported, or finalized from this dialog.'}
         </p>
 
         {stage.kind === 'save-outcome' ? (

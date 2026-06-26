@@ -5,11 +5,7 @@ import {
   loadAdminUserAccessSummary,
   type AdminUserAccessSummary,
 } from './adminUserAccessQueries';
-import {
-  ADMIN_ACCESS_LEVELS,
-  USER_ACCESS_SCOPE_DISCLAIMER,
-  USER_ACCESS_WRITE_BLOCKER,
-} from './adminUserAccessModel';
+import { USER_ACCESS_SCOPE_DISCLAIMER } from './adminUserAccessModel';
 import {
   formatAdminAccessLevel,
   formatProfileReference,
@@ -26,12 +22,6 @@ import { WorkspaceEntitlementManager } from './WorkspaceEntitlementManager';
 const SAFE_READ_EXPLANATION =
   'Workspace and profile display names are intentionally not selected from Dataverse. ' +
   'This console uses the live-safe entitlement fields only and shows raw profile IDs where available.';
-
-const PHASE_204N_READONLY_NOTE =
-  'Grant access is still disabled. This phase improves read-only visibility only. ' +
-  'A future governed-write phase must add authorization, audit, correlation ID, ' +
-  'fail-closed outcome handling, and a controlled single-record smoke test before ' +
-  'any access grant can be created here.';
 
 /**
  * Phase 169B -- User & Access Management panel (read-only + preview).
@@ -98,7 +88,7 @@ export function UserAccessManagementPanel() {
       <UsersTable state={state} />
       <EntitlementsTable state={state} />
       <WorkspaceEntitlementManager />
-      <GrantAccessPreviewForm />
+      <AddUserGuidance />
     </section>
   );
 }
@@ -229,73 +219,26 @@ function EntitlementsTable({ state }: { state: LoadState }) {
 }
 
 /**
- * Preview-only grant form. Inputs are editable so an admin can see the
- * required data, but submit is disabled and the exact blocker is shown.
- * No state is written anywhere.
+ * Phase 259 (Remediation A) — the disabled "Add user / grant access" preview
+ * form is removed. Adding a brand-new platform user (with their Dataverse
+ * identity) is an operator provisioning task, not an in-app action. Changing an
+ * EXISTING user's workspace is fully governed above (Workspace entitlement).
+ * This block gives operators the real, honest guidance.
  */
-function GrantAccessPreviewForm() {
+function AddUserGuidance() {
   return (
-    <div style={styles.formWrap} data-admin-user-access-grant="preview">
-      <div style={styles.formTitle}>Add user / grant access (preview)</div>
-      <div style={styles.formGrid}>
-        <label style={styles.field}>
-          <span style={styles.fieldLabel}>Email / UPN</span>
-          <input
-            type="email"
-            style={styles.input}
-            placeholder="person@oldglorybank.com"
-            data-admin-grant-field="email"
-          />
-        </label>
-        <label style={styles.field}>
-          <span style={styles.fieldLabel}>Full name</span>
-          <input
-            type="text"
-            style={styles.input}
-            placeholder="Full name"
-            data-admin-grant-field="fullName"
-          />
-        </label>
-        <label style={styles.field}>
-          <span style={styles.fieldLabel}>Workspace to grant</span>
-          <input
-            type="text"
-            style={styles.input}
-            placeholder="Banker Workspace"
-            data-admin-grant-field="workspace"
-          />
-        </label>
-        <label style={styles.field}>
-          <span style={styles.fieldLabel}>Access level</span>
-          <select style={styles.input} data-admin-grant-field="accessLevel" defaultValue="ReadOnly">
-            {ADMIN_ACCESS_LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
-        style={styles.disabledSubmit}
-        title={USER_ACCESS_WRITE_BLOCKER}
-        aria-label="Grant access (not yet available)"
-        data-admin-grant-submit
-      >
-        Grant access (not yet available)
-      </button>
-      <p style={styles.blocker} data-admin-user-access-blocker>
-        <strong>Blocker:</strong> {USER_ACCESS_WRITE_BLOCKER}
-      </p>
-      <p style={styles.blocker} data-admin-user-access-readonly-note>
-        {PHASE_204N_READONLY_NOTE}
+    <div style={styles.formWrap} data-admin-user-access-add-guidance>
+      <div style={styles.formTitle}>Add a new user</div>
+      <p style={styles.blocker}>
+        New platform users are provisioned by an operator (the user’s Dataverse
+        identity and platform-user record are created with the seed/provisioning
+        process), not from this app. Once a user exists, set their workspace
+        above with the governed, audited <strong>Workspace entitlement</strong>{' '}
+        control.
       </p>
       <p style={styles.roleNotice} data-admin-user-access-role-notice>
-        Dataverse security roles must be managed in the Power Platform admin
-        center. This form would only manage LOS app-level entitlements.
+        Microsoft tenant and Dataverse security roles are assigned in the Power
+        Platform admin center, not here.
       </p>
     </div>
   );

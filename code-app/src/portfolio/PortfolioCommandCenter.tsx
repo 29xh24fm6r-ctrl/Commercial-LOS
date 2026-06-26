@@ -388,7 +388,7 @@ function KpiRibbon({
       label: 'Avg days in stage',
       value:
         ribbon.avgDaysInStage === undefined
-          ? 'Not yet wired'
+          ? 'Not available'
           : `${ribbon.avgDaysInStage}d`,
       tone: 'info',
       ariaLabel:

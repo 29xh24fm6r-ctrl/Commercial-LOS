@@ -14,7 +14,7 @@ export function AdvanceWorkflowStageButton({ workflow }: { workflow: LoanWorkflo
       setMessage([policy.reason, ...policy.blockers].join(' '));
       return;
     }
-    setMessage('Stage write dependency is not wired. No stage update or audit was attempted.');
+    setMessage('Stage advancement is not enabled in this workspace yet. No change was made to the deal.');
   }
 
   return (
