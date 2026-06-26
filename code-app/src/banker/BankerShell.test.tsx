@@ -103,6 +103,10 @@ vi.mock('./BankerLoanWorkflowWorkbench', () => ({
     </section>
   ),
 }));
+// Phase 259 — Existing Portfolio Loans panel does a live read; stub it.
+vi.mock('../portfolioBoarding/ExistingPortfolioLoansPanel', () => ({
+  ExistingPortfolioLoansPanel: () => <section data-testid="existing-portfolio-panel" />,
+}));
 
 import { loadBankerWorkQueueData } from './workQueueQueries';
 import { useBanker } from './BankerContext';

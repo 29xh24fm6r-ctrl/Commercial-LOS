@@ -1,17 +1,31 @@
+import type { CSSProperties } from 'react';
+import { useBanker } from './BankerContext';
 import { BankerLoanWorkflowWorkbench } from './BankerLoanWorkflowWorkbench';
+import { ExistingPortfolioLoansPanel } from '../portfolioBoarding/ExistingPortfolioLoansPanel';
+import { spacing } from '../shared/theme';
 
 /**
- * Phase 257 / 258 — Banker Loan Workflow destination.
+ * Phase 257 / 258 / 259 — Banker Loan Workflow destination.
  *
- * The "Loan Workflow" sidebar/tab destination renders the lending workbench:
- * My Active Deals, Recently Created, Closing Soon, and Needs Attention over a
- * deal table (name, borrower, stage, status, amount, owner, next action, last
- * activity). Opening a deal routes to its Loan Workflow Command Center.
+ * Renders the lending workbench (deal sections + table → command center) and,
+ * below it, the Existing Portfolio Loans panel so a banker/operator can board
+ * a loan already in the bank's portfolio (manual existing-loan entry) and see
+ * boarded loans in the portfolio/servicing context.
  */
 export function BankerLoanWorkflowTab() {
+  const { systemUserId, email, writeDisabledReason } = useBanker();
   return (
-    <div data-banker-loan-workflow="panel">
+    <div data-banker-loan-workflow="panel" style={styles.stack}>
       <BankerLoanWorkflowWorkbench />
+      <ExistingPortfolioLoansPanel
+        actorEmail={email}
+        actorSystemUserId={systemUserId}
+        writeDisabledReason={writeDisabledReason}
+      />
     </div>
   );
 }
+
+const styles: Record<string, CSSProperties> = {
+  stack: { display: 'flex', flexDirection: 'column', gap: spacing.xl },
+};

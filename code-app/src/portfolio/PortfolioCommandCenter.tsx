@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useManagerData } from '../manager/ManagerDataProvider';
+import { ExistingPortfolioLoansPanel } from '../portfolioBoarding/ExistingPortfolioLoansPanel';
 import { useOptionalManagerBankerFilter, dealMatchesBankerFilter } from '../manager/ManagerBankerFilter';
 import {
   deriveRiskDistribution,
@@ -240,6 +241,14 @@ export function PortfolioCommandCenter() {
           <Exceptions rows={snapshot.exceptions} />
         </div>
       )}
+      {/* Phase 259 — boarded portfolio loans (incl. manually-boarded existing
+          loans) appear here. Boarding identity lives on the Loan Workflow
+          workspace, so this surface is a read-only list + guidance. */}
+      <ExistingPortfolioLoansPanel
+        actorEmail={undefined}
+        actorSystemUserId={undefined}
+        writeDisabledReason="Board existing portfolio loans from the Loan Workflow workspace."
+      />
     </section>
   );
 }

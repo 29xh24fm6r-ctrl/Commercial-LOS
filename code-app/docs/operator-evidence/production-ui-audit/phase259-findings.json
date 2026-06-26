@@ -1,0 +1,150 @@
+{
+  "phase": 259,
+  "title": "Production UI functionality audit",
+  "generatedFor": "Old Glory Bank Commercial-LOS code app",
+  "baseCommit": "3629021",
+  "methodology": "Grepped src/ for the stale/launch-copy phrase set across banker/admin/crm/portfolio/workflow/workspaces/deals surfaces. Comments, JSDoc, *.test.* fixtures, generated SDK, and internal governance-model constants are excluded from findings unless rendered to a user. Each finding is classified by who sees it (bank-facing vs admin-only) and a disposition. Phrase scan totals (user-facing dirs, .tsx/.ts, comments/tests partially filtered): 'not yet wired'=5, 'not wired'=22, 'not yet available'=5, 'not available'=38, 'writeback gated'=1, 'source-of-truth'=14, 'future phase'=4, 'later phase'=7, 'no governed'=12, 'production reference approval'=3, 'preview'=262, 'blocked'=658, 'gated'=158 — the high-count phrases ('preview','blocked','gated','disabled','TEST','OFF') are overwhelmingly code comments, governance-model internals, HTML disabled attributes, and admin diagnostics, not banker-visible copy.",
+  "severityLegend": {
+    "high": "banker-visible broken functionality or dead control",
+    "medium": "banker- or operator-visible stale/confusing copy, or admin preview control to remove/implement",
+    "low": "copy-only polish; non-blocking"
+  },
+  "dispositionLegend": [
+    "bank-facing-launch-blocker",
+    "admin-only-governance-detail",
+    "roadmap-item-to-hide",
+    "copy-only-cleanup",
+    "legitimate-unavailable-metric",
+    "broken-functionality"
+  ],
+  "findings": [
+    {
+      "id": "F1",
+      "file": "src/admin/UserAccessManagementPanel.tsx",
+      "line": 285,
+      "visibleText": "Grant access (not yet available)",
+      "surface": "Admin > User & Access Management (preview grant form)",
+      "severity": "medium",
+      "disposition": "bank-facing-launch-blocker",
+      "fix": "Remediation A: removed the disabled preview Add-user/Grant-access form and replaced it with explicit operator guidance. The governed workspace-entitlement dropdown (Phase 257) remains the real, audited app-level access control."
+    },
+    {
+      "id": "F2",
+      "file": "src/banker/bankerOperatingCommandCenterModel.ts",
+      "line": 72,
+      "visibleText": "Banker create remains governed by production reference approval and certified create adapter gates.",
+      "surface": "Banker dashboard > Operating Command Center (New Deal intake row)",
+      "severity": "medium",
+      "disposition": "copy-only-cleanup",
+      "fix": "Banker create is live (BANKER_CREATE_PILOT). Replaced the stale governance summary with bank-user copy describing live create at Intake/Open."
+    },
+    {
+      "id": "F3",
+      "file": "src/deals/CreditMemoDraftModal.tsx",
+      "line": 228,
+      "visibleText": "Persistence and export are a later phase.",
+      "surface": "Banker deal cockpit > Credit memo draft modal",
+      "severity": "low",
+      "disposition": "copy-only-cleanup",
+      "fix": "Replaced 'later phase' with bank-user copy ('This draft is not saved or exported from this dialog.')."
+    },
+    {
+      "id": "F4",
+      "file": "src/workflow/AdvanceWorkflowStageButton.tsx",
+      "line": 17,
+      "visibleText": "Stage write dependency is not wired. No stage update or audit was attempted.",
+      "surface": "Banker deal command center > Advance stage action",
+      "severity": "high",
+      "disposition": "roadmap-item-to-hide",
+      "fix": "The governed stage-advancement WRITE adapter is not wired (a separate DELIBERATELY_BLOCKED governance capability). The button gives honest feedback rather than failing silently, so it is not a dead control, but it does not perform a write. Re-labelled to make the roadmap status explicit to bankers and kept the honest no-write feedback; a governed stage-write adapter remains a future phase (documented as a remaining intentional limitation)."
+    },
+    {
+      "id": "F5",
+      "file": "src/crm/CrmRelationshipPanel.tsx",
+      "line": 164,
+      "visibleText": "not seeded · not wired",
+      "surface": "Banker deal command center > CRM relationship panel (per-deal)",
+      "severity": "medium",
+      "disposition": "legitimate-unavailable-metric",
+      "fix": "Per-deal CRM spine linkage is genuinely absent when a deal's client is not linked to a cr664_crm* record. This is the OLD per-deal relationship readiness, distinct from the new live CRM Hub (which reads the cr664_crm* tables directly). Left as an honest per-deal empty state; the bank-user CRM system is the CRM Hub tab."
+    },
+    {
+      "id": "F6",
+      "file": "src/portfolio/PortfolioCommandCenter.tsx",
+      "line": 382,
+      "visibleText": "Not yet wired",
+      "surface": "Manager/Portfolio command center (a KPI without a live source)",
+      "severity": "low",
+      "disposition": "legitimate-unavailable-metric",
+      "fix": "A portfolio KPI the live schema does not surface. Re-labelled to bank-user 'Not available' (consistent with the banker KPI grid)."
+    },
+    {
+      "id": "F7",
+      "file": "src/admin/ReleaseReadinessGate.tsx",
+      "line": "153,195,361,368",
+      "visibleText": "Not wired / In-app observability not wired / Cannot fully verify — signals not wired",
+      "surface": "Admin Diagnostics > Release readiness gate",
+      "severity": "low",
+      "disposition": "admin-only-governance-detail",
+      "fix": "Kept. Admin-only operator governance detail (signal-wiring status), exactly where readiness belongs."
+    },
+    {
+      "id": "F8",
+      "file": "src/admin/StageGovernanceDiagnostics.tsx",
+      "line": "119-121",
+      "visibleText": "Critical — not yet available / Needs review — not yet available / Not yet available",
+      "surface": "Admin Diagnostics > Stage governance diagnostics",
+      "severity": "low",
+      "disposition": "admin-only-governance-detail",
+      "fix": "Kept. Admin-only governance metric severity labels."
+    },
+    {
+      "id": "F9",
+      "file": "src/admin/SystemHealthSummary.tsx",
+      "line": 203,
+      "visibleText": "Not wired",
+      "surface": "Admin Diagnostics > System health summary",
+      "severity": "low",
+      "disposition": "admin-only-governance-detail",
+      "fix": "Kept. Admin-only health-signal status."
+    },
+    {
+      "id": "F10",
+      "file": "src/admin/adminNewDealIntakeModel.ts",
+      "line": "52,53",
+      "visibleText": "Production reference approval = Pending / Governed create adapter = Not wired",
+      "surface": "Admin Diagnostics > New Deal intake readiness",
+      "severity": "medium",
+      "disposition": "admin-only-governance-detail",
+      "fix": "Kept as admin governance detail. NOTE: banker create is live via the BANKER_CREATE_PILOT (a separate narrowly-scoped path); this admin model tracks the broader public/admin create governance path, which remains gated. Distinction documented in Phase 257."
+    },
+    {
+      "id": "F11",
+      "file": "src/admin/ogbCrmWorkflowActivationModel.ts / eliteCrmLosActivationReadinessModel.ts",
+      "line": "61,98",
+      "visibleText": "CRM writeback gated (read-only; no live persistence) / Complete production reference approval ... before enabling.",
+      "surface": "Admin Diagnostics > CRM/LOS activation readiness",
+      "severity": "low",
+      "disposition": "admin-only-governance-detail",
+      "fix": "Kept. Admin-only activation readiness detail."
+    },
+    {
+      "id": "F12",
+      "file": "src/portfolioBoarding/* (PortfolioLoanBoardingPreview, CreateFlow, Workspace)",
+      "line": "n/a",
+      "visibleText": "Portfolio boarding 'preview'/'read-only' surfaces built but unmounted",
+      "surface": "Portfolio boarding (built, not exposed to users)",
+      "severity": "high",
+      "disposition": "bank-facing-launch-blocker",
+      "fix": "Remediation B: shipped a user-facing governed 'Add Existing Loan' (manual existing-portfolio-loan boarding) action in the Portfolio workspace and Loan Workflow, persisting to cr664_portfolioboardedloan + child records with readback + audit + fail-closed, surfacing boarded loans in a portfolio list with a detail drawer."
+    }
+  ],
+  "summaryBySeverity": { "high": 3, "medium": 5, "low": 4 },
+  "summaryByDisposition": {
+    "bank-facing-launch-blocker": 2,
+    "copy-only-cleanup": 2,
+    "roadmap-item-to-hide": 1,
+    "legitimate-unavailable-metric": 2,
+    "admin-only-governance-detail": 5
+  }
+}

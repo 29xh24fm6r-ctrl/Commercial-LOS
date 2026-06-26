@@ -5,6 +5,11 @@ import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
+// Phase 259 — Existing Portfolio Loans panel does a live read; stub it here.
+vi.mock('../portfolioBoarding/ExistingPortfolioLoansPanel', () => ({
+  ExistingPortfolioLoansPanel: () => <section data-testid="existing-portfolio-panel" />,
+}));
+
 import type {
   TeamDeal,
   TeamBanker,
