@@ -130,9 +130,9 @@ export function buildImportTemplateCsv(): string {
     'Accrual Status': 'Accrual',
     'Past Due Days': '0',
     'Watchlist Flag': 'No',
-    'Collateral Type/Value': 'CRE - 123 Main St; $650000',
+    'Collateral Type/Value': 'CRE - 123 Main St; 650000 est. value',
     'Guarantor Name': 'Jane Doe; John Doe',
-    'Covenant Names': 'DSCR >= 1.25; Min liquidity $100k',
+    'Covenant Names': 'DSCR >= 1.25; Min liquidity 100k',
     'Insurance Expiration': 'Hazard - 2026-09-01',
     'Review Notes': 'Annual review completed 2025-03',
   };
