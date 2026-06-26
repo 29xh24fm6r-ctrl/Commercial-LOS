@@ -111,7 +111,7 @@ export function DrillThroughPanel({ target, headingId }: Props) {
       )}
 
       <CardFooter>
-        <span>Read-only detail — no write, no live call, and no state change occurs here.</span>
+        <span>Read-only — no changes are made here.</span>
       </CardFooter>
     </Card>
   );

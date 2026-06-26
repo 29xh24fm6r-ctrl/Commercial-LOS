@@ -83,7 +83,7 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
       'Creating a brand-new platform user (with their Dataverse identity) is provisioned by an operator, not from the app.',
     nextStep:
       'Use the Workspace entitlement controls below to set each user’s primary workspace.',
-    manage: { kind: 'in-console', anchor: 'admin-user-access', label: 'Manage workspace entitlement below' },
+    manage: { kind: 'in-console', anchor: 'admin-user-access', label: 'Manage workspace entitlement below' } as const,
   }),
   Object.freeze({
     id: 'new-deal-intake',
@@ -96,7 +96,7 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
       'Public / anonymous create stays disabled; only authorized bankers create deals.',
     nextStep:
       'Create deals from the Banker Workspace “+ New Deal” action — each create resolves the production Stage (Intake) and Status (Open) references and is audited.',
-    manage: { kind: 'route', route: WORKSPACE_ROUTES.banker, label: 'Open Banker Workspace' },
+    manage: { kind: 'route', route: WORKSPACE_ROUTES.banker, label: 'Open Banker Workspace' } as const,
   }),
   Object.freeze({
     id: 'portfolio-boarding',
@@ -109,7 +109,7 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
       'No external boarding sync is enabled; this is the internal OGB workflow / boarding system.',
     nextStep:
       'Board and service closed / legacy loans from the Portfolio workspace.',
-    manage: { kind: 'route', route: WORKSPACE_ROUTES.manager, label: 'Open Portfolio workspace' },
+    manage: { kind: 'route', route: WORKSPACE_ROUTES.manager, label: 'Open Portfolio workspace' } as const,
   }),
   Object.freeze({
     id: 'crm-onboarding',
@@ -122,7 +122,7 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
       'No external Salesforce or nCino sync is enabled; this is the internal OGB CRM relationship system.',
     nextStep:
       'Manage relationships, contacts, and activity from the CRM Hub in the Banker workspace.',
-    manage: { kind: 'route', route: WORKSPACE_ROUTES.banker, label: 'Open CRM workspace' },
+    manage: { kind: 'route', route: WORKSPACE_ROUTES.banker, label: 'Open CRM workspace' } as const,
   }),
   Object.freeze({
     id: 'security-roles',
@@ -134,7 +134,7 @@ export const ADMIN_CONSOLE_MODULES: readonly AdminConsoleModule[] = Object.freez
       'Microsoft tenant / Dataverse security roles cannot be granted from here; there is no in-app platform security-role API.',
     nextStep:
       'Assign platform security roles in the Power Platform admin center.',
-    manage: { kind: 'external', label: 'Managed in the Power Platform admin center' },
+    manage: { kind: 'external', label: 'Managed in the Power Platform admin center' } as const,
   }),
 ]);
 

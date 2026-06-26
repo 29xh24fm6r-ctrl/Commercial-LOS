@@ -91,7 +91,7 @@ describe('Phase 257 — changePrimaryWorkspace fail-closed posture', () => {
   });
 
   it('reports write-failed and emits a Failed audit when the update fails', async () => {
-    const emitAudit = vi.fn(async () => ({ success: true, id: 'audit-fail' }));
+    const emitAudit = vi.fn(async (_payload: Record<string, unknown>) => ({ success: true, id: 'audit-fail' }));
     const deps = makeDeps({
       updateUser: vi.fn(async () => ({ success: false, error: { message: 'update rejected' } })),
       emitAudit,
@@ -145,7 +145,7 @@ describe('Phase 257 — changePrimaryWorkspace fail-closed posture', () => {
   it('succeeds on a verified write: correct lookup bind + Succeeded audit', async () => {
     let reads = 0;
     const updateUser = vi.fn(async () => ({ success: true }));
-    const emitAudit = vi.fn(async () => ({ success: true, id: 'audit-ok' }));
+    const emitAudit = vi.fn(async (_payload: Record<string, unknown>) => ({ success: true, id: 'audit-ok' }));
     const deps = makeDeps({
       getUser: vi.fn(async () => {
         reads += 1;

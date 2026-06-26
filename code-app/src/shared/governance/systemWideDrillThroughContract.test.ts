@@ -131,7 +131,7 @@ describe('Phase 144A — read-only panel renders read-only details', () => {
   const panel = readFileSync(resolve(REPO_ROOT, 'src/shared/drillthrough/DrillThroughPanel.tsx'), 'utf8');
   it('panel pins a read-only badge and a read-only footer disclaimer', () => {
     expect(panel).toContain('Read-only');
-    expect(panel).toMatch(/no write, no live call, and no state change occurs here/i);
+    expect(panel).toMatch(/no changes are made here/i);
   });
   it('panel renders an honest unavailable branch (no fabricated rows)', () => {
     expect(panel).toMatch(/unavailable/i);

@@ -53,7 +53,7 @@ export function WorkspaceEntitlementManager({
   loadData = loadWorkspaceEntitlementData,
   performChange = defaultPerformChange,
 }: Props = {}) {
-  const { fullName, upn, systemUserId, writeDisabledReason } = useAdmin();
+  const { upn, systemUserId, writeDisabledReason } = useAdmin();
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [selection, setSelection] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Record<string, RowStatus>>({});
