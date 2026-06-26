@@ -59,6 +59,13 @@ export interface GreetingHeaderProps {
   /** Callback after a governed activity write completes. */
   onActivityLogged?: () => void;
   /**
+   * Phase 257 — opens the governed New Deal create flow (the Active Deals
+   * New Deal panel). The header button is a navigation shortcut; the panel
+   * itself enforces authorization, the production Stage/Status resolver, and
+   * audit.
+   */
+  onNewDeal?: () => void;
+  /**
    * Optional override for `now` -- primarily for tests.
    */
   now?: Date;
@@ -73,6 +80,7 @@ export function GreetingHeader({
   activityDealOptions,
   openTaskCount,
   onActivityLogged,
+  onNewDeal,
   now: nowOverride,
 }: GreetingHeaderProps) {
   const now = nowOverride ?? new Date();
@@ -123,11 +131,16 @@ export function GreetingHeader({
               tooltip={writeDisabledReason ?? 'Log Activity requires write entitlement.'}
             />
           )}
-          <ActionButton
-            label="+ New Deal"
-            tooltip="Create a deal from the New Deal panel on the Active Deals tab. The governed create resolves the production Stage (Intake) and Status (Open) references at runtime and is audited; this header shortcut is not wired."
-            primary
-          />
+          <button
+            type="button"
+            style={styles.primaryEnabledButton}
+            aria-label="Create deal"
+            title="Open the New Deal panel. Stage opens at Intake with status Open; the create is governed and audited."
+            onClick={() => onNewDeal?.()}
+            data-action-new-deal
+          >
+            + New Deal
+          </button>
         </div>
       </div>
       <div style={styles.metaRow}>
@@ -355,6 +368,20 @@ const styles: Record<string, CSSProperties> = {
     fontFamily: typography.family,
     cursor: 'not-allowed',
     opacity: 0.7,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  primaryEnabledButton: {
+    background: palette.cobalt,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    fontFamily: typography.family,
+    cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
     gap: spacing.xs,

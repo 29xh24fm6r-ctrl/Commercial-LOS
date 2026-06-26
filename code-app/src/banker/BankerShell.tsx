@@ -14,6 +14,7 @@ import { PersonalPipeline } from './PersonalPipeline';
 import { BankerActivityFeed } from './BankerActivityFeed';
 import { BankerDueDiligenceView } from './BankerDueDiligenceView';
 import { BankerNewDealCreate } from './BankerNewDealCreate';
+import { BankerLoanWorkflowTab } from './BankerLoanWorkflowTab';
 import { LendingOSLayout, type LendingOSNavKey } from './LendingOSLayout';
 import { GreetingHeader } from './GreetingHeader';
 import { BankerKpiGrid } from './BankerKpiGrid';
@@ -54,6 +55,8 @@ type ShellTab =
   | 'due-diligence'
   | 'activity'
   | 'relationships'
+  | 'crm-hub'
+  | 'loan-workflow'
   | 'signals';
 
 interface TabSpec {
@@ -65,8 +68,10 @@ interface TabSpec {
 const TAB_SPECS: ReadonlyArray<TabSpec> = [
   { key: 'dashboard', label: 'Dashboard', nav: 'dashboard' },
   { key: 'active-deals', label: 'Active Deals', nav: 'active-deals' },
+  { key: 'loan-workflow', label: 'Loan Workflow', nav: 'loan-workflow' },
   { key: 'tasks', label: 'Tasks & Actions', nav: 'tasks' },
   { key: 'due-diligence', label: 'Due Diligence', nav: 'due-diligence' },
+  { key: 'crm-hub', label: 'CRM Hub', nav: 'crm-hub' },
   { key: 'activity', label: 'Activity', nav: 'activity' },
   { key: 'relationships', label: 'Relationships', nav: 'relationships' },
   { key: 'my-alerts', label: 'My Alerts', nav: 'my-alerts' },
@@ -115,6 +120,32 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
     const cleanup = reload();
     return cleanup;
   }, [reload]);
+
+  // Phase 257 — the header "+ New Deal" shortcut routes to the Active Deals
+  // tab's governed New Deal panel (the single create surface) and focuses it.
+  // The panel itself enforces authorization, the production Stage/Status
+  // resolver, and audit; the header is only a navigation shortcut.
+  const [newDealFocusNonce, setNewDealFocusNonce] = useState(0);
+  const openNewDeal = useCallback(() => {
+    setTab('active-deals');
+    setNewDealFocusNonce((n) => n + 1);
+  }, []);
+
+  useEffect(() => {
+    if (newDealFocusNonce === 0) return;
+    const raf = requestAnimationFrame(() => {
+      const target = document.querySelector('[data-header-new-deal-target]');
+      try {
+        (target as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch {
+        // scrollIntoView is a no-op in non-DOM/test environments.
+      }
+      document
+        .querySelector<HTMLInputElement>('[data-banker-new-deal-name]')
+        ?.focus();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [newDealFocusNonce]);
 
   const now = useMemo(() => new Date(), [state]);
   const kpis = useMemo(() => {
@@ -185,6 +216,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
         activityDealOptions={activityDealOptions}
         openTaskCount={kpis ? kpis.openTaskCount : undefined}
         onActivityLogged={reload}
+        onNewDeal={openNewDeal}
         now={now}
       />
       <BankerKpiGrid state={state} now={now} onSelectTab={setTab} />
@@ -302,6 +334,18 @@ function TabContent({ tab }: { tab: ShellTab }) {
             <BankerNewDealCreate />
           </div>
           <PersonalPipeline />
+        </div>
+      );
+    case 'loan-workflow':
+      return (
+        <div style={styles.tabStack}>
+          <BankerLoanWorkflowTab />
+        </div>
+      );
+    case 'crm-hub':
+      return (
+        <div style={styles.tabStack}>
+          <BankerCrmIntelligencePanel />
         </div>
       );
     case 'tasks':

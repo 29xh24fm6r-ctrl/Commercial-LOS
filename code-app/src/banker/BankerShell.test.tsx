@@ -204,16 +204,20 @@ describe('Phase 125F — Lending OS shell layout', () => {
     });
   });
 
-  it('renders search and + New Deal as disabled placeholders, with Log Activity enabled for governed writers', () => {
+  it('renders the + New Deal header action as an enabled governed shortcut, with Log Activity enabled for governed writers', () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
-    // Search input is rendered but disabled
+    // Search input is still rendered but disabled (roadmap surface).
     const search = container.querySelector('[data-search-placeholder="lending-os-search"]');
     expect(search).not.toBeNull();
     expect(search?.getAttribute('disabled')).not.toBeNull();
     expect(screen.getByRole('button', { name: /^Log Activity$/i })).not.toBeDisabled();
-    expect(container.querySelector('[data-action-placeholder="-new-deal"]')).not.toBeNull();
+    // Phase 257: + New Deal is a real, enabled navigation shortcut (no longer a placeholder).
+    const newDeal = container.querySelector('[data-action-new-deal]');
+    expect(newDeal).not.toBeNull();
+    expect(newDeal?.getAttribute('disabled')).toBeNull();
+    expect(container.querySelector('[data-action-placeholder="-new-deal"]')).toBeNull();
   });
 
   it('keeps Log Activity disabled when governed write identity is unavailable', () => {
@@ -276,19 +280,21 @@ describe('Phase 125F — Lending OS shell layout', () => {
     expect(notYetWired.length).toBeGreaterThanOrEqual(4);
   });
 
-  it('renders the 8-tab tab bar with the Phase 125F labels', async () => {
+  it('renders the tab bar with the Phase 125F labels plus the Phase 257 Loan Workflow + CRM Hub tabs', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
     render(<BankerShell workspaceName="Banker Workspace" />);
     await waitFor(() => {
       const tablist = screen.getByRole('tablist', { name: /banker workspace sections/i });
-      expect(within(tablist).getAllByRole('tab').length).toBe(8);
+      expect(within(tablist).getAllByRole('tab').length).toBe(10);
     });
     for (const label of [
       'Dashboard',
       'Active Deals',
+      'Loan Workflow',
       'Tasks & Actions',
       'Due Diligence',
+      'CRM Hub',
       'Activity',
       'Relationships',
       'My Alerts',
@@ -443,18 +449,122 @@ describe('Phase 166 — dashboard KPI card interactions', () => {
     expect(tile?.getAttribute('aria-label')).toMatch(/Open the Active Deals tab\.$/);
   });
 
-  it('CRM Command Center still renders and + New Deal stays disabled / Log Activity stays available after the KPI change', async () => {
+  it('CRM Command Center still renders and + New Deal stays an enabled shortcut / Log Activity stays available after the KPI change', async () => {
     await renderReady();
     // CRM drill-through entry still present on the dashboard.
     expect(
       await screen.findByRole('region', { name: 'CRM Command Center' }),
     ).toBeInTheDocument();
-    // + New Deal remains an honest disabled placeholder.
-    const newDeal = document.querySelector('[data-action-placeholder="-new-deal"]');
+    // Phase 257: + New Deal is an enabled governed shortcut.
+    const newDeal = document.querySelector('[data-action-new-deal]');
     expect(newDeal).not.toBeNull();
-    expect(newDeal?.getAttribute('disabled')).not.toBeNull();
+    expect(newDeal?.getAttribute('disabled')).toBeNull();
     // Log Activity remains available for governed writers.
     expect(screen.getByRole('button', { name: /^Log Activity$/i })).not.toBeDisabled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 257 — sidebar nav activation (CRM Hub + Loan Workflow) and the
+// governed + New Deal header shortcut.
+// ---------------------------------------------------------------------------
+
+describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', () => {
+  it('CRM Hub sidebar nav click swaps dashboard content for the real CRM relationship workspace', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const user = userEvent.setup();
+    // Default tab is Dashboard.
+    expect(screen.getByTestId('card-personal-activity-summary')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^CRM Hub$/i }));
+
+    // Content changed: dashboard-only cards are gone, the CRM relationship
+    // workspace (CRM Command Center region) is now the visible content.
+    expect(screen.queryByTestId('card-personal-activity-summary')).toBeNull();
+    expect(
+      await screen.findByRole('region', { name: 'CRM Command Center' }),
+    ).toBeInTheDocument();
+    expect(within(container).getByText('CRM Intelligence')).toBeInTheDocument();
+  });
+
+  it('Loan Workflow sidebar nav click navigates to the real Loan Workflow workspace surface', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const user = userEvent.setup();
+    expect(screen.getByTestId('card-personal-activity-summary')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^Loan Workflow$/i }));
+
+    expect(screen.queryByTestId('card-personal-activity-summary')).toBeNull();
+    const panel = container.querySelector('[data-banker-loan-workflow="panel"]');
+    expect(panel).not.toBeNull();
+    expect(
+      screen.getByRole('heading', { name: /^Loan Workflow$/i }),
+    ).toBeInTheDocument();
+    // The real authorized pipeline list (entry into per-deal workflow) renders.
+    expect(screen.getByTestId('card-personal-pipeline')).toBeInTheDocument();
+  });
+
+  it('every real sidebar nav button is clickable AND lands on a non-empty content panel (no dead nav)', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const user = userEvent.setup();
+    for (const label of ['CRM Hub', 'Loan Workflow']) {
+      const navButton = screen.getByRole('button', { name: new RegExp(`^${label}$`, 'i') });
+      expect(navButton).not.toBeDisabled();
+      await user.click(navButton);
+      // The tab panel always renders some content (never blank).
+      const panel = container.querySelector('[role="tabpanel"]');
+      expect(panel?.textContent?.trim().length ?? 0).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('Phase 257 — + New Deal header shortcut opens the governed create flow', () => {
+  it('clicking + New Deal routes to the Active Deals New Deal panel (production Intake/Open framing)', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const user = userEvent.setup();
+    // Dashboard first; New Deal panel not yet mounted.
+    expect(container.querySelector('[data-banker-new-deal="panel"]')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /^Create deal$/i }));
+
+    // The governed New Deal create panel is now visible on the Active Deals tab.
+    const panel = container.querySelector('[data-banker-new-deal="panel"]');
+    expect(panel).not.toBeNull();
+    // Proves the production Stage/Status resolver framing (Intake / Open) is surfaced.
+    expect(screen.getByText(/Stage opens at/i)).toBeInTheDocument();
+    expect(within(panel as HTMLElement).getByText(/Intake/)).toBeInTheDocument();
+    expect(within(panel as HTMLElement).getByText(/Open/)).toBeInTheDocument();
+  });
+
+  it('+ New Deal is reachable from a non-dashboard tab too (header shortcut is global)', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const user = userEvent.setup();
+    // Move to Tasks tab first.
+    await user.click(screen.getByRole('tab', { name: /^Tasks & Actions$/i }));
+    expect(container.querySelector('[data-banker-new-deal="panel"]')).toBeNull();
+    // Header + New Deal still routes to the create panel.
+    await user.click(screen.getByRole('button', { name: /^Create deal$/i }));
+    expect(container.querySelector('[data-banker-new-deal="panel"]')).not.toBeNull();
+  });
+});
+
+describe('Phase 257 — BankerNewDealCreate uses the production Stage/Status resolver', () => {
+  const SRC = readFileSync(resolve(__dirname, 'BankerNewDealCreate.tsx'), 'utf8');
+
+  it('resolves references via resolveProductionNewDealReferences (never a hard-coded GUID)', () => {
+    expect(SRC).toMatch(/resolveProductionNewDealReferences\s*\(/);
+    expect(SRC).toMatch(/stageLabel:\s*'Intake'/);
+    expect(SRC).toMatch(/statusLabel:\s*'Open'/);
   });
 });
 
