@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  _setCopilotConnectorForTest,
+  _resetCopilotConnectorForTest,
+  createMockConnector,
+} from '../copilot/copilotConnector';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
@@ -157,11 +162,19 @@ describe('Phase 133A — ExecutiveCommandCenter content', () => {
     expect(link.getAttribute('href')).toBe('/deals/deal-blocked');
   });
 
-  it('renders the Copilot Assist panel in not-configured posture', () => {
+  it('hides Copilot by default and shows it (live) only when the connector is configured', () => {
+    setReady();
+    const { unmount } = renderCockpit();
+    // Default (not configured) → Copilot is absent from the operator workflow.
+    expect(screen.queryByText('Copilot Assist')).not.toBeInTheDocument();
+    unmount();
+    // Live connector → panel renders and is usable.
+    _setCopilotConnectorForTest(createMockConnector('live_read_only'));
     setReady();
     renderCockpit();
     expect(screen.getByText('Copilot Assist')).toBeInTheDocument();
-    expect(screen.getByText('Not configured')).toBeInTheDocument();
+    expect(screen.getByText('Live read-only')).toBeInTheDocument();
+    _resetCopilotConnectorForTest();
   });
 
   it('renders the honest-omission copy', () => {
@@ -504,9 +517,10 @@ describe('Phase 135B — Executive final demo smoke', () => {
       expect(screen.getByRole('region', { name })).toBeInTheDocument();
     }
 
-    // Honest "Not yet wired" + Copilot not-configured both visible for the demo.
+    // Honest "Not yet wired" copy remains. Copilot is hidden in the operator
+    // workflow when the connector is not configured (Phase 261 E).
     expect(screen.getAllByText(/Not yet wired/i).length).toBeGreaterThan(0);
-    expect(screen.getByText('Not configured')).toBeInTheDocument();
+    expect(screen.queryByText('Not configured')).not.toBeInTheDocument();
   });
 
   it('the empty demo state shows no KPI ribbon, no exception tape, and no performance panel (no fabricated sections)', () => {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 /**
@@ -28,6 +28,11 @@ vi.mock('../shared/dealIntelligenceContext', () => ({
 
 import { DealCopilotAssist } from './DealCopilotAssist';
 import * as adapterModule from './copilotAssistantAdapter';
+import {
+  _setCopilotConnectorForTest,
+  _resetCopilotConnectorForTest,
+  createMockConnector,
+} from './copilotConnector';
 import type { DealDetail } from '../deals/dealQueries';
 import type { DealTasksResult } from '../deals/dealTaskQueries';
 import type { DealDocumentsResult } from '../deals/dealDocumentQueries';
@@ -81,11 +86,26 @@ beforeEach(() => {
   adapterModule._setCopilotAdapterForTest(
     adapterModule.createNotConfiguredAdapter(),
   );
+  // Phase 261 (E): the deal cockpit only renders Copilot when the connector is
+  // live. The behavioral specs below assert the panel's read-only posture in
+  // that live state; a separate spec covers the hidden, unconfigured default.
+  _setCopilotConnectorForTest(createMockConnector('live_read_only'));
   setReady();
 });
 
-describe('Phase 130A — DealCopilotAssist', () => {
-  it('renders the Copilot Assist panel', () => {
+afterEach(() => {
+  _resetCopilotConnectorForTest();
+});
+
+describe('Phase 130A/261 — DealCopilotAssist', () => {
+  it('renders nothing when the connector is not configured (no dead box in the cockpit)', () => {
+    _resetCopilotConnectorForTest(); // env default → not_configured
+    const { container } = render(<DealCopilotAssist />);
+    expect(container).toBeEmptyDOMElement();
+    _setCopilotConnectorForTest(createMockConnector('live_read_only'));
+  });
+
+  it('renders the Copilot Assist panel when the connector is live', () => {
     render(<DealCopilotAssist />);
     expect(screen.getByText('Copilot Assist')).toBeInTheDocument();
   });
@@ -98,19 +118,9 @@ describe('Phase 130A — DealCopilotAssist', () => {
     expect(screen.getByText('Explain blockers')).toBeInTheDocument();
   });
 
-  it('shows a visible "Not configured" status pill', () => {
+  it('shows a live, usable status pill when configured', () => {
     render(<DealCopilotAssist />);
-    expect(screen.getByText('Not configured')).toBeInTheDocument();
-    expect(
-      screen.getByLabelText('Copilot connector not configured'),
-    ).toBeInTheDocument();
-  });
-
-  it('clearly states the connector is not configured', () => {
-    render(<DealCopilotAssist />);
-    expect(
-      screen.getByText(/Copilot connector not configured/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Live read-only')).toBeInTheDocument();
   });
 
   it('states the assistant is read-only and cannot change data or send communications', () => {

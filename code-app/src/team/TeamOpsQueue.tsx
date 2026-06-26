@@ -24,7 +24,7 @@ import {
 } from '../shared/CommandChartPrimitives';
 import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
-import { getCopilotConnector } from '../copilot/copilotConnector';
+import { getCopilotConnector, isCopilotSurfaceLive } from '../copilot/copilotConnector';
 import {
   palette,
   radius,
@@ -151,7 +151,7 @@ export function TeamOpsQueue() {
       {!failureSlot && allReady && snapshot && snapshot.isEmpty && <EmptyState />}
       {!failureSlot && allReady && snapshot && !snapshot.isEmpty && (
         <div style={styles.body}>
-          {copilotContext && (
+          {copilotContext && isCopilotSurfaceLive() && (
             <div data-cockpit-copilot="team">
               <CopilotAssistPanel
                 surface="workspace"

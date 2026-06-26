@@ -3,7 +3,7 @@ import { useDealData } from '../deals/DealDataProvider';
 import { useOptionalDealIntelligence } from '../shared/dealIntelligenceContext';
 import { buildDealCopilotContext } from './dealCopilotContext';
 import { CopilotAssistPanel } from './CopilotAssistPanel';
-import { getCopilotConnector } from './copilotConnector';
+import { getCopilotConnector, isCopilotSurfaceLive } from './copilotConnector';
 import type { CopilotDealAssistContext } from './copilotAssistContext';
 
 /**
@@ -101,10 +101,15 @@ export function DealCopilotAssist() {
     return getCopilotConnector().assistDeal(assistContext).proposed_actions;
   }, [context, vm]);
 
-  // Phase 130B — the deal cockpit opens the assistant expanded so the
-  // banker immediately sees the read-only quick actions + the honest
-  // not-configured state. The command-center surfaces stay collapsed
-  // (compact) by default.
+  // Phase 261 (E) — the deal cockpit only shows Copilot when the connector is
+  // actually live and usable. An unconfigured connector renders nothing here,
+  // so the banker never sees a "Connector not configured" box in the cockpit.
+  if (!isCopilotSurfaceLive()) {
+    return null;
+  }
+
+  // When live, the deal cockpit opens the assistant expanded so the banker
+  // immediately sees the read-only quick actions.
   return (
     <CopilotAssistPanel
       surface="deal"

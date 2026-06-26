@@ -34,7 +34,7 @@ import {
 } from './ManagerChartPrimitives';
 import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
-import { getCopilotConnector } from '../copilot/copilotConnector';
+import { getCopilotConnector, isCopilotSurfaceLive } from '../copilot/copilotConnector';
 import { palette, radius, severityPalette, shadow, spacing, typography } from '../shared/theme';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
 import { useDrillThroughDeepLink, deepLinkCardProps } from '../shared/drillthrough/useDrillThroughDeepLink';
@@ -222,7 +222,7 @@ export function ManagerBloombergControlPanel() {
       )}
       {!failureSlot && allReady && snapshot && !snapshot.isEmpty && (
         <div style={styles.body}>
-          {copilotContext && (
+          {copilotContext && isCopilotSurfaceLive() && (
             <div data-cockpit-copilot="manager">
               <CopilotAssistPanel
                 surface="workspace"

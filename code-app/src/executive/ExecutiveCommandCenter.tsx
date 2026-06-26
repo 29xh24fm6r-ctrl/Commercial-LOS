@@ -26,7 +26,7 @@ import {
 } from './executiveDashboardCharts';
 import { CopilotAssistPanel } from '../copilot/CopilotAssistPanel';
 import { buildWorkspaceCopilotContext } from '../copilot/workspaceCopilotContext';
-import { getCopilotConnector } from '../copilot/copilotConnector';
+import { getCopilotConnector, isCopilotSurfaceLive } from '../copilot/copilotConnector';
 import {
   palette,
   radius,
@@ -163,7 +163,7 @@ export function ExecutiveCommandCenter() {
       {!failureSlot && allReady && snapshot && snapshot.isEmpty && <EmptyState />}
       {!failureSlot && allReady && snapshot && !snapshot.isEmpty && (
         <div style={styles.body}>
-          {copilotContext && (
+          {copilotContext && isCopilotSurfaceLive() && (
             <div data-cockpit-copilot="executive">
               <CopilotAssistPanel
                 surface="workspace"

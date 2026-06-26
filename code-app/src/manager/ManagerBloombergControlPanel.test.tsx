@@ -68,6 +68,11 @@ vi.mock('./ManagerBankerFilter', async () => {
 });
 
 import { ManagerBloombergControlPanel } from './ManagerBloombergControlPanel';
+import {
+  _setCopilotConnectorForTest,
+  _resetCopilotConnectorForTest,
+  createMockConnector,
+} from '../copilot/copilotConnector';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -893,22 +898,24 @@ describe('Phase 124A + 124B — ManagerBloombergControlPanel.tsx static-source d
 // Phase 130A — Copilot assist surface wiring (read-only, not configured)
 // ---------------------------------------------------------------------------
 
-describe('Phase 130A — Copilot assist panel wiring', () => {
-  it('mounts the CopilotAssistPanel atop the cockpit when the snapshot is ready', () => {
+describe('Phase 130A/261 — Copilot assist panel wiring', () => {
+  afterEach(() => _resetCopilotConnectorForTest());
+
+  it('is hidden when the connector is not configured (no dead box in the workflow)', () => {
+    setAllReady({ pipeline: [deal()], bankers: [banker()] });
+    renderPanel();
+    expect(screen.queryByText('Copilot Assist')).not.toBeInTheDocument();
+  });
+
+  it('mounts the CopilotAssistPanel atop the cockpit when the connector is live', () => {
+    _setCopilotConnectorForTest(createMockConnector('live_read_only'));
     setAllReady({ pipeline: [deal()], bankers: [banker()] });
     renderPanel();
     expect(screen.getByText('Copilot Assist')).toBeInTheDocument();
   });
 
-  it('clearly states the connector is not configured (no live connector required)', () => {
-    setAllReady({ pipeline: [deal()], bankers: [banker()] });
-    renderPanel();
-    expect(
-      screen.getByText(/Copilot connector not configured/i),
-    ).toBeInTheDocument();
-  });
-
-  it('states the assistant is read-only and cannot change data', () => {
+  it('states the assistant is read-only and cannot change data (when live)', () => {
+    _setCopilotConnectorForTest(createMockConnector('live_read_only'));
     setAllReady({ pipeline: [deal()], bankers: [banker()] });
     renderPanel();
     expect(

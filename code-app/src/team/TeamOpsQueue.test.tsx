@@ -35,6 +35,11 @@ vi.mock('./TeamDataProvider', () => ({
 }));
 
 import { TeamOpsQueue } from './TeamOpsQueue';
+import {
+  _setCopilotConnectorForTest,
+  _resetCopilotConnectorForTest,
+  createMockConnector,
+} from '../copilot/copilotConnector';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -525,22 +530,24 @@ describe('Phase 127A — TeamOpsQueue.tsx static-source discipline', () => {
 // Phase 130A — Copilot assist surface wiring (read-only, not configured)
 // ---------------------------------------------------------------------------
 
-describe('Phase 130A — Copilot assist panel wiring', () => {
-  it('mounts the CopilotAssistPanel atop the team ops queue when the snapshot is ready', () => {
+describe('Phase 130A/261 — Copilot assist panel wiring', () => {
+  afterEach(() => _resetCopilotConnectorForTest());
+
+  it('is hidden when the connector is not configured (no dead box in the workflow)', () => {
+    setAllReady({ deals: [deal()] });
+    renderCockpit();
+    expect(screen.queryByText('Copilot Assist')).not.toBeInTheDocument();
+  });
+
+  it('mounts the CopilotAssistPanel atop the team ops queue when the connector is live', () => {
+    _setCopilotConnectorForTest(createMockConnector('live_read_only'));
     setAllReady({ deals: [deal()] });
     renderCockpit();
     expect(screen.getByText('Copilot Assist')).toBeInTheDocument();
   });
 
-  it('clearly states the connector is not configured (no live connector required)', () => {
-    setAllReady({ deals: [deal()] });
-    renderCockpit();
-    expect(
-      screen.getByText(/Copilot connector not configured/i),
-    ).toBeInTheDocument();
-  });
-
-  it('states the assistant is read-only and cannot change data', () => {
+  it('states the assistant is read-only and cannot change data (when live)', () => {
+    _setCopilotConnectorForTest(createMockConnector('live_read_only'));
     setAllReady({ deals: [deal()] });
     renderCockpit();
     expect(

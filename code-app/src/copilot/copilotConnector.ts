@@ -530,6 +530,19 @@ export function getCopilotConnector(): CopilotConnector {
   return _connector;
 }
 
+/**
+ * Phase 261 (E) — should the Copilot Assist panel be shown on a production
+ * banker/operator surface? Only when the connector is actually live and
+ * usable. An unconfigured / disabled connector is hidden entirely so no
+ * "Connector not configured" box ever appears in a normal workflow; setup
+ * status remains inspectable in admin/diagnostics contexts that render the
+ * panel directly.
+ */
+export function isCopilotSurfaceLive(): boolean {
+  const s = _connector.status();
+  return s.connected && (s.mode === 'live_read_only' || s.mode === 'proposal_only');
+}
+
 /** Test-only: swap the connector. Production code must not call this. */
 export function _setCopilotConnectorForTest(connector: CopilotConnector): void {
   _connector = connector;
