@@ -7,6 +7,7 @@
  */
 
 import { MANUAL_EXISTING_LOAN_BOARDING_SOURCE } from './existingLoanEntryAdapter';
+import { parseExtendedLoanAttributes, type ExtendedLoanAttributes } from './extendedLoanAttributes';
 
 const ROW_CAP = 200;
 
@@ -29,6 +30,8 @@ export interface BoardedLoanRow {
   readonly spread?: number | null | undefined;
   readonly floor?: number | null | undefined;
   readonly ceiling?: number | null | undefined;
+  /** Phase 2 — persisted extended attributes (note rate / reset terms / product / officer …). */
+  readonly extended?: ExtendedLoanAttributes | null;
 }
 
 interface RawBoardedLoan {
@@ -46,6 +49,7 @@ interface RawBoardedLoan {
   cr664_spread?: number;
   cr664_floor?: number;
   cr664_ceiling?: number;
+  cr664_extendedloanattributes?: string;
 }
 
 function str(v: unknown): string | undefined {
@@ -74,6 +78,7 @@ export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
     spread: numOrNull(r.cr664_spread),
     floor: numOrNull(r.cr664_floor),
     ceiling: numOrNull(r.cr664_ceiling),
+    extended: parseExtendedLoanAttributes(r.cr664_extendedloanattributes),
   };
 }
 
@@ -95,6 +100,7 @@ export async function loadBoardedLoans(): Promise<readonly BoardedLoanRow[]> {
       'cr664_spread',
       'cr664_floor',
       'cr664_ceiling',
+      'cr664_extendedloanattributes',
     ],
     top: ROW_CAP,
   });

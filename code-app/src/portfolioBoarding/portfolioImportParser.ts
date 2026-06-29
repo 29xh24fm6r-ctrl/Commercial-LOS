@@ -316,11 +316,38 @@ export function validateRows(
       if (items.length > 0) children[col.child] = items;
     }
 
+    // Phase 2 — map the informational columns into the extended-attributes fields so an import
+    // populates the persisted blob (round-tripping note rate / reset terms / product / officer).
+    const infoStr = (key: keyof typeof mapping.informational): string | undefined => {
+      const v = cell(row, mapping.informational[key]);
+      return v.length > 0 ? v : undefined;
+    };
+    const infoNum = (key: keyof typeof mapping.informational): number | undefined => {
+      const v = cell(row, mapping.informational[key]);
+      if (v.length === 0) return undefined;
+      const r = parseNumber(v);
+      return r.ok ? r.value : undefined;
+    };
+    const p61cell = cell(row, mapping.informational.payment61Reset).toLowerCase();
+    const extended = {
+      product: infoStr('loanProduct'),
+      loanOfficer: infoStr('assignedLoanOfficer'),
+      branch: infoStr('branchNumber'),
+      purpose: infoStr('loanPurpose'),
+      currentNoteRate: infoNum('currentNoteRate'),
+      firstResetDate: infoStr('firstResetDate'),
+      firstResetPaymentNumber: infoNum('firstResetPaymentNumber'),
+      resetFrequency: infoStr('resetFrequency'),
+      nextRateChangeDate: infoStr('nextRateChangeDate'),
+      payment61Reset: p61cell.length === 0 ? undefined : p61cell === 'yes' || p61cell === 'true' || p61cell === 'y' || p61cell === '1',
+    };
+
     const input: ParsedLoanInput = {
       loanNumber,
       borrowerLegalName: borrower,
       ...scalarValues,
       ...children,
+      ...extended,
     } as ParsedLoanInput;
 
     valid.push({ rowNumber, loanNumber, borrowerLegalName: borrower, input });

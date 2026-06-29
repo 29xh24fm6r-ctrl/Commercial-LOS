@@ -21,6 +21,12 @@
  */
 
 import { newCorrelationId } from '../shared/governance/correlationId';
+import {
+  EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED,
+  EXTENDED_LOAN_ATTRIBUTES_COLUMN,
+  buildExtendedLoanAttributes,
+  serializeExtendedLoanAttributes,
+} from './extendedLoanAttributes';
 
 /** The boardingsource marker for a manually-entered existing portfolio loan. */
 export const MANUAL_EXISTING_LOAN_BOARDING_SOURCE = 'Manual Existing Loan Entry';
@@ -104,6 +110,17 @@ export interface ExistingLoanInput {
   readonly watchlistFlag?: boolean;
   readonly accrualStatus?: string;
   readonly pastDueDays?: number;
+  // --- Phase 2 extended attributes (round-trip via cr664_extendedloanattributes when enabled) ---
+  readonly product?: string;
+  readonly loanOfficer?: string;
+  readonly branch?: string;
+  readonly purpose?: string;
+  readonly currentNoteRate?: number;
+  readonly firstResetDate?: string;
+  readonly firstResetPaymentNumber?: number;
+  readonly resetFrequency?: string;
+  readonly nextRateChangeDate?: string;
+  readonly payment61Reset?: boolean;
   /** Optional originated-deal link; the manual path works WITHOUT it. */
   readonly originatedDealId?: string;
 
@@ -192,7 +209,10 @@ function compact(obj: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-function buildRootPayload(input: ExistingLoanInput): Record<string, unknown> {
+function buildRootPayload(
+  input: ExistingLoanInput,
+  persistExtended: boolean = EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED,
+): Record<string, unknown> {
   const loanNumber = trimmed(input.loanNumber);
   const borrower = trimmed(input.borrowerLegalName);
   const payload: Record<string, unknown> = {
@@ -228,6 +248,26 @@ function buildRootPayload(input: ExistingLoanInput): Record<string, unknown> {
   if (dealId.length > 0) {
     payload['cr664_OriginatedLoanDeal@odata.bind'] = `/cr664_loandeals(${dealId})`;
   }
+  // Phase 2 — persist the extended attributes blob ONLY when the (default-off) flag is on.
+  // Until the operator provisions cr664_extendedloanattributes + enables the flag, these
+  // fields are captured in the UI and visibly marked non-persisted (never silently dropped).
+  if (persistExtended) {
+    const blob = serializeExtendedLoanAttributes(
+      buildExtendedLoanAttributes({
+        product: input.product,
+        loanOfficer: input.loanOfficer,
+        branch: input.branch,
+        purpose: input.purpose,
+        currentNoteRate: input.currentNoteRate,
+        firstResetDate: input.firstResetDate,
+        firstResetPaymentNumber: input.firstResetPaymentNumber,
+        resetFrequency: input.resetFrequency,
+        nextRateChangeDate: input.nextRateChangeDate,
+        payment61Reset: input.payment61Reset,
+      }),
+    );
+    if (blob !== null) payload[EXTENDED_LOAN_ATTRIBUTES_COLUMN] = blob;
+  }
   return compact(payload);
 }
 
@@ -258,7 +298,9 @@ function childItems(input: ExistingLoanInput, key: ExistingLoanChildKey): readon
 export async function boardExistingLoan(
   input: ExistingLoanInput,
   deps: ExistingLoanDeps,
+  options: { readonly persistExtended?: boolean } = {},
 ): Promise<BoardExistingLoanOutcome> {
+  const persistExtended = options.persistExtended ?? EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED;
   // 1. Fail-closed authorization.
   if (!input.authorized) {
     return { kind: 'unauthorized', reason: 'You are not authorized to board portfolio loans.' };
@@ -302,7 +344,7 @@ export async function boardExistingLoan(
   // 5. Create the root boarded-loan record.
   let root: WriteResult;
   try {
-    root = await deps.createRoot(buildRootPayload(input));
+    root = await deps.createRoot(buildRootPayload(input, persistExtended));
   } catch (err: unknown) {
     return { kind: 'write-failed', error: err instanceof Error ? err.message : String(err), correlationId };
   }

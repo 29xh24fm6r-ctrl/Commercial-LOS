@@ -53,10 +53,18 @@ async function liveLoadLoans(): Promise<readonly VariableRateLoanInput[]> {
     interestRateType: r.interestRateType,
     index: r.index,
     spread: r.spread,
-    currentNoteRate: undefined, // not a persisted column yet
+    // Phase 2 — these now round-trip from the persisted extended-attributes blob (when the
+    // operator has provisioned the column + enabled the flag), so reset/mismatch alerts
+    // re-derive across sessions instead of only at entry.
+    currentNoteRate: r.extended?.currentNoteRate,
     floor: r.floor,
     ceiling: r.ceiling,
-    nextRateChangeDate: undefined, // not a persisted column yet
+    nextRateChangeDate: r.extended?.nextRateChangeDate,
+    firstResetDate: r.extended?.firstResetDate,
+    firstResetPaymentNumber: r.extended?.firstResetPaymentNumber,
+    resetFrequency: r.extended?.resetFrequency,
+    payment61Reset: r.extended?.payment61Reset,
+    assignedOfficer: r.extended?.loanOfficer,
   }));
 }
 

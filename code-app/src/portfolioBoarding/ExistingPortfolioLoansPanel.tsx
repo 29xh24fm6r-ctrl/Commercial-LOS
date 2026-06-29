@@ -5,6 +5,7 @@ import { loadBoardedLoans, type BoardedLoanRow } from './boardedLoansList';
 import { PortfolioImportWizard } from './PortfolioImportWizard';
 import { formatCurrency } from '../shared/formatters';
 import { LOAN_PRODUCTS, INTEREST_RATE_TYPES, RATE_INDEX_OPTIONS } from './loanProducts';
+import { EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED } from './extendedLoanAttributes';
 import { PAYMENT_61_PRESET, isVariableRate } from '../portfolio/variableRate/variableRateModel';
 import {
   boardExistingLoan,
@@ -229,6 +230,17 @@ export function ExistingPortfolioLoansPanel({
       nextReviewDate: form.nextReviewDate || undefined,
       accrualStatus: form.accrualStatus || undefined,
       pastDueDays: numOrUndef(form.pastDueDays),
+      // Phase 2 — extended attributes (persist via cr664_extendedloanattributes when enabled).
+      product: form.loanProduct || undefined,
+      loanOfficer: form.assignedLoanOfficer || undefined,
+      branch: form.branchNumber || undefined,
+      purpose: form.loanPurpose || undefined,
+      currentNoteRate: numOrUndef(form.currentNoteRate),
+      firstResetDate: form.firstResetDate || undefined,
+      firstResetPaymentNumber: numOrUndef(form.firstResetPaymentNumber),
+      resetFrequency: form.resetFrequency || undefined,
+      nextRateChangeDate: form.nextRateChangeDate || undefined,
+      payment61Reset: payment61 || undefined,
       ...Object.fromEntries(
         EXISTING_LOAN_CHILD_KEYS.map((k) => [k, children[k].filter((n) => n.trim().length > 0).map((name) => ({ name }))]),
       ),
@@ -351,6 +363,14 @@ export function ExistingPortfolioLoansPanel({
 
           {/* Phase 262 — Product, ownership & pricing/rate terms */}
           <div style={styles.rateSection} data-xl-rate-section>
+            {!EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED && (
+              <div style={styles.note} role="note" data-xl-extended-not-persisted>
+                <strong>Not yet persisted:</strong> product, officer, branch, purpose, current note rate, and
+                reset terms are captured and used for rate logic this session, but are not yet saved to the
+                portfolio record (the extended-attributes column is not provisioned). Index, spread, floor,
+                ceiling, and rate type are saved.
+              </div>
+            )}
             <div style={styles.sectionTitle}>Product & ownership</div>
             <div style={styles.fieldGrid}>
               <label style={styles.field}>

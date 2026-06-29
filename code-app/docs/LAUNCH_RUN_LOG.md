@@ -126,8 +126,42 @@ contracts); valid fixtures inject HIGH evidence to prove the positive path.
 Gate: tsc 0 · full vitest **684 files / 10,393 passed / 2 skipped** · reachability 0 · build 0 ·
 new-code lint 0 · `verify:launch-evidence` exit 1 (by design).
 
+## Phase 2 — Extended-attributes persistence ✅ (commit pending)
+
+Closed the Phase-262 silent-field-loss bug. Banker-entered fields the UI uses for logic
+(current note rate, reset terms, payment-61 flag, product, officer, branch, purpose) now
+round-trip through ONE additive JSON column behind a default-off flag, fail-closed when the
+column is absent — never a silent drop.
+
+- **Contract:** `src/portfolioBoarding/extendedLoanAttributes.ts` — typed, versioned
+  (`schemaVersion`) blob + null-safe `build`/`serialize`/`parse`; flag
+  `EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED` (default **off**); column
+  `cr664_extendedloanattributes`.
+- **Write:** the governed boarding adapter writes the blob into the audited root payload ONLY
+  when the flag is on (threaded as an option so it's testable). No new write path — same
+  governed `boardExistingLoan` (audit + readback) as before.
+- **Read-back:** `boardedLoansList` parses the blob → `BoardedLoanRow.extended`; the Variable
+  Rate Control Center maps note rate / reset terms / payment-61 / officer back in, so
+  mismatch/reset alerts **re-derive from persisted values across sessions**, not just at entry.
+- **CSV:** the importer maps the informational columns into the extended fields, so an import
+  populates the blob.
+- **Fail-closed / visible:** with the flag off (today), the form shows a clear "Not yet
+  persisted" badge listing exactly which fields aren't saved (index/spread/floor/ceiling/rate
+  type still are). No crash, no silent loss.
+- **Operator-owned (→ Phase 7):** provision `cr664_extendedloanattributes`, then enable the
+  flag — fields round-trip, badge disappears.
+
+Tests (9): contract round-trip + null-safety, governed write (flag on writes blob / default off
+does not), read-back parse, alert re-derivation from the persisted blob across a reload, CSV
+population.
+
+Gate: tsc 0 · full vitest **685 files / 10,402 passed / 2 skipped** · reachability 0 · build 0 ·
+new-code lint 0.
+
 ## Remaining phases
 
-- **Phase 2** (extended-attributes persistence): next.
-- **Phase 3** (lint baseline): new code lint-clean; legacy baseline pending.
-- **Phase 7** operator runbook: pre-drafted in `PRODUCTION_ACCEPTANCE_CHECKLIST.md`.
+- **Phase 3** (lint baseline): new code is lint-clean; the ~legacy `react-hooks` /
+  `eslint-10` debt (e.g. pre-existing `set-state-in-effect`) baseline is still pending — `npm
+  run lint` reports the known legacy set, not new regressions.
+- **Phase 7** operator runbook: pre-drafted in `PRODUCTION_ACCEPTANCE_CHECKLIST.md` +
+  the extended-attributes column provisioning above.
