@@ -78,7 +78,10 @@ import { PortfolioCommandCenter } from './PortfolioCommandCenter';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const NOW = new Date('2026-06-03T12:00:00Z');
+// Phase 262: anchor fixtures to the real clock the risk engine uses
+// (engine defaults to `new Date()`); a fixed past date drifts the relative
+// fixtures into "stale/at-risk" as real time advances, flaking these tests.
+const NOW = new Date();
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 function isoDaysAgo(d: number): string {
   return new Date(NOW.getTime() - d * MS_PER_DAY).toISOString();
