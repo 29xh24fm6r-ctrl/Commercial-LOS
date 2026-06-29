@@ -23,24 +23,26 @@ describe('Phase 243 — full production launch evidence ledger', () => {
     expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
   });
 
-  it('Phase 256B FULL LAUNCH: all six environments PASS and all six are live (6/6); no blocking domains', () => {
+  it('Launch Phase 5: environments PASS, but evidence-insufficient → launch NOT achieved (1/6)', () => {
+    // The environment-evidence PASS statuses (history) are preserved; only the launch roll-up
+    // is gated on the Phase-1 integrity authority. The committed evidence is insufficient.
     const vm = deriveFullProductionLaunchEvidence();
-    expect(vm.fullLaunchAchieved).toBe(true);
-    expect(vm.enabledCount).toBe(6);
-    expect(vm.blockingDomains).toEqual([]);
+    expect(vm.fullLaunchAchieved).toBe(false);
+    expect(vm.enabledCount).toBe(1);
+    expect(vm.blockingDomains).toEqual([]); // environment prerequisites still all PASS
   });
 
-  it('all six PASS environments are now live-enabled (Phase 256B activation)', () => {
+  it('PASS environments are NOT live-enabled while the final-launch evidence is insufficient', () => {
     const vm = deriveFullProductionLaunchEvidence();
     const byKey = new Map(vm.domains.map((d) => [d.key, d]));
     for (const key of ['crmWriteback', 'portfolioBoarding', 'stageAdvancement', 'borrowerSend', 'documentChecklist'] as const) {
       const d = byKey.get(key)!;
-      expect(d.environmentStatus, key).toBe('PASS');
-      expect(d.enabled, key).toBe(true);
+      expect(d.environmentStatus, key).toBe('PASS'); // environment history intact
+      expect(d.enabled, key).toBe(false); // evidence gate withholds enablement
     }
-    // All six domains have PASS environment evidence and all six are enabled.
+    // Environment evidence still reads 6/6 PASS; only one domain (New Deal create) is live.
     expect(vm.environmentPassCount).toBe(6);
-    expect(vm.enabledCount).toBe(6);
+    expect(vm.enabledCount).toBe(1);
   });
 
   it('no enabled domain lacks PASS environment evidence (fail-closed honesty)', () => {

@@ -32,13 +32,18 @@ describe('Phase 237 — full system activation launch certification model', () =
     }
   });
 
-  it('reflects the Phase 256B posture: all six live-write domains enabled at full launch', () => {
+  it('Launch Phase 5: flags on, but evidence-insufficient → only New Deal create is enabled (1/6)', () => {
     const vm = deriveFullActivationLaunchCertification();
-    expect(vm.enabledCount).toBe(6);
-    expect(vm.fullLaunchAchieved).toBe(true);
+    expect(vm.enabledCount).toBe(1);
+    expect(vm.fullLaunchAchieved).toBe(false);
     for (const d of vm.domains) {
+      // The feature gate flags remain on (unchanged); the integrity authority withholds launch.
       expect(d.flagEnabled, d.id).toBe(true);
-      expect(d.status, d.id).toBe('enabled');
+    }
+    const byId = new Map(vm.domains.map((d) => [d.id, d]));
+    expect(byId.get('new-deal-create')?.status).toBe('enabled');
+    for (const id of ['crm-writeback', 'document-checklist-generation', 'borrower-communication-send', 'stage-advancement', 'portfolio-boarding-persistence'] as const) {
+      expect(byId.get(id)?.status, id).not.toBe('enabled');
     }
   });
 
@@ -64,8 +69,9 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(byId.get('portfolio-boarding-persistence')?.operatorEnvironmentConfirmed).toBe(true);
     expect(byId.get('borrower-communication-send')?.operatorEnvironmentConfirmed).toBe(false);
     expect(vm.environmentConfirmedCount).toBe(3);
-    // Phase 256B: all six certified AND their gate flags are on, so every domain is live.
-    expect(vm.enabledCount).toBe(6);
+    // Launch Phase 5: certs + gate flags are on, but the final-launch evidence is insufficient,
+    // so only New Deal create (pilot-certified) is live (1/6). Flags remain on (unchanged).
+    expect(vm.enabledCount).toBe(1);
     expect(byId.get('crm-writeback')?.flagEnabled).toBe(true);
     expect(byId.get('portfolio-boarding-persistence')?.flagEnabled).toBe(true);
   });
@@ -86,9 +92,9 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(borrower.unblockActions.join(' ')).toMatch(/regenerates the SDK/i);
   });
 
-  it('claims full launch once all six domains are certified and enabled', () => {
+  it('honestly reports launch NOT achieved while the committed evidence is insufficient', () => {
     const vm = deriveFullActivationLaunchCertification();
-    expect(vm.posture).toMatch(/All six live-write domains are certified and enabled/i);
+    expect(vm.posture).toMatch(/Full launch not yet achieved/i);
   });
 
   it('certifies no fake success, no gate flip, no external vendor dependency', () => {

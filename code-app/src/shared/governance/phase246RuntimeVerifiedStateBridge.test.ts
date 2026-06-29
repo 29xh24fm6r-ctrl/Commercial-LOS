@@ -47,14 +47,14 @@ describe('Phase 246 — runtime verified-state bridge governance contract', () =
     expect(crm.hydrated).toBe(true);
   });
 
-  it('Phase 256B: the live gates are flipped on and full launch is achieved (the bridge module itself never assigns them — see source test below)', () => {
+  it('Launch Phase 5: the live gate flags stay on and all six certified, but evidence is insufficient — full launch NOT achieved (1/6)', () => {
     expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
   });
 
   it('Phase 256B: checklist + borrower gates are now live', () => {

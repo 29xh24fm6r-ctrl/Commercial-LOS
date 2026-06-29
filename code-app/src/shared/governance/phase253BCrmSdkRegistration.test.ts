@@ -54,12 +54,12 @@ describe('Phase 253B — CRM SDK/data-source registration governance contract', 
     expect(hydrateVerifiedCrmSchemaState(blocked).hydrated).toBe(false);
   });
 
-  it('the launched platform has the CRM gate flipped and claims full launch (Phase 256B)', () => {
+  it('the CRM gate flag stays on and all six certified, but evidence insufficient — full launch NOT claimed (1/6)', () => {
     expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
   });
 
   it('no activation script performs pac code push', () => {

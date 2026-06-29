@@ -40,19 +40,24 @@ describe('Phase 244 — post-schema PASS evidence governance contract', () => {
     expect(vm.blockingDomains).toEqual([]);
   });
 
-  it('claims full launch with every live gate flipped (Phase 256B, enabledCount 6)', () => {
+  it('does NOT claim full launch — evidence insufficient (Launch Phase 5, enabledCount 1/6) even with every gate flipped', () => {
+    // The certification toggles and live gate flags are all flipped on (structural state below
+    // is unchanged), but launch truth derives from the committed final-launch smoke evidence
+    // integrity, which is insufficient — so full launch stays not-achieved and only newDealCreate
+    // (pilot-certified) is enabled. CRM + portfolio PASS the environment prerequisite but are
+    // still NOT live because their final-launch smoke evidence is present-but-insufficient.
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
     const evidence = deriveFullProductionLaunchEvidence();
-    expect(evidence.fullLaunchAchieved).toBe(true);
+    expect(evidence.fullLaunchAchieved).toBe(false);
 
-    // Phase 256B: PASS environments are now activated — CRM + portfolio are live.
     const byKey = new Map(evidence.domains.map((d) => [d.key, d]));
-    expect(byKey.get('crmWriteback')?.enabled).toBe(true);
-    expect(byKey.get('portfolioBoarding')?.enabled).toBe(true);
+    expect(byKey.get('crmWriteback')?.enabled).toBe(false);
+    expect(byKey.get('portfolioBoarding')?.enabled).toBe(false);
 
-    // Every domain is now certified and its live gate flipped.
+    // Every domain is still certified and its live gate is still flipped — only the evidence
+    // integrity withholds launch. These structural facts remain true.
     expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);

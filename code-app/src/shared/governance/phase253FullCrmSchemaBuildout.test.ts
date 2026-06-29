@@ -44,13 +44,13 @@ describe('Phase 253 — full CRM schema buildout governance contract', () => {
     expect(hydrateVerifiedCrmSchemaState(full, { nowEpochMs: NOW }).hydrated).toBe(true);
   });
 
-  it('the launched platform has the CRM + portfolio gates flipped and claims full launch (Phase 256B)', () => {
+  it('the CRM + portfolio gate flags stay on and all six certified, but evidence insufficient — full launch NOT claimed (1/6)', () => {
     expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
   });
 
   it('the create script is additive, create-missing-only, and never deletes/renames or pushes', () => {

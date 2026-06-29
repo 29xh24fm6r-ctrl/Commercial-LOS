@@ -65,25 +65,31 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(true);
   });
 
-  it('the ledger marks checklist + borrower environments PASS and now claims full launch (Phase 256B)', () => {
+  it('the ledger marks checklist + borrower environments PASS, but evidence insufficient — full launch NOT claimed (1/6)', () => {
     const ledger = deriveFullProductionLaunchEvidence();
     const byKey = new Map(ledger.domains.map((d) => [d.key, d]));
-    // Phase 251: signoff recorded → documentChecklist environment PASS; Phase 256B enables it.
+    // Phase 251: signoff recorded → documentChecklist environment PASS; but the final-launch
+    // evidence is insufficient, so it does NOT resolve enabled.
     expect(byKey.get('documentChecklist')?.environmentStatus).toBe('PASS');
-    expect(byKey.get('documentChecklist')?.enabled).toBe(true);
-    // Phase 250: connector registered → borrowerSend environment PASS; Phase 256B enables it.
+    expect(byKey.get('documentChecklist')?.enabled).toBe(false);
+    // Phase 250: connector registered → borrowerSend environment PASS; but evidence-insufficient → not enabled.
     expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
-    expect(byKey.get('borrowerSend')?.enabled).toBe(true);
+    expect(byKey.get('borrowerSend')?.enabled).toBe(false);
+    // newDealCreate is pilot-certified (not final-launch-smoke-gated) → it stays the only live domain.
     expect(byKey.get('newDealCreate')?.enabled).toBe(true);
     expect(byKey.get('crmWriteback')?.environmentStatus).toBe('PASS');
+    expect(byKey.get('crmWriteback')?.enabled).toBe(false);
     expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
+    expect(byKey.get('portfolioBoarding')?.enabled).toBe(false);
+    // Environment prerequisites all read PASS, so nothing is environment-blocking...
     expect(ledger.blockingDomains).toEqual([]);
-    expect(ledger.enabledCount).toBe(6);
-    expect(ledger.fullLaunchAchieved).toBe(true);
+    // ...but the evidence integrity withholds launch: only 1/6 live.
+    expect(ledger.enabledCount).toBe(1);
+    expect(ledger.fullLaunchAchieved).toBe(false);
 
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
   });
 
   it('the Phase 249 doc has the signoff pack + Outlook runbook sections', () => {

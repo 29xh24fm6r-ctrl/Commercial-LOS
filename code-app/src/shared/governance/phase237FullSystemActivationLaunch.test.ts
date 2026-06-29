@@ -40,8 +40,10 @@ describe('Phase 237 — full system activation launch governance contract', () =
         expect(d.flagEnabled, d.id).toBe(true);
         expect(d.evidencePresent.length, d.id).toBeGreaterThan(0);
       } else {
-        // Blocked domains report concrete blockers and remain not-enabled.
-        expect(d.flagEnabled, d.id).toBe(false);
+        // Blocked domains stay not-enabled and report concrete blockers. Their
+        // underlying gate flag may be on, but the domain is honestly NOT launched
+        // because the final-launch smoke evidence is insufficient (Launch Phase 5).
+        expect(d.status, d.id).not.toBe('enabled');
         expect(d.blockers.length, d.id).toBeGreaterThan(0);
       }
     }

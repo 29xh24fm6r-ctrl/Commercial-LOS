@@ -16,36 +16,36 @@ describe('Phase 245 — controlled live cutover readiness ledger', () => {
     expect(vm.domains.map((d) => d.key)).toEqual(['crmWriteback', 'portfolioBoarding', 'stageAdvancement']);
   });
 
-  it('Phase 256B: prereqs + adapter proven, operator smoke recorded, gates flipped LIVE', () => {
+  it('Launch Phase 5: prereqs + adapter proven + gate flags on, but evidence-insufficient → NOT live, cutover incomplete', () => {
     const vm = deriveControlledLiveCutoverReadiness();
     for (const d of vm.domains) {
+      // Technical readiness, governed adapter, recorded smoke metadata, and the gate flag all
+      // remain true — those are unchanged. The integrity authority is what now withholds launch.
       expect(d.technicalPrerequisitesPass, d.key).toBe(true);
       expect(d.governedAdapterProven, d.key).toBe(true);
-      // Operator smoke is recorded for all three (GO final-launch smoke artifacts).
       expect(d.operatorSmokeRecorded, d.key).toBe(true);
       expect(d.gateFlagOn, d.key).toBe(true);
-      expect(d.enabled, d.key).toBe(true);
+      // The domain does NOT resolve enabled while its final-launch evidence is insufficient.
+      expect(d.enabled, d.key).toBe(false);
       expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
     }
-    // Phase 253C/255B: CRM and portfolio live schemas are verified (full schema + SDK hydrate).
-    // Stage advancement has no measured-schema bridge dimension (liveSchemaVerified stays false),
-    // so it is not schema-gated — its cutover completes on the sink/ordering contract + recorded
-    // smoke + live gate. All three cutovers are now COMPLETE.
+    // Live-schema verification is an independent dimension (still verified for CRM/portfolio),
+    // but cutover cannot complete without `enabled`, which the evidence gate now withholds.
     const byKey = new Map(vm.domains.map((d) => [d.key, d]));
     expect(byKey.get('crmWriteback')?.liveSchemaVerified).toBe(true);
-    expect(byKey.get('crmWriteback')?.cutoverComplete).toBe(true);
+    expect(byKey.get('crmWriteback')?.cutoverComplete).toBe(false);
     expect(byKey.get('portfolioBoarding')?.liveSchemaVerified).toBe(true);
-    expect(byKey.get('portfolioBoarding')?.cutoverComplete).toBe(true);
+    expect(byKey.get('portfolioBoarding')?.cutoverComplete).toBe(false);
     expect(byKey.get('stageAdvancement')?.liveSchemaVerified).toBe(false);
-    expect(byKey.get('stageAdvancement')?.cutoverComplete).toBe(true);
+    expect(byKey.get('stageAdvancement')?.cutoverComplete).toBe(false);
   });
 
-  it('Phase 256B: full launch achieved, all six enabled, all three cutovers complete, deployment allowed', () => {
+  it('Launch Phase 5: evidence insufficient → no cutover complete, deployment withheld, not launched (1/6)', () => {
     const vm = deriveControlledLiveCutoverReadiness();
-    expect(vm.cutoverCompleteCount).toBe(3);
-    expect(vm.deploymentAllowed).toBe(true);
-    expect(vm.fullLaunchAchieved).toBe(true);
-    expect(vm.enabledCount).toBe(6);
+    expect(vm.cutoverCompleteCount).toBe(0);
+    expect(vm.deploymentAllowed).toBe(false);
+    expect(vm.fullLaunchAchieved).toBe(false);
+    expect(vm.enabledCount).toBe(1);
   });
 
   it('derives live-schema verification from the bridge: CRM + portfolio verified (full schema), stage not a schema dimension', () => {

@@ -57,24 +57,27 @@ describe('Phase 245 — controlled live gate cutover governance contract', () =>
     expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
   });
 
-  it('Phase 256B: full launch achieved and enabledCount is 6', () => {
+  it('Launch Phase 5: evidence insufficient — full launch NOT achieved and enabledCount is 1', () => {
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
     const cutover = deriveControlledLiveCutoverReadiness();
-    // All three controlled cutovers complete (stage is not schema-gated — sink/ordering contract
-    // + recorded smoke), so the ledger's own deploymentAllowed is true at full launch.
-    expect(cutover.cutoverCompleteCount).toBe(3);
-    expect(cutover.deploymentAllowed).toBe(true);
-    expect(cutover.fullLaunchAchieved).toBe(true);
+    // The committed final-launch smoke evidence is insufficient (sentinel operator UPNs / no
+    // machine proof), so NO cutover domain resolves enabled — cutover stays incomplete and the
+    // ledger's own deploymentAllowed stays false. No fake activation.
+    expect(cutover.cutoverCompleteCount).toBe(0);
+    expect(cutover.deploymentAllowed).toBe(false);
+    expect(cutover.fullLaunchAchieved).toBe(false);
   });
 
-  it('every targeted domain has a rollback control and is now live (gate on)', () => {
+  it('every targeted domain has a rollback control and a gate flag on, but evidence-insufficient so not live', () => {
     const cutover = deriveControlledLiveCutoverReadiness();
     for (const d of cutover.domains) {
       expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
+      // The feature gate flags stay on (structural contract unchanged)...
       expect(d.gateFlagOn, d.key).toBe(true);
-      expect(d.enabled, d.key).toBe(true);
+      // ...but the final-launch evidence is insufficient, so the domain does not resolve live.
+      expect(d.enabled, d.key).toBe(false);
     }
   });
 

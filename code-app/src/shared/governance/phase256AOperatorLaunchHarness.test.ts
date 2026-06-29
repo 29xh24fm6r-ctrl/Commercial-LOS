@@ -28,14 +28,14 @@ describe('Phase 256A — operator launch harness + smoke evidence wiring', () =>
     expect(r.capabilities.find((c) => c.capability === 'borrowerSend')?.integrity?.machineProofPresent).toBe(false);
   });
 
-  it('backend is hydrated; the flag-driven verification still reports 6/6 (Phase 5 gates this on integrity)', () => {
-    // Phase 1 hardens the EVIDENCE layer; the flag-driven productionEnvironmentVerification is
-    // truthed-up against the integrity report in Phase 5. Until then it reflects the live flags.
+  it('backend is hydrated, but the verification is now integrity-gated → not launched (1/6)', () => {
+    // Phase 5: productionEnvironmentVerification is gated on the Phase-1 integrity authority.
+    // The committed evidence is insufficient, so only New Deal create (pilot-certified) is live.
     const r = deriveFinalLaunchReadiness({ records: [] });
     expect(r.backendReady).toBe(true); // CRM + portfolio hydrated (Phases 253C/255B)
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
   });
 
   it('the harness exists, is dry-run-by-default, fail-closed, and never pushes or flips gates', () => {

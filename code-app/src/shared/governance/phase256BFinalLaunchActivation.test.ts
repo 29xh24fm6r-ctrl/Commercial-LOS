@@ -25,24 +25,22 @@ describe('Phase 256B — consume final-launch smoke evidence + verify launch', (
     expect(r.projectedEnabledCount).toBe(1); // only New Deal create projects (it is separately certified)
   });
 
-  it('Phase 1: the flag-driven verification still reports 6/6 (truthed-up against integrity in Phase 5)', () => {
+  it('Phase 5: every launch projection is gated on integrity — committed evidence insufficient → not launched (1/6)', () => {
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.allCertified).toBe(true);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1); // only New Deal create (pilot-certified)
+    expect(verification.allCertified).toBe(true); // operator toggles unchanged; evidence gates enabled
+    expect(verification.fullLaunchReady).toBe(false);
 
     const cutover = deriveControlledLiveCutoverReadiness();
-    // Full launch achieved, all six enabled, all three controlled cutovers complete (stage is
-    // not schema-gated — its readiness is the sink/ordering contract + recorded smoke).
-    expect(cutover.fullLaunchAchieved).toBe(true);
-    expect(cutover.enabledCount).toBe(6);
-    expect(cutover.deploymentAllowed).toBe(true);
-    expect(cutover.cutoverCompleteCount).toBe(3);
+    expect(cutover.fullLaunchAchieved).toBe(false);
+    expect(cutover.enabledCount).toBe(1);
+    expect(cutover.deploymentAllowed).toBe(false);
+    expect(cutover.cutoverCompleteCount).toBe(0);
 
     const ledger = deriveFullProductionLaunchEvidence();
-    expect(ledger.enabledCount).toBe(6);
-    expect(ledger.fullLaunchAchieved).toBe(true);
-    expect(ledger.blockingDomains).toEqual([]);
+    expect(ledger.enabledCount).toBe(1);
+    expect(ledger.fullLaunchAchieved).toBe(false);
+    expect(ledger.blockingDomains).toEqual([]); // environment prerequisites still all PASS
   });
 
   it('fail-closed: removing or failing any one smoke withholds deployment', () => {

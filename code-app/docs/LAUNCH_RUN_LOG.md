@@ -92,13 +92,42 @@ Gate: tsc 0 · full vitest **684 files / 10,393 passed / 2 skipped** · reachabi
 Gate: tsc 0 · lint 0 errors · default suite unchanged (verifier excluded from `src/**`).
 `verify:launch-evidence` exits 1 by design.
 
+## Phase 5 — Governance truth-up ✅ (commit pending)
+
+Removed the split-brain: **every** launch projection now derives launch truth from the
+Phase-1 integrity authority, so the admin panel agrees with the verifier.
+
+- **Single source, browser-safe:** new `src/access/committedFinalLaunchEvidence.ts` imports the
+  committed `docs/operator-evidence/final-launch/*.json` at build time (enabled
+  `resolveJsonModule`) and runs the SAME `deriveEvidenceIntegrity` authority. On the operator's
+  Phase-7 re-capture + deploy rebuild, every projection flips together — no second copy.
+- **`productionEnvironmentVerification`:** a domain resolves `enabled` only when
+  `certified && gateFlagOn && evidenceHigh` (accepted at HIGH confidence). Evidence/flags gate
+  DOWN; nothing asserts launch UP. Added `evidenceHigh` / `evidenceInsufficient` /
+  `evidenceIssues` per domain + an `evidenceHigh` input override for fixtures.
+- **Propagation:** the admin panel (`fullActivationLaunchCertificationModel`), cutover
+  (`controlledLiveCutoverReadiness`), and ledger roll-up (`fullProductionLaunchEvidence`) read
+  the verification, so all flip together. Against the committed (insufficient) evidence they now
+  report **1/6 — not launched** (only New Deal create, which is pilot-certified).
+- **History preserved (5.4):** the ledger's environment-evidence rows + PASS statuses and the
+  `PAC_DEPLOYMENT_EVIDENCE.md` deploy record are untouched — only the forward-looking roll-up is
+  gated.
+- **Mandatory positive fixture:** `deriveProductionEnvironmentVerification({ evidenceHigh:
+  ALL_TRUE, ... })` ⇒ 6/6, `fullLaunchReady=true` — proving the gate flips GO under authentic
+  evidence (so the operator's green is trusted, not hard-wired false).
+
+**Effect:** the verifier, projection, admin panel, cutover, and ledger roll-up now tell ONE
+true story — not launched until authentic evidence lands. `verify:launch-evidence` still exits 1
+(unchanged). No evidence files / ledger event rows edited; no flag forces launch true.
+
+Tests flipped toward honesty across ~17 files (core models + panel + phase237–256 governance
+contracts); valid fixtures inject HIGH evidence to prove the positive path.
+
+Gate: tsc 0 · full vitest **684 files / 10,393 passed / 2 skipped** · reachability 0 · build 0 ·
+new-code lint 0 · `verify:launch-evidence` exit 1 (by design).
+
 ## Remaining phases
 
-- **Phase 2** (data-integrity / extended-attributes persistence): not started — substantial;
-  additive JSON-column contract behind a default-off flag, fail-closed when column absent.
-- **Phase 3** (lint baseline): not started — new code is lint-clean; the ~legacy lint debt
-  baseline is pending.
-- **Phase 5** (governance truth-up): the flag-driven `fullLaunchReady`/cutover/ledger still
-  report 6/6; gating them on the integrity report (so the admin panel shows
-  EVIDENCE_INSUFFICIENT and `fullLaunchAchieved` is honest) is the key remaining repo step.
+- **Phase 2** (extended-attributes persistence): next.
+- **Phase 3** (lint baseline): new code lint-clean; legacy baseline pending.
 - **Phase 7** operator runbook: pre-drafted in `PRODUCTION_ACCEPTANCE_CHECKLIST.md`.

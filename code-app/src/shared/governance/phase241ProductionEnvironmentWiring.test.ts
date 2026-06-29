@@ -48,19 +48,28 @@ describe('Phase 241 — production environment wiring governance contract', () =
     expect(certBlock.match(/:\s*true/g) ?? []).toHaveLength(6);
   });
 
-  it('enables all six domains by default: 6/6, full launch achieved (Phase 256B)', () => {
+  it('evidence insufficient — only newDealCreate enabled by default: 1/6, full launch NOT achieved (Launch Phase 5)', () => {
+    // Launch Phase 5: launch truth derives from the committed final-launch smoke evidence
+    // integrity (Phase 1 authority). The committed evidence is insufficient (sentinel
+    // operator UPNs / no machine proof) for the five evidence domains, so they stay NOT
+    // enabled even though their certification toggle and gate flag are on. Only newDealCreate
+    // (pilot-certified, not final-launch-smoke-gated) is enabled.
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
     expect(verification.domains.find((d) => d.key === 'newDealCreate')?.enabled).toBe(true);
+    for (const d of verification.domains.filter((x) => x.key !== 'newDealCreate')) {
+      expect(d.enabled, d.key).toBe(false);
+      expect(d.evidenceInsufficient, d.key).toBe(true);
+    }
 
     const model = deriveFullActivationLaunchCertification();
-    expect(model.enabledCount).toBe(6);
-    expect(model.fullLaunchAchieved).toBe(true);
+    expect(model.enabledCount).toBe(1);
+    expect(model.fullLaunchAchieved).toBe(false);
     const byId = new Map(model.domains.map((d) => [d.id, d]));
     expect(byId.get('new-deal-create')?.status).toBe('enabled');
     for (const d of model.domains.filter((x) => x.id !== 'new-deal-create')) {
-      expect(d.status, d.id).toBe('enabled');
+      expect(d.status, d.id).not.toBe('enabled');
     }
   });
 
@@ -74,10 +83,16 @@ describe('Phase 241 — production environment wiring governance contract', () =
     const flagOnly = deriveProductionEnvironmentVerification({ certification: ALL_FALSE, gateFlags: ALL_TRUE });
     expect(flagOnly.enabledCount).toBe(0);
 
-    // Both → enabled, full launch ready.
-    const both = deriveProductionEnvironmentVerification({ certification: ALL_TRUE, gateFlags: ALL_TRUE });
-    expect(both.enabledCount).toBe(6);
-    expect(both.fullLaunchReady).toBe(true);
+    // Certified + flags on but evidence still insufficient (Launch Phase 5 default) → still
+    // NOT enabled, because launch truth derives from the final-launch smoke evidence integrity.
+    const certAndFlags = deriveProductionEnvironmentVerification({ certification: ALL_TRUE, gateFlags: ALL_TRUE });
+    expect(certAndFlags.enabledCount).toBe(1); // only newDealCreate (pilot-certified, no final-launch smoke gate)
+    expect(certAndFlags.fullLaunchReady).toBe(false);
+
+    // All three factors (certified + flags + HIGH evidence) → enabled, full launch ready.
+    const all = deriveProductionEnvironmentVerification({ certification: ALL_TRUE, gateFlags: ALL_TRUE, evidenceHigh: ALL_TRUE });
+    expect(all.enabledCount).toBe(6);
+    expect(all.fullLaunchReady).toBe(true);
   });
 
   it('the verification artifact and the wired model flip no feature gate and add no hidden writes', () => {

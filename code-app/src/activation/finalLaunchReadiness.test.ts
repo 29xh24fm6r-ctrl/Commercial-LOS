@@ -51,10 +51,11 @@ describe('Phase 256A — final-launch readiness projection', () => {
     expect(r.deploymentAllowed).toBe(false);
     expect(r.allCapabilitiesGo).toBe(false);
     expect(r.capabilities.every((c) => !c.smokeGo && c.blockReason)).toBe(true);
-    // The real, current state comes from the (now-flipped) fail-closed verification: 6/6 live.
-    expect(r.currentEnabledCount).toBe(6);
-    expect(r.currentFullLaunchAchieved).toBe(true);
-    // The projection itself, fed NO smoke records, still only projects New Deal (1).
+    // Launch Phase 5: the real verification is now gated on evidence integrity too — only
+    // New Deal create is live (1/6); full launch is NOT achieved.
+    expect(r.currentEnabledCount).toBe(1);
+    expect(r.currentFullLaunchAchieved).toBe(false);
+    // The projection itself, fed NO smoke records, also projects only New Deal (1).
     expect(r.projectedEnabledCount).toBe(1);
   });
 
@@ -72,9 +73,10 @@ describe('Phase 256A — final-launch readiness projection', () => {
     expect(r.deploymentAllowed).toBe(true);
     expect(r.projectedEnabledCount).toBe(6);
     expect(r.projectedFullLaunchAchieved).toBe(true);
-    // The projection still does NOT flip gates itself — but the real verification is already 6/6 live.
-    expect(r.currentEnabledCount).toBe(6);
-    expect(r.currentFullLaunchAchieved).toBe(true);
+    // The projection proves authentic evidence would reach 6/6; the REAL verification stays
+    // gated on the (still-insufficient) committed evidence → 1/6, not launched.
+    expect(r.currentEnabledCount).toBe(1);
+    expect(r.currentFullLaunchAchieved).toBe(false);
   });
 
   it('a single failed/missing artifact blocks that capability and withholds deployment', () => {

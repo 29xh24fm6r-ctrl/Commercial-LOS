@@ -30,28 +30,36 @@ import { NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED } from '../../admin/adminNewDealInt
  */
 
 describe('Phase 242A — restore certified New Deal create activation', () => {
-  it('enables all six domains: enabledCount=6, full launch achieved (Phase 256B)', () => {
+  it('evidence insufficient — only newDealCreate enabled: enabledCount=1, full launch NOT achieved (Launch Phase 5)', () => {
+    // New Deal create is the only live-enabled domain: it is pilot-certified via Phase 227/228A
+    // and is NOT gated on the final-launch smoke evidence. The other five derive launch truth
+    // from the committed final-launch smoke evidence integrity, which is insufficient, so they
+    // stay NOT launched.
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
     expect(verification.domains.find((d) => d.key === 'newDealCreate')?.enabled).toBe(true);
 
     const model = deriveFullActivationLaunchCertification();
-    expect(model.enabledCount).toBe(6);
-    expect(model.fullLaunchAchieved).toBe(true);
+    expect(model.enabledCount).toBe(1);
+    expect(model.fullLaunchAchieved).toBe(false);
     const byId = new Map(model.domains.map((d) => [d.id, d]));
     expect(byId.get('new-deal-create')?.status).toBe('enabled');
     for (const d of model.domains.filter((x) => x.id !== 'new-deal-create')) {
-      expect(d.status, d.id).toBe('enabled');
+      expect(d.status, d.id).not.toBe('enabled');
     }
   });
 
-  it('the other five live-write domains are now certified and live-enabled (Phase 256B)', () => {
+  it('the other five live-write domains stay certified with gate flags on but NOT enabled — evidence insufficient (Launch Phase 5)', () => {
     const verification = deriveProductionEnvironmentVerification();
     for (const d of verification.domains.filter((x) => x.key !== 'newDealCreate')) {
+      // The operator certification toggle and the gate flag are still on (structural state
+      // unchanged), but launch is honestly withheld because the final-launch smoke evidence
+      // is present-but-insufficient.
       expect(d.certified, d.key).toBe(true);
       expect(d.gateFlagOn, d.key).toBe(true);
-      expect(d.enabled, d.key).toBe(true);
+      expect(d.evidenceInsufficient, d.key).toBe(true);
+      expect(d.enabled, d.key).toBe(false);
     }
   });
 

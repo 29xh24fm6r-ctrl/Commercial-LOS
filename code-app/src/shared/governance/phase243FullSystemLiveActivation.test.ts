@@ -16,18 +16,21 @@ const DOC_REL = 'docs/PHASE_243_FULL_SYSTEM_LIVE_ACTIVATION.md';
  * fail-closed; full launch must remain not-achieved until all six are genuinely live.
  */
 describe('Phase 243 — full system live activation governance contract', () => {
-  it('claims full launch: enabledCount=6, fullLaunchAchieved=true (Phase 256B)', () => {
+  it('does NOT claim full launch — evidence insufficient: enabledCount=1, fullLaunchAchieved=false (Launch Phase 5)', () => {
+    // Launch truth derives from the committed final-launch smoke evidence integrity. That
+    // evidence is insufficient for the five evidence domains, so full launch stays not-achieved
+    // and only newDealCreate (pilot-certified) is enabled.
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
 
     const model = deriveFullActivationLaunchCertification();
-    expect(model.enabledCount).toBe(6);
-    expect(model.fullLaunchAchieved).toBe(true);
+    expect(model.enabledCount).toBe(1);
+    expect(model.fullLaunchAchieved).toBe(false);
 
     const evidence = deriveFullProductionLaunchEvidence();
-    expect(evidence.enabledCount).toBe(6);
-    expect(evidence.fullLaunchAchieved).toBe(true);
+    expect(evidence.enabledCount).toBe(1);
+    expect(evidence.fullLaunchAchieved).toBe(false);
   });
 
   it('ties the launch decision to the fail-closed verification (single source of truth)', () => {
@@ -47,11 +50,14 @@ describe('Phase 243 — full system live activation governance contract', () => 
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
   });
 
-  it('every domain is now certified and live-enabled in the verification (Phase 256B)', () => {
+  it('the five evidence domains stay certified but NOT live-enabled — evidence insufficient (Launch Phase 5)', () => {
     const verification = deriveProductionEnvironmentVerification();
     for (const d of verification.domains.filter((x) => x.key !== 'newDealCreate')) {
+      // Certification toggle remains true (unchanged), but the domain is honestly NOT enabled
+      // because its final-launch smoke evidence is present-but-insufficient.
       expect(d.certified, d.key).toBe(true);
-      expect(d.enabled, d.key).toBe(true);
+      expect(d.evidenceInsufficient, d.key).toBe(true);
+      expect(d.enabled, d.key).toBe(false);
     }
   });
 

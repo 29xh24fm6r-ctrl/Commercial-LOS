@@ -53,14 +53,14 @@ describe('Phase 247 — token-backed live measurement governance contract', () =
     expect(src).toMatch(/Invoke-DataverseGet|Test-DataverseTable/);
   });
 
-  it('the launched platform has every live gate flipped (Phase 256B full activation)', () => {
+  it('the platform keeps every live gate flag on but reports honestly: evidence insufficient — not launched (1/6)', () => {
     expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(6);
-    expect(verification.fullLaunchReady).toBe(true);
+    expect(verification.enabledCount).toBe(1);
+    expect(verification.fullLaunchReady).toBe(false);
   });
 
   it('the checklist + borrower/Outlook gates are now live (Phase 256B)', () => {

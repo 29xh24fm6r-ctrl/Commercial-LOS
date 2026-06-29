@@ -173,14 +173,15 @@ describe('Phase 253P — the buildout artifacts reference the COMPLETE contract'
   });
 });
 
-describe('Phase 256B — the portfolio boarding gates are now flipped (full activation)', () => {
-  it('enabledCount is 6/6 and fullLaunchAchieved is true', () => {
+describe('Launch Phase 5 — portfolio boarding flag is on, but launch is integrity-gated', () => {
+  it('portfolio gate flag is on, yet evidence-insufficient → not enabled, not launched (1/6)', () => {
     const vm = deriveFullProductionLaunchEvidence();
-    expect(vm.enabledCount).toBe(6);
-    expect(vm.fullLaunchAchieved).toBe(true);
+    expect(vm.enabledCount).toBe(1);
+    expect(vm.fullLaunchAchieved).toBe(false);
     const portfolio = vm.domains.find((d) => d.key === 'portfolioBoarding')!;
-    expect(portfolio.enabled).toBe(true);
+    // The flag remains on (unchanged); the final-launch evidence gate withholds enablement.
     expect(portfolio.gateFlagOn).toBe(true);
+    expect(portfolio.enabled).toBe(false);
   });
 
   it('live persistence + route are now ON; the remaining boarding capability flags stay OFF', () => {
