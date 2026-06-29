@@ -50,6 +50,40 @@ describe('Phase 232 — Banker Operating Command Center', () => {
     }
   });
 
+  // Completion Phase C — banker dashboard label honesty: a gated live-write domain must never
+  // render the word "enabled". The flag is the FIRST gate; the banker layer cannot see the
+  // authority's certification/evidence, so it presents "gated" (off) or "armed — pending
+  // certification" (on), never a bare "enabled". "enabled" is reserved for the live pilot.
+  describe('Completion Phase C — live-write card label honesty', () => {
+    function card(container: HTMLElement, id: string): HTMLElement {
+      const el = container.querySelector<HTMLElement>(`[data-operating-domain="${id}"]`);
+      expect(el, `card ${id}`).not.toBeNull();
+      return el!;
+    }
+
+    it.each([
+      ['borrower-communications', 'Send gated'],
+      ['document-readiness', 'Generation gated'],
+      ['portfolio-handoff', 'Boarding persistence gated'],
+    ])('%s reads gated and never "enabled" at the safe default', (id, gatedLabel) => {
+      const { container } = render(<BankerOperatingCommandCenter />);
+      const el = card(container, id);
+      const value = el.querySelector('[data-domain-value]');
+      expect(value?.textContent).toBe(gatedLabel);
+      expect(value?.textContent).not.toMatch(/\benabled\b/i); // value never over-asserts
+      expect(within(el).getByText('gated')).toBeInTheDocument(); // status badge
+    });
+
+    it('New Deal intake here reflects the global create gate (gated); the live pilot is its own surface', () => {
+      const { container } = render(<BankerOperatingCommandCenter />);
+      // This command-center card reads BANKER_NEW_DEAL_CREATE_ENABLED (a global gate that stays
+      // false). The genuinely-live banker create pilot is rendered by BankerNewDealCreate, not here.
+      const value = card(container, 'new-deal').querySelector('[data-domain-value]');
+      expect(value?.textContent).toBe('Create gated');
+      expect(value?.textContent).not.toMatch(/\benabled\b/i);
+    });
+  });
+
   it('renders no action controls and introduces no write primitive', () => {
     render(<BankerOperatingCommandCenter />);
 

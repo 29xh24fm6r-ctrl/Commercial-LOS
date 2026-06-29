@@ -34,6 +34,21 @@ function gateState(enabled: boolean): BankerOperatingDomainState {
   return enabled ? 'operational' : 'gated';
 }
 
+/**
+ * Completion Phase C — banker dashboard label honesty.
+ *
+ * The banker layer reads each live-write FLAG (the first gate) but, by role isolation (Phase 48),
+ * cannot import the launch authority and therefore cannot see its certification/evidence state.
+ * So it must never present a bare "enabled" for a live-write domain off the flag alone — that
+ * would over-assert a live capability the runtime certification gate still governs. When a flag is
+ * armed we say "armed — pending certification"; when off, "gated". The word "enabled" is reserved
+ * for the genuinely-live, evidenced New Deal create pilot. (The cross-panel coherence guard
+ * additionally fails CI if this card's `state` ever disagrees with the authority.)
+ */
+function liveWriteValue(armed: boolean, armedNoun: string, gatedLabel: string): string {
+  return armed ? `${armedNoun} armed — pending certification` : gatedLabel;
+}
+
 export function deriveBankerOperatingCommandCenterModel(): BankerOperatingCommandCenterModel {
   const domains: BankerOperatingDomain[] = [
     {
@@ -76,7 +91,7 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
       id: 'document-readiness',
       label: 'Document checklist readiness',
       state: DOCUMENT_CHECKLIST_GENERATION_ENABLED ? 'operational' : 'gated',
-      value: DOCUMENT_CHECKLIST_GENERATION_ENABLED ? 'Generation enabled' : 'Generation gated',
+      value: liveWriteValue(DOCUMENT_CHECKLIST_GENERATION_ENABLED, 'Generation', 'Generation gated'),
       summary:
         'Document readiness is visible in the deal cockpit. Checklist generation remains gated unless explicitly certified.',
       nextAction: 'Review missing documents and request paths; certify generation adapter before enabling automated generation.',
@@ -85,7 +100,7 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
       id: 'borrower-communications',
       label: 'Borrower communications',
       state: BORROWER_MESSAGING_ENABLED ? 'operational' : 'gated',
-      value: BORROWER_MESSAGING_ENABLED ? 'Send enabled' : 'Send gated',
+      value: liveWriteValue(BORROWER_MESSAGING_ENABLED, 'Send', 'Send gated'),
       summary:
         'Borrower-safe drafting and handoff controls are separate from live-send capability; send remains fail-closed by default.',
       nextAction: 'Draft/review borrower updates only through governed handoff paths until live-send is certified.',
@@ -105,9 +120,11 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
       state: PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED
         ? 'operational'
         : 'gated',
-      value: PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED
-        ? 'Boarding persistence enabled'
-        : 'Boarding persistence gated',
+      value: liveWriteValue(
+        PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
+        'Boarding persistence',
+        'Boarding persistence gated',
+      ),
       summary:
         'Portfolio handoff/readiness surfaces are available while booked-loan persistence remains governed by explicit boarding gates.',
       nextAction: 'Use handoff readiness; certify boarding persistence and evidence package before live boarding writes.',

@@ -46,6 +46,20 @@ function gateState(enabled: boolean): ManagerOperatingDomainState {
   return enabled ? 'operational' : 'gated';
 }
 
+/**
+ * Completion Phase C — manager dashboard label honesty.
+ *
+ * The manager layer reads each live-write FLAG (the first gate) but, by role isolation (Phase 48),
+ * cannot import the launch authority and so cannot see its certification/evidence state. It must
+ * never present a bare "enabled" for a live-write domain off the flag alone — that over-asserts a
+ * live capability the runtime certification gate still governs. Armed → "<noun> armed — pending
+ * certification"; off → the gated label. (The cross-panel coherence guard additionally fails CI if
+ * this card's `state` ever disagrees with the authority.)
+ */
+function liveWriteValue(armed: boolean, armedNoun: string, gatedLabel: string): string {
+  return armed ? `${armedNoun} armed — pending certification` : gatedLabel;
+}
+
 export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingCommandCenterModel {
   const domains: ManagerOperatingDomain[] = [
     {
@@ -97,7 +111,7 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
       id: 'document-readiness',
       label: 'Document checklist readiness',
       state: DOCUMENT_CHECKLIST_GENERATION_ENABLED ? 'operational' : 'gated',
-      value: DOCUMENT_CHECKLIST_GENERATION_ENABLED ? 'Generation enabled' : 'Generation gated',
+      value: liveWriteValue(DOCUMENT_CHECKLIST_GENERATION_ENABLED, 'Generation', 'Generation gated'),
       summary:
         'Document readiness across the team is visible for supervision. Checklist generation remains gated unless explicitly certified.',
       nextAction: 'Review missing-document concentration; certify the generation adapter before enabling automated generation.',
@@ -106,7 +120,11 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
       id: 'crm-writeback',
       label: 'CRM writeback gate',
       state: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'operational' : 'gated',
-      value: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'Writeback enabled' : 'Writeback gated',
+      value: liveWriteValue(
+        CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED,
+        'Writeback',
+        'Writeback gated',
+      ),
       summary:
         'CRM coverage is read-side intelligence; live CRM persistence/writeback remains fail-closed unless explicitly enabled and certified.',
       nextAction: 'Require schema, adapter, policy, and operator certification before CRM writeback is enabled.',
@@ -115,7 +133,7 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
       id: 'borrower-communication',
       label: 'Borrower communication gate',
       state: BORROWER_MESSAGING_ENABLED ? 'operational' : 'gated',
-      value: BORROWER_MESSAGING_ENABLED ? 'Send enabled' : 'Send gated',
+      value: liveWriteValue(BORROWER_MESSAGING_ENABLED, 'Send', 'Send gated'),
       summary:
         'Borrower-safe drafting/handoff is separate from live send. Send remains fail-closed by default across the team.',
       nextAction: 'Keep borrower outreach on governed handoff paths until live-send is certified.',
@@ -126,9 +144,11 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
       state: PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED
         ? 'operational'
         : 'gated',
-      value: PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED
-        ? 'Boarding persistence enabled'
-        : 'Boarding persistence gated',
+      value: liveWriteValue(
+        PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
+        'Boarding persistence',
+        'Boarding persistence gated',
+      ),
       summary:
         'Portfolio handoff/readiness is available while booked-loan persistence remains governed by explicit boarding gates.',
       nextAction: 'Certify boarding persistence and evidence package before any live boarding writes.',

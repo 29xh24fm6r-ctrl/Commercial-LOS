@@ -87,15 +87,44 @@ display, but the fix is still to surface the conflict and fail closed by contrac
 Tests (7): resolver resolved/absent/ambiguous(5-row), DQ-flag derivation, and the UI surfacing
 both states. Gate: tsc 0 · 7/7 green.
 
+## Phase C — Banker/manager dashboard label honesty ✅ (commit pending)
+
+The banker and manager Operating Command Center cards derive each live-write domain's label from
+the feature-flag constant directly. The off (gated) labels were already honest after Phase A, but
+the **armed** branch read a bare `'Send enabled'` / `'Generation enabled'` / `'Writeback enabled'`
+/ `'Boarding persistence enabled'` — an over-assertion: these role surfaces read only the FLAG
+(the first gate) and, by role isolation (Phase 48 — `src/banker`/`src/manager` may not import
+`src/admin`), cannot see the launch authority's certification/evidence. A flag-on alone does not
+mean the live write is certified.
+
+Fix (one shared helper per model, `liveWriteValue`): a live-write domain now reads
+`'<noun> armed — pending certification'` when armed and `'<noun> gated'` when off — the word
+**"enabled" never appears** for a gated live-write domain. `"enabled"` is reserved for the
+genuinely-live, evidenced New Deal create pilot (rendered on its own surface). Borrower
+communications was done first, then document checklist, then portfolio boarding (+ manager CRM
+writeback). The off-branch labels are unchanged, so the existing model/state tests are untouched.
+
+Why a label fix and not a by-construction refactor to the authority: the same role-isolation that
+blocked Phase B's refactor applies. The cross-panel coherence guard (Phase B) already fails CI if
+a card's `state` ever disagrees with the authority; this phase additionally hardens the rendered
+`value` so it cannot flash a false "enabled" even transiently.
+
+Render surfaces got a `data-domain-value` hook; a render test **per card** asserts each gated
+live-write value reads its gated label and never matches `/enabled/i` (banker: 3 live-write cards +
+New Deal gate posture; manager: 4 live-write cards).
+
+Files: `src/banker/bankerOperatingCommandCenterModel.ts`,
+`src/banker/BankerOperatingCommandCenter.tsx` (+ `.test.tsx`),
+`src/manager/managerOperatingCommandCenterModel.ts`,
+`src/manager/ManagerOperatingCommandCenter.tsx` (+ `.test.tsx`).
+Gate: tsc 0 · full vitest **688 files / 10,421 passed / 2 skipped** · reachability 0 · build 0 ·
+changed files eslint 0 · `verify:launch-evidence` exit 1 (unchanged, honest-red).
+
 ## Remaining Section A phases (not yet done this turn)
 
-- **Phase C** — banker dashboard card labels: drive each from the shared authority so a gated
-  domain never reads "enabled" (borrower comms first).
-- **Phase D** — `KPI_BASELINE_DATE` reader: deterministic on >1 active row → raise a
-  data-quality flag + fail-closed (show "baseline ambiguous", not a fabricated KPI). Operator
-  dedupes the rows.
-- **Phase E** — lint baseline for the ~legacy `react-hooks`/`eslint-10` debt (new code already
-  clean).
+- **Phase E** — lint baseline for the legacy `react-hooks`/`eslint-10` debt (162 errors / 5
+  warnings, all pre-existing — every file changed this arc lints clean). CI fails on NEW lint,
+  tolerates the baselined set; new code stays clean.
 - **Section B** — operator runbook (production environment, schema state, authentic evidence,
   Outlook connector, per-domain arming) — unchanged, environment-owned.
 

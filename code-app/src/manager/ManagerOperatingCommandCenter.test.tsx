@@ -47,4 +47,29 @@ describe('Phase 233 — Manager Operating Command Center', () => {
     expect(container.querySelectorAll('form').length).toBe(0);
     expect(container.querySelectorAll('input,textarea,select').length).toBe(0);
   });
+
+  // Completion Phase C — manager dashboard label honesty: a gated live-write domain must never
+  // render the word "enabled". The manager layer reads the flag (first gate) but cannot see the
+  // authority's certification, so it shows "gated" (off) / "armed — pending certification" (on).
+  describe('Completion Phase C — live-write card label honesty', () => {
+    function card(container: HTMLElement, id: string): HTMLElement {
+      const el = container.querySelector<HTMLElement>(`[data-operating-domain="${id}"]`);
+      expect(el, `card ${id}`).not.toBeNull();
+      return el!;
+    }
+
+    it.each([
+      ['document-readiness', 'Generation gated'],
+      ['crm-writeback', 'Writeback gated'],
+      ['borrower-communication', 'Send gated'],
+      ['portfolio-boarding', 'Boarding persistence gated'],
+    ])('%s reads gated and never "enabled" at the safe default', (id, gatedLabel) => {
+      const { container } = render(<ManagerOperatingCommandCenter />);
+      const el = card(container, id);
+      const value = el.querySelector('[data-domain-value]');
+      expect(value?.textContent).toBe(gatedLabel);
+      expect(value?.textContent).not.toMatch(/\benabled\b/i); // value never over-asserts
+      expect(within(el).getByText('gated')).toBeInTheDocument(); // status badge
+    });
+  });
 });
