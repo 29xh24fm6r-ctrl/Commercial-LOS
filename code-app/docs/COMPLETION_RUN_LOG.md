@@ -139,12 +139,52 @@ unchanged (`eslint .` auto-reads the suppressions file). Gate: tsc 0 · reachabi
 `npm run lint` 0 · `verify:launch-evidence` exit 1 (unchanged, honest-red). Test suite unchanged
 from the Phase C full-green run (no `.ts/.tsx` source/test files modified).
 
-## Section A complete — remaining
+## Phase F — Whole-system verification ✅ (commit pending)
 
-- **Phase F** — whole-system verification: a final full-gate run + this log's close-out. Do NOT
-  push (deploy is operator-owned, human-approved).
-- **Section B** — operator runbook (production environment, schema state, authentic evidence,
-  Outlook connector, per-domain arming) — unchanged, environment-owned. Not faked.
+Final authoritative gate over the full branch:
+
+| gate | result |
+|------|--------|
+| `tsc -b` | 0 |
+| `npm run lint` | 0 (162 legacy errors baselined; new lint still fails) |
+| `npm run audit:reachability` | 0 |
+| `npm run build` | 0 |
+| full `vitest run` | **688 files · 10,421 passed · 2 skipped** |
+| `npm run verify:launch-evidence` | **exit 1 — honest-red, by design** |
+
+The launch-evidence verifier remains intentionally red: no authentic GO evidence exists yet, so
+the system must not claim launch readiness. That red is the truth, not a regression.
+
+### Posture after Section A
+
+Defense-in-depth and surface coherence are restored; the system is honestly **fail-closed at
+1/6**:
+
+- **A** — all five live-write flags reset to safe-off; the runtime schema/transport gates remain
+  the second layer; defaults are honest. Pilot (`BANKER_CREATE_PILOT_ENABLED`) and the three
+  global create gates are untouched.
+- **B** — a cross-panel coherence guard fails CI (both directions) if any panel's per-domain
+  status diverges from the single launch authority — permanently catching "a flag re-armed without
+  authentic evidence."
+- **C** — banker & manager dashboards never render a bare "enabled" for a gated live-write domain;
+  "enabled" is reserved for the genuinely-live New Deal pilot.
+- **D** — `KPI_BASELINE_DATE` reads deterministically and fails closed on conflicting rows
+  (visible DQ warning, never a fabricated baseline).
+- **E** — legacy lint baselined honestly; new code must lint clean.
+
+No evidence, identity, schema state, receipt, or ledger row was fabricated or rewritten; every
+change is additive and stricter. **The branch is NOT pushed — deploy is operator-owned and
+human-approved.**
+
+### Commits (branch `completion/flag-truthup-20260629`, base `master 1b9807a`)
+
+`57c7170` A · `cb924b8` log · `f8681a5` B · `8783e65` D · `065eb3d` C · `097577b` E · (this) F.
+
+## Section B — operator runbook (environment-owned, NOT done in repo)
+
+Production environment, Dataverse schema state, authentic per-domain GO evidence, the Outlook
+connector, and deliberate per-domain arming remain owned by the operator. Nothing here is faked;
+arming a domain is an evidence-backed operator act, never a repo source default.
 - **Section B** — operator runbook (production environment, schema state, authentic evidence,
   Outlook connector, per-domain arming) — unchanged, environment-owned.
 
