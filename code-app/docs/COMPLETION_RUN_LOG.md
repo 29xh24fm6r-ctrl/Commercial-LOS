@@ -68,6 +68,25 @@ Deal create is enabled with the pilot-reading surfaces agreeing.
 
 Gate: tsc 0 · coherence guard 4/4 green.
 
+## Phase D — `KPI_BASELINE_DATE` data-quality fix ✅ (commit pending)
+
+`KPI_BASELINE_DATE` is single-valued but the live environment holds 5 active system-setting rows
+with conflicting baseline dates. (Audit finding: in code, `kpiBaselineDate` is consumed only for
+display in `ConfigurationOverview` — no KPI math silently reads it — so the risk is an ambiguous
+display, but the fix is still to surface the conflict and fail closed by contract.)
+
+- `src/admin/kpiBaselineResolution.ts` — pure, deterministic `resolveKpiBaselineDate(rows)` →
+  `resolved` (exactly one distinct value), `absent`, or `ambiguous` (a result with **no `value`
+  field** — a consumer literally cannot read a baseline when it's ambiguous → fail-closed by
+  construction). Plus `deriveKpiBaselineDataQualityFlag` (a warning DQ flag listing the conflicts).
+- `ConfigurationOverview` now renders a visible ambiguity warning
+  (`data-kpi-baseline-ambiguous`, "N conflicting values … treated as unresolved") instead of
+  silently listing the rows; a single clean value renders as `data-kpi-baseline-resolved`.
+- Operator-owned (runbook): dedupe `KPI_BASELINE_DATE` to one approved row.
+
+Tests (7): resolver resolved/absent/ambiguous(5-row), DQ-flag derivation, and the UI surfacing
+both states. Gate: tsc 0 · 7/7 green.
+
 ## Remaining Section A phases (not yet done this turn)
 
 - **Phase C** — banker dashboard card labels: drive each from the shared authority so a gated
