@@ -27,6 +27,32 @@ Deal create gates stay false. Certification authority unchanged at **1/6** (New 
 only); `enabledCount=1`, `fullLaunchReady=false`.
 
 **Tests flipped toward the safe default (off/gated)** across deals/CRM/portfolio/admin/governance
-clusters (via parallel workers + core models done directly) — every changed expectation moved
-toward "safe off", never re-asserting the unsafe `true`; fail-closed, governed-adapter, audit,
-and pilot assertions preserved.
+clusters (~75 test files, via parallel workers + core models done directly) — every changed
+expectation moved toward "safe off", never re-asserting the unsafe `true`; fail-closed,
+governed-adapter, audit, source-text, and pilot assertions preserved.
+
+Gate (commit `57c7170`): tsc 0 · full vitest **685 files / 10,402 passed / 2 skipped** ·
+reachability 0 · build 0 · `verify:launch-evidence` exit 1 (unchanged).
+
+> Side effect (positive): because the admin/operating panel + readiness tests were flipped to
+> expect the gated reality and now PASS, those panels already render coherently off the shared
+> flag/verification state — i.e., Phase B's split-brain is largely closed in practice by this
+> reset. What remains for Phase B is the **enforcing cross-panel coherence test** (a guard that
+> fails if any panel reports a domain "enabled" while the certification authority reports it
+> not-enabled) so the contradiction cannot recur.
+
+## Remaining Section A phases (not yet done this turn)
+
+- **Phase B** — cross-panel coherence *test/guard* (panels already gated post-A; add the
+  permanent enforcement test).
+- **Phase C** — banker dashboard card labels: drive each from the shared authority so a gated
+  domain never reads "enabled" (borrower comms first).
+- **Phase D** — `KPI_BASELINE_DATE` reader: deterministic on >1 active row → raise a
+  data-quality flag + fail-closed (show "baseline ambiguous", not a fabricated KPI). Operator
+  dedupes the rows.
+- **Phase E** — lint baseline for the ~legacy `react-hooks`/`eslint-10` debt (new code already
+  clean).
+- **Section B** — operator runbook (production environment, schema state, authentic evidence,
+  Outlook connector, per-domain arming) — unchanged, environment-owned.
+
+Branch `completion/flag-truthup-20260629` not pushed (deploy is operator-owned, human-approved).
