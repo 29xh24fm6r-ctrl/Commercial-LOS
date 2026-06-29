@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "audit:reachability": "node scripts/reachability-audit.mjs",
     "verify": "npm run power:schemas:ensure && tsc -b && vitest run && npm run audit:reachability && vite build",
+    "verify:launch-evidence": "vitest run --config vitest.launch-evidence.config.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

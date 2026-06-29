@@ -71,6 +71,34 @@ Documented in the two phase256 tests.
 
 Gate: tsc 0 · full vitest **684 files / 10,393 passed / 2 skipped** · reachability 0 · build 0.
 
+## Phase 4 — Authentic-evidence verifier + production-acceptance checklist ✅ (commit pending)
+
+- **`npm run verify:launch-evidence`** (new): runs the Phase-1 integrity report over
+  `docs/operator-evidence/final-launch/*.json` and exits **non-zero** unless every domain is
+  `accepted` at `HIGH` confidence, printing a per-domain reason report. Lives in its own
+  config (`vitest.launch-evidence.config.ts`) + spec (`scripts/launchEvidenceVerify.spec.ts`)
+  **outside** the default `src/**` suite, so the green CI gate (`npm run verify`) is
+  unaffected. **Currently exits non-zero (1)** against the insufficient evidence — the correct
+  signal — naming each domain's gap (sentinel identity / no record ids / no delivery receipt).
+- **`docs/PRODUCTION_ACCEPTANCE_CHECKLIST.md`** (new): the human acceptance pass on the live
+  play URL, per domain, with named sign-off fields and the explicit borrowerSend protocol
+  (approved test recipient, captured transport receipt, named approver).
+- **Harness upgrade (operator-owned, → Phase 7):** the PowerShell smoke harness must (a) fail
+  rather than default to `unknown-operator` when it cannot resolve the live UPN, and (b)
+  capture the borrowerSend `deliveryReceiptId`/`approvedRecipient`/`approverUpn`. Contract is
+  specified in the checklist; the `.ps1` change is operator-run against a live env and is not
+  faked here.
+
+Gate: tsc 0 · lint 0 errors · default suite unchanged (verifier excluded from `src/**`).
+`verify:launch-evidence` exits 1 by design.
+
 ## Remaining phases
 
-(Updated as each lands.)
+- **Phase 2** (data-integrity / extended-attributes persistence): not started — substantial;
+  additive JSON-column contract behind a default-off flag, fail-closed when column absent.
+- **Phase 3** (lint baseline): not started — new code is lint-clean; the ~legacy lint debt
+  baseline is pending.
+- **Phase 5** (governance truth-up): the flag-driven `fullLaunchReady`/cutover/ledger still
+  report 6/6; gating them on the integrity report (so the admin panel shows
+  EVIDENCE_INSUFFICIENT and `fullLaunchAchieved` is honest) is the key remaining repo step.
+- **Phase 7** operator runbook: pre-drafted in `PRODUCTION_ACCEPTANCE_CHECKLIST.md`.
