@@ -54,8 +54,8 @@ describe('Phase 253B — CRM SDK/data-source registration governance contract', 
     expect(hydrateVerifiedCrmSchemaState(blocked).hydrated).toBe(false);
   });
 
-  it('the CRM gate flag stays on and all six certified, but evidence insufficient — full launch NOT claimed (1/6)', () => {
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
+  it('the CRM gate flag is at its safe default (off) though all six certified — full launch NOT claimed (1/6)', () => {
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     const verification = deriveProductionEnvironmentVerification();
     expect(verification.enabledCount).toBe(1);

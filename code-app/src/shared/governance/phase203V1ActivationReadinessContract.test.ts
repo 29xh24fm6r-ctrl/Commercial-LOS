@@ -74,15 +74,15 @@ describe('203 — panel is read-only / action-free', () => {
 });
 
 describe('203 — deterministic posture', () => {
-  it('reports CONDITIONAL_GO with active surfaces + launched writes', () => {
+  it('reports CONDITIONAL_GO with active surfaces + gated live writes (pilot enabled)', () => {
     const r = deriveV1ActivationReadiness();
     expect(r.overallPosture).toBe('CONDITIONAL_GO');
     expect(r.ogbCrmStatus).toBe('ACTIVE');
     expect(r.internalLendingWorkflowStatus).toBe('ACTIVE');
     expect(r.newDealCreatePilot).toBe('ENABLED');
-    expect(r.crmWriteback).toBe('ENABLED');
-    expect(r.borrowerCommunications).toBe('ENABLED');
-    expect(r.checklistGeneration).toBe('ENABLED');
+    expect(r.crmWriteback).toBe('GATED');
+    expect(r.borrowerCommunications).toBe('GATED');
+    expect(r.checklistGeneration).toBe('GATED');
     expect(r.broadWorkflowWrites).toBe('GATED');
     expect(r.externalConnectors).toBe('NOT_REQUIRED');
     expect(r.fakeSampleDataDependency).toBe('NOT_PRESENT');

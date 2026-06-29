@@ -40,12 +40,12 @@ describe('Phase 244 — post-schema PASS evidence governance contract', () => {
     expect(vm.blockingDomains).toEqual([]);
   });
 
-  it('does NOT claim full launch — evidence insufficient (Launch Phase 5, enabledCount 1/6) even with every gate flipped', () => {
-    // The certification toggles and live gate flags are all flipped on (structural state below
-    // is unchanged), but launch truth derives from the committed final-launch smoke evidence
-    // integrity, which is insufficient — so full launch stays not-achieved and only newDealCreate
-    // (pilot-certified) is enabled. CRM + portfolio PASS the environment prerequisite but are
-    // still NOT live because their final-launch smoke evidence is present-but-insufficient.
+  it('does NOT claim full launch — live gates at safe defaults + evidence insufficient (Launch Phase 5, enabledCount 1/6)', () => {
+    // The certification toggles remain on, but the live-write gate flags are now at their SAFE
+    // DEFAULTS (off). Launch truth derives from both the live gate flags and the committed
+    // final-launch smoke evidence integrity — both withhold launch, so full launch stays
+    // not-achieved and only newDealCreate (pilot-certified) is enabled. CRM + portfolio are
+    // NOT live (gate flags off and final-launch smoke evidence present-but-insufficient).
     const verification = deriveProductionEnvironmentVerification();
     expect(verification.enabledCount).toBe(1);
     expect(verification.fullLaunchReady).toBe(false);
@@ -56,16 +56,17 @@ describe('Phase 244 — post-schema PASS evidence governance contract', () => {
     expect(byKey.get('crmWriteback')?.enabled).toBe(false);
     expect(byKey.get('portfolioBoarding')?.enabled).toBe(false);
 
-    // Every domain is still certified and its live gate is still flipped — only the evidence
-    // integrity withholds launch. These structural facts remain true.
+    // Every domain is still certified, but the live gate flags are now at their SAFE DEFAULTS
+    // (off) for the five live-write domains — so launch is withheld by both the gate flags AND
+    // the evidence integrity. The certification structural facts remain true.
     expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
-    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
+    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(false);
   });
 
   it('the orchestrator cannot report ALL-PASS while any child is BLOCKED/UNKNOWN', () => {

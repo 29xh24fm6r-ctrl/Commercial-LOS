@@ -60,10 +60,10 @@ describe('195 — no-code-change posture (no gate flipped)', () => {
     expect(evaluateBankerCreateRollout()).toBe('disabled');
   });
 
-  it('the two pilot-UI gates remain false; generation is launched', () => {
+  it('the two pilot-UI gates remain false; generation is gated', () => {
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
   });
 
   it('the Phase 190A build preflight remains wired into the build', () => {

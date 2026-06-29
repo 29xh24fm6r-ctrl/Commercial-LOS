@@ -42,10 +42,10 @@ describe('read-only — no write verbs / network', () => {
 });
 
 describe('does not change CRM_LIVE_PERSISTENCE_ENABLED', () => {
-  it('reflects the flag default (flipped to true by Phase 256B)', () => {
-    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
-    // neither panel nor builder assigns it (proven below).
-    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
+  it('reflects the safe default (reset to false in crmFeatureFlags.ts)', () => {
+    // Completion Phase A reset CRM_LIVE_PERSISTENCE_ENABLED to the SAFE default
+    // (false) in crmFeatureFlags.ts; neither panel nor builder assigns it (proven below).
+    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
   });
 
   it('neither panel nor builder assigns the flag', () => {

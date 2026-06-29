@@ -110,10 +110,10 @@ describe('no mode executes a live write or schema mutation (runtime proof)', () 
 });
 
 describe('does not flip CRM_LIVE_PERSISTENCE_ENABLED', () => {
-  it('flag default is true (flipped by Phase 256B); the adapter never assigns it', () => {
-    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
-    // this adapter still never assigns the flag.
-    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
+  it('flag default is the safe false (reset in crmFeatureFlags.ts); the adapter never assigns it', () => {
+    // Completion Phase A reset CRM_LIVE_PERSISTENCE_ENABLED to the SAFE default
+    // (false) in crmFeatureFlags.ts; this adapter still never assigns the flag.
+    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
     expect(ADAPTER).not.toMatch(/CRM_LIVE_PERSISTENCE_ENABLED\s*=[^=]/);
   });
 });

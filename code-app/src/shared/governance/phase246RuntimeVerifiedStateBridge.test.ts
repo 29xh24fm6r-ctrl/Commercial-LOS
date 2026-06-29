@@ -47,20 +47,20 @@ describe('Phase 246 — runtime verified-state bridge governance contract', () =
     expect(crm.hydrated).toBe(true);
   });
 
-  it('Launch Phase 5: the live gate flags stay on and all six certified, but evidence is insufficient — full launch NOT achieved (1/6)', () => {
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
+  it('Completion Phase A: the live gate flags are at safe defaults (off) though all six certified — full launch NOT achieved (1/6)', () => {
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(false);
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     const verification = deriveProductionEnvironmentVerification();
     expect(verification.enabledCount).toBe(1);
     expect(verification.fullLaunchReady).toBe(false);
   });
 
-  it('Phase 256B: checklist + borrower gates are now live', () => {
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
+  it('Completion Phase A: checklist + borrower gates are at safe defaults (off)', () => {
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
   });
 
   it('the bridge source is pure, read-only, and fabricates no PASS or flag flip', () => {

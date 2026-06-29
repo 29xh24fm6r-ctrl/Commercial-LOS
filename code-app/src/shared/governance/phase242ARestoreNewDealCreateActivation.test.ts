@@ -50,14 +50,14 @@ describe('Phase 242A — restore certified New Deal create activation', () => {
     }
   });
 
-  it('the other five live-write domains stay certified with gate flags on but NOT enabled — evidence insufficient (Launch Phase 5)', () => {
+  it('the other five live-write domains stay certified but gate flags are OFF (safe defaults) and NOT enabled', () => {
     const verification = deriveProductionEnvironmentVerification();
     for (const d of verification.domains.filter((x) => x.key !== 'newDealCreate')) {
-      // The operator certification toggle and the gate flag are still on (structural state
-      // unchanged), but launch is honestly withheld because the final-launch smoke evidence
-      // is present-but-insufficient.
+      // The operator certification toggle is still on (structural state unchanged),
+      // but the underlying live-write gate flags were reset to SAFE DEFAULTS (off),
+      // so each domain is gated DOWN and launch stays honestly withheld.
       expect(d.certified, d.key).toBe(true);
-      expect(d.gateFlagOn, d.key).toBe(true);
+      expect(d.gateFlagOn, d.key).toBe(false);
       expect(d.evidenceInsufficient, d.key).toBe(true);
       expect(d.enabled, d.key).toBe(false);
     }

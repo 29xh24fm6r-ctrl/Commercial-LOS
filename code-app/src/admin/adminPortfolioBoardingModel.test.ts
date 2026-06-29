@@ -20,11 +20,11 @@ describe('Phase 229 -- internal portfolio boarding admin active', () => {
     expect(PORTFOLIO_BOARDING_ADMIN_LIVE_WRITE_ENABLED).toBe(true);
   });
 
-  it('reads the real active live persistence flag, not a hardcoded value', () => {
+  it('reads the real live persistence flag (now safe-default off), not a hardcoded value', () => {
     expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT).toBe(
       PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
     );
-    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT).toBe(true);
+    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT).toBe(false);
   });
 
   it('explains the governed internal portfolio activation reason', () => {
@@ -35,14 +35,14 @@ describe('Phase 229 -- internal portfolio boarding admin active', () => {
 });
 
 describe('Phase 169D -- readiness and data groups', () => {
-  it('reports the boarding stack present with live persistence enabled', () => {
+  it('reports the boarding stack present with live persistence safe-default off', () => {
     const labels = PORTFOLIO_BOARDING_READINESS.map((r) => r.label);
     expect(labels).toContain('Persistence adapter');
     expect(labels).toContain('Runtime schema gate');
     const live = PORTFOLIO_BOARDING_READINESS.find(
       (r) => r.label === 'Live runtime persistence enabled',
     );
-    expect(live?.present).toBe(true);
+    expect(live?.present).toBe(false);
   });
 
   it('lists all nine required boarding data groups', () => {

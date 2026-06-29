@@ -18,19 +18,22 @@
 export const BANKER_NEW_DEAL_CREATE_ENABLED = false as const;
 export const CRM_AUTOMATION_ENABLED = false as const;
 export const BORROWER_INVITE_AUTOMATION_ENABLED = false as const;
-// Phase 256B: flipped ON after the GO stage-advancement smoke (controlled transition + audit
-// + timeline + readback). Production use is governed explicit advancement, never uncontrolled.
-export const AUTO_STAGE_ADVANCE_ENABLED = true as const;
+// Completion Phase A — reset to the SAFE DEFAULT (off). A live-write flag must never assert a
+// domain up by source default; it is armed deliberately, per domain, only once that domain's
+// authentic evidence + verified schema state + transport are real (operator runbook O5–O7).
+// The runtime schema/transport gates remain the second safety layer.
+export const AUTO_STAGE_ADVANCE_ENABLED = false as const;
 export const TASK_GENERATION_ENABLED = true as const;
-// Phase 256B: flipped ON after the GO document-checklist smoke (live write transport +
-// create/readback/update/cleanup). Runtime still requires authorized actor + preview match + audit.
-export const DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const;
+// Completion Phase A — safe default (off); arm only after the live checklist write transport is
+// injected and a real document-checklist smoke is captured.
+export const DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const;
 export const PORTFOLIO_SIDE_EFFECTS_ENABLED = false as const;
-// Phase 256B: borrower send flipped ON after the GO borrower-send smoke (VITE_EMAIL_MODE=LIVE,
-// approved test recipient, delivery + audit verified). Send stays an explicit banker action.
-export const BORROWER_MESSAGING_ENABLED = true as const;
-/** Phase 256B: the borrower email transport is enabled together with messaging. */
-export const BORROWER_EMAIL_TRANSPORT_ENABLED = true as const;
+// Completion Phase A — borrower send is the highest-risk domain (live email). Safe default
+// (off); arm only after the Outlook connector is registered, the SDK regenerated, and a real
+// approved-recipient send with a captured delivery receipt + named approver is recorded.
+export const BORROWER_MESSAGING_ENABLED = false as const;
+/** Completion Phase A — borrower email transport safe default (off); armed with messaging. */
+export const BORROWER_EMAIL_TRANSPORT_ENABLED = false as const;
 export const BORROWER_SMS_TRANSPORT_ENABLED = false as const;
 export const BORROWER_TWILIO_TRANSPORT_ENABLED = false as const;
 /** Duplicate detection may run as a warning; merge is never auto-applied. */

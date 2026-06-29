@@ -79,17 +79,18 @@ describe('Phase 233 — manager + executive operating readiness activation contr
     expect(execVm.domains.map((d) => d.id)).toContain('admin-activation');
   });
 
-  it('reflects the Phase 256B launched live-write domains while New Deal create stays gated', () => {
+  it('reflects the SAFE-DEFAULT gated live-write domains while New Deal create stays gated', () => {
     const managerVm = deriveManagerOperatingCommandCenterModel();
     const byId = new Map(managerVm.domains.map((d) => [d.id, d]));
-    // Phase 256B launched checklist, CRM writeback, borrower send, and portfolio boarding.
+    // Live-write gates are reset to safe defaults: checklist, CRM writeback,
+    // borrower send, and portfolio boarding are all gated.
     for (const id of ['document-readiness', 'crm-writeback', 'borrower-communication', 'portfolio-boarding']) {
-      expect(byId.get(id)?.state, id).toBe('operational');
+      expect(byId.get(id)?.state, id).toBe('gated');
     }
     // New Deal create stays gated by its global constant.
     expect(byId.get('new-deal-intake')?.state).toBe('gated');
 
-    // The overall executive restart posture stays gated activation while New Deal create is gated.
+    // The overall executive restart posture stays gated activation while the live-write gates are off.
     const execVm = deriveExecutiveRestartReadinessModel();
     expect(execVm.overallState).toBe('gated-activation');
   });

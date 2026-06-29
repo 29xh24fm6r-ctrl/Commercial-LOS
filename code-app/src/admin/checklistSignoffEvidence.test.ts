@@ -26,14 +26,17 @@ const COMPLETE: ChecklistRulesetSignoff = {
 };
 
 describe('Phase 251 — checklist lending-owner signoff evidence (consumed)', () => {
-  it('the committed signoff is RECORDED → SIGNED, and the live gate is now flipped (Phase 256B)', () => {
+  it('the committed signoff is RECORDED → SIGNED, while the live gates stay safe-default off (gate flip blocked)', () => {
     expect(CHECKLIST_RULESET_SIGNOFF).not.toBeNull();
     expect(validateChecklistSignoff(CHECKLIST_RULESET_SIGNOFF).valid).toBe(true);
     const vm = deriveChecklistSignoffReadiness();
     expect(vm.status).toBe('SIGNED');
     expect(vm.signed).toBe(true);
-    // Phase 256B: the live checklist gates are now flipped after the GO smoke.
-    expect(vm.generationGateEnabled).toBe(true);
+    // Completion Phase A: the DOCUMENT_CHECKLIST_GENERATION_ENABLED gate was reset to its
+    // safe default (off). The recorded signoff does NOT flip it — gate flip stays a separate
+    // governed step. (writeGateEnabled reflects the separate CHECKLIST_WRITE_ENABLED seam,
+    // read honestly from its real constant.)
+    expect(vm.generationGateEnabled).toBe(false);
     expect(vm.writeGateEnabled).toBe(true);
     expect(vm.gateFlipBlocked).toBe(true);
   });

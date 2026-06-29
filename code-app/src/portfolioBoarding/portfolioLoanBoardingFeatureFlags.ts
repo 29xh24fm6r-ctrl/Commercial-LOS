@@ -34,13 +34,14 @@ export interface PortfolioBoardingFeatureFlags {
 }
 
 /** The safe defaults: every portfolio boarding runtime capability is off. */
-// Phase 256B: live persistence + route flipped ON after the GO portfolio boarding smoke
-// (create/readback/update/cleanup verified) + hydrated 219/12 runtime schema. Runtime writes
-// still additionally require an authorized operator + injected transport + verified state.
+// Completion Phase A — reset to SAFE DEFAULTS (off). Live persistence is armed deliberately only
+// once the live boarding schema is verified (VerifiedBoardingSchemaState injected) and authentic
+// boarding evidence is captured; the route stays off until then. The runtime schema gate remains
+// the second safety layer.
 export const PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS: PortfolioBoardingFeatureFlags =
   Object.freeze({
-    PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: true,
-    PORTFOLIO_BOARDING_ROUTE_ENABLED: true,
+    PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: false,
+    PORTFOLIO_BOARDING_ROUTE_ENABLED: false,
     PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED: false,
     PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED: false,
     PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: false,

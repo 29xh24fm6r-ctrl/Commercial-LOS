@@ -23,12 +23,14 @@ describe('OgbCrmWorkflowActivationPanel', () => {
     expect(screen.getByText('Internal lending workflow active')).toBeTruthy();
   });
 
-  it('shows the launched write categories as enabled', () => {
+  it('shows the unsafe write categories as gated with only the pilot create enabled', () => {
     const { container } = render(<OgbCrmWorkflowActivationPanel />);
     const text = container.textContent ?? '';
-    expect(text).toMatch(/Writeback enabled/i);
-    expect(text).toMatch(/Checklist generation enabled/i);
-    expect(text).toMatch(/Borrower comms enabled/i);
+    // Completion Phase A reset the live-write gates to their safe defaults (off), so the
+    // unsafe write categories read gated again; only the certified pilot create stays enabled.
+    expect(text).toMatch(/Writeback gated/i);
+    expect(text).toMatch(/Checklist generation gated/i);
+    expect(text).toMatch(/Borrower comms gated/i);
     expect(text).toMatch(/Pilot create enabled \(pilot-only\)/i);
   });
 
