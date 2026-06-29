@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useManagerData } from '../manager/ManagerDataProvider';
 import { ExistingPortfolioLoansPanel } from '../portfolioBoarding/ExistingPortfolioLoansPanel';
+import { VariableRateControlCenter } from './variableRate/VariableRateControlCenter';
 import { useOptionalManagerBankerFilter, dealMatchesBankerFilter } from '../manager/ManagerBankerFilter';
 import {
   deriveRiskDistribution,
@@ -249,6 +250,9 @@ export function PortfolioCommandCenter() {
         actorSystemUserId={undefined}
         writeDisabledReason="Board existing portfolio loans from the Loan Workflow workspace."
       />
+      {/* Phase 262 — Variable Rate Control Center: variable/adjustable loans,
+          fully-indexed rates from operator-entered index values, reset alerts. */}
+      <VariableRateControlCenter />
     </section>
   );
 }

@@ -89,6 +89,61 @@ describe('buildImportTemplateCsv', () => {
     expect(parsed.valid).toHaveLength(1);
     expect(parsed.valid[0].loanNumber).toBe('SAMPLE-1001');
   });
+
+  it('includes the Phase 262 rate + CRM + officer/branch columns', () => {
+    const headers = templateHeaders();
+    for (const h of [
+      'Interest Rate Type', 'Index', 'Spread', 'Floor Rate', 'Ceiling Rate', 'Current Note Rate',
+      'Loan Product', 'Assigned Loan Officer', 'Assigned Portfolio Manager', 'Branch Number', 'Loan Purpose',
+      'First Reset Date', 'First Reset Payment Number', 'Reset Frequency', 'Next Rate Change Date', 'Payment 61 Reset',
+      'CRM Primary Contact', 'Guarantor Email', 'Guarantor Phone',
+    ]) {
+      expect(headers).toContain(h);
+    }
+  });
+});
+
+describe('Phase 262 — rate validation', () => {
+  const RATE_HEADER = 'Loan Number,Borrower Legal Name,Interest Rate Type,Index,Spread,Payment 61 Reset,First Reset Date';
+
+  it('rejects a Variable loan missing index or spread', () => {
+    const csv = `${RATE_HEADER}\nV-1,Acme,Variable,,,,`;
+    const parsed = parseAndValidateCsv(csv);
+    expect(parsed.valid).toHaveLength(0);
+    const msg = parsed.errors[0].messages.join(' ');
+    expect(msg).toMatch(/require an Index/i);
+    expect(msg).toMatch(/require a Spread/i);
+  });
+
+  it('accepts a Variable loan with index + spread, persisting them', () => {
+    const csv = `${RATE_HEADER}\nV-2,Acme,Variable,Prime,1.5,,`;
+    const parsed = parseAndValidateCsv(csv);
+    expect(parsed.errors).toHaveLength(0);
+    expect(parsed.valid).toHaveLength(1);
+    expect(parsed.valid[0].input.index).toBe('Prime');
+    expect(parsed.valid[0].input.spread).toBe(1.5);
+  });
+
+  it('does NOT require index/spread for a Fixed loan', () => {
+    const csv = `${RATE_HEADER}\nF-1,Acme,Fixed,,,,`;
+    const parsed = parseAndValidateCsv(csv);
+    expect(parsed.errors).toHaveLength(0);
+    expect(parsed.valid).toHaveLength(1);
+  });
+
+  it('requires reset terms when Payment 61 Reset is Yes', () => {
+    const csv = `${RATE_HEADER}\nP-1,Acme,Fixed,,,Yes,`;
+    const parsed = parseAndValidateCsv(csv);
+    expect(parsed.valid).toHaveLength(0);
+    expect(parsed.errors[0].messages.join(' ')).toMatch(/Payment-61 reset loans require reset terms/i);
+  });
+
+  it('accepts Payment 61 Reset = Yes when a reset term is provided', () => {
+    const csv = `${RATE_HEADER}\nP-2,Acme,Fixed,,,Yes,2027-03-15`;
+    const parsed = parseAndValidateCsv(csv);
+    expect(parsed.errors).toHaveLength(0);
+    expect(parsed.valid).toHaveLength(1);
+  });
 });
 
 describe('runPortfolioImport', () => {

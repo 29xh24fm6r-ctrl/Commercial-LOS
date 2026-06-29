@@ -89,6 +89,11 @@ export interface ExistingLoanInput {
   readonly currentOutstandingPrincipal?: number;
   readonly availableBalance?: number;
   readonly interestRateType?: string;
+  /** Phase 262 — variable-rate pricing (these columns exist on the entity). */
+  readonly index?: string;
+  readonly spread?: number;
+  readonly floor?: number;
+  readonly ceiling?: number;
   readonly paymentFrequency?: string;
   readonly amortizationMonths?: number;
   readonly termMonths?: number;
@@ -204,6 +209,10 @@ function buildRootPayload(input: ExistingLoanInput): Record<string, unknown> {
     cr664_currentoutstandingprincipal: num(input.currentOutstandingPrincipal),
     cr664_availablebalance: num(input.availableBalance),
     cr664_interestratetype: trimmed(input.interestRateType) || undefined,
+    cr664_index: trimmed(input.index) || undefined,
+    cr664_spread: num(input.spread),
+    cr664_floor: num(input.floor),
+    cr664_ceiling: num(input.ceiling),
     cr664_paymentfrequency: trimmed(input.paymentFrequency) || undefined,
     cr664_amortizationmonths: num(input.amortizationMonths),
     cr664_termmonths: num(input.termMonths),

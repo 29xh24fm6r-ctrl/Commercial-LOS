@@ -14,7 +14,9 @@ import type { ExistingLoanInput, ExistingLoanChildInput } from './existingLoanEn
 import {
   SCALAR_IMPORT_COLUMNS,
   CHILD_IMPORT_COLUMNS,
+  INFORMATIONAL_IMPORT_COLUMNS,
   type ScalarColumnKey,
+  type InformationalKey,
 } from './portfolioImportColumns';
 import type { ExistingLoanChildKey } from './existingLoanEntryAdapter';
 
@@ -83,6 +85,8 @@ export interface ColumnMapping {
   readonly scalar: Partial<Record<ScalarColumnKey, number>>;
   /** child collection -> source column index */
   readonly child: Partial<Record<ExistingLoanChildKey, number>>;
+  /** informational (captured-for-validation, not persisted) -> source column index */
+  readonly informational: Partial<Record<InformationalKey, number>>;
 }
 
 function normalizeHeader(h: string): string {
@@ -94,6 +98,7 @@ export function autoMapColumns(headers: readonly string[]): ColumnMapping {
   const norm = headers.map(normalizeHeader);
   const scalar: Partial<Record<ScalarColumnKey, number>> = {};
   const child: Partial<Record<ExistingLoanChildKey, number>> = {};
+  const informational: Partial<Record<InformationalKey, number>> = {};
 
   const findIndex = (header: string, aliases: readonly string[]): number | undefined => {
     const candidates = new Set<string>([normalizeHeader(header), ...aliases.map(normalizeHeader)]);
@@ -111,7 +116,11 @@ export function autoMapColumns(headers: readonly string[]): ColumnMapping {
     const idx = findIndex(col.header, col.aliases);
     if (idx !== undefined) child[col.child] = idx;
   }
-  return { scalar, child };
+  for (const col of INFORMATIONAL_IMPORT_COLUMNS) {
+    const idx = findIndex(col.header, col.aliases);
+    if (idx !== undefined) informational[col.key] = idx;
+  }
+  return { scalar, child, informational };
 }
 
 // ---------------------------------------------------------------------------
@@ -212,7 +221,7 @@ export function validateRows(
   existingLoanNumbers: Iterable<string> = [],
 ): ParsedImport {
   if (rows.length === 0) {
-    return { headers: [], mapping: { scalar: {}, child: {} }, valid: [], errors: [], duplicateExisting: [], duplicateInFile: [], totalDataRows: 0 };
+    return { headers: [], mapping: { scalar: {}, child: {}, informational: {} }, valid: [], errors: [], duplicateExisting: [], duplicateInFile: [], totalDataRows: 0 };
   }
   const headers = rows[0];
   const mapping = autoMapColumns(headers);
@@ -258,6 +267,27 @@ export function validateRows(
       } else {
         scalarValues[col.key] = raw;
       }
+    }
+
+    // Phase 262 — variable-rate validation: a Variable/Adjustable loan must
+    // carry an index AND a spread; Fixed loans need neither.
+    const rateType = String(scalarValues.interestRateType ?? '').trim().toLowerCase();
+    const isVariableType = rateType === 'variable' || rateType === 'adjustable' || rateType === 'arm';
+    if (isVariableType) {
+      if (scalarValues.index === undefined) messages.push('Variable/Adjustable loans require an Index.');
+      if (scalarValues.spread === undefined) messages.push('Variable/Adjustable loans require a Spread.');
+    }
+
+    // Phase 262 — a payment-61 reset loan must carry reset terms.
+    const p61Raw = cell(row, mapping.informational.payment61Reset).toLowerCase();
+    const isP61 = p61Raw === 'yes' || p61Raw === 'true' || p61Raw === 'y' || p61Raw === '1';
+    if (isP61) {
+      const hasResetTerms =
+        cell(row, mapping.informational.firstResetDate).length > 0 ||
+        cell(row, mapping.informational.firstResetPaymentNumber).length > 0 ||
+        cell(row, mapping.informational.resetFrequency).length > 0 ||
+        cell(row, mapping.informational.nextRateChangeDate).length > 0;
+      if (!hasResetTerms) messages.push('Payment-61 reset loans require reset terms (reset date, payment number, frequency, or next change date).');
     }
 
     // Duplicate detection (only meaningful once we have a loan number).

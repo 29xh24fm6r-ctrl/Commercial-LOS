@@ -22,6 +22,13 @@ export interface BoardedLoanRow {
   /** True when this loan was entered via manual existing-loan boarding. */
   readonly manuallyBoarded: boolean;
   readonly boardingSource: string | undefined;
+  // Phase 262 — persisted pricing/rate columns (variable-rate control center).
+  // Optional: inline-constructed rows (e.g. an optimistic post-board row) omit them.
+  readonly interestRateType?: string | undefined;
+  readonly index?: string | undefined;
+  readonly spread?: number | null | undefined;
+  readonly floor?: number | null | undefined;
+  readonly ceiling?: number | null | undefined;
 }
 
 interface RawBoardedLoan {
@@ -34,10 +41,19 @@ interface RawBoardedLoan {
   cr664_maturitydate?: string;
   cr664_watchlistflag?: boolean;
   cr664_boardingsource?: string;
+  cr664_interestratetype?: string;
+  cr664_index?: string;
+  cr664_spread?: number;
+  cr664_floor?: number;
+  cr664_ceiling?: number;
 }
 
 function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
+}
+
+function numOrNull(v: unknown): number | null | undefined {
+  return typeof v === 'number' && !Number.isNaN(v) ? v : undefined;
 }
 
 export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
@@ -53,6 +69,11 @@ export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
     watchlist: r.cr664_watchlistflag === true,
     manuallyBoarded: source === MANUAL_EXISTING_LOAN_BOARDING_SOURCE,
     boardingSource: source,
+    interestRateType: str(r.cr664_interestratetype),
+    index: str(r.cr664_index),
+    spread: numOrNull(r.cr664_spread),
+    floor: numOrNull(r.cr664_floor),
+    ceiling: numOrNull(r.cr664_ceiling),
   };
 }
 
@@ -69,6 +90,11 @@ export async function loadBoardedLoans(): Promise<readonly BoardedLoanRow[]> {
       'cr664_maturitydate',
       'cr664_watchlistflag',
       'cr664_boardingsource',
+      'cr664_interestratetype',
+      'cr664_index',
+      'cr664_spread',
+      'cr664_floor',
+      'cr664_ceiling',
     ],
     top: ROW_CAP,
   });
