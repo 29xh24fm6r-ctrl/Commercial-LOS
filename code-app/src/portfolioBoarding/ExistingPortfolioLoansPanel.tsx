@@ -4,6 +4,8 @@ import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import { loadBoardedLoans, type BoardedLoanRow } from './boardedLoansList';
 import { PortfolioImportWizard } from './PortfolioImportWizard';
 import { formatCurrency } from '../shared/formatters';
+import { LOAN_PRODUCTS, INTEREST_RATE_TYPES, RATE_INDEX_OPTIONS } from './loanProducts';
+import { PAYMENT_61_PRESET, isVariableRate } from '../portfolio/variableRate/variableRateModel';
 import {
   boardExistingLoan,
   buildLiveExistingLoanDeps,
@@ -55,7 +57,6 @@ const TEXT_FIELDS: ReadonlyArray<{ key: keyof FormFields; label: string; require
   { key: 'originalCommitmentAmount', label: 'Original commitment amount', type: 'number' },
   { key: 'currentOutstandingPrincipal', label: 'Current outstanding principal', type: 'number' },
   { key: 'availableBalance', label: 'Available balance', type: 'number' },
-  { key: 'interestRateType', label: 'Interest rate type' },
   { key: 'paymentFrequency', label: 'Payment frequency' },
   { key: 'amortizationMonths', label: 'Amortization (months)', type: 'number' },
   { key: 'termMonths', label: 'Term (months)', type: 'number' },
@@ -65,6 +66,26 @@ const TEXT_FIELDS: ReadonlyArray<{ key: keyof FormFields; label: string; require
   { key: 'nextReviewDate', label: 'Next review date', type: 'date' },
   { key: 'accrualStatus', label: 'Accrual status' },
   { key: 'pastDueDays', label: 'Past due days', type: 'number' },
+];
+
+/** Phase 262 — ownership / product context fields. */
+const OWNERSHIP_FIELDS: ReadonlyArray<{ key: keyof FormFields; label: string }> = [
+  { key: 'loanPurpose', label: 'Loan purpose' },
+  { key: 'branchNumber', label: 'Branch number' },
+  { key: 'assignedLoanOfficer', label: 'Assigned loan officer' },
+  { key: 'assignedPortfolioManager', label: 'Assigned portfolio manager' },
+];
+
+/** Phase 262 — pricing / rate-term fields. `variableOnly` ones disable for Fixed. */
+const RATE_FIELDS: ReadonlyArray<{ key: keyof FormFields; label: string; type?: 'number' | 'date'; variableOnly?: boolean }> = [
+  { key: 'spread', label: 'Spread / margin', type: 'number', variableOnly: true },
+  { key: 'currentNoteRate', label: 'Current note rate', type: 'number' },
+  { key: 'floor', label: 'Floor rate', type: 'number' },
+  { key: 'ceiling', label: 'Ceiling rate', type: 'number' },
+  { key: 'firstResetDate', label: 'First reset date', type: 'date' },
+  { key: 'firstResetPaymentNumber', label: 'First reset payment #', type: 'number' },
+  { key: 'resetFrequency', label: 'Reset frequency' },
+  { key: 'nextRateChangeDate', label: 'Next rate change date', type: 'date' },
 ];
 
 interface FormFields {
@@ -87,6 +108,21 @@ interface FormFields {
   nextReviewDate: string;
   accrualStatus: string;
   pastDueDays: string;
+  // Phase 262 — product + pricing/rate terms + ownership.
+  loanProduct: string;
+  loanPurpose: string;
+  branchNumber: string;
+  assignedLoanOfficer: string;
+  assignedPortfolioManager: string;
+  index: string;
+  spread: string;
+  floor: string;
+  ceiling: string;
+  currentNoteRate: string;
+  firstResetDate: string;
+  firstResetPaymentNumber: string;
+  resetFrequency: string;
+  nextRateChangeDate: string;
 }
 
 const CHILD_LABELS: Readonly<Record<ExistingLoanChildKey, string>> = {
@@ -108,6 +144,9 @@ function emptyForm(): FormFields {
     legacySystemId: '', originalCommitmentAmount: '', currentOutstandingPrincipal: '', availableBalance: '',
     interestRateType: '', paymentFrequency: '', amortizationMonths: '', termMonths: '', bookingDate: '',
     maturityDate: '', currentRiskRating: '', nextReviewDate: '', accrualStatus: '', pastDueDays: '',
+    loanProduct: '', loanPurpose: '', branchNumber: '', assignedLoanOfficer: '', assignedPortfolioManager: '',
+    index: '', spread: '', floor: '', ceiling: '', currentNoteRate: '', firstResetDate: '',
+    firstResetPaymentNumber: '', resetFrequency: '', nextRateChangeDate: '',
   };
 }
 
@@ -133,6 +172,7 @@ export function ExistingPortfolioLoansPanel({
     Object.fromEntries(EXISTING_LOAN_CHILD_KEYS.map((k) => [k, []])) as unknown as Record<ExistingLoanChildKey, string[]>,
   );
   const [submit, setSubmit] = useState<SubmitState>({ kind: 'idle' });
+  const [payment61, setPayment61] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [selected, setSelected] = useState<BoardedLoanRow | undefined>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
@@ -176,6 +216,10 @@ export function ExistingPortfolioLoansPanel({
       currentOutstandingPrincipal: numOrUndef(form.currentOutstandingPrincipal),
       availableBalance: numOrUndef(form.availableBalance),
       interestRateType: form.interestRateType || undefined,
+      index: form.index || undefined,
+      spread: numOrUndef(form.spread),
+      floor: numOrUndef(form.floor),
+      ceiling: numOrUndef(form.ceiling),
       paymentFrequency: form.paymentFrequency || undefined,
       amortizationMonths: numOrUndef(form.amortizationMonths),
       termMonths: numOrUndef(form.termMonths),
@@ -192,6 +236,18 @@ export function ExistingPortfolioLoansPanel({
       actorSystemUserId,
       authorized,
     };
+  }
+
+  const variable = isVariableRate(form.interestRateType);
+
+  function applyPayment61Preset() {
+    setForm((s) => ({
+      ...s,
+      termMonths: String(PAYMENT_61_PRESET.termMonths),
+      firstResetPaymentNumber: String(PAYMENT_61_PRESET.firstResetPaymentNumber),
+      resetFrequency: s.resetFrequency || 'Every 60 months (5-year reset)',
+    }));
+    setPayment61(true);
   }
 
   async function onBoard() {
@@ -216,6 +272,7 @@ export function ExistingPortfolioLoansPanel({
       });
       setFormOpen(false);
       setForm(emptyForm());
+      setPayment61(false);
       setChildren(Object.fromEntries(EXISTING_LOAN_CHILD_KEYS.map((k) => [k, []])) as unknown as Record<ExistingLoanChildKey, string[]>);
     }
   }
@@ -290,6 +347,110 @@ export function ExistingPortfolioLoansPanel({
                 />
               </label>
             ))}
+          </div>
+
+          {/* Phase 262 — Product, ownership & pricing/rate terms */}
+          <div style={styles.rateSection} data-xl-rate-section>
+            <div style={styles.sectionTitle}>Product & ownership</div>
+            <div style={styles.fieldGrid}>
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Loan product</span>
+                <select
+                  style={styles.input}
+                  value={form.loanProduct}
+                  data-xl-product
+                  onChange={(e) => setForm((s) => ({ ...s, loanProduct: e.target.value }))}
+                >
+                  <option value="">Select a product…</option>
+                  {LOAN_PRODUCTS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </label>
+              {OWNERSHIP_FIELDS.map((f) => (
+                <label key={f.key} style={styles.field}>
+                  <span style={styles.fieldLabel}>{f.label}</span>
+                  <input
+                    style={styles.input}
+                    type="text"
+                    value={form[f.key]}
+                    data-xl-field={f.key}
+                    onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))}
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div style={styles.sectionTitle}>Pricing & rate terms</div>
+            <div style={styles.fieldGrid}>
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Interest rate type</span>
+                <select
+                  style={styles.input}
+                  value={form.interestRateType}
+                  data-xl-ratetype
+                  onChange={(e) => setForm((s) => ({ ...s, interestRateType: e.target.value }))}
+                >
+                  <option value="">Select…</option>
+                  {INTEREST_RATE_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Index{variable ? ' *' : ''}</span>
+                <select
+                  style={variable ? styles.input : styles.inputDisabled}
+                  value={form.index}
+                  disabled={!variable}
+                  data-xl-index
+                  onChange={(e) => setForm((s) => ({ ...s, index: e.target.value }))}
+                >
+                  <option value="">{variable ? 'Select an index…' : 'N/A for fixed'}</option>
+                  {RATE_INDEX_OPTIONS.map((idx) => (
+                    <option key={idx} value={idx}>{idx}</option>
+                  ))}
+                </select>
+              </label>
+              {RATE_FIELDS.map((f) => {
+                const disabled = f.variableOnly === true && !variable;
+                return (
+                  <label key={f.key} style={styles.field}>
+                    <span style={styles.fieldLabel}>{f.label}{f.variableOnly && variable ? ' *' : ''}</span>
+                    <input
+                      style={disabled ? styles.inputDisabled : styles.input}
+                      type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
+                      value={form[f.key]}
+                      disabled={disabled}
+                      data-xl-field={f.key}
+                      onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+
+            {variable && (form.index.trim().length === 0 || form.spread.trim().length === 0) && (
+              <div style={styles.note} role="note" data-xl-variable-hint>
+                Variable / adjustable loans need an <strong>index</strong> and a <strong>spread</strong> to compute the
+                fully-indexed rate in the Variable Rate Control Center.
+              </div>
+            )}
+
+            <div style={styles.presetRow}>
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={payment61}
+                  data-xl-payment61
+                  onChange={(e) => setPayment61(e.target.checked)}
+                />
+                Payment-61 rate reset
+              </label>
+              <button type="button" style={styles.presetBtn} data-xl-payment61-preset onClick={applyPayment61Preset}>
+                Apply 10-yr term / 5-yr reset / payment 61
+              </button>
+            </div>
           </div>
 
           <div style={styles.childGroups}>
@@ -507,6 +668,12 @@ const styles: Record<string, CSSProperties> = {
   field: { display: 'flex', flexDirection: 'column', gap: 2 },
   fieldLabel: { fontSize: typography.size.xs, color: palette.textSubtle, fontWeight: typography.weight.semibold },
   input: { padding: `${spacing.xs} ${spacing.sm}`, border: `1px solid ${palette.border}`, borderRadius: radius.sm, fontSize: typography.size.sm, fontFamily: typography.family, background: palette.surface, color: palette.text },
+  inputDisabled: { padding: `${spacing.xs} ${spacing.sm}`, border: `1px solid ${palette.border}`, borderRadius: radius.sm, fontSize: typography.size.sm, fontFamily: typography.family, background: palette.surfaceAlt, color: palette.textSubtle },
+  rateSection: { display: 'flex', flexDirection: 'column', gap: spacing.sm, paddingTop: spacing.sm, borderTop: `1px solid ${palette.divider}` },
+  sectionTitle: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
+  presetRow: { display: 'flex', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' },
+  checkboxLabel: { display: 'inline-flex', alignItems: 'center', gap: spacing.xs, fontSize: typography.size.sm, color: palette.text },
+  presetBtn: { background: palette.surfaceAlt, color: palette.cobalt, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, fontFamily: typography.family, cursor: 'pointer' },
   childGroups: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: spacing.sm },
   childGroup: { display: 'flex', flexDirection: 'column', gap: spacing.xs, padding: spacing.sm, background: palette.surfaceAlt, border: `1px solid ${palette.divider}`, borderRadius: radius.sm },
   childHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
