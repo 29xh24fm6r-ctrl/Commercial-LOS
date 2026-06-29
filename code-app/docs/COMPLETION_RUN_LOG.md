@@ -120,11 +120,31 @@ Files: `src/banker/bankerOperatingCommandCenterModel.ts`,
 Gate: tsc 0 · full vitest **688 files / 10,421 passed / 2 skipped** · reachability 0 · build 0 ·
 changed files eslint 0 · `verify:launch-evidence` exit 1 (unchanged, honest-red).
 
-## Remaining Section A phases (not yet done this turn)
+## Phase E — Lint baseline ✅ (commit pending)
 
-- **Phase E** — lint baseline for the legacy `react-hooks`/`eslint-10` debt (162 errors / 5
-  warnings, all pre-existing — every file changed this arc lints clean). CI fails on NEW lint,
-  tolerates the baselined set; new code stays clean.
+`eslint .` was failing on **162 pre-existing errors across 105 files** — legacy debt predating
+this arc (every file changed this arc lints clean). Baselined them with ESLint v10's **native bulk
+suppressions** (`eslint-suppressions.json`) rather than a custom allowlist script. Result:
+`npm run lint` exits 0 on the known set; a NEW violation — in a new file or beyond the recorded
+count — still fails (verified with a throwaway probe → exit 1). 5 warnings are intentionally left
+unsuppressed (warnings don't fail the gate) as a visible burn-down signal.
+
+Top rules baselined: `set-state-in-effect` (38), `no-explicit-any` (32), `no-unused-vars` (28),
+`react-refresh/only-export-components` (24), `no-irregular-whitespace` (16). Owner + burn-down
+policy in `docs/LINT_BASELINE.md` — burn down with `eslint . --prune-suppressions`; never
+`--suppress-all` to green a build (that would re-hide new debt, the dishonesty this arc removes).
+
+Files: `eslint-suppressions.json` (new), `docs/LINT_BASELINE.md` (new). The `lint` script is
+unchanged (`eslint .` auto-reads the suppressions file). Gate: tsc 0 · reachability 0 · build 0 ·
+`npm run lint` 0 · `verify:launch-evidence` exit 1 (unchanged, honest-red). Test suite unchanged
+from the Phase C full-green run (no `.ts/.tsx` source/test files modified).
+
+## Section A complete — remaining
+
+- **Phase F** — whole-system verification: a final full-gate run + this log's close-out. Do NOT
+  push (deploy is operator-owned, human-approved).
+- **Section B** — operator runbook (production environment, schema state, authentic evidence,
+  Outlook connector, per-domain arming) — unchanged, environment-owned. Not faked.
 - **Section B** — operator runbook (production environment, schema state, authentic evidence,
   Outlook connector, per-domain arming) — unchanged, environment-owned.
 
