@@ -23,8 +23,23 @@ function validRecord(capability: FinalLaunchCapability, over: Partial<FinalLaunc
     readbackVerified: true,
     rollbackVerified: true,
     evidenceNote: 'controlled launch-test smoke',
+    // Phase 1 — AUTOMATED_CRUD machine proof (real record ids the smoke created + cleaned).
+    affectedRecordIds: [`rec-${capability}`],
+    cleanupRecordIds: [`rec-${capability}`],
   };
-  if (capability === 'borrowerSend') return { ...base, rollbackVerified: false, deliveryVerified: true, auditVerified: true, ...over };
+  if (capability === 'borrowerSend') {
+    return {
+      ...base,
+      rollbackVerified: false,
+      deliveryVerified: true,
+      auditVerified: true,
+      // EXTERNAL_SEND machine proof.
+      deliveryReceiptId: 'AAMkADk-receipt-0001',
+      approvedRecipient: 'approved-test@oldglorybank.com',
+      approverUpn: 'approver@oldglorybank.com',
+      ...over,
+    };
+  }
   return { ...base, ...over };
 }
 

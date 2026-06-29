@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   parseFinalLaunchSmokeEvidence,
   isFinalLaunchSmokeGo,
+  isFinalLaunchSmokeShapeGo,
+  deriveEvidenceIntegrity,
+  isAttributableOperatorUpn,
+  isSyntheticTimestamp,
   toOperatorSmokeEvidence,
   FINAL_LAUNCH_CAPABILITIES,
   FINAL_LAUNCH_TO_REGISTRY_CAPABILITY,
@@ -29,7 +33,17 @@ function validRecord(capability: FinalLaunchCapability, over: Partial<FinalLaunc
     cleanupRecordIds: ['rec-1'],
   };
   if (capability === 'borrowerSend') {
-    return { ...base, rollbackVerified: false, deliveryVerified: true, auditVerified: true, ...over };
+    return {
+      ...base,
+      rollbackVerified: false,
+      deliveryVerified: true,
+      auditVerified: true,
+      // Phase 1 — EXTERNAL_SEND machine proof: transport receipt + approved recipient + approver.
+      deliveryReceiptId: 'AAMkADk-receipt-0001',
+      approvedRecipient: 'approved-test@oldglorybank.com',
+      approverUpn: 'approver@oldglorybank.com',
+      ...over,
+    };
   }
   return { ...base, ...over };
 }
@@ -115,5 +129,69 @@ describe('Phase 256A — GO predicate + registry mapping', () => {
     expect(send.capability).toBe('borrower-communication');
     expect(send.outcome).toBe('passed');
     expect(send.rollbackVerified).toBe(true);
+  });
+});
+
+describe('Phase 1 (launch readiness) — evidence integrity hardening', () => {
+  it('rejects sentinel / non-UPN operator identities', () => {
+    for (const bad of ['unknown-operator', 'unknown', '', 'system', 'service-account', 'n/a', '00000000-0000-0000-0000-000000000000', 'not-an-email']) {
+      expect(isAttributableOperatorUpn(bad), bad).toBe(false);
+    }
+    expect(isAttributableOperatorUpn('mpaller@oldglorybank.com')).toBe(true);
+  });
+
+  it('an AUTOMATED_CRUD record with a sentinel operator is NOT accepted (identity)', () => {
+    const e = validRecord('crmLivePersistence', { operatorUpn: 'unknown-operator' });
+    const integ = deriveEvidenceIntegrity(e);
+    expect(integ.identityValid).toBe(false);
+    expect(integ.accepted).toBe(false);
+    expect(integ.confidence).toBe('NONE');
+    expect(isFinalLaunchSmokeGo(e)).toBe(false);
+    expect(integ.issues.join(' ')).toMatch(/not an attributable UPN/i);
+  });
+
+  it('a valid UPN with record ids and a real machine clock is accepted HIGH', () => {
+    const e = validRecord('crmLivePersistence', { completedAtIso: '2026-06-25T20:48:12.9971028Z' });
+    const integ = deriveEvidenceIntegrity(e);
+    expect(integ.accepted).toBe(true);
+    expect(integ.identityValid).toBe(true);
+    expect(integ.machineProofPresent).toBe(true);
+    expect(integ.confidence).toBe('HIGH');
+  });
+
+  it('an AUTOMATED_CRUD record with no affectedRecordIds is INSUFFICIENT (no machine proof)', () => {
+    const e = validRecord('documentChecklist', { affectedRecordIds: [], cleanupRecordIds: [] });
+    const integ = deriveEvidenceIntegrity(e);
+    expect(integ.machineProofPresent).toBe(false);
+    expect(integ.accepted).toBe(false);
+    expect(isFinalLaunchSmokeGo(e)).toBe(false);
+    expect(integ.issues.join(' ')).toMatch(/no machine proof/i);
+  });
+
+  it('a borrowerSend without a delivery receipt / recipient / approver is INSUFFICIENT', () => {
+    const e = validRecord('borrowerSend', { deliveryReceiptId: undefined, approvedRecipient: undefined, approverUpn: undefined });
+    const integ = deriveEvidenceIntegrity(e);
+    expect(integ.evidenceClass).toBe('EXTERNAL_SEND');
+    expect(integ.machineProofPresent).toBe(false);
+    expect(integ.accepted).toBe(false);
+    expect(isFinalLaunchSmokeGo(e)).toBe(false);
+    expect(integ.issues.join(' ')).toMatch(/deliveryReceiptId/);
+  });
+
+  it('flags a round synthetic timestamp as LOW confidence (still surfaced, not full proof)', () => {
+    expect(isSyntheticTimestamp('2026-06-25T21:00:00.000Z')).toBe(true);
+    expect(isSyntheticTimestamp('2026-06-25T20:48:12.9971028Z')).toBe(false);
+    // Otherwise-complete AUTOMATED_CRUD evidence with a hand-recorded clock → LOW, not HIGH.
+    const e = validRecord('crmLivePersistence', { completedAtIso: '2026-06-25T21:00:00.000Z' });
+    const integ = deriveEvidenceIntegrity(e);
+    expect(integ.accepted).toBe(true); // structurally + identity + proof OK
+    expect(integ.confidence).toBe('LOW');
+  });
+
+  it('isFinalLaunchSmokeShapeGo checks shape only (identity/proof are the gate, not shape)', () => {
+    // Shape-GO can be true while the certification gate (isFinalLaunchSmokeGo) is false.
+    const sentinel = validRecord('crmLivePersistence', { operatorUpn: 'unknown-operator' });
+    expect(isFinalLaunchSmokeShapeGo(sentinel)).toBe(true);
+    expect(isFinalLaunchSmokeGo(sentinel)).toBe(false);
   });
 });

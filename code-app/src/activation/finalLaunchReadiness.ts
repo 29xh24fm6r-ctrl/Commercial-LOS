@@ -3,8 +3,10 @@ import {
   FINAL_LAUNCH_TO_REGISTRY_CAPABILITY,
   isFinalLaunchSmokeGo,
   toOperatorSmokeEvidence,
+  deriveEvidenceIntegrity,
   type FinalLaunchCapability,
   type FinalLaunchSmokeEvidence,
+  type EvidenceIntegrityReport,
 } from '../access/finalLaunchSmokeEvidence';
 import { deriveCapabilitySmokeReadiness } from '../access/operatorSmokeEvidenceRegistry';
 import {
@@ -39,6 +41,10 @@ export interface FinalLaunchCapabilityReadiness {
   readonly present: boolean;
   readonly smokeGo: boolean;
   readonly blockReason: string | null;
+  /** Phase 1 — full integrity assessment (identity, machine proof, confidence, issues). */
+  readonly integrity: EvidenceIntegrityReport | null;
+  /** True when present but not accepted — surfaced as EVIDENCE_INSUFFICIENT in the panel. */
+  readonly evidenceInsufficient: boolean;
 }
 
 export interface FinalLaunchReadiness {
@@ -81,12 +87,17 @@ export function deriveFinalLaunchReadiness(input: FinalLaunchReadinessInput): Fi
     const record = latestByCapability.get(capability);
     const present = record !== undefined;
     const reg = registryByCap.get(registryCapability);
-    // Belt-and-braces: require BOTH the registry GO and the strict final-launch predicate.
+    const integrity = record ? deriveEvidenceIntegrity(record) : null;
+    // Belt-and-braces: require BOTH the registry GO and the strict (integrity-backed) predicate.
     const smokeGo = present && reg !== undefined && !reg.blocksGo && isFinalLaunchSmokeGo(record);
+    const evidenceInsufficient = present && !smokeGo;
     let blockReason: string | null = null;
     if (!present) blockReason = 'No final-launch smoke artifact recorded.';
-    else if (!smokeGo) blockReason = reg?.blockReason ?? 'Smoke did not pass with verified readback/closure.';
-    return { capability, registryCapability, present, smokeGo, blockReason };
+    else if (!smokeGo) {
+      // Prefer the specific integrity issue (identity / machine proof) over the generic registry reason.
+      blockReason = integrity?.issues[0] ?? reg?.blockReason ?? 'Smoke did not pass with verified readback/closure.';
+    }
+    return { capability, registryCapability, present, smokeGo, blockReason, integrity, evidenceInsufficient };
   });
 
   const crmHydrated = hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE).hydrated;

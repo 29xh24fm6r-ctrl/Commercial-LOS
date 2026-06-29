@@ -11,21 +11,21 @@ import { deriveFullProductionLaunchEvidence } from '../../admin/fullProductionLa
 const ROOT = resolve(__dirname, '..', '..', '..');
 
 describe('Phase 256B — consume final-launch smoke evidence + verify launch', () => {
-  it('the five committed artifacts all load and validate as GO', () => {
+  it('the five committed artifacts load structurally but are integrity-INSUFFICIENT (Phase 1 hardening)', () => {
     const loaded = loadFinalLaunchSmokeRecords(ROOT);
-    expect(loaded.errors).toEqual([]);
+    expect(loaded.errors).toEqual([]); // still structurally parseable
     expect(loaded.records.map((r) => r.capability).sort()).toEqual([...FINAL_LAUNCH_CAPABILITIES].sort());
     const r = deriveFinalLaunchReadiness({ records: loaded.records });
-    expect(r.allCapabilitiesGo).toBe(true);
-    expect(r.capabilities.every((c) => c.smokeGo)).toBe(true);
+    // Hardened integrity rejects all five (sentinel identity / missing machine proof / no receipt).
+    expect(r.allCapabilitiesGo).toBe(false);
+    expect(r.capabilities.every((c) => c.evidenceInsufficient)).toBe(true);
     expect(r.crmHydrated).toBe(true);
     expect(r.portfolioHydrated).toBe(true);
-    expect(r.deploymentAllowed).toBe(true);
-    expect(r.projectedEnabledCount).toBe(6);
-    expect(r.projectedFullLaunchAchieved).toBe(true);
+    expect(r.deploymentAllowed).toBe(false);
+    expect(r.projectedEnabledCount).toBe(1); // only New Deal create projects (it is separately certified)
   });
 
-  it('with the gates flipped, the real verification is fully launched (6/6, deployment allowed)', () => {
+  it('Phase 1: the flag-driven verification still reports 6/6 (truthed-up against integrity in Phase 5)', () => {
     const verification = deriveProductionEnvironmentVerification();
     expect(verification.enabledCount).toBe(6);
     expect(verification.allCertified).toBe(true);

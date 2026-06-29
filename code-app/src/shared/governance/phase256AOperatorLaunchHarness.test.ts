@@ -11,19 +11,28 @@ const read = (rel: string) => readFileSync(resolve(ROOT, rel), 'utf8');
 const HARNESS = 'scripts/dataverse/run-final-launch-smokes.ps1';
 
 describe('Phase 256A — operator launch harness + smoke evidence wiring', () => {
-  it('Phase 256B: the committed evidence dir holds five GO artifacts → every capability is GO and deployment is allowed', () => {
+  it('Phase 1 (hardened): the committed evidence still loads but is integrity-INSUFFICIENT → deployment withheld', () => {
+    // The five JSON artifacts remain structurally parseable (so they can be reported), but the
+    // hardened integrity gate rejects every one: crm/portfolio carry operatorUpn
+    // "unknown-operator"; documentChecklist/stageAdvancement carry no affectedRecordIds;
+    // borrowerSend carries no transport delivery receipt. None may certify a launch.
     const loaded = loadFinalLaunchSmokeRecords(ROOT);
-    expect(loaded.records.length).toBe(5); // five committed GO JSON artifacts
+    expect(loaded.records.length).toBe(5); // structurally loadable
     const r = deriveFinalLaunchReadiness({ records: loaded.records });
-    expect(r.deploymentAllowed).toBe(true);
-    expect(r.capabilities.every((c) => c.smokeGo && !c.blockReason)).toBe(true);
+    expect(r.deploymentAllowed).toBe(false);
+    expect(r.capabilities.every((c) => !c.smokeGo && c.evidenceInsufficient)).toBe(true);
+    expect(r.capabilities.find((c) => c.capability === 'crmLivePersistence')?.integrity?.identityValid).toBe(false);
+    expect(r.capabilities.find((c) => c.capability === 'portfolioBoarding')?.integrity?.identityValid).toBe(false);
+    expect(r.capabilities.find((c) => c.capability === 'documentChecklist')?.integrity?.machineProofPresent).toBe(false);
+    expect(r.capabilities.find((c) => c.capability === 'stageAdvancement')?.integrity?.machineProofPresent).toBe(false);
+    expect(r.capabilities.find((c) => c.capability === 'borrowerSend')?.integrity?.machineProofPresent).toBe(false);
   });
 
-  it('backend is hydrated and full launch is achieved (gates flipped live in Phase 256B)', () => {
+  it('backend is hydrated; the flag-driven verification still reports 6/6 (Phase 5 gates this on integrity)', () => {
+    // Phase 1 hardens the EVIDENCE layer; the flag-driven productionEnvironmentVerification is
+    // truthed-up against the integrity report in Phase 5. Until then it reflects the live flags.
     const r = deriveFinalLaunchReadiness({ records: [] });
     expect(r.backendReady).toBe(true); // CRM + portfolio hydrated (Phases 253C/255B)
-    expect(r.currentEnabledCount).toBe(6);
-    expect(r.currentFullLaunchAchieved).toBe(true);
     const verification = deriveProductionEnvironmentVerification();
     expect(verification.enabledCount).toBe(6);
     expect(verification.fullLaunchReady).toBe(true);
