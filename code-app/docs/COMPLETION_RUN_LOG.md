@@ -41,10 +41,35 @@ reachability 0 · build 0 · `verify:launch-evidence` exit 1 (unchanged).
 > fails if any panel reports a domain "enabled" while the certification authority reports it
 > not-enabled) so the contradiction cannot recur.
 
+## Phase B — Cross-panel coherence guard ✅ (commit pending)
+
+`src/shared/governance/crossPanelLaunchCoherence.test.ts`. Mapped (via a read-only audit) every
+panel/model that reports a per-domain live/enabled status: 3 derive from the authority
+(`deriveProductionEnvironmentVerification`); **8 compute it independently from feature-flag
+constants** (V1 readiness, OGB CRM activation, elite CRM/LOS, banker/manager operating centers,
+the two admin-onboarding panels). They are coherent now only because Phase A reset the flags —
+but the authority also requires HIGH evidence, which they ignore.
+
+The guard asserts, for each of the five live-write domains, **equality**:
+`panelReportsLive(domain) === authority.enabled[domain]` — failing in **both directions**:
+- a panel reporting LIVE while the authority says not-enabled (the original split-brain), AND
+- a panel reporting gated while the authority says enabled.
+
+Because the authority requires HIGH evidence, this permanently catches the dangerous case "a flag
+re-armed without authentic evidence" (the flag-reading panel flips to live while the authority
+stays not-enabled). A self-verification test proves the comparison detects both directions (not
+vacuous). Plus: every live-write domain is not-enabled across all panels (1/6 posture), and New
+Deal create is enabled with the pilot-reading surfaces agreeing.
+
+> Note: a *by-construction* refactor (the 8 flag-reading models deriving `enabled` from the
+> authority) was considered but deferred — the banker/manager/executive operating models are
+> deliberately role-isolated (Phase 48), so importing the admin authority risks a layering
+> violation. The guard provides the enforcement (drift → CI red) without that risk.
+
+Gate: tsc 0 · coherence guard 4/4 green.
+
 ## Remaining Section A phases (not yet done this turn)
 
-- **Phase B** — cross-panel coherence *test/guard* (panels already gated post-A; add the
-  permanent enforcement test).
 - **Phase C** — banker dashboard card labels: drive each from the shared authority so a gated
   domain never reads "enabled" (borrower comms first).
 - **Phase D** — `KPI_BASELINE_DATE` reader: deterministic on >1 active row → raise a
