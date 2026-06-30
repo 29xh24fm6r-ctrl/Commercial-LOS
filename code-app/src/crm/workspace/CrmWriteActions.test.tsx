@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CrmWriteActions } from './CrmWriteActions';
 import type { CrmWriteFns } from '../write/crmWriteActions';
@@ -89,16 +89,18 @@ describe('CrmWriteActions', () => {
     const { container } = render(
       <CrmWriteActions {...IDENTITY} companyOptions={[]} personOptions={[]} writeFns={fns} />,
     );
-    // Log activity
-    await user.click(container.querySelector('[data-crm-action="activity"]') as HTMLElement);
+    // Log activity (now in the overflow menu — open it first)
+    await user.click(container.querySelector('[data-crm-actions-more]') as HTMLElement);
+    await user.click(await screen.findByText('Log Activity'));
     await user.type(container.querySelector('[data-crm-field="summary"]') as HTMLInputElement, 'Called borrower about renewal');
     await user.click(container.querySelector('[data-crm-action-submit]') as HTMLElement);
     await waitFor(() => expect(fns.logActivity).toHaveBeenCalledTimes(1));
     expect(fns.calls.logActivity[0]).toMatchObject({ activityType: 'call', summary: 'Called borrower about renewal' });
     await user.click(container.querySelector('[data-crm-action-done]') as HTMLElement);
 
-    // Follow-up task
-    await user.click(container.querySelector('[data-crm-action="task"]') as HTMLElement);
+    // Follow-up task (also in the overflow)
+    await user.click(container.querySelector('[data-crm-actions-more]') as HTMLElement);
+    await user.click(await screen.findByText('New Follow-up'));
     await user.type(container.querySelector('[data-crm-field="title"]') as HTMLInputElement, 'Send term sheet');
     await user.click(container.querySelector('[data-crm-action-submit]') as HTMLElement);
     await waitFor(() => expect(fns.createFollowUpTask).toHaveBeenCalledTimes(1));

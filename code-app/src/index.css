@@ -167,8 +167,8 @@
     --cc-divider: rgba(255, 255, 255, 0.06);
 
     --cc-text: #ede8dc;          /* warm off-white ink */
-    --cc-text-muted: #9ba6b8;
-    --cc-text-subtle: #6f7a8e;
+    --cc-text-muted: #aab5c4;   /* v3: secondary lifted ~7.6:1 on card (was #9ba6b8) */
+    --cc-text-subtle: #7e8799;  /* v3: muted lifted ~4.3:1 on card (was #6f7a8e) */
     --cc-text-inverse: #0c1322;
     --cc-link: #5b8fd9;          /* Treasury Blue */
 
@@ -266,8 +266,8 @@
   --cc-divider: rgba(255, 255, 255, 0.06);
 
   --cc-text: #ede8dc;
-  --cc-text-muted: #9ba6b8;
-  --cc-text-subtle: #6f7a8e;
+  --cc-text-muted: #aab5c4;   /* v3: secondary lifted ~7.6:1 on card (was #9ba6b8) */
+  --cc-text-subtle: #7e8799;  /* v3: muted lifted ~4.3:1 on card (was #6f7a8e) */
   --cc-text-inverse: #0c1322;
   --cc-link: #5b8fd9;
 
@@ -424,6 +424,25 @@ body {
    (pseudo-classes, hover, focus-visible). Used by tables and clickable
    rows in the banker workspace. All colors flow through the --cc-*
    tokens so dark mode follows automatically. */
+
+/* v3 FIX 2 — clickable tile float lift (theme-aware; matches the KPI live cards'
+   elevation family). Base elevation comes from the inline shadow.elevated token;
+   this only adds the hover lift + deepen. */
+.cc-tile-lift {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.cc-tile-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cc-shadow-hero);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc-tile-lift {
+    transition: none;
+  }
+  .cc-tile-lift:hover {
+    transform: none;
+  }
+}
 
 .cc-row-hover {
   transition: background-color 120ms ease;

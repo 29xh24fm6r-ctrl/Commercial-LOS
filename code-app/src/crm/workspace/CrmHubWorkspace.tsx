@@ -263,7 +263,7 @@ function DashCard({ label, value, loading, empty, onClick }: { label: string; va
     </>
   );
   return interactive ? (
-    <button type="button" style={styles.card} data-crm-card={label} onClick={onClick}>{body}</button>
+    <button type="button" className="cc-tile-lift" style={styles.card} data-crm-card={label} onClick={onClick}>{body}</button>
   ) : (
     <div style={styles.card} data-crm-card={label}>{body}</div>
   );
@@ -414,7 +414,7 @@ function formatWhen(iso: string): string {
 const card: CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: spacing.xs, padding: `${spacing.md} ${spacing.lg}`,
   background: palette.surface, border: `1px solid ${palette.panelBorder}`, borderRadius: radius.md,
-  boxShadow: shadow.card, textAlign: 'left', fontFamily: typography.family, cursor: 'pointer', minHeight: 78,
+  boxShadow: shadow.elevated, textAlign: 'left', fontFamily: typography.family, cursor: 'pointer', minHeight: 78,
 };
 
 const styles: Record<string, CSSProperties> = {
@@ -439,7 +439,7 @@ const styles: Record<string, CSSProperties> = {
   viewTabCount: { fontSize: typography.size.xs, color: palette.textSubtle, background: palette.surfaceAlt, borderRadius: radius.pill, padding: '0 6px', fontWeight: typography.weight.semibold },
   cardRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: spacing.sm },
   card,
-  cardLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
+  cardLabel: { fontSize: typography.size.xs, color: palette.textMuted, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
   cardValue: { fontFamily: typography.display, fontSize: typography.size.display, fontWeight: typography.weight.semibold, color: palette.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', lineHeight: 1.05 },
   cardEmpty: { fontSize: typography.size.sm, color: palette.textMuted, fontWeight: typography.weight.medium },
   cardSkeleton: { width: 48, height: 22, borderRadius: radius.sm, background: palette.surfaceAlt },

@@ -289,6 +289,42 @@
   border-radius: 5px;
 }
 
+/* ── Overflow menu (Radix Popover) — token-driven, dark-aware ──────────── */
+.ig-popover-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 0.35rem;
+  background: var(--cc-surface);
+  border: 1px solid var(--cc-border);
+  border-radius: var(--ig-radius-card);
+  box-shadow: var(--ig-shadow-rise);
+  z-index: 60;
+}
+.ig-popover-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: var(--cc-text);
+  background: transparent;
+  border: 0;
+  border-radius: var(--ig-radius-control);
+  cursor: pointer;
+  transition: background-color var(--ig-dur) var(--ig-ease);
+}
+.ig-popover-item:hover {
+  background: var(--cc-surface-alt);
+}
+.ig-popover-item:focus-visible {
+  outline: 2px solid var(--cc-focus-ring);
+  outline-offset: -2px;
+}
+
 /* ── Dialog / Sheet / Command palette (Radix overlays + cmdk) ─────────── */
 .ig-overlay {
   position: fixed;
