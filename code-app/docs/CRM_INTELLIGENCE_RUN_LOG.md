@@ -256,3 +256,26 @@ imports it cleanly.
 
 **Gate:** `tsc 0 · vitest 708 files / 10,576 passed / 2 skipped · lint 0 · audit:reachability 0 ·
 build 0 · verify:launch-evidence exit 1` (honest-red, by design). One commit.
+
+## Make the NAICS seed easy + reliable (maker UX)
+
+The seeding flow had a quiet footgun: `node seed-naics.mjs --commit` wrote a local JSON and exited
+0 even when it had **not** loaded a single row into Dataverse (it only pushed if `DATAVERSE_URL` +
+`DATAVERSE_TOKEN` were both set), so a maker could "succeed" and still see an empty field. Reworked
+for ease + reliability — pure logic stays in `scripts/seedNaicsLib.mjs`, I/O in the CLI:
+- **Auto-resolves the environment URL from `pac org who`** — the maker only needs a token, not also
+  a URL (override with `DATAVERSE_URL`).
+- **`--commit` now loads the table when a `DATAVERSE_TOKEN` is present** and prints an unmistakable
+  final `STATUS:` banner — `Dataverse LOADED` vs `seed JSON built · Dataverse NOT loaded` with the
+  exact finish steps — so a no-op can never masquerade as success.
+- **Robust idempotent upsert**: correct upsert headers (dropped the invalid `If-None-Match: null`),
+  retry on 429/5xx/network, per-row failure report + summary, and a non-zero exit on partial load
+  (re-run is safe — keyed on `cr664_code`).
+- **Tolerates real-world CSVs**: `parseCsv` strips a leading UTF-8 BOM (covered by a new test) so the
+  first NAICS code from a spreadsheet export isn't silently corrupted.
+- **`docs/NAICS_SETUP.md` §3 rewritten** to the easy path first (token → one command loads it),
+  the JSON-import fallback, and the reminder that the field needs the SDK regen to light up.
+
+Maker discipline unchanged: Claude Code never runs the load (no creds); CRM live persistence of a
+selected NAICS code stays default-off behind the governed write path. `--verify` + `--commit`
+(no-token) smoke-tested; the seed-naics unit tests are green (7).
