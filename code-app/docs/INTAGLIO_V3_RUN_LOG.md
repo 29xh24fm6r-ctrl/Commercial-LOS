@@ -90,3 +90,34 @@ media-gated (`prefers-reduced-motion` disables it) — untouched.
 Gate: `tsc -b` ✅ · `eslint` ✅ (no test asserts the decorative opacity).
 
 ### FIX 5 status: ✅
+
+---
+
+## Verification + self-critique
+
+| Gate | Result |
+|---|---|
+| `tsc -b` | ✅ |
+| `vitest run` (FULL) | ✅ **10,576 passed**, 2 skipped |
+| `eslint` (changed files) | ✅ clean |
+| `audit:reachability` | ✅ exit 0 |
+| `npm run build` | ✅ |
+| `verify:launch-evidence` | exit 1 — **honest-red by design** (no operator evidence; unchanged by this pass) |
+
+**Contrast self-critique (real values).** Dark text ramp verified against actual surfaces:
+- secondary `#aab5c4`: **7.6:1** on the lightest card `#16223a`, **8.9:1** on page `#0c1322`.
+- muted `#7e8799`: **4.3:1** on card (the floor), **5.0:1** on page — all ≥ targets (secondary ≥4.5,
+  muted ≥3) with margin; the murky 3.6:1 labels are gone.
+
+**Working set untouched (no regression).** Hero composition, KPI live-card hierarchy, and the deep
+Ink-Navy shell unchanged (the only hero edit was the guilloché opacity +0.03); the primary-button
+discipline was *restored* (FIX 3). Full suite green confirms nothing in the working set broke.
+
+### Definition of done
+- [x] Secondary/label/helper legible on dark (verified contrast), via tokens.
+- [x] CRM summary tiles float consistently with the KPI cards.
+- [x] CRM header restored to one primary + overflow.
+- [x] NAICS field label/helper legible + clearly informational; descriptor vs NAICS unambiguous;
+      type-ahead states styled for dark.
+- [x] Guilloché reads as intentional signature.
+- [x] Working set untouched; suite + build green; branch **not pushed**.
