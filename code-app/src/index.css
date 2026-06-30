@@ -457,6 +457,17 @@ body {
   letter-spacing: -0.012em;
 }
 
+/* Intaglio v2 — the hero guilloché elevated to atmosphere behind the dashboard
+   band. Large, low-opacity, anchored off the right edge, behind the content. */
+.cc-hero-guilloche {
+  position: absolute;
+  top: 50%;
+  right: -70px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* Intaglio — the engraved "security rule": a fine 1px line beneath a primary
    page header, in Seal Red. One per page header; the identity is spent here. */
 .cc-security-rule {
