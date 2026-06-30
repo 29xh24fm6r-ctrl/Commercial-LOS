@@ -119,3 +119,35 @@ change** — no maker gap to defer.
 
 ### Phase 4 status: ✅ COMPLETE — advisors attach as typed governed relationships; deal-level BUILT
 (schema already supports it), not deferred.
+
+---
+
+## Phase 5 — Payoff views (advisors, reverse, concentration)
+
+Pure, tested derivations + Intaglio panels + a governed read, surfaced behind a default-off route
+flag (consistent with the CRM gating posture). All read-only.
+
+- **`src/crm/naics/concentrationViewModel.ts`** — `deriveSectorConcentration(companies)`: groups the
+  book by 2-digit sector (via `sectorForCode`, incl. ranges), count + % of book, explicit
+  **unclassified** bucket for missing/invalid NAICS, and exposure **only when supplied** (CRM
+  companies carry no exposure — that lives with loans — so exposure is honestly "not linked yet"
+  until a loan join is added).
+- **`src/crm/advisors/advisorViewModel.ts`** — `deriveAdvisorLinks(relationshipRows)` (advisor=source
+  org, client=target org, optional deal), `advisorsForClient` (+ deal scoping), `clientsForAdvisor`
+  (reverse). Honest: needs both parties; drops non-advisor relationships.
+- **Panels** (`IndustryConcentrationPanel`, `AdvisorsOnClientPanel`, `AdvisorReachPanel`) — Intaglio
+  primitives (Card/DataTable/Badge/EmptyState), honest empty states.
+- **`loadCrmIntelligence.ts`** — guarded, fail-closed governed read of orgs (NAICS) + relationships
+  (advisor links); `unavailable` when CRM reads aren't provisioned.
+- **`CrmIntelligencePanel.tsx`** — composing surface (Tabs: concentration | advisor reach), injectable
+  loader, honest loading/unavailable. Wired as the default-off feature surface `crm-intelligence`
+  (`CRM_INTELLIGENCE_ROUTE_ENABLED`) in the existing surface registry.
+
+### Gate
+- `concentrationViewModel.test.ts` ✅ (4) · `advisorViewModel.test.ts` ✅ (4) · `payoffPanels.test.tsx`
+  ✅ (5) · `CrmIntelligencePanel.test.tsx` ✅ (3) · existing `featureSurfaces` + governance tests ✅
+  (new surface reachable, flag default-off).
+- `tsc -b` ✅ · `eslint` ✅.
+
+### Phase 5 status: ✅ COMPLETE — three payoff views render from governed reads with honest empties;
+exposure honestly deferred to a loan join.
