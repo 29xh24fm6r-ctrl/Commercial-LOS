@@ -25,3 +25,20 @@ subtle tier) jump from 3.6:1 → 4.3:1, so they read at a clearly-legible level.
 Gate: `themeTokens.test` ✅ (11) · `tsc -b` ✅. (Light theme untouched.)
 
 ### FIX 1 status: ✅
+
+---
+
+## FIX 2 — Float CRM summary tiles like the KPI cards
+
+The CRM Hub's 6 summary tiles used the lightest `shadow.card`; the KPI live cards (`LargeMetricTile`)
+use `shadow.elevated` (deep float + 1px top highlight on dark). Matched them:
+- CRM tile `card` style: `boxShadow: shadow.card` → **`shadow.elevated`** (same token family as the KPI
+  cards — surface bg + 1px top highlight + float, theme-aware).
+- Added a theme-aware hover lift utility `.cc-tile-lift` (translateY(-2px) + `--cc-shadow-hero`,
+  reduced-motion disables it) applied to the clickable tiles. No bespoke per-tile shadows.
+- Bumped the tile label `cardLabel` from the muted tier (`textSubtle`) to **secondary** (`textMuted`),
+  per FIX 1's "uppercase tracked labels sit at secondary".
+
+Gate: `tsc -b` ✅ · `CrmHubWorkspace.test.tsx` ✅ (7) · `eslint` ✅ (0 errors).
+
+### FIX 2 status: ✅

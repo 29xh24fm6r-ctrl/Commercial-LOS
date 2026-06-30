@@ -425,6 +425,25 @@ body {
    rows in the banker workspace. All colors flow through the --cc-*
    tokens so dark mode follows automatically. */
 
+/* v3 FIX 2 — clickable tile float lift (theme-aware; matches the KPI live cards'
+   elevation family). Base elevation comes from the inline shadow.elevated token;
+   this only adds the hover lift + deepen. */
+.cc-tile-lift {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.cc-tile-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cc-shadow-hero);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc-tile-lift {
+    transition: none;
+  }
+  .cc-tile-lift:hover {
+    transform: none;
+  }
+}
+
 .cc-row-hover {
   transition: background-color 120ms ease;
 }
