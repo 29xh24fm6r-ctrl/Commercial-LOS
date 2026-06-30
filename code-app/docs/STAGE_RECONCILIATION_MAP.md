@@ -104,3 +104,38 @@ Still on legacy vocabularies (not on the deal cockpit's stage map): `PersonalPip
 name-gates (9-stage `stageCatalog`); `BorrowerPackagePrepPanel` + `loanWorkflowTemplates` (11-stage
 `loanWorkflowStages`); the `STAGE_CATALOG` name collision; and the routing/annual-review catalog (vocabulary D).
 These have dedicated tests built around their vocabularies; repointing/deleting them is a separate, larger pass.
+
+## Phase 5 — governance truth-up + verification
+
+- `platformInventory.REFERENCE_DATA_GOVERNED.stageCatalog.progressionBlockedReason` truthed-up: the
+  canonical stage VOCABULARY is now `stageOrderingContract.CANONICAL_STAGES` (the 7, seeded via
+  `cr664_sequence`); the legacy 9-stage catalog is noted as retired from the deal cockpit. `canonical`
+  / `progressionEnabled:false` / phase kept (still accurate + test-pinned).
+- `AUTO_STAGE_ADVANCE_ENABLED` unchanged (**false**) — this was an IA/coherence fix, not a behavior change.
+
+| Gate | Result |
+|---|---|
+| `tsc -b` | ✅ |
+| `vitest run` (FULL) | ✅ **10,583 passed**, 2 skipped |
+| `eslint` (changed) | ✅ |
+| `audit:reachability` | ✅ exit 0 (retired workflow-action chain allow-listed honestly) |
+| `npm run build` | ✅ |
+| `verify:launch-evidence` | exit 1 — **honest-red by design** (unchanged) |
+
+## Definition of done
+- [x] Inventory map of every stage vocabulary/renderer (this doc).
+- [x] Exactly one canonical stage definition (`CANONICAL_STAGES`, the seven); the cockpit Stage Map +
+      seed + doc import/mirror it.
+- [x] Cockpit shows ONE canonical stage map: the 9-stage Stage Map repointed to canonical; the 11-stage
+      Loan Workflow Command Center retired from the cockpit (anchor → `stage-map`).
+- [x] "Intake (custom stage — not in canonical sequence)" resolves — INTAKE = canonical seq 10 via
+      `recognizeCanonicalStage`.
+- [x] Seed + doc describe only the canonical seven; legacy stored values documented for maker cleanup
+      (clean mappings + flagged-ambiguous), never silently rewritten; unknown values read fail-closed.
+- [x] Reachability/tests/routing updated honestly; suite + build green; branch not pushed; flag still off.
+
+### Scope note (operator chose "cockpit-coherent")
+The DEAL COCKPIT now speaks one canonical language. Two legacy vocabularies still exist for non-cockpit
+surfaces (PersonalPipeline lanes + stageProgressionGuard on the 9-stage; BorrowerPackagePrep + templates
+on the 11-stage) — repointing/deleting those is a documented follow-up, deliberately deferred to keep this
+pass minimal-risk and the suite green.
