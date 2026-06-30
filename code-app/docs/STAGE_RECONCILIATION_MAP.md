@@ -67,3 +67,40 @@ is a real fork:
 - **Option B (full):** repoint EVERY consumer (PersonalPipeline, stageProgressionGuard, BorrowerPackagePrep,
   templates) to canonical and DELETE `stageCatalog` + `loanWorkflowStages` + the Command Center; rewrite the
   ~12 coupled test files. Matches "no second list may exist" fully; much larger + riskier.
+
+## Phase 4 — seed + legacy stored values
+
+**Seed (`scripts/seed-stage-references.mjs`) + `docs/STAGE_SCHEMA_SETUP.md`** already describe ONLY the
+canonical seven (codes + seq 10–70) + the 5 status rows — confirmed; the BOARDED name was aligned to the
+seed (`Boarded / Servicing`) so the display recognizer matches a seeded BOARDED deal by name. The seed-doc
+caveat was updated from "industry-standard template, not OGB-ratified" to the founder-ratified canonical set.
+
+**Stored stage values (no silent rewrite).** The read path resolves a deal's stored stage via
+`recognizeCanonicalStage` (exact canonical CODE or ratified NAME, case-insensitive). Anything else reads
+honestly as **"custom stage — not in canonical sequence"** (fail-closed; never crashes, never guessed). The
+live env currently carries the placeholder `'TEST — Stage Phase 121'` (and deals are nominally at INTAKE,
+which now resolves to seq 10). No existing stage value is rewritten by this pass.
+
+**Legacy → canonical mapping (maker DATA-cleanup reference — apply in Dataverse, do NOT auto-rewrite).**
+Clean equivalences:
+| Legacy value | → Canonical |
+|---|---|
+| Underwriting / credit_memo | UNDERWRITING |
+| Committee / credit_review / approval | CREDIT_APPROVAL |
+| Documentation | DOCUMENTATION |
+| Closing / closing | CLOSING_FUNDING |
+| Booking / Funded | CLOSING_FUNDING → then BOARDED once boarded |
+| opportunity_intake | INTAKE |
+| post_close_monitoring | BOARDED |
+
+Ambiguous — **surface for a human decision, do NOT fabricate a mapping:** the early-funnel legacy stages
+**Origination / Screening / Application / Pricing** (9-stage) and **qualification / application /
+document_collection** (11-stage) have no clean 1:1 canonical equivalent (canonical has a single INTAKE
+before UNDERWRITING). A maker/credit decision is required to either collapse these to INTAKE or treat them
+as pre-pipeline. Until decided, such values read as "custom stage — needs review".
+
+### Follow-up (out of the cockpit-coherent scope, documented honestly)
+Still on legacy vocabularies (not on the deal cockpit's stage map): `PersonalPipeline` lanes + `stageProgressionGuard`
+name-gates (9-stage `stageCatalog`); `BorrowerPackagePrepPanel` + `loanWorkflowTemplates` (11-stage
+`loanWorkflowStages`); the `STAGE_CATALOG` name collision; and the routing/annual-review catalog (vocabulary D).
+These have dedicated tests built around their vocabularies; repointing/deleting them is a separate, larger pass.

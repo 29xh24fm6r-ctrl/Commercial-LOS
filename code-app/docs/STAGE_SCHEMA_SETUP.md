@@ -6,10 +6,12 @@ deterministic order on the stage-reference rows. This is the **one** step that m
 Dataverse; everything else is in code and already built. No admin rights are required — these are
 table/column edits a maker can perform.
 
-> Ratify first. The seven stages, their order, and the status set below are a **defensible
-> industry-standard template, not OGB-ratified credit policy.** Confirm the real stages with OGB
-> credit/compliance before treating them as binding (see the runbook in the spec). Editing the
-> template later is a data edit (re-run the seed) — no code change.
+> The seven stages, their order, and the status set below are the **founder-ratified canonical OGB
+> stage set** — the single source of truth (codes mirror `CANONICAL_STAGES` in
+> `src/workflow/stageOrderingContract.ts`; the seed must produce exactly this set). The detailed
+> gate POLICY at each stage may still be refined with OGB credit/compliance, but the stage
+> vocabulary itself is canonical. Changing the set later is a data edit (re-run the seed) — no code
+> change.
 
 ---
 

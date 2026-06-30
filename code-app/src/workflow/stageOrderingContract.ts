@@ -54,7 +54,7 @@ export const CANONICAL_STAGES: readonly CanonicalStageMeta[] = [
   { code: 'COMMITMENT', name: 'Commitment', sequence: 40 },
   { code: 'DOCUMENTATION', name: 'Documentation', sequence: 50 },
   { code: 'CLOSING_FUNDING', name: 'Closing & Funding', sequence: 60 },
-  { code: 'BOARDED', name: 'Boarded · Servicing', sequence: 70 },
+  { code: 'BOARDED', name: 'Boarded / Servicing', sequence: 70 },
 ] as const;
 
 const CANONICAL_BY_CODE: ReadonlyMap<CanonicalStageCode, CanonicalStageMeta> = new Map(

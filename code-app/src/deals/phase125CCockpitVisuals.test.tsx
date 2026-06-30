@@ -149,7 +149,7 @@ describe('Phase 125C — DealStageProgressionCard StageRail', () => {
       'Commitment',
       'Documentation',
       'Closing & Funding',
-      'Boarded · Servicing',
+      'Boarded / Servicing',
     ]) {
       expect(within(rail).getByText(label)).toBeInTheDocument();
     }
