@@ -305,8 +305,10 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
       return [
         { key: 'name', label: 'Company name', type: 'text', required: true, full: true },
         { key: 'organizationType', label: 'Type', type: 'select', options: CRM_PARTY_TYPE_OPTIONS, placeholder: 'Select a type' },
-        { key: 'industry', label: 'Industry (descriptor)', type: 'text' },
+        // NAICS is the primary structured industry field; the free-text below is a
+        // clearly-optional plain-language note subordinate to it (v3 FIX 4).
         { key: 'naics', label: 'Industry (NAICS)', type: 'naics', full: true },
+        { key: 'industry', label: 'Industry note (optional)', type: 'text', full: true },
         { key: 'website', label: 'Website', type: 'text' },
         { key: 'notes', label: 'Notes', type: 'text', full: true },
       ];

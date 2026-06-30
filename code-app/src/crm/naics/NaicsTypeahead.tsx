@@ -98,7 +98,16 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, la
       {open && debounced.trim().length > 0 && (
         <div style={styles.panel} role="listbox" aria-label="NAICS results">
           {load.kind === 'loading' && <div style={styles.note}>Searching NAICS…</div>}
-          {load.kind === 'unavailable' && <div style={styles.note} data-crm-naics-unavailable>{load.reason}</div>}
+          {load.kind === 'unavailable' && (
+            <div style={styles.noteInfo} role="note" data-crm-naics-unavailable>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+              <span>{load.reason}</span>
+            </div>
+          )}
           {load.kind === 'ready' && hits.length === 0 && (
             <div style={styles.note}>No NAICS match for “{debounced.trim()}”.</div>
           )}
@@ -120,6 +129,9 @@ const styles: Record<string, CSSProperties> = {
   label: { fontSize: typography.size.xs, color: palette.textMuted, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.semibold },
   panel: { position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 20, maxHeight: 280, overflowY: 'auto', background: palette.surface, border: `1px solid ${palette.border}`, borderRadius: radius.md, boxShadow: shadow.rise },
   note: { padding: `${spacing.sm} ${spacing.md}`, color: palette.textMuted, fontSize: typography.size.sm },
+  // v3 FIX 4 — the "not provisioned yet" message is an honest INFORMATIONAL state
+  // (data pending, not a failure): legible Treasury-Blue info treatment, not dim error text.
+  noteInfo: { display: 'flex', alignItems: 'center', gap: spacing.xs, padding: `${spacing.sm} ${spacing.md}`, color: palette.infoFg, background: palette.infoBg, borderLeft: `2px solid ${palette.info}`, fontSize: typography.size.sm, lineHeight: typography.lineHeight.snug },
   option: { display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: spacing.sm, rowGap: 2, width: '100%', textAlign: 'left', padding: `${spacing.xs} ${spacing.md}`, background: 'transparent', border: 'none', borderBottom: `1px solid ${palette.divider}`, cursor: 'pointer', fontFamily: typography.family },
   optCode: { fontFamily: typography.mono, fontSize: typography.size.sm, color: palette.text, fontWeight: typography.weight.semibold },
   optTitle: { fontSize: typography.size.sm, color: palette.text },

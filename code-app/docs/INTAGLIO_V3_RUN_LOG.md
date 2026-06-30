@@ -59,3 +59,21 @@ wall-of-equal-buttons problem. Restored the single-primary rule:
 Gate: `tsc -b` ✅ · `CrmWriteActions.test.tsx` ✅ (5) · `eslint` ✅.
 
 ### FIX 3 status: ✅
+
+---
+
+## FIX 4 — NAICS / Industry field polish on dark
+
+- FIX 1 already lifted the field label + helper tokens (label = `textMuted` secondary; loading/no-results
+  = legible). Now the **"NAICS reference table is not provisioned yet"** message renders as a deliberate
+  **informational** state (`noteInfo`: Treasury-Blue `--cc-info-bg`/`--cc-info-fg` + left accent + an ⓘ
+  glyph) — clearly "data pending," not dim error text. `role="note"`, message text unchanged (honest).
+- Clarified the two industry inputs: **NAICS type-ahead is now the primary** structured field (moved
+  directly under Type); the free-text one is relabeled **"Industry note (optional)"** and placed below
+  it — obviously subordinate, removing the redundancy.
+- Type-ahead states all legible on dark (loading / no-results = secondary text; unavailable = info;
+  options use primary text + mono code + secondary sector context; selected shows `code — title`).
+
+Gate: `tsc -b` ✅ · `NaicsTypeahead.test.tsx` + `CrmWriteActions.test.tsx` ✅ (8) · `eslint` ✅.
+
+### FIX 4 status: ✅
