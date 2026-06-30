@@ -1,6 +1,36 @@
 # Stage Progression Enablement Map — Phase 43
 
-Status: **Blocked. Not in scope for any phase yet.**
+Status: **Built in code, default-OFF, pending maker seed + flag.** (was: Blocked / not in scope)
+
+> ## 0. Status update — Stage Advancement spec (current)
+>
+> The stage-progression domain has been BUILT in code and is covered by tests. The path taken
+> differs from the Phase-43 plan below in one deliberate way: instead of registering a **separate**
+> `cr664_stagereferences` table and an `advanceStage(...)` action, ordering now rides on the
+> **already-registered** `cr664_dealstagereferences` table via a new `cr664_sequence` ordinal. The
+> §3–§14 plan below is therefore **superseded** (kept for historical context); the live artifacts are:
+>
+> | Concern | Artifact (built + tested) |
+> |---|---|
+> | Deterministic ordering (fail-closed) | `src/workflow/stageOrderingContract.ts` |
+> | Per-stage exit gates (fail-closed) | `src/workflow/stageGateContract.ts` |
+> | Transition engine (ADVANCE/RETURN/DECLINE/WITHDRAW, audit+timeline, default-off) | `src/workflow/canonicalStageTransition.ts` |
+> | Banker stage control (disabled-safe) | `src/workflow/StageWorkflowControl.tsx` |
+> | Approval-authority matrix (template) | `src/workflow/approvalAuthorityMatrix.ts` |
+> | Data-driven availability + diagnostics | `src/shared/governance/stageProgressionAvailability.ts` |
+> | Maker schema setup + seed | `docs/STAGE_SCHEMA_SETUP.md`, `scripts/seed-stage-references.mjs` |
+>
+> **Still fail-closed.** `stageProgressionAvailability().available` stays `false` and every transition
+> writes nothing until BOTH operator-owned acts complete: (1) the maker adds `cr664_sequence` to
+> `cr664_dealstagereferences`, seeds the seven ordered stage rows, and regenerates the SDK
+> (`docs/STAGE_SCHEMA_SETUP.md`); and (2) the certified, evidence-backed `AUTO_STAGE_ADVANCE_ENABLED`
+> flip. Because the live write is default-off and the ordering does not yet resolve READY, the
+> governed transition path is recorded as **WIRED_DISABLED** in `DELIBERATELY_BLOCKED`
+> (`platformInventory.ts`) — NOT added to `GOVERNED_WRITES`, which the repo reserves for shipped/live
+> writes (mirroring the `new-deal-create` precedent). It moves to `GOVERNED_WRITES` only when armed
+> live with authentic evidence.
+>
+> The historical Phase-43 plan follows.
 
 This document converts the Phase 28 schema gap into a concrete
 enablement checklist. It is the plan that a future phase will execute

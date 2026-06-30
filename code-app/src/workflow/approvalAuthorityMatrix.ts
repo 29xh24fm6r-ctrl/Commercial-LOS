@@ -35,17 +35,17 @@ export interface AuthorityBand {
 }
 
 /**
- * TEMPLATE bands (ascending). Ratify against OGB credit policy.
- *   ≤ $250,000             → Banker + 1 Credit Officer
- *   $250,001 – $1,000,000  → Credit Manager
- *   $1,000,001 – $5,000,000→ Senior Credit Officer / CCO
- *   > $5,000,000           → Credit Committee
+ * TEMPLATE bands (ascending). Ratify against OGB credit policy. Amounts in USD.
+ *   up to 250,000            → Banker + 1 Credit Officer
+ *   250,001 to 1,000,000     → Credit Manager
+ *   1,000,001 to 5,000,000   → Senior Credit Officer / CCO
+ *   over 5,000,000           → Credit Committee
  */
 export const APPROVAL_AUTHORITY_MATRIX: readonly AuthorityBand[] = Object.freeze([
-  Object.freeze({ maxAmount: 250_000, required: 'BANKER_PLUS_CREDIT_OFFICER', label: '≤ $250,000' }),
-  Object.freeze({ maxAmount: 1_000_000, required: 'CREDIT_MANAGER', label: '$250,001 – $1,000,000' }),
-  Object.freeze({ maxAmount: 5_000_000, required: 'SENIOR_CREDIT_OFFICER_CCO', label: '$1,000,001 – $5,000,000' }),
-  Object.freeze({ maxAmount: null, required: 'CREDIT_COMMITTEE', label: '> $5,000,000' }),
+  Object.freeze({ maxAmount: 250_000, required: 'BANKER_PLUS_CREDIT_OFFICER', label: 'up to 250,000 USD' }),
+  Object.freeze({ maxAmount: 1_000_000, required: 'CREDIT_MANAGER', label: '250,001 to 1,000,000 USD' }),
+  Object.freeze({ maxAmount: 5_000_000, required: 'SENIOR_CREDIT_OFFICER_CCO', label: '1,000,001 to 5,000,000 USD' }),
+  Object.freeze({ maxAmount: null, required: 'CREDIT_COMMITTEE', label: 'over 5,000,000 USD' }),
 ]) as readonly AuthorityBand[];
 
 /** Marker so surfaces can clearly badge this as a template, not ratified policy. */

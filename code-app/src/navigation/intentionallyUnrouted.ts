@@ -346,6 +346,13 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/workflow/stageAdvanceWriteDependency.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/workflow/workflowRouteRuleRegistry.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/workflow/workflowRoutingConfigTypes.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
+  // Stage Advancement engine + control: built and tested, but the live stage-progression domain is
+  // WIRED_DISABLED — not hosted in a live workspace until the maker seeds cr664_sequence and the
+  // operator arms AUTO_STAGE_ADVANCE_ENABLED with evidence. See docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md.
+  { path: 'src/workflow/StageWorkflowControl.tsx', reason: 'Stage Advancement control; mounted in the deal workspace only once the stage-progression domain is seeded + armed (GATE candidate, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  { path: 'src/workflow/canonicalStageTransition.ts', reason: 'Stage Advancement governed transition engine; default-off (AUTO_STAGE_ADVANCE_ENABLED) and unhosted until armed (GATE candidate, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  { path: 'src/workflow/stageGateContract.ts', reason: 'Stage Advancement exit-gate contract; reachable once StageWorkflowControl is hosted in the deal workspace (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  { path: 'src/workflow/approvalAuthorityMatrix.ts', reason: 'Stage Advancement approval-authority matrix (template); reachable once the CREDIT_APPROVAL gate is wired into a hosted control (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   // ── src/workspaces ──
   { path: 'src/workspaces/WorkspaceShell.tsx', reason: 'Workspace shell sub-surface not yet routed.', plannedPhase: 'Phase 3+' },
 ];
