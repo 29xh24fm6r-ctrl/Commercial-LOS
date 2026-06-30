@@ -62,3 +62,30 @@ links (client- and deal-level) work on today's schema. There is **no `Select` de
 - `tsc -b` ✅ · `eslint` ✅.
 
 ### Phase 2 status: ✅ COMPLETE — Type is a validated, governed dropdown; off-list rejected at write.
+
+---
+
+## Phase 3 — Industry → NAICS type-ahead
+
+- **`src/crm/naics/naicsSearch.ts`** — `filterNaicsHits(rows, query)` (pure: code-prefix OR
+  title-substring, sector **derived** via `sectorForCode`, drops codes with no derivable sector,
+  capped) + `loadNaicsRowsLive` (fail-closed loader: a guarded, non-statically-analyzable dynamic
+  import of the generated `Cr664_naicscodesService` so the current build never depends on it and the
+  feature lights up automatically once the maker provisions the table + regens the SDK; resolves
+  `unavailable` honestly until then).
+- **`src/crm/naics/NaicsTypeahead.tsx`** — design-`Input`-based combobox: debounced, accessible
+  (`role=combobox`/`listbox`), shows `722511 · Full-Service Restaurants` with the derived sector
+  `72 · Accommodation and Food Services`. Selecting calls `onSelect(hit)`; honest loading / empty /
+  unavailable states.
+- **`CrmWriteActions.tsx`** — Add-Company gains an "Industry (NAICS)" type-ahead field that sets
+  `naicsCode`, threaded into the governed `addCompany` (persists `cr664_naicscode`). The free-text
+  "Industry (descriptor)" is retained alongside (structured code = the comparable field; free-text =
+  optional human descriptor) — additive, so existing CRM tests are unaffected.
+
+### Gate
+- `naicsSearch.test.ts` ✅ (7) · `NaicsTypeahead.test.tsx` ✅ (3: plain-language→code+sector+select,
+  honest unavailable, clear) · existing `CrmWriteActions.test.tsx` ✅ (unaffected).
+- `tsc -b` ✅ · `eslint` ✅.
+
+### Phase 3 status: ✅ COMPLETE — plain-language → 6-digit code stored via governed write; sector
+derived; fail-closed until the reference table is provisioned.

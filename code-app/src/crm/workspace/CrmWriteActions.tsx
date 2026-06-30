@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
 import { CRM_PARTY_TYPE_OPTIONS } from '../crmPartyTypes';
+import { NaicsTypeahead } from '../naics/NaicsTypeahead';
 import { buildLiveCrmWriteFns, type CrmWriteFns } from '../write/crmWriteActions';
 import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
 
@@ -138,7 +139,7 @@ function CrmActionModal({
     let result: CrmWriteOutcome;
     switch (kind) {
       case 'company':
-        result = await fns.addCompany({ ...a, name: val('name'), organizationType: val('organizationType'), industry: val('industry'), website: val('website'), notes: val('notes') });
+        result = await fns.addCompany({ ...a, name: val('name'), organizationType: val('organizationType'), industry: val('industry'), naicsCode: val('naicsCode'), website: val('website'), notes: val('notes') });
         break;
       case 'contact':
         result = await fns.addContact({ ...a, firstName: val('firstName'), lastName: val('lastName'), title: val('title'), email: val('email'), phone: val('phone'), employerOrganizationId: val('employerOrganizationId'), notes: val('notes') });
@@ -180,7 +181,15 @@ function CrmActionModal({
           <>
             <div style={styles.formGrid}>
               {fieldsFor(kind, companyOptions, personOptions).map((f) =>
-                f.type === 'select' ? (
+                f.type === 'naics' ? (
+                  <div key={f.key} style={styles.fieldFull}>
+                    <NaicsTypeahead
+                      label={f.label}
+                      value={val('naicsCode') ? { code: val('naicsCode') } : undefined}
+                      onSelect={(hit) => set('naicsCode', hit?.code ?? '')}
+                    />
+                  </div>
+                ) : f.type === 'select' ? (
                   <label key={f.key} style={f.full ? styles.fieldFull : styles.field}>
                     <span style={styles.label}>{f.label}{f.required ? ' *' : ''}</span>
                     <select style={styles.input} value={val(f.key)} data-crm-field={f.key} onChange={(e) => set(f.key, e.target.value)}>
@@ -231,7 +240,7 @@ function CrmActionModal({
 interface FieldSpec {
   key: string;
   label: string;
-  type: 'text' | 'date' | 'select';
+  type: 'text' | 'date' | 'select' | 'naics';
   required?: boolean;
   full?: boolean;
   placeholder?: string;
@@ -250,7 +259,8 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
       return [
         { key: 'name', label: 'Company name', type: 'text', required: true, full: true },
         { key: 'organizationType', label: 'Type', type: 'select', options: CRM_PARTY_TYPE_OPTIONS, placeholder: 'Select a type' },
-        { key: 'industry', label: 'Industry', type: 'text' },
+        { key: 'industry', label: 'Industry (descriptor)', type: 'text' },
+        { key: 'naics', label: 'Industry (NAICS)', type: 'naics', full: true },
         { key: 'website', label: 'Website', type: 'text' },
         { key: 'notes', label: 'Notes', type: 'text', full: true },
       ];
