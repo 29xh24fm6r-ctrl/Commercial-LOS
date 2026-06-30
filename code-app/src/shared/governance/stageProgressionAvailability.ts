@@ -1,39 +1,27 @@
 /**
  * Stage progression write availability — pure shared governance utility.
  *
- * Phase 28 ground truth: the Dataverse schema does NOT yet expose a
- * deterministic next-stage ordering. The Phase 28 brief explicitly
- * required this be shipped as a blocked implementation rather than
- * hardcoding a stage order. See the schema audit in the diagnostics
- * shape below.
+ * Stage Advancement spec (current): the stage-reference data source and the deterministic
+ * ordering CONTRACT now both exist in the repo (`Cr664_dealstagereferencesService` is generated;
+ * `src/workflow/stageOrderingContract.ts` resolves order from `cr664_sequence`). What remains is a
+ * DATA fact, owned by the maker: the seven stage rows must be seeded with unique `cr664_sequence`
+ * values (and the SDK regenerated to expose the field). See `docs/STAGE_SCHEMA_SETUP.md`.
  *
- * Phase 29 (current): this module also exposes a structured diagnostic
- * shape so the Admin Workspace can surface the same gate as governed
- * configuration visibility, NOT just as a banker-facing banner. Admin
- * imports only this pure module — no deal-workspace component/provider
- * is reached into, preserving sealed-role-module discipline.
- *
- * To flip the gate to available in a future phase, ALL of the
- * following must be true:
- *   1. A stage-reference service exists in src/generated/services/
- *      (typically Cr664_dealstagereferencesService or similar).
- *   2. The corresponding model exposes an explicit ordering field
- *      (e.g. cr664_sequence, cr664_order, or an enum with a known
- *      ordinal contract).
- *   3. The stage-progression action follows the Phase 21/22/25
- *      coordination pattern (update + audit + timeline + correlation
- *      id + governance-partial outcome).
- *
- * Until then this file is the single source of truth — flipping it
- * later is a tiny, traceable change with no scattered toggles.
+ * Availability is therefore data-driven and FAIL-CLOSED: `available` is true ONLY when a complete,
+ * conflict-free ordered set resolves. Surfaces that have loaded the stage-reference rows derive it
+ * from the ordering result (`deriveStageProgressionAvailability` / `deriveStageProgressionDiagnostics`).
+ * The legacy no-arg `stageProgressionAvailability()` / `stageProgressionDiagnostics()` represent the
+ * "rows not loaded in this context" state — honestly unavailable until the environment is seeded —
+ * and remain the single source of truth for the banker banner + admin diagnostics card.
  */
+
+import type { StageOrderingResult } from '../../workflow/stageOrderingContract';
 
 export interface StageProgressionAvailability {
   available: boolean;
   /** Banker-facing one-line summary surfaced in the deal-workspace banner. */
   banner: string;
-  /** Engineer-facing detail surfaced beneath the banner, suitable for
-   *  inclusion in a JIRA / schema-design conversation. */
+  /** Engineer-facing detail surfaced beneath the banner. */
   detail: string;
 }
 
@@ -42,103 +30,130 @@ export type DiagnosticSeverity = 'clear' | 'at-risk' | 'blocked';
 
 export interface StageProgressionCheck {
   id: string;
-  /** Short label shown in the diagnostics card. */
   label: string;
   state: DiagnosticState;
   severity: DiagnosticSeverity;
-  /** Banker / admin-readable explanation of the current state. */
   detail: string;
 }
 
 export interface StageProgressionDiagnostics {
-  /** Mirror of stageProgressionAvailability().available. */
   available: boolean;
-  /** Overall severity rollup across the individual checks. */
   overallSeverity: DiagnosticSeverity;
-  /** Read-only check rows for the admin diagnostics card. */
   checks: readonly StageProgressionCheck[];
-  /** Step-by-step remediation. Stable, ordered, no fix buttons. */
   remediation: readonly string[];
-  /** Feature(s) currently blocked by this gap, surfaced verbatim in
-   *  the admin card so the impact is obvious without cross-referencing. */
   affectedFeatures: readonly string[];
 }
 
-const SCHEMA_LIMITATION_BANNER =
-  'Advance Stage is not yet available on this workspace.';
+const NOT_SEEDED_BANNER = 'Advance Stage is not yet available on this workspace.';
 
-const SCHEMA_LIMITATION_DETAIL =
-  'The Dataverse schema does not currently expose a deterministic next-stage ordering (no Cr664_stagereferences service in the generated SDK, no sequence/order field on the loan deal record). A stage-progression write is intentionally not shipped until a typed stage-reference table with an ordering contract is available. See src/shared/governance/stageProgressionAvailability.ts for the future-extension contract.';
+const NOT_SEEDED_DETAIL =
+  'The stage-reference table and the deterministic ordering contract are both in place, but the ' +
+  'stage rows are not yet seeded with a unique cr664_sequence ordering in this environment (and the ' +
+  'typed SDK must be regenerated to expose the field). Stage advancement stays read-only until a ' +
+  'complete, conflict-free ordered set is seeded. See docs/STAGE_SCHEMA_SETUP.md.';
+
+const READY_BANNER = 'Advance Stage is available — the stage ordering is seeded and deterministic.';
+
+/** Stable "rows were not loaded in this calling context" ordering result. */
+const ROWS_NOT_LOADED: StageOrderingResult = {
+  status: 'unavailable',
+  reasons: ['Stage-reference rows are not loaded in this context; awaiting maker seed + SDK regen.'],
+};
 
 /**
- * Returns the current write-availability state for Advance Stage.
- * Pure; no I/O. The function deliberately does not consume runtime
- * data — write availability is a SCHEMA-LEVEL property, not a
- * per-deal property. Per-deal eligibility lives in the deal module's
- * deriveStageProgressionEligibility (Phase 27).
+ * Derive write-availability from a resolved stage ordering. `available` is true ONLY for a ready
+ * (complete, conflict-free) ordering.
  */
-export function stageProgressionAvailability(): StageProgressionAvailability {
+export function deriveStageProgressionAvailability(
+  ordering: StageOrderingResult,
+): StageProgressionAvailability {
+  if (ordering.status === 'ready') {
+    return { available: true, banner: READY_BANNER, detail: 'The seven canonical stages resolve in a unique, ascending sequence order.' };
+  }
   return {
     available: false,
-    banner: SCHEMA_LIMITATION_BANNER,
-    detail: SCHEMA_LIMITATION_DETAIL,
+    banner: NOT_SEEDED_BANNER,
+    detail: `${NOT_SEEDED_DETAIL} (${ordering.reasons.join('; ')})`,
   };
 }
 
 /**
- * Returns the structured diagnostic shape used by the admin
- * StageGovernanceDiagnostics card. Pure; no I/O. Mirrors the
- * conclusions of stageProgressionAvailability() but breaks them out
- * into individual checks the admin can scan.
+ * Legacy no-arg form — the schema/governance surfaces that have not loaded the stage rows.
+ * Honestly unavailable until the environment is seeded.
  */
-export function stageProgressionDiagnostics(): StageProgressionDiagnostics {
+export function stageProgressionAvailability(): StageProgressionAvailability {
+  return deriveStageProgressionAvailability(ROWS_NOT_LOADED);
+}
+
+const REMEDIATION_READY: readonly string[] = [
+  'Stage ordering is seeded and resolves deterministically — no action required.',
+];
+
+function remediationNotSeeded(): readonly string[] {
+  return [
+    'Add cr664_sequence (Whole Number) to cr664_dealstagereferences in make.powerapps.com (docs/STAGE_SCHEMA_SETUP.md).',
+    'Seed the seven ordered stage rows + status rows: node scripts/seed-stage-references.mjs --commit.',
+    'Regenerate the typed SDK (pac code add-data-source / regenerate-powerapps-sdk.ps1) so cr664_sequence appears on the generated model.',
+    'Confirm with node scripts/seed-stage-references.mjs --verify, then re-run the build and test suite.',
+    'Availability flips to available automatically once resolveStageOrdering() returns a ready set.',
+  ];
+}
+
+/**
+ * Derive the admin diagnostics shape from a resolved stage ordering.
+ */
+export function deriveStageProgressionDiagnostics(
+  ordering: StageOrderingResult,
+): StageProgressionDiagnostics {
+  const ready = ordering.status === 'ready';
+  const orderingDetail = ready
+    ? 'resolveStageOrdering() returns a complete, conflict-free ordered set; advancement is available.'
+    : `resolveStageOrdering() is not yet resolvable in this environment: ${ordering.reasons.join('; ')}. Advance Stage stays read-only until the rows are seeded.`;
+
   const checks: StageProgressionCheck[] = [
     {
       id: 'stage-reference-data-source',
       label: 'Stage reference data source',
-      state: 'missing',
-      severity: 'blocked',
+      state: 'present',
+      severity: 'clear',
       detail:
-        'No Cr664_stagereferences service is present in src/generated/services/. The stage reference entity is not registered as a Power Apps data source, so available stages are not enumerable via the typed client.',
+        'Cr664_dealstagereferencesService and Cr664_dealstatusreferencesService are generated and registered as Power Apps data sources; stage/status rows are enumerable via the typed client.',
     },
     {
       id: 'stage-ordering-contract',
       label: 'Stage ordering contract',
-      state: 'missing',
-      severity: 'blocked',
+      state: 'present',
+      severity: 'clear',
       detail:
-        'No sequence / order field is exposed on cr664_loandeal, cr664_systemsettings, or cr664_kpithresholdconfigurations. Without a deterministic ordinal, "what stage comes next" is not resolvable without inventing an order.',
+        'src/workflow/stageOrderingContract.ts resolves next/prior/terminal deterministically from cr664_sequence, returning an explicit unavailable result on any ambiguity rather than guessing. No order is hardcoded.',
     },
     {
-      id: 'stage-progression-write-availability',
-      label: 'Stage progression write availability',
-      state: 'missing',
-      severity: 'at-risk',
-      detail:
-        'Advance Stage is intentionally not shipped while the two checks above remain unmet. Banker workspace shows a corresponding read-only banner; no Advance Stage / Move Stage / Promote control is rendered anywhere.',
+      id: 'stage-ordering-resolved',
+      label: 'Stage ordering resolved (seeded data)',
+      state: ready ? 'present' : 'missing',
+      severity: ready ? 'clear' : 'blocked',
+      detail: orderingDetail,
     },
   ];
 
-  // 'blocked' beats 'at-risk' beats 'clear'.
-  const overallSeverity: DiagnosticSeverity = checks.some(
-    (c) => c.severity === 'blocked',
-  )
+  const overallSeverity: DiagnosticSeverity = checks.some((c) => c.severity === 'blocked')
     ? 'blocked'
     : checks.some((c) => c.severity === 'at-risk')
       ? 'at-risk'
       : 'clear';
 
   return {
-    available: false,
+    available: ready,
     overallSeverity,
     checks,
     affectedFeatures: ['Deal Stage Progression (Advance Stage)'],
-    remediation: [
-      'Add the stage-reference table / entity as a Power Apps data source via `pac code add-data-source` (or equivalent).',
-      'Re-generate the SDK so a Cr664_stagereferences service and model appear in src/generated/.',
-      'Confirm an ordering / sequence field on the stage reference model (cr664_sequence, cr664_order, or a documented enum ordinal).',
-      'Re-run npm run build and the test suite; flip stageProgressionAvailability() to available: true.',
-      'Then implement advanceStage(input) following the Phase 21/22/25 coordination pattern (update + audit + timeline + correlation id + governance-partial outcome).',
-    ],
+    remediation: ready ? REMEDIATION_READY : remediationNotSeeded(),
   };
+}
+
+/**
+ * Legacy no-arg form for the admin StageGovernanceDiagnostics card.
+ */
+export function stageProgressionDiagnostics(): StageProgressionDiagnostics {
+  return deriveStageProgressionDiagnostics(ROWS_NOT_LOADED);
 }
