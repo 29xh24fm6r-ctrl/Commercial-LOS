@@ -1,0 +1,62 @@
+# Commercial-LOS — "Intaglio" Design System Run Log
+
+Branch: `design/intaglio` (worktree, from `03c653d`)
+Working dir: `code-app/`
+Mode: fully autonomous, dedicated worktree (own real `node_modules`).
+
+Skill note: `/mnt/skills/public/frontend-design/SKILL.md` is **not present** on this Windows
+system or in `.claude/skills`, so it could not be read literally. Per operator decision I proceed
+against the embedded Intaglio brief (which carries the skill's craft rules: brainstorm →
+default-check → refine, avoid the three AI-default looks, copy-as-design, "remove one accessory",
+single-primary discipline) and run that critique pass myself.
+
+Architecture reality: the repo does **not** use Tailwind. It already has a token system —
+`src/shared/theme.ts` exposes `palette`/`spacing`/`typography` as `var(--cc-*)` references; the
+variables live in `src/index.css` (light `:root` + `prefers-color-scheme: dark` + `[data-theme]`),
+pinned by `themeTokens.test.ts`. So Phase 1 = redefine the `--cc-*` values (not a Tailwind layer),
+which recolors the whole app at once with zero component rewrites — the spec's "no framework swap".
+
+New deps (own node_modules): `@radix-ui/react-{tabs,dialog,tooltip,toast,popover,slot}`, `cmdk`,
+`@fontsource-variable/fraunces`, `@fontsource/ibm-plex-sans`, `@fontsource/ibm-plex-mono`.
+
+---
+
+## Phase 1 — Intaglio design tokens + global theme
+
+### Design-critique pass (applied to the brief)
+Default-check vs the three AI tells: not cream+pastel+terracotta (ivory + Ink Navy + banknote Seal
+Red), not near-black+acid-green, not broadsheet-hairlines (warm 1px borders + paper elevation). Key
+non-generic discipline added: **Seal Red is kept rare** — `--cc-primary` is **Ink Navy** (brand /
+chrome), Seal Red is its own `--cc-accent` token used only for the one primary action / active
+indicator / critical alert, and **Treasury Blue** owns all interactivity + focus so "clickable"
+reads instantly and never competes with the red.
+
+### Changes
+- **`src/index.css`** — recolored all `--cc-*` values (light + both dark blocks) to the Intaglio
+  palette:
+  - Surfaces: page `#F7F4EC` (Document Ivory), surface `#FFFDF9`, warm alts.
+  - Borders: warm `#E7E1D4` family (never blue-gray).
+  - Text: Ink Navy `#111A2E` + warm-slate ramp (`#6B6557` metadata).
+  - Brand/primary = Ink Navy; link/info/focus = Treasury Blue `#234E84`; clear = Ledger Green
+    `#3F6B5A`; at-risk = amber `#B5791F`; blocked = Seal Red `#9E2B25`.
+  - New `--cc-accent*` (Seal Red) + `--cc-security-rule`; cockpit accents (cobalt/teal/cyan/violet)
+    retuned into the palette (no electric blue/violet).
+  - Dark theme reworked to a **warm deep-ink "paper"** variant (not cold slate).
+  - Font vars: `--font-display` (Fraunces), `--font-sans` (IBM Plex Sans), `--font-mono` (IBM Plex
+    Mono).
+  - New utilities: `.cc-tnum` (tabular figures for money), `.cc-display` (Fraunces, restrained),
+    `.cc-security-rule` (the engraved 1px Seal-Red header line).
+- **`src/shared/theme.ts`** — `typography.family/display/mono` → CSS-var refs; added
+  `size.displayLg` (3.5rem hero); added `palette.accent*` (Seal Red) tokens.
+- **`src/main.tsx`** — self-host the three faces via `@fontsource` (bundled by Vite, no CDN).
+
+### Gate
+- `themeTokens.test.ts` ✅ (11) — every `palette` value still a `var(--cc-*)` declared in light + dark.
+- `tsc -b` ✅ · `npm run build` ✅ (fonts bundle; benign rollup dynamic-import warnings only).
+- Recolor flows through unchanged `--cc-*` identifiers → zero component rewrites, no test breakage.
+
+(Visual before/after screenshots are not capturable here — the app runs inside the Power Apps
+shell which needs tenant auth to bootstrap. Evidence is the token diff above; a dev-only primitive
+gallery route lands in Phase 2 for isolated visual review.)
+
+### Phase 1 status: ✅ COMPLETE.
