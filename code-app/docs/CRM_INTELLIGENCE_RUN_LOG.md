@@ -180,3 +180,54 @@ is armed (every edit returns `disabled` today). The governed adapter + seam are 
 
 ### Phase 6 status: ✅ COMPLETE — existing-record edits go through a governed, audited, default-off,
 fail-closed adapter; certified.
+
+---
+
+## Phase 7 — Governance truth-up + verification
+
+### Governance truth-up (honest placement)
+`platformInventory.GOVERNED_WRITES` is a **deal/admin-scoped** write inventory (alert/deal/document/
+credit-memo writes) — and CRM writes, including the pre-existing Phase-261 creates, are deliberately
+**not** tracked there; the CRM live-write domain is governed separately (the activation cert model /
+`crmWriteback`, default-off). Shoehorning CRM writes into the deal inventory would misplace them and
+overstate that surface, so — per "the dashboard must never overstate reality" — the new governed CRM
+writes are recorded here instead:
+
+| New governed CRM write | Adapter | Emits audit | Default state |
+|---|---|---|---|
+| Advisor link (typed relationship) | `addAdvisorLink` → `addRelationship` | yes (`cr664_crmauditentries`) | gated (CRM persistence off) |
+| Organization field update | `updateOrganizationField` | yes (`cr664_crmauditentries`) | **default-OFF** (`CRM_LIVE_PERSISTENCE_ENABLED=false`) |
+
+`CRM_LIVE_PERSISTENCE_ENABLED` remains **false** (unchanged) — every new field/relationship write is
+wired but fail-closed until the certified, evidenced operator step arms it (same discipline as every
+other live-write domain).
+
+### Whole-feature verification
+| Gate | Result |
+|---|---|
+| `tsc -b` | ✅ |
+| `vitest run` (FULL) | ✅ **708 files / 10,576 tests**, 2 skipped |
+| `audit:reachability` | ✅ exit 0 (added `crmUpdateAdapter.ts` to `intentionallyUnrouted` — wired, certified, drawer-UI deferred) |
+| `npm run build` | ✅ |
+| `eslint` (feature files) | ✅ clean (repo-wide eslint carries pre-existing debt outside this work) |
+| `CRM_LIVE_PERSISTENCE_ENABLED` | **false** (unchanged) — all new writes wired but fail-closed |
+
+### Maker runbook (carried from the spec — operator/Dataverse-owned)
+1. **Ratify vocab** — confirm `CRM_PARTY_TYPES` + `ADVISOR_ROLES` match how OGB works (editable config).
+2. **Seed NAICS** — create `cr664_naicscodes` (+ alternate key), `seed-naics.mjs --verify`/`--commit`,
+   import; (org Type/NAICS columns already exist; optional `cr664_naicstitle` snapshot). Regen SDK.
+3. **Arm later** — flip CRM live persistence on only via the certified, evidenced operator step.
+
+### Phase 7 status: ✅ COMPLETE — governance honest, CRM persistence default-off, suite + build green.
+
+---
+
+## Definition of done
+- [x] NAICS reference table seed + sector map (incl. 31-33/44-45/48-49) — maker seeds the real file.
+- [x] Type = validated dropdown (incl. Professional/Advisor); governed write; off-list rejected.
+- [x] Industry = NAICS type-ahead storing 6-digit code; sector derived; governed write; fail-closed.
+- [x] Advisors attach as typed governed relationships reusing existing tables; **deal-level built**
+      (schema already supports `cr664_OriginatedLoanDeal`).
+- [x] Advisors-on-client, reverse advisor-reach, and sector-concentration views render (honest empties).
+- [x] Governed CRM field-update adapter (default-off, fail-closed, audited) — certified.
+- [x] Governance honest; CRM persistence default-off; suite + build green; branch **not pushed**.
