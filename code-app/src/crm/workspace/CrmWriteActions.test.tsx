@@ -24,6 +24,7 @@ function fakeFns(): CrmWriteFns & { calls: Record<string, unknown[]> } {
     logActivity: make('logActivity'),
     createFollowUpTask: make('createFollowUpTask'),
     addRelationship: make('addRelationship'),
+    addAdvisorLink: make('addAdvisorLink'),
     calls,
   };
 }

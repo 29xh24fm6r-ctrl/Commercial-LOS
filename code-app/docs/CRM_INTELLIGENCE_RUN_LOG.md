@@ -89,3 +89,33 @@ links (client- and deal-level) work on today's schema. There is **no `Select` de
 
 ### Phase 3 status: ✅ COMPLETE — plain-language → 6-digit code stored via governed write; sector
 derived; fail-closed until the reference table is provisioned.
+
+---
+
+## Phase 4 — Advisor / professional relationships
+
+**Schema inspection result: deal-level attribution is already supported.** `addRelationship`
+(governed) binds free-text `cr664_role` and an existing **deal lookup** `cr664_OriginatedLoanDeal`
+(`/cr664_loandeals(...)`). So both client-level and deal-level advisor links work with **zero schema
+change** — no maker gap to defer.
+
+- **`src/crm/advisors/advisorRoles.ts`** — role vocabulary (CPA/Accountant, Attorney, **CDC
+  first-class**, Insurance Agent, Appraiser, Title/Escrow, Business Broker, Financial Advisor,
+  Environmental Consultant, SBA Packager, Referral Source) + options + `isValidAdvisorRole`. Editable
+  config.
+- **`src/crm/advisors/advisorLink.ts`** — `buildAdvisorRelationshipInput` (pure: validates role,
+  maps advisor→Source org / client→Target org / role→`cr664_role` / optional deal→`originatedDealId`,
+  derives a readable name) + `addAdvisorLink` (governed: validate role → `addRelationship`). Reuses
+  the existing relationship table + governed pipeline (audit + timeline + correlation id).
+- **`CrmWriteFns` + `buildLiveCrmWriteFns`** — new `addAdvisorLink`.
+- **`CrmWriteActions.tsx`** — new "Add Advisor" action: pick the advisor party + a role (validated
+  Select) + the client served (+ optional notes) → governed advisor link.
+
+### Gate
+- `advisorLink.test.ts` ✅ (9: role vocab incl. CDC, advisor→source/client→target mapping, deal-level
+  binding, off-list role + missing parties fail-closed, governed write + audit) · existing CRM tests
+  ✅ (fake `CrmWriteFns` extended with `addAdvisorLink`).
+- `tsc -b` ✅ · `eslint` ✅.
+
+### Phase 4 status: ✅ COMPLETE — advisors attach as typed governed relationships; deal-level BUILT
+(schema already supports it), not deferred.

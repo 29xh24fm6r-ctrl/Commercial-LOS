@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
 import { CRM_PARTY_TYPE_OPTIONS } from '../crmPartyTypes';
+import { ADVISOR_ROLE_OPTIONS } from '../advisors/advisorRoles';
 import { NaicsTypeahead } from '../naics/NaicsTypeahead';
 import { buildLiveCrmWriteFns, type CrmWriteFns } from '../write/crmWriteActions';
 import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
@@ -15,7 +16,7 @@ import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
  * non-engineering explanation (not hidden dead buttons).
  */
 
-export type CrmActionKind = 'company' | 'contact' | 'activity' | 'task' | 'relationship';
+export type CrmActionKind = 'company' | 'contact' | 'activity' | 'task' | 'relationship' | 'advisor';
 
 export interface CrmOption {
   readonly id: string;
@@ -42,6 +43,7 @@ const ACTIONS: ReadonlyArray<{ kind: CrmActionKind; label: string }> = [
   { kind: 'activity', label: 'Log Activity' },
   { kind: 'task', label: 'New Follow-up' },
   { kind: 'relationship', label: 'Add Relationship' },
+  { kind: 'advisor', label: 'Add Advisor' },
 ];
 
 export function CrmWriteActions({
@@ -107,6 +109,7 @@ const TITLES: Record<CrmActionKind, string> = {
   activity: 'Log Activity',
   task: 'Create Follow-up Task',
   relationship: 'Add Relationship',
+  advisor: 'Add Advisor / Professional',
 };
 
 function CrmActionModal({
@@ -152,6 +155,17 @@ function CrmActionModal({
         break;
       case 'relationship':
         result = await fns.addRelationship({ ...a, name: val('name'), relationshipType: val('relationshipType'), role: val('role'), sourceOrganizationId: val('sourceOrganizationId'), targetPersonId: val('targetPersonId'), notes: val('notes') });
+        break;
+      case 'advisor':
+        result = await fns.addAdvisorLink({
+          ...a,
+          advisorOrganizationId: val('advisorOrganizationId'),
+          clientOrganizationId: val('clientOrganizationId'),
+          role: val('role'),
+          notes: val('notes'),
+          advisorName: companyOptions.find((o) => o.id === val('advisorOrganizationId'))?.label,
+          clientName: companyOptions.find((o) => o.id === val('clientOrganizationId'))?.label,
+        });
         break;
     }
     setOutcome(result);
@@ -301,6 +315,13 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
         { key: 'role', label: 'Role', type: 'text' },
         { key: 'sourceOrganizationId', label: 'Company', type: 'select', options: companySel, placeholder: 'Company (optional)' },
         { key: 'targetPersonId', label: 'Person', type: 'select', options: peopleSel, placeholder: 'Person (optional)' },
+        { key: 'notes', label: 'Notes', type: 'text', full: true },
+      ];
+    case 'advisor':
+      return [
+        { key: 'advisorOrganizationId', label: 'Advisor / professional', type: 'select', required: true, options: companySel, placeholder: 'Select the advisor party' },
+        { key: 'role', label: 'Role', type: 'select', required: true, options: ADVISOR_ROLE_OPTIONS, placeholder: 'Select a role' },
+        { key: 'clientOrganizationId', label: 'Serves client', type: 'select', required: true, options: companySel, placeholder: 'Select the client' },
         { key: 'notes', label: 'Notes', type: 'text', full: true },
       ];
   }
