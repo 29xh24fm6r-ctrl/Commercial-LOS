@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-// The seed script is a maker-run CLI; its pure functions are unit-tested here.
-import { parseCsv, buildNaicsSeed, SECTOR_BY_PREFIX } from '../../../scripts/seed-naics.mjs';
+// The seed script is a maker-run CLI (shebang + argv); its pure functions live in
+// an import-safe library so vitest can unit-test them without parsing the CLI shebang.
+import { parseCsv, buildNaicsSeed, SECTOR_BY_PREFIX } from '../../../scripts/seedNaicsLib.mjs';
 import { NAICS_SECTORS, NAICS_VALID_PREFIXES } from './naicsSectorMap';
 
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');

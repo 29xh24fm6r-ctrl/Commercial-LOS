@@ -1,4 +1,4 @@
-/** Type declarations for the maker-run NAICS seed CLI's exported pure functions. */
+/** Type declarations for the import-safe NAICS seed helpers (shared by the CLI + tests). */
 
 export interface NaicsSectorEntry {
   readonly sectorCode: string;

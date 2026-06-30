@@ -231,3 +231,28 @@ other live-write domain).
 - [x] Advisors-on-client, reverse advisor-reach, and sector-concentration views render (honest empties).
 - [x] Governed CRM field-update adapter (default-off, fail-closed, audited) — certified.
 - [x] Governance honest; CRM persistence default-off; suite + build green; branch **not pushed**.
+
+---
+
+## Fix — `seedNaics.test.ts` could not import the maker CLI under vitest
+
+**Symptom (on `integration/all-work-20260630b`):** `src/crm/naics/seedNaics.test.ts` failed to load
+with `SyntaxError: Invalid or unexpected token` at the import of `scripts/seed-naics.mjs`. Cause:
+that file is a maker-run CLI and opens with a `#!/usr/bin/env node` shebang; vitest's transform
+parses the imported module and the `#!` on line 1 is not valid module syntax to it.
+
+**Fix (the correct separation, not a skip/stub):** extracted the three *pure* helpers
+(`parseCsv`, `buildNaicsSeed`, `SECTOR_BY_PREFIX`) verbatim into a new import-safe library
+`scripts/seedNaicsLib.mjs` — no shebang, no argv, no fs, no top-level CLI entrypoint — so vitest
+imports it cleanly.
+- `scripts/seed-naics.mjs` keeps its shebang + argv + fs I/O + Dataverse upsert + the
+  `process.argv[1] === __filename` CLI guard, and now imports `parseCsv` / `buildNaicsSeed` from the
+  library. It still runs exactly as before (`--verify` / `--commit`); CLI smoke verified green.
+- `src/crm/naics/seedNaics.test.ts` imports the same three symbols from the library instead of the
+  CLI. No test deleted, skipped, or stubbed — the real functions are exercised.
+- Type declarations followed the function move: added `scripts/seedNaicsLib.d.mts` and removed the
+  now-stale `scripts/seed-naics.d.mts` (its module no longer exports those symbols), so `tsc`
+  resolves the helpers' types from the library.
+
+**Gate:** `tsc 0 · vitest 708 files / 10,576 passed / 2 skipped · lint 0 · audit:reachability 0 ·
+build 0 · verify:launch-evidence exit 1` (honest-red, by design). One commit.
