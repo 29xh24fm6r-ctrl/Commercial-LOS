@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react';
+import * as Popover from '@radix-ui/react-popover';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
 import { CRM_PARTY_TYPE_OPTIONS } from '../crmPartyTypes';
 import { ADVISOR_ROLE_OPTIONS } from '../advisors/advisorRoles';
@@ -59,9 +60,15 @@ export function CrmWriteActions({
   const [open, setOpen] = useState<CrmActionKind | undefined>(undefined);
   const fns = writeFns ?? null; // resolved lazily so the live deps aren't built in tests that inject
 
+  // v3 FIX 3 — restore the single-primary rule: one Seal-Red primary (Add Company)
+  // + one quiet secondary (Add Contact); everything else lives in a tidy overflow.
+  const primary = ACTIONS[0]; // company
+  const secondary = ACTIONS[1]; // contact
+  const overflow = ACTIONS.slice(2); // activity, task, relationship, advisor
+
   return (
     <div style={styles.bar} data-crm-actions>
-      {ACTIONS.map((a) => (
+      {[primary, secondary].map((a) => (
         <button
           key={a.kind}
           type="button"
@@ -74,6 +81,31 @@ export function CrmWriteActions({
           {a.label}
         </button>
       ))}
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <button
+            type="button"
+            style={authorized ? styles.secondaryBtn : styles.disabledBtn}
+            disabled={!authorized}
+            data-crm-actions-more
+            aria-label="More CRM actions"
+            title={authorized ? undefined : disabledReason}
+          >
+            More ▾
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content className="ig-popover-menu" align="end" sideOffset={6}>
+            {overflow.map((a) => (
+              <Popover.Close asChild key={a.kind}>
+                <button type="button" className="ig-popover-item" data-crm-action={a.kind} onClick={() => setOpen(a.kind)}>
+                  {a.label}
+                </button>
+              </Popover.Close>
+            ))}
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
       {!authorized && (
         <span style={styles.disabledNote} data-crm-actions-disabled>
           {disabledReason ?? 'Sign-in identity is still resolving; CRM editing will enable shortly.'}

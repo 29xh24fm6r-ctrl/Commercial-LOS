@@ -42,3 +42,20 @@ use `shadow.elevated` (deep float + 1px top highlight on dark). Matched them:
 Gate: `tsc -b` ✅ · `CrmHubWorkspace.test.tsx` ✅ (7) · `eslint` ✅ (0 errors).
 
 ### FIX 2 status: ✅
+
+---
+
+## FIX 3 — CRM header: one primary + overflow
+
+The 7-action row (Add Company/Contact/Activity/Follow-up/Relationship/Advisor) drifted back toward the
+wall-of-equal-buttons problem. Restored the single-primary rule:
+- **Visible:** one Seal-Red **+ Add Company** (primary) + one quiet **+ Add Contact** (secondary).
+- **Overflow:** Log Activity / New Follow-up / Add Relationship / Add Advisor in a **"More ▾"** menu
+  (Radix Popover — already a dep — accessible: focus, Escape, click-outside; disabled when no identity).
+- Token-driven `.ig-popover-menu` / `.ig-popover-item` styles (dark-aware) added to `primitives.css`.
+- Updated `CrmWriteActions.test.tsx` to open the overflow before the (now-overflowed) Log Activity /
+  New Follow-up actions; portal items queried via `screen`.
+
+Gate: `tsc -b` ✅ · `CrmWriteActions.test.tsx` ✅ (5) · `eslint` ✅.
+
+### FIX 3 status: ✅
