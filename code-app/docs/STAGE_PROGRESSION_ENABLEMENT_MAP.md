@@ -13,10 +13,10 @@ Status: **Built in code, default-OFF, pending maker seed + flag.** (was: Blocked
 > | Concern | Artifact (built + tested) |
 > |---|---|
 > | Deterministic ordering (fail-closed) | `src/workflow/stageOrderingContract.ts` |
-> | Per-stage exit gates (fail-closed) | `src/workflow/stageGateContract.ts` |
+> | Per-stage exit gates (fail-closed, OGB-aligned) | `src/workflow/stageGateContract.ts` |
 > | Transition engine (ADVANCE/RETURN/DECLINE/WITHDRAW, audit+timeline, default-off) | `src/workflow/canonicalStageTransition.ts` |
 > | Banker stage control (disabled-safe) | `src/workflow/StageWorkflowControl.tsx` |
-> | Approval-authority matrix (template) | `src/workflow/approvalAuthorityMatrix.ts` |
+> | Approval authority (single authorized approver, no amount tiers) | `src/workflow/approvalAuthorityMatrix.ts` |
 > | Data-driven availability + diagnostics | `src/shared/governance/stageProgressionAvailability.ts` |
 > | Maker schema setup + seed | `docs/STAGE_SCHEMA_SETUP.md`, `scripts/seed-stage-references.mjs` |
 >
@@ -29,6 +29,13 @@ Status: **Built in code, default-OFF, pending maker seed + flag.** (was: Blocked
 > (`platformInventory.ts`) — NOT added to `GOVERNED_WRITES`, which the repo reserves for shipped/live
 > writes (mirroring the `new-deal-create` precedent). It moves to `GOVERNED_WRITES` only when armed
 > live with authentic evidence.
+>
+> **OGB actual alignment (2026-06-30).** Intake -> Underwriting is gated by required intake facts plus
+> a complete loan package, including a complete credit memo and component-checked required documents.
+> Underwriting is the review step: review completed, recommendation recorded, and a named
+> `riskRatingAssigned` placeholder that fails closed with `risk rating system not yet implemented`
+> until the future risk-rating spec lands. Credit Approval has no amount tiers; it requires only a
+> recorded approval by an authorized approver plus the other documented approval evidence.
 >
 > The historical Phase-43 plan follows.
 
