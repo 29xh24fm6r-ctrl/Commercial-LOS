@@ -58,13 +58,18 @@
 .ig-btn--sm { height: 1.85rem; font-size: 0.82rem; padding: 0 0.7rem; }
 .ig-btn--lg { height: 2.6rem; font-size: 0.98rem; padding: 0 1.2rem; }
 
-/* primary = the single Seal-Red filled action */
+/* primary = the single Seal-Red filled action — THE one glow in the UI */
 .ig-btn--primary {
   background: var(--cc-accent);
   color: #fffdf9;
   border-color: var(--cc-accent);
+  box-shadow: var(--cc-shadow-accent-glow);
 }
-.ig-btn--primary:hover:not(:disabled) { background: var(--cc-accent-dim); border-color: var(--cc-accent-dim); }
+.ig-btn--primary:hover:not(:disabled) {
+  background: var(--cc-accent-dim);
+  border-color: var(--cc-accent-dim);
+  box-shadow: 0 0 0 1px var(--cc-accent-dim), 0 6px 20px rgba(194, 59, 52, 0.40);
+}
 .ig-btn--primary:active:not(:disabled) { transform: translateY(0.5px); }
 
 /* secondary = bordered, ink text */
@@ -116,9 +121,15 @@
 }
 .ig-card--pad { padding: 1.25rem; }
 .ig-card--hover {
-  transition: box-shadow var(--ig-dur) var(--ig-ease), transform var(--ig-dur) var(--ig-ease);
+  transition: box-shadow var(--ig-dur) var(--ig-ease), transform var(--ig-dur) var(--ig-ease),
+    border-color var(--ig-dur) var(--ig-ease);
 }
-.ig-card--hover:hover { box-shadow: var(--ig-shadow-rise); transform: translateY(-1px); }
+/* Lift + deepen the float + brighten the hairline edge (a restrained bloom, not a glow). */
+.ig-card--hover:hover {
+  box-shadow: var(--ig-shadow-rise);
+  transform: translateY(-1px);
+  border-color: var(--cc-border-strong);
+}
 
 /* ── Tabs (Radix) — active = Seal-Red underline indicator ─────────────── */
 .ig-tabs-list {
@@ -141,9 +152,12 @@
   transition: color var(--ig-dur) var(--ig-ease), border-color var(--ig-dur) var(--ig-ease);
 }
 .ig-tab:hover { color: var(--cc-text); }
+/* active tab — Seal-Red underline with a soft accent glow beneath (the second and
+ * final place glow is allowed; everything else stays calm). */
 .ig-tab[data-state='active'] {
   color: var(--cc-text);
   border-bottom-color: var(--cc-accent);
+  box-shadow: 0 6px 14px -8px var(--cc-accent);
 }
 
 /* ── Input / SearchField ──────────────────────────────────────────────── */
@@ -211,15 +225,18 @@
   white-space: nowrap;
 }
 .ig-badge .ig-dot { width: 0.45rem; height: 0.45rem; border-radius: 999px; }
-.ig-badge--blocked { background: var(--cc-blocked-bg); color: var(--cc-blocked-fg); }
+/* On the deep dark shell a pale chip needs a defined edge — a hairline in the
+ * severity color reads as a "stamped" governance seal and keeps GATED / Read-only /
+ * DRY_RUN status loud and legible, never softened toward looking "live". */
+.ig-badge--blocked { background: var(--cc-blocked-bg); color: var(--cc-blocked-fg); border-color: var(--cc-blocked); }
 .ig-badge--blocked .ig-dot { background: var(--cc-blocked); }
-.ig-badge--atRisk { background: var(--cc-at-risk-bg); color: var(--cc-at-risk-fg); }
+.ig-badge--atRisk { background: var(--cc-at-risk-bg); color: var(--cc-at-risk-fg); border-color: var(--cc-at-risk); }
 .ig-badge--atRisk .ig-dot { background: var(--cc-at-risk); }
-.ig-badge--clear { background: var(--cc-clear-bg); color: var(--cc-clear-fg); }
+.ig-badge--clear { background: var(--cc-clear-bg); color: var(--cc-clear-fg); border-color: var(--cc-clear); }
 .ig-badge--clear .ig-dot { background: var(--cc-clear); }
-.ig-badge--neutral { background: var(--cc-neutral-bg); color: var(--cc-neutral-fg); }
+.ig-badge--neutral { background: var(--cc-neutral-bg); color: var(--cc-neutral-fg); border-color: var(--cc-border-strong); }
 .ig-badge--neutral .ig-dot { background: var(--cc-neutral); }
-.ig-badge--info { background: var(--cc-info-bg); color: var(--cc-info-fg); }
+.ig-badge--info { background: var(--cc-info-bg); color: var(--cc-info-fg); border-color: var(--cc-info); }
 .ig-badge--info .ig-dot { background: var(--cc-info); }
 
 /* ── EmptyState ───────────────────────────────────────────────────────── */
