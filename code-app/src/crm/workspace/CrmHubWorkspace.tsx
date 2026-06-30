@@ -109,6 +109,28 @@ export function CrmHubWorkspace({
     return r.status === 'ready' ? r.records.length : undefined;
   };
 
+  // Keyboard-first navigation for the CRM lists: "/" focuses search, j/k move
+  // row focus, Enter opens (handled on the row). Ignored while typing in a field.
+  function onListKeyDown(e: React.KeyboardEvent<HTMLElement>) {
+    const target = e.target as HTMLElement;
+    const typing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+    if (e.key === '/' && !typing) {
+      e.preventDefault();
+      e.currentTarget.querySelector<HTMLInputElement>('[data-crm-search]')?.focus();
+      return;
+    }
+    if ((e.key === 'j' || e.key === 'k') && !typing) {
+      const rows = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[data-crm-record]'));
+      if (rows.length === 0) return;
+      e.preventDefault();
+      const active = document.activeElement as HTMLElement | null;
+      const idx = active ? rows.indexOf(active) : -1;
+      const nextIdx =
+        e.key === 'j' ? Math.min(rows.length - 1, idx + 1) : Math.max(0, idx <= 0 ? 0 : idx - 1);
+      rows[nextIdx]?.focus();
+    }
+  }
+
   const records = useMemo(() => {
     if (state.kind !== 'ready') return undefined;
     const r = state.data[spec.domain];
@@ -121,7 +143,7 @@ export function CrmHubWorkspace({
   }, [state, spec.domain, query]);
 
   return (
-    <section style={styles.wrap} aria-label="Relationship CRM" data-crm-hub="workspace">
+    <section style={styles.wrap} aria-label="Relationship CRM" data-crm-hub="workspace" onKeyDown={onListKeyDown}>
       {/* Command header */}
       <header style={styles.header} data-crm-header>
         <div style={styles.headerLeft}>

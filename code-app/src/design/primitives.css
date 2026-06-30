@@ -362,6 +362,26 @@
 }
 .ig-cmd__item[data-selected='true'] { background: var(--cc-info-bg); color: var(--cc-info-fg); }
 .ig-cmd__item-meta { margin-left: auto; color: var(--cc-text-subtle); font-size: 0.78rem; }
+/* cmdk emits its own data attributes — style them to match the tokens. */
+[cmdk-group-heading] {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cc-text-subtle);
+  padding: 0.6rem 0.2rem 0.3rem;
+}
+[cmdk-item] {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.5rem;
+  border-radius: var(--ig-radius-control);
+  font-size: 0.9rem;
+  color: var(--cc-text);
+  cursor: pointer;
+}
+[cmdk-item][data-selected='true'] { background: var(--cc-info-bg); color: var(--cc-info-fg); }
+[cmdk-empty] { padding: 1rem 0.2rem; color: var(--cc-text-muted); font-size: 0.9rem; }
 
 /* ── Inline edit ──────────────────────────────────────────────────────── */
 .ig-inline {

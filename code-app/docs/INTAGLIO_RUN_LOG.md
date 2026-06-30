@@ -145,3 +145,60 @@ here rather than risk-rewriting many test-coupled surfaces blind in one autonomo
 
 ### Phase 4 status: ✅ COMPLETE (tokens app-wide + PageHeader + orphaned-shell cleanup; per-shell
 PageHeader adoption noted as incremental).
+
+---
+
+## Phase 5 — Interaction layer (⌘K, inline edit, keyboard)
+
+- **Command palette (⌘K / Ctrl-K)** — `src/design/CommandPalette.tsx` (cmdk fuzzy search + keyboard
+  selection inside a Radix dialog for focus-trap/escape). `src/navigation/AppCommandPalette.tsx`
+  wires it to the real router (Workspaces + the read-only feature Surfaces) and is mounted app-wide
+  in `App` inside `BrowserRouter`. **Navigation-only — it never writes**, so it is safe global.
+- **Inline edit over governed writes** — `src/design/InlineEdit.tsx`: click-to-edit, **optimistic**
+  update, success **toast** confirm, **rollback + error toast** on failure. Governed by construction
+  — it requires the caller's `onSave` to route through the governed write path (audit + timeline);
+  the optimistic UI sits on top, never replacing governance. Uses React's "adjust state during
+  render" sync (not an effect) so a successful save isn't clobbered by a controlled-stale prop.
+- **Keyboard-first nav on the CRM lists** — in `CrmHubWorkspace`: `/` focuses search, `j`/`k` move
+  row focus, `Enter` opens (existing), guarded so it never fires while typing in a field.
+- **Toast verbs** agree with the action (built Phase 2: "Saved", past-tense, short).
+- **Reduced motion** — every animation/transition in `primitives.css` is disabled under
+  `prefers-reduced-motion: reduce`.
+- **Test-env polyfills** — `setupTests.ts` now stubs `ResizeObserver` + `scrollIntoView` (jsdom
+  gaps) so headless-UI (cmdk/Radix) component tests run; additive, only when missing.
+- **Gallery** demos inline edit (with a rollback path) + the ⌘K hint.
+
+### Honest scope note
+The `InlineEdit` primitive is complete and proven, but **wiring it onto live CRM record fields**
+needs a governed *field-update* write adapter. `CrmWriteActions` today implements governed *create*
+flows (company/contact/activity); a governed update path is the integration step — deliberately not
+faked here (never bypass governance for polish). The primitive + its tests prove the
+optimistic-over-governed pattern end to end.
+
+### Gate
+- `tsc -b` ✅ · `eslint src/design` ✅ (clean) · `npm run build` ✅.
+- `interaction.test.tsx` ✅ (6: ⌘K open/run/close, inline-edit optimistic success + rollback +
+  disabled) · `primitives.test.tsx` ✅ (17) · `CrmHubWorkspace.test.tsx` ✅ (keyboard handler added,
+  hooks preserved).
+- **Full suite: 690 files / 10,444 tests passed, 2 skipped.**
+
+### Phase 5 status: ✅ COMPLETE.
+
+---
+
+## Session outcome
+
+The Intaglio design system is in place and the CRM Hub is its flagship: one coherent identity
+grounded in Old Glory Bank's world (Document Ivory + Ink Navy + a sparing Seal-Red accent + Treasury
+Blue interactivity + Ledger Green, Fraunces display + IBM Plex Sans/Mono with tabular figures, the
+guilloché signature + engraved security rule), an accessible Radix-backed primitive library with the
+single-primary rule enforced, and a modern interaction layer (⌘K palette, optimistic inline-edit
+primitive, keyboard-first CRM lists, consistent toasts) — all with **governance integrity intact**
+(the palette only navigates; inline edit is governed-by-construction). Token recolor rolled the look
+app-wide in one pass. Suite + build green; branch `design/intaglio` not pushed.
+
+**Verification caveat:** this is a Power Apps Code App that boots inside the tenant-authenticated
+Power Apps shell, so the live screens could not be screenshotted here. Visual review is via the
+dev-only `/design` gallery (renders standalone) + the token/diff record above. The two
+incremental follow-ups (per-shell `PageHeader` adoption + admin-wall progressive disclosure;
+live inline-edit wiring to a governed CRM field-update) are called out honestly rather than faked.

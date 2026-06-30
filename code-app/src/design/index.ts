@@ -16,5 +16,7 @@ export { PageHeader, type PageHeaderProps } from './PageHeader';
 export { Guilloche, type GuillocheProps } from './Guilloche';
 export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip';
 export { Dialog, type DialogProps } from './Dialog';
+export { CommandPalette, type CommandItem, type CommandGroup, type CommandPaletteProps } from './CommandPalette';
 export { ToastProvider } from './Toast';
 export { useToast, type ToastOptions, type ToastTone } from './toastContext';
+export { InlineEdit, type InlineEditProps } from './InlineEdit';

@@ -16,6 +16,7 @@ import {
   Dialog,
   ToastProvider,
   useToast,
+  InlineEdit,
   type Column,
 } from './index';
 import { palette, spacing, typography } from '../shared/theme';
@@ -189,6 +190,35 @@ export function DesignGallery() {
                 </div>
               </Dialog>
               <ToastDemo />
+            </Section>
+
+            <Section title="Inline edit (optimistic over governed writes)">
+              <Card pad style={{ width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
+                  <span style={{ fontSize: typography.size.xs, textTransform: 'uppercase', letterSpacing: '0.06em', color: palette.textMuted }}>
+                    Company name
+                  </span>
+                  <InlineEdit
+                    label="Company"
+                    value="Cedar & Vine Holdings"
+                    onSave={(next) =>
+                      new Promise((resolve, reject) =>
+                        // demo: succeeds unless you type "fail"
+                        next.toLowerCase().includes('fail') ? reject(new Error('Rejected by gate')) : resolve(),
+                      )
+                    }
+                  />
+                  <span style={{ fontSize: typography.size.xs, color: palette.textSubtle }}>
+                    Click to edit · Enter saves · type "fail" to see the rollback
+                  </span>
+                </div>
+              </Card>
+            </Section>
+
+            <Section title="Command palette">
+              <span style={{ color: palette.textMuted }}>
+                Press <Kbd>⌘</Kbd> <Kbd>K</Kbd> (or <Kbd>Ctrl</Kbd> <Kbd>K</Kbd>) anywhere to open it.
+              </span>
             </Section>
           </div>
         </div>
