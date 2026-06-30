@@ -354,6 +354,16 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/workflow/canonicalStageTransition.ts', reason: 'Stage Advancement governed transition engine; default-off (AUTO_STAGE_ADVANCE_ENABLED) and unhosted until armed (GATE candidate, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/stageGateContract.ts', reason: 'Stage Advancement exit-gate contract; reachable once StageWorkflowControl is hosted in the deal workspace (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/approvalAuthorityMatrix.ts', reason: 'Stage Advancement OGB single authorized-approver policy; reachable once the CREDIT_APPROVAL gate is wired into a hosted control (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  // Stage reconciliation: these governed workflow-action surfaces were hosted by the
+  // retired legacy Loan Workflow Command Center (11-stage spine). They are re-hosted by
+  // the canonical StageWorkflowControl when the stage-progression domain is seeded + armed.
+  { path: 'src/workflow/LoanWorkflowCommandCenter.tsx', reason: 'Retired legacy 11-stage Opportunity/Qualification command center; unmounted from the deal cockpit by stage reconciliation (the canonical Stage Map supersedes it). Kept for its non-cockpit consumers; DELETE candidate once those repoint.', plannedPhase: 'Follow-up' },
+  { path: 'src/workflow/AdvanceWorkflowStageButton.tsx', reason: 'Governed Advance-Stage action surface; previously hosted by the retired command center, re-hosted by StageWorkflowControl when the stage domain is seeded + armed (WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  { path: 'src/workflow/GenerateWorkflowChecklistButton.tsx', reason: 'Governed checklist-generation action; previously hosted by the retired command center, re-hosted once its domain is armed (WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  { path: 'src/workflow/GenerateWorkflowTasksButton.tsx', reason: 'Governed task-generation action; previously hosted by the retired command center, re-hosted once its domain is armed (WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  { path: 'src/workflow/workflowGenerationActions.ts', reason: 'Governed workflow generation actions (checklist/tasks) behind the retired command center; re-hosted once armed (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  { path: 'src/workflow/stageTransitionPolicy.ts', reason: 'Stage transition policy consumed by the retired command center actions; reachable once a governed stage control is hosted (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  { path: 'src/workflow/loanWorkflowTemplates.ts', reason: 'Legacy 11-stage workflow templates behind the retired command center; DELETE candidate once the Opportunity/Qualification spine is fully removed (follow-up).', plannedPhase: 'Follow-up' },
   // ── src/workspaces ──
   { path: 'src/workspaces/WorkspaceShell.tsx', reason: 'Workspace shell sub-surface not yet routed.', plannedPhase: 'Phase 3+' },
 ];

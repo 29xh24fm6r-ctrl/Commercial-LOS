@@ -43,7 +43,7 @@ describe('Phase 232 — Banker Operating Command Center model', () => {
     const vm = deriveBankerOperatingCommandCenterModel();
 
     expect(vm.dealCockpitAnchors).toEqual([
-      'loan-workflow-command-center',
+      'stage-map',
       'workstreams',
       'crm-relationship',
       'credit-memo',

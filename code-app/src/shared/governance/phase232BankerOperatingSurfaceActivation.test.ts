@@ -16,7 +16,7 @@ describe('Phase 232 — banker operating surface activation contract', () => {
   it('does not invent a parallel workflow; it points to the existing deal cockpit anchors', () => {
     const vm = deriveBankerOperatingCommandCenterModel();
 
-    expect(vm.dealCockpitAnchors).toContain('loan-workflow-command-center');
+    expect(vm.dealCockpitAnchors).toContain('stage-map');
     expect(vm.dealCockpitAnchors).toContain('workstreams');
     expect(vm.dealCockpitAnchors).toContain('crm-relationship');
   });

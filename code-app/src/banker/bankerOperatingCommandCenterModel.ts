@@ -139,12 +139,12 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
     domains,
     todayActions: [
       'Start with CRM and your daily action queue.',
-      'Work active deals from the Loan Workflow Command Center and deal cockpit.',
+      'Work active deals from the deal cockpit.',
       'Use duplicate detection and task suggestions to prioritize your work.',
       'Live create, send, and portfolio boarding are available only where they have been enabled for you.',
     ],
     dealCockpitAnchors: [
-      'loan-workflow-command-center',
+      'stage-map',
       'workstreams',
       'crm-relationship',
       'credit-memo',

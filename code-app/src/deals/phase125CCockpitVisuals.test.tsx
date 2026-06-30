@@ -141,16 +141,15 @@ describe('Phase 125C — DealStageProgressionCard StageRail', () => {
     const rail = screen.getByRole('list', {
       name: /canonical stage progression map/i,
     });
+    // Stage reconciliation: the rail now renders the ONE canonical seven.
     for (const label of [
-      'Origination',
-      'Screening',
-      'Application',
-      'Pricing',
+      'Intake',
       'Underwriting',
-      'Committee',
+      'Credit Approval',
+      'Commitment',
       'Documentation',
-      'Closing',
-      'Funded',
+      'Closing & Funding',
+      'Boarded · Servicing',
     ]) {
       expect(within(rail).getByText(label)).toBeInTheDocument();
     }
