@@ -14,6 +14,9 @@ const ORDERING = (() => {
 const INTAKE_MET: StageGateFacts = {
   borrowerPresent: true, loanAmountPresent: true, productTypePresent: true,
   assignedBankerPresent: true, intakeChecklistGenerated: true,
+  completeCreditMemoPresent: true, loanApplicationReceived: true,
+  businessFinancialStatementsReceived: true, taxReturnsReceived: true,
+  ownershipInformationReceived: true, collateralSupportReceived: true,
 };
 
 function btn(name: RegExp) {

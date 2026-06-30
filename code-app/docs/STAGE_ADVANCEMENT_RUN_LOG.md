@@ -12,8 +12,23 @@ no auto-advance — buildable entirely in the current environment. **Branch only
 Fail-closed gates · no auto-advance (`AUTO_STAGE_ADVANCE_ENABLED` stays default-off) · every
 transition is a governed write (authz → policy/gate → update → audit + timeline + correlation id →
 typed outcome with honest partials) · no fabricated credit decision · deterministic + testable ·
-additive, default-off, one commit per phase, full gate green, branch only. The stage definitions and
-authority matrix are a **template, not OGB-ratified policy.**
+additive, default-off, one commit per phase, full gate green, branch only. The stage definitions now
+reflect the OGB founder-ratified origination corrections: complete package including complete credit
+memo gates Intake -> Underwriting; Underwriting is review; Credit Approval uses one authorized-
+approver step with no amount tiers; risk rating is a named pending placeholder until OGB ratifies the
+separate risk-rating system.
+
+## OGB actual alignment - 2026-06-30
+
+- Intake exit now component-checks required intake facts, complete credit memo present, and loan-package
+  documents (loan application, business financial statements, tax returns, ownership information,
+  collateral support). Absent/unknown components fail closed and surface as not tracked.
+- Underwriting exit no longer asks for a credit memo draft. It requires underwriting review completed,
+  underwriting recommendation recorded, and the pending `riskRatingAssigned` requirement.
+- `riskRatingAssigned` intentionally reads `met: false` with `risk rating system not yet implemented`.
+  No rating scale, grade, or inferred value exists in this change.
+- Credit Approval no longer consumes amount tiers. The editable policy module now checks only that an
+  approval was recorded by an authorized approver.
 
 ## Phases
 
@@ -24,8 +39,9 @@ authority matrix are a **template, not OGB-ratified policy.**
 | 3 | `07dbdd4` | `stageGateContract.ts` — per-stage exit gates as pure predicates over a `StageGateFacts` bag; `true`→met, `false`→outstanding, `undefined`→"not yet tracked" (fail-closed, never auto-passed). |
 | 4 | `2244c0a` | `canonicalStageTransition.ts` — `evaluate`/`execute` for ADVANCE/RETURN/DECLINE/WITHDRAW; ordering + gate + reason + authorization; governed write (default-off, injected transport/audit/timeline, typed outcome with honest partials). DECLINE sets DECLINED + adverse-action-pending (no send, no fabricated decision). |
 | 5 | `f1e6b5b` | `StageWorkflowControl.tsx` — banker control: stage + sequence, next stage, exit-gate checklist, four governed actions. Disabled-safe (unseeded → read-only banner; unauthorized → disabled; gate unsatisfied → Advance disabled with outstanding items; not-live → previews, writes nothing). |
-| 6 | `50e9914` | `approvalAuthorityMatrix.ts` — editable **TEMPLATE** amount-band → authority config; `requiredAuthority`/`approvalSatisfies` (fail-closed); consumed by the CREDIT_APPROVAL gate via `approvalAuthoritySufficient`. |
+| 6 | `50e9914` | `approvalAuthorityMatrix.ts` — originally shipped as an editable template amount-band authority config; superseded by the OGB actual alignment above. |
 | 7 | (this) | Governance truth-up + full gate (below). |
+| 8 | (this branch) | OGB actual alignment: memo/package requirement moved to Intake; Underwriting became review + pending risk-rating placeholder; approval authority neutralized to one authorized-approver check with no amount tiers. |
 
 ## Phase 7 — governance truth-up
 
@@ -57,19 +73,19 @@ when armed live with authentic evidence.
 | gate | result |
 |------|--------|
 | `tsc -b` | 0 |
-| full `vitest run` | **693 files · 10,482 passed · 2 skipped** |
-| `npm run lint` | 0 (legacy baseline; every file this arc lints clean) |
+| full `vitest run` | **708 files · 10,577 passed · 2 skipped** (existing `ActivityTimeline.test.tsx` React style warning only) |
+| `npm run lint` | 0 errors / 5 warnings (legacy warning baseline; every file this arc lints clean) |
 | `npm run audit:reachability` | 0 |
 | `npm run build` | 0 |
-| `npm run verify:launch-evidence` | 1 — honest-red, by design (no authentic GO evidence) |
+| `npm run verify:launch-evidence` | 1 — honest-red, by design (5/5 domains rejected for missing authentic HIGH-confidence evidence; `stageAdvancement` missing affectedRecordIds) |
 
-New tests this arc: ordering 9 · availability/diagnostics 13 + downstream · gate 13 · transition 20 ·
-control 8 · matrix 8.
+New/updated tests this alignment: gate 15 · transition 20 · control 8 · matrix 6 · loan workflow state 2.
 
 ## Operator / maker runbook (environment-owned — NOT done in repo)
 
-1. **Ratify** the stages, gate criteria, and the approval-authority matrix with OGB credit/compliance
-   (edit §1 of the spec + `approvalAuthorityMatrix.ts`). Policy decision, not a code task.
+1. **Ratify future policy changes only.** The 2026-06-30 OGB corrections are now reflected in code:
+   memo/package at Intake, no authority tiers, risk-rating pending. Any future limits or risk-rating
+   scale require a new OGB decision and a focused spec.
 2. **Seed** the schema (`docs/STAGE_SCHEMA_SETUP.md`): add `cr664_sequence`, seed the 7 ordered stage
    rows + status rows (or `node scripts/seed-stage-references.mjs --commit`), regenerate the SDK.
 3. **Verify** ordering: `node scripts/seed-stage-references.mjs --verify` → `stageProgressionAvailability`
@@ -81,7 +97,7 @@ control 8 · matrix 8.
 ## Candidate schema follow-ups (gate facts not yet tracked)
 
 The gate contract surfaces requirements honestly as "not yet tracked" where no backing field exists
-(e.g. risk rating assigned, commitment/term-sheet issued, borrower acceptance, conditions
-cleared/documented, collateral/insurance verified, docs executed, funds disbursed). These are
-candidate Dataverse fields to add as the workflow is operationalized — none are fabricated; each
-reads not-met until a real field backs it.
+(e.g. package components, underwriting review completion, underwriting recommendation, commitment /
+term-sheet issued, borrower acceptance, conditions cleared/documented, collateral/insurance verified,
+docs executed, funds disbursed). The risk-rating requirement is even stricter: it is a known pending
+placeholder that reads `risk rating system not yet implemented` until a real OGB risk-rating spec lands.

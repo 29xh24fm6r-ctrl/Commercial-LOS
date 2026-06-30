@@ -45,7 +45,7 @@ describe('deriveLoanWorkflowState', () => {
     expect(state.nextPermittedStages.map((stage) => stage.id)).toEqual(['credit_review']);
     expect(state.readiness.status).toBe('blocked');
     expect(state.readiness.blockers.map((blocker) => blocker.label).join(' ')).toMatch(/Credit memo/);
-    expect(state.readiness.missingTasks.map((task) => task.label)).toContain('Credit memo draft review');
+    expect(state.readiness.missingTasks.map((task) => task.label)).toContain('Credit memo package review');
   });
 
   it('labels unavailable inputs honestly instead of treating them as complete', () => {

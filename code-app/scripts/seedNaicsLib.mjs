@@ -41,8 +41,11 @@ export const SECTOR_BY_PREFIX = Object.freeze({
   '92': { sectorCode: '92', sectorTitle: 'Public Administration' },
 });
 
-/** Minimal RFC-4180-ish CSV parser (handles quoted fields + embedded commas). */
+/** Minimal RFC-4180-ish CSV parser (handles quoted fields + embedded commas).
+ *  Tolerates a leading UTF-8 BOM, which real spreadsheet exports often include —
+ *  without stripping it the first NAICS code would silently fail to match. */
 export function parseCsv(text) {
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
   const rows = [];
   let field = '';
   let row = [];

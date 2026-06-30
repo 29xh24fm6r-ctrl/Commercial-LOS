@@ -160,9 +160,10 @@ export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [
     label: 'Stage progression (Advance Stage write)',
     phase: 28,
     reason:
-      'WIRED_DISABLED: the deterministic stage ordering contract, per-stage exit-gate contract, ' +
+      'WIRED_DISABLED: the deterministic stage ordering contract, OGB-aligned per-stage exit-gate contract ' +
+      '(complete package including complete credit memo gates Intake -> Underwriting; Underwriting is review), ' +
       'the four-kind transition engine (advance/return/decline/withdraw, with audit + timeline, ' +
-      'fail-closed), the banker stage control, and the approval-authority matrix now all exist and ' +
+      'fail-closed), the banker stage control, and the OGB single authorized-approver policy now all exist and ' +
       'are covered by tests (src/workflow/stageOrderingContract.ts, stageGateContract.ts, ' +
       'canonicalStageTransition.ts, StageWorkflowControl.tsx, approvalAuthorityMatrix.ts). The LIVE ' +
       'stage-progression write stays blocked pending two operator-owned acts: (1) the maker adds the ' +

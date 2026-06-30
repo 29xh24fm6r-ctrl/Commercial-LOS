@@ -103,6 +103,7 @@ shows the read-only "Advance Stage not yet available" banner and no transition w
 
 - Does **not** enable `AUTO_STAGE_ADVANCE_ENABLED` or any live-write gate. Arming the live path is a
   separate, deliberate, evidence-backed operator act (see the spec's runbook).
-- Does **not** ratify the stages/order/authority matrix as OGB policy — that is a credit/compliance
-  decision recorded by Matt + OGB.
+- Does **not** enable live stage advancement. The 2026-06-30 OGB policy corrections are recorded in
+  code and docs (memo/package at Intake, no authority tiers, risk-rating pending); any future policy
+  change still requires a separate OGB decision.
 - Does **not** change any Loan Deal row.

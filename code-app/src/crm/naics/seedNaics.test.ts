@@ -22,6 +22,18 @@ describe('seed-naics — sector map mirrors naicsSectorMap.ts', () => {
   });
 });
 
+describe('seed-naics — parseCsv tolerates real-world exports', () => {
+  it('strips a leading UTF-8 BOM so the first code is not silently corrupted', () => {
+    const withBom = String.fromCharCode(0xfeff) + 'code,title\n722511,Full-Service Restaurants\n';
+    const rows = parseCsv(withBom);
+    expect(rows[0][0]).toBe('code'); // header cell is clean, not BOM-prefixed
+    expect(rows[1]).toEqual(['722511', 'Full-Service Restaurants']);
+    // And it actually builds (the first detail row maps to its sector).
+    const { records } = buildNaicsSeed(rows.slice(1).map((r) => [r[0], r[1]]), '2022');
+    expect(records[0]).toMatchObject({ cr664_code: '722511', cr664_sectorcode: '72' });
+  });
+});
+
 describe('seed-naics — buildNaicsSeed', () => {
   function pairsFromSample() {
     const csv = readFileSync(resolve(REPO_ROOT, 'scripts/data/naics-sample.csv'), 'utf8');

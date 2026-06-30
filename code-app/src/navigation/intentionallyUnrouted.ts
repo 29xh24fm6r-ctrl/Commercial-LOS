@@ -353,7 +353,7 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/workflow/StageWorkflowControl.tsx', reason: 'Stage Advancement control; mounted in the deal workspace only once the stage-progression domain is seeded + armed (GATE candidate, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/canonicalStageTransition.ts', reason: 'Stage Advancement governed transition engine; default-off (AUTO_STAGE_ADVANCE_ENABLED) and unhosted until armed (GATE candidate, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/stageGateContract.ts', reason: 'Stage Advancement exit-gate contract; reachable once StageWorkflowControl is hosted in the deal workspace (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
-  { path: 'src/workflow/approvalAuthorityMatrix.ts', reason: 'Stage Advancement approval-authority matrix (template); reachable once the CREDIT_APPROVAL gate is wired into a hosted control (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  { path: 'src/workflow/approvalAuthorityMatrix.ts', reason: 'Stage Advancement OGB single authorized-approver policy; reachable once the CREDIT_APPROVAL gate is wired into a hosted control (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   // ── src/workspaces ──
   { path: 'src/workspaces/WorkspaceShell.tsx', reason: 'Workspace shell sub-surface not yet routed.', plannedPhase: 'Phase 3+' },
 ];

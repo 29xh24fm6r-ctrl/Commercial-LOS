@@ -45,23 +45,43 @@ code-app/scripts/data/naics-2022.csv
 (The repo ships only a tiny `naics-sample.csv` fixture for tests — never the full list,
 which must come from the official source. No codes are fabricated.)
 
-## 3. Validate, then commit
+## 3. Validate, then load
+
+**Always verify first** (validates the CSV + derives sectors, writes nothing):
 
 ```bash
 cd code-app
-node scripts/seed-naics.mjs --verify                 # validates, derives sectors, reports counts; no writes
-node scripts/seed-naics.mjs --commit                 # writes scripts/data/naics-2022.seed.json
+node scripts/seed-naics.mjs --verify
 ```
 
 `--verify` fails closed: any 6-digit code whose prefix maps to no NAICS sector is an error
 (nothing is written). Expect ~1,012 six-digit records across all 20 sectors for 2022.
 
-Import the generated `scripts/data/naics-2022.seed.json` into `cr664_naicscodes` (Power
-Query / dataflow, or `pac`). The upsert is keyed on `cr664_code`, so re-running is a no-op.
+**Then load with `--commit`.** It always writes `scripts/data/naics-2022.seed.json`, and it
+**loads the rows into Dataverse directly when a token is present** — and prints an unmistakable
+final `STATUS:` line so you always know whether the table actually changed.
 
-> Operator-only direct upsert: if you run with `DATAVERSE_URL` + `DATAVERSE_TOKEN` set,
-> `--commit` also PATCH-upserts each row by `cr664_code` via the Web API. Claude Code never
-> runs this — it has no Dataverse credentials.
+```powershell
+# Easy path — one command loads the table (env URL auto-resolved from `pac org who`):
+$env:DATAVERSE_TOKEN = "<a Web API bearer token for your environment>"
+node scripts/seed-naics.mjs --commit
+#   → idempotent upsert by cr664_code (safe to re-run); STATUS: Dataverse LOADED.
+```
+
+Getting a token: any method that yields a bearer token for `https://<your-org>.crm.dynamics.com`
+works — e.g. `az account get-access-token --resource https://<your-org>.crm.dynamics.com`
+(Azure CLI), or copy one from a browser dev-tools call in the maker portal. The script never
+stores it.
+
+**No token?** `--commit` still writes the seed JSON and prints
+`STATUS: seed JSON built · Dataverse NOT loaded` with the finish steps — import that JSON into
+`cr664_naicscodes` via a **dataflow / Power Query** (key on `cr664_code`, so re-running is a no-op).
+
+> Claude Code never runs the load — it has no Dataverse credentials. The push is maker-only.
+
+After the rows land, **regenerate the SDK** (§1) if you haven't — the Industry field reads the
+table through the generated `Cr664_naicscodesService`, so without the regen it stays
+"not provisioned yet" even with rows in the table.
 
 ## 4. Company (org) columns for Type / NAICS
 
