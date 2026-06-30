@@ -84,3 +84,32 @@ Enforced structurally: `Button` defaults to `secondary`; `primitives.test.tsx` p
 - `primitives.test.tsx` ✅ (17) — button variants/single-primary, semantic badge tones, table sort + keyboard row-activate, empty-state, guilloché a11y.
 
 ### Phase 2 status: ✅ COMPLETE.
+
+---
+
+## Phase 3 — Flagship CRM Hub (Intaglio elevation)
+
+The CRM Hub (`src/crm/workspace/CrmHubWorkspace.tsx`) was recently rebuilt (Phase 260) and is
+heavily test-coupled via `data-crm-*` hooks, and Phase 1 already warmed its palette. So Phase 3 is a
+surgical **hierarchy + signature** pass in place — preserving every hook, prop, the data loader, and
+the `CrmWriteActions` integration (so all CRM tests stay green):
+
+- **Hero:** page title now set in the **Fraunces display face**; the engraved **Seal-Red security
+  rule** (`.cc-security-rule`) sits beneath the header — the one place the identity is spent.
+- **KPI strip hierarchy:** the metric values render in the display face at display scale with
+  tabular figures (the $-pipeline moment reads at a distance); labels stay small/tracked/muted.
+- **View tabs:** pill chips → **Seal-Red underline indicator** (the disciplined "you are here").
+- **Empty state:** the placeholder glyph → the **guilloché hero** (one inviting on-brand empty per
+  view; copy already active-voice: "Add your first company to start the relationship file").
+- **Single Seal-Red primary:** `CrmWriteActions` "Add company" primary recolored from Treasury Blue
+  to **Seal Red** (`palette.accent`); the other actions stay quiet secondaries — one primary per
+  context.
+- **Record drawer:** title in the display face for relationship-file gravitas.
+
+### Gate
+- `tsc -b` ✅ · `eslint` ✅ (0 errors; 2 pre-existing useMemo-dep warnings, untouched) · `build` ✅.
+- `CrmHubWorkspace.test.tsx` + `CrmWriteActions.test.tsx` ✅ (12) — all `data-crm-*` hooks + governed
+  write flows preserved.
+
+### Phase 3 status: ✅ COMPLETE — CRM Hub elevated to the Intaglio bar (hierarchy, signature,
+single-primary), zero behavior change.
