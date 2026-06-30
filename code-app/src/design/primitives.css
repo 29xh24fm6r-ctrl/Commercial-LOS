@@ -290,7 +290,7 @@
   box-shadow: var(--ig-shadow-rise);
   padding: 1.25rem 1.5rem;
   z-index: 51;
-  animation: ig-pop var(--ig-dur) var(--ig-ease);
+  animation: ig-pop 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .ig-sheet {
   position: fixed;
@@ -417,7 +417,8 @@
 
 /* ── Motion keyframes (disabled under reduced-motion) ─────────────────── */
 @keyframes ig-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes ig-pop { from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+/* Spring in — a slight overshoot so the command palette feels alive, not linear. */
+@keyframes ig-pop { from { opacity: 0; transform: translate(-50%, -47%) scale(0.94); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 @keyframes ig-slide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (prefers-reduced-motion: reduce) {

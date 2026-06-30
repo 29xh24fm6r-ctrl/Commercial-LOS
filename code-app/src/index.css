@@ -381,6 +381,45 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Intaglio v2 motion — a short load sequence + a barely-perceptible guilloché
+ * drift. ALL of it is gated behind prefers-reduced-motion: no-preference, so a
+ * reduced-motion user gets the final state instantly with zero animation.
+ * ------------------------------------------------------------------------- */
+@keyframes cc-rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cc-guilloche-drift {
+  from { transform: translateY(-50%) rotate(0deg); }
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Cards / bands fade + rise on load. */
+  .cc-rise-in {
+    animation: cc-rise-in 260ms cubic-bezier(0.2, 0.6, 0.2, 1) both;
+  }
+  /* KPI strip rises in a short stagger (~200ms total across the row). */
+  .cc-kpi-grid > * {
+    animation: cc-rise-in 240ms cubic-bezier(0.2, 0.6, 0.2, 1) both;
+  }
+  .cc-kpi-grid > *:nth-child(1) { animation-delay: 0ms; }
+  .cc-kpi-grid > *:nth-child(2) { animation-delay: 24ms; }
+  .cc-kpi-grid > *:nth-child(3) { animation-delay: 48ms; }
+  .cc-kpi-grid > *:nth-child(4) { animation-delay: 72ms; }
+  .cc-kpi-grid > *:nth-child(5) { animation-delay: 96ms; }
+  .cc-kpi-grid > *:nth-child(6) { animation-delay: 120ms; }
+  .cc-kpi-grid > *:nth-child(7) { animation-delay: 144ms; }
+  .cc-kpi-grid > *:nth-child(8) { animation-delay: 168ms; }
+  .cc-kpi-grid > *:nth-child(9) { animation-delay: 192ms; }
+  .cc-kpi-grid > *:nth-child(10) { animation-delay: 216ms; }
+  /* The hero guilloché drifts very slowly, like a security pattern catching light. */
+  .cc-hero-guilloche {
+    animation: cc-guilloche-drift 120s linear infinite;
+  }
+}
+
 /* Utility classes for things React inline styles can't express
    (pseudo-classes, hover, focus-visible). Used by tables and clickable
    rows in the banker workspace. All colors flow through the --cc-*

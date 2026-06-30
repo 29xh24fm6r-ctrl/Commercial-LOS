@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
 import { Guilloche } from '../design';
 import { EMAIL_MODE } from '../deals/emailDelivery/emailMode';
@@ -97,8 +97,9 @@ export function GreetingHeader({
   const logActivityEnabled = !writeDisabledReason && !!systemUserId && !!bankerId;
   const firstName = deriveFirstName(fullName);
   const greeting = greetingForHour(now.getHours());
+  const pipelineDisplay = useCountUp(pipelineAmount ?? 0);
   return (
-    <header style={styles.header} aria-label="Banker workspace greeting header">
+    <header className="cc-rise-in" style={styles.header} aria-label="Banker workspace greeting header">
       {/* Intaglio v2 hero — the guilloché elevated to atmosphere behind the band,
           like the security engraving on a banknote. Used at this scale here and
           nowhere else. Decorative; hidden from AT. */}
@@ -158,7 +159,7 @@ export function GreetingHeader({
         <div style={styles.heroRow}>
           <div style={styles.heroNumberBlock}>
             <div className="cc-display cc-tnum" style={styles.heroNumber} data-hero-pipeline>
-              {formatCurrencyCompact(pipelineAmount)}
+              {formatCurrencyCompact(pipelineDisplay)}
             </div>
             <div style={styles.heroLabel}>
               Total pipeline
@@ -247,6 +248,37 @@ function ActionButton({
       {label}
     </button>
   );
+}
+
+/** True when motion should be suppressed. No matchMedia (tests / minimal shells)
+ *  is treated as reduced-motion, so the hero number renders final immediately. */
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** Count the hero figure up from 0 → target on mount (easeOutCubic, ~650ms).
+ *  Reduced-motion (or no rAF) shows the final value instantly — and because the
+ *  return short-circuits to `target` in that case, the figure is always honest. */
+function useCountUp(target: number, durationMs = 650): number {
+  const reduced = prefersReducedMotion() || typeof requestAnimationFrame !== 'function';
+  // Lazy initial: start at 0 only when we will actually animate (no flash of final).
+  const [value, setValue] = useState(() => (reduced ? target : 0));
+  useEffect(() => {
+    if (reduced) return;
+    let raf = 0;
+    let startTime: number | null = null;
+    const tick = (t: number) => {
+      if (startTime === null) startTime = t;
+      const p = Math.min(1, (t - startTime) / durationMs);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(target * eased); // set inside the rAF callback (not the effect body)
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs, reduced]);
+  return reduced ? target : value;
 }
 
 function formatCurrencyCompact(n: number): string {
