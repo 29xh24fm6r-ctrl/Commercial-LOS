@@ -279,14 +279,16 @@ function KpiTile({
         <span
           style={{
             ...styles.iconChip,
-            background: tonePalette.bg,
-            color: tonePalette.accent,
+            // De-emphasize the icon chip on metrics that have no live value, so
+            // the empties never carry the same visual weight as a real number.
+            background: isMissing ? palette.surfaceSubtle : tonePalette.bg,
+            color: isMissing ? palette.textSubtle : tonePalette.accent,
           }}
           aria-hidden="true"
         >
           {spec.icon}
         </span>
-        <span style={styles.label}>{spec.label}</span>
+        <span style={{ ...styles.label, ...(isMissing ? styles.labelMuted : null) }}>{spec.label}</span>
       </div>
       <div
         style={{
@@ -337,10 +339,16 @@ function KpiTile({
     <div
       style={{
         ...styles.tile,
-        borderTop: `3px solid ${tonePalette.accent}`,
+        // Live metrics float with a real 3px accent edge; empties recede — flat,
+        // quieter surface, hairline top, dimmed — so the strip has an obvious
+        // focal order instead of a uniform grid of equal boxes.
+        ...(isMissing
+          ? styles.tileMuted
+          : { borderTop: `3px solid ${tonePalette.accent}` }),
       }}
       data-kpi-tile={spec.id}
       data-kpi-tone={spec.tone}
+      data-kpi-missing={isMissing ? 'true' : undefined}
       title={spec.tooltip}
     >
       {inner}
@@ -383,6 +391,18 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: 'column',
     gap: spacing.xs,
     minHeight: 116,
+  },
+  // Intaglio v2 — empties recede: flat (no float), a quieter sunken surface, a
+  // hairline top instead of the 3px accent, and dimmed. They read as clearly
+  // secondary to the live, floating metric tiles.
+  tileMuted: {
+    background: palette.surfaceSubtle,
+    borderTop: `1px solid ${palette.border}`,
+    boxShadow: 'none',
+    opacity: 0.66,
+  },
+  labelMuted: {
+    color: palette.textSubtle,
   },
   // Phase 166 — button reset so an interactive KPI tile keeps the exact
   // card look while gaining native button semantics (keyboard + focus).
