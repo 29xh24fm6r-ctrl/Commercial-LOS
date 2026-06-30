@@ -77,3 +77,16 @@ Gate: `tsc -b` ✅ · `CrmWriteActions.test.tsx` ✅ (5) · `eslint` ✅.
 Gate: `tsc -b` ✅ · `NaicsTypeahead.test.tsx` + `CrmWriteActions.test.tsx` ✅ (8) · `eslint` ✅.
 
 ### FIX 4 status: ✅
+
+---
+
+## FIX 5 — Nudge hero guilloché presence up
+
+`src/banker/GreetingHeader.tsx` hero guilloché: `size 460 → 500`, `opacity 0.05 → 0.08` (one modest
+step). Now reads as an intentional engraved signature, still atmospheric and clearly subordinate to
+the luminous $-pipeline figure. The drift animation lives in `.cc-hero-guilloche` and stays
+media-gated (`prefers-reduced-motion` disables it) — untouched.
+
+Gate: `tsc -b` ✅ · `eslint` ✅ (no test asserts the decorative opacity).
+
+### FIX 5 status: ✅

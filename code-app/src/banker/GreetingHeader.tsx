@@ -104,8 +104,8 @@ export function GreetingHeader({
           like the security engraving on a banknote. Used at this scale here and
           nowhere else. Decorative; hidden from AT. */}
       <Guilloche
-        size={460}
-        opacity={0.05}
+        size={500}
+        opacity={0.08}
         color="var(--cc-text)"
         className="cc-hero-guilloche"
       />
