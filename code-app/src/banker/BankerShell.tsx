@@ -216,6 +216,9 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
         bankerId={bankerId}
         activityDealOptions={activityDealOptions}
         openTaskCount={kpis ? kpis.openTaskCount : undefined}
+        pipelineAmount={kpis ? kpis.totalAmount : undefined}
+        dealsMissingAmount={kpis ? kpis.dealsMissingAmount : undefined}
+        urgentCount={kpis ? kpis.urgentItemCount : undefined}
         onActivityLogged={reload}
         onNewDeal={openNewDeal}
         now={now}

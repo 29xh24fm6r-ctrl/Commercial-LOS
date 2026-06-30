@@ -1,5 +1,6 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
+import { Guilloche } from '../design';
 import { EMAIL_MODE } from '../deals/emailDelivery/emailMode';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import {
@@ -51,6 +52,16 @@ export interface GreetingHeaderProps {
    * neutral "Loading workload..." until ready.
    */
   openTaskCount: number | undefined;
+  /**
+   * Intaglio v2 — the hero pipeline figure (sum across active deals). When
+   * provided, the band renders it huge and luminous as the screen's one hero
+   * moment. `undefined` while the parent snapshot is loading.
+   */
+  pipelineAmount?: number;
+  /** Count of active deals missing an amount (honest caveat under the figure). */
+  dealsMissingAmount?: number;
+  /** Urgent-item count — drives the single Seal-Red accent when > 0. */
+  urgentCount?: number;
   /** Callback after a governed activity write completes. */
   onActivityLogged?: () => void;
   /**
@@ -74,6 +85,9 @@ export function GreetingHeader({
   bankerId,
   activityDealOptions,
   openTaskCount,
+  pipelineAmount,
+  dealsMissingAmount,
+  urgentCount,
   onActivityLogged,
   onNewDeal,
   now: nowOverride,
@@ -83,8 +97,19 @@ export function GreetingHeader({
   const logActivityEnabled = !writeDisabledReason && !!systemUserId && !!bankerId;
   const firstName = deriveFirstName(fullName);
   const greeting = greetingForHour(now.getHours());
+  const pipelineDisplay = useCountUp(pipelineAmount ?? 0);
   return (
-    <header style={styles.header} aria-label="Banker workspace greeting header">
+    <header className="cc-rise-in" style={styles.header} aria-label="Banker workspace greeting header">
+      {/* Intaglio v2 hero — the guilloché elevated to atmosphere behind the band,
+          like the security engraving on a banknote. Used at this scale here and
+          nowhere else. Decorative; hidden from AT. */}
+      <Guilloche
+        size={460}
+        opacity={0.05}
+        color="var(--cc-text)"
+        className="cc-hero-guilloche"
+      />
+      <div style={styles.heroContent}>
       <div style={styles.row}>
         <div style={styles.titleBlock}>
           <h1 style={styles.greeting}>
@@ -130,6 +155,29 @@ export function GreetingHeader({
           </button>
         </div>
       </div>
+      {pipelineAmount !== undefined && (
+        <div style={styles.heroRow}>
+          <div style={styles.heroNumberBlock}>
+            <div className="cc-display cc-tnum" style={styles.heroNumber} data-hero-pipeline>
+              {formatCurrencyCompact(pipelineDisplay)}
+            </div>
+            <div style={styles.heroLabel}>
+              Total pipeline
+              <span style={styles.heroSub}>
+                {' · '}
+                {dealsMissingAmount && dealsMissingAmount > 0
+                  ? `${dealsMissingAmount} deal${dealsMissingAmount === 1 ? '' : 's'} missing amount`
+                  : 'across active deals'}
+              </span>
+            </div>
+          </div>
+          {urgentCount !== undefined && urgentCount > 0 && (
+            <span style={styles.urgentAccent} data-hero-urgent>
+              {urgentCount} urgent
+            </span>
+          )}
+        </div>
+      )}
       <div style={styles.metaRow}>
         <Badge
           variant={EMAIL_MODE === 'LIVE' ? 'clear' : 'neutral'}
@@ -151,6 +199,7 @@ export function GreetingHeader({
           (Identity chip: {fullName} Ã‚Â· {email}.)
         </div>
       )}
+      </div>
       {showLogActivityModal && systemUserId && (
         <LogActivityModal
           deals={activityDealOptions}
@@ -201,6 +250,46 @@ function ActionButton({
   );
 }
 
+/** True when motion should be suppressed. No matchMedia (tests / minimal shells)
+ *  is treated as reduced-motion, so the hero number renders final immediately. */
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** Count the hero figure up from 0 → target on mount (easeOutCubic, ~650ms).
+ *  Reduced-motion (or no rAF) shows the final value instantly — and because the
+ *  return short-circuits to `target` in that case, the figure is always honest. */
+function useCountUp(target: number, durationMs = 650): number {
+  const reduced = prefersReducedMotion() || typeof requestAnimationFrame !== 'function';
+  // Lazy initial: start at 0 only when we will actually animate (no flash of final).
+  const [value, setValue] = useState(() => (reduced ? target : 0));
+  useEffect(() => {
+    if (reduced) return;
+    let raf = 0;
+    let startTime: number | null = null;
+    const tick = (t: number) => {
+      if (startTime === null) startTime = t;
+      const p = Math.min(1, (t - startTime) / durationMs);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(target * eased); // set inside the rAF callback (not the effect body)
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs, reduced]);
+  return reduced ? target : value;
+}
+
+function formatCurrencyCompact(n: number): string {
+  if (n === 0) return '$0';
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toLocaleString()}`;
+}
+
 function greetingForHour(hour: number): string {
   if (hour < 5) return 'Good evening';
   if (hour < 12) return 'Good morning';
@@ -216,15 +305,75 @@ function deriveFirstName(fullName: string): string {
 
 const styles: Record<string, CSSProperties> = {
   header: {
-    background: palette.surface,
-    border: `1px solid ${palette.panelBorder}`,
+    position: 'relative',
+    overflow: 'hidden',
+    // Subtle sheen across the band — elevated surface lifting toward a lighter
+    // top edge, so the hero reads as the screen's anchor surface.
+    background: `linear-gradient(160deg, ${palette.surfaceAlt} 0%, ${palette.surface} 60%)`,
+    border: `1px solid ${palette.border}`,
     borderRadius: radius.lg,
-    boxShadow: shadow.elevated,
-    padding: `${spacing.lg} ${spacing.xl}`,
+    boxShadow: shadow.hero,
+    padding: `${spacing.xl} ${spacing.xxl}`,
     margin: `${spacing.lg} ${spacing.xxl} 0`,
+  },
+  heroContent: {
+    position: 'relative',
+    zIndex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  heroRow: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    paddingTop: spacing.xs,
+  },
+  heroNumberBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+    minWidth: 0,
+  },
+  heroNumber: {
+    fontSize: 'clamp(3.4rem, 6vw, 5rem)',
+    fontWeight: typography.weight.bold,
+    color: palette.text,
+    letterSpacing: '-0.02em',
+    lineHeight: 1,
+    // Faint luminance — the number is the star of the screen.
+    textShadow: '0 0 32px rgba(237, 232, 220, 0.20)',
+  },
+  heroLabel: {
+    fontSize: typography.size.sm,
+    textTransform: 'uppercase',
+    letterSpacing: typography.letterSpacing.label,
+    color: palette.textMuted,
+    fontWeight: typography.weight.semibold,
+  },
+  heroSub: {
+    textTransform: 'none',
+    letterSpacing: 0,
+    color: palette.textSubtle,
+    fontWeight: typography.weight.regular,
+  },
+  // The single Seal-Red accent on the screen — the one number that wants attention.
+  urgentAccent: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    background: palette.accent,
+    color: '#fffdf9',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    borderRadius: radius.pill,
+    boxShadow: shadow.accentGlow,
+    fontVariantNumeric: 'tabular-nums',
   },
   row: {
     display: 'flex',
