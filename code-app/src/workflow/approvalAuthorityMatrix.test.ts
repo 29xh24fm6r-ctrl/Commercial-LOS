@@ -1,76 +1,60 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  requiredAuthority,
-  approvalSatisfies,
-  APPROVAL_AUTHORITY_MATRIX_IS_TEMPLATE,
-  type ApprovalAuthorityLevel,
-} from './approvalAuthorityMatrix';
+import { approvalSatisfies, type ApprovalRecord } from './approvalAuthorityMatrix';
 import { evaluateExitGate } from './stageGateContract';
 
-describe('requiredAuthority — band mapping (template)', () => {
-  it('maps each amount band to the required authority', () => {
-    expect(requiredAuthority(100_000)).toBe('BANKER_PLUS_CREDIT_OFFICER');
-    expect(requiredAuthority(250_000)).toBe('BANKER_PLUS_CREDIT_OFFICER');
-    expect(requiredAuthority(250_001)).toBe('CREDIT_MANAGER');
-    expect(requiredAuthority(1_000_000)).toBe('CREDIT_MANAGER');
-    expect(requiredAuthority(1_000_001)).toBe('SENIOR_CREDIT_OFFICER_CCO');
-    expect(requiredAuthority(5_000_000)).toBe('SENIOR_CREDIT_OFFICER_CCO');
-    expect(requiredAuthority(5_000_001)).toBe('CREDIT_COMMITTEE');
-    expect(requiredAuthority(50_000_000)).toBe('CREDIT_COMMITTEE');
+describe('approvalSatisfies - OGB single authorized-approver policy', () => {
+  const rec = (over: Partial<ApprovalRecord> = {}): ApprovalRecord => ({
+    approvalRecorded: true,
+    approverIsAuthorized: true,
+    ...over,
   });
 
-  it('is fail-closed (undefined) for an invalid/absent amount', () => {
-    expect(requiredAuthority(undefined)).toBeUndefined();
-    expect(requiredAuthority(null)).toBeUndefined();
-    expect(requiredAuthority(0)).toBeUndefined();
-    expect(requiredAuthority(-1)).toBeUndefined();
-    expect(requiredAuthority(Number.NaN)).toBeUndefined();
+  it('passes when an approval is recorded by an authorized approver', () => {
+    expect(approvalSatisfies(rec())).toBe(true);
   });
 
-  it('is flagged as a template (not ratified policy)', () => {
-    expect(APPROVAL_AUTHORITY_MATRIX_IS_TEMPLATE).toBe(true);
-  });
-});
-
-describe('approvalSatisfies — authority sufficiency (fail-closed)', () => {
-  const rec = (approverAuthority: ApprovalAuthorityLevel) => ({ approverAuthority });
-
-  it('passes when approver authority meets or exceeds the required level', () => {
-    expect(approvalSatisfies(rec('CREDIT_MANAGER'), 500_000)).toBe(true);
-    expect(approvalSatisfies(rec('SENIOR_CREDIT_OFFICER_CCO'), 500_000)).toBe(true); // higher covers lower
-    expect(approvalSatisfies(rec('CREDIT_COMMITTEE'), 50_000_000)).toBe(true);
+  it('does not take loan amount, so any authorized approver satisfies regardless of amount', () => {
+    expect(approvalSatisfies.length).toBe(1);
+    expect(approvalSatisfies(rec())).toBe(true);
   });
 
-  it('fails when approver authority is below the required level', () => {
-    expect(approvalSatisfies(rec('BANKER_PLUS_CREDIT_OFFICER'), 500_000)).toBe(false);
-    expect(approvalSatisfies(rec('SENIOR_CREDIT_OFFICER_CCO'), 50_000_000)).toBe(false);
+  it('fails closed when the record is missing, approval is missing, or the actor is unauthorized', () => {
+    expect(approvalSatisfies(undefined)).toBe(false);
+    expect(approvalSatisfies(null)).toBe(false);
+    expect(approvalSatisfies(rec({ approvalRecorded: false }))).toBe(false);
+    expect(approvalSatisfies(rec({ approverIsAuthorized: false }))).toBe(false);
   });
 
-  it('fails closed when the record or amount is missing/invalid', () => {
-    expect(approvalSatisfies(undefined, 500_000)).toBe(false);
-    expect(approvalSatisfies(rec('CREDIT_COMMITTEE'), undefined)).toBe(false);
-    expect(approvalSatisfies(rec('CREDIT_COMMITTEE'), 0)).toBe(false);
+  it('keeps amount-tier logic out of the policy module', () => {
+    const source = readFileSync(resolve(__dirname, 'approvalAuthorityMatrix.ts'), 'utf8');
+    expect(source).not.toMatch(/requiredAuthority|AUTHORITY_RANK|maxAmount|250_000|1_000_000|5_000_000/);
+    expect(source).toMatch(/single authorized-approver gate, no amount tiers/i);
   });
 });
 
-describe('CREDIT_APPROVAL gate consumes the matrix via approvalAuthoritySufficient', () => {
+describe('CREDIT_APPROVAL gate consumes the simplified approval policy', () => {
   const baseFacts = {
     creditMemoFinalized: true,
     approvalDecisionRecorded: true,
     approvalConditionsDocumented: true,
   };
 
-  it('gate passes when the recorded approver covers the amount', () => {
-    const sufficient = approvalSatisfies({ approverAuthority: 'CREDIT_MANAGER' }, 500_000);
+  it('gate passes when an authorized approver recorded approval', () => {
+    const sufficient = approvalSatisfies({ approvalRecorded: true, approverIsAuthorized: true });
     const r = evaluateExitGate('CREDIT_APPROVAL', { ...baseFacts, approvalAuthoritySufficient: sufficient });
     expect(r.satisfied).toBe(true);
   });
 
-  it('gate fails when the approver authority is insufficient for the amount', () => {
-    const sufficient = approvalSatisfies({ approverAuthority: 'BANKER_PLUS_CREDIT_OFFICER' }, 5_000_000);
+  it('gate fails when the recorded actor is not authorized', () => {
+    const sufficient = approvalSatisfies({ approvalRecorded: true, approverIsAuthorized: false });
     const r = evaluateExitGate('CREDIT_APPROVAL', { ...baseFacts, approvalAuthoritySufficient: sufficient });
     expect(r.satisfied).toBe(false);
-    expect(r.requirements.find((req) => req.id === 'ca.authority')!.met).toBe(false);
+    expect(r.requirements.find((req) => req.id === 'ca.authority')!).toMatchObject({
+      met: false,
+      label: 'Authorized approver recorded approval',
+    });
   });
 });
