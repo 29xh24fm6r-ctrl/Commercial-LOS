@@ -39,3 +39,26 @@ links (client- and deal-level) work on today's schema. There is **no `Select` de
 - `tsc -b` ✅ · `eslint` ✅.
 
 ### Phase 1 status: ✅ COMPLETE (maker runs the actual seed against the official file).
+
+---
+
+## Phase 2 — Type → validated party-type dropdown
+
+- **`src/crm/crmPartyTypes.ts`** — code-defined enum (Borrower, Guarantor, Prospect, Vendor,
+  Referral Source, **Professional/Advisor**) + `CRM_PARTY_TYPE_OPTIONS` + `isValidPartyType`. Marked
+  editable config (confirm with OGB). Stored on the existing `cr664_organizationtype` (no schema add).
+- **`src/design/Select.tsx`** (+ `.ig-select` CSS, barrel export) — the missing design-system Select:
+  a token-skinned native `<select>` (accessible by default), with caret + placeholder.
+- **`CrmWriteActions.tsx`** — the Add-Company "Type" field is now a `select` sourced from
+  `CRM_PARTY_TYPE_OPTIONS` (via the modal's existing FieldSpec select rendering).
+- **`crmWriteAdapter.ts` `addCompany`** — validates `organizationType` against the enum (off-list →
+  `invalid-input`, no write) and validates/persists `naicsCode` (6-digit → `cr664_naicscode`; the
+  NAICS column already exists and was written nowhere before). Governed pipeline unchanged.
+
+### Gate
+- `crmPartyTypes.test.ts` ✅ (3) · `Select.test.tsx` ✅ (3) · `crmCompanyIntelligence.test.ts` ✅ (6:
+  off-list Type rejected, on-list accepted, NAICS persisted/validated/omitted) · existing
+  `crmWriteAdapter.test.ts` + `CrmWriteActions.test.tsx` ✅ (unaffected).
+- `tsc -b` ✅ · `eslint` ✅.
+
+### Phase 2 status: ✅ COMPLETE — Type is a validated, governed dropdown; off-list rejected at write.

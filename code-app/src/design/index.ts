@@ -8,6 +8,7 @@ export { Button, IconButton, type ButtonProps, type ButtonVariant, type ButtonSi
 export { Card, type CardProps } from './Card';
 export { Badge, type BadgeProps } from './Badge';
 export { Input, SearchField, type InputProps, type SearchFieldProps } from './Input';
+export { Select, type SelectProps, type SelectOption } from './Select';
 export { Kbd } from './Kbd';
 export { Tabs, type TabItem, type TabsProps } from './Tabs';
 export { DataTable, type Column, type DataTableProps } from './Table';

@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
+import { CRM_PARTY_TYPE_OPTIONS } from '../crmPartyTypes';
 import { buildLiveCrmWriteFns, type CrmWriteFns } from '../write/crmWriteActions';
 import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
 
@@ -248,7 +249,7 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
     case 'company':
       return [
         { key: 'name', label: 'Company name', type: 'text', required: true, full: true },
-        { key: 'organizationType', label: 'Type', type: 'text' },
+        { key: 'organizationType', label: 'Type', type: 'select', options: CRM_PARTY_TYPE_OPTIONS, placeholder: 'Select a type' },
         { key: 'industry', label: 'Industry', type: 'text' },
         { key: 'website', label: 'Website', type: 'text' },
         { key: 'notes', label: 'Notes', type: 'text', full: true },
