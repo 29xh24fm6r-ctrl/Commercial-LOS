@@ -12,6 +12,7 @@ export { Kbd } from './Kbd';
 export { Tabs, type TabItem, type TabsProps } from './Tabs';
 export { DataTable, type Column, type DataTableProps } from './Table';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
+export { PageHeader, type PageHeaderProps } from './PageHeader';
 export { Guilloche, type GuillocheProps } from './Guilloche';
 export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip';
 export { Dialog, type DialogProps } from './Dialog';

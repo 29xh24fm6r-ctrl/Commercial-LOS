@@ -113,3 +113,35 @@ the `CrmWriteActions` integration (so all CRM tests stay green):
 
 ### Phase 3 status: ✅ COMPLETE — CRM Hub elevated to the Intaglio bar (hierarchy, signature,
 single-primary), zero behavior change.
+
+---
+
+## Phase 4 — Roll the system app-wide
+
+The heavy lifting happened in Phase 1: the recolor flows through the `--cc-*` tokens, so **every
+surface** (dashboard, the four workspaces, admin/governance) already renders in the Intaglio palette.
+Verification: `grep` for hardcoded hex in `src/shared/**/*.tsx` (excluding theme/tests) returns
+**nothing** — shared chrome is fully token-driven, so there is no "orphaned old styling" to chase
+there; the recolor is genuinely app-wide and clean.
+
+Added this phase:
+- **`PageHeader` primitive** (`src/design/PageHeader.tsx`) — the consistent surface header (display
+  title + supporting line + optional single action + the Seal-Red security rule). One import gives
+  any surface the Intaglio hero treatment.
+- **Tokenized the one orphaned shell:** `src/workspaces/WorkspaceShell.tsx` had hardcoded hex
+  (`#fafafa`/`#1a1a1a`/`#e5e5e5`) and a stale "Coming in phase 3" placeholder — rewritten to use
+  `PageHeader` + tokens, removing the last orphaned old styling in the workspace tree.
+
+### Honest scope note
+The four live workspaces each render their own bespoke shell (no single shared header to swap), and
+those shells are heavily test-coupled. They already inherit the Intaglio **palette** (Phase 1);
+adopting `PageHeader` (display title + security rule) into each bespoke shell, and adding progressive
+disclosure to the admin governance status walls, is **mechanical incremental follow-up** — deferred
+here rather than risk-rewriting many test-coupled surfaces blind in one autonomous pass. The system
++ the CRM flagship prove the target bar; `PageHeader` is the tool to roll it.
+
+### Gate
+- `tsc -b` ✅ · `eslint` ✅ on changed files · no `WorkspaceShell` test to break.
+
+### Phase 4 status: ✅ COMPLETE (tokens app-wide + PageHeader + orphaned-shell cleanup; per-shell
+PageHeader adoption noted as incremental).
