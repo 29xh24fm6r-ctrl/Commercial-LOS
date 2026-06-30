@@ -21,6 +21,7 @@ import {
   type AddRelationshipInput,
   type CrmWriteOutcome,
 } from './crmWriteAdapter';
+import { addAdvisorLink, type AddAdvisorLinkInput } from '../advisors/advisorLink';
 
 export interface CrmWriteFns {
   readonly addCompany: (input: AddCompanyInput) => Promise<CrmWriteOutcome>;
@@ -28,6 +29,7 @@ export interface CrmWriteFns {
   readonly logActivity: (input: LogActivityInput) => Promise<CrmWriteOutcome>;
   readonly createFollowUpTask: (input: FollowUpTaskInput) => Promise<CrmWriteOutcome>;
   readonly addRelationship: (input: AddRelationshipInput) => Promise<CrmWriteOutcome>;
+  readonly addAdvisorLink: (input: AddAdvisorLinkInput) => Promise<CrmWriteOutcome>;
 }
 
 export function buildLiveCrmWriteFns(): CrmWriteFns {
@@ -38,5 +40,6 @@ export function buildLiveCrmWriteFns(): CrmWriteFns {
     logActivity: (input) => logActivity(input, deps),
     createFollowUpTask: (input) => createFollowUpTask(input, deps),
     addRelationship: (input) => addRelationship(input, deps),
+    addAdvisorLink: (input) => addAdvisorLink(input, deps),
   };
 }

@@ -17,6 +17,8 @@
  */
 
 import { newCorrelationId } from '../../shared/governance/correlationId';
+import { isValidPartyType } from '../crmPartyTypes';
+import { isNaicsCode6 } from '../naics/naicsSectorMap';
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -200,8 +202,11 @@ export interface AddCompanyInput extends CrmActor {
   readonly name: string;
   readonly legalName?: string;
   readonly dbaName?: string;
+  /** Validated against CRM_PARTY_TYPES on write; off-list values are rejected. */
   readonly organizationType?: string;
   readonly industry?: string;
+  /** 6-digit NAICS code (validated; sector derived at read). Persisted to cr664_naicscode. */
+  readonly naicsCode?: string;
   readonly website?: string;
   readonly status?: string;
   readonly notes?: string;
@@ -210,13 +215,22 @@ export interface AddCompanyInput extends CrmActor {
 export async function addCompany(input: AddCompanyInput, deps: CrmWriteDeps): Promise<CrmWriteOutcome> {
   const name = trimmed(input.name);
   if (name.length === 0) return { kind: 'invalid-input', reason: 'Company name is required.' };
+  const organizationType = trimmed(input.organizationType);
+  if (organizationType.length > 0 && !isValidPartyType(organizationType)) {
+    return { kind: 'invalid-input', reason: `"${organizationType}" is not an allowed party Type.` };
+  }
+  const naicsCode = trimmed(input.naicsCode);
+  if (naicsCode.length > 0 && !isNaicsCode6(naicsCode)) {
+    return { kind: 'invalid-input', reason: 'NAICS code must be a 6-digit value.' };
+  }
   const payload = compact({
     cr664_name: name,
     cr664_displayname: name,
     cr664_legalname: trimmed(input.legalName) || name,
     cr664_dbaname: trimmed(input.dbaName),
-    cr664_organizationtype: trimmed(input.organizationType),
+    cr664_organizationtype: organizationType,
     cr664_industry: trimmed(input.industry),
+    cr664_naicscode: naicsCode,
     cr664_website: trimmed(input.website),
     cr664_status: trimmed(input.status) || 'Active',
     cr664_notes: trimmed(input.notes),

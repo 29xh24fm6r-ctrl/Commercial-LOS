@@ -31,3 +31,7 @@ dist-ssr
 # Phase 131A — local Claude Code agent workspace (memory, transcripts,
 # project settings). Never committed; it holds session-local state.
 .claude/
+
+# CRM Intelligence — maker-provided / generated NAICS artifacts (not committed)
+scripts/data/naics-2022.csv
+scripts/data/*.seed.json

@@ -1,5 +1,8 @@
 import { useState, type CSSProperties } from 'react';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
+import { CRM_PARTY_TYPE_OPTIONS } from '../crmPartyTypes';
+import { ADVISOR_ROLE_OPTIONS } from '../advisors/advisorRoles';
+import { NaicsTypeahead } from '../naics/NaicsTypeahead';
 import { buildLiveCrmWriteFns, type CrmWriteFns } from '../write/crmWriteActions';
 import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
 
@@ -13,7 +16,7 @@ import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
  * non-engineering explanation (not hidden dead buttons).
  */
 
-export type CrmActionKind = 'company' | 'contact' | 'activity' | 'task' | 'relationship';
+export type CrmActionKind = 'company' | 'contact' | 'activity' | 'task' | 'relationship' | 'advisor';
 
 export interface CrmOption {
   readonly id: string;
@@ -40,6 +43,7 @@ const ACTIONS: ReadonlyArray<{ kind: CrmActionKind; label: string }> = [
   { kind: 'activity', label: 'Log Activity' },
   { kind: 'task', label: 'New Follow-up' },
   { kind: 'relationship', label: 'Add Relationship' },
+  { kind: 'advisor', label: 'Add Advisor' },
 ];
 
 export function CrmWriteActions({
@@ -105,6 +109,7 @@ const TITLES: Record<CrmActionKind, string> = {
   activity: 'Log Activity',
   task: 'Create Follow-up Task',
   relationship: 'Add Relationship',
+  advisor: 'Add Advisor / Professional',
 };
 
 function CrmActionModal({
@@ -137,7 +142,7 @@ function CrmActionModal({
     let result: CrmWriteOutcome;
     switch (kind) {
       case 'company':
-        result = await fns.addCompany({ ...a, name: val('name'), organizationType: val('organizationType'), industry: val('industry'), website: val('website'), notes: val('notes') });
+        result = await fns.addCompany({ ...a, name: val('name'), organizationType: val('organizationType'), industry: val('industry'), naicsCode: val('naicsCode'), website: val('website'), notes: val('notes') });
         break;
       case 'contact':
         result = await fns.addContact({ ...a, firstName: val('firstName'), lastName: val('lastName'), title: val('title'), email: val('email'), phone: val('phone'), employerOrganizationId: val('employerOrganizationId'), notes: val('notes') });
@@ -150,6 +155,17 @@ function CrmActionModal({
         break;
       case 'relationship':
         result = await fns.addRelationship({ ...a, name: val('name'), relationshipType: val('relationshipType'), role: val('role'), sourceOrganizationId: val('sourceOrganizationId'), targetPersonId: val('targetPersonId'), notes: val('notes') });
+        break;
+      case 'advisor':
+        result = await fns.addAdvisorLink({
+          ...a,
+          advisorOrganizationId: val('advisorOrganizationId'),
+          clientOrganizationId: val('clientOrganizationId'),
+          role: val('role'),
+          notes: val('notes'),
+          advisorName: companyOptions.find((o) => o.id === val('advisorOrganizationId'))?.label,
+          clientName: companyOptions.find((o) => o.id === val('clientOrganizationId'))?.label,
+        });
         break;
     }
     setOutcome(result);
@@ -179,7 +195,15 @@ function CrmActionModal({
           <>
             <div style={styles.formGrid}>
               {fieldsFor(kind, companyOptions, personOptions).map((f) =>
-                f.type === 'select' ? (
+                f.type === 'naics' ? (
+                  <div key={f.key} style={styles.fieldFull}>
+                    <NaicsTypeahead
+                      label={f.label}
+                      value={val('naicsCode') ? { code: val('naicsCode') } : undefined}
+                      onSelect={(hit) => set('naicsCode', hit?.code ?? '')}
+                    />
+                  </div>
+                ) : f.type === 'select' ? (
                   <label key={f.key} style={f.full ? styles.fieldFull : styles.field}>
                     <span style={styles.label}>{f.label}{f.required ? ' *' : ''}</span>
                     <select style={styles.input} value={val(f.key)} data-crm-field={f.key} onChange={(e) => set(f.key, e.target.value)}>
@@ -230,7 +254,7 @@ function CrmActionModal({
 interface FieldSpec {
   key: string;
   label: string;
-  type: 'text' | 'date' | 'select';
+  type: 'text' | 'date' | 'select' | 'naics';
   required?: boolean;
   full?: boolean;
   placeholder?: string;
@@ -248,8 +272,9 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
     case 'company':
       return [
         { key: 'name', label: 'Company name', type: 'text', required: true, full: true },
-        { key: 'organizationType', label: 'Type', type: 'text' },
-        { key: 'industry', label: 'Industry', type: 'text' },
+        { key: 'organizationType', label: 'Type', type: 'select', options: CRM_PARTY_TYPE_OPTIONS, placeholder: 'Select a type' },
+        { key: 'industry', label: 'Industry (descriptor)', type: 'text' },
+        { key: 'naics', label: 'Industry (NAICS)', type: 'naics', full: true },
         { key: 'website', label: 'Website', type: 'text' },
         { key: 'notes', label: 'Notes', type: 'text', full: true },
       ];
@@ -290,6 +315,13 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
         { key: 'role', label: 'Role', type: 'text' },
         { key: 'sourceOrganizationId', label: 'Company', type: 'select', options: companySel, placeholder: 'Company (optional)' },
         { key: 'targetPersonId', label: 'Person', type: 'select', options: peopleSel, placeholder: 'Person (optional)' },
+        { key: 'notes', label: 'Notes', type: 'text', full: true },
+      ];
+    case 'advisor':
+      return [
+        { key: 'advisorOrganizationId', label: 'Advisor / professional', type: 'select', required: true, options: companySel, placeholder: 'Select the advisor party' },
+        { key: 'role', label: 'Role', type: 'select', required: true, options: ADVISOR_ROLE_OPTIONS, placeholder: 'Select a role' },
+        { key: 'clientOrganizationId', label: 'Serves client', type: 'select', required: true, options: companySel, placeholder: 'Select the client' },
         { key: 'notes', label: 'Notes', type: 'text', full: true },
       ];
   }
