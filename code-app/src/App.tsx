@@ -10,11 +10,15 @@ import { ExecutiveWorkspace } from './workspaces/ExecutiveWorkspace';
 import { AdminWorkspace } from './workspaces/AdminWorkspace';
 import { DealRoute } from './deals/DealRoute';
 import { FeatureSurfaceRoute } from './navigation/FeatureSurfaceRoute';
+import { DesignGallery } from './design/Gallery';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Dev-only Intaglio primitive gallery — outside AuthGate so it renders
+            standalone (no tenant bootstrap). Stripped from production builds. */}
+        {import.meta.env.DEV && <Route path="/design" element={<DesignGallery />} />}
         <Route element={<AuthGate />}>
           <Route path="/" element={<HomeRedirect />} />
           <Route

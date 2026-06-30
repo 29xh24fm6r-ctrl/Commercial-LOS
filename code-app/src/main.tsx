@@ -10,6 +10,7 @@ import '@fontsource/ibm-plex-sans/700.css'
 import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
 import './index.css'
+import './design/primitives.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(

@@ -60,3 +60,27 @@ shell which needs tenant auth to bootstrap. Evidence is the token diff above; a 
 gallery route lands in Phase 2 for isolated visual review.)
 
 ### Phase 1 status: ✅ COMPLETE.
+
+---
+
+## Phase 2 — Core primitive library (`src/design/`)
+
+A small, accessible, class-driven primitive set backed by the `--cc-*` tokens; behavior/a11y from Radix headless components, skin from `primitives.css`.
+
+- **`primitives.css`** — `.ig-*` classes for every primitive; Treasury-Blue focus rings on all focusables; 150ms motion fully disabled under `prefers-reduced-motion`; control radius 6px / card 10px.
+- **Components** (barrel `src/design/index.ts`):
+  - `Button` (variants primary/secondary/ghost/danger; **default = secondary** so a `primary` is always a deliberate single Seal-Red action) + `IconButton`.
+  - `Card`, `Badge`/StatusPill (semantic tones), `Input` + `SearchField`, `Kbd`.
+  - `Tabs` (Radix; active = Seal-Red underline), `DataTable` (row hover, tabular numerics, sortable headers, keyboard-activatable rows).
+  - `EmptyState` (one invitation + the guilloché hero), `Guilloche` (deterministic SVG banknote rosette — the one signature, decorative-by-default).
+  - `Tooltip` + `TooltipProvider`, `Dialog`/Sheet (Radix), `Toast` system (`ToastProvider` + `useToast`, verbs agree with the action).
+- **Dev-only gallery** at `/design` (outside `AuthGate`, stripped from prod via `import.meta.env.DEV`) — `src/design/Gallery.tsx` renders the whole system for isolated visual review without the Power Apps shell.
+
+### Single-primary discipline
+Enforced structurally: `Button` defaults to `secondary`; `primitives.test.tsx` pins that the `ig-btn--primary` class only appears when `variant="primary"` is explicitly chosen. The CRM Hub's six-equal-buttons row becomes one primary + quiet overflow in Phase 3.
+
+### Gate
+- `tsc -b` ✅ · `eslint src/design` ✅ (clean) · `npm run build` ✅ (dev route stripped, Radix bundles).
+- `primitives.test.tsx` ✅ (17) — button variants/single-primary, semantic badge tones, table sort + keyboard row-activate, empty-state, guilloché a11y.
+
+### Phase 2 status: ✅ COMPLETE.

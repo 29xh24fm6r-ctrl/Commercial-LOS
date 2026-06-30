@@ -1,0 +1,389 @@
+/* ---------------------------------------------------------------------------
+ * Intaglio primitive library (Phase 2).
+ *
+ * Class-driven primitives backed by the --cc-* tokens (so light/dark follow
+ * automatically). Behavior/accessibility comes from Radix headless components;
+ * these classes are the skin. Interactive states (hover/focus-visible/active)
+ * live here because inline styles can't express pseudo-classes.
+ *
+ * Discipline: ONE Seal-Red primary action per context (.ig-btn--primary). Every
+ * focusable shows a Treasury-Blue focus ring. Motion is 150ms ease, fully
+ * disabled under prefers-reduced-motion.
+ * ------------------------------------------------------------------------- */
+
+:root {
+  --ig-radius-control: 6px;
+  --ig-radius-card: 10px;
+  --ig-dur: 150ms;
+  --ig-ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --ig-shadow-card: 0 1px 2px rgba(17, 26, 46, 0.05), 0 1px 1px rgba(17, 26, 46, 0.04);
+  --ig-shadow-rise: 0 6px 18px rgba(17, 26, 46, 0.10), 0 2px 5px rgba(17, 26, 46, 0.06);
+}
+
+/* Shared focus ring — Treasury Blue, visible on keyboard nav only. */
+.ig-focusable:focus-visible,
+.ig-btn:focus-visible,
+.ig-input:focus-visible,
+.ig-tab:focus-visible,
+.ig-iconbtn:focus-visible {
+  outline: 2px solid var(--cc-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── Button ───────────────────────────────────────────────────────────── */
+.ig-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0 0.95rem;
+  height: 2.25rem;
+  border-radius: var(--ig-radius-control);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--ig-dur) var(--ig-ease),
+    border-color var(--ig-dur) var(--ig-ease), color var(--ig-dur) var(--ig-ease),
+    box-shadow var(--ig-dur) var(--ig-ease), transform var(--ig-dur) var(--ig-ease);
+  user-select: none;
+}
+.ig-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ig-btn--sm { height: 1.85rem; font-size: 0.82rem; padding: 0 0.7rem; }
+.ig-btn--lg { height: 2.6rem; font-size: 0.98rem; padding: 0 1.2rem; }
+
+/* primary = the single Seal-Red filled action */
+.ig-btn--primary {
+  background: var(--cc-accent);
+  color: #fffdf9;
+  border-color: var(--cc-accent);
+}
+.ig-btn--primary:hover:not(:disabled) { background: var(--cc-accent-dim); border-color: var(--cc-accent-dim); }
+.ig-btn--primary:active:not(:disabled) { transform: translateY(0.5px); }
+
+/* secondary = bordered, ink text */
+.ig-btn--secondary {
+  background: var(--cc-surface);
+  color: var(--cc-text);
+  border-color: var(--cc-border-strong);
+}
+.ig-btn--secondary:hover:not(:disabled) { background: var(--cc-surface-alt); border-color: var(--cc-text-muted); }
+
+/* ghost = quiet, no chrome until hover */
+.ig-btn--ghost {
+  background: transparent;
+  color: var(--cc-text-muted);
+  border-color: transparent;
+}
+.ig-btn--ghost:hover:not(:disabled) { background: var(--cc-surface-alt); color: var(--cc-text); }
+
+/* danger = destructive (bordered Seal-Red, fills on hover) */
+.ig-btn--danger {
+  background: transparent;
+  color: var(--cc-blocked-fg);
+  border-color: var(--cc-blocked);
+}
+.ig-btn--danger:hover:not(:disabled) { background: var(--cc-blocked); color: #fffdf9; }
+
+/* icon button */
+.ig-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--ig-radius-control);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cc-text-muted);
+  cursor: pointer;
+  transition: background-color var(--ig-dur) var(--ig-ease), color var(--ig-dur) var(--ig-ease);
+}
+.ig-iconbtn:hover { background: var(--cc-surface-alt); color: var(--cc-text); }
+
+/* ── Card ─────────────────────────────────────────────────────────────── */
+.ig-card {
+  background: var(--cc-surface);
+  border: 1px solid var(--cc-border);
+  border-radius: var(--ig-radius-card);
+  box-shadow: var(--ig-shadow-card);
+}
+.ig-card--pad { padding: 1.25rem; }
+.ig-card--hover {
+  transition: box-shadow var(--ig-dur) var(--ig-ease), transform var(--ig-dur) var(--ig-ease);
+}
+.ig-card--hover:hover { box-shadow: var(--ig-shadow-rise); transform: translateY(-1px); }
+
+/* ── Tabs (Radix) — active = Seal-Red underline indicator ─────────────── */
+.ig-tabs-list {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--cc-border);
+}
+.ig-tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.6rem 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--cc-text-muted);
+  cursor: pointer;
+  transition: color var(--ig-dur) var(--ig-ease), border-color var(--ig-dur) var(--ig-ease);
+}
+.ig-tab:hover { color: var(--cc-text); }
+.ig-tab[data-state='active'] {
+  color: var(--cc-text);
+  border-bottom-color: var(--cc-accent);
+}
+
+/* ── Input / SearchField ──────────────────────────────────────────────── */
+.ig-input {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  color: var(--cc-text);
+  background: var(--cc-surface);
+  border: 1px solid var(--cc-border-strong);
+  border-radius: var(--ig-radius-control);
+  height: 2.25rem;
+  padding: 0 0.7rem;
+  width: 100%;
+  transition: border-color var(--ig-dur) var(--ig-ease), box-shadow var(--ig-dur) var(--ig-ease);
+}
+.ig-input::placeholder { color: var(--cc-text-subtle); }
+.ig-input:focus-visible { border-color: var(--cc-focus-ring); }
+.ig-search { position: relative; display: inline-flex; align-items: center; width: 100%; }
+.ig-search > svg { position: absolute; left: 0.6rem; color: var(--cc-text-subtle); pointer-events: none; }
+.ig-search > .ig-input { padding-left: 2rem; }
+
+/* ── Table ────────────────────────────────────────────────────────────── */
+.ig-table { width: 100%; border-collapse: collapse; font-family: var(--font-sans); }
+.ig-table th {
+  text-align: left;
+  padding: 0.55rem 0.85rem;
+  background: var(--cc-surface-alt);
+  border-bottom: 1px solid var(--cc-border);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cc-text-muted);
+  white-space: nowrap;
+}
+.ig-table th.ig-th-sortable { cursor: pointer; user-select: none; }
+.ig-table th.ig-th-sortable:hover { color: var(--cc-text); }
+.ig-table td {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--cc-divider);
+  font-size: 0.9rem;
+  color: var(--cc-text);
+  vertical-align: middle;
+}
+.ig-num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'lnum' 1; text-align: right; }
+.ig-tr {
+  transition: background-color var(--ig-dur) var(--ig-ease);
+}
+.ig-tr:hover { background: var(--cc-surface-alt); }
+.ig-tr--clickable { cursor: pointer; }
+.ig-tr--clickable:focus-visible { outline: 2px solid var(--cc-focus-ring); outline-offset: -2px; background: var(--cc-surface-alt); }
+
+/* ── Badge / StatusPill ───────────────────────────────────────────────── */
+.ig-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.ig-badge .ig-dot { width: 0.45rem; height: 0.45rem; border-radius: 999px; }
+.ig-badge--blocked { background: var(--cc-blocked-bg); color: var(--cc-blocked-fg); }
+.ig-badge--blocked .ig-dot { background: var(--cc-blocked); }
+.ig-badge--atRisk { background: var(--cc-at-risk-bg); color: var(--cc-at-risk-fg); }
+.ig-badge--atRisk .ig-dot { background: var(--cc-at-risk); }
+.ig-badge--clear { background: var(--cc-clear-bg); color: var(--cc-clear-fg); }
+.ig-badge--clear .ig-dot { background: var(--cc-clear); }
+.ig-badge--neutral { background: var(--cc-neutral-bg); color: var(--cc-neutral-fg); }
+.ig-badge--neutral .ig-dot { background: var(--cc-neutral); }
+.ig-badge--info { background: var(--cc-info-bg); color: var(--cc-info-fg); }
+.ig-badge--info .ig-dot { background: var(--cc-info); }
+
+/* ── EmptyState ───────────────────────────────────────────────────────── */
+.ig-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  color: var(--cc-text-muted);
+}
+.ig-empty__art { color: var(--cc-accent); opacity: 0.9; }
+.ig-empty__title { font-family: var(--font-display); font-size: 1.35rem; color: var(--cc-text); letter-spacing: -0.01em; margin: 0; }
+.ig-empty__body { font-size: 0.92rem; max-width: 38ch; line-height: 1.5; margin: 0; }
+
+/* ── KBD ──────────────────────────────────────────────────────────────── */
+.ig-kbd {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  color: var(--cc-text-muted);
+  background: var(--cc-surface-alt);
+  border: 1px solid var(--cc-border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+}
+
+/* ── Dialog / Sheet / Command palette (Radix overlays + cmdk) ─────────── */
+.ig-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 26, 46, 0.38);
+  animation: ig-fade var(--ig-dur) var(--ig-ease);
+  z-index: 50;
+}
+.ig-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 2rem));
+  max-height: calc(100vh - 4rem);
+  overflow: auto;
+  background: var(--cc-surface);
+  border: 1px solid var(--cc-border);
+  border-radius: var(--ig-radius-card);
+  box-shadow: var(--ig-shadow-rise);
+  padding: 1.25rem 1.5rem;
+  z-index: 51;
+  animation: ig-pop var(--ig-dur) var(--ig-ease);
+}
+.ig-sheet {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(440px, 100vw);
+  overflow: auto;
+  background: var(--cc-surface);
+  border-left: 1px solid var(--cc-border);
+  box-shadow: var(--ig-shadow-rise);
+  padding: 1.25rem 1.5rem;
+  z-index: 51;
+  animation: ig-slide var(--ig-dur) var(--ig-ease);
+}
+.ig-dialog__title { font-family: var(--font-display); font-size: 1.25rem; color: var(--cc-text); margin: 0 0 0.25rem; }
+.ig-dialog__desc { font-size: 0.9rem; color: var(--cc-text-muted); margin: 0 0 1rem; }
+
+/* ── Tooltip (Radix) ──────────────────────────────────────────────────── */
+.ig-tooltip {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--cc-text-inverse);
+  background: var(--cc-text);
+  padding: 0.3rem 0.5rem;
+  border-radius: 5px;
+  box-shadow: var(--ig-shadow-rise);
+  z-index: 60;
+  max-width: 24ch;
+}
+.ig-tooltip__arrow { fill: var(--cc-text); }
+
+/* ── Toast (Radix) ────────────────────────────────────────────────────── */
+.ig-toast-viewport {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(360px, calc(100vw - 2rem));
+  z-index: 70;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ig-toast {
+  background: var(--cc-surface);
+  border: 1px solid var(--cc-border);
+  border-left: 3px solid var(--cc-clear);
+  border-radius: var(--ig-radius-control);
+  box-shadow: var(--ig-shadow-rise);
+  padding: 0.7rem 0.9rem;
+  animation: ig-slide var(--ig-dur) var(--ig-ease);
+}
+.ig-toast--error { border-left-color: var(--cc-blocked); }
+.ig-toast--info { border-left-color: var(--cc-info); }
+.ig-toast__title { font-size: 0.88rem; font-weight: 600; color: var(--cc-text); }
+.ig-toast__desc { font-size: 0.82rem; color: var(--cc-text-muted); margin-top: 0.15rem; }
+
+/* ── Command palette (cmdk) ───────────────────────────────────────────── */
+.ig-cmd { display: flex; flex-direction: column; gap: 0.5rem; }
+.ig-cmd__input {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  color: var(--cc-text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--cc-border);
+  padding: 0.4rem 0.2rem 0.7rem;
+  width: 100%;
+  outline: none;
+}
+.ig-cmd__list { max-height: 50vh; overflow: auto; }
+.ig-cmd__empty { padding: 1rem 0.2rem; color: var(--cc-text-muted); font-size: 0.9rem; }
+.ig-cmd__group-heading { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cc-text-subtle); padding: 0.6rem 0.2rem 0.3rem; }
+.ig-cmd__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.5rem;
+  border-radius: var(--ig-radius-control);
+  font-size: 0.9rem;
+  color: var(--cc-text);
+  cursor: pointer;
+}
+.ig-cmd__item[data-selected='true'] { background: var(--cc-info-bg); color: var(--cc-info-fg); }
+.ig-cmd__item-meta { margin-left: auto; color: var(--cc-text-subtle); font-size: 0.78rem; }
+
+/* ── Inline edit ──────────────────────────────────────────────────────── */
+.ig-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 5px;
+  padding: 0.1rem 0.3rem;
+  margin: -0.1rem -0.3rem;
+  cursor: text;
+  transition: background-color var(--ig-dur) var(--ig-ease), box-shadow var(--ig-dur) var(--ig-ease);
+}
+.ig-inline:hover { background: var(--cc-surface-alt); box-shadow: inset 0 0 0 1px var(--cc-border); }
+.ig-inline__pencil { opacity: 0; color: var(--cc-text-subtle); transition: opacity var(--ig-dur) var(--ig-ease); }
+.ig-inline:hover .ig-inline__pencil { opacity: 1; }
+
+/* ── Motion keyframes (disabled under reduced-motion) ─────────────────── */
+@keyframes ig-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ig-pop { from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes ig-slide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ig-btn, .ig-card--hover, .ig-tab, .ig-input, .ig-tr, .ig-inline, .ig-inline__pencil { transition: none; }
+  .ig-overlay, .ig-dialog, .ig-sheet, .ig-toast { animation: none; }
+}
