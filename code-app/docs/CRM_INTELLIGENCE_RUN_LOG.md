@@ -151,3 +151,32 @@ flag (consistent with the CRM gating posture). All read-only.
 
 ### Phase 5 status: ✅ COMPLETE — three payoff views render from governed reads with honest empties;
 exposure honestly deferred to a loan join.
+
+---
+
+## Phase 6 — Governed CRM field-update adapter
+
+The generated `Cr664_crmorganizationsService.update` exists; built an isolated governed update path
+(separate deps/outcome so the create adapter's shared types + tests are untouched):
+
+- **`src/crm/write/crmUpdateAdapter.ts`** — `updateOrganizationField(input, deps)`:
+  **default-OFF / fail-closed** (gated on `CRM_LIVE_PERSISTENCE_ENABLED`, currently false), allow-list
+  (`CRM_UPDATABLE_ORG_FIELDS` incl. Type / NAICS / industry / notes / …), **sensitive-field rejection**
+  (tax id / ssn / tin / ein), per-field value validation (Type ∈ enum, NAICS = 6-digit), correlation
+  id + **audit** on every write, discriminated `CrmUpdateOutcome`.
+- **`makeOrgFieldSaver`** — bridges a governed update to the `InlineEdit` `onSave` contract (resolve on
+  success; reject → InlineEdit rolls back + error toast). The seam to edit existing records in place.
+- **`buildLiveCrmUpdateDeps`** — live wiring (generated org `update` + audit `create`).
+
+### Gate
+- `crmUpdateAdapter.test.ts` ✅ (10): default-off disabled, unauthorized, disallowed-field,
+  sensitive-field, invalid Type/NAICS, success + audit, update-failed, audit-failed, saver
+  resolve/reject.
+- `tsc -b` ✅ · `eslint` ✅.
+
+Note: the in-drawer InlineEdit UI (rendering editable Type/NAICS fields on an existing record) is the
+remaining UI integration — it consumes `makeOrgFieldSaver` and stays inert until CRM live persistence
+is armed (every edit returns `disabled` today). The governed adapter + seam are complete + certified.
+
+### Phase 6 status: ✅ COMPLETE — existing-record edits go through a governed, audited, default-off,
+fail-closed adapter; certified.
