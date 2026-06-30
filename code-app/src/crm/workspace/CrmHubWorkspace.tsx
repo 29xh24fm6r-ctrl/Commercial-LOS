@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Badge } from '../../shared/Badge';
+import { Guilloche } from '../../design';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
 import {
   loadCrmWorkspaceData,
@@ -108,6 +109,28 @@ export function CrmHubWorkspace({
     return r.status === 'ready' ? r.records.length : undefined;
   };
 
+  // Keyboard-first navigation for the CRM lists: "/" focuses search, j/k move
+  // row focus, Enter opens (handled on the row). Ignored while typing in a field.
+  function onListKeyDown(e: React.KeyboardEvent<HTMLElement>) {
+    const target = e.target as HTMLElement;
+    const typing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+    if (e.key === '/' && !typing) {
+      e.preventDefault();
+      e.currentTarget.querySelector<HTMLInputElement>('[data-crm-search]')?.focus();
+      return;
+    }
+    if ((e.key === 'j' || e.key === 'k') && !typing) {
+      const rows = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[data-crm-record]'));
+      if (rows.length === 0) return;
+      e.preventDefault();
+      const active = document.activeElement as HTMLElement | null;
+      const idx = active ? rows.indexOf(active) : -1;
+      const nextIdx =
+        e.key === 'j' ? Math.min(rows.length - 1, idx + 1) : Math.max(0, idx <= 0 ? 0 : idx - 1);
+      rows[nextIdx]?.focus();
+    }
+  }
+
   const records = useMemo(() => {
     if (state.kind !== 'ready') return undefined;
     const r = state.data[spec.domain];
@@ -120,7 +143,7 @@ export function CrmHubWorkspace({
   }, [state, spec.domain, query]);
 
   return (
-    <section style={styles.wrap} aria-label="Relationship CRM" data-crm-hub="workspace">
+    <section style={styles.wrap} aria-label="Relationship CRM" data-crm-hub="workspace" onKeyDown={onListKeyDown}>
       {/* Command header */}
       <header style={styles.header} data-crm-header>
         <div style={styles.headerLeft}>
@@ -140,6 +163,9 @@ export function CrmHubWorkspace({
           />
         </div>
       </header>
+      {/* The engraved security rule — the one place the Seal-Red identity marks
+          the primary page header. */}
+      <hr className="cc-security-rule" style={{ marginTop: `-${spacing.sm}` }} />
 
       {/* Command bar */}
       <div style={styles.commandBar} data-crm-command-bar>
@@ -352,7 +378,7 @@ function DrawerSection({ title, children }: { title: string; children: React.Rea
 function EmptyState({ heading, guidance }: { heading: string; guidance: string }) {
   return (
     <div style={styles.empty} data-crm-empty>
-      <div style={styles.emptyMark} aria-hidden="true">◎</div>
+      <Guilloche size={96} opacity={0.42} />
       <div style={styles.emptyHeading}>{heading}</div>
       <p style={styles.emptyGuidance}>{guidance}</p>
     </div>
@@ -399,7 +425,7 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: radius.lg, boxShadow: shadow.card,
   },
   headerLeft: { display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 },
-  title: { margin: 0, fontSize: typography.size.display, fontWeight: typography.weight.bold, color: palette.text, letterSpacing: typography.letterSpacing.hero, lineHeight: 1.05 },
+  title: { margin: 0, fontFamily: typography.display, fontSize: typography.size.display, fontWeight: typography.weight.semibold, color: palette.text, letterSpacing: typography.letterSpacing.hero, lineHeight: 1.05 },
   subtitle: { margin: 0, color: palette.textMuted, fontSize: typography.size.md },
   headerActions: { display: 'flex', alignItems: 'center', gap: spacing.sm, flexShrink: 0 },
   governChip: { fontSize: typography.size.xs, color: palette.infoFg, background: palette.infoBg, border: `1px solid ${palette.info}`, padding: `4px ${spacing.md}`, borderRadius: radius.pill, fontWeight: typography.weight.semibold, whiteSpace: 'nowrap' },
@@ -407,14 +433,14 @@ const styles: Record<string, CSSProperties> = {
   search: { display: 'inline-flex', alignItems: 'center', gap: spacing.xs, padding: `${spacing.xs} ${spacing.md}`, background: palette.surface, border: `1px solid ${palette.border}`, borderRadius: radius.pill, minWidth: 300, flex: 1, maxWidth: 460 },
   searchIcon: { color: palette.textSubtle, fontSize: typography.size.md },
   searchInput: { flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: typography.size.sm, color: palette.text, fontFamily: typography.family },
-  viewTabs: { display: 'inline-flex', gap: spacing.xxs, background: palette.surfaceAlt, border: `1px solid ${palette.border}`, borderRadius: radius.pill, padding: 3, flexWrap: 'wrap' },
-  viewTab: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', borderRadius: radius.pill, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.textMuted, cursor: 'pointer', fontFamily: typography.family },
-  viewTabActive: { display: 'inline-flex', alignItems: 'center', gap: 6, background: palette.surface, border: 'none', borderRadius: radius.pill, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.bold, color: palette.cobalt, cursor: 'pointer', boxShadow: shadow.card, fontFamily: typography.family },
-  viewTabCount: { fontSize: typography.size.xs, color: palette.textSubtle, background: palette.surfaceAlt, borderRadius: radius.pill, padding: '0 6px', fontWeight: typography.weight.bold },
+  viewTabs: { display: 'inline-flex', gap: spacing.xs, borderBottom: `1px solid ${palette.border}`, flexWrap: 'wrap', flex: 1, minWidth: 0 },
+  viewTab: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', borderBottom: '2px solid transparent', marginBottom: -1, padding: `${spacing.xs} ${spacing.sm}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.textMuted, cursor: 'pointer', fontFamily: typography.family },
+  viewTabActive: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', borderBottom: `2px solid ${palette.accent}`, marginBottom: -1, padding: `${spacing.xs} ${spacing.sm}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.text, cursor: 'pointer', fontFamily: typography.family },
+  viewTabCount: { fontSize: typography.size.xs, color: palette.textSubtle, background: palette.surfaceAlt, borderRadius: radius.pill, padding: '0 6px', fontWeight: typography.weight.semibold },
   cardRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: spacing.sm },
   card,
   cardLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
-  cardValue: { fontSize: typography.size.xxl, fontWeight: typography.weight.bold, color: palette.text, fontVariantNumeric: 'tabular-nums' },
+  cardValue: { fontFamily: typography.display, fontSize: typography.size.display, fontWeight: typography.weight.semibold, color: palette.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', lineHeight: 1.05 },
   cardEmpty: { fontSize: typography.size.sm, color: palette.textMuted, fontWeight: typography.weight.medium },
   cardSkeleton: { width: 48, height: 22, borderRadius: radius.sm, background: palette.surfaceAlt },
   main: { minHeight: 220, position: 'relative' },
@@ -438,7 +464,7 @@ const styles: Record<string, CSSProperties> = {
   drawer: { background: palette.surface, border: `1px solid ${palette.panelBorder}`, borderRadius: radius.md, boxShadow: shadow.elevated, padding: `${spacing.md} ${spacing.lg}`, display: 'flex', flexDirection: 'column', gap: spacing.md },
   drawerHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.sm },
   drawerEyebrow: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
-  drawerTitle: { fontSize: typography.size.lg, fontWeight: typography.weight.bold, color: palette.text },
+  drawerTitle: { fontFamily: typography.display, fontSize: typography.size.xl, fontWeight: typography.weight.semibold, color: palette.text, letterSpacing: '-0.01em' },
   drawerSub: { fontSize: typography.size.sm, color: palette.textMuted },
   drawerClose: { background: 'transparent', border: 'none', cursor: 'pointer', fontSize: typography.size.md, color: palette.textMuted },
   drawerSection: { display: 'flex', flexDirection: 'column', gap: spacing.xs, borderTop: `1px solid ${palette.divider}`, paddingTop: spacing.sm },

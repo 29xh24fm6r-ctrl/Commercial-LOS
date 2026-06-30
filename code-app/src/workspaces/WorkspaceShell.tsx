@@ -1,18 +1,21 @@
+import { PageHeader } from '../design';
+import { palette, spacing, typography } from '../shared/theme';
+
 interface WorkspaceShellProps {
   title: string;
   subtitle: string;
   children?: React.ReactNode;
 }
 
+/** Generic workspace shell — Intaglio header + tokenized surface. */
 export function WorkspaceShell({ title, subtitle, children }: WorkspaceShellProps) {
   return (
     <div style={styles.page}>
-      <header style={styles.header}>
-        <h1 style={styles.title}>{title}</h1>
-        <p style={styles.subtitle}>{subtitle}</p>
-      </header>
+      <div style={styles.headerWrap}>
+        <PageHeader title={title} subtitle={subtitle} />
+      </div>
       <main style={styles.main}>
-        {children ?? <p style={styles.placeholder}>Coming in phase 3.</p>}
+        {children ?? <p style={styles.placeholder}>This workspace is not configured yet.</p>}
       </main>
     </div>
   );
@@ -20,18 +23,14 @@ export function WorkspaceShell({ title, subtitle, children }: WorkspaceShellProp
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    fontFamily: 'system-ui, sans-serif',
+    fontFamily: typography.family,
     minHeight: '100vh',
-    color: '#1a1a1a',
-    background: '#fafafa',
+    color: palette.text,
+    background: palette.pageBg,
   },
-  header: {
-    padding: '1.5rem 2rem',
-    borderBottom: '1px solid #e5e5e5',
-    background: '#fff',
+  headerWrap: {
+    padding: `${spacing.xl} ${spacing.xxl} 0`,
   },
-  title: { margin: 0, fontSize: '1.5rem' },
-  subtitle: { margin: '0.25rem 0 0', color: '#666', fontSize: '0.95rem' },
-  main: { padding: '2rem' },
-  placeholder: { color: '#888' },
+  main: { padding: spacing.xxl },
+  placeholder: { color: palette.textMuted },
 };

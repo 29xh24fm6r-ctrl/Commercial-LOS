@@ -69,10 +69,17 @@ export const palette = {
   neutralBg: 'var(--cc-neutral-bg)',
   neutralFg: 'var(--cc-neutral-fg)',
 
-  // Info / banker outreach
+  // Info / banker outreach (Treasury Blue — interactive)
   info: 'var(--cc-info)',
   infoBg: 'var(--cc-info-bg)',
   infoFg: 'var(--cc-info-fg)',
+
+  // Accent — Seal Red. THE one primary action / active indicator / critical
+  // alert. Used sparingly (the Button "primary" variant, active-tab marker).
+  accent: 'var(--cc-accent)',
+  accentDim: 'var(--cc-accent-dim)',
+  accentBg: 'var(--cc-accent-bg)',
+  accentFg: 'var(--cc-accent-fg)',
 
   // ──── Phase 125C — premium-cockpit accent palette ────
   // Cobalt — richer electric-blue accent for primary action
@@ -146,10 +153,12 @@ export const radius = {
 } as const;
 
 export const typography = {
-  family:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif',
-  mono:
-    'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace',
+  /** UI/body face — IBM Plex Sans (humanist grotesque, not Inter-as-everything). */
+  family: 'var(--font-sans)',
+  /** Display face — Fraunces (optical, high-contrast). Hero numbers + titles ONLY. */
+  display: 'var(--font-display)',
+  /** Data face — IBM Plex Mono for dense numeric columns. */
+  mono: 'var(--font-mono)',
   size: {
     xs: '0.72rem',
     sm: '0.82rem',
@@ -164,6 +173,8 @@ export const typography = {
      *  at-a-distance only when the primary value is at this
      *  scale; the previous hero size was too compact. */
     display: '2.4rem',
+    /** Intaglio — hero display (the $-pipeline moment). Use with restraint. */
+    displayLg: '3.5rem',
   },
   weight: {
     regular: 400,
