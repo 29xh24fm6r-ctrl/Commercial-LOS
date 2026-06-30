@@ -1,18 +1,21 @@
 /**
- * Stage Advancement — per-stage exit gate contract (Phase 3).
+ * Stage Advancement - per-stage exit gate contract (Phase 3).
  *
  * The nCino discipline: a deal advances only when the CURRENT stage's exit criteria are all met.
  * Each criterion is a pure, FAIL-CLOSED predicate over facts the system already tracks. Facts are
  * supplied structurally (`StageGateFacts`) so this module stays decoupled from the heavy deal
  * queries and trivially testable. A fact that is:
- *   - `true`      → requirement met,
- *   - `false`     → requirement outstanding (tracked, not yet satisfied),
- *   - `undefined` → requirement NOT met and surfaced honestly as "not yet tracked" — never
- *                   auto-passed. Where the backing field does not yet exist in the schema, the
- *                   requirement reads not-tracked rather than fabricating a pass.
+ *   - `true`      -> requirement met,
+ *   - `false`     -> requirement outstanding (tracked, not yet satisfied),
+ *   - `undefined` -> requirement NOT met and surfaced honestly as "not yet tracked" - never
+ *                    auto-passed. Where the backing field does not yet exist in the schema, the
+ *                    requirement reads not-tracked rather than fabricating a pass.
+ *
+ * OGB correction, 2026-06-30: the complete loan package, including a complete credit memo, gates
+ * entry into Underwriting. Underwriting reviews the completed package; it does not build the memo.
  *
  * The CREDIT_APPROVAL authority check is supplied as the `approvalAuthoritySufficient` fact, which
- * the approval-authority matrix (Phase 6) computes from the approval record + loan amount.
+ * the approval-authority policy (Phase 6) computes from the approval record.
  */
 
 import type { CanonicalStageCode } from './stageOrderingContract';
@@ -32,7 +35,7 @@ export interface StageGateResult {
 
 /**
  * Already-tracked (or not-yet-tracked) facts behind each stage's exit gate. Every field is optional;
- * an absent field is treated as not-yet-tracked → fail-closed.
+ * an absent field is treated as not-yet-tracked -> fail-closed.
  */
 export interface StageGateFacts {
   // INTAKE
@@ -41,14 +44,20 @@ export interface StageGateFacts {
   readonly productTypePresent?: boolean;
   readonly assignedBankerPresent?: boolean;
   readonly intakeChecklistGenerated?: boolean;
+  readonly completeCreditMemoPresent?: boolean;
+  readonly loanApplicationReceived?: boolean;
+  readonly businessFinancialStatementsReceived?: boolean;
+  readonly taxReturnsReceived?: boolean;
+  readonly ownershipInformationReceived?: boolean;
+  readonly collateralSupportReceived?: boolean;
   // UNDERWRITING
-  readonly requiredDocumentsReceived?: boolean;
-  readonly creditMemoDraftExists?: boolean;
+  readonly underwritingReviewCompleted?: boolean;
   readonly riskRatingAssigned?: boolean;
+  readonly underwritingRecommendationRecorded?: boolean;
   // CREDIT_APPROVAL
   readonly creditMemoFinalized?: boolean;
   readonly approvalDecisionRecorded?: boolean;
-  /** Computed by the approval-authority matrix (Phase 6) from the approval record + loan amount. */
+  /** Computed by the approval-authority policy (Phase 6) from the approval record. */
   readonly approvalAuthoritySufficient?: boolean;
   readonly approvalConditionsDocumented?: boolean;
   // COMMITMENT
@@ -62,7 +71,7 @@ export interface StageGateFacts {
   // CLOSING_FUNDING
   readonly loanDocumentsExecuted?: boolean;
   readonly fundsDisbursed?: boolean;
-  // BOARDED (terminal success — reuse the portfolio-boarding completion signal)
+  // BOARDED (terminal success - reuse the portfolio-boarding completion signal)
   readonly boardingCompleted?: boolean;
 }
 
@@ -72,6 +81,7 @@ interface RequirementDef {
   readonly id: string;
   readonly label: string;
   readonly select: FactSelector;
+  readonly pendingDetail?: string;
 }
 
 const GATE_DEFS: Record<CanonicalStageCode, readonly RequirementDef[]> = {
@@ -81,16 +91,35 @@ const GATE_DEFS: Record<CanonicalStageCode, readonly RequirementDef[]> = {
     { id: 'intake.product', label: 'Product type selected', select: (f) => f.productTypePresent },
     { id: 'intake.banker', label: 'Assigned banker set', select: (f) => f.assignedBankerPresent },
     { id: 'intake.checklist', label: 'Initial document checklist generated', select: (f) => f.intakeChecklistGenerated },
+    { id: 'intake.memo-complete', label: 'Complete credit memo present', select: (f) => f.completeCreditMemoPresent },
+    { id: 'intake.loan-application', label: 'Loan application received', select: (f) => f.loanApplicationReceived },
+    {
+      id: 'intake.business-financials',
+      label: 'Business financial statements received',
+      select: (f) => f.businessFinancialStatementsReceived,
+    },
+    { id: 'intake.tax-returns', label: 'Tax returns received', select: (f) => f.taxReturnsReceived },
+    { id: 'intake.ownership', label: 'Ownership information received', select: (f) => f.ownershipInformationReceived },
+    { id: 'intake.collateral-support', label: 'Collateral support received', select: (f) => f.collateralSupportReceived },
   ],
   UNDERWRITING: [
-    { id: 'uw.documents', label: 'Required financial documents received', select: (f) => f.requiredDocumentsReceived },
-    { id: 'uw.memo-draft', label: 'Credit memo drafted', select: (f) => f.creditMemoDraftExists },
-    { id: 'uw.risk-rating', label: 'Risk rating assigned', select: (f) => f.riskRatingAssigned },
+    { id: 'uw.review-complete', label: 'Underwriting review completed', select: (f) => f.underwritingReviewCompleted },
+    {
+      id: 'uw.risk-rating',
+      label: 'Risk rating assigned',
+      select: () => false,
+      pendingDetail: 'risk rating system not yet implemented',
+    },
+    {
+      id: 'uw.recommendation',
+      label: 'Underwriting recommendation recorded',
+      select: (f) => f.underwritingRecommendationRecorded,
+    },
   ],
   CREDIT_APPROVAL: [
     { id: 'ca.memo-final', label: 'Credit memo finalized', select: (f) => f.creditMemoFinalized },
     { id: 'ca.decision', label: 'Approval decision recorded', select: (f) => f.approvalDecisionRecorded },
-    { id: 'ca.authority', label: 'Approver authority covers the loan amount', select: (f) => f.approvalAuthoritySufficient },
+    { id: 'ca.authority', label: 'Authorized approver recorded approval', select: (f) => f.approvalAuthoritySufficient },
     { id: 'ca.conditions', label: 'Conditions of approval documented', select: (f) => f.approvalConditionsDocumented },
   ],
   COMMITMENT: [
@@ -115,12 +144,13 @@ const GATE_DEFS: Record<CanonicalStageCode, readonly RequirementDef[]> = {
 function evaluateRequirement(def: RequirementDef, facts: StageGateFacts): StageGateRequirement {
   const value = def.select(facts);
   const met = value === true;
-  const detail =
-    value === true
+  const detail = def.pendingDetail
+    ? def.pendingDetail
+    : value === true
       ? 'Met.'
       : value === false
-        ? 'Outstanding — tracked but not yet satisfied.'
-        : 'Not yet tracked in the current schema — treated as not met (fail-closed).';
+        ? 'Outstanding - tracked but not yet satisfied.'
+        : 'Not yet tracked in the current schema - treated as not met (fail-closed).';
   return { id: def.id, label: def.label, met, detail };
 }
 
@@ -134,12 +164,12 @@ export function evaluateExitGate(stage: CanonicalStageCode, facts: StageGateFact
   return { stage, satisfied, requirements };
 }
 
-/** Outstanding (not-met) requirements for a stage — what's blocking the next move. */
+/** Outstanding (not-met) requirements for a stage - what's blocking the next move. */
 export function outstandingRequirements(result: StageGateResult): readonly StageGateRequirement[] {
   return result.requirements.filter((r) => !r.met);
 }
 
-/** Requirement ids whose backing fact is not yet tracked — candidate schema follow-ups. */
+/** Requirement ids whose backing fact is not yet tracked - candidate schema follow-ups. */
 export function untrackedRequirementIds(stage: CanonicalStageCode, facts: StageGateFacts): readonly string[] {
   return GATE_DEFS[stage].filter((def) => def.select(facts) === undefined).map((def) => def.id);
 }
