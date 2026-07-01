@@ -32,6 +32,7 @@ export * as Cr664_documentchecklistsModel from './models/Cr664_documentchecklist
 export * as Cr664_kpithresholdconfigurationsModel from './models/Cr664_kpithresholdconfigurationsModel';
 export * as Cr664_loandealsModel from './models/Cr664_loandealsModel';
 export * as Cr664_losuserprofilesModel from './models/Cr664_losuserprofilesModel';
+export * as Cr664_naicscodesModel from './models/Cr664_naicscodesModel';
 export * as Cr664_performancemetricsModel from './models/Cr664_performancemetricsModel';
 export * as Cr664_platformusersModel from './models/Cr664_platformusersModel';
 export * as Cr664_platformworkspacesModel from './models/Cr664_platformworkspacesModel';
@@ -85,6 +86,7 @@ export * from './services/Cr664_documentchecklistsService';
 export * from './services/Cr664_kpithresholdconfigurationsService';
 export * from './services/Cr664_loandealsService';
 export * from './services/Cr664_losuserprofilesService';
+export * from './services/Cr664_naicscodesService';
 export * from './services/Cr664_performancemetricsService';
 export * from './services/Cr664_platformusersService';
 export * from './services/Cr664_platformworkspacesService';
