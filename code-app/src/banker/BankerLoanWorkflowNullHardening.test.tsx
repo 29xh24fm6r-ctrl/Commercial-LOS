@@ -55,6 +55,7 @@ vi.mock('./workQueueQueries', () => ({
 }));
 vi.mock('../portfolioBoarding/boardedLoansList', () => ({
   loadBoardedLoans: vi.fn(async (): Promise<readonly BoardedLoanRow[]> => [NULL_BOARDED]),
+  getExtendedColumnProvisioning: () => 'unknown' as const,
 }));
 vi.mock('./BankerContext', () => ({
   useBanker: vi.fn(() => ({ bankerId: 'b1', fullName: 'Dana Banker', email: 'dana@b.test', systemUserId: 'sys-1', writeDisabledReason: undefined })),

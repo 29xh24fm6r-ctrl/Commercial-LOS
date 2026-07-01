@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
-import { loadBoardedLoans, type BoardedLoanRow } from './boardedLoansList';
+import { loadBoardedLoans, getExtendedColumnProvisioning, type BoardedLoanRow } from './boardedLoansList';
 import { PortfolioImportWizard } from './PortfolioImportWizard';
 import { formatCurrency } from '../shared/formatters';
 import { LOAN_PRODUCTS, INTEREST_RATE_TYPES, RATE_INDEX_OPTIONS } from './loanProducts';
@@ -178,6 +178,7 @@ export function ExistingPortfolioLoansPanel({
   const [selected, setSelected] = useState<BoardedLoanRow | undefined>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
+  const [extendedUnprovisioned, setExtendedUnprovisioned] = useState(false);
 
   const existingLoanNumbers = useMemo(
     () => (list.kind === 'ready' ? list.rows.map((r) => r.loanNumber).filter((n): n is string => Boolean(n)) : []),
@@ -189,7 +190,9 @@ export function ExistingPortfolioLoansPanel({
     setList({ kind: 'loading' });
     loadLoans()
       .then((rows) => {
-        if (!cancelled) setList({ kind: 'ready', rows });
+        if (cancelled) return;
+        setList({ kind: 'ready', rows });
+        setExtendedUnprovisioned(getExtendedColumnProvisioning() === 'absent');
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -529,6 +532,13 @@ export function ExistingPortfolioLoansPanel({
           </div>
 
           {submit.kind === 'done' && <OutcomeBanner outcome={submit.outcome} />}
+        </div>
+      )}
+
+      {extendedUnprovisioned && (
+        <div style={styles.note} role="note" data-extended-attrs-unprovisioned>
+          Extended attributes not provisioned — showing core fields. Note rate, reset terms, product, and
+          officer are not stored until the operator provisions the extended-attributes column.
         </div>
       )}
 

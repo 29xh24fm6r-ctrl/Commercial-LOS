@@ -43,6 +43,7 @@ vi.mock('./workQueueQueries', () => ({
 }));
 vi.mock('../portfolioBoarding/boardedLoansList', () => ({
   loadBoardedLoans: vi.fn(async () => []),
+  getExtendedColumnProvisioning: () => 'unknown' as const,
 }));
 // The crash-triggering identity: fullName is undefined (empty cr664_fullname).
 vi.mock('./BankerContext', () => ({
