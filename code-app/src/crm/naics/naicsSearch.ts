@@ -1,11 +1,12 @@
+﻿import { Cr664_naicscodesService } from '../../generated/services/Cr664_naicscodesService';
 import { sectorForCode, isNaicsCode6 } from './naicsSectorMap';
 
 /**
- * NAICS reference search (Phase 3) — read-only, fail-closed.
+ * NAICS reference search (Phase 3) â€” read-only, fail-closed.
  *
  * Reads the maker-provisioned `cr664_naicscodes` reference table and resolves a
  * banker's plain-language query ("auto repair") to the standard 6-digit code. The
- * sector is DERIVED via `sectorForCode` (single source of truth) — never trusted
+ * sector is DERIVED via `sectorForCode` (single source of truth) â€” never trusted
  * from the stored column. Until the maker provisions the table + regenerates the
  * SDK, the loader resolves `unavailable` honestly (no fabricated codes).
  */
@@ -60,13 +61,7 @@ export type NaicsLoader = () => Promise<NaicsLoadResult>;
  */
 export const loadNaicsRowsLive: NaicsLoader = async () => {
   try {
-    const modPath = ['..', '..', 'generated', 'services', 'Cr664_naicscodesService'].join('/');
-    const mod = (await import(/* @vite-ignore */ modPath)) as {
-      Cr664_naicscodesService?: { getAll: (opts?: unknown) => Promise<{ data?: NaicsRow[] }> };
-    };
-    const service = mod.Cr664_naicscodesService;
-    if (!service) return { status: 'unavailable', reason: 'NAICS service not generated yet.' };
-    const result = await service.getAll({ top: 2000 });
+    const result = await Cr664_naicscodesService.getAll({ top: 2000 });
     return { status: 'ready', rows: result.data ?? [] };
   } catch {
     return {
@@ -75,3 +70,5 @@ export const loadNaicsRowsLive: NaicsLoader = async () => {
     };
   }
 };
+
+

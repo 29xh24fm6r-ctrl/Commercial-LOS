@@ -8,6 +8,8 @@ import {
   type NaicsLoader,
   type NaicsRow,
 } from './naicsSearch';
+import { NaicsLookupLinks } from './NaicsLookupLinks';
+import { normalizeNaicsCode, isSixDigitNaicsCode, validateNaicsCode } from './validateNaicsCode';
 
 export interface NaicsTypeaheadProps {
   /** Currently-selected code, if any (e.g. an existing record's cr664_naicscode). */
@@ -38,6 +40,10 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, la
   const [debounced, setDebounced] = useState(initial);
   const [open, setOpen] = useState(false);
   const [load, setLoad] = useState<LoadState>({ kind: 'idle' });
+  // The confirmed selection (from picking an option, or an existing record's code+title).
+  const [confirmed, setConfirmed] = useState<{ code: string; title: string } | null>(
+    value?.code && value.title ? { code: value.code, title: value.title } : null,
+  );
   const boxRef = useRef<HTMLDivElement>(null);
 
   // Debounce the query that drives filtering.
@@ -69,15 +75,36 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, la
 
   function choose(hit: NaicsHit) {
     setQuery(`${hit.code} — ${hit.title}`);
+    setConfirmed({ code: hit.code, title: hit.title });
     setOpen(false);
     onSelect(hit);
   }
 
   function onChange(next: string) {
     setQuery(next);
+    setConfirmed(null); // editing invalidates any prior confirmation
     setOpen(true);
     void ensureLoaded();
     if (next.trim().length === 0) onSelect(null);
+  }
+
+  // AC3/AC4 — direct code entry: confirm the internal title, warn on unknown, or flag a bad format.
+  // Text queries (an industry search) show no format line; the dropdown communicates those.
+  const digitsOnly = /^\s*\d+\s*$/.test(query);
+  const normalized = normalizeNaicsCode(query);
+  let validation: { kind: 'confirmed'; text: string } | { kind: 'not-found' } | { kind: 'bad-format' } | null = null;
+  if (confirmed) {
+    validation = { kind: 'confirmed', text: `${confirmed.code} — ${confirmed.title}` };
+  } else if (digitsOnly && query.trim().length > 0) {
+    if (isSixDigitNaicsCode(normalized)) {
+      if (load.kind === 'ready') {
+        const v = validateNaicsCode(normalized, load.rows);
+        validation = v.found && v.title ? { kind: 'confirmed', text: `${v.code} — ${v.title}` } : { kind: 'not-found' };
+      }
+      // idle / loading / unavailable → no format line (the dropdown surfaces the state honestly)
+    } else {
+      validation = { kind: 'bad-format' };
+    }
   }
 
   return (
@@ -120,6 +147,24 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, la
           ))}
         </div>
       )}
+
+      {validation?.kind === 'confirmed' && (
+        <p style={styles.confirmed} role="status" data-naics-validated>
+          <span aria-hidden>✓</span> {validation.text}
+        </p>
+      )}
+      {validation?.kind === 'not-found' && (
+        <p style={styles.warn} role="status" data-naics-not-found>
+          NAICS code was not found in the internal reference table. Confirm the code or use the lookup links.
+        </p>
+      )}
+      {validation?.kind === 'bad-format' && (
+        <p style={styles.warn} role="status" data-naics-bad-format>
+          Enter a valid six-digit NAICS code.
+        </p>
+      )}
+
+      <NaicsLookupLinks />
     </div>
   );
 }
@@ -136,4 +181,6 @@ const styles: Record<string, CSSProperties> = {
   optCode: { fontFamily: typography.mono, fontSize: typography.size.sm, color: palette.text, fontWeight: typography.weight.semibold },
   optTitle: { fontSize: typography.size.sm, color: palette.text },
   optSector: { gridColumn: '1 / -1', fontSize: typography.size.xs, color: palette.textSubtle },
+  confirmed: { margin: 0, fontSize: typography.size.sm, color: palette.clearFg, fontWeight: typography.weight.medium, display: 'flex', alignItems: 'center', gap: spacing.xxs },
+  warn: { margin: 0, fontSize: typography.size.sm, color: palette.atRiskFg, background: palette.atRiskBg, borderLeft: `2px solid ${palette.atRisk}`, padding: `${spacing.xs} ${spacing.sm}`, lineHeight: typography.lineHeight.snug },
 };

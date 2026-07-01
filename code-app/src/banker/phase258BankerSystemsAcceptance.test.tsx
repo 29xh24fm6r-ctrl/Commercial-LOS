@@ -12,6 +12,10 @@ import { MemoryRouter } from 'react-router-dom';
  * lives in Admin.
  */
 
+// Env-resilience: unblock module loading of the generated Dataverse services (which pull the
+// @microsoft/power-apps SDK) without loading the real SDK. Behaviour-free — the surfaces render
+// through injected loadData loaders, never a real query. (Idiom: featureSurfaces.test.tsx.)
+vi.mock('@microsoft/power-apps/data', () => ({ getClient: () => ({}) }));
 vi.mock('./workQueueQueries', () => ({ loadBankerWorkQueueData: vi.fn() }));
 vi.mock('./BankerContext', () => ({
   useBanker: () => ({ bankerId: 'b1', fullName: 'Dana Banker', email: 'd@b.test', systemUserId: 's1', writeDisabledReason: undefined }),
