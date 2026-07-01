@@ -18,6 +18,7 @@ interface Props {
 const MONEY = { abbreviate: true, empty: '—' } as const;
 
 const TONE: Record<WatchlistEntry['classification'], 'info' | 'atRisk' | 'blocked'> = {
+  Pass: 'info', // never on the watchlist, but part of the classification union
   Watch: 'info',
   'Special Mention': 'info',
   Substandard: 'atRisk',
