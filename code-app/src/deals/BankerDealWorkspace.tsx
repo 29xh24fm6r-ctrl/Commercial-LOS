@@ -23,7 +23,6 @@ import { TeamsChatHandoff } from './TeamsChatHandoff';
 import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
 import { DealCopilotAssist } from '../copilot/DealCopilotAssist';
 import { DealDataProvider } from './DealDataProvider';
-import { LoanWorkflowCommandCenter } from '../workflow/LoanWorkflowCommandCenter';
 import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
 import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
@@ -207,13 +206,9 @@ export function BankerDealWorkspace({
               >
                 <DealStageProgressionCard />
               </div>
-              <div
-                id="loan-workflow-command-center"
-                data-deal-card="loan-workflow-command-center"
-                data-cockpit-anchor="loan-workflow-command-center"
-              >
-                <LoanWorkflowCommandCenter />
-              </div>
+              {/* Stage reconciliation: the legacy Loan Workflow Command Center
+                  (11-stage Opportunity/Qualification spine) was retired here so the
+                  cockpit shows ONE canonical stage map (DealStageProgressionCard). */}
               {/* Phase 125E — Action Console. Deterministic
                   next-best actions. Banker decides. */}
               <div id="action-console" data-cockpit-anchor="action-console">

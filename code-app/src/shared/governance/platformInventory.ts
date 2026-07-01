@@ -1031,6 +1031,6 @@ export const REFERENCE_DATA_GOVERNED: Readonly<
     progressionEnabled: false,
     introducedInPhase: 41,
     progressionBlockedReason:
-      'Phase 28 schema gap — Cr664_stagereferences not registered as a Power Apps data source and no sequence/order field is exposed on the loan deal record. The Phase 41 catalog provides canonical lifecycle metadata + governance predicates, but does NOT enable the Advance Stage write. See docs/STAGE_GOVERNANCE.md and src/shared/governance/stageProgressionAvailability.ts.',
+      'Stage reconciliation: the canonical stage VOCABULARY is now the seven-code set in src/workflow/stageOrderingContract.ts (CANONICAL_STAGES), seeded via cr664_sequence on cr664_stagereferences. The legacy 9-stage catalog here is RETIRED from the deal cockpit (the canonical Stage Map supersedes it) and remains only for non-cockpit consumers. Stage progression stays OFF: the schema gap is unclosed (cr664_stagereferences sequence not yet seeded) and AUTO_STAGE_ADVANCE_ENABLED is false. See docs/STAGE_RECONCILIATION_MAP.md, docs/STAGE_SCHEMA_SETUP.md and src/shared/governance/stageProgressionAvailability.ts.',
   },
 });

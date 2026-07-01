@@ -39,7 +39,7 @@ describe('Phase 232 — Banker Operating Command Center', () => {
     const anchors = screen.getByRole('region', { name: /Deal cockpit anchors/i });
 
     for (const anchor of [
-      'loan-workflow-command-center',
+      'stage-map',
       'workstreams',
       'crm-relationship',
       'credit-memo',

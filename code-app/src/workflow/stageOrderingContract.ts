@@ -31,6 +31,56 @@ export function isCanonicalStageCode(value: string): value is CanonicalStageCode
   return CANONICAL_CODE_SET.has(value);
 }
 
+/**
+ * Canonical stage DISPLAY vocabulary — code + ratified name + nominal sequence (the
+ * §1 set the founder confirmed). This is the single source of truth for what stages
+ * are NAMED and ORDERED on screen, so every renderer speaks one language even before
+ * the references are seeded.
+ *
+ * The nominal `sequence` here is the ratified default; the LIVE governed ordering
+ * still comes from the seeded `cr664_sequence` via `resolveStageOrdering` (fail-closed).
+ * Use this for display/recognition; use `resolveStageOrdering` for governed transitions.
+ */
+export interface CanonicalStageMeta {
+  readonly code: CanonicalStageCode;
+  readonly name: string;
+  readonly sequence: number;
+}
+
+export const CANONICAL_STAGES: readonly CanonicalStageMeta[] = [
+  { code: 'INTAKE', name: 'Intake', sequence: 10 },
+  { code: 'UNDERWRITING', name: 'Underwriting', sequence: 20 },
+  { code: 'CREDIT_APPROVAL', name: 'Credit Approval', sequence: 30 },
+  { code: 'COMMITMENT', name: 'Commitment', sequence: 40 },
+  { code: 'DOCUMENTATION', name: 'Documentation', sequence: 50 },
+  { code: 'CLOSING_FUNDING', name: 'Closing & Funding', sequence: 60 },
+  { code: 'BOARDED', name: 'Boarded / Servicing', sequence: 70 },
+] as const;
+
+const CANONICAL_BY_CODE: ReadonlyMap<CanonicalStageCode, CanonicalStageMeta> = new Map(
+  CANONICAL_STAGES.map((s) => [s.code, s]),
+);
+const CANONICAL_BY_NAME: ReadonlyMap<string, CanonicalStageMeta> = new Map(
+  CANONICAL_STAGES.map((s) => [s.name.toLowerCase(), s]),
+);
+
+/** Canonical metadata for an exact canonical code, or undefined. */
+export function canonicalStageByCode(code: string): CanonicalStageMeta | undefined {
+  return CANONICAL_BY_CODE.get(code as CanonicalStageCode);
+}
+
+/**
+ * Recognize a stored/legacy stage string as a canonical stage — by exact code
+ * (case-insensitive) OR exact ratified name (case-insensitive). Returns undefined
+ * for anything that is not canonical (honest "unmapped — needs review"); never
+ * fabricates a mapping for a legacy value with no clean canonical equivalent.
+ */
+export function recognizeCanonicalStage(stored: string | null | undefined): CanonicalStageMeta | undefined {
+  const v = (stored ?? '').trim();
+  if (v.length === 0) return undefined;
+  return CANONICAL_BY_CODE.get(v.toUpperCase() as CanonicalStageCode) ?? CANONICAL_BY_NAME.get(v.toLowerCase());
+}
+
 /** Structural shape of a stage-reference row — a subset of the generated model. */
 export interface StageReferenceRow {
   readonly cr664_code?: string | null;
