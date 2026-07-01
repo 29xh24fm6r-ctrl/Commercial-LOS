@@ -37,6 +37,7 @@ import {
 } from './portfolioRiskEngine';
 import { RiskConcentrationRadar } from './RiskConcentrationRadar';
 import { MigrationReconciliationPanel } from './reconciliation/BookReconciliationPanel';
+import { PortfolioProfitabilityPanel } from './profitability/PortfolioProfitabilityPanel';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
 import { useDrillThroughDeepLink } from '../shared/drillthrough/useDrillThroughDeepLink';
 import { portfolioKpiTargets } from './portfolioDrillThrough';
@@ -249,6 +250,11 @@ export function PortfolioCommandCenter() {
           + cr664_migrationbatchid provisioned). A migration is not complete
           until it ties. */}
       <MigrationReconciliationPanel />
+      {/* Phase PE-4 — portfolio profitability (capital-weighted ROE, ROE
+          distribution, low-ROE / negative-contribution outliers). Read-only over
+          pure derivations; honest guidance state until loans carry real
+          balances/rates + an assumption set (no fabricated ROE). */}
+      <PortfolioProfitabilityPanel />
       {/* Phase 259 — boarded portfolio loans (incl. manually-boarded existing
           loans) appear here. Boarding identity lives on the Loan Workflow
           workspace, so this surface is a read-only list + guidance. */}
