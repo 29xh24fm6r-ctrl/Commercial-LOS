@@ -4,12 +4,14 @@ import { palette, radius, shadow, spacing, typography } from '../../shared/theme
 import {
   filterNaicsHits,
   loadNaicsRowsLive,
+  findNaicsByCode,
   type NaicsHit,
   type NaicsLoader,
   type NaicsRow,
+  type NaicsCodeLookup,
 } from './naicsSearch';
 import { NaicsLookupLinks } from './NaicsLookupLinks';
-import { normalizeNaicsCode, isSixDigitNaicsCode, validateNaicsCode } from './validateNaicsCode';
+import { normalizeNaicsCode, isSixDigitNaicsCode } from './validateNaicsCode';
 
 export interface NaicsTypeaheadProps {
   /** Currently-selected code, if any (e.g. an existing record's cr664_naicscode). */
@@ -18,6 +20,8 @@ export interface NaicsTypeaheadProps {
   onSelect: (hit: NaicsHit | null) => void;
   /** Injectable reference loader (defaults to the live, fail-closed loader). */
   loader?: NaicsLoader;
+  /** Injectable exact-code lookup (defaults to the live server-side filter). */
+  findByCode?: NaicsCodeLookup;
   label?: string;
   disabled?: boolean;
 }
@@ -34,7 +38,7 @@ type LoadState =
  * stores the 6-digit code via the governed write (caller's onSelect). Read-only;
  * honest empty / unavailable states; never fabricates a code.
  */
-export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, label = 'Industry (NAICS)', disabled = false }: NaicsTypeaheadProps) {
+export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, findByCode = findNaicsByCode, label = 'Industry (NAICS)', disabled = false }: NaicsTypeaheadProps) {
   const initial = value?.code ? `${value.code}${value.title ? ` — ${value.title}` : ''}` : '';
   const [query, setQuery] = useState(initial);
   const [debounced, setDebounced] = useState(initial);
@@ -88,23 +92,50 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, la
     if (next.trim().length === 0) onSelect(null);
   }
 
-  // AC3/AC4 — direct code entry: confirm the internal title, warn on unknown, or flag a bad format.
-  // Text queries (an industry search) show no format line; the dropdown communicates those.
+  // AC3/AC4 — direct code entry uses the AUTHORITATIVE exact lookup (a server-side `cr664_code`
+  // filter), NOT the paginated typeahead set (the deployed bug: a valid code was missing from the
+  // loaded page). Text queries (an industry search) show no format line; the dropdown handles those.
   const digitsOnly = /^\s*\d+\s*$/.test(query);
   const normalized = normalizeNaicsCode(query);
-  let validation: { kind: 'confirmed'; text: string } | { kind: 'not-found' } | { kind: 'bad-format' } | null = null;
+  const codeForLookup = !confirmed && digitsOnly && isSixDigitNaicsCode(normalized) ? normalized : null;
+
+  // Result of the exact lookup for a specific code. setState happens only in the async callbacks
+  // (never synchronously in the effect body); while the result doesn't match the current code the
+  // derivation below renders "checking".
+  const [codeResult, setCodeResult] = useState<{ code: string; title: string | null } | null>(null);
+  useEffect(() => {
+    if (!codeForLookup) return;
+    let cancelled = false;
+    findByCode(codeForLookup)
+      .then((hit) => {
+        if (!cancelled) setCodeResult({ code: codeForLookup, title: hit?.cr664_title ?? null });
+      })
+      .catch(() => {
+        if (!cancelled) setCodeResult({ code: codeForLookup, title: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [codeForLookup, findByCode]);
+
+  let validation:
+    | { kind: 'confirmed'; text: string }
+    | { kind: 'not-found' }
+    | { kind: 'bad-format' }
+    | { kind: 'checking' }
+    | null = null;
   if (confirmed) {
     validation = { kind: 'confirmed', text: `${confirmed.code} — ${confirmed.title}` };
-  } else if (digitsOnly && query.trim().length > 0) {
-    if (isSixDigitNaicsCode(normalized)) {
-      if (load.kind === 'ready') {
-        const v = validateNaicsCode(normalized, load.rows);
-        validation = v.found && v.title ? { kind: 'confirmed', text: `${v.code} — ${v.title}` } : { kind: 'not-found' };
-      }
-      // idle / loading / unavailable → no format line (the dropdown surfaces the state honestly)
+  } else if (codeForLookup) {
+    if (codeResult && codeResult.code === codeForLookup) {
+      validation = codeResult.title
+        ? { kind: 'confirmed', text: `${codeForLookup} — ${codeResult.title}` }
+        : { kind: 'not-found' };
     } else {
-      validation = { kind: 'bad-format' };
+      validation = { kind: 'checking' };
     }
+  } else if (digitsOnly && query.trim().length > 0) {
+    validation = { kind: 'bad-format' };
   }
 
   return (
@@ -161,6 +192,11 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, la
       {validation?.kind === 'bad-format' && (
         <p style={styles.warn} role="status" data-naics-bad-format>
           Enter a valid six-digit NAICS code.
+        </p>
+      )}
+      {validation?.kind === 'checking' && (
+        <p style={styles.note} role="status" data-naics-checking>
+          Checking NAICS reference…
         </p>
       )}
 

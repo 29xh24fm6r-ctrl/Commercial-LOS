@@ -68,19 +68,24 @@ describe('NaicsTypeahead', () => {
     );
   });
 
-  it('AC3 — a directly-entered valid code confirms the internal title', async () => {
-    const { container } = render(<NaicsTypeahead onSelect={() => {}} loader={readyLoader} />);
+  it('AC3 — a directly-entered valid code confirms the internal title via the exact server lookup', async () => {
+    const findByCode = vi.fn(async (c: string) =>
+      c === '561422' ? { cr664_code: '561422', cr664_title: 'Telemarketing Bureaus and Other Contact Centers' } : null,
+    );
+    const { container } = render(<NaicsTypeahead onSelect={() => {}} loader={readyLoader} findByCode={findByCode} />);
     const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
     fireEvent.focus(input);
-    fireEvent.change(input, { target: { value: '722511' } });
+    fireEvent.change(input, { target: { value: '561422' } });
     await waitFor(() => expect(container.querySelector('[data-naics-validated]')).not.toBeNull());
     expect(container.querySelector('[data-naics-validated]')?.textContent).toMatch(
-      /722511 — Full-Service Restaurants/,
+      /561422 — Telemarketing Bureaus and Other Contact Centers/,
     );
+    expect(findByCode).toHaveBeenCalledWith('561422');
   });
 
   it('AC4 — an unknown six-digit code shows the not-found warning (no fabricated title)', async () => {
-    const { container } = render(<NaicsTypeahead onSelect={() => {}} loader={readyLoader} />);
+    const findByCode = vi.fn(async () => null);
+    const { container } = render(<NaicsTypeahead onSelect={() => {}} loader={readyLoader} findByCode={findByCode} />);
     const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: '999999' } });
@@ -89,6 +94,25 @@ describe('NaicsTypeahead', () => {
       /not found in the internal reference table/i,
     );
     expect(container.querySelector('[data-naics-validated]')).toBeNull();
+  });
+
+  it('HOTFIX — validates a six-digit code by EXACT lookup, independent of the typeahead result set', async () => {
+    // The typeahead set deliberately EXCLUDES 561422 (mirrors the deployed pagination bug where a
+    // valid code was missing from the loaded page). The exact server lookup still confirms it.
+    const loaderWithout: NaicsLoader = async () => ({
+      status: 'ready',
+      rows: [{ cr664_code: '111110', cr664_title: 'Soybean Farming' }],
+    });
+    const findByCode = vi.fn(async (c: string) =>
+      c === '561422' ? { cr664_code: '561422', cr664_title: 'Telemarketing Bureaus and Other Contact Centers' } : null,
+    );
+    const { container } = render(<NaicsTypeahead onSelect={() => {}} loader={loaderWithout} findByCode={findByCode} />);
+    const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '561422' } });
+    await waitFor(() => expect(container.querySelector('[data-naics-validated]')).not.toBeNull());
+    expect(container.querySelector('[data-naics-validated]')?.textContent).toMatch(/Telemarketing Bureaus/);
+    expect(findByCode).toHaveBeenCalledWith('561422');
   });
 
   it('flags a short/ill-formed numeric entry as an invalid six-digit code', async () => {

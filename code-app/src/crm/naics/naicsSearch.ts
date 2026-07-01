@@ -61,13 +61,48 @@ export type NaicsLoader = () => Promise<NaicsLoadResult>;
  */
 export const loadNaicsRowsLive: NaicsLoader = async () => {
   try {
-    const result = await Cr664_naicscodesService.getAll({ top: 2000 });
+    // maxPageSize so the whole reference table (~1,000 rows) returns in one page rather than a
+    // truncated default page — otherwise a valid code can be missing from the typeahead set.
+    const result = await Cr664_naicscodesService.getAll({ top: 5000, maxPageSize: 5000 });
     return { status: 'ready', rows: result.data ?? [] };
   } catch {
     return {
       status: 'unavailable',
       reason: 'NAICS reference table is not provisioned yet (see docs/NAICS_SETUP.md).',
     };
+  }
+};
+
+export interface NaicsCodeRecord {
+  readonly cr664_code: string;
+  readonly cr664_title: string;
+}
+
+/** Injectable exact-code lookup type so the component + tests stay decoupled from the SDK. */
+export type NaicsCodeLookup = (code: string) => Promise<NaicsCodeRecord | null>;
+
+/**
+ * Exact-code lookup — the AUTHORITATIVE validation path for a fully-typed six-digit code.
+ *
+ * Filters the reference table server-side (`cr664_code eq '<code>'`) so it NEVER depends on the
+ * paginated typeahead result set (the deployed bug: a valid code was absent from the loaded page).
+ * Fail-closed: returns null on a bad format, no match, an empty title (never fabricated), or any
+ * SDK/table error. The six-digit guard also prevents OData-filter injection (digits only).
+ */
+export const findNaicsByCode: NaicsCodeLookup = async (code) => {
+  const c = code.trim();
+  if (!/^[0-9]{6}$/.test(c)) return null;
+  try {
+    const result = await Cr664_naicscodesService.getAll({
+      filter: `cr664_code eq '${c}'`,
+      select: ['cr664_code', 'cr664_title'],
+      top: 1,
+    });
+    const row = (result.data ?? []).find((r) => String(r.cr664_code ?? '').trim() === c);
+    const title = row?.cr664_title ? String(row.cr664_title).trim() : '';
+    return title.length > 0 ? { cr664_code: c, cr664_title: title } : null;
+  } catch {
+    return null;
   }
 };
 
