@@ -11,17 +11,18 @@ import {
 const ROOT = resolve(__dirname, '..', '..');
 
 describe('Phase 250 — Outlook connector evidence (power.config registration)', () => {
-  it('the committed connector is registered (power.config.json) → PASS, and live send is now enabled (Phase 256B)', () => {
+  it('the committed connector is registered (power.config.json) → PASS, while the borrower-send gates stay safe-default off', () => {
     expect(OUTLOOK_CONNECTOR_STATE.generatedServicePresent).toBe(true);
     expect(OUTLOOK_CONNECTOR_STATE.connectorRegisteredInManifest).toBe(true);
     expect(OUTLOOK_CONNECTOR_STATE.emailModeLive).toBe(false);
     const vm = deriveOutlookConnectorReadiness();
     expect(vm.status).toBe('PASS');
     expect(vm.registrationRequired).toBe(false);
-    // Phase 256B: the borrower-send gates are now flipped after the GO live-send smoke.
-    expect(vm.liveSendEnabled).toBe(true);
-    expect(vm.borrowerMessagingEnabled).toBe(true);
-    expect(vm.borrowerEmailTransportEnabled).toBe(true);
+    // Completion Phase A: the borrower-send gates were reset to their safe defaults (off).
+    // Connector registration is environment evidence only; it flips no live-send gate.
+    expect(vm.liveSendEnabled).toBe(false);
+    expect(vm.borrowerMessagingEnabled).toBe(false);
+    expect(vm.borrowerEmailTransportEnabled).toBe(false);
     expect(vm.verificationCommand).toMatch(/verify-outlook-connector\.ps1/);
   });
 

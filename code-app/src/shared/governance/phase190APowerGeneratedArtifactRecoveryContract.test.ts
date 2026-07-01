@@ -195,16 +195,16 @@ describe('190A — build wiring + generated services unchanged', () => {
 // 5. Build recovery changes no checklist gate (188I/188J/188K stay disabled).
 // ---------------------------------------------------------------------------
 describe('190A — checklist gates remain disabled', () => {
-  it('the two pilot-UI gates stay false; generation is launched (constants)', () => {
+  it('the two pilot-UI gates stay false; generation reset to safe default off (constants)', () => {
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
   });
 
-  it('the two pilot-UI gates stay declared false; generation is true in source', () => {
+  it('the two pilot-UI gates stay declared false; generation is false in source', () => {
     expect(CONFIG).toMatch(/DOCUMENT_CHECKLIST_PILOT_UI_ENABLED = false as const/);
     expect(CONFIG).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = false as const/);
-    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
+    expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
   });
 
   it('the 188I/188J/188K gate files still exist on disk', () => {

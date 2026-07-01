@@ -1,0 +1,557 @@
+{
+  "src/access/finalLaunchSmokeEvidenceLoader.ts": {
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/admin/AdminContext.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/admin/AdminDataProvider.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    },
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/admin/AdminEntitlementDiagnosticCard.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/admin/AdminProvider.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/admin/AlertBacklog.tsx": {
+    "react-hooks/purity": {
+      "count": 1
+    }
+  },
+  "src/admin/NewDealResolverReadinessCard.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/admin/UserAccessManagementPanel.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/admin/WorkspaceEntitlementManager.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/admin/emailLiveSmokeTest.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/admin/pacTableAccessEvidence.test.ts": {
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/admin/runtimeSchemaEvidenceArtifact.test.ts": {
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/admin/workspaceEntitlementWrite.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/banker/BankerActivityFeed.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    },
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/banker/BankerAutopilotRollup.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/banker/BankerContext.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 2
+    }
+  },
+  "src/banker/BankerCrmIntelligencePanel.test.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/banker/BankerDueDiligenceView.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/banker/BankerLoanWorkflowWorkbench.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/banker/BankerMorningCatchUp.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/banker/BankerProvider.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/banker/BankerShell.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/banker/MyWorkQueue.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/banker/PersonalActivitySummary.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/banker/PersonalPipeline.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/banker/RelationshipMemory.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/bootstrap/BootstrapContext.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/bootstrap/workspaceEntitlements.ts": {
+    "react-hooks/set-state-in-effect": {
+      "count": 2
+    }
+  },
+  "src/competitive/deriveCompetitiveDifferentiators.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/copilot/CopilotAssistPanel.test.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/copilot/CopilotAssistPanel.tsx": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/copilot/copilotAuditLogger.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/copilot/copilotCustomApiAdapter.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/copilot/dealCopilotContext.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/crm/crmFullSchemaContract.test.ts": {
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/crm/crmManagerTeamMountReadiness.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/crm/crmRelationshipDetailReadiness.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/crm/crmRelationshipHealthModel.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/crm/crmRelationshipViewModel.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/crm/crmSalesforceSpineLaunchReadiness.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/crm/crmSdkContract.test.ts": {
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/crm/workspace/CrmHubWorkspace.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/crm/workspaceIntegration/CrmBankerWorkingSurface.test.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
+    "@typescript-eslint/no-require-imports": {
+      "count": 2
+    }
+  },
+  "src/crm/workspaceIntegration/CrmBankerWorkingSurface.tsx": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/deals/BankerDealWorkspace.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/deals/BorrowerCommunication.tsx": {
+    "react-hooks/preserve-manual-memoization": {
+      "count": 1
+    }
+  },
+  "src/deals/BorrowerSafeStatusPacketModal.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/deals/CompleteTaskModal.tsx": {
+    "react-hooks/purity": {
+      "count": 1
+    }
+  },
+  "src/deals/CreditMemo.tsx": {
+    "react-hooks/preserve-manual-memoization": {
+      "count": 1
+    }
+  },
+  "src/deals/CreditMemoDraftModal.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/deals/DealDataProvider.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    },
+    "react-refresh/only-export-components": {
+      "count": 2
+    }
+  },
+  "src/deals/DealDocuments.tsx": {
+    "react-hooks/purity": {
+      "count": 2
+    }
+  },
+  "src/deals/DraftBorrowerUpdateModal.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/deals/RelationshipContext.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/deals/RequestDocumentModal.tsx": {
+    "react-hooks/immutability": {
+      "count": 1
+    }
+  },
+  "src/deals/TeamsDealSummaryHandoff.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/deals/bankerNewDealCreateRollout.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/deals/documentChecklistUiGenerationAction.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/deals/newDealCreateAdapter.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/deals/phase125ERecomposition.test.tsx": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/deals/sendBorrowerUpdateEmail.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/deals/sendDocumentRequestEmail.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/executive/AtRiskPortfolioSummary.tsx": {
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/executive/ExecutiveContext.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/executive/ExecutiveDataProvider.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/integrations/externalPlatforms/externalPlatformConnectorReadiness.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/integrations/integrationAdapterContracts.ts": {
+    "@typescript-eslint/no-empty-object-type": {
+      "count": 1
+    }
+  },
+  "src/manager/ManagerBankerFilter.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    },
+    "react-refresh/only-export-components": {
+      "count": 6
+    }
+  },
+  "src/manager/ManagerContext.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/manager/ManagerDataProvider.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    },
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/manager/ManagerDealWorkspace.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/manager/ManagerProvider.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/manager/TeamWorkQueue.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/portfolio/variableRate/VariableRateControlCenter.test.tsx": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/portfolio/variableRate/VariableRateControlCenter.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/portfolioBoarding/ExistingPortfolioLoansForm.test.tsx": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/portfolioBoarding/ExistingPortfolioLoansPanel.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/portfolioBoarding/PortfolioLoanBoardingDocumentUploadPanel.test.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/portfolioBoarding/PortfolioLoanBoardingEditor.test.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/portfolioBoarding/PortfolioLoanBoardingPreview.test.tsx": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/portfolioBoarding/existingLoanEntryAdapter.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 7
+    }
+  },
+  "src/portfolioBoarding/existingLoanEntryAdapter.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/portfolioBoarding/portfolioBoardingCommandCenterAdapter.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/portfolioBoarding/portfolioFullRuntimeSchemaBuildout.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/portfolioBoarding/portfolioFullSchemaArtifact.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/portfolioBoarding/portfolioImport.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/portfolioBoarding/portfolioLoanBoardingDataverseMapper.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/shared/dealIntelligenceContext.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 2
+    }
+  },
+  "src/shared/drillthrough/DrillThroughCard.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/shared/drillthrough/DrillThroughPanel.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/shared/governance/externalPlatformActivationCertification.test.ts": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/shared/governance/phase122LoanDealLookupContract.test.ts": {
+    "@typescript-eslint/no-require-imports": {
+      "count": 2
+    }
+  },
+  "src/shared/governance/phase247TokenBackedMeasurement.test.ts": {
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/shared/governance/phase248PacTableAccess.test.ts": {
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/shared/governance/phase253FullCrmSchemaBuildout.test.ts": {
+    "no-irregular-whitespace": {
+      "count": 1
+    }
+  },
+  "src/shared/governance/releaseCandidateSnapshot.test.ts": {
+    "no-irregular-whitespace": {
+      "count": 6
+    },
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/shared/lastVisit/useCatchUpLastSeen.ts": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/shared/portfolioBoarding/portfolioLoanDocumentClassifier.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/shared/relationship/relationshipContextNote.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/shared/relationship/relationshipMemoryTeamsSummary.test.ts": {
+    "no-regex-spaces": {
+      "count": 1
+    }
+  },
+  "src/shared/stages/stageCatalog.test.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/team/TeamContext.tsx": {
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/team/TeamDataProvider.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    },
+    "react-refresh/only-export-components": {
+      "count": 1
+    }
+  },
+  "src/team/TeamDealWorkspace.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  },
+  "src/team/TeamProvider.tsx": {
+    "react-hooks/set-state-in-effect": {
+      "count": 1
+    }
+  }
+}

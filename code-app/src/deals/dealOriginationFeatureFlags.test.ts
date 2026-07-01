@@ -37,11 +37,12 @@ describe('origination flags -- Phase 228A production core constants', () => {
     expect(TASK_GENERATION_ENABLED).toBe(true);
     expect(DUPLICATE_DETECTION_ENABLED).toBe(true);
 
-    // Phase 256B: launched ON.
-    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
+    // Completion Phase A: reset to SAFE DEFAULTS (off). These live-write domains
+    // must never assert up by source default; they are armed deliberately per domain.
+    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
 
     for (const c of [
       CRM_AUTOMATION_ENABLED,
@@ -73,16 +74,17 @@ describe('origination flags -- Phase 228A production core gates', () => {
     borrowerMessagingMode: 'send_enabled' as const,
   };
 
-  it('gate readers enable the launched production core when config is true', () => {
+  it('gate readers keep the reset live-write domains off even when config is true', () => {
     expect(isBankerCreateEnabled(fullyTrue)).toBe(false);
     expect(isTaskGenerationEnabled(fullyTrue)).toBe(true);
     expect(isDuplicateDetectionEnabled(fullyTrue)).toBe(true);
 
-    // Phase 256B: launched domains now resolve enabled with explicit true config.
-    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(true);
-    expect(isAutoStageAdvanceEnabled(fullyTrue)).toBe(true);
-    expect(resolveBorrowerMessagingMode(fullyTrue)).toBe('send_enabled');
-    expect(isAnyBorrowerTransportEnabled(fullyTrue)).toBe(true);
+    // Completion Phase A: reset to safe defaults — the hard constants are false, so
+    // these domains stay OFF/disabled even with explicit true config (fail-closed).
+    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(false);
+    expect(isAutoStageAdvanceEnabled(fullyTrue)).toBe(false);
+    expect(resolveBorrowerMessagingMode(fullyTrue)).toBe('disabled');
+    expect(isAnyBorrowerTransportEnabled(fullyTrue)).toBe(false);
 
     expect(isCrmAutomationEnabled(fullyTrue)).toBe(false);
     expect(isPortfolioSideEffectsEnabled(fullyTrue)).toBe(false);

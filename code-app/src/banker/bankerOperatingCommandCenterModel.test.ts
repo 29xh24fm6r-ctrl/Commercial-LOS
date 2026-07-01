@@ -21,7 +21,7 @@ describe('Phase 232 — Banker Operating Command Center model', () => {
     ]);
   });
 
-  it('keeps the read-side operating surfaces active and reflects the Phase 256B launched live-write domains', () => {
+  it('keeps the read-side operating surfaces active while live-write domains stay gated (safe defaults)', () => {
     const vm = deriveBankerOperatingCommandCenterModel();
     const byId = new Map(vm.domains.map((d) => [d.id, d]));
 
@@ -29,11 +29,12 @@ describe('Phase 232 — Banker Operating Command Center model', () => {
     expect(byId.get('loan-workflow')?.state).toBe('operational');
     expect(byId.get('daily-actions')?.state).toBe('operational');
 
-    // Phase 256B: checklist, borrower send, CRM writeback, and portfolio boarding are launched.
-    expect(byId.get('document-readiness')?.state).toBe('operational');
-    expect(byId.get('borrower-communications')?.state).toBe('operational');
-    expect(byId.get('crm-writeback')?.state).toBe('operational');
-    expect(byId.get('portfolio-handoff')?.state).toBe('operational');
+    // Live-write gates are reset to safe defaults: checklist, borrower send, CRM writeback,
+    // and portfolio boarding are all gated.
+    expect(byId.get('document-readiness')?.state).toBe('gated');
+    expect(byId.get('borrower-communications')?.state).toBe('gated');
+    expect(byId.get('crm-writeback')?.state).toBe('gated');
+    expect(byId.get('portfolio-handoff')?.state).toBe('gated');
     // New Deal create stays gated by its global constant.
     expect(byId.get('new-deal')?.state).toBe('gated');
   });
@@ -42,7 +43,7 @@ describe('Phase 232 — Banker Operating Command Center model', () => {
     const vm = deriveBankerOperatingCommandCenterModel();
 
     expect(vm.dealCockpitAnchors).toEqual([
-      'loan-workflow-command-center',
+      'stage-map',
       'workstreams',
       'crm-relationship',
       'credit-memo',

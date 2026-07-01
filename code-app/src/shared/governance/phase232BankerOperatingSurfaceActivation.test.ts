@@ -16,7 +16,7 @@ describe('Phase 232 — banker operating surface activation contract', () => {
   it('does not invent a parallel workflow; it points to the existing deal cockpit anchors', () => {
     const vm = deriveBankerOperatingCommandCenterModel();
 
-    expect(vm.dealCockpitAnchors).toContain('loan-workflow-command-center');
+    expect(vm.dealCockpitAnchors).toContain('stage-map');
     expect(vm.dealCockpitAnchors).toContain('workstreams');
     expect(vm.dealCockpitAnchors).toContain('crm-relationship');
   });
@@ -25,7 +25,9 @@ describe('Phase 232 — banker operating surface activation contract', () => {
     const shell = readFileSync(resolve(__dirname, '../../banker/BankerShell.tsx'), 'utf8');
 
     expect(shell).toMatch(/import \{ BankerOperatingCommandCenter \}/);
-    expect(shell.indexOf('<BankerOperatingCommandCenter />')).toBeGreaterThan(-1);
+    // Mounted on the dashboard. It now receives real KPI/deal data as props (the action-cockpit
+    // redesign) rather than the propless read-only status board, so match the opening tag.
+    expect(shell).toMatch(/<BankerOperatingCommandCenter\b/);
     // Phase 258 — the legacy CRM readiness panel is replaced by the live CRM
     // Hub workspace on its own tab; the dashboard no longer mounts it.
     expect(shell).not.toMatch(/<BankerCrmIntelligencePanel \/>/);

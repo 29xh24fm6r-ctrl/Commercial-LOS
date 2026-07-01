@@ -30,12 +30,13 @@ const read = (rel: string) => readFileSync(resolve(ROOT, rel), 'utf8');
 const DOC_REL = 'docs/PHASE_249_CHECKLIST_SIGNOFF_AND_OUTLOOK_CONNECTOR_UNBLOCK.md';
 
 describe('Phase 249 — checklist signoff + Outlook connector governance contract', () => {
-  it('consumes the recorded checklist signoff (Phase 251) → SIGNED, and the live gate is now flipped (Phase 256B)', () => {
+  it('consumes the recorded checklist signoff (Phase 251) → SIGNED, but the live generation gate is at its safe default (off)', () => {
     expect(CHECKLIST_RULESET_SIGNOFF).not.toBeNull();
     const vm = deriveChecklistSignoffReadiness();
     expect(vm.status).toBe('SIGNED');
-    // Phase 256B: the live checklist gates are now flipped after the GO smoke.
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    // Completion Phase A: the live checklist generation gate is reset to its safe default (off);
+    // the signoff is environment evidence only and flips no live gate.
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
     expect(CHECKLIST_WRITE_ENABLED).toBe(true);
     expect(vm.gateFlipBlocked).toBe(true);
     // The signoff is grounded in a real committed artifact, not fabricated.
@@ -43,15 +44,16 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(parseChecklistSignoffArtifact(read(CHECKLIST_SIGNOFF_ARTIFACT_PATH))).not.toBeNull();
   });
 
-  it('Outlook connector registered via power.config.json (real) → PASS, and live send is now enabled (Phase 256B)', () => {
-    // Phase 250: registration is REAL (power.config.json), not fabricated. Phase 256B flips the gates.
+  it('Outlook connector registered via power.config.json (real) → PASS, but live send is at its safe default (off)', () => {
+    // Phase 250: registration is REAL (power.config.json), not fabricated. Completion Phase A
+    // resets the borrower-send gates to their safe defaults (off); registration flips no gate.
     expect(OUTLOOK_CONNECTOR_STATE.connectorRegisteredInManifest).toBe(true);
     expect(OUTLOOK_CONNECTOR_STATE.emailModeLive).toBe(false);
     const vm = deriveOutlookConnectorReadiness();
     expect(vm.status).toBe('PASS');
-    expect(vm.liveSendEnabled).toBe(true);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
+    expect(vm.liveSendEnabled).toBe(false);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
     // The generated service genuinely exists, and the real power.config.json carries the registration.
     expect(existsSync(resolve(ROOT, OUTLOOK_GENERATED_SERVICE_PATH))).toBe(true);
     expect(detectOutlookConnectorRegistration(read('power.config.json'))).toBe(true);

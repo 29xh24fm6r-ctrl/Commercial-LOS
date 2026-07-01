@@ -35,17 +35,18 @@ describe('V1ActivationReadinessPanel', () => {
     expect(screen.getAllByText('ENABLED').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders the launched write categories as ENABLED with broad workflow writes still GATED', () => {
+  it('renders the unsafe write categories as GATED with only the New Deal create pilot ENABLED', () => {
     const { container } = render(<V1ActivationReadinessPanel />);
     const text = container.textContent ?? '';
     expect(text).toMatch(/CRM writeback/);
     expect(text).toMatch(/Borrower communications/);
     expect(text).toMatch(/Checklist generation/);
     expect(text).toMatch(/Broad workflow writes/);
-    // After the 256B launch, CRM writeback, borrower comms, and checklist generation
-    // are ENABLED; broad workflow writes remain GATED (read-only decision support).
-    expect(screen.getAllByText('ENABLED').length).toBeGreaterThanOrEqual(4);
-    expect(screen.getAllByText('GATED').length).toBe(1);
+    // Completion Phase A reset the live-write gates to their safe defaults (off), so CRM
+    // writeback, borrower comms, checklist generation, and broad workflow writes are all
+    // GATED; only the certified New Deal create pilot reads ENABLED.
+    expect(screen.getAllByText('ENABLED').length).toBe(1);
+    expect(screen.getAllByText('GATED').length).toBe(4);
   });
 
   it('renders the release-safety posture (no external/fake/schema/widening)', () => {

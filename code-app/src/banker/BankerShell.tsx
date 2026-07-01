@@ -216,6 +216,9 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
         bankerId={bankerId}
         activityDealOptions={activityDealOptions}
         openTaskCount={kpis ? kpis.openTaskCount : undefined}
+        pipelineAmount={kpis ? kpis.totalAmount : undefined}
+        dealsMissingAmount={kpis ? kpis.dealsMissingAmount : undefined}
+        urgentCount={kpis ? kpis.urgentItemCount : undefined}
         onActivityLogged={reload}
         onNewDeal={openNewDeal}
         now={now}
@@ -231,6 +234,10 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
                   tab={tab}
                   onNewDeal={openNewDeal}
                   crmIdentity={{ email, systemUserId, writeDisabledReason }}
+                  kpis={kpis}
+                  deals={state.kind === 'ready' ? state.data.deals : []}
+                  loading={state.kind === 'loading'}
+                  onSelectTab={setTab}
                 />
               </ErrorBoundary>
             </div>
@@ -327,16 +334,29 @@ function TabContent({
   tab,
   onNewDeal,
   crmIdentity,
+  kpis,
+  deals,
+  loading,
+  onSelectTab,
 }: {
   tab: ShellTab;
   onNewDeal: () => void;
   crmIdentity: { email: string | undefined; systemUserId: string | undefined; writeDisabledReason: string | undefined };
+  kpis: ReturnType<typeof deriveBankerPersonalActivity> | null;
+  deals: readonly import('./dealQueries').PipelineDeal[];
+  loading: boolean;
+  onSelectTab: (tab: ShellTab) => void;
 }) {
   switch (tab) {
     case 'dashboard':
       return (
         <div style={styles.tabStack}>
-          <BankerOperatingCommandCenter />
+          <BankerOperatingCommandCenter
+            kpis={kpis}
+            deals={deals}
+            loading={loading}
+            onSelectTab={onSelectTab}
+          />
           <PersonalActivitySummary />
           <BankerMorningCatchUp />
         </div>

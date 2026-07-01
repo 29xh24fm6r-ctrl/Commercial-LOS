@@ -54,17 +54,17 @@ describe('202 — internal activation model', () => {
     expect(a.internalWorkflowActive).toBe(true);
   });
 
-  it('launched write categories are enabled; certified pilot is enabled', () => {
-    expect(a.writebackStatus).toBe('enabled');
-    expect(a.checklistGenerationStatus).toBe('enabled');
-    expect(a.borrowerCommunicationStatus).toBe('enabled');
+  it('write categories are gated (safe default); certified pilot is enabled', () => {
+    expect(a.writebackStatus).toBe('gated');
+    expect(a.checklistGenerationStatus).toBe('gated');
+    expect(a.borrowerCommunicationStatus).toBe('gated');
     expect(a.pilotCreateStatus).toBe('enabled');
   });
 
   it('is derived from the real gate constants', () => {
-    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(true); // writeback launched
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
+    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(false); // writeback gated (safe default)
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
     expect(BANKER_CREATE_PILOT_ENABLED).toBe(true); // certified pilot
   });
 

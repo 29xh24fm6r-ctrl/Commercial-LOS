@@ -239,6 +239,10 @@
         "crmauditentries": {
           "entitySetName": "cr664_crmauditentries",
           "logicalName": "cr664_crmauditentry"
+        },
+        "naicscodes": {
+          "entitySetName": "cr664_naicscodes",
+          "logicalName": "cr664_naicscode"
         }
       },
       "environmentVariableName": ""

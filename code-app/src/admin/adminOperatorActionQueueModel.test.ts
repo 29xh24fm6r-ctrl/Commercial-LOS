@@ -27,25 +27,23 @@ describe('Phase 234 — Admin Operator Action Queue model', () => {
     const vm = deriveAdminOperatorActionQueueModel();
     const byId = new Map(vm.groups.map((g) => [g.id, g]));
 
-    // After the 256B full launch, the live-write categories are enabled and clear.
-    // New Deal create stays gated by its global constant, so it still requires action.
-    const gatedGroups: OperatorActionGroupId[] = ['new-deal-create'];
-    for (const id of gatedGroups) {
-      expect(byId.get(id)?.state, id).toBe('action-required');
-      expect(byId.get(id)?.actions.length, id).toBeGreaterThan(0);
-    }
-
-    // Launched categories are now clear (no open actions).
-    const launchedGroups: OperatorActionGroupId[] = [
+    // Completion Phase A reset every live-write gate to its safe default (off), so each
+    // live-write category requires operator action again alongside New Deal create.
+    const gatedGroups: OperatorActionGroupId[] = [
+      'new-deal-create',
       'crm-writeback',
       'document-checklist',
       'borrower-communication',
       'portfolio-boarding',
     ];
-    for (const id of launchedGroups) {
-      expect(byId.get(id)?.state, id).toBe('clear');
-      expect(byId.get(id)?.actions.length, id).toBe(0);
+    for (const id of gatedGroups) {
+      expect(byId.get(id)?.state, id).toBe('action-required');
+      expect(byId.get(id)?.actions.length, id).toBeGreaterThan(0);
     }
+
+    // The internal CRM + LOS activation operating layer remains clear (no open actions).
+    expect(byId.get('crm-los-activation')?.state).toBe('clear');
+    expect(byId.get('crm-los-activation')?.actions.length).toBe(0);
 
     expect(vm.totalOpenActions).toBeGreaterThan(0);
     expect(vm.totalOpenActions).toBe(vm.groups.reduce((s, g) => s + g.actions.length, 0));
@@ -58,12 +56,13 @@ describe('Phase 234 — Admin Operator Action Queue model', () => {
     expect(launch.actions.every((a) => a.id.startsWith('launch:'))).toBe(true);
   });
 
-  it('borrower communication is clear once live send is enabled', () => {
+  it('borrower communication requires a certify-live-send action while live send stays safe-default off', () => {
     const vm = deriveAdminOperatorActionQueueModel();
     const borrower = vm.groups.find((g) => g.id === 'borrower-communication')!;
-    // Live send is enabled after the 256B launch, so no certify-live-send task remains.
-    expect(borrower.actions.some((a) => /certify live send/i.test(a.title))).toBe(false);
-    expect(borrower.state).toBe('clear');
+    // Completion Phase A reset borrower messaging to its safe default (off), so the
+    // certify-live-send task is surfaced again.
+    expect(borrower.actions.some((a) => /certify live send/i.test(a.title))).toBe(true);
+    expect(borrower.state).toBe('action-required');
   });
 
   it('certifies the queue executes no live write, gate flip, or action', () => {

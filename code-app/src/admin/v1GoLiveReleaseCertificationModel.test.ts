@@ -20,22 +20,28 @@ describe('Phase 236 — V1.0 go-live release certification model', () => {
     ]);
   });
 
-  it('reports live mutation expansion ready after Phase 256B launch (the final V1 decision now reads the enabled gates)', () => {
+  it('reports live mutation expansion NOT ready while operating restart stays certified (safe-default gates)', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    // Phase 256B: launched live-write categories make expansion ready.
-    expect(vm.liveMutationExpansionReady).toBe(true);
-    // The final V1 release decision now sees the enabled checklist/create gates and reports
-    // NO_GO for the pre-launch read/operate posture, so the certification is no longer
-    // certifying the old gated-restart story.
-    expect(vm.operatingRestartReady).toBe(false);
-    expect(vm.restartStatement).toMatch(/Operating restart is not yet certified/i);
+    // Completion Phase A reset every live-write gate to its safe default (off), so no
+    // live-write category is enabled and live mutation expansion is not ready.
+    expect(vm.liveMutationExpansionReady).toBe(false);
+    // With the live-write gates safe-default off, the forbidden-gate guard is not tripped,
+    // so the governed read/operate restart posture is certified again.
+    expect(vm.operatingRestartReady).toBe(true);
+    expect(vm.restartStatement).toMatch(/restart can proceed within the governed read\/operate posture/i);
   });
 
-  it('names the live-write categories that remain gated after Phase 256B launch', () => {
+  it('names every live-write category as gated after the Completion Phase A safe-default reset', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    // Phase 256B launched the five live-write domains; only New Deal create stays gated.
+    // Completion Phase A reset all five live-write gates to off; New Deal create stays gated
+    // by its global constant — so every live-write category is intentionally gated.
     expect(vm.gatedLiveWriteCategories).toEqual([
       'New Deal create',
+      'CRM writeback / live persistence',
+      'Document checklist generation',
+      'Borrower communication send',
+      'Stage advancement',
+      'Portfolio boarding live persistence',
     ]);
   });
 

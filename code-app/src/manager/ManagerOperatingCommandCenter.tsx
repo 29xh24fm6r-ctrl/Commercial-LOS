@@ -34,7 +34,7 @@ export function ManagerOperatingCommandCenter() {
                 <h3 style={styles.domainTitle}>{domain.label}</h3>
                 <Badge variant={BADGE_BY_STATE[domain.state]}>{domain.state}</Badge>
               </div>
-              <div style={styles.value}>{domain.value}</div>
+              <div style={styles.value} data-domain-value>{domain.value}</div>
               <p style={styles.summary}>{domain.summary}</p>
               <p style={styles.next}>
                 <strong>Next:</strong> {domain.nextAction}

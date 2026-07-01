@@ -4,6 +4,7 @@ import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { adminStyles, formatDate } from './adminCardChrome';
 import { palette, spacing, typography } from '../shared/theme';
+import { resolveKpiBaselineDate } from './kpiBaselineResolution';
 
 const PREVIEW_LIMIT = 6;
 
@@ -33,12 +34,30 @@ function Body({ data }: { data: AsyncResult<ConfigurationSnapshot> }) {
     );
   }
 
+  const kpiBaseline = resolveKpiBaselineDate(systemSettings);
+
   return (
     <>
       <div style={adminStyles.grid}>
         <Stat label="System settings" value={systemSettings.length.toString()} />
         <Stat label="Active KPI thresholds" value={activeKpiThresholds.length.toString()} />
       </div>
+
+      {/* Completion Phase D — KPI_BASELINE_DATE is single-valued; surface a conflict instead
+          of silently driving KPI math off an ambiguous baseline. */}
+      {kpiBaseline.status === 'ambiguous' && (
+        <div style={styles.dqWarning} role="alert" data-kpi-baseline-ambiguous>
+          <strong>Data quality:</strong> KPI baseline date is <strong>ambiguous</strong> —{' '}
+          {kpiBaseline.count} conflicting values ({kpiBaseline.values.join(', ')}). KPI baseline is
+          treated as unresolved until an operator dedupes <code>KPI_BASELINE_DATE</code> to one
+          approved value.
+        </div>
+      )}
+      {kpiBaseline.status === 'resolved' && (
+        <div style={adminStyles.rowMeta} data-kpi-baseline-resolved>
+          <span style={adminStyles.metaLabel}>KPI baseline:</span> {formatDate(kpiBaseline.value) ?? kpiBaseline.value}
+        </div>
+      )}
 
       {activeKpiThresholds.length > 0 && (
         <div style={styles.subBlock}>
@@ -122,6 +141,15 @@ function ErrorBlock({ title, detail }: { title: string; detail: string }) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  dqWarning: {
+    background: palette.atRiskBg,
+    border: `1px solid ${palette.atRisk}`,
+    borderRadius: 6,
+    padding: `${spacing.sm} ${spacing.md}`,
+    color: palette.text,
+    fontSize: typography.size.sm,
+    lineHeight: typography.lineHeight.snug,
+  },
   subBlock: { display: 'flex', flexDirection: 'column', gap: spacing.xs },
   subHeading: {
     margin: 0,

@@ -60,10 +60,10 @@ function okTransport(): PortfolioBoardingTransport {
 // ---------------------------------------------------------------------------
 
 describe('Phase 140M-P — feature flags default safe', () => {
-  it('live persistence + route default ON; downstream domains stay false', () => {
+  it('live persistence + route default to safe defaults (off); downstream domains stay false', () => {
     const f = PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS;
-    expect(f.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(f.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
+    expect(f.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(f.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(false);
     expect(f.PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED).toBe(false);
     expect(f.PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED).toBe(false);
     expect(f.PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED).toBe(false);

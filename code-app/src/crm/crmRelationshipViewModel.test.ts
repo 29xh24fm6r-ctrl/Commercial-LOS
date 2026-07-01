@@ -128,9 +128,9 @@ describe('future Salesforce-style spine is never fabricated', () => {
     const vm = deriveCrmRelationshipViewModel(fullGraph);
     expect(vm.futureSpine.seeded).toBe(false);
     expect(vm.futureSpine.wired).toBe(false);
-    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+    // CRM_LIVE_PERSISTENCE_ENABLED is at its safe default (off) in crmFeatureFlags.ts;
     // the spine is still neither seeded nor wired — these are separate concerns.
-    expect(vm.futureSpine.liveSpinePersistenceEnabled).toBe(true);
+    expect(vm.futureSpine.liveSpinePersistenceEnabled).toBe(false);
     // All ten modeled tables present as not_seeded by default.
     expect(vm.futureSpine.tables).toHaveLength(10);
     for (const t of vm.futureSpine.tables) {

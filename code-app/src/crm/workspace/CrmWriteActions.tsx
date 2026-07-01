@@ -1,5 +1,9 @@
 import { useState, type CSSProperties } from 'react';
+import * as Popover from '@radix-ui/react-popover';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
+import { CRM_PARTY_TYPE_OPTIONS } from '../crmPartyTypes';
+import { ADVISOR_ROLE_OPTIONS } from '../advisors/advisorRoles';
+import { NaicsTypeahead } from '../naics/NaicsTypeahead';
 import { buildLiveCrmWriteFns, type CrmWriteFns } from '../write/crmWriteActions';
 import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
 
@@ -13,7 +17,7 @@ import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
  * non-engineering explanation (not hidden dead buttons).
  */
 
-export type CrmActionKind = 'company' | 'contact' | 'activity' | 'task' | 'relationship';
+export type CrmActionKind = 'company' | 'contact' | 'activity' | 'task' | 'relationship' | 'advisor';
 
 export interface CrmOption {
   readonly id: string;
@@ -40,6 +44,7 @@ const ACTIONS: ReadonlyArray<{ kind: CrmActionKind; label: string }> = [
   { kind: 'activity', label: 'Log Activity' },
   { kind: 'task', label: 'New Follow-up' },
   { kind: 'relationship', label: 'Add Relationship' },
+  { kind: 'advisor', label: 'Add Advisor' },
 ];
 
 export function CrmWriteActions({
@@ -55,9 +60,15 @@ export function CrmWriteActions({
   const [open, setOpen] = useState<CrmActionKind | undefined>(undefined);
   const fns = writeFns ?? null; // resolved lazily so the live deps aren't built in tests that inject
 
+  // v3 FIX 3 — restore the single-primary rule: one Seal-Red primary (Add Company)
+  // + one quiet secondary (Add Contact); everything else lives in a tidy overflow.
+  const primary = ACTIONS[0]; // company
+  const secondary = ACTIONS[1]; // contact
+  const overflow = ACTIONS.slice(2); // activity, task, relationship, advisor
+
   return (
     <div style={styles.bar} data-crm-actions>
-      {ACTIONS.map((a) => (
+      {[primary, secondary].map((a) => (
         <button
           key={a.kind}
           type="button"
@@ -70,6 +81,31 @@ export function CrmWriteActions({
           {a.label}
         </button>
       ))}
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <button
+            type="button"
+            style={authorized ? styles.secondaryBtn : styles.disabledBtn}
+            disabled={!authorized}
+            data-crm-actions-more
+            aria-label="More CRM actions"
+            title={authorized ? undefined : disabledReason}
+          >
+            More ▾
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content className="ig-popover-menu" align="end" sideOffset={6}>
+            {overflow.map((a) => (
+              <Popover.Close asChild key={a.kind}>
+                <button type="button" className="ig-popover-item" data-crm-action={a.kind} onClick={() => setOpen(a.kind)}>
+                  {a.label}
+                </button>
+              </Popover.Close>
+            ))}
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
       {!authorized && (
         <span style={styles.disabledNote} data-crm-actions-disabled>
           {disabledReason ?? 'Sign-in identity is still resolving; CRM editing will enable shortly.'}
@@ -105,6 +141,7 @@ const TITLES: Record<CrmActionKind, string> = {
   activity: 'Log Activity',
   task: 'Create Follow-up Task',
   relationship: 'Add Relationship',
+  advisor: 'Add Advisor / Professional',
 };
 
 function CrmActionModal({
@@ -137,7 +174,7 @@ function CrmActionModal({
     let result: CrmWriteOutcome;
     switch (kind) {
       case 'company':
-        result = await fns.addCompany({ ...a, name: val('name'), organizationType: val('organizationType'), industry: val('industry'), website: val('website'), notes: val('notes') });
+        result = await fns.addCompany({ ...a, name: val('name'), organizationType: val('organizationType'), industry: val('industry'), naicsCode: val('naicsCode'), website: val('website'), notes: val('notes') });
         break;
       case 'contact':
         result = await fns.addContact({ ...a, firstName: val('firstName'), lastName: val('lastName'), title: val('title'), email: val('email'), phone: val('phone'), employerOrganizationId: val('employerOrganizationId'), notes: val('notes') });
@@ -150,6 +187,17 @@ function CrmActionModal({
         break;
       case 'relationship':
         result = await fns.addRelationship({ ...a, name: val('name'), relationshipType: val('relationshipType'), role: val('role'), sourceOrganizationId: val('sourceOrganizationId'), targetPersonId: val('targetPersonId'), notes: val('notes') });
+        break;
+      case 'advisor':
+        result = await fns.addAdvisorLink({
+          ...a,
+          advisorOrganizationId: val('advisorOrganizationId'),
+          clientOrganizationId: val('clientOrganizationId'),
+          role: val('role'),
+          notes: val('notes'),
+          advisorName: companyOptions.find((o) => o.id === val('advisorOrganizationId'))?.label,
+          clientName: companyOptions.find((o) => o.id === val('clientOrganizationId'))?.label,
+        });
         break;
     }
     setOutcome(result);
@@ -179,7 +227,15 @@ function CrmActionModal({
           <>
             <div style={styles.formGrid}>
               {fieldsFor(kind, companyOptions, personOptions).map((f) =>
-                f.type === 'select' ? (
+                f.type === 'naics' ? (
+                  <div key={f.key} style={styles.fieldFull}>
+                    <NaicsTypeahead
+                      label={f.label}
+                      value={val('naicsCode') ? { code: val('naicsCode') } : undefined}
+                      onSelect={(hit) => set('naicsCode', hit?.code ?? '')}
+                    />
+                  </div>
+                ) : f.type === 'select' ? (
                   <label key={f.key} style={f.full ? styles.fieldFull : styles.field}>
                     <span style={styles.label}>{f.label}{f.required ? ' *' : ''}</span>
                     <select style={styles.input} value={val(f.key)} data-crm-field={f.key} onChange={(e) => set(f.key, e.target.value)}>
@@ -230,7 +286,7 @@ function CrmActionModal({
 interface FieldSpec {
   key: string;
   label: string;
-  type: 'text' | 'date' | 'select';
+  type: 'text' | 'date' | 'select' | 'naics';
   required?: boolean;
   full?: boolean;
   placeholder?: string;
@@ -248,8 +304,11 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
     case 'company':
       return [
         { key: 'name', label: 'Company name', type: 'text', required: true, full: true },
-        { key: 'organizationType', label: 'Type', type: 'text' },
-        { key: 'industry', label: 'Industry', type: 'text' },
+        { key: 'organizationType', label: 'Type', type: 'select', options: CRM_PARTY_TYPE_OPTIONS, placeholder: 'Select a type' },
+        // NAICS is the primary structured industry field; the free-text below is a
+        // clearly-optional plain-language note subordinate to it (v3 FIX 4).
+        { key: 'naics', label: 'Industry (NAICS)', type: 'naics', full: true },
+        { key: 'industry', label: 'Industry note (optional)', type: 'text', full: true },
         { key: 'website', label: 'Website', type: 'text' },
         { key: 'notes', label: 'Notes', type: 'text', full: true },
       ];
@@ -292,6 +351,13 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
         { key: 'targetPersonId', label: 'Person', type: 'select', options: peopleSel, placeholder: 'Person (optional)' },
         { key: 'notes', label: 'Notes', type: 'text', full: true },
       ];
+    case 'advisor':
+      return [
+        { key: 'advisorOrganizationId', label: 'Advisor / professional', type: 'select', required: true, options: companySel, placeholder: 'Select the advisor party' },
+        { key: 'role', label: 'Role', type: 'select', required: true, options: ADVISOR_ROLE_OPTIONS, placeholder: 'Select a role' },
+        { key: 'clientOrganizationId', label: 'Serves client', type: 'select', required: true, options: companySel, placeholder: 'Select the client' },
+        { key: 'notes', label: 'Notes', type: 'text', full: true },
+      ];
   }
 }
 
@@ -308,7 +374,8 @@ function describeFailure(o: Exclude<CrmWriteOutcome, { kind: 'success' }>): stri
 
 const styles: Record<string, CSSProperties> = {
   bar: { display: 'flex', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap', justifyContent: 'flex-end' },
-  primaryBtn: { background: palette.cobalt, color: palette.cobaltFg, border: 'none', borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.bold, fontFamily: typography.family, cursor: 'pointer' },
+  // The single Seal-Red primary action (Intaglio: one primary per context).
+  primaryBtn: { background: palette.accent, color: '#fffdf9', border: 'none', borderRadius: radius.md, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, fontFamily: typography.family, cursor: 'pointer' },
   secondaryBtn: { background: palette.surface, color: palette.text, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, fontFamily: typography.family, cursor: 'pointer' },
   ghostBtn: { background: 'transparent', color: palette.textMuted, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, fontFamily: typography.family, cursor: 'pointer' },
   disabledBtn: { background: palette.surfaceAlt, color: palette.textSubtle, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, fontFamily: typography.family, cursor: 'not-allowed' },

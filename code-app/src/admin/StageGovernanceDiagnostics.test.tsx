@@ -9,7 +9,7 @@ describe('StageGovernanceDiagnostics — Phase 29 admin diagnostic card', () => 
     expect(screen.getByText(/Stage reference data source/i)).toBeInTheDocument();
     expect(screen.getByText(/Stage ordering contract/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Stage progression write availability/i),
+      screen.getByText(/Stage ordering resolved/i),
     ).toBeInTheDocument();
   });
 
@@ -25,13 +25,13 @@ describe('StageGovernanceDiagnostics — Phase 29 admin diagnostic card', () => 
     expect(screen.getByText(/Deal Stage Progression/i)).toBeInTheDocument();
   });
 
-  it('renders an ordered remediation list naming SDK regeneration and the gate flip', () => {
+  it('renders an ordered remediation list naming the seed, SDK regeneration, and the automatic flip', () => {
     render(<StageGovernanceDiagnostics />);
     expect(screen.getByText(/Required remediation/i)).toBeInTheDocument();
     // The numbered steps live inside an <ol>. Sample a few of the
     // critical phrases to confirm the list is rendered, not skipped.
-    expect(screen.getByText(/add-data-source/i)).toBeInTheDocument();
-    expect(screen.getByText(/stageProgressionAvailability/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/seed-stage-references/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Regenerate the typed SDK/i)).toBeInTheDocument();
   });
 
   it('does NOT render any action / fix button anywhere', () => {

@@ -69,10 +69,17 @@ export const palette = {
   neutralBg: 'var(--cc-neutral-bg)',
   neutralFg: 'var(--cc-neutral-fg)',
 
-  // Info / banker outreach
+  // Info / banker outreach (Treasury Blue — interactive)
   info: 'var(--cc-info)',
   infoBg: 'var(--cc-info-bg)',
   infoFg: 'var(--cc-info-fg)',
+
+  // Accent — Seal Red. THE one primary action / active indicator / critical
+  // alert. Used sparingly (the Button "primary" variant, active-tab marker).
+  accent: 'var(--cc-accent)',
+  accentDim: 'var(--cc-accent-dim)',
+  accentBg: 'var(--cc-accent-bg)',
+  accentFg: 'var(--cc-accent-fg)',
 
   // ──── Phase 125C — premium-cockpit accent palette ────
   // Cobalt — richer electric-blue accent for primary action
@@ -117,6 +124,16 @@ export const palette = {
   // / action-console headers. Reads as a subtle inner panel
   // sitting on top of a Card.
   glassPanel: 'var(--cc-glass-panel)',
+
+  // Intaglio v2 — warm ivory "document" surface. Reserved for the few places
+  // that should read like an actual certificate/record sheet (a deliberate
+  // accent, never the workspace default).
+  ivory: 'var(--cc-ivory)',
+  ivoryFg: 'var(--cc-ivory-fg)',
+
+  // Intaglio v2 — the 1px top highlight that makes an elevated surface read as
+  // raised against the deep shell.
+  surfaceHighlight: 'var(--cc-surface-highlight)',
 } as const;
 
 export const spacing = {
@@ -146,10 +163,12 @@ export const radius = {
 } as const;
 
 export const typography = {
-  family:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif',
-  mono:
-    'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace',
+  /** UI/body face — IBM Plex Sans (humanist grotesque, not Inter-as-everything). */
+  family: 'var(--font-sans)',
+  /** Display face — Fraunces (optical, high-contrast). Hero numbers + titles ONLY. */
+  display: 'var(--font-display)',
+  /** Data face — IBM Plex Mono for dense numeric columns. */
+  mono: 'var(--font-mono)',
   size: {
     xs: '0.72rem',
     sm: '0.82rem',
@@ -164,6 +183,8 @@ export const typography = {
      *  at-a-distance only when the primary value is at this
      *  scale; the previous hero size was too compact. */
     display: '2.4rem',
+    /** Intaglio — hero display (the $-pipeline moment). Use with restraint. */
+    displayLg: '3.5rem',
   },
   weight: {
     regular: 400,
@@ -183,26 +204,28 @@ export const typography = {
   },
 } as const;
 
+/**
+ * Elevation tokens. Phase: Intaglio v2 — these now resolve to theme-aware CSS
+ * variables (declared in src/index.css) so the same inline-styled surfaces read
+ * as subtle lifts on the light "paper" and as deep, floating cards with a 1px top
+ * highlight on the dark Ink-Navy shell. Changing depth is a token edit, not a
+ * component sweep.
+ */
 export const shadow = {
-  card: '0 1px 2px rgba(20, 26, 42, 0.04), 0 1px 1px rgba(20, 26, 42, 0.03)',
-  rise: '0 4px 12px rgba(20, 26, 42, 0.08)',
-  /** Phase 123 — premium banker shell: elevated KPI/hero tiles. Slightly
-   *  deeper than `card`, lighter than `rise`. Suitable for tiles that
-   *  want to read as "primary attention" without becoming popovers. */
-  elevated: '0 2px 4px rgba(20, 26, 42, 0.06), 0 4px 10px rgba(20, 26, 42, 0.05)',
-  /** Phase 123 — command-center hero band. Bigger spread, deeper tone.
-   *  Reserved for the header band and the right-rail brand frame so
-   *  they read as the shell's anchor surfaces. */
-  hero: '0 8px 24px rgba(20, 26, 42, 0.10), 0 2px 4px rgba(20, 26, 42, 0.06)',
-  /** Phase 125C — soft cobalt glow for premium liquid-glass surfaces.
-   *  Used on the deal hero band's inner shadow + the right-rail
-   *  glass overlay. Subtle by design — keeps the cockpit feel
-   *  without becoming a popover. */
-  glow: '0 0 0 1px rgba(96, 165, 250, 0.18) inset, 0 12px 28px rgba(15, 23, 42, 0.16)',
-  /** Phase 125D — small inset lift for KPI deck tiles. Used by
-   *  the MetricTile primitive to feel like a slate panel that's
-   *  embedded in the deck, not a stacked card. */
-  deck: '0 1px 0 rgba(255, 255, 255, 0.55) inset, 0 1px 3px rgba(15, 23, 42, 0.08)',
+  card: 'var(--cc-shadow-card)',
+  rise: 'var(--cc-shadow-rise)',
+  /** Elevated KPI/hero tiles — deeper than `card`, lighter than `rise`. */
+  elevated: 'var(--cc-shadow-elevated)',
+  /** Command-center hero band — biggest spread; the shell's anchor surfaces. */
+  hero: 'var(--cc-shadow-hero)',
+  /** Soft glow for premium liquid-glass surfaces. */
+  glow: 'var(--cc-shadow-glow)',
+  /** Small inset lift for KPI deck tiles. */
+  deck: 'var(--cc-shadow-deck)',
+  /** Intaglio v2 — THE single accent glow: the one Seal-Red primary action and
+   *  the active tab. Used in exactly one place per context; glow everywhere reads
+   *  as a template, glow on the one thing reads as premium. */
+  accentGlow: 'var(--cc-shadow-accent-glow)',
 } as const;
 
 /**

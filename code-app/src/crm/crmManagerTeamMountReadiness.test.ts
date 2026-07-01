@@ -179,9 +179,9 @@ describe('safety posture is constant', () => {
       expect(r.readOnly).toBe(true);
       expect(r.newMountsAdded).toBe(false);
       expect(r.bankerRemainsOnlyActiveMount).toBe(true);
-      // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
+      // CRM_LIVE_PERSISTENCE_ENABLED is at its safe default (off) in crmFeatureFlags.ts;
       // this audit reflects the build-time default and still mounts nothing.
-      expect(r.liveCrmPersistenceEnabled).toBe(true);
+      expect(r.liveCrmPersistenceEnabled).toBe(false);
     }
   });
 });

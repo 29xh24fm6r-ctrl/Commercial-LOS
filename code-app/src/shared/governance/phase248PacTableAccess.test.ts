@@ -40,20 +40,20 @@ describe('Phase 248 — PAC-backed live table access governance contract', () =>
     expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(true);
   });
 
-  it('the platform keeps every live gate flag on but reports honestly: evidence insufficient — not launched (1/6)', () => {
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
+  it('the platform keeps every live gate flag at its safe default (off) and reports honestly: not launched (1/6)', () => {
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(false);
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     const verification = deriveProductionEnvironmentVerification();
     expect(verification.enabledCount).toBe(1);
     expect(verification.fullLaunchReady).toBe(false);
   });
 
-  it('the checklist + borrower/Outlook gates are now live (Phase 256B)', () => {
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
+  it('the checklist + borrower/Outlook gates are at their safe defaults (off)', () => {
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
   });
 
   it('the PAC verifier is read-only (fetch only, no mutation, no deploy)', () => {

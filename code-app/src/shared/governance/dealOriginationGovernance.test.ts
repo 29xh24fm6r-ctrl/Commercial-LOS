@@ -111,7 +111,7 @@ describe('arc governance -- risk domain gates stay hard-false post-launch', () =
     }
   });
 
-  it('the Phase 256B launched constants are true', async () => {
+  it('the live-write constants are reset to their safe default (off)', async () => {
     const flags = await import('../../deals/dealOriginationFeatureFlags');
     for (const key of [
       'AUTO_STAGE_ADVANCE_ENABLED',
@@ -119,7 +119,7 @@ describe('arc governance -- risk domain gates stay hard-false post-launch', () =
       'BORROWER_MESSAGING_ENABLED',
       'BORROWER_EMAIL_TRANSPORT_ENABLED',
     ]) {
-      expect((flags as Record<string, unknown>)[key]).toBe(true);
+      expect((flags as Record<string, unknown>)[key]).toBe(false);
     }
   });
 });

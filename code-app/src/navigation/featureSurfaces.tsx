@@ -13,6 +13,7 @@ import { AnnualPortfolioReviewCommandCenter } from '../portfolioAnnualReview/Ann
 import type { AnnualReviewCycle } from '../shared/annualReview/annualReviewTypes';
 import { PortfolioLoanBoardingPreview } from '../portfolioBoarding/PortfolioLoanBoardingPreview';
 import { createEmptyPortfolioLoanBoardingPackage } from '../shared/portfolioBoarding/portfolioLoanBoardingTypes';
+import { CrmIntelligencePanel } from '../crm/intelligence/CrmIntelligencePanel';
 
 /**
  * Phase 3 — registry of previously-unrouted subsystem surfaces.
@@ -57,6 +58,15 @@ const PREVIEW_ANNUAL_REVIEW_CYCLE: AnnualReviewCycle = {
 };
 
 export const FEATURE_SURFACES: readonly FeatureSurface[] = [
+  {
+    key: 'crm-intelligence',
+    flag: 'CRM_INTELLIGENCE_ROUTE_ENABLED',
+    label: 'CRM intelligence',
+    description: 'Read-only industry concentration (NAICS sector) + advisor relationship map.',
+    workspace: 'banker',
+    entryModule: 'src/crm/intelligence/CrmIntelligencePanel.tsx',
+    render: () => <CrmIntelligencePanel />,
+  },
   {
     key: 'platform-catalog',
     flag: 'PLATFORM_CATALOG_ROUTE_ENABLED',

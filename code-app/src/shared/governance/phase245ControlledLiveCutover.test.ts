@@ -34,23 +34,24 @@ describe('Phase 245 — controlled live gate cutover governance contract', () =>
     expect(CUTOVER_DOMAIN_KEYS).not.toContain('borrowerSend');
   });
 
-  it('Phase 256B: the targeted live gates are now flipped on (the uncontrolled auto-advance write gate stays off)', () => {
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
-    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
+  it('Completion Phase A: the targeted live gates are at safe defaults (off); the uncontrolled auto-advance write gate stays off', () => {
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(false);
+    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(false);
     // The uncontrolled automatic-advancement write gate intentionally stays off (production
     // uses governed explicit advancement, never uncontrolled automatic movement).
     expect(ADVANCE_STAGE_WRITE_ENABLED).toBe(false);
-    // All six domains are now certified (Phase 256B), backed by GO final-launch smoke artifacts.
+    // All six domains remain certified, backed by GO final-launch smoke artifacts.
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
     expect(PRODUCTION_ENVIRONMENT_CERTIFICATION.newDealCreate).toBe(true);
   });
 
-  it('Phase 256B: checklist + borrower gates are now live and their environments PASS', () => {
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
+  it('Completion Phase A: checklist + borrower gates are at safe defaults (off); their environment prerequisites still PASS', () => {
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
+    // The recorded environment-prerequisite evidence is unchanged by the live-gate reset.
     const evidence = deriveFullProductionLaunchEvidence();
     const byKey = new Map(evidence.domains.map((d) => [d.key, d]));
     expect(byKey.get('documentChecklist')?.environmentStatus).toBe('PASS');
@@ -70,13 +71,13 @@ describe('Phase 245 — controlled live gate cutover governance contract', () =>
     expect(cutover.fullLaunchAchieved).toBe(false);
   });
 
-  it('every targeted domain has a rollback control and a gate flag on, but evidence-insufficient so not live', () => {
+  it('every targeted domain has a rollback control and its gate flag is at the safe default (off), so not live', () => {
     const cutover = deriveControlledLiveCutoverReadiness();
     for (const d of cutover.domains) {
       expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
-      // The feature gate flags stay on (structural contract unchanged)...
-      expect(d.gateFlagOn, d.key).toBe(true);
-      // ...but the final-launch evidence is insufficient, so the domain does not resolve live.
+      // The live-write feature gate flags are at their SAFE DEFAULTS (off)...
+      expect(d.gateFlagOn, d.key).toBe(false);
+      // ...so (with insufficient final-launch evidence too) the domain does not resolve live.
       expect(d.enabled, d.key).toBe(false);
     }
   });

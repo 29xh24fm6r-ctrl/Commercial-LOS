@@ -246,15 +246,15 @@ describe('192 — audit/compliance posture intact', () => {
 // 6. Release alignment — gates, build recovery, no new approval route.
 // ---------------------------------------------------------------------------
 describe('192 — release alignment', () => {
-  it('the two pilot-UI gates remain false; generation is launched', () => {
+  it('the two pilot-UI gates remain false; generation reset to safe default off', () => {
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
     const config = read('src/deals/documentChecklistPilotConfig.ts');
     const flags = read('src/deals/dealOriginationFeatureFlags.ts');
     expect(config).toMatch(/DOCUMENT_CHECKLIST_PILOT_UI_ENABLED = false as const/);
     expect(config).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = false as const/);
-    expect(flags).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = true as const/);
+    expect(flags).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
   });
 
   it('the Phase 190A build preflight remains wired into the build', () => {

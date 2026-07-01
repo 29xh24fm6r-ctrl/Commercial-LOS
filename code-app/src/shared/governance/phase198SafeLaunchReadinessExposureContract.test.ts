@@ -107,7 +107,7 @@ describe('198 — no drift', () => {
     expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
     expect(evaluateBankerCreateRollout()).toBe('disabled');
   });
   it('the admin workspace mount introduces no fake-data literal', () => {

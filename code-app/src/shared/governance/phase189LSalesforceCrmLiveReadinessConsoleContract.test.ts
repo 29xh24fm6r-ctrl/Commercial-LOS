@@ -77,10 +77,10 @@ describe('uses the 189K adapter in inspect/plan mode; seed stays inert', () => {
 });
 
 describe('does not flip CRM_LIVE_PERSISTENCE_ENABLED', () => {
-  it('flag default is true (flipped by Phase 256B); the console never assigns it', () => {
-    // Phase 256B flipped CRM_LIVE_PERSISTENCE_ENABLED to true in crmFeatureFlags.ts;
-    // this console still never assigns the flag.
-    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = true;/);
+  it('flag default is the safe false (reset in crmFeatureFlags.ts); the console never assigns it', () => {
+    // Completion Phase A reset CRM_LIVE_PERSISTENCE_ENABLED to the SAFE default
+    // (false) in crmFeatureFlags.ts; this console still never assigns the flag.
+    expect(FLAGS).toMatch(/export const CRM_LIVE_PERSISTENCE_ENABLED = false;/);
     expect(CONSOLE).not.toMatch(/CRM_LIVE_PERSISTENCE_ENABLED\s*=[^=]/);
   });
 });

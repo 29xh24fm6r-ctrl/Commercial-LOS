@@ -5,7 +5,7 @@ import {
   type ProgressionEligibilityStatus,
 } from './stageProgressionGuard';
 import { stageProgressionAvailability } from '../shared/governance/stageProgressionAvailability';
-import { STAGE_CATALOG } from '../shared/stages/stageCatalog';
+import { CANONICAL_STAGES, recognizeCanonicalStage } from '../workflow/stageOrderingContract';
 import { Card, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { SeverityGlyph } from '../shared/SeverityGlyph';
@@ -131,14 +131,14 @@ export function DealStageProgressionCard() {
  *     close date.
  */
 function StageMap({ currentStage }: { currentStage: string | undefined }) {
-  const lanes = STAGE_CATALOG.filter((s) => !s.isTerminal);
-  const normalizedCurrent = currentStage?.trim().toLowerCase();
-  const currentIndex = lanes.findIndex(
-    (s) =>
-      s.id === normalizedCurrent ||
-      s.label.toLowerCase() === normalizedCurrent,
-  );
-  const isCustomStage = normalizedCurrent && currentIndex < 0;
+  // The ONE canonical vocabulary (the ratified seven). A stored code OR ratified
+  // name is recognized (so deals at "Intake"/"INTAKE" resolve to seq 10 and the
+  // custom-stage footnote clears); anything else is honestly "not in canonical
+  // sequence" — never fabricated into a stage.
+  const lanes = CANONICAL_STAGES;
+  const recognized = recognizeCanonicalStage(currentStage);
+  const currentIndex = recognized ? lanes.findIndex((s) => s.code === recognized.code) : -1;
+  const isCustomStage = Boolean(currentStage?.trim()) && currentIndex < 0;
   return (
     <div style={styles.mapWrap} data-stage-map="cockpit">
       <ol style={styles.map} aria-label="Canonical stage progression map">
@@ -168,10 +168,10 @@ function StageMap({ currentStage }: { currentStage: string | undefined }) {
                     : 'future';
           return (
             <li
-              key={s.id}
+              key={s.code}
               style={styles.mapItem}
               aria-current={tone === 'current' ? 'step' : undefined}
-              aria-label={`${s.label} (${tone})`}
+              aria-label={`${s.name} (${tone})`}
               data-stage-node={tone}
             >
               {connectorTone !== 'none' && (
@@ -205,7 +205,7 @@ function StageMap({ currentStage }: { currentStage: string | undefined }) {
                     : styles.nodeLabel
                 }
               >
-                {s.label}
+                {s.name}
               </span>
             </li>
           );

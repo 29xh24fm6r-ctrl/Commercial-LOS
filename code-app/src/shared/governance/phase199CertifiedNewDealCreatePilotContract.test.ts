@@ -104,10 +104,10 @@ describe('199 — no broad write enablement + recommendation stable', () => {
     expect(NEW_DEAL_CREATE_ADAPTER_ENABLED).toBe(false);
     expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
   });
-  it('the two pilot-UI gates remain false; generation is launched', () => {
+  it('the two pilot-UI gates remain false; generation is gated', () => {
     expect(DOCUMENT_CHECKLIST_PILOT_UI_ENABLED).toBe(false);
     expect(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED).toBe(false);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
   });
   it('CRM + workflow domains remain conditional / gated in the readiness model', () => {
     const r = deriveFullSystemLaunchReadiness();

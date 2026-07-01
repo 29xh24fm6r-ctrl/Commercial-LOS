@@ -15,17 +15,17 @@ import {
  */
 
 describe('Phase 141L Ã¢â‚¬â€ CRM feature flag defaults', () => {
-  it('live persistence is launched ON; the other capability constants stay off', () => {
+  it('live persistence stays at the safe default off; the other capability constants stay off', () => {
     expect(CRM_ROUTE_ENABLED).toBe(false);
-    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
     expect(CRM_CONTACT_EDITING_ENABLED).toBe(false);
     expect(CRM_VENDOR_EDITING_ENABLED).toBe(false);
     expect(CRM_TIMELINE_ENABLED).toBe(false);
     expect(CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED).toBe(false);
   });
 
-  it('the default state object has only live persistence enabled', () => {
-    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
+  it('the default state object has every capability gated off', () => {
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
     expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_ROUTE_ENABLED).toBe(false);
     expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_CONTACT_EDITING_ENABLED).toBe(false);
     expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_VENDOR_EDITING_ENABLED).toBe(false);

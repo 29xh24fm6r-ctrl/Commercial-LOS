@@ -32,15 +32,16 @@ describe('Phase 237 — full system activation launch certification model', () =
     }
   });
 
-  it('Launch Phase 5: flags on, but evidence-insufficient → only New Deal create is enabled (1/6)', () => {
+  it('Completion Phase A: flags reset to safe-off + evidence insufficient → only New Deal create is enabled (1/6)', () => {
     const vm = deriveFullActivationLaunchCertification();
     expect(vm.enabledCount).toBe(1);
     expect(vm.fullLaunchAchieved).toBe(false);
-    for (const d of vm.domains) {
-      // The feature gate flags remain on (unchanged); the integrity authority withholds launch.
-      expect(d.flagEnabled, d.id).toBe(true);
-    }
     const byId = new Map(vm.domains.map((d) => [d.id, d]));
+    // New Deal create (pilot) keeps its gate flag on; the five live-write domains are reset off.
+    expect(byId.get('new-deal-create')?.flagEnabled).toBe(true);
+    for (const id of ['crm-writeback', 'document-checklist-generation', 'borrower-communication-send', 'stage-advancement', 'portfolio-boarding-persistence'] as const) {
+      expect(byId.get(id)?.flagEnabled, id).toBe(false);
+    }
     expect(byId.get('new-deal-create')?.status).toBe('enabled');
     for (const id of ['crm-writeback', 'document-checklist-generation', 'borrower-communication-send', 'stage-advancement', 'portfolio-boarding-persistence'] as const) {
       expect(byId.get(id)?.status, id).not.toBe('enabled');
@@ -69,11 +70,11 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(byId.get('portfolio-boarding-persistence')?.operatorEnvironmentConfirmed).toBe(true);
     expect(byId.get('borrower-communication-send')?.operatorEnvironmentConfirmed).toBe(false);
     expect(vm.environmentConfirmedCount).toBe(3);
-    // Launch Phase 5: certs + gate flags are on, but the final-launch evidence is insufficient,
-    // so only New Deal create (pilot-certified) is live (1/6). Flags remain on (unchanged).
+    // Completion Phase A: the CRM + portfolio live-write flags are reset to their safe default
+    // (off); combined with insufficient evidence, only New Deal create (pilot) is live (1/6).
     expect(vm.enabledCount).toBe(1);
-    expect(byId.get('crm-writeback')?.flagEnabled).toBe(true);
-    expect(byId.get('portfolio-boarding-persistence')?.flagEnabled).toBe(true);
+    expect(byId.get('crm-writeback')?.flagEnabled).toBe(false);
+    expect(byId.get('portfolio-boarding-persistence')?.flagEnabled).toBe(false);
   });
 
   it('surfaces the newly-built certified governed adapters as evidence', () => {

@@ -9,9 +9,9 @@ describe('Phase 236 — V1.0 Go-Live Release Certification panel', () => {
     expect(
       screen.getByRole('region', { name: /V1.0 Go-Live Release Certification/i }),
     ).toBeInTheDocument();
-    // After the 256B launch the live-write gates are enabled, so the model trips its
-    // forbidden-gate guard (checklist generation on) and reports verify-required.
-    expect(screen.getByText(/Verify required/i)).toBeInTheDocument();
+    // Completion Phase A reset the live-write gates to their safe defaults (off), so the
+    // forbidden-gate guard is not tripped and the governed read/operate restart is certified.
+    expect(screen.getByText(/Operating restart ready/i)).toBeInTheDocument();
   });
 
   it('shows the required coverage gates', () => {
@@ -31,14 +31,14 @@ describe('Phase 236 — V1.0 Go-Live Release Certification panel', () => {
     }
   });
 
-  it('surfaces the launched live-write posture with New Deal create still gated', () => {
+  it('surfaces the safe-default gated live-write posture with New Deal create and portfolio boarding both gated', () => {
     render(<V1GoLiveReleaseCertificationPanel />);
-    // Live-write categories are enabled after the launch, so expansion now reads enabled.
-    expect(screen.getByText(/Live mutation expansion: enabled/i)).toBeInTheDocument();
+    // Completion Phase A reset every live-write gate to off, so expansion reads gated.
+    expect(screen.getByText(/Live-write expansion gated/i)).toBeInTheDocument();
     const gated = screen.getByRole('region', { name: /Intentionally gated live-write categories/i });
-    // New Deal create stays gated by its global constant; portfolio boarding is now live.
+    // New Deal create stays gated by its global constant; portfolio boarding is gated again too.
     expect(within(gated).getByText('New Deal create')).toBeInTheDocument();
-    expect(within(gated).queryByText('Portfolio boarding live persistence')).toBeNull();
+    expect(within(gated).getByText('Portfolio boarding live persistence')).toBeInTheDocument();
   });
 
   it('exposes no buttons, forms, inputs, or write controls (read-only)', () => {

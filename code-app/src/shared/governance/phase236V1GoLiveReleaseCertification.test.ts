@@ -13,12 +13,14 @@ const READONLY_FILES = [
 const DOC_REL = 'docs/PHASE_236_V1_GO_LIVE_RELEASE_CERTIFICATION.md';
 
 describe('Phase 236 — V1.0 go-live release certification contract', () => {
-  it('the release certification model exists and reflects the Phase 256B live-mutation launch', () => {
+  it('the release certification model exists and reflects the SAFE-DEFAULT gated posture', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    // Phase 256B: live-write domains are launched, so live mutation expansion is ready and the
-    // final V1 release decision no longer certifies the pre-launch read/operate restart story.
-    expect(vm.liveMutationExpansionReady).toBe(true);
-    expect(vm.operatingRestartReady).toBe(false);
+    // Live-write gates are reset to safe defaults: no live-write category is enabled,
+    // so live mutation expansion is NOT ready. With no forbidden live gate open, the
+    // final V1 release decision is no longer NO_GO, so the governed operating restart
+    // can proceed (read/operate posture certified).
+    expect(vm.liveMutationExpansionReady).toBe(false);
+    expect(vm.operatingRestartReady).toBe(true);
   });
 
   it('the admin panel is mounted high in the admin workspace', () => {
@@ -90,9 +92,16 @@ describe('Phase 236 — V1.0 go-live release certification contract', () => {
     expect(withoutCerts).not.toMatch(/salesforce|ncino/i);
   });
 
-  it('names the live-write categories that remain gated after Phase 256B launch', () => {
+  it('names the live-write categories that remain gated under safe defaults', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    // Phase 256B launched the five live-write domains; only New Deal create stays gated.
-    expect(vm.gatedLiveWriteCategories).toEqual(['New Deal create']);
+    // Live-write gates are reset to safe defaults; every live-write category stays gated.
+    expect(vm.gatedLiveWriteCategories).toEqual([
+      'New Deal create',
+      'CRM writeback / live persistence',
+      'Document checklist generation',
+      'Borrower communication send',
+      'Stage advancement',
+      'Portfolio boarding live persistence',
+    ]);
   });
 });

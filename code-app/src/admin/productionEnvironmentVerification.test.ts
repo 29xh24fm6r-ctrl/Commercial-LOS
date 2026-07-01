@@ -38,7 +38,9 @@ describe('Phase 241/242A/256B — production environment verification', () => {
 
     for (const d of vm.domains.filter((x) => x.key !== 'newDealCreate')) {
       expect(d.certified, d.key).toBe(true);
-      expect(d.gateFlagOn, d.key).toBe(true);
+      // Completion Phase A — the live-write flags are reset to their SAFE DEFAULT (off), so the
+      // gate flag is now ALSO down for these domains (defense-in-depth restored).
+      expect(d.gateFlagOn, d.key).toBe(false);
       expect(d.evidenceHigh, d.key).toBe(false);
       expect(d.evidenceInsufficient, d.key).toBe(true);
       expect(d.enabled, d.key).toBe(false);

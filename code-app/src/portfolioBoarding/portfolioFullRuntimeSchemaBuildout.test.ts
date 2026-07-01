@@ -173,20 +173,20 @@ describe('Phase 253P — the buildout artifacts reference the COMPLETE contract'
   });
 });
 
-describe('Launch Phase 5 — portfolio boarding flag is on, but launch is integrity-gated', () => {
-  it('portfolio gate flag is on, yet evidence-insufficient → not enabled, not launched (1/6)', () => {
+describe('Launch Phase 5 — portfolio boarding flag is off (safe default) and launch stays gated', () => {
+  it('portfolio gate flag is off → not enabled, not launched (1/6)', () => {
     const vm = deriveFullProductionLaunchEvidence();
     expect(vm.enabledCount).toBe(1);
     expect(vm.fullLaunchAchieved).toBe(false);
     const portfolio = vm.domains.find((d) => d.key === 'portfolioBoarding')!;
-    // The flag remains on (unchanged); the final-launch evidence gate withholds enablement.
-    expect(portfolio.gateFlagOn).toBe(true);
+    // The gate flag is now reset to its safe default (off); enablement is withheld.
+    expect(portfolio.gateFlagOn).toBe(false);
     expect(portfolio.enabled).toBe(false);
   });
 
-  it('live persistence + route are now ON; the remaining boarding capability flags stay OFF', () => {
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
-    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
+  it('live persistence + route are reset to safe defaults (OFF); the remaining boarding capability flags stay OFF', () => {
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(false);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED).toBe(false);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED).toBe(false);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED).toBe(false);

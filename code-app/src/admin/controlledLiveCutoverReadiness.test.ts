@@ -16,16 +16,16 @@ describe('Phase 245 — controlled live cutover readiness ledger', () => {
     expect(vm.domains.map((d) => d.key)).toEqual(['crmWriteback', 'portfolioBoarding', 'stageAdvancement']);
   });
 
-  it('Launch Phase 5: prereqs + adapter proven + gate flags on, but evidence-insufficient → NOT live, cutover incomplete', () => {
+  it('Completion Phase A: prereqs + adapter proven, but flags reset to safe-off + evidence insufficient → NOT live', () => {
     const vm = deriveControlledLiveCutoverReadiness();
     for (const d of vm.domains) {
-      // Technical readiness, governed adapter, recorded smoke metadata, and the gate flag all
-      // remain true — those are unchanged. The integrity authority is what now withholds launch.
+      // Technical readiness, governed adapter, and recorded smoke metadata remain true.
       expect(d.technicalPrerequisitesPass, d.key).toBe(true);
       expect(d.governedAdapterProven, d.key).toBe(true);
       expect(d.operatorSmokeRecorded, d.key).toBe(true);
-      expect(d.gateFlagOn, d.key).toBe(true);
-      // The domain does NOT resolve enabled while its final-launch evidence is insufficient.
+      // Completion Phase A — the cutover-domain gate flags are reset to their safe default (off).
+      expect(d.gateFlagOn, d.key).toBe(false);
+      // The domain does NOT resolve enabled (flag off AND evidence insufficient).
       expect(d.enabled, d.key).toBe(false);
       expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
     }
