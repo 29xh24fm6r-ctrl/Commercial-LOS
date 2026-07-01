@@ -39,6 +39,11 @@ import { RiskConcentrationRadar } from './RiskConcentrationRadar';
 import { MigrationReconciliationPanel } from './reconciliation/BookReconciliationPanel';
 import { PortfolioProfitabilityPanel } from './profitability/PortfolioProfitabilityPanel';
 import { PortfolioClassificationPanel } from './riskRating/PortfolioClassificationPanel';
+import { EarlyWarningPanel } from './earlyWarning/EarlyWarningPanel';
+import { ExceptionQueuePanel } from './exceptions/ExceptionQueuePanel';
+import { WatchlistBoardPanel } from './watchlist/WatchlistBoardPanel';
+import { CovenantReviewPanel } from './covenants/CovenantReviewPanel';
+import { LoanReviewPanel } from './loanReview/LoanReviewPanel';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
 import { useDrillThroughDeepLink } from '../shared/drillthrough/useDrillThroughDeepLink';
 import { portfolioKpiTargets } from './portfolioDrillThrough';
@@ -261,6 +266,15 @@ export function PortfolioCommandCenter() {
           totals. Read-only over pure dual-rating derivations; honest empty
           state until loans carry a dual risk rating. */}
       <PortfolioClassificationPanel />
+      {/* Phase PE-10 — early-warning "what needs me now" work queue (past-due,
+          covenant, rating downgrade, stale financials, maturity, deposit stress).
+          PE-6 exceptions, PE-7 watchlist, PE-9 covenants/reviews, PE-8 review
+          scope. All read-only over pure derivations with honest empty states. */}
+      <EarlyWarningPanel />
+      <ExceptionQueuePanel />
+      <WatchlistBoardPanel />
+      <CovenantReviewPanel />
+      <LoanReviewPanel />
       {/* Phase 259 — boarded portfolio loans (incl. manually-boarded existing
           loans) appear here. Boarding identity lives on the Loan Workflow
           workspace, so this surface is a read-only list + guidance. */}
