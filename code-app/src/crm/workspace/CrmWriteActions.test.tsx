@@ -1,5 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
+// Env-resilience: unblock module loading of the generated Dataverse services (which pull the
+// @microsoft/power-apps SDK) without loading the real SDK. Behaviour-free — this test drives the
+// component through injected write fns, never a real query. (Same idiom as featureSurfaces.test.tsx.)
+vi.mock('@microsoft/power-apps/data', () => ({ getClient: () => ({}) }));
 import { render, waitFor, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CrmWriteActions } from './CrmWriteActions';

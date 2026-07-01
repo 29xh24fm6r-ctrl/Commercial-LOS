@@ -1,4 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+// Pin the fail-closed contract deterministically: with the generated service stubbed to throw
+// (as it would when the table/SDK is absent), loadNaicsRowsLive must resolve to "unavailable".
+// This also keeps the file independent of the real @microsoft/power-apps SDK at load time.
+vi.mock('../../generated/services/Cr664_naicscodesService', () => ({
+  Cr664_naicscodesService: {
+    getAll: vi.fn(async () => {
+      throw new Error('NAICS service not generated');
+    }),
+  },
+}));
 import { filterNaicsHits, loadNaicsRowsLive, type NaicsRow } from './naicsSearch';
 
 const ROWS: NaicsRow[] = [
