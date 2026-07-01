@@ -38,6 +38,7 @@ import {
 import { RiskConcentrationRadar } from './RiskConcentrationRadar';
 import { MigrationReconciliationPanel } from './reconciliation/BookReconciliationPanel';
 import { PortfolioProfitabilityPanel } from './profitability/PortfolioProfitabilityPanel';
+import { PortfolioClassificationPanel } from './riskRating/PortfolioClassificationPanel';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
 import { useDrillThroughDeepLink } from '../shared/drillthrough/useDrillThroughDeepLink';
 import { portfolioKpiTargets } from './portfolioDrillThrough';
@@ -255,6 +256,11 @@ export function PortfolioCommandCenter() {
           pure derivations; honest guidance state until loans carry real
           balances/rates + an assumption set (no fabricated ROE). */}
       <PortfolioProfitabilityPanel />
+      {/* Phase PE-5 — regulatory classification distribution (Pass / Special
+          Mention / Substandard / Doubtful / Loss) + criticized/classified
+          totals. Read-only over pure dual-rating derivations; honest empty
+          state until loans carry a dual risk rating. */}
+      <PortfolioClassificationPanel />
       {/* Phase 259 — boarded portfolio loans (incl. manually-boarded existing
           loans) appear here. Boarding identity lives on the Loan Workflow
           workspace, so this surface is a read-only list + guidance. */}
