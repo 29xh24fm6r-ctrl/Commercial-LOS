@@ -51,7 +51,8 @@ function arg(name, fallback) {
 /** Best-effort environment URL, so the maker needs only a token (not also a URL).
  *  Order: DATAVERSE_URL env → `pac org who`. Returns undefined if neither yields one. */
 function resolveEnvUrl() {
-  const fromEnv = process.env.DATAVERSE_URL;
+  // Accept either name (DATAVERSE_ENV_URL is what the stage-seed script + repo convention use).
+  const fromEnv = process.env.DATAVERSE_URL ?? process.env.DATAVERSE_ENV_URL;
   if (fromEnv) return fromEnv.replace(/\/$/, '');
   try {
     const res = spawnSync('pac', ['org', 'who'], { encoding: 'utf8' });
@@ -159,7 +160,8 @@ async function main() {
 
   // Then LOAD into Dataverse when a token is available. The whole point of --commit
   // is to make the field work, so be unmistakable about whether the table changed.
-  const token = process.env.DATAVERSE_TOKEN;
+  // Either name works (DATAVERSE_BEARER_TOKEN is what the stage-seed script + repo convention use).
+  const token = process.env.DATAVERSE_TOKEN ?? process.env.DATAVERSE_BEARER_TOKEN;
   if (!token) {
     banner([
       '⚠  Dataverse was NOT updated — the cr664_naicscodes table is still empty.',

@@ -39,6 +39,7 @@ Two equivalent options.
 ```powershell
 # from code-app/
 $env:DATAVERSE_BEARER_TOKEN = "<a Dataverse bearer token for this env>"
+# (DATAVERSE_TOKEN — the name the NAICS seed uses — is also accepted, so one token works for both.)
 # optional: $env:DATAVERSE_ENV_URL = "https://<org>.crm.dynamics.com"  (else resolved via `pac org who`)
 
 node scripts/seed-stage-references.mjs              # DRY-RUN — prints the full plan, writes nothing

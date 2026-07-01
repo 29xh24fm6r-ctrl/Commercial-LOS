@@ -64,6 +64,7 @@ final `STATUS:` line so you always know whether the table actually changed.
 ```powershell
 # Easy path — one command loads the table (env URL auto-resolved from `pac org who`):
 $env:DATAVERSE_TOKEN = "<a Web API bearer token for your environment>"
+# (DATAVERSE_BEARER_TOKEN — the name the stage seed uses — is also accepted, so one token works for both.)
 node scripts/seed-naics.mjs --commit
 #   → idempotent upsert by cr664_code (safe to re-run); STATUS: Dataverse LOADED.
 ```

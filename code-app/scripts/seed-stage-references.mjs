@@ -83,19 +83,24 @@ function parseArgs(argv) {
 }
 
 function resolveEnvUrl() {
-  const explicit = process.env[DV_ENV_URL_ENV_VAR];
+  // Accept either env-var name so a maker seeding NAICS + stages in one session isn't tripped by
+  // the two scripts historically using different names.
+  const explicit = process.env[DV_ENV_URL_ENV_VAR] ?? process.env.DATAVERSE_URL;
   if (explicit) return explicit.replace(/\/$/, '');
   const res = spawnSync('pac', ['org', 'who'], { encoding: 'utf8' });
   const out = (res.stdout ?? '') + (res.stderr ?? '');
-  const m = out.match(/(https:\/\/[^\s]+\.crm\.dynamics\.com)/);
+  // Region-robust (…crm.dynamics.com AND …crm4.dynamics.com etc.).
+  const m = out.match(/(https:\/\/[^\s]+\.crm\d*\.dynamics\.com)/i);
   if (m) return m[1].replace(/\/$/, '');
-  bail(`Could not resolve env URL via \`pac org who\`. Set ${DV_ENV_URL_ENV_VAR} explicitly.`);
+  bail(`Could not resolve env URL via \`pac org who\`. Set ${DV_ENV_URL_ENV_VAR} (or DATAVERSE_URL) explicitly.`);
   return '';
 }
 
 function requireToken() {
-  const token = process.env[DV_BEARER_TOKEN_ENV_VAR];
-  if (!token) bail(`Set ${DV_BEARER_TOKEN_ENV_VAR} (a Dataverse bearer token) for --commit / --verify.`);
+  // Either name works (DATAVERSE_BEARER_TOKEN is the repo convention; DATAVERSE_TOKEN is what the
+  // NAICS seed doc uses) — whichever the maker set is accepted.
+  const token = process.env[DV_BEARER_TOKEN_ENV_VAR] ?? process.env.DATAVERSE_TOKEN;
+  if (!token) bail(`Set ${DV_BEARER_TOKEN_ENV_VAR} (or DATAVERSE_TOKEN — either is accepted) for --commit / --verify.`);
   return token;
 }
 
