@@ -36,6 +36,7 @@ import {
   portfolioRiskCopilotSummaries,
 } from './portfolioRiskEngine';
 import { RiskConcentrationRadar } from './RiskConcentrationRadar';
+import { MigrationReconciliationPanel } from './reconciliation/BookReconciliationPanel';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
 import { useDrillThroughDeepLink } from '../shared/drillthrough/useDrillThroughDeepLink';
 import { portfolioKpiTargets } from './portfolioDrillThrough';
@@ -242,6 +243,12 @@ export function PortfolioCommandCenter() {
           <Exceptions rows={snapshot.exceptions} />
         </div>
       )}
+      {/* Phase PE-2 — migration reconciliation / book tie-out. Read-only over
+          the pure deriveMigrationReconciliation result; honest guidance state
+          until an operator records controls (needs the migration-control entity
+          + cr664_migrationbatchid provisioned). A migration is not complete
+          until it ties. */}
+      <MigrationReconciliationPanel />
       {/* Phase 259 — boarded portfolio loans (incl. manually-boarded existing
           loans) appear here. Boarding identity lives on the Loan Workflow
           workspace, so this surface is a read-only list + guidance. */}
