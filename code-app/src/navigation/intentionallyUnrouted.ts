@@ -214,8 +214,6 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/generated/services/Cr664_portfolioboardedloanevidencesService.ts', reason: 'Generated Dataverse service/model; reachable transitively once a consuming subsystem routes.', plannedPhase: 'Phase 3+' },
   { path: 'src/generated/services/Cr664_teamsService.ts', reason: 'Generated Dataverse service/model; reachable transitively once a consuming subsystem routes.', plannedPhase: 'Phase 3+' },
   { path: 'src/generated/services/Cr664_usersService.ts', reason: 'Generated Dataverse service/model; reachable transitively once a consuming subsystem routes.', plannedPhase: 'Phase 3+' },
-  { path: 'src/generated/models/Cr664_naicscodesModel.ts', reason: 'Generated Dataverse SDK model for NAICS reference table; registered ahead of routed CRM industry lookup wiring.', plannedPhase: 'Phase 3+' },
-  { path: 'src/generated/services/Cr664_naicscodesService.ts', reason: 'Generated Dataverse SDK service for NAICS reference table; registered ahead of routed CRM industry lookup wiring.', plannedPhase: 'Phase 3+' },
   // â”€â”€ src/integrations â”€â”€
   { path: 'src/integrations/IntegrationRequestPreviewPanel.tsx', reason: 'Integration registry routed at /surfaces/integrations; remaining external-platform/policy-gate panels are data-context-scoped (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/integrations/coreBanking/CoreBankingLookupPanel.tsx', reason: 'Integration registry routed at /surfaces/integrations; remaining external-platform/policy-gate panels are data-context-scoped (WIRE candidate).', plannedPhase: 'Phase 3+' },
@@ -374,4 +372,5 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
 export const INTENTIONALLY_UNROUTED_PATHS: ReadonlySet<string> = new Set(
   INTENTIONALLY_UNROUTED.map((m) => m.path),
 );
+
 
