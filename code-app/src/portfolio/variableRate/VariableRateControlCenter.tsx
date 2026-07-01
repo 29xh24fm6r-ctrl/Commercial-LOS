@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
 import { Badge } from '../../shared/Badge';
 import { formatPercent, formatDate } from '../../shared/formatters';
-import { loadBoardedLoans } from '../../portfolioBoarding/boardedLoansList';
+import { loadBoardedLoans, getExtendedColumnProvisioning } from '../../portfolioBoarding/boardedLoansList';
 import {
   RATE_INDEX_TYPES,
   buildRateIndexBook,
@@ -70,6 +70,7 @@ async function liveLoadLoans(): Promise<readonly VariableRateLoanInput[]> {
 
 export function VariableRateControlCenter({ loadLoans = liveLoadLoans, now: nowOverride }: Props = {}) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
+  const [extendedUnprovisioned, setExtendedUnprovisioned] = useState(false);
   const [entries, setEntries] = useState<Record<RateIndexType, IndexEntry>>(() =>
     Object.fromEntries(RATE_INDEX_TYPES.map((t) => [t, { value: '', effectiveDate: '', source: '' }])) as Record<RateIndexType, IndexEntry>,
   );
@@ -79,7 +80,9 @@ export function VariableRateControlCenter({ loadLoans = liveLoadLoans, now: nowO
     setState({ kind: 'loading' });
     loadLoans()
       .then((loans) => {
-        if (!cancelled) setState({ kind: 'ready', loans });
+        if (cancelled) return;
+        setState({ kind: 'ready', loans });
+        setExtendedUnprovisioned(getExtendedColumnProvisioning() === 'absent');
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -126,6 +129,14 @@ export function VariableRateControlCenter({ loadLoans = liveLoadLoans, now: nowO
         </div>
         <Badge variant="info" appearance="outline">{rows.length} variable loan{rows.length === 1 ? '' : 's'}</Badge>
       </header>
+
+      {extendedUnprovisioned && (
+        <div style={styles.note} role="note" data-extended-attrs-unprovisioned>
+          Extended attributes not provisioned — showing core fields. Note rate, reset dates, and reset
+          frequency are not persisted, so those reset alerts re-derive only from this session's entries
+          until the operator provisions the extended-attributes column.
+        </div>
+      )}
 
       {/* Operator-entered current index values (no live feed; no fabricated rates) */}
       <div style={styles.indexPanel} data-variable-rate-index-panel>
@@ -281,6 +292,7 @@ const styles: Record<string, CSSProperties> = {
   alertItem: { fontSize: typography.size.sm, color: palette.text, lineHeight: typography.lineHeight.snug },
   muted: { color: palette.textMuted, fontSize: typography.size.sm, fontStyle: 'italic', padding: `${spacing.md} 0` },
   failNote: { background: palette.surfaceAlt, border: `1px solid ${palette.borderStrong}`, borderRadius: radius.sm, padding: `${spacing.sm} ${spacing.md}`, color: palette.text, fontSize: typography.size.sm },
+  note: { background: palette.surfaceAlt, border: `1px solid ${palette.borderStrong}`, borderRadius: radius.sm, padding: `${spacing.sm} ${spacing.md}`, color: palette.text, fontSize: typography.size.sm },
   empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing.xs, textAlign: 'center', padding: `${spacing.xxl} ${spacing.xl}`, background: palette.surface, border: `1px dashed ${palette.border}`, borderRadius: radius.md },
   emptyMark: { fontSize: 34, color: palette.textSubtle },
   emptyHeading: { fontSize: typography.size.lg, fontWeight: typography.weight.bold, color: palette.text },
