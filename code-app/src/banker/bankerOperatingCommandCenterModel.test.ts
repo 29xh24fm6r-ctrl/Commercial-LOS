@@ -35,6 +35,14 @@ describe('Phase 232 — Banker Operating Command Center model', () => {
     expect(byId.get('borrower-communications')?.state).toBe('gated');
     expect(byId.get('crm-writeback')?.state).toBe('gated');
     expect(byId.get('portfolio-handoff')?.state).toBe('gated');
+
+    // F5 relabel: the crm-writeback pill names the AUTOMATED writeback domain (its
+    // `state` stays coupled to the flag for cross-panel coherence), and no longer
+    // shows a bare "Read-only"; the summary makes clear manual CRM writes are live.
+    const crmWb = byId.get('crm-writeback')!;
+    expect(crmWb.label).toBe('CRM automated writeback');
+    expect(crmWb.value).not.toContain('Read-only');
+    expect(crmWb.summary.toLowerCase()).toContain('manual');
     // New Deal create stays gated by its global constant.
     expect(byId.get('new-deal')?.state).toBe('gated');
   });

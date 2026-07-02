@@ -10,6 +10,11 @@ import {
 } from './crmWorkspaceData';
 import { CrmWriteActions, type CrmOption } from './CrmWriteActions';
 import type { CrmWriteFns } from '../write/crmWriteActions';
+import {
+  loadLinkedDealsForOrganization,
+  type LinkedDealsLoader,
+  type LinkedDealsResult,
+} from './crmLinkedDeals';
 
 /**
  * Phase 260 — Relationship CRM (elite CRM cockpit).
@@ -31,6 +36,8 @@ interface Props {
   writeDisabledReason?: string;
   /** Injected for tests; defaults to the live governed writes. */
   writeFns?: CrmWriteFns;
+  /** Record-scoped linked-deals reader (F4); defaults to the live read. */
+  loadLinkedDeals?: LinkedDealsLoader;
 }
 
 type LoadState =
@@ -68,6 +75,7 @@ export function CrmHubWorkspace({
   actorSystemUserId,
   writeDisabledReason,
   writeFns,
+  loadLinkedDeals = loadLinkedDealsForOrganization,
 }: Props = {}) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [view, setView] = useState<CrmView>('companies');
@@ -79,6 +87,7 @@ export function CrmHubWorkspace({
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reload control intentionally returns the workspace to loading.
     setState({ kind: 'loading' });
     loadData()
       .then((data) => {
@@ -255,6 +264,7 @@ export function CrmHubWorkspace({
           data={state.kind === 'ready' ? state.data : undefined}
           actor={{ actorEmail, actorSystemUserId, authorized, writeDisabledReason }}
           writeFns={writeFns}
+          loadLinkedDeals={loadLinkedDeals}
           onWritten={() => setReloadNonce((n) => n + 1)}
           onClose={() => setSelected(undefined)}
         />
@@ -358,6 +368,7 @@ function DetailDrawer({
   data,
   actor,
   writeFns,
+  loadLinkedDeals,
   onWritten,
   onClose,
 }: {
@@ -367,6 +378,7 @@ function DetailDrawer({
   data: CrmWorkspaceData | undefined;
   actor: { actorEmail?: string; actorSystemUserId?: string; authorized: boolean; writeDisabledReason?: string };
   writeFns?: CrmWriteFns;
+  loadLinkedDeals: LinkedDealsLoader;
   onWritten: () => void;
   onClose: () => void;
 }) {
@@ -375,6 +387,25 @@ function DetailDrawer({
     const r = data[key];
     return r.status === 'ready' ? r.records : [];
   };
+
+  // F4 — linked deals are a record-scoped read (deals aren't in the workspace load).
+  const [linkedDeals, setLinkedDeals] = useState<LinkedDealsResult | undefined>(undefined);
+  useEffect(() => {
+    if (!isOrganization) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Record changes must clear stale linked-deal rows before the scoped read returns.
+    setLinkedDeals(undefined);
+    loadLinkedDeals(record.id)
+      .then((r) => {
+        if (!cancelled) setLinkedDeals(r);
+      })
+      .catch(() => {
+        if (!cancelled) setLinkedDeals({ status: 'unavailable', reason: 'Linked deals are not available for this record yet.' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOrganization, record.id, loadLinkedDeals]);
   // Related records for a company — filtered from the ALREADY-LOADED workspace data
   // (no new reads): people by employer org; timeline events by linked org, split
   // into activities vs follow-up tasks by event type.
@@ -431,7 +462,24 @@ function DetailDrawer({
       )}
 
       <DrawerSection title="Linked deals">
-        <div style={styles.drawerMuted}>Deal links appear once deals are associated with this company.</div>
+        {!isOrganization ? (
+          <div style={styles.drawerMuted}>Linked deals appear on a company record.</div>
+        ) : linkedDeals === undefined ? (
+          <div style={styles.drawerMuted}>Loading linked deals…</div>
+        ) : linkedDeals.status === 'unavailable' ? (
+          <div style={styles.drawerMuted}>{linkedDeals.reason}</div>
+        ) : linkedDeals.deals.length === 0 ? (
+          <div style={styles.drawerMuted}>No deals are linked to this company yet.</div>
+        ) : (
+          <ul style={styles.relatedList} data-crm-related="deal">
+            {linkedDeals.deals.map((d) => (
+              <li key={d.id} style={styles.relatedItem} data-crm-related-item={d.id}>
+                <span style={styles.relatedTitle}>{d.name}</span>
+                <span style={styles.relatedSub}>{[d.stage, d.status, d.amount].filter(Boolean).join(' · ') || '—'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </DrawerSection>
 
       <DrawerSection title="Contacts">

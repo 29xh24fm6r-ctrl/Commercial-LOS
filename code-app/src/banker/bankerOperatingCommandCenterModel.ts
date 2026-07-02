@@ -107,12 +107,19 @@ export function deriveBankerOperatingCommandCenterModel(): BankerOperatingComman
     },
     {
       id: 'crm-writeback',
-      label: 'CRM records',
+      // This pill tracks the AUTOMATED CRM persistence/writeback domain (the
+      // CRM_LIVE_PERSISTENCE_ENABLED flag) — the same domain the launch authority
+      // governs, so its `state` stays coupled to the flag (the coherence guard
+      // compares state, not label). The label/summary are relabelled so bankers no
+      // longer read a bare "Read-only" and think the whole CRM is dead: manual,
+      // identity-gated CRM writes (create/update company, contact, activity,
+      // follow-up) are LIVE and governed, independent of this automated gate.
+      label: 'CRM automated writeback',
       state: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'operational' : 'gated',
-      value: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'Active' : 'Read-only',
+      value: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'CRM automation live' : 'CRM automation paused',
       summary:
-        'CRM is active and relationship records are available; the bank’s CRM is the relationship system of record.',
-      nextAction: 'Use CRM relationship records in your daily work.',
+        'Automated CRM persistence (system/bulk writeback) is gated. Authorized bankers still create and update companies, contacts, activities, and follow-ups through the governed manual path (verified + audited) — that CRM is live and is the relationship system of record.',
+      nextAction: 'Add and update relationship records in the CRM workspace; automated writeback stays gated until certified.',
     },
     {
       id: 'portfolio-handoff',
