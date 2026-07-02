@@ -51,9 +51,12 @@ describe('Phase 258 — CRM domain mappers', () => {
       cr664_firstname: 'Dana',
       cr664_lastname: 'Banker',
       cr664_title: 'CFO',
+      _cr664_employerorganization_value: 'org-9',
     } as never);
     expect(r.title).toBe('Dana Banker');
     expect(r.subtitle).toBe('CFO');
+    // Employer-org FK is threaded through for drawer filtering (no new reads).
+    expect(r.organizationId).toBe('org-9');
   });
 
   it('maps a relationship with an Active badge', () => {
@@ -84,8 +87,14 @@ describe('Phase 258 — CRM domain mappers', () => {
       cr664_eventtype: 'Note added',
       cr664_summary: 'Called borrower',
       cr664_occurredat: '2026-06-20T10:00:00Z',
+      _cr664_organization_value: 'org-9',
+      _cr664_person_value: 'per-3',
     } as never);
     expect(r.title).toBe('Note added');
     expect(r.occurredAt).toBe('2026-06-20T10:00:00Z');
+    // Org/person FKs + event type threaded through for drawer filtering + activity/task split.
+    expect(r.organizationId).toBe('org-9');
+    expect(r.personId).toBe('per-3');
+    expect(r.eventType).toBe('Note added');
   });
 });
