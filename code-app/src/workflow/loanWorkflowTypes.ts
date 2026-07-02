@@ -2,19 +2,18 @@ import type { CreditMemoData } from '../deals/creditMemoQueries';
 import type { DealDocumentsResult } from '../deals/dealDocumentQueries';
 import type { DealDetail } from '../deals/dealQueries';
 import type { DealTasksResult } from '../deals/dealTaskQueries';
+import type { CanonicalStageCode } from './stageOrderingContract';
 
-export type LoanWorkflowStageId =
-  | 'opportunity_intake'
-  | 'qualification'
-  | 'application'
-  | 'document_collection'
-  | 'underwriting'
-  | 'credit_memo'
-  | 'credit_review'
-  | 'approval'
-  | 'closing'
-  | 'booking'
-  | 'post_close_monitoring';
+/**
+ * Stage-vocabulary reconciliation (2026-07): the loan workflow spine now speaks the
+ * ONE canonical vocabulary — the ratified seven `CanonicalStageCode`s
+ * (INTAKE … BOARDED) that key the live `cr664_dealstagereferences` table. This
+ * replaces the retired legacy 11-stage Opportunity/Qualification ids so a stored
+ * `deal.stage` (a canonical `cr664_StageReference` name) resolves correctly AND a
+ * future governed stage-advance write can resolve its target stage reference bind
+ * without fabricating a legacy→canonical map.
+ */
+export type LoanWorkflowStageId = CanonicalStageCode;
 
 export type LoanWorkflowRequirementType =
   | 'field'

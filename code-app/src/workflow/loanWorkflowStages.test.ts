@@ -3,18 +3,15 @@ import { LOAN_WORKFLOW_STAGES } from './loanWorkflowStages';
 
 describe('loan workflow stage catalog', () => {
   it('defines every OGB commercial lifecycle stage with rules', () => {
+    // Reconciled to the ONE canonical vocabulary (the ratified seven).
     expect(LOAN_WORKFLOW_STAGES.map((stage) => stage.id)).toEqual([
-      'opportunity_intake',
-      'qualification',
-      'application',
-      'document_collection',
-      'underwriting',
-      'credit_memo',
-      'credit_review',
-      'approval',
-      'closing',
-      'booking',
-      'post_close_monitoring',
+      'INTAKE',
+      'UNDERWRITING',
+      'CREDIT_APPROVAL',
+      'COMMITMENT',
+      'DOCUMENTATION',
+      'CLOSING_FUNDING',
+      'BOARDED',
     ]);
 
     for (const stage of LOAN_WORKFLOW_STAGES) {
@@ -22,7 +19,8 @@ describe('loan workflow stage catalog', () => {
       expect(stage.entryCriteria.length).toBeGreaterThan(0);
       expect(stage.exitCriteria.length).toBeGreaterThan(0);
       expect(stage.blockerRules.length).toBeGreaterThan(0);
-      if (stage.id !== 'post_close_monitoring') {
+      // BOARDED is terminal (servicing); every prior stage advances.
+      if (stage.id !== 'BOARDED') {
         expect(stage.allowedNextStages.length).toBeGreaterThan(0);
       }
     }

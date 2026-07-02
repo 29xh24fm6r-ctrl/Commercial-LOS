@@ -6,14 +6,14 @@ describe('workflow generation actions', () => {
   it('fails closed for checklist generation when no governed dependency is wired', async () => {
     const result = await generateWorkflowChecklist({
       authorized: true,
-      template: getLoanWorkflowTemplate('application'),
+      template: getLoanWorkflowTemplate('INTAKE'),
       existingNames: [],
     });
     expect(result.kind).toBe('dependency_not_ready');
   });
 
   it('skips duplicate checklist rows idempotently', async () => {
-    const template = getLoanWorkflowTemplate('application');
+    const template = getLoanWorkflowTemplate('INTAKE');
     const result = await generateWorkflowChecklist({
       authorized: true,
       template,
@@ -25,7 +25,7 @@ describe('workflow generation actions', () => {
   it('blocks unauthorized task generation', async () => {
     const result = await generateWorkflowTasks({
       authorized: false,
-      template: getLoanWorkflowTemplate('underwriting'),
+      template: getLoanWorkflowTemplate('UNDERWRITING'),
       existingNames: [],
     });
     expect(result.kind).toBe('unauthorized');
