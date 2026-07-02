@@ -37,7 +37,7 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     // Completion Phase A: the live checklist generation gate is reset to its safe default (off);
     // the signoff is environment evidence only and flips no live gate.
     expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(CHECKLIST_WRITE_ENABLED).toBe(true);
+    expect(CHECKLIST_WRITE_ENABLED).toBe(false);
     expect(vm.gateFlipBlocked).toBe(true);
     // The signoff is grounded in a real committed artifact, not fabricated.
     expect(existsSync(resolve(ROOT, CHECKLIST_SIGNOFF_ARTIFACT_PATH))).toBe(true);
