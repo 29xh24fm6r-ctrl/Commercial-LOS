@@ -258,6 +258,7 @@ const RULES: readonly CopyRule[] = [
       'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md',
       'docs/RELEASE_NOTES_PHASES_1_40.md',
       'docs/STABILIZATION_CHECKLIST.md',
+      'src/deals/DealStageProgressionCard.tsx',
     ],
     allowedFileReasons: {
       'src/shared/governance/platformInventory.ts':
@@ -278,6 +279,11 @@ const RULES: readonly CopyRule[] = [
         'Phase 28 narrative explains why progression is blocked.',
       'docs/STABILIZATION_CHECKLIST.md':
         'Governance assertion that progression remains blocked.',
+      'src/deals/DealStageProgressionCard.tsx':
+        'FA-A1 gated Advance-stage control: the "Advance stage" label renders ONLY when the ' +
+        'stage domain is armed (AUTO_STAGE_ADVANCE_ENABLED, default-off) AND seeded AND a banker ' +
+        'actor is present. While off (the current state) it never renders, so it never implies ' +
+        'the write is available; the seam still refuses with `disabled` until armed.',
     },
   },
 ];
