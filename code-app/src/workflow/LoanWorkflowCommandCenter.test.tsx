@@ -20,7 +20,7 @@ const deal: DealDetail = {
   id: 'deal-1',
   name: 'Acme Expansion',
   clientName: 'Acme',
-  stage: 'Application',
+  stage: 'Intake',
   status: 'Active',
   amount: 2_000_000,
   bankerName: 'Banker',
@@ -59,8 +59,8 @@ describe('LoanWorkflowCommandCenter', () => {
     render(<LoanWorkflowCommandCenter />);
 
     expect(screen.getByText('Loan Workflow Command Center')).toBeInTheDocument();
-    expect(screen.getByText('Application')).toBeInTheDocument();
-    expect(screen.getAllByText(/Document collection/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Intake')).toBeInTheDocument();
+    expect(screen.getAllByText(/Underwriting/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Missing document: Loan application/).length).toBeGreaterThan(0);
   });
 

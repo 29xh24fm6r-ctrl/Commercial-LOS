@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useDealData } from './DealDataProvider';
 import {
   deriveStageProgressionEligibility,
@@ -5,6 +6,12 @@ import {
   type ProgressionEligibilityStatus,
 } from './stageProgressionGuard';
 import { stageProgressionAvailability } from '../shared/governance/stageProgressionAvailability';
+import { deriveLoanWorkflowState } from '../workflow/deriveLoanWorkflowState';
+import { advanceWorkflowStage, type StageAdvanceOutcome } from '../workflow/stageAdvanceWriteDependency';
+import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
+import { isAutoStageAdvanceEnabled } from './dealOriginationFeatureFlags';
+import { newCorrelationId } from '../shared/governance/correlationId';
+import type { LoanWorkflowStageId, LoanWorkflowState } from '../workflow/loanWorkflowTypes';
 import { CANONICAL_STAGES, recognizeCanonicalStage } from '../workflow/stageOrderingContract';
 import { Card, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
@@ -27,7 +34,14 @@ import {
  * no Move Stage, no Submit, no Approve. The card is decision support,
  * not a control surface.
  */
-export function DealStageProgressionCard() {
+export interface StageAdvanceActor {
+  readonly systemUserId: string | undefined;
+  readonly email: string | undefined;
+}
+
+export function DealStageProgressionCard({
+  stageAdvanceActor,
+}: { stageAdvanceActor?: StageAdvanceActor } = {}) {
   const { deal, tasks, documents, creditMemo, activity } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
@@ -42,11 +56,18 @@ export function DealStageProgressionCard() {
     activity: activityData,
   });
 
-  // Phase 28: the Advance Stage write is intentionally not shipped
-  // because the schema does not expose a deterministic next-stage
-  // ordering. See src/shared/governance/stageProgressionAvailability.ts
-  // for the full audit and the future-extension contract.
+  // Phase FA-A1 (stage vocabulary reconciled to the canonical seven): the
+  // canonical card can now perform a GOVERNED, audited stage advance — but only
+  // for an authorized banker-context actor, only once the stage domain is ARMED
+  // (AUTO_STAGE_ADVANCE_ENABLED) AND the stage reference table is seeded
+  // (availability). Default-off → the control is hidden and inert; the
+  // advanceWorkflowStage seam refuses with `disabled` until armed. Manager/team
+  // workspaces pass no actor, so the card stays read-only there.
   const availability = stageProgressionAvailability();
+  const canAdvance =
+    Boolean(stageAdvanceActor?.systemUserId) &&
+    isAutoStageAdvanceEnabled() &&
+    availability.available;
 
   const sev = statusToSeverity(eligibility.status);
   const accent = severityPalette[sev].bar;
@@ -89,11 +110,24 @@ export function DealStageProgressionCard() {
         </div>
       )}
 
+      {canAdvance && (
+        <StageAdvanceControl
+          workflow={deriveLoanWorkflowState({
+            deal,
+            tasks: tasksData,
+            documents: documentsData,
+            creditMemo: creditMemoData,
+          })}
+          dealId={deal.id}
+          actor={stageAdvanceActor!}
+        />
+      )}
+
       <CardFooter>
         <span>
           Derived from authorized deal, task, document, credit-memo, and activity records.
         </span>
-        <span>Decision support only — no stage update is performed by this card.</span>
+        <span>Any stage advance is governed: authorized banker + armed + seeded, policy-checked, and audited.</span>
       </CardFooter>
     </Card>
   );
@@ -273,7 +307,130 @@ function statusLabel(s: ProgressionEligibilityStatus): string {
   return 'Appears clear';
 }
 
+/**
+ * Governed stage-advance control (Phase FA-A1). Rendered only when the stage
+ * domain is armed + seeded and a banker-context actor is present. Every click
+ * runs the fail-closed advanceWorkflowStage seam (policy guard → live transport
+ * → audit → timeline); AUTO_STAGE_ADVANCE_ENABLED gates the actual write, so
+ * this is inert until an operator arms it.
+ */
+function StageAdvanceControl({
+  workflow,
+  dealId,
+  actor,
+}: {
+  workflow: LoanWorkflowState;
+  dealId: string;
+  actor: StageAdvanceActor;
+}) {
+  const [state, setState] = useState<
+    { kind: 'idle' } | { kind: 'saving' } | { kind: 'done'; outcome: StageAdvanceOutcome }
+  >({ kind: 'idle' });
+
+  async function onAdvance(nextStageId: LoanWorkflowStageId) {
+    setState({ kind: 'saving' });
+    const deps = buildLiveStageAdvanceDeps({
+      actorSystemUserId: actor.systemUserId ?? '',
+      actorEmail: actor.email,
+    });
+    const outcome = await advanceWorkflowStage({
+      authorized: Boolean(actor.systemUserId),
+      dealId,
+      correlationId: newCorrelationId('sa'),
+      entryDateIso: new Date().toISOString(),
+      workflow,
+      requestedNextStageId: nextStageId,
+      transport: deps.transport,
+      auditSink: deps.auditSink,
+      timelineSink: deps.timelineSink,
+    });
+    setState({ kind: 'done', outcome });
+  }
+
+  if (workflow.nextPermittedStages.length === 0) return null;
+  const saving = state.kind === 'saving';
+
+  return (
+    <div style={styles.advanceBox} data-stage-advance="control">
+      <div style={styles.advanceLabel}>Advance stage</div>
+      <div style={styles.advanceButtons}>
+        {workflow.nextPermittedStages.map((stage) => (
+          <button
+            key={stage.id}
+            type="button"
+            disabled={saving}
+            style={{ ...styles.advanceButton, ...(saving ? styles.advanceButtonDisabled : null) }}
+            data-stage-advance-target={stage.id}
+            onClick={() => void onAdvance(stage.id)}
+          >
+            {`Advance to ${stage.label}`}
+          </button>
+        ))}
+      </div>
+      {state.kind === 'done' && (
+        <p style={styles.advanceStatus} role="status" data-stage-advance-outcome={state.outcome.kind}>
+          {describeStageAdvanceOutcome(state.outcome)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function describeStageAdvanceOutcome(outcome: StageAdvanceOutcome): string {
+  switch (outcome.kind) {
+    case 'advanced':
+      return `Stage advanced to ${outcome.to}.`;
+    case 'disabled':
+      return 'Stage advancement is not enabled yet; no change was made to the deal.';
+    case 'blocked':
+      return `Blocked: ${outcome.reason}`;
+    case 'unauthorized':
+    case 'dependency_not_ready':
+      return outcome.detail;
+    case 'update_failed':
+      return `Stage update failed: ${outcome.detail}`;
+    case 'audit_failed_partial_success':
+    case 'timeline_failed_partial_success':
+      return outcome.detail;
+    default:
+      return 'Stage advance did not complete.';
+  }
+}
+
 const styles: Record<string, React.CSSProperties> = {
+  advanceBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.xs,
+    padding: `${spacing.sm} ${spacing.md}`,
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+  },
+  advanceLabel: {
+    fontSize: typography.size.xs,
+    textTransform: 'uppercase',
+    letterSpacing: typography.letterSpacing.label,
+    fontWeight: typography.weight.semibold,
+    color: palette.textMuted,
+  },
+  advanceButtons: { display: 'flex', flexWrap: 'wrap', gap: spacing.xs },
+  advanceButton: {
+    border: `1px solid ${palette.borderStrong}`,
+    borderRadius: radius.sm,
+    background: palette.primary,
+    color: palette.primaryFg,
+    padding: `${spacing.xs} ${spacing.sm}`,
+    fontWeight: typography.weight.semibold,
+    fontSize: typography.size.sm,
+    cursor: 'pointer',
+  },
+  advanceButtonDisabled: {
+    background: palette.surfaceAlt,
+    color: palette.textSubtle,
+    cursor: 'not-allowed',
+  },
+  advanceStatus: { margin: 0, fontSize: typography.size.sm, color: palette.textMuted },
   cleanMessage: {
     margin: 0,
     color: palette.textMuted,

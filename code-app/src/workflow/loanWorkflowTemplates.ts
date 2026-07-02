@@ -9,17 +9,13 @@ export interface LoanWorkflowTemplate {
 
 export const LOAN_WORKFLOW_TEMPLATES: readonly LoanWorkflowTemplate[] =
   Object.freeze([
-    'opportunity_intake',
-    'qualification',
-    'application',
-    'document_collection',
-    'underwriting',
-    'credit_memo',
-    'credit_review',
-    'approval',
-    'closing',
-    'booking',
-    'post_close_monitoring',
+    'INTAKE',
+    'UNDERWRITING',
+    'CREDIT_APPROVAL',
+    'COMMITMENT',
+    'DOCUMENTATION',
+    'CLOSING_FUNDING',
+    'BOARDED',
   ].map((stageId) => {
     const stage = getLoanWorkflowStage(stageId as LoanWorkflowStageId);
     return {

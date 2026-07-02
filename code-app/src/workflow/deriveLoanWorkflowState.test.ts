@@ -9,7 +9,7 @@ const deal: DealDetail = {
   id: 'deal-1',
   name: 'Acme Expansion',
   clientName: 'Acme',
-  stage: 'Credit memo',
+  stage: 'Credit Approval',
   status: 'Active',
   amount: 2_000_000,
   bankerName: 'Banker',
@@ -41,8 +41,8 @@ describe('deriveLoanWorkflowState', () => {
       creditMemo: emptyMemo,
     });
 
-    expect(state.currentStage.id).toBe('credit_memo');
-    expect(state.nextPermittedStages.map((stage) => stage.id)).toEqual(['credit_review']);
+    expect(state.currentStage.id).toBe('CREDIT_APPROVAL');
+    expect(state.nextPermittedStages.map((stage) => stage.id)).toEqual(['COMMITMENT']);
     expect(state.readiness.status).toBe('blocked');
     expect(state.readiness.blockers.map((blocker) => blocker.label).join(' ')).toMatch(/Credit memo/);
     expect(state.readiness.missingTasks.map((task) => task.label)).toContain('Credit memo package review');
@@ -50,7 +50,7 @@ describe('deriveLoanWorkflowState', () => {
 
   it('labels unavailable inputs honestly instead of treating them as complete', () => {
     const state = deriveLoanWorkflowState({
-      deal: { ...deal, stage: 'Document collection' },
+      deal: { ...deal, stage: 'Underwriting' },
       tasksUnavailable: true,
       documentsUnavailable: true,
       creditMemoUnavailable: true,

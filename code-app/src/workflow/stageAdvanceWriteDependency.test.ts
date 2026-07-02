@@ -6,8 +6,8 @@ import type { LoanWorkflowState } from './loanWorkflowTypes';
 /** Minimal workflow state the stage policy reads (cast to the full type for the test). */
 function workflow(over: { status?: 'blocked' | 'at-risk' | 'clear'; nextIds?: string[]; blockers?: string[] } = {}): LoanWorkflowState {
   return {
-    currentStage: { id: 'application' },
-    nextPermittedStages: (over.nextIds ?? ['underwriting']).map((id) => ({ id })),
+    currentStage: { id: 'INTAKE' },
+    nextPermittedStages: (over.nextIds ?? ['UNDERWRITING']).map((id) => ({ id })),
     readiness: {
       status: over.status ?? 'clear',
       blockers: (over.blockers ?? []).map((label) => ({ label })),
@@ -23,7 +23,7 @@ function input(over: Partial<StageAdvanceInput> = {}): StageAdvanceInput {
     correlationId: 'corr-1',
     entryDateIso: '2026-06-24T00:00:00Z',
     workflow: workflow(),
-    requestedNextStageId: 'underwriting',
+    requestedNextStageId: 'UNDERWRITING',
     transport: { updateDealStage: vi.fn(async () => ({ ok: true })) },
     auditSink: { write: vi.fn(async () => ({ ok: true })) },
     timelineSink: { write: vi.fn(async () => ({ ok: true })) },
@@ -54,7 +54,7 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
   });
 
   it('no approved next stage prevents the write', async () => {
-    const out = await advanceWorkflowStage(input({ requestedNextStageId: 'closing', workflow: workflow({ nextIds: ['underwriting'] }) }));
+    const out = await advanceWorkflowStage(input({ requestedNextStageId: 'CLOSING_FUNDING', workflow: workflow({ nextIds: ['UNDERWRITING'] }) }));
     expect(out.kind).toBe('blocked');
   });
 
@@ -64,7 +64,7 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
     const timeline = vi.fn(async () => ({ ok: true }));
     const out = await advanceWorkflowStage(input({ transport: { updateDealStage: upd }, auditSink: { write: audit }, timelineSink: { write: timeline } }));
     expect(out.kind).toBe('advanced');
-    if (out.kind === 'advanced') { expect(out.from).toBe('application'); expect(out.to).toBe('underwriting'); }
+    if (out.kind === 'advanced') { expect(out.from).toBe('INTAKE'); expect(out.to).toBe('UNDERWRITING'); }
     expect(upd).toHaveBeenCalledTimes(1);
     expect(audit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'advanced' }));
     expect(timeline).toHaveBeenCalledTimes(1);

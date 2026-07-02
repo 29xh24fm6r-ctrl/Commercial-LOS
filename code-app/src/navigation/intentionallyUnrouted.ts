@@ -351,7 +351,6 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/workflow/deriveWorkflowRoute.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/workflow/deriveWorkflowRoutingReadiness.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/workflow/deriveWorkflowStageSequence.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/workflow/stageAdvanceWriteDependency.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/workflow/workflowRouteRuleRegistry.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/workflow/workflowRoutingConfigTypes.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
   // Stage Advancement engine + control: built and tested, but the live stage-progression domain is
@@ -369,7 +368,6 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/workflow/GenerateWorkflowChecklistButton.tsx', reason: 'Governed checklist-generation action; previously hosted by the retired command center, re-hosted once its domain is armed (WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/GenerateWorkflowTasksButton.tsx', reason: 'Governed task-generation action; previously hosted by the retired command center, re-hosted once its domain is armed (WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/workflowGenerationActions.ts', reason: 'Governed workflow generation actions (checklist/tasks) behind the retired command center; re-hosted once armed (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
-  { path: 'src/workflow/stageTransitionPolicy.ts', reason: 'Stage transition policy consumed by the retired command center actions; reachable once a governed stage control is hosted (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/loanWorkflowTemplates.ts', reason: 'Legacy 11-stage workflow templates behind the retired command center; DELETE candidate once the Opportunity/Qualification spine is fully removed (follow-up).', plannedPhase: 'Follow-up' },
   // â”€â”€ src/workspaces â”€â”€
   { path: 'src/workspaces/WorkspaceShell.tsx', reason: 'Workspace shell sub-surface not yet routed.', plannedPhase: 'Phase 3+' },
