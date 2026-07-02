@@ -9,7 +9,7 @@ import { stageProgressionAvailability } from '../shared/governance/stageProgress
 import { deriveLoanWorkflowState } from '../workflow/deriveLoanWorkflowState';
 import { advanceWorkflowStage, type StageAdvanceOutcome } from '../workflow/stageAdvanceWriteDependency';
 import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
-import { isAutoStageAdvanceEnabled } from './dealOriginationFeatureFlags';
+import { AUTO_STAGE_ADVANCE_ENABLED } from './dealOriginationFeatureFlags';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import type { LoanWorkflowStageId, LoanWorkflowState } from '../workflow/loanWorkflowTypes';
 import { CANONICAL_STAGES, recognizeCanonicalStage } from '../workflow/stageOrderingContract';
@@ -64,9 +64,12 @@ export function DealStageProgressionCard({
   // advanceWorkflowStage seam refuses with `disabled` until armed. Manager/team
   // workspaces pass no actor, so the card stays read-only there.
   const availability = stageProgressionAvailability();
+  // Armed reads the same raw gate the write seam uses (advanceWorkflowStage:
+  // `enabled ?? Boolean(AUTO_STAGE_ADVANCE_ENABLED)`), so flipping the constant
+  // arms the card and the write together — no separate config plumbing.
   const canAdvance =
     Boolean(stageAdvanceActor?.systemUserId) &&
-    isAutoStageAdvanceEnabled() &&
+    Boolean(AUTO_STAGE_ADVANCE_ENABLED) &&
     availability.available;
 
   const sev = statusToSeverity(eligibility.status);
