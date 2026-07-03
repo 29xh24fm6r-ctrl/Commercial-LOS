@@ -40,9 +40,13 @@ export interface BoardedLoanRow {
   readonly originalCommitment?: number | undefined;
   readonly bookingDate?: string | undefined;
   readonly closingDate?: string | undefined;
+  // Sourced from child entities (cr664_portfolioboardedloancollateral / …guarantor),
+  // NOT the main boarded-loan row — see WI-6 (deferred). The main getAll never
+  // populates them; they stay undefined until the child read lands.
   readonly collateralType?: string | undefined;
   readonly lienPosition?: string | undefined;
   readonly guaranteeAmount?: number | undefined;
+  /** Portfolio-manager display name (from the cr664_PortfolioManager lookup). */
   readonly portfolioManager?: string | undefined;
   /** Phase 2 — persisted extended attributes (note rate / reset terms / product / officer …). */
   readonly extended?: ExtendedLoanAttributes | null;
@@ -66,14 +70,38 @@ interface RawBoardedLoan {
   cr664_pastduedays?: number;
   cr664_accrualstatus?: string;
   cr664_nextreviewdate?: string;
-  cr664_originalcommitment?: number;
+  cr664_originalcommitmentamount?: number;
   cr664_bookingdate?: string;
   cr664_closingdate?: string;
-  cr664_collateraltype?: string;
-  cr664_lienposition?: string;
-  cr664_guaranteeamount?: number;
-  cr664_portfoliomanager?: string;
+  // cr664_PortfolioManager is a systemuser LOOKUP: the id is read via
+  // `_cr664_portfoliomanager_value` and the display name via that value's
+  // `@OData.Community.Display.V1.FormattedValue` annotation. The raw
+  // `cr664_portfoliomanager` navigation property is NOT selectable (a $select
+  // on it throws Dataverse 0x80060888). `cr664_portfoliomanagername` is a
+  // read-only denormalized shadow the live SDK leaves unpopulated.
+  _cr664_portfoliomanager_value?: string;
+  cr664_portfoliomanagername?: string;
   cr664_extendedloanattributes?: string;
+}
+
+const PORTFOLIO_MANAGER_VALUE_COLUMN = '_cr664_portfoliomanager_value';
+
+/**
+ * Portfolio-manager display name. Mirrors the deal/team read models: the
+ * authoritative label for a lookup lives on the `_<lookup>_value`
+ * `@OData.Community.Display.V1.FormattedValue` annotation (the live SDK does
+ * not populate the `<lookup>name` shadow field). Falls back to that shadow
+ * field, then the raw GUID, so a name shows in "Exposure by manager" rather
+ * than "Unassigned" whenever a manager is set.
+ */
+function portfolioManagerName(r: RawBoardedLoan): string | undefined {
+  const raw = r as unknown as Record<string, unknown>;
+  const formatted = raw[`${PORTFOLIO_MANAGER_VALUE_COLUMN}@OData.Community.Display.V1.FormattedValue`];
+  return (
+    (typeof formatted === 'string' && formatted.trim().length > 0 ? formatted.trim() : undefined) ??
+    str(r.cr664_portfoliomanagername) ??
+    str(r._cr664_portfoliomanager_value)
+  );
 }
 
 function str(v: unknown): string | undefined {
@@ -105,20 +133,28 @@ export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
     pastDueDays: numOrNull(r.cr664_pastduedays) ?? undefined,
     accrualStatus: str(r.cr664_accrualstatus),
     nextReviewDate: str(r.cr664_nextreviewdate),
-    originalCommitment: numOrNull(r.cr664_originalcommitment) ?? undefined,
+    originalCommitment: numOrNull(r.cr664_originalcommitmentamount) ?? undefined,
     bookingDate: str(r.cr664_bookingdate),
     closingDate: str(r.cr664_closingdate),
-    collateralType: str(r.cr664_collateraltype),
-    lienPosition: str(r.cr664_lienposition),
-    guaranteeAmount: numOrNull(r.cr664_guaranteeamount) ?? undefined,
-    portfolioManager: str(r.cr664_portfoliomanager),
+    // collateralType / lienPosition / guaranteeAmount live on child entities —
+    // never populated by the main getAll. Left undefined here (WI-6, deferred).
+    portfolioManager: portfolioManagerName(r),
     extended: parseExtendedLoanAttributes(r.cr664_extendedloanattributes),
   };
 }
 
 /**
- * Core, always-provisioned columns (Phase 259 + Phase 262 pricing). These have
- * always been present on cr664_portfolioboardedloan and are read unconditionally.
+ * Core, always-provisioned columns. Every column here is verified to exist on
+ * `cr664_portfolioboardedloan` in the generated entity model
+ * (Cr664_portfolioboardedloansModel.ts) and is read unconditionally with NO
+ * strip-and-retry safety net — so ONLY verified columns may live here. A
+ * non-existent column here would fail the entire read closed (0x80060888).
+ *
+ * WI-1 (PE-WIRE-2): the portfolio-book scalars (past-due, next-review, accrual,
+ * booking/closing dates, original commitment) and the portfolio-manager lookup
+ * value moved here from the additive bucket. They are all provisioned, and
+ * keeping them out of the strip-and-retry bucket means they survive even when
+ * the genuinely-optional extended-attributes blob is unprovisioned.
  */
 const CORE_SELECT: readonly string[] = [
   'cr664_portfolioboardedloanid',
@@ -135,28 +171,32 @@ const CORE_SELECT: readonly string[] = [
   'cr664_spread',
   'cr664_floor',
   'cr664_ceiling',
-];
-
-/**
- * Additive portfolio-book inputs used by PE-WIRE-1 panels. Older Dataverse
- * environments may not have every read-only column yet.
- */
-const OPTIONAL_PORTFOLIO_BOOK_SELECT: readonly string[] = [
   'cr664_pastduedays',
   'cr664_accrualstatus',
   'cr664_nextreviewdate',
-  'cr664_originalcommitment',
+  'cr664_originalcommitmentamount',
   'cr664_bookingdate',
   'cr664_closingdate',
-  'cr664_collateraltype',
-  'cr664_lienposition',
-  'cr664_guaranteeamount',
-  'cr664_portfoliomanager',
+  // Lookup value; selecting the raw `cr664_portfoliomanager` nav property is
+  // illegal. The `_value` select also carries the FormattedValue name annotation.
+  PORTFOLIO_MANAGER_VALUE_COLUMN,
+];
+
+/**
+ * Additive inputs that may NOT be provisioned yet. Only the extended-attributes
+ * JSON blob remains optional (WI-4): it is provisioned separately and written
+ * only when EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED is on. A missing-column
+ * failure here strips this bucket and retries core-only (fail-closed, never a crash).
+ */
+const OPTIONAL_PORTFOLIO_BOOK_SELECT: readonly string[] = [
   EXTENDED_LOAN_ATTRIBUTES_COLUMN,
 ];
 
 /** Core columns + additive portfolio-book columns (may not be provisioned). */
 const EXTENDED_SELECT: readonly string[] = [...CORE_SELECT, ...OPTIONAL_PORTFOLIO_BOOK_SELECT];
+
+/** Test-only: the full projected column set, for the WI-1 select-coverage guard. */
+export const EXTENDED_SELECT_FOR_TESTS: readonly string[] = EXTENDED_SELECT;
 
 /**
  * Session-level provisioning state for additive portfolio-book columns. Probed

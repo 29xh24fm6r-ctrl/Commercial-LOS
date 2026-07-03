@@ -90,6 +90,11 @@ describe('derivePortfolioBookSnapshot', () => {
       sharePct: 80,
     });
     expect(snapshot.byProduct.find((row) => row.label === 'Unknown product')?.loanCount).toBe(1);
+    // WI-2: loan 'a' carries a manager name → buckets under it; loan 'b' has none → 'Unassigned'.
+    expect(snapshot.byPortfolioManager.find((row) => row.label === 'Jordan Banker')).toMatchObject({
+      loanCount: 1,
+      totalExposure: 8_000_000,
+    });
     expect(snapshot.byPortfolioManager.find((row) => row.label === 'Unassigned')?.loanCount).toBe(1);
     expect(snapshot.topExposures[0]).toMatchObject({
       loanId: 'a',

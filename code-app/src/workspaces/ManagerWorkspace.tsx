@@ -145,28 +145,38 @@ function ManagerWorkspaceContent() {
               both modes (their data scope is the same authorized
               team pipeline). */}
           {isPortfolio ? <PortfolioCommandCenter /> : <ManagerBloombergControlPanel />}
-          {/* Phase 233 — Manager Operating Command Center: team CRM + LOS
-              supervision clarity. Read-only; mounted only in manager mode so it
-              never disrupts the portfolio surface. */}
+          {/* PE-WIRE-2 WI-3 — the cards below are the manager team/deal-pipeline
+              surface. In portfolio mode they are gated OUT so the page renders
+              ONLY the portfolio book cockpit (which self-contains its own
+              provider, panels, and existing-loans/variable-rate sections). This
+              stops the full team-pipeline stack — and its unrelated in-flight
+              deals — from bleeding in under the $43K portfolio book.
+              Banker-filter note: option (a) — ManagerBankerFilterControl is gated
+              out with the rest on the portfolio surface. The book is manager/PM-
+              scoped (not banker-scoped); PortfolioCommandCenterBook reads the
+              filter via useOptionalManagerBankerFilter(), which simply resolves
+              to "no filter" when the control is absent. */}
           {!isPortfolio && <ManagerOperatingCommandCenter />}
-          <ManagerWorkflowLaunchReadinessPanel />
+          {!isPortfolio && <ManagerWorkflowLaunchReadinessPanel />}
           {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 â€” visible read-only CRM
               team intelligence (honest preview posture; no assignment mutation,
               no CRM writes, no permission widening). */}
-          <CrmManagerWorkingSurface input={managerCrmPreviewInput()} />
-          <TeamWorkQueue />
-          <ManagerBankerFilterControl />
-          <ManagerMorningCatchUp />
-          <ManagerAutopilotRollup />
-          <ManagerRelationshipMemory />
-          <TeamPipelineSummary />
-          <div style={styles.twoCol}>
-            <DealsByStage />
-            <ClosingForecast />
-          </div>
-          <AtRiskBlockedDeals />
-          <BankerWorkloadSummary />
-          <ManagerActivitySummary />
+          {!isPortfolio && <CrmManagerWorkingSurface input={managerCrmPreviewInput()} />}
+          {!isPortfolio && <TeamWorkQueue />}
+          {!isPortfolio && <ManagerBankerFilterControl />}
+          {!isPortfolio && <ManagerMorningCatchUp />}
+          {!isPortfolio && <ManagerAutopilotRollup />}
+          {!isPortfolio && <ManagerRelationshipMemory />}
+          {!isPortfolio && <TeamPipelineSummary />}
+          {!isPortfolio && (
+            <div style={styles.twoCol}>
+              <DealsByStage />
+              <ClosingForecast />
+            </div>
+          )}
+          {!isPortfolio && <AtRiskBlockedDeals />}
+          {!isPortfolio && <BankerWorkloadSummary />}
+          {!isPortfolio && <ManagerActivitySummary />}
         </main>
       </div>
     </LendingOSLayout>
