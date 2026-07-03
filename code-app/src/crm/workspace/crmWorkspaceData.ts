@@ -74,6 +74,17 @@ export interface CrmRecord {
   readonly detail: readonly CrmDetailRow[];
   /** ISO timestamp for timeline ordering (timeline/audit domains). */
   readonly occurredAt?: string;
+  /**
+   * Related-organization id, threaded through from the raw record's lookup so the
+   * detail drawer can filter the already-loaded workspace data by a selected
+   * company — NO new reads. People carry their employer org; timeline events carry
+   * their linked org.
+   */
+  readonly organizationId?: string;
+  /** Related-person id (timeline events linked to a contact). */
+  readonly personId?: string;
+  /** Timeline event type: 'call' | 'email' | 'meeting' | 'note' are activities; 'follow-up-task' is a task. */
+  readonly eventType?: string;
 }
 
 export interface CrmDomainResult {
@@ -136,6 +147,7 @@ export function mapPerson(p: Cr664_crmpersons): CrmRecord {
     title: s(p.cr664_displayname) ?? s(p.cr664_name) ?? (fullName.length > 0 ? fullName : 'Person'),
     subtitle: s(p.cr664_title) ?? s(p.cr664_rolesummary),
     badge: s(p.cr664_status),
+    organizationId: s(p._cr664_employerorganization_value),
     detail: pick([
       row('First name', s(p.cr664_firstname)),
       row('Last name', s(p.cr664_lastname)),
@@ -253,6 +265,9 @@ export function mapTimelineEvent(t: Cr664_crmtimelineevents): CrmRecord {
     subtitle: s(t.cr664_summary),
     badge: s(t.cr664_entitytype),
     occurredAt: s(t.cr664_occurredat),
+    organizationId: s(t._cr664_organization_value),
+    personId: s(t._cr664_person_value),
+    eventType: s(t.cr664_eventtype),
     detail: pick([
       row('Event type', s(t.cr664_eventtype)),
       row('Summary', s(t.cr664_summary)),

@@ -36,6 +36,14 @@ interface Props {
   readonly onWritten?: () => void;
   /** Injected for tests; defaults to the live governed writes. */
   readonly writeFns?: CrmWriteFns;
+  /**
+   * Record-scoped mode: when set, the action forms pre-bind this organization
+   * (contact.employerOrganization / activity.organization / task.organization /
+   * relationship.sourceOrganization), and only the actions in `actions` render as
+   * a compact in-drawer row. Used by the company detail drawer.
+   */
+  readonly presetOrganizationId?: string;
+  readonly actions?: readonly CrmActionKind[];
 }
 
 const ACTIONS: ReadonlyArray<{ kind: CrmActionKind; label: string }> = [
@@ -47,6 +55,22 @@ const ACTIONS: ReadonlyArray<{ kind: CrmActionKind; label: string }> = [
   { kind: 'advisor', label: 'Add Advisor' },
 ];
 
+/** Record-scoped mode pre-binds the open company to the relevant form field. */
+function presetFieldsFor(kind: CrmActionKind, orgId: string | undefined): Record<string, string> {
+  if (!orgId) return {};
+  switch (kind) {
+    case 'contact':
+      return { employerOrganizationId: orgId };
+    case 'activity':
+    case 'task':
+      return { organizationId: orgId };
+    case 'relationship':
+      return { sourceOrganizationId: orgId };
+    default:
+      return {};
+  }
+}
+
 export function CrmWriteActions({
   authorized,
   actorEmail,
@@ -56,9 +80,51 @@ export function CrmWriteActions({
   personOptions,
   onWritten,
   writeFns,
+  presetOrganizationId,
+  actions,
 }: Props) {
   const [open, setOpen] = useState<CrmActionKind | undefined>(undefined);
   const fns = writeFns ?? null; // resolved lazily so the live deps aren't built in tests that inject
+  const recordActions = actions ? ACTIONS.filter((a) => actions.includes(a.kind)) : undefined;
+
+  // Record-scoped compact row (in the company drawer): the requested actions,
+  // each pre-binding this company. Reuses the exact governed modal + adapters.
+  if (recordActions) {
+    return (
+      <div style={styles.bar} data-crm-actions data-crm-actions-record>
+        {recordActions.map((a) => (
+          <button
+            key={a.kind}
+            type="button"
+            style={authorized ? styles.secondaryBtn : styles.disabledBtn}
+            disabled={!authorized}
+            data-crm-action={a.kind}
+            title={authorized ? undefined : disabledReason}
+            onClick={() => setOpen(a.kind)}
+          >
+            {a.label}
+          </button>
+        ))}
+        {!authorized && (
+          <span style={styles.disabledNote} data-crm-actions-disabled>
+            {disabledReason ?? 'Sign-in identity is still resolving; CRM editing will enable shortly.'}
+          </span>
+        )}
+        {open && authorized && (
+          <CrmActionModal
+            kind={open}
+            presetFields={presetFieldsFor(open, presetOrganizationId)}
+            actor={{ actorEmail, actorSystemUserId, authorized }}
+            companyOptions={companyOptions}
+            personOptions={personOptions}
+            fns={fns ?? buildLiveCrmWriteFns()}
+            onClose={() => setOpen(undefined)}
+            onWritten={() => onWritten?.()}
+          />
+        )}
+      </div>
+    );
+  }
 
   // v3 FIX 3 — restore the single-primary rule: one Seal-Red primary (Add Company)
   // + one quiet secondary (Add Contact); everything else lives in a tidy overflow.
@@ -152,6 +218,7 @@ function CrmActionModal({
   fns,
   onClose,
   onWritten,
+  presetFields,
 }: {
   kind: CrmActionKind;
   actor: ActorCtx;
@@ -160,8 +227,9 @@ function CrmActionModal({
   fns: CrmWriteFns;
   onClose: () => void;
   onWritten: () => void;
+  presetFields?: Record<string, string>;
 }) {
-  const [fields, setFields] = useState<Record<string, string>>({ activityType: 'call' });
+  const [fields, setFields] = useState<Record<string, string>>({ activityType: 'call', ...presetFields });
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<CrmWriteOutcome | undefined>(undefined);
 

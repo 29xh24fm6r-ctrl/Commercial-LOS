@@ -21,6 +21,7 @@ export interface FeatureSurfaceFlags {
   readonly CRM_COMMAND_CENTER_ROUTE_ENABLED: boolean;
   readonly CRM_INTELLIGENCE_ROUTE_ENABLED: boolean;
   readonly PORTFOLIO_BOARDING_SURFACE_ROUTE_ENABLED: boolean;
+  readonly PORTFOLIO_BOOK_DATA_ENABLED: boolean;
 }
 
 export type FeatureSurfaceFlagName = keyof FeatureSurfaceFlags;
@@ -37,9 +38,14 @@ export const FEATURE_SURFACE_FLAG_DEFAULTS: FeatureSurfaceFlags = Object.freeze(
   CRM_COMMAND_CENTER_ROUTE_ENABLED: false,
   CRM_INTELLIGENCE_ROUTE_ENABLED: false,
   PORTFOLIO_BOARDING_SURFACE_ROUTE_ENABLED: false,
+  PORTFOLIO_BOOK_DATA_ENABLED: false,
 });
 
 /** True only when the named feature-surface route flag is explicitly enabled. */
 export function isFeatureSurfaceFlagEnabled(flag: FeatureSurfaceFlagName): boolean {
   return FEATURE_SURFACE_FLAG_DEFAULTS[flag] === true;
 }
+
+/** PE-WIRE-1: default-off switch for the boarded-book Portfolio Command Center feed. */
+export const PORTFOLIO_BOOK_DATA_ENABLED =
+  FEATURE_SURFACE_FLAG_DEFAULTS.PORTFOLIO_BOOK_DATA_ENABLED;

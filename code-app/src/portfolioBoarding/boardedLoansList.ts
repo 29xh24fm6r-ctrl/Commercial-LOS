@@ -34,6 +34,16 @@ export interface BoardedLoanRow {
   readonly spread?: number | null | undefined;
   readonly floor?: number | null | undefined;
   readonly ceiling?: number | null | undefined;
+  readonly pastDueDays?: number | undefined;
+  readonly accrualStatus?: string | undefined;
+  readonly nextReviewDate?: string | undefined;
+  readonly originalCommitment?: number | undefined;
+  readonly bookingDate?: string | undefined;
+  readonly closingDate?: string | undefined;
+  readonly collateralType?: string | undefined;
+  readonly lienPosition?: string | undefined;
+  readonly guaranteeAmount?: number | undefined;
+  readonly portfolioManager?: string | undefined;
   /** Phase 2 — persisted extended attributes (note rate / reset terms / product / officer …). */
   readonly extended?: ExtendedLoanAttributes | null;
 }
@@ -53,6 +63,16 @@ interface RawBoardedLoan {
   cr664_spread?: number;
   cr664_floor?: number;
   cr664_ceiling?: number;
+  cr664_pastduedays?: number;
+  cr664_accrualstatus?: string;
+  cr664_nextreviewdate?: string;
+  cr664_originalcommitment?: number;
+  cr664_bookingdate?: string;
+  cr664_closingdate?: string;
+  cr664_collateraltype?: string;
+  cr664_lienposition?: string;
+  cr664_guaranteeamount?: number;
+  cr664_portfoliomanager?: string;
   cr664_extendedloanattributes?: string;
 }
 
@@ -82,6 +102,16 @@ export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
     spread: numOrNull(r.cr664_spread),
     floor: numOrNull(r.cr664_floor),
     ceiling: numOrNull(r.cr664_ceiling),
+    pastDueDays: numOrNull(r.cr664_pastduedays) ?? undefined,
+    accrualStatus: str(r.cr664_accrualstatus),
+    nextReviewDate: str(r.cr664_nextreviewdate),
+    originalCommitment: numOrNull(r.cr664_originalcommitment) ?? undefined,
+    bookingDate: str(r.cr664_bookingdate),
+    closingDate: str(r.cr664_closingdate),
+    collateralType: str(r.cr664_collateraltype),
+    lienPosition: str(r.cr664_lienposition),
+    guaranteeAmount: numOrNull(r.cr664_guaranteeamount) ?? undefined,
+    portfolioManager: str(r.cr664_portfoliomanager),
     extended: parseExtendedLoanAttributes(r.cr664_extendedloanattributes),
   };
 }
@@ -107,21 +137,40 @@ const CORE_SELECT: readonly string[] = [
   'cr664_ceiling',
 ];
 
-/** Core columns + the additive extended-attributes column (may not be provisioned). */
-const EXTENDED_SELECT: readonly string[] = [...CORE_SELECT, EXTENDED_LOAN_ATTRIBUTES_COLUMN];
+/**
+ * Additive portfolio-book inputs used by PE-WIRE-1 panels. Older Dataverse
+ * environments may not have every read-only column yet.
+ */
+const OPTIONAL_PORTFOLIO_BOOK_SELECT: readonly string[] = [
+  'cr664_pastduedays',
+  'cr664_accrualstatus',
+  'cr664_nextreviewdate',
+  'cr664_originalcommitment',
+  'cr664_bookingdate',
+  'cr664_closingdate',
+  'cr664_collateraltype',
+  'cr664_lienposition',
+  'cr664_guaranteeamount',
+  'cr664_portfoliomanager',
+  EXTENDED_LOAN_ATTRIBUTES_COLUMN,
+];
+
+/** Core columns + additive portfolio-book columns (may not be provisioned). */
+const EXTENDED_SELECT: readonly string[] = [...CORE_SELECT, ...OPTIONAL_PORTFOLIO_BOOK_SELECT];
 
 /**
- * Session-level provisioning state for the additive `cr664_extendedloanattributes`
- * column. Probed once per session by attempting the read with the column and
- * caching the result; `'absent'` means we omit it from every subsequent `$select`
- * so reads never re-hit the Dataverse `0x80060888` "could not find a property"
- * failure. Fail-closed: an unprovisioned column degrades to core-only, never a crash.
+ * Session-level provisioning state for additive portfolio-book columns. Probed
+ * once per session by attempting the read with the columns and caching the
+ * result; `'absent'` means we omit them from every subsequent `$select` so
+ * reads never re-hit the Dataverse `0x80060888` "could not find a property"
+ * failure. Fail-closed: unprovisioned additive columns degrade to core-only,
+ * never a crash.
  */
 export type ExtendedColumnProvisioning = 'unknown' | 'present' | 'absent';
 
 let extendedColumnProvisioning: ExtendedColumnProvisioning = 'unknown';
 
-/** The current session view of whether extended attributes are provisioned. */
+/** The current session view of whether additive portfolio-book inputs are provisioned. */
 export function getExtendedColumnProvisioning(): ExtendedColumnProvisioning {
   return extendedColumnProvisioning;
 }
@@ -142,25 +191,26 @@ export interface BoardedLoanReadResponse {
 export type BoardedLoanReader = (select: readonly string[]) => Promise<BoardedLoanReadResponse>;
 
 /**
- * True when a failed read looks like the additive extended-attributes column is
- * not provisioned — the Dataverse `0x80060888` "Could not find a property named
- * 'cr664_extendedloanattributes'" error. Any other failure is surfaced honestly.
+ * True when a failed read looks like an additive portfolio-book column is not
+ * provisioned — the Dataverse `0x80060888` "Could not find a property named ..."
+ * error. Any other failure is surfaced honestly.
  */
 function looksLikeMissingExtendedColumn(res: BoardedLoanReadResponse): boolean {
   const msg = (res.error?.message ?? '').toLowerCase();
   if (msg.length === 0) return false;
   return (
-    msg.includes(EXTENDED_LOAN_ATTRIBUTES_COLUMN.toLowerCase()) ||
+    OPTIONAL_PORTFOLIO_BOOK_SELECT.some((column) =>
+      msg.includes(column.toLowerCase()),
+    ) ||
     (msg.includes('0x80060888') && msg.includes('could not find a property'))
   );
 }
 
 /**
- * Provisioning-aware read core. Includes the additive extended-attributes column
- * unless this session already learned it is absent. On a missing-column failure it
- * strips the column, retries once, and caches `'absent'` for the rest of the session
- * (approach a — probe-once — implemented via approach b — strip-and-retry — as the
- * safety net). Never throws the `0x80060888` missing-property error.
+ * Provisioning-aware read core. Includes additive portfolio-book columns unless
+ * this session already learned they are absent. On a missing-column failure it
+ * strips the columns, retries once, and caches `'absent'` for the rest of the
+ * session. Never throws the `0x80060888` missing-property error.
  */
 export async function loadBoardedLoansWith(read: BoardedLoanReader): Promise<readonly BoardedLoanRow[]> {
   const includeExtended = extendedColumnProvisioning !== 'absent';
@@ -177,7 +227,7 @@ export async function loadBoardedLoansWith(read: BoardedLoanReader): Promise<rea
     throw new Error(`Portfolio loans read failed: ${res.error?.message ?? 'non-success'}`);
   }
 
-  // A clean read that actually carried the extended column proves it is provisioned.
+  // A clean read that actually carried the additive columns proves they are provisioned.
   if (includeExtended && !stripped) {
     extendedColumnProvisioning = 'present';
   }

@@ -10,6 +10,11 @@ import {
 } from './crmWorkspaceData';
 import { CrmWriteActions, type CrmOption } from './CrmWriteActions';
 import type { CrmWriteFns } from '../write/crmWriteActions';
+import {
+  loadLinkedDealsForOrganization,
+  type LinkedDealsLoader,
+  type LinkedDealsResult,
+} from './crmLinkedDeals';
 
 /**
  * Phase 260 — Relationship CRM (elite CRM cockpit).
@@ -31,6 +36,8 @@ interface Props {
   writeDisabledReason?: string;
   /** Injected for tests; defaults to the live governed writes. */
   writeFns?: CrmWriteFns;
+  /** Record-scoped linked-deals reader (F4); defaults to the live read. */
+  loadLinkedDeals?: LinkedDealsLoader;
 }
 
 type LoadState =
@@ -68,6 +75,7 @@ export function CrmHubWorkspace({
   actorSystemUserId,
   writeDisabledReason,
   writeFns,
+  loadLinkedDeals = loadLinkedDealsForOrganization,
 }: Props = {}) {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [view, setView] = useState<CrmView>('companies');
@@ -79,6 +87,7 @@ export function CrmHubWorkspace({
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reload control intentionally returns the workspace to loading.
     setState({ kind: 'loading' });
     loadData()
       .then((data) => {
@@ -102,6 +111,14 @@ export function CrmHubWorkspace({
   };
   const companyOptions = useMemo(() => optionsFor('organizations'), [state]);
   const personOptions = useMemo(() => optionsFor('people'), [state]);
+
+  // Follow-up tasks live in the timeline domain (eventType 'follow-up-task'); count
+  // them so the "Follow-ups due" / "Open tasks" cards read real data, not undefined.
+  const taskCount = useMemo(() => {
+    if (state.kind !== 'ready') return undefined;
+    const t = state.data.timelineEvents;
+    return t.status === 'ready' ? t.records.filter((r) => r.eventType === 'follow-up-task').length : undefined;
+  }, [state]);
 
   const count = (domain: CrmDomainKey): number | undefined => {
     if (state.kind !== 'ready') return undefined;
@@ -210,9 +227,9 @@ export function CrmHubWorkspace({
         <DashCard label="Companies" value={count('organizations')} loading={state.kind === 'loading'} empty="Add companies to start" onClick={() => setView('companies')} />
         <DashCard label="Contacts" value={count('people')} loading={state.kind === 'loading'} empty="Add people to relationships" onClick={() => setView('contacts')} />
         <DashCard label="Active relationships" value={count('relationships')} loading={state.kind === 'loading'} empty="Map your relationships" onClick={() => setView('relationships')} />
-        <DashCard label="Follow-ups due" value={undefined} loading={false} empty="No follow-ups scheduled" />
+        <DashCard label="Follow-ups due" value={taskCount} loading={state.kind === 'loading'} empty="No follow-ups scheduled" onClick={() => setView('activities')} />
         <DashCard label="Recent activity" value={count('timelineEvents')} loading={state.kind === 'loading'} empty="No activity logged yet" onClick={() => setView('timeline')} />
-        <DashCard label="Open tasks" value={undefined} loading={false} empty="No CRM tasks yet" />
+        <DashCard label="Open tasks" value={taskCount} loading={state.kind === 'loading'} empty="No CRM tasks yet" onClick={() => setView('activities')} />
       </div>
 
       {/* Main area */}
@@ -239,7 +256,19 @@ export function CrmHubWorkspace({
         )}
       </div>
 
-      {selected && <DetailDrawer record={selected} view={spec.label} onClose={() => setSelected(undefined)} />}
+      {selected && (
+        <DetailDrawer
+          record={selected}
+          view={spec.label}
+          isOrganization={spec.domain === 'organizations'}
+          data={state.kind === 'ready' ? state.data : undefined}
+          actor={{ actorEmail, actorSystemUserId, authorized, writeDisabledReason }}
+          writeFns={writeFns}
+          loadLinkedDeals={loadLinkedDeals}
+          onWritten={() => setReloadNonce((n) => n + 1)}
+          onClose={() => setSelected(undefined)}
+        />
+      )}
 
       <footer style={styles.footer} data-crm-footer>
         Every change you make here is verified and recorded for the relationship file.
@@ -332,7 +361,62 @@ function ActivityTimeline({ records, onOpen }: { records: readonly CrmRecord[]; 
   );
 }
 
-function DetailDrawer({ record, view, onClose }: { record: CrmRecord; view: string; onClose: () => void }) {
+function DetailDrawer({
+  record,
+  view,
+  isOrganization,
+  data,
+  actor,
+  writeFns,
+  loadLinkedDeals,
+  onWritten,
+  onClose,
+}: {
+  record: CrmRecord;
+  view: string;
+  isOrganization: boolean;
+  data: CrmWorkspaceData | undefined;
+  actor: { actorEmail?: string; actorSystemUserId?: string; authorized: boolean; writeDisabledReason?: string };
+  writeFns?: CrmWriteFns;
+  loadLinkedDeals: LinkedDealsLoader;
+  onWritten: () => void;
+  onClose: () => void;
+}) {
+  const domain = (key: CrmDomainKey): readonly CrmRecord[] => {
+    if (!data) return [];
+    const r = data[key];
+    return r.status === 'ready' ? r.records : [];
+  };
+
+  // F4 — linked deals are a record-scoped read (deals aren't in the workspace load).
+  const [linkedDeals, setLinkedDeals] = useState<LinkedDealsResult | undefined>(undefined);
+  useEffect(() => {
+    if (!isOrganization) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Record changes must clear stale linked-deal rows before the scoped read returns.
+    setLinkedDeals(undefined);
+    loadLinkedDeals(record.id)
+      .then((r) => {
+        if (!cancelled) setLinkedDeals(r);
+      })
+      .catch(() => {
+        if (!cancelled) setLinkedDeals({ status: 'unavailable', reason: 'Linked deals are not available for this record yet.' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOrganization, record.id, loadLinkedDeals]);
+  // Related records for a company — filtered from the ALREADY-LOADED workspace data
+  // (no new reads): people by employer org; timeline events by linked org, split
+  // into activities vs follow-up tasks by event type.
+  const contacts = isOrganization ? domain('people').filter((r) => r.organizationId === record.id) : [];
+  const timeline = isOrganization ? domain('timelineEvents').filter((r) => r.organizationId === record.id) : [];
+  const activities = timeline.filter((r) => r.eventType !== 'follow-up-task');
+  const tasks = timeline.filter((r) => r.eventType === 'follow-up-task');
+
+  const companyOptions: CrmOption[] = domain('organizations').map((r) => ({ id: r.id, label: r.title }));
+  const personOptions: CrmOption[] = domain('people').map((r) => ({ id: r.id, label: r.title }));
+
   return (
     <aside style={styles.drawer} role="dialog" aria-label={`${view} detail`} data-crm-detail-drawer>
       <div style={styles.drawerHead}>
@@ -359,10 +443,98 @@ function DetailDrawer({ record, view, onClose }: { record: CrmRecord; view: stri
           </dl>
         )}
       </DrawerSection>
-      <DrawerSection title="Linked deals"><div style={styles.drawerMuted}>No linked deals yet.</div></DrawerSection>
-      <DrawerSection title="Activities & notes"><div style={styles.drawerMuted}>No activity logged for this record yet.</div></DrawerSection>
-      <DrawerSection title="Tasks & follow-ups"><div style={styles.drawerMuted}>No follow-ups scheduled.</div></DrawerSection>
+
+      {isOrganization && (
+        <DrawerSection title="Record actions">
+          <CrmWriteActions
+            authorized={actor.authorized}
+            actorEmail={actor.actorEmail}
+            actorSystemUserId={actor.actorSystemUserId}
+            disabledReason={actor.writeDisabledReason}
+            companyOptions={companyOptions}
+            personOptions={personOptions}
+            writeFns={writeFns}
+            presetOrganizationId={record.id}
+            actions={['contact', 'activity', 'task', 'relationship']}
+            onWritten={onWritten}
+          />
+        </DrawerSection>
+      )}
+
+      <DrawerSection title="Linked deals">
+        {!isOrganization ? (
+          <div style={styles.drawerMuted}>Linked deals appear on a company record.</div>
+        ) : linkedDeals === undefined ? (
+          <div style={styles.drawerMuted}>Loading linked deals…</div>
+        ) : linkedDeals.status === 'unavailable' ? (
+          <div style={styles.drawerMuted}>{linkedDeals.reason}</div>
+        ) : linkedDeals.deals.length === 0 ? (
+          <div style={styles.drawerMuted}>No deals are linked to this company yet.</div>
+        ) : (
+          <ul style={styles.relatedList} data-crm-related="deal">
+            {linkedDeals.deals.map((d) => (
+              <li key={d.id} style={styles.relatedItem} data-crm-related-item={d.id}>
+                <span style={styles.relatedTitle}>{d.name}</span>
+                <span style={styles.relatedSub}>{[d.stage, d.status, d.amount].filter(Boolean).join(' · ') || '—'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DrawerSection>
+
+      <DrawerSection title="Contacts">
+        {isOrganization && contacts.length > 0 ? (
+          <RelatedList records={contacts} kind="contact" />
+        ) : (
+          <div style={styles.drawerMuted}>No contacts linked to this company yet.</div>
+        )}
+      </DrawerSection>
+
+      <DrawerSection title="Activities & notes">
+        {isOrganization && activities.length > 0 ? (
+          <RelatedTimeline records={activities} />
+        ) : (
+          <div style={styles.drawerMuted}>No activity logged for this record yet.</div>
+        )}
+      </DrawerSection>
+
+      <DrawerSection title="Tasks & follow-ups">
+        {isOrganization && tasks.length > 0 ? (
+          <RelatedList records={tasks} kind="task" />
+        ) : (
+          <div style={styles.drawerMuted}>No follow-ups scheduled.</div>
+        )}
+      </DrawerSection>
     </aside>
+  );
+}
+
+function RelatedList({ records, kind }: { records: readonly CrmRecord[]; kind: 'contact' | 'task' }) {
+  return (
+    <ul style={styles.relatedList} data-crm-related={kind}>
+      {records.map((r) => (
+        <li key={r.id} style={styles.relatedItem} data-crm-related-item={r.id}>
+          <span style={styles.relatedTitle}>{r.title}</span>
+          {r.subtitle && <span style={styles.relatedSub}>{r.subtitle}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RelatedTimeline({ records }: { records: readonly CrmRecord[] }) {
+  const sorted = [...records].sort(
+    (a, b) => (a.occurredAt ? Date.parse(a.occurredAt) : 0) - (b.occurredAt ? Date.parse(b.occurredAt) : 0),
+  ).reverse();
+  return (
+    <ul style={styles.relatedList} data-crm-related="activity">
+      {sorted.map((r) => (
+        <li key={r.id} style={styles.relatedItem} data-crm-related-item={r.id}>
+          <span style={styles.relatedTitle}>{r.subtitle ?? r.title}</span>
+          {r.occurredAt && <span style={styles.relatedSub}>{formatWhen(r.occurredAt)}</span>}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -470,6 +642,10 @@ const styles: Record<string, CSSProperties> = {
   drawerSection: { display: 'flex', flexDirection: 'column', gap: spacing.xs, borderTop: `1px solid ${palette.divider}`, paddingTop: spacing.sm },
   drawerSectionTitle: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
   drawerMuted: { color: palette.textMuted, fontSize: typography.size.sm, fontStyle: 'italic' },
+  relatedList: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: spacing.xs },
+  relatedItem: { display: 'flex', flexDirection: 'column', gap: 1, padding: `${spacing.xs} ${spacing.sm}`, background: palette.surfaceAlt, border: `1px solid ${palette.divider}`, borderRadius: radius.sm },
+  relatedTitle: { fontSize: typography.size.sm, color: palette.text, fontWeight: typography.weight.medium },
+  relatedSub: { fontSize: typography.size.xs, color: palette.textMuted },
   detailList: { margin: 0, display: 'flex', flexDirection: 'column', gap: spacing.xs },
   detailRow: { display: 'grid', gridTemplateColumns: '150px 1fr', gap: spacing.sm },
   detailLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.semibold },

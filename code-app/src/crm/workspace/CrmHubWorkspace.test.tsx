@@ -71,6 +71,68 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
     expect(container.querySelector('[data-crm-detail-drawer]')).toBeNull();
   });
 
+  it('company drawer shows the org’s real contacts, activities, and follow-up tasks + record actions (F1/F2)', async () => {
+    const { container } = await renderHub(
+      fixture({
+        organizations: { status: 'ready', records: [rec('o1', 'Acme Holdings', { detail: [{ label: 'Legal name', value: 'Acme Holdings, LLC' }] })] },
+        people: {
+          status: 'ready',
+          records: [
+            rec('p1', 'Jane Doe', { subtitle: 'CFO', organizationId: 'o1' }),
+            rec('p2', 'Unrelated Person', { organizationId: 'other-org' }),
+          ],
+        },
+        timelineEvents: {
+          status: 'ready',
+          records: [
+            rec('a1', 'call', { subtitle: 'Called about renewal', occurredAt: '2026-06-20T10:00:00Z', organizationId: 'o1', eventType: 'call' }),
+            rec('tk1', 'follow-up-task', { subtitle: 'Send term sheet', organizationId: 'o1', eventType: 'follow-up-task' }),
+            rec('a2', 'note', { subtitle: 'unrelated activity', organizationId: 'other-org', eventType: 'note' }),
+          ],
+        },
+      }),
+    );
+
+    // Cards read the real follow-up-task count (was hardcoded undefined).
+    const followUps = container.querySelector('[data-crm-card="Follow-ups due"]') as HTMLElement;
+    expect(within(followUps).getByText('1')).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(container.querySelector('[data-crm-record="o1"]') as HTMLElement);
+    const drawer = container.querySelector('[data-crm-detail-drawer]') as HTMLElement;
+
+    // F1 — only THIS company's related records, filtered from already-loaded data.
+    expect(within(drawer).getByText('Jane Doe')).toBeInTheDocument();
+    expect(within(drawer).queryByText('Unrelated Person')).toBeNull();
+    expect(within(drawer).getByText('Called about renewal')).toBeInTheDocument();
+    expect(within(drawer).getByText('Send term sheet')).toBeInTheDocument();
+    expect(within(drawer).queryByText('unrelated activity')).toBeNull();
+
+    // F2 — record-scoped governed write actions surface on the open company.
+    expect(drawer.querySelector('[data-crm-actions-record]')).not.toBeNull();
+    expect(drawer.querySelector('[data-crm-action="contact"]')).not.toBeNull();
+    expect(drawer.querySelector('[data-crm-action="task"]')).not.toBeNull();
+  });
+
+  it('company drawer shows linked deals from the record-scoped read (F4)', async () => {
+    const loadLinkedDeals = async () => ({
+      status: 'ready' as const,
+      deals: [{ id: 'd1', name: 'Acme Expansion', stage: 'Underwriting', status: 'Active', amount: '$2,000,000' }],
+    });
+    const { container } = render(
+      <CrmHubWorkspace
+        loadData={async () => fixture({ organizations: { status: 'ready', records: [rec('o1', 'Acme Holdings')] } })}
+        loadLinkedDeals={loadLinkedDeals}
+      />,
+    );
+    await waitFor(() => expect(container.querySelector('[data-crm-cards]')).not.toBeNull());
+    const user = userEvent.setup();
+    await user.click(container.querySelector('[data-crm-record="o1"]') as HTMLElement);
+    const drawer = container.querySelector('[data-crm-detail-drawer]') as HTMLElement;
+    await waitFor(() => expect(within(drawer).getByText('Acme Expansion')).toBeInTheDocument());
+    expect(within(drawer).getByText(/Underwriting/)).toBeInTheDocument();
+  });
+
   it('switches views and renders an activity timeline', async () => {
     const { container } = await renderHub(
       fixture({ timelineEvents: { status: 'ready', records: [rec('t1', 'Note added', { subtitle: 'Called borrower', occurredAt: '2026-06-20T10:00:00Z' })] } }),

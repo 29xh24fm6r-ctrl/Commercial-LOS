@@ -22,11 +22,27 @@ const ACTOR = { actorEmail: 'banker@bank.test', actorSystemUserId: 'sys-1', auth
 const ON = { ...ACTOR, organizationId: 'org-1', enabled: true };
 
 describe('updateOrganizationField', () => {
-  it('is DISABLED by default (fail-closed) — no write', async () => {
+  it('is ENABLED by default (identity-gated like creates); an explicit enabled:false fails closed', async () => {
     const deps = stubDeps();
-    const outcome = await updateOrganizationField({ ...ACTOR, organizationId: 'org-1', field: 'cr664_industry', value: 'x' }, deps);
-    expect(outcome.kind).toBe('disabled');
-    expect(deps.updateOrganization).not.toHaveBeenCalled();
+    // Default (no enabled flag) rides the identity gate → writes.
+    const ok = await updateOrganizationField({ ...ACTOR, organizationId: 'org-1', field: 'cr664_industry', value: 'x' }, deps);
+    expect(ok.kind).toBe('success');
+    expect(deps.updateOrganization).toHaveBeenCalledWith('org-1', { cr664_industry: 'x' });
+    // A caller can still force the fail-closed path.
+    const off = await updateOrganizationField({ ...ACTOR, organizationId: 'org-1', field: 'cr664_industry', value: 'x', enabled: false }, deps);
+    expect(off.kind).toBe('disabled');
+  });
+
+  it('updates the Boolean tax-id-on-file flag, coercing the string to a boolean (the number is never stored)', async () => {
+    const deps = stubDeps();
+    const outcome = await updateOrganizationField({ ...ON, field: 'cr664_taxidpresent', value: 'true' }, deps);
+    expect(outcome.kind).toBe('success');
+    expect(deps.updateOrganization).toHaveBeenCalledWith('org-1', { cr664_taxidpresent: true });
+  });
+
+  it('rejects a non-boolean value for the on-file flag', async () => {
+    const deps = stubDeps();
+    expect((await updateOrganizationField({ ...ON, field: 'cr664_taxidpresent', value: 'maybe' }, deps)).kind).toBe('invalid-input');
   });
 
   it('rejects an unauthorized actor even when enabled', async () => {
@@ -86,9 +102,9 @@ describe('makeOrgFieldSaver (InlineEdit bridge)', () => {
     await expect(save('Manufacturing')).resolves.toBeUndefined();
   });
 
-  it('rejects (rolls back) when disabled by default', async () => {
+  it('rejects (rolls back) when the caller forces disabled (enabled:false)', async () => {
     const deps = stubDeps();
-    const save = makeOrgFieldSaver({ organizationId: 'org-1', actor: ACTOR, deps })('cr664_industry');
+    const save = makeOrgFieldSaver({ organizationId: 'org-1', actor: ACTOR, deps, enabled: false })('cr664_industry');
     await expect(save('x')).rejects.toThrow(/disabled/i);
   });
 });
