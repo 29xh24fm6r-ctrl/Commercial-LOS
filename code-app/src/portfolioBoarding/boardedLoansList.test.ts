@@ -21,6 +21,7 @@ import {
  */
 
 const MISSING_COLUMN_ERROR = `0x80060888 Could not find a property named '${EXTENDED_LOAN_ATTRIBUTES_COLUMN}' on type 'cr664_portfolioboardedloan'.`;
+const MISSING_PORTFOLIO_MANAGER_ERROR = "0x80060888 Could not find a property named 'cr664_portfoliomanager' on type 'cr664_portfolioboardedloan'.";
 
 function ok(data: readonly Record<string, unknown>[]): BoardedLoanReadResponse {
   return { success: true, data: data as never };
@@ -71,21 +72,65 @@ describe('loadBoardedLoansWith — extended-attributes column not provisioned', 
 });
 
 describe('loadBoardedLoansWith — extended-attributes column provisioned', () => {
-  it('includes the column and round-trips the persisted blob', async () => {
+  it('includes additive book columns and round-trips the persisted blob', async () => {
     const blob = serializeExtendedLoanAttributes(
       buildExtendedLoanAttributes({ currentNoteRate: 6.5, product: 'C&I Term Loan' }),
     )!;
     const read = vi.fn<BoardedLoanReader>(async () =>
-      ok([{ cr664_portfolioboardedloanid: 'a', cr664_loannumber: 'L-1', [EXTENDED_LOAN_ATTRIBUTES_COLUMN]: blob }]),
+      ok([{
+        cr664_portfolioboardedloanid: 'a',
+        cr664_loannumber: 'L-1',
+        cr664_pastduedays: 15,
+        cr664_accrualstatus: 'Accruing',
+        cr664_nextreviewdate: '2026-08-01',
+        cr664_originalcommitment: 2_000_000,
+        cr664_bookingdate: '2025-02-01',
+        cr664_closingdate: '2025-01-15',
+        cr664_collateraltype: 'CRE',
+        cr664_lienposition: 'first',
+        cr664_guaranteeamount: 500_000,
+        cr664_portfoliomanager: 'Jordan Banker',
+        [EXTENDED_LOAN_ATTRIBUTES_COLUMN]: blob,
+      }]),
     );
 
     const rows = await loadBoardedLoansWith(read);
 
     expect(read).toHaveBeenCalledTimes(1);
     expect(read.mock.calls[0][0]).toContain(EXTENDED_LOAN_ATTRIBUTES_COLUMN);
+    expect(read.mock.calls[0][0]).toContain('cr664_portfoliomanager');
     expect(rows[0].extended?.currentNoteRate).toBe(6.5);
     expect(rows[0].extended?.product).toBe('C&I Term Loan');
+    expect(rows[0]).toMatchObject({
+      pastDueDays: 15,
+      accrualStatus: 'Accruing',
+      nextReviewDate: '2026-08-01',
+      originalCommitment: 2_000_000,
+      bookingDate: '2025-02-01',
+      closingDate: '2025-01-15',
+      collateralType: 'CRE',
+      lienPosition: 'first',
+      guaranteeAmount: 500_000,
+      portfolioManager: 'Jordan Banker',
+    });
     expect(getExtendedColumnProvisioning()).toBe('present');
+  });
+
+  it('strips all additive book columns when any additive column is not provisioned', async () => {
+    const read = vi.fn<BoardedLoanReader>(async (select) =>
+      select.includes('cr664_portfoliomanager')
+        ? fail(MISSING_PORTFOLIO_MANAGER_ERROR)
+        : ok([{ cr664_portfolioboardedloanid: 'a', cr664_loannumber: 'L-1' }]),
+    );
+
+    const rows = await loadBoardedLoansWith(read);
+
+    expect(rows).toHaveLength(1);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(read.mock.calls[0][0]).toContain('cr664_portfoliomanager');
+    expect(read.mock.calls[1][0]).not.toContain('cr664_portfoliomanager');
+    expect(read.mock.calls[1][0]).not.toContain(EXTENDED_LOAN_ATTRIBUTES_COLUMN);
+    expect(getExtendedColumnProvisioning()).toBe('absent');
   });
 });
 

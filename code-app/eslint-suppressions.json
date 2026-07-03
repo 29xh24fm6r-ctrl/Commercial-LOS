@@ -210,11 +210,6 @@
       "count": 1
     }
   },
-  "src/crm/workspace/CrmHubWorkspace.tsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 1
-    }
-  },
   "src/crm/workspaceIntegration/CrmBankerWorkingSurface.test.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 6

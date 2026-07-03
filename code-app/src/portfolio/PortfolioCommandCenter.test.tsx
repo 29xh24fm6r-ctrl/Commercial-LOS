@@ -29,6 +29,7 @@ import type {
   ManagerBankerFilterSelection,
   ManagerBankerFilterView,
 } from '../manager/ManagerBankerFilter';
+import type { BoardedLoanRow } from '../portfolioBoarding/boardedLoansList';
 
 /**
  * Phase 126A — PortfolioCommandCenter integration tests.
@@ -72,7 +73,11 @@ vi.mock('../manager/ManagerBankerFilter', async () => {
   };
 });
 
-import { PortfolioCommandCenter } from './PortfolioCommandCenter';
+import {
+  PortfolioCommandCenter,
+  PortfolioCommandCenterBook,
+} from './PortfolioCommandCenter';
+import { PortfolioBookProvider } from './data/PortfolioBookProvider';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -107,6 +112,31 @@ function deal(over: Partial<TeamDeal> = {}): TeamDeal {
     productType: 'SBA 7(a)',
     loanStructure: 'Term Loan',
     pricingType: 'Variable',
+    ...over,
+  };
+}
+
+function boardedLoan(over: Partial<BoardedLoanRow> = {}): BoardedLoanRow {
+  return {
+    id: 'loan-default',
+    loanNumber: 'L-100',
+    borrower: 'Main Street Holdings',
+    status: 'Active',
+    outstanding: 6_000_000,
+    riskRating: 'Bank internal 4',
+    maturityDate: isoDaysFromNow(45),
+    watchlist: true,
+    manuallyBoarded: false,
+    boardingSource: 'originated_closed',
+    pastDueDays: 32,
+    nextReviewDate: isoDaysAgo(400),
+    bookingDate: isoDaysAgo(500),
+    portfolioManager: 'Banker A',
+    extended: {
+      schemaVersion: 1,
+      product: 'C&I Term Loan',
+      currentNoteRate: 6.75,
+    },
     ...over,
   };
 }
@@ -180,6 +210,16 @@ function renderCockpit() {
   return render(
     <MemoryRouter>
       <PortfolioCommandCenter />
+    </MemoryRouter>,
+  );
+}
+
+function renderBookCockpit(loans: readonly BoardedLoanRow[]) {
+  return render(
+    <MemoryRouter>
+      <PortfolioBookProvider loadLoans={async () => loans}>
+        <PortfolioCommandCenterBook />
+      </PortfolioBookProvider>
     </MemoryRouter>,
   );
 }
@@ -265,6 +305,29 @@ describe('Phase 126A — cockpit shell + loading + failure + empty', () => {
 // ---------------------------------------------------------------------------
 // KPI ribbon
 // ---------------------------------------------------------------------------
+
+describe('PE-WIRE-1 — boarded book branch', () => {
+  it('renders boarded-book headline and feeds real props into portfolio panels', async () => {
+    setFilter(undefined);
+    renderBookCockpit([boardedLoan()]);
+
+    expect(await screen.findByText(/Live boarded portfolio exposure/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('1 boarded loans')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Book exposure/i)).toHaveTextContent('$6.0M');
+    expect(screen.getAllByText('Main Street Holdings').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('C&I Term Loan').length).toBeGreaterThan(0);
+
+    expect(screen.getByTestId('existing-portfolio-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('variable-rate-control-center')).toBeInTheDocument();
+    expect(document.querySelector('[data-portfolio-profitability="ready"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-portfolio-classification="empty"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-early-warning="ready"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-watchlist="ready"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-covenant-review="ready"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-loan-review="ready"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-exception-queue="empty"]')).toBeInTheDocument();
+  });
+});
 
 describe('Phase 126A — KPI ribbon', () => {
   it('renders the portfolio KPI tiles with honest labels', () => {

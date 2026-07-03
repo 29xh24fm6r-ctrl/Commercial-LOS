@@ -2,8 +2,14 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useManagerData } from '../manager/ManagerDataProvider';
 import { ExistingPortfolioLoansPanel } from '../portfolioBoarding/ExistingPortfolioLoansPanel';
+import type { BoardedLoanRow } from '../portfolioBoarding/boardedLoansList';
+import { PORTFOLIO_BOOK_DATA_ENABLED } from '../navigation/featureSurfaceFlags';
 import { VariableRateControlCenter } from './variableRate/VariableRateControlCenter';
-import { useOptionalManagerBankerFilter, dealMatchesBankerFilter } from '../manager/ManagerBankerFilter';
+import {
+  useOptionalManagerBankerFilter,
+  dealMatchesBankerFilter,
+  type ManagerBankerFilterSelection,
+} from '../manager/ManagerBankerFilter';
 import {
   deriveRiskDistribution,
   deriveAgingHistogram,
@@ -38,12 +44,35 @@ import {
 import { RiskConcentrationRadar } from './RiskConcentrationRadar';
 import { MigrationReconciliationPanel } from './reconciliation/BookReconciliationPanel';
 import { PortfolioProfitabilityPanel } from './profitability/PortfolioProfitabilityPanel';
+import { deriveLoanProfitability } from './profitability/loanProfitability';
 import { PortfolioClassificationPanel } from './riskRating/PortfolioClassificationPanel';
+import { deriveDualRiskRating, type DualRatingRecord } from './riskRating/dualRiskRating';
 import { EarlyWarningPanel } from './earlyWarning/EarlyWarningPanel';
+import { deriveEarlyWarningQueue } from './earlyWarning/earlyWarning';
 import { ExceptionQueuePanel } from './exceptions/ExceptionQueuePanel';
 import { WatchlistBoardPanel } from './watchlist/WatchlistBoardPanel';
+import { deriveWatchlist } from './watchlist/watchlist';
 import { CovenantReviewPanel } from './covenants/CovenantReviewPanel';
+import { deriveReviewQueue } from './covenants/covenantMonitoring';
 import { LoanReviewPanel } from './loanReview/LoanReviewPanel';
+import { deriveLoanReviewScope } from './loanReview/loanReview';
+import {
+  PortfolioBookProvider,
+  usePortfolioBook,
+} from './data/PortfolioBookProvider';
+import {
+  PORTFOLIO_RATING_MAP,
+  toDualRatingInput,
+  toEarlyWarningInput,
+  toLoanProfitabilityInputs,
+  toLoanReviewCandidate,
+  toReviewQueueLoanInput,
+  toWatchlistInput,
+} from './data/boardedLoanAdapters';
+import {
+  derivePortfolioBookSnapshot,
+  type PortfolioBookSnapshot,
+} from './portfolioBookSnapshot';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
 import { useDrillThroughDeepLink } from '../shared/drillthrough/useDrillThroughDeepLink';
 import { portfolioKpiTargets } from './portfolioDrillThrough';
@@ -89,6 +118,141 @@ import {
  *     no closed-deal cohort).
  */
 export function PortfolioCommandCenter() {
+  if (PORTFOLIO_BOOK_DATA_ENABLED) {
+    return (
+      <PortfolioBookProvider>
+        <PortfolioCommandCenterBook />
+      </PortfolioBookProvider>
+    );
+  }
+  return <PortfolioCommandCenterLegacy />;
+}
+
+export function PortfolioCommandCenterBook() {
+  const { loans } = usePortfolioBook();
+  const filter = useOptionalManagerBankerFilter();
+  const filterSelection = filter?.selection;
+  const filterLabel = filter?.selectionLabel;
+  const now = useMemo(() => new Date().toISOString(), []);
+
+  const book = useMemo(() => {
+    if (loans.kind !== 'ready') return undefined;
+    const scopedLoans =
+      filterSelection && filterSelection.kind !== 'all'
+        ? loans.data.filter((row) => boardedLoanMatchesBankerFilter(row, filterSelection))
+        : loans.data;
+    const ratingRecords = scopedLoans
+      .map((row) => toDualRatingInput(row, PORTFOLIO_RATING_MAP, now))
+      .filter((input): input is NonNullable<typeof input> => input !== undefined)
+      .map(deriveDualRiskRating)
+      .filter((outcome): outcome is { kind: 'rated'; record: DualRatingRecord } => outcome.kind === 'rated')
+      .map((outcome) => outcome.record);
+    const ratingByLoanId = new Map(
+      ratingRecords
+        .filter((rating) => rating.loanId !== undefined)
+        .map((rating) => [rating.loanId!, rating]),
+    );
+
+    return {
+      loans: scopedLoans,
+      ratings: ratingRecords,
+      snapshot: derivePortfolioBookSnapshot(scopedLoans, ratingRecords, now),
+      profitability: scopedLoans
+        .map(toLoanProfitabilityInputs)
+        .filter((input): input is NonNullable<typeof input> => input !== undefined)
+        .map((input) => deriveLoanProfitability(input)),
+      earlyWarningQueue: deriveEarlyWarningQueue(
+        scopedLoans.map((row) => toEarlyWarningInput(row, now)),
+      ),
+      watchlistBoard: deriveWatchlist(
+        scopedLoans.map((row) =>
+          toWatchlistInput(row, ratingByLoanId.get(row.id)?.classification),
+        ),
+        now,
+      ),
+      reviewQueue: deriveReviewQueue(
+        scopedLoans.map((row) =>
+          toReviewQueueLoanInput(row, ratingByLoanId.get(row.id)?.obligorGrade),
+        ),
+        now,
+      ),
+      loanReviewScope: deriveLoanReviewScope(
+        scopedLoans.map((row) =>
+          toLoanReviewCandidate(row, ratingByLoanId.get(row.id)?.obligorGrade, 0),
+        ),
+      ),
+    };
+  }, [filterSelection, loans, now]);
+
+  return (
+    <section
+      style={styles.deck}
+      aria-label="Portfolio Command Center"
+      data-portfolio-cockpit="command-center"
+      data-portfolio-book-feed="boarded"
+    >
+      <header style={styles.header}>
+        <div style={styles.headerTitleBlock}>
+          <div style={styles.eyebrow}>Portfolio Cockpit</div>
+          <h2 style={styles.title}>Portfolio Command Center</h2>
+          <p style={styles.subtitle}>Live boarded portfolio exposure</p>
+        </div>
+        <div style={styles.headerMeta}>
+          {filterLabel && (
+            <span
+              style={styles.filterChip}
+              aria-label={`Banker filter: ${filterLabel}`}
+              data-portfolio-cockpit-filter-label
+            >
+              {filterLabel}
+            </span>
+          )}
+          <span style={styles.readOnlyChip} aria-label="Read-only portfolio view">
+            Read-only
+          </span>
+        </div>
+      </header>
+
+      {loans.kind === 'failed' && (
+        <FailureState slot="boarded portfolio loans" message={loans.message} />
+      )}
+      {loans.kind === 'loading' && <LoadingStrip />}
+      {loans.kind === 'ready' && book?.snapshot.isEmpty && (
+        <EmptyState
+          filtered={Boolean(filterSelection && filterSelection.kind !== 'all')}
+        />
+      )}
+      {loans.kind === 'ready' && book && !book.snapshot.isEmpty && (
+        <div style={styles.body}>
+          <BookKpiRibbon snapshot={book.snapshot} />
+          <BookAnalyticsGrid snapshot={book.snapshot} />
+          <BookTopExposures rows={book.snapshot.topExposures} />
+        </div>
+      )}
+
+      <MigrationReconciliationPanel />
+      <PortfolioProfitabilityPanel loans={book?.profitability ?? []} />
+      <PortfolioClassificationPanel ratings={book?.ratings ?? []} />
+      <EarlyWarningPanel queue={book?.earlyWarningQueue} />
+      <ExceptionQueuePanel queues={[]} />
+      <WatchlistBoardPanel board={book?.watchlistBoard} />
+      <CovenantReviewPanel
+        reviewQueue={book?.reviewQueue}
+        covenantBreachCount={0}
+        covenantAtRiskCount={0}
+      />
+      <LoanReviewPanel scope={book?.loanReviewScope} />
+      <ExistingPortfolioLoansPanel
+        actorEmail={undefined}
+        actorSystemUserId={undefined}
+        writeDisabledReason="Board existing portfolio loans from the Loan Workflow workspace."
+      />
+      <VariableRateControlCenter />
+    </section>
+  );
+}
+
+function PortfolioCommandCenterLegacy() {
   const { teamPipeline, teamBankers, teamTasks, teamDocuments } = useManagerData();
   const filter = useOptionalManagerBankerFilter();
   const filterSelection = filter?.selection;
@@ -286,6 +450,217 @@ export function PortfolioCommandCenter() {
       {/* Phase 262 — Variable Rate Control Center: variable/adjustable loans,
           fully-indexed rates from operator-entered index values, reset alerts. */}
       <VariableRateControlCenter />
+    </section>
+  );
+}
+
+function boardedLoanMatchesBankerFilter(
+  row: BoardedLoanRow,
+  selection: ManagerBankerFilterSelection,
+): boolean {
+  if (selection.kind === 'all') return true;
+  const manager = row.portfolioManager?.trim();
+  if (selection.kind === 'unassigned') return !manager;
+  return manager?.toLowerCase() === selection.name.toLowerCase();
+}
+
+function BookKpiRibbon({ snapshot }: { snapshot: PortfolioBookSnapshot }) {
+  const ribbon = snapshot.commandRibbon;
+  const tiles: Array<{
+    label: string;
+    value: string;
+    tone: 'info' | 'clear' | 'atRisk' | 'blocked';
+    ariaLabel: string;
+  }> = [
+    {
+      label: 'Boarded loans',
+      value: String(ribbon.loanCount),
+      tone: 'info',
+      ariaLabel: `${ribbon.loanCount} boarded loans`,
+    },
+    {
+      label: 'Book exposure',
+      value: formatCurrencyCompact(ribbon.totalExposure),
+      tone: 'info',
+      ariaLabel: `Book exposure ${formatCurrency(ribbon.totalExposure)}`,
+    },
+    {
+      label: 'Watchlist',
+      value: String(ribbon.watchlistCount),
+      tone: ribbon.watchlistCount === 0 ? 'clear' : 'atRisk',
+      ariaLabel: `${ribbon.watchlistCount} boarded loans on watchlist`,
+    },
+    {
+      label: 'Criticized',
+      value: String(ribbon.criticizedCount),
+      tone: ribbon.criticizedCount === 0 ? 'clear' : 'atRisk',
+      ariaLabel: `${ribbon.criticizedCount} criticized boarded loans`,
+    },
+    {
+      label: 'Classified',
+      value: String(ribbon.classifiedCount),
+      tone: ribbon.classifiedCount === 0 ? 'clear' : 'blocked',
+      ariaLabel: `${ribbon.classifiedCount} classified boarded loans`,
+    },
+    {
+      label: 'Unmapped ratings',
+      value: String(ribbon.unmappedRatingCount),
+      tone: ribbon.unmappedRatingCount === 0 ? 'clear' : 'atRisk',
+      ariaLabel: `${ribbon.unmappedRatingCount} boarded loans with unmapped risk ratings`,
+    },
+  ];
+  return (
+    <section
+      style={styles.commandStrip}
+      aria-label="Portfolio KPI ribbon"
+      data-portfolio-cockpit-section="book-kpi-ribbon"
+    >
+      {tiles.map((t) => {
+        const slug = t.label.toLowerCase().replace(/\s+/g, '-');
+        return (
+          <div
+            key={t.label}
+            style={{
+              ...styles.kpiTile,
+              borderTopColor: severityPalette[t.tone].bar,
+            }}
+            aria-label={t.ariaLabel}
+            data-portfolio-kpi={slug}
+          >
+            <span style={styles.kpiLabel}>{t.label}</span>
+            <span style={styles.kpiValue}>{t.value}</span>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function BookAnalyticsGrid({ snapshot }: { snapshot: PortfolioBookSnapshot }) {
+  return (
+    <section
+      style={styles.analyticsGrid}
+      aria-label="Portfolio analytics"
+      data-portfolio-cockpit-section="book-analytics"
+    >
+      <HorizontalBarChart
+        title="Exposure by borrower"
+        subtitle="$ + share"
+        data={snapshot.byBorrower.slice(0, 8).map(bookConcentrationToBar)}
+        valueFormatter={formatCurrencyCompact}
+        drillThroughSurface="portfolio_command_center"
+      />
+      <HorizontalBarChart
+        title="Exposure by product"
+        subtitle="$ + share"
+        data={snapshot.byProduct.slice(0, 8).map(bookConcentrationToBar)}
+        valueFormatter={formatCurrencyCompact}
+        drillThroughSurface="portfolio_command_center"
+      />
+      <HorizontalBarChart
+        title="Exposure by risk rating"
+        subtitle="$ + share"
+        data={snapshot.byRiskRating.slice(0, 8).map(bookConcentrationToBar)}
+        valueFormatter={formatCurrencyCompact}
+        drillThroughSurface="portfolio_command_center"
+      />
+      <HorizontalBarChart
+        title="Exposure by manager"
+        subtitle="$ + share"
+        data={snapshot.byPortfolioManager.slice(0, 8).map(bookConcentrationToBar)}
+        valueFormatter={formatCurrencyCompact}
+        drillThroughSurface="portfolio_command_center"
+      />
+      <VerticalBarChart
+        title="Loan size mix"
+        subtitle="Count by band"
+        data={snapshot.exposureBands.map((row) => ({
+          label: row.label,
+          value: row.loanCount,
+          tone: 'info',
+        }))}
+        drillThroughSurface="portfolio_command_center"
+      />
+      <VerticalBarChart
+        title="Maturity ladder"
+        subtitle="Count by date band"
+        data={snapshot.maturityLadder.map((row) => ({
+          label: row.label,
+          value: row.loanCount,
+          tone:
+            row.label === 'Past due/matured'
+              ? 'blocked'
+              : row.label === '0-30d' || row.label === '31-90d'
+                ? 'atRisk'
+                : 'info',
+        }))}
+        drillThroughSurface="portfolio_command_center"
+      />
+    </section>
+  );
+}
+
+function bookConcentrationToBar(row: {
+  readonly label: string;
+  readonly totalExposure: number;
+  readonly sharePct: number;
+}) {
+  return {
+    label: row.label,
+    value: row.totalExposure,
+    secondary: `${row.sharePct}%`,
+    tone: 'info' as const,
+  };
+}
+
+function BookTopExposures({
+  rows,
+}: {
+  rows: PortfolioBookSnapshot['topExposures'];
+}) {
+  return (
+    <section
+      style={styles.topExposures}
+      aria-label="Top exposures"
+      data-portfolio-cockpit-section="book-top-exposures"
+    >
+      <header style={styles.sectionHeader}>
+        <h3 style={styles.sectionTitle}>Top exposures</h3>
+        <span style={styles.sectionMeta}>Showing {rows.length} of boarded book</span>
+      </header>
+      {rows.length === 0 ? (
+        <p style={styles.bucketEmpty}>No loans to display.</p>
+      ) : (
+        <ul style={styles.exposureList}>
+          {rows.map((r) => (
+            <li
+              key={r.loanId}
+              style={styles.exposureRow}
+              data-portfolio-top-exposure={r.loanId}
+            >
+              <div style={styles.exposureHead}>
+                <span style={styles.exposureLink}>
+                  {r.borrower ?? r.loanNumber ?? r.loanId}
+                </span>
+                <div style={styles.exposureAmounts}>
+                  <span style={styles.exposureAmount}>
+                    {formatAmount(r.outstanding)}
+                  </span>
+                  <span style={styles.exposureShare}>{r.sharePct}% share</span>
+                </div>
+              </div>
+              <div style={styles.exposureMeta}>
+                <MetaCell label="Loan" value={r.loanNumber ?? 'Not set'} />
+                <MetaCell label="Manager" value={r.portfolioManager ?? 'Unassigned'} />
+                <MetaCell label="Status" value={r.status ?? 'Not set'} />
+                <MetaCell label="Risk rating" value={r.riskRating ?? 'Unmapped'} />
+                <MetaCell label="Product" value={r.product ?? 'Unknown product'} />
+                <MetaCell label="Maturity" value={r.maturityDate ?? 'Unknown'} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

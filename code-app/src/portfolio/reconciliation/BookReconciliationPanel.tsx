@@ -25,6 +25,7 @@ interface Props {
 const MONEY = { abbreviate: true, empty: '$0' } as const;
 
 /** Compact one-line tie-out summary for a tile/badge. */
+// eslint-disable-next-line react-refresh/only-export-components -- Pure formatter is tested and shared with reconciliation docs.
 export function formatTieOutSummary(r: MigrationReconciliation): string {
   const loans = `${r.count.boarded} / ${r.count.control} loans`;
   const dollars = `${formatCurrency(r.outstanding.boarded, MONEY)} / ${formatCurrency(r.outstanding.control, MONEY)}`;

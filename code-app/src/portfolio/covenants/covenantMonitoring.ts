@@ -193,7 +193,7 @@ export function deriveReviewQueue(loans: readonly ReviewQueueLoanInput[], now: s
   const entries = loans.map<ReviewQueueEntry>((l) => {
     const cadenceMonths = deriveReviewCadence(l.grade);
     const nextReviewDate = l.lastReviewDate ? addMonths(l.lastReviewDate, cadenceMonths) : undefined;
-    let status: ReviewDueStatus = 'current';
+    let status: ReviewDueStatus;
     let daysUntilDue: number | undefined;
     if (nextReviewDate) {
       daysUntilDue = Math.round((Date.parse(nextReviewDate) - Date.parse(now)) / 86_400_000);
