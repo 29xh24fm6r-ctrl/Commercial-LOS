@@ -110,6 +110,13 @@ export interface ExistingLoanInput {
   readonly watchlistFlag?: boolean;
   readonly accrualStatus?: string;
   readonly pastDueDays?: number;
+  /**
+   * PE-WIRE-2 WI-2 — portfolio manager. cr664_PortfolioManager is a systemuser
+   * LOOKUP (there is no writable plain-text manager column), so capture is the
+   * systemuser row id, written as an @odata.bind. Optional; the manual path
+   * boards fine without it. A future user-picker in the form supplies this id.
+   */
+  readonly portfolioManagerId?: string;
   // --- Phase 2 extended attributes (round-trip via cr664_extendedloanattributes when enabled) ---
   readonly product?: string;
   readonly loanOfficer?: string;
@@ -247,6 +254,11 @@ function buildRootPayload(
   const dealId = trimmed(input.originatedDealId);
   if (dealId.length > 0) {
     payload['cr664_OriginatedLoanDeal@odata.bind'] = `/cr664_loandeals(${dealId})`;
+  }
+  // WI-2 — bind the portfolio-manager systemuser lookup when an id is supplied.
+  const managerId = trimmed(input.portfolioManagerId);
+  if (managerId.length > 0) {
+    payload['cr664_PortfolioManager@odata.bind'] = `/systemusers(${managerId})`;
   }
   // Phase 2 — persist the extended attributes blob ONLY when the (default-off) flag is on.
   // Until the operator provisions cr664_extendedloanattributes + enables the flag, these

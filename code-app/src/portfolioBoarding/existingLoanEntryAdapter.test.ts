@@ -117,6 +117,23 @@ describe('Phase 259 — boardExistingLoan fail-closed', () => {
     expect(payload['cr664_OriginatedLoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-9)');
   });
 
+  it('WI-2 — binds the portfolio-manager systemuser lookup when an id is supplied', async () => {
+    const createRoot = vi.fn(async (_p: Record<string, unknown>) => ({ success: true, id: 'loan-1' }));
+    const d = deps({ createRoot });
+    const out = await boardExistingLoan(baseInput({ portfolioManagerId: 'sys-mgr-7' }), d);
+    expect(out.kind).toBe('success');
+    const payload = createRoot.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload['cr664_PortfolioManager@odata.bind']).toBe('/systemusers(sys-mgr-7)');
+  });
+
+  it('WI-2 — omits the manager bind when no id is supplied (manual path works without it)', async () => {
+    const createRoot = vi.fn(async (_p: Record<string, unknown>) => ({ success: true, id: 'loan-1' }));
+    const d = deps({ createRoot });
+    await boardExistingLoan(baseInput(), d);
+    const payload = createRoot.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload['cr664_PortfolioManager@odata.bind']).toBeUndefined();
+  });
+
   it('creates entered child records linked to the boarded loan', async () => {
     const createChild = vi.fn(async (_c: string, _p: Record<string, unknown>) => ({ success: true, id: 'c' }));
     const d = deps({ createChild });

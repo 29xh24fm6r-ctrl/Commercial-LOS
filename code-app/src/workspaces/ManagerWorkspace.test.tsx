@@ -341,11 +341,9 @@ describe('Phase 126B — portfolio-name workspaces swap the cockpit to Portfolio
     expect(
       screen.getByRole('navigation', { name: /Lending OS navigation/i }),
     ).toBeInTheDocument();
-    // The existing nine manager cards continue to render below the
-    // portfolio cockpit (their data scope is identical) — we don't
-    // assert any specific card here since they're mocked to null,
-    // but we DO assert the cockpit replacement is the only visible
-    // swap.
+    // PE-WIRE-2 WI-3 — the manager team-pipeline cards are now gated OUT in
+    // portfolio mode; the book cockpit is the sole surface. The provider chain
+    // and shell are unchanged (permission-before-render preserved).
     expect(
       screen.getByTestId('portfolio-command-center'),
     ).toBeInTheDocument();
@@ -444,5 +442,40 @@ describe('BUGFIX-CRM-VISIBLE — Manager workspace mounts the read-only CRM team
       expect(text).not.toContain(banned);
     }
     expect(text).toContain('read-only');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PE-WIRE-2 WI-3 — the manager team/deal-pipeline surface must NOT render on
+// the portfolio surface (no team-pipeline / deal bleed under the book cockpit).
+// ---------------------------------------------------------------------------
+
+describe('PE-WIRE-2 WI-3 — portfolio mode renders ONLY the book cockpit', () => {
+  it('gates the manager team-pipeline cards out in portfolio mode', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Portfolio Management' }),
+    );
+    renderManagerWorkspace('/workspaces/manager?surface=portfolio');
+
+    // Portfolio cockpit is the sole cockpit.
+    expect(screen.getByTestId('portfolio-command-center')).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('manager-bloomberg-control-panel'),
+    ).not.toBeInTheDocument();
+    // The read-only CRM team surface (an always-real, unmocked manager card)
+    // is gated out — a proxy for the whole team-pipeline stack below the cockpit.
+    expect(screen.queryByText('Team CRM Intelligence')).not.toBeInTheDocument();
+  });
+
+  it('still renders the manager team-pipeline cards in manager mode', () => {
+    useBootstrapMock.mockReturnValue(
+      bootstrap({ workspaceName: 'Manager Command Center' }),
+    );
+    renderManagerWorkspace('/workspaces/manager');
+
+    expect(
+      screen.getByTestId('manager-bloomberg-control-panel'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Team CRM Intelligence')).toBeInTheDocument();
   });
 });
