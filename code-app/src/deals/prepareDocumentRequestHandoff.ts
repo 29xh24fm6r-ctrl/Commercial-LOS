@@ -9,6 +9,7 @@ import {
   type ActorChangedByResolution,
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
+import { timelineEventByBind } from './timelineActorBind';
 import { maskRecipient } from './emailDelivery/recipientMasking';
 
 /**
@@ -202,6 +203,7 @@ async function emitAuditEvent(opts: {
 
 async function emitTimelineEvent(opts: {
   input: PrepareDocumentRequestHandoffInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   nowIso: string;
   maskedRecipient: string;
@@ -223,7 +225,8 @@ async function emitTimelineEvent(opts: {
     cr664_relatedentitytype: 'cr664_documentchecklist',
     cr664_relatedentityid: opts.input.documentId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // cr664_EventBy targets cr664_user — resolved cr664_user bind, omit if unresolved.
+    ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `documentrequest:outlook-handoff-prepared|correlation:${opts.correlationId}`,
     ownerid: opts.input.systemUserId,
     owneridtype: 'systemuser',
@@ -301,6 +304,7 @@ export async function prepareDocumentRequestHandoff(
       }),
       emitTimelineEvent({
         input,
+        actor,
         correlationId,
         nowIso,
         maskedRecipient,

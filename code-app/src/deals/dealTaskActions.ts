@@ -10,6 +10,7 @@ import {
   type ActorChangedByResolution,
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
+import { timelineEventByBind } from './timelineActorBind';
 
 /**
  * Phase 21: governed write for completing an open cr664_DealTask1 from
@@ -367,6 +368,7 @@ async function emitCreateTaskAuditEvent(opts: {
 
 async function emitCreateTaskTimelineEvent(opts: {
   input: CreateDocumentReviewTaskInput;
+  actor: ActorChangedByResolution;
   taskId: string;
   taskTitle: string;
   correlationId: string;
@@ -387,7 +389,9 @@ async function emitCreateTaskTimelineEvent(opts: {
     cr664_relatedentitytype: 'cr664_documentchecklist',
     cr664_relatedentityid: opts.input.documentId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // cr664_EventBy targets cr664_user — bind the resolved cr664_user, omit when
+    // unresolved (fail-closed); never a systemuser id.
+    ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
   };
   try {
@@ -477,6 +481,7 @@ export async function createDocumentReviewTask(
     }),
     emitCreateTaskTimelineEvent({
       input,
+      actor,
       taskId,
       taskTitle,
       correlationId,

@@ -169,6 +169,13 @@ describe('Phase 50 — every timeline emission includes the 11 required fields',
       const src = readSource(m.file);
       const missing: string[] = [];
       for (const field of REQUIRED_TIMELINE_FIELDS) {
+        // cr664_EventBy is now bound via the shared timelineEventByBind(actor)
+        // helper (it resolves the cr664_user actor — cr664_EventBy targets
+        // cr664_user, NOT systemuser — and fail-closed omits the optional lookup
+        // when unresolved). Accept the helper call as satisfying the requirement.
+        if (field === 'cr664_EventBy@odata.bind' && /\btimelineEventByBind\s*\(/.test(src)) {
+          continue;
+        }
         const escaped = field.replace(/[.@]/g, '\\$&');
         // Match the property key either bare or quoted (quoted is
         // required when the name contains `@`).
@@ -179,6 +186,22 @@ describe('Phase 50 — every timeline emission includes the 11 required fields',
         missing,
         `${m.file} is missing timeline field(s): ${missing.join(', ')}`,
       ).toEqual([]);
+    });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 2b. cr664_EventBy targets cr664_user — never a systemuser id (regression lock)
+// ---------------------------------------------------------------------------
+
+describe('Phase 50 — cr664_EventBy binds the resolved cr664_user, never /systemusers', () => {
+  for (const file of timelineFiles()) {
+    it(`${file} never binds cr664_EventBy@odata.bind to /systemusers`, () => {
+      const src = readSource(file);
+      // cr664_EventBy targets the custom cr664_user table; a /systemusers id is
+      // rejected as "Entity 'cr664_User' ... Does Not Exist". The resolved bind
+      // comes from timelineEventByBind(actor) (cr664_user) — never systemusers.
+      expect(src).not.toMatch(/cr664_EventBy@odata\.bind['"]\s*:\s*`\/systemusers/);
     });
   }
 });

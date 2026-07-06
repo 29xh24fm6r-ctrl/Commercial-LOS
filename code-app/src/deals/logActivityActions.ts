@@ -9,6 +9,7 @@ import {
   type ActorChangedByResolution,
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
+import { timelineEventByBind } from './timelineActorBind';
 
 /**
  * Phase 160: governed write for banker-authored activity notes.
@@ -106,6 +107,7 @@ async function emitAuditEvent(opts: {
 
 async function createTimelineEvent(opts: {
   input: LogActivityInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
   const nowIso = new Date().toISOString();
@@ -119,11 +121,10 @@ async function createTimelineEvent(opts: {
     cr664_relatedentitytype: 'cr664_loandeal',
     cr664_relatedentityid: opts.input.dealId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // cr664_EventBy targets cr664_user — bind the resolved cr664_user, omit when
+    // unresolved (fail-closed); never a systemuser id. Owner/state server-defaulted.
+    ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `activity:note|correlation:${opts.correlationId}`,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_dealtimelineeventsService.create(
@@ -161,7 +162,7 @@ export async function logActivity(
   const correlationId = newCorrelationId('la');
   // Resolve the audit actor's cr664_user bind once, fail-closed.
   const actor = await resolveActorChangedBy(input.actorEmail);
-  const timeline = await createTimelineEvent({ input: normalized, correlationId });
+  const timeline = await createTimelineEvent({ input: normalized, actor, correlationId });
 
   if (timeline.error || !timeline.id) {
     void emitAuditEvent({

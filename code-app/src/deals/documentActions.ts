@@ -10,6 +10,7 @@ import {
   type ActorChangedByResolution,
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
+import { timelineEventByBind } from './timelineActorBind';
 
 /**
  * Phase 22: governed write for requesting an outstanding document on
@@ -132,6 +133,7 @@ async function emitAuditEvent(opts: {
 
 async function emitTimelineEvent(opts: {
   input: RequestDocumentInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   nowIso: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
@@ -145,11 +147,10 @@ async function emitTimelineEvent(opts: {
     cr664_relatedentitytype: 'cr664_documentchecklist',
     cr664_relatedentityid: opts.input.documentId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // cr664_EventBy targets cr664_user (not systemuser) — bind the resolved
+    // cr664_user, omit when unresolved (fail-closed). Owner/state server-defaulted.
+    ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_dealtimelineeventsService.create(
@@ -226,7 +227,7 @@ export async function requestDocument(
       failureReason: undefined,
       nowIso,
     }),
-    emitTimelineEvent({ input, correlationId, nowIso }),
+    emitTimelineEvent({ input, actor, correlationId, nowIso }),
   ]);
 
   if (audit.error || timeline.error) {
@@ -354,6 +355,7 @@ async function emitAuditEventForReceive(opts: {
 
 async function emitTimelineEventForReceive(opts: {
   input: MarkDocumentReceivedInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   nowIso: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
@@ -367,11 +369,10 @@ async function emitTimelineEventForReceive(opts: {
     cr664_relatedentitytype: 'cr664_documentchecklist',
     cr664_relatedentityid: opts.input.documentId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // cr664_EventBy targets cr664_user (not systemuser) — bind the resolved
+    // cr664_user, omit when unresolved (fail-closed). Owner/state server-defaulted.
+    ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_dealtimelineeventsService.create(
@@ -450,7 +451,7 @@ export async function markDocumentReceived(
       failureReason: undefined,
       nowIso,
     }),
-    emitTimelineEventForReceive({ input, correlationId, nowIso }),
+    emitTimelineEventForReceive({ input, actor, correlationId, nowIso }),
   ]);
 
   if (audit.error || timeline.error) {
@@ -584,6 +585,7 @@ async function emitAuditEventForReview(opts: {
 
 async function emitTimelineEventForReview(opts: {
   input: MarkDocumentReviewedInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   nowIso: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
@@ -597,11 +599,10 @@ async function emitTimelineEventForReview(opts: {
     cr664_relatedentitytype: 'cr664_documentchecklist',
     cr664_relatedentityid: opts.input.documentId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // cr664_EventBy targets cr664_user — bind the resolved cr664_user, omit when
+    // unresolved (fail-closed); never a systemuser id. Owner/state server-defaulted.
+    ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `${TIMELINE_SUBTYPE_DOCUMENT_REVIEWED}|correlation:${opts.correlationId}`,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_dealtimelineeventsService.create(
@@ -689,7 +690,7 @@ export async function markDocumentReviewed(
       failureReason: undefined,
       nowIso,
     }),
-    emitTimelineEventForReview({ input, correlationId, nowIso }),
+    emitTimelineEventForReview({ input, actor, correlationId, nowIso }),
   ]);
 
   if (audit.error || timeline.error) {

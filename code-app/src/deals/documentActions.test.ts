@@ -201,7 +201,8 @@ describe('requestDocument', () => {
     expect(payload.cr664_summary).toBe('kindly upload most recent PFS');
     expect(payload.cr664_issystemgenerated).toBe(false);
     expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
-    expect(payload['cr664_EventBy@odata.bind']).toBe('/systemusers(sys-user-1)');
+    // cr664_EventBy targets cr664_user — resolved cr664_user bind, never /systemusers.
+    expect(payload['cr664_EventBy@odata.bind']).toBe(CORE_USER_BIND);
     expect(payload.cr664_relatedentitytype).toBe('cr664_documentchecklist');
     expect(payload.cr664_relatedentityid).toBe('doc-1');
     expect(payload.cr664_visibilityscope).toBe(788190000); // BankerAndManager
@@ -417,7 +418,8 @@ describe('markDocumentReceived', () => {
     expect(payload.cr664_summary).toBe('received via email from borrower');
     expect(payload.cr664_issystemgenerated).toBe(false);
     expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
-    expect(payload['cr664_EventBy@odata.bind']).toBe('/systemusers(sys-user-1)');
+    // cr664_EventBy targets cr664_user — resolved cr664_user bind, never /systemusers.
+    expect(payload['cr664_EventBy@odata.bind']).toBe(CORE_USER_BIND);
     expect(payload.cr664_relatedentitytype).toBe('cr664_documentchecklist');
     expect(payload.cr664_relatedentityid).toBe('doc-1');
     expect(payload.cr664_visibilityscope).toBe(788190000); // BankerAndManager

@@ -124,14 +124,13 @@ describe('Phase 160 -- logActivity', () => {
         'cr664_summary',
         'cr664_title',
         'cr664_visibilityscope',
-        'ownerid',
-        'owneridtype',
-        'statecode',
       ].sort(),
     );
     expect(payload.cr664_summary).toBe('trimmed note');
     expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-1)');
-    expect(payload['cr664_EventBy@odata.bind']).toBe('/systemusers(sys-user-1)');
+    // cr664_EventBy is the resolved cr664_user (never /systemusers); owner/state
+    // are server-defaulted (removed, matching the task/stage timeline writes).
+    expect(payload['cr664_EventBy@odata.bind']).toBe(CORE_USER_BIND);
     expect(payload.cr664_eventtype).toBe(788190002);
     expect(payload.cr664_visibilityscope).toBe(788190000);
   });

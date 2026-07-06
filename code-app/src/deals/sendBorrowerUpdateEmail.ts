@@ -9,6 +9,7 @@ import {
   type ActorChangedByResolution,
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
+import { timelineEventByBind } from './timelineActorBind';
 import { getEmailAdapter, isLikelyValidEmail } from './emailDelivery/outlookEmailAdapters';
 import { maskRecipient } from './emailDelivery/recipientMasking';
 import type { EmailMode } from './emailDelivery/emailMode';
@@ -222,6 +223,7 @@ async function emitAuditEvent(opts: {
 
 async function emitTimelineEvent(opts: {
   input: SendBorrowerUpdateEmailInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
   nowIso: string;
   mode: EmailMode;
@@ -245,7 +247,8 @@ async function emitTimelineEvent(opts: {
     cr664_relatedentitytype: 'cr664_loandeal',
     cr664_relatedentityid: opts.input.dealId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    // cr664_EventBy targets cr664_user — resolved cr664_user bind, omit if unresolved.
+    ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
     ownerid: opts.input.systemUserId,
     owneridtype: 'systemuser',
@@ -364,6 +367,7 @@ export async function sendBorrowerUpdateEmail(
     }),
     emitTimelineEvent({
       input,
+      actor,
       correlationId,
       nowIso,
       mode: adapter.mode,

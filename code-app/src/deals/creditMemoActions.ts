@@ -11,6 +11,7 @@ import {
   type ActorChangedByResolution,
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
+import { timelineEventByBind } from './timelineActorBind';
 
 /**
  * Phase 25: governed credit-memo draft save. The fifth governed
@@ -167,6 +168,7 @@ async function emitAuditEvent(opts: {
 
 async function emitTimelineEvent(opts: {
   input: SaveCreditMemoDraftInput;
+  actor: ActorChangedByResolution;
   memoId: string;
   correlationId: string;
   nowIso: string;
@@ -182,10 +184,9 @@ async function emitTimelineEvent(opts: {
     cr664_relatedentitytype: 'cr664_creditmemo1',
     cr664_relatedentityid: opts.memoId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
+    // cr664_EventBy targets cr664_user — bind the resolved cr664_user, omit when
+    // unresolved (fail-closed); never a systemuser id. Owner/state server-defaulted.
+    ...timelineEventByBind(opts.actor),
   };
   try {
     const result = await Cr664_dealtimelineeventsService.create(
@@ -351,6 +352,7 @@ export async function saveCreditMemoDraft(
   });
   const timelineP = emitTimelineEvent({
     input: trimmedInput,
+    actor,
     memoId,
     correlationId,
     nowIso,
