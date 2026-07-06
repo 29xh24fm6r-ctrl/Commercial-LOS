@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import { loadBoardedLoans, getExtendedColumnProvisioning, type BoardedLoanRow } from './boardedLoansList';
+import { loadPortfolioManagerOptions, type PortfolioManagerOption } from './portfolioManagerOptions';
 import { PortfolioImportWizard } from './PortfolioImportWizard';
 import { formatCurrency } from '../shared/formatters';
 import { LOAN_PRODUCTS, INTEREST_RATE_TYPES, RATE_INDEX_OPTIONS } from './loanProducts';
@@ -36,7 +37,16 @@ interface Props extends Identity {
   loadLoans?: () => Promise<readonly BoardedLoanRow[]>;
   /** Injected for tests; defaults to the live governed board. */
   boardLoan?: (input: ExistingLoanInput) => Promise<BoardExistingLoanOutcome>;
+  /** PM-1 — assignable portfolio managers; injected for tests, defaults to the live systemuser read. */
+  loadManagers?: () => Promise<readonly PortfolioManagerOption[]>;
 }
+
+/** PM-1 — load state for the portfolio-manager picker (honest failure; no fabrication). */
+type ManagerOptionsState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'ready'; options: readonly PortfolioManagerOption[] }
+  | { kind: 'failed'; message: string };
 
 type ListState =
   | { kind: 'loading' }
@@ -69,12 +79,16 @@ const TEXT_FIELDS: ReadonlyArray<{ key: keyof FormFields; label: string; require
   { key: 'pastDueDays', label: 'Past due days', type: 'number' },
 ];
 
-/** Phase 262 — ownership / product context fields. */
+/**
+ * Phase 262 — ownership / product context fields.
+ * PM-1: "Assigned portfolio manager" is no longer a free-text field here — it is
+ * a real systemuser lookup rendered as a dedicated picker (see the manager
+ * <select> below) and bound through cr664_PortfolioManager@odata.bind.
+ */
 const OWNERSHIP_FIELDS: ReadonlyArray<{ key: keyof FormFields; label: string }> = [
   { key: 'loanPurpose', label: 'Loan purpose' },
   { key: 'branchNumber', label: 'Branch number' },
   { key: 'assignedLoanOfficer', label: 'Assigned loan officer' },
-  { key: 'assignedPortfolioManager', label: 'Assigned portfolio manager' },
 ];
 
 /** Phase 262 — pricing / rate-term fields. `variableOnly` ones disable for Fixed. */
@@ -114,7 +128,8 @@ interface FormFields {
   loanPurpose: string;
   branchNumber: string;
   assignedLoanOfficer: string;
-  assignedPortfolioManager: string;
+  /** PM-1 — selected portfolio-manager systemuserid (bound as a lookup, not free text). */
+  portfolioManagerId: string;
   index: string;
   spread: string;
   floor: string;
@@ -145,7 +160,7 @@ function emptyForm(): FormFields {
     legacySystemId: '', originalCommitmentAmount: '', currentOutstandingPrincipal: '', availableBalance: '',
     interestRateType: '', paymentFrequency: '', amortizationMonths: '', termMonths: '', bookingDate: '',
     maturityDate: '', currentRiskRating: '', nextReviewDate: '', accrualStatus: '', pastDueDays: '',
-    loanProduct: '', loanPurpose: '', branchNumber: '', assignedLoanOfficer: '', assignedPortfolioManager: '',
+    loanProduct: '', loanPurpose: '', branchNumber: '', assignedLoanOfficer: '', portfolioManagerId: '',
     index: '', spread: '', floor: '', ceiling: '', currentNoteRate: '', firstResetDate: '',
     firstResetPaymentNumber: '', resetFrequency: '', nextRateChangeDate: '',
   };
@@ -164,9 +179,13 @@ export function ExistingPortfolioLoansPanel({
   writeDisabledReason,
   loadLoans = loadBoardedLoans,
   boardLoan = (input) => boardExistingLoan(input, buildLiveExistingLoanDeps()),
+  loadManagers = loadPortfolioManagerOptions,
 }: Props) {
   const authorized = !writeDisabledReason && Boolean(actorSystemUserId);
   const [list, setList] = useState<ListState>({ kind: 'loading' });
+  const [managerOptions, setManagerOptions] = useState<ManagerOptionsState>({ kind: 'idle' });
+  // One load per form-open; reset when the form closes so a reopen can retry.
+  const managersRequestedRef = useRef(false);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<FormFields>(emptyForm);
   const [children, setChildren] = useState<Record<ExistingLoanChildKey, string[]>>(() =>
@@ -203,6 +222,30 @@ export function ExistingPortfolioLoansPanel({
     };
   }, [loadLoans, reloadKey]);
 
+  // PM-1 — load the assignable portfolio managers when the form first opens (and
+  // the operator is authorized to board). Loaded lazily so a read-only viewer
+  // never triggers the systemuser read. Fails closed: on error the picker shows
+  // an honest note and boarding proceeds without a manager (no fabrication).
+  useEffect(() => {
+    if (!formOpen || !authorized || managersRequestedRef.current) return;
+    // Load exactly once per open (the ref guard survives the loading→ready
+    // re-render, so the in-flight load is never self-cancelled). `kind` is
+    // deliberately NOT a dependency for that reason.
+    managersRequestedRef.current = true;
+    let cancelled = false;
+    setManagerOptions({ kind: 'loading' });
+    loadManagers()
+      .then((options) => {
+        if (!cancelled) setManagerOptions({ kind: 'ready', options });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setManagerOptions({ kind: 'failed', message: err instanceof Error ? err.message : String(err) });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [formOpen, authorized, loadManagers]);
+
   const canSubmit = useMemo(
     () => authorized && form.loanNumber.trim().length > 0 && form.borrowerLegalName.trim().length > 0 && submit.kind !== 'saving',
     [authorized, form.loanNumber, form.borrowerLegalName, submit.kind],
@@ -238,6 +281,8 @@ export function ExistingPortfolioLoansPanel({
       loanOfficer: form.assignedLoanOfficer || undefined,
       branch: form.branchNumber || undefined,
       purpose: form.loanPurpose || undefined,
+      // PM-1 — portfolio manager as a real systemuser lookup bind (not free text).
+      portfolioManagerId: form.portfolioManagerId || undefined,
       currentNoteRate: numOrUndef(form.currentNoteRate),
       firstResetDate: form.firstResetDate || undefined,
       firstResetPaymentNumber: numOrUndef(form.firstResetPaymentNumber),
@@ -313,9 +358,16 @@ export function ExistingPortfolioLoansPanel({
               disabled={!authorized}
               data-existing-loan-add
               onClick={() => {
-                setFormOpen((v) => !v);
+                const opening = !formOpen;
+                setFormOpen(opening);
                 setSubmit({ kind: 'idle' });
                 setDraftSaved(false);
+                // On close, reset the manager picker so reopening reloads it
+                // (retries a prior failure; refreshes the assignable-user list).
+                if (!opening) {
+                  managersRequestedRef.current = false;
+                  setManagerOptions({ kind: 'idle' });
+                }
               }}
             >
               {formOpen ? 'Close form' : '+ Add Existing Loan'}
@@ -402,6 +454,36 @@ export function ExistingPortfolioLoansPanel({
                   />
                 </label>
               ))}
+              {/* PM-1 — portfolio manager is a real systemuser lookup, not free text. */}
+              <label style={styles.field}>
+                <span style={styles.fieldLabel}>Assigned portfolio manager</span>
+                <select
+                  style={managerOptions.kind === 'failed' ? styles.inputDisabled : styles.input}
+                  value={form.portfolioManagerId}
+                  disabled={managerOptions.kind === 'loading' || managerOptions.kind === 'failed'}
+                  data-xl-manager
+                  onChange={(e) => setForm((s) => ({ ...s, portfolioManagerId: e.target.value }))}
+                >
+                  <option value="">
+                    {managerOptions.kind === 'loading'
+                      ? 'Loading managers…'
+                      : managerOptions.kind === 'failed'
+                        ? 'Managers unavailable'
+                        : 'Unassigned'}
+                  </option>
+                  {managerOptions.kind === 'ready' &&
+                    managerOptions.options.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.email ? `${m.name} · ${m.email}` : m.name}
+                      </option>
+                    ))}
+                </select>
+                {managerOptions.kind === 'failed' && (
+                  <span style={styles.draftNote} data-xl-manager-error>
+                    Could not load users. You can still board the loan; assign a manager later.
+                  </span>
+                )}
+              </label>
             </div>
 
             <div style={styles.sectionTitle}>Pricing & rate terms</div>
