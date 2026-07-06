@@ -13,7 +13,7 @@
  */
 
 /** Default OFF. Only do anything once the operator provisions the column and enables this. */
-export const EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED = false;
+export const EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED = true;
 
 /** The single additive JSON column these attributes round-trip through. */
 export const EXTENDED_LOAN_ATTRIBUTES_COLUMN = 'cr664_extendedloanattributes';
