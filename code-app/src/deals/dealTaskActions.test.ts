@@ -539,3 +539,96 @@ describe('Phase 70 — createDocumentReviewTask', () => {
     });
   });
 });
+
+// ===========================================================================
+// WF-1A — createDealTask (general Add Task)
+// ===========================================================================
+
+import { createDealTask } from './createDealTaskAction';
+
+function dealTaskInput(overrides: Partial<Parameters<typeof createDealTask>[0]> = {}) {
+  return {
+    dealId: 'deal-77',
+    taskName: 'Order flood determination',
+    assigneeSystemUserId: 'assignee-9',
+    assigneeName: 'Dana Assignee',
+    dueDate: '2026-08-01',
+    actorSystemUserId: 'sys-user-1',
+    actorEmail: 'banker@oldglorybank.com',
+    note: 'Rush — closing in two weeks.',
+    ...overrides,
+  };
+}
+
+describe('WF-1A — createDealTask', () => {
+  beforeEach(() => {
+    taskCreate.mockReset();
+    auditCreate.mockReset();
+    timelineCreate.mockReset();
+  });
+
+  it('creates the task with the assignee/deal binds + due date, then audit + timeline (success)', async () => {
+    taskCreate.mockReturnValueOnce(successCreate('task-new-1'));
+    auditCreate.mockReturnValueOnce(successAudit('a-1'));
+    timelineCreate.mockReturnValueOnce(successTimeline('tl-1'));
+
+    const result = await createDealTask(dealTaskInput(), okResolver);
+
+    expect(result).toEqual({ kind: 'success', taskId: 'task-new-1' });
+    const payload = taskCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.cr664_taskname).toBe('Order flood determination');
+    expect(payload.cr664_completed).toBe(false);
+    expect(payload['cr664_AssignedTo@odata.bind']).toBe('/systemusers(assignee-9)');
+    expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
+    expect(payload.cr664_duedate).toBe('2026-08-01');
+    // Owner = acting banker (not the assignee); app-level assignment is the lookup.
+    expect(payload.ownerid).toBe('sys-user-1');
+    // Governance pair fired.
+    expect(auditCreate).toHaveBeenCalledTimes(1);
+    expect(timelineCreate).toHaveBeenCalledTimes(1);
+    const tl = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(tl['cr664_EventBy@odata.bind']).toBe('/systemusers(sys-user-1)');
+  });
+
+  it('omits cr664_duedate when no due date is provided', async () => {
+    taskCreate.mockReturnValueOnce(successCreate('task-new-2'));
+    auditCreate.mockReturnValueOnce(successAudit('a-2'));
+    timelineCreate.mockReturnValueOnce(successTimeline('tl-2'));
+
+    await createDealTask(dealTaskInput({ dueDate: undefined }), okResolver);
+
+    const payload = taskCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect('cr664_duedate' in payload).toBe(false);
+  });
+
+  it('validates a blank title and an empty assignee before any write', async () => {
+    expect((await createDealTask(dealTaskInput({ taskName: '   ' }), okResolver)).kind).toBe('unknown');
+    expect((await createDealTask(dealTaskInput({ assigneeSystemUserId: '' }), okResolver)).kind).toBe('unknown');
+    expect(taskCreate).not.toHaveBeenCalled();
+  });
+
+  it('fails closed on an unresolved audit actor: task IS created, audit is NOT written (governance-partial)', async () => {
+    taskCreate.mockReturnValueOnce(successCreate('task-new-3'));
+    // timeline can still succeed; the audit must fail closed on the unresolved actor.
+    timelineCreate.mockReturnValueOnce(successTimeline('tl-3'));
+
+    const result = await createDealTask(dealTaskInput(), failResolver);
+
+    expect(result.kind).toBe('governance-partial');
+    if (result.kind === 'governance-partial') {
+      expect(result.taskId).toBe('task-new-3');
+      expect(result.auditError).toMatch(/cr664_user|unresolved/i);
+    }
+    // Fail-closed: no audit row was POSTed without a resolved cr664_user actor.
+    expect(auditCreate).not.toHaveBeenCalled();
+  });
+
+  it('reports task-create-failed when the task write fails (no governance-partial)', async () => {
+    taskCreate.mockReturnValueOnce(failedCreate('schema rejected payload'));
+
+    const result = await createDealTask(dealTaskInput(), okResolver);
+
+    expect(result.kind).toBe('task-create-failed');
+    if (result.kind === 'task-create-failed') expect(result.taskError).toMatch(/schema rejected/);
+  });
+});
