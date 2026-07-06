@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDealData } from './DealDataProvider';
 import {
   deriveStageProgressionEligibility,
   type ProgressionEligibilityResult,
   type ProgressionEligibilityStatus,
 } from './stageProgressionGuard';
-import { stageProgressionAvailability } from '../shared/governance/stageProgressionAvailability';
+import {
+  stageProgressionAvailability,
+  type StageProgressionAvailability,
+} from '../shared/governance/stageProgressionAvailability';
+import { loadStageProgressionAvailability } from './stageProgressionAvailabilityLoader';
 import { deriveLoanWorkflowState } from '../workflow/deriveLoanWorkflowState';
 import { advanceWorkflowStage, type StageAdvanceOutcome } from '../workflow/stageAdvanceWriteDependency';
 import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
@@ -41,7 +45,12 @@ export interface StageAdvanceActor {
 
 export function DealStageProgressionCard({
   stageAdvanceActor,
-}: { stageAdvanceActor?: StageAdvanceActor } = {}) {
+  loadAvailability = loadStageProgressionAvailability,
+}: {
+  stageAdvanceActor?: StageAdvanceActor;
+  /** Injected for tests; defaults to the live stage-reference read. */
+  loadAvailability?: () => Promise<StageProgressionAvailability>;
+} = {}) {
   const { deal, tasks, documents, creditMemo, activity } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
@@ -63,7 +72,27 @@ export function DealStageProgressionCard({
   // (availability). Default-off → the control is hidden and inert; the
   // advanceWorkflowStage seam refuses with `disabled` until armed. Manager/team
   // workspaces pass no actor, so the card stays read-only there.
-  const availability = stageProgressionAvailability();
+  //
+  // WF-1A Item 1 — availability is now DATA-DRIVEN: load the seeded stage rows,
+  // resolve the deterministic ordering, and derive availability from it. Starts
+  // fail-closed (unavailable) and only flips once a complete, conflict-free
+  // ordered set resolves. Loaded only when a banker-context actor is present
+  // (the only mode where the Advance control could render); read-only surfaces
+  // keep the honest not-seeded banner without an extra read.
+  const hasActor = Boolean(stageAdvanceActor?.systemUserId);
+  const [availability, setAvailability] = useState<StageProgressionAvailability>(
+    stageProgressionAvailability(),
+  );
+  useEffect(() => {
+    if (!hasActor) return;
+    let cancelled = false;
+    void loadAvailability().then((result) => {
+      if (!cancelled) setAvailability(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasActor, loadAvailability]);
   // Armed reads the same raw gate the write seam uses (advanceWorkflowStage:
   // `enabled ?? Boolean(AUTO_STAGE_ADVANCE_ENABLED)`), so flipping the constant
   // arms the card and the write together — no separate config plumbing.

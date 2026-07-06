@@ -3,7 +3,9 @@ import { useDealData, type AsyncResult } from './DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
 import type { DealTask, DealTasksResult } from './dealTaskQueries';
 import { completeTask, type CompleteTaskOutcome } from './dealTaskActions';
+import { createDealTask, type CreateDealTaskOutcome } from './createDealTaskAction';
 import { CompleteTaskModal } from './CompleteTaskModal';
+import { AddDealTaskModal, type AddDealTaskFields } from './AddDealTaskModal';
 import { Card } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { WidgetHeader } from '../shared/cockpitPrimitives';
@@ -21,6 +23,31 @@ export function DealTasks({ readOnly = false }: DealTasksProps = {}) {
   const { deal, tasks, refresh } = useDealData();
   const banker = useOptionalBanker();
   const [pendingTask, setPendingTask] = useState<DealTask | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+
+  async function handleAddTask(fields: AddDealTaskFields): Promise<CreateDealTaskOutcome> {
+    if (!banker?.systemUserId) {
+      return { kind: 'unknown', message: 'Cannot create: no Dataverse identity for the signed-in banker.' };
+    }
+    const outcome = await createDealTask({
+      // dealId is the already-authorized deal id from DealDataProvider.
+      dealId: deal.id,
+      taskName: fields.taskName,
+      assigneeSystemUserId: fields.assigneeSystemUserId,
+      assigneeName: fields.assigneeName,
+      dueDate: fields.dueDate,
+      actorSystemUserId: banker.systemUserId,
+      actorEmail: banker.email,
+      note: fields.note,
+    });
+    if (outcome.kind === 'success' || outcome.kind === 'governance-partial') {
+      // Reuse the task-write reload (reloads tasks + activity) so the new task
+      // shows immediately in the deal's list. The My Work Queue picks it up on
+      // its next load.
+      refresh('after-task-complete');
+    }
+    return outcome;
+  }
 
   async function handleConfirm(note: string): Promise<CompleteTaskOutcome> {
     if (!pendingTask || !banker?.systemUserId) {
@@ -83,6 +110,18 @@ export function DealTasks({ readOnly = false }: DealTasksProps = {}) {
             <strong>Complete disabled:</strong> {banker.writeDisabledReason}
           </p>
         )}
+        {canWrite && (
+          <div style={styles.actionRow}>
+            <button
+              type="button"
+              style={styles.addTaskButton}
+              data-add-task-open
+              onClick={() => setAddOpen(true)}
+            >
+              + Add task
+            </button>
+          </div>
+        )}
         <Body
           tasks={tasks}
           canWrite={canWrite}
@@ -94,6 +133,14 @@ export function DealTasks({ readOnly = false }: DealTasksProps = {}) {
           task={pendingTask}
           onConfirm={handleConfirm}
           onClose={() => setPendingTask(null)}
+        />
+      )}
+      {canWrite && addOpen && banker?.systemUserId && (
+        <AddDealTaskModal
+          dealName={deal.name}
+          self={{ id: banker.systemUserId, name: banker.fullName }}
+          onConfirm={handleAddTask}
+          onClose={() => setAddOpen(false)}
         />
       )}
     </>
@@ -307,6 +354,20 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${palette.atRiskBg}`,
     borderRadius: radius.sm,
     lineHeight: typography.lineHeight.snug,
+  },
+  actionRow: { display: 'flex', justifyContent: 'flex-end', padding: `0 ${spacing.xs} ${spacing.xs}` },
+  addTaskButton: {
+    background: palette.surface,
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    letterSpacing: typography.letterSpacing.label,
+    textTransform: 'uppercase',
   },
   lists: { display: 'flex', flexDirection: 'column', gap: spacing.md },
   group: { display: 'flex', flexDirection: 'column', gap: spacing.xs },

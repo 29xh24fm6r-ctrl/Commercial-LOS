@@ -64,7 +64,7 @@ const baseInput: ExistingLoanInput = {
   payment61Reset: true,
 };
 
-describe('boardExistingLoan extended-attributes persistence (fail-closed; default off)', () => {
+describe('boardExistingLoan extended-attributes persistence', () => {
   it('flag ON: writes the extended-attributes blob into the root payload', async () => {
     const createRoot = vi.fn<(payload: Record<string, unknown>) => Promise<{ success: boolean; id: string }>>(async () => ({ success: true, id: 'id-1' }));
     const outcome = await boardExistingLoan(baseInput, stubDeps(createRoot), { persistExtended: true });
@@ -78,9 +78,9 @@ describe('boardExistingLoan extended-attributes persistence (fail-closed; defaul
     expect(back?.payment61Reset).toBe(true);
   });
 
-  it('flag OFF (default — column not provisioned): boards WITHOUT the blob, no crash, no silent failure', async () => {
+  it('flag OFF override: boards WITHOUT the blob, no crash, no silent failure', async () => {
     const createRoot = vi.fn<(payload: Record<string, unknown>) => Promise<{ success: boolean; id: string }>>(async () => ({ success: true, id: 'id-1' }));
-    const outcome = await boardExistingLoan(baseInput, stubDeps(createRoot)); // default persistExtended=false
+    const outcome = await boardExistingLoan(baseInput, stubDeps(createRoot), { persistExtended: false });
     expect(outcome.kind).toBe('success');
     const payload = createRoot.mock.calls[0][0] as Record<string, unknown>;
     expect(payload[EXTENDED_LOAN_ATTRIBUTES_COLUMN]).toBeUndefined();
