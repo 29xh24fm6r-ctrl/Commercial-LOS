@@ -19,6 +19,36 @@ export interface DealTasksResult {
   completed: DealTask[];
 }
 
+function nonEmpty(v: unknown): string | undefined {
+  return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
+}
+
+/**
+ * Assignee display name for the cr664_AssignedTo systemuser lookup. The live SDK
+ * does NOT populate the `cr664_assignedtoname` shadow field for lookup columns
+ * (same as the deal/portfolio read models), so the authoritative label arrives
+ * on the `_cr664_assignedto_value` `@OData.Community.Display.V1.FormattedValue`
+ * annotation. Prefer that; fall back to the shadow field; else undefined.
+ */
+function assigneeNameOf(raw: Record<string, unknown>): string | undefined {
+  return (
+    nonEmpty(raw['_cr664_assignedto_value@OData.Community.Display.V1.FormattedValue']) ??
+    nonEmpty(raw['cr664_assignedtoname'])
+  );
+}
+
+/** Pure mapper: one raw cr664_dealtask1 row → the UI-facing DealTask. */
+export function mapDealTaskRow(raw: Record<string, unknown>): DealTask {
+  return {
+    id: (raw['cr664_dealtask1id'] as string) ?? '',
+    title: (raw['cr664_taskname'] as string) ?? '',
+    completed: raw['cr664_completed'] === true,
+    dueDate: nonEmpty(raw['cr664_duedate']),
+    assigneeName: assigneeNameOf(raw),
+    modifiedOn: nonEmpty(raw['modifiedon']),
+  };
+}
+
 /**
  * Load all active tasks for the given deal. Scope is enforced by the
  * filter on _cr664_deal_value plus statecode=0 (Active). Caller must
@@ -41,15 +71,8 @@ export async function loadDealTasks(dealId: string): Promise<DealTasksResult> {
     throw new Error(message);
   }
 
-  const all = (result.data ?? []).map(
-    (t): DealTask => ({
-      id: t.cr664_dealtask1id,
-      title: t.cr664_taskname,
-      completed: t.cr664_completed === true,
-      dueDate: t.cr664_duedate,
-      assigneeName: t.cr664_assignedtoname,
-      modifiedOn: t.modifiedon,
-    }),
+  const all = (result.data ?? []).map((t) =>
+    mapDealTaskRow(t as unknown as Record<string, unknown>),
   );
 
   const open = all.filter((t) => !t.completed);
