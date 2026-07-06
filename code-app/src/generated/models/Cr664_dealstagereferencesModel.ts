@@ -14,11 +14,17 @@ export const Cr664_dealstagereferencesstatuscode = {
 export type Cr664_dealstagereferencesstatuscode = keyof typeof Cr664_dealstagereferencesstatuscode;
 
 export interface Cr664_dealstagereferencesBase {
-  cr664_activeflag?: boolean;
-  cr664_code?: string;
+  cr664_activeflag: boolean;
+  cr664_code: string;
   cr664_dealstagereferenceid: string;
+  cr664_description?: string;
+  cr664_effectivedate?: string;
   cr664_name: string;
+  cr664_retireddate?: string;
+  cr664_sequence?: number;
+  cr664_sortorder?: number;
   importsequencenumber?: number;
+  new_productionapproved?: boolean;
   overriddencreatedon?: string;
   ownerid: string;
   owneridtype: string;
@@ -40,6 +46,7 @@ export interface Cr664_dealstagereferences extends Cr664_dealstagereferencesBase
   modifiedon?: string;
   modifiedonbehalfbyname?: string;
   modifiedonbehalfbyyominame: string;
+  new_productionapprovedname?: string;
   owneridname: string;
   owneridyominame: string;
   owningbusinessunitname: string;

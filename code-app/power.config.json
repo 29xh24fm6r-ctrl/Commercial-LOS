@@ -105,8 +105,7 @@
         },
         "dealstagereferences": {
           "entitySetName": "cr664_dealstagereferences",
-          "logicalName": "cr664_dealstagereference",
-          "isHidden": false
+          "logicalName": "cr664_dealstagereference"
         },
         "dealstatusreferences": {
           "entitySetName": "cr664_dealstatusreferences",

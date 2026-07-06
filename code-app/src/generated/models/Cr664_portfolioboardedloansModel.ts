@@ -33,6 +33,7 @@ export interface Cr664_portfolioboardedloansBase {
   cr664_currentoutstandingprincipal?: number;
   cr664_currentriskrating?: string;
   cr664_exceptioncount?: number;
+  cr664_extendedloanattributes?: string;
   cr664_fdicready?: boolean;
   cr664_floor?: number;
   cr664_highseverityexceptioncount?: number;
