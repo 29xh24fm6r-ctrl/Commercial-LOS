@@ -116,7 +116,8 @@ describe('buildLiveStageAdvanceDeps — auditSink', () => {
 });
 
 describe('buildLiveStageAdvanceDeps — timelineSink', () => {
-  it('emits a StageChanged timeline event bound to the deal + systemuser', async () => {
+  it('emits a StageChanged timeline event whose cr664_EventBy is the resolved cr664_user (never a systemuser)', async () => {
+    resolveActor.mockResolvedValueOnce({ ok: true, changedByBind: '/cr664_users(u-1)' });
     timelineCreate.mockResolvedValueOnce({ success: true });
     const { timelineSink } = buildLiveStageAdvanceDeps(actor);
 
@@ -127,6 +128,23 @@ describe('buildLiveStageAdvanceDeps — timelineSink', () => {
     expect(payload.cr664_eventtype).toBe(788190006); // StageChanged
     expect(payload.cr664_visibilityscope).toBe(788190000); // BankerAndManager
     expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-1)');
-    expect(payload['cr664_EventBy@odata.bind']).toBe('/systemusers(sys-1)');
+    // BUGFIX: cr664_EventBy targets cr664_user (like cr664_ChangedBy) — bind the
+    // resolved cr664_user, never /systemusers(<actorSystemUserId>).
+    expect(payload['cr664_EventBy@odata.bind']).toBe('/cr664_users(u-1)');
+    // No systemuser id (and no server-defaulted owner/state) is ever emitted.
+    expect(JSON.stringify(payload)).not.toMatch(/systemusers/);
+    expect('ownerid' in payload).toBe(false);
+  });
+
+  it('omits cr664_EventBy (no faked identity) when the actor cr664_user cannot be resolved', async () => {
+    resolveActor.mockResolvedValueOnce({ ok: false, reason: 'no cr664_user identity' });
+    timelineCreate.mockResolvedValueOnce({ success: true });
+    const { timelineSink } = buildLiveStageAdvanceDeps(actor);
+
+    const res = await timelineSink.write({ correlationId: 'c1', dealId: 'deal-1', toStageId: 'UNDERWRITING' });
+
+    expect(res.ok).toBe(true);
+    const payload = timelineCreate.mock.calls[0][0] as Record<string, unknown>;
+    expect('cr664_EventBy@odata.bind' in payload).toBe(false);
   });
 });

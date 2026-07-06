@@ -154,6 +154,16 @@ export function buildLiveStageAdvanceDeps(actor: LiveStageAdvanceActor): LiveSta
   const timelineSink: StageAdvanceTimelineSink = {
     async write(event) {
       try {
+        // cr664_EventBy targets the custom cr664_user table — NOT systemuser —
+        // exactly like the audit's cr664_ChangedBy. Binding a systemuser id here
+        // is rejected as "Entity 'cr664_User' ... Does Not Exist" (the same defect
+        // fixed on the task path). Resolve the actor's cr664_user bind and use it;
+        // OMIT the optional lookup when the actor cannot resolve (fail-closed, no
+        // faked identity). Owner/state are server-defaulted (removed with the
+        // task-payload owner-field fix).
+        const { createActorChangedByResolver } = await import('./newDealAuditActorResolver');
+        const resolved = await createActorChangedByResolver()(actor.actorEmail);
+        const eventByBind = resolved.ok && resolved.changedByBind ? resolved.changedByBind : undefined;
         const payload = {
           cr664_title: `Stage advanced to ${event.toStageId}`,
           cr664_eventat: new Date().toISOString(),
@@ -162,10 +172,7 @@ export function buildLiveStageAdvanceDeps(actor: LiveStageAdvanceActor): LiveSta
           cr664_issystemgenerated: false,
           cr664_eventsubtype: `correlation:${event.correlationId}`,
           'cr664_Deal@odata.bind': `/cr664_loandeals(${event.dealId})`,
-          'cr664_EventBy@odata.bind': `/systemusers(${actor.actorSystemUserId})`,
-          ownerid: actor.actorSystemUserId,
-          owneridtype: 'systemuser',
-          statecode: 0,
+          ...(eventByBind ? { 'cr664_EventBy@odata.bind': eventByBind } : {}),
         };
         const { Cr664_dealtimelineeventsService } = await import(
           '../generated/services/Cr664_dealtimelineeventsService'
