@@ -6,8 +6,11 @@
  * screen and never a live write). Flipping a flag true only reveals a READ-ONLY
  * preview surface — no write path is enabled by these flags.
  *
- * Every flag here defaults to `false`. These are routing/visibility flags only; they
- * are independent of the live-write governance flags in the per-domain flag modules.
+ * These are routing/visibility (read-only) flags, independent of the live-write
+ * governance flags in the per-domain flag modules. Every flag defaults to `false`
+ * EXCEPT `PORTFOLIO_BOOK_DATA_ENABLED`, which is intentionally activated after
+ * portfolio-book smoke evidence (the boarded-book Portfolio Command Center feed
+ * is live). No flag here enables a write path.
  */
 
 export interface FeatureSurfaceFlags {
@@ -26,7 +29,10 @@ export interface FeatureSurfaceFlags {
 
 export type FeatureSurfaceFlagName = keyof FeatureSurfaceFlags;
 
-/** Frozen defaults — every feature-surface route is OFF by default. */
+/**
+ * Frozen defaults — every feature-surface route is OFF by default, except the
+ * intentionally-activated PORTFOLIO_BOOK_DATA_ENABLED (see below).
+ */
 export const FEATURE_SURFACE_FLAG_DEFAULTS: FeatureSurfaceFlags = Object.freeze({
   PLATFORM_CATALOG_ROUTE_ENABLED: false,
   ADMIN_CONFIG_ROUTE_ENABLED: false,
@@ -38,7 +44,9 @@ export const FEATURE_SURFACE_FLAG_DEFAULTS: FeatureSurfaceFlags = Object.freeze(
   CRM_COMMAND_CENTER_ROUTE_ENABLED: false,
   CRM_INTELLIGENCE_ROUTE_ENABLED: false,
   PORTFOLIO_BOARDING_SURFACE_ROUTE_ENABLED: false,
-  PORTFOLIO_BOOK_DATA_ENABLED: false,
+  // Intentionally ON — activated after portfolio-book smoke evidence. Routes the
+  // Portfolio Command Center to the live boarded-book feed. Read-only; no write.
+  PORTFOLIO_BOOK_DATA_ENABLED: true,
 });
 
 /** True only when the named feature-surface route flag is explicitly enabled. */

@@ -17,6 +17,11 @@ vi.mock('./variableRate/VariableRateControlCenter', () => ({
 vi.mock('../portfolioBoarding/ExistingPortfolioLoansPanel', () => ({
   ExistingPortfolioLoansPanel: () => <section data-testid="existing-portfolio-panel" />,
 }));
+// The top-level book path (PortfolioBookProvider default loader) does a live read;
+// stub it so the "top-level routes to the book path" test is deterministic.
+vi.mock('../portfolioBoarding/boardedLoansList', () => ({
+  loadBoardedLoans: async () => [],
+}));
 
 import type {
   TeamDeal,
@@ -76,6 +81,7 @@ vi.mock('../manager/ManagerBankerFilter', async () => {
 import {
   PortfolioCommandCenter,
   PortfolioCommandCenterBook,
+  PortfolioCommandCenterLegacy,
 } from './PortfolioCommandCenter';
 import { PortfolioBookProvider } from './data/PortfolioBookProvider';
 
@@ -206,10 +212,15 @@ function setFilter(selection: ManagerBankerFilterSelection | undefined) {
   useOptionalManagerBankerFilterMock.mockReturnValue(view);
 }
 
+// With PORTFOLIO_BOOK_DATA_ENABLED on, the top-level PortfolioCommandCenter routes
+// to the boarded-book path (covered by "PE-WIRE-1 — boarded book branch" and
+// "top-level routes to the book path" below). The Phase 126A/130A/132A/144D suites
+// pin the legacy deal-pipeline cockpit, so they mount PortfolioCommandCenterLegacy
+// directly — the flag-off path that still exists in the component.
 function renderCockpit() {
   return render(
     <MemoryRouter>
-      <PortfolioCommandCenter />
+      <PortfolioCommandCenterLegacy />
     </MemoryRouter>,
   );
 }
@@ -305,6 +316,22 @@ describe('Phase 126A — cockpit shell + loading + failure + empty', () => {
 // ---------------------------------------------------------------------------
 // KPI ribbon
 // ---------------------------------------------------------------------------
+
+describe('PORTFOLIO_BOOK_DATA_ENABLED — top-level routes to the book path', () => {
+  it('renders the boarded-book cockpit (not the legacy KPI ribbon) when the flag is on', async () => {
+    setFilter(undefined);
+    render(
+      <MemoryRouter>
+        <PortfolioCommandCenter />
+      </MemoryRouter>,
+    );
+    // Book path: boarded-book headline + existing-portfolio panel mount.
+    expect(await screen.findByText(/Live boarded portfolio exposure/i)).toBeInTheDocument();
+    expect(screen.getByTestId('existing-portfolio-panel')).toBeInTheDocument();
+    // Legacy deal-pipeline cockpit does NOT render at the top level.
+    expect(screen.queryByLabelText('Portfolio KPI ribbon')).not.toBeInTheDocument();
+  });
+});
 
 describe('PE-WIRE-1 — boarded book branch', () => {
   it('renders boarded-book headline and feeds real props into portfolio panels', async () => {
@@ -655,7 +682,7 @@ describe('Phase 132A — risk radar', () => {
 function renderCockpitAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <PortfolioCommandCenter />
+      <PortfolioCommandCenterLegacy />
     </MemoryRouter>,
   );
 }

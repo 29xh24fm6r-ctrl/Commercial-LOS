@@ -252,7 +252,11 @@ export function PortfolioCommandCenterBook() {
   );
 }
 
-function PortfolioCommandCenterLegacy() {
+// Exported for tests: the flag-off cockpit path. The top-level
+// PortfolioCommandCenter routes here only when PORTFOLIO_BOOK_DATA_ENABLED is
+// off; with the flag on it renders the boarded-book path. Tests that pin the
+// legacy deal-pipeline cockpit mount this component directly.
+export function PortfolioCommandCenterLegacy() {
   const { teamPipeline, teamBankers, teamTasks, teamDocuments } = useManagerData();
   const filter = useOptionalManagerBankerFilter();
   const filterSelection = filter?.selection;

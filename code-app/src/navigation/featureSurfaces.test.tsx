@@ -13,7 +13,19 @@ import { FeatureSurfaceView } from './FeatureSurfaceRoute';
 import {
   FEATURE_SURFACE_FLAG_DEFAULTS,
   isFeatureSurfaceFlagEnabled,
+  type FeatureSurfaceFlagName,
 } from './featureSurfaceFlags';
+
+/**
+ * Flags intentionally activated after smoke evidence. These are exempt from the
+ * default-off invariant below, but every OTHER flag must remain fail-safe off.
+ * PORTFOLIO_BOOK_DATA_ENABLED routes the Portfolio Command Center to the live
+ * boarded-book feed (read-only); it is a data flag, not a routed write surface,
+ * so it is not part of the FEATURE_SURFACES registry checked further down.
+ */
+const INTENTIONALLY_ENABLED_FLAGS: ReadonlySet<FeatureSurfaceFlagName> = new Set([
+  'PORTFOLIO_BOOK_DATA_ENABLED',
+]);
 
 /**
  * Phase 3 — feature-surface routing certification.
@@ -24,9 +36,13 @@ import {
  */
 
 describe('feature-surface flags default off (read-first, fail-safe)', () => {
-  it('every feature-surface flag defaults to false', () => {
+  it('every feature-surface flag defaults to false (except intentionally-activated ones)', () => {
     for (const [name, value] of Object.entries(FEATURE_SURFACE_FLAG_DEFAULTS)) {
-      expect(value, `${name} must default false`).toBe(false);
+      if (INTENTIONALLY_ENABLED_FLAGS.has(name as FeatureSurfaceFlagName)) {
+        expect(value, `${name} is intentionally activated (smoke-evidenced)`).toBe(true);
+      } else {
+        expect(value, `${name} must default false`).toBe(false);
+      }
     }
   });
 
