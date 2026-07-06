@@ -581,8 +581,10 @@ describe('WF-1A — createDealTask', () => {
     expect(payload['cr664_AssignedTo@odata.bind']).toBe('/systemusers(assignee-9)');
     expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
     expect(payload.cr664_duedate).toBe('2026-08-01');
-    // Owner = acting banker (not the assignee); app-level assignment is the lookup.
-    expect(payload.ownerid).toBe('sys-user-1');
+    // Owner is server-defaulted; app-level assignment is the cr664_AssignedTo lookup.
+    expect(payload.ownerid).toBeUndefined();
+    expect(payload.owneridtype).toBeUndefined();
+    expect(payload.statecode).toBeUndefined();
     // Governance pair fired.
     expect(auditCreate).toHaveBeenCalledTimes(1);
     expect(timelineCreate).toHaveBeenCalledTimes(1);

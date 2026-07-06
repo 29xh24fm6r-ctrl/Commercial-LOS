@@ -149,9 +149,6 @@ async function emitTimelineEvent(opts: {
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
     'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_dealtimelineeventsService.create(
@@ -384,9 +381,6 @@ async function emitCreateTaskTimelineEvent(opts: {
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
     'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
   };
   try {
     const result = await Cr664_dealtimelineeventsService.create(
@@ -432,9 +426,6 @@ export async function createDocumentReviewTask(
       cr664_completed: false,
       'cr664_AssignedTo@odata.bind': `/systemusers(${input.systemUserId})`,
       'cr664_Deal@odata.bind': `/cr664_loandeals(${input.dealId})`,
-      ownerid: input.systemUserId,
-      owneridtype: 'systemuser',
-      statecode: 0,
     } as unknown as Parameters<typeof Cr664_dealtask1sService.create>[0]);
     if (!create.success || !create.data?.cr664_dealtask1id) {
       const msg = create.error?.message ?? 'DealTask create returned non-success';
