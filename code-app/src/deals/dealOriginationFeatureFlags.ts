@@ -22,7 +22,7 @@ export const BORROWER_INVITE_AUTOMATION_ENABLED = false as const;
 // domain up by source default; it is armed deliberately, per domain, only once that domain's
 // authentic evidence + verified schema state + transport are real (operator runbook O5–O7).
 // The runtime schema/transport gates remain the second safety layer.
-export const AUTO_STAGE_ADVANCE_ENABLED = false as const;
+export const AUTO_STAGE_ADVANCE_ENABLED = true as const;
 export const TASK_GENERATION_ENABLED = true as const;
 // Completion Phase A — safe default (off); arm only after the live checklist write transport is
 // injected and a real document-checklist smoke is captured.
