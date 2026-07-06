@@ -588,8 +588,29 @@ describe('WF-1A — createDealTask', () => {
     // Governance pair fired.
     expect(auditCreate).toHaveBeenCalledTimes(1);
     expect(timelineCreate).toHaveBeenCalledTimes(1);
+    // Audit cr664_ChangedBy binds the RESOLVED cr664_user — never a systemuser id.
+    const auditPayload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(auditPayload['cr664_ChangedBy@odata.bind']).toBe(CORE_USER_BIND);
+    // BUGFIX: cr664_EventBy targets cr664_user (like cr664_ChangedBy), so it binds
+    // the resolved cr664_user — NOT /systemusers(<actorSystemUserId>), which caused
+    // the live "Entity 'cr664_User' ... Does Not Exist" governance failure.
     const tl = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
-    expect(tl['cr664_EventBy@odata.bind']).toBe('/systemusers(sys-user-1)');
+    expect(tl['cr664_EventBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(tl['cr664_EventBy@odata.bind']).not.toContain('/systemusers(');
+  });
+
+  it('omits cr664_EventBy (does not fake identity) when the actor cannot resolve', async () => {
+    taskCreate.mockReturnValueOnce(successCreate('task-new-1b'));
+    // Audit fails closed (no POST) on the unresolved actor; the timeline still
+    // records the event but MUST NOT bind a systemuser id into cr664_EventBy.
+    timelineCreate.mockReturnValueOnce(successTimeline('tl-1b'));
+
+    const result = await createDealTask(dealTaskInput(), failResolver);
+
+    expect(result.kind).toBe('governance-partial');
+    expect(timelineCreate).toHaveBeenCalledTimes(1);
+    const tl = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect('cr664_EventBy@odata.bind' in tl).toBe(false);
   });
 
   it('omits cr664_duedate when no due date is provided', async () => {

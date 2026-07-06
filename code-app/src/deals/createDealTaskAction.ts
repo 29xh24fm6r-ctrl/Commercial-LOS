@@ -62,10 +62,13 @@ export interface CreateDealTaskInput {
   assigneeName?: string;
   /** Optional ISO due date — cr664_duedate. */
   dueDate?: string;
-  /** Acting banker's Dataverse systemuser id — owns the record + timeline EventBy. */
+  /** Acting banker's Dataverse systemuser id. Retained as identity context; it is
+   *  NOT bound into any lookup (owner is server-defaulted; the audit cr664_ChangedBy
+   *  AND timeline cr664_EventBy both target cr664_user, resolved from actorEmail). */
   actorSystemUserId: string;
-  /** Acting banker's email — resolved fail-closed to the audit cr664_ChangedBy
-   *  (cr664_user) bind. No systemuser id is ever bound into cr664_ChangedBy. */
+  /** Acting banker's email — resolved fail-closed to the cr664_user bind used by
+   *  BOTH the audit cr664_ChangedBy and the timeline cr664_EventBy. A systemuser id
+   *  is NEVER bound into either cr664_user lookup. */
   actorEmail: string;
   /** Optional operator note; copied to the audit + timeline (never onto the task). */
   note?: string;
@@ -129,10 +132,18 @@ async function emitAddTaskAuditEvent(opts: {
 
 async function emitAddTaskTimelineEvent(opts: {
   input: CreateDealTaskInput;
+  actor: ActorChangedByResolution;
   taskId: string;
   correlationId: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
   const nowIso = new Date().toISOString();
+  // cr664_EventBy targets the custom cr664_user table — NOT systemuser — exactly
+  // like the audit's cr664_ChangedBy. Binding a systemuser id here is what caused
+  // the live "Entity 'cr664_User' ... Does Not Exist" failure. Reuse the SAME
+  // resolved cr664_user bind the audit uses; never bind a systemuser id.
+  // cr664_EventBy is an OPTIONAL lookup, so when the actor cannot resolve we OMIT
+  // it (the event still records) rather than fake an identity — fail-closed.
+  const eventByBind = opts.actor.ok && opts.actor.changedByBind ? opts.actor.changedByBind : undefined;
   const payload = {
     cr664_title: opts.input.taskName.trim(),
     cr664_summary: buildDealTaskNote(opts.input),
@@ -143,7 +154,7 @@ async function emitAddTaskTimelineEvent(opts: {
     cr664_relatedentitytype: 'cr664_dealtask1',
     cr664_relatedentityid: opts.taskId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.actorSystemUserId})`,
+    ...(eventByBind ? { 'cr664_EventBy@odata.bind': eventByBind } : {}),
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
   };
   try {
@@ -176,8 +187,8 @@ export async function createDealTask(
   const correlationId = newCorrelationId('at');
   const actor = await resolveActorChangedBy(input.actorEmail);
 
-  // Step 1: create the task. Owner = acting banker (matches the existing
-  // self-assign create); cr664_AssignedTo carries the app-level assignment.
+  // Step 1: create the task. Owner is server-defaulted to the calling user;
+  // cr664_AssignedTo carries the app-level assignment (no ownerid/statecode set).
   let taskId: string;
   try {
     const { Cr664_dealtask1sService } = await import('../generated/services/Cr664_dealtask1sService');
@@ -203,7 +214,7 @@ export async function createDealTask(
   // Step 2 + 3: audit + timeline, in parallel. Either failure → governance-partial.
   const [audit, timeline] = await Promise.all([
     emitAddTaskAuditEvent({ input, actor, taskId, correlationId, outcome: AUDIT_OUTCOME_SUCCEEDED, failureReason: undefined }),
-    emitAddTaskTimelineEvent({ input, taskId, correlationId }),
+    emitAddTaskTimelineEvent({ input, actor, taskId, correlationId }),
   ]);
 
   if (audit.error || timeline.error) {

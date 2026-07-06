@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('./BankerContext', () => ({ useBanker: vi.fn() }));
@@ -35,6 +36,16 @@ function setBanker(over: Partial<ReturnType<typeof useBanker>> = {}) {
   });
 }
 
+// The success banner's "Open deal" uses a react-router <Link>, so the component
+// must render inside a Router.
+function renderCreate() {
+  return render(
+    <MemoryRouter>
+      <BankerNewDealCreate />
+    </MemoryRouter>,
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   orchestrateMock.mockReset();
@@ -43,7 +54,7 @@ beforeEach(() => {
 describe('Phase 182A -- banker New Deal create surface', () => {
   it('authorized banker (pilot on) sees the create form with an enabled gate', () => {
     setBanker();
-    const { container } = render(<BankerNewDealCreate />);
+    const { container } = renderCreate();
     expect(screen.getByRole('region', { name: 'New Deal' })).toBeInTheDocument();
     expect(screen.getByText('Create enabled')).toBeInTheDocument();
     expect(container.querySelector('[data-banker-new-deal-form]')).not.toBeNull();
@@ -54,7 +65,7 @@ describe('Phase 182A -- banker New Deal create surface', () => {
 
   it('an unauthorized banker (no systemuser) sees an honest disabled state, no form', () => {
     setBanker({ systemUserId: undefined, writeDisabledReason: 'No systemuser binding.' });
-    const { container } = render(<BankerNewDealCreate />);
+    const { container } = renderCreate();
     const note = container.querySelector('[data-banker-new-deal-state]');
     expect(note?.getAttribute('data-banker-new-deal-state')).toBe('unauthorized');
     expect(note?.textContent).toMatch(/not authorized/i);
@@ -64,7 +75,7 @@ describe('Phase 182A -- banker New Deal create surface', () => {
 
   it('does not call the governed create until a name is entered and submit clicked', async () => {
     setBanker();
-    render(<BankerNewDealCreate />);
+    renderCreate();
     expect(orchestrateMock).not.toHaveBeenCalled();
   });
 
@@ -78,7 +89,7 @@ describe('Phase 182A -- banker New Deal create surface', () => {
       userFacingMessage: 'ok',
     });
     const user = userEvent.setup();
-    const { container } = render(<BankerNewDealCreate />);
+    const { container } = renderCreate();
     await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
     await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
     await waitFor(() =>
@@ -105,7 +116,7 @@ describe('Phase 182A -- banker New Deal create surface', () => {
       userFacingMessage: 'partial',
     });
     const user = userEvent.setup();
-    const { container } = render(<BankerNewDealCreate />);
+    const { container } = renderCreate();
     await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
     await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
     await waitFor(() =>
@@ -128,7 +139,7 @@ describe('Phase 182A -- banker New Deal create surface', () => {
       userFacingMessage: 'failed',
     });
     const user = userEvent.setup();
-    const { container } = render(<BankerNewDealCreate />);
+    const { container } = renderCreate();
     await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
     await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
     await waitFor(() =>

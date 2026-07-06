@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { useBanker } from './BankerContext';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -196,9 +197,13 @@ function ResultBanner({ submit }: { submit: SubmitState }) {
         <div style={styles.bannerOk} role="status" data-banker-new-deal-result="success">
           ✓ Deal created. Id {r.createdDealId}. Stage {r.stageLabel} · Status {r.statusLabel}.{' '}
           It now appears in your Active Deals and Loan Workflow.{' '}
-          <a href={`/deals/${r.createdDealId}`} style={styles.openDealLink} data-banker-new-deal-open>
+          {/* Client-side SPA navigation via react-router (the app's canonical
+              deal-open pattern). A raw <a href> would trigger a full browser
+              navigation to the Power Apps host path and break out of the app
+              shell / hash route. */}
+          <Link to={`/deals/${r.createdDealId}`} style={styles.openDealLink} data-banker-new-deal-open>
             Open deal →
-          </a>
+          </Link>
         </div>
       );
     case 'audit_failed_partial':
