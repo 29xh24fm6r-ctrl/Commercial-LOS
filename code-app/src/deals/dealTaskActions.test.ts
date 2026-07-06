@@ -183,7 +183,10 @@ describe('completeTask', () => {
     expect(payload.cr664_summary).toBe('received and filed');
     expect(payload.cr664_issystemgenerated).toBe(false);
     expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
-    expect(payload['cr664_EventBy@odata.bind']).toBe('/systemusers(sys-user-1)');
+    // BUGFIX: cr664_EventBy targets cr664_user (like cr664_ChangedBy) — bind the
+    // resolved cr664_user, never /systemusers(<systemUserId>).
+    expect(payload['cr664_EventBy@odata.bind']).toBe(CORE_USER_BIND);
+    expect(payload['cr664_EventBy@odata.bind']).not.toContain('/systemusers(');
     expect(payload.cr664_relatedentitytype).toBe('cr664_dealtask1');
     expect(payload.cr664_relatedentityid).toBe('task-1');
     expect(payload.cr664_visibilityscope).toBe(788190000); // BankerAndManager
@@ -265,6 +268,10 @@ describe('completeTask', () => {
     }
     // No audit row is POSTed with an unresolved actor — never a systemuser bind.
     expect(auditCreate).not.toHaveBeenCalled();
+    // The timeline still records the event but MUST NOT fake identity: with an
+    // unresolved actor, cr664_EventBy (a cr664_user lookup) is omitted.
+    const tl = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect('cr664_EventBy@odata.bind' in tl).toBe(false);
   });
 
   it('rejects an empty completion note without touching any service', async () => {

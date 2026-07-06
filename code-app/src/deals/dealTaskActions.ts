@@ -134,9 +134,17 @@ async function emitAuditEvent(opts: {
 
 async function emitTimelineEvent(opts: {
   input: CompleteTaskInput;
+  actor: ActorChangedByResolution;
   correlationId: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
   const nowIso = new Date().toISOString();
+  // cr664_EventBy targets the custom cr664_user table — NOT systemuser — exactly
+  // like the audit's cr664_ChangedBy. Binding a systemuser id here is rejected by
+  // Dataverse as "Entity 'cr664_User' ... Does Not Exist". Reuse the SAME resolved
+  // cr664_user bind the audit uses; never bind a systemuser id. EventBy is an
+  // OPTIONAL lookup, so when the actor cannot resolve we OMIT it (the event still
+  // records) rather than fake an identity — fail-closed.
+  const eventByBind = opts.actor.ok && opts.actor.changedByBind ? opts.actor.changedByBind : undefined;
   const payload = {
     cr664_title: opts.input.taskName,
     cr664_summary: opts.input.completionNote,
@@ -147,7 +155,7 @@ async function emitTimelineEvent(opts: {
     cr664_relatedentitytype: 'cr664_dealtask1',
     cr664_relatedentityid: opts.input.taskId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    'cr664_EventBy@odata.bind': `/systemusers(${opts.input.systemUserId})`,
+    ...(eventByBind ? { 'cr664_EventBy@odata.bind': eventByBind } : {}),
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
   };
   try {
@@ -222,7 +230,7 @@ export async function completeTask(
       outcome: AUDIT_OUTCOME_SUCCEEDED,
       failureReason: undefined,
     }),
-    emitTimelineEvent({ input, correlationId }),
+    emitTimelineEvent({ input, actor, correlationId }),
   ]);
 
   if (audit.error || timeline.error) {
