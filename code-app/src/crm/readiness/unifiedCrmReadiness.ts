@@ -94,6 +94,9 @@ export interface CrmDeliveryLedger {
   readonly inlineEditWired: boolean;
 }
 
+// CRM-G note: inline edit is wired into the CRM Hub drawer via CrmOrgFieldInlineEdit
+// (governed updateOrganizationField — validation + audit + actor binding + rollback).
+
 export const CRM_TEAM_READINESS_LEDGER: CrmDeliveryLedger = Object.freeze({
   // CRM-C: the Command Center is routed at /surfaces/crm-command-center.
   commandCenterRouted: true,
@@ -105,7 +108,8 @@ export const CRM_TEAM_READINESS_LEDGER: CrmDeliveryLedger = Object.freeze({
   // CRM-F: new-deal → canonical CRM client linkage is a wired, governed required step.
   newDealLinkageOperational: true,
   liveCreateWired: true,
-  inlineEditWired: false,
+  // CRM-G: governed inline edit wired into the hub drawer (CrmOrgFieldInlineEdit).
+  inlineEditWired: true,
 });
 
 /** The roles that must have CRM mounted before CRM is team-ready. */

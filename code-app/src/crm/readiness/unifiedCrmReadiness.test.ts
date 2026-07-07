@@ -47,18 +47,13 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(byKey['flag-gated-spine'].status).toBe('ready');
   });
 
-  it('is NOT team-ready at the current baseline (editing + attribution gaps remain)', () => {
+  it('is NOT team-ready at the current baseline (only certification attribution remains)', () => {
     const r = deriveUnifiedCrmReadiness();
     expect(r.teamReady).toBe(false);
     const blockedKeys = r.dimensions.filter((d) => d.status === 'blocked').map((d) => d.key);
-    // Through CRM-F: route-mount, team-scope, and seed-linkage are ready; editing (CRM-G)
-    // and certification attribution (CRM-H) remain the outstanding gaps.
-    expect(blockedKeys).toEqual(
-      expect.arrayContaining(['editing-writeback', 'certification-attribution']),
-    );
-    expect(blockedKeys).not.toContain('route-mount');
-    expect(blockedKeys).not.toContain('team-scope');
-    expect(blockedKeys).not.toContain('seed-linkage');
+    // Through CRM-G: route-mount, team-scope, seed-linkage, and editing are ready; only
+    // certification attribution (CRM-H) remains — the committed smoke is unattributable.
+    expect(blockedKeys).toEqual(['certification-attribution']);
     expect(r.blockers.length).toBeGreaterThan(0);
   });
 
@@ -101,12 +96,12 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(r.blockers).toHaveLength(0);
   });
 
-  it('the committed baseline ledger reflects delivery reality (route + role mounts done; seed/linkage/edit pending)', () => {
+  it('the committed baseline ledger reflects delivery reality (route/mounts/seed/linkage/edit done; attribution pending)', () => {
     expect(CRM_TEAM_READINESS_LEDGER.commandCenterRouted).toBe(true); // CRM-C
     expect(CRM_TEAM_READINESS_LEDGER.rolesMounted).toEqual({ banker: true, team: true, manager: true, admin: true }); // CRM-D
     expect(CRM_TEAM_READINESS_LEDGER.canonicalSeedReady).toBe(true); // CRM-E (backfill path + exception-free)
     expect(CRM_TEAM_READINESS_LEDGER.newDealLinkageOperational).toBe(true); // CRM-F
     expect(CRM_TEAM_READINESS_LEDGER.liveCreateWired).toBe(true);
-    expect(CRM_TEAM_READINESS_LEDGER.inlineEditWired).toBe(false);
+    expect(CRM_TEAM_READINESS_LEDGER.inlineEditWired).toBe(true); // CRM-G
   });
 });

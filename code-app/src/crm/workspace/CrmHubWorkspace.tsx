@@ -9,6 +9,8 @@ import {
   type CrmWorkspaceData,
 } from './crmWorkspaceData';
 import { CrmWriteActions, type CrmOption } from './CrmWriteActions';
+import { CrmOrgFieldInlineEdit } from './CrmOrgFieldInlineEdit';
+import { buildLiveCrmUpdateDeps, type CrmUpdatableOrgField } from '../write/crmUpdateAdapter';
 import type { CrmWriteFns } from '../write/crmWriteActions';
 import {
   loadLinkedDealsForOrganization,
@@ -361,6 +363,19 @@ function ActivityTimeline({ records, onOpen }: { records: readonly CrmRecord[]; 
   );
 }
 
+/** CRM-G — the safe, free-text company fields exposed for governed inline edit in the drawer. */
+const ORG_EDIT_FIELDS: ReadonlyArray<{ field: CrmUpdatableOrgField; label: string }> = [
+  { field: 'cr664_industry', label: 'Industry' },
+  { field: 'cr664_website', label: 'Website' },
+  { field: 'cr664_notes', label: 'Notes' },
+];
+
+/** Seed an inline-edit field from the record's already-displayed overview detail (by label). */
+function detailValueByLabel(record: CrmRecord, label: string): string {
+  const hit = record.detail.find((d) => d.label.toLowerCase() === label.toLowerCase());
+  return hit?.value ?? '';
+}
+
 function DetailDrawer({
   record,
   view,
@@ -417,6 +432,9 @@ function DetailDrawer({
   const companyOptions: CrmOption[] = domain('organizations').map((r) => ({ id: r.id, label: r.title }));
   const personOptions: CrmOption[] = domain('people').map((r) => ({ id: r.id, label: r.title }));
 
+  // CRM-G — governed inline-edit deps (dynamic generated-service import happens only on save).
+  const orgUpdateDeps = buildLiveCrmUpdateDeps();
+
   return (
     <aside style={styles.drawer} role="dialog" aria-label={`${view} detail`} data-crm-detail-drawer>
       <div style={styles.drawerHead}>
@@ -458,6 +476,29 @@ function DetailDrawer({
             actions={['contact', 'activity', 'task', 'relationship']}
             onWritten={onWritten}
           />
+        </DrawerSection>
+      )}
+
+      {isOrganization && (
+        <DrawerSection title="Edit company details">
+          <dl style={styles.detailList}>
+            {ORG_EDIT_FIELDS.map((f) => (
+              <div key={f.field} style={styles.detailRow}>
+                <dt style={styles.detailLabel}>{f.label}</dt>
+                <dd style={styles.detailValue}>
+                  <CrmOrgFieldInlineEdit
+                    organizationId={record.id}
+                    field={f.field}
+                    label={f.label}
+                    value={detailValueByLabel(record, f.label)}
+                    actor={{ authorized: actor.authorized, actorEmail: actor.actorEmail, actorSystemUserId: actor.actorSystemUserId }}
+                    deps={orgUpdateDeps}
+                    disabledReason={actor.writeDisabledReason ?? 'Sign-in identity is still resolving; CRM editing will enable shortly.'}
+                  />
+                </dd>
+              </div>
+            ))}
+          </dl>
         </DrawerSection>
       )}
 
