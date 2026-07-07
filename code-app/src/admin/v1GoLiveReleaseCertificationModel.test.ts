@@ -20,27 +20,26 @@ describe('Phase 236 — V1.0 go-live release certification model', () => {
     ]);
   });
 
-  it('reports live mutation expansion NOT ready while operating restart stays certified (safe-default gates)', () => {
+  it('WF-1A: live mutation expansion IS ready (stage-advance gate armed) while operating restart stays certified', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    // Completion Phase A reset every live-write gate to its safe default (off), so no
-    // live-write category is enabled and live mutation expansion is not ready.
-    expect(vm.liveMutationExpansionReady).toBe(false);
-    // With the live-write gates safe-default off, the forbidden-gate guard is not tripped,
-    // so the governed read/operate restart posture is certified again.
+    // WF-1A armed the stage-advancement live-write gate for the "walk one deal" pilot, so a
+    // live-write category is now enabled → live mutation expansion is ready.
+    expect(vm.liveMutationExpansionReady).toBe(true);
+    // Operating restart posture derives from the operating-coverage + build/regression gates,
+    // independent of the live-write gates, so it stays certified.
     expect(vm.operatingRestartReady).toBe(true);
     expect(vm.restartStatement).toMatch(/restart can proceed within the governed read\/operate posture/i);
   });
 
-  it('names every live-write category as gated after the Completion Phase A safe-default reset', () => {
+  it('names every live-write category as gated EXCEPT the WF-1A-armed stage advance', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    // Completion Phase A reset all five live-write gates to off; New Deal create stays gated
-    // by its global constant — so every live-write category is intentionally gated.
+    // WF-1A armed Stage advancement; the other five live-write categories stay gated (New Deal
+    // create by its global constant, the rest at safe defaults).
     expect(vm.gatedLiveWriteCategories).toEqual([
       'New Deal create',
       'CRM writeback / live persistence',
       'Document checklist generation',
       'Borrower communication send',
-      'Stage advancement',
       'Portfolio boarding live persistence',
     ]);
   });

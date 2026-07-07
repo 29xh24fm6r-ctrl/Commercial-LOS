@@ -34,13 +34,15 @@ describe('Phase 245 — controlled live gate cutover governance contract', () =>
     expect(CUTOVER_DOMAIN_KEYS).not.toContain('borrowerSend');
   });
 
-  it('Completion Phase A: the targeted live gates are at safe defaults (off); the uncontrolled auto-advance write gate stays off', () => {
+  it('WF-1A: CRM/portfolio live gates stay at safe defaults; the governed stage-advance gate is armed while the uncontrolled auto-advance write gate stays off', () => {
     expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(false);
-    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(false);
-    // The uncontrolled automatic-advancement write gate intentionally stays off (production
-    // uses governed explicit advancement, never uncontrolled automatic movement).
+    // WF-1A: the GOVERNED stage-advance gate is intentionally armed for the "walk one
+    // deal" pilot (governed explicit advancement — authorized, policy-checked, audited).
+    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
+    // The UNCONTROLLED automatic-advancement write gate still intentionally stays off
+    // (production never uses uncontrolled automatic movement).
     expect(ADVANCE_STAGE_WRITE_ENABLED).toBe(false);
     // All six domains remain certified, backed by GO final-launch smoke artifacts.
     expect(Object.values(PRODUCTION_ENVIRONMENT_CERTIFICATION).filter((v) => v === true)).toHaveLength(6);
@@ -71,13 +73,15 @@ describe('Phase 245 — controlled live gate cutover governance contract', () =>
     expect(cutover.fullLaunchAchieved).toBe(false);
   });
 
-  it('every targeted domain has a rollback control and its gate flag is at the safe default (off), so not live', () => {
+  it('every targeted domain has a rollback control; gate flags are at safe defaults except the WF-1A-armed stage advance — none live (evidence insufficient)', () => {
     const cutover = deriveControlledLiveCutoverReadiness();
     for (const d of cutover.domains) {
       expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
-      // The live-write feature gate flags are at their SAFE DEFAULTS (off)...
-      expect(d.gateFlagOn, d.key).toBe(false);
-      // ...so (with insufficient final-launch evidence too) the domain does not resolve live.
+      // WF-1A: the stageAdvancement gate (AUTO_STAGE_ADVANCE_ENABLED) is intentionally
+      // armed for the walk; every OTHER targeted domain's gate stays at safe default (off).
+      expect(d.gateFlagOn, d.key).toBe(d.key === 'stageAdvancement');
+      // Still NOT live for ANY domain — the committed final-launch smoke evidence is
+      // insufficient, so even the armed stage-advance gate does not resolve enabled.
       expect(d.enabled, d.key).toBe(false);
     }
   });

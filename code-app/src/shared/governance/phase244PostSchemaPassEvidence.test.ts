@@ -66,7 +66,10 @@ describe('Phase 244 — post-schema PASS evidence governance contract', () => {
     expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
     expect(BORROWER_MESSAGING_ENABLED).toBe(false);
     expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
-    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(false);
+    // WF-1A: AUTO_STAGE_ADVANCE_ENABLED is intentionally armed for the "walk one deal"
+    // pilot. The domain still does NOT resolve live (its final-launch smoke evidence is
+    // insufficient — see enabledCount 1/6 below); only the gate flag is armed.
+    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
   });
 
   it('the orchestrator cannot report ALL-PASS while any child is BLOCKED/UNKNOWN', () => {

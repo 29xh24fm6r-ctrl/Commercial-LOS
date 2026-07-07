@@ -13,13 +13,13 @@ const READONLY_FILES = [
 const DOC_REL = 'docs/PHASE_236_V1_GO_LIVE_RELEASE_CERTIFICATION.md';
 
 describe('Phase 236 — V1.0 go-live release certification contract', () => {
-  it('the release certification model exists and reflects the SAFE-DEFAULT gated posture', () => {
+  it('the release certification model reflects the WF-1A posture: stage-advance armed, operating restart still certified', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    // Live-write gates are reset to safe defaults: no live-write category is enabled,
-    // so live mutation expansion is NOT ready. With no forbidden live gate open, the
-    // final V1 release decision is no longer NO_GO, so the governed operating restart
-    // can proceed (read/operate posture certified).
-    expect(vm.liveMutationExpansionReady).toBe(false);
+    // WF-1A armed the stage-advancement live-write gate for the "walk one deal" pilot, so a
+    // live-write category is enabled → live mutation expansion is ready. The governed operating
+    // restart posture derives from the operating-coverage + build/regression gates (independent
+    // of the live-write gates), so it stays certified.
+    expect(vm.liveMutationExpansionReady).toBe(true);
     expect(vm.operatingRestartReady).toBe(true);
   });
 
@@ -92,15 +92,14 @@ describe('Phase 236 — V1.0 go-live release certification contract', () => {
     expect(withoutCerts).not.toMatch(/salesforce|ncino/i);
   });
 
-  it('names the live-write categories that remain gated under safe defaults', () => {
+  it('names the live-write categories that remain gated (all except the WF-1A-armed stage advance)', () => {
     const vm = deriveV1GoLiveReleaseCertification();
-    // Live-write gates are reset to safe defaults; every live-write category stays gated.
+    // WF-1A armed Stage advancement; every OTHER live-write category stays gated.
     expect(vm.gatedLiveWriteCategories).toEqual([
       'New Deal create',
       'CRM writeback / live persistence',
       'Document checklist generation',
       'Borrower communication send',
-      'Stage advancement',
       'Portfolio boarding live persistence',
     ]);
   });

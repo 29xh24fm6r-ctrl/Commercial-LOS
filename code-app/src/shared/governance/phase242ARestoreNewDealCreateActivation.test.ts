@@ -50,15 +50,16 @@ describe('Phase 242A — restore certified New Deal create activation', () => {
     }
   });
 
-  it('the other five live-write domains stay certified but gate flags are OFF (safe defaults) and NOT enabled', () => {
+  it('the other five live-write domains stay certified; gate flags safe-off except the WF-1A-armed stage advance — none enabled (evidence insufficient)', () => {
     const verification = deriveProductionEnvironmentVerification();
     for (const d of verification.domains.filter((x) => x.key !== 'newDealCreate')) {
-      // The operator certification toggle is still on (structural state unchanged),
-      // but the underlying live-write gate flags were reset to SAFE DEFAULTS (off),
-      // so each domain is gated DOWN and launch stays honestly withheld.
+      // The operator certification toggle is still on (structural state unchanged).
       expect(d.certified, d.key).toBe(true);
-      expect(d.gateFlagOn, d.key).toBe(false);
+      // WF-1A: stageAdvancement's gate (AUTO_STAGE_ADVANCE_ENABLED) is intentionally armed
+      // for the walk; the other four live-write gates stay at safe default (off).
+      expect(d.gateFlagOn, d.key).toBe(d.key === 'stageAdvancement');
       expect(d.evidenceInsufficient, d.key).toBe(true);
+      // Still gated DOWN and NOT enabled for any — the final-launch evidence is insufficient.
       expect(d.enabled, d.key).toBe(false);
     }
   });

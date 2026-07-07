@@ -37,9 +37,12 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(vm.enabledCount).toBe(1);
     expect(vm.fullLaunchAchieved).toBe(false);
     const byId = new Map(vm.domains.map((d) => [d.id, d]));
-    // New Deal create (pilot) keeps its gate flag on; the five live-write domains are reset off.
+    // New Deal create (pilot) keeps its gate flag on. WF-1A: stage-advancement's gate
+    // (AUTO_STAGE_ADVANCE_ENABLED) is intentionally armed for the walk; the other four
+    // live-write gates stay at safe default (off).
     expect(byId.get('new-deal-create')?.flagEnabled).toBe(true);
-    for (const id of ['crm-writeback', 'document-checklist-generation', 'borrower-communication-send', 'stage-advancement', 'portfolio-boarding-persistence'] as const) {
+    expect(byId.get('stage-advancement')?.flagEnabled).toBe(true);
+    for (const id of ['crm-writeback', 'document-checklist-generation', 'borrower-communication-send', 'portfolio-boarding-persistence'] as const) {
       expect(byId.get(id)?.flagEnabled, id).toBe(false);
     }
     expect(byId.get('new-deal-create')?.status).toBe('enabled');

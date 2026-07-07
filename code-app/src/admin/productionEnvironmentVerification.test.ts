@@ -38,11 +38,13 @@ describe('Phase 241/242A/256B — production environment verification', () => {
 
     for (const d of vm.domains.filter((x) => x.key !== 'newDealCreate')) {
       expect(d.certified, d.key).toBe(true);
-      // Completion Phase A — the live-write flags are reset to their SAFE DEFAULT (off), so the
-      // gate flag is now ALSO down for these domains (defense-in-depth restored).
-      expect(d.gateFlagOn, d.key).toBe(false);
+      // WF-1A: stageAdvancement's gate (AUTO_STAGE_ADVANCE_ENABLED) is intentionally armed
+      // for the "walk one deal" pilot; the other four live-write gates stay at safe default (off).
+      expect(d.gateFlagOn, d.key).toBe(d.key === 'stageAdvancement');
       expect(d.evidenceHigh, d.key).toBe(false);
       expect(d.evidenceInsufficient, d.key).toBe(true);
+      // Still NOT enabled for ANY domain — the committed final-launch evidence is insufficient,
+      // so even the armed stage-advance gate is gated DOWN (enabledCount stays 1/6 above).
       expect(d.enabled, d.key).toBe(false);
       expect(d.evidenceIssues.length, d.key).toBeGreaterThan(0);
     }

@@ -175,9 +175,17 @@ function baseExec(over: Partial<ExecuteCanonicalTransitionInput> = {}): ExecuteC
 }
 
 describe('executeCanonicalStageTransition — governed write', () => {
-  it('is disabled by default (AUTO_STAGE_ADVANCE_ENABLED off) — no write', async () => {
-    const out = await executeCanonicalStageTransition(baseExec({ enabled: undefined }));
+  it('is disabled when the gate is explicitly off — no write (fail-closed)', async () => {
+    // Fail-closed disabled path, pinned via an explicit gate override.
+    const out = await executeCanonicalStageTransition(baseExec({ enabled: false }));
     expect(out.kind).toBe('disabled');
+  });
+
+  it('WF-1A: with no explicit gate it falls back to the armed AUTO_STAGE_ADVANCE_ENABLED and transitions', async () => {
+    // AUTO_STAGE_ADVANCE_ENABLED is intentionally armed for the "walk one deal"
+    // pilot, so `enabled: undefined` resolves to the armed constant (not disabled).
+    const out = await executeCanonicalStageTransition(baseExec({ enabled: undefined }));
+    expect(out.kind).toBe('transitioned');
   });
 
   it('advances end-to-end, emitting audit + timeline', async () => {

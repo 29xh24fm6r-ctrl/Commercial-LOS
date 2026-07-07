@@ -111,15 +111,18 @@ describe('arc governance -- risk domain gates stay hard-false post-launch', () =
     }
   });
 
-  it('the live-write constants are reset to their safe default (off)', async () => {
+  it('the still-gated live-write constants are at their safe default (off); stage advance is WF-1A-armed', async () => {
     const flags = await import('../../deals/dealOriginationFeatureFlags');
     for (const key of [
-      'AUTO_STAGE_ADVANCE_ENABLED',
       'DOCUMENT_CHECKLIST_GENERATION_ENABLED',
       'BORROWER_MESSAGING_ENABLED',
       'BORROWER_EMAIL_TRANSPORT_ENABLED',
     ]) {
       expect((flags as Record<string, unknown>)[key]).toBe(false);
     }
+    // WF-1A: AUTO_STAGE_ADVANCE_ENABLED is INTENTIONALLY armed for the "walk one deal"
+    // pilot (a deliberate per-domain arming, not an up-by-default). Governed explicit
+    // advancement only; the uncontrolled auto-advance write gate stays off elsewhere.
+    expect((flags as Record<string, unknown>).AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
   });
 });

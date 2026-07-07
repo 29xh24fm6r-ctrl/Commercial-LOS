@@ -23,9 +23,10 @@ describe('Phase 245 — controlled live cutover readiness ledger', () => {
       expect(d.technicalPrerequisitesPass, d.key).toBe(true);
       expect(d.governedAdapterProven, d.key).toBe(true);
       expect(d.operatorSmokeRecorded, d.key).toBe(true);
-      // Completion Phase A — the cutover-domain gate flags are reset to their safe default (off).
-      expect(d.gateFlagOn, d.key).toBe(false);
-      // The domain does NOT resolve enabled (flag off AND evidence insufficient).
+      // WF-1A: stageAdvancement's gate (AUTO_STAGE_ADVANCE_ENABLED) is intentionally armed
+      // for the walk; the other cutover-domain gates stay at safe default (off).
+      expect(d.gateFlagOn, d.key).toBe(d.key === 'stageAdvancement');
+      // The domain does NOT resolve enabled for any (evidence insufficient gates it down).
       expect(d.enabled, d.key).toBe(false);
       expect(d.rollbackControl.length, d.key).toBeGreaterThan(0);
     }

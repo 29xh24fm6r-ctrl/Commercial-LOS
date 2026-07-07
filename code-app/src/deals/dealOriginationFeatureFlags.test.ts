@@ -37,9 +37,10 @@ describe('origination flags -- Phase 228A production core constants', () => {
     expect(TASK_GENERATION_ENABLED).toBe(true);
     expect(DUPLICATE_DETECTION_ENABLED).toBe(true);
 
-    // Completion Phase A: reset to SAFE DEFAULTS (off). These live-write domains
-    // must never assert up by source default; they are armed deliberately per domain.
-    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(false);
+    // WF-1A: AUTO_STAGE_ADVANCE_ENABLED is INTENTIONALLY armed for the "walk one
+    // deal" pilot — a deliberate per-domain arming, not an up-by-source-default. Every
+    // OTHER live-write domain remains at its safe default (off).
+    expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
     expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
     expect(BORROWER_MESSAGING_ENABLED).toBe(false);
     expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
@@ -79,12 +80,14 @@ describe('origination flags -- Phase 228A production core gates', () => {
     expect(isTaskGenerationEnabled(fullyTrue)).toBe(true);
     expect(isDuplicateDetectionEnabled(fullyTrue)).toBe(true);
 
-    // Completion Phase A: reset to safe defaults — the hard constants are false, so
-    // these domains stay OFF/disabled even with explicit true config (fail-closed).
+    // These domains' hard constants are false, so they stay OFF/disabled even with
+    // explicit true config (fail-closed).
     expect(isDocumentChecklistEnabled(fullyTrue)).toBe(false);
-    expect(isAutoStageAdvanceEnabled(fullyTrue)).toBe(false);
     expect(resolveBorrowerMessagingMode(fullyTrue)).toBe('disabled');
     expect(isAnyBorrowerTransportEnabled(fullyTrue)).toBe(false);
+    // WF-1A: AUTO_STAGE_ADVANCE_ENABLED is armed, so with an explicit true config the
+    // gate reader now enables it (deliberate per-domain arming for the walk).
+    expect(isAutoStageAdvanceEnabled(fullyTrue)).toBe(true);
 
     expect(isCrmAutomationEnabled(fullyTrue)).toBe(false);
     expect(isPortfolioSideEffectsEnabled(fullyTrue)).toBe(false);
