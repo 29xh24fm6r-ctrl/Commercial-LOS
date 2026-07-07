@@ -15,6 +15,10 @@ import { AUTO_STAGE_ADVANCE_ENABLED } from '../deals/dealOriginationFeatureFlags
  *     no real write until an operator wires the live transport AND enables the gate.
  *   - A transport failure surfaces as update_failed (never fake success). Audit /
  *     timeline failures after a successful stage write are honest partial successes.
+ *   - WFLOW-B: after a successful update the stage write is PROVEN by a Dataverse
+ *     readback (re-read cr664_StageReference + cr664_stageentrydate). A readback
+ *     miss/unavailability surfaces as `readback_failed` — the move is NOT reported
+ *     as advanced unless persistence is confirmed.
  *   - There is NO auto-advance: the caller (an explicit banker action) supplies the
  *     requested next stage; this adapter only writes the explicitly requested move.
  */
@@ -26,6 +30,7 @@ export type StageAdvanceOutcome =
   | { kind: 'blocked'; reason: string; blockers: readonly string[] }
   | { kind: 'dependency_not_ready'; detail: string }
   | { kind: 'update_failed'; detail: string }
+  | { kind: 'readback_failed'; detail: string }
   | { kind: 'audit_failed_partial_success'; detail: string }
   | { kind: 'timeline_failed_partial_success'; detail: string };
 
@@ -36,6 +41,17 @@ export interface StageAdvanceTransport {
     toStageId: LoanWorkflowStageId;
     entryDateIso: string;
   }): Promise<{ ok: boolean; error?: string }>;
+  /**
+   * WFLOW-B — re-read the deal AFTER the update and prove the stage reference now
+   * resolves to `expectedStageId` and `cr664_stageentrydate` is present. `ok:false`
+   * = the readback read itself was unavailable; `matched:false` = the persisted
+   * value does not match. Either withholds the `advanced` verdict.
+   */
+  readbackDealStage(input: {
+    dealId: string;
+    expectedStageId: LoanWorkflowStageId;
+    expectedEntryDateIso: string;
+  }): Promise<{ ok: boolean; matched: boolean; detail?: string }>;
 }
 export interface StageAdvanceAuditSink {
   write(audit: {
@@ -92,6 +108,23 @@ export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<St
   if (!upd.ok) {
     await input.auditSink.write({ correlationId: input.correlationId, dealId: input.dealId, fromStageId: policy.from, toStageId: policy.to, outcome: 'update_failed' });
     return { kind: 'update_failed', detail: upd.error ?? 'stage_update_failed' };
+  }
+
+  // WFLOW-B — PROVE the write persisted before claiming success. A readback miss
+  // or unavailability is an honest failure (a best-effort failed audit is recorded).
+  const rb = await input.transport.readbackDealStage({
+    dealId: input.dealId,
+    expectedStageId: policy.to,
+    expectedEntryDateIso: input.entryDateIso,
+  });
+  if (!rb.ok || !rb.matched) {
+    await input.auditSink.write({ correlationId: input.correlationId, dealId: input.dealId, fromStageId: policy.from, toStageId: policy.to, outcome: 'readback_failed' });
+    return {
+      kind: 'readback_failed',
+      detail: rb.detail ?? (rb.ok
+        ? `Stage readback did not confirm the move to ${policy.to}; persistence is unverified.`
+        : 'Stage readback was unavailable; persistence could not be confirmed.'),
+    };
   }
 
   const audit = await input.auditSink.write({ correlationId: input.correlationId, dealId: input.dealId, fromStageId: policy.from, toStageId: policy.to, outcome: 'advanced' });

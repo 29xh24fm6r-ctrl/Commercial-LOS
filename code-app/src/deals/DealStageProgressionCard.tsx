@@ -421,6 +421,8 @@ function describeStageAdvanceOutcome(outcome: StageAdvanceOutcome): string {
       return outcome.detail;
     case 'update_failed':
       return `Stage update failed: ${outcome.detail}`;
+    case 'readback_failed':
+      return `Stage move unconfirmed — persistence could not be verified on readback: ${outcome.detail}`;
     case 'audit_failed_partial_success':
     case 'timeline_failed_partial_success':
       return outcome.detail;

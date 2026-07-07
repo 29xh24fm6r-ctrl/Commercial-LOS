@@ -61,7 +61,7 @@ export interface LiveStageAdvanceDeps {
  * is absent/inactive (the table not yet seeded) — the caller then reports the
  * write fail-closed. NEVER fabricates a bind.
  */
-async function resolveStageReferenceBind(stageCode: string): Promise<string | null> {
+async function resolveStageReferenceId(stageCode: string): Promise<string | null> {
   const { Cr664_dealstagereferencesService } = await import(
     '../generated/services/Cr664_dealstagereferencesService'
   );
@@ -75,9 +75,12 @@ async function resolveStageReferenceBind(stageCode: string): Promise<string | nu
   const row = (res.data ?? []).find(
     (r) => (r.cr664_code ?? '') === stageCode && r.cr664_activeflag === true,
   );
-  return row?.cr664_dealstagereferenceid
-    ? `/cr664_dealstagereferences(${row.cr664_dealstagereferenceid})`
-    : null;
+  return row?.cr664_dealstagereferenceid ?? null;
+}
+
+async function resolveStageReferenceBind(stageCode: string): Promise<string | null> {
+  const id = await resolveStageReferenceId(stageCode);
+  return id ? `/cr664_dealstagereferences(${id})` : null;
 }
 
 /**
@@ -104,6 +107,36 @@ export function buildLiveStageAdvanceDeps(actor: LiveStageAdvanceActor): LiveSta
         return { ok: res.success, error: res.error?.message };
       } catch (err: unknown) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    // WFLOW-B — prove persistence: re-read the deal's stage-reference value + entry
+    // date and confirm they match the requested stage. Fail-closed: any read failure
+    // is `ok:false` (unavailable), a value mismatch is `matched:false`.
+    async readbackDealStage(input) {
+      try {
+        const expectedId = await resolveStageReferenceId(input.expectedStageId);
+        if (!expectedId) {
+          return { ok: false, matched: false, detail: `No active stage reference row for "${input.expectedStageId}" to read back against.` };
+        }
+        const { Cr664_loandealsService } = await import('../generated/services/Cr664_loandealsService');
+        const res = await Cr664_loandealsService.get(input.dealId, {
+          select: ['_cr664_stagereference_value', 'cr664_stageentrydate'],
+        });
+        if (!res.success || !res.data) {
+          return { ok: false, matched: false, detail: res.error?.message ?? 'Deal stage readback read failed.' };
+        }
+        const raw = res.data as unknown as Record<string, unknown>;
+        const actualStageId = typeof raw['_cr664_stagereference_value'] === 'string' ? raw['_cr664_stagereference_value'] : undefined;
+        const entryPresent = typeof raw['cr664_stageentrydate'] === 'string' && raw['cr664_stageentrydate'].length > 0;
+        if (actualStageId !== expectedId) {
+          return { ok: true, matched: false, detail: `Readback stage reference did not match ${input.expectedStageId}; the deal did not persist the move.` };
+        }
+        if (!entryPresent) {
+          return { ok: true, matched: false, detail: 'Readback found no cr664_stageentrydate on the deal after the update.' };
+        }
+        return { ok: true, matched: true };
+      } catch (err: unknown) {
+        return { ok: false, matched: false, detail: err instanceof Error ? err.message : String(err) };
       }
     },
   };

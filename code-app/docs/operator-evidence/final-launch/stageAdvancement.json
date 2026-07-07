@@ -1,17 +1,17 @@
 {
     "capability":  "stageAdvancement",
-    "outcome":  "passed",
+    "outcome":  "failed",
     "operatorUpn":  "mpaller@oldglorybank.com",
     "environmentUrl":  "https://org3a57b8d4.crm.dynamics.com/",
     "environmentId":  "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
     "correlationId":  "stageAdvancement-launch-smoke-20260625",
     "startedAtIso":  "2026-06-25T21:00:00.000Z",
     "completedAtIso":  "2026-06-25T21:05:00.000Z",
-    "liveOperationPerformed":  true,
-    "readbackVerified":  true,
-    "rollbackVerified":  true,
-    "auditVerified":  true,
-    "evidenceNote":  "Controlled stage advancement launch smoke completed on a launch-test record: transition, audit sink, timeline sink, readback, and rollback verified.",
+    "liveOperationPerformed":  false,
+    "readbackVerified":  false,
+    "rollbackVerified":  false,
+    "auditVerified":  false,
+    "evidenceNote":  "PENDING MACHINE PROOF (WFLOW-I): this record carries NO affectedRecordIds, so the transition, audit, timeline, readback, and rollback are NOT machine-proven. The verification booleans were corrected to false to stop overclaiming a verified readback the artifact cannot substantiate. Re-capture via the operator smoke harness recording deal id, audit id, timeline id, affectedRecordIds, and a concrete readbackProof before this domain can be accepted.",
     "affectedRecordIds":  [
 
                           ],

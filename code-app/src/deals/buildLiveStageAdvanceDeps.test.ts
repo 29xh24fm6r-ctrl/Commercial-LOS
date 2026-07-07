@@ -3,8 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Controllable stubs for the generated services + actor resolver so these unit
 // tests drive each payload deterministically and never load the real SDK.
-const { loandealsUpdate, auditCreate, stageGetAll, timelineCreate, resolveActor } = vi.hoisted(() => ({
+const { loandealsUpdate, loandealsGet, auditCreate, stageGetAll, timelineCreate, resolveActor } = vi.hoisted(() => ({
   loandealsUpdate: vi.fn(),
+  loandealsGet: vi.fn(),
   auditCreate: vi.fn(),
   stageGetAll: vi.fn(),
   timelineCreate: vi.fn(),
@@ -12,7 +13,7 @@ const { loandealsUpdate, auditCreate, stageGetAll, timelineCreate, resolveActor 
 }));
 
 vi.mock('../generated/services/Cr664_loandealsService', () => ({
-  Cr664_loandealsService: { update: loandealsUpdate },
+  Cr664_loandealsService: { update: loandealsUpdate, get: loandealsGet },
 }));
 vi.mock('../generated/services/Cr664_auditeventsService', () => ({
   Cr664_auditeventsService: { create: auditCreate },
@@ -31,6 +32,7 @@ import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
 
 beforeEach(() => {
   loandealsUpdate.mockReset();
+  loandealsGet.mockReset();
   auditCreate.mockReset();
   stageGetAll.mockReset();
   timelineCreate.mockReset();
@@ -82,6 +84,89 @@ describe('buildLiveStageAdvanceDeps — transport.updateDealStage', () => {
     const { transport } = buildLiveStageAdvanceDeps(actor);
     expect((await transport.updateDealStage({ dealId: 'd', fromStageId: 'INTAKE', toStageId: 'UNDERWRITING', entryDateIso: 'x' })).ok).toBe(false);
     expect(loandealsUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('buildLiveStageAdvanceDeps — transport.readbackDealStage (WFLOW-B persistence proof)', () => {
+  it('confirms the move when the re-read stage-reference value + entry date match the target', async () => {
+    // First getAll resolves the target stage code → id; then the deal is re-read.
+    stageGetAll.mockResolvedValueOnce({
+      success: true,
+      data: [{ cr664_dealstagereferenceid: 'ref-uw', cr664_code: 'UNDERWRITING', cr664_activeflag: true }],
+    });
+    loandealsGet.mockResolvedValueOnce({
+      success: true,
+      data: { _cr664_stagereference_value: 'ref-uw', cr664_stageentrydate: '2026-07-02T00:00:00Z' },
+    });
+    const { transport } = buildLiveStageAdvanceDeps(actor);
+
+    const res = await transport.readbackDealStage({ dealId: 'deal-1', expectedStageId: 'UNDERWRITING', expectedEntryDateIso: '2026-07-02T00:00:00Z' });
+
+    expect(res).toEqual({ ok: true, matched: true });
+    expect(loandealsGet).toHaveBeenCalledWith('deal-1', expect.objectContaining({
+      select: ['_cr664_stagereference_value', 'cr664_stageentrydate'],
+    }));
+  });
+
+  it('reports matched:false when the persisted stage-reference value does NOT match the target', async () => {
+    stageGetAll.mockResolvedValueOnce({
+      success: true,
+      data: [{ cr664_dealstagereferenceid: 'ref-uw', cr664_code: 'UNDERWRITING', cr664_activeflag: true }],
+    });
+    loandealsGet.mockResolvedValueOnce({
+      success: true,
+      data: { _cr664_stagereference_value: 'ref-STILL-INTAKE', cr664_stageentrydate: '2026-07-02T00:00:00Z' },
+    });
+    const { transport } = buildLiveStageAdvanceDeps(actor);
+
+    const res = await transport.readbackDealStage({ dealId: 'deal-1', expectedStageId: 'UNDERWRITING', expectedEntryDateIso: '2026-07-02T00:00:00Z' });
+
+    expect(res.ok).toBe(true);
+    expect(res.matched).toBe(false);
+    expect(res.detail).toMatch(/did not (match|persist)/i);
+  });
+
+  it('reports matched:false when the stage matches but cr664_stageentrydate is missing', async () => {
+    stageGetAll.mockResolvedValueOnce({
+      success: true,
+      data: [{ cr664_dealstagereferenceid: 'ref-uw', cr664_code: 'UNDERWRITING', cr664_activeflag: true }],
+    });
+    loandealsGet.mockResolvedValueOnce({
+      success: true,
+      data: { _cr664_stagereference_value: 'ref-uw', cr664_stageentrydate: null },
+    });
+    const { transport } = buildLiveStageAdvanceDeps(actor);
+
+    const res = await transport.readbackDealStage({ dealId: 'deal-1', expectedStageId: 'UNDERWRITING', expectedEntryDateIso: '2026-07-02T00:00:00Z' });
+
+    expect(res.ok).toBe(true);
+    expect(res.matched).toBe(false);
+    expect(res.detail).toMatch(/stageentrydate/i);
+  });
+
+  it('reports ok:false (unavailable) when the deal re-read itself fails', async () => {
+    stageGetAll.mockResolvedValueOnce({
+      success: true,
+      data: [{ cr664_dealstagereferenceid: 'ref-uw', cr664_code: 'UNDERWRITING', cr664_activeflag: true }],
+    });
+    loandealsGet.mockResolvedValueOnce({ success: false, error: { message: 'read timeout' } });
+    const { transport } = buildLiveStageAdvanceDeps(actor);
+
+    const res = await transport.readbackDealStage({ dealId: 'deal-1', expectedStageId: 'UNDERWRITING', expectedEntryDateIso: '2026-07-02T00:00:00Z' });
+
+    expect(res.ok).toBe(false);
+    expect(res.matched).toBe(false);
+  });
+
+  it('reports ok:false when the target stage reference row cannot be resolved (table not seeded)', async () => {
+    stageGetAll.mockResolvedValueOnce({ success: true, data: [] });
+    const { transport } = buildLiveStageAdvanceDeps(actor);
+
+    const res = await transport.readbackDealStage({ dealId: 'deal-1', expectedStageId: 'UNDERWRITING', expectedEntryDateIso: '2026-07-02T00:00:00Z' });
+
+    expect(res.ok).toBe(false);
+    expect(res.matched).toBe(false);
+    expect(loandealsGet).not.toHaveBeenCalled();
   });
 });
 

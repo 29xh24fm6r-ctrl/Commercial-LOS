@@ -303,3 +303,37 @@ A banker must be able to move a **real** deal Intake → Underwriting → Credit
 **Docs:** `docs/STAGE_SCHEMA_SETUP.md`, `STAGE_ADVANCEMENT_RUN_LOG.md`, `STAGE_PROGRESSION_ENABLEMENT_MAP.md`, `PHASE_225_PRODUCTION_STAGE_STATUS_ACTIVATION.md`, `MASTER_ACTIVATION_STATUS_AND_OPERATOR_RUNBOOK.md`.
 
 *Read-only audit. No runtime code modified.*
+
+---
+
+# PART 2 — REMEDIATION STATUS (branch `feature/workflow-team-ready`)
+
+**Date:** 2026-07-07
+**Mode:** Remediation. One branch, one commit per phase (WFLOW-B … WFLOW-J).
+**What changed since Part 1:** the six hard blockers are remediated **in code, fail-closed, and under test.** The two items that only a human operator can close (an authentic machine-proven live smoke, and a risk-rating system) are now *explicitly surfaced as blockers* instead of silently passing — the code can no longer overclaim them.
+
+## Blocker → remediation map
+
+| # | Part 1 hard blocker | Remediation | Phase |
+|---|---|---|---|
+| 1 | No in-code readback after the stage update (transport trusts `res.success`) | ADVANCE re-reads `cr664_StageReference` + `cr664_stageentrydate` and only reports `advanced` when persistence is confirmed; a miss/unavailable read is the new `readback_failed` outcome (honest failure, best-effort failed audit, no timeline). Live readback impl + UI case + tests. | **WFLOW-B** |
+| 2 | Only ADVANCE is live-wired; Return/Decline/Withdraw have no live write path | Built `buildLiveCanonicalTransitionDeps` (transport + audit + timeline + readback) wiring the canonical 4-kind engine to Dataverse. RETURN persists the earlier stage ref + entry date; DECLINE persists `DECLINED` status ref + structured reason + adverse-action-pending marker and sends **no** borrower notice (import-scan guarantee); WITHDRAW persists `WITHDRAWN` status ref + reason. Each proves persistence with a readback; each fully tested. | **WFLOW-C / D / E** |
+| 3 | Stage seed never deterministically proven | `evaluateStageSeedReadiness` + live `loadStageSeedReadiness` prove exactly the seven canonical rows, active, at the ratified sequences (10…70), fail-closed on missing/duplicate/inactive/misordered/unsequenced/non-canonical seeds, with a stable fingerprint. | **WFLOW-F** |
+| 4 | Rigorous exit-gate model orphaned; its facts (risk rating, approval authority, funding, boarding) untracked and invisible to the live gate | Added a per-requirement `tracked` signal and `reconcileStageExitGate` / `certifyStageExitGatesReconciled`: a stage is `certifiable` only when the live path allows **and** the rigorous gate is satisfied **and** every fact is tracked. Untracked facts (risk rating, closing/funding, boarding) and over-permissive divergences now **block certification** instead of silently passing. | **WFLOW-G** |
+| 5 | Boarding handoff trusted the `deal.stage` string alone | `evaluateBoardingHandoff` makes the BOARDED fact require **both** the stage **and** an active `cr664_portfolioboardedloans` record linked via `cr664_OriginatedLoanDeal`; adds a `missing-handoff` blocker (stage says boarded, no servicing record) and a `premature-handoff` anomaly. Live `loadBoardingHandoffForDeal` is fail-closed. | **WFLOW-H** |
+| 6 | `stageAdvancement` smoke attributable but not machine-proven; committed artifact overclaimed a verified readback with empty `affectedRecordIds` | `deriveStageAdvancementSmokeProof` captures the full provenance (operator UPN + systemuser id, org url/env id, deal id, from/to stage, affectedRecordIds, audit id, timeline id, readback proof, timestamp, correlation id, note) and treats a readback claim without `readbackProof` (or empty ids) as **fabrication, not proof**. The overclaiming `stageAdvancement.json` was corrected to honest `failed` / pending-proof. | **WFLOW-I** |
+
+## What is now team-ready
+
+- **All four transition kinds are live-wired, persisted, audited, timelined, and readback-proven** — fail-closed, default-off (`AUTO_STAGE_ADVANCE_ENABLED`), injected transports (SDK kept out of the static/`src/workflow` graph; live loaders live in `src/deals`).
+- **The seed, the exit gates, and the boarding handoff are all deterministically proven** and refuse to pass on missing/ambiguous/untracked data.
+- **The evidence layer cannot overclaim** — machine proof requires real record ids + a backed readback; unbacked claims are flagged.
+
+## What still gates FULL production certification (honestly, not team-ready to hide)
+
+1. **An authentic machine-proven live smoke** — an operator must run a real governed transition against the org and capture `affectedRecordIds` + audit id + timeline id + a concrete `readbackProof` (the harness/schema now exists — WFLOW-I; the committed artifact is honestly `failed` until then).
+2. **Risk-rating (and the other rigorous facts) tracked in schema** — until risk rating is implemented, `UNDERWRITING` can never be `certifiable`; WFLOW-G surfaces this as a hard blocker rather than passing it.
+
+These two are **operator/schema work, not code gaps.** The workflow is team-operable with honest governance today; it is not yet *fully production-certified*, and the code now refuses to claim otherwise.
+
+*Remediation complete for the code-side blockers. See `LOAN_WORKFLOW_TEAM_READY_AAR.md`.*
