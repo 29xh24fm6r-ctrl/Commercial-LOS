@@ -155,6 +155,11 @@
           "entitySetName": "cr664_crmpersons",
           "logicalName": "cr664_crmperson"
         },
+        "clientrelationships": {
+          "entitySetName": "cr664_clientrelationships",
+          "logicalName": "cr664_clientrelationship",
+          "isHidden": false
+        },
         "crmrelationships": {
           "entitySetName": "cr664_crmrelationships",
           "logicalName": "cr664_crmrelationship"
