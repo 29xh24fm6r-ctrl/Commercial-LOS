@@ -79,7 +79,12 @@ export interface CrmDeliveryLedger {
     readonly manager: boolean;
     readonly admin: boolean;
   };
-  /** CRM-E: canonical CRM org/person/relationship seed/backfill is ready or exception-free. */
+  /**
+   * CRM-E: the governed canonical CRM seed/backfill path is wired and the graph is
+   * exception-free (no deal names a client with no resolvable canonical organization).
+   * Source of truth: crmCanonicalSeedReadiness.deriveCrmCanonicalSeedReadiness().ready.
+   * Does NOT assert records physically exist — that is `seededRecordsPresent`.
+   */
   readonly canonicalSeedReady: boolean;
   /** CRM-F: new-deal → CRM client linkage is operational (governed, not inert). */
   readonly newDealLinkageOperational: boolean;
@@ -95,7 +100,8 @@ export const CRM_TEAM_READINESS_LEDGER: CrmDeliveryLedger = Object.freeze({
   // CRM-D: role-scoped read-only CRM surfaces mounted for team / manager / admin
   // (banker already mounted). Source of truth: crmRoleMountRegistry.CRM_ROLE_MOUNTS.
   rolesMounted: Object.freeze({ banker: true, team: true, manager: true, admin: true }),
-  canonicalSeedReady: false,
+  // CRM-E: governed backfill path wired + exception-free (no records fabricated).
+  canonicalSeedReady: true,
   newDealLinkageOperational: false,
   liveCreateWired: true,
   inlineEditWired: false,

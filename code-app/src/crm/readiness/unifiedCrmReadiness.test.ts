@@ -107,7 +107,7 @@ describe('CRM-B — unified CRM readiness model', () => {
   it('the committed baseline ledger reflects delivery reality (route + role mounts done; seed/linkage/edit pending)', () => {
     expect(CRM_TEAM_READINESS_LEDGER.commandCenterRouted).toBe(true); // CRM-C
     expect(CRM_TEAM_READINESS_LEDGER.rolesMounted).toEqual({ banker: true, team: true, manager: true, admin: true }); // CRM-D
-    expect(CRM_TEAM_READINESS_LEDGER.canonicalSeedReady).toBe(false);
+    expect(CRM_TEAM_READINESS_LEDGER.canonicalSeedReady).toBe(true); // CRM-E (backfill path + exception-free)
     expect(CRM_TEAM_READINESS_LEDGER.newDealLinkageOperational).toBe(false);
     expect(CRM_TEAM_READINESS_LEDGER.liveCreateWired).toBe(true);
     expect(CRM_TEAM_READINESS_LEDGER.inlineEditWired).toBe(false);
