@@ -131,7 +131,8 @@ describe('DealCrmRelationshipPanel — actionable client link', () => {
 
     await user.click(screen.getByRole('button', { name: /Link a canonical CRM client/i }));
 
-    // Modal loads the existing client options.
+    // Modal requires a search before showing results (scalable list).
+    await user.type(document.querySelector('[data-link-crm-search]') as HTMLInputElement, 'Acme');
     const option = await screen.findByRole('option', { name: /Acme Holdings LLC/i });
     await user.click(option);
     await user.click(screen.getByRole('button', { name: /^Link client$/i }));
@@ -194,10 +195,12 @@ describe('DealCrmRelationshipPanel — actionable client link', () => {
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: /Link a canonical CRM client/i }));
-    // OmniCare 365 is offered (labelled as a CRM company bridge target).
+    // Search surfaces the CRM company (labelled as a bridge target).
+    await user.type(document.querySelector('[data-link-crm-search]') as HTMLInputElement, 'Omni');
     const option = await screen.findByRole('option', { name: /OmniCare 365/i });
     expect(option.getAttribute('data-link-crm-option-kind')).toBe('organization');
-    expect(within(option).getByText(/will create\/link borrower client record/i)).toBeInTheDocument();
+    // The bridge intent is shown as the group heading above the company options.
+    expect(screen.getByText(/will create\/link borrower client record/i)).toBeInTheDocument();
     await user.click(option);
     await user.click(screen.getByRole('button', { name: /^Link client$/i }));
 
@@ -230,6 +233,7 @@ describe('DealCrmRelationshipPanel — actionable client link', () => {
     render(<DealCrmRelationshipPanel />);
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /Link a canonical CRM client/i }));
+    await user.type(document.querySelector('[data-link-crm-search]') as HTMLInputElement, 'Acme');
     await user.click(await screen.findByRole('option', { name: /Acme Holdings LLC/i }));
     await user.click(screen.getByRole('button', { name: /^Link client$/i }));
     expect(bridgeMock).not.toHaveBeenCalled();
@@ -269,6 +273,7 @@ describe('DealCrmRelationshipPanel — actionable client link', () => {
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: /Assign the owning team/i }));
+    await user.type(document.querySelector('[data-link-crm-search]') as HTMLInputElement, 'Comm');
     const option = await screen.findByRole('option', { name: /Commercial East/i });
     await user.click(option);
     await user.click(screen.getByRole('button', { name: /^Assign team$/i }));

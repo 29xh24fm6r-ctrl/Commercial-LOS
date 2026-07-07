@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import type { CrmLinkOption } from './dealCrmLinkOptions';
+import { rankLinkOptions, MIN_SEARCH_CHARS } from './dealCrmLinkOptionsRanking';
 import type {
   DealCrmLinkTarget,
   LinkDealCrmEntityOutcome,
@@ -98,16 +99,12 @@ export function LinkDealCrmEntityModal({
     };
   }, [loadOptions]);
 
-  const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    const all = options ?? [];
-    if (q.length === 0) return all;
-    return all.filter(
-      (o) =>
-        o.name.toLowerCase().includes(q) ||
-        (o.sublabel ? o.sublabel.toLowerCase().includes(q) : false),
-    );
-  }, [options, filter]);
+  // Scalable results: no full list by default — deal-name suggestions with a
+  // short query, a ranked+capped general search at >= MIN_SEARCH_CHARS.
+  const ranked = useMemo(
+    () => rankLinkOptions({ options: options ?? [], dealName, query: filter, targetKind }),
+    [options, filter, dealName, targetKind],
+  );
 
   const selected = useMemo(
     () => (options ?? []).find((o) => o.id === selectedId) ?? null,
@@ -163,10 +160,11 @@ export function LinkDealCrmEntityModal({
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 disabled={inProgress}
-                placeholder={`Filter ${copy.entity}s by name`}
+                placeholder={`Search ${copy.entity}s by name (type ${MIN_SEARCH_CHARS}+ characters)`}
                 style={styles.input}
                 data-link-crm-search
                 aria-label={`Search existing CRM ${copy.entity}s`}
+                aria-describedby={`link-crm-${targetKind}-help`}
               />
             </label>
 
@@ -176,39 +174,72 @@ export function LinkDealCrmEntityModal({
               </div>
             ) : options === null ? (
               <div style={styles.helperLine}>Loading {copy.entity}s…</div>
-            ) : filtered.length === 0 ? (
+            ) : ranked.mode === 'prompt' ? (
+              <div id={`link-crm-${targetKind}-help`} style={styles.helperLine} data-link-crm-hint>
+                Type at least {MIN_SEARCH_CHARS} characters to search existing {copy.entity}s.
+                Only existing CRM records can be linked here.
+              </div>
+            ) : ranked.visibleCount === 0 ? (
               <div style={styles.helperLine} data-link-crm-empty>
                 No matching {copy.entity}s. Only existing CRM records can be linked here.
               </div>
             ) : (
-              <ul style={styles.optionList} role="listbox" aria-label={`Existing ${copy.entity}s`}>
-                {filtered.map((o) => {
-                  const isSel = o.id === selectedId;
-                  return (
-                    <li key={o.id} style={styles.optionItem}>
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={isSel}
-                        onClick={() => setSelectedId(o.id)}
-                        disabled={inProgress}
-                        style={{
-                          ...styles.optionButton,
-                          ...(isSel ? styles.optionButtonSelected : null),
-                        }}
-                        data-link-crm-option={o.id}
-                        data-link-crm-option-kind={o.sourceKind ?? 'clientrelationship'}
-                      >
-                        <span style={styles.optionName}>
-                          {o.name}
-                          {!o.active && <span style={styles.inactiveTag}> · inactive</span>}
-                        </span>
-                        {o.sublabel && <span style={styles.optionSub}>{o.sublabel}</span>}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div style={styles.results} data-link-crm-results>
+                {ranked.mode === 'suggestions' && (
+                  <div style={styles.suggestHint} id={`link-crm-${targetKind}-help`} data-link-crm-suggestions>
+                    Suggested for “{dealName ?? 'this deal'}”. Type to search all {copy.entity}s.
+                  </div>
+                )}
+                {ranked.groups.map((g) => (
+                  <div key={g.key} style={styles.group} data-link-crm-group={g.key}>
+                    {g.title && (
+                      <div style={styles.groupTitle} data-link-crm-group-title>
+                        {g.title}
+                      </div>
+                    )}
+                    <ul
+                      style={styles.optionList}
+                      role="listbox"
+                      aria-label={g.title ?? `Existing ${copy.entity}s`}
+                    >
+                      {g.options.map((o) => {
+                        const isSel = o.id === selectedId;
+                        // Under a titled group the company sublabel duplicates the
+                        // heading — suppress it there to avoid the repeated line.
+                        const showSub = o.sublabel && o.sublabel !== g.title;
+                        return (
+                          <li key={o.id} style={styles.optionItem}>
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={isSel}
+                              onClick={() => setSelectedId(o.id)}
+                              disabled={inProgress}
+                              style={{
+                                ...styles.optionButton,
+                                ...(isSel ? styles.optionButtonSelected : null),
+                              }}
+                              data-link-crm-option={o.id}
+                              data-link-crm-option-kind={o.sourceKind ?? 'clientrelationship'}
+                            >
+                              <span style={styles.optionName}>
+                                {o.name}
+                                {!o.active && <span style={styles.inactiveTag}> · inactive</span>}
+                              </span>
+                              {showSub && <span style={styles.optionSub}>{o.sublabel}</span>}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+                {ranked.hasMore && (
+                  <div style={styles.moreLine} role="note" data-link-crm-more>
+                    More matches exist. Refine your search.
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -397,6 +428,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: typography.weight.regular,
   },
   helperLine: { margin: 0, fontSize: typography.size.sm, color: palette.textSubtle },
+  results: { display: 'flex', flexDirection: 'column', gap: spacing.sm },
+  suggestHint: { margin: 0, fontSize: typography.size.xs, color: palette.textSubtle },
+  group: { display: 'flex', flexDirection: 'column', gap: spacing.xxs },
+  groupTitle: {
+    fontSize: typography.size.xs,
+    textTransform: 'uppercase',
+    letterSpacing: typography.letterSpacing.label,
+    color: palette.textSubtle,
+    fontWeight: typography.weight.semibold,
+  },
+  moreLine: { margin: 0, fontSize: typography.size.xs, color: palette.textMuted, fontStyle: 'italic' },
   loadError: {
     margin: 0,
     fontSize: typography.size.sm,
