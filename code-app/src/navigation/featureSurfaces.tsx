@@ -70,6 +70,39 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     render: () => <CrmCommandCenterRoute />,
   },
   {
+    // CRM-D — role-scoped read-only CRM mount for the team workspace.
+    key: 'crm-command-center-team',
+    flag: 'CRM_COMMAND_CENTER_ROUTE_ENABLED',
+    label: 'CRM command center (team)',
+    description:
+      'Team-workspace CRM destination: unified CRM readiness + read-only CRM intelligence. Read-only; live create/edit stay in the identity-gated CRM Hub. Gated to the team workspace.',
+    workspace: 'team',
+    entryModule: 'src/crm/commandCenter/CrmCommandCenterRoute.tsx',
+    render: () => <CrmCommandCenterRoute />,
+  },
+  {
+    // CRM-D — role-scoped read-only CRM mount for the manager workspace.
+    key: 'crm-command-center-manager',
+    flag: 'CRM_COMMAND_CENTER_ROUTE_ENABLED',
+    label: 'CRM command center (manager)',
+    description:
+      'Manager-workspace CRM destination: unified CRM readiness + read-only CRM intelligence. Read-only; live create/edit stay in the identity-gated CRM Hub. Gated to the manager workspace.',
+    workspace: 'manager',
+    entryModule: 'src/crm/commandCenter/CrmCommandCenterRoute.tsx',
+    render: () => <CrmCommandCenterRoute />,
+  },
+  {
+    // CRM-D — role-scoped read-only CRM mount for the admin workspace.
+    key: 'crm-command-center-admin',
+    flag: 'CRM_COMMAND_CENTER_ROUTE_ENABLED',
+    label: 'CRM command center (admin)',
+    description:
+      'Admin-workspace CRM destination: unified CRM readiness + read-only CRM intelligence. Read-only; live create/edit stay in the identity-gated CRM Hub. Gated to the admin workspace.',
+    workspace: 'admin',
+    entryModule: 'src/crm/commandCenter/CrmCommandCenterRoute.tsx',
+    render: () => <CrmCommandCenterRoute />,
+  },
+  {
     key: 'crm-intelligence',
     flag: 'CRM_INTELLIGENCE_ROUTE_ENABLED',
     label: 'CRM intelligence',

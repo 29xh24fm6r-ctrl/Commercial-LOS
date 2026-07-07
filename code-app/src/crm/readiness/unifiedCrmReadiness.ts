@@ -92,7 +92,9 @@ export interface CrmDeliveryLedger {
 export const CRM_TEAM_READINESS_LEDGER: CrmDeliveryLedger = Object.freeze({
   // CRM-C: the Command Center is routed at /surfaces/crm-command-center.
   commandCenterRouted: true,
-  rolesMounted: Object.freeze({ banker: true, team: false, manager: false, admin: false }),
+  // CRM-D: role-scoped read-only CRM surfaces mounted for team / manager / admin
+  // (banker already mounted). Source of truth: crmRoleMountRegistry.CRM_ROLE_MOUNTS.
+  rolesMounted: Object.freeze({ banker: true, team: true, manager: true, admin: true }),
   canonicalSeedReady: false,
   newDealLinkageOperational: false,
   liveCreateWired: true,

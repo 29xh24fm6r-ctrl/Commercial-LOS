@@ -47,20 +47,21 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(byKey['flag-gated-spine'].status).toBe('ready');
   });
 
-  it('is NOT team-ready at the current baseline (seed/linkage, editing, team-scope, attribution gaps remain)', () => {
+  it('is NOT team-ready at the current baseline (seed/linkage, editing, attribution gaps remain)', () => {
     const r = deriveUnifiedCrmReadiness();
     expect(r.teamReady).toBe(false);
     const blockedKeys = r.dimensions.filter((d) => d.status === 'blocked').map((d) => d.key);
-    // CRM-C routed the Command Center, so route-mount is ready; the rest remain gaps.
+    // CRM-C routed the Command Center and CRM-D mounted every role, so route-mount and
+    // team-scope are ready; seed/linkage, editing, and attribution remain gaps.
     expect(blockedKeys).toEqual(
       expect.arrayContaining([
         'seed-linkage',
         'editing-writeback',
-        'team-scope',
         'certification-attribution',
       ]),
     );
     expect(blockedKeys).not.toContain('route-mount');
+    expect(blockedKeys).not.toContain('team-scope');
     expect(r.blockers.length).toBeGreaterThan(0);
   });
 
@@ -103,9 +104,9 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(r.blockers).toHaveLength(0);
   });
 
-  it('the committed baseline ledger reflects delivery reality (banker-only, no seed/linkage/edit; route done in CRM-C)', () => {
+  it('the committed baseline ledger reflects delivery reality (route + role mounts done; seed/linkage/edit pending)', () => {
     expect(CRM_TEAM_READINESS_LEDGER.commandCenterRouted).toBe(true); // CRM-C
-    expect(CRM_TEAM_READINESS_LEDGER.rolesMounted).toEqual({ banker: true, team: false, manager: false, admin: false });
+    expect(CRM_TEAM_READINESS_LEDGER.rolesMounted).toEqual({ banker: true, team: true, manager: true, admin: true }); // CRM-D
     expect(CRM_TEAM_READINESS_LEDGER.canonicalSeedReady).toBe(false);
     expect(CRM_TEAM_READINESS_LEDGER.newDealLinkageOperational).toBe(false);
     expect(CRM_TEAM_READINESS_LEDGER.liveCreateWired).toBe(true);
