@@ -16,13 +16,17 @@ describe('Phase 256B — consume final-launch smoke evidence + verify launch', (
     expect(loaded.errors).toEqual([]); // still structurally parseable
     expect(loaded.records.map((r) => r.capability).sort()).toEqual([...FINAL_LAUNCH_CAPABILITIES].sort());
     const r = deriveFinalLaunchReadiness({ records: loaded.records });
-    // Hardened integrity rejects all five (sentinel identity / missing machine proof / no receipt).
+    // CRM-K: crmLivePersistence is now GO (attributed re-capture); the other four remain
+    // integrity-insufficient (sentinel identity / missing machine proof / no receipt).
     expect(r.allCapabilitiesGo).toBe(false);
-    expect(r.capabilities.every((c) => c.evidenceInsufficient)).toBe(true);
+    expect(r.capabilities.find((c) => c.capability === 'crmLivePersistence')?.evidenceInsufficient).toBe(false);
+    expect(r.capabilities.filter((c) => c.capability !== 'crmLivePersistence').every((c) => c.evidenceInsufficient)).toBe(true);
     expect(r.crmHydrated).toBe(true);
     expect(r.portfolioHydrated).toBe(true);
     expect(r.deploymentAllowed).toBe(false);
-    expect(r.projectedEnabledCount).toBe(1); // only New Deal create projects (it is separately certified)
+    // CRM-K: New Deal create + crmLivePersistence (now GO via the attributed re-capture) project
+    // enabled; CRM's actual enablement still awaits only its gate-flag flip (deployment withheld).
+    expect(r.projectedEnabledCount).toBe(2);
   });
 
   it('Phase 5: every launch projection is gated on integrity — committed evidence insufficient → not launched (1/6)', () => {

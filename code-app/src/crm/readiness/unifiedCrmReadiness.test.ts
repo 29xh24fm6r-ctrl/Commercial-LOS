@@ -47,14 +47,13 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(byKey['flag-gated-spine'].status).toBe('ready');
   });
 
-  it('is NOT team-ready at the current baseline (only certification attribution remains)', () => {
+  it('IS team-ready at the current baseline — every dimension ready (CRM-K attributed the smoke)', () => {
     const r = deriveUnifiedCrmReadiness();
-    expect(r.teamReady).toBe(false);
+    expect(r.teamReady).toBe(true);
     const blockedKeys = r.dimensions.filter((d) => d.status === 'blocked').map((d) => d.key);
-    // Through CRM-G: route-mount, team-scope, seed-linkage, and editing are ready; only
-    // certification attribution (CRM-H) remains — the committed smoke is unattributable.
-    expect(blockedKeys).toEqual(['certification-attribution']);
-    expect(r.blockers.length).toBeGreaterThan(0);
+    expect(blockedKeys).toEqual([]);
+    expect(r.blockers).toEqual([]);
+    expect(r.readyCount).toBe(r.totalCount);
   });
 
   it('NEVER marks team-ready while the certification operator is unattributable', () => {
@@ -96,7 +95,7 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(r.blockers).toHaveLength(0);
   });
 
-  it('the committed baseline ledger reflects delivery reality (route/mounts/seed/linkage/edit done; attribution pending)', () => {
+  it('the committed baseline ledger reflects delivery reality (route/mounts/seed/linkage/edit all delivered)', () => {
     expect(CRM_TEAM_READINESS_LEDGER.commandCenterRouted).toBe(true); // CRM-C
     expect(CRM_TEAM_READINESS_LEDGER.rolesMounted).toEqual({ banker: true, team: true, manager: true, admin: true }); // CRM-D
     expect(CRM_TEAM_READINESS_LEDGER.canonicalSeedReady).toBe(true); // CRM-E (backfill path + exception-free)

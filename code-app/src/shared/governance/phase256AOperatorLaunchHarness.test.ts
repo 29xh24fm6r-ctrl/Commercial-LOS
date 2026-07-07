@@ -11,17 +11,22 @@ const read = (rel: string) => readFileSync(resolve(ROOT, rel), 'utf8');
 const HARNESS = 'scripts/dataverse/run-final-launch-smokes.ps1';
 
 describe('Phase 256A — operator launch harness + smoke evidence wiring', () => {
-  it('Phase 1 (hardened): the committed evidence still loads but is integrity-INSUFFICIENT → deployment withheld', () => {
-    // The five JSON artifacts remain structurally parseable (so they can be reported), but the
-    // hardened integrity gate rejects every one: crm/portfolio carry operatorUpn
-    // "unknown-operator"; documentChecklist/stageAdvancement carry no affectedRecordIds;
-    // borrowerSend carries no transport delivery receipt. None may certify a launch.
+  it('Phase 1 (hardened): CRM smoke now attributed (GO), the other four still insufficient → deployment withheld', () => {
+    // CRM-K: crmLivePersistence was re-captured under an attributable operator
+    // (mpaller@oldglorybank.com, HIGH confidence) → GO. The other four remain integrity-
+    // insufficient: portfolioBoarding still carries operatorUpn "unknown-operator";
+    // documentChecklist/stageAdvancement carry no affectedRecordIds; borrowerSend carries no
+    // transport delivery receipt. So deployment stays withheld (fail-closed).
     const loaded = loadFinalLaunchSmokeRecords(ROOT);
     expect(loaded.records.length).toBe(5); // structurally loadable
     const r = deriveFinalLaunchReadiness({ records: loaded.records });
     expect(r.deploymentAllowed).toBe(false);
-    expect(r.capabilities.every((c) => !c.smokeGo && c.evidenceInsufficient)).toBe(true);
-    expect(r.capabilities.find((c) => c.capability === 'crmLivePersistence')?.integrity?.identityValid).toBe(false);
+    const crm = r.capabilities.find((c) => c.capability === 'crmLivePersistence')!;
+    expect(crm.integrity?.identityValid).toBe(true);
+    expect(crm.smokeGo).toBe(true);
+    expect(crm.evidenceInsufficient).toBe(false);
+    // Every OTHER capability is still not-GO and integrity-insufficient.
+    expect(r.capabilities.filter((c) => c.capability !== 'crmLivePersistence').every((c) => !c.smokeGo && c.evidenceInsufficient)).toBe(true);
     expect(r.capabilities.find((c) => c.capability === 'portfolioBoarding')?.integrity?.identityValid).toBe(false);
     expect(r.capabilities.find((c) => c.capability === 'documentChecklist')?.integrity?.machineProofPresent).toBe(false);
     expect(r.capabilities.find((c) => c.capability === 'stageAdvancement')?.integrity?.machineProofPresent).toBe(false);

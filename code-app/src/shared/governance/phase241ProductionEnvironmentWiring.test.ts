@@ -60,7 +60,9 @@ describe('Phase 241 — production environment wiring governance contract', () =
     expect(verification.domains.find((d) => d.key === 'newDealCreate')?.enabled).toBe(true);
     for (const d of verification.domains.filter((x) => x.key !== 'newDealCreate')) {
       expect(d.enabled, d.key).toBe(false);
-      expect(d.evidenceInsufficient, d.key).toBe(true);
+      // CRM-K: crmWriteback's committed smoke is now attributed/HIGH (sufficient); it is still not
+      // enabled here because its gate flag is off. The other four remain evidence-insufficient.
+      expect(d.evidenceInsufficient, d.key).toBe(d.key !== 'crmWriteback');
     }
 
     const model = deriveFullActivationLaunchCertification();
@@ -86,7 +88,9 @@ describe('Phase 241 — production environment wiring governance contract', () =
     // Certified + flags on but evidence still insufficient (Launch Phase 5 default) → still
     // NOT enabled, because launch truth derives from the final-launch smoke evidence integrity.
     const certAndFlags = deriveProductionEnvironmentVerification({ certification: ALL_TRUE, gateFlags: ALL_TRUE });
-    expect(certAndFlags.enabledCount).toBe(1); // only newDealCreate (pilot-certified, no final-launch smoke gate)
+    // CRM-K: newDealCreate (pilot-certified) + crmWriteback (now attributed/HIGH evidence) enable
+    // when certified + flags on; the other four stay down on insufficient evidence.
+    expect(certAndFlags.enabledCount).toBe(2);
     expect(certAndFlags.fullLaunchReady).toBe(false);
 
     // All three factors (certified + flags + HIGH evidence) → enabled, full launch ready.

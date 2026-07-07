@@ -145,6 +145,7 @@ function Invoke-CrudSmoke($capability, $orgUrl, $token, $envId, $set, $nameCol, 
     capability            = $capability
     outcome               = $outcome
     operatorUpn           = $script:OperatorUpn
+    operatorSystemUserId  = $script:OperatorSystemUserId
     environmentUrl        = $orgUrl
     environmentId         = $envId
     correlationId         = $corr
@@ -153,9 +154,19 @@ function Invoke-CrudSmoke($capability, $orgUrl, $token, $envId, $set, $nameCol, 
     liveOperationPerformed = $live
     readbackVerified      = $readback
     rollbackVerified      = $rolledBack
+    crmAction             = 'create -> readback -> update -> readback -> delete -> confirm-deleted'
     evidenceNote          = $note
     affectedRecordIds     = @($affected)
     cleanupRecordIds      = @($(if ($rolledBack) { $affected } else { @() }))
+    rollbackNote          = $(if ($rolledBack) { 'Cleanup delete removed the launch-test record; confirmed 404 on readback.' } else { 'No cleanup performed (smoke did not reach cleanup).' })
+    schemaEvidenceReference = [ordered]@{
+      path          = 'scripts/dataverse/evidence/full-crm-schema-evidence.json'
+      tables        = 10
+      columns       = 147
+      relationships = 28
+      conflicts     = 0
+      note          = 'Full CRM schema contract proven by the committed token-validated evidence.'
+    }
   }
 }
 
@@ -181,7 +192,10 @@ $script:OperatorUpn = if ($envInfo -and $envInfo.User) { $envInfo.User } else { 
 $token = if ($orgUrl) { Get-DataverseToken $orgUrl } else { $null }
 $tokenOk = Test-DataverseToken $orgUrl $token
 $envId = ([regex]::Match(($envInfo.Raw | Out-String), '(?im)Environment ID\s*:\s*([0-9a-f\-]+)')).Groups[1].Value
-Write-Host ("TOKEN usable (WhoAmI): {0}" -f [bool]$tokenOk)
+# Capture the operator's Dataverse systemuser id (WhoAmI UserId) for evidence attribution.
+$script:OperatorSystemUserId = ''
+if ($tokenOk) { try { $script:OperatorSystemUserId = [string](Invoke-DataverseGet $orgUrl $token 'WhoAmI').UserId } catch { } }
+Write-Host ("TOKEN usable (WhoAmI): {0}; operator={1}" -f [bool]$tokenOk, $script:OperatorUpn)
 
 $targets = if ($Capability -eq 'all') { $ALL_CAPS } else { @($Capability) }
 

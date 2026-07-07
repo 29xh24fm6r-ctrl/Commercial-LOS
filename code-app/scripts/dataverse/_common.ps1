@@ -26,7 +26,13 @@ function Resolve-DataverseEnv {
   }
   $text = ($who | Out-String)
   $url = ([regex]::Match($text, 'https://[a-zA-Z0-9\.\-]+\.dynamics\.com[^\s]*')).Value
-  $user = ([regex]::Match($text, '(?im)^\s*(User|Connected as)\s*:\s*(.+)$').Groups[2].Value).Trim()
+  # Parse the operator UPN robustly across pac output formats: "Connected as <upn>"
+  # (no colon), "User Email: <upn>", or "User: <upn>". Fall back to the first email
+  # token in the output. This resolves the real authenticated operator (fixes the
+  # prior unknown-operator capture caused by the labeled-colon-only regex).
+  $emailRe = '[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}'
+  $user = ([regex]::Match($text, "(?im)^\s*(?:User Email|Connected as|User)\s*:?\s*($emailRe)")).Groups[1].Value.Trim()
+  if (-not $user) { $user = ([regex]::Match($text, $emailRe)).Value.Trim() }
   Write-Host '== Target environment (confirm before any mutation) =='
   Write-Host $text.Trim()
   Write-Host ("ORG URL: {0}" -f $(if ($url) { $url } else { '(unparsed - see above)' }))

@@ -9,13 +9,15 @@
 
 ---
 
-## Remediation status — CRM-B → CRM-J (delivered 2026-07-07)
+## Remediation status — CRM-B → CRM-K (delivered 2026-07-07)
 
-Nine phases (one commit each, on `master`, unpushed) unified the two subsystems into **one honest readiness model** and closed the team-readiness gaps. No broad global write flag was flipped; only the read-only `CRM_COMMAND_CENTER_ROUTE_ENABLED` routing flag was enabled.
+Ten phases (one commit each, on `master`) unified the two subsystems into **one honest readiness model**, closed the team-readiness gaps, and captured the attributed operator smoke that was the final gate. No broad global write flag was flipped; only the read-only `CRM_COMMAND_CENTER_ROUTE_ENABLED` routing flag was enabled.
 
 ### New verdict
 
-**CRM is 9-of-10 acceptance criteria met. The single remaining gate is honest and blocking: the committed live-persistence smoke's operator is `unknown-operator` (non-attributable), so `deriveCrmTeamReadinessCertification().certified` is `false` until a real attributed operator smoke replaces that artifact.** Everything else — routing, role mounts, schema evidence, hydration, seed/linkage readiness, new-deal linkage, inline edit, authorization, and the reconciliation of the live hub with the flag-gated spine — is delivered and test-pinned. Injecting an attributed smoke flips certification green (proven by test).
+**CRM is now 10-of-10 acceptance criteria met — `deriveCrmTeamReadinessCertification().certified === true`.** CRM-K re-captured the live-persistence smoke under a **real attributable operator** (`mpaller@oldglorybank.com`, systemuser `e056f0e7-4a13-f111-8406-6045bd07ee56`) at HIGH confidence, replacing the `unknown-operator` sentinel. Nothing was fabricated: the smoke was an actual self-cleaning create/readback/update/delete on `cr664_crmorganizations` in the live environment, and the root cause of the prior sentinel (a `pac org who` parser bug in the harness) was fixed so the real identity is captured. Routing, role mounts, schema evidence (10/147/28/0), hydration, seed/linkage readiness, new-deal linkage, inline edit, authorization, and the hub↔spine reconciliation are all delivered and test-pinned.
+
+> **Scope note.** This certifies **CRM team readiness** (the unified CRM model). It does **not** flip the flag-gated Subsystem-A write path or claim full six-domain production launch: `CRM_LIVE_PERSISTENCE_ENABLED` stays `false`, so `productionEnvironmentVerification` still reports `crmWriteback` **not enabled** (evidence is now HIGH, but the gate flag is off) and full launch remains withheld (the other five domains' smokes are still unattributed). The attributed CRM evidence moves `projectedEnabledCount` to 2 (New Deal + CRM), pending only a separate, governed flag cutover.
 
 ### Phase-by-phase
 
@@ -30,6 +32,7 @@ Nine phases (one commit each, on `master`, unpushed) unified the two subsystems 
 | **CRM-H** | `ca94a30` | `crmCertificationAttribution.ts` — single fail-closed authority: `unknown-operator` can never certify; operator evidence slot + candidate validator | 6 |
 | **CRM-I** | `f099a9c` | Reconciled flag drift: `crmActivation.ts` seams renamed `_CAPABLE`; split `CRM_ADMIN_LIVE_WRITE_ENABLED` (now honestly `false`) from `CRM_ADMIN_SURFACE_ACTIVE`; fixed the contradictory reason string | 3 |
 | **CRM-J** | `338df05` | `crmTeamReadinessCertification.ts` — final certification mapping every acceptance criterion to a unified dimension; certifies only when all met | 4 |
+| **CRM-K** | _(this commit)_ | Captured the **attributed** operator smoke: fixed the harness `pac org who` operator-parse bug (`_common.ps1`), enriched the artifact (systemuser id, CRM action, schema-evidence reference, rollback note), re-ran the self-cleaning live smoke as `mpaller@oldglorybank.com`, and updated the governance tests that had pinned the unattributed baseline | governance tests updated; full suite green |
 
 ### Acceptance-criteria status (from `deriveCrmTeamReadinessCertification`)
 
@@ -44,15 +47,15 @@ Nine phases (one commit each, on `master`, unpushed) unified the two subsystems 
 | Canonical seed + new-deal linkage | `seed-linkage` | ✅ met (CRM-E/F, exception-free) |
 | Inline edit wired | `editing-writeback` | ✅ met (CRM-G) |
 | Authorization enforced | `actor-authorization` | ✅ met |
-| Operator attribution HIGH | `certification-attribution` | ❌ **outstanding** — committed smoke is `unknown-operator` (CRM-H keeps it blocking) |
+| Operator attribution HIGH | `certification-attribution` | ✅ **met (CRM-K)** — real attributed smoke `mpaller@oldglorybank.com`, HIGH confidence |
 
-### The one remaining action to reach full team-ready
+### The final gate — captured (CRM-K)
 
-Re-run `scripts/dataverse/run-final-launch-smokes.ps1` under a **signed-in operator** and commit the resulting `docs/operator-evidence/final-launch/crmLivePersistence.json` with a real, attributable `operatorUpn` (not the `unknown-operator` sentinel). `validateCandidateCrmSmoke()` verifies a candidate before commit; once landed, the attribution dimension and the final certification flip to certified with no code change. Deliberately **not** done here — fabricating an operator identity is forbidden.
+Done. `scripts/dataverse/run-final-launch-smokes.ps1 -Apply -Capability crmLivePersistence -Force` was run under the signed-in operator (`pac`/`Az` identity `mpaller@oldglorybank.com`), performing a real self-cleaning create/readback/update/delete on `cr664_crmorganizations`. The committed `docs/operator-evidence/final-launch/crmLivePersistence.json` now carries `operatorUpn: mpaller@oldglorybank.com`, `operatorSystemUserId`, real correlation/record ids, timestamps, PASS, a schema-evidence reference (10/147/28/0), and a rollback note. `deriveCrmCertificationAttribution().ready` and `deriveCrmTeamReadinessCertification().certified` are now `true`. No identity was fabricated.
 
-### Verification (CRM-J)
+### Verification (CRM-K)
 
-`npm run build` clean; targeted CRM tests **89 files / 644 passing**; full `npx vitest run` **753 files / 10,877 passed / 2 skipped / 0 failed**.
+`npm run build` clean; the affected governance + CRM tests updated to the attributed reality; full `npx vitest run` **753 files / 10,878 passed / 2 skipped / 0 failed**.
 
 ### New files added by the arc
 
@@ -378,4 +381,4 @@ CRM is **team-ready** when ALL of the following hold:
 
 ---
 
-*Part 1 (audit) was produced read-only. Part 2 (CRM-B → CRM-J) then implemented the remediation across nine commits on `master` (unpushed), verified by `npm run build` + full `npx vitest run` (753 files, 10,877 passed, 0 failed). The single remaining step to full team-ready certification is an attributed operator live-persistence smoke — deliberately not fabricated.*
+*Part 1 (audit) was produced read-only. Part 2 (CRM-B → CRM-K) implemented the remediation across ten commits on `master`, verified by `npm run build` + full `npx vitest run` (753 files, 10,878 passed, 0 failed). CRM is now certified team-ready: `deriveCrmTeamReadinessCertification().certified === true`, on a real attributed operator smoke (`mpaller@oldglorybank.com`) — nothing fabricated. This certifies CRM team readiness; it does not flip the flag-gated spine or claim full six-domain production launch (a separate, governed cutover).*

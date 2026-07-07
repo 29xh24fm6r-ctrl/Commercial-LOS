@@ -1,18 +1,31 @@
 {
     "capability":  "crmLivePersistence",
     "outcome":  "passed",
-    "operatorUpn":  "unknown-operator",
+    "operatorUpn":  "mpaller@oldglorybank.com",
+    "operatorSystemUserId":  "e056f0e7-4a13-f111-8406-6045bd07ee56",
     "environmentUrl":  "https://org3a57b8d4.crm.dynamics.com/",
     "environmentId":  "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
-    "correlationId":  "62ef7a34-f0b7-4494-8c64-c1bdbfe2df7b",
-    "startedAtIso":  "2026-06-25T20:48:09.8759148Z",
-    "completedAtIso":  "2026-06-25T20:48:12.9971028Z",
+    "correlationId":  "e7ed1a1a-e2f7-47e2-9ae3-9fa334bda4e8",
+    "startedAtIso":  "2026-07-07T12:39:13.0398828Z",
+    "completedAtIso":  "2026-07-07T12:39:14.6610587Z",
     "liveOperationPerformed":  true,
     "readbackVerified":  true,
     "rollbackVerified":  true,
+    "crmAction":  "create -\u003e readback -\u003e update -\u003e readback -\u003e delete -\u003e confirm-deleted",
     "evidenceNote":  "Live create/readback/update/readback/cleanup on cr664_crmorganizations succeeded (launch-test marker).",
     "affectedRecordIds":  [
-                              "fa1e612c-d770-f111-ab0d-70a8a59be491"
+                              "12d8dfda-007a-f111-ab0f-70a8a59be491"
                           ],
-    "cleanupRecordIds":  "fa1e612c-d770-f111-ab0d-70a8a59be491"
+    "cleanupRecordIds":  [
+                             "12d8dfda-007a-f111-ab0f-70a8a59be491"
+                         ],
+    "rollbackNote":  "Cleanup delete removed the launch-test record; confirmed 404 on readback.",
+    "schemaEvidenceReference":  {
+                                    "path":  "scripts/dataverse/evidence/full-crm-schema-evidence.json",
+                                    "tables":  10,
+                                    "columns":  147,
+                                    "relationships":  28,
+                                    "conflicts":  0,
+                                    "note":  "Full CRM schema contract proven by the committed token-validated evidence."
+                                }
 }

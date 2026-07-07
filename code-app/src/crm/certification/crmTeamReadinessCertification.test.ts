@@ -23,31 +23,21 @@ describe('CRM-J — unified CRM team-readiness certification', () => {
     for (const c of cert.criteria) expect(typeof c.backedBy).toBe('string');
   });
 
-  it('at the committed baseline, everything is met EXCEPT operator attribution (honest, not faked)', () => {
+  it('at the committed baseline (CRM-K), every criterion is met and CRM is certified team-ready', () => {
     const cert = deriveCrmTeamReadinessCertification();
-    expect(cert.certified).toBe(false);
-    expect(cert.outstanding.map((o) => o.key)).toEqual(['operator-attribution']);
-    // All non-attribution criteria are met by the delivered CRM-B…CRM-I work.
-    const met = cert.criteria.filter((c) => c.met).map((c) => c.key);
-    expect(met).toEqual([
-      'command-center-routed',
-      'roles-mounted',
-      'hub-spine-reconciled',
-      'live-hub-operational',
-      'full-schema-evidence',
-      'runtime-hydration',
-      'seed-and-linkage',
-      'inline-edit-wired',
-      'authorization',
-    ]);
-    expect(cert.posture).toMatch(/attributable operator/i);
-  });
-
-  it('CERTIFIES team-ready only when a real attributed operator smoke lands (injection proves the wiring)', () => {
-    const cert = deriveCrmTeamReadinessCertification({ certificationAttributionHigh: true });
     expect(cert.certified).toBe(true);
     expect(cert.outstanding).toEqual([]);
+    // All ten criteria — including operator attribution (real attributed smoke) — are met.
+    expect(cert.criteria.every((c) => c.met)).toBe(true);
+    expect(cert.criteria.find((c) => c.key === 'operator-attribution')?.met).toBe(true);
     expect(cert.posture).toMatch(/TEAM-READY/);
+  });
+
+  it('still fails closed if operator attribution regresses (injected unattributable)', () => {
+    const cert = deriveCrmTeamReadinessCertification({ certificationAttributionHigh: false });
+    expect(cert.certified).toBe(false);
+    expect(cert.outstanding.map((o) => o.key)).toEqual(['operator-attribution']);
+    expect(cert.posture).toMatch(/attributable operator/i);
   });
 
   it('never certifies while seed/linkage regresses, even with attribution satisfied', () => {

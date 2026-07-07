@@ -16,20 +16,29 @@ const committedSmoke = JSON.parse(
 );
 
 describe('CRM-H — CRM certification attribution guard', () => {
-  it('the committed smoke has a non-attributable operator and CANNOT certify', () => {
+  it('the committed smoke is now attributed (CRM-K) and CAN certify', () => {
     const a = deriveCrmCertificationAttribution();
-    expect(committedSmoke.operatorUpn).toBe('unknown-operator');
-    expect(a.operatorUpn).toBe('unknown-operator');
-    expect(a.attributable).toBe(false);
-    expect(a.ready).toBe(false);
-    expect(a.blocking).toBe(true);
-    expect(isCrmCertificationAttributed()).toBe(false);
+    // CRM-K re-captured the smoke under an attributable operator (real identity, not faked).
+    expect(committedSmoke.operatorUpn).toBe('mpaller@oldglorybank.com');
+    expect(committedSmoke.operatorSystemUserId).toBeTruthy();
+    expect(a.operatorUpn).toBe('mpaller@oldglorybank.com');
+    expect(a.attributable).toBe(true);
+    expect(a.confidence).toBe('HIGH');
+    expect(a.ready).toBe(true);
+    expect(a.blocking).toBe(false);
+    expect(isCrmCertificationAttributed()).toBe(true);
   });
 
-  it('unknown operator cannot certify unified CRM team readiness (attribution dimension blocks)', () => {
+  it('the attributed operator certifies unified CRM team readiness (attribution dimension ready)', () => {
     const r = deriveUnifiedCrmReadiness();
     const attribution = r.dimensions.find((d) => d.key === 'certification-attribution');
-    expect(attribution?.status).toBe('blocked');
+    expect(attribution?.status).toBe('ready');
+    expect(r.teamReady).toBe(true);
+  });
+
+  it('an injected unattributable verdict still blocks (the guard remains fail-closed)', () => {
+    const r = deriveUnifiedCrmReadiness({ certificationAttributionHigh: false });
+    expect(r.dimensions.find((d) => d.key === 'certification-attribution')?.status).toBe('blocked');
     expect(r.teamReady).toBe(false);
   });
 
