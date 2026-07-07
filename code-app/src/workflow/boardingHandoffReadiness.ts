@@ -90,53 +90,21 @@ export function evaluateBoardingHandoff(
 }
 
 /**
- * Live boarding-handoff proof: read the active portfolio boarded-loan record linked to
- * the deal (via cr664_OriginatedLoanDeal) and reconcile it against the deal stage.
- * SDK-only via a guarded dynamic import. FAIL-CLOSED: a failed read reports a blocker
- * and `boardingCompleted:false` (never assumed-boarded).
+ * The fail-closed readiness a live loader returns when the portfolio read itself failed
+ * (never assumed-boarded). Kept here so the pure module owns the shape; the SDK-touching
+ * loader lives in `src/deals/loadBoardingHandoffForDeal.ts` (workflow stays SDK-free).
  */
-export async function loadBoardingHandoffForDeal(
-  dealId: string,
+export function unavailableBoardingHandoff(
   dealStage: string | null | undefined,
-): Promise<BoardingHandoffReadiness> {
-  try {
-    const { Cr664_portfolioboardedloansService } = await import(
-      '../generated/services/Cr664_portfolioboardedloansService'
-    );
-    const res = await Cr664_portfolioboardedloansService.getAll({
-      select: ['cr664_portfolioboardedloanid', 'cr664_boardingstatus', 'statecode', '_cr664_originatedloandeal_value'],
-      filter: `_cr664_originatedloandeal_value eq ${dealId}`,
-    });
-    if (!res.success) {
-      const stage = (dealStage ?? '').trim();
-      return {
-        dealStage: stage,
-        dealClaimsBoarded: recognizeCanonicalStage(stage)?.code === 'BOARDED',
-        handoffEvidencePresent: false,
-        verdict: 'missing-handoff',
-        boardingCompleted: false,
-        blockers: [`Portfolio boarded-loan read failed: ${res.error?.message ?? 'unknown error'} (fail-closed).`],
-      };
-    }
-    const rows = (res.data ?? []) as unknown as Array<Record<string, unknown>>;
-    const activeRow = rows.find((r) => r['statecode'] === 0 || r['statecode'] === undefined);
-    const evidence: BoardingHandoffEvidence | null = activeRow
-      ? {
-          portfolioBoardedLoanId: String(activeRow['cr664_portfolioboardedloanid'] ?? ''),
-          boardingStatus: (activeRow['cr664_boardingstatus'] as string | undefined) ?? null,
-          active: true,
-        }
-      : null;
-    return evaluateBoardingHandoff(dealStage, evidence);
-  } catch (err: unknown) {
-    const stage = (dealStage ?? '').trim();
-    return {
-      dealStage: stage,
-      dealClaimsBoarded: recognizeCanonicalStage(stage)?.code === 'BOARDED',
-      handoffEvidencePresent: false,
-      verdict: 'missing-handoff',
-      boardingCompleted: false,
-      blockers: [`Portfolio boarded-loan read threw: ${err instanceof Error ? err.message : String(err)} (fail-closed).`],
-    };
-  }
+  reason: string,
+): BoardingHandoffReadiness {
+  const stage = (dealStage ?? '').trim();
+  return {
+    dealStage: stage,
+    dealClaimsBoarded: recognizeCanonicalStage(stage)?.code === 'BOARDED',
+    handoffEvidencePresent: false,
+    verdict: 'missing-handoff',
+    boardingCompleted: false,
+    blockers: [reason],
+  };
 }

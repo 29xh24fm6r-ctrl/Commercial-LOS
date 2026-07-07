@@ -120,35 +120,16 @@ export const EXPECTED_STAGE_SEED_FINGERPRINT: string = CANONICAL_STAGES
   .join('|');
 
 /**
- * Live seed-readiness proof: reads the seeded `cr664_dealstagereferences` rows and
- * evaluates them. SDK-only via a guarded dynamic import. Fail-closed: a failed read
- * is `ready:false` with an explicit reason (never assumed-good).
+ * The fail-closed readiness a live loader returns when the reference read itself failed
+ * (never assumed-good). Kept here so the pure module owns the shape; the SDK-touching
+ * loader lives in `src/deals/loadStageSeedReadiness.ts` (workflow stays SDK-free).
  */
-export async function loadStageSeedReadiness(): Promise<StageSeedReadiness> {
-  try {
-    const { Cr664_dealstagereferencesService } = await import(
-      '../generated/services/Cr664_dealstagereferencesService'
-    );
-    const res = await Cr664_dealstagereferencesService.getAll({
-      select: ['cr664_code', 'cr664_name', 'cr664_sequence', 'cr664_activeflag'],
-    });
-    if (!res.success) {
-      return {
-        ready: false,
-        reasons: [`stage reference read failed: ${res.error?.message ?? 'unknown error'}`],
-        expected: CANONICAL_STAGES.map((s) => ({ code: s.code, sequence: s.sequence })),
-        observed: [],
-        fingerprint: '',
-      };
-    }
-    return evaluateStageSeedReadiness((res.data ?? []) as StageReferenceRow[]);
-  } catch (err: unknown) {
-    return {
-      ready: false,
-      reasons: [`stage reference read threw: ${err instanceof Error ? err.message : String(err)}`],
-      expected: CANONICAL_STAGES.map((s) => ({ code: s.code, sequence: s.sequence })),
-      observed: [],
-      fingerprint: '',
-    };
-  }
+export function unavailableStageSeedReadiness(reason: string): StageSeedReadiness {
+  return {
+    ready: false,
+    reasons: [reason],
+    expected: CANONICAL_STAGES.map((s) => ({ code: s.code, sequence: s.sequence })),
+    observed: [],
+    fingerprint: '',
+  };
 }

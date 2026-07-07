@@ -1,20 +1,12 @@
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { CANONICAL_STAGES, type StageReferenceRow } from './stageOrderingContract';
-
-const { stageGetAll } = vi.hoisted(() => ({ stageGetAll: vi.fn() }));
-vi.mock('../generated/services/Cr664_dealstagereferencesService', () => ({
-  Cr664_dealstagereferencesService: { getAll: stageGetAll },
-}));
 
 import {
   evaluateStageSeedReadiness,
-  loadStageSeedReadiness,
   EXPECTED_STAGE_SEED_FINGERPRINT,
   NOMINAL_STAGE_SEQUENCE,
 } from './stageSeedReadiness';
-
-beforeEach(() => stageGetAll.mockReset());
 
 /** A correctly-seeded set: the seven canonical stages, active, at nominal sequences. */
 function goodRows(): StageReferenceRow[] {
@@ -94,31 +86,5 @@ describe('evaluateStageSeedReadiness — deterministic proof (WFLOW-F)', () => {
     expect(NOMINAL_STAGE_SEQUENCE).toEqual({
       INTAKE: 10, UNDERWRITING: 20, CREDIT_APPROVAL: 30, COMMITMENT: 40, DOCUMENTATION: 50, CLOSING_FUNDING: 60, BOARDED: 70,
     });
-  });
-});
-
-describe('loadStageSeedReadiness — live loader (WFLOW-F)', () => {
-  it('reads the seeded rows and proves a correct seed ready', async () => {
-    stageGetAll.mockResolvedValueOnce({ success: true, data: goodRows() });
-    const r = await loadStageSeedReadiness();
-    expect(r.ready).toBe(true);
-    expect(r.fingerprint).toBe(EXPECTED_STAGE_SEED_FINGERPRINT);
-    expect(stageGetAll).toHaveBeenCalledWith(expect.objectContaining({
-      select: ['cr664_code', 'cr664_name', 'cr664_sequence', 'cr664_activeflag'],
-    }));
-  });
-
-  it('FAIL-CLOSED: a failed reference read is not ready (never assumed-good)', async () => {
-    stageGetAll.mockResolvedValueOnce({ success: false, error: { message: 'dataverse unavailable' } });
-    const r = await loadStageSeedReadiness();
-    expect(r.ready).toBe(false);
-    expect(r.reasons.join(' ')).toMatch(/read failed/);
-  });
-
-  it('FAIL-CLOSED: a thrown read is not ready', async () => {
-    stageGetAll.mockRejectedValueOnce(new Error('boom'));
-    const r = await loadStageSeedReadiness();
-    expect(r.ready).toBe(false);
-    expect(r.reasons.join(' ')).toMatch(/threw: boom/);
   });
 });
