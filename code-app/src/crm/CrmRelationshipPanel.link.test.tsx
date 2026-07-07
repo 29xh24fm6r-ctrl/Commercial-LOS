@@ -160,4 +160,50 @@ describe('DealCrmRelationshipPanel — actionable client link', () => {
       screen.getByRole('button', { name: /Assign the owning team for this deal/i }),
     ).toBeInTheDocument();
   });
+
+  it('assigns an owning team and reflects it in the panel (affordance clears)', async () => {
+    linkMock.mockResolvedValue({
+      kind: 'success',
+      dealId: 'd1',
+      target: 'team',
+      entityId: 'team-guid-1',
+      entityName: 'Commercial East',
+      correlationId: 'corr-2',
+      auditId: 'audit-2',
+    });
+    render(<DealCrmRelationshipPanel />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /Assign the owning team/i }));
+    const option = await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(option);
+    await user.click(screen.getByRole('button', { name: /^Assign team$/i }));
+
+    expect(linkMock).toHaveBeenCalledTimes(1);
+    expect(linkMock.mock.calls[0][0]).toMatchObject({ target: 'team', entityId: 'team-guid-1' });
+
+    expect(await screen.findByText(/Team linked/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Close$/i }));
+
+    // The owning team now shows and the assign affordance is gone.
+    const panel = screen.getByTestId('crm-relationship-panel');
+    await waitFor(() =>
+      expect(within(panel).getByText('Commercial East')).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole('button', { name: /Assign the owning team/i }),
+    ).toBeNull();
+  });
+
+  it('unauthorized banker sees the exact writeBlockedReason under BOTH missing edges', () => {
+    mockState.banker = { ...READONLY_BANKER };
+    render(<DealCrmRelationshipPanel />);
+    const clientNote = document.querySelector('[data-crm-link-readonly="client"]');
+    const teamNote = document.querySelector('[data-crm-link-readonly="team"]');
+    expect(clientNote?.textContent).toMatch(/No Dataverse identity resolved/i);
+    expect(teamNote?.textContent).toMatch(/No Dataverse identity resolved/i);
+    // No actionable buttons for a read-only user.
+    expect(screen.queryByRole('button', { name: /Link a canonical CRM client/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Assign the owning team/i })).toBeNull();
+  });
 });

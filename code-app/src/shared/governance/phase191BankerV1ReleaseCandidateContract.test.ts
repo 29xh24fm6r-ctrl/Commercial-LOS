@@ -259,23 +259,36 @@ describe('191 — checklist gates remain false', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 8. CRM relationship cards stay read-only with no write affordance.
+// 8. CRM relationship detail cards stay read-only; the panel's blocker-
+//    resolution links are governed (no direct Dataverse client).
 // ---------------------------------------------------------------------------
-describe('191 — CRM relationship facts read-only, no write affordance', () => {
+describe('191 — CRM relationship detail read-only; panel links are governed', () => {
   it('the CRM cards are mounted in the deal workspace', () => {
     expect(DEAL_WORKSPACE).toMatch(/<DealCrmRelationshipPanel/);
   });
 
-  it('the CRM card sources expose no write affordance or Dataverse client', () => {
-    for (const src of [CRM_PANEL, CRM_DETAIL_CARDS]) {
-      const code = stripComments(src);
-      expect(code).not.toMatch(/onClick|<button|onSave|onCreate|onUpdate|onDelete/i);
-      expect(code).not.toMatch(/createRecordAsync|updateRecordAsync|deleteRecordAsync/);
-      expect(code).not.toMatch(/@microsoft\/power-apps|getClient/);
-    }
+  it('the CRM DETAIL CARDS remain strictly read-only (no write affordance or Dataverse client)', () => {
+    // The detail cards are pure projection — they must never gain a write
+    // affordance or touch the SDK.
+    const code = stripComments(CRM_DETAIL_CARDS);
+    expect(code).not.toMatch(/onClick|<button|onSave|onCreate|onUpdate|onDelete/i);
+    expect(code).not.toMatch(/createRecordAsync|updateRecordAsync|deleteRecordAsync/);
+    expect(code).not.toMatch(/@microsoft\/power-apps|getClient/);
   });
 
-  it('the CRM cards declare their read-only posture', () => {
+  it('the CRM panel performs NO direct Dataverse write — blocker links route through the governed link action', () => {
+    // The panel may render governed "Link CRM client" / "Assign owning team"
+    // affordances to resolve a missing canonical client / owning team, but it
+    // must never touch the Dataverse client directly: the write goes through
+    // linkDealCrmEntity (fail-closed auth → update → readback → audit), whose
+    // live deps dynamic-import the SDK outside this UI module.
+    const code = stripComments(CRM_PANEL);
+    expect(code).not.toMatch(/createRecordAsync|updateRecordAsync|deleteRecordAsync/);
+    expect(code).not.toMatch(/@microsoft\/power-apps|getClient/);
+    expect(code).toMatch(/linkDealCrmEntity/);
+  });
+
+  it('the CRM surfaces declare their read-only / governed posture', () => {
     expect(CRM_PANEL).toMatch(/read-only/i);
     expect(CRM_DETAIL_CARDS).toMatch(/read-only|no write affordance|No Dataverse/i);
   });

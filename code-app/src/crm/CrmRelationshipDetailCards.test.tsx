@@ -54,7 +54,7 @@ describe('safe sections render record detail', () => {
 });
 
 describe('name-only client surrogate', () => {
-  it('blocks the client detail drilldown and never renders the surrogate id', () => {
+  it('degrades the client detail drilldown (not blocked) and never renders the surrogate id', () => {
     const input = buildCrmRelationshipInput({
       deal: { id: 'd', name: 'Deal' },
       clientName: 'Surrogate Client',
@@ -62,7 +62,8 @@ describe('name-only client surrogate', () => {
     });
     renderCards(input);
     const client = section('clientIdentity')!;
-    expect(client.getAttribute('data-section-state')).toBe('blocked');
+    // A client node exists (by name), so this is degraded, not blocked.
+    expect(client.getAttribute('data-section-state')).toBe('degraded');
     expect(within(client).getByText(/name only|surrogate/i)).toBeInTheDocument();
     // The `name:`-prefixed surrogate id must NOT appear as a record id.
     expect(client.textContent).not.toMatch(/name:Surrogate Client/);
@@ -82,23 +83,37 @@ describe('missing client', () => {
 });
 
 describe('missing team / banker', () => {
-  it('renders blocked/degraded explanatory copy, not fake records', () => {
+  it('renders degraded (actionable) explanatory copy, not blocked, not fake records', () => {
     renderCards({ ...realGraph, team: null, assignedBanker: null });
     const team = section('teamOwnership')!;
     const bankerSec = section('assignedBanker')!;
-    expect(team.getAttribute('data-section-state')).toBe('blocked');
-    expect(bankerSec.getAttribute('data-section-state')).toBe('blocked');
+    // Missing team/banker degrade — they are NOT a full CRM failure.
+    expect(team.getAttribute('data-section-state')).toBe('degraded');
+    expect(bankerSec.getAttribute('data-section-state')).toBe('degraded');
     // No fabricated team/banker id surfaces.
     expect(team.textContent).not.toMatch(/team-guid/);
     expect(within(team).getByText(/unset|not a verified/i)).toBeInTheDocument();
   });
 });
 
+describe('platform / workspace bridge', () => {
+  it('renders as OPTIONAL / not provided when absent — never blocked', () => {
+    renderCards(realGraph); // no platformUser
+    const platform = section('platformWorkspaceBridge')!;
+    expect(platform.getAttribute('data-section-state')).toBe('optional');
+    expect(platform.getAttribute('data-section-state')).not.toBe('blocked');
+    expect(within(platform).getAllByText(/optional/i).length).toBeGreaterThan(0);
+    expect(within(platform).getByText(/not provided/i)).toBeInTheDocument();
+  });
+});
+
 describe('salesforce spine', () => {
-  it('always renders not seeded / not wired and never fabricates objects', () => {
+  it('always renders as deferred / not seeded / not wired and never fabricates objects', () => {
     renderCards(realGraph);
     const spine = section('salesforceSpine')!;
-    expect(spine.getAttribute('data-section-state')).toBe('blocked');
+    // Deferred, never blocked.
+    expect(spine.getAttribute('data-section-state')).toBe('deferred');
+    expect(spine.getAttribute('data-section-state')).not.toBe('blocked');
     expect(spine.textContent).not.toMatch(/salesforce_account|salesforce_contact/i);
     expect(spine.textContent).toMatch(/not seeded/i);
   });
@@ -168,15 +183,15 @@ describe('Phase 189G — fit-and-finish + source-fact traceability', () => {
     expect(footer.textContent).toMatch(/not a\s+new CRM lookup/i);
   });
 
-  it('blocked cards show a compact reason but no fake placeholder values', () => {
+  it('non-safe cards show a compact reason but no fake placeholder values', () => {
     renderCards({ ...realGraph, team: null, assignedBanker: null });
     for (const key of ['teamOwnership', 'assignedBanker']) {
       const sec = section(key)!;
-      expect(sec.getAttribute('data-section-state')).toBe('blocked');
+      expect(sec.getAttribute('data-section-state')).toBe('degraded');
       expect(sec.querySelector('[data-section-reason]')).not.toBeNull();
       // No fabricated placeholders.
       expect(sec.textContent).not.toMatch(/\bTBD\b|unknown contact|sample role|placeholder|lorem/i);
-      // No source-fact chip on a blocked section (only safe sections trace).
+      // No source-fact chip on a non-safe section (only safe sections trace).
       expect(sec.querySelector('[data-source-fact]')).toBeNull();
     }
   });
@@ -202,10 +217,10 @@ describe('Phase 189G — fit-and-finish + source-fact traceability', () => {
     expect(within(rejected).getByText(/communication preferences/i)).toBeInTheDocument();
   });
 
-  it('keeps the Salesforce-style spine blocked / not seeded', () => {
+  it('keeps the Salesforce-style spine deferred / not seeded (never blocked)', () => {
     renderCards(realGraph);
     const spine = section('salesforceSpine')!;
-    expect(spine.getAttribute('data-section-state')).toBe('blocked');
+    expect(spine.getAttribute('data-section-state')).toBe('deferred');
     expect(spine.textContent).toMatch(/not seeded/i);
   });
 });

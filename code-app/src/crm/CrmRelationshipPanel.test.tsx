@@ -152,12 +152,13 @@ describe('DealCrmRelationshipPanel (connected container)', () => {
     expect(within(clientSection as HTMLElement).getByText('client-guid')).toBeInTheDocument();
   });
 
-  it('Phase 189F — the readiness gate blocks the client detail card for a name-only client', () => {
-    // Default mock deal has clientName but no clientId → surrogate → blocked.
+  it('the readiness gate degrades (not blocks) the client detail card for a name-only client', () => {
+    // Default mock deal has clientName but no clientId → surrogate. The client
+    // node exists, so its detail is degraded (drilldown unsafe), NOT blocked.
     render(<DealCrmRelationshipPanel />);
     const cards = screen.getByTestId('crm-relationship-detail-cards');
     const clientSection = cards.querySelector('[data-section="clientIdentity"]')!;
-    expect(clientSection.getAttribute('data-section-state')).toBe('blocked');
+    expect(clientSection.getAttribute('data-section-state')).toBe('degraded');
     // No real client GUID is shown for a name-only client.
     expect(clientSection.textContent).not.toMatch(/name:Mock Client LLC/);
   });

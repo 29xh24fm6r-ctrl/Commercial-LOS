@@ -7,6 +7,7 @@ import type { CrmRelationshipViewModel } from './crmRelationshipViewModel';
 import type {
   CrmRelationshipDetailReadiness,
   CrmDetailSectionKey,
+  CrmDetailSectionState,
 } from './crmRelationshipDetailReadiness';
 
 /**
@@ -79,6 +80,11 @@ function isSurrogateId(id: string): boolean {
 export function CrmRelationshipDetailCards({ viewModel, readiness }: Props) {
   const vm = viewModel;
   const safe = (s: CrmDetailSectionKey) => readiness.safeDetailSections.includes(s);
+  // Per-section state distinguishes a true blocker (required-missing) from
+  // degraded / optional / deferred so optional + deferred surfaces never read
+  // as BLOCKED. `safe()` is kept as the render gate for detail content.
+  const stateOf = (s: CrmDetailSectionKey): CrmDetailSectionState =>
+    safe(s) ? 'safe' : readiness.sectionAssessments.find((a) => a.section === s)?.state ?? 'blocked';
   const reasonFor = (s: CrmDetailSectionKey) =>
     readiness.sectionAssessments.find((a) => a.section === s)?.reason ??
     readiness.blockedDetailSections.find((b) => b.section === s)?.reason ??
@@ -105,29 +111,22 @@ export function CrmRelationshipDetailCards({ viewModel, readiness }: Props) {
         </div>
 
         {SECTION_ORDER.map((section) => {
-          const isSafe = safe(section);
+          const state = stateOf(section);
+          const isSafe = state === 'safe';
+          const badge = STATE_BADGE[state];
           return (
             <section
               key={section}
               style={sectionStyle}
               aria-label={SECTION_LABEL[section]}
               data-section={section}
-              data-section-state={isSafe ? 'safe' : 'blocked'}
+              data-section-state={state}
             >
               <div style={sectionHeadStyle}>
                 <span style={labelStyle}>{SECTION_LABEL[section]}</span>
-                {isSafe ? (
-                  <Badge variant="clear" appearance="outline">
-                    safe
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant={section === 'salesforceSpine' ? 'neutral' : 'atRisk'}
-                    appearance="outline"
-                  >
-                    {section === 'salesforceSpine' ? 'not seeded' : 'blocked'}
-                  </Badge>
-                )}
+                <Badge variant={badge.variant} appearance="outline">
+                  {badge.label}
+                </Badge>
               </div>
               {isSafe ? (
                 <>
@@ -297,6 +296,17 @@ const READINESS_VARIANT: Record<CrmRelationshipDetailReadiness['readinessStatus'
   ready: 'clear',
   partial: 'atRisk',
   blocked: 'blocked',
+};
+
+// Honest per-section badges. Only a REQUIRED-missing section reads as
+// "blocked"; optional / deferred surfaces get calm, explicit labels so the
+// app never looks broken for expected gaps.
+const STATE_BADGE: Record<CrmDetailSectionState, { variant: SeverityKey; label: string }> = {
+  safe: { variant: 'clear', label: 'safe' },
+  blocked: { variant: 'blocked', label: 'blocked' },
+  degraded: { variant: 'atRisk', label: 'degraded' },
+  optional: { variant: 'neutral', label: 'optional · not provided' },
+  deferred: { variant: 'neutral', label: 'deferred · not seeded · not wired' },
 };
 
 const provenanceStyle: CSSProperties = {

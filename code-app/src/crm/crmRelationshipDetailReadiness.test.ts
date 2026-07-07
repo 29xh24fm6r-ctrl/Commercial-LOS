@@ -33,7 +33,9 @@ describe('real client/team/banker IDs', () => {
     });
     expect(r.readinessStatus).toBe('partial');
     expect(r.safeDetailSections).toContain('clientIdentity');
-    expect(r.blockedDetailSections.map((b) => b.section)).toContain('assignedBanker');
+    // An unverified banker degrades — it is NOT a hard blocker.
+    expect(r.degradedDetailSections.map((b) => b.section)).toContain('assignedBanker');
+    expect(r.blockedDetailSections.map((b) => b.section)).not.toContain('assignedBanker');
   });
 });
 
@@ -49,52 +51,81 @@ describe('name-only client surrogate', () => {
     });
     const r = deriveCrmRelationshipDetailReadiness(input);
     expect(r.safeDetailSections).not.toContain('clientIdentity');
-    const blocked = r.blockedDetailSections.find((b) => b.section === 'clientIdentity');
-    expect(blocked?.reason).toMatch(/name only|surrogate/i);
-    // There is still a client node, so the audit is partial, not blocked.
+    // A name-only client node EXISTS, so the client detail is degraded (not a
+    // hard block) and the overall audit is partial, not blocked.
+    const degraded = r.degradedDetailSections.find((b) => b.section === 'clientIdentity');
+    expect(degraded?.reason).toMatch(/name only|surrogate/i);
+    expect(r.blockedDetailSections.map((b) => b.section)).not.toContain('clientIdentity');
     expect(r.readinessStatus).toBe('partial');
   });
 });
 
-describe('missing client', () => {
-  it('blocks CRM detail readiness entirely', () => {
+describe('missing client is the ONLY true blocker', () => {
+  it('blocks CRM detail readiness entirely and lists clientIdentity as the sole blocked section', () => {
     const r = deriveCrmRelationshipDetailReadiness({ ...realGraph, client: null });
     expect(r.readinessStatus).toBe('blocked');
     expect(r.missingInputs.some((m) => m.includes('client.id'))).toBe(true);
     expect(r.safeDetailSections).not.toContain('clientIdentity');
+    // The canonical client is the only thing that can be BLOCKED.
+    expect(r.blockedDetailSections.map((b) => b.section)).toEqual(['clientIdentity']);
   });
 
   it('blocks when there is no deal anchor', () => {
     const r = deriveCrmRelationshipDetailReadiness({ ...realGraph, deal: null });
     expect(r.readinessStatus).toBe('blocked');
   });
+
+  it('never lists optional/deferred sections as blocked, even with a missing client', () => {
+    const r = deriveCrmRelationshipDetailReadiness({ ...realGraph, client: null });
+    const blocked = r.blockedDetailSections.map((b) => b.section);
+    for (const s of ['platformWorkspaceBridge', 'salesforceSpine', 'teamOwnership', 'assignedBanker']) {
+      expect(blocked).not.toContain(s);
+    }
+  });
 });
 
-describe('missing team / banker degrade without fabrication', () => {
-  it('marks team/banker sections blocked with explicit missing inputs, no invented records', () => {
+describe('missing team / banker degrade (actionable), never a full CRM failure', () => {
+  it('marks team/banker sections degraded — not blocked — with explicit missing inputs, no invented records', () => {
     const r = deriveCrmRelationshipDetailReadiness({
       ...realGraph,
       team: null,
       assignedBanker: null,
     });
     expect(r.readinessStatus).toBe('partial');
-    expect(r.blockedDetailSections.map((b) => b.section)).toEqual(
+    expect(r.degradedDetailSections.map((b) => b.section)).toEqual(
       expect.arrayContaining(['teamOwnership', 'assignedBanker']),
     );
+    expect(r.blockedDetailSections).toEqual([]);
     expect(r.missingInputs.some((m) => m.includes('team.id'))).toBe(true);
     expect(r.missingInputs.some((m) => m.includes('assignedBanker.id'))).toBe(true);
   });
 });
 
-describe('future Salesforce-style spine', () => {
-  it('remains blocked / not seeded even when the rest is ready', () => {
+describe('platform / workspace bridge is OPTIONAL, never blocked', () => {
+  it('classifies an absent platform bridge as optional (not provided), not blocked', () => {
+    const r = deriveCrmRelationshipDetailReadiness(realGraph); // no platformUser
+    expect(r.optionalDetailSections.map((b) => b.section)).toContain('platformWorkspaceBridge');
+    expect(r.blockedDetailSections.map((b) => b.section)).not.toContain('platformWorkspaceBridge');
+    const assessment = r.sectionAssessments.find((a) => a.section === 'platformWorkspaceBridge');
+    expect(assessment?.requirement).toBe('optional');
+    expect(assessment?.state).toBe('optional');
+    expect(assessment?.reason).toMatch(/optional/i);
+  });
+});
+
+describe('future Salesforce-style spine is DEFERRED / OPTIONAL, never blocked', () => {
+  it('renders as deferred / not seeded / not wired even when the rest is ready', () => {
     const r = deriveCrmRelationshipDetailReadiness(realGraph);
     expect(r.spineSeeded).toBe(false);
     // CRM_LIVE_PERSISTENCE_ENABLED is at its safe default (off) in crmFeatureFlags.ts;
     // the spine is still not seeded — live persistence and spine seeding are separate concerns.
     expect(r.liveSpinePersistenceEnabled).toBe(false);
-    expect(r.blockedDetailSections.map((b) => b.section)).toContain('salesforceSpine');
+    expect(r.deferredDetailSections.map((b) => b.section)).toContain('salesforceSpine');
+    expect(r.blockedDetailSections.map((b) => b.section)).not.toContain('salesforceSpine');
     expect(r.safeDetailSections).not.toContain('salesforceSpine');
+    const assessment = r.sectionAssessments.find((a) => a.section === 'salesforceSpine');
+    expect(assessment?.requirement).toBe('deferred');
+    expect(assessment?.state).toBe('deferred');
   });
 });
 

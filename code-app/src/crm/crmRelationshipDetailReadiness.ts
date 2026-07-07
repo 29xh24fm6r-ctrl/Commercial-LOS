@@ -32,10 +32,36 @@ export type CrmDetailSectionKey =
   | 'relationshipIntegrity'
   | 'salesforceSpine';
 
+/**
+ * The nature of a detail section, which decides whether its absence is a true
+ * blocker or an expected/optional gap:
+ *   - required : must be present; its absence BLOCKS CRM detail (only the
+ *                canonical client qualifies).
+ *   - degraded : actionable/expected-incomplete (team, assigned banker); its
+ *                absence degrades (partial), it never blocks.
+ *   - optional : may legitimately be absent (platform/workspace bridge);
+ *                displayed as OPTIONAL / NOT PROVIDED, never blocked.
+ *   - deferred : intentionally not built/seeded yet (Salesforce-style spine);
+ *                displayed as DEFERRED / NOT SEEDED / NOT WIRED, never blocked.
+ */
+export type CrmDetailSectionRequirement = 'required' | 'degraded' | 'optional' | 'deferred';
+
+/**
+ * The rendered state of a detail section. `blocked` is reserved for a REQUIRED
+ * section that is missing; optional/deferred sections get their own honest
+ * states so they never read as an app failure.
+ */
+export type CrmDetailSectionState = 'safe' | 'blocked' | 'degraded' | 'optional' | 'deferred';
+
 export interface CrmDetailSectionAssessment {
   section: CrmDetailSectionKey;
   label: string;
+  /** True only when the section can render a real record-detail surface. */
   safe: boolean;
+  /** Whether the section is required / degraded / optional / deferred. */
+  requirement: CrmDetailSectionRequirement;
+  /** Rendered state: safe | blocked (required-missing) | degraded | optional | deferred. */
+  state: CrmDetailSectionState;
   reason: string;
   /** Ids this section needs to render a real record-detail surface. */
   requiredIds: string[];
@@ -43,10 +69,13 @@ export interface CrmDetailSectionAssessment {
   presentRealIds: string[];
 }
 
-export interface CrmBlockedDetailSection {
+export interface CrmDetailSectionNote {
   section: CrmDetailSectionKey;
   reason: string;
 }
+
+/** @deprecated shape alias — a truly BLOCKED (required-missing) section. */
+export type CrmBlockedDetailSection = CrmDetailSectionNote;
 
 export interface CrmUnsafeAssumption {
   assumption: string;
@@ -73,7 +102,14 @@ export interface CrmRelationshipDetailReadiness {
   liveSpinePersistenceEnabled: boolean;
 
   safeDetailSections: CrmDetailSectionKey[];
+  /** ONLY required sections that are missing (i.e. the canonical client). */
   blockedDetailSections: CrmBlockedDetailSection[];
+  /** Actionable/expected-incomplete sections (team, assigned banker). */
+  degradedDetailSections: CrmDetailSectionNote[];
+  /** Legitimately-absent optional sections (platform/workspace bridge). */
+  optionalDetailSections: CrmDetailSectionNote[];
+  /** Intentionally not-yet-built sections (Salesforce-style spine). */
+  deferredDetailSections: CrmDetailSectionNote[];
   sectionAssessments: CrmDetailSectionAssessment[];
   missingInputs: string[];
   unsafeAssumptionsRejected: CrmUnsafeAssumption[];
@@ -115,101 +151,91 @@ export function deriveCrmRelationshipDetailReadiness(
     sourceFacts.push('No Loan Deal anchor supplied.');
   }
 
-  // --- clientIdentity ------------------------------------------------------
+  // --- clientIdentity (REQUIRED — the only true blocker) -------------------
   const clientReal = client != null && isRealId(client.id) && client.lookupClassification === 'real-lookup';
   if (!client) {
     missingInputs.push('client.id (cr664_loandeal.cr664_Client)');
-    assessments.push({
-      section: 'clientIdentity',
-      label: 'Client identity detail',
-      safe: false,
-      reason: 'No canonical client is linked to the deal — no client record to detail.',
-      requiredIds: ['client.id'],
-      presentRealIds: [],
-    });
+    assessments.push(assess('clientIdentity', 'Client identity detail', 'required', 'blocked', ['client.id'],
+      'No canonical client is linked to the deal — no client record to detail. Use "Link CRM client" to resolve.'));
   } else if (!clientReal) {
+    // The client node EXISTS (name surrogate or unverified edge), so this is a
+    // degraded drilldown, NOT a hard block — the overall status stays partial.
     const surrogate = !isRealId(client.id);
-    assessments.push({
-      section: 'clientIdentity',
-      label: 'Client identity detail',
-      safe: false,
-      reason: surrogate
+    assessments.push(assess('clientIdentity', 'Client identity detail', 'required', 'degraded', ['client.id'],
+      surrogate
         ? 'Client is known by name only (name: surrogate id); a record-detail drilldown is not safe.'
-        : `Client edge is "${client.lookupClassification ?? 'unknown'}", not a verified real lookup.`,
-      requiredIds: ['client.id'],
-      presentRealIds: [],
-    });
+        : `Client edge is "${client.lookupClassification ?? 'unknown'}", not a verified real lookup.`));
     sourceFacts.push(
-      `Client present by ${surrogate ? 'name only' : 'unverified edge'}; record-detail blocked.`,
+      `Client present by ${surrogate ? 'name only' : 'unverified edge'}; record-detail degraded.`,
     );
   } else {
-    assessments.push({
-      section: 'clientIdentity',
-      label: 'Client identity detail',
-      safe: true,
-      reason: 'Real cr664_clientrelationship id with a verified real-lookup edge.',
-      requiredIds: ['client.id'],
-      presentRealIds: ['client.id'],
-    });
+    assessments.push(assess('clientIdentity', 'Client identity detail', 'required', 'safe', ['client.id'],
+      'Real cr664_clientrelationship id with a verified real-lookup edge.'));
     sourceFacts.push(`Client record id ${client.id} is a real lookup — detail safe.`);
   }
 
-  // --- teamOwnership -------------------------------------------------------
+  // --- teamOwnership (DEGRADED — actionable, never a hard block) ------------
   const teamReal = team != null && isRealId(team.id) && team.lookupClassification === 'real-lookup';
   if (!team) {
     missingInputs.push('team.id (cr664_loandeal.cr664_Team)');
-    assessments.push(blockedSection('teamOwnership', 'Team ownership detail', ['team.id'],
-      'Owning-team edge is unset in this context.'));
+    assessments.push(assess('teamOwnership', 'Team ownership detail', 'degraded', 'degraded', ['team.id'],
+      'Owning-team edge is unset in this context. Use "Assign owning team" to link it.'));
   } else if (!teamReal) {
-    assessments.push(blockedSection('teamOwnership', 'Team ownership detail', ['team.id'],
+    assessments.push(assess('teamOwnership', 'Team ownership detail', 'degraded', 'degraded', ['team.id'],
       `Team edge is "${team.lookupClassification ?? 'unknown'}", not a verified real lookup.`));
   } else {
-    assessments.push(safeSection('teamOwnership', 'Team ownership detail', ['team.id'],
+    assessments.push(assess('teamOwnership', 'Team ownership detail', 'degraded', 'safe', ['team.id'],
       'Real cr664_team id with a verified real-lookup edge.'));
     sourceFacts.push(`Team record id ${team.id} is a real lookup — detail safe.`);
   }
 
-  // --- assignedBanker ------------------------------------------------------
+  // --- assignedBanker (DEGRADED — actionable, never a hard block) -----------
   const bankerReal = banker != null && isRealId(banker.id) && banker.lookupClassification === 'real-lookup';
   if (!banker) {
     missingInputs.push('assignedBanker.id (cr664_loandeal.cr664_AssignedTo)');
-    assessments.push(blockedSection('assignedBanker', 'Assigned banker detail', ['assignedBanker.id'],
+    assessments.push(assess('assignedBanker', 'Assigned banker detail', 'degraded', 'degraded', ['assignedBanker.id'],
       'Assigned-banker edge is unset in this context.'));
   } else if (!bankerReal) {
-    assessments.push(blockedSection('assignedBanker', 'Assigned banker detail', ['assignedBanker.id'],
+    assessments.push(assess('assignedBanker', 'Assigned banker detail', 'degraded', 'degraded', ['assignedBanker.id'],
       `Assigned-banker edge is "${banker.lookupClassification ?? 'unknown'}" (e.g. id from workspace context only), not a verified real lookup.`));
   } else {
-    assessments.push(safeSection('assignedBanker', 'Assigned banker detail', ['assignedBanker.id'],
+    assessments.push(assess('assignedBanker', 'Assigned banker detail', 'degraded', 'safe', ['assignedBanker.id'],
       'Real assigned-banker id with a verified real-lookup edge.'));
     sourceFacts.push(`Assigned-banker record id ${banker.id} is a real lookup — detail safe.`);
   }
 
-  // --- platformWorkspaceBridge (optional) ----------------------------------
+  // --- platformWorkspaceBridge (OPTIONAL — never blocked) ------------------
   if (platformUser && isRealId(platformUser.id)) {
-    assessments.push(safeSection('platformWorkspaceBridge', 'Platform / workspace bridge',
+    assessments.push(assess('platformWorkspaceBridge', 'Platform / workspace bridge', 'optional', 'safe',
       ['platformUser.id'], 'Real platform-user id present; workspace/core-user bridge can render.'));
   } else {
-    assessments.push(blockedSection('platformWorkspaceBridge', 'Platform / workspace bridge',
-      ['platformUser.id'], 'No platform-user context supplied (optional surface).'));
+    assessments.push(assess('platformWorkspaceBridge', 'Platform / workspace bridge', 'optional', 'optional',
+      ['platformUser.id'],
+      'Optional — no platform / workspace bridge is provided for this deal. This surface is not required for CRM relationship detail.'));
   }
 
   // --- relationshipIntegrity (diagnostic over what we have) ----------------
   if (deal) {
-    assessments.push(safeSection('relationshipIntegrity', 'Relationship integrity diagnostics',
+    assessments.push(assess('relationshipIntegrity', 'Relationship integrity diagnostics', 'degraded', 'safe',
       [], 'Edge classifications (real-lookup / unknown / pseudo / missing) are derivable read-only from the supplied graph.'));
   } else {
-    assessments.push(blockedSection('relationshipIntegrity', 'Relationship integrity diagnostics',
+    assessments.push(assess('relationshipIntegrity', 'Relationship integrity diagnostics', 'degraded', 'degraded',
       [], 'No deal anchor — nothing to diagnose.'));
   }
 
-  // --- salesforceSpine (never seeded / wired this phase) -------------------
-  assessments.push(blockedSection('salesforceSpine', 'Salesforce-style spine detail', [],
-    'The cr664_crm* spine is not seeded and not wired; no spine detail can render.'));
+  // --- salesforceSpine (DEFERRED — not seeded / not wired, never blocked) ---
+  assessments.push(assess('salesforceSpine', 'Salesforce-style spine detail', 'deferred', 'deferred', [],
+    'Deferred / optional — the cr664_crm* spine is not seeded and not wired; no spine detail can render. It is not required for CRM relationship detail.'));
 
+  const byState = (state: CrmDetailSectionState): CrmDetailSectionNote[] =>
+    assessments.filter((a) => a.state === state).map((a) => ({ section: a.section, reason: a.reason }));
   const safeDetailSections = assessments.filter((a) => a.safe).map((a) => a.section);
-  const blockedDetailSections = assessments
-    .filter((a) => !a.safe)
-    .map((a) => ({ section: a.section, reason: a.reason }));
+  // BLOCKED is reserved for required-missing sections only (the canonical
+  // client). Team/banker are degraded; platform is optional; spine is deferred.
+  const blockedDetailSections = byState('blocked');
+  const degradedDetailSections = byState('degraded');
+  const optionalDetailSections = byState('optional');
+  const deferredDetailSections = byState('deferred');
 
   // --- readiness status ----------------------------------------------------
   let readinessStatus: CrmDetailReadinessStatus;
@@ -238,7 +264,10 @@ export function deriveCrmRelationshipDetailReadiness(
         action: `Render only the safe detail sections (${safeDetailSections.join(', ')}) read-only behind existing deal/workspace authorization.`,
       });
     }
-    for (const b of blockedDetailSections.filter((s) => s.section !== 'salesforceSpine')) {
+    // Actionable follow-ups are the DEGRADED sections (team / banker / a
+    // name-only client). Optional (platform) and deferred (spine) sections are
+    // expected gaps and never generate a "resolve" action.
+    for (const b of degradedDetailSections) {
       nextActions.push({
         priority: priority++,
         kind: 'resolve_blocked_section',
@@ -259,6 +288,9 @@ export function deriveCrmRelationshipDetailReadiness(
     liveSpinePersistenceEnabled: CRM_LIVE_PERSISTENCE_ENABLED,
     safeDetailSections,
     blockedDetailSections,
+    degradedDetailSections,
+    optionalDetailSections,
+    deferredDetailSections,
     sectionAssessments: assessments,
     missingInputs,
     unsafeAssumptionsRejected: REJECTED_ASSUMPTIONS.map((a) => ({ ...a })),
@@ -267,20 +299,23 @@ export function deriveCrmRelationshipDetailReadiness(
   };
 }
 
-function safeSection(
+function assess(
   section: CrmDetailSectionKey,
   label: string,
+  requirement: CrmDetailSectionRequirement,
+  state: CrmDetailSectionState,
   requiredIds: string[],
   reason: string,
 ): CrmDetailSectionAssessment {
-  return { section, label, safe: true, reason, requiredIds, presentRealIds: requiredIds };
-}
-
-function blockedSection(
-  section: CrmDetailSectionKey,
-  label: string,
-  requiredIds: string[],
-  reason: string,
-): CrmDetailSectionAssessment {
-  return { section, label, safe: false, reason, requiredIds, presentRealIds: [] };
+  const safe = state === 'safe';
+  return {
+    section,
+    label,
+    safe,
+    requirement,
+    state,
+    reason,
+    requiredIds,
+    presentRealIds: safe ? requiredIds : [],
+  };
 }
