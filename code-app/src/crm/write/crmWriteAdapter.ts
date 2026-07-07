@@ -88,7 +88,7 @@ function compact(obj: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-function authGate(actor: CrmActor): { ok: true } | { ok: false; outcome: CrmWriteOutcome } {
+export function authGate(actor: CrmActor): { ok: true } | { ok: false; outcome: CrmWriteOutcome } {
   if (!actor.authorized) {
     return { ok: false, outcome: { kind: 'unauthorized', reason: 'You are not authorized to update the CRM.' } };
   }
@@ -104,7 +104,7 @@ function authGate(actor: CrmActor): { ok: true } | { ok: false; outcome: CrmWrit
   return { ok: true };
 }
 
-function buildAuditPayload(opts: {
+export function buildAuditPayload(opts: {
   entityKind: CrmEntityKind;
   entityId: string;
   action: string;

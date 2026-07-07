@@ -1,7 +1,7 @@
-import { type CSSProperties } from 'react';
+import { type CSSProperties, type ReactNode, useState } from 'react';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
-import { palette, spacing, typography, type SeverityKey } from '../shared/theme';
+import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 import { useDealData } from '../deals/DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
 import { buildCrmRelationshipInput } from './buildCrmRelationshipInput';
@@ -12,6 +12,14 @@ import {
 } from './crmRelationshipViewModel';
 import { deriveCrmRelationshipDetailReadiness } from './crmRelationshipDetailReadiness';
 import { CrmRelationshipDetailCards } from './CrmRelationshipDetailCards';
+import { LinkDealCrmEntityModal } from './LinkDealCrmEntityModal';
+import { loadClientRelationshipOptions, loadTeamOptions, type CrmLinkOption } from './dealCrmLinkOptions';
+import {
+  linkDealCrmEntity,
+  buildLiveLinkDealCrmEntityDeps,
+  type DealCrmLinkTarget,
+  type LinkDealCrmEntityOutcome,
+} from './write/linkDealCrmEntity';
 
 /**
  * Phase 189C — read-only CRM Relationship panel.
@@ -42,8 +50,15 @@ const SEVERITY_VARIANT: Record<string, SeverityKey> = {
 
 export function CrmRelationshipPanel({
   viewModel,
+  clientAction,
+  teamAction,
 }: {
   viewModel: CrmRelationshipViewModel;
+  /** Optional interactive affordance rendered in the Client section (e.g. the
+   *  "Link CRM client" button when no canonical client is linked). */
+  clientAction?: ReactNode;
+  /** Optional interactive affordance rendered in the Owning-team section. */
+  teamAction?: ReactNode;
 }) {
   const vm = viewModel;
   return (
@@ -78,6 +93,7 @@ export function CrmRelationshipPanel({
           ) : (
             <div style={emptyStyle}>No canonical client linked to this deal.</div>
           )}
+          {clientAction}
         </section>
 
         {/* Team + assigned banker */}
@@ -86,6 +102,7 @@ export function CrmRelationshipPanel({
           <div style={vm.team ? valueStyle : emptyStyle}>
             {vm.team ? vm.team.name ?? `team ${vm.team.id}` : 'Not linked in this view.'}
           </div>
+          {!vm.team && teamAction}
           <div style={labelStyle}>Assigned banker</div>
           <div style={vm.assignedBanker ? valueStyle : emptyStyle}>
             {vm.assignedBanker
@@ -161,9 +178,13 @@ export function CrmRelationshipPanel({
         <section style={sectionStyle} aria-label="Future Salesforce-style spine">
           <div style={labelStyle}>
             Future Salesforce-style spine{' '}
-            <span style={stubChipStyle}>not seeded · not wired</span>
+            <span style={stubChipStyle}>optional · not seeded · not wired</span>
           </div>
           <div style={noteStyle}>{vm.futureSpine.note}</div>
+          <div style={noteStyle}>
+            Optional — the spine is not required to view canonical client detail and is not what
+            blocks this panel.
+          </div>
         </section>
       </div>
 
@@ -187,6 +208,33 @@ export function DealCrmRelationshipPanel() {
   const { deal } = useDealData();
   const banker = useOptionalBanker();
 
+  // Which link modal (if any) is open.
+  const [modal, setModal] = useState<DealCrmLinkTarget | null>(null);
+  // Optimistic, readback-verified links made in this session. A successful
+  // `linkDealCrmEntity` reads the deal back and proves it now points at the
+  // selected record, so reflecting that here is truthful — not fabricated.
+  // (DealDataProvider.refresh does not reload the deal record itself, so we
+  // hold the confirmed link locally until the next full workspace load.)
+  const [linkedClient, setLinkedClient] = useState<{ id: string; name: string } | null>(null);
+  const [linkedTeam, setLinkedTeam] = useState<{ id: string; name: string } | null>(null);
+
+  // A banker can perform the governed write only with a resolved Dataverse
+  // identity and no write-disabled reason (mirrors every other governed
+  // write surface). Manager read-only mode has no banker → no write.
+  const authorized = !!banker && !!banker.systemUserId && !banker.writeDisabledReason;
+  const writeBlockedReason =
+    banker?.writeDisabledReason ??
+    'No Dataverse identity is available for your sign-in, so CRM links are read-only.';
+
+  const effectiveClientId = linkedClient?.id ?? deal.clientId ?? null;
+  const effectiveClientName = linkedClient?.name ?? deal.clientName ?? null;
+  const effectiveClientClassification = linkedClient
+    ? 'real-lookup'
+    : deal.clientLookupClassification;
+  const effectiveTeamId = linkedTeam?.id ?? deal.teamId ?? null;
+  const effectiveTeamName = linkedTeam?.name ?? deal.teamName ?? null;
+  const effectiveTeamClassification = linkedTeam ? 'real-lookup' : deal.teamLookupClassification;
+
   // Phase 189D — the already-authorized deal row carries real lookup ids +
   // classifications (no second Dataverse GET). A real client GUID wins; the
   // builder still falls back to a `name:` surrogate when only a label exists.
@@ -194,14 +242,14 @@ export function DealCrmRelationshipPanel() {
   // detail readiness gate (189E) from the same input.
   const input = buildCrmRelationshipInput({
     deal: { id: deal.id, name: deal.name },
-    clientId: deal.clientId ?? null,
-    clientName: deal.clientName ?? null,
-    clientLookupClassification: deal.clientLookupClassification,
-    team: deal.teamId
+    clientId: effectiveClientId,
+    clientName: effectiveClientName,
+    clientLookupClassification: effectiveClientClassification,
+    team: effectiveTeamId
       ? {
-          id: deal.teamId,
-          name: deal.teamName ?? null,
-          lookupClassification: deal.teamLookupClassification,
+          id: effectiveTeamId,
+          name: effectiveTeamName,
+          lookupClassification: effectiveTeamClassification,
         }
       : null,
     // Prefer the deal's real cr664_AssignedBanker lookup id when present;
@@ -223,13 +271,115 @@ export function DealCrmRelationshipPanel() {
   // Phase 189F — gate the read-only detail cards on the 189E readiness audit.
   const readiness = deriveCrmRelationshipDetailReadiness(input);
 
+  async function handleLink(
+    target: DealCrmLinkTarget,
+    option: CrmLinkOption,
+  ): Promise<LinkDealCrmEntityOutcome> {
+    return linkDealCrmEntity(
+      {
+        dealId: deal.id,
+        target,
+        entityId: option.id,
+        entityName: option.name,
+        actorEmail: banker?.email,
+        actorSystemUserId: banker?.systemUserId,
+        authorized,
+      },
+      buildLiveLinkDealCrmEntityDeps(),
+    );
+  }
+
+  const clientMissing = viewModel.canonicalClient === null;
+  const teamMissing = viewModel.team === null;
+
+  const clientAction = clientMissing ? (
+    authorized ? (
+      <button
+        type="button"
+        onClick={() => setModal('client')}
+        style={linkButtonStyle}
+        data-crm-link-action="client"
+        aria-label="Link a canonical CRM client to this deal"
+      >
+        Link CRM client
+      </button>
+    ) : (
+      <div style={readOnlyNoteStyle} data-crm-link-readonly="client">
+        {writeBlockedReason}
+      </div>
+    )
+  ) : undefined;
+
+  const teamAction = teamMissing ? (
+    authorized ? (
+      <button
+        type="button"
+        onClick={() => setModal('team')}
+        style={linkButtonStyle}
+        data-crm-link-action="team"
+        aria-label="Assign the owning team for this deal"
+      >
+        Assign owning team
+      </button>
+    ) : (
+      <div style={readOnlyNoteStyle} data-crm-link-readonly="team">
+        {writeBlockedReason}
+      </div>
+    )
+  ) : undefined;
+
   return (
     <>
-      <CrmRelationshipPanel viewModel={viewModel} />
+      <CrmRelationshipPanel
+        viewModel={viewModel}
+        clientAction={clientAction}
+        teamAction={teamAction}
+      />
       <CrmRelationshipDetailCards viewModel={viewModel} readiness={readiness} />
+      {modal === 'client' && (
+        <LinkDealCrmEntityModal
+          targetKind="client"
+          dealName={deal.name}
+          loadOptions={loadClientRelationshipOptions}
+          onLink={(option) => handleLink('client', option)}
+          onLinked={(option) => setLinkedClient({ id: option.id, name: option.name })}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {modal === 'team' && (
+        <LinkDealCrmEntityModal
+          targetKind="team"
+          dealName={deal.name}
+          loadOptions={loadTeamOptions}
+          onLink={(option) => handleLink('team', option)}
+          onLinked={(option) => setLinkedTeam({ id: option.id, name: option.name })}
+          onClose={() => setModal(null)}
+        />
+      )}
     </>
   );
 }
+
+const linkButtonStyle: CSSProperties = {
+  marginTop: spacing.xs,
+  alignSelf: 'flex-start',
+  background: palette.primary,
+  color: palette.textInverse,
+  border: 'none',
+  borderRadius: radius.sm,
+  padding: `${spacing.xxs} ${spacing.sm}`,
+  fontSize: typography.size.sm,
+  fontWeight: typography.weight.semibold,
+  cursor: 'pointer',
+  fontFamily: typography.family,
+};
+
+const readOnlyNoteStyle: CSSProperties = {
+  marginTop: spacing.xs,
+  fontSize: typography.size.xs,
+  color: palette.textSubtle,
+  fontStyle: 'italic',
+};
 
 const bannerStyle: CSSProperties = {
   fontSize: typography.size.sm,
