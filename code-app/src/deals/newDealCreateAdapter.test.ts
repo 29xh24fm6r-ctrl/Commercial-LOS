@@ -180,6 +180,98 @@ describe('Phase 170M -- payload discipline (allow-list, resolved binds, no GUID)
       '/cr664_clientrelationships(client-9)',
     );
   });
+
+  it('8b. team bind is included only when an existing team id is provided', async () => {
+    const without = deps();
+    await createGovernedNewDeal(baseInput(), without);
+    expect(without.createSpy.mock.calls[0]![0]).not.toHaveProperty('cr664_Team@odata.bind');
+
+    const withTeam = deps();
+    await createGovernedNewDeal(baseInput({ existingTeamId: 'team-7' }), withTeam);
+    const payload = withTeam.createSpy.mock.calls[0]![0] as NewDealCreatePayload;
+    expect(payload['cr664_Team@odata.bind']).toBe('/cr664_teams(team-7)');
+    // Team bind is allow-listed.
+    for (const key of Object.keys(payload)) expect(NEW_DEAL_CREATE_ALLOWED_FIELDS).toContain(key);
+  });
+});
+
+describe('CRM-first client gate (fail-closed, before any create)', () => {
+  it('client_required (no create) when requireCrmClient and no client is selected', async () => {
+    const d = deps();
+    const out = await createGovernedNewDeal(baseInput({ requireCrmClient: true }), d);
+    expect(out.kind).toBe('client_required');
+    // The blocker is BEFORE create -> no create IO, no audit.
+    expect(d.createSpy).not.toHaveBeenCalled();
+    expect(d.auditSpy).not.toHaveBeenCalled();
+  });
+
+  it('proceeds when requireCrmClient and a client IS selected', async () => {
+    const d = deps();
+    const out = await createGovernedNewDeal(baseInput({ requireCrmClient: true, existingClientId: 'client-1' }), d);
+    expect(out.kind).toBe('success');
+    expect((d.createSpy.mock.calls[0]![0] as NewDealCreatePayload)['cr664_Client@odata.bind']).toBe(
+      '/cr664_clientrelationships(client-1)',
+    );
+  });
+
+  it('proceeds without a client only when the admin/gate allows it', async () => {
+    const d = deps();
+    const out = await createGovernedNewDeal(
+      baseInput({ requireCrmClient: true, allowCreateWithoutClient: true }),
+      d,
+    );
+    expect(out.kind).toBe('success');
+    expect(d.createSpy.mock.calls[0]![0]).not.toHaveProperty('cr664_Client@odata.bind');
+  });
+});
+
+describe('link readback verification (client / team persisted on the created deal)', () => {
+  it('success when the readback confirms the selected client + team', async () => {
+    const readSpy = vi.fn(async () => ({ success: true, clientId: 'CLIENT-1', teamId: 'team-2' }));
+    const d = deps({ readDealLinks: readSpy });
+    const out = await createGovernedNewDeal(
+      baseInput({ existingClientId: 'client-1', existingTeamId: 'team-2' }),
+      d,
+    );
+    expect(out.kind).toBe('success');
+    // Readback ran against the created id; GUID casing is tolerated.
+    expect(readSpy).toHaveBeenCalledWith('new-deal-1');
+    expect(d.auditSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('link_readback_mismatch (honest partial) when the deal does not point at the selected client', async () => {
+    const readSpy = vi.fn(async () => ({ success: true, clientId: 'some-other-guid' }));
+    const d = deps({ readDealLinks: readSpy });
+    const out = await createGovernedNewDeal(baseInput({ existingClientId: 'client-1' }), d);
+    expect(out).toMatchObject({ kind: 'link_readback_mismatch', dealId: 'new-deal-1' });
+    // A best-effort FAILED audit is emitted; no clean success audit.
+    expect(d.auditSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('link_readback_mismatch when the team lookup does not read back', async () => {
+    const readSpy = vi.fn(async () => ({ success: true, clientId: 'client-1', teamId: undefined }));
+    const d = deps({ readDealLinks: readSpy });
+    const out = await createGovernedNewDeal(
+      baseInput({ existingClientId: 'client-1', existingTeamId: 'team-2' }),
+      d,
+    );
+    expect(out.kind).toBe('link_readback_mismatch');
+  });
+
+  it('link_readback_mismatch when the readback IO itself fails', async () => {
+    const readSpy = vi.fn(async () => ({ success: false, error: 'read boom' }));
+    const d = deps({ readDealLinks: readSpy });
+    const out = await createGovernedNewDeal(baseInput({ existingClientId: 'client-1' }), d);
+    expect(out.kind).toBe('link_readback_mismatch');
+  });
+
+  it('skips readback entirely when neither client nor team was requested', async () => {
+    const readSpy = vi.fn(async () => ({ success: true }));
+    const d = deps({ readDealLinks: readSpy });
+    const out = await createGovernedNewDeal(baseInput(), d);
+    expect(out.kind).toBe('success');
+    expect(readSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe('Phase 170M -- create / audit outcomes', () => {
@@ -249,8 +341,18 @@ describe('Phase 170M -- adapter source discipline', () => {
     expect(SRC).not.toMatch(/advance\s*stage|stagehistory|stage\s*progression|cr664_stagereferences\b/i);
   });
 
-  it('13. performs no CRM / portfolio writes', () => {
-    expect(SRC).not.toMatch(/crm|portfolioboarding|portfolio_loan|cr664_organization|cr664_person/i);
+  it('13. performs no CRM / portfolio entity writes', () => {
+    // The adapter references the CRM-first client gate + copy (allowed), but it
+    // must never create/import a CRM or portfolio ENTITY. Assert on real write
+    // signatures — generated CRM/portfolio services and their entity payload
+    // keys — rather than the bare "crm" substring.
+    expect(SRC).not.toMatch(/portfolioboarding|portfolio_loan|cr664_organization|cr664_person/i);
+    expect(SRC).not.toMatch(/Cr664_crm\w+Service/);
+    expect(SRC).not.toMatch(/Cr664_portfolio\w+Service/);
+    // The only cr664_clientrelationships touch is the cr664_Client lookup BIND
+    // on the loan-deal create — never a client-relationship record create.
+    expect(SRC).not.toMatch(/clientrelationshipsService/i);
+    expect(SRC).toMatch(/cr664_Client@odata\.bind/);
   });
 
   it('14. uses no external Graph / fetch / XHR', () => {

@@ -176,9 +176,11 @@ describe('194 — create path import boundary is clean', () => {
 // 5. Dataverse write boundary — allow-list + core-user bind intact.
 // ---------------------------------------------------------------------------
 describe('194 — Dataverse write boundary intact', () => {
-  it('the certified create payload allow-list is unchanged', () => {
+  it('the certified create payload allow-list is exactly the CRM-first field set', () => {
     // Read the frozen allow-list from source (the adapter module pulls the
     // Power Apps SDK, so we assert against its text rather than importing it).
+    // The CRM-first intake adds cr664_Team@odata.bind (owning-team lookup) to
+    // the previously-certified set — still a closed, deliberate allow-list.
     const block = CREATE_ADAPTER.match(
       /NEW_DEAL_CREATE_ALLOWED_FIELDS = Object\.freeze\(\[([\s\S]*?)\] as const\)/,
     );
@@ -192,6 +194,7 @@ describe('194 — Dataverse write boundary intact', () => {
       'cr664_stageentrydate',
       'cr664_amount',
       'cr664_Client@odata.bind',
+      'cr664_Team@odata.bind',
     ]);
     // The adapter asserts the built payload's keys are a subset and fails closed.
     expect(CREATE_ADAPTER).toMatch(/new Set<string>\(NEW_DEAL_CREATE_ALLOWED_FIELDS\)/);

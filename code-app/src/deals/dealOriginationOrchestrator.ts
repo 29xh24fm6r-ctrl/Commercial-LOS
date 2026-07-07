@@ -46,6 +46,11 @@ import {
   exactDuplicateBlocksCreate,
   type ExistingDealSignal,
 } from './newDealDuplicateDetection';
+import {
+  evaluateCrmIntakeGate,
+  crmIntakeGatePasses,
+  crmIntakeBlockerMessage,
+} from './newDealCrmIntakeGate';
 
 export interface DealOriginationFormInput {
   readonly dealName: string;
@@ -55,13 +60,24 @@ export interface DealOriginationFormInput {
    *  cr664_user bind; never affects the loan-deal create. */
   readonly actorEmail?: string;
   readonly amount?: number;
+  /** Selected EXISTING cr664_clientrelationship id -> cr664_Client at create. */
   readonly existingClientId?: string;
+  /** Selected EXISTING cr664_team id -> cr664_Team at create. */
+  readonly existingTeamId?: string;
 }
 
 export interface DealOriginationContext {
   readonly authorized?: boolean;
   readonly stageLabel?: string;
   readonly statusLabel?: string;
+  // CRM-first intake gate (Step 1: CRM Client)
+  /** Enforce the CRM client requirement before create. Default (unset) is the
+   *  governed posture: required. Set false only for legacy/non-CRM callers. */
+  readonly requireCrmClient?: boolean;
+  /** Admin/gate allowance to create a deal with no CRM client (audited). */
+  readonly allowCreateWithoutClient?: boolean;
+  /** Whether ANY cr664_clientrelationships row exists (drives blocker copy). */
+  readonly clientRelationshipsExist?: boolean;
   // borrower
   readonly borrowerEmail?: string;
   readonly borrowerPhone?: string;
@@ -212,6 +228,27 @@ export async function orchestrateDealOrigination(
     );
   }
 
+  // CRM-first intake gate (Step 1: CRM Client). Fail-closed BEFORE any create,
+  // so a missing client is an honest blocker before deal creation, not after.
+  // The CRM-first surface opts in (requireCrmClient: true); a client is then
+  // required unless an admin/gate allows a client-less deal.
+  if (ctx.requireCrmClient === true) {
+    const gate = evaluateCrmIntakeGate({
+      selectedClientId: input.form.existingClientId,
+      clientRelationshipsExist: ctx.clientRelationshipsExist,
+      allowCreateWithoutClient: ctx.allowCreateWithoutClient,
+    });
+    if (!crmIntakeGatePasses(gate)) {
+      operatorNotes.push(`crm-intake-gate: ${gate.kind}`);
+      return baseResult(
+        'client_required',
+        { kind: 'skipped' },
+        { kind: 'skipped' },
+        crmIntakeBlockerMessage(gate),
+      );
+    }
+  }
+
   // Governed create (gated; default disabled).
   const runCreate = deps.runGovernedCreate ?? DISABLED_CREATE;
   const create = await runCreate(input.form);
@@ -226,12 +263,25 @@ export async function orchestrateDealOrigination(
     case 'unauthorized':
       return baseResult('unauthorized', { kind: 'skipped' }, { kind: 'skipped' },
         'You are not authorized to create deals here. No record has been created.');
+    case 'client_required':
+      return baseResult('client_required', { kind: 'skipped' }, { kind: 'skipped' }, create.reason);
     case 'resolver_not_ready':
       return baseResult('resolver_not_ready', { kind: 'skipped' }, { kind: 'skipped' },
         'Stage/Status references are not ready; create is blocked. No record has been created.');
     case 'create_failed':
       return baseResult('create_failed', { kind: 'failed', error: create.error }, { kind: 'skipped' },
         'The deal could not be created. No record has been created.');
+    case 'link_readback_mismatch':
+      // The deal was created but its CRM client/team link did not verify on
+      // readback -> honest partial; downstream does NOT run (fail-closed).
+      operatorNotes.push(`link_readback_mismatch: ${create.detail}`);
+      return baseResult(
+        'link_readback_mismatch',
+        { kind: 'success', dealId: create.dealId },
+        { kind: 'failed', error: create.detail },
+        'The deal was created, but its CRM client/team link could not be verified. An operator must confirm the link. Downstream automation did not run.',
+        { createdDealId: create.dealId },
+      );
     case 'audit_failed_partial':
       // Created, but audit failed -> honest partial; downstream does NOT run.
       operatorNotes.push(`audit_failed_partial: ${create.auditError}`);

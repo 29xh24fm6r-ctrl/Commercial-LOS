@@ -30,6 +30,7 @@ import {
 import { resolveConfiguredNewDealReferences } from './newDealReferenceReader';
 import type { NewDealReferenceResolution } from './newDealReferenceResolver';
 import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from './newDealCreateFeatureFlags';
+import { CRM_CLIENT_REQUIRED_MESSAGE } from './newDealCrmIntakeGate';
 import {
   buildNewDealAuditPayload,
   summarizeAuditPayloadShape,
@@ -54,6 +55,7 @@ export const NEW_DEAL_CREATE_ALLOWED_FIELDS = Object.freeze([
   'cr664_stageentrydate',
   'cr664_amount',
   'cr664_Client@odata.bind',
+  'cr664_Team@odata.bind',
 ] as const);
 
 /** Inputs for a governed New Deal create. */
@@ -78,6 +80,19 @@ export interface GovernedNewDealCreateInput {
   /** Optional EXISTING client relationship id for cr664_Client. Included only
    *  when provided. The adapter NEVER creates a client/borrower row. */
   readonly existingClientId?: string;
+  /** Optional EXISTING team id for cr664_Team. Included only when provided. The
+   *  adapter NEVER creates a team row. */
+  readonly existingTeamId?: string;
+  /**
+   * Governed CRM-first requirement. When true (the live/orchestrated default),
+   * the adapter fails closed with `client_required` unless a client is selected
+   * or `allowCreateWithoutClient` is set. Absent/false preserves the legacy
+   * unconditional-create behavior for callers that gate the client upstream.
+   */
+  readonly requireCrmClient?: boolean;
+  /** Admin/gate allowance to create a deal with no CRM client (audited upstream
+   *  as a deliberate exception). Only meaningful when `requireCrmClient` is on. */
+  readonly allowCreateWithoutClient?: boolean;
 }
 
 /** The allow-listed create payload (display/audit shape; values resolved). */
@@ -89,6 +104,7 @@ export interface NewDealCreatePayload {
   cr664_stageentrydate: string;
   cr664_amount?: number;
   'cr664_Client@odata.bind'?: string;
+  'cr664_Team@odata.bind'?: string;
 }
 
 export type NewDealCreateOutcome =
@@ -96,6 +112,7 @@ export type NewDealCreateOutcome =
   | { kind: 'disabled'; reason: string }
   | { kind: 'validation_error'; field: string; message: string }
   | { kind: 'unauthorized'; reason: string }
+  | { kind: 'client_required'; reason: string }
   | {
       kind: 'resolver_not_ready';
       resolution: NewDealReferenceResolution['kind'];
@@ -103,11 +120,27 @@ export type NewDealCreateOutcome =
     }
   | { kind: 'create_failed'; error: string }
   | {
+      kind: 'link_readback_mismatch';
+      dealId: string;
+      correlationId: string;
+      detail: string;
+    }
+  | {
       kind: 'audit_failed_partial';
       dealId: string;
       correlationId: string;
       auditError: string;
     };
+
+/** Result of the injected client/team lookup readback off the created deal. */
+export interface DealLinkReadbackResult {
+  readonly success: boolean;
+  /** `_cr664_client_value` the created deal carries (lowercase GUID), if any. */
+  readonly clientId?: string;
+  /** `_cr664_team_value` the created deal carries (lowercase GUID), if any. */
+  readonly teamId?: string;
+  readonly error?: string;
+}
 
 /** Result of the injected deal-create IO. */
 export type CreateLoanDealResult =
@@ -147,6 +180,12 @@ export interface GovernedNewDealCreateDeps {
   ) => Promise<CreateLoanDealResult>;
   /** Emit the governed cr664_AuditEvent for the create. */
   readonly emitAuditEvent: (opts: EmitNewDealAuditInput) => Promise<EmitAuditResult>;
+  /**
+   * Read the created deal's cr664_Client / cr664_Team lookups back to prove the
+   * links persisted. Called only when a client or team was requested. When
+   * absent, readback verification is skipped (legacy callers).
+   */
+  readonly readDealLinks?: (dealId: string) => Promise<DealLinkReadbackResult>;
   /** Correlation id factory (override for deterministic tests). */
   readonly correlationId?: () => string;
   /** ISO timestamp factory for cr664_stageentrydate (override in tests). */
@@ -155,6 +194,35 @@ export interface GovernedNewDealCreateDeps {
 
 function isFiniteNonNegative(n: unknown): n is number {
   return typeof n === 'number' && Number.isFinite(n) && n >= 0;
+}
+
+/** Dataverse `_x_value` GUIDs come back lowercase, no braces; normalize both
+ *  sides so the readback comparison is robust to casing / brace decoration. */
+function normalizeGuid(v: string | undefined): string {
+  return (v ?? '').trim().replace(/[{}]/g, '').toLowerCase();
+}
+
+/**
+ * Return a human description of the link readback mismatch, or `undefined` when
+ * every requested link is confirmed on the created deal. A failed read or a
+ * blank/wrong lookup value both count as a mismatch (fail-closed).
+ */
+function linkReadbackMismatch(args: {
+  readback: DealLinkReadbackResult;
+  expectedClientId?: string;
+  expectedTeamId?: string;
+}): string | undefined {
+  const { readback, expectedClientId, expectedTeamId } = args;
+  if (!readback.success) {
+    return `readback failed${readback.error ? `: ${readback.error}` : ''}`;
+  }
+  if (expectedClientId && normalizeGuid(readback.clientId) !== normalizeGuid(expectedClientId)) {
+    return 'created deal does not point at the selected client relationship';
+  }
+  if (expectedTeamId && normalizeGuid(readback.teamId) !== normalizeGuid(expectedTeamId)) {
+    return 'created deal does not point at the selected owning team';
+  }
+  return undefined;
 }
 
 function resolverDetail(r: NewDealReferenceResolution): string {
@@ -227,6 +295,21 @@ export async function createGovernedNewDeal(
     };
   }
 
+  // 4b. CRM-first gate (fail-closed, BEFORE any create IO): a governed deal
+  //     requires a CRM client relationship unless an admin/gate allows it. This
+  //     is the honest blocker surfaced before deal creation, never after.
+  const existingClientId = (input.existingClientId ?? '').trim();
+  if (
+    input.requireCrmClient === true &&
+    existingClientId.length === 0 &&
+    input.allowCreateWithoutClient !== true
+  ) {
+    return {
+      kind: 'client_required',
+      reason: CRM_CLIENT_REQUIRED_MESSAGE,
+    };
+  }
+
   // 5. Fail closed unless the Stage/Status resolver is Ready.
   const resolution = await deps.resolveReferences();
   if (resolution.kind !== 'ready') {
@@ -250,8 +333,12 @@ export async function createGovernedNewDeal(
     cr664_stageentrydate: now,
   };
   if (input.amount !== undefined) payload.cr664_amount = input.amount;
-  if (input.existingClientId && input.existingClientId.trim().length > 0) {
-    payload['cr664_Client@odata.bind'] = `/cr664_clientrelationships(${input.existingClientId.trim()})`;
+  if (existingClientId.length > 0) {
+    payload['cr664_Client@odata.bind'] = `/cr664_clientrelationships(${existingClientId})`;
+  }
+  const existingTeamId = (input.existingTeamId ?? '').trim();
+  if (existingTeamId.length > 0) {
+    payload['cr664_Team@odata.bind'] = `/cr664_teams(${existingTeamId})`;
   }
 
   // Defense in depth: never write a key outside the allow-list.
@@ -279,6 +366,39 @@ export async function createGovernedNewDeal(
       })
       .catch(() => undefined);
     return { kind: 'create_failed', error: created.error };
+  }
+
+  // 7b. Readback verification: when a client and/or team was bound at create,
+  //     prove the created deal actually points at EXACTLY the selected record(s).
+  //     A blank/mismatched readback is a link_readback_mismatch partial -- the
+  //     deal exists but its CRM link is unverified; the caller must not claim a
+  //     clean link. Best-effort Failed audit is emitted, then we return.
+  const wantsClient = existingClientId.length > 0;
+  const wantsTeam = existingTeamId.length > 0;
+  if ((wantsClient || wantsTeam) && deps.readDealLinks) {
+    let readback: DealLinkReadbackResult;
+    try {
+      readback = await deps.readDealLinks(created.id);
+    } catch (err: unknown) {
+      readback = { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+    const mismatch = linkReadbackMismatch({
+      readback,
+      expectedClientId: wantsClient ? existingClientId : undefined,
+      expectedTeamId: wantsTeam ? existingTeamId : undefined,
+    });
+    if (mismatch) {
+      await deps
+        .emitAuditEvent({
+          input,
+          dealId: created.id,
+          correlationId,
+          outcome: AUDIT_OUTCOME_FAILED,
+          failureReason: `link readback mismatch: ${mismatch}`,
+        })
+        .catch(() => undefined);
+      return { kind: 'link_readback_mismatch', dealId: created.id, correlationId, detail: mismatch };
+    }
   }
 
   // 8. Emit the success audit. A created deal with a failed audit is
@@ -320,6 +440,26 @@ async function liveCreateLoanDeal(
     return { ok: true, id: result.data.cr664_loandealid };
   } catch (err: unknown) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Live readback of the created deal's cr664_Client / cr664_Team lookups. */
+async function liveReadDealLinks(dealId: string): Promise<DealLinkReadbackResult> {
+  try {
+    const r = await Cr664_loandealsService.get(dealId);
+    if (!r.success) {
+      return { success: false, error: r.error?.message ?? 'Deal readback returned non-success.' };
+    }
+    const raw = (r.data ?? undefined) as unknown as Record<string, unknown> | undefined;
+    const clientId = raw?.['_cr664_client_value'];
+    const teamId = raw?.['_cr664_team_value'];
+    return {
+      success: true,
+      clientId: typeof clientId === 'string' ? clientId : undefined,
+      teamId: typeof teamId === 'string' ? teamId : undefined,
+    };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 
@@ -423,6 +563,7 @@ export function buildLiveNewDealCreateDeps(): GovernedNewDealCreateDeps {
     enabled: NEW_DEAL_CREATE_ADAPTER_ENABLED,
     resolveReferences: () => resolveConfiguredNewDealReferences(),
     createLoanDeal: liveCreateLoanDeal,
+    readDealLinks: liveReadDealLinks,
     emitAuditEvent: liveEmitNewDealAuditEvent,
   };
 }

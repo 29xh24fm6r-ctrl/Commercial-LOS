@@ -111,6 +111,71 @@ describe('orchestrator -- success + downstream determination', () => {
   });
 });
 
+describe('orchestrator -- CRM-first client gate (Step 1, before create)', () => {
+  it('requireCrmClient + no client -> client_required, create NOT run (honest pre-create blocker)', async () => {
+    const runGovernedCreate = createReturning(SUCCESS);
+    const res = await orchestrateDealOrigination(
+      input({ context: { authorized: true, requireCrmClient: true, clientRelationshipsExist: true } }),
+      { runGovernedCreate },
+    );
+    expect(res.kind).toBe('client_required');
+    expect(runGovernedCreate).not.toHaveBeenCalled();
+    expect(res.createOutcome.kind).toBe('skipped');
+    expect(res.userFacingMessage).toMatch(/Select the CRM client relationship/i);
+  });
+
+  it('requireCrmClient + NO clients exist -> honest create/import blocker copy', async () => {
+    const res = await orchestrateDealOrigination(
+      input({ context: { authorized: true, requireCrmClient: true, clientRelationshipsExist: false } }),
+      { runGovernedCreate: createReturning(SUCCESS) },
+    );
+    expect(res.kind).toBe('client_required');
+    expect(res.userFacingMessage).toMatch(/No CRM client relationship exists yet/i);
+  });
+
+  it('requireCrmClient + a selected client -> create proceeds', async () => {
+    const runGovernedCreate = createReturning(SUCCESS);
+    const res = await orchestrateDealOrigination(
+      input({
+        form: { ...FORM, existingClientId: 'client-1' },
+        context: { authorized: true, requireCrmClient: true },
+      }),
+      { runGovernedCreate },
+    );
+    expect(res.kind).toBe('success_created_only');
+    expect(runGovernedCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('admin allowance lets a client-less deal proceed', async () => {
+    const res = await orchestrateDealOrigination(
+      input({ context: { authorized: true, requireCrmClient: true, allowCreateWithoutClient: true } }),
+      { runGovernedCreate: createReturning(SUCCESS) },
+    );
+    expect(res.kind).toBe('success_created_only');
+  });
+
+  it('link_readback_mismatch -> honest partial, downstream NOT run', async () => {
+    const crm = vi.fn(async () => ({ module: 'crm-automation', kind: 'success' as const }));
+    const res = await orchestrateDealOrigination(
+      input({ form: { ...FORM, existingClientId: 'client-1' }, context: { authorized: true } }),
+      {
+        runGovernedCreate: createReturning({
+          kind: 'link_readback_mismatch',
+          dealId: 'deal-1',
+          correlationId: 'c1',
+          detail: 'created deal does not point at the selected client relationship',
+        }),
+        modules: { crm },
+      },
+    );
+    expect(res.kind).toBe('link_readback_mismatch');
+    expect(res.createdDealId).toBe('deal-1');
+    expect(res.createOutcome.kind).toBe('success');
+    expect(res.auditOutcome.kind).toBe('failed');
+    expect(crm).not.toHaveBeenCalled();
+  });
+});
+
 describe('orchestrator -- duplicate policy block (pre-create)', () => {
   it('exact duplicate + policy block -> downstream_blocked_by_policy, no create', async () => {
     const runGovernedCreate = createReturning(SUCCESS);
