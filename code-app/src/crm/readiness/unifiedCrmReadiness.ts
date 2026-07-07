@@ -5,7 +5,7 @@ import {
 } from '../../admin/runtimeVerifiedSchemaBridge';
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crmFeatureFlags';
 import { isFeatureSurfaceFlagEnabled } from '../../navigation/featureSurfaceFlags';
-import { committedFinalLaunchEvidenceIntegrity } from '../../access/committedFinalLaunchEvidence';
+import { isCrmCertificationAttributed } from '../certification/crmCertificationAttribution';
 
 /**
  * CRM-B — Unified CRM readiness model.
@@ -155,10 +155,13 @@ function dim(
   };
 }
 
-/** Default certification-attribution verdict: the committed live-persistence smoke at HIGH. */
+/**
+ * Default certification-attribution verdict: the committed live-persistence smoke is
+ * accepted at HIGH confidence with an ATTRIBUTABLE operator (CRM-H authority). An
+ * unknown/sentinel operator can never satisfy this — attribution stays blocking.
+ */
 function defaultCertificationAttributionHigh(): boolean {
-  const integ = committedFinalLaunchEvidenceIntegrity().crmLivePersistence;
-  return integ !== null && integ.accepted && integ.confidence === 'HIGH';
+  return isCrmCertificationAttributed();
 }
 
 export function deriveUnifiedCrmReadiness(
