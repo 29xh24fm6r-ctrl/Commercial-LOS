@@ -15,8 +15,14 @@
  *
  * FAIL-CLOSED throughout: unknown/missing data denies the transition. DEFAULT-OFF via
  * AUTO_STAGE_ADVANCE_ENABLED; no write happens until an operator injects a live transport AND arms
- * the gate. Every executed transition is a governed write: policy guard → update → audit + timeline
- * + correlation id → typed outcome union with honest partial states (never a fake success).
+ * the gate. Every executed transition is a governed write: policy guard → update → READBACK proof →
+ * audit + timeline + correlation id → typed outcome union with honest partial states (never a fake
+ * success).
+ *
+ * WFLOW-C/D/E: after a successful transport write the change is PROVEN by a Dataverse readback
+ * (re-read the persisted stage reference and/or status reference). A readback miss/unavailability
+ * surfaces as `readback_failed` — the transition is NOT reported as `transitioned` unless
+ * persistence is confirmed. This mirrors the ADVANCE-path readback proof (WFLOW-B).
  */
 
 import { AUTO_STAGE_ADVANCE_ENABLED } from '../deals/dealOriginationFeatureFlags';
@@ -177,6 +183,7 @@ export type CanonicalTransitionOutcome =
   | { readonly kind: 'blocked'; readonly reason: string; readonly blockers: readonly string[] }
   | { readonly kind: 'dependency_not_ready'; readonly detail: string }
   | { readonly kind: 'update_failed'; readonly detail: string }
+  | { readonly kind: 'readback_failed'; readonly detail: string }
   | { readonly kind: 'audit_failed_partial_success'; readonly detail: string }
   | { readonly kind: 'timeline_failed_partial_success'; readonly detail: string };
 
@@ -191,6 +198,23 @@ export interface CanonicalStageTransport {
     reasonText?: string;
     entryDateIso: string;
   }): Promise<{ ok: boolean; error?: string }>;
+  /**
+   * WFLOW-C/D/E — re-read the deal AFTER the transition and prove it persisted:
+   *  - stage-move transitions (a `expectedToStage` is supplied) confirm the deal's
+   *    stage reference now resolves to `expectedToStage` and `cr664_stageentrydate`
+   *    is present;
+   *  - status-changing transitions (`expectedStatus` is not 'OPEN') confirm the
+   *    deal's status reference now resolves to `expectedStatus`.
+   * `ok:false` = the readback read itself was unavailable; `matched:false` = the
+   * persisted value does not match. Either withholds the `transitioned` verdict.
+   */
+  readbackTransition(input: {
+    dealId: string;
+    transition: StageTransitionKind;
+    expectedToStage?: CanonicalStageCode;
+    expectedStatus: DealStatusCode;
+    expectedEntryDateIso: string;
+  }): Promise<{ ok: boolean; matched: boolean; detail?: string }>;
 }
 
 export interface CanonicalAuditSink {
@@ -203,6 +227,9 @@ export interface CanonicalAuditSink {
     newStatus: DealStatusCode;
     outcome: CanonicalTransitionOutcome['kind'];
     adverseActionPending: boolean;
+    /** The governed reason for the transition (RETURN/WITHDRAW free-text; DECLINE code+detail). */
+    reasonCode?: string;
+    reasonText?: string;
   }): Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -265,15 +292,38 @@ export async function executeCanonicalStageTransition(
     await input.auditSink.write({
       correlationId: input.correlationId, dealId: input.dealId, transition: policy.kind,
       fromStage: policy.from, toStage: policy.to, newStatus: policy.nextStatus,
-      outcome: 'update_failed', adverseActionPending: policy.adverseActionPending,
+      outcome: 'update_failed', adverseActionPending: policy.adverseActionPending, reasonCode, reasonText,
     });
     return { kind: 'update_failed', detail: upd.error ?? 'stage_transition_update_failed' };
+  }
+
+  // WFLOW-C/D/E — PROVE the transition persisted before claiming success. A readback
+  // miss or unavailability is an honest failure (a best-effort failed audit is recorded).
+  const rb = await input.transport.readbackTransition({
+    dealId: input.dealId,
+    transition: policy.kind,
+    expectedToStage: policy.to,
+    expectedStatus: policy.nextStatus,
+    expectedEntryDateIso: input.entryDateIso,
+  });
+  if (!rb.ok || !rb.matched) {
+    await input.auditSink.write({
+      correlationId: input.correlationId, dealId: input.dealId, transition: policy.kind,
+      fromStage: policy.from, toStage: policy.to, newStatus: policy.nextStatus,
+      outcome: 'readback_failed', adverseActionPending: policy.adverseActionPending, reasonCode, reasonText,
+    });
+    return {
+      kind: 'readback_failed',
+      detail: rb.detail ?? (rb.ok
+        ? `Transition readback did not confirm the ${policy.kind} on deal ${input.dealId}; persistence is unverified.`
+        : 'Transition readback was unavailable; persistence could not be confirmed.'),
+    };
   }
 
   const audit = await input.auditSink.write({
     correlationId: input.correlationId, dealId: input.dealId, transition: policy.kind,
     fromStage: policy.from, toStage: policy.to, newStatus: policy.nextStatus,
-    outcome: 'transitioned', adverseActionPending: policy.adverseActionPending,
+    outcome: 'transitioned', adverseActionPending: policy.adverseActionPending, reasonCode, reasonText,
   });
   if (!audit.ok) {
     return { kind: 'audit_failed_partial_success', detail: 'Transition applied but the audit write failed.' };

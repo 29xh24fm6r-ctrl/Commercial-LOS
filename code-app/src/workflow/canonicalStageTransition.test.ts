@@ -142,10 +142,11 @@ describe('evaluateCanonicalStageTransition — policy (pure, both directions)', 
 // Governed write
 // ---------------------------------------------------------------------------
 
-function sinks(over: Partial<{ updateOk: boolean; auditOk: boolean; timelineOk: boolean }> = {}) {
-  const calls = { update: 0, audit: [] as string[], timeline: 0 };
+function sinks(over: Partial<{ updateOk: boolean; auditOk: boolean; timelineOk: boolean; readbackOk: boolean; readbackMatched: boolean }> = {}) {
+  const calls = { update: 0, readback: 0, audit: [] as string[], timeline: 0 };
   const transport: CanonicalStageTransport = {
     async applyTransition() { calls.update++; return { ok: over.updateOk ?? true, error: over.updateOk === false ? 'boom' : undefined }; },
+    async readbackTransition() { calls.readback++; return { ok: over.readbackOk ?? true, matched: over.readbackMatched ?? true }; },
   };
   const auditSink: CanonicalAuditSink = {
     async write(a) { calls.audit.push(a.outcome); return { ok: over.auditOk ?? true }; },
@@ -228,6 +229,42 @@ describe('executeCanonicalStageTransition — governed write', () => {
     const out = await executeCanonicalStageTransition(baseExec({ transport: s.transport, auditSink: s.auditSink, timelineSink: s.timelineSink }));
     expect(out.kind).toBe('update_failed');
     expect(s.calls.audit).toContain('update_failed');
+  });
+
+  it('RETURN transitions end-to-end to an earlier stage (readback confirms) and proves the readback ran', async () => {
+    const s = sinks();
+    const out = await executeCanonicalStageTransition(baseExec({
+      request: { kind: 'RETURN', currentStage: 'CREDIT_APPROVAL', currentStatus: 'OPEN', targetStage: 'UNDERWRITING', reason: 'need updated financials' },
+      exitGate: undefined,
+      transport: s.transport, auditSink: s.auditSink, timelineSink: s.timelineSink,
+    }));
+    expect(out.kind).toBe('transitioned');
+    if (out.kind === 'transitioned') { expect(out.to).toBe('UNDERWRITING'); expect(out.status).toBe('OPEN'); }
+    expect(s.calls.readback).toBe(1);
+  });
+
+  it('readback MISMATCH after a successful update → readback_failed; audits the failure; NO timeline', async () => {
+    const s = sinks({ readbackMatched: false });
+    const out = await executeCanonicalStageTransition(baseExec({
+      request: { kind: 'RETURN', currentStage: 'CREDIT_APPROVAL', currentStatus: 'OPEN', targetStage: 'UNDERWRITING', reason: 'x' },
+      exitGate: undefined,
+      transport: s.transport, auditSink: s.auditSink, timelineSink: s.timelineSink,
+    }));
+    expect(out.kind).toBe('readback_failed');
+    expect(s.calls.audit).toContain('readback_failed');
+    expect(s.calls.audit).not.toContain('transitioned');
+    expect(s.calls.timeline).toBe(0);
+  });
+
+  it('readback UNAVAILABLE after a successful update → readback_failed (persistence unconfirmed)', async () => {
+    const s = sinks({ readbackOk: false, readbackMatched: false });
+    const out = await executeCanonicalStageTransition(baseExec({
+      request: { kind: 'RETURN', currentStage: 'CREDIT_APPROVAL', currentStatus: 'OPEN', targetStage: 'UNDERWRITING', reason: 'x' },
+      exitGate: undefined,
+      transport: s.transport, auditSink: s.auditSink, timelineSink: s.timelineSink,
+    }));
+    expect(out.kind).toBe('readback_failed');
+    expect(s.calls.timeline).toBe(0);
   });
 
   it('returns audit_failed_partial_success when audit fails after a successful update (honest partial)', async () => {
