@@ -102,7 +102,8 @@ export const CRM_TEAM_READINESS_LEDGER: CrmDeliveryLedger = Object.freeze({
   rolesMounted: Object.freeze({ banker: true, team: true, manager: true, admin: true }),
   // CRM-E: governed backfill path wired + exception-free (no records fabricated).
   canonicalSeedReady: true,
-  newDealLinkageOperational: false,
+  // CRM-F: new-deal → canonical CRM client linkage is a wired, governed required step.
+  newDealLinkageOperational: true,
   liveCreateWired: true,
   inlineEditWired: false,
 });

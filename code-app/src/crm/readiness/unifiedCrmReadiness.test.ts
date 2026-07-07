@@ -47,21 +47,18 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(byKey['flag-gated-spine'].status).toBe('ready');
   });
 
-  it('is NOT team-ready at the current baseline (seed/linkage, editing, attribution gaps remain)', () => {
+  it('is NOT team-ready at the current baseline (editing + attribution gaps remain)', () => {
     const r = deriveUnifiedCrmReadiness();
     expect(r.teamReady).toBe(false);
     const blockedKeys = r.dimensions.filter((d) => d.status === 'blocked').map((d) => d.key);
-    // CRM-C routed the Command Center and CRM-D mounted every role, so route-mount and
-    // team-scope are ready; seed/linkage, editing, and attribution remain gaps.
+    // Through CRM-F: route-mount, team-scope, and seed-linkage are ready; editing (CRM-G)
+    // and certification attribution (CRM-H) remain the outstanding gaps.
     expect(blockedKeys).toEqual(
-      expect.arrayContaining([
-        'seed-linkage',
-        'editing-writeback',
-        'certification-attribution',
-      ]),
+      expect.arrayContaining(['editing-writeback', 'certification-attribution']),
     );
     expect(blockedKeys).not.toContain('route-mount');
     expect(blockedKeys).not.toContain('team-scope');
+    expect(blockedKeys).not.toContain('seed-linkage');
     expect(r.blockers.length).toBeGreaterThan(0);
   });
 
@@ -108,7 +105,7 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(CRM_TEAM_READINESS_LEDGER.commandCenterRouted).toBe(true); // CRM-C
     expect(CRM_TEAM_READINESS_LEDGER.rolesMounted).toEqual({ banker: true, team: true, manager: true, admin: true }); // CRM-D
     expect(CRM_TEAM_READINESS_LEDGER.canonicalSeedReady).toBe(true); // CRM-E (backfill path + exception-free)
-    expect(CRM_TEAM_READINESS_LEDGER.newDealLinkageOperational).toBe(false);
+    expect(CRM_TEAM_READINESS_LEDGER.newDealLinkageOperational).toBe(true); // CRM-F
     expect(CRM_TEAM_READINESS_LEDGER.liveCreateWired).toBe(true);
     expect(CRM_TEAM_READINESS_LEDGER.inlineEditWired).toBe(false);
   });
