@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import {
   CRM_ADMIN_CONNECTOR_MODE,
   CRM_ADMIN_LIVE_WRITE_ENABLED,
+  CRM_ADMIN_SURFACE_ACTIVE,
   CRM_LIVE_PERSISTENCE_DEFAULT,
   CRM_ONBOARDING_DISABLED_REASON,
   CRM_ONBOARDING_NEXT_STEPS,
@@ -17,8 +18,10 @@ import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
  */
 
 describe('Phase 229 -- internal OGB CRM admin active', () => {
-  it('the admin surface enables governed internal CRM management', () => {
-    expect(CRM_ADMIN_LIVE_WRITE_ENABLED).toBe(true);
+  it('the admin surface is active for governed internal CRM management but enables NO live write (CRM-I)', () => {
+    expect(CRM_ADMIN_SURFACE_ACTIVE).toBe(true);
+    // Live CRM writes are identity-gated in the CRM Hub, never from this admin surface.
+    expect(CRM_ADMIN_LIVE_WRITE_ENABLED).toBe(false);
   });
 
   it('reads the real live persistence flag (now safe-default off), not a hardcoded value', () => {

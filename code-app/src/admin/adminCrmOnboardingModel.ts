@@ -19,10 +19,17 @@ import { CRM_CONNECTOR_MODE } from '../crm/connectors/crmConnectorReadiness';
  */
 
 /**
- * Whether THIS admin surface enables a live CRM write/import/sync.
- * Always false in Phase 169E, independent of the underlying feature flag.
+ * CRM-I — the two concepts this constant previously CONFLATED, now split so neither gives
+ * a false impression that global CRM live write is enabled:
+ *
+ *   - CRM_ADMIN_SURFACE_ACTIVE: the governed internal-CRM MANAGEMENT/onboarding admin
+ *     surface is available (readiness + guidance). It performs no live write itself.
+ *   - CRM_ADMIN_LIVE_WRITE_ENABLED: whether THIS admin surface enables a live CRM
+ *     write/import/sync. It does NOT — live CRM writes are identity-gated in the CRM Hub,
+ *     never from this surface — so this is honestly `false` (matching the Phase 169E doc).
  */
-export const CRM_ADMIN_LIVE_WRITE_ENABLED = true as const;
+export const CRM_ADMIN_SURFACE_ACTIVE = true as const;
+export const CRM_ADMIN_LIVE_WRITE_ENABLED = false as const;
 
 /** The real default state of the CRM runtime persistence flag. */
 export const CRM_LIVE_PERSISTENCE_DEFAULT: boolean =
@@ -33,7 +40,7 @@ export const CRM_ADMIN_CONNECTOR_MODE = CRM_CONNECTOR_MODE;
 
 /** Why the CRM admin surface stays disabled-by-default. */
 export const CRM_ONBOARDING_DISABLED_REASON =
-  'Internal OGB CRM persistence is enabled. The resolver fails closed: it returns the live adapter only when the live persistence flag is enabled, an authorized operator is present, the runtime schema gate verifies the target Dataverse schema, AND a transport is injected. None of these are wired in the app runtime, and the external CRM connector mode is disabled_by_default. This admin surface enables governed internal CRM management only; no external sync.';
+  'This admin surface enables governed internal CRM management only — it performs no live CRM write, import, or sync. The persistence resolver fails closed: it returns the live adapter only when the live persistence flag is enabled, an authorized operator is present, the runtime schema gate verifies the target Dataverse schema, AND a transport is injected. None of these are wired in the app runtime, and the external CRM connector mode is disabled_by_default.';
 
 export interface CrmOnboardingDataGroup {
   readonly id: string;

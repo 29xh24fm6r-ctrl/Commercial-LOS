@@ -18,9 +18,16 @@ import { evaluateLaunchGates, type CapabilityReadiness } from './launchReadiness
  */
 
 export const CRM_LIVE_PERSISTENCE_ENABLED = false;
-export const CRM_CONTACT_EDITING_ENABLED = true;
-export const CRM_VENDOR_EDITING_ENABLED = true;
-export const CRM_TIMELINE_ENABLED = true;
+
+// CRM-I — these are the writeback SEAM's per-capability switches, deliberately renamed
+// with an `_CAPABLE` suffix so they do NOT collide with the authoritative CRM feature
+// flags in src/crm/crmFeatureFlags.ts (CRM_CONTACT_EDITING_ENABLED / CRM_VENDOR_EDITING_ENABLED
+// / CRM_TIMELINE_ENABLED — all FALSE). "Capable" means the seam supports the write once
+// live persistence is on; it never enables a write by itself: every writeback still fails
+// closed on CRM_LIVE_PERSISTENCE_ENABLED = false above.
+export const CRM_ACTIVATION_CONTACT_EDITING_CAPABLE = true;
+export const CRM_ACTIVATION_VENDOR_EDITING_CAPABLE = true;
+export const CRM_ACTIVATION_TIMELINE_CAPABLE = true;
 
 export interface SchemaCheck {
   readonly label: string;
@@ -149,7 +156,7 @@ export async function crmWriteback(input: CrmWritebackInput): Promise<CrmWriteba
   const a = await input.auditSink.write({ correlationId: input.correlationId, actorPlatformUserId: '', entity: input.entity, recordId, outcome: 'written' });
   if (!a.ok) return r('audit_failed_partial_success', 'CRM record written but audit failed.', recordId);
 
-  if ((input.timelineEnabled ?? CRM_TIMELINE_ENABLED) === true && input.timelineSink && recordId) {
+  if ((input.timelineEnabled ?? CRM_ACTIVATION_TIMELINE_CAPABLE) === true && input.timelineSink && recordId) {
     const t = await input.timelineSink.write({ correlationId: input.correlationId, entity: input.entity, recordId });
     if (!t.ok) return r('timeline_failed_partial_success', 'CRM record written + audited but timeline failed.', recordId);
   }
