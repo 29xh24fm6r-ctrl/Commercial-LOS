@@ -25,6 +25,15 @@ export interface StageGateRequirement {
   readonly label: string;
   readonly met: boolean;
   readonly detail: string;
+  /**
+   * True when the requirement is backed by a fact the system genuinely TRACKS
+   * (the fact is present — whether satisfied or outstanding). False when the fact
+   * is not tracked in the current schema (absent) OR the backing system is not yet
+   * implemented (a `pendingDetail` placeholder such as the risk-rating gate). An
+   * untracked requirement can never be certified as satisfiable from live data —
+   * WFLOW-G surfaces these as certification blockers instead of silently passing.
+   */
+  readonly tracked: boolean;
 }
 
 export interface StageGateResult {
@@ -144,6 +153,11 @@ const GATE_DEFS: Record<CanonicalStageCode, readonly RequirementDef[]> = {
 function evaluateRequirement(def: RequirementDef, facts: StageGateFacts): StageGateRequirement {
   const value = def.select(facts);
   const met = value === true;
+  // A requirement is TRACKED only when the fact is present (true/false) AND the
+  // backing system exists (no pendingDetail placeholder). A `pendingDetail` def
+  // (e.g. risk rating "system not yet implemented") is not-tracked even though its
+  // selector returns a concrete false.
+  const tracked = def.pendingDetail === undefined && value !== undefined;
   const detail = def.pendingDetail
     ? def.pendingDetail
     : value === true
@@ -151,7 +165,7 @@ function evaluateRequirement(def: RequirementDef, facts: StageGateFacts): StageG
       : value === false
         ? 'Outstanding - tracked but not yet satisfied.'
         : 'Not yet tracked in the current schema - treated as not met (fail-closed).';
-  return { id: def.id, label: def.label, met, detail };
+  return { id: def.id, label: def.label, met, detail, tracked };
 }
 
 /**
