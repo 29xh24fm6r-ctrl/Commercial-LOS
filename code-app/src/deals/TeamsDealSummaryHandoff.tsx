@@ -239,7 +239,8 @@ export function TeamsDealSummaryHandoff() {
     if (!dataReady) return undefined;
     const input: TeamsDealSummaryInput = {
       dealName: deal.name,
-      clientName: deal.clientName,
+      // Verified CRM client relationship wins over a stale explicit clientName.
+      clientName: deal.effectiveClientName ?? deal.clientName,
       stage: deal.stage,
       status: deal.status,
       amount: deal.amount,

@@ -214,7 +214,9 @@ export function deriveDealIntelligenceViewModel(
     dealId: deal.id,
     dealName: deal.name,
 
-    clientName: deal.clientName,
+    // Prefer the projected client name (verified cr664_Client lookup wins over
+    // a stale explicit clientName). Equal to deal.clientName today.
+    clientName: deal.effectiveClientName ?? deal.clientName,
     bankerName: deal.bankerName,
     stageName: deal.stage,
     statusName: deal.status,

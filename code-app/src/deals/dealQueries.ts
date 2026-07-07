@@ -2,6 +2,18 @@ import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsSer
 import type { CrmEdgeLookupClassification } from '../crm/crmRelationshipViewModel';
 
 /**
+ * Where the deal's client display/completeness value comes from:
+ *   - `crm-client-relationship` — a VERIFIED cr664_Client lookup to a
+ *     cr664_clientrelationship (the governed link path). This is authoritative.
+ *   - `deal-client-name` — only the legacy free-text cr664_clientname is set
+ *     (no verified lookup).
+ *   - `missing` — neither is set.
+ * A contact-only CRM record or an unbridged CRM organization never sets the
+ * cr664_Client lookup, so it can never resolve to `crm-client-relationship`.
+ */
+export type DealClientSource = 'crm-client-relationship' | 'deal-client-name' | 'missing';
+
+/**
  * Parsed, UI-facing shape of one cr664_loandeal record. Only fields that
  * actually exist on Cr664_loandeals (see ../generated/models/Cr664_loandealsModel.ts)
  * are included here.
@@ -45,6 +57,15 @@ export interface DealDetail {
   // row carries definite values.
   clientId?: string | undefined;
   clientLookupClassification?: CrmEdgeLookupClassification;
+  /**
+   * Client display name projected with the verified cr664_Client lookup taking
+   * priority over any stale explicit cr664_clientname. Equal to `clientName`
+   * today; kept as a distinct field so surfaces + completeness can reason about
+   * the SOURCE, not just the string. Always set by `mapDealDetail`.
+   */
+  effectiveClientName?: string | undefined;
+  /** Where `effectiveClientName` came from. Always set by `mapDealDetail`. */
+  effectiveClientSource?: DealClientSource;
   teamId?: string | undefined;
   teamName?: string | undefined;
   teamLookupClassification?: CrmEdgeLookupClassification;
@@ -208,13 +229,29 @@ function mapDealDetail(
   // label without a GUID is `unknown` (we have a name but no verified lookup);
   // nothing at all is `missing`.
   const clientId = deal._cr664_client_value;
-  const clientLabel =
-    getLookupFormattedValue(raw, 'cr664_client') ?? deal.cr664_clientname;
+  // A verified cr664_Client lookup (a real GUID) is authoritative; its formatted
+  // value is the linked cr664_clientrelationship's name. The legacy free-text
+  // cr664_clientname is a fallback only. The lookup name WINS over a stale
+  // explicit name.
+  const lookupClientName = getLookupFormattedValue(raw, 'cr664_client');
+  const explicitClientName = deal.cr664_clientname;
+  const clientLabel = lookupClientName ?? explicitClientName;
   const clientLookupClassification: CrmEdgeLookupClassification = clientId
     ? 'real-lookup'
     : clientLabel
       ? 'unknown'
       : 'missing';
+  const effectiveClientSource: DealClientSource = clientId
+    ? 'crm-client-relationship'
+    : explicitClientName
+      ? 'deal-client-name'
+      : 'missing';
+  const effectiveClientName =
+    effectiveClientSource === 'crm-client-relationship'
+      ? (lookupClientName ?? explicitClientName)
+      : effectiveClientSource === 'deal-client-name'
+        ? explicitClientName
+        : undefined;
 
   const teamId = deal._cr664_team_value;
   const teamName = getLookupFormattedValue(raw, 'cr664_team') ?? deal.cr664_teamname;
@@ -246,12 +283,11 @@ function mapDealDetail(
     id: deal.cr664_loandealid,
     name: deal.cr664_dealname,
 
-    // Client is a Lookup (cr664_Client → typically cr664_client
-    // entity). Live env exposes the display via the lookup formatted
-    // value; the legacy `cr664_clientname` shadow field is retained
-    // for backward compatibility with the historical fixture.
-    clientName:
-      getLookupFormattedValue(raw, 'cr664_client') ?? deal.cr664_clientname,
+    // Client is a Lookup (cr664_Client → cr664_clientrelationship). The
+    // verified lookup's formatted value wins over the legacy free-text
+    // cr664_clientname. `clientName` mirrors `effectiveClientName` for the many
+    // downstream surfaces that already read `clientName`.
+    clientName: effectiveClientName,
 
     // Stage lookup (cr664_StageReference). Operator's deal points at
     // "TEST · Stage Phase 121" — that name comes through the lookup
@@ -333,6 +369,8 @@ function mapDealDetail(
     // Phase 189D — CRM relationship enrichment (same retrieve, no new GET).
     clientId,
     clientLookupClassification,
+    effectiveClientName,
+    effectiveClientSource,
     teamId,
     teamName,
     teamLookupClassification,

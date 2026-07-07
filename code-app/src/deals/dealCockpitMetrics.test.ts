@@ -99,6 +99,36 @@ describe('deriveDealCockpitMetrics — profile completeness', () => {
   });
 });
 
+describe('deriveDealCockpitMetrics — Client completeness from the verified CRM lookup (Phase 2)', () => {
+  it('a verified cr664_Client lookup clears missing Client even without a display name', () => {
+    const d = deal({
+      clientName: undefined,
+      effectiveClientName: undefined,
+      effectiveClientSource: 'crm-client-relationship',
+      clientId: 'client-rel-1',
+    });
+    const m = deriveDealCockpitMetrics(input({ deal: d }), NOW);
+    expect(m.missingFieldLabels).not.toContain('Client');
+  });
+
+  it('an explicit deal client name still satisfies Client (no CRM lookup)', () => {
+    const d = deal({ clientName: 'Legacy Co', effectiveClientName: 'Legacy Co', effectiveClientSource: 'deal-client-name' });
+    const m = deriveDealCockpitMetrics(input({ deal: d }), NOW);
+    expect(m.missingFieldLabels).not.toContain('Client');
+  });
+
+  it('a contact-only / unbridged record (no lookup, no name) leaves Client missing', () => {
+    const d = deal({
+      clientName: undefined,
+      effectiveClientName: undefined,
+      effectiveClientSource: 'missing',
+      clientId: undefined,
+    });
+    const m = deriveDealCockpitMetrics(input({ deal: d }), NOW);
+    expect(m.missingFieldLabels).toContain('Client');
+  });
+});
+
 describe('deriveDealCockpitMetrics — days arithmetic', () => {
   it('computes days-to-close as a forward delta when the target is in the future', () => {
     const d = deal({ targetCloseDate: '2026-06-10T00:00:00Z' }); // ~14d from NOW

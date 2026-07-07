@@ -142,8 +142,15 @@ export function deriveDealCockpitMetrics(
   let populated = 0;
   const missing: string[] = [];
   for (const f of PROFILE_COMPLETENESS_FIELDS) {
-    const v = deal[f.key];
-    if (isPopulated(v)) {
+    // Client is satisfied by a VERIFIED cr664_Client lookup even when the SDK
+    // does not surface a formatted display name — the linked
+    // cr664_clientrelationship IS the client. A contact-only record or an
+    // unbridged CRM organization never sets that lookup, so it never satisfies
+    // Client here. (Falls back to name-presence for legacy fixtures that
+    // predate effectiveClientSource.)
+    const populatedField =
+      f.key === 'clientName' ? isClientPopulated(deal) : isPopulated(deal[f.key]);
+    if (populatedField) {
       populated += 1;
     } else {
       missing.push(f.label);
@@ -204,6 +211,19 @@ export function deriveDealCockpitMetrics(
       communicationEvents,
     },
   };
+}
+
+/**
+ * Client is populated when a verified CRM client relationship is linked
+ * (authoritative, even without a formatted display name) OR an explicit client
+ * name is present. Uses `effectiveClientSource` when the producer set it;
+ * otherwise falls back to the display string for legacy fixtures.
+ */
+function isClientPopulated(deal: DealDetail): boolean {
+  if (deal.effectiveClientSource !== undefined) {
+    return deal.effectiveClientSource !== 'missing';
+  }
+  return isPopulated(deal.effectiveClientName ?? deal.clientName);
 }
 
 function isPopulated(value: unknown): boolean {

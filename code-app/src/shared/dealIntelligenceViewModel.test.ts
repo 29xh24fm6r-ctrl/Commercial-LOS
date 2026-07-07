@@ -138,6 +138,19 @@ describe('Phase 123A — deriveDealIntelligenceViewModel (identity + hydration)'
     expect(vm.dealName).toBe('Working Capital Facility');
   });
 
+  it('projects the verified CRM client name over a stale explicit clientName (Phase 2)', () => {
+    const vm = deriveDealIntelligenceViewModel(
+      input({
+        deal: makeDeal({
+          clientName: 'Stale Name',
+          effectiveClientName: 'OmniCare 365',
+          effectiveClientSource: 'crm-client-relationship',
+        }),
+      }),
+    );
+    expect(vm.clientName).toBe('OmniCare 365');
+  });
+
   it('hydrates every Phase-122-mapped display value from the loader', () => {
     const vm = deriveDealIntelligenceViewModel(
       input({
