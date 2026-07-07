@@ -251,6 +251,86 @@ describe('buildLiveCanonicalTransitionDeps — DECLINE audit + timeline (WFLOW-D
   });
 });
 
+describe('buildLiveCanonicalTransitionDeps — WITHDRAW transport (WFLOW-E)', () => {
+  it('persists the WITHDRAWN status reference and does NOT move the stage', async () => {
+    statusGetAll.mockResolvedValueOnce(statusRow('WITHDRAWN', 'st-withdrawn'));
+    loandealsUpdate.mockResolvedValueOnce({ success: true });
+    const { transport } = buildLiveCanonicalTransitionDeps(actor);
+
+    const res = await transport.applyTransition({
+      dealId: 'deal-1', transition: 'WITHDRAW', fromStage: 'COMMITMENT',
+      newStatus: 'WITHDRAWN', reasonText: 'borrower chose another lender', entryDateIso: '2026-07-02T00:00:00Z',
+    });
+
+    expect(res.ok).toBe(true);
+    const [, patch] = loandealsUpdate.mock.calls[0];
+    expect(patch).toEqual({ 'cr664_StatusReference@odata.bind': '/cr664_dealstatusreferences(st-withdrawn)' });
+    expect(stageGetAll).not.toHaveBeenCalled();
+  });
+
+  it('fails closed (no update) when the WITHDRAWN status reference row is absent — table not seeded', async () => {
+    statusGetAll.mockResolvedValueOnce({ success: true, data: [] });
+    const { transport } = buildLiveCanonicalTransitionDeps(actor);
+
+    const res = await transport.applyTransition({
+      dealId: 'deal-1', transition: 'WITHDRAW', fromStage: 'COMMITMENT', newStatus: 'WITHDRAWN', reasonText: 'x', entryDateIso: 'x',
+    });
+
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/No active cr664_dealstatusreferences row/);
+    expect(loandealsUpdate).not.toHaveBeenCalled();
+  });
+
+  it('readback confirms WITHDRAW when the persisted status reference matches WITHDRAWN', async () => {
+    statusGetAll.mockResolvedValueOnce(statusRow('WITHDRAWN', 'st-withdrawn'));
+    loandealsGet.mockResolvedValueOnce({ success: true, data: { _cr664_statusreference_value: 'st-withdrawn' } });
+    const { transport } = buildLiveCanonicalTransitionDeps(actor);
+
+    const res = await transport.readbackTransition({
+      dealId: 'deal-1', transition: 'WITHDRAW', expectedStatus: 'WITHDRAWN', expectedEntryDateIso: 'x',
+    });
+
+    expect(res).toEqual({ ok: true, matched: true });
+  });
+
+  it('readback reports matched:false when the persisted status reference is NOT WITHDRAWN', async () => {
+    statusGetAll.mockResolvedValueOnce(statusRow('WITHDRAWN', 'st-withdrawn'));
+    loandealsGet.mockResolvedValueOnce({ success: true, data: { _cr664_statusreference_value: 'st-STILL-OPEN' } });
+    const { transport } = buildLiveCanonicalTransitionDeps(actor);
+
+    const res = await transport.readbackTransition({
+      dealId: 'deal-1', transition: 'WITHDRAW', expectedStatus: 'WITHDRAWN', expectedEntryDateIso: 'x',
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.matched).toBe(false);
+    expect(res.detail).toMatch(/WITHDRAWN/);
+  });
+
+  it('audit records the withdraw reason and carries NO adverse-action marker; timeline is titled "Deal withdrawn"', async () => {
+    resolveActor.mockResolvedValue({ ok: true, changedByBind: '/cr664_users(u-1)' });
+    auditCreate.mockResolvedValueOnce({ success: true });
+    timelineCreate.mockResolvedValueOnce({ success: true });
+    const { auditSink, timelineSink } = buildLiveCanonicalTransitionDeps(actor);
+
+    const audit = await auditSink.write({
+      correlationId: 'c1', dealId: 'deal-1', transition: 'WITHDRAW', fromStage: 'COMMITMENT',
+      newStatus: 'WITHDRAWN', outcome: 'transitioned', adverseActionPending: false, reasonText: 'borrower chose another lender',
+    });
+    expect(audit.ok).toBe(true);
+    const auditPayload = auditCreate.mock.calls[0][0] as Record<string, unknown>;
+    expect(auditPayload.cr664_afterstate).toBe('WITHDRAWN');
+    expect(String(auditPayload.cr664_notes)).toMatch(/borrower chose another lender/);
+    expect(String(auditPayload.cr664_notes)).not.toMatch(/Adverse-action/);
+
+    const tl = await timelineSink.write({ correlationId: 'c1', dealId: 'deal-1', transition: 'WITHDRAW', newStatus: 'WITHDRAWN' });
+    expect(tl.ok).toBe(true);
+    const tlPayload = timelineCreate.mock.calls[0][0] as Record<string, unknown>;
+    expect(String(tlPayload.cr664_title)).toMatch(/withdrawn/i);
+    expect(tlPayload.cr664_eventtype).toBe(788190006); // StageChanged (generic lifecycle)
+  });
+});
+
 describe('buildLiveCanonicalTransitionDeps — auditSink', () => {
   it('emits a governed cr664_AuditEvent bound to the resolved cr664_user (never a systemuser) and records the reason', async () => {
     resolveActor.mockResolvedValueOnce({ ok: true, changedByBind: '/cr664_users(u-1)' });
