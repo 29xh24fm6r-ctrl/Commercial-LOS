@@ -263,6 +263,17 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
     reason: 'Same useOptionalBanker pattern as DealTasks.',
   },
   {
+    file: 'deals/DealProfileEditModal.tsx',
+    allowedFrom: ['../banker/BankerContext'],
+    reason:
+      'Governed Deal Profile completion surface. Consumes useOptionalBanker to ' +
+      'source the signed-in banker identity (systemuser + email) for the governed ' +
+      'updateDealProfile write and to enforce the role boundary — an unauthorized / ' +
+      'read-only viewer sees the exact disabled reason and no action, exactly like ' +
+      'DealTasks / DealDocuments / CreditMemo. Manager/team deal-route branches ' +
+      'render the cockpit read-only, so the write path never activates for them.',
+  },
+  {
     file: 'deals/CreditMemo.tsx',
     allowedFrom: ['../banker/BankerContext'],
     reason: 'Same useOptionalBanker pattern as DealTasks.',

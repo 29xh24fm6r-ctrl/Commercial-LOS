@@ -53,13 +53,26 @@ export type DealDataKey =
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
-   *  loadDealForBanker before DealDataProvider mounted. */
+   *  loadDealForBanker before DealDataProvider mounted. After a governed
+   *  deal-level write, `applyVerifiedDealPatch` replaces the fields that were
+   *  read back as persisted, so the cockpit reflects the change without a full
+   *  browser reload. */
   deal: DealDetail;
   tasks: AsyncResult<DealTasksResult>;
   documents: AsyncResult<DealDocumentsResult>;
   creditMemo: AsyncResult<CreditMemoData>;
   activity: AsyncResult<TimelineEvent[]>;
   refresh: (key: DealDataKey) => void;
+  /**
+   * Merge readback-verified deal fields into the in-context deal row. ONLY the
+   * fields the governed write read back as persisted should be passed. The
+   * cockpit (DealMetricDeck, DealSummary, header, Attention Console, Teams
+   * summary) recomputes from the updated row — no full reload needed.
+   *
+   * Optional on the interface ONLY so the many hand-built DealData test doubles
+   * keep compiling; the real DealDataProvider ALWAYS supplies it.
+   */
+  applyVerifiedDealPatch?: (patch: Partial<DealDetail>) => void;
 }
 
 /** Exported so tests can mount cards against a hand-built context
@@ -83,6 +96,20 @@ interface DealDataProviderProps {
 }
 
 export function DealDataProvider({ deal, children }: DealDataProviderProps) {
+  // The deal row is held in mutable state so a governed deal-level write can
+  // replace the readback-verified fields in place. When a NEW authorized deal
+  // row is passed in (different id), re-seed during render — React's sanctioned
+  // "reset state when a prop changes" pattern (no effect, no cascading render).
+  const [dealState, setDealState] = useState<DealDetail>(deal);
+  const [seededDealId, setSeededDealId] = useState<string>(deal.id);
+  if (deal.id !== seededDealId) {
+    setSeededDealId(deal.id);
+    setDealState(deal);
+  }
+  const applyVerifiedDealPatch = useCallback((patch: Partial<DealDetail>) => {
+    setDealState((prev) => ({ ...prev, ...patch }));
+  }, []);
+
   const [tasks, setTasks] = useState<AsyncResult<DealTasksResult>>({ kind: 'loading' });
   const [documents, setDocuments] = useState<AsyncResult<DealDocumentsResult>>({
     kind: 'loading',
@@ -275,7 +302,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
 
   return (
     <DealDataContext.Provider
-      value={{ deal, tasks, documents, creditMemo, activity, refresh }}
+      value={{ deal: dealState, tasks, documents, creditMemo, activity, refresh, applyVerifiedDealPatch }}
     >
       {children}
     </DealDataContext.Provider>

@@ -9,6 +9,7 @@ import {
 import { attentionDestinationFor, focusAttentionTarget } from './attentionNavigation';
 import { deriveCreditMemoFreshness } from './creditMemoFreshness';
 import { deriveDealCockpitMetrics } from './dealCockpitMetrics';
+import { DealProfileEditLauncher } from './DealProfileEditModal';
 import { Card, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { SeverityGlyph } from '../shared/SeverityGlyph';
@@ -135,6 +136,7 @@ export function DealBlockers() {
             </span>
           </div>
           <MissingFieldGroups labels={metrics.missingFieldLabels} />
+          <DealProfileEditLauncher source="attention-console" compact />
         </div>
       )}
 

@@ -1,0 +1,199 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+vi.mock('./DealDataProvider', () => ({ useDealData: vi.fn() }));
+vi.mock('../banker/BankerContext', () => ({ useOptionalBanker: vi.fn() }));
+
+const updateMock = vi.fn();
+vi.mock('./write/updateDealProfile', () => ({ updateDealProfile: (...a: unknown[]) => updateMock(...a) }));
+vi.mock('./write/buildLiveUpdateDealProfileDeps', () => ({ buildLiveUpdateDealProfileDeps: () => ({}) }));
+
+import { useDealData } from './DealDataProvider';
+import { useOptionalBanker } from '../banker/BankerContext';
+import { DealProfileEditLauncher } from './DealProfileEditModal';
+import type { DealDetail } from './dealQueries';
+import { deriveDealCockpitMetrics } from './dealCockpitMetrics';
+
+const useDealDataMock = vi.mocked(useDealData);
+const useBankerMock = vi.mocked(useOptionalBanker);
+
+function deal(over: Partial<DealDetail> = {}): DealDetail {
+  return {
+    id: 'deal-1',
+    name: 'OmniCare 365 WC',
+    clientName: 'OmniCare 365',
+    stage: 'Underwriting',
+    status: 'Active',
+    amount: 1_000_000,
+    bankerName: 'M. Paller',
+    targetCloseDate: undefined,
+    productType: undefined,
+    loanStructure: undefined,
+    customerType: undefined,
+    industry: undefined,
+    guarantorStructure: undefined,
+    pricingType: undefined,
+    spreadIndex: undefined,
+    spreadMargin: undefined,
+    collateralSummary: undefined,
+    createdOn: undefined,
+    stageEntryDate: undefined,
+    isClosed: false,
+    ...over,
+  };
+}
+
+const applyPatch = vi.fn();
+function setContext(d: DealDetail) {
+  useDealDataMock.mockReturnValue({
+    deal: d,
+    tasks: { kind: 'loading' },
+    documents: { kind: 'loading' },
+    creditMemo: { kind: 'loading' },
+    activity: { kind: 'loading' },
+    refresh: vi.fn(),
+    applyVerifiedDealPatch: applyPatch,
+  } as unknown as ReturnType<typeof useDealData>);
+}
+function setBanker(over: Partial<ReturnType<typeof useOptionalBanker>> = {}) {
+  useBankerMock.mockReturnValue({
+    bankerId: 'b1',
+    fullName: 'M. Paller',
+    email: 'm@bank.test',
+    systemUserId: 'sys-1',
+    writeDisabledReason: undefined,
+    ...over,
+  } as ReturnType<typeof useOptionalBanker>);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  updateMock.mockReset();
+});
+
+describe('DealProfileEditLauncher — entry point', () => {
+  it('shows "Complete Deal Profile" when tracked editable fields are missing', () => {
+    setContext(deal());
+    setBanker();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    const btn = screen.getByRole('button', { name: /Complete Deal Profile/i });
+    expect(btn.getAttribute('data-deal-profile-launch')).toBe('missing-fields');
+  });
+
+  it('shows "Edit Deal Profile" when every editable field is populated', () => {
+    setContext(deal({
+      targetCloseDate: '2026-09-30', customerType: 'New', industry: 'Retail',
+      guarantorStructure: 'Limited', collateralSummary: 'A/R',
+    }));
+    setBanker();
+    render(<DealProfileEditLauncher source="deal-summary" />);
+    expect(screen.getByRole('button', { name: /Edit Deal Profile/i })).toBeInTheDocument();
+  });
+
+  it('an unauthorized user sees the exact reason and NO action button', () => {
+    setContext(deal());
+    setBanker({ systemUserId: undefined, writeDisabledReason: 'No Dataverse identity for your sign-in.' });
+    render(<DealProfileEditLauncher source="attention-console" />);
+    expect(screen.queryByRole('button', { name: /Deal Profile/i })).toBeNull();
+    expect(screen.getByText(/No Dataverse identity for your sign-in/i)).toBeInTheDocument();
+  });
+});
+
+describe('DealProfileEditModal — fields + governed save', () => {
+  it('renders every tracked editable field (and read-only reference fields)', async () => {
+    setContext(deal());
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+
+    for (const f of ['targetCloseDate', 'customerType', 'industry', 'guarantorStructure', 'collateralSummary']) {
+      expect(document.querySelector(`[data-deal-profile-field="${f}"]`)).not.toBeNull();
+    }
+    // Reference lookups shown read-only (no fabricated dropdown).
+    for (const f of ['productType', 'loanStructure', 'pricingType']) {
+      expect(document.querySelector(`[data-deal-profile-field-readonly="${f}"]`)).not.toBeNull();
+      expect(document.querySelector(`[data-deal-profile-field="${f}"]`)).toBeNull();
+    }
+    // No amount / stage / status / client / banker editors exist.
+    for (const f of ['amount', 'stage', 'status', 'clientName', 'bankerName']) {
+      expect(document.querySelector(`[data-deal-profile-field="${f}"]`)).toBeNull();
+    }
+  });
+
+  it('saves changed fields via the governed adapter and merges the verified readback (no reload)', async () => {
+    setContext(deal());
+    setBanker();
+    updateMock.mockResolvedValue({
+      kind: 'updated',
+      dealId: 'deal-1',
+      correlationId: 'dp-1',
+      verified: { industry: 'Retail', collateralSummary: 'A/R, inventory' },
+      changedLabels: ['Industry', 'Collateral'],
+      auditId: 'a-1',
+    });
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+
+    await user.selectOptions(document.querySelector('[data-deal-profile-field="industry"]') as HTMLSelectElement, 'Retail');
+    await user.type(document.querySelector('[data-deal-profile-field="collateralSummary"]') as HTMLTextAreaElement, 'A/R, inventory');
+    await user.click(document.querySelector('[data-deal-profile-save]') as HTMLButtonElement);
+
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1));
+    // Only the changed fields are sent; forbidden fields never appear.
+    const arg = updateMock.mock.calls[0][0] as { dealId: string; patch: Record<string, unknown> };
+    expect(arg.dealId).toBe('deal-1');
+    expect(arg.patch).toEqual({ industry: 'Retail', collateralSummary: 'A/R, inventory' });
+    expect(arg.patch).not.toHaveProperty('amount');
+    expect(arg.patch).not.toHaveProperty('clientName');
+
+    // The verified readback is merged into the cockpit deal row (no browser reload).
+    expect(applyPatch).toHaveBeenCalledWith({ industry: 'Retail', collateralSummary: 'A/R, inventory' });
+    expect(await screen.findByText(/Deal profile saved/i)).toBeInTheDocument();
+  });
+
+  it('Save is disabled until a field changes', async () => {
+    setContext(deal());
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="deal-summary" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+    expect(document.querySelector('[data-deal-profile-save]')).toBeDisabled();
+  });
+
+  it('a readback mismatch is an honest failure and does NOT update the cockpit', async () => {
+    setContext(deal());
+    setBanker();
+    updateMock.mockResolvedValue({ kind: 'readback-mismatch', field: 'industry', correlationId: 'dp-2' });
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+    await user.selectOptions(document.querySelector('[data-deal-profile-field="industry"]') as HTMLSelectElement, 'Retail');
+    await user.click(document.querySelector('[data-deal-profile-save]') as HTMLButtonElement);
+
+    await waitFor(() =>
+      expect(document.querySelector('[data-deal-profile-outcome="readback-mismatch"]')).not.toBeNull(),
+    );
+    expect(applyPatch).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Deal profile saved/i)).toBeNull();
+  });
+});
+
+describe('cockpit missing-count drops after a verified save (pure)', () => {
+  it('merging the verified patch removes those fields from the missing list', () => {
+    const before = deal();
+    const metricsInput = { tasks: undefined, documents: undefined, creditMemo: undefined, activity: undefined };
+    const beforeMissing = deriveDealCockpitMetrics({ deal: before, ...metricsInput }).missingFieldLabels;
+    expect(beforeMissing).toContain('Industry');
+    expect(beforeMissing).toContain('Collateral');
+
+    const after = { ...before, industry: 'Retail', collateralSummary: 'A/R' };
+    const afterMissing = deriveDealCockpitMetrics({ deal: after, ...metricsInput }).missingFieldLabels;
+    expect(afterMissing).not.toContain('Industry');
+    expect(afterMissing).not.toContain('Collateral');
+    expect(afterMissing.length).toBeLessThan(beforeMissing.length);
+  });
+});

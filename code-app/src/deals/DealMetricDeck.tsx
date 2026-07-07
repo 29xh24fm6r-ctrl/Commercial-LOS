@@ -17,6 +17,7 @@ import {
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
 import { dealMetricDeckTargets } from './dealCockpitDrillThrough';
+import { DealProfileEditLauncher } from './DealProfileEditModal';
 
 /**
  * Phase 125E — Deal Metric Deck (recomposed).
@@ -214,6 +215,7 @@ export function DealMetricDeck() {
             <span style={styles.footerMissingList}>
               {missingFieldLabels.join(' · ')}
             </span>
+            <DealProfileEditLauncher source="missing-fields" compact />
           </>
         )}
         {missingFieldLabels.length === 0 && (

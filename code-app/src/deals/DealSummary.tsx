@@ -1,5 +1,6 @@
 import { useDealData } from './DealDataProvider';
 import type { DealDetail } from './dealQueries';
+import { DealProfileEditLauncher } from './DealProfileEditModal';
 import { Card } from '../shared/Card';
 import { WidgetHeader } from '../shared/cockpitPrimitives';
 import { MemoIcon } from '../shared/cockpitIcons';
@@ -58,6 +59,9 @@ export function DealSummary() {
         ) : (
           <p style={styles.notProvided}>Not provided</p>
         )}
+      </div>
+      <div style={styles.actionRow}>
+        <DealProfileEditLauncher source="deal-summary" />
       </div>
     </Card>
   );
@@ -145,6 +149,12 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: typography.letterSpacing.label,
     color: palette.textSubtle,
     fontWeight: typography.weight.bold,
+  },
+  actionRow: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    borderTop: `1px solid ${palette.divider}`,
+    paddingTop: spacing.sm,
   },
 };
 
