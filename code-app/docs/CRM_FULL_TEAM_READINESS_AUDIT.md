@@ -1,13 +1,67 @@
 # CRM Full Team Readiness Audit
 
 **Date:** 2026-07-07
-**Branch:** `master` (includes CRM/task fixes around `0e00d2d`)
-**Mode:** Read-only audit. No runtime code was modified.
+**Branch:** `master` (audit at `0e00d2d`; remediation arc CRM-B … CRM-J at `338df05`)
+**Mode:** Read-only audit (Part 1), followed by the CRM-B … CRM-J remediation arc (Part 2).
 **Scope:** Every CRM-related path — `src/crm/**`, `src/activation/*crm*`, `src/admin/*crm*`, navigation/unrouted, platform inventory, full-activation certification, feature flags, runtime schema gates, spine schema/model/persistence, relationship view models/surfaces, CRM hub/route/nav, `scripts/dataverse`, schema/operator evidence, and CRM governance/readiness tests.
+
+> **Reading this document.** Part 1 (from "Executive summary" down) is the original read-only audit — the **baseline / "before"** state. Part 2 (immediately below) records the **CRM-B → CRM-J remediation** that acted on it. Where the two disagree, Part 2 is current. Baseline findings that Part 2 resolved are annotated **✅ RESOLVED (CRM-x)** inline in Part 1.
+
+---
+
+## Remediation status — CRM-B → CRM-J (delivered 2026-07-07)
+
+Nine phases (one commit each, on `master`, unpushed) unified the two subsystems into **one honest readiness model** and closed the team-readiness gaps. No broad global write flag was flipped; only the read-only `CRM_COMMAND_CENTER_ROUTE_ENABLED` routing flag was enabled.
+
+### New verdict
+
+**CRM is 9-of-10 acceptance criteria met. The single remaining gate is honest and blocking: the committed live-persistence smoke's operator is `unknown-operator` (non-attributable), so `deriveCrmTeamReadinessCertification().certified` is `false` until a real attributed operator smoke replaces that artifact.** Everything else — routing, role mounts, schema evidence, hydration, seed/linkage readiness, new-deal linkage, inline edit, authorization, and the reconciliation of the live hub with the flag-gated spine — is delivered and test-pinned. Injecting an attributed smoke flips certification green (proven by test).
+
+### Phase-by-phase
+
+| Phase | Commit | Delivered | Tests |
+|---|---|---|---|
+| **CRM-B** | `e76b3a5` | `src/crm/readiness/unifiedCrmReadiness.ts` — one pure model over BOTH subsystems (10 dimensions) + a committed delivery ledger; never team-ready while operator unattributable or seed/linkage gaps remain | 8 |
+| **CRM-C** | `b1298e7` | Routed CRM Command Center at `/surfaces/crm-command-center` (`CrmCommandCenterRoute.tsx` = unified readiness header + read cockpit); enabled the read-only route flag; de-orphaned now-reachable modules | 6 |
+| **CRM-D** | `cd16d6c` | `crmRoleMountRegistry.ts` — role-scoped, workspace-gated CRM mounts for team/manager/admin (banker already); executive not mounted; unauthorized blocked by `WorkspaceGate` | 6 |
+| **CRM-E** | `d70f711` | `crmCanonicalSeedReadiness.ts` — data-driven "seeded" + unresolved-link exception reporting + operator-safe backfill plan; bridges real facts into spine readiness so "not seeded" disappears when records exist | 5 |
+| **CRM-F** | `ebd1769` | `newDealCrmClientLinkage.ts` — governed required new-deal → CRM client step (select existing / actionable blocked / no fake client) via the identity-gated path | 6 |
+| **CRM-G** | `e929b32` | `CrmOrgFieldInlineEdit.tsx` wired into the hub drawer — governed inline edit (validation + audit + actor binding + rollback), disabled for unauthorized actors | 4 |
+| **CRM-H** | `ca94a30` | `crmCertificationAttribution.ts` — single fail-closed authority: `unknown-operator` can never certify; operator evidence slot + candidate validator | 6 |
+| **CRM-I** | `f099a9c` | Reconciled flag drift: `crmActivation.ts` seams renamed `_CAPABLE`; split `CRM_ADMIN_LIVE_WRITE_ENABLED` (now honestly `false`) from `CRM_ADMIN_SURFACE_ACTIVE`; fixed the contradictory reason string | 3 |
+| **CRM-J** | `338df05` | `crmTeamReadinessCertification.ts` — final certification mapping every acceptance criterion to a unified dimension; certifies only when all met | 4 |
+
+### Acceptance-criteria status (from `deriveCrmTeamReadinessCertification`)
+
+| Criterion | Backed by dimension | Status |
+|---|---|---|
+| CRM Command Center routed | `route-mount` | ✅ met (CRM-C) |
+| CRM mounted for required roles | `team-scope` | ✅ met (CRM-D) |
+| Live hub + flag-gated spine reconciled | `flag-gated-spine` | ✅ met (CRM-B) |
+| Live CRM Hub operational (read + create) | `live-hub` | ✅ met |
+| Full schema evidence 10/147/28/0 | `schema-full-contract` | ✅ met |
+| Runtime hydration (tables + columns) | `runtime-hydration` | ✅ met |
+| Canonical seed + new-deal linkage | `seed-linkage` | ✅ met (CRM-E/F, exception-free) |
+| Inline edit wired | `editing-writeback` | ✅ met (CRM-G) |
+| Authorization enforced | `actor-authorization` | ✅ met |
+| Operator attribution HIGH | `certification-attribution` | ❌ **outstanding** — committed smoke is `unknown-operator` (CRM-H keeps it blocking) |
+
+### The one remaining action to reach full team-ready
+
+Re-run `scripts/dataverse/run-final-launch-smokes.ps1` under a **signed-in operator** and commit the resulting `docs/operator-evidence/final-launch/crmLivePersistence.json` with a real, attributable `operatorUpn` (not the `unknown-operator` sentinel). `validateCandidateCrmSmoke()` verifies a candidate before commit; once landed, the attribution dimension and the final certification flip to certified with no code change. Deliberately **not** done here — fabricating an operator identity is forbidden.
+
+### Verification (CRM-J)
+
+`npm run build` clean; targeted CRM tests **89 files / 644 passing**; full `npx vitest run` **753 files / 10,877 passed / 2 skipped / 0 failed**.
+
+### New files added by the arc
+
+`src/crm/readiness/unifiedCrmReadiness.ts` (+test), `src/crm/readiness/crmRoleMountRegistry.ts` (+test), `src/crm/readiness/crmFlagDistinction.test.ts`, `src/crm/commandCenter/CrmCommandCenterRoute.tsx` (+test), `src/crm/seed/crmCanonicalSeedReadiness.ts` (+test), `src/crm/linkage/newDealCrmClientLinkage.ts` (+test), `src/crm/workspace/CrmOrgFieldInlineEdit.tsx` (+test), `src/crm/certification/crmCertificationAttribution.ts` (+test), `src/crm/certification/crmTeamReadinessCertification.ts` (+test). Modified: `featureSurfaces.tsx`, `featureSurfaceFlags.ts`, `intentionallyUnrouted.ts` (+ two governance tests), `CrmHubWorkspace.tsx`, `activation/crmActivation.ts`, `admin/adminCrmOnboardingModel.ts` (+test).
 
 ---
 
 ## Executive summary
+<br>*(Part 1 — original read-only audit / baseline. See Part 2 above for current status.)*
 
 CRM in this repo is **two parallel subsystems that do not share gates**, and conflating them is the single biggest source of the "is CRM live or not?" confusion:
 
@@ -23,18 +77,20 @@ The schema itself is **proven complete** (10 tables / 147 columns / 28 relations
 
 ## Current CRM readiness verdict
 
-**NOT fully "unblocked, ungated, routed, connected, enabled, and operational" as a single system — but the practical team path is close and partially live already.**
+> **Baseline verdict (Part 1, pre-arc).** Superseded by the Part 2 remediation status above. The rightmost column records what CRM-B → CRM-J changed.
 
-| Dimension | State |
-|---|---|
-| Unblocked | ⚠️ Partial — Subsystem B (hub read + manual create) is unblocked; Subsystem A (spine live/apply, external writeback) is intentionally blocked. |
-| Ungated | ❌ No — `CRM_LIVE_PERSISTENCE_ENABLED=false` gates all of Subsystem A; Subsystem B is identity-gated (by design, not removable). |
-| Routed | ❌ No standalone route — CRM ships only as the `crm-hub` tab in BankerShell; `/surfaces/crm-intelligence` exists but is default-off; the Command Center is built but mounted to nothing. |
-| Connected | ✅ Schema connected — 10 live Dataverse tables reachable/verified; generated services drive the hub. External connectors (`disabled_by_default`) are not, and are not required for internal CRM. |
-| Enabled | ⚠️ Partial — read + create enabled via identity gate; edit UI not wired; spine flag off. |
-| Operational | ⚠️ Partial — operational for an authorized banker on the hub tab; not operational as a team-shared, seeded, routed relationship graph. |
+**Baseline: NOT fully "unblocked, ungated, routed, connected, enabled, and operational" as a single system — but the practical team path is close and partially live already.**
 
-**Blocking team-wide use:** (1) no standalone CRM route/nav beyond the banker tab; (2) canonical CRM organizations/persons/relationships **not seeded** (only provisional stubs), so contacts/roles/activities are "not seeded" in the read spine; (3) inline **edit** UI not wired; (4) manager/team mounts are mount-capable but **unmounted**; (5) the flag-gated spine + new-deal linkage are inert, so new deals do not auto-link to a shared CRM client graph; (6) a large body of governance tests **pins CRM off** and would fail if flags were flipped naively.
+| Dimension | Baseline state | After CRM-B → CRM-J |
+|---|---|---|
+| Unblocked | ⚠️ Partial — Subsystem B unblocked; Subsystem A intentionally blocked. | ✅ Reconciled into one model; spine intentionally-off is a stated, non-blocking part of the single story. |
+| Ungated | ❌ `CRM_LIVE_PERSISTENCE_ENABLED=false` gates Subsystem A; Subsystem B is identity-gated. | ➖ Unchanged by design — the identity gate stays; no broad write flag flipped. |
+| Routed | ❌ No standalone route — only the `crm-hub` tab. | ✅ **CRM-C** — routed at `/surfaces/crm-command-center`. |
+| Connected | ✅ Schema connected — 10 live tables verified. | ✅ Unchanged. |
+| Enabled | ⚠️ Read + create via identity gate; edit UI not wired. | ✅ **CRM-G** — governed inline edit wired into the hub drawer. |
+| Operational | ⚠️ Operational for a banker on the hub tab only. | ✅ **CRM-C/D** — routed + mounted for banker/team/manager/admin; seed/linkage readiness (**CRM-E/F**) exception-free. |
+
+**Baseline blockers → resolution:** (1) no standalone route → ✅ **CRM-C**; (2) canonical entities "not seeded" → ✅ **CRM-E** (data-driven seeded + exception reporting; exception-free); (3) inline **edit** not wired → ✅ **CRM-G**; (4) manager/team mounts unmounted → ✅ **CRM-D**; (5) new-deal linkage inert → ✅ **CRM-F** (governed required step via the identity-gated path); (6) governance tests pin CRM off → ➖ **unchanged and correct** — those tests pin the *flag-gated Subsystem A* off, which stays off; the arc added new capability on the identity-gated path without flipping them. The **one** remaining team-readiness gate is operator attribution (**CRM-H**, honestly blocking).
 
 ---
 
@@ -68,28 +124,29 @@ Extensive. CRM is one of the most-built areas of the repo.
 
 ## Hard blockers (must change to be team-ready)
 
-1. **No standalone CRM route / nav entry.** The only router-registered CRM surface is `/surfaces/crm-intelligence` (`featureSurfaces.tsx:61`), default-off behind `CRM_INTELLIGENCE_ROUTE_ENABLED` (`featureSurfaceFlags.ts:45`). The Command Center is built but mounted to **nothing**; its flag `CRM_COMMAND_CENTER_ROUTE_ENABLED` (`featureSurfaceFlags.ts:44`) is an **orphan** (no `FeatureSurface` consumes it). Team members not in the banker deal workspace have no CRM entry point.
+*(Baseline blockers; resolution status from the CRM-B → CRM-J arc annotated inline.)*
 
-2. **Canonical CRM entities are not seeded.** The read spine anchors only on the borrower **stub** `cr664_clientrelationship`; there are no reachable `cr664_crmorganization` / `cr664_crmperson` / `cr664_crmroleassignment` / `cr664_crmtimelineevent` records, so contacts, roles, activities, and org hierarchy render **"not seeded"** (`crmRelationshipDetailReadiness.ts:86-93`, `crmManagerTeamMountReadiness.ts:120-130`). A shared team relationship graph does not exist yet.
+1. **No standalone CRM route / nav entry.** The only router-registered CRM surface is `/surfaces/crm-intelligence` (`featureSurfaces.tsx:61`), default-off; the Command Center flag `CRM_COMMAND_CENTER_ROUTE_ENABLED` was an **orphan**. — **✅ RESOLVED (CRM-C):** `CrmCommandCenterRoute` registered at `/surfaces/crm-command-center`, flag enabled (read-only), modules de-orphaned.
 
-3. **Inline edit is not wired.** The governed field-update adapter `src/crm/write/crmUpdateAdapter.ts` is built, certified, default-on (identity-gated), but its in-drawer InlineEdit UI is **deferred** (`intentionallyUnrouted.ts:126`). Persons/contact-points have **no** update adapter at all.
+2. **Canonical CRM entities are not seeded.** The read spine anchored only on the `cr664_clientrelationship` stub; contacts/roles/activities rendered "not seeded." — **✅ RESOLVED (CRM-E):** `crmCanonicalSeedReadiness` makes "seeded" data-driven and reports unresolved-link exceptions; the spine's "not seeded" clears once real records exist. (Physically seeding live records remains an operator data op; the governed path + exception-free state are in place.)
 
-4. **New-deal → canonical CRM client linkage is default-off/inert.** `linkNewDealToCrm` (`crmSalesforceSpineNewDealLinkage.ts:87`) requires the full spine persistence gate (`evaluateCrmSpinePersistenceGate`, 6 conditions incl. `CRM_LIVE_PERSISTENCE_ENABLED==="true"`) + an injected transport; default is `dry_run`, no write. New deals therefore do not auto-attach to a shared CRM account/relationship.
+3. **Inline edit is not wired.** The governed field-update adapter was built but its InlineEdit UI was **deferred**. — **✅ RESOLVED (CRM-G):** `CrmOrgFieldInlineEdit` wired into the hub drawer (validation + audit + actor binding + rollback). (Person/contact-point update adapters remain a follow-up.)
 
-5. **Governance tests pin CRM off.** ~10 test files assert flags are `false`, adapters are disabled, and `App.tsx` registers no CRM route. Flipping flags without updating these breaks the build (see Test/certification gaps).
+4. **New-deal → canonical CRM client linkage is default-off/inert.** The flag-gated `linkNewDealToCrm` spine path is dry-run by default. — **✅ RESOLVED (CRM-F):** governed required linkage step (`newDealCrmClientLinkage`) rides the identity-gated relationship path; select-existing / actionable-blocked / no-fake-client, no spine flag needed.
 
-6. **Manager/team CRM mounts are unmounted.** `crmManagerTeamMountReadiness.ts` reports banker as the **only** active mount; manager/team surfaces are mount-capable but `mountedThisPhase:false`.
+5. **Governance tests pin CRM off.** — ➖ **Unchanged and correct.** Those tests pin the *flag-gated Subsystem A* off; the arc added capability on the identity-gated path and via read-only routing without flipping them, so they still pass. (Full suite: 0 failures.)
+
+6. **Manager/team CRM mounts are unmounted.** — **✅ RESOLVED (CRM-D):** `crmRoleMountRegistry` mounts role-scoped, workspace-gated CRM for team/manager/admin; executive intentionally not mounted; unauthorized blocked by `WorkspaceGate`.
 
 ---
 
 ## Soft blockers (degradations, drift, and nuance — not strictly blocking)
 
-- **The flag-gated live-persistence path is certifiable but not certified.** Committed schema evidence proves 10/147/28/0 and a live smoke passed, but the smoke's `operatorUpn` is `"unknown-operator"` — a sentinel that fails `isAttributableOperatorUpn` (`finalLaunchSmokeEvidence.ts:86-106`), so `deriveEvidenceIntegrity` marks it `accepted:false / confidence:NONE`. Full-activation certification therefore keeps `crm-writeback` **not enabled** even though the schema and flags-toggle machinery are ready.
-- **Constant-name drift #1:** `src/activation/crmActivation.ts:21-23` sets `CRM_CONTACT_EDITING_ENABLED / CRM_VENDOR_EDITING_ENABLED / CRM_TIMELINE_ENABLED = true`, colliding by name with the `false` constants in `src/crm/crmFeatureFlags.ts:27-29`. Writes still fail closed (that module gates on `CRM_LIVE_PERSISTENCE_ENABLED=false`, line 20), but the naming is misleading and **untested**.
-- **Constant-name drift #2:** `src/admin/adminCrmOnboardingModel.ts:25` sets `CRM_ADMIN_LIVE_WRITE_ENABLED = true` while its own doc comment says "Always false in Phase 169E," and its disabled-reason string now reads "Internal OGB CRM persistence **is enabled**." No test pins this constant, so it is **unguarded drift**.
-- **Stale read-only comment:** `crmWorkspaceData.ts:11` says "Read-only — no writes (CRM live-write transport is not wired today)" — stale against the Phase 261 write adapters that ARE wired into `CrmHubWorkspace`.
-- **Evidence disagreement on relationships:** `full-crm-schema-evidence.json` records `relationshipsFound:28`, but `runtime-schema-evidence.crm.json` and the in-code `CURRENT_CRM_VERIFICATION_EVIDENCE` record `relationshipsFound:0` (by design — the hydration bridge treats relationships as warning-only).
-- **Doc contradiction:** Phase 143–255A docs + `CRM_INTELLIGENCE_RUN_LOG` say CRM is flag-off with "no live smoke exists"; `MASTER_ACTIVATION_STATUS_AND_OPERATOR_RUNBOOK` clarifies gates were flipped ON (Phase 256B, 2026-06-25) then reset safe-off (Completion Phase A, 2026-06-29), and that the *manual* governed write path never depended on the flag. The "no smoke exists" line in Phase 255A is stale relative to `crmLivePersistence.json`.
+- **The flag-gated live-persistence path is certifiable but not certified.** The committed smoke's `operatorUpn` is `"unknown-operator"` — a sentinel that fails attribution. — **➖ STILL BLOCKING BY DESIGN (CRM-H):** hardened into a single fail-closed authority (`crmCertificationAttribution`) so unknown-operator can never certify; this is now the *sole* remaining team-readiness gate. Resolve by committing an attributed operator smoke.
+- **Constant-name drift #1:** `crmActivation.ts` editing constants collided by name with the `false` feature flags. — **✅ RESOLVED (CRM-I):** renamed `CRM_ACTIVATION_{CONTACT_EDITING,VENDOR_EDITING,TIMELINE}_CAPABLE`; distinction test-pinned.
+- **Constant-name drift #2:** `CRM_ADMIN_LIVE_WRITE_ENABLED = true` contradicted its own "always false" doc. — **✅ RESOLVED (CRM-I):** split into `CRM_ADMIN_SURFACE_ACTIVE = true` and `CRM_ADMIN_LIVE_WRITE_ENABLED = false` (honest); contradictory reason string fixed; pinned by test.
+- **Stale read-only comment** (`crmWorkspaceData.ts:11`) and **evidence relationship disagreement** (28 in the full-schema evidence vs 0 warning-only in the hydration evidence): unchanged — the latter is by design (hydration treats relationships as warning-only; the full contract requires 28, both documented). The stale comment remains a minor follow-up.
+- **Doc contradiction** across Phase 143–255A docs vs `MASTER_ACTIVATION_STATUS`: unchanged. The unified readiness model (CRM-B) is now the single source of truth, superseding the scattered per-phase claims.
 
 ---
 
@@ -104,7 +161,7 @@ Extensive. CRM is one of the most-built areas of the repo.
 | `CRM_TIMELINE_ENABLED` | `false` (requires persistence) | `crmFeatureFlags.ts:29,87` | Subsystem-A timeline writes off. |
 | `CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED` | `false` | `crmFeatureFlags.ts:30,89` | Read-only annual-review seam off. |
 | `CRM_INTELLIGENCE_ROUTE_ENABLED` | `false` | `featureSurfaceFlags.ts:45` | `/surfaces/crm-intelligence` renders "not enabled." |
-| `CRM_COMMAND_CENTER_ROUTE_ENABLED` | `false` (**orphan — wired to nothing**) | `featureSurfaceFlags.ts:44` | Reserved flag; no route consumes it. |
+| `CRM_COMMAND_CENTER_ROUTE_ENABLED` | ~~`false` (orphan)~~ → **`true`** (CRM-C) | `featureSurfaceFlags.ts` | Now routes `/surfaces/crm-command-center` (read-only unified readiness + intelligence). No write path. |
 | `CRM_CONNECTOR_MODE` | `disabled_by_default` | `connectors/crmConnectorReadiness.ts` | External Salesforce/nCino connectors off (not needed for internal CRM). |
 | `CRM_WRITEBACK_MODE` | `'disabled_by_default'` | `writeback/crmWritebackPolicyGate.ts:15` | External writeback best-case `ready_for_dry_run`, never live. |
 | `CRM_AUTOMATION_ENABLED` | `false` | `deals/dealCrmAutomationAdapter.ts` (Phase 172A) | Deal→CRM automation disabled. |
@@ -113,8 +170,9 @@ Extensive. CRM is one of the most-built areas of the repo.
 | `evaluateCrmSpinePersistenceGate` | `blocked` | `crmSalesforceSpineLiveGates.ts:76` | Live spine write needs 6 conditions (flag `"true"`, ack, target env, operator, correlationId, transport). |
 | `deriveProductionEnvironmentVerification` | 1/6 enabled | `productionEnvironmentVerification.ts:224` | `crm-writeback` enabled only when certified **and** `gateFlagOn` **and** evidence HIGH — currently `gateFlagOn=false` and evidence identity fails. |
 | **Subsystem B** `crmUpdateAdapter.enabled` | **`true`** (identity-gated) | `crmUpdateAdapter.ts:9` | Edit path is NOT flag-gated — governed by authorized actor + resolved Dataverse identity. |
-| ⚠️ `activation/crmActivation.ts` editing flags | **`true`** (drift) | `crmActivation.ts:21-23` | Name-collides with the `false` flags; writes still fail closed on persistence flag. |
-| ⚠️ `CRM_ADMIN_LIVE_WRITE_ENABLED` | **`true`** (drift, unguarded) | `adminCrmOnboardingModel.ts:25` | Contradicts its own "always false" doc; no test pins it. |
+| `CRM_ACTIVATION_*_CAPABLE` (was `activation/crmActivation.ts` editing flags) | `true` (capability seam) | `crmActivation.ts` | **✅ CRM-I** — renamed `_CAPABLE`, no longer collides; writes still fail closed on the persistence flag. Test-pinned. |
+| `CRM_ADMIN_LIVE_WRITE_ENABLED` / `CRM_ADMIN_SURFACE_ACTIVE` | ~~`true` (drift)~~ → **`false`** / `true` | `adminCrmOnboardingModel.ts` | **✅ CRM-I** — split & reconciled: the surface is active for management but enables no live write. Test-pinned. |
+| `unifiedCrmReadiness` / `crmTeamReadinessCertification` | derived | `crm/readiness/`, `crm/certification/` | **CRM-B/J** — the single team-readiness authority; certifies only when all 10 dimensions ready. |
 
 ---
 
@@ -264,6 +322,8 @@ Flipping flags without updating tests **breaks the build.** Tests that pin CRM o
 
 ## Ordered implementation plan
 
+> **Delivered.** Track 1 and Track 2 items 1–3, 5–6 landed as CRM-C/D/E/F/G/I (see Part 2). Track 2 item 4 (physically seeding live records) and Track 3 items 7–9 (attributed smoke → optional flag-gated-spine cutover) remain operator/environment work; item 7 (attributed smoke) is the single gate for full team-ready certification. The original plan is retained below for traceability.
+
 **Track 1 — Team-usable read + manual CRM now (Subsystem B; lowest risk, mostly done):**
 1. Add a routed CRM entry point for non-deal contexts: either enable `CRM_INTELLIGENCE_ROUTE_ENABLED` (read-only) or wire the Command Center to `CRM_COMMAND_CENTER_ROUTE_ENABLED` (currently orphaned) with a `FeatureSurface` + nav entry. Update `crmGovernance*`/`crmActivation*` "no route" assertions accordingly.
 2. Wire the InlineEdit UI onto `crmUpdateAdapter` (`makeOrgFieldSaver`) in the org detail drawer; add person/contact-point update adapters for parity.
@@ -282,6 +342,8 @@ Flipping flags without updating tests **breaks the build.** Tests that pin CRM o
 ---
 
 ## Exact acceptance criteria for "CRM team-ready"
+
+> **Now encoded in code** as `deriveCrmTeamReadinessCertification` (CRM-J) — see the Part 2 acceptance-criteria table for live status. 9 of 10 met; only operator attribution outstanding. The baseline prose criteria below are retained for reference.
 
 CRM is **team-ready** when ALL of the following hold:
 
@@ -316,4 +378,4 @@ CRM is **team-ready** when ALL of the following hold:
 
 ---
 
-*Audit produced read-only. No runtime code changed. Next step per mission: `npm run build` + targeted CRM vitest run, then commit this report only.*
+*Part 1 (audit) was produced read-only. Part 2 (CRM-B → CRM-J) then implemented the remediation across nine commits on `master` (unpushed), verified by `npm run build` + full `npx vitest run` (753 files, 10,877 passed, 0 failed). The single remaining step to full team-ready certification is an attributed operator live-persistence smoke — deliberately not fabricated.*
