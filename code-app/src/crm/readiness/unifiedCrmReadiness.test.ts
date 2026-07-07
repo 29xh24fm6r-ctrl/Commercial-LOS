@@ -47,19 +47,20 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(byKey['flag-gated-spine'].status).toBe('ready');
   });
 
-  it('is NOT team-ready at the CRM-B baseline (route/mount, seed/linkage, editing, team-scope, attribution gaps)', () => {
+  it('is NOT team-ready at the current baseline (seed/linkage, editing, team-scope, attribution gaps remain)', () => {
     const r = deriveUnifiedCrmReadiness();
     expect(r.teamReady).toBe(false);
     const blockedKeys = r.dimensions.filter((d) => d.status === 'blocked').map((d) => d.key);
+    // CRM-C routed the Command Center, so route-mount is ready; the rest remain gaps.
     expect(blockedKeys).toEqual(
       expect.arrayContaining([
-        'route-mount',
         'seed-linkage',
         'editing-writeback',
         'team-scope',
         'certification-attribution',
       ]),
     );
+    expect(blockedKeys).not.toContain('route-mount');
     expect(r.blockers.length).toBeGreaterThan(0);
   });
 
@@ -102,8 +103,8 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(r.blockers).toHaveLength(0);
   });
 
-  it('the committed CRM-B baseline ledger reflects the audit reality (banker-only, no seed/linkage/edit/route)', () => {
-    expect(CRM_TEAM_READINESS_LEDGER.commandCenterRouted).toBe(false);
+  it('the committed baseline ledger reflects delivery reality (banker-only, no seed/linkage/edit; route done in CRM-C)', () => {
+    expect(CRM_TEAM_READINESS_LEDGER.commandCenterRouted).toBe(true); // CRM-C
     expect(CRM_TEAM_READINESS_LEDGER.rolesMounted).toEqual({ banker: true, team: false, manager: false, admin: false });
     expect(CRM_TEAM_READINESS_LEDGER.canonicalSeedReady).toBe(false);
     expect(CRM_TEAM_READINESS_LEDGER.newDealLinkageOperational).toBe(false);

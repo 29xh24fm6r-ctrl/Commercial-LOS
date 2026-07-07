@@ -41,7 +41,12 @@ export const FEATURE_SURFACE_FLAG_DEFAULTS: FeatureSurfaceFlags = Object.freeze(
   ANNUAL_REVIEW_ROUTE_ENABLED: false,
   PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED: false,
   COMMITTEE_ROUTE_ENABLED: false,
-  CRM_COMMAND_CENTER_ROUTE_ENABLED: false,
+  // CRM-C — intentionally activated. Routes the standalone CRM Command Center
+  // destination (unified readiness + read-only CRM intelligence) so CRM no longer
+  // lives only as the hidden crm-hub BankerShell tab. READ-ONLY: reveals status +
+  // intelligence only; live create/edit stay in the identity-gated CRM Hub, and no
+  // write path is enabled by this flag.
+  CRM_COMMAND_CENTER_ROUTE_ENABLED: true,
   CRM_INTELLIGENCE_ROUTE_ENABLED: false,
   PORTFOLIO_BOARDING_SURFACE_ROUTE_ENABLED: false,
   // Intentionally ON — activated after portfolio-book smoke evidence. Routes the

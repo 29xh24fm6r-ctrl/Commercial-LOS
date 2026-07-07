@@ -44,9 +44,20 @@ describe('Phase 6 — routed surface entry modules are genuinely reachable', () 
 });
 
 describe('Phase 6 — surface flags remain default-off', () => {
-  it('every surface references a flag that defaults false', () => {
+  /**
+   * CRM-C — the CRM Command Center read surface is intentionally routed (default-on)
+   * so CRM is discoverable beyond the hidden crm-hub tab. It is read-only (no write
+   * path); every OTHER surface flag must still default off.
+   */
+  const INTENTIONALLY_ROUTED = new Set(['CRM_COMMAND_CENTER_ROUTE_ENABLED']);
+
+  it('every surface references a flag that defaults false (except intentionally-routed read surfaces)', () => {
     for (const s of FEATURE_SURFACES) {
-      expect(FEATURE_SURFACE_FLAG_DEFAULTS[s.flag]).toBe(false);
+      if (INTENTIONALLY_ROUTED.has(s.flag)) {
+        expect(FEATURE_SURFACE_FLAG_DEFAULTS[s.flag], `${s.flag} intentionally routed`).toBe(true);
+      } else {
+        expect(FEATURE_SURFACE_FLAG_DEFAULTS[s.flag]).toBe(false);
+      }
     }
   });
 });

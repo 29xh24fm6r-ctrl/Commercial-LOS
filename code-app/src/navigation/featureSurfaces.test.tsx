@@ -25,6 +25,10 @@ import {
  */
 const INTENTIONALLY_ENABLED_FLAGS: ReadonlySet<FeatureSurfaceFlagName> = new Set([
   'PORTFOLIO_BOOK_DATA_ENABLED',
+  // CRM-C — the standalone CRM Command Center read surface is intentionally routed so
+  // CRM is no longer a hidden BankerShell tab. Read-only (unified readiness + CRM
+  // intelligence); no write path is enabled by this flag.
+  'CRM_COMMAND_CENTER_ROUTE_ENABLED',
 ]);
 
 /**
@@ -46,9 +50,13 @@ describe('feature-surface flags default off (read-first, fail-safe)', () => {
     }
   });
 
-  it('isFeatureSurfaceFlagEnabled reports false for every surface flag', () => {
+  it('isFeatureSurfaceFlagEnabled reports false for every surface flag (except intentionally-routed ones)', () => {
     for (const s of FEATURE_SURFACES) {
-      expect(isFeatureSurfaceFlagEnabled(s.flag)).toBe(false);
+      if (INTENTIONALLY_ENABLED_FLAGS.has(s.flag)) {
+        expect(isFeatureSurfaceFlagEnabled(s.flag), `${s.flag} is intentionally routed`).toBe(true);
+      } else {
+        expect(isFeatureSurfaceFlagEnabled(s.flag)).toBe(false);
+      }
     }
   });
 });

@@ -90,7 +90,8 @@ export interface CrmDeliveryLedger {
 }
 
 export const CRM_TEAM_READINESS_LEDGER: CrmDeliveryLedger = Object.freeze({
-  commandCenterRouted: false,
+  // CRM-C: the Command Center is routed at /surfaces/crm-command-center.
+  commandCenterRouted: true,
   rolesMounted: Object.freeze({ banker: true, team: false, manager: false, admin: false }),
   canonicalSeedReady: false,
   newDealLinkageOperational: false,

@@ -14,6 +14,7 @@ import type { AnnualReviewCycle } from '../shared/annualReview/annualReviewTypes
 import { PortfolioLoanBoardingPreview } from '../portfolioBoarding/PortfolioLoanBoardingPreview';
 import { createEmptyPortfolioLoanBoardingPackage } from '../shared/portfolioBoarding/portfolioLoanBoardingTypes';
 import { CrmIntelligencePanel } from '../crm/intelligence/CrmIntelligencePanel';
+import { CrmCommandCenterRoute } from '../crm/commandCenter/CrmCommandCenterRoute';
 
 /**
  * Phase 3 — registry of previously-unrouted subsystem surfaces.
@@ -58,6 +59,16 @@ const PREVIEW_ANNUAL_REVIEW_CYCLE: AnnualReviewCycle = {
 };
 
 export const FEATURE_SURFACES: readonly FeatureSurface[] = [
+  {
+    key: 'crm-command-center',
+    flag: 'CRM_COMMAND_CENTER_ROUTE_ENABLED',
+    label: 'CRM command center',
+    description:
+      'Standalone CRM destination for authorized team users: unified CRM readiness (live hub + flag-gated spine reconciled) plus read-only CRM intelligence. Live create/edit stay in the identity-gated CRM Hub; no write here.',
+    workspace: 'banker',
+    entryModule: 'src/crm/commandCenter/CrmCommandCenterRoute.tsx',
+    render: () => <CrmCommandCenterRoute />,
+  },
   {
     key: 'crm-intelligence',
     flag: 'CRM_INTELLIGENCE_ROUTE_ENABLED',
