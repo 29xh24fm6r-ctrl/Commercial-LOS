@@ -272,7 +272,11 @@ export function BankerDealWorkspace({
               {/* Phase 125E — Deal Summary demoted to the bottom
                   of the cockpit. It's a reference table, not the
                   main attraction. */}
-              <div id="deal-summary" data-cockpit-anchor="deal-summary">
+              <div
+                id="deal-summary"
+                data-deal-card="deal-summary"
+                data-cockpit-anchor="deal-summary"
+              >
                 <DealSummary />
               </div>
             </section>

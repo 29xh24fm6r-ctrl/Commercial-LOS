@@ -6,6 +6,7 @@ import {
   type BlockerSeverity,
   type BlockerStatus,
 } from './blockerRules';
+import { attentionDestinationFor, focusAttentionTarget } from './attentionNavigation';
 import { deriveCreditMemoFreshness } from './creditMemoFreshness';
 import { deriveDealCockpitMetrics } from './dealCockpitMetrics';
 import { Card, CardFooter } from '../shared/Card';
@@ -191,19 +192,46 @@ function BigSeverityTile({
 function SignalRow({ signal }: { signal: BlockerSignal }) {
   const sev = severityToKey(signal.severity);
   const p = severityPalette[sev];
-  return (
-    <li
-      style={{
-        ...styles.signal,
-        borderLeft: `4px solid ${p.bar}`,
-        background: p.bg,
-      }}
-    >
+  const destination = attentionDestinationFor(signal.id);
+  const rowStyle: React.CSSProperties = {
+    ...styles.signal,
+    borderLeft: `4px solid ${p.bar}`,
+    background: p.bg,
+  };
+  const body = (
+    <>
       <SeverityGlyph severity={sev} />
       <div style={styles.signalBody}>
         <div style={{ ...styles.signalLabel, color: p.fg }}>{signal.label}</div>
         <div style={styles.signalDetail}>{signal.detail}</div>
       </div>
+    </>
+  );
+
+  // No known destination: render read-only status. No pointer/click
+  // affordance, so the row does not pretend to be interactive.
+  if (!destination) {
+    return (
+      <li style={rowStyle} data-attention-signal={signal.id}>
+        {body}
+      </li>
+    );
+  }
+
+  // Actionable: a real <button> (keyboard-focusable, native
+  // Enter/Space activation, visible browser focus ring) that scrolls
+  // + focuses the target surface. Read-only navigation — no writes.
+  return (
+    <li style={styles.signalItem} data-attention-signal={signal.id}>
+      <button
+        type="button"
+        onClick={() => focusAttentionTarget(destination.selector)}
+        style={{ ...rowStyle, ...styles.signalButton }}
+        aria-label={`${signal.label} — go to ${destination.label}`}
+        data-attention-nav={destination.label}
+      >
+        {body}
+      </button>
     </li>
   );
 }
@@ -329,6 +357,25 @@ const styles: Record<string, React.CSSProperties> = {
     padding: `${spacing.sm} ${spacing.md}`,
     border: `1px solid ${palette.divider}`,
     borderRadius: radius.sm,
+  },
+  // Bare list item wrapper for an actionable signal — the visible
+  // styling lives on the inner <button> (styles.signal + signalButton).
+  signalItem: {
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+  },
+  // Reset the native button chrome so the actionable row reads like
+  // the read-only rows, while keeping keyboard focus + Enter/Space.
+  // We intentionally do NOT set outline:none, so the browser focus
+  // ring stays visible for keyboard users.
+  signalButton: {
+    width: '100%',
+    textAlign: 'left' as const,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    fontSize: 'inherit',
+    color: 'inherit',
   },
   signalBody: { display: 'flex', flexDirection: 'column', gap: 2 },
   signalLabel: {
