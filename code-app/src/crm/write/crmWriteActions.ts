@@ -22,6 +22,12 @@ import {
   type CrmWriteOutcome,
 } from './crmWriteAdapter';
 import { addAdvisorLink, type AddAdvisorLinkInput } from '../advisors/advisorLink';
+import {
+  bridgeOrgToClientRelationship,
+  buildLiveBridgeOrgToClientDeps,
+  type BridgeOrgToClientInput,
+  type BridgeOrgToClientOutcome,
+} from './bridgeOrgToClientRelationship';
 
 export interface CrmWriteFns {
   readonly addCompany: (input: AddCompanyInput) => Promise<CrmWriteOutcome>;
@@ -30,10 +36,14 @@ export interface CrmWriteFns {
   readonly createFollowUpTask: (input: FollowUpTaskInput) => Promise<CrmWriteOutcome>;
   readonly addRelationship: (input: AddRelationshipInput) => Promise<CrmWriteOutcome>;
   readonly addAdvisorLink: (input: AddAdvisorLinkInput) => Promise<CrmWriteOutcome>;
+  /** Governed mirror of an EXISTING Borrower/Client company into the deal-linkable
+   *  cr664_clientrelationship. Only ever run for an already-created company. */
+  readonly bridgeOrgToClient: (input: BridgeOrgToClientInput) => Promise<BridgeOrgToClientOutcome>;
 }
 
 export function buildLiveCrmWriteFns(): CrmWriteFns {
   const deps = buildLiveCrmWriteDeps();
+  const bridgeDeps = buildLiveBridgeOrgToClientDeps();
   return {
     addCompany: (input) => addCompany(input, deps),
     addContact: (input) => addContact(input, deps),
@@ -41,5 +51,6 @@ export function buildLiveCrmWriteFns(): CrmWriteFns {
     createFollowUpTask: (input) => createFollowUpTask(input, deps),
     addRelationship: (input) => addRelationship(input, deps),
     addAdvisorLink: (input) => addAdvisorLink(input, deps),
+    bridgeOrgToClient: (input) => bridgeOrgToClientRelationship(input, bridgeDeps),
   };
 }

@@ -197,6 +197,7 @@ export function LinkDealCrmEntityModal({
                           ...(isSel ? styles.optionButtonSelected : null),
                         }}
                         data-link-crm-option={o.id}
+                        data-link-crm-option-kind={o.sourceKind ?? 'clientrelationship'}
                       >
                         <span style={styles.optionName}>
                           {o.name}

@@ -43,9 +43,25 @@ vi.mock('./write/linkDealCrmEntity', async (importOriginal) => {
 const loadClientsMock = vi.hoisted(() => vi.fn());
 const loadTeamsMock = vi.hoisted(() => vi.fn());
 vi.mock('./dealCrmLinkOptions', () => ({
+  // The client modal now loads the combined client-link targets (existing
+  // client relationships + eligible unbridged CRM companies).
+  loadClientLinkTargetOptions: loadClientsMock,
   loadClientRelationshipOptions: loadClientsMock,
   loadTeamOptions: loadTeamsMock,
+  CRM_COMPANY_OPTION_SUBLABEL: 'CRM Company — will create/link borrower client record',
 }));
+
+// Bridge is mocked at the boundary (SDK-free); bridgedClientRelationshipId stays
+// real so the panel's create/find→link wiring is exercised as written.
+const bridgeMock = vi.hoisted(() => vi.fn());
+vi.mock('./write/bridgeOrgToClientRelationship', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./write/bridgeOrgToClientRelationship')>();
+  return {
+    ...actual,
+    bridgeOrgToClientRelationship: bridgeMock,
+    buildLiveBridgeOrgToClientDeps: () => ({}),
+  };
+});
 
 import { DealCrmRelationshipPanel } from './CrmRelationshipPanel';
 
@@ -140,6 +156,84 @@ describe('DealCrmRelationshipPanel — actionable client link', () => {
     expect(
       screen.queryByRole('button', { name: /Link a canonical CRM client/i }),
     ).toBeNull();
+  });
+
+  it('finds a CRM company (OmniCare 365) and bridges it to a client before linking', async () => {
+    // The client picker now surfaces existing clients AND eligible CRM companies
+    // that have no client mirror yet. OmniCare 365 is such a company.
+    loadClientsMock.mockResolvedValue([
+      { id: 'client-guid-1', name: 'Acme Holdings LLC', sublabel: 'LLC', active: true },
+      {
+        id: 'org-omni',
+        name: 'OmniCare 365',
+        sublabel: 'CRM Company — will create/link borrower client record',
+        active: true,
+        sourceKind: 'organization',
+        organizationType: 'Borrower',
+      },
+    ]);
+    // Selecting the company runs the governed bridge → a real client relationship.
+    bridgeMock.mockResolvedValue({
+      kind: 'created',
+      clientRelationshipId: 'client-bridged-1',
+      clientName: 'OmniCare 365',
+      correlationId: 'corr-b',
+      auditId: 'audit-b',
+    });
+    // Then the deal is linked to that client relationship.
+    linkMock.mockResolvedValue({
+      kind: 'success',
+      dealId: 'd1',
+      target: 'client',
+      entityId: 'client-bridged-1',
+      entityName: 'OmniCare 365',
+      correlationId: 'corr-c',
+      auditId: 'audit-c',
+    });
+    render(<DealCrmRelationshipPanel />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /Link a canonical CRM client/i }));
+    // OmniCare 365 is offered (labelled as a CRM company bridge target).
+    const option = await screen.findByRole('option', { name: /OmniCare 365/i });
+    expect(option.getAttribute('data-link-crm-option-kind')).toBe('organization');
+    expect(within(option).getByText(/will create\/link borrower client record/i)).toBeInTheDocument();
+    await user.click(option);
+    await user.click(screen.getByRole('button', { name: /^Link client$/i }));
+
+    // The governed bridge ran for the selected company...
+    expect(bridgeMock).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.mock.calls[0][0]).toMatchObject({
+      organizationId: 'org-omni',
+      organizationName: 'OmniCare 365',
+      organizationType: 'Borrower',
+    });
+    // ...then the deal was linked to the BRIDGED client relationship id, not the org.
+    expect(linkMock).toHaveBeenCalledTimes(1);
+    expect(linkMock.mock.calls[0][0]).toMatchObject({
+      target: 'client',
+      entityId: 'client-bridged-1',
+    });
+
+    expect(await screen.findByText(/Client linked/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Close$/i }));
+    const panel = screen.getByTestId('crm-relationship-panel');
+    await waitFor(() => expect(panel.getAttribute('data-relationship-status')).not.toBe('blocked'));
+    expect(within(panel).getByText(/OmniCare 365/)).toBeInTheDocument();
+  });
+
+  it('existing client relationship path does NOT invoke the bridge (unchanged)', async () => {
+    linkMock.mockResolvedValue({
+      kind: 'success', dealId: 'd1', target: 'client', entityId: 'client-guid-1',
+      entityName: 'Acme Holdings LLC', correlationId: 'c', auditId: 'a',
+    });
+    render(<DealCrmRelationshipPanel />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Link a canonical CRM client/i }));
+    await user.click(await screen.findByRole('option', { name: /Acme Holdings LLC/i }));
+    await user.click(screen.getByRole('button', { name: /^Link client$/i }));
+    expect(bridgeMock).not.toHaveBeenCalled();
+    expect(linkMock.mock.calls[0][0]).toMatchObject({ entityId: 'client-guid-1' });
   });
 
   it('does not fabricate any client/contact/team/activity, and viewing blocked state performs no write', () => {

@@ -22,6 +22,16 @@ function success(): CrmWriteOutcome {
 function fakeFns(): CrmWriteFns & { calls: Record<string, unknown[]> } {
   const calls: Record<string, unknown[]> = {};
   const make = (name: string) => vi.fn(async (input: unknown) => { calls[name] = (calls[name] ?? []).concat(input); return success(); });
+  const bridgeOrgToClient = vi.fn(async (input: unknown) => {
+    calls.bridgeOrgToClient = (calls.bridgeOrgToClient ?? []).concat(input);
+    return {
+      kind: 'created' as const,
+      clientRelationshipId: 'client-bridged-1',
+      clientName: 'OmniCare 365',
+      correlationId: 'crm-b',
+      auditId: 'audit-b',
+    };
+  });
   return {
     addCompany: make('addCompany'),
     addContact: make('addContact'),
@@ -29,6 +39,7 @@ function fakeFns(): CrmWriteFns & { calls: Record<string, unknown[]> } {
     createFollowUpTask: make('createFollowUpTask'),
     addRelationship: make('addRelationship'),
     addAdvisorLink: make('addAdvisorLink'),
+    bridgeOrgToClient,
     calls,
   };
 }
@@ -68,6 +79,51 @@ describe('CrmWriteActions', () => {
     expect(fns.addCompany).toHaveBeenCalledTimes(1);
     expect(fns.calls.addCompany[0]).toMatchObject({ name: 'Acme Holdings', industry: 'Manufacturing', actorSystemUserId: 'sys-1', authorized: true });
     expect(onWritten).toHaveBeenCalledTimes(1);
+  });
+
+  it('Add Company Borrower mirrors into a deal-linkable client (governed bridge)', async () => {
+    const fns = fakeFns();
+    const user = userEvent.setup();
+    const { container } = render(
+      <CrmWriteActions {...IDENTITY} companyOptions={[]} personOptions={[]} writeFns={fns} />,
+    );
+    await user.click(container.querySelector('[data-crm-action="company"]') as HTMLElement);
+    await user.type(container.querySelector('[data-crm-field="name"]') as HTMLInputElement, 'OmniCare 365');
+    await user.selectOptions(
+      container.querySelector('[data-crm-field="organizationType"]') as HTMLSelectElement,
+      'Borrower',
+    );
+    await user.click(container.querySelector('[data-crm-action-submit]') as HTMLElement);
+
+    await waitFor(() => expect(container.querySelector('[data-crm-action-success]')).not.toBeNull());
+    // The company was created, then bridged to a canonical client relationship.
+    expect(fns.addCompany).toHaveBeenCalledTimes(1);
+    expect(fns.bridgeOrgToClient).toHaveBeenCalledTimes(1);
+    expect(fns.calls.bridgeOrgToClient[0]).toMatchObject({
+      organizationId: 'new-1',
+      organizationName: 'OmniCare 365',
+      organizationType: 'Borrower',
+    });
+    // The success surface tells the banker the company is now deal-linkable.
+    expect(container.querySelector('[data-crm-company-bridge="linked"]')).not.toBeNull();
+  });
+
+  it('Add Company Vendor does NOT create a client mirror (not a borrower/client)', async () => {
+    const fns = fakeFns();
+    const user = userEvent.setup();
+    const { container } = render(
+      <CrmWriteActions {...IDENTITY} companyOptions={[]} personOptions={[]} writeFns={fns} />,
+    );
+    await user.click(container.querySelector('[data-crm-action="company"]') as HTMLElement);
+    await user.type(container.querySelector('[data-crm-field="name"]') as HTMLInputElement, 'Acme Supplies');
+    await user.selectOptions(
+      container.querySelector('[data-crm-field="organizationType"]') as HTMLSelectElement,
+      'Vendor',
+    );
+    await user.click(container.querySelector('[data-crm-action-submit]') as HTMLElement);
+    await waitFor(() => expect(container.querySelector('[data-crm-action-success]')).not.toBeNull());
+    expect(fns.bridgeOrgToClient).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-crm-company-bridge]')).toBeNull();
   });
 
   it('adds a contact with email and links the selected company', async () => {

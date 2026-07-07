@@ -13,13 +13,19 @@ import {
 import { deriveCrmRelationshipDetailReadiness } from './crmRelationshipDetailReadiness';
 import { CrmRelationshipDetailCards } from './CrmRelationshipDetailCards';
 import { LinkDealCrmEntityModal } from './LinkDealCrmEntityModal';
-import { loadClientRelationshipOptions, loadTeamOptions, type CrmLinkOption } from './dealCrmLinkOptions';
+import { loadClientLinkTargetOptions, loadTeamOptions, type CrmLinkOption } from './dealCrmLinkOptions';
 import {
   linkDealCrmEntity,
   buildLiveLinkDealCrmEntityDeps,
   type DealCrmLinkTarget,
   type LinkDealCrmEntityOutcome,
 } from './write/linkDealCrmEntity';
+import {
+  bridgeOrgToClientRelationship,
+  bridgedClientRelationshipId,
+  buildLiveBridgeOrgToClientDeps,
+  type BridgeOrgToClientOutcome,
+} from './write/bridgeOrgToClientRelationship';
 
 /**
  * Phase 189C — read-only CRM Relationship panel.
@@ -204,6 +210,37 @@ export function CrmRelationshipPanel({
  * Performs NO IO of its own — both `useDealData` and `useOptionalBanker` expose
  * data the workspace already loaded under existing authorization.
  */
+/**
+ * Map a governed-bridge FAILURE (no usable client id) onto the link modal's
+ * outcome union so the modal reports it with the same honest copy it uses for a
+ * direct link failure. Only called when `bridgedClientRelationshipId` is null.
+ */
+function mapBridgeFailureToLinkOutcome(
+  bridge: BridgeOrgToClientOutcome,
+): LinkDealCrmEntityOutcome {
+  switch (bridge.kind) {
+    case 'unauthorized':
+      return { kind: 'unauthorized', reason: bridge.reason };
+    case 'identity-unresolved':
+      return { kind: 'identity-unresolved', reason: bridge.reason };
+    case 'not-eligible':
+    case 'invalid-input':
+      return { kind: 'invalid-input', reason: bridge.reason };
+    case 'readback-mismatch':
+      return { kind: 'readback-mismatch', correlationId: bridge.correlationId };
+    case 'write-failed':
+      return { kind: 'write-failed', error: bridge.error, correlationId: bridge.correlationId };
+    default:
+      // created / linked-existing / audit-failed all yield a usable id, so they
+      // never reach here; fail closed if the union ever changes.
+      return {
+        kind: 'write-failed',
+        error: 'Unexpected bridge outcome; nothing was linked.',
+        correlationId: 'n/a',
+      };
+  }
+}
+
 export function DealCrmRelationshipPanel() {
   const { deal } = useDealData();
   const banker = useOptionalBanker();
@@ -275,12 +312,40 @@ export function DealCrmRelationshipPanel() {
     target: DealCrmLinkTarget,
     option: CrmLinkOption,
   ): Promise<LinkDealCrmEntityOutcome> {
+    let entityId = option.id;
+    let entityName = option.name;
+
+    // A CRM Hub company (cr664_crmorganization) is not itself deal-linkable —
+    // the deal's cr664_Client targets cr664_clientrelationship. Run the governed
+    // bridge to create/find the canonical client, then link the deal to THAT.
+    if (target === 'client' && option.sourceKind === 'organization') {
+      const bridge = await bridgeOrgToClientRelationship(
+        {
+          organizationId: option.id,
+          organizationName: option.name,
+          organizationType: option.organizationType ?? '',
+          website: option.website,
+          taxIdPresent: option.taxIdPresent,
+          actorEmail: banker?.email,
+          actorSystemUserId: banker?.systemUserId,
+          authorized,
+        },
+        buildLiveBridgeOrgToClientDeps(),
+      );
+      const bridgedId = bridgedClientRelationshipId(bridge);
+      if (!bridgedId) return mapBridgeFailureToLinkOutcome(bridge);
+      entityId = bridgedId;
+      if (bridge.kind === 'created' || bridge.kind === 'linked-existing') {
+        entityName = bridge.clientName;
+      }
+    }
+
     return linkDealCrmEntity(
       {
         dealId: deal.id,
         target,
-        entityId: option.id,
-        entityName: option.name,
+        entityId,
+        entityName,
         actorEmail: banker?.email,
         actorSystemUserId: banker?.systemUserId,
         authorized,
@@ -340,9 +405,20 @@ export function DealCrmRelationshipPanel() {
         <LinkDealCrmEntityModal
           targetKind="client"
           dealName={deal.name}
-          loadOptions={loadClientRelationshipOptions}
+          loadOptions={loadClientLinkTargetOptions}
           onLink={(option) => handleLink('client', option)}
-          onLinked={(option) => setLinkedClient({ id: option.id, name: option.name })}
+          onLinked={(option, outcome) =>
+            // Reflect the REAL client the deal now points at. For a bridged CRM
+            // company that is the created/found cr664_clientrelationship (its id
+            // from the readback-verified link outcome), never the org id.
+            setLinkedClient({
+              id:
+                outcome.kind === 'success' || outcome.kind === 'audit-failed'
+                  ? outcome.entityId
+                  : option.id,
+              name: (outcome.kind === 'success' ? outcome.entityName : option.name) ?? option.name,
+            })
+          }
           onClose={() => setModal(null)}
         />
       )}

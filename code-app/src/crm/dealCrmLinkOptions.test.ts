@@ -31,7 +31,17 @@ vi.mock('../generated/services/Cr664_teamsService', () => ({
   Cr664_teamsService: { getAll: teamsGetAllMock },
 }));
 
-import { loadClientRelationshipOptions } from './dealCrmLinkOptions';
+const orgsGetAllMock = vi.hoisted(() => vi.fn());
+vi.mock('../generated/services/Cr664_crmorganizationsService', () => ({
+  Cr664_crmorganizationsService: { getAll: orgsGetAllMock },
+}));
+
+import {
+  loadClientRelationshipOptions,
+  loadDealLinkableOrganizationOptions,
+  loadClientLinkTargetOptions,
+  CRM_COMPANY_OPTION_SUBLABEL,
+} from './dealCrmLinkOptions';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CODE_APP_ROOT = resolve(HERE, '../..');
@@ -123,5 +133,79 @@ describe('dealCrmLinkOptions — client loader is registered against cr664_clien
     });
     await expect(loadClientRelationshipOptions()).rejects.toThrow(/cr664_clientrelationships/);
     expect(createMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('loadDealLinkableOrganizationOptions — eligible CRM companies only', () => {
+  it('returns only Borrower/Client companies, labelled as a bridge target', async () => {
+    orgsGetAllMock.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          cr664_crmorganizationid: 'org-omni',
+          cr664_name: 'OmniCare 365',
+          cr664_organizationtype: 'Borrower',
+          cr664_website: 'omnicare.example',
+          cr664_taxidpresent: true,
+          statecode: 0,
+        },
+        // A vendor — must NOT be offered as a deal-linkable client.
+        {
+          cr664_crmorganizationid: 'org-vend',
+          cr664_name: 'Acme Supplies',
+          cr664_organizationtype: 'Vendor',
+          statecode: 0,
+        },
+      ],
+    });
+    const options = await loadDealLinkableOrganizationOptions();
+    expect(options).toEqual([
+      {
+        id: 'org-omni',
+        name: 'OmniCare 365',
+        sublabel: CRM_COMPANY_OPTION_SUBLABEL,
+        active: true,
+        sourceKind: 'organization',
+        organizationType: 'Borrower',
+        website: 'omnicare.example',
+        taxIdPresent: true,
+      },
+    ]);
+  });
+});
+
+describe('loadClientLinkTargetOptions — clients first, then unbridged eligible companies', () => {
+  it('lists existing client relationships and CRM companies that are not yet bridged', async () => {
+    getAllMock.mockResolvedValue({
+      success: true,
+      data: [
+        { cr664_clientrelationshipid: 'client-1', cr664_clientname: 'Beta Foods Inc', statecode: 0 },
+      ],
+    });
+    orgsGetAllMock.mockResolvedValue({
+      success: true,
+      data: [
+        { cr664_crmorganizationid: 'org-omni', cr664_name: 'OmniCare 365', cr664_organizationtype: 'Borrower', statecode: 0 },
+        // Same name as the existing client -> already bridged -> excluded.
+        { cr664_crmorganizationid: 'org-beta', cr664_name: 'Beta Foods Inc', cr664_organizationtype: 'Borrower', statecode: 0 },
+      ],
+    });
+    const options = await loadClientLinkTargetOptions();
+    // Existing client first (direct link), then the unbridged OmniCare company.
+    expect(options.map((o) => o.id)).toEqual(['client-1', 'org-omni']);
+    expect(options[0].sourceKind ?? 'clientrelationship').toBe('clientrelationship');
+    const omni = options.find((o) => o.id === 'org-omni')!;
+    expect(omni.sourceKind).toBe('organization');
+    expect(omni.name).toBe('OmniCare 365');
+  });
+
+  it('still returns clients if the org load fails (companies are additive, not required)', async () => {
+    getAllMock.mockResolvedValue({
+      success: true,
+      data: [{ cr664_clientrelationshipid: 'client-1', cr664_clientname: 'Beta Foods Inc', statecode: 0 }],
+    });
+    orgsGetAllMock.mockResolvedValue({ success: false, error: { message: 'boom' } });
+    const options = await loadClientLinkTargetOptions();
+    expect(options.map((o) => o.id)).toEqual(['client-1']);
   });
 });

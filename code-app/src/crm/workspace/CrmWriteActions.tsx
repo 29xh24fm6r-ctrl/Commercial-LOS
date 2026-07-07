@@ -6,6 +6,8 @@ import { ADVISOR_ROLE_OPTIONS } from '../advisors/advisorRoles';
 import { NaicsTypeahead } from '../naics/NaicsTypeahead';
 import { buildLiveCrmWriteFns, type CrmWriteFns } from '../write/crmWriteActions';
 import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
+import { isDealLinkableOrgType } from '../orgClientBridgeEligibility';
+import type { BridgeOrgToClientOutcome } from '../write/bridgeOrgToClientRelationship';
 
 /**
  * Phase 261 (B) — CRM write action bar + modal forms.
@@ -232,6 +234,8 @@ function CrmActionModal({
   const [fields, setFields] = useState<Record<string, string>>({ activityType: 'call', ...presetFields });
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<CrmWriteOutcome | undefined>(undefined);
+  // Follow-up borrower/client bridge outcome after an eligible Add Company.
+  const [bridge, setBridge] = useState<BridgeOrgToClientOutcome | undefined>(undefined);
 
   const set = (k: string, v: string) => setFields((s) => ({ ...s, [k]: v }));
   const val = (k: string) => fields[k] ?? '';
@@ -243,6 +247,21 @@ function CrmActionModal({
     switch (kind) {
       case 'company':
         result = await fns.addCompany({ ...a, name: val('name'), organizationType: val('organizationType'), industry: val('industry'), naicsCode: val('naicsCode'), website: val('website'), notes: val('notes') });
+        // When the company is a Borrower/Client, mirror it into the deal-linkable
+        // canonical client so it can be linked to a deal. Governed bridge only —
+        // it creates/finds ONE cr664_clientrelationship for THIS explicit company
+        // and fabricates nothing else.
+        if (result.kind === 'success' && isDealLinkableOrgType(val('organizationType'))) {
+          setBridge(
+            await fns.bridgeOrgToClient({
+              ...a,
+              organizationId: result.id,
+              organizationName: val('name'),
+              organizationType: val('organizationType'),
+              website: val('website'),
+            }),
+          );
+        }
         break;
       case 'contact':
         result = await fns.addContact({ ...a, firstName: val('firstName'), lastName: val('lastName'), title: val('title'), email: val('email'), phone: val('phone'), employerOrganizationId: val('employerOrganizationId'), notes: val('notes') });
@@ -287,6 +306,7 @@ function CrmActionModal({
             {outcome.childErrors.length > 0 && (
               <span data-crm-action-child-errors> {outcome.childErrors.length} contact detail(s) could not be saved.</span>
             )}
+            {bridge && <BridgeNote bridge={bridge} />}
             <div style={styles.okActions}>
               <button type="button" style={styles.secondaryBtn} onClick={onClose} data-crm-action-done>Done</button>
             </div>
@@ -427,6 +447,33 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
         { key: 'notes', label: 'Notes', type: 'text', full: true },
       ];
   }
+}
+
+/** Follow-up note after an eligible Add Company: the deal-linkable client mirror. */
+function BridgeNote({ bridge }: { bridge: BridgeOrgToClientOutcome }) {
+  if (bridge.kind === 'created' || bridge.kind === 'linked-existing') {
+    return (
+      <span data-crm-company-bridge="linked">
+        {' '}This company is now deal-linkable — its borrower/client record{' '}
+        {bridge.kind === 'created' ? 'was created' : 'already existed'} and can be linked from a deal.
+      </span>
+    );
+  }
+  if (bridge.kind === 'audit-failed') {
+    return (
+      <span data-crm-company-bridge="audit-failed">
+        {' '}The deal-linkable client record was created, but its audit entry failed — an operator
+        must reattempt the audit.
+      </span>
+    );
+  }
+  return (
+    <span data-crm-company-bridge="failed">
+      {' '}The company was saved, but its deal-linkable client record could not be created
+      {'reason' in bridge ? `: ${bridge.reason}` : ''}. You can create/link it later from the deal's
+      Link CRM client action.
+    </span>
+  );
 }
 
 function describeFailure(o: Exclude<CrmWriteOutcome, { kind: 'success' }>): string {
