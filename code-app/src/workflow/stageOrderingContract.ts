@@ -237,3 +237,79 @@ export function resolveStageOrdering(rows: readonly StageReferenceRow[]): StageO
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Transition graph — an explicit re-verification of the ready ordering used by
+// the admin diagnostics ("is the transition graph valid?"). For a ready ordering
+// this is always valid by construction; the check is defense-in-depth against a
+// future contract regression and provides the ordered path for display.
+// ---------------------------------------------------------------------------
+
+export interface StageTransitionEdge {
+  readonly from: CanonicalStageCode;
+  readonly to: CanonicalStageCode;
+}
+
+export interface StageTransitionGraph {
+  readonly valid: boolean;
+  /** Ordered stage codes reached by following nextStage from the first stage. */
+  readonly path: readonly CanonicalStageCode[];
+  /** Directed adjacency edges (the only legal single-step ADVANCE moves). */
+  readonly edges: readonly StageTransitionEdge[];
+  readonly issues: readonly string[];
+}
+
+/**
+ * Walk the ordering via `nextStage` from the lowest-sequence stage. A valid graph
+ * visits every stage exactly once (no cycles, no unreachable stages) and ends at
+ * the single terminal stage. Adjacency in `edges` is exactly the set of legal
+ * single-step advances — a jump that skips a stage is NOT an edge (illegal).
+ */
+export function describeStageTransitionGraph(ordering: StageOrdering): StageTransitionGraph {
+  const issues: string[] = [];
+  const { stages } = ordering;
+  if (stages.length === 0) {
+    return { valid: false, path: [], edges: [], issues: ['stage ordering has no stages'] };
+  }
+
+  const path: CanonicalStageCode[] = [];
+  const edges: StageTransitionEdge[] = [];
+  const visited = new Set<CanonicalStageCode>();
+  let cursor: OrderedStage | undefined = stages[0];
+  let guard = 0;
+  while (cursor && guard <= stages.length) {
+    if (visited.has(cursor.code)) {
+      issues.push(`transition graph has a cycle at ${cursor.code}`);
+      break;
+    }
+    visited.add(cursor.code);
+    path.push(cursor.code);
+    const next = ordering.nextStage(cursor.code);
+    if (next) edges.push({ from: cursor.code, to: next.code });
+    cursor = next;
+    guard += 1;
+  }
+
+  if (visited.size !== stages.length) {
+    issues.push(`transition graph reaches ${visited.size} of ${stages.length} stages (unreachable stage)`);
+  }
+  const last = path[path.length - 1];
+  if (last && !ordering.isTerminal(last)) {
+    issues.push('transition path does not end at the terminal stage');
+  }
+  const terminalCount = stages.filter((s) => s.terminal).length;
+  if (terminalCount !== 1) {
+    issues.push(`expected exactly one terminal stage, found ${terminalCount}`);
+  }
+
+  return { valid: issues.length === 0, path, edges, issues };
+}
+
+/** True iff `to` is the immediate next stage after `from` (a legal single-step advance). */
+export function isAdjacentAdvance(
+  ordering: StageOrdering,
+  from: CanonicalStageCode,
+  to: CanonicalStageCode,
+): boolean {
+  return ordering.nextStage(from)?.code === to;
+}
