@@ -10,6 +10,14 @@ const updateMock = vi.fn();
 vi.mock('./write/updateDealProfile', () => ({ updateDealProfile: (...a: unknown[]) => updateMock(...a) }));
 vi.mock('./write/buildLiveUpdateDealProfileDeps', () => ({ buildLiveUpdateDealProfileDeps: () => ({}) }));
 
+// Reference option loader is mocked so the modal's dropdown-gating is driven by
+// the test (real options vs unavailable/empty) with no SDK.
+const loadRefMock = vi.fn();
+vi.mock('./write/dealReferenceOptions', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./write/dealReferenceOptions')>();
+  return { ...actual, loadLiveDealReferenceOptions: (...a: unknown[]) => loadRefMock(...a) };
+});
+
 import { useDealData } from './DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
 import { DealProfileEditLauncher } from './DealProfileEditModal';
@@ -68,9 +76,17 @@ function setBanker(over: Partial<ReturnType<typeof useOptionalBanker>> = {}) {
   } as ReturnType<typeof useOptionalBanker>);
 }
 
+const REF_OPTIONS = [
+  { id: '11111111-1111-1111-1111-111111111111', name: 'SBA 7(a)', code: 'SBA_7A', active: true },
+  { id: '22222222-2222-2222-2222-222222222222', name: 'Term Loan', code: 'TERM_LOAN', active: true },
+];
+
 beforeEach(() => {
   vi.clearAllMocks();
   updateMock.mockReset();
+  // Default: reference list is unavailable (fields stay read-only) unless a test
+  // opts into ready options.
+  loadRefMock.mockResolvedValue({ kind: 'unavailable', reason: 'datasource not registered' });
 });
 
 describe('DealProfileEditLauncher — entry point', () => {
@@ -86,6 +102,7 @@ describe('DealProfileEditLauncher — entry point', () => {
     setContext(deal({
       targetCloseDate: '2026-09-30', customerType: 'New', industry: 'Retail',
       guarantorStructure: 'Limited', collateralSummary: 'A/R',
+      productType: 'SBA 7(a)', loanStructure: 'Term Loan', pricingType: 'Variable',
     }));
     setBanker();
     render(<DealProfileEditLauncher source="deal-summary" />);
@@ -182,6 +199,95 @@ describe('DealProfileEditModal — fields + governed save', () => {
   });
 });
 
+describe('DealProfileEditModal — governed reference lookups', () => {
+  it('renders reference dropdowns ONLY when real registered options load', async () => {
+    loadRefMock.mockResolvedValue({ kind: 'ready', options: REF_OPTIONS });
+    setContext(deal());
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="deal-summary" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+
+    // Each reference field becomes an editable <select> with the REAL option names.
+    for (const f of ['productType', 'loanStructure', 'pricingType']) {
+      const sel = await waitFor(() => {
+        const el = document.querySelector(`[data-deal-profile-field="${f}"]`);
+        if (!el) throw new Error('not yet');
+        return el as HTMLSelectElement;
+      });
+      expect(sel.tagName).toBe('SELECT');
+      expect(sel.textContent).toContain('SBA 7(a)');
+      expect(sel.textContent).toContain('Term Loan');
+      // Not read-only anymore.
+      expect(document.querySelector(`[data-deal-profile-field-readonly="${f}"]`)).toBeNull();
+    }
+  });
+
+  it('keeps reference fields READ-ONLY with the exact reason when the list is unavailable', async () => {
+    loadRefMock.mockResolvedValue({ kind: 'unavailable', reason: 'cr664_producttypereferences not registered' });
+    setContext(deal());
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+    await waitFor(() =>
+      expect(document.querySelector('[data-deal-profile-reference-reason="productType"]')?.textContent).toMatch(
+        /not registered/i,
+      ),
+    );
+    // No dropdown was rendered — the field cannot be completed.
+    expect(document.querySelector('[data-deal-profile-field="productType"]')).toBeNull();
+  });
+
+  it('keeps reference fields read-only with the seed reason when the list is empty', async () => {
+    loadRefMock.mockResolvedValue({ kind: 'empty', reason: 'No active reference rows exist yet. Seed them first.' });
+    setContext(deal());
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+    await waitFor(() =>
+      expect(document.querySelector('[data-deal-profile-reference-reason="loanStructure"]')?.textContent).toMatch(
+        /Seed them first/i,
+      ),
+    );
+  });
+
+  it('saves a selected reference as an @odata.bind selection with the loaded allow-list', async () => {
+    loadRefMock.mockResolvedValue({ kind: 'ready', options: REF_OPTIONS });
+    setContext(deal());
+    setBanker();
+    updateMock.mockResolvedValue({
+      kind: 'updated', dealId: 'deal-1', correlationId: 'dp-1',
+      verified: { productType: 'SBA 7(a)' }, changedLabels: ['Product type'], auditId: 'a-1',
+    });
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="deal-summary" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+    const sel = await waitFor(() => {
+      const el = document.querySelector('[data-deal-profile-field="productType"]');
+      if (!el) throw new Error('not yet');
+      return el as HTMLSelectElement;
+    });
+    await user.selectOptions(sel, '11111111-1111-1111-1111-111111111111');
+    await user.click(document.querySelector('[data-deal-profile-save]') as HTMLButtonElement);
+
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1));
+    const arg = updateMock.mock.calls[0][0] as {
+      referencePatch: Record<string, unknown>;
+      allowedReferenceIds: string[];
+    };
+    expect(arg.referencePatch).toEqual({
+      productType: { id: '11111111-1111-1111-1111-111111111111', name: 'SBA 7(a)' },
+    });
+    expect(arg.allowedReferenceIds).toEqual([
+      '11111111-1111-1111-1111-111111111111',
+      '22222222-2222-2222-2222-222222222222',
+    ]);
+    expect(applyPatch).toHaveBeenCalledWith({ productType: 'SBA 7(a)' });
+  });
+});
+
 describe('cockpit missing-count drops after a verified save (pure)', () => {
   it('merging the verified patch removes those fields from the missing list', () => {
     const before = deal();
@@ -195,5 +301,22 @@ describe('cockpit missing-count drops after a verified save (pure)', () => {
     expect(afterMissing).not.toContain('Industry');
     expect(afterMissing).not.toContain('Collateral');
     expect(afterMissing.length).toBeLessThan(beforeMissing.length);
+  });
+
+  it('selecting all three reference lookups drops the last 3 missing fields to 0', () => {
+    // A deal already complete except the three reference lookups (the OmniCare 3).
+    const before = deal({
+      targetCloseDate: '2026-09-30', customerType: 'New', industry: 'Retail',
+      guarantorStructure: 'Limited', collateralSummary: 'A/R',
+      productType: undefined, loanStructure: undefined, pricingType: undefined,
+    });
+    const metricsInput = { tasks: undefined, documents: undefined, creditMemo: undefined, activity: undefined };
+    const beforeMissing = deriveDealCockpitMetrics({ deal: before, ...metricsInput }).missingFieldLabels;
+    expect(beforeMissing).toEqual(expect.arrayContaining(['Product type', 'Loan structure', 'Pricing type']));
+
+    // Verified reference names merged via applyVerifiedDealPatch.
+    const after = { ...before, productType: 'SBA 7(a)', loanStructure: 'Term Loan', pricingType: 'Variable' };
+    const afterMissing = deriveDealCockpitMetrics({ deal: after, ...metricsInput }).missingFieldLabels;
+    expect(afterMissing).toHaveLength(0);
   });
 });

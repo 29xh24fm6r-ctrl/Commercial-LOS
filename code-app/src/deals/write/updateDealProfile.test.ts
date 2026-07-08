@@ -206,6 +206,147 @@ describe('updateDealProfile — readback verification', () => {
   });
 });
 
+describe('updateDealProfile — governed reference lookups', () => {
+  const PT = '11111111-1111-1111-1111-111111111111';
+  const LS = '22222222-2222-2222-2222-222222222222';
+  const PR = '33333333-3333-3333-3333-333333333333';
+
+  function refInput(over: Partial<UpdateDealProfileInput> = {}): UpdateDealProfileInput {
+    return {
+      ...AUTH,
+      dealId: 'deal-1',
+      patch: {},
+      referencePatch: {
+        productType: { id: PT, name: 'SBA 7(a)' },
+        loanStructure: { id: LS, name: 'Term Loan' },
+        pricingType: { id: PR, name: 'Variable' },
+      },
+      allowedReferenceIds: [PT, LS, PR],
+      ...over,
+    };
+  }
+
+  it('writes the correct @odata.bind payloads and verifies the lookups on readback', async () => {
+    const store: { body?: Record<string, unknown> } = {};
+    const deps: UpdateDealProfileDeps = {
+      updateDeal: async (_id, body) => { store.body = body; return { success: true }; },
+      // Dataverse returns the persisted lookups as lowercase _value fields.
+      readDeal: async () => ({
+        success: true,
+        row: {
+          _cr664_producttypereference_value: PT.toLowerCase(),
+          _cr664_loanstructuretypereference_value: LS.toLowerCase(),
+          _cr664_pricingtypereference_value: PR.toLowerCase(),
+        },
+      }),
+      emitAudit: async () => ({ ok: true, id: 'a-1' }),
+    };
+    const out = await updateDealProfile(refInput(), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({
+      'cr664_ProductTypeReference@odata.bind': `/cr664_producttypereferences(${PT})`,
+      'cr664_LoanStructureTypeReference@odata.bind': `/cr664_producttypereferences(${LS})`,
+      'cr664_PricingTypeReference@odata.bind': `/cr664_producttypereferences(${PR})`,
+    });
+    if (out.kind === 'updated') {
+      expect(out.verified.productType).toBe('SBA 7(a)');
+      expect(out.verified.loanStructure).toBe('Term Loan');
+      expect(out.verified.pricingType).toBe('Variable');
+    }
+  });
+
+  it('rejects an arbitrary GUID that is not in the loaded reference list', async () => {
+    const deps = fakeDeps().deps;
+    const out = await updateDealProfile(
+      refInput({
+        referencePatch: { productType: { id: '99999999-9999-9999-9999-999999999999', name: 'Fake' } },
+        allowedReferenceIds: [PT, LS, PR],
+      }),
+      deps,
+    );
+    expect(out.kind).toBe('invalid-input');
+    if (out.kind === 'invalid-input') expect(out.reason).toMatch(/not one of the loaded reference options/i);
+  });
+
+  it('rejects a non-GUID reference id', async () => {
+    const deps = fakeDeps().deps;
+    const out = await updateDealProfile(
+      refInput({ referencePatch: { productType: { id: 'not-a-guid', name: 'x' } }, allowedReferenceIds: ['not-a-guid'] }),
+      deps,
+    );
+    expect(out.kind).toBe('invalid-input');
+  });
+
+  it('rejects any reference selection when no allow-list was provided', async () => {
+    const deps = fakeDeps().deps;
+    const out = await updateDealProfile(
+      refInput({ referencePatch: { productType: { id: PT, name: 'SBA' } }, allowedReferenceIds: undefined }),
+      deps,
+    );
+    expect(out.kind).toBe('invalid-input');
+  });
+
+  it('clears a reference lookup with null (bind null, readback empty)', async () => {
+    const store: { body?: Record<string, unknown> } = {};
+    const deps: UpdateDealProfileDeps = {
+      updateDeal: async (_id, body) => { store.body = body; return { success: true }; },
+      readDeal: async () => ({ success: true, row: { _cr664_producttypereference_value: null } }),
+      emitAudit: async () => ({ ok: true, id: 'a-1' }),
+    };
+    const out = await updateDealProfile(refInput({ referencePatch: { productType: null }, allowedReferenceIds: [] }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ 'cr664_ProductTypeReference@odata.bind': null });
+  });
+
+  it('returns readback-mismatch when the lookup did not persist', async () => {
+    const deps: UpdateDealProfileDeps = {
+      updateDeal: async () => ({ success: true }),
+      readDeal: async () => ({ success: true, row: { _cr664_producttypereference_value: 'some-other-guid' } }),
+      emitAudit: async () => ({ ok: true, id: 'a-1' }),
+    };
+    const out = await updateDealProfile(
+      refInput({ referencePatch: { productType: { id: PT, name: 'SBA' } }, allowedReferenceIds: [PT] }),
+      deps,
+    );
+    expect(out.kind).toBe('readback-mismatch');
+  });
+
+  it('mixes scalar + reference fields in one governed write', async () => {
+    const store: { body?: Record<string, unknown> } = {};
+    const deps: UpdateDealProfileDeps = {
+      updateDeal: async (_id, body) => { store.body = body; return { success: true }; },
+      readDeal: async () => ({
+        success: true,
+        row: { cr664_collateralsummary: 'A/R', _cr664_producttypereference_value: PT.toLowerCase() },
+      }),
+      emitAudit: async () => ({ ok: true, id: 'a-1' }),
+    };
+    const out = await updateDealProfile(
+      {
+        ...AUTH, dealId: 'deal-1',
+        patch: { collateralSummary: 'A/R' },
+        referencePatch: { productType: { id: PT, name: 'SBA 7(a)' } },
+        allowedReferenceIds: [PT],
+      },
+      deps,
+    );
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({
+      cr664_collateralsummary: 'A/R',
+      'cr664_ProductTypeReference@odata.bind': `/cr664_producttypereferences(${PT})`,
+    });
+  });
+
+  it('still refuses amount/stage/status/banker/client alongside references', async () => {
+    const deps = fakeDeps().deps;
+    const out = await updateDealProfile(
+      refInput({ patch: { stage: 'Closed' } as never }),
+      deps,
+    );
+    expect(out.kind).toBe('invalid-input');
+  });
+});
+
 describe('updateDealProfile — write-boundary discipline (source)', () => {
   const SRC = readFileSync(resolve(__dirname, 'updateDealProfile.ts'), 'utf8');
 

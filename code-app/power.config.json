@@ -112,6 +112,11 @@
           "logicalName": "cr664_dealstatusreference",
           "isHidden": false
         },
+        "producttypereferences": {
+          "entitySetName": "cr664_producttypereferences",
+          "logicalName": "cr664_producttypereference",
+          "isHidden": false
+        },
         "performancemetrics": {
           "entitySetName": "cr664_performancemetrics",
           "logicalName": "cr664_performancemetric",

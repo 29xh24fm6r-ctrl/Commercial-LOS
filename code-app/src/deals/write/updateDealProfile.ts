@@ -34,8 +34,13 @@ import {
   Cr664_loandealscr664_guarantorstructure,
 } from '../../generated/models/Cr664_loandealsModel';
 import { newCorrelationId } from '../../shared/governance/correlationId';
+import {
+  DEAL_REFERENCE_LOOKUPS,
+  type DealReferenceLookupField,
+  type DealReferenceLookupConfig,
+} from './dealReferenceOptions';
 
-/** The editable profile fields this phase governs. */
+/** The editable scalar / option-set profile fields this phase governs. */
 export type DealProfileField =
   | 'targetCloseDate'
   | 'collateralSummary'
@@ -43,8 +48,17 @@ export type DealProfileField =
   | 'industry'
   | 'guarantorStructure';
 
-/** A patch value: a string to set, or `null` to clear. */
+/** A scalar patch value: a string to set, or `null` to clear. */
 export type DealProfilePatch = Partial<Record<DealProfileField, string | null>>;
+
+/** A chosen reference row (its id + display name, from the loaded list). */
+export interface DealReferenceSelection {
+  readonly id: string;
+  readonly name: string;
+}
+
+/** A reference patch: a chosen row to set, or `null` to clear the lookup. */
+export type DealReferencePatch = Partial<Record<DealReferenceLookupField, DealReferenceSelection | null>>;
 
 export interface UpdateDealProfileInput {
   readonly dealId: string;
@@ -52,6 +66,15 @@ export interface UpdateDealProfileInput {
   readonly actorSystemUserId?: string;
   readonly authorized: boolean;
   readonly patch: DealProfilePatch;
+  /**
+   * Optional reference-lookup selections (Product Type / Loan Structure /
+   * Pricing Type). Each chosen id MUST come from `allowedReferenceIds` (the
+   * ids the caller loaded from the real reference list) — arbitrary GUIDs are
+   * rejected.
+   */
+  readonly referencePatch?: DealReferencePatch;
+  /** The reference-row ids the caller actually loaded, for allow-list checks. */
+  readonly allowedReferenceIds?: readonly string[];
 }
 
 type FieldKind = 'text' | 'date' | 'choice';
@@ -118,6 +141,9 @@ export interface VerifiedProfilePatch {
   readonly customerType?: string | undefined;
   readonly industry?: string | undefined;
   readonly guarantorStructure?: string | undefined;
+  readonly productType?: string | undefined;
+  readonly loanStructure?: string | undefined;
+  readonly pricingType?: string | undefined;
 }
 
 export type UpdateDealProfileOutcome =
@@ -148,6 +174,71 @@ function dayKey(v: unknown): string | null {
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString().slice(0, 10);
+}
+
+const GUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/** Dataverse `_x_value` GUIDs come back lowercase, no braces; normalize both. */
+function normalizeGuid(v: unknown): string {
+  return typeof v === 'string' ? v.trim().replace(/[{}]/g, '').toLowerCase() : '';
+}
+
+interface PreparedReference {
+  readonly field: DealReferenceLookupField;
+  readonly cfg: DealReferenceLookupConfig;
+  /** `/table(id)` to set, or null to clear. */
+  readonly writeValue: string | null;
+  /** The id to verify on readback, or null when cleared. */
+  readonly readbackId: string | null;
+  readonly displayValue: string | undefined;
+}
+
+/**
+ * Validate + prepare one reference selection. The id MUST be GUID-shaped and
+ * present in `allowedIds` (the ids loaded from the real reference list) — this
+ * is what rejects arbitrary GUIDs. `null` clears the lookup.
+ */
+function prepareReference(
+  field: DealReferenceLookupField,
+  selection: DealReferenceSelection | null,
+  allowedIds: ReadonlySet<string>,
+): { ok: true; prepared: PreparedReference } | { ok: false; reason: string } {
+  const cfg = DEAL_REFERENCE_LOOKUPS[field];
+  if (selection === null) {
+    return { ok: true, prepared: { field, cfg, writeValue: null, readbackId: null, displayValue: undefined } };
+  }
+  if (typeof selection !== 'object' || typeof selection.id !== 'string') {
+    return { ok: false, reason: `${cfg.label} selection is malformed.` };
+  }
+  const id = selection.id.trim();
+  if (!GUID_RE.test(id.replace(/[{}]/g, ''))) {
+    return { ok: false, reason: `${cfg.label} selection is not a valid reference id.` };
+  }
+  if (!allowedIds.has(normalizeGuid(id))) {
+    return {
+      ok: false,
+      reason: `The selected ${cfg.label} is not one of the loaded reference options.`,
+    };
+  }
+  return {
+    ok: true,
+    prepared: {
+      field,
+      cfg,
+      writeValue: `/${cfg.targetTable}(${id})`,
+      readbackId: id,
+      displayValue: (selection.name ?? '').trim() || undefined,
+    },
+  };
+}
+
+/** True when the readback row confirms the prepared reference persisted. */
+function referenceReadbackConfirms(row: Record<string, unknown>, p: PreparedReference): boolean {
+  const actual = row[p.cfg.readbackValueField];
+  if (p.readbackId === null) {
+    return actual === null || actual === undefined || actual === '';
+  }
+  return normalizeGuid(actual) === normalizeGuid(p.readbackId);
 }
 
 interface PreparedField {
@@ -248,12 +339,23 @@ export async function updateDealProfile(
     return { kind: 'invalid-input', field: unknownKeys[0], reason: `Field "${unknownKeys[0]}" cannot be edited here.` };
   }
 
-  // 4. Reject an empty patch.
-  if (suppliedKeys.length === 0) {
+  // 3b. Reject unknown reference-lookup fields (only the three are allowed).
+  const referencePatch = input.referencePatch ?? {};
+  const allowedRefFields = new Set<string>(Object.keys(DEAL_REFERENCE_LOOKUPS));
+  const suppliedRefKeys = Object.keys(referencePatch).filter(
+    (k) => referencePatch[k as DealReferenceLookupField] !== undefined,
+  );
+  const unknownRefKeys = suppliedRefKeys.filter((k) => !allowedRefFields.has(k));
+  if (unknownRefKeys.length > 0) {
+    return { kind: 'invalid-input', field: unknownRefKeys[0], reason: `Reference field "${unknownRefKeys[0]}" cannot be edited here.` };
+  }
+
+  // 4. Reject an empty patch (no scalar AND no reference selections).
+  if (suppliedKeys.length === 0 && suppliedRefKeys.length === 0) {
     return { kind: 'empty-patch', reason: 'No profile fields were provided to update.' };
   }
 
-  // 5. Validate + prepare each supplied field.
+  // 5. Validate + prepare each supplied scalar field.
   const prepared: PreparedField[] = [];
   for (const key of suppliedKeys) {
     const field = key as DealProfileField;
@@ -264,11 +366,24 @@ export async function updateDealProfile(
     prepared.push(result.prepared);
   }
 
+  // 5b. Validate + prepare each reference selection against the loaded allow-list.
+  const allowedIds = new Set<string>((input.allowedReferenceIds ?? []).map(normalizeGuid));
+  const preparedRefs: PreparedReference[] = [];
+  for (const key of suppliedRefKeys) {
+    const field = key as DealReferenceLookupField;
+    const result = prepareReference(field, referencePatch[field] as DealReferenceSelection | null, allowedIds);
+    if (!result.ok) {
+      return { kind: 'invalid-input', field, reason: result.reason };
+    }
+    preparedRefs.push(result.prepared);
+  }
+
   const correlationId = newCorrelationId('dp');
 
   // 6. Build the allow-listed update body. Only approved write keys can appear.
   const body: Record<string, unknown> = {};
   for (const p of prepared) body[p.spec.writeKey] = p.writeValue;
+  for (const p of preparedRefs) body[p.cfg.bindProperty] = p.writeValue;
   // Defense in depth: never write a forbidden column.
   for (const forbidden of DEAL_PROFILE_FORBIDDEN_COLUMNS) {
     if (forbidden in body) {
@@ -295,10 +410,16 @@ export async function updateDealProfile(
     return { kind: 'write-failed', error: err instanceof Error ? err.message : String(err), correlationId };
   }
   if (!readback.success || !readback.row) {
-    return { kind: 'readback-mismatch', field: prepared[0].field, correlationId };
+    const anyField = prepared[0]?.field ?? preparedRefs[0]?.field ?? 'dealId';
+    return { kind: 'readback-mismatch', field: anyField, correlationId };
   }
   for (const p of prepared) {
     if (!readbackConfirms(readback.row, p)) {
+      return { kind: 'readback-mismatch', field: p.field, correlationId };
+    }
+  }
+  for (const p of preparedRefs) {
+    if (!referenceReadbackConfirms(readback.row, p)) {
       return { kind: 'readback-mismatch', field: p.field, correlationId };
     }
   }
@@ -308,6 +429,10 @@ export async function updateDealProfile(
   for (const p of prepared) {
     (verified as Record<string, string | undefined>)[p.field] = p.displayValue;
     changedLabels.push(p.spec.label);
+  }
+  for (const p of preparedRefs) {
+    (verified as Record<string, string | undefined>)[p.field] = p.displayValue;
+    changedLabels.push(p.cfg.label);
   }
 
   // 9. Audit the update (fail-closed cr664_ChangedBy resolution lives in the dep).
