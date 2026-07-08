@@ -63,11 +63,18 @@ export const DOMAIN_LABELS: Record<ActivationDomainKey, string> = {
  * constants intentionally STAY false (public + downstream provably off; one-line
  * rollback). The other five toggles remain false — their environment work is not done.
  */
-// Phase 256B: all six domains are certified — New Deal create from the Phase 227/228A smoke,
-// and the remaining five from their GO final-launch smoke artifacts under
-// docs/operator-evidence/final-launch/ (validated by src/access/finalLaunchSmokeEvidence.ts:
-// create/readback/update/cleanup, or delivery/audit for borrower send). A domain resolves
-// enabled only when certified AND its gate flag is on; both now hold for all six.
+// All six operator certification toggles are true (the environment-verification work was
+// recorded). Certification is only ONE of three conditions: a domain resolves enabled only when
+// certified AND its gate flag is on AND its final-launch smoke evidence is accepted at HIGH
+// confidence (deriveProductionEnvironmentVerification: `certified && gateFlagOn && evidenceHigh`).
+// CURRENT STATE (do not read this block as "everything is live"): only newDealCreate resolves
+// enabled — via the approved pilot switch — so enabledCount = 1/6 and fullLaunchReady = false.
+// The other five are held down by an off gate flag (crmWriteback / documentChecklist /
+// borrowerSend / portfolioBoarding) and/or evidence that is not yet HIGH (their committed
+// docs/operator-evidence/final-launch/*.json are placeholders — empty record ids, synthetic
+// timestamps, a sentinel operator, or missing external-send proof). stageAdvancement is the
+// notable case: its flag is on but its evidence artifact is outcome=failed, so it is correctly
+// held not-enabled. Nothing here asserts launch up; evidence and flags can only gate down.
 export const PRODUCTION_ENVIRONMENT_CERTIFICATION: DomainEnvironmentCertification = Object.freeze({
   newDealCreate: true,
   crmWriteback: true,

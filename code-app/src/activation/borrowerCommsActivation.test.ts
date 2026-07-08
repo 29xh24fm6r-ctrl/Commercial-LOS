@@ -58,11 +58,40 @@ describe('Phase 222 — borrower comms activation readiness', () => {
     expect(r.readiness.blockers.join(' ')).toMatch(/recipient/i);
   });
   it('launch-ready only when certified live mode + certified recipient + diagnostic test + passed smoke', () => {
-    const r = deriveBorrowerCommsActivation(comms({
-      liveMode: 'EMAIL_LIVE', actorAuthorized: true, contentBorrowerSafe: true, previewConfirmed: true,
-      auditWired: true, timelineWired: true, testRecipientIsDiagnostic: true, singleRecordSmokeEnabled: true,
-      recipient: { source: 'certified-borrower-contact', address: 'borrower@certified.ogb.com' }, evidence: ev([passedComms()]),
-    }));
+    const r = deriveBorrowerCommsActivation(comms(allSet()));
     expect(r.readiness.level).toBe('launch-ready');
   });
+});
+
+/** The fully-satisfied input — every gate green. Isolated negatives flip exactly one. */
+function allSet(): Partial<BorrowerCommsActivationInput> {
+  return {
+    liveMode: 'EMAIL_LIVE', actorAuthorized: true, contentBorrowerSafe: true, previewConfirmed: true,
+    auditWired: true, timelineWired: true, testRecipientIsDiagnostic: true, singleRecordSmokeEnabled: true,
+    recipient: { source: 'certified-borrower-contact', address: 'borrower@certified.ogb.com' }, evidence: ev([passedComms()]),
+  };
+}
+
+describe('Phase 222 — each borrower-send gate blocks in isolation (highest-risk domain)', () => {
+  // Flipping any ONE gate off must block the send — proving no single gate can silently
+  // become always-pass. This is the guard the aggregate happy/blocked tests do not give.
+  const cases: ReadonlyArray<[string, Partial<BorrowerCommsActivationInput>, RegExp]> = [
+    ['certified live mode', { liveMode: null }, /live mode/i],
+    ['actor authorized', { actorAuthorized: false }, /actor authorized/i],
+    ['recipient certified', { recipient: { source: 'none', address: null } }, /recipient/i],
+    ['content borrower-safe', { contentBorrowerSafe: false }, /borrower-safe/i],
+    ['preview confirmed', { previewConfirmed: false }, /preview confirmed/i],
+    ['audit sink present', { auditWired: false }, /audit sink/i],
+    ['timeline sink present', { timelineWired: false }, /timeline sink/i],
+    ['diagnostic test recipient first', { testRecipientIsDiagnostic: false }, /diagnostic mailbox/i],
+    ['single-record smoke enabled', { singleRecordSmokeEnabled: false }, /singleRecordSmokeEnabled/i],
+    ['comms smoke passed', { evidence: ev() }, /smoke/i],
+  ];
+  for (const [label, off, blocker] of cases) {
+    it(`blocked when "${label}" is not satisfied (and only that gate is off)`, () => {
+      const r = deriveBorrowerCommsActivation(comms({ ...allSet(), ...off }));
+      expect(r.readiness.level).toBe('blocked');
+      expect(r.readiness.blockers.join(' | ')).toMatch(blocker);
+    });
+  }
 });

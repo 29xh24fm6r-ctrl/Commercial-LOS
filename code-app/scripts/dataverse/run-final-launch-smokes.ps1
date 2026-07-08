@@ -72,7 +72,30 @@ function Write-Artifact($capability, $obj) {
   return $file
 }
 
+# Sentinel / non-attributable operator values — mirrors SENTINEL_OPERATOR_UPNS in
+# src/access/finalLaunchSmokeEvidence.ts. A passed artifact may never attribute to one.
+$SENTINEL_UPNS = @('unknown-operator', 'unknown', '', 'system', 'service-account', 'serviceaccount', 'n/a', 'na', 'none', '00000000-0000-0000-0000-000000000000')
+
+function Test-AttributableUpn($upn) {
+  $v = ([string]$upn).Trim()
+  if ($SENTINEL_UPNS -contains $v.ToLower()) { return $false }
+  return $v -match '^[^\s@]+@[^\s@]+\.[^\s@]+$'
+}
+
+# True when the id field carries at least one non-empty id (array or unwrapped scalar).
+function Test-HasId($v) {
+  if ($null -eq $v) { return $false }
+  if ($v -is [string]) { return -not [string]::IsNullOrWhiteSpace($v) }
+  foreach ($x in @($v)) { if (-not [string]::IsNullOrWhiteSpace([string]$x)) { return $true } }
+  return $false
+}
+
 # ---- fail-closed manual-evidence validation (mirrors finalLaunchSmokeEvidence.ts) --------
+# Parse-shape checks apply to every record. When outcome=passed, ALSO enforce the same
+# acceptance predicate deriveEvidenceIntegrity() uses — attributable identity + shape GO +
+# class-appropriate machine proof — so a recorded "passed" artifact can NEVER be one the
+# TypeScript gate will silently reject as EVIDENCE_INSUFFICIENT (NONE). A placeholder is
+# recorded outcome=failed, never a passed record without proof.
 function Test-ManualEvidence($e) {
   $errs = @()
   if ($ALL_CAPS -notcontains $e.capability) { $errs += "capability must be one of: $($ALL_CAPS -join ', ')" }
@@ -85,6 +108,24 @@ function Test-ManualEvidence($e) {
   }
   if ($e.capability -eq 'borrowerSend') {
     if ($e.deliveryVerified -isnot [bool] -and $e.auditVerified -isnot [bool]) { $errs += 'borrowerSend requires deliveryVerified or auditVerified boolean' }
+  }
+
+  # Acceptance parity — only a genuinely GO-eligible artifact may be recorded outcome=passed.
+  if ($e.outcome -eq 'passed') {
+    if (-not (Test-AttributableUpn $e.operatorUpn)) { $errs += "passed evidence needs an attributable operatorUpn (not a sentinel): '$($e.operatorUpn)'" }
+    if ($e.liveOperationPerformed -ne $true) { $errs += 'passed evidence requires liveOperationPerformed=true' }
+    if ($e.readbackVerified -ne $true) { $errs += 'passed evidence requires readbackVerified=true' }
+    if ($e.capability -eq 'borrowerSend') {
+      if ($e.deliveryVerified -ne $true -and $e.auditVerified -ne $true) { $errs += 'passed borrowerSend requires deliveryVerified or auditVerified = true' }
+      if ([string]::IsNullOrWhiteSpace([string]$e.deliveryReceiptId)) { $errs += 'passed borrowerSend requires a transport deliveryReceiptId (machine proof)' }
+      if ([string]::IsNullOrWhiteSpace([string]$e.approvedRecipient)) { $errs += 'passed borrowerSend requires an approvedRecipient (machine proof)' }
+      if (-not (Test-AttributableUpn $e.approverUpn)) { $errs += 'passed borrowerSend requires a valid approverUpn (named approver)' }
+    }
+    else {
+      # AUTOMATED_CRUD capabilities: crmLivePersistence / portfolioBoarding / documentChecklist / stageAdvancement.
+      if ($e.rollbackVerified -ne $true) { $errs += 'passed CRUD evidence requires rollbackVerified=true (verified cleanup)' }
+      if (-not (Test-HasId $e.affectedRecordIds)) { $errs += 'passed CRUD evidence requires a non-empty affectedRecordIds (machine proof)' }
+    }
   }
   return $errs
 }
