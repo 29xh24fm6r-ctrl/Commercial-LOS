@@ -18,6 +18,13 @@ vi.mock('./write/dealReferenceOptions', async (importOriginal) => {
   return { ...actual, loadLiveDealReferenceOptionsByCategory: (...a: unknown[]) => loadRefMock(...a) };
 });
 
+// CRM/NAICS industry projection is mocked so the modal's Industry banners are
+// driven by the test with no SDK.
+const projMock = vi.fn();
+vi.mock('../crm/dealIndustryProjection', () => ({
+  loadLiveDealIndustryProjection: (...a: unknown[]) => projMock(...a),
+}));
+
 import { useDealData } from './DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
 import { DealProfileEditLauncher } from './DealProfileEditModal';
@@ -98,6 +105,8 @@ beforeEach(() => {
   // Default: every category is unavailable (fields stay read-only) unless a test
   // opts into ready options.
   loadRefMock.mockResolvedValue(byCategory({}, { kind: 'unavailable', reason: 'datasource not registered' }));
+  // Default: no CRM link, so no Industry projection banner unless a test opts in.
+  projMock.mockResolvedValue({ kind: 'no-crm-link' });
 });
 
 describe('DealProfileEditLauncher — entry point', () => {
@@ -325,6 +334,86 @@ describe('DealProfileEditModal — governed reference lookups', () => {
     const sel = document.querySelector('[data-deal-profile-field="productType"]') as HTMLSelectElement;
     expect(sel.textContent).toMatch(/Retired Product/);
     expect(sel.textContent).toMatch(/\(inactive\)/);
+  });
+});
+
+describe('DealProfileEditModal — CRM/NAICS industry projection (Phase 4B)', () => {
+  const derived = { kind: 'derived', naicsCode: '333111', sectorCode: '31-33', sectorTitle: 'Manufacturing', dealIndustry: 'Manufacturing' };
+
+  it('shows the CRM/NAICS source when the deal industry already matches', async () => {
+    projMock.mockResolvedValue(derived);
+    setContext(deal({ industry: 'Manufacturing' }));
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="deal-summary" />);
+    await user.click(screen.getByRole('button', { name: /Deal Profile/i }));
+    const src = await waitFor(() => {
+      const el = document.querySelector('[data-deal-industry-source="crm-naics"]');
+      if (!el) throw new Error('not yet');
+      return el as HTMLElement;
+    });
+    expect(src.textContent).toMatch(/Manufacturing/);
+    expect(document.querySelector('[data-deal-industry-conflict]')).toBeNull();
+  });
+
+  it('suggests + applies the CRM/NAICS industry when the deal has none (governed write, no reload)', async () => {
+    projMock.mockResolvedValue(derived);
+    setContext(deal({ industry: undefined }));
+    setBanker();
+    updateMock.mockResolvedValue({
+      kind: 'updated', dealId: 'deal-1', correlationId: 'dp-1',
+      verified: { industry: 'Manufacturing' }, changedLabels: ['Industry'], auditId: 'a-1',
+    });
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Deal Profile/i }));
+
+    const apply = await waitFor(() => {
+      const el = document.querySelector('[data-deal-industry-apply]');
+      if (!el) throw new Error('not yet');
+      return el as HTMLButtonElement;
+    });
+    await user.click(apply);
+
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1));
+    // Applies ONLY the mapped deal industry option, via the governed adapter.
+    expect((updateMock.mock.calls[0][0] as { patch: Record<string, unknown> }).patch).toEqual({ industry: 'Manufacturing' });
+    // The verified value merges into the cockpit (no reload).
+    expect(applyPatch).toHaveBeenCalledWith({ industry: 'Manufacturing' });
+  });
+
+  it('warns on a CRM/deal industry conflict', async () => {
+    projMock.mockResolvedValue(derived);
+    setContext(deal({ industry: 'Retail' }));
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="deal-summary" />);
+    await user.click(screen.getByRole('button', { name: /Deal Profile/i }));
+    const conflict = await waitFor(() => {
+      const el = document.querySelector('[data-deal-industry-conflict]');
+      if (!el) throw new Error('not yet');
+      return el as HTMLElement;
+    });
+    expect(conflict.textContent).toMatch(/CRM says/i);
+    expect(conflict.textContent).toMatch(/Manufacturing/);
+    expect(conflict.textContent).toMatch(/Retail/);
+    // Apply is offered to reconcile.
+    expect(document.querySelector('[data-deal-industry-apply]')).not.toBeNull();
+  });
+
+  it('shows an honest "no mapped industry" state (no apply, no fabrication)', async () => {
+    projMock.mockResolvedValue({ kind: 'no-mapping', naicsCode: '541511', sectorCode: '54', sectorTitle: 'Professional, Scientific, and Technical Services' });
+    setContext(deal({ industry: undefined }));
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Deal Profile/i }));
+    await waitFor(() =>
+      expect(document.querySelector('[data-deal-industry-nomapping]')?.textContent).toMatch(/no mapped deal industry/i),
+    );
+    // No apply button, no fabricated derived industry.
+    expect(document.querySelector('[data-deal-industry-apply]')).toBeNull();
+    expect(document.querySelector('[data-deal-industry-source]')).toBeNull();
   });
 });
 

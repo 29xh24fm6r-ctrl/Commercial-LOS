@@ -41,6 +41,19 @@ import {
  */
 export const BRIDGE_DEFAULT_BORROWER_TYPE: ClientBorrowerType = 'Corporation';
 
+/**
+ * Phase 4B — persisting the reverse cr664_Organization link (client relationship
+ * → CRM organization) is OFF by default. The lookup does not exist until the
+ * maker applies create-deal-industry-crm-naics.ps1 + regenerates; writing the
+ * bind before then would break the live bridge. When armed (via the live factory
+ * setting `linkOrganization`), a newly-mirrored client carries the org link so
+ * the Deal Industry projection can reach the org's NAICS. Additive + reversible.
+ */
+export const BRIDGE_ORG_LINK_ENABLED = false as const;
+
+/** Entity set the org lookup binds to. */
+const CRM_ORGANIZATIONS_ENTITY_SET = 'cr664_crmorganizations';
+
 export interface BridgeOrgToClientInput extends CrmActor {
   /** The explicitly-created cr664_crmorganization id being mirrored. */
   readonly organizationId: string;
@@ -73,6 +86,12 @@ export interface BridgeOrgToClientDeps {
   readonly createClientRelationship: (payload: Record<string, unknown>) => Promise<WriteResult>;
   readonly readClientRelationship: (id: string) => Promise<ClientRelationshipReadback>;
   readonly emitAudit: (payload: Record<string, unknown>) => Promise<WriteResult>;
+  /**
+   * When true, the created mirror persists the cr664_Organization reverse link
+   * back to the source CRM org (Phase 4B). Default-off / undefined preserves the
+   * pre-4B behaviour (no org bind written).
+   */
+  readonly linkOrganization?: boolean;
 }
 
 export type BridgeOrgToClientOutcome =
@@ -189,6 +208,11 @@ export async function bridgeOrgToClientRelationship(
     cr664_clientname: clientName,
     cr664_borrowertype: CLIENT_BORROWER_TYPES[borrowerTypeLabel],
     cr664_existingcustomerflag: input.taxIdPresent === true ? true : undefined,
+    // Phase 4B (default-off): persist the reverse link to the source CRM org so
+    // the Deal Industry projection can reach its NAICS. Only when armed.
+    ...(deps.linkOrganization
+      ? { 'cr664_Organization@odata.bind': `/${CRM_ORGANIZATIONS_ENTITY_SET}(${trimmed(input.organizationId)})` }
+      : {}),
   });
 
   let created: WriteResult;
@@ -257,6 +281,8 @@ function odataEscape(v: string): string {
 
 export function buildLiveBridgeOrgToClientDeps(): BridgeOrgToClientDeps {
   return {
+    // Default-off until the maker applies the cr664_Organization lookup + arms it.
+    linkOrganization: BRIDGE_ORG_LINK_ENABLED,
     findClientRelationshipByName: async (name) => {
       const { Cr664_clientrelationshipsService: s } = await import(
         '../../generated/services/Cr664_clientrelationshipsService'

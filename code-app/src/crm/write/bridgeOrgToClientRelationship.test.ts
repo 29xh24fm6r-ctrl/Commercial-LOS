@@ -6,6 +6,7 @@ import {
   bridgedClientRelationshipId,
   buildLiveBridgeOrgToClientDeps,
   BRIDGE_DEFAULT_BORROWER_TYPE,
+  BRIDGE_ORG_LINK_ENABLED,
   type BridgeOrgToClientDeps,
   type BridgeOrgToClientInput,
 } from './bridgeOrgToClientRelationship';
@@ -93,6 +94,25 @@ describe('bridgeOrgToClientRelationship — create path', () => {
     const { deps, store } = fakeDeps();
     await bridgeOrgToClientRelationship(input({ borrowerType: 'LLC' }), deps);
     expect(store.payload).toMatchObject({ cr664_borrowertype: CLIENT_BORROWER_TYPES.LLC });
+  });
+
+  it('does NOT write the org reverse link by default (Phase 4B off)', async () => {
+    const { deps, store } = fakeDeps();
+    await bridgeOrgToClientRelationship(input(), deps);
+    expect(store.payload).not.toHaveProperty('cr664_Organization@odata.bind');
+  });
+
+  it('persists the org reverse link when armed (linkOrganization: true)', async () => {
+    const { deps, store } = fakeDeps({ linkOrganization: true });
+    await bridgeOrgToClientRelationship(input({ organizationId: 'org-omni-1' }), deps);
+    expect(store.payload).toMatchObject({
+      'cr664_Organization@odata.bind': '/cr664_crmorganizations(org-omni-1)',
+    });
+  });
+
+  it('the live factory ships the org link default-off', () => {
+    expect(BRIDGE_ORG_LINK_ENABLED).toBe(false);
+    expect(buildLiveBridgeOrgToClientDeps().linkOrganization).toBe(false);
   });
 
   it('accepts the "Client" party type too', async () => {

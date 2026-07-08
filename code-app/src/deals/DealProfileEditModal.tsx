@@ -24,6 +24,10 @@ import {
   type DealReferenceOptionsResult,
   type DealReferenceOptionsByCategory,
 } from './write/dealReferenceOptions';
+import {
+  loadLiveDealIndustryProjection,
+  type DealIndustryProjection,
+} from '../crm/dealIndustryProjection';
 
 /**
  * Governed Deal Profile completion — banker-facing entry point + modal.
@@ -165,8 +169,58 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
+  // CRM/NAICS industry projection (Phase 4B): derived from the linked client's
+  // organization NAICS. Drives the Industry field's source / conflict banners and
+  // the governed "Apply CRM/NAICS industry" action. Fail-closed: any missing hop
+  // is an honest state and Industry stays banker-editable.
+  const [industryProj, setIndustryProj] = useState<{ kind: 'loading' } | DealIndustryProjection>({ kind: 'loading' });
+  const [applyState, setApplyState] = useState<{ kind: 'idle' } | { kind: 'applying' } | { kind: 'error'; reason: string }>({ kind: 'idle' });
+
+  useEffect(() => {
+    let alive = true;
+    loadLiveDealIndustryProjection(deal.clientId)
+      .then((p) => alive && setIndustryProj(p))
+      .catch(() => {
+        if (alive) setIndustryProj({ kind: 'unavailable', reason: 'projection load failed' });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [deal.clientId]);
+
   const set = (k: keyof typeof fields, v: string) => setFields((s) => ({ ...s, [k]: v }));
   const setRef = (f: DealReferenceLookupField, v: string) => setRefSel((s) => ({ ...s, [f]: v }));
+
+  // Explicit, governed apply of the CRM/NAICS-derived industry (reuses
+  // updateDealProfile: validate → write → readback → audit). Writes only on this
+  // deliberate action; on success the verified value merges into the cockpit.
+  async function onApplyCrmIndustry(industryLabel: string) {
+    if (!banker?.systemUserId || applyState.kind === 'applying') return;
+    setApplyState({ kind: 'applying' });
+    const outcome = await updateDealProfile(
+      {
+        dealId: deal.id,
+        actorEmail: banker.email,
+        actorSystemUserId: banker.systemUserId,
+        authorized: true,
+        patch: { industry: industryLabel },
+      },
+      buildLiveUpdateDealProfileDeps(),
+    );
+    if (outcome.kind === 'updated') {
+      applyVerifiedDealPatch?.(outcome.verified as Partial<DealDetail>);
+      set('industry', industryLabel);
+      setApplyState({ kind: 'idle' });
+    } else {
+      const reason =
+        'reason' in outcome && typeof outcome.reason === 'string'
+          ? outcome.reason
+          : 'error' in outcome && typeof outcome.error === 'string'
+            ? outcome.error
+            : 'The CRM/NAICS industry could not be applied. Nothing was changed.';
+      setApplyState({ kind: 'error', reason });
+    }
+  }
 
   // One combined id→option map across all categories (for validating selections
   // and for the readback allow-list). Categories are enforced by the per-field
@@ -264,22 +318,37 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
               />
             </FieldLabel>
 
-            {EDITABLE_CHOICE_FIELDS.map(({ field, label, options }) => (
-              <FieldLabel key={field} text={label} missing={!deal[field]}>
-                <select
-                  value={fields[field]}
-                  onChange={(e) => set(field, e.target.value)}
+            {EDITABLE_CHOICE_FIELDS.map(({ field, label, options }) =>
+              field === 'industry' ? (
+                <IndustryField
+                  key={field}
+                  label={label}
+                  options={options}
+                  value={fields.industry}
+                  onChange={(v) => set('industry', v)}
+                  missing={!deal.industry}
                   disabled={saving}
-                  style={styles.input}
-                  data-deal-profile-field={field}
-                >
-                  <option value="">— Not set —</option>
-                  {options.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              </FieldLabel>
-            ))}
+                  projection={industryProj}
+                  applyState={applyState}
+                  onApply={onApplyCrmIndustry}
+                />
+              ) : (
+                <FieldLabel key={field} text={label} missing={!deal[field]}>
+                  <select
+                    value={fields[field]}
+                    onChange={(e) => set(field, e.target.value)}
+                    disabled={saving}
+                    style={styles.input}
+                    data-deal-profile-field={field}
+                  >
+                    <option value="">— Not set —</option>
+                    {options.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                </FieldLabel>
+              ),
+            )}
 
             <FieldLabel text="Collateral" missing={!deal.collateralSummary}>
               <textarea
@@ -404,6 +473,115 @@ function ReferenceField({
         {reason}
       </span>
     </div>
+  );
+}
+
+/**
+ * The Industry field + its CRM/NAICS projection. Industry should be consistent
+ * with the linked CRM client's NAICS classification, not hand-entered
+ * independently. When a mapped industry is derivable we show its source, warn on
+ * conflict, and offer a governed "Apply CRM/NAICS industry" action. When CRM has
+ * NAICS but no mapped industry we say so honestly; otherwise Industry is a plain
+ * governed dropdown. We never fabricate or auto-write an industry.
+ */
+function IndustryField({
+  label,
+  options,
+  value,
+  onChange,
+  missing,
+  disabled,
+  projection,
+  applyState,
+  onApply,
+}: {
+  label: string;
+  options: readonly string[];
+  value: string;
+  onChange: (v: string) => void;
+  missing: boolean;
+  disabled: boolean;
+  projection: { kind: 'loading' } | DealIndustryProjection;
+  applyState: { kind: 'idle' } | { kind: 'applying' } | { kind: 'error'; reason: string };
+  onApply: (industryLabel: string) => void;
+}) {
+  const current = value.trim();
+  const derived = projection.kind === 'derived' ? projection : null;
+  const applying = applyState.kind === 'applying';
+
+  const applyButton = derived ? (
+    <button
+      type="button"
+      onClick={() => onApply(derived.dealIndustry)}
+      disabled={disabled || applying}
+      style={applying ? styles.industryApplyBtnDisabled : styles.industryApplyBtn}
+      data-deal-industry-apply
+    >
+      {applying ? 'Applying…' : 'Apply CRM/NAICS industry'}
+    </button>
+  ) : null;
+
+  let banner: React.ReactNode = null;
+  if (derived) {
+    const source = `NAICS ${derived.naicsCode} · ${derived.sectorTitle}`;
+    if (current === derived.dealIndustry) {
+      banner = (
+        <div style={styles.industrySource} data-deal-industry-source="crm-naics">
+          Derived from CRM / NAICS: <strong>{derived.dealIndustry}</strong> ({source}).
+        </div>
+      );
+    } else if (current.length === 0) {
+      banner = (
+        <div style={styles.industrySuggest} data-deal-industry-suggest>
+          <span>CRM / NAICS indicates <strong>{derived.dealIndustry}</strong> ({source}).</span>
+          {applyButton}
+        </div>
+      );
+    } else {
+      banner = (
+        <div style={styles.industryConflict} role="alert" data-deal-industry-conflict>
+          <span>
+            CRM says <strong>{derived.dealIndustry}</strong> ({source}); deal says <strong>{current}</strong>.
+            Reconcile before proceeding.
+          </span>
+          {applyButton}
+        </div>
+      );
+    }
+  } else if (projection.kind === 'no-mapping') {
+    banner = (
+      <div style={styles.industryNote} data-deal-industry-nomapping>
+        CRM NAICS {projection.naicsCode} ({projection.sectorTitle}) found, but no mapped deal industry
+        option exists. Set Industry manually.
+      </div>
+    );
+  } else if (projection.kind === 'no-sector') {
+    banner = (
+      <div style={styles.industryNote} data-deal-industry-note="no-sector">
+        CRM NAICS {projection.naicsCode} is not a recognized sector. Set Industry manually.
+      </div>
+    );
+  }
+
+  return (
+    <FieldLabel text={label} missing={missing}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        style={styles.input}
+        data-deal-profile-field="industry"
+      >
+        <option value="">— Not set —</option>
+        {options.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+      </select>
+      {banner}
+      {applyState.kind === 'error' && (
+        <span style={styles.industryError} data-deal-industry-apply-error>{applyState.reason}</span>
+      )}
+    </FieldLabel>
   );
 }
 
@@ -584,6 +762,64 @@ const styles: Record<string, CSSProperties> = {
   readonlyValue: { color: palette.text, fontWeight: typography.weight.semibold },
   readonlyValueMissing: { color: palette.textSubtle, fontStyle: 'italic' },
   readonlyReason: { fontSize: typography.size.xs, color: palette.textSubtle, fontStyle: 'italic' },
+  industrySource: {
+    marginTop: spacing.xxs,
+    fontSize: typography.size.xs,
+    color: palette.clear,
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  industrySuggest: {
+    marginTop: spacing.xxs,
+    fontSize: typography.size.xs,
+    color: palette.text,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  industryConflict: {
+    marginTop: spacing.xxs,
+    fontSize: typography.size.xs,
+    color: palette.atRiskFg,
+    background: palette.atRiskBg,
+    border: `1px solid ${palette.atRisk}`,
+    borderRadius: radius.sm,
+    padding: spacing.xs,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  industryNote: { marginTop: spacing.xxs, fontSize: typography.size.xs, color: palette.textSubtle, fontStyle: 'italic' },
+  industryError: { marginTop: spacing.xxs, fontSize: typography.size.xs, color: palette.atRiskFg },
+  industryApplyBtn: {
+    background: palette.primary,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    whiteSpace: 'nowrap',
+  },
+  industryApplyBtnDisabled: {
+    background: palette.borderStrong,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'not-allowed',
+    fontFamily: typography.family,
+    whiteSpace: 'nowrap',
+  },
   footer: { display: 'flex', gap: spacing.sm, justifyContent: 'flex-end', paddingTop: spacing.sm, borderTop: `1px solid ${palette.divider}` },
   primary: {
     background: palette.primary,

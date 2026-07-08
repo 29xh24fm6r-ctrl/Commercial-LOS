@@ -1,0 +1,59 @@
+{
+  "$comment": "Phase 4B. Two additive schema changes that let a deal derive Industry from its linked CRM organization's NAICS: (1) a reverse lookup cr664_Organization on cr664_clientrelationship -> cr664_crmorganization so a deal (deal -> cr664_Client -> client relationship) can reach the org's NAICS code; (2) an admin-managed mapping table cr664_naicsindustrymap (NAICS sector -> deal industry label). Additive, create-missing-only. Keep the seed mappings in sync with scripts/seed-naics-industry-map.mjs. Used by create-deal-industry-crm-naics.ps1.",
+  "domain": "deal-industry-crm-naics",
+  "publisherPrefix": "cr664",
+  "schemaVersion": "4B.1",
+  "expected": {
+    "tables": 1,
+    "columns": 3,
+    "relationships": 1
+  },
+  "tables": [
+    {
+      "logicalName": "cr664_naicsindustrymap",
+      "schemaName": "cr664_Naicsindustrymap",
+      "displayName": "NAICS Industry Map",
+      "displayCollectionName": "NAICS Industry Maps",
+      "primaryNameColumn": "cr664_name",
+      "ownershipType": "UserOwned",
+      "seedOrder": 1,
+      "requiredColumns": [
+        {
+          "logicalName": "cr664_sectorcode",
+          "schemaName": "cr664_Sectorcode",
+          "displayName": "NAICS sector code",
+          "type": "String",
+          "maxLength": 5,
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_dealindustry",
+          "schemaName": "cr664_Dealindustry",
+          "displayName": "Deal industry",
+          "type": "String",
+          "maxLength": 100,
+          "requiredLevel": "None"
+        },
+        {
+          "logicalName": "cr664_activeflag",
+          "schemaName": "cr664_Activeflag",
+          "displayName": "Active",
+          "type": "Boolean",
+          "requiredLevel": "None"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "schemaName": "cr664_clientrelationship_organization",
+      "fromTable": "cr664_clientrelationship",
+      "fromColumn": "cr664_Organization",
+      "toTable": "cr664_crmorganization",
+      "type": "ManyToOne",
+      "required": false,
+      "optional": true,
+      "note": "Reverse link so a bridged client relationship points back at the CRM organization it mirrors. Populated by the (default-off) org-link path in bridgeOrgToClientRelationship."
+    }
+  ]
+}
