@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+﻿import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { useAdmin } from './AdminContext';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import {
@@ -19,13 +19,13 @@ import {
 } from './dealReferenceValueWrite';
 
 /**
- * Phase 4A — Admin → Deal Reference Values.
+ * Phase 4A â€” Admin â†’ Deal Reference Values.
  *
  * The admin surface for the Product Type / Loan Structure / Pricing Type dropdown
  * values (rows in cr664_producttypereference, separated by cr664_category). Lists
  * values by category (with an inactive toggle), and adds / edits / deactivates /
  * reactivates them through the governed writeDealReferenceValue adapter (fail-
- * closed, readback-verified, audited). Deactivate is preferred over delete —
+ * closed, readback-verified, audited). Deactivate is preferred over delete â€”
  * there is no delete affordance.
  *
  * Fail-closed: when no Dataverse write identity is resolved the panel is fully
@@ -122,7 +122,7 @@ export function AdminDealReferenceValues() {
 
       {outcome && <OutcomeBanner outcome={outcome} />}
 
-      {state.kind === 'loading' && <div style={styles.muted}>Loading reference values…</div>}
+      {state.kind === 'loading' && <div style={styles.muted}>Loading reference valuesâ€¦</div>}
       {state.kind === 'unavailable' && (
         <div style={styles.errorBanner} role="alert" data-admin-deal-reference-unavailable>
           {state.reason}
@@ -235,7 +235,7 @@ function CategorySection({
                     )
                   }
                 >
-                  {rowBusy ? 'Saving…' : 'Save'}
+                  {rowBusy ? 'Savingâ€¦' : 'Save'}
                 </button>
                 <button
                   type="button"
@@ -252,7 +252,7 @@ function CategorySection({
             <div key={row.id} style={styles.row} data-admin-deal-reference-row={row.id} data-active={row.active}>
               <span style={styles.rowName}>{row.name}</span>
               <span style={styles.rowCode}>{row.code}</span>
-              <span style={styles.rowSort}>{row.sortOrder ?? '—'}</span>
+              <span style={styles.rowSort}>{row.sortOrder ?? 'â€”'}</span>
               <span style={row.active ? styles.activeBadge : styles.inactiveBadge}>
                 {row.active ? 'Active' : 'Inactive'}
               </span>
@@ -280,7 +280,7 @@ function CategorySection({
                       data-admin-deal-reference-deactivate={row.id}
                       onClick={() => runWrite({ kind: 'deactivate', id: row.id }, row.id)}
                     >
-                      {rowBusy ? '…' : 'Deactivate'}
+                      {rowBusy ? 'â€¦' : 'Deactivate'}
                     </button>
                   ) : (
                     <button
@@ -290,7 +290,7 @@ function CategorySection({
                       data-admin-deal-reference-reactivate={row.id}
                       onClick={() => runWrite({ kind: 'reactivate', id: row.id }, row.id)}
                     >
-                      {rowBusy ? '…' : 'Reactivate'}
+                      {rowBusy ? 'â€¦' : 'Reactivate'}
                     </button>
                   )}
                 </span>
@@ -339,7 +339,7 @@ function CategorySection({
               )
             }
           >
-            {busy === `new-${category}` ? 'Adding…' : 'Add value'}
+            {busy === `new-${category}` ? 'Addingâ€¦' : 'Add value'}
           </button>
         </div>
       )}
@@ -351,7 +351,7 @@ function OutcomeBanner({ outcome }: { outcome: DealReferenceWriteOutcome }) {
   const ok = outcome.kind === 'success';
   const text =
     outcome.kind === 'success'
-      ? `${labelForAction(outcome.action)} — ${outcome.label}.`
+      ? `${labelForAction(outcome.action)} â€” ${outcome.label}.`
       : outcome.kind === 'duplicate'
         ? outcome.reason
         : outcome.kind === 'invalid-input'
@@ -428,3 +428,4 @@ const styles: Record<string, CSSProperties> = {
   secondaryBtn: { background: palette.surface, color: palette.text, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xxs} ${spacing.sm}`, fontSize: typography.size.sm, cursor: 'pointer', fontFamily: typography.family },
   linkBtn: { background: 'transparent', color: palette.primary, border: 'none', padding: 0, fontSize: typography.size.sm, cursor: 'pointer', fontFamily: typography.family, fontWeight: typography.weight.medium },
 };
+
