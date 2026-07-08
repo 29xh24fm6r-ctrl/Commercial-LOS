@@ -19,6 +19,7 @@ import { V1GoLiveReleaseCertificationPanel } from '../admin/V1GoLiveReleaseCerti
 import { FullSystemActivationLaunchPanel } from '../admin/FullSystemActivationLaunchPanel';
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
+import { AdminDealReferenceValues } from '../admin/AdminDealReferenceValues';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { palette, spacing, typography } from '../shared/theme';
 
@@ -101,6 +102,11 @@ function AdminWorkspaceContent() {
           <RefreshStatus />
         </div>
         <ConfigurationOverview />
+        {/* Phase 4A — admin-managed deal dropdown values (Product Type / Loan
+            Structure / Pricing Type). The first admin CONFIG-write panel; writes
+            are fail-closed to a resolved Dataverse identity, readback-verified,
+            and audited (inherits the admin route + AdminProvider gate). */}
+        <AdminDealReferenceValues />
         <StageGovernanceDiagnostics />
         <EmailLiveDiagnostics />
         <PerformanceDiagnostics />

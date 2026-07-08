@@ -10,12 +10,12 @@ const updateMock = vi.fn();
 vi.mock('./write/updateDealProfile', () => ({ updateDealProfile: (...a: unknown[]) => updateMock(...a) }));
 vi.mock('./write/buildLiveUpdateDealProfileDeps', () => ({ buildLiveUpdateDealProfileDeps: () => ({}) }));
 
-// Reference option loader is mocked so the modal's dropdown-gating is driven by
-// the test (real options vs unavailable/empty) with no SDK.
+// Reference option loader is mocked so the modal's per-category dropdown-gating
+// is driven by the test (real options vs unavailable/empty) with no SDK.
 const loadRefMock = vi.fn();
 vi.mock('./write/dealReferenceOptions', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./write/dealReferenceOptions')>();
-  return { ...actual, loadLiveDealReferenceOptions: (...a: unknown[]) => loadRefMock(...a) };
+  return { ...actual, loadLiveDealReferenceOptionsByCategory: (...a: unknown[]) => loadRefMock(...a) };
 });
 
 import { useDealData } from './DealDataProvider';
@@ -81,12 +81,23 @@ const REF_OPTIONS = [
   { id: '22222222-2222-2222-2222-222222222222', name: 'Term Loan', code: 'TERM_LOAN', active: true },
 ];
 
+type RefResult = { kind: 'ready'; options: typeof REF_OPTIONS } | { kind: 'empty'; reason: string } | { kind: 'unavailable'; reason: string };
+
+/** Build a per-category loader result; unspecified fields fall back to `base`. */
+function byCategory(over: Partial<Record<'productType' | 'loanStructure' | 'pricingType', RefResult>>, base: RefResult) {
+  return {
+    productType: over.productType ?? base,
+    loanStructure: over.loanStructure ?? base,
+    pricingType: over.pricingType ?? base,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   updateMock.mockReset();
-  // Default: reference list is unavailable (fields stay read-only) unless a test
+  // Default: every category is unavailable (fields stay read-only) unless a test
   // opts into ready options.
-  loadRefMock.mockResolvedValue({ kind: 'unavailable', reason: 'datasource not registered' });
+  loadRefMock.mockResolvedValue(byCategory({}, { kind: 'unavailable', reason: 'datasource not registered' }));
 });
 
 describe('DealProfileEditLauncher — entry point', () => {
@@ -201,7 +212,7 @@ describe('DealProfileEditModal — fields + governed save', () => {
 
 describe('DealProfileEditModal — governed reference lookups', () => {
   it('renders reference dropdowns ONLY when real registered options load', async () => {
-    loadRefMock.mockResolvedValue({ kind: 'ready', options: REF_OPTIONS });
+    loadRefMock.mockResolvedValue(byCategory({}, { kind: 'ready', options: REF_OPTIONS }));
     setContext(deal());
     setBanker();
     const user = userEvent.setup();
@@ -224,7 +235,7 @@ describe('DealProfileEditModal — governed reference lookups', () => {
   });
 
   it('keeps reference fields READ-ONLY with the exact reason when the list is unavailable', async () => {
-    loadRefMock.mockResolvedValue({ kind: 'unavailable', reason: 'cr664_producttypereferences not registered' });
+    loadRefMock.mockResolvedValue(byCategory({}, { kind: 'unavailable', reason: 'cr664_producttypereferences not registered' }));
     setContext(deal());
     setBanker();
     const user = userEvent.setup();
@@ -240,7 +251,7 @@ describe('DealProfileEditModal — governed reference lookups', () => {
   });
 
   it('keeps reference fields read-only with the seed reason when the list is empty', async () => {
-    loadRefMock.mockResolvedValue({ kind: 'empty', reason: 'No active reference rows exist yet. Seed them first.' });
+    loadRefMock.mockResolvedValue(byCategory({}, { kind: 'empty', reason: 'No active reference rows exist yet. Seed them first.' }));
     setContext(deal());
     setBanker();
     const user = userEvent.setup();
@@ -254,7 +265,11 @@ describe('DealProfileEditModal — governed reference lookups', () => {
   });
 
   it('saves a selected reference as an @odata.bind selection with the loaded allow-list', async () => {
-    loadRefMock.mockResolvedValue({ kind: 'ready', options: REF_OPTIONS });
+    // productType has the two values; the other categories are empty, so the
+    // union allow-list is exactly the two productType ids.
+    loadRefMock.mockResolvedValue(
+      byCategory({ productType: { kind: 'ready', options: REF_OPTIONS } }, { kind: 'empty', reason: 'none yet' }),
+    );
     setContext(deal());
     setBanker();
     updateMock.mockResolvedValue({
@@ -285,6 +300,31 @@ describe('DealProfileEditModal — governed reference lookups', () => {
       '22222222-2222-2222-2222-222222222222',
     ]);
     expect(applyPatch).toHaveBeenCalledWith({ productType: 'SBA 7(a)' });
+  });
+
+  it('warns honestly when the deal carries an inactive value not in the active list', async () => {
+    // Active options do NOT include the deal's current productType → it is inactive.
+    loadRefMock.mockResolvedValue(byCategory({ productType: { kind: 'ready', options: REF_OPTIONS } }, { kind: 'empty', reason: 'none yet' }));
+    setContext(deal({
+      targetCloseDate: '2026-09-30', customerType: 'New', industry: 'Retail',
+      guarantorStructure: 'Limited', collateralSummary: 'A/R',
+      productType: 'Retired Product', loanStructure: 'Term loan', pricingType: 'Fixed',
+    }));
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="deal-summary" />);
+    await user.click(screen.getByRole('button', { name: /Edit Deal Profile/i }));
+
+    const warn = await waitFor(() => {
+      const el = document.querySelector('[data-deal-profile-reference-inactive="productType"]');
+      if (!el) throw new Error('not yet');
+      return el as HTMLElement;
+    });
+    expect(warn.textContent).toMatch(/inactive/i);
+    // The current (inactive) value is still shown as the keep-current option.
+    const sel = document.querySelector('[data-deal-profile-field="productType"]') as HTMLSelectElement;
+    expect(sel.textContent).toMatch(/Retired Product/);
+    expect(sel.textContent).toMatch(/\(inactive\)/);
   });
 });
 

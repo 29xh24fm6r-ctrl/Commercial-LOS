@@ -17,10 +17,12 @@ import {
 } from './write/updateDealProfile';
 import { buildLiveUpdateDealProfileDeps } from './write/buildLiveUpdateDealProfileDeps';
 import {
-  loadLiveDealReferenceOptions,
+  loadLiveDealReferenceOptionsByCategory,
   DEAL_REFERENCE_LOOKUPS,
   type DealReferenceLookupField,
+  type DealReferenceOption,
   type DealReferenceOptionsResult,
+  type DealReferenceOptionsByCategory,
 } from './write/dealReferenceOptions';
 
 /**
@@ -56,7 +58,14 @@ const REFERENCE_FIELDS: readonly DealReferenceLookupField[] = ['productType', 'l
 /** Sentinel select value that clears an existing reference lookup. */
 const CLEAR_VALUE = '__clear__';
 
-type RefState = { kind: 'loading' } | DealReferenceOptionsResult;
+/** Whole-modal load state: loading, or the per-category results. */
+type RefLoadState = { kind: 'loading' } | { kind: 'ready'; byCategory: DealReferenceOptionsByCategory };
+/** One field's state passed to ReferenceField: loading, or its category result. */
+type FieldRefState = { kind: 'loading' } | DealReferenceOptionsResult;
+
+function ciEquals(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
 
 function dateInputValue(iso: string | undefined): string {
   return iso ? iso.slice(0, 10) : '';
@@ -137,19 +146,20 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
   );
   const [fields, setFields] = useState(initial);
   const [save, setSave] = useState<SaveState>({ kind: 'idle' });
-  // Reference lookups load from the real registered list; each field is only
-  // editable once real options load. `refSel` holds the banker's per-field
+  // Reference lookups load from the real registered list, split by category so
+  // each field shows only its own values. `refSel` holds the banker's per-field
   // selection (option id, or CLEAR_VALUE, or '' = keep current).
-  const [refState, setRefState] = useState<RefState>({ kind: 'loading' });
+  const [refState, setRefState] = useState<RefLoadState>({ kind: 'loading' });
   const [refSel, setRefSel] = useState<Partial<Record<DealReferenceLookupField, string>>>({});
 
   useEffect(() => {
     let alive = true;
-    loadLiveDealReferenceOptions()
-      .then((r) => alive && setRefState(r))
-      .catch((err: unknown) =>
-        alive && setRefState({ kind: 'unavailable', reason: err instanceof Error ? err.message : String(err) }),
-      );
+    loadLiveDealReferenceOptionsByCategory()
+      .then((byCategory) => alive && setRefState({ kind: 'ready', byCategory }))
+      .catch(() => {
+        // The loader is fail-closed and never rejects; this is belt-and-braces.
+        if (alive) setRefState({ kind: 'loading' });
+      });
     return () => {
       alive = false;
     };
@@ -158,14 +168,20 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
   const set = (k: keyof typeof fields, v: string) => setFields((s) => ({ ...s, [k]: v }));
   const setRef = (f: DealReferenceLookupField, v: string) => setRefSel((s) => ({ ...s, [f]: v }));
 
-  const refOptions = useMemo(
-    () => (refState.kind === 'ready' ? refState.options : []),
-    [refState],
-  );
-  const refOptionById = useMemo(
-    () => new Map(refOptions.map((o) => [o.id, o])),
-    [refOptions],
-  );
+  // One combined id→option map across all categories (for validating selections
+  // and for the readback allow-list). Categories are enforced by the per-field
+  // dropdowns, so a value can only be picked from its own category's list.
+  const refOptionById = useMemo(() => {
+    const m = new Map<string, DealReferenceOption>();
+    if (refState.kind === 'ready') {
+      for (const f of REFERENCE_FIELDS) {
+        const r = refState.byCategory[f];
+        if (r.kind === 'ready') for (const o of r.options) m.set(o.id, o);
+      }
+    }
+    return m;
+  }, [refState]);
+  const allowedReferenceIds = useMemo(() => Array.from(refOptionById.keys()), [refOptionById]);
 
   // Build the scalar patch of ONLY changed fields; '' means clear (→ null).
   const patch = useMemo<DealProfilePatch>(() => {
@@ -209,7 +225,7 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
         authorized: true,
         patch,
         referencePatch,
-        allowedReferenceIds: refOptions.map((o) => o.id),
+        allowedReferenceIds,
       },
       buildLiveUpdateDealProfileDeps(),
     );
@@ -276,14 +292,15 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
               />
             </FieldLabel>
 
-            {/* Reference lookups — editable ONLY when real registered options load. */}
+            {/* Reference lookups — each field shows only its own category's
+                active values, editable ONLY when that category's list loads. */}
             <div style={styles.readonlyGroup} data-deal-profile-reference-group>
               {REFERENCE_FIELDS.map((field) => (
                 <ReferenceField
                   key={field}
                   field={field}
                   currentName={deal[field] as string | undefined}
-                  refState={refState}
+                  fieldState={refState.kind === 'loading' ? { kind: 'loading' } : refState.byCategory[field]}
                   value={refSel[field] ?? ''}
                   onChange={(v) => setRef(field, v)}
                   disabled={saving}
@@ -315,28 +332,35 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
 }
 
 /**
- * One reference-lookup field. Renders a real dropdown ONLY when the registered
- * reference list loaded with options; otherwise stays read-only and shows the
- * exact reason (loading / empty / unavailable). Never hard-codes values.
+ * One reference-lookup field. Renders a real dropdown ONLY when that field's
+ * CATEGORY list loaded with active options; otherwise stays read-only and shows
+ * the exact reason (loading / empty / unavailable). Never hard-codes values.
+ *
+ * Honest inactive handling: if the deal already carries a value that is NOT among
+ * the field's active options, it is shown with an "inactive" warning — it is kept
+ * as-is unless the banker deliberately changes it, and is not offered for new
+ * selections elsewhere.
  */
 function ReferenceField({
   field,
   currentName,
-  refState,
+  fieldState,
   value,
   onChange,
   disabled,
 }: {
   field: DealReferenceLookupField;
   currentName: string | undefined;
-  refState: RefState;
+  fieldState: FieldRefState;
   value: string;
   onChange: (v: string) => void;
   disabled: boolean;
 }) {
   const label = DEAL_REFERENCE_LOOKUPS[field].label;
 
-  if (refState.kind === 'ready') {
+  if (fieldState.kind === 'ready') {
+    const currentIsInactive =
+      !!currentName && !fieldState.options.some((o) => ciEquals(o.name, currentName));
     return (
       <FieldLabel text={label} missing={!currentName}>
         <select
@@ -346,21 +370,30 @@ function ReferenceField({
           style={styles.input}
           data-deal-profile-field={field}
         >
-          <option value="">{currentName ? `— Keep current: ${currentName} —` : '— Not set —'}</option>
+          <option value="">
+            {currentName
+              ? `— Keep current: ${currentName}${currentIsInactive ? ' (inactive)' : ''} —`
+              : '— Not set —'}
+          </option>
           {currentName ? <option value={CLEAR_VALUE}>— Clear —</option> : null}
-          {refState.options.map((o) => (
+          {fieldState.options.map((o) => (
             <option key={o.id} value={o.id}>{o.name}</option>
           ))}
         </select>
+        {currentIsInactive && (
+          <span style={styles.readonlyReason} data-deal-profile-reference-inactive={field}>
+            This value is inactive and is no longer offered for new deals. It stays until you change it.
+          </span>
+        )}
       </FieldLabel>
     );
   }
 
   // Read-only: loading / empty / unavailable — show the exact reason.
   const reason =
-    refState.kind === 'loading'
+    fieldState.kind === 'loading'
       ? 'Loading reference options…'
-      : refState.reason;
+      : fieldState.reason;
   return (
     <div style={styles.readonlyRow} data-deal-profile-field-readonly={field}>
       <span style={styles.readonlyFieldLabel}>{label}</span>

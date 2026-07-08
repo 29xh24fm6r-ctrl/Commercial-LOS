@@ -1,0 +1,29 @@
+{
+  "$comment": "Phase 4A. Adds the CHOICE discriminator column cr664_category to the existing cr664_producttypereference table so the deal's Product Type / Loan Structure / Pricing Type dropdowns can be separated server-side (they all target this one table via three different lookups). Additive, create-missing-only. Mirrors src/shared/governance/dealReferenceCategories.ts — keep the option values in sync. Used by create-deal-reference-category.ps1.",
+  "domain": "deal-reference-category",
+  "publisherPrefix": "cr664",
+  "schemaVersion": "4A.1",
+  "table": {
+    "logicalName": "cr664_producttypereference",
+    "note": "PRE-EXISTING table — never created or altered here beyond adding the one column below."
+  },
+  "column": {
+    "logicalName": "cr664_category",
+    "schemaName": "cr664_Category",
+    "displayName": "Category",
+    "type": "Picklist",
+    "requiredLevel": "None",
+    "optionSet": {
+      "isGlobal": false,
+      "options": [
+        { "value": 788190000, "label": "Product Type" },
+        { "value": 788190001, "label": "Loan Structure" },
+        { "value": 788190002, "label": "Pricing Type" }
+      ]
+    }
+  },
+  "expected": {
+    "columns": 1,
+    "options": 3
+  }
+}
