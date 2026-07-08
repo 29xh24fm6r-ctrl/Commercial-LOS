@@ -59,13 +59,23 @@ So the current flags-off state is a **deliberate, 2-day-old governance decision*
 
 ---
 
-## Flagged decision — `CHECKLIST_WRITE_ENABLED` inconsistency
+## RESOLVED — `CHECKLIST_WRITE_ENABLED` is safe-off (no longer an inconsistency)
 
-Phase 256B flipped **both** `DOCUMENT_CHECKLIST_GENERATION_ENABLED` and `CHECKLIST_WRITE_ENABLED` to true. Completion Phase A reset the former to false but **left `CHECKLIST_WRITE_ENABLED = true`** ([checklistGenerationActivation.ts:20](../src/activation/checklistGenerationActivation.ts#L20)). By Completion Phase A's own principle ("reset live-write flags to safe defaults (off); flags gate DOWN"), this looks like a missed reset.
+> **Update 2026-07-08:** This section previously flagged `CHECKLIST_WRITE_ENABLED` as left
+> `true`. That has since been swept. The flag is now `false` and the contract tests assert
+> `false`. No action is outstanding.
 
-- **Runtime impact today: NONE** — `generateAndWriteChecklist` has no live caller, and the orchestrator write path is already blocked by `DOCUMENT_CHECKLIST_GENERATION_ENABLED = false`. So it's an honesty/defense-in-depth inconsistency, not a live-write exposure.
-- **Why I did not just fix it:** flipping it to false requires editing **governance contract tests** that intentionally assert it `= true` as the 256B launched state (`phase212_224FullSystemActivationContract.test.ts:47`, `phase249ChecklistSignoffOutlookUnblock.test.ts:40`, `checklistGenerationActivation.test.ts:52`). That's adjudicating between two of your own committed intents — I won't do it silently.
-- **My recommendation:** reset `CHECKLIST_WRITE_ENABLED = false` to match Completion Phase A's intent and restore defense-in-depth, updating the three contract-test assertions toward safe-off (exactly as Completion Phase A did for ~75 files). Say the word and I'll do it as a gated, tsc+vitest-green commit.
+- **Source:** `CHECKLIST_WRITE_ENABLED = false as const`
+  ([checklistGenerationActivation.ts:20](../src/activation/checklistGenerationActivation.ts#L20)),
+  with the Completion Phase A "reset to the SAFE DEFAULT (off)" comment in place.
+- **Tests already assert safe-off:** `checklistGenerationActivation.test.ts:52`
+  (`expect(CHECKLIST_WRITE_ENABLED).toBe(false)`), `phase249ChecklistSignoffOutlookUnblock.test.ts:40`
+  (`toBe(false)`), and `phase212_224FullSystemActivationContract.test.ts:47`
+  (`toMatch(/CHECKLIST_WRITE_ENABLED\s*=\s*false/)`).
+- **Runtime impact:** none — both the generation gate (`DOCUMENT_CHECKLIST_GENERATION_ENABLED`)
+  and the write flag are off; defense-in-depth is intact.
+- **Conclusion:** the flag intentionally remains at safe-off `false` behind the higher-level
+  generation gate. No source change is required.
 
 ---
 
@@ -75,6 +85,6 @@ Per the honest per-domain path you chose, **the CC side of this spec is complete
 - **AE-1, AE-3** need no CC wiring — they're already live; run your identity-gated smoke and you're boarding the book / writing CRM today.
 - **AE-2** is a Dataverse data edit (steps above).
 - **AE-4** is blocked on your schema seed; CC wiring is deliberately deferred until then.
-- **AE-5** signoff is done; it's blocked on your governed gate-flip; one CC cleanup awaits your decision.
+- **AE-5** signoff is done; it's blocked on your governed gate-flip. (The former `CHECKLIST_WRITE_ENABLED` cleanup is resolved — see the RESOLVED section above.)
 
 The remaining steps are the operator actions the spec's own hard rules reserve for you (single-record smoke, schema seed, governed gate-flip, dedupe). I did not flip any flag, perform any live write, or fabricate any evidence.

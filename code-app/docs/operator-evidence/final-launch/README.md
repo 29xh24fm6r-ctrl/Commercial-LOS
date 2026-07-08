@@ -29,3 +29,21 @@ verification = that capability stays **blocked**.
 `evidenceNote`, and optionally `affectedRecordIds` / `cleanupRecordIds`.
 
 The parser fails closed on any missing/invalid field.
+
+## HIGH-confidence acceptance (what actually flips a gate)
+
+Structural validity is not enough. `src/access/finalLaunchSmokeEvidence.ts` (`deriveEvidenceIntegrity`)
+accepts an artifact at **HIGH** confidence only when ALL hold:
+
+- `outcome: "passed"`, `liveOperationPerformed: true`, `readbackVerified: true`;
+- closure verified — `rollbackVerified: true` for CRUD capabilities; `deliveryVerified` /
+  `auditVerified` for `borrowerSend` (an email cannot be rolled back);
+- `operatorUpn` is a real, attributable UPN (`local@domain.tld`) — never a sentinel
+  (`system`, `unknown-operator`, all-zero GUID, …);
+- machine proof — non-empty `affectedRecordIds` for CRUD; `deliveryReceiptId` +
+  `approvedRecipient` + a valid `approverUpn` for `borrowerSend`;
+- `completedAtIso` is a real machine clock, **not** a round `…:00.000Z` (that downgrades to LOW).
+
+A `LOW` or `NONE` verdict keeps the capability blocked. See
+[`../../FULL_ACTIVATION_PUNCH_LIST_2026-07-08.md`](../../FULL_ACTIVATION_PUNCH_LIST_2026-07-08.md)
+for the end-to-end per-domain steps (seed, smoke, flag-flip) and the exact harness commands.

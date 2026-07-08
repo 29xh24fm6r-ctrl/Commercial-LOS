@@ -104,8 +104,8 @@ export const ENVIRONMENT_VERIFICATION_STEPS: Record<ActivationDomainKey, readonl
     'Deploy with VITE_EMAIL_MODE=LIVE; certify the explicit banker-action, audited send path (connector acceptance is not delivery).',
   ],
   stageAdvancement: [
-    'Inject the live stage transport + audit + timeline sinks into advanceWorkflowStage (via AdvanceWorkflowStageButton).',
-    'Certify the end-to-end success + blocked + update-failed path.',
+    'Seed cr664_dealstagereferences (+ cr664_sequence) so stage-ordering availability resolves. The live stage transport + audit + timeline sinks are already wired via DealStageProgressionCard → StageAdvanceControl → buildLiveStageAdvanceDeps → advanceWorkflowStage.',
+    'Run one end-to-end governed advance on a test deal and record the HIGH stageAdvancement final-launch smoke (success + blocked + update-failed paths certified).',
   ],
   portfolioBoarding: [
     'Verify the live boarding Dataverse schema against src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan and inject a VerifiedBoardingSchemaState.',
