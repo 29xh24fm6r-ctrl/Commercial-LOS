@@ -56,7 +56,25 @@ export function derivePortfolioBoardingActivation(input: PortfolioBoardingActiva
 // Phase 220 Ã¢â‚¬â€ single-record portfolio boarding adapter seam
 // ---------------------------------------------------------------------------
 
-export const PORTFOLIO_CHILD_GROUPS = ['borrower', 'collateral', 'guarantor', 'covenant', 'tickler', 'insurance'] as const;
+/**
+ * The full booked-loan child-group handoff. The six original groups plus the
+ * document/evidence and exception/review groups the boarding schema
+ * (portfolioLoanBoardingDataverseSchemaPlan) already models as first-class child
+ * tables — so single-record boarding can write the complete package, never a
+ * silent subset. Any group with no records is reported "skipped", never dropped.
+ */
+export const PORTFOLIO_CHILD_GROUPS = [
+  'borrower',
+  'collateral',
+  'guarantor',
+  'covenant',
+  'tickler',
+  'insurance',
+  'document',
+  'evidence',
+  'exception',
+  'review',
+] as const;
 export type PortfolioChildGroup = (typeof PORTFOLIO_CHILD_GROUPS)[number];
 export type ChildGroupResult = 'written' | 'skipped' | 'failed';
 
@@ -66,12 +84,20 @@ export type PortfolioBoardingOutcome =
   | 'unauthorized'
   | 'schema_not_verified'
   | 'validation_error'
+  | 'duplicate_blocked'
   | 'loan_master_failed'
+  | 'readback_failed'
   | 'audit_failed_partial_success';
 
 export interface PortfolioBoardingTransport {
   createLoanMaster(record: Record<string, unknown>): Promise<{ ok: boolean; id?: string; error?: string }>;
   writeChildGroup(group: PortfolioChildGroup, loanId: string, records: ReadonlyArray<Record<string, unknown>>): Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Optional readback of the just-created loan master. When injected, the boarded
+   * record MUST read back and match before any child group is written; a missing
+   * or mismatched readback fails closed (readback_failed) rather than proceeding.
+   */
+  readLoanMaster?(loanId: string): Promise<{ ok: boolean; matches?: boolean; error?: string }>;
 }
 export interface PortfolioBoardingAuditSink {
   write(a: { correlationId: string; loanId: string | null; outcome: PortfolioBoardingOutcome; childResults: Record<PortfolioChildGroup, ChildGroupResult> }): Promise<{ ok: boolean; error?: string }>;
@@ -86,6 +112,10 @@ export interface PortfolioBoardingInput {
   readonly loanMasterRequiredFields: ReadonlyArray<string>;
   /** Records per child group; an empty/absent group is reported as "skipped". */
   readonly childRecords?: Partial<Record<PortfolioChildGroup, ReadonlyArray<Record<string, unknown>>>>;
+  /** True when this loan is already boarded (caller-supplied duplicate probe). */
+  readonly existingBoardingPresent?: boolean;
+  /** Explicit override required to re-board a loan that is already boarded. */
+  readonly overrideDuplicate?: boolean;
   readonly transport?: PortfolioBoardingTransport;
   readonly auditSink?: PortfolioBoardingAuditSink;
 }
@@ -116,9 +146,23 @@ export async function boardPortfolioLoan(input: PortfolioBoardingInput): Promise
   const missing = input.loanMasterRequiredFields.filter((f) => input.loanMaster[f] === undefined || input.loanMaster[f] === null || input.loanMaster[f] === '');
   if (missing.length > 0) return base('validation_error', `Missing loan master field(s): ${missing.join(', ')}.`);
 
+  // Fail closed on a duplicate: a loan already boarded is never re-boarded silently.
+  if (input.existingBoardingPresent === true && input.overrideDuplicate !== true) {
+    return base('duplicate_blocked', 'Loan is already boarded; explicit override required to re-board.');
+  }
+
   const lm = await input.transport.createLoanMaster(input.loanMaster);
   if (!lm.ok || !lm.id) return base('loan_master_failed', lm.error ?? 'loan master create failed');
   const loanId = lm.id;
+
+  // Readback verification (when a readback is injected): the boarded loan master must
+  // read back and match before any child group is written, or the boarding fails closed.
+  if (input.transport.readLoanMaster) {
+    const rb = await input.transport.readLoanMaster(loanId);
+    if (!rb.ok || rb.matches === false) {
+      return base('readback_failed', rb.error ?? 'Loan master readback failed or did not match.', loanId);
+    }
+  }
 
   // Write each child group honestly: skipped (no records), written (ok), failed (error).
   const childResults = emptyChildResults();
