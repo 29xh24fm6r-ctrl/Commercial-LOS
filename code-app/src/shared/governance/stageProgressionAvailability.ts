@@ -209,6 +209,15 @@ export interface StageGovernanceDiagnosticsInput {
    * shows the honest "not loaded / not seeded" state rather than a false empty.
    */
   readonly loadFailedReason?: string;
+  /**
+   * ACTIVE non-canonical / legacy-test reference rows present alongside the
+   * canonical set (e.g. PHASE121_STAGE / PHASE121_STATUS). The `stageOrdering` /
+   * `statusResult` passed here are resolved IGNORING these, so a complete
+   * canonical set is not blocked by leftover legacy rows — they surface as an
+   * at-risk hygiene WARNING (run the deactivation script), never a CRITICAL block.
+   */
+  readonly legacyActiveStageCodes?: readonly string[];
+  readonly legacyActiveStatusCodes?: readonly string[];
 }
 
 function severityRollup(checks: readonly StageProgressionCheck[]): DiagnosticSeverity {
@@ -219,15 +228,30 @@ function severityRollup(checks: readonly StageProgressionCheck[]): DiagnosticSev
       : 'clear';
 }
 
-function remediationGovernance(stageReady: boolean, statusReady: boolean, graphValid: boolean): readonly string[] {
-  if (stageReady && statusReady && graphValid) return REMEDIATION_READY;
-  const steps: string[] = [
-    'Add cr664_sequence (Whole Number) to cr664_dealstagereferences in make.powerapps.com (docs/STAGE_SCHEMA_SETUP.md).',
-    'Seed the seven ordered stage rows AND the five disposition status rows: node scripts/seed-stage-references.mjs --commit.',
-    'Regenerate the typed SDK (pac code add-data-source / regenerate-powerapps-sdk.ps1) so cr664_sequence appears on the generated model.',
-    'Confirm with node scripts/seed-stage-references.mjs --verify, then re-run the build and test suite.',
-    'Diagnostics flip to READY automatically once the ordering resolves, the five statuses are active, and the transition graph validates.',
-  ];
+function remediationGovernance(
+  stageReady: boolean,
+  statusReady: boolean,
+  graphValid: boolean,
+  hasLegacy: boolean,
+): readonly string[] {
+  if (stageReady && statusReady && graphValid && !hasLegacy) return REMEDIATION_READY;
+  const steps: string[] = [];
+  if (!stageReady || !statusReady || !graphValid) {
+    steps.push(
+      'Add cr664_sequence (Whole Number) to cr664_dealstagereferences in make.powerapps.com (docs/STAGE_SCHEMA_SETUP.md).',
+      'Seed the seven ordered stage rows AND the five disposition status rows: node scripts/seed-stage-references.mjs --commit.',
+      'Regenerate the typed SDK (pac code add-data-source / regenerate-powerapps-sdk.ps1) so cr664_sequence appears on the generated model.',
+      'Confirm with node scripts/seed-stage-references.mjs --verify, then re-run the build and test suite.',
+    );
+  }
+  if (hasLegacy) {
+    steps.push(
+      'Deactivate leftover legacy/test reference rows (e.g. PHASE121_STAGE / PHASE121_STATUS): node scripts/deactivate-legacy-stage-status-references.mjs --commit (dry-run first, then --verify).',
+    );
+  }
+  steps.push(
+    'Diagnostics flip to READY once the canonical ordering + five statuses + transition graph are valid AND no active legacy/test rows remain.',
+  );
   return steps;
 }
 
@@ -306,13 +330,36 @@ export function deriveStageGovernanceDiagnostics(
     },
   ];
 
-  const available = stageReady && statusReady && graphValid;
+  // Reference hygiene: leftover ACTIVE legacy/test rows do NOT block a complete
+  // canonical set — they are an at-risk WARNING with a one-command cleanup, not a
+  // CRITICAL failure. (Inactive legacy rows are already ignored by the resolvers.)
+  const legacyStages = input.legacyActiveStageCodes ?? [];
+  const legacyStatuses = input.legacyActiveStatusCodes ?? [];
+  const legacyLabels = [
+    ...legacyStages.map((c) => `stage ${c}`),
+    ...legacyStatuses.map((c) => `status ${c}`),
+  ];
+  const hasLegacy = legacyLabels.length > 0;
+  if (!input.loadFailedReason) {
+    checks.push({
+      id: 'reference-hygiene',
+      label: 'Reference hygiene (no active legacy/test rows)',
+      state: hasLegacy ? 'missing' : 'present',
+      severity: hasLegacy ? 'at-risk' : 'clear',
+      detail: hasLegacy
+        ? `The canonical set is otherwise complete, but active non-canonical / legacy-test rows remain and should be deactivated: ${legacyLabels.join(', ')}. This is a WARNING, not a hard failure — run scripts/deactivate-legacy-stage-status-references.mjs --commit. Governed advancement stays strict (blocks on active non-canonical rows) until they are deactivated.`
+        : 'No active non-canonical / legacy-test reference rows; the stage + status sets are clean.',
+    });
+  }
+
+  // Ready requires the canonical set complete AND a clean set (no active legacy).
+  const available = stageReady && statusReady && graphValid && !hasLegacy;
   return {
     available,
     overallSeverity: severityRollup(checks),
     checks,
     affectedFeatures: ['Deal Stage Progression (Advance / Return / Decline / Withdraw)'],
-    remediation: remediationGovernance(stageReady, statusReady, graphValid),
+    remediation: remediationGovernance(stageReady, statusReady, graphValid, hasLegacy),
     stageRows: orderedRows,
     statusRows: input.statusRows,
     transitionPath,

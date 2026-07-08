@@ -103,4 +103,29 @@ describe('loadStageGovernanceDiagnosticsWith — CRITICAL → READY', () => {
     expect(d.stageRows).toHaveLength(0);
     expect(d.statusRows).toHaveLength(0);
   });
+
+  it('tolerates an ACTIVE legacy/test row as an at-risk WARNING, not a CRITICAL block', async () => {
+    // Canonical set complete + an extra active PHASE121_STATUS row.
+    const statuses = [...READY_STATUSES, { cr664_code: 'PHASE121_STATUS', cr664_name: 'Legacy', cr664_activeflag: true }];
+    const d = await loadStageGovernanceDiagnosticsWith(readers({ statuses }));
+    // Canonical checks stay clear (the legacy row is ignored for resolution)...
+    expect(check(d, 'status-references-seeded').severity).toBe('clear');
+    expect(check(d, 'stage-ordering-resolved').severity).toBe('clear');
+    // ...but hygiene warns (at-risk, NOT blocked), and READY is withheld until cleanup.
+    expect(check(d, 'reference-hygiene').severity).toBe('at-risk');
+    expect(check(d, 'reference-hygiene').detail).toMatch(/PHASE121_STATUS/);
+    expect(d.overallSeverity).toBe('at-risk');
+    expect(d.available).toBe(false);
+    // Remediation points at the deactivation script.
+    expect(d.remediation.join(' ')).toMatch(/deactivate-legacy-stage-status-references/);
+  });
+
+  it('ignores INACTIVE legacy rows entirely (canonical complete → READY, no warning)', async () => {
+    const statuses = [...READY_STATUSES, { cr664_code: 'PHASE121_STATUS', cr664_name: 'Legacy', cr664_activeflag: false }];
+    const stages = [...READY_STAGES, { cr664_code: 'PHASE121_STAGE', cr664_name: 'Legacy', cr664_sequence: 999, cr664_activeflag: false }];
+    const d = await loadStageGovernanceDiagnosticsWith(readers({ stages, statuses }));
+    expect(check(d, 'reference-hygiene').severity).toBe('clear');
+    expect(d.available).toBe(true);
+    expect(d.overallSeverity).toBe('clear');
+  });
 });

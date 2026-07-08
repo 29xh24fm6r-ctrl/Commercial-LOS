@@ -6,11 +6,15 @@ import {
 /**
  * Phase 249 — Borrower send / Office 365 Outlook connector evidence (READ-ONLY).
  *
- * The generated Office365OutlookService exists, but the connector is NOT registered in
- * the app data-source manifest, so live send cannot be certified. This module records the
- * connector state fail-closed: the generated service alone is NOT enough — connector
- * registration (and authorization) is required. It fabricates no registration and flips
- * no gate (BORROWER_MESSAGING_ENABLED / BORROWER_EMAIL_TRANSPORT_ENABLED stay false).
+ * The generated Office365OutlookService exists AND the connector IS registered in
+ * power.config.json (apis/shared_office365 / new_Office365OutlookCommercialLOS), so the
+ * connector prerequisite is satisfied (see OUTLOOK_CONNECTOR_STATE below + the PASS
+ * readiness). What still gates LIVE borrower send is NOT connector registration but the
+ * deploy email mode + the operator smoke: VITE_EMAIL_MODE is not LIVE and the
+ * BORROWER_MESSAGING_ENABLED / BORROWER_EMAIL_TRANSPORT_ENABLED flags stay false until a
+ * real diagnostic-mailbox send with a captured delivery receipt + named approver is
+ * recorded. This module records the connector state fail-closed and flips no gate; it
+ * fabricates no registration and never enables a live send.
  */
 
 export const OUTLOOK_GENERATED_SERVICE_PATH = 'src/generated/services/Office365OutlookService.ts';

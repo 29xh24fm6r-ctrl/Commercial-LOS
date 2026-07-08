@@ -116,18 +116,48 @@ export async function loadStageGovernanceDiagnosticsWith(
   const loadFailedReason =
     stageRows === null && statusRows === null ? (stageReadError ?? statusReadError) : undefined;
 
+  // Active non-canonical / legacy-test rows (e.g. PHASE121_*). They are EXCLUDED
+  // from resolution so a complete canonical set is not blocked by leftover legacy
+  // rows; they are reported to the derive as an at-risk hygiene warning instead.
+  const activeNonCanonical = (
+    r: { cr664_code?: string | null; cr664_activeflag?: boolean | null },
+    isCanonical: (code: string) => boolean,
+  ): string | null => {
+    const code = (r.cr664_code ?? '').trim();
+    const active = r.cr664_activeflag !== false;
+    return active && code.length > 0 && !isCanonical(code) ? code : null;
+  };
+
+  const legacyActiveStageCodes = (stageRows ?? [])
+    .map((r) => activeNonCanonical(r, isCanonicalStageCode))
+    .filter((c): c is string => c !== null);
+  const legacyActiveStatusCodes = (statusRows ?? [])
+    .map((r) => activeNonCanonical(r, isCanonicalStatusCode))
+    .filter((c): c is string => c !== null);
+
+  // Resolve ordering/status IGNORING active non-canonical rows (inactive rows are
+  // already ignored by the resolvers). This is the tolerance: legacy pollution
+  // does not turn a complete canonical set into a CRITICAL block.
+  const stageResolutionRows = (stageRows ?? []).filter(
+    (r) => activeNonCanonical(r, isCanonicalStageCode) === null,
+  );
+  const statusResolutionRows = (statusRows ?? []).filter(
+    (r) => activeNonCanonical(r, isCanonicalStatusCode) === null,
+  );
+
   const stageOrdering: StageOrderingResult =
     stageRows === null
       ? { status: 'unavailable', reasons: [stageReadError ?? 'stage-reference rows are not available in this context'] }
-      : resolveStageOrdering(stageRows);
+      : resolveStageOrdering(stageResolutionRows);
 
   const statusResult: StatusReferenceResult =
     statusRows === null
       ? { status: 'unavailable', reasons: [statusReadError ?? 'status-reference rows are not available in this context'] }
-      : resolveStatusReferences(statusRows);
+      : resolveStatusReferences(statusResolutionRows);
 
   const transitionGraph = stageOrdering.status === 'ready' ? describeStageTransitionGraph(stageOrdering) : null;
 
+  // Display shows ALL rows (including the legacy ones, marked non-canonical).
   const stageViews = (stageRows ?? []).map(toStageView).filter((v): v is StageRowView => v !== null);
   const statusViews = (statusRows ?? []).map(toStatusView).filter((v): v is StatusRowView => v !== null);
 
@@ -138,6 +168,8 @@ export async function loadStageGovernanceDiagnosticsWith(
     statusRows: statusViews,
     transitionGraph,
     loadFailedReason,
+    legacyActiveStageCodes,
+    legacyActiveStatusCodes,
   });
 }
 
