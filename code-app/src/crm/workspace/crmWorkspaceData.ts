@@ -10,6 +10,7 @@
  * Read-only — no writes (CRM live-write transport is not wired today).
  */
 
+import { formatDate } from '../../shared/formatters';
 import type { Cr664_crmorganizations } from '../../generated/models/Cr664_crmorganizationsModel';
 import type { Cr664_crmpersons } from '../../generated/models/Cr664_crmpersonsModel';
 import type { Cr664_crmrelationships } from '../../generated/models/Cr664_crmrelationshipsModel';
@@ -103,6 +104,17 @@ function s(v: unknown): string | undefined {
   return typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined;
 }
 
+/**
+ * Null-safe DISPLAY date for detail rows: a formatted date, or undefined so the row is omitted
+ * (never a raw ISO string in the drawer). An unparseable value falls back to the raw string.
+ * NOTE: only for display — sort keys (occurredAt) keep the raw ISO value.
+ */
+function d(v: unknown): string | undefined {
+  const str = s(v);
+  if (str === undefined) return undefined;
+  return formatDate(str, { empty: str });
+}
+
 function yn(v: unknown): string | undefined {
   if (v === true) return 'Yes';
   if (v === false) return 'No';
@@ -169,8 +181,8 @@ export function mapRelationship(r: Cr664_crmrelationships): CrmRecord {
       row('Role', s(r.cr664_role)),
       row('From', s(r.cr664_sourceentitytype)),
       row('To', s(r.cr664_targetentitytype)),
-      row('Start', s(r.cr664_startdate)),
-      row('End', s(r.cr664_enddate)),
+      row('Start', d(r.cr664_startdate)),
+      row('End', d(r.cr664_enddate)),
     ]),
   };
 }
@@ -186,8 +198,8 @@ export function mapRoleAssignment(r: Cr664_crmroleassignments): CrmRecord {
       row('Authority level', s(r.cr664_authoritylevel)),
       row('On entity', s(r.cr664_entitytype)),
       row('Assigned to', s(r.cr664_assignedtotype)),
-      row('Start', s(r.cr664_startdate)),
-      row('End', s(r.cr664_enddate)),
+      row('Start', d(r.cr664_startdate)),
+      row('End', d(r.cr664_enddate)),
     ]),
   };
 }
@@ -219,7 +231,7 @@ export function mapCommunicationPreference(p: Cr664_crmcommunicationpreferences)
       row('Preferred method', s(p.cr664_preferredmethod)),
       row('Consent status', s(p.cr664_consentstatus)),
       row('Owner type', s(p.cr664_ownertype)),
-      row('Effective date', s(p.cr664_effectivedate)),
+      row('Effective date', d(p.cr664_effectivedate)),
       row('Expires at', s(p.cr664_expiresat)),
     ]),
   };
@@ -235,7 +247,7 @@ export function mapContactAuthorization(a: Cr664_crmcontactauthorizations): CrmR
       row('Upload links', yn(a.cr664_authorizedforuploadlinks)),
       row('Loan notices', yn(a.cr664_authorizedforloannotices)),
       row('Servicing requests', yn(a.cr664_authorizedforservicingrequests)),
-      row('Authorization date', s(a.cr664_authorizationdate)),
+      row('Authorization date', d(a.cr664_authorizationdate)),
       row('Expires at', s(a.cr664_expiresat)),
     ]),
   };
@@ -252,8 +264,8 @@ export function mapVendorProfile(v: Cr664_crmvendorprofiles): CrmRecord {
       row('Approval status', s(v.cr664_approvalstatus)),
       row('Approved vendor', yn(v.cr664_approvedvendor)),
       row('Insurance on file', yn(v.cr664_insuranceonfile)),
-      row('Approval date', s(v.cr664_approvaldate)),
-      row('Expiration date', s(v.cr664_expirationdate)),
+      row('Approval date', d(v.cr664_approvaldate)),
+      row('Expiration date', d(v.cr664_expirationdate)),
     ]),
   };
 }
@@ -273,7 +285,7 @@ export function mapTimelineEvent(t: Cr664_crmtimelineevents): CrmRecord {
       row('Summary', s(t.cr664_summary)),
       row('Actor', s(t.cr664_actor)),
       row('On entity', s(t.cr664_entitytype)),
-      row('Occurred at', s(t.cr664_occurredat)),
+      row('Occurred at', d(t.cr664_occurredat)),
     ]),
   };
 }
@@ -291,7 +303,7 @@ export function mapAuditEntry(a: Cr664_crmauditentries): CrmRecord {
       row('On entity', s(a.cr664_entitytype)),
       row('Field', s(a.cr664_fieldkey)),
       row('Reason', s(a.cr664_reason)),
-      row('Timestamp', s(a.cr664_timestamp)),
+      row('Timestamp', d(a.cr664_timestamp)),
     ]),
   };
 }
