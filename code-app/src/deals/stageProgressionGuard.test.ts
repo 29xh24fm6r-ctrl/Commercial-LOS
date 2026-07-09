@@ -96,7 +96,8 @@ describe('deriveStageProgressionEligibility', () => {
     expect(r.status).toBe('clear');
     expect(r.currentStage).toBe('Underwriting');
     expect(r.reasons).toEqual([]);
-    expect(r.nextActionGuidance).toMatch(/banker review/i);
+    expect(r.nextActionGuidance).toMatch(/governed banker action/i);
+    expect(r.nextActionGuidance).toMatch(/exit criteria/i);
     // Clear copy must not promise progression — only state that nothing
     // is currently blocking.
     expect(/\bapproved\b/i.test(r.nextActionGuidance)).toBe(false);
