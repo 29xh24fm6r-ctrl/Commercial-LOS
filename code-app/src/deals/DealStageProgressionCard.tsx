@@ -11,6 +11,7 @@ import {
 } from '../shared/governance/stageProgressionAvailability';
 import { loadStageProgressionAvailability } from './stageProgressionAvailabilityLoader';
 import { deriveLoanWorkflowState } from '../workflow/deriveLoanWorkflowState';
+import { evaluateStageTransitionPolicy } from '../workflow/stageTransitionPolicy';
 import { advanceWorkflowStage, type StageAdvanceOutcome } from '../workflow/stageAdvanceWriteDependency';
 import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
 import { AUTO_STAGE_ADVANCE_ENABLED } from './dealOriginationFeatureFlags';
@@ -122,8 +123,8 @@ export function DealStageProgressionCard({
 
       {eligibility.reasons.length === 0 ? (
         <p style={styles.cleanMessage}>
-          No data signals are currently blocking forward progression. Banker review still
-          required before any stage movement.
+          No data-quality signals are blocking progression. A stage move is a governed banker
+          action, subject to the current stage&rsquo;s exit criteria.
         </p>
       ) : (
         <ul style={styles.list}>
@@ -385,25 +386,92 @@ function StageAdvanceControl({
   return (
     <div style={styles.advanceBox} data-stage-advance="control">
       <div style={styles.advanceLabel}>Advance stage</div>
+      {/* Surface the GOVERNED exit criteria for the current stage so the banker sees the
+          exact required steps in one place, next to the action. The advance button is gated
+          on the same fail-closed policy the write seam enforces (evaluateStageTransitionPolicy),
+          so a disabled button always has a stated, resolvable reason. */}
+      <StageAdvanceRequirements workflow={workflow} />
       <div style={styles.advanceButtons}>
-        {workflow.nextPermittedStages.map((stage) => (
-          <button
-            key={stage.id}
-            type="button"
-            disabled={saving}
-            style={{ ...styles.advanceButton, ...(saving ? styles.advanceButtonDisabled : null) }}
-            data-stage-advance-target={stage.id}
-            onClick={() => void onAdvance(stage.id)}
-          >
-            {`Advance to ${stage.label}`}
-          </button>
-        ))}
+        {workflow.nextPermittedStages.map((stage) => {
+          const policy = evaluateStageTransitionPolicy(workflow, stage.id);
+          const disabled = saving || !policy.allowed;
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              disabled={disabled}
+              title={!policy.allowed ? policy.reason : undefined}
+              style={{ ...styles.advanceButton, ...(disabled ? styles.advanceButtonDisabled : null) }}
+              data-stage-advance-target={stage.id}
+              data-stage-advance-allowed={policy.allowed ? 'true' : 'false'}
+              onClick={() => void onAdvance(stage.id)}
+            >
+              {`Advance to ${stage.label}`}
+            </button>
+          );
+        })}
       </div>
       {state.kind === 'done' && (
         <p style={styles.advanceStatus} role="status" data-stage-advance-outcome={state.outcome.kind}>
           {describeStageAdvanceOutcome(state.outcome)}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * The governed exit criteria for the current stage, surfaced next to the Advance action.
+ *
+ * `deriveLoanWorkflowReadiness` (the same readiness the fail-closed advance policy consumes)
+ * is the source of truth: blocked-severity items (missing required fields / documents / credit /
+ * closing evidence) HOLD the move; incomplete tasks are recommended (at-risk) and do not block.
+ * Each item names WHERE it is resolved (Deal Profile / Documents / Tasks / Credit Memo) so the
+ * banker acts in the right card. Logging a generic activity is explicitly NOT a substitute for a
+ * required document, task, or field — no activity-log bypass of a governed requirement.
+ */
+function StageAdvanceRequirements({ workflow }: { workflow: LoanWorkflowState }) {
+  const nextLabel = workflow.nextPermittedStages[0]?.label ?? 'the next stage';
+  const r = workflow.readiness;
+
+  if (r.status === 'clear') {
+    return (
+      <p style={styles.advanceReady} role="status" data-stage-advance-ready>
+        {`This deal meets the exit criteria for ${workflow.currentStage.label}. Advancing to ${nextLabel} is a governed banker action — audited and readback-verified.`}
+      </p>
+    );
+  }
+
+  const items: { id: string; label: string; sev: SeverityKey; where: string }[] = [
+    ...r.missingFields.map((f) => ({ id: `field-${f.id}`, label: `Complete required field: ${f.label}`, sev: 'blocked' as SeverityKey, where: 'Deal Profile' })),
+    ...r.missingDocuments.map((d) => ({ id: `doc-${d.id}`, label: `Provide required document: ${d.label}`, sev: 'blocked' as SeverityKey, where: 'Documents' })),
+    ...r.creditBlockers.map((c) => ({ id: `credit-${c.id}`, label: c.label, sev: 'blocked' as SeverityKey, where: 'Credit Memo' })),
+    ...r.closingBlockers.map((c) => ({ id: `closing-${c.id}`, label: c.label, sev: 'blocked' as SeverityKey, where: 'Documents' })),
+    ...r.missingTasks.map((t) => ({ id: `task-${t.id}`, label: `Complete task: ${t.label}`, sev: 'atRisk' as SeverityKey, where: 'Tasks' })),
+  ];
+  const blocking = items.filter((i) => i.sev === 'blocked').length;
+
+  return (
+    <div style={styles.reqBox} role="group" aria-label="Stage advance requirements" data-stage-advance-requirements>
+      <div style={styles.reqTitle}>
+        {blocking > 0
+          ? `To advance to ${nextLabel}, complete these governed exit criteria:`
+          : `Recommended before advancing to ${nextLabel} (these do not block the move):`}
+      </div>
+      <ul style={styles.reqList}>
+        {items.map((it) => (
+          <li key={it.id} style={styles.reqItem} data-req-severity={it.sev} data-req-where={it.where}>
+            <SeverityGlyph severity={it.sev} />
+            <span style={styles.reqLabel}>{it.label}</span>
+            <span style={styles.reqWhere}>{`— ${it.where}`}</span>
+          </li>
+        ))}
+      </ul>
+      <p style={styles.reqFootnote}>
+        These are the stage&rsquo;s governed exit criteria. Complete them in the linked cards to enable the
+        advance. Logging an activity records a call, email, meeting, or note — it does not substitute for a
+        required document, task, or field.
+      </p>
     </div>
   );
 }
@@ -465,6 +533,46 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'not-allowed',
   },
   advanceStatus: { margin: 0, fontSize: typography.size.sm, color: palette.textMuted },
+  advanceReady: {
+    margin: 0,
+    fontSize: typography.size.sm,
+    color: palette.clearFg,
+    fontWeight: typography.weight.medium,
+  },
+  reqBox: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: spacing.xs,
+    padding: `${spacing.xs} 0`,
+  },
+  reqTitle: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
+  },
+  reqList: {
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: spacing.xs,
+  },
+  reqItem: {
+    display: 'flex',
+    gap: spacing.xs,
+    alignItems: 'baseline',
+    fontSize: typography.size.sm,
+    color: palette.text,
+  },
+  reqLabel: { color: palette.text },
+  reqWhere: { color: palette.textSubtle, fontSize: typography.size.xs },
+  reqFootnote: {
+    margin: 0,
+    fontSize: typography.size.xs,
+    color: palette.textMuted,
+    lineHeight: typography.lineHeight.snug,
+  },
   cleanMessage: {
     margin: 0,
     color: palette.textMuted,

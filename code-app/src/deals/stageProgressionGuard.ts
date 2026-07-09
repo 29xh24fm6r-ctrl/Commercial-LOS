@@ -60,7 +60,7 @@ interface DeriveProgressionInput {
 }
 
 const GUIDANCE_CLEAR =
-  'No data signals are currently blocking forward progression. Banker review still required before any stage movement.';
+  "No data-quality signals are blocking progression. A stage move is a governed banker action, subject to the current stage's exit criteria.";
 const GUIDANCE_AT_RISK =
   'Review the listed signals. Forward progression appears possible once outstanding items are addressed.';
 const GUIDANCE_BLOCKED =

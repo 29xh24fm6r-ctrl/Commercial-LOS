@@ -111,4 +111,91 @@ describe('DealStageProgressionCard — Phase 28 schema-limitation banner', () =>
     expect(screen.getByText(/Current stage:\s*Underwriting/)).toBeInTheDocument();
     expect(screen.getByText(/Next action guidance/i)).toBeInTheDocument();
   });
+
+  it('never renders the misleading phantom "Banker review still required" gate copy', () => {
+    renderCard();
+    expect(screen.queryByText(/Banker review still required/i)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Governed advance flow: with an authorized banker actor + armed + seeded, the
+// card surfaces the current stage's GOVERNED exit criteria next to the action and
+// gates the Advance button on the same fail-closed policy the write seam enforces.
+// ---------------------------------------------------------------------------
+
+const AVAILABLE = async () => ({
+  available: true,
+  banner: 'Advance Stage is available — the stage ordering is seeded and deterministic.',
+  detail: 'seeded',
+});
+
+function intakeDealData(over: { documents?: DealDocumentsResult } = {}): DealData {
+  return {
+    deal: { ...baseDeal, stage: 'Intake' },
+    tasks: { kind: 'ready', data: { open: [], completed: [] } satisfies DealTasksResult },
+    documents: {
+      kind: 'ready',
+      data: over.documents ?? { outstanding: [], received: [], reviewed: [] },
+    },
+    creditMemo: { kind: 'ready', data: { memos: [], sections: [] } satisfies CreditMemoData },
+    activity: { kind: 'ready', data: [] satisfies TimelineEvent[] },
+    refresh: () => undefined,
+  };
+}
+
+function renderArmed(data: DealData) {
+  useDealDataMock.mockReturnValue(data);
+  return render(
+    <DealStageProgressionCard
+      stageAdvanceActor={{ systemUserId: 'sysuser-1', email: 'banker@oldglorybank.com' }}
+      loadAvailability={AVAILABLE}
+    />,
+  );
+}
+
+describe('DealStageProgressionCard — governed advance flow (armed + seeded + authorized banker)', () => {
+  it('surfaces the exact governed exit criteria and DISABLES Advance when a required INTAKE document is missing', async () => {
+    renderArmed(intakeDealData());
+    const btn = await screen.findByRole('button', { name: /Advance to Underwriting/i });
+    // Fail-closed: missing the required INTAKE loan application blocks the move.
+    expect(btn).toBeDisabled();
+    expect(btn.getAttribute('data-stage-advance-allowed')).toBe('false');
+    // The exact required step is named, in the right place (Documents).
+    const req = screen.getByText(/Provide required document: Loan application/i).closest('li')!;
+    expect(req.getAttribute('data-req-where')).toBe('Documents');
+    expect(req.getAttribute('data-req-severity')).toBe('blocked');
+    // Log Activity is explicitly NOT a substitute for a governed requirement.
+    expect(
+      screen.getByText(/does not substitute for a required document, task, or field/i),
+    ).toBeInTheDocument();
+  });
+
+  it('ENABLES Advance to Underwriting once the blocking exit criteria are met (incomplete tasks stay recommended, not blocking)', async () => {
+    const documents: DealDocumentsResult = {
+      outstanding: [],
+      received: [
+        {
+          id: 'd1',
+          name: 'Loan Application',
+          dueDate: undefined,
+          requestDate: undefined,
+          receivedDate: '2026-07-01T00:00:00Z',
+          reviewer: undefined,
+          uploaded: true,
+          modifiedOn: undefined,
+          status: 'received',
+        },
+      ],
+      reviewed: [],
+    };
+    renderArmed(intakeDealData({ documents }));
+    const btn = await screen.findByRole('button', { name: /Advance to Underwriting/i });
+    expect(btn).toBeEnabled();
+    expect(btn.getAttribute('data-stage-advance-allowed')).toBe('true');
+    // Incomplete intake tasks are shown as RECOMMENDED, not as hard blockers.
+    expect(screen.getByText(/Recommended before advancing to Underwriting/i)).toBeInTheDocument();
+    // No blocked-severity requirement remains.
+    expect(document.querySelector('[data-req-severity="blocked"]')).toBeNull();
+  });
 });
