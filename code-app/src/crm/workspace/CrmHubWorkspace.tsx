@@ -372,17 +372,64 @@ function ActivityTimeline({ records, onOpen }: { records: readonly CrmRecord[]; 
   );
 }
 
-/** CRM-G — the safe, free-text company fields exposed for governed inline edit in the drawer. */
-const ORG_EDIT_FIELDS: ReadonlyArray<{ field: CrmUpdatableOrgField; label: string }> = [
-  { field: 'cr664_industry', label: 'Industry' },
+/**
+ * CRM-G — the company fields exposed for governed inline edit in the drawer. Type and Industry are
+ * kept distinctly labeled (never conflated). NAICS is the underlying classification that DERIVES the
+ * displayed Industry; the `cr664_industry` descriptor is an explicit manual override (leave blank to
+ * use the NAICS-derived sector). Every field routes through the identity-gated, allow-listed, audited
+ * updateOrganizationField adapter.
+ */
+const ORG_EDIT_FIELDS: ReadonlyArray<{ field: CrmUpdatableOrgField; label: string; placeholder?: string; helper?: string }> = [
+  { field: 'cr664_organizationtype', label: 'Type (party role)', helper: "The company's role (e.g. Borrower) — kept separate from Industry." },
+  { field: 'cr664_naicscode', label: 'NAICS code', placeholder: '6-digit code', helper: 'The 6-digit classification. Sets the derived Industry when no manual override is set.' },
+  { field: 'cr664_industry', label: 'Industry (manual override)', placeholder: 'Leave blank to use NAICS', helper: 'Overrides the NAICS-derived sector. Leave blank to display the NAICS-derived industry instead.' },
   { field: 'cr664_website', label: 'Website' },
   { field: 'cr664_notes', label: 'Notes' },
 ];
+
+/**
+ * Seed an org inline-edit field from the RAW persisted value (never the derived display). Seeding
+ * Industry from the displayed value would silently persist a NAICS-derived sector as a manual
+ * override — so Industry/NAICS/Notes seed from the raw org fields; Type/Website from their raw detail.
+ */
+function seedOrgEditValue(record: CrmRecord, field: CrmUpdatableOrgField): string {
+  switch (field) {
+    case 'cr664_industry':
+      return record.orgIndustryDescriptor ?? '';
+    case 'cr664_naicscode':
+      return record.orgNaicsCode ?? '';
+    case 'cr664_notes':
+      return record.orgNotes ?? '';
+    default:
+      return detailValueByLabel(record, field === 'cr664_organizationtype' ? 'Type' : 'Website');
+  }
+}
 
 /** Seed an inline-edit field from the record's already-displayed overview detail (by label). */
 function detailValueByLabel(record: CrmRecord, label: string): string {
   const hit = record.detail.find((d) => d.label.toLowerCase() === label.toLowerCase());
   return hit?.value ?? '';
+}
+
+/** Shows where the displayed Industry comes from (NAICS-derived vs manual override) — never fabricated. */
+function OrgIndustryProvenance({ record }: { record: CrmRecord }) {
+  const hasOverride = Boolean(record.orgIndustryDescriptor);
+  const derived = record.orgIndustryDerivedSector;
+  const provenance = hasOverride
+    ? `Manual override set${derived ? ` — the NAICS-derived industry would be "${derived}".` : '.'}`
+    : derived
+      ? `Derived from NAICS ${record.orgNaicsCode} — "${derived}".`
+      : 'No Industry descriptor or NAICS code is set.';
+  return (
+    <div style={styles.provenanceBox} role="note" data-crm-industry-provenance>
+      <div style={styles.provenanceLine}>
+        <strong>Displayed Industry:</strong> {record.subtitle ?? 'unavailable'}
+      </div>
+      <div style={styles.provenanceHint}>
+        {provenance} The displayed Industry is the manual override if set, otherwise derived from the NAICS code.
+      </div>
+    </div>
+  );
 }
 
 function DetailDrawer({
@@ -490,6 +537,11 @@ function DetailDrawer({
 
       {isOrganization && (
         <DrawerSection title="Edit company details">
+          <p style={styles.editHint}>
+            Editing is governed: identity-gated, allow-listed, and audited. Type (the company&rsquo;s role) and
+            Industry are separate; click a value below to edit it.
+          </p>
+          <OrgIndustryProvenance record={record} />
           <dl style={styles.detailList}>
             {ORG_EDIT_FIELDS.map((f) => (
               <div key={f.field} style={styles.detailRow}>
@@ -499,11 +551,13 @@ function DetailDrawer({
                     organizationId={record.id}
                     field={f.field}
                     label={f.label}
-                    value={detailValueByLabel(record, f.label)}
+                    value={seedOrgEditValue(record, f.field)}
+                    placeholder={f.placeholder}
                     actor={{ authorized: actor.authorized, actorEmail: actor.actorEmail, actorSystemUserId: actor.actorSystemUserId }}
                     deps={orgUpdateDeps}
                     disabledReason={actor.writeDisabledReason ?? 'Sign-in identity is still resolving; CRM editing will enable shortly.'}
                   />
+                  {f.helper && <div style={styles.editFieldHelper}>{f.helper}</div>}
                 </dd>
               </div>
             ))}
@@ -700,6 +754,11 @@ const styles: Record<string, CSSProperties> = {
   detailRow: { display: 'grid', gridTemplateColumns: '150px 1fr', gap: spacing.sm },
   detailLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.semibold },
   detailValue: { margin: 0, fontSize: typography.size.sm, color: palette.text, wordBreak: 'break-word' },
+  editHint: { margin: `0 0 ${spacing.sm}`, fontSize: typography.size.xs, color: palette.textMuted, lineHeight: typography.lineHeight.snug },
+  editFieldHelper: { marginTop: 2, fontSize: typography.size.xs, color: palette.textSubtle, lineHeight: typography.lineHeight.snug },
+  provenanceBox: { margin: `0 0 ${spacing.sm}`, padding: `${spacing.xs} ${spacing.sm}`, background: palette.surface, border: `1px solid ${palette.border}`, borderRadius: radius.sm },
+  provenanceLine: { fontSize: typography.size.sm, color: palette.text },
+  provenanceHint: { marginTop: 2, fontSize: typography.size.xs, color: palette.textMuted, lineHeight: typography.lineHeight.snug },
   empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing.xs, textAlign: 'center', padding: `${spacing.xxl} ${spacing.xl}`, background: palette.surface, border: `1px dashed ${palette.border}`, borderRadius: radius.md },
   emptyMark: { fontSize: 34, color: palette.textSubtle },
   emptyHeading: { fontSize: typography.size.lg, fontWeight: typography.weight.bold, color: palette.text },

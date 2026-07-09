@@ -52,6 +52,41 @@ describe('Phase 258 — CRM domain mappers', () => {
     expect(r.detail).toContainEqual({ label: 'Tax ID on file', value: 'Yes' });
   });
 
+  it('exposes raw NAICS/Industry provenance and keeps Industry separate from Type (governed edit)', () => {
+    const r = mapOrganization({
+      cr664_crmorganizationid: 'org-2',
+      cr664_displayname: 'Waste Co',
+      cr664_naicscode: '561110', // NAICS only — no manual industry descriptor
+      cr664_organizationtype: 'Borrower',
+      cr664_name: 'Waste Co',
+    } as never);
+    const derived = deriveOrgIndustry(undefined, '561110');
+    // Displayed industry is the NAICS-derived sector — NOT the Type.
+    expect(r.subtitle).toBe(derived);
+    expect(r.tertiary).toBe('Borrower');
+    expect(r.subtitle).not.toBe(r.tertiary);
+    // Raw fields for the governed edit panel: the manual descriptor is EMPTY (so the editor never
+    // silently persists the derived sector as an override); NAICS + derived-sector provenance exposed.
+    expect(r.orgIndustryDescriptor).toBeUndefined();
+    expect(r.orgNaicsCode).toBe('561110');
+    expect(r.orgIndustryDerivedSector).toBe(derived);
+  });
+
+  it('a manual industry override is displayed but preserves the NAICS-derived value for readback', () => {
+    const r = mapOrganization({
+      cr664_crmorganizationid: 'org-3',
+      cr664_displayname: 'Override Co',
+      cr664_industry: 'Custom Sector Label',
+      cr664_naicscode: '561110',
+      cr664_organizationtype: 'Borrower',
+      cr664_name: 'Override Co',
+    } as never);
+    expect(r.subtitle).toBe('Custom Sector Label'); // override shown
+    expect(r.orgIndustryDescriptor).toBe('Custom Sector Label');
+    expect(r.orgIndustryDerivedSector).toBe(deriveOrgIndustry(undefined, '561110')); // NAICS-derived preserved
+    expect(r.subtitle).not.toBe(r.tertiary); // still separate from Type
+  });
+
   it('maps a person, falling back to first+last when no display name', () => {
     const r = mapPerson({
       cr664_crmpersonid: 'p-1',
