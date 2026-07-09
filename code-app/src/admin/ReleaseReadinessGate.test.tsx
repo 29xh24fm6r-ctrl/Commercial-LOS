@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import type { AdminData } from './AdminDataProvider';
 import {
@@ -16,10 +16,48 @@ vi.mock('./AdminDataProvider', () => ({
   useAdminData: vi.fn(),
 }));
 
+// The gate now reads the live stage-governance loader so a seeded environment is
+// reflected here (matching the Stage Governance Diagnostics card). Control it.
+const loadStageMock = vi.fn();
+vi.mock('./stageGovernanceDiagnosticsLoader', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./stageGovernanceDiagnosticsLoader')>();
+  return { ...actual, loadStageGovernanceDiagnostics: () => loadStageMock() };
+});
+
 import { useAdminData } from './AdminDataProvider';
 import { ReleaseReadinessGate } from './ReleaseReadinessGate';
+import {
+  loadStageGovernanceDiagnosticsWith,
+  type StageGovernanceReaders,
+} from './stageGovernanceDiagnosticsLoader';
+import { CANONICAL_STAGES, type StageReferenceRow } from '../workflow/stageOrderingContract';
+import { CANONICAL_STATUS_CODES, type StatusReferenceRow } from '../workflow/statusReferenceContract';
 
 const useAdminDataMock = vi.mocked(useAdminData);
+
+const READY_STAGES: StageReferenceRow[] = CANONICAL_STAGES.map((s) => ({
+  cr664_code: s.code, cr664_name: s.name, cr664_sequence: s.sequence, cr664_activeflag: true,
+}));
+const READY_STATUSES: StatusReferenceRow[] = CANONICAL_STATUS_CODES.map((c) => ({
+  cr664_code: c, cr664_name: c, cr664_activeflag: true,
+}));
+const readyReaders: StageGovernanceReaders = {
+  readStageRows: async () => READY_STAGES,
+  readStatusRows: async () => READY_STATUSES,
+};
+const failReaders: StageGovernanceReaders = {
+  readStageRows: async () => { throw new Error('cr664_sequence not provisioned'); },
+  readStatusRows: async () => { throw new Error('status data source not registered'); },
+};
+async function readyDiag() { return loadStageGovernanceDiagnosticsWith(readyReaders); }
+async function blockedDiag() { return loadStageGovernanceDiagnosticsWith(failReaders); }
+
+beforeEach(async () => {
+  loadStageMock.mockReset();
+  // Default: the live loader reports the honest not-seeded blocked state — the pre-seed
+  // environment the existing assertions were written against.
+  loadStageMock.mockResolvedValue(await blockedDiag());
+});
 
 function makeAdminData(overrides: Partial<AdminData> = {}): AdminData {
   return {
@@ -78,14 +116,12 @@ describe('ReleaseReadinessGate — Phase 30 admin dashboard', () => {
     ).toBeInTheDocument();
   });
 
-  it('reports the Stage Progression row as Blocked (Phase 28 schema gap, observable today)', () => {
+  it('reports the Stage Progression row as Blocked when the live loader reports a not-seeded environment', async () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
-    // The stage row carries a Blocked badge. The badge is
-    // appearance="outline"; check for the text variant.
-    const stageRow = screen
-      .getByText(/Stage progression readiness/i)
-      .closest('li')!;
+    // Default mock: the live stage-governance read resolves to the honest not-seeded
+    // blocked state. Await the load, then the stage row carries a Blocked badge.
+    const stageRow = (await screen.findByText(/Stage progression readiness/i)).closest('li')!;
     expect(stageRow.textContent).toMatch(/Blocked/i);
   });
 
@@ -105,12 +141,25 @@ describe('ReleaseReadinessGate — Phase 30 admin dashboard', () => {
     expect(row.textContent).toMatch(/no in-process signal/i);
   });
 
-  it('rolls overall up to "Not ready to promote" because the stage row is Blocked', () => {
+  it('rolls overall up to "Not ready to promote" because the stage row is Blocked', async () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     expect(
-      screen.getByText(/Not ready to promote — blockers open/i),
+      await screen.findByText(/Not ready to promote — blockers open/i),
     ).toBeInTheDocument();
+  });
+
+  it('flips the Stage Progression row off Blocked once the live loader reports a seeded environment', async () => {
+    useAdminDataMock.mockReturnValue(makeAdminData());
+    loadStageMock.mockResolvedValue(await readyDiag());
+    render(<ReleaseReadinessGate />);
+    // Once the seeded stage governance resolves, the hard block clears: overall is no
+    // longer "Not ready to promote" and the stage row is no longer Blocked. This is the
+    // fix — a seeded environment is now reflected in the Release Readiness Gate.
+    await screen.findByText(/Cannot fully verify|Ready to promote/i);
+    const stageRow = screen.getByText(/Stage progression readiness/i).closest('li')!;
+    expect(stageRow.textContent).not.toMatch(/Blocked/i);
+    expect(screen.queryByText(/Not ready to promote — blockers open/i)).toBeNull();
   });
 
   it('renders NO action / promote / deploy / approve button — read-only gate', () => {
