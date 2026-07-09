@@ -89,17 +89,19 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(byId.get('crm-writeback')?.evidencePresent.join(' ')).toMatch(/crmWriteback/);
   });
 
-  it('CRM schema verification is cleared from committed evidence; only the flag + transport remain (no flip, not enabled)', () => {
+  it('CRM diagnostic tells the whole truth: writes live via the Hub, schema verified, spine flag intentionally off', () => {
     const vm = deriveFullActivationLaunchCertification();
     const crm = vm.domains.find((d) => d.id === 'crm-writeback')!;
     // The stale "no injected verified state" blocker is gone — the committed VerifiedCrmSchemaState
     // hydrates and passes the runtime schema gate.
     expect(crm.blockers.join(' ')).not.toMatch(/No injected VerifiedCrmSchemaState/i);
-    expect(crm.blockers.join(' ')).toMatch(/CRM_LIVE_PERSISTENCE_ENABLED is false/);
-    expect(crm.blockers.join(' ')).toMatch(/transport is not injected/i);
-    // The verified schema state is surfaced as evidence.
+    // The flag is named and framed honestly as an intentional, redundant-spine gate — not "flip me".
+    expect(crm.blockers.join(' ')).toMatch(/CRM_LIVE_PERSISTENCE_ENABLED is intentionally false/i);
+    expect(crm.blockers.join(' ')).toMatch(/redundant|unrouted|no wired live transport/i);
+    // Evidence surfaces both the already-live Hub write path and the verified schema state.
+    expect(crm.evidencePresent.join(' ')).toMatch(/Hub write adapter/i);
     expect(crm.evidencePresent.join(' ')).toMatch(/VerifiedCrmSchemaState hydrates/i);
-    // Schema verified never enables a write: the flag is off, so the domain is still not enabled.
+    // The flag stays off and the domain is not falsely marked enabled.
     expect(crm.flagEnabled).toBe(false);
     expect(crm.status).not.toBe('enabled');
   });

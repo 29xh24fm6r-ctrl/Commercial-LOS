@@ -173,19 +173,23 @@ function buildSpecs(): DomainSpec[] {
         'Phase 237G governed internal CRM writeback adapter (crmWriteback): allow-listed cr664_crm* entities only, raw-sensitive-field rejection, audit on every write, default-off and fail-closed — certified by success/disallowed-entity/disallowed-field/unauthorized/adapter-failure tests.',
         'Live Dataverse CRM adapter with schema/payload mapping and failure handling; fail-closed runtime schema gate comparing an injected verified-schema state to the plan.',
         'Persistence resolver returns a live adapter only when the gate passes and an operator is authorized.',
+        'CRM live persistence is ALREADY operational via the governed Hub write adapter (src/crm/write/crmWriteAdapter.ts, consumed by the routed CrmHubWorkspace): authorized bankers add company/contact/activity/task/relationship with fail-closed auth -> validation -> Dataverse identity -> create -> readback -> CRM audit, on the generated SDK. This live path is identity-gated and does NOT read CRM_LIVE_PERSISTENCE_ENABLED.',
         ...(crmSchemaVerified
           ? [
-              'Committed token-backed VerifiedCrmSchemaState hydrates (10 tables / 147 columns / 0 conflicts) and satisfies the runtime schema gate (schemaReady=true) — the schema-verification step is COMPLETE. Injected via runtimeVerifiedSchemaBridge (CURRENT_CRM_VERIFICATION_EVIDENCE); proven by activationVerifiedStateContract. No Dataverse probe; the live-persistence flag stays off so no write is enabled.',
+              'Committed token-backed VerifiedCrmSchemaState hydrates (10 tables / 147 columns / 0 conflicts) and satisfies the runtime schema gate (schemaReady=true) — the schema-verification step is COMPLETE. Injected via runtimeVerifiedSchemaBridge (CURRENT_CRM_VERIFICATION_EVIDENCE); proven by activationVerifiedStateContract. No Dataverse probe.',
             ]
           : []),
       ],
-      // Derived from the actual committed-evidence schema gate, not a static claim. When the
-      // verified state is injected + passes the gate, the schema blocker is genuinely cleared and
-      // only the flag + runtime-transport injection remain (writes stay fail-closed).
+      // Honest framing: the live CRM write capability is delivered by the Hub adapter above.
+      // CRM_LIVE_PERSISTENCE_ENABLED gates a SEPARATE governed spine (resolveCrmPersistenceAdapter
+      // / crmWriteback) that is intentionally unrouted (src/navigation/intentionallyUnrouted.ts) and
+      // reconciled off by unifiedCrmReadiness ("no parallel readiness story"). So the remaining
+      // "blocker" is a deliberate design state, not missing plumbing. Schema-verification text is
+      // still derived from the committed-evidence gate so it reverts if that evidence regresses.
       blockers: crmSchemaVerified
         ? [
-            'CRM_LIVE_PERSISTENCE_ENABLED is false — the certified enablement flip has not been made.',
-            'The live Dataverse transport is not injected into resolveCrmPersistenceAdapter by default, so the runtime resolver returns the disabled adapter even with the schema gate green.',
+            'CRM_LIVE_PERSISTENCE_ENABLED is intentionally false: it gates a separate, deliberately-unrouted governed spine (resolveCrmPersistenceAdapter / crmWriteback), while the Hub adapter above is the active live write path — reconciled, no parallel write path.',
+            'That spine has no routed consumer and no wired live transport by design; flipping the flag would light an inert, redundant path rather than enable a new capability.',
           ]
         : [
             'No injected VerifiedCrmSchemaState confirming the live tables/columns/relationships match crmDataverseSchemaPlan with zero conflicts.',
@@ -193,7 +197,8 @@ function buildSpecs(): DomainSpec[] {
           ],
       unblockActions: crmSchemaVerified
         ? [
-            'Schema verification is COMPLETE (the committed VerifiedCrmSchemaState hydrates and passes the runtime schema gate). Remaining: inject the live Dataverse transport into resolveCrmPersistenceAdapter, then enable CRM_LIVE_PERSISTENCE_ENABLED and certify the writeback success/failure/rollback tests.',
+            'No action is required to make CRM writes live — they already are, via the governed Hub adapter (identity-gated, authorized, readback + audit). Schema verification is complete (the committed VerifiedCrmSchemaState passes the runtime gate).',
+            'Enable CRM_LIVE_PERSISTENCE_ENABLED only if a governed consumer for the separate spine is deliberately routed; flipping it otherwise reintroduces a parallel write path the codebase retired.',
           ]
         : [
             'Operator verifies the live CRM Dataverse schema against src/crm/crmDataverseSchemaPlan and injects the resulting VerifiedCrmSchemaState (tables/columns/relationships/conflicts).',
