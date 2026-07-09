@@ -106,6 +106,20 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(crm.status).not.toBe('enabled');
   });
 
+  it('portfolio boarding: schema verified from committed evidence; real remaining blockers (authentic smoke + unrouted), not enabled', () => {
+    const vm = deriveFullActivationLaunchCertification();
+    const pb = vm.domains.find((d) => d.id === 'portfolio-boarding-persistence')!;
+    // The stale "no injected verified state" blocker is gone — committed VerifiedBoardingSchemaState hydrates.
+    expect(pb.blockers.join(' ')).not.toMatch(/No injected VerifiedBoardingSchemaState/i);
+    expect(pb.evidencePresent.join(' ')).toMatch(/VerifiedBoardingSchemaState hydrates/i);
+    // Unlike CRM, portfolio has NO already-live path: the real remaining blockers are named honestly.
+    expect(pb.blockers.join(' ')).toMatch(/unknown-operator/i);
+    expect(pb.blockers.join(' ')).toMatch(/unrouted|WIRE candidate|no live boarding write path/i);
+    // Not falsely enabled: flags off, no fake readiness.
+    expect(pb.flagEnabled).toBe(false);
+    expect(pb.status).not.toBe('enabled');
+  });
+
   it('borrower send names the Outlook connector + SDK regeneration as the exact blocker', () => {
     const vm = deriveFullActivationLaunchCertification();
     const borrower = vm.domains.find((d) => d.id === 'borrower-communication-send')!;

@@ -13,8 +13,11 @@ import {
 import {
   hydrateVerifiedCrmSchemaState,
   CURRENT_CRM_VERIFICATION_EVIDENCE,
+  hydrateVerifiedBoardingSchemaState,
+  CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE,
 } from './runtimeVerifiedSchemaBridge';
 import { deriveCrmRuntimeSchemaGate } from '../crm/crmRuntimeSchemaGate';
+import { derivePortfolioBoardingRuntimeSchemaGate } from '../portfolioBoarding/portfolioBoardingRuntimeSchemaGate';
 
 /**
  * Phase 237A — Full system activation launch certification model.
@@ -131,6 +134,22 @@ function buildSpecs(): DomainSpec[] {
         })
       : null;
   const crmSchemaVerified = crmSchemaGate?.schemaReady === true;
+
+  // Portfolio boarding schema verification — same pattern: the committed token-backed
+  // VerifiedBoardingSchemaState hydrated through the bridge and run through the boarding gate.
+  // With both boarding flags off it proves the schema WITHOUT enabling any write, and reverts to
+  // the not-verified blocker text if the committed evidence ever regresses.
+  const boardingHydration = hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE);
+  const boardingSchemaGate =
+    boardingHydration.hydrated && boardingHydration.verified
+      ? derivePortfolioBoardingRuntimeSchemaGate({
+          verified: boardingHydration.verified,
+          flags: PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS,
+          adapterEnabled: false,
+          isAuthorizedOperator: false,
+        })
+      : null;
+  const boardingSchemaVerified = boardingSchemaGate?.schemaReady === true;
 
   return [
     {
@@ -285,17 +304,36 @@ function buildSpecs(): DomainSpec[] {
       adapterPath: 'src/portfolioBoarding/resolvePortfolioLoanBoardingPersistenceAdapter.ts',
       gatePath: 'src/portfolioBoarding/portfolioBoardingRuntimeSchemaGate.ts',
       evidencePresent: [
-        'Single-record boarding adapter with per-child-group written/skipped/failed reporting and audit.',
+        'Single-record boarding adapter with per-child-group written/skipped/failed reporting and audit — now covers all 8 child groups (borrower/collateral/guarantor/covenant/tickler/insurance + document/evidence + exception/review) with duplicate + readback guards.',
         'Fail-closed runtime schema gate comparing an injected verified-schema state to the boarding plan.',
+        ...(boardingSchemaVerified
+          ? [
+              'Committed token-backed VerifiedBoardingSchemaState hydrates (13 tables / 219 columns / 12 required relationships / 0 conflicts) and satisfies the runtime schema gate (schemaReady=true) — the schema-verification step is COMPLETE. Injected via runtimeVerifiedSchemaBridge (CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE); proven by activationVerifiedStateContract. No Dataverse probe.',
+            ]
+          : []),
       ],
-      blockers: [
-        'No injected VerifiedBoardingSchemaState confirming the live tables/columns/required-relationships match portfolioLoanBoardingDataverseSchemaPlan with zero conflicts.',
-        'The schema-verification loader is environment-owned; the gate never probes Dataverse and never fakes readiness.',
-      ],
-      unblockActions: [
-        'Operator verifies the live boarding Dataverse schema against src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan and injects the VerifiedBoardingSchemaState.',
-        'With the schema gate green, the route enabled, and an authorized operator, enable PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and certify the single-record boarding tests.',
-      ],
+      // Unlike CRM (whose live writes already flow through the Hub adapter), portfolio boarding has
+      // NO already-live write path — the boarding write path is a genuinely-unrouted WIRE candidate.
+      // So once the schema is verified from committed evidence, the remaining blockers are REAL, not
+      // a red herring: an authentic attributable smoke, a routed consumer, and the two flags.
+      blockers: boardingSchemaVerified
+        ? [
+            'The committed portfolioBoarding final-launch smoke is attributed to "unknown-operator" (a sentinel), so it is NOT accepted at HIGH confidence — an authentic, attributable boarding smoke has not been recorded (the artifact is otherwise a real live create/readback/cleanup with a machine-proof record id).',
+            'PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED + PORTFOLIO_BOARDING_ROUTE_ENABLED are off and the boarding write path (resolvePortfolioLoanBoardingPersistenceAdapter / boardPortfolioLoan) is an intentionally-unrouted WIRE candidate — there is no live boarding write path yet.',
+          ]
+        : [
+            'No injected VerifiedBoardingSchemaState confirming the live tables/columns/required-relationships match portfolioLoanBoardingDataverseSchemaPlan with zero conflicts.',
+            'The schema-verification loader is environment-owned; the gate never probes Dataverse and never fakes readiness.',
+          ],
+      unblockActions: boardingSchemaVerified
+        ? [
+            'Schema verification is COMPLETE (the committed VerifiedBoardingSchemaState passes the runtime gate). Re-capture an AUTHENTIC single-record boarding smoke with a real attributable operator — the current artifact is attributed to the "unknown-operator" sentinel and cannot certify.',
+            'Wire + route the governed boarding write path with an authorized operator, then enable PORTFOLIO_BOARDING_ROUTE_ENABLED + PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and certify the single-record boarding tests.',
+          ]
+        : [
+            'Operator verifies the live boarding Dataverse schema against src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan and injects the VerifiedBoardingSchemaState.',
+            'With the schema gate green, the route enabled, and an authorized operator, enable PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and certify the single-record boarding tests.',
+          ],
       repoCompletable: false,
       operatorEnvironmentConfirmed: true,
     },
