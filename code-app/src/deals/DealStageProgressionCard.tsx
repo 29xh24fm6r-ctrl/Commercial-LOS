@@ -15,6 +15,7 @@ import { evaluateStageTransitionPolicy } from '../workflow/stageTransitionPolicy
 import { advanceWorkflowStage, type StageAdvanceOutcome } from '../workflow/stageAdvanceWriteDependency';
 import {
   deriveStageExitReadiness,
+  evaluateStageExitPolicy,
   type WorkflowRequirementFacts,
 } from '../workflow/loanWorkflowRequirementEngine';
 import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
@@ -367,7 +368,18 @@ function StageAdvanceControl({
     { kind: 'idle' } | { kind: 'saving' } | { kind: 'done'; outcome: StageAdvanceOutcome }
   >({ kind: 'idle' });
 
+  // ARC Phase 3 — fail-closed caller guard: the live advance requires BOTH the write-seam policy AND
+  // the shared requirement engine's tracked-blocking to be clear. This keeps the button and the actual
+  // write in agreement even where the engine is stricter than the legacy seam (e.g. Underwriting now
+  // requires the analysis documents REVIEWED). Untracked deep facts are surfaced as "future" and do NOT
+  // block here. The governed seam still enforces its own policy as defense-in-depth.
+  const enginePolicy = evaluateStageExitPolicy(deriveStageExitReadiness(workflow.currentStage.id, facts));
+
   async function onAdvance(nextStageId: LoanWorkflowStageId) {
+    if (!enginePolicy.allowed) {
+      setState({ kind: 'done', outcome: { kind: 'blocked', reason: enginePolicy.reason, blockers: enginePolicy.blocking.map((b) => b.uiCopy) } });
+      return;
+    }
     setState({ kind: 'saving' });
     const deps = buildLiveStageAdvanceDeps({
       actorSystemUserId: actor.systemUserId ?? '',
@@ -405,16 +417,18 @@ function StageAdvanceControl({
       <div style={styles.advanceButtons}>
         {workflow.nextPermittedStages.map((stage) => {
           const policy = evaluateStageTransitionPolicy(workflow, stage.id);
-          const disabled = saving || !policy.allowed;
+          const allowed = policy.allowed && enginePolicy.allowed;
+          const disabled = saving || !allowed;
+          const reason = !policy.allowed ? policy.reason : !enginePolicy.allowed ? enginePolicy.reason : undefined;
           return (
             <button
               key={stage.id}
               type="button"
               disabled={disabled}
-              title={!policy.allowed ? policy.reason : undefined}
+              title={reason}
               style={{ ...styles.advanceButton, ...(disabled ? styles.advanceButtonDisabled : null) }}
               data-stage-advance-target={stage.id}
-              data-stage-advance-allowed={policy.allowed ? 'true' : 'false'}
+              data-stage-advance-allowed={allowed ? 'true' : 'false'}
               onClick={() => void onAdvance(stage.id)}
             >
               {`Advance to ${stage.label}`}

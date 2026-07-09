@@ -49,12 +49,20 @@ export function shallowRequirementId(scope: RequirementScope, category: Requirem
 }
 
 /**
- * Document-review-level policy (which documents must be REVIEWED, not merely received). Phase 2 keeps
- * every live document at `received` (equivalent to the legacy gate) so the engine's live decision
- * matches the write policy exactly. A later stage phase (e.g. PR 7 underwriting) flips its analysis
- * documents to `reviewed` together with adopting the engine in the write seam. Key = `${scope}:${rawId}`.
+ * Document-review-level policy (which documents must be REVIEWED, not merely received).
+ * Key = `${scope}:${rawId}`.
+ *
+ * ARC Phase 3 — "underwriting review completed" goes LIVE via real typed document status: the
+ * underwriting analysis documents (business financial statements, tax returns) must be REVIEWED (not
+ * merely received) to exit Underwriting. This is a genuine, non-fabricated deep-review signal (an
+ * underwriter reviewing the financials), enforced through the Phase 2 typed-status evaluator. The
+ * Stage Map + advance gate agree via the fail-closed caller guard. Intake documents stay `received`
+ * (equivalent), so the Stage Advancement smoke path is unchanged.
  */
-const DOCUMENT_REVIEW_LEVEL: Readonly<Record<string, DocumentReviewLevel>> = Object.freeze({});
+const DOCUMENT_REVIEW_LEVEL: Readonly<Record<string, DocumentReviewLevel>> = Object.freeze({
+  'UNDERWRITING:business financial statements': 'reviewed',
+  'UNDERWRITING:tax returns': 'reviewed',
+});
 
 /**
  * Task-severity policy (which tasks BLOCK vs stay recommended/optional). Phase 2 keeps every live task
@@ -155,9 +163,11 @@ function untracked(
  * NOT attach to INTAKE, so Intake → Underwriting stays behavior-compatible with the current live gate.
  */
 const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
-  // Underwriting → Credit Approval (ARC PR 6/7)
-  untracked('UNDERWRITING:risk_rating', 'UNDERWRITING', 'credit', 'Risk rating assigned', 'Credit Memo', 'underwriter', 'risk_rating_record', 'risk rating system not yet implemented (ARC PR 6)'),
-  untracked('UNDERWRITING:uw_recommendation', 'UNDERWRITING', 'credit', 'Underwriting recommendation recorded', 'Credit Memo', 'underwriter', 'review_record', 'underwriting recommendation record not yet implemented (ARC PR 7)'),
+  // Underwriting → Credit Approval (ARC Phase 3): the evaluation models are READY
+  // (src/workflow/underwritingDeepFacts.ts) but no deal-scoped record exists in Dataverse yet, so these
+  // stay untracked/future (fail-closed) until a maker adds the backing + a loader supplies the fact.
+  untracked('UNDERWRITING:risk_rating', 'UNDERWRITING', 'credit', 'Risk rating assigned', 'Credit Memo', 'underwriter', 'risk_rating_record', 'risk-rating model ready (underwritingDeepFacts.ts); needs a deal-scoped cr664 risk-rating record + loader (the cr664_RiskLevelReference lookup has no generated reference table today)'),
+  untracked('UNDERWRITING:uw_recommendation', 'UNDERWRITING', 'credit', 'Underwriting recommendation recorded', 'Credit Memo', 'underwriter', 'review_record', 'recommendation model ready (underwritingDeepFacts.ts); needs a cr664 underwriting-recommendation field/record (approve/approve-with-conditions/decline/return) + loader'),
   // Credit Approval → Commitment (ARC PR 8/9)
   untracked('CREDIT_APPROVAL:memo_finalized', 'CREDIT_APPROVAL', 'credit', 'Credit memo finalized', 'Credit Memo', 'credit_officer', 'memo_status', 'credit memo lifecycle status not yet implemented (ARC PR 8)'),
   untracked('CREDIT_APPROVAL:approval_decision', 'CREDIT_APPROVAL', 'approval', 'Approval decision recorded', 'Approval', 'approver', 'approval_record', 'approval decision record not yet implemented (ARC PR 9)'),
@@ -224,4 +234,20 @@ export function shallowRequirementMeta(
 /** The authored deep (not-yet-tracked) requirements for a scope. */
 export function untrackedRequirementsForScope(scope: RequirementScope): readonly CanonicalRequirement[] {
   return requirementsForScope(scope).filter((r) => !r.tracked);
+}
+
+const DEEP_IDS = new Set(DEEP_REQUIREMENTS.map((r) => r.id));
+
+/** True for an authored DEEP requirement (risk rating, approval, closing, boarding, …) — not a stage-def shallow fact. */
+export function isAuthoredDeepRequirement(id: string): boolean {
+  return DEEP_IDS.has(id);
+}
+
+/**
+ * The authored DEEP requirements gating a stage exit (risk rating, approval, closing/funding, boarding).
+ * Enumerated independently of `tracked` so the engine evaluates each via its model when a fact flips
+ * tracked, and fails closed as untracked/future while it is not.
+ */
+export function authoredDeepRequirementsForScope(scope: RequirementScope): readonly CanonicalRequirement[] {
+  return DEEP_REQUIREMENTS.filter((r) => r.scope === scope);
 }
