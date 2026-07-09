@@ -13,8 +13,13 @@ import {
 import {
   hydrateVerifiedCrmSchemaState,
   CURRENT_CRM_VERIFICATION_EVIDENCE,
+  hydrateVerifiedBoardingSchemaState,
+  CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE,
 } from './runtimeVerifiedSchemaBridge';
 import { deriveCrmRuntimeSchemaGate } from '../crm/crmRuntimeSchemaGate';
+import { derivePortfolioBoardingRuntimeSchemaGate } from '../portfolioBoarding/portfolioBoardingRuntimeSchemaGate';
+import { deriveChecklistSignoffReadiness } from './checklistSignoffEvidence';
+import { deriveOutlookConnectorReadiness } from './outlookConnectorEvidence';
 
 /**
  * Phase 237A — Full system activation launch certification model.
@@ -132,6 +137,31 @@ function buildSpecs(): DomainSpec[] {
       : null;
   const crmSchemaVerified = crmSchemaGate?.schemaReady === true;
 
+  // Portfolio boarding schema verification — same pattern: the committed token-backed
+  // VerifiedBoardingSchemaState hydrated through the bridge and run through the boarding gate.
+  // With both boarding flags off it proves the schema WITHOUT enabling any write, and reverts to
+  // the not-verified blocker text if the committed evidence ever regresses.
+  const boardingHydration = hydrateVerifiedBoardingSchemaState(CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE);
+  const boardingSchemaGate =
+    boardingHydration.hydrated && boardingHydration.verified
+      ? derivePortfolioBoardingRuntimeSchemaGate({
+          verified: boardingHydration.verified,
+          flags: PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS,
+          adapterEnabled: false,
+          isAuthorizedOperator: false,
+        })
+      : null;
+  const boardingSchemaVerified = boardingSchemaGate?.schemaReady === true;
+
+  // Document checklist: the lending-owner rule-set signoff is a committed, validated artifact
+  // (checklistSignoffEvidence). Read it so the diagnostic reflects the real signoff state rather
+  // than a stale "not signed off" claim; it flips no gate.
+  const checklistSignedOff = deriveChecklistSignoffReadiness().signed;
+  // Borrower send: the Office 365 Outlook connector registration is a committed, verified state
+  // (outlookConnectorEvidence, PASS). Read it so the diagnostic stops claiming the connector is
+  // unregistered; it flips no gate and never enables a live send.
+  const outlookRegistered = deriveOutlookConnectorReadiness().status === 'PASS';
+
   return [
     {
       id: 'new-deal-create',
@@ -173,19 +203,23 @@ function buildSpecs(): DomainSpec[] {
         'Phase 237G governed internal CRM writeback adapter (crmWriteback): allow-listed cr664_crm* entities only, raw-sensitive-field rejection, audit on every write, default-off and fail-closed — certified by success/disallowed-entity/disallowed-field/unauthorized/adapter-failure tests.',
         'Live Dataverse CRM adapter with schema/payload mapping and failure handling; fail-closed runtime schema gate comparing an injected verified-schema state to the plan.',
         'Persistence resolver returns a live adapter only when the gate passes and an operator is authorized.',
+        'CRM live persistence is ALREADY operational via the governed Hub write adapter (src/crm/write/crmWriteAdapter.ts, consumed by the routed CrmHubWorkspace): authorized bankers add company/contact/activity/task/relationship with fail-closed auth -> validation -> Dataverse identity -> create -> readback -> CRM audit, on the generated SDK. This live path is identity-gated and does NOT read CRM_LIVE_PERSISTENCE_ENABLED.',
         ...(crmSchemaVerified
           ? [
-              'Committed token-backed VerifiedCrmSchemaState hydrates (10 tables / 147 columns / 0 conflicts) and satisfies the runtime schema gate (schemaReady=true) — the schema-verification step is COMPLETE. Injected via runtimeVerifiedSchemaBridge (CURRENT_CRM_VERIFICATION_EVIDENCE); proven by activationVerifiedStateContract. No Dataverse probe; the live-persistence flag stays off so no write is enabled.',
+              'Committed token-backed VerifiedCrmSchemaState hydrates (10 tables / 147 columns / 0 conflicts) and satisfies the runtime schema gate (schemaReady=true) — the schema-verification step is COMPLETE. Injected via runtimeVerifiedSchemaBridge (CURRENT_CRM_VERIFICATION_EVIDENCE); proven by activationVerifiedStateContract. No Dataverse probe.',
             ]
           : []),
       ],
-      // Derived from the actual committed-evidence schema gate, not a static claim. When the
-      // verified state is injected + passes the gate, the schema blocker is genuinely cleared and
-      // only the flag + runtime-transport injection remain (writes stay fail-closed).
+      // Honest framing: the live CRM write capability is delivered by the Hub adapter above.
+      // CRM_LIVE_PERSISTENCE_ENABLED gates a SEPARATE governed spine (resolveCrmPersistenceAdapter
+      // / crmWriteback) that is intentionally unrouted (src/navigation/intentionallyUnrouted.ts) and
+      // reconciled off by unifiedCrmReadiness ("no parallel readiness story"). So the remaining
+      // "blocker" is a deliberate design state, not missing plumbing. Schema-verification text is
+      // still derived from the committed-evidence gate so it reverts if that evidence regresses.
       blockers: crmSchemaVerified
         ? [
-            'CRM_LIVE_PERSISTENCE_ENABLED is false — the certified enablement flip has not been made.',
-            'The live Dataverse transport is not injected into resolveCrmPersistenceAdapter by default, so the runtime resolver returns the disabled adapter even with the schema gate green.',
+            'CRM_LIVE_PERSISTENCE_ENABLED is intentionally false: it gates a separate, deliberately-unrouted governed spine (resolveCrmPersistenceAdapter / crmWriteback), while the Hub adapter above is the active live write path — reconciled, no parallel write path.',
+            'That spine has no routed consumer and no wired live transport by design; flipping the flag would light an inert, redundant path rather than enable a new capability.',
           ]
         : [
             'No injected VerifiedCrmSchemaState confirming the live tables/columns/relationships match crmDataverseSchemaPlan with zero conflicts.',
@@ -193,7 +227,8 @@ function buildSpecs(): DomainSpec[] {
           ],
       unblockActions: crmSchemaVerified
         ? [
-            'Schema verification is COMPLETE (the committed VerifiedCrmSchemaState hydrates and passes the runtime schema gate). Remaining: inject the live Dataverse transport into resolveCrmPersistenceAdapter, then enable CRM_LIVE_PERSISTENCE_ENABLED and certify the writeback success/failure/rollback tests.',
+            'No action is required to make CRM writes live — they already are, via the governed Hub adapter (identity-gated, authorized, readback + audit). Schema verification is complete (the committed VerifiedCrmSchemaState passes the runtime gate).',
+            'Enable CRM_LIVE_PERSISTENCE_ENABLED only if a governed consumer for the separate spine is deliberately routed; flipping it otherwise reintroduces a parallel write path the codebase retired.',
           ]
         : [
             'Operator verifies the live CRM Dataverse schema against src/crm/crmDataverseSchemaPlan and injects the resulting VerifiedCrmSchemaState (tables/columns/relationships/conflicts).',
@@ -214,14 +249,30 @@ function buildSpecs(): DomainSpec[] {
         'Phase 237E governed checklist write dependency (createChecklistWriteDependency): allow-listed cr664_documentname + cr664_Deal@odata.bind only, audit per row, default-off and fail-closed — certified by success/duplicate/unauthorized/missing-dependency/adapter-failure tests.',
         'Action already enforces authorization + duplicate detection and delegates the write to the injected dependency.',
         'Dual fail-closed gates (runtime DOCUMENT_CHECKLIST_GENERATION_ENABLED + UI action gate), both default false.',
+        ...(checklistSignedOff
+          ? [
+              'The lending-owner checklist rule-set signoff is COMPLETE: a committed, field-validated ChecklistRulesetSignoff (docs/operator-evidence/DOCUMENT_CHECKLIST_LENDING_OWNER_SIGNOFF_2026-06-25.md, APPROVED by Matthew Paller) is recorded and validated by checklistSignoffEvidence.',
+            ]
+          : []),
       ],
-      blockers: [
-        'The approved checklist rule set is not signed off and both the runtime + UI action gates are intentionally false.',
-        'The live checklist write transport is not injected into the workflow provider yet.',
-      ],
-      unblockActions: [
-        'Sign off the approved checklist rule set, inject the live checklist write transport via createChecklistWriteDependency, then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED + the UI action gate together.',
-      ],
+      // Rule-set signoff is derived from the committed, validated artifact (checklistSignoffEvidence)
+      // rather than a static "not signed off" claim, so it reverts if that artifact is withdrawn.
+      blockers: checklistSignedOff
+        ? [
+            'The live checklist write transport is not injected into the workflow provider, and the runtime DOCUMENT_CHECKLIST_GENERATION_ENABLED + UI action gates are off.',
+            'The committed documentChecklist final-launch smoke is not accepted at HIGH confidence (placeholder: empty affectedRecordIds + synthetic timestamp) — an authentic in-app checklist smoke has not been recorded.',
+          ]
+        : [
+            'The approved checklist rule set is not signed off and both the runtime + UI action gates are intentionally false.',
+            'The live checklist write transport is not injected into the workflow provider yet.',
+          ],
+      unblockActions: checklistSignedOff
+        ? [
+            'Rule-set signoff is complete. Inject the live checklist write transport via createChecklistWriteDependency, capture an authentic in-app checklist smoke (real record ids + machine timestamp), then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED + the UI action gate together.',
+          ]
+        : [
+            'Sign off the approved checklist rule set, inject the live checklist write transport via createChecklistWriteDependency, then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED + the UI action gate together.',
+          ],
       repoCompletable: false,
       operatorEnvironmentConfirmed: false,
     },
@@ -234,17 +285,34 @@ function buildSpecs(): DomainSpec[] {
       adapterPath: 'src/deals/emailDelivery/emailMode.ts',
       gatePath: 'src/deals/emailDelivery/emailMode.ts',
       evidencePresent: [
-        'DRY_RUN / LIVE email mode with a clear "connector not yet registered" permanent failure in LIVE.',
-        'Recipient certification + borrower-safe content rules; no Graph API, no tenant-admin permission.',
+        'DRY_RUN / LIVE email mode; recipient certification + borrower-safe content rules; no Graph API, no tenant-admin permission.',
+        ...(outlookRegistered
+          ? [
+              'The Office 365 Outlook connector prerequisite is COMPLETE: the typed Office365OutlookService.SendEmailV2 is generated AND the connector is registered in power.config.json (shared_office365 / new_Office365OutlookCommercialLOS) — verify-outlook-connector.ps1 reads PASS (outlookConnectorEvidence).',
+            ]
+          : []),
       ],
-      blockers: [
-        'The Office 365 Outlook connector is not registered, and the SDK is not regenerated with the typed connector call.',
-        'Live send is a permanent fail-closed until the connector exists; no auto-send is permitted without explicit, audited user action.',
-      ],
-      unblockActions: [
-        'Operator registers the Office 365 Outlook connector in the environment and regenerates the SDK so the LIVE adapter send method binds the typed connector call.',
-        'Certify the explicit user-confirmation send path with audited acceptance (connector acceptance is not delivery) before enabling.',
-      ],
+      // Connector registration is derived from the committed verified state (outlookConnectorEvidence),
+      // not a static "not registered" claim. Highest-risk domain (irreversible live email): even with
+      // the connector registered, LIVE mode + authentic evidence + the two flags all remain required.
+      blockers: outlookRegistered
+        ? [
+            'Deploy email mode is not LIVE (VITE_EMAIL_MODE!=LIVE), so the email transport resolves to the DRY_RUN adapter — no live send occurs.',
+            'The committed borrowerSend final-launch smoke is not accepted at HIGH confidence (missing the EXTERNAL_SEND machine proof: deliveryReceiptId + approvedRecipient + approverUpn), and BORROWER_MESSAGING_ENABLED + BORROWER_EMAIL_TRANSPORT_ENABLED are off. No auto-send without an explicit, audited user action.',
+          ]
+        : [
+            'The Office 365 Outlook connector is not registered, and the SDK is not regenerated with the typed connector call.',
+            'Live send is a permanent fail-closed until the connector exists; no auto-send is permitted without explicit, audited user action.',
+          ],
+      unblockActions: outlookRegistered
+        ? [
+            'Connector registration is complete. Deploy with VITE_EMAIL_MODE=LIVE, then perform ONE explicit audited send to an approved diagnostic mailbox and record a borrowerSend smoke carrying deliveryReceiptId + approvedRecipient + approverUpn (connector acceptance is not delivery).',
+            'Only then flip BORROWER_MESSAGING_ENABLED + BORROWER_EMAIL_TRANSPORT_ENABLED together.',
+          ]
+        : [
+            'Operator registers the Office 365 Outlook connector in the environment and regenerates the SDK so the LIVE adapter send method binds the typed connector call.',
+            'Certify the explicit user-confirmation send path with audited acceptance (connector acceptance is not delivery) before enabling.',
+          ],
       repoCompletable: false,
       operatorEnvironmentConfirmed: false,
     },
@@ -280,17 +348,36 @@ function buildSpecs(): DomainSpec[] {
       adapterPath: 'src/portfolioBoarding/resolvePortfolioLoanBoardingPersistenceAdapter.ts',
       gatePath: 'src/portfolioBoarding/portfolioBoardingRuntimeSchemaGate.ts',
       evidencePresent: [
-        'Single-record boarding adapter with per-child-group written/skipped/failed reporting and audit.',
+        'Single-record boarding adapter with per-child-group written/skipped/failed reporting and audit — now covers all 8 child groups (borrower/collateral/guarantor/covenant/tickler/insurance + document/evidence + exception/review) with duplicate + readback guards.',
         'Fail-closed runtime schema gate comparing an injected verified-schema state to the boarding plan.',
+        ...(boardingSchemaVerified
+          ? [
+              'Committed token-backed VerifiedBoardingSchemaState hydrates (13 tables / 219 columns / 12 required relationships / 0 conflicts) and satisfies the runtime schema gate (schemaReady=true) — the schema-verification step is COMPLETE. Injected via runtimeVerifiedSchemaBridge (CURRENT_PORTFOLIO_VERIFICATION_EVIDENCE); proven by activationVerifiedStateContract. No Dataverse probe.',
+            ]
+          : []),
       ],
-      blockers: [
-        'No injected VerifiedBoardingSchemaState confirming the live tables/columns/required-relationships match portfolioLoanBoardingDataverseSchemaPlan with zero conflicts.',
-        'The schema-verification loader is environment-owned; the gate never probes Dataverse and never fakes readiness.',
-      ],
-      unblockActions: [
-        'Operator verifies the live boarding Dataverse schema against src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan and injects the VerifiedBoardingSchemaState.',
-        'With the schema gate green, the route enabled, and an authorized operator, enable PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and certify the single-record boarding tests.',
-      ],
+      // Unlike CRM (whose live writes already flow through the Hub adapter), portfolio boarding has
+      // NO already-live write path — the boarding write path is a genuinely-unrouted WIRE candidate.
+      // So once the schema is verified from committed evidence, the remaining blockers are REAL, not
+      // a red herring: an authentic attributable smoke, a routed consumer, and the two flags.
+      blockers: boardingSchemaVerified
+        ? [
+            'The committed portfolioBoarding final-launch smoke is attributed to "unknown-operator" (a sentinel), so it is NOT accepted at HIGH confidence — an authentic, attributable boarding smoke has not been recorded (the artifact is otherwise a real live create/readback/cleanup with a machine-proof record id).',
+            'PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED + PORTFOLIO_BOARDING_ROUTE_ENABLED are off and the boarding write path (resolvePortfolioLoanBoardingPersistenceAdapter / boardPortfolioLoan) is an intentionally-unrouted WIRE candidate — there is no live boarding write path yet.',
+          ]
+        : [
+            'No injected VerifiedBoardingSchemaState confirming the live tables/columns/required-relationships match portfolioLoanBoardingDataverseSchemaPlan with zero conflicts.',
+            'The schema-verification loader is environment-owned; the gate never probes Dataverse and never fakes readiness.',
+          ],
+      unblockActions: boardingSchemaVerified
+        ? [
+            'Schema verification is COMPLETE (the committed VerifiedBoardingSchemaState passes the runtime gate). Re-capture an AUTHENTIC single-record boarding smoke with a real attributable operator — the current artifact is attributed to the "unknown-operator" sentinel and cannot certify.',
+            'Wire + route the governed boarding write path with an authorized operator, then enable PORTFOLIO_BOARDING_ROUTE_ENABLED + PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and certify the single-record boarding tests.',
+          ]
+        : [
+            'Operator verifies the live boarding Dataverse schema against src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan and injects the VerifiedBoardingSchemaState.',
+            'With the schema gate green, the route enabled, and an authorized operator, enable PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and certify the single-record boarding tests.',
+          ],
       repoCompletable: false,
       operatorEnvironmentConfirmed: true,
     },

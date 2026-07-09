@@ -89,26 +89,59 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(byId.get('crm-writeback')?.evidencePresent.join(' ')).toMatch(/crmWriteback/);
   });
 
-  it('CRM schema verification is cleared from committed evidence; only the flag + transport remain (no flip, not enabled)', () => {
+  it('CRM diagnostic tells the whole truth: writes live via the Hub, schema verified, spine flag intentionally off', () => {
     const vm = deriveFullActivationLaunchCertification();
     const crm = vm.domains.find((d) => d.id === 'crm-writeback')!;
     // The stale "no injected verified state" blocker is gone — the committed VerifiedCrmSchemaState
     // hydrates and passes the runtime schema gate.
     expect(crm.blockers.join(' ')).not.toMatch(/No injected VerifiedCrmSchemaState/i);
-    expect(crm.blockers.join(' ')).toMatch(/CRM_LIVE_PERSISTENCE_ENABLED is false/);
-    expect(crm.blockers.join(' ')).toMatch(/transport is not injected/i);
-    // The verified schema state is surfaced as evidence.
+    // The flag is named and framed honestly as an intentional, redundant-spine gate — not "flip me".
+    expect(crm.blockers.join(' ')).toMatch(/CRM_LIVE_PERSISTENCE_ENABLED is intentionally false/i);
+    expect(crm.blockers.join(' ')).toMatch(/redundant|unrouted|no wired live transport/i);
+    // Evidence surfaces both the already-live Hub write path and the verified schema state.
+    expect(crm.evidencePresent.join(' ')).toMatch(/Hub write adapter/i);
     expect(crm.evidencePresent.join(' ')).toMatch(/VerifiedCrmSchemaState hydrates/i);
-    // Schema verified never enables a write: the flag is off, so the domain is still not enabled.
+    // The flag stays off and the domain is not falsely marked enabled.
     expect(crm.flagEnabled).toBe(false);
     expect(crm.status).not.toBe('enabled');
   });
 
-  it('borrower send names the Outlook connector + SDK regeneration as the exact blocker', () => {
+  it('portfolio boarding: schema verified from committed evidence; real remaining blockers (authentic smoke + unrouted), not enabled', () => {
+    const vm = deriveFullActivationLaunchCertification();
+    const pb = vm.domains.find((d) => d.id === 'portfolio-boarding-persistence')!;
+    // The stale "no injected verified state" blocker is gone — committed VerifiedBoardingSchemaState hydrates.
+    expect(pb.blockers.join(' ')).not.toMatch(/No injected VerifiedBoardingSchemaState/i);
+    expect(pb.evidencePresent.join(' ')).toMatch(/VerifiedBoardingSchemaState hydrates/i);
+    // Unlike CRM, portfolio has NO already-live path: the real remaining blockers are named honestly.
+    expect(pb.blockers.join(' ')).toMatch(/unknown-operator/i);
+    expect(pb.blockers.join(' ')).toMatch(/unrouted|WIRE candidate|no live boarding write path/i);
+    // Not falsely enabled: flags off, no fake readiness.
+    expect(pb.flagEnabled).toBe(false);
+    expect(pb.status).not.toBe('enabled');
+  });
+
+  it('borrower send: connector-registered blocker is cleared; real blockers are LIVE mode + send-proof evidence + flags', () => {
     const vm = deriveFullActivationLaunchCertification();
     const borrower = vm.domains.find((d) => d.id === 'borrower-communication-send')!;
-    expect(borrower.blockers.join(' ')).toMatch(/Outlook connector is not registered/i);
-    expect(borrower.unblockActions.join(' ')).toMatch(/regenerates the SDK/i);
+    // The stale "connector is not registered" blocker is gone — the connector is registered (PASS).
+    expect(borrower.blockers.join(' ')).not.toMatch(/connector is not registered/i);
+    expect(borrower.evidencePresent.join(' ')).toMatch(/connector prerequisite is COMPLETE/i);
+    // The true remaining blockers are named honestly (highest-risk domain, still NOT_SAFE_TO_ENABLE).
+    expect(borrower.blockers.join(' ')).toMatch(/VITE_EMAIL_MODE|not LIVE/i);
+    expect(borrower.blockers.join(' ')).toMatch(/deliveryReceiptId|approverUpn|machine proof/i);
+    expect(borrower.classification).toBe('NOT_SAFE_TO_ENABLE');
+    expect(borrower.status).not.toBe('enabled');
+  });
+
+  it('document checklist: rule-set signoff is cleared from the committed artifact; real blockers are transport + evidence + flags', () => {
+    const vm = deriveFullActivationLaunchCertification();
+    const cl = vm.domains.find((d) => d.id === 'document-checklist-generation')!;
+    // The stale "rule set is not signed off" blocker is gone — a validated signoff is committed.
+    expect(cl.blockers.join(' ')).not.toMatch(/not signed off/i);
+    expect(cl.evidencePresent.join(' ')).toMatch(/signoff is COMPLETE/i);
+    expect(cl.blockers.join(' ')).toMatch(/transport is not injected/i);
+    expect(cl.flagEnabled).toBe(false);
+    expect(cl.status).not.toBe('enabled');
   });
 
   it('honestly reports launch NOT achieved while the committed evidence is insufficient', () => {
