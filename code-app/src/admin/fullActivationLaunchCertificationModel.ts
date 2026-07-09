@@ -10,6 +10,11 @@ import {
   deriveProductionEnvironmentVerification,
   type ActivationDomainKey,
 } from './productionEnvironmentVerification';
+import {
+  hydrateVerifiedCrmSchemaState,
+  CURRENT_CRM_VERIFICATION_EVIDENCE,
+} from './runtimeVerifiedSchemaBridge';
+import { deriveCrmRuntimeSchemaGate } from '../crm/crmRuntimeSchemaGate';
 
 /**
  * Phase 237A — Full system activation launch certification model.
@@ -109,6 +114,24 @@ interface DomainSpec {
 }
 
 function buildSpecs(): DomainSpec[] {
+  // CRM schema verification — read the committed, token-backed VerifiedCrmSchemaState through
+  // the runtime bridge and run it through the REAL fail-closed schema gate. This is exactly the
+  // injected verified state the operator action calls for: it never probes Dataverse, and with
+  // the live-persistence flag OFF it proves the schema WITHOUT enabling any write (schemaReady is
+  // derived from measured tables/columns/conflicts alone). If the committed evidence ever
+  // regressed (conflicts>0 / stale / missing), this reverts to the not-verified blocker text.
+  const crmHydration = hydrateVerifiedCrmSchemaState(CURRENT_CRM_VERIFICATION_EVIDENCE);
+  const crmSchemaGate =
+    crmHydration.hydrated && crmHydration.verified
+      ? deriveCrmRuntimeSchemaGate({
+          verified: crmHydration.verified,
+          flags: CRM_FEATURE_FLAG_DEFAULTS,
+          adapterEnabled: false,
+          isAuthorizedOperator: false,
+        })
+      : null;
+  const crmSchemaVerified = crmSchemaGate?.schemaReady === true;
+
   return [
     {
       id: 'new-deal-create',
@@ -150,15 +173,32 @@ function buildSpecs(): DomainSpec[] {
         'Phase 237G governed internal CRM writeback adapter (crmWriteback): allow-listed cr664_crm* entities only, raw-sensitive-field rejection, audit on every write, default-off and fail-closed — certified by success/disallowed-entity/disallowed-field/unauthorized/adapter-failure tests.',
         'Live Dataverse CRM adapter with schema/payload mapping and failure handling; fail-closed runtime schema gate comparing an injected verified-schema state to the plan.',
         'Persistence resolver returns a live adapter only when the gate passes and an operator is authorized.',
+        ...(crmSchemaVerified
+          ? [
+              'Committed token-backed VerifiedCrmSchemaState hydrates (10 tables / 147 columns / 0 conflicts) and satisfies the runtime schema gate (schemaReady=true) — the schema-verification step is COMPLETE. Injected via runtimeVerifiedSchemaBridge (CURRENT_CRM_VERIFICATION_EVIDENCE); proven by activationVerifiedStateContract. No Dataverse probe; the live-persistence flag stays off so no write is enabled.',
+            ]
+          : []),
       ],
-      blockers: [
-        'No injected VerifiedCrmSchemaState confirming the live tables/columns/relationships match crmDataverseSchemaPlan with zero conflicts.',
-        'The schema-verification loader is environment-owned; the gate never probes Dataverse and never fakes readiness.',
-      ],
-      unblockActions: [
-        'Operator verifies the live CRM Dataverse schema against src/crm/crmDataverseSchemaPlan and injects the resulting VerifiedCrmSchemaState (tables/columns/relationships/conflicts).',
-        'With the schema gate green and an authorized operator, enable CRM_LIVE_PERSISTENCE_ENABLED and certify the writeback success/failure/rollback tests.',
-      ],
+      // Derived from the actual committed-evidence schema gate, not a static claim. When the
+      // verified state is injected + passes the gate, the schema blocker is genuinely cleared and
+      // only the flag + runtime-transport injection remain (writes stay fail-closed).
+      blockers: crmSchemaVerified
+        ? [
+            'CRM_LIVE_PERSISTENCE_ENABLED is false — the certified enablement flip has not been made.',
+            'The live Dataverse transport is not injected into resolveCrmPersistenceAdapter by default, so the runtime resolver returns the disabled adapter even with the schema gate green.',
+          ]
+        : [
+            'No injected VerifiedCrmSchemaState confirming the live tables/columns/relationships match crmDataverseSchemaPlan with zero conflicts.',
+            'The schema-verification loader is environment-owned; the gate never probes Dataverse and never fakes readiness.',
+          ],
+      unblockActions: crmSchemaVerified
+        ? [
+            'Schema verification is COMPLETE (the committed VerifiedCrmSchemaState hydrates and passes the runtime schema gate). Remaining: inject the live Dataverse transport into resolveCrmPersistenceAdapter, then enable CRM_LIVE_PERSISTENCE_ENABLED and certify the writeback success/failure/rollback tests.',
+          ]
+        : [
+            'Operator verifies the live CRM Dataverse schema against src/crm/crmDataverseSchemaPlan and injects the resulting VerifiedCrmSchemaState (tables/columns/relationships/conflicts).',
+            'With the schema gate green and an authorized operator, enable CRM_LIVE_PERSISTENCE_ENABLED and certify the writeback success/failure/rollback tests.',
+          ],
       repoCompletable: false,
       operatorEnvironmentConfirmed: true,
     },

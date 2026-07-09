@@ -89,6 +89,21 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(byId.get('crm-writeback')?.evidencePresent.join(' ')).toMatch(/crmWriteback/);
   });
 
+  it('CRM schema verification is cleared from committed evidence; only the flag + transport remain (no flip, not enabled)', () => {
+    const vm = deriveFullActivationLaunchCertification();
+    const crm = vm.domains.find((d) => d.id === 'crm-writeback')!;
+    // The stale "no injected verified state" blocker is gone — the committed VerifiedCrmSchemaState
+    // hydrates and passes the runtime schema gate.
+    expect(crm.blockers.join(' ')).not.toMatch(/No injected VerifiedCrmSchemaState/i);
+    expect(crm.blockers.join(' ')).toMatch(/CRM_LIVE_PERSISTENCE_ENABLED is false/);
+    expect(crm.blockers.join(' ')).toMatch(/transport is not injected/i);
+    // The verified schema state is surfaced as evidence.
+    expect(crm.evidencePresent.join(' ')).toMatch(/VerifiedCrmSchemaState hydrates/i);
+    // Schema verified never enables a write: the flag is off, so the domain is still not enabled.
+    expect(crm.flagEnabled).toBe(false);
+    expect(crm.status).not.toBe('enabled');
+  });
+
   it('borrower send names the Outlook connector + SDK regeneration as the exact blocker', () => {
     const vm = deriveFullActivationLaunchCertification();
     const borrower = vm.domains.find((d) => d.id === 'borrower-communication-send')!;
