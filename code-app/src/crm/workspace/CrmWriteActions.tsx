@@ -482,7 +482,7 @@ function describeFailure(o: Exclude<CrmWriteOutcome, { kind: 'success' }>): stri
     case 'unauthorized': return o.reason;
     case 'identity-unresolved': return o.reason;
     case 'write-failed': return `Could not save — the write failed. ${o.error}`;
-    case 'readback-mismatch': return 'Could not save — the record did not verify on readback. Please retry.';
+    case 'readback-mismatch': return 'Saved, but the record could not be verified — reload to confirm it before adding it again (do not retry, to avoid a duplicate).';
     case 'audit-failed': return 'Saved, but its audit entry failed — an operator must reattempt the audit.';
   }
 }

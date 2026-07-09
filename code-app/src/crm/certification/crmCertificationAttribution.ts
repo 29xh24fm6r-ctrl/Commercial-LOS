@@ -10,11 +10,12 @@ import { committedFinalLaunchEvidenceIntegrity } from '../../access/committedFin
  * CRM-H — CRM live-persistence certification attribution guard.
  *
  * The committed final-launch smoke (docs/operator-evidence/final-launch/crmLivePersistence.json)
- * records a real live create/readback/update/rollback, but its operatorUpn is the failure
- * sentinel "unknown-operator" — non-attributable. This module is the single, fail-closed
- * authority that says: a live-persistence smoke may CERTIFY CRM team readiness ONLY when it is
- * accepted at HIGH confidence with an ATTRIBUTABLE operator UPN. An unknown/sentinel operator
- * can NEVER certify — it stays blocking until a real attributed smoke replaces it.
+ * records a real live create/readback/update/rollback and is now attributed to a real operator
+ * UPN, so it is accepted at HIGH confidence. This module is the single, fail-closed authority
+ * that says: a live-persistence smoke may CERTIFY CRM team readiness ONLY when it is accepted at
+ * HIGH confidence with an ATTRIBUTABLE operator UPN — an unknown/sentinel operator can NEVER
+ * certify, so any future placeholder/sentinel artifact stays blocking until a real attributed
+ * smoke replaces it.
  *
  * PURE: reads the committed evidence integrity; flips nothing; fabricates no identity.
  */

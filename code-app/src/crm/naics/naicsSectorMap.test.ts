@@ -75,6 +75,14 @@ describe('NAICS sector map', () => {
     expect(isNaicsCode6('72251a')).toBe(false);
   });
 
+  it('isNaicsCode6 rejects non-string input instead of letting sectorForCode throw', () => {
+    // A numeric NAICS would coerce through the regex but throw on .slice(); guard it.
+    expect(isNaicsCode6(722511 as unknown as string)).toBe(false);
+    expect(isNaicsCode6(null as unknown as string)).toBe(false);
+    expect(() => sectorForCode(722511 as unknown as string)).not.toThrow();
+    expect(sectorForCode(722511 as unknown as string)).toBeNull();
+  });
+
   it('exposes the valid prefixes used by the seed validator', () => {
     expect(NAICS_VALID_PREFIXES.has('31')).toBe(true);
     expect(NAICS_VALID_PREFIXES.has('45')).toBe(true);

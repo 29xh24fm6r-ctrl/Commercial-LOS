@@ -75,6 +75,7 @@ export type CrmUpdateOutcome =
   | { kind: 'disallowed-field'; reason: string }
   | { kind: 'invalid-input'; reason: string }
   | { kind: 'update-failed'; error: string; correlationId: string }
+  | { kind: 'readback-mismatch'; correlationId: string }
   | { kind: 'audit-failed'; auditError: string | undefined; correlationId: string };
 
 export interface CrmUpdateResult {
@@ -82,13 +83,31 @@ export interface CrmUpdateResult {
   readonly error?: string;
 }
 
+export interface CrmUpdateReadback {
+  readonly success: boolean;
+  readonly data?: Record<string, unknown>;
+  readonly error?: string;
+}
+
 export interface CrmUpdateDeps {
   readonly updateOrganization: (id: string, fields: Record<string, unknown>) => Promise<CrmUpdateResult>;
+  /**
+   * Optional readback of the updated record. When injected, the written field MUST read
+   * back and match before the edit is reported successful (the same verify discipline the
+   * create path uses); a missing/mismatched readback fails closed as `readback-mismatch`.
+   */
+  readonly readOrganization?: (id: string) => Promise<CrmUpdateReadback>;
   readonly emitAudit: (payload: Record<string, unknown>) => Promise<{ success: boolean; id?: string; error?: string }>;
 }
 
 function trimmed(v: string | undefined): string {
   return (v ?? '').trim();
+}
+
+/** Tolerant field compare for readback verification (text stays string; booleans coerce). */
+function fieldMatches(got: unknown, expected: string | boolean): boolean {
+  if (typeof expected === 'boolean') return Boolean(got) === expected;
+  return String(got ?? '').trim() === expected.trim();
 }
 
 /** Per-field value validation for the known structured fields. */
@@ -140,6 +159,17 @@ export async function updateOrganizationField(input: UpdateOrgFieldInput, deps: 
     return { kind: 'update-failed', error: updateResult.error ?? 'unknown error', correlationId };
   }
 
+  // Readback verification (when a reader is injected): the written value must read back and
+  // match before we claim success — the same discipline the create path uses.
+  if (deps.readOrganization) {
+    const readback: CrmUpdateReadback = await deps
+      .readOrganization(orgId)
+      .catch((e: unknown) => ({ success: false, error: e instanceof Error ? e.message : String(e) }));
+    if (!readback.success || !fieldMatches(readback.data?.[field], writeValue)) {
+      return { kind: 'readback-mismatch', correlationId };
+    }
+  }
+
   const audit = await deps
     .emitAudit({
       cr664_name: `crm-update-${field}`,
@@ -172,6 +202,8 @@ export function describeUpdateFailure(o: Exclude<CrmUpdateOutcome, { kind: 'succ
       return o.reason;
     case 'update-failed':
       return `The update failed. ${o.error}`;
+    case 'readback-mismatch':
+      return 'The change could not be verified after saving — reload to confirm the value.';
     case 'audit-failed':
       return 'Saved, but its audit entry failed — an operator must reattempt the audit.';
   }
@@ -204,15 +236,26 @@ export function buildLiveCrmUpdateDeps(): CrmUpdateDeps {
     updateOrganization: async (id, fields) => {
       const mod = await import('../../generated/services/Cr664_crmorganizationsService');
       const update = mod.Cr664_crmorganizationsService.update;
+      // The SDK returns an IOperationResult object — read its `success`/`error`, never
+      // `Boolean(result)` (which is always true for a non-null object and would report a
+      // Dataverse-rejected update as saved).
       const result = await update(id, fields as Parameters<typeof update>[1]);
-      return { success: Boolean(result), error: undefined };
+      return { success: result.success, error: result.error?.message };
+    },
+    readOrganization: async (id) => {
+      const mod = await import('../../generated/services/Cr664_crmorganizationsService');
+      const result = await mod.Cr664_crmorganizationsService.get(id);
+      return {
+        success: result.success,
+        data: (result.data as unknown as Record<string, unknown> | undefined) ?? undefined,
+        error: result.error?.message,
+      };
     },
     emitAudit: async (payload) => {
       const mod = await import('../../generated/services/Cr664_crmauditentriesService');
       const create = mod.Cr664_crmauditentriesService.create;
       const result = await create(payload as Parameters<typeof create>[0]);
-      const id = (result as { data?: { cr664_crmauditentryid?: string } })?.data?.cr664_crmauditentryid;
-      return { success: Boolean(result), id };
+      return { success: result.success, id: result.data?.cr664_crmauditentryid, error: result.error?.message };
     },
   };
 }

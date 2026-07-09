@@ -86,7 +86,14 @@ export interface CrmDeliveryLedger {
    * Does NOT assert records physically exist — that is `seededRecordsPresent`.
    */
   readonly canonicalSeedReady: boolean;
-  /** CRM-F: new-deal → CRM client linkage is operational (governed, not inert). */
+  /**
+   * New-deal → CRM client linkage is operational (governed, not inert). Delivered by the
+   * CRM-first intake create path (src/deals/newDealCreateAdapter.ts): it fails closed with
+   * `client_required` unless a client is selected and verifies the bound client on create
+   * (`link_readback_mismatch`), enforced by dealOriginationOrchestrator. NOTE: the separate
+   * CRM-F decision model (src/crm/linkage/newDealCrmClientLinkage.ts) is NOT the source — it is
+   * currently unwired; this field reflects the actually-enforced intake path, not that module.
+   */
   readonly newDealLinkageOperational: boolean;
   /** Live hub create path is wired (Phase 261 — true today). */
   readonly liveCreateWired: boolean;
@@ -215,7 +222,7 @@ export function deriveUnifiedCrmReadiness(
       'Runtime hydration (tables + columns)',
       hydration.hydrated,
       hydration.hydrated
-        ? 'Runtime verified-schema state hydrates from committed evidence (relationships warning-only).'
+        ? `Runtime verified-schema state hydrates from committed evidence (verified ${(CURRENT_CRM_VERIFICATION_EVIDENCE.verifiedAtIso ?? '').slice(0, 10) || 'a prior run'}; relationships warning-only). Re-verify against the live environment if the schema may have changed since.`
         : `Runtime hydration blocked: ${hydration.blockers.join(', ')}.`,
       `Runtime hydration blocked: ${hydration.blockers.join(', ')}.`,
     ),
@@ -256,7 +263,7 @@ export function deriveUnifiedCrmReadiness(
       'Canonical seed + new-deal linkage',
       seedLinkageOk,
       seedLinkageOk
-        ? 'Canonical CRM seed is ready and new-deal linkage is operational.'
+        ? 'Backfill path ready — no canonical records seeded yet; new-deal linkage operational.'
         : `Seed/linkage gaps remain (seedReady=${ledger.canonicalSeedReady}, linkageOperational=${ledger.newDealLinkageOperational}).`,
       'Canonical CRM seed/linkage gaps remain (contacts/roles/activities not seeded or new-deal linkage inert).',
     ),
