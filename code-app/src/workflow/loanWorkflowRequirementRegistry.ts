@@ -3,7 +3,9 @@ import type { LoanWorkflowStageDefinition } from './loanWorkflowTypes';
 import type { CanonicalStageCode } from './stageOrderingContract';
 import type {
   CanonicalRequirement,
+  DocumentReviewLevel,
   RequirementCategory,
+  RequirementSeverity,
   ResolverSurface,
   ResponsibleRole,
   RequirementScope,
@@ -46,6 +48,22 @@ export function shallowRequirementId(scope: RequirementScope, category: Requirem
   return `${scope}:${category}:${rawId}`;
 }
 
+/**
+ * Document-review-level policy (which documents must be REVIEWED, not merely received). Phase 2 keeps
+ * every live document at `received` (equivalent to the legacy gate) so the engine's live decision
+ * matches the write policy exactly. A later stage phase (e.g. PR 7 underwriting) flips its analysis
+ * documents to `reviewed` together with adopting the engine in the write seam. Key = `${scope}:${rawId}`.
+ */
+const DOCUMENT_REVIEW_LEVEL: Readonly<Record<string, DocumentReviewLevel>> = Object.freeze({});
+
+/**
+ * Task-severity policy (which tasks BLOCK vs stay recommended/optional). Phase 2 keeps every live task
+ * at `recommended` (Intake tasks are visible but non-blocking, preserving PR #68). A later stage phase
+ * flips specific tasks to `blocking` together with adopting the engine in the write seam.
+ * Key = `${scope}:${rawId}`.
+ */
+const TASK_SEVERITY: Readonly<Record<string, RequirementSeverity>> = Object.freeze({});
+
 function derivedRequirement(
   stage: LoanWorkflowStageDefinition,
   category: RequirementCategory,
@@ -70,17 +88,23 @@ function derivedRequirement(
     adverse_action: { resolver: 'Approval', backing: 'review_record', severity: 'blocking', role: 'credit_officer', verb: 'Record' },
   };
   const m = map[category];
+  const policyKey = `${scope}:${rawId}`;
+  const severity: RequirementSeverity = category === 'task' ? (TASK_SEVERITY[policyKey] ?? 'recommended') : m.severity;
   return {
     id: shallowRequirementId(scope, category, rawId),
     scope,
     label,
     description: `${stage.label} exit criterion (${category}).`,
     category,
-    severity: m.severity,
+    severity,
     resolverSurface: m.resolver,
     responsibleRole: m.role,
     backingType: m.backing,
     tracked: true,
+    // Documents/tasks/credit are matched by name (no business-type key in the current schema) — an
+    // inferred adapter; document STATUS is typed. Fields are matched by their typed deal-field key.
+    matchMode: category === 'field' ? 'typed' : 'inferred',
+    ...(category === 'document' ? { documentReviewLevel: DOCUMENT_REVIEW_LEVEL[policyKey] ?? 'received' } : {}),
     uiCopy: `${m.verb}: ${label}`,
     blockerReason: `${label} is required to exit ${stage.label}.`,
   };
@@ -119,6 +143,7 @@ function untracked(
     responsibleRole,
     backingType,
     tracked: false,
+    matchMode: 'typed',
     uiCopy: `${label} (not yet tracked)`,
     blockerReason: `${label} is required but not yet tracked: ${missingCapability}.`,
   };

@@ -28,8 +28,20 @@ export type RequirementCategory =
   | 'exception'
   | 'adverse_action';
 
-/** Blocking requirements HOLD the transition; recommended requirements are advisory (visible, non-blocking). */
-export type RequirementSeverity = 'blocking' | 'recommended';
+/**
+ * Blocking requirements HOLD the transition; recommended requirements are advisory (visible,
+ * non-blocking); optional requirements are informational only.
+ */
+export type RequirementSeverity = 'blocking' | 'recommended' | 'optional';
+
+/**
+ * For document requirements: the minimum typed document status that satisfies the requirement.
+ * `received` = a received OR reviewed document; `reviewed` = a reviewed document only (an
+ * uploaded/received-but-unreviewed document does NOT satisfy). The current schema
+ * (cr664_documentchecklist) has no accepted/rejected/waived state, so those are not representable
+ * and such requirements fail closed as unavailable rather than being faked as met.
+ */
+export type DocumentReviewLevel = 'received' | 'reviewed';
 
 /** The UI surface where a user resolves the requirement. */
 export type ResolverSurface =
@@ -95,6 +107,18 @@ export interface CanonicalRequirement {
   readonly tracked: boolean;
   /** The source table/entity when tracked (documentation; not used for evaluation). */
   readonly sourceEntity?: string;
+  /**
+   * For a document requirement: the minimum typed status that satisfies it (default `received`).
+   * Ignored for non-document requirements.
+   */
+  readonly documentReviewLevel?: DocumentReviewLevel;
+  /**
+   * How the fact is matched to the requirement. `typed` = matched by a real typed key/status;
+   * `inferred` = matched by name (a temporary adapter — the current document/task schema carries no
+   * business-type key, so matching is by name while status is typed). Surfaced so the UI/certification
+   * can tell true typed proof from an inferred match.
+   */
+  readonly matchMode: 'typed' | 'inferred';
   /** Banker-facing copy for the requirement line. */
   readonly uiCopy: string;
   /** Policy-safe reason shown when this requirement blocks. */
@@ -118,6 +142,8 @@ export interface EvaluatedRequirement {
   readonly id: string;
   readonly scope: RequirementScope;
   readonly label: string;
+  /** Banker-facing requirement line (from the registry). */
+  readonly uiCopy: string;
   readonly category: RequirementCategory;
   readonly severity: RequirementSeverity;
   readonly status: RequirementStatus;
