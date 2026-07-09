@@ -56,6 +56,15 @@ describe('CRM-B — unified CRM readiness model', () => {
     expect(r.readyCount).toBe(r.totalCount);
   });
 
+  it('seed-linkage detail never implies records are seeded when none are (labeling regression guard)', () => {
+    const r = deriveUnifiedCrmReadiness();
+    const seed = r.dimensions.find((d) => d.key === 'seed-linkage')!;
+    // "ready" here means the backfill path is ready — NOT that canonical records exist. The
+    // human string must not read as "seeded" while seededRecordsPresent is false.
+    expect(seed.detail).toMatch(/no canonical records seeded yet/i);
+    expect(seed.detail).not.toMatch(/seed is ready/i);
+  });
+
   it('NEVER marks team-ready while the certification operator is unattributable', () => {
     // Everything delivered EXCEPT attribution → still blocked on attribution only.
     const r = deriveUnifiedCrmReadiness({

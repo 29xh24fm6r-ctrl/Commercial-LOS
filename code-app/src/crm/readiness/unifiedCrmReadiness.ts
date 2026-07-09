@@ -256,7 +256,7 @@ export function deriveUnifiedCrmReadiness(
       'Canonical seed + new-deal linkage',
       seedLinkageOk,
       seedLinkageOk
-        ? 'Canonical CRM seed is ready and new-deal linkage is operational.'
+        ? 'Backfill path ready — no canonical records seeded yet; new-deal linkage operational.'
         : `Seed/linkage gaps remain (seedReady=${ledger.canonicalSeedReady}, linkageOperational=${ledger.newDealLinkageOperational}).`,
       'Canonical CRM seed/linkage gaps remain (contacts/roles/activities not seeded or new-deal linkage inert).',
     ),
