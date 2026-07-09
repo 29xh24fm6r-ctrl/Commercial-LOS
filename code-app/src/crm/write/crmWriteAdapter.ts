@@ -56,7 +56,9 @@ export type CrmWriteOutcome =
   | { kind: 'identity-unresolved'; reason: string }
   | { kind: 'invalid-input'; reason: string }
   | { kind: 'write-failed'; error: string; correlationId: string }
-  | { kind: 'readback-mismatch'; correlationId: string }
+  // The record WAS created (readback runs after a successful create) but could not be verified.
+  // Carries the id so the UI can point at it and NOT prompt a retry (which would duplicate).
+  | { kind: 'readback-mismatch'; correlationId: string; id: string }
   | { kind: 'audit-failed'; auditError: string | undefined; correlationId: string; id: string };
 
 export interface CrmWriteDeps {
@@ -162,10 +164,10 @@ async function governedCreate(opts: {
   try {
     readback = await opts.read(id);
   } catch {
-    return { kind: 'readback-mismatch', correlationId };
+    return { kind: 'readback-mismatch', correlationId, id };
   }
   if (!readback.success || trimmed(readback.data?.cr664_name).length === 0) {
-    return { kind: 'readback-mismatch', correlationId };
+    return { kind: 'readback-mismatch', correlationId, id };
   }
 
   const childErrors = opts.extraChildren ? await opts.extraChildren(id) : [];

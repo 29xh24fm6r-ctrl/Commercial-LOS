@@ -86,10 +86,18 @@ describe('addCompany', () => {
     expect(outcome.kind).toBe('identity-unresolved');
   });
 
-  it('reports readback-mismatch when the record cannot be verified', async () => {
+  it('reports readback-mismatch WITH the created id (record exists — never prompt a retry)', async () => {
     const deps = stubDeps({ readOrganization: vi.fn(async () => ({ success: true, data: { cr664_name: '' } })) });
     const outcome = await addCompany({ ...ACTOR, name: 'Acme' }, deps);
     expect(outcome.kind).toBe('readback-mismatch');
+    if (outcome.kind === 'readback-mismatch') expect(outcome.id).toBe('new-id');
+  });
+
+  it('carries the created id even when the readback throws (no duplicate-inducing retry)', async () => {
+    const deps = stubDeps({ readOrganization: vi.fn(async () => { throw new Error('read timeout'); }) });
+    const outcome = await addCompany({ ...ACTOR, name: 'Acme' }, deps);
+    expect(outcome.kind).toBe('readback-mismatch');
+    if (outcome.kind === 'readback-mismatch') expect(outcome.id).toBe('new-id');
   });
 
   it('reports audit-failed (record created but audit could not be written)', async () => {
