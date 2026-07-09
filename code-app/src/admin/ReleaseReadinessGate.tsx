@@ -1,10 +1,15 @@
+import { useEffect, useState } from 'react';
 import { useAdminData } from './AdminDataProvider';
 import {
   deriveReleaseReadiness,
   type ReleaseCategoryRow,
   type ReleaseCategoryStatus,
 } from '../shared/governance/releaseReadiness';
-import { stageProgressionDiagnostics } from '../shared/governance/stageProgressionAvailability';
+import {
+  stageProgressionDiagnostics,
+  type StageProgressionDiagnostics,
+} from '../shared/governance/stageProgressionAvailability';
+import { loadStageGovernanceDiagnostics } from './stageGovernanceDiagnosticsLoader';
 import {
   DELIBERATELY_BLOCKED,
   EXEC_TRANSITIONAL_FALLBACK_FEATURES,
@@ -54,8 +59,34 @@ import {
 const GOVERNED_WRITES_SHIPPED: readonly { id: string; label: string }[] =
   GOVERNED_WRITES.map((w) => ({ id: w.id, label: w.label }));
 
-export function ReleaseReadinessGate() {
+export function ReleaseReadinessGate({
+  loadStageDiagnostics = loadStageGovernanceDiagnostics,
+}: {
+  /** Injected for tests; defaults to the live stage-governance read. */
+  loadStageDiagnostics?: () => Promise<StageProgressionDiagnostics>;
+} = {}) {
   const { dataQuality, auditAnomalies, alerts, refreshStatus } = useAdminData();
+
+  // Live stage-governance readiness. Starts at the static no-arg default (honestly
+  // "rows not loaded in this context" → blocked) and flips to the live result once the
+  // seeded stage/status references resolve — so a seeded environment is reflected here,
+  // matching the Stage Governance Diagnostics card (both read loadStageGovernanceDiagnostics).
+  // Fail-closed: the loader never rejects; a read failure resolves to the same honest
+  // blocked state. The Advance Stage write gate itself is untouched by this read.
+  const [stage, setStage] = useState<StageProgressionDiagnostics>(stageProgressionDiagnostics());
+  useEffect(() => {
+    let alive = true;
+    loadStageDiagnostics()
+      .then((d) => {
+        if (alive) setStage(d);
+      })
+      .catch(() => {
+        // Belt-and-braces; the live loader is fail-closed and does not reject.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [loadStageDiagnostics]);
 
   const dataQualityOpenCount =
     dataQuality.kind === 'ready' ? dataQuality.data.length : undefined;
@@ -72,7 +103,7 @@ export function ReleaseReadinessGate() {
       : undefined;
 
   const readiness = deriveReleaseReadiness({
-    stage: stageProgressionDiagnostics(),
+    stage,
     dataQualityOpenCount,
     auditAnomalyCount,
     criticalAlertCount,
