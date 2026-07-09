@@ -63,7 +63,9 @@ export interface SectorResolution {
 
 /** True when the value is a 6-digit NAICS code string. */
 export function isNaicsCode6(code: string): boolean {
-  return /^[0-9]{6}$/.test(code);
+  // Guard the type: a numeric NAICS (e.g. 123456) would pass the regex via coercion but then
+  // throw on `.slice()` in sectorForCode. Reject anything that is not actually a string.
+  return typeof code === 'string' && /^[0-9]{6}$/.test(code);
 }
 
 /**

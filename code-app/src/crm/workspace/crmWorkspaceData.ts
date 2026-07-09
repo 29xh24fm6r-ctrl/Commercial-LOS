@@ -126,7 +126,7 @@ export function mapOrganization(o: Cr664_crmorganizations): CrmRecord {
     id: o.cr664_crmorganizationid,
     title: s(o.cr664_displayname) ?? s(o.cr664_name) ?? s(o.cr664_legalname) ?? 'Organization',
     subtitle: s(o.cr664_industry) ?? s(o.cr664_organizationtype),
-    badge: s(o.cr664_status) ?? o.statecodename,
+    badge: s(o.cr664_status) ?? s(o.statecodename),
     detail: pick([
       row('Legal name', s(o.cr664_legalname)),
       row('DBA', s(o.cr664_dbaname)),
