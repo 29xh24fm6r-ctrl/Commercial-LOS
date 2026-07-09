@@ -88,8 +88,8 @@ export interface UnderwritingRecommendationReadiness extends DeepFactReadiness {
 
 /**
  * Fail-closed underwriting-recommendation readiness. Missing → not met. A DRAFT never satisfies. A
- * DECLINE or RETURN recommendation never satisfies a normal advance (it requires the non-forward path).
- * Only a recorded APPROVE / APPROVE_WITH_CONDITIONS satisfies the forward Credit Approval gate.
+ * DECLINE or RETURN outcome never satisfies a normal advance (it requires the non-forward path).
+ * Only a recorded supportable / supportable-with-conditions outcome satisfies the forward Credit Approval gate.
  */
 export function evaluateUnderwritingRecommendationReadiness(
   record: UnderwritingRecommendationRecord | undefined,
@@ -99,7 +99,7 @@ export function evaluateUnderwritingRecommendationReadiness(
     return { met: false, reason: 'Underwriting recommendation is a draft; a recorded recommendation is required.', requiresNonForwardPath: false, decision: record.decision };
   }
   if (record.decision === 'decline') {
-    return { met: false, reason: 'Underwriting recommends DECLINE — route via the Decline path, not a normal Credit Approval advance.', requiresNonForwardPath: true, decision: 'decline' };
+    return { met: false, reason: 'Underwriting outcome is not supportable for normal Credit Approval advance - route via the Decline path.', requiresNonForwardPath: true, decision: 'decline' };
   }
   if (record.decision === 'return_for_more_information') {
     return { met: false, reason: 'Underwriting recommends RETURN for more information — route via the Return path.', requiresNonForwardPath: true, decision: 'return_for_more_information' };
