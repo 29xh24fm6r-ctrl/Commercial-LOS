@@ -361,6 +361,25 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/workflow/stageGateContract.ts', reason: 'Stage Advancement exit-gate contract; reachable once StageWorkflowControl is hosted in the deal workspace (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/approvalAuthorityMatrix.ts', reason: 'Stage Advancement OGB single authorized-approver policy; reachable once the CREDIT_APPROVAL gate is wired into a hosted control (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/losWorkflowTruthMatrix.ts', reason: 'PR 0 machine-readable workflow truth matrix — inert descriptive data for the LOS Full Workflow Activation ARC (docs/LOS_WORKFLOW_TRUTH_MATRIX.md); not wired into any gate, write path, or UI.', plannedPhase: 'ARC documentation' },
+  // ── LOS Full Workflow Activation ARC — WIP reconciliation (metadata only) ──
+  // These 12 modules are in-flight toward the LOS Full Workflow Activation ARC
+  // (docs/LOS_FULL_WORKFLOW_ACTIVATION_ARC.md). They are inert and unwired today — imported
+  // only by each other + their own tests, never from a routed surface. Registered here so the
+  // reachability audit distinguishes them from unexpected orphans. Each is ADOPTED (wired) by
+  // its target ARC PR, which removes its entry below when the domain goes live. No runtime
+  // behavior, gate, feature flag, write path, certification, or evidence is changed by this entry.
+  { path: 'src/access/stageAdvancementSmokeProof.ts', reason: 'ARC WIP: machine-proven stage-transition smoke-proof infrastructure (attribution, affected record ids, readback). Inert/pure; not wired into any smoke harness yet.', plannedPhase: 'ARC PR 23/24' },
+  { path: 'src/crm/certification/crmTeamReadinessCertification.ts', reason: 'ARC WIP: CRM team-readiness certification infrastructure (composes existing readiness dimensions into one verdict). Inert/pure; not mounted.', plannedPhase: 'ARC PR 22' },
+  { path: 'src/crm/linkage/newDealCrmClientLinkage.ts', reason: 'ARC WIP: new-deal to existing canonical CRM client linkage decision model (never fabricates a client). Inert/pure decision logic; not wired into the new-deal flow.', plannedPhase: 'ARC PR 22 / later CRM wiring' },
+  { path: 'src/crm/readiness/crmRoleMountRegistry.ts', reason: 'ARC WIP: CRM role-mount readiness registry (frozen config of which roles have CRM mounted). Inert data; not consumed by a live surface yet.', plannedPhase: 'ARC PR 22' },
+  { path: 'src/crm/seed/crmCanonicalSeedReadiness.ts', reason: 'ARC WIP: CRM canonical seed/backfill readiness model over measured facts. Inert/pure; not mounted.', plannedPhase: 'ARC PR 22' },
+  { path: 'src/deals/buildLiveCanonicalTransitionDeps.ts', reason: 'ARC WIP: live Dataverse deps for the canonical Advance/Return/Decline/Withdraw transition engine. SAFETY: contains live write sinks (deal update + audit/timeline create) but is INERT while unrouted + unmounted, and fail-closed behind AUTO_STAGE_ADVANCE_ENABLED.', plannedPhase: 'ARC PR 10/11/12/21' },
+  { path: 'src/deals/dealReferenceResolvers.ts', reason: 'ARC WIP: fail-closed stage/status reference-code resolvers. SAFETY: live-READ only via guarded dynamic import; inert while unrouted (imported only by buildLiveCanonicalTransitionDeps).', plannedPhase: 'ARC PR 10/11/12/21' },
+  { path: 'src/deals/loadBoardingHandoffForDeal.ts', reason: 'ARC WIP: live loader for boarded-loan / servicing handoff proof. SAFETY: live-READ only via guarded dynamic import; inert while unrouted.', plannedPhase: 'ARC PR 16' },
+  { path: 'src/deals/loadStageSeedReadiness.ts', reason: 'ARC WIP: live loader for stage-seed readiness proof. SAFETY: live-READ only via guarded dynamic import; inert while unrouted.', plannedPhase: 'ARC PR 4 or PR 23' },
+  { path: 'src/workflow/boardingHandoffReadiness.ts', reason: 'ARC WIP: pure reconciliation of the BOARDED stage claim vs a real active boarded-loan handoff record. Inert/pure; not gate-consumed yet.', plannedPhase: 'ARC PR 16' },
+  { path: 'src/workflow/stageExitGateReconciliation.ts', reason: 'ARC WIP: pure reconciliation between the shallow live transition gate and the rigorous exit gate; blocks certification on untracked facts. Inert/pure; not the live gate.', plannedPhase: 'ARC PR 22' },
+  { path: 'src/workflow/stageSeedReadiness.ts', reason: 'ARC WIP: pure deterministic stage-seed readiness evaluator (7 canonical stages, active, unique ascending sequence). Inert/pure; not gate-consumed yet.', plannedPhase: 'ARC PR 4 or PR 23' },
   // Stage reconciliation: these governed workflow-action surfaces were hosted by the
   // retired legacy Loan Workflow Command Center (11-stage spine). They are re-hosted by
   // the canonical StageWorkflowControl when the stage-progression domain is seeded + armed.
