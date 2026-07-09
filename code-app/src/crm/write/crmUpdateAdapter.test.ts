@@ -1,9 +1,21 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   updateOrganizationField,
   makeOrgFieldSaver,
+  buildLiveCrmUpdateDeps,
   type CrmUpdateDeps,
 } from './crmUpdateAdapter';
+import { Cr664_crmorganizationsService } from '../../generated/services/Cr664_crmorganizationsService';
+import { Cr664_crmauditentriesService } from '../../generated/services/Cr664_crmauditentriesService';
+
+// Mock the generated services so buildLiveCrmUpdateDeps' dynamic imports resolve to controllable
+// stubs — this is where the D1 "Boolean(result) reports failure as success" bug lived.
+vi.mock('../../generated/services/Cr664_crmorganizationsService', () => ({
+  Cr664_crmorganizationsService: { update: vi.fn(), get: vi.fn() },
+}));
+vi.mock('../../generated/services/Cr664_crmauditentriesService', () => ({
+  Cr664_crmauditentriesService: { create: vi.fn() },
+}));
 
 /**
  * Phase 6 — governed CRM field-update adapter certification: default-off,
@@ -93,6 +105,26 @@ describe('updateOrganizationField', () => {
     const outcome = await updateOrganizationField({ ...ON, field: 'cr664_notes', value: 'hi' }, deps);
     expect(outcome.kind).toBe('audit-failed');
   });
+
+  it('verifies the write via readback when a reader is injected (match → success, audit written)', async () => {
+    const deps = stubDeps({ readOrganization: vi.fn(async () => ({ success: true, data: { cr664_notes: 'hi' } })) });
+    const outcome = await updateOrganizationField({ ...ON, field: 'cr664_notes', value: 'hi' }, deps);
+    expect(outcome.kind).toBe('success');
+    expect(deps.readOrganization).toHaveBeenCalledWith('org-1');
+    expect(deps.emitAudit).toHaveBeenCalled();
+  });
+
+  it('fails closed as readback-mismatch when the read-back value differs (audit NOT written)', async () => {
+    const deps = stubDeps({ readOrganization: vi.fn(async () => ({ success: true, data: { cr664_notes: 'STALE' } })) });
+    const outcome = await updateOrganizationField({ ...ON, field: 'cr664_notes', value: 'hi' }, deps);
+    expect(outcome.kind).toBe('readback-mismatch');
+    expect(deps.emitAudit).not.toHaveBeenCalled();
+  });
+
+  it('coerces booleans in the readback compare (taxidpresent true)', async () => {
+    const deps = stubDeps({ readOrganization: vi.fn(async () => ({ success: true, data: { cr664_taxidpresent: true } })) });
+    expect((await updateOrganizationField({ ...ON, field: 'cr664_taxidpresent', value: 'true' }, deps)).kind).toBe('success');
+  });
 });
 
 describe('makeOrgFieldSaver (InlineEdit bridge)', () => {
@@ -106,5 +138,37 @@ describe('makeOrgFieldSaver (InlineEdit bridge)', () => {
     const deps = stubDeps();
     const save = makeOrgFieldSaver({ organizationId: 'org-1', actor: ACTOR, deps, enabled: false })('cr664_industry');
     await expect(save('x')).rejects.toThrow(/disabled/i);
+  });
+});
+
+describe('buildLiveCrmUpdateDeps — maps the SDK IOperationResult honestly (D1 regression guard)', () => {
+  const orgSvc = vi.mocked(Cr664_crmorganizationsService);
+  const auditSvc = vi.mocked(Cr664_crmauditentriesService);
+  beforeEach(() => vi.clearAllMocks());
+
+  it('reports a Dataverse-rejected update as FAILURE, not success (this is the D1 bug)', async () => {
+    orgSvc.update.mockResolvedValue({ success: false, error: { message: 'row locked' } } as never);
+    const deps = buildLiveCrmUpdateDeps();
+    // The dep must read result.success, NOT Boolean(result) (which is always true for an object).
+    expect(await deps.updateOrganization('org-1', { cr664_notes: 'x' })).toEqual({ success: false, error: 'row locked' });
+    // End-to-end: a failed live update yields update-failed, never a false "saved".
+    const outcome = await updateOrganizationField({ ...ON, field: 'cr664_notes', value: 'x' }, deps);
+    expect(outcome.kind).toBe('update-failed');
+  });
+
+  it('maps a successful update to success and reads the record back via get()', async () => {
+    orgSvc.update.mockResolvedValue({ success: true, data: {} } as never);
+    orgSvc.get.mockResolvedValue({ success: true, data: { cr664_notes: 'x' } } as never);
+    const deps = buildLiveCrmUpdateDeps();
+    expect(await deps.updateOrganization('org-1', { cr664_notes: 'x' })).toEqual({ success: true, error: undefined });
+    expect(await deps.readOrganization!('org-1')).toEqual({ success: true, data: { cr664_notes: 'x' }, error: undefined });
+  });
+
+  it('extracts the audit id on success and surfaces a failed audit honestly', async () => {
+    auditSvc.create.mockResolvedValueOnce({ success: true, data: { cr664_crmauditentryid: 'aud-9' } } as never);
+    const deps = buildLiveCrmUpdateDeps();
+    expect(await deps.emitAudit({})).toEqual({ success: true, id: 'aud-9', error: undefined });
+    auditSvc.create.mockResolvedValueOnce({ success: false, error: { message: 'sink down' } } as never);
+    expect(await deps.emitAudit({})).toEqual({ success: false, id: undefined, error: 'sink down' });
   });
 });
