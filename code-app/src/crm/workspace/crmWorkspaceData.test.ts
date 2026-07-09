@@ -10,6 +10,7 @@ import {
   mapVendorProfile,
   mapTimelineEvent,
   mapAuditEntry,
+  deriveOrgIndustry,
   CRM_DOMAINS,
   type CrmRecord,
 } from './crmWorkspaceData';
@@ -102,6 +103,57 @@ describe('Phase 258 — CRM domain mappers', () => {
     expect(r.organizationId).toBe('org-9');
     expect(r.personId).toBe('per-3');
     expect(r.eventType).toBe('Note added');
+  });
+});
+
+describe('organization Industry and Type are not conflated (live-smoke bug: "Borrower" shown as Industry)', () => {
+  it('deriveOrgIndustry: an explicit industry descriptor is used verbatim', () => {
+    expect(deriveOrgIndustry('Manufacturing', '722511')).toBe('Manufacturing');
+  });
+
+  it('deriveOrgIndustry: NAICS resolves to a derived industry when there is no descriptor (never the role)', () => {
+    const ind = deriveOrgIndustry(undefined, '722511');
+    expect(typeof ind).toBe('string');
+    expect((ind ?? '').length).toBeGreaterThan(0);
+    expect(ind).not.toBe('Borrower');
+  });
+
+  it('deriveOrgIndustry: a NAICS with no sector mapping shows the code honestly, never a fabricated industry', () => {
+    expect(deriveOrgIndustry(undefined, '999999')).toBe('NAICS 999999');
+  });
+
+  it('deriveOrgIndustry: missing industry AND NAICS → undefined (honest missing, list shows "Industry unavailable")', () => {
+    expect(deriveOrgIndustry(null, null)).toBeUndefined();
+    expect(deriveOrgIndustry('', '   ')).toBeUndefined();
+  });
+
+  it('mapOrganization: Industry (subtitle) is never the Type/role; Type is a separate field', () => {
+    const rec = mapOrganization({
+      cr664_crmorganizationid: 'o1',
+      cr664_name: 'OmniCare 365',
+      cr664_organizationtype: 'Borrower',
+    } as never);
+    // The exact live-app bug: "Borrower" must NOT appear as Industry.
+    expect(rec.subtitle).not.toBe('Borrower');
+    expect(rec.subtitle).toBeUndefined(); // no industry/NAICS → honestly missing
+    expect(rec.tertiary).toBe('Borrower'); // Type stays separate
+    const detail = Object.fromEntries(rec.detail.map((r) => [r.label, r.value]));
+    expect(detail.Type).toBe('Borrower');
+    expect(detail.Industry).toBeUndefined(); // detail omits missing industry (honest), never Borrower
+  });
+
+  it('mapOrganization: with NAICS present, Industry is derived and Type stays separate', () => {
+    const rec = mapOrganization({
+      cr664_crmorganizationid: 'o2',
+      cr664_name: 'Acme',
+      cr664_organizationtype: 'Customer',
+      cr664_naicscode: '722511',
+    } as never);
+    expect(typeof rec.subtitle).toBe('string');
+    expect(rec.subtitle).not.toBe('Customer');
+    expect(rec.tertiary).toBe('Customer');
+    const detail = Object.fromEntries(rec.detail.map((r) => [r.label, r.value]));
+    expect(typeof detail.Industry).toBe('string');
   });
 });
 
