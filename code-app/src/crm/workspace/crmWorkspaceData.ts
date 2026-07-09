@@ -11,6 +11,7 @@
  */
 
 import { formatDate } from '../../shared/formatters';
+import { sectorForCode } from '../naics/naicsSectorMap';
 import type { Cr664_crmorganizations } from '../../generated/models/Cr664_crmorganizationsModel';
 import type { Cr664_crmpersons } from '../../generated/models/Cr664_crmpersonsModel';
 import type { Cr664_crmrelationships } from '../../generated/models/Cr664_crmrelationshipsModel';
@@ -67,8 +68,10 @@ export interface CrmRecord {
   readonly id: string;
   /** Primary display name. */
   readonly title: string;
-  /** Secondary line (type / role / category). */
+  /** Secondary line (for organizations this is the derived Industry — never the role/Type). */
   readonly subtitle?: string;
+  /** Optional third column value (organizations: Type / role, kept separate from Industry). */
+  readonly tertiary?: string;
   /** Short status chip. */
   readonly badge?: string;
   /** Detail-drawer rows. */
@@ -121,6 +124,24 @@ function yn(v: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * An organization's DISPLAY industry, kept strictly separate from its Type/role. It is the explicit
+ * industry descriptor if set, else the NAICS-derived sector title, else `undefined` (honestly
+ * missing). It is NEVER the organization Type (Borrower / prospect / customer) — conflating the two
+ * is exactly the bug this fixes. Missing industry is surfaced as "Industry unavailable" by the list,
+ * and omitted from the detail rows; nothing is fabricated.
+ */
+export function deriveOrgIndustry(industryDescriptor: unknown, naicsCode: unknown): string | undefined {
+  const desc = s(industryDescriptor);
+  if (desc) return desc;
+  const naics = s(naicsCode);
+  if (naics) {
+    const sector = sectorForCode(naics);
+    return sector ? sector.sectorTitle : `NAICS ${naics}`;
+  }
+  return undefined;
+}
+
 function pick(rows: Array<CrmDetailRow | undefined>): readonly CrmDetailRow[] {
   return rows.filter((r): r is CrmDetailRow => r !== undefined);
 }
@@ -134,16 +155,19 @@ function row(label: string, value: string | undefined): CrmDetailRow | undefined
 // ---------------------------------------------------------------------------
 
 export function mapOrganization(o: Cr664_crmorganizations): CrmRecord {
+  const industry = deriveOrgIndustry(o.cr664_industry, o.cr664_naicscode);
   return {
     id: o.cr664_crmorganizationid,
+    // Industry (derived), never the Type/role — those are separate columns/rows now.
     title: s(o.cr664_displayname) ?? s(o.cr664_name) ?? s(o.cr664_legalname) ?? 'Organization',
-    subtitle: s(o.cr664_industry) ?? s(o.cr664_organizationtype),
+    subtitle: industry,
+    tertiary: s(o.cr664_organizationtype),
     badge: s(o.cr664_status) ?? s(o.statecodename),
     detail: pick([
       row('Legal name', s(o.cr664_legalname)),
       row('DBA', s(o.cr664_dbaname)),
       row('Type', s(o.cr664_organizationtype)),
-      row('Industry', s(o.cr664_industry)),
+      row('Industry', industry),
       row('State of formation', s(o.cr664_stateofformation)),
       row('Website', s(o.cr664_website)),
       row('Tax ID on file', yn(o.cr664_taxidpresent)),

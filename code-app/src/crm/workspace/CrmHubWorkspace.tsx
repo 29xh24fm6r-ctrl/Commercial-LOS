@@ -57,13 +57,17 @@ interface ViewSpec {
   /** Column header for the record's primary field. */
   readonly primaryCol: string;
   readonly secondaryCol: string;
+  /** Label shown in the secondary cell when the record has no secondary value (e.g. missing industry). */
+  readonly secondaryEmpty?: string;
+  /** Optional third column (organizations split Industry | Type). Header + value from record.tertiary. */
+  readonly tertiaryCol?: string;
   /** Bank-user empty heading + guidance. */
   readonly emptyHeading: string;
   readonly emptyGuidance: string;
 }
 
 const VIEWS: readonly ViewSpec[] = [
-  { key: 'companies', label: 'Companies', domain: 'organizations', primaryCol: 'Company', secondaryCol: 'Industry / type', emptyHeading: 'No companies yet', emptyGuidance: 'Companies you manage will appear here once relationships are loaded or entered.' },
+  { key: 'companies', label: 'Companies', domain: 'organizations', primaryCol: 'Company', secondaryCol: 'Industry', secondaryEmpty: 'Industry unavailable', tertiaryCol: 'Type', emptyHeading: 'No companies yet', emptyGuidance: 'Companies you manage will appear here once relationships are loaded or entered.' },
   { key: 'contacts', label: 'Contacts', domain: 'people', primaryCol: 'Name', secondaryCol: 'Role / title', emptyHeading: 'No contacts yet', emptyGuidance: 'Key people across your relationships will appear here as contacts are added.' },
   { key: 'relationships', label: 'Relationships', domain: 'relationships', primaryCol: 'Relationship', secondaryCol: 'Role', emptyHeading: 'No relationships yet', emptyGuidance: 'Connections between companies, people, and deals will appear here.' },
   { key: 'activities', label: 'Activities', domain: 'timelineEvents', timeline: true, primaryCol: 'Activity', secondaryCol: 'Summary', emptyHeading: 'No CRM activity yet', emptyGuidance: 'Log a call, meeting, or note once CRM updates are enabled.' },
@@ -157,7 +161,10 @@ export function CrmHubWorkspace({
     const q = query.trim().toLowerCase();
     if (q.length === 0) return r.records;
     return r.records.filter(
-      (rec) => rec.title.toLowerCase().includes(q) || (rec.subtitle ?? '').toLowerCase().includes(q),
+      (rec) =>
+        rec.title.toLowerCase().includes(q) ||
+        (rec.subtitle ?? '').toLowerCase().includes(q) ||
+        (rec.tertiary ?? '').toLowerCase().includes(q),
     );
   }, [state, spec.domain, query]);
 
@@ -307,6 +314,7 @@ function RecordTable({ spec, records, selectedId, onOpen }: { spec: ViewSpec; re
         <tr>
           <th style={styles.th}>{spec.primaryCol}</th>
           <th style={styles.th}>{spec.secondaryCol}</th>
+          {spec.tertiaryCol && <th style={styles.th}>{spec.tertiaryCol}</th>}
           <th style={styles.th}>Status</th>
           <th style={styles.thRight}></th>
         </tr>
@@ -329,7 +337,8 @@ function RecordTable({ spec, records, selectedId, onOpen }: { spec: ViewSpec; re
             }}
           >
             <td style={styles.tdStrong}>{r.title}</td>
-            <td style={styles.td}>{r.subtitle ?? '—'}</td>
+            <td style={styles.td}>{r.subtitle ?? spec.secondaryEmpty ?? '—'}</td>
+            {spec.tertiaryCol && <td style={styles.td}>{r.tertiary ?? '—'}</td>}
             <td style={styles.td}>{r.badge ? <Badge variant="neutral" appearance="outline">{r.badge}</Badge> : '—'}</td>
             <td style={styles.tdRight}><span style={styles.openLink}>Open →</span></td>
           </tr>
