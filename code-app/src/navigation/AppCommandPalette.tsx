@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CommandPalette, type CommandGroup } from '../design/CommandPalette';
 import { WORKSPACE_ROUTES, type WorkspaceKey } from '../bootstrap/workspaceRoutes';
 import { FEATURE_SURFACES } from './featureSurfaces';
+import { isFeatureSurfaceFlagEnabled } from './featureSurfaceFlags';
 
 const WORKSPACE_LABELS: Record<WorkspaceKey, string> = {
   banker: 'Banker workspace',
@@ -31,17 +32,19 @@ export function AppCommandPalette() {
         run: () => navigate(WORKSPACE_ROUTES[key]),
       })),
     };
-    const surfaces: CommandGroup = {
-      heading: 'Surfaces',
-      items: FEATURE_SURFACES.map((s) => ({
-        id: `surface-${s.key}`,
-        label: `Open ${s.label}`,
-        meta: `/surfaces/${s.key}`,
-        keywords: [s.key, 'surface', s.workspace],
-        run: () => navigate(`/surfaces/${s.key}`),
-      })),
-    };
-    return [workspaces, surfaces];
+    // Only advertise surfaces whose route flag is on — otherwise ⌘K sends the user to a
+    // "not enabled" screen (e.g. crm-intelligence, flag off). A disabled surface is not a
+    // reachable destination.
+    const surfaceItems = FEATURE_SURFACES.filter((s) => isFeatureSurfaceFlagEnabled(s.flag)).map((s) => ({
+      id: `surface-${s.key}`,
+      label: `Open ${s.label}`,
+      meta: `/surfaces/${s.key}`,
+      keywords: [s.key, 'surface', s.workspace],
+      run: () => navigate(`/surfaces/${s.key}`),
+    }));
+    const result: CommandGroup[] = [workspaces];
+    if (surfaceItems.length > 0) result.push({ heading: 'Surfaces', items: surfaceItems });
+    return result;
   }, [navigate]);
 
   return <CommandPalette groups={groups} />;
