@@ -1,12 +1,29 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   addCompany,
   addContact,
   logActivity,
   createFollowUpTask,
   addRelationship,
+  buildLiveCrmWriteDeps,
   type CrmWriteDeps,
 } from './crmWriteAdapter';
+import { Cr664_crmorganizationsService } from '../../generated/services/Cr664_crmorganizationsService';
+import { Cr664_crmpersonsService } from '../../generated/services/Cr664_crmpersonsService';
+import { Cr664_crmrelationshipsService } from '../../generated/services/Cr664_crmrelationshipsService';
+import { Cr664_crmtimelineeventsService } from '../../generated/services/Cr664_crmtimelineeventsService';
+import { Cr664_crmcontactpointsService } from '../../generated/services/Cr664_crmcontactpointsService';
+import { Cr664_crmauditentriesService } from '../../generated/services/Cr664_crmauditentriesService';
+
+// Mock the generated services so buildLiveCrmWriteDeps' dynamic imports resolve to stubs — this
+// is exactly where SDK/schema drift bites (each dep extracts a per-entity id key), and it was
+// entirely untested.
+vi.mock('../../generated/services/Cr664_crmorganizationsService', () => ({ Cr664_crmorganizationsService: { create: vi.fn(), get: vi.fn() } }));
+vi.mock('../../generated/services/Cr664_crmpersonsService', () => ({ Cr664_crmpersonsService: { create: vi.fn(), get: vi.fn() } }));
+vi.mock('../../generated/services/Cr664_crmrelationshipsService', () => ({ Cr664_crmrelationshipsService: { create: vi.fn(), get: vi.fn() } }));
+vi.mock('../../generated/services/Cr664_crmtimelineeventsService', () => ({ Cr664_crmtimelineeventsService: { create: vi.fn(), get: vi.fn() } }));
+vi.mock('../../generated/services/Cr664_crmcontactpointsService', () => ({ Cr664_crmcontactpointsService: { create: vi.fn() } }));
+vi.mock('../../generated/services/Cr664_crmauditentriesService', () => ({ Cr664_crmauditentriesService: { create: vi.fn() } }));
 
 /**
  * Phase 261 (B) — governed CRM writes: payload shape, readback verification,
@@ -80,6 +97,31 @@ describe('addCompany', () => {
     const outcome = await addCompany({ ...ACTOR, name: 'Acme' }, deps);
     expect(outcome.kind).toBe('audit-failed');
     if (outcome.kind === 'audit-failed') expect(outcome.id).toBe('new-id');
+  });
+
+  it('rejects an off-list organization Type before any write (invalid-input)', async () => {
+    const deps = stubDeps();
+    expect((await addCompany({ ...ACTOR, name: 'Acme', organizationType: 'NotARealType' }, deps)).kind).toBe('invalid-input');
+    expect(deps.createOrganization).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-6-digit NAICS before any write (invalid-input)', async () => {
+    const deps = stubDeps();
+    expect((await addCompany({ ...ACTOR, name: 'Acme', naicsCode: '72' }, deps)).kind).toBe('invalid-input');
+    expect(deps.createOrganization).not.toHaveBeenCalled();
+  });
+
+  it('reports write-failed when create returns non-success (no readback, no audit)', async () => {
+    const deps = stubDeps({ createOrganization: vi.fn(async () => ({ success: false, error: { message: 'bad option value' } })) });
+    const outcome = await addCompany({ ...ACTOR, name: 'Acme' }, deps);
+    expect(outcome.kind).toBe('write-failed');
+    expect(deps.readOrganization).not.toHaveBeenCalled();
+    expect(deps.emitAudit).not.toHaveBeenCalled();
+  });
+
+  it('reports write-failed when create throws', async () => {
+    const deps = stubDeps({ createOrganization: vi.fn(async () => { throw new Error('network'); }) });
+    expect((await addCompany({ ...ACTOR, name: 'Acme' }, deps)).kind).toBe('write-failed');
   });
 });
 
@@ -169,5 +211,32 @@ describe('addRelationship', () => {
     expect(payload['cr664_TargetPerson@odata.bind']).toBe('/cr664_crmpersons(p-1)');
     expect(payload.cr664_active).toBe(true);
     expect((deps.emitAudit as ReturnType<typeof vi.fn>).mock.calls[0][0].cr664_entitytype).toBe('relationship');
+  });
+});
+
+describe('buildLiveCrmWriteDeps — per-entity id extraction + honest mapping (SDK-drift guard)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('extracts each entity id from its generated result and maps success/error honestly', async () => {
+    vi.mocked(Cr664_crmorganizationsService.create).mockResolvedValue({ success: true, data: { cr664_crmorganizationid: 'org-9' } } as never);
+    vi.mocked(Cr664_crmpersonsService.create).mockResolvedValue({ success: true, data: { cr664_crmpersonid: 'p-9' } } as never);
+    vi.mocked(Cr664_crmrelationshipsService.create).mockResolvedValue({ success: true, data: { cr664_crmrelationshipid: 'r-9' } } as never);
+    vi.mocked(Cr664_crmtimelineeventsService.create).mockResolvedValue({ success: true, data: { cr664_crmtimelineeventid: 't-9' } } as never);
+    vi.mocked(Cr664_crmcontactpointsService.create).mockResolvedValue({ success: true, data: { cr664_crmcontactpointid: 'cp-9' } } as never);
+    vi.mocked(Cr664_crmauditentriesService.create).mockResolvedValue({ success: true, data: { cr664_crmauditentryid: 'a-9' } } as never);
+    const deps = buildLiveCrmWriteDeps();
+    expect(await deps.createOrganization({})).toEqual({ success: true, id: 'org-9', error: undefined });
+    expect(await deps.createPerson({})).toEqual({ success: true, id: 'p-9', error: undefined });
+    expect(await deps.createRelationship({})).toEqual({ success: true, id: 'r-9', error: undefined });
+    expect(await deps.createTimelineEvent({})).toEqual({ success: true, id: 't-9', error: undefined });
+    expect(await deps.createContactPoint({})).toEqual({ success: true, id: 'cp-9', error: undefined });
+    expect(await deps.emitAudit({})).toEqual({ success: true, id: 'a-9', error: undefined });
+  });
+
+  it('maps a rejected create to a failure the governed pipeline surfaces (not a false success)', async () => {
+    vi.mocked(Cr664_crmorganizationsService.create).mockResolvedValue({ success: false, error: { message: 'bad option' } } as never);
+    const r = await buildLiveCrmWriteDeps().createOrganization({});
+    expect(r.success).toBe(false);
+    expect(r.id).toBeUndefined();
   });
 });
