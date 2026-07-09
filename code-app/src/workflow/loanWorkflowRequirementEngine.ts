@@ -7,9 +7,17 @@ import { getLoanWorkflowStage } from './loanWorkflowStages';
 import type { LoanWorkflowRequirement, LoanWorkflowStageDefinition } from './loanWorkflowTypes';
 import type { CanonicalStageCode } from './stageOrderingContract';
 import {
+  authoredDeepRequirementsForScope,
   requirementsForScope,
   shallowRequirementMeta,
 } from './loanWorkflowRequirementRegistry';
+import {
+  evaluateRiskRatingReadiness,
+  evaluateUnderwritingRecommendationReadiness,
+  type RiskRatingRecord,
+  type RiskRatingPolicy,
+  type UnderwritingRecommendationRecord,
+} from './underwritingDeepFacts';
 import type {
   CanonicalRequirement,
   EvaluatedRequirement,
@@ -44,6 +52,32 @@ export interface WorkflowRequirementFacts {
   readonly tasksUnavailable?: boolean;
   readonly documentsUnavailable?: boolean;
   readonly creditMemoUnavailable?: boolean;
+  // ARC Phase 3 — deep underwriting facts (supplied by a loader once the backing record exists;
+  // absent today, so the requirements stay untracked/future and these are never fabricated).
+  readonly riskRating?: RiskRatingRecord;
+  readonly riskRatingPolicy?: RiskRatingPolicy;
+  readonly underwritingRecommendation?: UnderwritingRecommendationRecord;
+}
+
+/**
+ * Evaluate an authored DEEP requirement via its model when the fact is tracked. When the requirement is
+ * still untracked (no backing record in the schema), it fails closed as `untracked` (surfaced as a
+ * "future" requirement — never fabricated as met). This is dormant while every deep fact is untracked;
+ * it is the wire a later phase turns on by flipping the registry entry to `tracked: true` + supplying
+ * the fact from a loader.
+ */
+export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: WorkflowRequirementFacts): EvaluatedRequirement {
+  if (!req.tracked) return evaluated(req, 'untracked', req.blockerReason);
+  if (req.id === 'UNDERWRITING:risk_rating') {
+    const r = evaluateRiskRatingReadiness(facts.riskRating, facts.riskRatingPolicy);
+    return evaluated(req, r.met ? 'met' : 'unmet', r.reason);
+  }
+  if (req.id === 'UNDERWRITING:uw_recommendation') {
+    const r = evaluateUnderwritingRecommendationReadiness(facts.underwritingRecommendation);
+    return evaluated(req, r.met ? 'met' : 'unmet', r.reason);
+  }
+  // Tracked deep fact without a model yet → fail closed (should not happen in Phase 3).
+  return evaluated(req, 'unmet', req.blockerReason);
 }
 
 /** The set of currently-tracked requirements a stage's exit gates, evaluated from the live readiness. */
@@ -186,10 +220,9 @@ export function evaluateStageExitRequirements(
     ...stage.creditRequirements.map((r) => evaluateViaLegacy(stageCode, 'credit', r, legacy)),
     ...stage.closingRequirements.map((r) => evaluateViaLegacy(stageCode, 'closing', r, legacy)),
   ];
-  // Deep facts: not yet tracked → fail closed as untracked blockers (never fabricated as met).
-  const deep = requirementsForScope(stageCode)
-    .filter((r) => !r.tracked)
-    .map((r) => evaluated(r, 'untracked', r.blockerReason));
+  // Deep facts: evaluate via their model when tracked; fail closed as untracked/future otherwise
+  // (never fabricated as met). Every deep fact is untracked today, so this surfaces them as "future".
+  const deep = authoredDeepRequirementsForScope(stageCode).map((r) => evaluateDeepFactRequirement(r, facts));
   return [...shallow, ...deep];
 }
 

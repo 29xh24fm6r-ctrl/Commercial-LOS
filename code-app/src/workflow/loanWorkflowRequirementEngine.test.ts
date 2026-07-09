@@ -10,9 +10,11 @@ import {
   evaluateDocumentRequirement,
   evaluateTaskRequirement,
   evaluateStageExitPolicy,
+  evaluateDeepFactRequirement,
   deriveStageExitReadiness,
   type WorkflowRequirementFacts,
 } from './loanWorkflowRequirementEngine';
+import type { RiskRatingRecord } from './underwritingDeepFacts';
 
 /**
  * ARC Phase 2 — capability proof for typed document status, task-blocking policy, and the
@@ -100,6 +102,51 @@ describe('ARC Phase 2 — task-blocking policy', () => {
     const r = evaluateTaskRequirement(taskReq({ severity: 'blocking' }), done);
     expect(r.status).toBe('met');
     expect(r.canBlockTransition).toBe(false);
+  });
+});
+
+describe('ARC Phase 3 — underwriting review goes live via reviewed-document status', () => {
+  const uwDeal = { ...baseDeal, stage: 'Underwriting' };
+  function uwFacts(financials: 'received' | 'reviewed'): WorkflowRequirementFacts {
+    return {
+      deal: uwDeal,
+      tasks: emptyTasks,
+      documents: {
+        outstanding: [],
+        received: [mkDoc('Ownership Information', 'received'), mkDoc('Collateral Support', 'received'), ...(financials === 'received' ? [mkDoc('Business Financial Statements', 'received'), mkDoc('Tax Returns', 'received')] : [])],
+        reviewed: financials === 'reviewed' ? [mkDoc('Business Financial Statements', 'reviewed', 'UW'), mkDoc('Tax Returns', 'reviewed', 'UW')] : [],
+      },
+      creditMemo: { memos: [{ id: 'm', name: 'M', status: 'Draft', statusKey: 'draft', memoType: 'Banker draft', version: 1, generatedAt: '2026-07-05T00:00:00Z', modifiedOn: '2026-07-05T00:00:00Z', borrowerSafe: false, textPreview: undefined }], sections: [] },
+    };
+  }
+  it('a received-but-unreviewed financial statement BLOCKS the Underwriting exit', () => {
+    const r = deriveStageExitReadiness('UNDERWRITING', uwFacts('received'));
+    expect(r.blocking.some((b) => /Business Financial Statements/i.test(b.label))).toBe(true);
+    expect(evaluateStageExitPolicy(r).allowed).toBe(false);
+  });
+  it('reviewing the analysis documents clears the tracked block (untracked deep facts remain, non-live)', () => {
+    const r = deriveStageExitReadiness('UNDERWRITING', uwFacts('reviewed'));
+    expect(r.blocking).toEqual([]);
+    // Live gate (tracked blocking only) is allowed; risk rating / recommendation stay untracked/future.
+    expect(evaluateStageExitPolicy(r).allowed).toBe(true);
+    expect(r.untracked.some((u) => u.id === 'UNDERWRITING:risk_rating')).toBe(true);
+  });
+});
+
+describe('ARC Phase 3 — deep-fact evaluator (dormant until tracked; fails closed, never fabricated)', () => {
+  const trackedRisk = {
+    id: 'UNDERWRITING:risk_rating', scope: 'UNDERWRITING' as const, label: 'Risk rating assigned', uiCopy: 'Risk rating assigned',
+    description: '', category: 'credit' as const, severity: 'blocking' as const, resolverSurface: 'Credit Memo' as const,
+    responsibleRole: 'underwriter' as const, backingType: 'risk_rating_record' as const, tracked: true, matchMode: 'typed' as const, blockerReason: 'Risk rating required.',
+  };
+  const rr = (over: Partial<RiskRatingRecord> = {}): RiskRatingRecord => ({ dealId: 'd', ratingValue: '4', ratingScale: 'OGB', status: 'assigned', ...over });
+  it('an untracked risk-rating requirement fails closed as untracked (Phase 3 live state)', () => {
+    expect(evaluateDeepFactRequirement({ ...trackedRisk, tracked: false }, { deal: baseDeal }).status).toBe('untracked');
+  });
+  it('once tracked: missing/draft does not satisfy; assigned satisfies', () => {
+    expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal }).status).toBe('unmet');
+    expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal, riskRating: rr({ status: 'draft' }) }).status).toBe('unmet');
+    expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal, riskRating: rr({ status: 'assigned' }) }).status).toBe('met');
   });
 });
 

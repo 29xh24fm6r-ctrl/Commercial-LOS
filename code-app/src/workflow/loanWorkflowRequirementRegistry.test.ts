@@ -51,6 +51,9 @@ function doc(name: string): DealDocument {
 function docs(received: string[]): DealDocumentsResult {
   return { outstanding: [], received: received.map(doc), reviewed: [] };
 }
+function reviewedDoc(name: string): DealDocument {
+  return { id: `d-${name}`, name, dueDate: undefined, requestDate: undefined, receivedDate: '2026-07-05T00:00:00Z', reviewer: 'UW Analyst', uploaded: true, modifiedOn: undefined, status: 'reviewed' };
+}
 const emptyTasks: DealTasksResult = { open: [], completed: [] };
 const noMemo: CreditMemoData = { memos: [], sections: [] };
 const oneMemo: CreditMemoData = {
@@ -119,12 +122,17 @@ describe('ARC Phase 1 — untracked deep facts fail closed for deeper stages', (
     const facts: WorkflowRequirementFacts = {
       deal: baseDeal,
       tasks: emptyTasks,
-      documents: docs(['Business Financial Statements', 'Tax Returns', 'Ownership Information', 'Collateral Support']),
+      // ARC Phase 3: financials + tax returns must be REVIEWED (not merely received) to exit Underwriting.
+      documents: {
+        outstanding: [],
+        received: [doc('Ownership Information'), doc('Collateral Support')],
+        reviewed: [reviewedDoc('Business Financial Statements'), reviewedDoc('Tax Returns')],
+      },
       creditMemo: oneMemo,
     };
     const r = deriveStageExitReadiness('UNDERWRITING', facts);
     expect(r.status).toBe('blocked');
-    // No TRACKED blocking requirement remains (docs + fields + spreading credit are satisfied)...
+    // No TRACKED blocking requirement remains (docs reviewed + fields + spreading credit are satisfied)...
     expect(r.blocking).toEqual([]);
     // ...the block is the fail-closed untracked deep facts, which name the missing capability.
     expect(r.untracked.some((u) => u.id === 'UNDERWRITING:risk_rating')).toBe(true);
