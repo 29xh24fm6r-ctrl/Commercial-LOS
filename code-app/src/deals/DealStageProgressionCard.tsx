@@ -13,6 +13,10 @@ import { loadStageProgressionAvailability } from './stageProgressionAvailability
 import { deriveLoanWorkflowState } from '../workflow/deriveLoanWorkflowState';
 import { evaluateStageTransitionPolicy } from '../workflow/stageTransitionPolicy';
 import { advanceWorkflowStage, type StageAdvanceOutcome } from '../workflow/stageAdvanceWriteDependency';
+import {
+  deriveStageExitReadiness,
+  type WorkflowRequirementFacts,
+} from '../workflow/loanWorkflowRequirementEngine';
 import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
 import { AUTO_STAGE_ADVANCE_ENABLED } from './dealOriginationFeatureFlags';
 import { newCorrelationId } from '../shared/governance/correlationId';
@@ -151,6 +155,7 @@ export function DealStageProgressionCard({
             documents: documentsData,
             creditMemo: creditMemoData,
           })}
+          facts={{ deal, tasks: tasksData, documents: documentsData, creditMemo: creditMemoData }}
           dealId={deal.id}
           actor={stageAdvanceActor!}
         />
@@ -349,10 +354,12 @@ function statusLabel(s: ProgressionEligibilityStatus): string {
  */
 function StageAdvanceControl({
   workflow,
+  facts,
   dealId,
   actor,
 }: {
   workflow: LoanWorkflowState;
+  facts: WorkflowRequirementFacts;
   dealId: string;
   actor: StageAdvanceActor;
 }) {
@@ -386,11 +393,15 @@ function StageAdvanceControl({
   return (
     <div style={styles.advanceBox} data-stage-advance="control">
       <div style={styles.advanceLabel}>Advance stage</div>
-      {/* Surface the GOVERNED exit criteria for the current stage so the banker sees the
-          exact required steps in one place, next to the action. The advance button is gated
-          on the same fail-closed policy the write seam enforces (evaluateStageTransitionPolicy),
-          so a disabled button always has a stated, resolvable reason. */}
-      <StageAdvanceRequirements workflow={workflow} />
+      {/* Surface the GOVERNED exit criteria for the current stage, driven by the shared requirement
+          engine (deriveStageExitReadiness). The advance button is gated on evaluateStageTransitionPolicy
+          — the same fail-closed policy the write seam enforces — and the engine's live decision is
+          proven equivalent to it, so display and button agree. */}
+      <StageAdvanceRequirements
+        stageCode={workflow.currentStage.id}
+        nextLabel={workflow.nextPermittedStages[0]?.label ?? 'the next stage'}
+        facts={facts}
+      />
       <div style={styles.advanceButtons}>
         {workflow.nextPermittedStages.map((stage) => {
           const policy = evaluateStageTransitionPolicy(workflow, stage.id);
@@ -421,52 +432,72 @@ function StageAdvanceControl({
 }
 
 /**
- * The governed exit criteria for the current stage, surfaced next to the Advance action.
- *
- * `deriveLoanWorkflowReadiness` (the same readiness the fail-closed advance policy consumes)
- * is the source of truth: blocked-severity items (missing required fields / documents / credit /
- * closing evidence) HOLD the move; incomplete tasks are recommended (at-risk) and do not block.
- * Each item names WHERE it is resolved (Deal Profile / Documents / Tasks / Credit Memo) so the
- * banker acts in the right card. Logging a generic activity is explicitly NOT a substitute for a
- * required document, task, or field — no activity-log bypass of a governed requirement.
+ * The governed exit criteria for the current stage, driven by the shared requirement ENGINE
+ * (deriveStageExitReadiness). TRACKED blocking requirements HOLD the move; recommended requirements
+ * are visible but non-blocking; deep facts not yet tracked are shown as "future" (surfaced for
+ * transparency, NOT enforced live until their major phase). Each item names WHERE it is resolved and
+ * WHO owns it. The advance button gates on evaluateStageTransitionPolicy (the write-seam policy); the
+ * engine's live decision is proven equivalent, so display and button agree. Logging a generic activity
+ * is explicitly NOT a substitute for a governed requirement.
  */
-function StageAdvanceRequirements({ workflow }: { workflow: LoanWorkflowState }) {
-  const nextLabel = workflow.nextPermittedStages[0]?.label ?? 'the next stage';
-  const r = workflow.readiness;
+function StageAdvanceRequirements({
+  stageCode,
+  nextLabel,
+  facts,
+}: {
+  stageCode: LoanWorkflowStageId;
+  nextLabel: string;
+  facts: WorkflowRequirementFacts;
+}) {
+  const { blocking, recommended, untracked } = deriveStageExitReadiness(stageCode, facts);
 
-  if (r.status === 'clear') {
+  if (blocking.length === 0 && recommended.length === 0 && untracked.length === 0) {
     return (
       <p style={styles.advanceReady} role="status" data-stage-advance-ready>
-        {`This deal meets the exit criteria for ${workflow.currentStage.label}. Advancing to ${nextLabel} is a governed banker action — audited and readback-verified.`}
+        {`This deal meets the current stage's exit criteria. Advancing to ${nextLabel} is a governed banker action — audited and readback-verified.`}
       </p>
     );
   }
 
-  const items: { id: string; label: string; sev: SeverityKey; where: string }[] = [
-    ...r.missingFields.map((f) => ({ id: `field-${f.id}`, label: `Complete required field: ${f.label}`, sev: 'blocked' as SeverityKey, where: 'Deal Profile' })),
-    ...r.missingDocuments.map((d) => ({ id: `doc-${d.id}`, label: `Provide required document: ${d.label}`, sev: 'blocked' as SeverityKey, where: 'Documents' })),
-    ...r.creditBlockers.map((c) => ({ id: `credit-${c.id}`, label: c.label, sev: 'blocked' as SeverityKey, where: 'Credit Memo' })),
-    ...r.closingBlockers.map((c) => ({ id: `closing-${c.id}`, label: c.label, sev: 'blocked' as SeverityKey, where: 'Documents' })),
-    ...r.missingTasks.map((t) => ({ id: `task-${t.id}`, label: `Complete task: ${t.label}`, sev: 'atRisk' as SeverityKey, where: 'Tasks' })),
-  ];
-  const blocking = items.filter((i) => i.sev === 'blocked').length;
+  const row = (it: (typeof blocking)[number], sev: SeverityKey) => (
+    <li key={it.id} style={styles.reqItem} data-req-severity={sev} data-req-where={it.whereToResolve} data-req-role={it.responsibleRole}>
+      <SeverityGlyph severity={sev} />
+      <span style={styles.reqLabel}>{it.uiCopy}</span>
+      <span style={styles.reqWhere}>{`— ${it.whereToResolve} · ${it.responsibleRole}`}</span>
+    </li>
+  );
 
   return (
     <div style={styles.reqBox} role="group" aria-label="Stage advance requirements" data-stage-advance-requirements>
-      <div style={styles.reqTitle}>
-        {blocking > 0
-          ? `To advance to ${nextLabel}, complete these governed exit criteria:`
-          : `Recommended before advancing to ${nextLabel} (these do not block the move):`}
-      </div>
-      <ul style={styles.reqList}>
-        {items.map((it) => (
-          <li key={it.id} style={styles.reqItem} data-req-severity={it.sev} data-req-where={it.where}>
-            <SeverityGlyph severity={it.sev} />
-            <span style={styles.reqLabel}>{it.label}</span>
-            <span style={styles.reqWhere}>{`— ${it.where}`}</span>
-          </li>
-        ))}
-      </ul>
+      {blocking.length > 0 && (
+        <>
+          <div style={styles.reqTitle}>{`To advance to ${nextLabel}, complete these governed exit criteria:`}</div>
+          <ul style={styles.reqList}>{blocking.map((it) => row(it, 'blocked'))}</ul>
+        </>
+      )}
+      {recommended.length > 0 && (
+        <>
+          <div style={styles.reqTitle}>
+            {blocking.length > 0
+              ? 'Recommended (these do not block the move):'
+              : `Recommended before advancing to ${nextLabel} (these do not block the move):`}
+          </div>
+          <ul style={styles.reqList}>{recommended.map((it) => row(it, 'atRisk'))}</ul>
+        </>
+      )}
+      {untracked.length > 0 && (
+        <>
+          <div style={styles.reqTitle}>Tracked in a later phase (not yet enforced):</div>
+          <ul style={styles.reqList} data-stage-advance-future>
+            {untracked.map((it) => (
+              <li key={it.id} style={styles.reqItem} data-req-severity="future" data-req-where={it.whereToResolve} data-req-role={it.responsibleRole}>
+                <span style={styles.reqLabel}>{it.label}</span>
+                <span style={styles.reqWhere}>{`— ${it.whereToResolve} · ${it.responsibleRole}`}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <p style={styles.reqFootnote}>
         These are the stage&rsquo;s governed exit criteria. Complete them in the linked cards to enable the
         advance. Logging an activity records a call, email, meeting, or note — it does not substitute for a

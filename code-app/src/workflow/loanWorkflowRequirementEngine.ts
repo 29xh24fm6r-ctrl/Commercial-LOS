@@ -89,6 +89,7 @@ function evaluated(req: CanonicalRequirement, status: RequirementStatus, reason:
     id: req.id,
     scope: req.scope,
     label: req.label,
+    uiCopy: req.uiCopy,
     category: req.category,
     severity: req.severity,
     status,
@@ -101,37 +102,76 @@ function evaluated(req: CanonicalRequirement, status: RequirementStatus, reason:
   };
 }
 
-/** Evaluate one tracked stage-def requirement (field/document/task/credit/closing) via the legacy adapter. */
-function evaluateShallow(
-  scope: RequirementScope,
-  category: RequirementCategory,
-  raw: LoanWorkflowRequirement,
-  legacy: LegacyEval,
-): EvaluatedRequirement {
-  const meta = shallowRequirementMeta(scope, category, raw.id);
-  // Fallback metadata (should not happen — registry is derived from the same stage defs).
-  const req: CanonicalRequirement = meta ?? {
+function fallbackMeta(scope: RequirementScope, category: RequirementCategory, raw: LoanWorkflowRequirement): CanonicalRequirement {
+  // Should not happen — the registry is derived from the same stage defs.
+  return {
     id: `${scope}:${category}:${raw.id}`, scope, label: raw.label, description: raw.label,
     category, severity: category === 'task' ? 'recommended' : 'blocking',
     resolverSurface: category === 'field' ? 'Deal Profile' : category === 'document' ? 'Documents' : category === 'task' ? 'Tasks' : 'Credit Memo',
     responsibleRole: 'banker', backingType: category === 'field' ? 'deal_field' : category === 'document' ? 'document_requirement' : category === 'task' ? 'task_status' : 'memo_status',
-    tracked: true, uiCopy: raw.label, blockerReason: `${raw.label} is required.`,
+    tracked: true, matchMode: category === 'field' ? 'typed' : 'inferred', uiCopy: raw.label, blockerReason: `${raw.label} is required.`,
   };
-  const unmet = legacy.unmetIds.has(`${category}:${raw.id}`);
-  const dataUnavailable =
-    (category === 'document' && legacy.unavailable.documents) ||
-    (category === 'task' && legacy.unavailable.tasks) ||
-    (category === 'credit' && legacy.unavailable.creditMemo);
-  const status: RequirementStatus = dataUnavailable ? 'unavailable' : unmet ? 'unmet' : 'met';
-  const reason = status === 'unavailable'
-    ? `${req.label} could not be confirmed — its data source is unavailable (fail-closed).`
-    : req.blockerReason;
+}
+
+/** LEGACY name matching, demoted to an inferred adapter (no business-type key in the schema). */
+function normalizeName(value: string): string {
+  return value.trim().toLowerCase().replace(/[-_/]+/g, ' ').replace(/\s+/g, ' ');
+}
+
+/** Evaluate a field / credit / closing requirement via the legacy live-readiness adapter. */
+function evaluateViaLegacy(scope: RequirementScope, category: RequirementCategory, raw: LoanWorkflowRequirement, legacy: LegacyEval): EvaluatedRequirement {
+  const req = shallowRequirementMeta(scope, category, raw.id) ?? fallbackMeta(scope, category, raw);
+  const dataUnavailable = category === 'credit' && legacy.unavailable.creditMemo;
+  const status: RequirementStatus = dataUnavailable ? 'unavailable' : legacy.unmetIds.has(`${category}:${raw.id}`) ? 'unmet' : 'met';
+  const reason = status === 'unavailable' ? `${req.label} could not be confirmed — its data source is unavailable (fail-closed).` : req.blockerReason;
   return evaluated(req, status, reason);
 }
 
 /**
- * Evaluate every requirement gating a stage's exit: the tracked (shallow) facts via the legacy
- * adapter, plus the deep facts (untracked → fail-closed blockers naming the missing capability).
+ * TYPED document evaluation — the authoritative document gate (replaces pure name-substring readiness).
+ * Matching to the requirement is by name (inferred — no business-type key in the schema) but the STATUS
+ * that satisfies is TYPED: `received` level is met by a received OR reviewed document; `reviewed` level
+ * is met ONLY by a reviewed document (an uploaded/received-but-unreviewed document does not satisfy).
+ * The schema has no accepted/rejected/waived state, so those never falsely satisfy. Fails closed when
+ * document data is unavailable.
+ */
+export function evaluateDocumentRequirement(req: CanonicalRequirement, facts: WorkflowRequirementFacts): EvaluatedRequirement {
+  const level = req.documentReviewLevel ?? 'received';
+  if (facts.documentsUnavailable === true || facts.documents === undefined) {
+    return evaluated(req, 'unavailable', `${req.label} could not be confirmed — document data is unavailable (fail-closed).`);
+  }
+  const docs = facts.documents;
+  const needle = normalizeName(req.label);
+  const matches = [...docs.reviewed, ...docs.received, ...docs.outstanding].filter((d) => normalizeName(d.name).includes(needle));
+  const reviewed = matches.find((d) => d.status === 'reviewed');
+  const received = matches.find((d) => d.status === 'received');
+  const best = reviewed ?? received ?? matches[0];
+  const met = level === 'reviewed' ? Boolean(reviewed) : Boolean(reviewed || received);
+  const status: RequirementStatus = met ? 'met' : 'unmet';
+  let reason = '';
+  if (!met) {
+    if (matches.length === 0) reason = `No "${req.label}" document is on file.`;
+    else if (level === 'reviewed' && received) reason = `"${req.label}" is received but not yet reviewed — a reviewed document is required.`;
+    else reason = `"${req.label}" is outstanding.`;
+  }
+  const e = evaluated(req, status, reason);
+  return best ? { ...e, evidence: { recordId: best.id, entity: 'cr664_documentchecklist', status: best.status, reviewedBy: best.reviewer } } : e;
+}
+
+/** Evaluate a task requirement: completion by name (inferred), severity from the registry policy. */
+export function evaluateTaskRequirement(req: CanonicalRequirement, facts: WorkflowRequirementFacts): EvaluatedRequirement {
+  if (facts.tasksUnavailable === true || facts.tasks === undefined) {
+    return evaluated(req, 'unavailable', `${req.label} could not be confirmed — task data is unavailable (fail-closed).`);
+  }
+  const needle = normalizeName(req.label);
+  const done = facts.tasks.completed.some((t) => normalizeName(t.title).includes(needle));
+  return evaluated(req, done ? 'met' : 'unmet', done ? '' : `Task "${req.label}" is not complete.`);
+}
+
+/**
+ * Evaluate every requirement gating a stage's exit: fields/credit/closing via the legacy live-readiness
+ * adapter (behavior-identical), documents via the TYPED evaluator, tasks via the registry severity
+ * policy, plus deep facts (untracked → fail-closed, never fabricated as met).
  */
 export function evaluateStageExitRequirements(
   stageCode: CanonicalStageCode,
@@ -140,11 +180,11 @@ export function evaluateStageExitRequirements(
   const stage = getLoanWorkflowStage(stageCode);
   const legacy = evaluateLegacyTrackedFacts(stage, facts);
   const shallow: EvaluatedRequirement[] = [
-    ...stage.requiredFields.map((r) => evaluateShallow(stageCode, 'field', r, legacy)),
-    ...stage.requiredDocuments.map((r) => evaluateShallow(stageCode, 'document', r, legacy)),
-    ...stage.requiredTasks.map((r) => evaluateShallow(stageCode, 'task', r, legacy)),
-    ...stage.creditRequirements.map((r) => evaluateShallow(stageCode, 'credit', r, legacy)),
-    ...stage.closingRequirements.map((r) => evaluateShallow(stageCode, 'closing', r, legacy)),
+    ...stage.requiredFields.map((r) => evaluateViaLegacy(stageCode, 'field', r, legacy)),
+    ...stage.requiredDocuments.map((r) => evaluateDocumentRequirement(shallowRequirementMeta(stageCode, 'document', r.id) ?? fallbackMeta(stageCode, 'document', r), facts)),
+    ...stage.requiredTasks.map((r) => evaluateTaskRequirement(shallowRequirementMeta(stageCode, 'task', r.id) ?? fallbackMeta(stageCode, 'task', r), facts)),
+    ...stage.creditRequirements.map((r) => evaluateViaLegacy(stageCode, 'credit', r, legacy)),
+    ...stage.closingRequirements.map((r) => evaluateViaLegacy(stageCode, 'closing', r, legacy)),
   ];
   // Deep facts: not yet tracked → fail closed as untracked blockers (never fabricated as met).
   const deep = requirementsForScope(stageCode)
@@ -164,6 +204,28 @@ export function deriveStageExitReadiness(
   const recommended = requirements.filter((r) => r.severity === 'recommended' && r.status !== 'met');
   const status: StageExitReadiness['status'] = blocking.length > 0 || untracked.length > 0 ? 'blocked' : 'ready';
   return { scope: stageCode, status, requirements, blocking, recommended, untracked };
+}
+
+export interface StageExitPolicyResult {
+  readonly allowed: boolean;
+  readonly reason: string;
+  readonly blocking: readonly EvaluatedRequirement[];
+}
+
+/**
+ * The LIVE stage-exit policy for ARC Phase 2: a transition is allowed when no TRACKED blocking
+ * requirement is unmet. Untracked deep facts (risk rating, approval, closing, boarding, …) are NOT
+ * yet enforced live — they are surfaced as "future" requirements and gate certification later, but do
+ * not block the transition until their major phase. This is the shared decision the UI button and the
+ * write policy agree on (proven equivalent to evaluateStageTransitionPolicy for the current config).
+ */
+export function evaluateStageExitPolicy(readiness: StageExitReadiness): StageExitPolicyResult {
+  const allowed = readiness.blocking.length === 0;
+  return {
+    allowed,
+    blocking: readiness.blocking,
+    reason: allowed ? '' : `${readiness.blocking.length} governed exit criteria are not satisfied.`,
+  };
 }
 
 /**
