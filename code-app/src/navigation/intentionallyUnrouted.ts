@@ -389,6 +389,15 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/workflow/GenerateWorkflowTasksButton.tsx', reason: 'Governed task-generation action; previously hosted by the retired command center, re-hosted once its domain is armed (WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/workflowGenerationActions.ts', reason: 'Governed workflow generation actions (checklist/tasks) behind the retired command center; re-hosted once armed (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
   { path: 'src/workflow/loanWorkflowTemplates.ts', reason: 'Legacy 11-stage workflow templates behind the retired command center; DELETE candidate once the Opportunity/Qualification spine is fully removed (follow-up).', plannedPhase: 'Follow-up' },
+  // ── LOS Full Workflow Activation ARC — Phase 1 requirement registry + engine (inert foundation) ──
+  // The canonical requirement registry + evaluation engine + types. INERT this phase: not wired into
+  // any UI, gate, or write path (imported only by their own test). They flip no gate and change no
+  // runtime behavior; the compatibility adapter delegates tracked-fact evaluation to the existing live
+  // readiness so Intake → Underwriting stays identical. A later ARC PR (PR 3/20) wires them into the
+  // Stage Map / write policy and removes these entries. See docs/LOS_FULL_WORKFLOW_ACTIVATION_ARC.md.
+  { path: 'src/workflow/loanWorkflowRequirementTypes.ts', reason: 'ARC Phase 1: pure requirement types (categories/roles/resolver surfaces/backing/status/result shapes). Inert; consumed by the registry + engine only.', plannedPhase: 'ARC Phase 1 (wired PR 3/20)' },
+  { path: 'src/workflow/loanWorkflowRequirementRegistry.ts', reason: 'ARC Phase 1: canonical requirement registry (shallow derived from stage defs + deep untracked facts + non-forward placeholders). Inert data; not gate-consumed yet.', plannedPhase: 'ARC Phase 1 (wired PR 3/20)' },
+  { path: 'src/workflow/loanWorkflowRequirementEngine.ts', reason: 'ARC Phase 1: requirement evaluation engine (met/unmet/untracked/unavailable, blocking vs recommended, where-to-resolve). Compatibility adapter delegates tracked facts to the existing live readiness. Inert; wired by a later ARC PR.', plannedPhase: 'ARC Phase 1 (wired PR 3/20)' },
   // â”€â”€ src/workspaces â”€â”€
   { path: 'src/workspaces/WorkspaceShell.tsx', reason: 'Workspace shell sub-surface not yet routed.', plannedPhase: 'Phase 3+' },
 ];
