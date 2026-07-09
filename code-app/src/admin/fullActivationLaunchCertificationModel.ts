@@ -18,6 +18,8 @@ import {
 } from './runtimeVerifiedSchemaBridge';
 import { deriveCrmRuntimeSchemaGate } from '../crm/crmRuntimeSchemaGate';
 import { derivePortfolioBoardingRuntimeSchemaGate } from '../portfolioBoarding/portfolioBoardingRuntimeSchemaGate';
+import { deriveChecklistSignoffReadiness } from './checklistSignoffEvidence';
+import { deriveOutlookConnectorReadiness } from './outlookConnectorEvidence';
 
 /**
  * Phase 237A — Full system activation launch certification model.
@@ -151,6 +153,15 @@ function buildSpecs(): DomainSpec[] {
       : null;
   const boardingSchemaVerified = boardingSchemaGate?.schemaReady === true;
 
+  // Document checklist: the lending-owner rule-set signoff is a committed, validated artifact
+  // (checklistSignoffEvidence). Read it so the diagnostic reflects the real signoff state rather
+  // than a stale "not signed off" claim; it flips no gate.
+  const checklistSignedOff = deriveChecklistSignoffReadiness().signed;
+  // Borrower send: the Office 365 Outlook connector registration is a committed, verified state
+  // (outlookConnectorEvidence, PASS). Read it so the diagnostic stops claiming the connector is
+  // unregistered; it flips no gate and never enables a live send.
+  const outlookRegistered = deriveOutlookConnectorReadiness().status === 'PASS';
+
   return [
     {
       id: 'new-deal-create',
@@ -238,14 +249,30 @@ function buildSpecs(): DomainSpec[] {
         'Phase 237E governed checklist write dependency (createChecklistWriteDependency): allow-listed cr664_documentname + cr664_Deal@odata.bind only, audit per row, default-off and fail-closed — certified by success/duplicate/unauthorized/missing-dependency/adapter-failure tests.',
         'Action already enforces authorization + duplicate detection and delegates the write to the injected dependency.',
         'Dual fail-closed gates (runtime DOCUMENT_CHECKLIST_GENERATION_ENABLED + UI action gate), both default false.',
+        ...(checklistSignedOff
+          ? [
+              'The lending-owner checklist rule-set signoff is COMPLETE: a committed, field-validated ChecklistRulesetSignoff (docs/operator-evidence/DOCUMENT_CHECKLIST_LENDING_OWNER_SIGNOFF_2026-06-25.md, APPROVED by Matthew Paller) is recorded and validated by checklistSignoffEvidence.',
+            ]
+          : []),
       ],
-      blockers: [
-        'The approved checklist rule set is not signed off and both the runtime + UI action gates are intentionally false.',
-        'The live checklist write transport is not injected into the workflow provider yet.',
-      ],
-      unblockActions: [
-        'Sign off the approved checklist rule set, inject the live checklist write transport via createChecklistWriteDependency, then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED + the UI action gate together.',
-      ],
+      // Rule-set signoff is derived from the committed, validated artifact (checklistSignoffEvidence)
+      // rather than a static "not signed off" claim, so it reverts if that artifact is withdrawn.
+      blockers: checklistSignedOff
+        ? [
+            'The live checklist write transport is not injected into the workflow provider, and the runtime DOCUMENT_CHECKLIST_GENERATION_ENABLED + UI action gates are off.',
+            'The committed documentChecklist final-launch smoke is not accepted at HIGH confidence (placeholder: empty affectedRecordIds + synthetic timestamp) — an authentic in-app checklist smoke has not been recorded.',
+          ]
+        : [
+            'The approved checklist rule set is not signed off and both the runtime + UI action gates are intentionally false.',
+            'The live checklist write transport is not injected into the workflow provider yet.',
+          ],
+      unblockActions: checklistSignedOff
+        ? [
+            'Rule-set signoff is complete. Inject the live checklist write transport via createChecklistWriteDependency, capture an authentic in-app checklist smoke (real record ids + machine timestamp), then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED + the UI action gate together.',
+          ]
+        : [
+            'Sign off the approved checklist rule set, inject the live checklist write transport via createChecklistWriteDependency, then enable DOCUMENT_CHECKLIST_GENERATION_ENABLED + the UI action gate together.',
+          ],
       repoCompletable: false,
       operatorEnvironmentConfirmed: false,
     },
@@ -258,17 +285,34 @@ function buildSpecs(): DomainSpec[] {
       adapterPath: 'src/deals/emailDelivery/emailMode.ts',
       gatePath: 'src/deals/emailDelivery/emailMode.ts',
       evidencePresent: [
-        'DRY_RUN / LIVE email mode with a clear "connector not yet registered" permanent failure in LIVE.',
-        'Recipient certification + borrower-safe content rules; no Graph API, no tenant-admin permission.',
+        'DRY_RUN / LIVE email mode; recipient certification + borrower-safe content rules; no Graph API, no tenant-admin permission.',
+        ...(outlookRegistered
+          ? [
+              'The Office 365 Outlook connector prerequisite is COMPLETE: the typed Office365OutlookService.SendEmailV2 is generated AND the connector is registered in power.config.json (shared_office365 / new_Office365OutlookCommercialLOS) — verify-outlook-connector.ps1 reads PASS (outlookConnectorEvidence).',
+            ]
+          : []),
       ],
-      blockers: [
-        'The Office 365 Outlook connector is not registered, and the SDK is not regenerated with the typed connector call.',
-        'Live send is a permanent fail-closed until the connector exists; no auto-send is permitted without explicit, audited user action.',
-      ],
-      unblockActions: [
-        'Operator registers the Office 365 Outlook connector in the environment and regenerates the SDK so the LIVE adapter send method binds the typed connector call.',
-        'Certify the explicit user-confirmation send path with audited acceptance (connector acceptance is not delivery) before enabling.',
-      ],
+      // Connector registration is derived from the committed verified state (outlookConnectorEvidence),
+      // not a static "not registered" claim. Highest-risk domain (irreversible live email): even with
+      // the connector registered, LIVE mode + authentic evidence + the two flags all remain required.
+      blockers: outlookRegistered
+        ? [
+            'Deploy email mode is not LIVE (VITE_EMAIL_MODE!=LIVE), so getEmailAdapter() returns the DRY_RUN adapter — no live send occurs.',
+            'The committed borrowerSend final-launch smoke is not accepted at HIGH confidence (missing the EXTERNAL_SEND machine proof: deliveryReceiptId + approvedRecipient + approverUpn), and BORROWER_MESSAGING_ENABLED + BORROWER_EMAIL_TRANSPORT_ENABLED are off. No auto-send without an explicit, audited user action.',
+          ]
+        : [
+            'The Office 365 Outlook connector is not registered, and the SDK is not regenerated with the typed connector call.',
+            'Live send is a permanent fail-closed until the connector exists; no auto-send is permitted without explicit, audited user action.',
+          ],
+      unblockActions: outlookRegistered
+        ? [
+            'Connector registration is complete. Deploy with VITE_EMAIL_MODE=LIVE, then perform ONE explicit audited send to an approved diagnostic mailbox and record a borrowerSend smoke carrying deliveryReceiptId + approvedRecipient + approverUpn (connector acceptance is not delivery).',
+            'Only then flip BORROWER_MESSAGING_ENABLED + BORROWER_EMAIL_TRANSPORT_ENABLED together.',
+          ]
+        : [
+            'Operator registers the Office 365 Outlook connector in the environment and regenerates the SDK so the LIVE adapter send method binds the typed connector call.',
+            'Certify the explicit user-confirmation send path with audited acceptance (connector acceptance is not delivery) before enabling.',
+          ],
       repoCompletable: false,
       operatorEnvironmentConfirmed: false,
     },

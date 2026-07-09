@@ -120,11 +120,28 @@ describe('Phase 237 — full system activation launch certification model', () =
     expect(pb.status).not.toBe('enabled');
   });
 
-  it('borrower send names the Outlook connector + SDK regeneration as the exact blocker', () => {
+  it('borrower send: connector-registered blocker is cleared; real blockers are LIVE mode + send-proof evidence + flags', () => {
     const vm = deriveFullActivationLaunchCertification();
     const borrower = vm.domains.find((d) => d.id === 'borrower-communication-send')!;
-    expect(borrower.blockers.join(' ')).toMatch(/Outlook connector is not registered/i);
-    expect(borrower.unblockActions.join(' ')).toMatch(/regenerates the SDK/i);
+    // The stale "connector is not registered" blocker is gone — the connector is registered (PASS).
+    expect(borrower.blockers.join(' ')).not.toMatch(/connector is not registered/i);
+    expect(borrower.evidencePresent.join(' ')).toMatch(/connector prerequisite is COMPLETE/i);
+    // The true remaining blockers are named honestly (highest-risk domain, still NOT_SAFE_TO_ENABLE).
+    expect(borrower.blockers.join(' ')).toMatch(/VITE_EMAIL_MODE|not LIVE/i);
+    expect(borrower.blockers.join(' ')).toMatch(/deliveryReceiptId|approverUpn|machine proof/i);
+    expect(borrower.classification).toBe('NOT_SAFE_TO_ENABLE');
+    expect(borrower.status).not.toBe('enabled');
+  });
+
+  it('document checklist: rule-set signoff is cleared from the committed artifact; real blockers are transport + evidence + flags', () => {
+    const vm = deriveFullActivationLaunchCertification();
+    const cl = vm.domains.find((d) => d.id === 'document-checklist-generation')!;
+    // The stale "rule set is not signed off" blocker is gone — a validated signoff is committed.
+    expect(cl.blockers.join(' ')).not.toMatch(/not signed off/i);
+    expect(cl.evidencePresent.join(' ')).toMatch(/signoff is COMPLETE/i);
+    expect(cl.blockers.join(' ')).toMatch(/transport is not injected/i);
+    expect(cl.flagEnabled).toBe(false);
+    expect(cl.status).not.toBe('enabled');
   });
 
   it('honestly reports launch NOT achieved while the committed evidence is insufficient', () => {
