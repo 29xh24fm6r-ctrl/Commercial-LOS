@@ -297,7 +297,7 @@ function buildSpecs(): DomainSpec[] {
       // the connector registered, LIVE mode + authentic evidence + the two flags all remain required.
       blockers: outlookRegistered
         ? [
-            'Deploy email mode is not LIVE (VITE_EMAIL_MODE!=LIVE), so getEmailAdapter() returns the DRY_RUN adapter — no live send occurs.',
+            'Deploy email mode is not LIVE (VITE_EMAIL_MODE!=LIVE), so the email transport resolves to the DRY_RUN adapter — no live send occurs.',
             'The committed borrowerSend final-launch smoke is not accepted at HIGH confidence (missing the EXTERNAL_SEND machine proof: deliveryReceiptId + approvedRecipient + approverUpn), and BORROWER_MESSAGING_ENABLED + BORROWER_EMAIL_TRANSPORT_ENABLED are off. No auto-send without an explicit, audited user action.',
           ]
         : [
