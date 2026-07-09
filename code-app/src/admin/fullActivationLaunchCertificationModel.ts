@@ -219,13 +219,14 @@ function buildSpecs(): DomainSpec[] {
       evidencePresent: [
         'Phase 237F governed stage-advancement write dependency (advanceWorkflowStage): enforces evaluateStageTransitionPolicy before any write, updates via injected transport, emits audit + timeline, default-off and fail-closed — certified by blocked/no-next-stage/success/update-failed/audit-partial/timeline-partial tests.',
         'No auto-advance: the explicit banker action supplies the requested next stage.',
+        'The live stage transport + audit + timeline sinks ARE injected: DealStageProgressionCard → StageAdvanceControl → buildLiveStageAdvanceDeps → advanceWorkflowStage, gated by authorized banker identity + the armed flag + seeded stage-reference availability.',
       ],
       blockers: [
-        'The live stage transport + audit + timeline sinks are not injected into the workflow provider yet.',
-        'AUTO_STAGE_ADVANCE_ENABLED is intentionally false until the live sinks are wired and certified end-to-end.',
+        'The final-launch stageAdvancement smoke evidence is not yet accepted at HIGH confidence (no recorded governed-advance success), so the domain is correctly held not-enabled.',
+        'Stage-reference ordering availability requires the maker to seed cr664_dealstagereferences with cr664_sequence before the in-app advance control renders.',
       ],
       unblockActions: [
-        'Inject the live stage transport/audit/timeline sinks into AdvanceWorkflowStageButton via advanceWorkflowStage, then enable AUTO_STAGE_ADVANCE_ENABLED and certify the end-to-end success path.',
+        'Seed cr664_dealstagereferences (+ cr664_sequence), then run one end-to-end governed advance on a test deal via the already-wired DealStageProgressionCard/StageAdvanceControl path (AUTO_STAGE_ADVANCE_ENABLED is armed) and record the resulting HIGH stageAdvancement final-launch smoke evidence.',
       ],
       repoCompletable: false,
       operatorEnvironmentConfirmed: false,

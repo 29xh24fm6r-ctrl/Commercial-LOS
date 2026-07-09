@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+﻿import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useAdmin } from './AdminContext';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import {
@@ -49,6 +49,7 @@ export function AdminDealReferenceValues() {
   const [showInactive, setShowInactive] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<DealReferenceWriteOutcome | null>(null);
+  const mountedRef = useRef(false);
   // Per-row edit drafts + per-category add drafts.
   const [editing, setEditing] = useState<Record<string, Draft>>({});
   const [adding, setAdding] = useState<Partial<Record<DealReferenceCategory, Draft>>>({});
@@ -57,10 +58,16 @@ export function AdminDealReferenceValues() {
   // safe to call from the mount effect.
   const loadRows = useCallback(() => {
     loadLiveDealReferenceAdminRows()
-      .then(setState)
-      .catch((err: unknown) =>
-        setState({ kind: 'unavailable', reason: err instanceof Error ? err.message : String(err) }),
-      );
+      .then((nextState) => {
+        if (mountedRef.current) {
+          setState(nextState);
+        }
+      })
+      .catch((err: unknown) => {
+        if (mountedRef.current) {
+          setState({ kind: 'unavailable', reason: err instanceof Error ? err.message : String(err) });
+        }
+      });
   }, []);
 
   // Reload after a write: flash the loading state (event handler, not an effect).
@@ -70,7 +77,12 @@ export function AdminDealReferenceValues() {
   }, [loadRows]);
 
   useEffect(() => {
+    mountedRef.current = true;
     loadRows();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, [loadRows]);
 
   const runWrite = useCallback(
