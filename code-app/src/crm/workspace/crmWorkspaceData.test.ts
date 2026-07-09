@@ -3,9 +3,15 @@ import {
   mapOrganization,
   mapPerson,
   mapRelationship,
+  mapRoleAssignment,
+  mapContactPoint,
+  mapCommunicationPreference,
+  mapContactAuthorization,
   mapVendorProfile,
   mapTimelineEvent,
+  mapAuditEntry,
   CRM_DOMAINS,
+  type CrmRecord,
 } from './crmWorkspaceData';
 
 /**
@@ -97,4 +103,40 @@ describe('Phase 258 — CRM domain mappers', () => {
     expect(r.personId).toBe('per-3');
     expect(r.eventType).toBe('Note added');
   });
+});
+
+describe('null-injection fuzz — Dataverse returns null, every mapper must stay honest and never crash', () => {
+  // Dataverse empties come back as `null` (not undefined). A row where EVERY field is null is the
+  // worst case; the ErrorBoundary-crash hazard lives here. Each mapper must produce a valid record.
+  const mappers: ReadonlyArray<readonly [string, (row: never) => CrmRecord]> = [
+    ['organization', mapOrganization],
+    ['person', mapPerson],
+    ['relationship', mapRelationship],
+    ['roleAssignment', mapRoleAssignment],
+    ['contactPoint', mapContactPoint],
+    ['communicationPreference', mapCommunicationPreference],
+    ['contactAuthorization', mapContactAuthorization],
+    ['vendorProfile', mapVendorProfile],
+    ['timelineEvent', mapTimelineEvent],
+    ['auditEntry', mapAuditEntry],
+  ];
+  const allNullRow = new Proxy({}, { get: () => null }) as never;
+
+  for (const [name, map] of mappers) {
+    it(`${name}: an all-null row maps to an honest record without throwing`, () => {
+      let rec: CrmRecord | undefined;
+      expect(() => { rec = map(allNullRow); }).not.toThrow();
+      // Always a non-empty fallback title (never blank, never null).
+      expect(typeof rec!.title).toBe('string');
+      expect(rec!.title.length).toBeGreaterThan(0);
+      // Detail is always an array, and an empty/missing field is OMITTED — never rendered as a
+      // null/undefined value row.
+      expect(Array.isArray(rec!.detail)).toBe(true);
+      for (const r of rec!.detail) expect(typeof r.value).toBe('string');
+      // Optional string fields, when present, are strings (no null leak into the view type).
+      for (const v of [rec!.badge, rec!.subtitle, rec!.occurredAt, rec!.organizationId, rec!.personId]) {
+        expect(v === undefined || typeof v === 'string').toBe(true);
+      }
+    });
+  }
 });

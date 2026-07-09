@@ -4,6 +4,9 @@ This directory contains **two** CRM stacks. They look similar; only one is live.
 before assuming a module writes real data. (Grounded by the CRM audit; the single honest
 readiness view is `readiness/unifiedCrmReadiness.ts`.)
 
+> Final disposition of every audit finding — what's fixed, and why the deferred items are
+> deliberately kept/backlogged: [`docs/CRM_AUDIT_CLOSEOUT.md`](../../docs/CRM_AUDIT_CLOSEOUT.md).
+
 ## The LIVE path (what users actually touch)
 
 - **Writes:** `write/crmWriteAdapter.ts` (add company / contact / activity / task / relationship)
