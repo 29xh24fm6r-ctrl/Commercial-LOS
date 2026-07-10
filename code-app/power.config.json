@@ -252,6 +252,10 @@
         "naicscodes": {
           "entitySetName": "cr664_naicscodes",
           "logicalName": "cr664_naicscode"
+        },
+        "naicsindustrymaps": {
+          "entitySetName": "cr664_naicsindustrymaps",
+          "logicalName": "cr664_naicsindustrymap"
         }
       },
       "environmentVariableName": ""
