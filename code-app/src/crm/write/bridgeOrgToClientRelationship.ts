@@ -43,13 +43,14 @@ export const BRIDGE_DEFAULT_BORROWER_TYPE: ClientBorrowerType = 'Corporation';
 
 /**
  * Phase 4B — persisting the reverse cr664_Organization link (client relationship
- * → CRM organization) is OFF by default. The lookup does not exist until the
- * maker applies create-deal-industry-crm-naics.ps1 + regenerates; writing the
- * bind before then would break the live bridge. When armed (via the live factory
- * setting `linkOrganization`), a newly-mirrored client carries the org link so
- * the Deal Industry projection can reach the org's NAICS. Additive + reversible.
+ * → CRM organization). ARMED: the cr664_Organization lookup is deployed in the
+ * environment (create-deal-industry-crm-naics.ps1 present=5) and the app data
+ * source is registered, so a newly-mirrored client now carries the org link and
+ * the Deal Industry projection can reach the org's NAICS. Already-bridged clients
+ * were backfilled one-time from their crm-bridge-org-to-client audit events.
+ * Additive + reversible (flip back to false to stop persisting the bind).
  */
-export const BRIDGE_ORG_LINK_ENABLED = false as const;
+export const BRIDGE_ORG_LINK_ENABLED = true as const;
 
 /** Entity set the org lookup binds to. */
 const CRM_ORGANIZATIONS_ENTITY_SET = 'cr664_crmorganizations';
