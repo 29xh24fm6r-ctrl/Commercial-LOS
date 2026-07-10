@@ -110,9 +110,9 @@ describe('bridgeOrgToClientRelationship — create path', () => {
     });
   });
 
-  it('the live factory ships the org link default-off', () => {
-    expect(BRIDGE_ORG_LINK_ENABLED).toBe(false);
-    expect(buildLiveBridgeOrgToClientDeps().linkOrganization).toBe(false);
+  it('the live factory ships the org link ARMED (Phase 4B schema deployed + data source registered)', () => {
+    expect(BRIDGE_ORG_LINK_ENABLED).toBe(true);
+    expect(buildLiveBridgeOrgToClientDeps().linkOrganization).toBe(true);
   });
 
   it('accepts the "Client" party type too', async () => {
