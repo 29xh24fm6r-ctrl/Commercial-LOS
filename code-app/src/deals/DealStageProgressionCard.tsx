@@ -20,6 +20,12 @@ import {
 } from '../workflow/loanWorkflowRequirementEngine';
 import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
 import { AUTO_STAGE_ADVANCE_ENABLED } from './dealOriginationFeatureFlags';
+import { remediationForRequirement, type RemediationRoute } from './dealBlockerModel';
+import { DealProfileEditLauncher } from './DealProfileEditModal';
+import { AddRequiredDocumentModal } from './AddRequiredDocumentModal';
+import type { AddRequiredDocumentOutcome } from './addRequiredDocumentAction';
+import { generateDestinationStageWork } from './generateDestinationStageWork';
+import { useOptionalBanker } from '../banker/BankerContext';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import type { LoanWorkflowStageId, LoanWorkflowState } from '../workflow/loanWorkflowTypes';
 import { CANONICAL_STAGES, recognizeCanonicalStage } from '../workflow/stageOrderingContract';
@@ -367,6 +373,7 @@ function StageAdvanceControl({
   const [state, setState] = useState<
     { kind: 'idle' } | { kind: 'saving' } | { kind: 'done'; outcome: StageAdvanceOutcome }
   >({ kind: 'idle' });
+  const { refresh } = useDealData();
 
   // ARC Phase 3 — fail-closed caller guard: the live advance requires BOTH the write-seam policy AND
   // the shared requirement engine's tracked-blocking to be clear. This keeps the button and the actual
@@ -396,6 +403,18 @@ function StageAdvanceControl({
       auditSink: deps.auditSink,
       timelineSink: deps.timelineSink,
     });
+    // On a verified advance, seed the destination stage's standard work as real governed tasks
+    // (idempotent by title), then reload tasks + activity so the new work appears immediately.
+    if (outcome.kind === 'advanced') {
+      await generateDestinationStageWork({
+        dealId,
+        stageCode: nextStageId,
+        actorSystemUserId: actor.systemUserId ?? '',
+        actorEmail: actor.email ?? '',
+        existingOpenTaskTitles: (facts.tasks?.open ?? []).map((t) => t.title),
+      });
+      refresh('after-task-complete');
+    }
     setState({ kind: 'done', outcome });
   }
 
@@ -464,6 +483,27 @@ function StageAdvanceRequirements({
   facts: WorkflowRequirementFacts;
 }) {
   const { blocking, recommended, untracked } = deriveStageExitReadiness(stageCode, facts);
+  const { deal, refresh } = useDealData();
+  const banker = useOptionalBanker();
+  const canWrite = Boolean(banker?.systemUserId);
+  // A single hosted add-required-document modal, opened preset to the specific blocking document —
+  // the DIRECT remediation route for a missing required document from the Stage Map itself.
+  const [addDocName, setAddDocName] = useState<string | null>(null);
+
+  async function handleAddDoc(name: string, note: string): Promise<AddRequiredDocumentOutcome> {
+    if (!banker?.systemUserId) return { kind: 'unknown', message: 'Cannot add: missing system user id.' };
+    // Dynamic import keeps the generated Dataverse services (SDK) out of the card's static graph.
+    const { addRequiredDocument } = await import('./addRequiredDocumentAction');
+    const outcome = await addRequiredDocument({
+      dealId: deal.id,
+      documentName: name,
+      systemUserId: banker.systemUserId,
+      actorEmail: banker.email,
+      intakeNote: note,
+    });
+    refresh('after-document-receive');
+    return outcome;
+  }
 
   if (blocking.length === 0 && recommended.length === 0 && untracked.length === 0) {
     return (
@@ -481,12 +521,23 @@ function StageAdvanceRequirements({
     </li>
   );
 
+  // A hard blocker row carries a DIRECT remediation route to the operator action that resolves it,
+  // so a banker never has to hunt across tabs for where a required value is entered.
+  const blockingRow = (it: (typeof blocking)[number]) => (
+    <li key={it.id} style={styles.reqItem} data-req-severity="blocked" data-req-where={it.whereToResolve} data-req-role={it.responsibleRole}>
+      <SeverityGlyph severity="blocked" />
+      <span style={styles.reqLabel}>{it.uiCopy}</span>
+      <span style={styles.reqWhere}>{`— ${it.whereToResolve} · ${it.responsibleRole}`}</span>
+      {canWrite && <BlockerRemediation route={remediationForRequirement(it)} onAddDocument={(name) => setAddDocName(name)} />}
+    </li>
+  );
+
   return (
     <div style={styles.reqBox} role="group" aria-label="Stage advance requirements" data-stage-advance-requirements>
       {blocking.length > 0 && (
         <>
           <div style={styles.reqTitle}>{`To advance to ${nextLabel}, complete these governed exit criteria:`}</div>
-          <ul style={styles.reqList}>{blocking.map((it) => row(it, 'blocked'))}</ul>
+          <ul style={styles.reqList}>{blocking.map((it) => blockingRow(it))}</ul>
         </>
       )}
       {recommended.length > 0 && (
@@ -498,6 +549,14 @@ function StageAdvanceRequirements({
           </div>
           <ul style={styles.reqList}>{recommended.map((it) => row(it, 'atRisk'))}</ul>
         </>
+      )}
+      {addDocName !== null && banker?.systemUserId && (
+        <AddRequiredDocumentModal
+          candidateNames={[addDocName]}
+          presetName={addDocName}
+          onConfirm={handleAddDoc}
+          onClose={() => setAddDocName(null)}
+        />
       )}
       {untracked.length > 0 && (
         <>
@@ -519,6 +578,55 @@ function StageAdvanceRequirements({
       </p>
     </div>
   );
+}
+
+/** Scroll a deal-cockpit element into view by CSS selector. Best-effort: a no-op when the target is
+ *  not mounted (e.g. in a narrowed test). Used to jump a banker straight to the resolving surface. */
+function scrollToSelector(selector: string): void {
+  if (typeof document === 'undefined') return;
+  const el = document.querySelector(selector);
+  (el as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * The direct remediation control for one hard blocker. The banker resolves the requirement in place:
+ *   - a missing profile field (amount, target close, industry, …) → opens the governed Deal Profile;
+ *   - a missing required document → opens the governed Add-required-document intake;
+ *   - a missing CRM client → jumps to the Relationships panel where the governed link lives;
+ *   - a task / credit item → jumps to that panel.
+ * No read-only dead-ends: every hard blocker offers the action that clears it.
+ */
+function BlockerRemediation({ route, onAddDocument }: { route: RemediationRoute; onAddDocument: (documentName: string) => void }) {
+  switch (route.kind) {
+    case 'edit-profile':
+      return <DealProfileEditLauncher source="attention-console" compact />;
+    case 'add-document':
+      return (
+        <button type="button" style={styles.remediationButton} data-req-remediation="add-document" onClick={() => onAddDocument(route.documentName)}>
+          Add document
+        </button>
+      );
+    case 'link-client':
+      return (
+        <button type="button" style={styles.remediationButton} data-req-remediation="link-client" onClick={() => scrollToSelector('[data-crm-link-action="client"]')}>
+          Link a CRM client
+        </button>
+      );
+    case 'open-tasks':
+      return (
+        <button type="button" style={styles.remediationButton} data-req-remediation="open-tasks" onClick={() => scrollToSelector('[data-resolver-surface="Tasks"]')}>
+          Open Tasks
+        </button>
+      );
+    case 'credit-memo':
+      return (
+        <button type="button" style={styles.remediationButton} data-req-remediation="credit-memo" onClick={() => scrollToSelector('[data-resolver-surface="Credit Memo"]')}>
+          Open Credit Memo
+        </button>
+      );
+    case 'none':
+      return null;
+  }
 }
 
 function describeStageAdvanceOutcome(outcome: StageAdvanceOutcome): string {
@@ -612,6 +720,19 @@ const styles: Record<string, React.CSSProperties> = {
   },
   reqLabel: { color: palette.text },
   reqWhere: { color: palette.textSubtle, fontSize: typography.size.xs },
+  remediationButton: {
+    marginLeft: spacing.xs,
+    background: 'transparent',
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `0 ${spacing.xs}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+    whiteSpace: 'nowrap',
+  },
   reqFootnote: {
     margin: 0,
     fontSize: typography.size.xs,

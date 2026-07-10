@@ -242,7 +242,7 @@ function mapBridgeFailureToLinkOutcome(
 }
 
 export function DealCrmRelationshipPanel() {
-  const { deal } = useDealData();
+  const { deal, applyVerifiedDealPatch } = useDealData();
   const banker = useOptionalBanker();
 
   // Which link modal (if any) is open.
@@ -407,18 +407,27 @@ export function DealCrmRelationshipPanel() {
           dealName={deal.name}
           loadOptions={loadClientLinkTargetOptions}
           onLink={(option) => handleLink('client', option)}
-          onLinked={(option, outcome) =>
+          onLinked={(option, outcome) => {
             // Reflect the REAL client the deal now points at. For a bridged CRM
             // company that is the created/found cr664_clientrelationship (its id
             // from the readback-verified link outcome), never the org id.
-            setLinkedClient({
-              id:
-                outcome.kind === 'success' || outcome.kind === 'audit-failed'
-                  ? outcome.entityId
-                  : option.id,
-              name: (outcome.kind === 'success' ? outcome.entityName : option.name) ?? option.name,
-            })
-          }
+            const persisted = outcome.kind === 'success' || outcome.kind === 'audit-failed';
+            const id = persisted ? outcome.entityId : option.id;
+            const name = (outcome.kind === 'success' ? outcome.entityName : option.name) ?? option.name;
+            setLinkedClient({ id, name });
+            // Eliminate stale state after the verified write: patch the authoritative deal record so
+            // the header, Missing Fields tile, completeness, and the shared blocker model all reflect
+            // the newly-linked client immediately — no navigation or browser reload required.
+            if (persisted) {
+              applyVerifiedDealPatch?.({
+                clientId: id,
+                clientName: name,
+                effectiveClientName: name,
+                effectiveClientSource: 'crm-client-relationship',
+                clientLookupClassification: 'real-lookup',
+              });
+            }
+          }}
           onClose={() => setModal(null)}
         />
       )}
@@ -428,7 +437,15 @@ export function DealCrmRelationshipPanel() {
           dealName={deal.name}
           loadOptions={loadTeamOptions}
           onLink={(option) => handleLink('team', option)}
-          onLinked={(option) => setLinkedTeam({ id: option.id, name: option.name })}
+          onLinked={(option) => {
+            setLinkedTeam({ id: option.id, name: option.name });
+            // Patch the deal record so team-derived surfaces refresh without a reload.
+            applyVerifiedDealPatch?.({
+              teamId: option.id,
+              teamName: option.name,
+              teamLookupClassification: 'real-lookup',
+            });
+          }}
           onClose={() => setModal(null)}
         />
       )}

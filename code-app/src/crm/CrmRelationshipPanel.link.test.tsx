@@ -16,13 +16,14 @@ import userEvent from '@testing-library/user-event';
  *   - merely viewing the blocked state performs no Dataverse write.
  */
 
+const applyPatchMock = vi.hoisted(() => vi.fn());
 const mockState = vi.hoisted(() => ({
   deal: { id: 'd1', name: 'Acme Term Loan' } as Record<string, unknown>,
   banker: null as Record<string, unknown> | null,
 }));
 
 vi.mock('../deals/DealDataProvider', () => ({
-  useDealData: () => ({ deal: mockState.deal }),
+  useDealData: () => ({ deal: mockState.deal, applyVerifiedDealPatch: applyPatchMock }),
 }));
 vi.mock('../banker/BankerContext', () => ({
   useOptionalBanker: () => mockState.banker,
@@ -157,6 +158,18 @@ describe('DealCrmRelationshipPanel — actionable client link', () => {
     expect(
       screen.queryByRole('button', { name: /Link a canonical CRM client/i }),
     ).toBeNull();
+
+    // State invalidation: the authoritative deal record is patched with the verified client so the
+    // header, Missing Fields tile, completeness, and blocker model refresh WITHOUT a browser reload.
+    expect(applyPatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'client-guid-1',
+        clientName: 'Acme Holdings LLC',
+        effectiveClientName: 'Acme Holdings LLC',
+        effectiveClientSource: 'crm-client-relationship',
+        clientLookupClassification: 'real-lookup',
+      }),
+    );
   });
 
   it('finds a CRM company (OmniCare 365) and bridges it to a client before linking', async () => {

@@ -347,16 +347,59 @@ describe('updateDealProfile — governed reference lookups', () => {
   });
 });
 
+describe('updateDealProfile — loan amount (governed number field)', () => {
+  it('writes cr664_amount as a number and returns a numeric verified amount (audited)', async () => {
+    const { deps, store, calls } = fakeDeps();
+    const out = await updateDealProfile(input({ amount: '2500000' }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_amount: 2500000 });
+    expect(calls.audit).toBe(1);
+    if (out.kind === 'updated') {
+      expect(out.verified.amount).toBe(2500000);
+      expect(typeof out.verified.amount).toBe('number');
+      expect(out.changedLabels).toContain('Loan amount');
+    }
+  });
+
+  it('accepts a lightly-formatted amount ($2,500,000)', async () => {
+    const { deps, store } = fakeDeps();
+    const out = await updateDealProfile(input({ amount: '$2,500,000' }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_amount: 2500000 });
+  });
+
+  it('rejects a zero / negative / non-numeric amount (no write)', async () => {
+    for (const bad of ['0', '-5', 'abc']) {
+      const { deps, calls } = fakeDeps();
+      const out = await updateDealProfile(input({ amount: bad }), deps);
+      expect(out.kind).toBe('invalid-input');
+      expect(calls.update).toBe(0);
+    }
+  });
+
+  it('fails closed (readback-mismatch) when the amount does not read back as written', async () => {
+    const { deps } = fakeDeps({ readDeal: async () => ({ success: true, row: { cr664_amount: 999 } }) });
+    const out = await updateDealProfile(input({ amount: '2500000' }), deps);
+    expect(out.kind).toBe('readback-mismatch');
+  });
+});
+
 describe('updateDealProfile — write-boundary discipline (source)', () => {
   const SRC = readFileSync(resolve(__dirname, 'updateDealProfile.ts'), 'utf8');
 
-  it('never writes amount / stage / status / banker / client', () => {
-    // The forbidden columns appear only in the guard list, never as write keys.
-    expect(SRC).not.toMatch(/writeKey:\s*'cr664_amount'/);
+  it('never writes stage / status / banker / client (amount is now an approved governed field)', () => {
+    // Loan amount (cr664_amount) is a mandatory Intake exit criterion and is now edited here through
+    // the governed authorize→validate→update→readback→audit path, so it IS an approved write key.
+    expect(SRC).toMatch(/writeKey:\s*'cr664_amount'/);
+    // Stage / status / banker / client stay forbidden — they move only through their own governed flows.
     expect(SRC).not.toMatch(/writeKey:\s*'cr664_StageReference/);
     expect(SRC).not.toMatch(/writeKey:\s*'cr664_StatusReference/);
     expect(SRC).not.toMatch(/writeKey:\s*'cr664_AssignedBanker/);
     expect(SRC).not.toMatch(/writeKey:\s*'cr664_Client/);
+    // The protected lookups remain in the defense-in-depth forbidden list.
+    for (const forbidden of ['cr664_StageReference', 'cr664_StatusReference', 'cr664_AssignedBanker', 'cr664_Client']) {
+      expect(SRC).toContain(forbidden);
+    }
   });
 
   it('creates nothing (no record-create call, no borrower / CRM service)', () => {

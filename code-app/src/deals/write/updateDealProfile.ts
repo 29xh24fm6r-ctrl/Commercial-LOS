@@ -10,14 +10,17 @@
  *
  * Scope (the fields already tracked by PROFILE_COMPLETENESS_FIELDS that are
  * backed by a real schema type this phase can safely write):
+ *   - amount               (currency)      → cr664_amount
  *   - targetCloseDate      (date)          → cr664_targetclosedate
  *   - collateralSummary    (text)          → cr664_collateralsummary
  *   - customerType         (choice enum)   → cr664_customertype
  *   - industry             (choice enum)   → cr664_industry
  *   - guarantorStructure   (choice enum)   → cr664_guarantorstructure
  *
- * Deliberately OUT of scope: amount, stage, status, banker, and the Client
- * lookup (Phase 2 projects the verified CRM client). productType / loanStructure
+ * Loan amount (cr664_amount) is a mandatory Intake exit criterion, so it is edited here through
+ * the same governed authorize→validate→update→readback→audit discipline (the live-smoke gap: no
+ * supported UI path to populate it). Deliberately still OUT of scope: stage, status, banker, and
+ * the Client lookup (Phase 2 projects the verified CRM client). productType / loanStructure
  * / pricingType are reference LOOKUPS with no registered datasource or reference
  * list yet, so they are not editable here — the modal shows them read-only
  * rather than fabricate a dropdown.
@@ -42,6 +45,7 @@ import {
 
 /** The editable scalar / option-set profile fields this phase governs. */
 export type DealProfileField =
+  | 'amount'
   | 'targetCloseDate'
   | 'collateralSummary'
   | 'customerType'
@@ -77,7 +81,7 @@ export interface UpdateDealProfileInput {
   readonly allowedReferenceIds?: readonly string[];
 }
 
-type FieldKind = 'text' | 'date' | 'choice';
+type FieldKind = 'text' | 'date' | 'choice' | 'number';
 
 interface FieldSpec {
   readonly kind: FieldKind;
@@ -93,6 +97,7 @@ interface FieldSpec {
 
 /** The ONLY fields this adapter may write. Anything else is rejected. */
 export const DEAL_PROFILE_FIELD_SPECS: Readonly<Record<DealProfileField, FieldSpec>> = {
+  amount: { kind: 'number', writeKey: 'cr664_amount', readKey: 'cr664_amount', label: 'Loan amount' },
   targetCloseDate: { kind: 'date', writeKey: 'cr664_targetclosedate', readKey: 'cr664_targetclosedate', label: 'Target close date' },
   collateralSummary: { kind: 'text', writeKey: 'cr664_collateralsummary', readKey: 'cr664_collateralsummary', label: 'Collateral' },
   customerType: { kind: 'choice', writeKey: 'cr664_customertype', readKey: 'cr664_customertype', options: Cr664_loandealscr664_customertype, label: 'Customer type' },
@@ -100,9 +105,12 @@ export const DEAL_PROFILE_FIELD_SPECS: Readonly<Record<DealProfileField, FieldSp
   guarantorStructure: { kind: 'choice', writeKey: 'cr664_guarantorstructure', readKey: 'cr664_guarantorstructure', options: Cr664_loandealscr664_guarantorstructure, label: 'Guarantor structure' },
 };
 
-/** Fields that MUST NEVER be writable through this adapter (defense in depth). */
+/**
+ * Fields that MUST NEVER be writable through this adapter (defense in depth). Stage/status are
+ * moved only through the governed stage-advance write; banker/client are lookups set by their own
+ * governed link flows. (Loan amount is now an approved, governed profile edit — see the specs.)
+ */
 export const DEAL_PROFILE_FORBIDDEN_COLUMNS = Object.freeze([
-  'cr664_amount',
   'cr664_StageReference@odata.bind',
   'cr664_StatusReference@odata.bind',
   'cr664_AssignedBanker@odata.bind',
@@ -136,6 +144,8 @@ export interface UpdateDealProfileDeps {
 
 /** The verified, updated fields returned so the cockpit can reflect them. */
 export interface VerifiedProfilePatch {
+  /** Numeric so the cockpit's currency formatter + completeness check consume it directly. */
+  readonly amount?: number | undefined;
   readonly targetCloseDate?: string | undefined;
   readonly collateralSummary?: string | undefined;
   readonly customerType?: string | undefined;
@@ -273,6 +283,17 @@ function prepareField(
   switch (spec.kind) {
     case 'text':
       return { ok: true, prepared: { field, spec, writeValue: value, displayValue: value } };
+    case 'number': {
+      // Accept a plain or lightly-formatted amount ("2500000", "2,500,000", "$2,500,000").
+      const n = Number(value.replace(/[$,\s]/g, ''));
+      if (!Number.isFinite(n) || n <= 0) {
+        return { ok: false, reason: `${spec.label} must be a positive dollar amount.` };
+      }
+      if (n > 1e15) {
+        return { ok: false, reason: `${spec.label} is implausibly large; check the value.` };
+      }
+      return { ok: true, prepared: { field, spec, writeValue: n, displayValue: String(n) } };
+    }
     case 'date': {
       if (dayKey(value) === null) {
         return { ok: false, reason: `${spec.label} must be a valid date.` };
@@ -298,6 +319,11 @@ function readbackConfirms(row: Record<string, unknown>, p: PreparedField): boole
   switch (p.spec.kind) {
     case 'text':
       return typeof actual === 'string' && actual.trim() === p.writeValue;
+    case 'number': {
+      // Currency readback: tolerate rounding to the cent.
+      const got = Number(actual);
+      return Number.isFinite(got) && Math.abs(got - (p.writeValue as number)) < 0.005;
+    }
     case 'date':
       return dayKey(actual) !== null && dayKey(actual) === dayKey(p.writeValue as string);
     case 'choice':
@@ -427,7 +453,13 @@ export async function updateDealProfile(
   const verified: VerifiedProfilePatch = {};
   const changedLabels: string[] = [];
   for (const p of prepared) {
-    (verified as Record<string, string | undefined>)[p.field] = p.displayValue;
+    if (p.spec.kind === 'number') {
+      // Project the numeric value so the cockpit's currency formatter + completeness read it directly.
+      (verified as Record<string, number | undefined>)[p.field] =
+        p.writeValue === null ? undefined : (p.writeValue as number);
+    } else {
+      (verified as Record<string, string | undefined>)[p.field] = p.displayValue;
+    }
     changedLabels.push(p.spec.label);
   }
   for (const p of preparedRefs) {

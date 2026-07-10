@@ -263,6 +263,14 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
     reason: 'Same useOptionalBanker pattern as DealTasks.',
   },
   {
+    file: 'deals/DealStageProgressionCard.tsx',
+    allowedFrom: ['../banker/BankerContext'],
+    reason:
+      'The stage-advance card consumes useOptionalBanker to gate governed blocker remediation ' +
+      '(add required document, generate destination-stage work) on a resolved banker identity — ' +
+      'the same banker-scoped-feature pattern as DealDocuments/DealTasks; manager/team render it read-only.',
+  },
+  {
     file: 'deals/DealProfileEditModal.tsx',
     allowedFrom: ['../banker/BankerContext'],
     reason:

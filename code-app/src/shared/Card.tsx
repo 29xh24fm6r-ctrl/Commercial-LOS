@@ -6,12 +6,18 @@ interface CardProps {
   accentColor?: string;
   /** Optional inline style override (rare — prefer composition). */
   style?: CSSProperties;
+  /**
+   * Optional resolver-surface anchor (a ResolverSurface name, e.g. "Documents"). Lets a blocker's
+   * remediation route scroll this panel into view via `[data-resolver-surface="…"]`.
+   */
+  anchorSurface?: string;
   children: ReactNode;
 }
 
-export function Card({ accentColor, style, children }: CardProps) {
+export function Card({ accentColor, style, anchorSurface, children }: CardProps) {
   return (
     <section
+      data-resolver-surface={anchorSurface}
       style={{
         ...cardStyle,
         ...(accentColor ? { borderTop: `3px solid ${accentColor}` } : null),

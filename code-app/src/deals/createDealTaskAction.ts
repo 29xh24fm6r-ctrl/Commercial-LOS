@@ -222,3 +222,13 @@ export async function createDealTask(
   }
   return { kind: 'success', taskId };
 }
+
+/** Human-readable reason for a non-success task-create outcome. */
+export function describeCreateDealTaskFailure(o: Exclude<CreateDealTaskOutcome, { kind: 'success' } | { kind: 'governance-partial' }>): string {
+  switch (o.kind) {
+    case 'task-create-failed':
+      return o.taskError;
+    case 'unknown':
+      return o.message;
+  }
+}

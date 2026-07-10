@@ -100,6 +100,7 @@ export function DealProfileEditLauncher({
 
   // "Complete" when any completable profile field is still missing, else "Edit".
   const anyMissing =
+    deal.amount == null ||
     !deal.targetCloseDate ||
     !deal.customerType ||
     !deal.industry ||
@@ -140,6 +141,7 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
 
   const initial = useMemo(
     () => ({
+      amount: deal.amount != null ? String(deal.amount) : '',
       targetCloseDate: dateInputValue(deal.targetCloseDate),
       customerType: deal.customerType ?? '',
       industry: deal.industry ?? '',
@@ -298,8 +300,8 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
         <header style={styles.header}>
           <h2 id={titleId} style={styles.title}>Deal Profile</h2>
           <p style={styles.subtitle}>
-            Complete the approved deal fields. Verified on save and audited. Amount,
-            stage, status, banker, and client are not edited here.
+            Complete the approved deal fields. Verified on save and audited. Stage, status,
+            banker, and client are set through their own governed flows, not here.
           </p>
         </header>
 
@@ -307,6 +309,24 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
           <OutcomeBlock outcome={save.outcome} onClose={onClose} />
         ) : (
           <div style={styles.body}>
+            <FieldLabel text="Loan amount" missing={deal.amount == null}>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={fields.amount}
+                onChange={(e) => set('amount', e.target.value)}
+                disabled={saving}
+                style={styles.input}
+                placeholder="e.g. 2,500,000"
+                aria-describedby="deal-profile-amount-help"
+                data-deal-profile-field="amount"
+              />
+              <span id="deal-profile-amount-help" style={styles.readonlyReason}>
+                The approved loan amount (cr664_amount). A mandatory Intake exit criterion — verified on
+                save and audited.
+              </span>
+            </FieldLabel>
+
             <FieldLabel text="Target close date" missing={!deal.targetCloseDate}>
               <input
                 type="date"

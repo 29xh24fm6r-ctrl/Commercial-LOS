@@ -95,6 +95,52 @@ function setUseDealData(d: DealDetail) {
   } as unknown as ReturnType<typeof useDealData>);
 }
 
+function setReadyDealData(d: DealDetail) {
+  useDealDataMock.mockReturnValue({
+    deal: d,
+    tasks: { kind: 'ready', data: { open: [], completed: [] } },
+    documents: { kind: 'ready', data: { outstanding: [], received: [], reviewed: [] } },
+    creditMemo: { kind: 'ready', data: undefined },
+    activity: { kind: 'ready', data: [] },
+    refresh: vi.fn(),
+  } as unknown as ReturnType<typeof useDealData>);
+}
+
+describe('Blockers tile — authoritative hard-blocker count (Intake→UW repair)', () => {
+  it('counts mandatory missing fields + documents, not just overdue tasks/outstanding docs', () => {
+    // An Intake deal with nothing captured: the OLD tile read 0 (only overdue tasks/docs); the
+    // authoritative model counts the 7 mandatory Intake fields + the Loan application document.
+    setReadyDealData(deal({ stage: 'Intake' }));
+    render(<DealMetricDeck />);
+    expect(
+      screen.getByLabelText(/Blockers: 8 mandatory requirements holding stage advancement/i),
+    ).toBeInTheDocument();
+  });
+
+  it('reads 0 hard blockers once the mandatory fields + document are satisfied', () => {
+    const complete = deal({
+      stage: 'Intake',
+      amount: 2_500_000,
+      clientName: 'Acme LLC',
+      productType: 'Term Loan',
+      loanStructure: 'Amortizing',
+      targetCloseDate: '2026-09-08',
+      industry: 'Retail',
+      customerType: 'Business',
+    });
+    useDealDataMock.mockReturnValue({
+      deal: complete,
+      tasks: { kind: 'ready', data: { open: [], completed: [] } },
+      documents: { kind: 'ready', data: { outstanding: [], received: [{ id: 'x', name: 'Loan application', status: 'received', dueDate: undefined, requestDate: undefined, receivedDate: '2026-07-01', reviewer: undefined, uploaded: false, modifiedOn: undefined }], reviewed: [] } },
+      creditMemo: { kind: 'ready', data: undefined },
+      activity: { kind: 'ready', data: [] },
+      refresh: vi.fn(),
+    } as unknown as ReturnType<typeof useDealData>);
+    render(<DealMetricDeck />);
+    expect(screen.getByLabelText(/Blockers: 0 mandatory requirements holding stage advancement/i)).toBeInTheDocument();
+  });
+});
+
 function vm(over: Partial<DealIntelligenceViewModel> = {}): DealIntelligenceViewModel {
   return {
     dealId: 'd-deck',

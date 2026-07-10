@@ -122,7 +122,7 @@ export function CreditMemo({ readOnly = false }: CreditMemoProps = {}) {
 
   return (
     <>
-      <Card>
+      <Card anchorSurface="Credit Memo">
         <WidgetHeader
           title="Credit Memo"
           subtitle={subtitleFor(creditMemo)}

@@ -1,4 +1,4 @@
-import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
+﻿import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
 import { newCorrelationId } from '../shared/governance/correlationId';
@@ -22,7 +22,7 @@ import { timelineEventByBind } from './timelineActorBind';
  *   2. Emit cr664_AuditEvent (Lifecycle / StatusChange) recording the
  *      request, with the prior request date in the before state.
  *   3. Emit cr664_DealTimelineEvent with eventtype=DocumentRequested
- *      (788190009 — exact enum match) so the deal's activity ledger
+ *      (788190009 â€” exact enum match) so the deal's activity ledger
  *      records the request.
  *
  * Outcome shape mirrors completeTask exactly: success | doc-failed |
@@ -53,14 +53,14 @@ export interface RequestDocumentInput {
    *  <date>)' precisely. */
   priorRequestDate: string | undefined;
   systemUserId: string;
-  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+  /** Acting banker's email â€” resolved fail-closed to the audit's REQUIRED
    *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
    *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
   actorEmail: string;
   requestNote: string;
 }
 
-// Enum constants — locked to the verified schema, kept inline so the
+// Enum constants â€” locked to the verified schema, kept inline so the
 // action doesn't depend on the generated runtime enum maps.
 const AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002;
 const AUDIT_EVENT_TYPE_STATUS_CHANGE = 788190001;
@@ -147,7 +147,7 @@ async function emitTimelineEvent(opts: {
     cr664_relatedentitytype: 'cr664_documentchecklist',
     cr664_relatedentityid: opts.input.documentId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    // cr664_EventBy targets cr664_user (not systemuser) — bind the resolved
+    // cr664_EventBy targets cr664_user (not systemuser) â€” bind the resolved
     // cr664_user, omit when unresolved (fail-closed). Owner/state server-defaulted.
     ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
@@ -247,7 +247,7 @@ export async function requestDocument(
 //   - A metadata-only governed write that stamps cr664_receiveddate on
 //     an existing cr664_DocumentChecklist row. This is what flips the
 //     row from "outstanding" to "received" in the DealDocuments UI
-//     (see dealDocumentQueries.ts → deriveStatus).
+//     (see dealDocumentQueries.ts â†’ deriveStatus).
 //
 // What this is NOT (honestly):
 //   - It is not a binary file upload. The cr664_DocumentChecklist
@@ -267,10 +267,10 @@ export async function requestDocument(
 //   2. Emit cr664_AuditEvent ('DocumentChecklist Received') with
 //      outcome=Succeeded.
 //   3. Emit cr664_DealTimelineEvent with eventtype=DocumentUploaded
-//      (788190010 — the closest existing schema enum value; the
+//      (788190010 â€” the closest existing schema enum value; the
 //      banker is recording that the document has arrived). The
 //      summary uses banker-safe "Document marked received" wording
-//      throughout — no claim of binary upload.
+//      throughout â€” no claim of binary upload.
 //
 // Outcome shape mirrors requestDocument: success | receive-failed |
 // governance-partial | unknown.
@@ -291,7 +291,7 @@ export interface MarkDocumentReceivedInput {
   documentName: string;
   dealId: string;
   systemUserId: string;
-  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+  /** Acting banker's email â€” resolved fail-closed to the audit's REQUIRED
    *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
    *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
   actorEmail: string;
@@ -369,7 +369,7 @@ async function emitTimelineEventForReceive(opts: {
     cr664_relatedentitytype: 'cr664_documentchecklist',
     cr664_relatedentityid: opts.input.documentId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    // cr664_EventBy targets cr664_user (not systemuser) — bind the resolved
+    // cr664_EventBy targets cr664_user (not systemuser) â€” bind the resolved
     // cr664_user, omit when unresolved (fail-closed). Owner/state server-defaulted.
     ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `correlation:${opts.correlationId}`,
@@ -407,8 +407,8 @@ export async function markDocumentReceived(
   const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: stamp cr664_receiveddate. This is the only schema-level
-  // write — the deriveStatus selector flips the document from
-  // outstanding → received off this field alone.
+  // write â€” the deriveStatus selector flips the document from
+  // outstanding â†’ received off this field alone.
   try {
     const update = await Cr664_documentchecklistsService.update(input.documentId, {
       cr664_receiveddate: nowIso,
@@ -469,16 +469,16 @@ export async function markDocumentReceived(
 //
 // What this is:
 //   - The third (and final, given the current schema) transition in the
-//     document lifecycle: outstanding → received → reviewed. Writes the
+//     document lifecycle: outstanding â†’ received â†’ reviewed. Writes the
 //     banker's display name to cr664_reviewer so the existing
-//     deriveStatus logic flips the row Received → Reviewed. Clears the
+//     deriveStatus logic flips the row Received â†’ Reviewed. Clears the
 //     Phase 54 pending-review signal automatically (the predicate
 //     keys off reviewer presence).
 //
 // What this is NOT (honestly):
 //   - It is NOT approval. The banker has read the document and is
 //     stamping their identity as the reviewer. The audit + timeline
-//     events use conservative wording ("Document reviewed") — never
+//     events use conservative wording ("Document reviewed") â€” never
 //     "approved", "cleared", "accepted", "validated".
 //   - It is NOT a content judgment. The note flows verbatim to the
 //     audit trail; the action makes no claim about what the document
@@ -495,7 +495,7 @@ export async function markDocumentReceived(
 //      activity ledger records the review.
 //
 // Outcome shape: success | review-failed | governance-partial |
-// unknown — same Phase 47 four-branch shape every other governed
+// unknown â€” same Phase 47 four-branch shape every other governed
 // write uses.
 // ---------------------------------------------------------------------------
 
@@ -521,7 +521,7 @@ export interface MarkDocumentReviewedInput {
    *  identity link; the reviewer field is the human-readable
    *  display. */
   reviewerName: string;
-  /** Acting banker's email — resolved fail-closed to the audit's REQUIRED
+  /** Acting banker's email â€” resolved fail-closed to the audit's REQUIRED
    *  cr664_ChangedBy (a cr664_user lookup) via the platform-user bridge.
    *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
   actorEmail: string;
@@ -599,7 +599,7 @@ async function emitTimelineEventForReview(opts: {
     cr664_relatedentitytype: 'cr664_documentchecklist',
     cr664_relatedentityid: opts.input.documentId,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    // cr664_EventBy targets cr664_user — bind the resolved cr664_user, omit when
+    // cr664_EventBy targets cr664_user â€” bind the resolved cr664_user, omit when
     // unresolved (fail-closed); never a systemuser id. Owner/state server-defaulted.
     ...timelineEventByBind(opts.actor),
     cr664_eventsubtype: `${TIMELINE_SUBTYPE_DOCUMENT_REVIEWED}|correlation:${opts.correlationId}`,
@@ -644,8 +644,8 @@ export async function markDocumentReviewed(
   const actor = await resolveActorChangedBy(input.actorEmail);
 
   // Step 1: stamp cr664_reviewer. This is the only schema-level
-  // write — the deriveStatus selector flips the document from
-  // received → reviewed off this field alone, and the Phase 54
+  // write â€” the deriveStatus selector flips the document from
+  // received â†’ reviewed off this field alone, and the Phase 54
   // pending-review signal clears because its predicate keys off
   // reviewer presence.
   try {
