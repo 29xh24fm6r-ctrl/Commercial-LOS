@@ -165,6 +165,54 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
     expect(screen.getByText('Globex Inc')).toBeInTheDocument();
   });
 
+  it('company drawer exposes a governed Industry/NAICS edit path with provenance, Industry seeded from raw (not the derived sector), and Type kept separate', async () => {
+    const derivedSector = 'Administrative and Support and Waste Management and Remediation Services';
+    const { container } = await renderHub(
+      fixture({
+        organizations: {
+          status: 'ready',
+          records: [
+            rec('o1', 'Waste Co', {
+              subtitle: derivedSector, // displayed Industry (NAICS-derived), no manual override
+              tertiary: 'Borrower',
+              orgNaicsCode: '561110',
+              orgIndustryDerivedSector: derivedSector,
+              orgIndustryDescriptor: undefined,
+              detail: [
+                { label: 'Type', value: 'Borrower' },
+                { label: 'Industry', value: derivedSector },
+              ],
+            }),
+          ],
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    await user.click(container.querySelector('[data-crm-record="o1"]') as HTMLElement);
+    const drawer = container.querySelector('[data-crm-detail-drawer]') as HTMLElement;
+
+    // Provenance is shown: the displayed Industry is derived from the NAICS code.
+    const provenance = drawer.querySelector('[data-crm-industry-provenance]') as HTMLElement;
+    expect(provenance).not.toBeNull();
+    expect(provenance.textContent).toMatch(/Derived from NAICS 561110/);
+
+    // NAICS is now an editable governed field, seeded with the real code.
+    const naics = drawer.querySelector('[data-crm-inline-edit-trigger="cr664_naicscode"]') as HTMLElement;
+    expect(naics).not.toBeNull();
+    expect(naics.textContent).toContain('561110');
+
+    // The Industry manual-override editor seeds from the RAW descriptor (empty here) — it must NOT
+    // pre-fill the derived sector (which would silently persist a NAICS-derived value as an override).
+    const industry = drawer.querySelector('[data-crm-inline-edit-trigger="cr664_industry"]') as HTMLElement;
+    expect(industry).not.toBeNull();
+    expect(industry.textContent).not.toContain(derivedSector);
+
+    // Type is a distinct editable field, seeded with the party role — never conflated with Industry.
+    const type = drawer.querySelector('[data-crm-inline-edit-trigger="cr664_organizationtype"]') as HTMLElement;
+    expect(type).not.toBeNull();
+    expect(type.textContent).toContain('Borrower');
+  });
+
   it('uses no banker-facing engineering language', async () => {
     const { container } = await renderHub(fixture());
     const text = (container.textContent ?? '').toLowerCase();

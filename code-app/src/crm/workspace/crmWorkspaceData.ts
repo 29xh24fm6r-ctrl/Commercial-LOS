@@ -89,6 +89,17 @@ export interface CrmRecord {
   readonly personId?: string;
   /** Timeline event type: 'call' | 'email' | 'meeting' | 'note' are activities; 'follow-up-task' is a task. */
   readonly eventType?: string;
+  // Organizations only — the RAW stored fields behind the derived display, so the governed edit
+  // panel seeds each editor from the true persisted value (never the derived Industry, which would
+  // silently persist a NAICS-derived sector as a manual override).
+  /** Raw stored manual industry descriptor (`cr664_industry`), or undefined when unset. */
+  readonly orgIndustryDescriptor?: string;
+  /** Raw stored NAICS code (`cr664_naicscode`). */
+  readonly orgNaicsCode?: string;
+  /** The NAICS-derived sector title — provenance for the displayed Industry when no manual override is set. */
+  readonly orgIndustryDerivedSector?: string;
+  /** Raw stored notes (`cr664_notes`). */
+  readonly orgNotes?: string;
 }
 
 export interface CrmDomainResult {
@@ -156,6 +167,9 @@ function row(label: string, value: string | undefined): CrmDetailRow | undefined
 
 export function mapOrganization(o: Cr664_crmorganizations): CrmRecord {
   const industry = deriveOrgIndustry(o.cr664_industry, o.cr664_naicscode);
+  // The NAICS-derived sector alone (ignoring any manual override) — the provenance the edit panel
+  // shows so the banker sees where the displayed Industry comes from. Never fabricated.
+  const derivedFromNaics = deriveOrgIndustry(undefined, o.cr664_naicscode);
   return {
     id: o.cr664_crmorganizationid,
     // Industry (derived), never the Type/role — those are separate columns/rows now.
@@ -163,6 +177,10 @@ export function mapOrganization(o: Cr664_crmorganizations): CrmRecord {
     subtitle: industry,
     tertiary: s(o.cr664_organizationtype),
     badge: s(o.cr664_status) ?? s(o.statecodename),
+    orgIndustryDescriptor: s(o.cr664_industry),
+    orgNaicsCode: s(o.cr664_naicscode),
+    orgIndustryDerivedSector: derivedFromNaics,
+    orgNotes: s(o.cr664_notes),
     detail: pick([
       row('Legal name', s(o.cr664_legalname)),
       row('DBA', s(o.cr664_dbaname)),
