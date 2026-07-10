@@ -9,8 +9,9 @@ import {
   type CrmWorkspaceData,
 } from './crmWorkspaceData';
 import { CrmWriteActions, type CrmOption } from './CrmWriteActions';
-import { CrmOrgFieldInlineEdit } from './CrmOrgFieldInlineEdit';
+import { CrmOrgFieldInlineEdit, type CrmInlineEditControl } from './CrmOrgFieldInlineEdit';
 import { buildLiveCrmUpdateDeps, type CrmUpdatableOrgField } from '../write/crmUpdateAdapter';
+import { CRM_PARTY_TYPE_OPTIONS } from '../crmPartyTypes';
 import type { CrmWriteFns } from '../write/crmWriteActions';
 import {
   loadLinkedDealsForOrganization,
@@ -379,12 +380,21 @@ function ActivityTimeline({ records, onOpen }: { records: readonly CrmRecord[]; 
  * use the NAICS-derived sector). Every field routes through the identity-gated, allow-listed, audited
  * updateOrganizationField adapter.
  */
-const ORG_EDIT_FIELDS: ReadonlyArray<{ field: CrmUpdatableOrgField; label: string; placeholder?: string; helper?: string }> = [
-  { field: 'cr664_organizationtype', label: 'Type (party role)', helper: "The company's role (e.g. Borrower) — kept separate from Industry." },
-  { field: 'cr664_naicscode', label: 'NAICS code', placeholder: '6-digit code', helper: 'The 6-digit classification. Sets the derived Industry when no manual override is set.' },
-  { field: 'cr664_industry', label: 'Industry (manual override)', placeholder: 'Leave blank to use NAICS', helper: 'Overrides the NAICS-derived sector. Leave blank to display the NAICS-derived industry instead.' },
-  { field: 'cr664_website', label: 'Website' },
-  { field: 'cr664_notes', label: 'Notes' },
+const ORG_EDIT_FIELDS: ReadonlyArray<{
+  field: CrmUpdatableOrgField;
+  label: string;
+  placeholder?: string;
+  helper?: string;
+  control?: CrmInlineEditControl;
+  options?: ReadonlyArray<{ value: string; label: string }>;
+}> = [
+  // Type/party role edits through the SAME controlled select the Add Company flow uses — no free text.
+  { field: 'cr664_organizationtype', label: 'Type (party role)', control: 'select', options: CRM_PARTY_TYPE_OPTIONS, helper: "The company's role (Borrower, Guarantor, …) — a controlled list, kept separate from Industry." },
+  // NAICS edits through the SAME picker the create flow uses, with a strict 6-digit save gate.
+  { field: 'cr664_naicscode', label: 'NAICS code', control: 'naics', helper: 'Search an industry or code and pick a standard 6-digit code. Sets the derived Industry when no manual override is set.' },
+  { field: 'cr664_industry', label: 'Industry (manual override)', control: 'text', placeholder: 'Leave blank to use NAICS', helper: 'Free-text override of the NAICS-derived sector. Leave blank to display the NAICS-derived industry instead.' },
+  { field: 'cr664_website', label: 'Website', control: 'text' },
+  { field: 'cr664_notes', label: 'Notes', control: 'text' },
 ];
 
 /**
@@ -553,6 +563,8 @@ function DetailDrawer({
                     label={f.label}
                     value={seedOrgEditValue(record, f.field)}
                     placeholder={f.placeholder}
+                    control={f.control}
+                    options={f.options}
                     actor={{ authorized: actor.authorized, actorEmail: actor.actorEmail, actorSystemUserId: actor.actorSystemUserId }}
                     deps={orgUpdateDeps}
                     disabledReason={actor.writeDisabledReason ?? 'Sign-in identity is still resolving; CRM editing will enable shortly.'}
