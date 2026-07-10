@@ -24,10 +24,12 @@ import {
 export type DealIndustryProjection =
   | { kind: 'no-crm-link' }
   | { kind: 'no-org-link' }
-  | { kind: 'no-naics' }
-  | { kind: 'no-sector'; naicsCode: string }
-  | { kind: 'no-mapping'; naicsCode: string; sectorCode: string; sectorTitle: string }
-  | { kind: 'derived'; naicsCode: string; sectorCode: string; sectorTitle: string; dealIndustry: string }
+  // organizationId is carried once the CRM org is resolved, so a deal-side remediation can open the
+  // governed CRM NAICS editor for exactly that company.
+  | { kind: 'no-naics'; organizationId: string }
+  | { kind: 'no-sector'; organizationId: string; naicsCode: string }
+  | { kind: 'no-mapping'; organizationId: string; naicsCode: string; sectorCode: string; sectorTitle: string }
+  | { kind: 'derived'; organizationId: string; naicsCode: string; sectorCode: string; sectorTitle: string; dealIndustry: string }
   | { kind: 'unavailable'; reason: string };
 
 export interface DealIndustryProjectionDeps {
@@ -86,7 +88,7 @@ export async function loadDealIndustryProjection(
   }
   if (!naicsRes.success) return unavailable(naicsRes.error ?? 'organization read failed');
   const naicsCode = trimmed(naicsRes.naicsCode);
-  if (naicsCode.length === 0) return { kind: 'no-naics' };
+  if (naicsCode.length === 0) return { kind: 'no-naics', organizationId };
 
   // 3. mapping rows → resolve sector → industry.
   let mapRes: { success: boolean; rows?: readonly NaicsIndustryMapRow[]; error?: string };
@@ -100,12 +102,13 @@ export async function loadDealIndustryProjection(
   const resolution = resolveDealIndustryFromNaics(naicsCode, mapRes.rows ?? []);
   switch (resolution.kind) {
     case 'no-sector':
-      return { kind: 'no-sector', naicsCode: resolution.naicsCode };
+      return { kind: 'no-sector', organizationId, naicsCode: resolution.naicsCode };
     case 'no-mapping':
-      return { kind: 'no-mapping', naicsCode, sectorCode: resolution.sector.sectorCode, sectorTitle: resolution.sector.sectorTitle };
+      return { kind: 'no-mapping', organizationId, naicsCode, sectorCode: resolution.sector.sectorCode, sectorTitle: resolution.sector.sectorTitle };
     case 'mapped':
       return {
         kind: 'derived',
+        organizationId,
         naicsCode,
         sectorCode: resolution.sector.sectorCode,
         sectorTitle: resolution.sector.sectorTitle,
