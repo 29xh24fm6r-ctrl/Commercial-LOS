@@ -15,6 +15,8 @@ import {
   PipelineIcon,
 } from '../shared/cockpitIcons';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
+import { parseCalendarDate } from '../shared/formatters';
+import { deriveDealBlockerModelForStage, type DealBlockerModel } from './dealBlockerModel';
 import { DrillThroughCard } from '../shared/drillthrough/DrillThroughCard';
 import { dealMetricDeckTargets } from './dealCockpitDrillThrough';
 import { DealProfileEditLauncher } from './DealProfileEditModal';
@@ -74,6 +76,20 @@ export function DealMetricDeck() {
   // visual. The other tiles (Loan amount / Blockers / Tasks /
   // Documents / Target close) remain on `metrics` per Phase 123C
   // scope; they will be wired in a later phase.
+  // Authoritative blocker model (shared with the Stage Map + advance guard): the "Blockers" tile
+  // must count the HARD stage-exit blockers (mandatory missing fields + documents), not just overdue
+  // tasks/outstanding docs — the live-smoke defect where the tile read 0 while advancement was held.
+  const blockerModel = useMemo(
+    () =>
+      deriveDealBlockerModelForStage(deal.stage, {
+        deal,
+        tasks: tasks.kind === 'ready' ? tasks.data : undefined,
+        documents: documents.kind === 'ready' ? documents.data : undefined,
+        creditMemo: creditMemo.kind === 'ready' ? creditMemo.data : undefined,
+      }),
+    [deal, tasks, documents, creditMemo],
+  );
+
   const vm = useOptionalDealIntelligence();
   const populatedFieldCount =
     vm?.completeness.populatedFieldCount ?? metrics.populatedFieldCount;
@@ -146,12 +162,16 @@ export function DealMetricDeck() {
           <LargeMetricTile
             label="Blockers"
             value={formatNonNegativeCount(
-              metrics.taskOverdueCount + metrics.docOutstandingCount,
+              blockerModel ? blockerModel.hardBlockerCount : metrics.taskOverdueCount + metrics.docOutstandingCount,
             )}
-            sub={blockerSubLabel(metrics)}
-            tone={tonalForBlockers(metrics)}
+            sub={blockerModel ? blockerModelSubLabel(blockerModel) : blockerSubLabel(metrics)}
+            tone={blockerModel ? (blockerModel.hardBlockerCount === 0 ? 'clear' : 'blocked') : tonalForBlockers(metrics)}
             icon={<AlertIcon />}
-            aria-label={`Blockers: ${metrics.taskOverdueCount} overdue tasks, ${metrics.docOutstandingCount} outstanding documents`}
+            aria-label={
+              blockerModel
+                ? `Blockers: ${blockerModel.hardBlockerCount} mandatory requirement${blockerModel.hardBlockerCount === 1 ? '' : 's'} holding stage advancement`
+                : `Blockers: ${metrics.taskOverdueCount} overdue tasks, ${metrics.docOutstandingCount} outstanding documents`
+            }
           />
         </DrillThroughCard>
         <DrillThroughCard target={deckTargets['tasks-open']} unstyled>
@@ -241,9 +261,10 @@ function formatCurrency(amount: number | undefined): string | undefined {
 }
 
 function formatTargetCloseDate(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
+  // Target close is a date-only calendar field: parse as local midnight so the displayed day
+  // never shifts a day across timezones (the live-smoke defect: 2026-09-08 shown as "Sep 7").
+  const d = parseCalendarDate(iso);
+  if (!d) return undefined;
   return d.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -261,6 +282,18 @@ function formatRelativeDays(days: number | undefined): string | undefined {
 
 function formatNonNegativeCount(n: number): string {
   return Math.max(0, n).toString();
+}
+
+function blockerModelSubLabel(model: DealBlockerModel): string {
+  if (model.hardBlockerCount === 0) return 'Clear to advance';
+  const fields = model.missingRequiredFields.length;
+  const docs = model.missingRequiredDocuments.length;
+  const other = model.hardBlockerCount - fields - docs;
+  const parts: string[] = [];
+  if (fields > 0) parts.push(`${fields} field${fields === 1 ? '' : 's'}`);
+  if (docs > 0) parts.push(`${docs} document${docs === 1 ? '' : 's'}`);
+  if (other > 0) parts.push(`${other} more`);
+  return `${parts.join(' · ')} required to advance`;
 }
 
 function blockerSubLabel(

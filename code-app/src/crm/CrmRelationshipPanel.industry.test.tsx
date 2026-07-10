@@ -119,12 +119,18 @@ describe('DealCrmRelationshipPanel — CRM link → governed Industry hydration'
     render(<DealCrmRelationshipPanel />);
     await linkAcme();
 
-    // CORE FIX: the deal now points at the client — the cockpit is refreshed with
-    // the verified clientId/clientName, not only this panel's local state.
-    expect(mockState.applyVerifiedDealPatch).toHaveBeenCalledWith({
-      clientId: 'client-guid-1',
-      clientName: 'Acme Holdings LLC',
-    });
+    // CORE FIX: the deal now points at the client — the cockpit is refreshed with the verified
+    // clientId/clientName (plus the projected effective-client fields the completeness + Intake
+    // blocker model read), not only this panel's local state.
+    expect(mockState.applyVerifiedDealPatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 'client-guid-1',
+        clientName: 'Acme Holdings LLC',
+        effectiveClientName: 'Acme Holdings LLC',
+        effectiveClientSource: 'crm-client-relationship',
+        clientLookupClassification: 'real-lookup',
+      }),
+    );
 
     // The derivation was run against the newly-linked client relationship id and
     // the deal's current (empty) Industry.

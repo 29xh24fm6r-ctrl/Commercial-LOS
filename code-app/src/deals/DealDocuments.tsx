@@ -14,6 +14,9 @@ import {
   type MarkDocumentReviewedOutcome,
   type RequestDocumentOutcome,
 } from './documentActions';
+import type { AddRequiredDocumentOutcome } from './addRequiredDocumentAction';
+import { AddRequiredDocumentModal } from './AddRequiredDocumentModal';
+import { deriveDealBlockerModelForStage } from './dealBlockerModel';
 import {
   sendDocumentRequestEmail,
   type SendDocumentRequestEmailOutcome,
@@ -35,6 +38,7 @@ import { CreateDocumentReviewTaskModal } from './CreateDocumentReviewTaskModal';
 import { DocumentChecklistPilotPanel } from './DocumentChecklistPilotPanel';
 import { Card } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
+import { parseCalendarDate } from '../shared/formatters';
 import { WidgetHeader } from '../shared/cockpitPrimitives';
 import { DocumentsIcon } from '../shared/cockpitIcons';
 import {
@@ -50,8 +54,9 @@ interface DealDocumentsProps {
 }
 
 export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
-  const { deal, documents, tasks, refresh } = useDealData();
+  const { deal, documents, tasks, creditMemo, refresh } = useDealData();
   const banker = useOptionalBanker();
+  const [showAddDoc, setShowAddDoc] = useState(false);
   const [pendingRequestDoc, setPendingRequestDoc] = useState<DealDocument | null>(
     null,
   );
@@ -197,6 +202,34 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     return outcome;
   }
 
+  async function handleAddDocConfirm(name: string, note: string): Promise<AddRequiredDocumentOutcome> {
+    if (!banker?.systemUserId) {
+      return { kind: 'unknown', message: 'Cannot add: missing system user id.' };
+    }
+    // Dynamic import keeps the generated Dataverse services (SDK) out of this card's static graph.
+    const { addRequiredDocument } = await import('./addRequiredDocumentAction');
+    const outcome = await addRequiredDocument({
+      dealId: deal.id,
+      documentName: name,
+      systemUserId: banker.systemUserId,
+      actorEmail: banker.email,
+      intakeNote: note,
+    });
+    // Reload documents (+ activity) so the requirement clears and the new row survives refresh.
+    refresh('after-document-receive');
+    return outcome;
+  }
+
+  // Missing mandatory documents for the current stage, from the ONE authoritative blocker model —
+  // these seed the "Add required document" picker so the banker sees exactly what advancement needs.
+  const blockerModel = deriveDealBlockerModelForStage(deal.stage, {
+    deal,
+    tasks: tasks.kind === 'ready' ? tasks.data : undefined,
+    documents: documents.kind === 'ready' ? documents.data : undefined,
+    creditMemo: creditMemo.kind === 'ready' ? creditMemo.data : undefined,
+  });
+  const missingRequiredDocuments = blockerModel?.missingRequiredDocuments ?? [];
+
   const canWrite = !readOnly && !!banker?.systemUserId;
 
   // Phase 125E — right-rail operational widget. Outstanding count
@@ -214,7 +247,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
 
   return (
     <>
-      <Card>
+      <Card anchorSurface="Documents">
         <WidgetHeader
           title="Documents"
           subtitle={subtitleFor(documents)}
@@ -236,6 +269,24 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           <p style={styles.writeDisabledBanner} role="status">
             <strong>Request disabled:</strong> {banker.writeDisabledReason}
           </p>
+        )}
+        {canWrite && (
+          <div style={styles.docActionRow}>
+            <button
+              type="button"
+              onClick={() => setShowAddDoc(true)}
+              style={styles.addDocButton}
+              data-add-required-document
+            >
+              + Add required document
+            </button>
+            {missingRequiredDocuments.length > 0 && (
+              <span style={styles.docActionHint} data-add-required-document-missing>
+                {missingRequiredDocuments.length} required document
+                {missingRequiredDocuments.length === 1 ? '' : 's'} still needed to advance
+              </span>
+            )}
+          </div>
         )}
         <Body
           documents={documents}
@@ -259,6 +310,13 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
                 ].map((d) => d.name)
               : []
           }
+        />
+      )}
+      {!readOnly && showAddDoc && banker?.systemUserId && (
+        <AddRequiredDocumentModal
+          candidateNames={missingRequiredDocuments}
+          onConfirm={handleAddDocConfirm}
+          onClose={() => setShowAddDoc(false)}
         />
       )}
       {!readOnly && pendingRequestDoc && (
@@ -608,9 +666,10 @@ function isOverdue(iso: string | undefined): boolean {
 }
 
 function formatDate(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
+  // Document due/request/received dates are date-only calendar fields: parse as local midnight
+  // so the shown day never shifts across timezones.
+  const d = parseCalendarDate(iso);
+  if (!d) return undefined;
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
@@ -636,6 +695,20 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: radius.sm,
     lineHeight: typography.lineHeight.snug,
   },
+  docActionRow: { display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs },
+  addDocButton: {
+    alignSelf: 'flex-start',
+    background: 'transparent',
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  docActionHint: { fontSize: typography.size.xs, color: palette.atRiskFg },
   lists: { display: 'flex', flexDirection: 'column', gap: spacing.md },
   group: { display: 'flex', flexDirection: 'column', gap: spacing.xs },
   groupHeaderRow: { display: 'flex', alignItems: 'center', gap: spacing.xs },

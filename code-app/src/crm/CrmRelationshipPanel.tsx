@@ -527,12 +527,16 @@ export function DealCrmRelationshipPanel() {
               (outcome.kind === 'success' ? outcome.entityName : option.name) ?? option.name;
             setLinkedClient({ id: entityId, name: entityName });
             if (linked) {
-              // CORE FIX: the deal now points at this client — refresh the WHOLE
-              // cockpit (header, summary tiles, Intake blocker model, stage map),
-              // not just this panel's local state, using the readback-verified id.
+              // Eliminate stale state after the verified write: patch the authoritative deal record so
+              // the header, Missing Fields tile, completeness, and the shared Intake blocker model all
+              // reflect the newly-linked client immediately — no navigation or browser reload. Project
+              // the effective-client fields so the completeness/blocker model reads the client as met.
               applyVerifiedDealPatch?.({
                 clientId: entityId,
                 clientName: entityName,
+                effectiveClientName: entityName,
+                effectiveClientSource: 'crm-client-relationship',
+                clientLookupClassification: 'real-lookup',
               } as Partial<DealDetail>);
               // Auto-hydrate the governed Industry from the linked company's NAICS
               // so the banker need not re-enter it when CRM already classifies it.
@@ -548,7 +552,15 @@ export function DealCrmRelationshipPanel() {
           dealName={deal.name}
           loadOptions={loadTeamOptions}
           onLink={(option) => handleLink('team', option)}
-          onLinked={(option) => setLinkedTeam({ id: option.id, name: option.name })}
+          onLinked={(option) => {
+            setLinkedTeam({ id: option.id, name: option.name });
+            // Patch the deal record so team-derived surfaces refresh without a reload.
+            applyVerifiedDealPatch?.({
+              teamId: option.id,
+              teamName: option.name,
+              teamLookupClassification: 'real-lookup',
+            });
+          }}
           onClose={() => setModal(null)}
         />
       )}

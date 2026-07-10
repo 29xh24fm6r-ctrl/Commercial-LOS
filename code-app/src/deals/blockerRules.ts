@@ -1,6 +1,7 @@
 import type { DealDetail } from './dealQueries';
 import type { DealTasksResult } from './dealTaskQueries';
 import type { DealDocumentsResult } from './dealDocumentQueries';
+import { parseCalendarDate, formatCalendarDate } from '../shared/formatters';
 
 export type BlockerSeverity = 'blocked' | 'at-risk' | 'info';
 export type BlockerStatus = 'blocked' | 'at-risk' | 'clear';
@@ -32,16 +33,14 @@ function daysBetween(a: Date, b: Date): number {
   return Math.floor((b.getTime() - a.getTime()) / MS_PER_DAY);
 }
 
+// Date-only business fields (target close, stage entry, due dates) are calendar dates: parse them
+// as local midnight so day arithmetic and display never drift a day across timezones.
 function parseDate(iso: string | undefined): Date | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? undefined : d;
+  return parseCalendarDate(iso);
 }
 
 function formatDate(iso: string | undefined): string {
-  const d = parseDate(iso);
-  if (!d) return '—';
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return formatCalendarDate(iso, { empty: '—' });
 }
 
 function isPastDue(iso: string | undefined, now: Date): boolean {

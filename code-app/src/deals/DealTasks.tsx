@@ -8,6 +8,7 @@ import { CompleteTaskModal } from './CompleteTaskModal';
 import { AddDealTaskModal, type AddDealTaskFields } from './AddDealTaskModal';
 import { Card } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
+import { parseCalendarDate } from '../shared/formatters';
 import { WidgetHeader } from '../shared/cockpitPrimitives';
 import { ChecklistIcon } from '../shared/cockpitIcons';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -86,7 +87,7 @@ export function DealTasks({ readOnly = false }: DealTasksProps = {}) {
 
   return (
     <>
-      <Card>
+      <Card anchorSurface="Tasks">
         <WidgetHeader
           title="Tasks"
           subtitle={subtitle}
@@ -327,9 +328,10 @@ function isOverdue(task: DealTask): boolean {
 }
 
 function formatDate(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
+  // Due dates are date-only calendar fields: parse as local midnight so the shown day never
+  // shifts across timezones.
+  const d = parseCalendarDate(iso);
+  if (!d) return undefined;
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 

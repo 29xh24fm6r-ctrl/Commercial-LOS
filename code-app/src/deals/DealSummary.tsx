@@ -2,6 +2,7 @@ import { useDealData } from './DealDataProvider';
 import type { DealDetail } from './dealQueries';
 import { DealProfileEditLauncher } from './DealProfileEditModal';
 import { Card } from '../shared/Card';
+import { parseCalendarDate } from '../shared/formatters';
 import { WidgetHeader } from '../shared/cockpitPrimitives';
 import { MemoIcon } from '../shared/cockpitIcons';
 import { palette, spacing, typography } from '../shared/theme';
@@ -90,9 +91,10 @@ function formatPricing(deal: DealDetail): string | undefined {
 }
 
 function formatDate(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
+  // Date-only business field (e.g. target close): parse as a local calendar date so the shown
+  // day never shifts across timezones. Undefined marker preserved for empty/unparseable input.
+  const d = parseCalendarDate(iso);
+  if (!d) return undefined;
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 

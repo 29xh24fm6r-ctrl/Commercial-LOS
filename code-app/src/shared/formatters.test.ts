@@ -1,5 +1,42 @@
 import { describe, it, expect } from 'vitest';
-import { formatCurrency, formatNumber, formatPercent, formatDate } from './formatters';
+import { formatCurrency, formatNumber, formatPercent, formatDate, formatCalendarDate, parseCalendarDate } from './formatters';
+
+/**
+ * Intake→UW repair: date-only business fields are CALENDAR dates and must never shift a day across
+ * timezones (the live-smoke defect: stored 2026-09-08 shown as "Sep 7, 2026" west of UTC).
+ */
+describe('date-only calendar rendering (no timezone drift)', () => {
+  it('parses a plain date-only string as a LOCAL calendar day (no UTC shift)', () => {
+    const d = parseCalendarDate('2026-09-08')!;
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(8); // September (0-based)
+    expect(d.getDate()).toBe(8); // never the 7th, regardless of the runner's timezone
+  });
+
+  it('treats the midnight-UTC DateOnly form as the same calendar day', () => {
+    for (const v of ['2026-09-08T00:00:00Z', '2026-09-08T00:00:00.000Z']) {
+      const d = parseCalendarDate(v)!;
+      expect(d.getFullYear()).toBe(2026);
+      expect(d.getMonth()).toBe(8);
+      expect(d.getDate()).toBe(8);
+    }
+  });
+
+  it('formatDate / formatCalendarDate render the stored calendar day, not the prior day', () => {
+    // Assert on the day number so the check is locale/timezone independent.
+    expect(formatDate('2026-09-08')).toMatch(/\b8\b/);
+    expect(formatDate('2026-09-08')).not.toMatch(/\b7\b/);
+    expect(formatCalendarDate('2026-09-08')).toBe(formatDate('2026-09-08'));
+  });
+
+  it('still renders a true timestamp and honest empties', () => {
+    expect(parseCalendarDate(undefined)).toBeUndefined();
+    expect(parseCalendarDate('not-a-date')).toBeUndefined();
+    expect(formatCalendarDate('', { empty: '—' })).toBe('—');
+    // A full timestamp remains an instant (parsed, non-undefined).
+    expect(parseCalendarDate('2026-09-08T14:30:00Z')).toBeInstanceOf(Date);
+  });
+});
 
 /**
  * Phase 261F — null-safe formatters. The crash was `null.toLocaleString()`;

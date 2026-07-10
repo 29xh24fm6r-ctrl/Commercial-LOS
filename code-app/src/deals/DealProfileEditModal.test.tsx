@@ -146,7 +146,8 @@ describe('DealProfileEditModal — fields + governed save', () => {
     render(<DealProfileEditLauncher source="missing-fields" />);
     await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
 
-    for (const f of ['targetCloseDate', 'customerType', 'industry', 'guarantorStructure', 'collateralSummary']) {
+    // Loan amount is now a governed editable field (a mandatory Intake exit criterion).
+    for (const f of ['amount', 'targetCloseDate', 'customerType', 'industry', 'guarantorStructure', 'collateralSummary']) {
       expect(document.querySelector(`[data-deal-profile-field="${f}"]`)).not.toBeNull();
     }
     // Reference lookups shown read-only (no fabricated dropdown).
@@ -154,8 +155,8 @@ describe('DealProfileEditModal — fields + governed save', () => {
       expect(document.querySelector(`[data-deal-profile-field-readonly="${f}"]`)).not.toBeNull();
       expect(document.querySelector(`[data-deal-profile-field="${f}"]`)).toBeNull();
     }
-    // No amount / stage / status / client / banker editors exist.
-    for (const f of ['amount', 'stage', 'status', 'clientName', 'bankerName']) {
+    // Stage / status / client / banker editors still never exist (their own governed flows own them).
+    for (const f of ['stage', 'status', 'clientName', 'bankerName']) {
       expect(document.querySelector(`[data-deal-profile-field="${f}"]`)).toBeNull();
     }
   });
