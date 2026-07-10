@@ -51,6 +51,24 @@ vi.mock('./dealCrmLinkOptions', () => ({
   CRM_COMPANY_OPTION_SUBLABEL: 'CRM Company — will create/link borrower client record',
 }));
 
+// The CRM/NAICS → Industry hydration runs after a successful client link. It
+// touches the SDK via the live projection loader, so mock it at the boundary:
+// this test drives the LINK wiring, not the Industry derivation (which has its
+// own unit tests). Default to an honest "unavailable" hydration, no patch.
+const hydrateMock = vi.hoisted(() =>
+  vi.fn(async () => ({
+    hydration: {
+      criterionSatisfied: false,
+      source: 'none' as const,
+      status: 'CRM/NAICS industry derivation is unavailable.',
+      unavailable: true,
+    },
+  })),
+);
+vi.mock('../deals/hydrateDealIndustryFromCrm', () => ({
+  hydrateDealIndustryFromCrm: hydrateMock,
+}));
+
 // Bridge is mocked at the boundary (SDK-free); bridgedClientRelationshipId stays
 // real so the panel's create/find→link wiring is exercised as written.
 const bridgeMock = vi.hoisted(() => vi.fn());

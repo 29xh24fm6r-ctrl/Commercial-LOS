@@ -26,6 +26,12 @@ import {
   buildLiveBridgeOrgToClientDeps,
   type BridgeOrgToClientOutcome,
 } from './write/bridgeOrgToClientRelationship';
+import { loadLiveDealIndustryProjection } from './dealIndustryProjection';
+import { hydrateDealIndustryFromCrm } from '../deals/hydrateDealIndustryFromCrm';
+import type { DealIndustryHydration } from '../deals/dealIndustryHydration';
+import { updateDealProfile } from '../deals/write/updateDealProfile';
+import { buildLiveUpdateDealProfileDeps } from '../deals/write/buildLiveUpdateDealProfileDeps';
+import type { DealDetail } from '../deals/dealQueries';
 
 /**
  * Phase 189C — read-only CRM Relationship panel.
@@ -58,6 +64,7 @@ export function CrmRelationshipPanel({
   viewModel,
   clientAction,
   teamAction,
+  industryStatus,
 }: {
   viewModel: CrmRelationshipViewModel;
   /** Optional interactive affordance rendered in the Client section (e.g. the
@@ -65,6 +72,9 @@ export function CrmRelationshipPanel({
   clientAction?: ReactNode;
   /** Optional interactive affordance rendered in the Owning-team section. */
   teamAction?: ReactNode;
+  /** Optional CRM/NAICS-derived Industry status + remediation, rendered in the
+   *  Client section (the deal Industry is derived from the linked client). */
+  industryStatus?: ReactNode;
 }) {
   const vm = viewModel;
   return (
@@ -100,6 +110,7 @@ export function CrmRelationshipPanel({
             <div style={emptyStyle}>No canonical client linked to this deal.</div>
           )}
           {clientAction}
+          {industryStatus}
         </section>
 
         {/* Team + assigned banker */}
@@ -242,11 +253,17 @@ function mapBridgeFailureToLinkOutcome(
 }
 
 export function DealCrmRelationshipPanel() {
-  const { deal } = useDealData();
+  const { deal, applyVerifiedDealPatch } = useDealData();
   const banker = useOptionalBanker();
 
   // Which link modal (if any) is open.
   const [modal, setModal] = useState<DealCrmLinkTarget | null>(null);
+  // Governed CRM/NAICS → deal Industry hydration for the Intake "Industry" exit
+  // criterion. Set after a client link or a banker re-check; drives the honest
+  // source line + a direct remediation. Never fabricated — a missing hop is an
+  // honest unresolved state and the banker can still enter Industry manually.
+  const [industryHydration, setIndustryHydration] = useState<DealIndustryHydration | null>(null);
+  const [industryBusy, setIndustryBusy] = useState(false);
   // Optimistic, readback-verified links made in this session. A successful
   // `linkDealCrmEntity` reads the deal back and proves it now points at the
   // selected record, so reflecting that here is truthful — not fabricated.
@@ -354,8 +371,100 @@ export function DealCrmRelationshipPanel() {
     );
   }
 
+  // Governed apply of a CRM-derived deal Industry — reuses the existing
+  // updateDealProfile adapter (validate → write → readback → audit). Writes ONLY
+  // with a resolved Dataverse identity and returns the readback-verified patch so
+  // the cockpit reflects the persisted value. It NEVER overwrites a manual
+  // Industry — the pure decision only asks it to write when there is no manual
+  // value (see deriveDealIndustryHydration).
+  async function applyDealIndustry(
+    industry: string,
+  ): Promise<{ ok: boolean; verified?: Record<string, unknown> }> {
+    if (!banker?.systemUserId) return { ok: false };
+    const outcome = await updateDealProfile(
+      {
+        dealId: deal.id,
+        actorEmail: banker.email,
+        actorSystemUserId: banker.systemUserId,
+        authorized: true,
+        patch: { industry },
+      },
+      buildLiveUpdateDealProfileDeps(),
+    );
+    return outcome.kind === 'updated'
+      ? { ok: true, verified: outcome.verified as Record<string, unknown> }
+      : { ok: false };
+  }
+
+  // After a CRM client is linked OR the banker re-checks (e.g. having just fixed
+  // NAICS in the CRM company record): derive the governed CRM/NAICS Industry,
+  // auto-apply it when the deal has no manual value, and refresh the cockpit
+  // (header / summary tiles / Intake blocker model / stage map) with the verified
+  // patch — no full reload. Fail-closed: any missing hop is an honest unresolved
+  // state, and nothing is written unless a valid NAICS actually derives.
+  async function refreshDealIndustryFromCrm(clientRelationshipId: string | undefined) {
+    setIndustryBusy(true);
+    try {
+      const { hydration, appliedPatch } = await hydrateDealIndustryFromCrm(
+        clientRelationshipId,
+        deal.industry ?? undefined,
+        { loadProjection: loadLiveDealIndustryProjection, applyDealIndustry },
+      );
+      if (appliedPatch) applyVerifiedDealPatch?.(appliedPatch as Partial<DealDetail>);
+      setIndustryHydration(hydration);
+    } finally {
+      setIndustryBusy(false);
+    }
+  }
+
   const clientMissing = viewModel.canonicalClient === null;
   const teamMissing = viewModel.team === null;
+
+  // Deal Industry is derived from the linked CRM client's NAICS. Once a client is
+  // linked (and the banker can write), expose an on-demand, no-reload check that
+  // surfaces the governed CRM-derived Industry, auto-applies it when a valid NAICS
+  // classifies the company, and — when unresolved — points at the CRM NAICS editor.
+  const clientLinked = effectiveClientId !== null;
+  const industryStatus =
+    clientLinked && authorized ? (
+      <div style={industryStatusStyle} data-crm-industry>
+        {industryHydration && (
+          <>
+            <div style={labelStyle}>Industry (Intake criterion)</div>
+            <div
+              style={valueStyle}
+              data-crm-industry-status={
+                industryHydration.criterionSatisfied ? 'satisfied' : 'unresolved'
+              }
+              data-crm-industry-source={industryHydration.source}
+            >
+              {industryHydration.status}
+            </div>
+            {industryHydration.remediation?.kind === 'edit-crm-naics' && (
+              <div style={noteStyle} data-crm-industry-remediation="edit-crm-naics">
+                Fix the NAICS code on the linked CRM company in its governed CRM editor, then
+                re-check. The deal Industry is derived from NAICS — a manual Industry is never
+                overwritten.
+              </div>
+            )}
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => void refreshDealIndustryFromCrm(effectiveClientId)}
+          disabled={industryBusy}
+          style={linkButtonStyle}
+          data-crm-industry-recheck
+          aria-label="Check the CRM-derived Industry for this deal"
+        >
+          {industryBusy
+            ? 'Checking…'
+            : industryHydration
+              ? 'Re-check CRM industry'
+              : 'Check CRM industry'}
+        </button>
+      </div>
+    ) : undefined;
 
   const clientAction = clientMissing ? (
     authorized ? (
@@ -399,6 +508,7 @@ export function DealCrmRelationshipPanel() {
         viewModel={viewModel}
         clientAction={clientAction}
         teamAction={teamAction}
+        industryStatus={industryStatus}
       />
       <CrmRelationshipDetailCards viewModel={viewModel} readiness={readiness} />
       {modal === 'client' && (
@@ -407,18 +517,28 @@ export function DealCrmRelationshipPanel() {
           dealName={deal.name}
           loadOptions={loadClientLinkTargetOptions}
           onLink={(option) => handleLink('client', option)}
-          onLinked={(option, outcome) =>
+          onLinked={(option, outcome) => {
             // Reflect the REAL client the deal now points at. For a bridged CRM
             // company that is the created/found cr664_clientrelationship (its id
             // from the readback-verified link outcome), never the org id.
-            setLinkedClient({
-              id:
-                outcome.kind === 'success' || outcome.kind === 'audit-failed'
-                  ? outcome.entityId
-                  : option.id,
-              name: (outcome.kind === 'success' ? outcome.entityName : option.name) ?? option.name,
-            })
-          }
+            const linked = outcome.kind === 'success' || outcome.kind === 'audit-failed';
+            const entityId = linked ? outcome.entityId : option.id;
+            const entityName =
+              (outcome.kind === 'success' ? outcome.entityName : option.name) ?? option.name;
+            setLinkedClient({ id: entityId, name: entityName });
+            if (linked) {
+              // CORE FIX: the deal now points at this client — refresh the WHOLE
+              // cockpit (header, summary tiles, Intake blocker model, stage map),
+              // not just this panel's local state, using the readback-verified id.
+              applyVerifiedDealPatch?.({
+                clientId: entityId,
+                clientName: entityName,
+              } as Partial<DealDetail>);
+              // Auto-hydrate the governed Industry from the linked company's NAICS
+              // so the banker need not re-enter it when CRM already classifies it.
+              void refreshDealIndustryFromCrm(entityId);
+            }
+          }}
           onClose={() => setModal(null)}
         />
       )}
@@ -455,6 +575,14 @@ const readOnlyNoteStyle: CSSProperties = {
   fontSize: typography.size.xs,
   color: palette.textSubtle,
   fontStyle: 'italic',
+};
+
+const industryStatusStyle: CSSProperties = {
+  marginTop: spacing.xs,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
+  alignItems: 'flex-start',
 };
 
 const bannerStyle: CSSProperties = {
