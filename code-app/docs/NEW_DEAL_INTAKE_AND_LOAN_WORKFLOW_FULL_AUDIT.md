@@ -249,6 +249,64 @@ the document-checklist table); flagged for a future phase.
 
 ---
 
+## 4. Follow-up pass — resolution of the 7 items in §2 (2026-07-13)
+
+All 7 items above were revisited and either fixed or confirmed genuinely un-fixable in code.
+
+- **§2.1 (`GOVERNED_WRITES` registration)** — **Fixed.** `deal-stage-advance` is registered with
+  a `legacyDisciplineExempt: true` flag (added to `GovernedWriteEntry`) after tracing the real
+  correlation-id/audit/timeline code paths and confirming the write's architecture predates and
+  structurally deviates from the older Phase 46/47/49/50 discipline conventions those sweeps
+  check — an honest exemption, not a forced/fake match. All 9 affected discipline tests and
+  hardcoded `GOVERNED_WRITES.length` citations updated (13 → 14).
+- **§2.2 (write seam enforces only the shallow legacy gate)** — **Fixed.**
+  `stageAdvanceWriteDependency.ts` now accepts optional `facts: WorkflowRequirementFacts` and,
+  when supplied, re-checks `evaluateStageExitPolicy`/`deriveStageExitReadiness` at the write seam
+  itself — not just in the UI's button-enable check. Backward compatible (no `facts` = prior
+  behavior, unchanged for any caller not yet updated).
+- **§2.3 (Phase 142C routing engine unreachable + amount-tier policy contradiction)** —
+  **Fixed, single-approver.** The amount-tier committee rules (`rule_credit_committee_required`,
+  `rule_executive_visibility`) and the independent amount-based committee escalation in
+  `deriveCreditCommitteeRoute.ts` were removed so the engine matches the ratified single-approver
+  policy (`approvalAuthorityMatrix.ts`) — a committee is now only in play when a rule's
+  `committeePolicy` explicitly says so (covenant exception, construction/project-based), never
+  from loan amount alone. The engine is now mounted live in `BankerDealWorkspace.tsx` via a new
+  `DealWorkflowRoutingPanel.tsx` + a conservative `buildWorkflowRoutingInputFromDeal.ts` mapper
+  (free-text `productType` maps to the engine's closed taxonomy only on an unambiguous keyword
+  match, else `'unknown'` — never guessed). `App.tsx` still never references the engine directly,
+  preserving the existing governance assertion.
+- **§2.4 (four independent blocked/at-risk derivations)** — **Partially unified.**
+  `DealBlockers.tsx` (the Attention Console) now also runs `deriveDealBlockerModelForStage` (the
+  same authoritative model `DealMetricDeck` uses) and folds its hard blockers in as
+  `"Stage exit: …"` signals, so a real stage-exit blocker can no longer show a clean Attention
+  Console next to a Metric Deck correctly reporting one. `AtRiskBlockedDeals.tsx` /
+  `SharedActiveDeals.tsx` / `teamQueries.ts` were deliberately left alone — they run team-wide
+  pipeline queries with no per-deal task/document/creditMemo loaded, so routing them through the
+  same model would require a real N+1 data-loading redesign, not a mechanical fix.
+- **§2.5 (deep facts absent from the schema)** — **Confirmed, no code action exists.**
+  Re-verified against `underwritingDeepFacts.ts` and `docs/LOS_WORKFLOW_TRUTH_MATRIX.md`: the
+  risk-rating and underwriting-recommendation *policy models* are already fully built and tested
+  (`evaluateRiskRatingReadiness`, `evaluateUnderwritingRecommendationReadiness`) and will flip
+  live automatically the moment a real backing record exists — but no Dataverse table for either
+  concept exists today (not even an unused reference table), and approval-authority/commitment/
+  closing/funding/boarding facts are the same. Building the backing schema is an operator/admin
+  action in Power Platform, and fabricating a fake loader against a non-existent table would
+  violate this codebase's fail-closed "never fabricate" discipline everywhere else. No change
+  made; §2.5 stands as accurately documented, not as unfinished work.
+- **§2.7 (document matching is name-substring)** — **Confirmed, no code action exists.** The
+  `cr664_documentchecklist` table has no typed business-category key column — only a free-text
+  name — so `evaluateDocumentRequirement`'s substring match is already the most precise mechanism
+  the current schema supports (and it already upgrades the legacy check by typing the
+  received-vs-reviewed *status*, which is the part that actually gates the transition). A
+  heuristic tweak to the matching itself would add real regression risk to a compliance-critical
+  document gate for no verifiable precision gain, and would not remove the fundamental ambiguity
+  a schema key would resolve. No change made; §2.7 stands as accurately documented.
+
+Full verify (`tsc -b` + `vitest run` + reachability audit + `vite build`) is green after each
+fix, most recently: 810 test files / 11511 tests passed, 2 skipped, 0 unexpected orphans.
+
+---
+
 ## 3. Verification
 
 Every fix in §1 is covered by a new or corrected automated test exercising the real code path
