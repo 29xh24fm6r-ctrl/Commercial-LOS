@@ -2,6 +2,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { advanceWorkflowStage, type StageAdvanceInput } from './stageAdvanceWriteDependency';
 import type { LoanWorkflowState } from './loanWorkflowTypes';
+import type { WorkflowRequirementFacts } from './loanWorkflowRequirementEngine';
+import type { DealDetail } from '../deals/dealQueries';
 
 /** Minimal workflow state the stage policy reads (cast to the full type for the test). */
 function workflow(over: { status?: 'blocked' | 'at-risk' | 'clear'; nextIds?: string[]; blockers?: string[] } = {}): LoanWorkflowState {
@@ -122,5 +124,67 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
 
   it('missing transport/sinks → dependency_not_ready', async () => {
     expect((await advanceWorkflowStage(input({ transport: undefined }))).kind).toBe('dependency_not_ready');
+  });
+});
+
+describe('ARC Phase 3 — the write seam re-checks the stricter requirement engine when facts are supplied', () => {
+  const intakeDeal: DealDetail = {
+    id: 'deal-1', name: 'Test Deal', clientName: 'Test Client', stage: 'Intake', status: 'Active',
+    amount: 500_000, bankerName: 'Banker', targetCloseDate: '2026-09-01T00:00:00Z', productType: 'Term Loan',
+    loanStructure: 'Senior Secured', customerType: 'C&I', industry: 'Manufacturing', guarantorStructure: undefined,
+    pricingType: undefined, spreadIndex: undefined, spreadMargin: undefined, collateralSummary: undefined,
+    createdOn: undefined, stageEntryDate: '2026-06-01T00:00:00Z', isClosed: false,
+  };
+  const emptyFacts: WorkflowRequirementFacts = {
+    deal: intakeDeal,
+    tasks: { open: [], completed: [] },
+    documents: { outstanding: [], received: [], reviewed: [] },
+    creditMemo: { memos: [], sections: [] },
+  };
+
+  it('the legacy policy alone would allow it, but the engine blocks on a missing required document — the write is refused', async () => {
+    // The hand-built `workflow()` fixture's legacy readiness is 'clear' (would have allowed the
+    // write pre-Phase-3), but real facts show INTAKE's required "Loan application" document is
+    // missing — the engine must catch what the legacy gate alone would have missed.
+    const upd = vi.fn(async () => ({ ok: true }));
+    const out = await advanceWorkflowStage(
+      input({
+        facts: emptyFacts,
+        transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
+      }),
+    );
+    expect(out.kind).toBe('blocked');
+    if (out.kind === 'blocked') {
+      expect(out.blockers.join(' ')).toMatch(/loan application/i);
+    }
+    expect(upd).not.toHaveBeenCalled();
+  });
+
+  it('facts satisfy the engine → the write proceeds as normal', async () => {
+    const satisfiedFacts: WorkflowRequirementFacts = {
+      ...emptyFacts,
+      documents: {
+        outstanding: [],
+        received: [
+          {
+            id: 'd1', name: 'Loan Application', dueDate: undefined, requestDate: undefined,
+            receivedDate: '2026-06-02T00:00:00Z', reviewer: undefined, uploaded: true, modifiedOn: undefined,
+            status: 'received',
+          },
+        ],
+        reviewed: [],
+      },
+    };
+    const upd = vi.fn(async () => ({ ok: true }));
+    const out = await advanceWorkflowStage(input({ facts: satisfiedFacts, transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) } }));
+    expect(out.kind).toBe('advanced');
+    expect(upd).toHaveBeenCalledTimes(1);
+  });
+
+  it('no facts supplied (legacy caller) → behaves exactly as before, no engine check applied', async () => {
+    const upd = vi.fn(async () => ({ ok: true }));
+    const out = await advanceWorkflowStage(input({ transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) } }));
+    expect(out.kind).toBe('advanced');
+    expect(upd).toHaveBeenCalledTimes(1);
   });
 });
