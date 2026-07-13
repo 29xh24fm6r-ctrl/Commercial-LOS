@@ -35,6 +35,20 @@ describe('deriveLoanSignals — individual rules', () => {
     expect(deriveLoanSignals(loan({ ddaBalanceDeclinePct: 30 })).some((s) => s.type === 'dda_decline')).toBe(true);
     expect(deriveLoanSignals(loan({ overdraftCount: 4 })).some((s) => s.type === 'overdraft')).toBe(true);
   });
+
+  it('Phase 264 (P3) — tiers the concentration-exposure signal by share of total portfolio exposure', () => {
+    expect(deriveLoanSignals(loan({ concentrationSharePct: 12 }))[0]).toMatchObject({ type: 'concentration_exposure', score: 50 });
+    expect(deriveLoanSignals(loan({ concentrationSharePct: 6 }))[0]).toMatchObject({ type: 'concentration_exposure', score: 30 });
+    expect(deriveLoanSignals(loan({ concentrationSharePct: 3 }))[0]).toMatchObject({ type: 'concentration_exposure', score: 15 });
+    expect(deriveLoanSignals(loan({ concentrationSharePct: 1 }))).toHaveLength(0);
+  });
+
+  it('Phase 264 (P3) — fires the stress-sensitivity signal only for moderate/high, never low', () => {
+    expect(deriveLoanSignals(loan({ stressSensitivity: 'high' }))[0]).toMatchObject({ type: 'stress_sensitivity', score: 55 });
+    expect(deriveLoanSignals(loan({ stressSensitivity: 'moderate' }))[0]).toMatchObject({ type: 'stress_sensitivity', score: 30 });
+    expect(deriveLoanSignals(loan({ stressSensitivity: 'low' }))).toHaveLength(0);
+    expect(deriveLoanSignals(loan({}))).toHaveLength(0);
+  });
 });
 
 describe('deriveEarlyWarningQueue — dedup, scoring, priority, SLA', () => {
@@ -59,6 +73,16 @@ describe('deriveEarlyWarningQueue — dedup, scoring, priority, SLA', () => {
     expect(q.alerts.map((a) => a.loanId)).toEqual(['crit', 'high']);
     expect(q.criticalCount).toBe(1);
     expect(q.highCount).toBe(1);
+  });
+
+  it('Phase 264 (P3) — folds concentration + stress-sensitivity into the SAME composite score as the other signals', () => {
+    const q = deriveEarlyWarningQueue([
+      loan({ loanId: 'A', pastDueDays: 95, concentrationSharePct: 12, stressSensitivity: 'high' }),
+    ]);
+    const a = q.alerts[0];
+    expect(a.signals.length).toBe(3);
+    expect(a.score).toBe(205); // 100 (past_due) + 50 (concentration) + 55 (stress)
+    expect(a.priority).toBe('critical');
   });
 
   it('rolls up signal counts by type', () => {

@@ -1,12 +1,19 @@
 /**
  * Phase PE-10 — Early-warning engine.
+ * Phase 264 (P3) — adds portfolio-level concentration + stress-sensitivity signals.
  *
  * A PURE, deterministic engine that scores per-loan risk signals — past-due
  * trend, covenant trending to breach (PE-9), rating downgrade (PE-5), stale
  * financials / ticklers (PE-6), maturity approaching without renewal, deposit
- * decline / overdrafts, and sector stress — then dedups them into one prioritized
- * alert per loan with an SLA and assignment. This is the "what needs me now"
- * work queue for the booked book.
+ * decline / overdrafts, sector stress, this loan's share of total portfolio
+ * exposure, and stress-test sensitivity (Phase 264) — then dedups them into
+ * one prioritized alert per loan with an SLA and assignment. This is the
+ * "what needs me now" work queue for the booked book.
+ *
+ * This is a HEURISTIC composite score (signal scores summed), not a trained
+ * predictive model — there is no historical loss/default dataset in this
+ * system to train one on, and fabricating one would violate this codebase's
+ * no-fabrication discipline. Every signal traces to a concrete, named input.
  *
  * Discipline: pure, no IO, no clock (caller passes `now`). A signal fires only on
  * real supplied evidence; nothing is fabricated.
@@ -21,10 +28,20 @@ export type SignalType =
   | 'maturity_no_renewal'
   | 'dda_decline'
   | 'overdraft'
-  | 'sector_stress';
+  | 'sector_stress'
+  | 'concentration_exposure'
+  | 'stress_sensitivity';
 
-export type SignalCategory = 'delinquency' | 'covenant' | 'rating' | 'documentation' | 'maturity' | 'deposit' | 'sector';
+export type SignalCategory = 'delinquency' | 'covenant' | 'rating' | 'documentation' | 'maturity' | 'deposit' | 'sector' | 'concentration' | 'stress';
 export type SignalPriority = 'critical' | 'high' | 'medium' | 'low';
+
+/**
+ * Phase 264 (P3) — a stress-test engine's pre-computed sensitivity classification
+ * for this loan (e.g. from a rate/NOI/collateral shock scenario). Decoupled by
+ * design: this module takes a plain enum, not a stress-test engine's types, so
+ * the two subsystems stay independent.
+ */
+export type StressSensitivity = 'low' | 'moderate' | 'high';
 
 export interface EarlyWarningInput {
   readonly loanId: string;
@@ -42,6 +59,10 @@ export interface EarlyWarningInput {
   readonly overdraftCount?: number;
   readonly sectorStress?: boolean;
   readonly sector?: string;
+  /** Phase 264 (P3) — this loan's share of total portfolio exposure (0-100). */
+  readonly concentrationSharePct?: number;
+  /** Phase 264 (P3) — a stress-test engine's sensitivity classification for this loan. */
+  readonly stressSensitivity?: StressSensitivity;
 }
 
 export interface EarlyWarningSignal {
@@ -130,6 +151,14 @@ export function deriveLoanSignals(input: EarlyWarningInput): readonly EarlyWarni
   else if (od >= 1) out.push(signal('overdraft', 'deposit', 20, `${od} recent overdraft(s)`));
 
   if (input.sectorStress) out.push(signal('sector_stress', 'sector', 30, `Sector stress${input.sector ? `: ${input.sector}` : ''}`));
+
+  const share = num(input.concentrationSharePct);
+  if (share >= 10) out.push(signal('concentration_exposure', 'concentration', 50, `${share}% of total portfolio exposure`));
+  else if (share >= 5) out.push(signal('concentration_exposure', 'concentration', 30, `${share}% of total portfolio exposure`));
+  else if (share >= 2) out.push(signal('concentration_exposure', 'concentration', 15, `${share}% of total portfolio exposure`));
+
+  if (input.stressSensitivity === 'high') out.push(signal('stress_sensitivity', 'stress', 55, 'High sensitivity to stress-test scenario'));
+  else if (input.stressSensitivity === 'moderate') out.push(signal('stress_sensitivity', 'stress', 30, 'Moderate sensitivity to stress-test scenario'));
 
   return out.sort((a, b) => b.score - a.score);
 }
