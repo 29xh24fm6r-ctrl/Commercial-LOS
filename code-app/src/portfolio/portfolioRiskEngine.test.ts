@@ -6,6 +6,11 @@ import { derivePortfolioCommandSnapshot } from './portfolioCommandSnapshot';
 import {
   derivePortfolioRiskSnapshot,
   portfolioRiskCopilotSummaries,
+  DEFAULT_SINGLE_NAME_PCT_BANDS,
+  DEFAULT_GROUP_PCT_BANDS,
+  DEFAULT_SEGMENT_PCT_BANDS,
+  DEFAULT_RATIO_PCT_BANDS,
+  type PortfolioRiskBandCutpoints,
 } from './portfolioRiskEngine';
 import type {
   TeamDeal,
@@ -82,6 +87,10 @@ function riskFrom(opts: {
   teamTasks?: TeamScopedTask[];
   teamDocuments?: TeamScopedDocument[];
   threshold?: number;
+  singleNamePctBands?: PortfolioRiskBandCutpoints;
+  groupPctBands?: PortfolioRiskBandCutpoints;
+  segmentPctBands?: PortfolioRiskBandCutpoints;
+  ratioPctBands?: PortfolioRiskBandCutpoints;
 }) {
   const command = derivePortfolioCommandSnapshot({
     teamPipeline: opts.teamPipeline ?? [],
@@ -93,6 +102,10 @@ function riskFrom(opts: {
   return derivePortfolioRiskSnapshot(command, {
     now: NOW,
     threshold: opts.threshold,
+    singleNamePctBands: opts.singleNamePctBands,
+    groupPctBands: opts.groupPctBands,
+    segmentPctBands: opts.segmentPctBands,
+    ratioPctBands: opts.ratioPctBands,
   });
 }
 
@@ -190,6 +203,86 @@ describe('Phase 132A — concentration', () => {
     });
     expect(spread.concentration.singleNamePct).toBe(5);
     expect(spread.concentration.singleNameBand).toBe('low');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 264 (P2) — institution-configurable band cut-points
+// ---------------------------------------------------------------------------
+
+describe('Phase 264 (P2) — institution-configurable band cut-points', () => {
+  const CONCENTRATED_PIPELINE = [
+    deal({ id: 'a', clientName: 'Alpha', amount: 5_000_000 }),
+    deal({ id: 'b', clientName: 'Beta', amount: 3_000_000 }),
+    deal({ id: 'c', clientName: 'Gamma', amount: 2_000_000 }),
+  ];
+
+  it('defaults are unchanged when no override is supplied (back-compat)', () => {
+    const r = riskFrom({ teamPipeline: CONCENTRATED_PIPELINE });
+    expect(r.concentration.singleNameBand).toBe('high'); // 50% >= default highAt 35
+  });
+
+  it('a bank can raise its single-name tolerance so the same 50% share is no longer "high"', () => {
+    const relaxed = riskFrom({
+      teamPipeline: CONCENTRATED_PIPELINE,
+      singleNamePctBands: [20, 40, 60], // highAt raised from 35 to 60
+    });
+    expect(relaxed.concentration.singleNamePct).toBe(50);
+    expect(relaxed.concentration.singleNameBand).toBe('elevated'); // 50 >= 40, < 60
+  });
+
+  it('a bank can tighten its single-name tolerance so a lower share becomes "high"', () => {
+    const strict = riskFrom({
+      teamPipeline: CONCENTRATED_PIPELINE,
+      singleNamePctBands: [5, 10, 20], // highAt lowered from 35 to 20
+    });
+    expect(strict.concentration.singleNamePct).toBe(50);
+    expect(strict.concentration.singleNameBand).toBe('high');
+  });
+
+  it('groupPctBands overrides the top-5 concentration band independently of singleNamePctBands', () => {
+    const r = riskFrom({
+      teamPipeline: CONCENTRATED_PIPELINE,
+      groupPctBands: [90, 95, 99], // top5Pct of 100 is still >= 99, so still "high" here...
+    });
+    expect(r.concentration.top5Pct).toBe(100);
+    expect(r.concentration.top5Band).toBe('high');
+
+    const relaxed = riskFrom({
+      teamPipeline: CONCENTRATED_PIPELINE,
+      groupPctBands: [40, 60, 101], // ...but an implausibly high highAt keeps it out of "high"
+    });
+    expect(relaxed.concentration.top5Band).toBe('elevated');
+  });
+
+  it('segmentPctBands overrides product AND banker concentration bands together', () => {
+    const r = riskFrom({
+      teamPipeline: [
+        deal({ id: 'a', productType: 'SBA 7(a)', amount: 1_000_000 }),
+        deal({ id: 'b', productType: 'SBA 7(a)', amount: 1_000_000 }),
+      ],
+      segmentPctBands: [1, 2, 3], // trivially low cut-points force "high"
+    });
+    expect(r.concentration.topProductBand).toBe('high');
+    expect(r.concentration.topBankerBand).toBe('high');
+  });
+
+  it('ratioPctBands overrides the operational AND data-quality bands together', () => {
+    // Deals stale in their current stage (> 30 days) classify as "at-risk",
+    // which is exactly what operationalRatio counts.
+    const pipeline = Array.from({ length: 10 }, (_, i) =>
+      deal({ id: `d${i}`, stageEntryDate: i < 2 ? isoDaysAgo(45) : isoDaysAgo(1) }),
+    );
+    const strict = riskFrom({ teamPipeline: pipeline, ratioPctBands: [1, 2, 3] });
+    expect(strict.operational.atRiskDealCount).toBeGreaterThan(0);
+    expect(strict.operational.operationalBand).toBe('high');
+  });
+
+  it('exports the current defaults so a caller can start from them and override just one band', () => {
+    expect(DEFAULT_SINGLE_NAME_PCT_BANDS).toEqual([10, 20, 35]);
+    expect(DEFAULT_GROUP_PCT_BANDS).toEqual([40, 60, 80]);
+    expect(DEFAULT_SEGMENT_PCT_BANDS).toEqual([25, 40, 60]);
+    expect(DEFAULT_RATIO_PCT_BANDS).toEqual([10, 25, 40]);
   });
 });
 

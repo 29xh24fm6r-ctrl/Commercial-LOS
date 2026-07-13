@@ -46,6 +46,22 @@ export const PORTFOLIO_RISK_DIMENSION_LABELS = {
 /** Internal operational threshold above which a single deal is "large". */
 export const PORTFOLIO_LARGE_EXPOSURE_THRESHOLD = 5_000_000;
 
+/**
+ * Phase 264 (P2) — institution-configurable band cut-points. These were
+ * previously hardcoded module constants; every bank's real single-name/
+ * group/product/banker concentration tolerance differs, so a bank must be
+ * able to tune them without a code change. The values below remain the
+ * DEFAULTS (unchanged behavior for any caller that doesn't override them) —
+ * see `PortfolioRiskSnapshotOptions` for the override seam, mirroring how
+ * `threshold` already worked.
+ */
+export type PortfolioRiskBandCutpoints = readonly [watchAt: number, elevatedAt: number, highAt: number];
+
+export const DEFAULT_SINGLE_NAME_PCT_BANDS: PortfolioRiskBandCutpoints = [10, 20, 35];
+export const DEFAULT_GROUP_PCT_BANDS: PortfolioRiskBandCutpoints = [40, 60, 80];
+export const DEFAULT_SEGMENT_PCT_BANDS: PortfolioRiskBandCutpoints = [25, 40, 60];
+export const DEFAULT_RATIO_PCT_BANDS: PortfolioRiskBandCutpoints = [10, 25, 40];
+
 export interface PortfolioExposureStat {
   totalExposure: number;
   /** Mean over deals with a populated amount; undefined when none. */
@@ -151,16 +167,17 @@ export interface PortfolioRiskSnapshotOptions {
   threshold?: number;
   /** Cap on the byClient list. Default 8. */
   topClientN?: number;
+  /** Phase 264 (P2) — institution override for the single-name concentration bands. Default [10, 20, 35]. */
+  singleNamePctBands?: PortfolioRiskBandCutpoints;
+  /** Institution override for the top-5/group concentration bands. Default [40, 60, 80]. */
+  groupPctBands?: PortfolioRiskBandCutpoints;
+  /** Institution override for the product/banker segment-concentration bands. Default [25, 40, 60]. */
+  segmentPctBands?: PortfolioRiskBandCutpoints;
+  /** Institution override for the operational/data-quality ratio bands. Default [10, 25, 40]. */
+  ratioPctBands?: PortfolioRiskBandCutpoints;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-// Internal, non-regulatory band thresholds. Each profile lists the
-// [watchAt, elevatedAt, highAt] cut points (percent, inclusive lower).
-const SINGLE_NAME_PCT = [10, 20, 35] as const;
-const GROUP_PCT = [40, 60, 80] as const;
-const SEGMENT_PCT = [25, 40, 60] as const;
-const RATIO_PCT = [10, 25, 40] as const;
 
 // ---------------------------------------------------------------------------
 // Public deriver
@@ -173,6 +190,10 @@ export function derivePortfolioRiskSnapshot(
   const now = options.now ?? new Date();
   const threshold = options.threshold ?? PORTFOLIO_LARGE_EXPOSURE_THRESHOLD;
   const topClientN = options.topClientN ?? 8;
+  const singleNamePctBands = options.singleNamePctBands ?? DEFAULT_SINGLE_NAME_PCT_BANDS;
+  const groupPctBands = options.groupPctBands ?? DEFAULT_GROUP_PCT_BANDS;
+  const segmentPctBands = options.segmentPctBands ?? DEFAULT_SEGMENT_PCT_BANDS;
+  const ratioPctBands = options.ratioPctBands ?? DEFAULT_RATIO_PCT_BANDS;
   const rows = command.vmRows;
   const totalExposure = command.commandRibbon.totalExposure;
 
@@ -182,9 +203,12 @@ export function derivePortfolioRiskSnapshot(
     command,
     totalExposure,
     topClientN,
+    singleNamePctBands,
+    groupPctBands,
+    segmentPctBands,
   );
   const maturityLadder = deriveMaturityLadder(rows, now);
-  const operational = deriveOperationalStat(rows, command);
+  const operational = deriveOperationalStat(rows, command, ratioPctBands);
   const findings = deriveFindings({
     rows,
     command,
@@ -258,6 +282,9 @@ function deriveConcentrationStat(
   command: PortfolioCommandSnapshot,
   totalExposure: number,
   topClientN: number,
+  singleNamePctBands: PortfolioRiskBandCutpoints,
+  groupPctBands: PortfolioRiskBandCutpoints,
+  segmentPctBands: PortfolioRiskBandCutpoints,
 ): PortfolioConcentrationStat {
   const byClient = buildClientConcentration(rows, totalExposure);
   const topClients = byClient.filter((c) => !c.isUnknown);
@@ -274,15 +301,15 @@ function deriveConcentrationStat(
   return {
     singleNamePct,
     singleNameClient: singleName?.label,
-    singleNameBand: classifyBand(singleNamePct, SINGLE_NAME_PCT),
+    singleNameBand: classifyBand(singleNamePct, singleNamePctBands),
     top5Pct,
-    top5Band: classifyBand(top5Pct, GROUP_PCT),
+    top5Band: classifyBand(top5Pct, groupPctBands),
     topProductPct: topProduct?.sharePct ?? 0,
     topProductLabel: topProduct?.label,
-    topProductBand: classifyBand(topProduct?.sharePct ?? 0, SEGMENT_PCT),
+    topProductBand: classifyBand(topProduct?.sharePct ?? 0, segmentPctBands),
     topBankerPct: topBanker?.sharePct ?? 0,
     topBankerLabel: topBanker?.label,
-    topBankerBand: classifyBand(topBanker?.sharePct ?? 0, SEGMENT_PCT),
+    topBankerBand: classifyBand(topBanker?.sharePct ?? 0, segmentPctBands),
     byClient: byClient.slice(0, Math.max(0, topClientN)),
   };
 }
@@ -392,6 +419,7 @@ function deriveMaturityLadder(
 function deriveOperationalStat(
   rows: ReadonlyArray<ManagerVMRow>,
   command: PortfolioCommandSnapshot,
+  ratioPctBands: PortfolioRiskBandCutpoints,
 ): PortfolioOperationalStat {
   const ribbon = command.commandRibbon;
   const active = ribbon.activeDealCount;
@@ -418,8 +446,8 @@ function deriveOperationalStat(
     taskBottleneckDealCount,
     outstandingDocumentCount: ribbon.outstandingDocumentCount,
     openTaskCount: ribbon.openTaskCount,
-    operationalBand: classifyBand(operationalRatio, RATIO_PCT),
-    dataQualityBand: classifyBand(dataQualityRatio, RATIO_PCT),
+    operationalBand: classifyBand(operationalRatio, ratioPctBands),
+    dataQualityBand: classifyBand(dataQualityRatio, ratioPctBands),
     closingPressureBand: classifyClosingPressure(rows),
   };
 }
@@ -668,7 +696,7 @@ function bandToSeverity(band: PortfolioBand): PortfolioFindingSeverity {
 /** value < watchAt → low; < elevatedAt → watch; < highAt → elevated; else high. */
 function classifyBand(
   value: number,
-  [watchAt, elevatedAt, highAt]: readonly [number, number, number],
+  [watchAt, elevatedAt, highAt]: PortfolioRiskBandCutpoints,
 ): PortfolioBand {
   if (value >= highAt) return 'high';
   if (value >= elevatedAt) return 'elevated';
