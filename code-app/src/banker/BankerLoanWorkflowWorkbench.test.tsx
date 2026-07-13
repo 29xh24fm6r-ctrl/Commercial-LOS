@@ -101,6 +101,23 @@ describe('Phase 260 — BankerLoanWorkflowWorkbench (elite)', () => {
     expect(container.querySelector('[data-loan-row="deal-new"]')).not.toBeNull();
   });
 
+  it('typing into search never crashes on a deal with a null/empty name (same class as the Phase 261 null-hardening bugs)', async () => {
+    const withNullNamedDeal: BankerWorkQueueData = {
+      ...data(),
+      deals: [
+        ...data().deals,
+        { id: 'deal-null-name', name: null, clientName: null, stage: 'Intake', status: 'Open', amount: undefined, targetCloseDate: undefined, lastActivityOn: undefined, stageEntryDate: undefined, createdOn: '2026-06-26T11:00:00Z', isClosed: false, collateralSummary: undefined } as unknown as BankerWorkQueueData['deals'][number],
+      ],
+    };
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { container } = await renderWorkbench(withNullNamedDeal);
+    const user = userEvent.setup();
+    await user.type(container.querySelector('[data-loan-search]') as HTMLElement, 'acme');
+    expect(container.querySelector('[data-error-boundary]')).toBeNull();
+    expect(container.querySelector('[data-loan-row="deal-new"]')).not.toBeNull();
+    errSpy.mockRestore();
+  });
+
   it('Portfolio Boarding card and Add Existing Loan invoke the existing-loans action', async () => {
     const { container } = await renderWorkbench();
     const user = userEvent.setup();

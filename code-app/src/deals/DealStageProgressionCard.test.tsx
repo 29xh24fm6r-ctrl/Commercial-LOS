@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { DealDetail } from './dealQueries';
 import type { DealTasksResult } from './dealTaskQueries';
 import type { DealDocumentsResult } from './dealDocumentQueries';
@@ -12,6 +13,20 @@ import type { TimelineEvent } from './activityQueries';
 // directly so the card can mount in isolation.
 vi.mock('./DealDataProvider', () => ({
   useDealData: vi.fn(),
+}));
+
+// A real advance write goes through the SDK-backed transport/audit/timeline
+// sinks; stub the write itself so the click-through regression test below
+// stays hermetic while still exercising the real onAdvance/context-patch code.
+vi.mock('../workflow/stageAdvanceWriteDependency', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../workflow/stageAdvanceWriteDependency')>();
+  return {
+    ...actual,
+    advanceWorkflowStage: vi.fn(async () => ({ kind: 'advanced' as const, from: 'INTAKE' as const, to: 'UNDERWRITING' as const })),
+  };
+});
+vi.mock('./generateDestinationStageWork', () => ({
+  generateDestinationStageWork: vi.fn(async () => ({ stageCode: 'UNDERWRITING', created: [], skipped: [], failed: [] })),
 }));
 
 import { useDealData, type DealData } from './DealDataProvider';
@@ -197,5 +212,41 @@ describe('DealStageProgressionCard — governed advance flow (armed + seeded + a
     expect(screen.getByText(/Recommended before advancing to Underwriting/i)).toBeInTheDocument();
     // No blocked-severity requirement remains.
     expect(document.querySelector('[data-req-severity="blocked"]')).toBeNull();
+  });
+
+  it('a verified advance patches the shared deal context with the new stage — the whole cockpit must not keep showing the pre-advance stage', async () => {
+    const documents: DealDocumentsResult = {
+      outstanding: [],
+      received: [
+        {
+          id: 'd1',
+          name: 'Loan Application',
+          dueDate: undefined,
+          requestDate: undefined,
+          receivedDate: '2026-07-01T00:00:00Z',
+          reviewer: undefined,
+          uploaded: true,
+          modifiedOn: undefined,
+          status: 'received',
+        },
+      ],
+      reviewed: [],
+    };
+    const applyVerifiedDealPatch = vi.fn();
+    useDealDataMock.mockReturnValue({ ...intakeDealData({ documents }), applyVerifiedDealPatch });
+    render(
+      <DealStageProgressionCard
+        stageAdvanceActor={{ systemUserId: 'sysuser-1', email: 'banker@oldglorybank.com' }}
+        loadAvailability={AVAILABLE}
+      />,
+    );
+    const btn = await screen.findByRole('button', { name: /Advance to Underwriting/i });
+    expect(btn).toBeEnabled();
+    await userEvent.click(btn);
+    await waitFor(() =>
+      expect(applyVerifiedDealPatch).toHaveBeenCalledWith(
+        expect.objectContaining({ stage: 'Underwriting', stageEntryDate: expect.any(String) }),
+      ),
+    );
   });
 });
