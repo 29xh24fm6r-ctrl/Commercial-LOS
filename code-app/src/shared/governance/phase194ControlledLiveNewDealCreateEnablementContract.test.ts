@@ -138,10 +138,16 @@ describe('194 — create path requires a certified actor + context', () => {
     expect(NEW_DEAL_SURFACE).toMatch(/canSubmit =\s*\n?\s*live &&/);
   });
 
-  it('the create surface disables downstream automation (no checklist generation triggered)', () => {
-    // The banker create passes an empty automation config → no downstream module runs
-    // from the create surface even though generation reset to safe default off platform-wide.
-    expect(NEW_DEAL_SURFACE).toMatch(/config:\s*\{\}/);
+  it('the create surface disables downstream WRITE automation (no checklist generation triggered)', () => {
+    // The banker create's config enables ONLY duplicateDetectionEnabled — a pure, read-only,
+    // warning-only pre-create check (no IO, never blocks unless policy says an exact duplicate
+    // blocks, which this surface does not set). Every downstream WRITE module (CRM link, borrower
+    // invite, stage advance, task generation, checklist generation, portfolio side effects,
+    // borrower messaging) stays disabled — this pins that no OTHER automation key is ever set.
+    expect(NEW_DEAL_SURFACE).toMatch(/config:\s*\{\s*duplicateDetectionEnabled:\s*true\s*\}/);
+    expect(NEW_DEAL_SURFACE).not.toMatch(
+      /config:\s*\{[^}]*(bankerCreateEnabled|crmAutomationEnabled|borrowerInviteMode|autoStageAdvanceEnabled|taskGenerationEnabled|documentChecklistEnabled|portfolioSideEffectsEnabled|borrowerMessagingMode|borrowerEmailTransportEnabled|borrowerSmsTransportEnabled|borrowerTwilioTransportEnabled|duplicateMergeApplyEnabled)/,
+    );
     expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
   });
 });

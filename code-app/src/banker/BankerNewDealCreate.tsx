@@ -22,6 +22,7 @@ import {
   type CrmLinkOption,
 } from '../crm/dealCrmLinkOptions';
 import type { DealOriginationResult } from '../deals/dealOriginationOutcomes';
+import type { ExistingDealSignal } from '../deals/newDealDuplicateDetection';
 
 /**
  * Phase — CRM-first New Deal create.
@@ -83,6 +84,9 @@ export function BankerNewDealCreate() {
   const [clients, setClients] = useState<OptionsState>({ kind: 'loading' });
   const [teams, setTeams] = useState<OptionsState>({ kind: 'loading' });
   const [submit, setSubmit] = useState<SubmitState>({ kind: 'idle' });
+  // Loaded so pre-create duplicate detection (warning-only, never blocks by
+  // default) has real candidates to compare against instead of an empty set.
+  const [existingDeals, setExistingDeals] = useState<readonly ExistingDealSignal[]>([]);
 
   const bankerAuthorized = Boolean(systemUserId) && !writeDisabledReason;
   const rollout = useMemo<BankerCreateRolloutState>(
@@ -119,10 +123,32 @@ export function BankerNewDealCreate() {
       .catch((err: unknown) =>
         alive && setTeams({ kind: 'error', message: err instanceof Error ? err.message : String(err) }),
       );
+    // Best-effort: duplicate detection degrades to "no candidates" (never
+    // blocks, never throws into the create flow) if this read fails. Dynamic
+    // import keeps the static graph SDK-free, matching the submit path below.
+    if (bankerId) {
+      import('./dealQueries')
+        .then(({ loadBankerPipeline }) => loadBankerPipeline(bankerId))
+        .then(
+          (deals) =>
+            alive &&
+            setExistingDeals(
+              deals.map((d) => ({
+                dealId: d.id,
+                dealName: d.name,
+                clientName: d.clientName,
+                bankerId,
+                amount: d.amount,
+                createdDateMs: d.createdOn ? Date.parse(d.createdOn) : undefined,
+              })),
+            ),
+        )
+        .catch(() => undefined);
+    }
     return () => {
       alive = false;
     };
-  }, [live]);
+  }, [live, bankerId]);
 
   const clientRelationshipsExist = clients.kind === 'ready' && clients.options.length > 0;
   const clientStepSatisfied =
@@ -158,8 +184,11 @@ export function BankerNewDealCreate() {
             existingClientId: selectedClient?.id,
             existingTeamId: selectedTeam?.id,
           },
-          // Downstream automations all disabled this pilot.
-          config: {},
+          // Downstream write automations all disabled this pilot. Duplicate
+          // detection is a warning-only pre-create check (never writes, never
+          // blocks unless exactDuplicateBlocks is set, which it isn't here) —
+          // safe to run live.
+          config: { duplicateDetectionEnabled: true },
           context: {
             authorized: true,
             stageLabel: 'Intake',
@@ -168,6 +197,7 @@ export function BankerNewDealCreate() {
             requireCrmClient: true,
             allowCreateWithoutClient: NEW_DEAL_ALLOW_CREATE_WITHOUT_CRM_CLIENT,
             clientRelationshipsExist,
+            existingDeals,
           },
         },
         {
@@ -591,17 +621,27 @@ function ResultBanner({ submit }: { submit: SubmitState }) {
     case 'success_created_only':
     case 'success_created_with_automation':
       return (
-        <div style={styles.bannerOk} role="status" data-banker-new-deal-result="success">
-          ✓ Deal created. Id {r.createdDealId}. Stage {r.stageLabel} · Status {r.statusLabel}.{' '}
-          It now appears in your Active Deals and Loan Workflow.{' '}
-          {/* Client-side SPA navigation via react-router (the app's canonical
-              deal-open pattern). A raw <a href> would trigger a full browser
-              navigation to the Power Apps host path and break out of the app
-              shell / hash route. */}
-          <Link to={`/deals/${r.createdDealId}`} style={styles.openDealLink} data-banker-new-deal-open>
-            Open deal →
-          </Link>
-        </div>
+        <>
+          <div style={styles.bannerOk} role="status" data-banker-new-deal-result="success">
+            ✓ Deal created. Id {r.createdDealId}. Stage {r.stageLabel} · Status {r.statusLabel}.{' '}
+            It now appears in your Active Deals and Loan Workflow.{' '}
+            {/* Client-side SPA navigation via react-router (the app's canonical
+                deal-open pattern). A raw <a href> would trigger a full browser
+                navigation to the Power Apps host path and break out of the app
+                shell / hash route. */}
+            <Link to={`/deals/${r.createdDealId}`} style={styles.openDealLink} data-banker-new-deal-open>
+              Open deal →
+            </Link>
+          </div>
+          {(r.duplicateOutcome?.kind === 'exact_duplicate_found' ||
+            r.duplicateOutcome?.kind === 'possible_duplicate_found') && (
+            <div style={styles.bannerWarn} role="alert" data-banker-new-deal-result="duplicate-warning">
+              ⚠ This deal may duplicate an existing one on your pipeline ({r.duplicateOutcome.candidates?.length ?? 0} similar match
+              {(r.duplicateOutcome.candidates?.length ?? 0) === 1 ? '' : 'es'}). The new deal was still created — review
+              your Active Deals to confirm before continuing.
+            </div>
+          )}
+        </>
       );
     case 'client_required':
       return (

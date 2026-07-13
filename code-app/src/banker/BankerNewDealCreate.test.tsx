@@ -29,6 +29,14 @@ vi.mock('../crm/dealCrmLinkOptions', () => ({
   loadTeamOptions: (...a: unknown[]) => loadTeamsMock(...a),
 }));
 
+// Pipeline-deal read for pre-create duplicate-detection candidates. Mocked
+// (rather than left real) because dealQueries.ts statically imports the
+// generated Dataverse SDK service, which vitest/jsdom cannot resolve.
+const loadBankerPipelineMock = vi.fn();
+vi.mock('./dealQueries', () => ({
+  loadBankerPipeline: (...a: unknown[]) => loadBankerPipelineMock(...a),
+}));
+
 import { useBanker } from './BankerContext';
 import { BankerNewDealCreate } from './BankerNewDealCreate';
 
@@ -64,6 +72,7 @@ beforeEach(() => {
   orchestrateMock.mockReset();
   loadClientsMock.mockResolvedValue(CLIENTS);
   loadTeamsMock.mockResolvedValue(TEAMS);
+  loadBankerPipelineMock.mockResolvedValue([]);
 });
 
 /** Drive the flow to a created deal: select client → team → details → submit. */
@@ -148,6 +157,7 @@ describe('Happy path — existing client + team bind and readback via the orches
       stageLabel: 'Intake',
       statusLabel: 'Open',
       userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
     });
     const user = userEvent.setup();
     const { container } = renderCreate();
@@ -159,18 +169,94 @@ describe('Happy path — existing client + team bind and readback via the orches
     expect(screen.getByText(/Deal created\. Id deal-xyz/)).toBeInTheDocument();
     expect(container.querySelector('[data-banker-new-deal-open]')?.getAttribute('href')).toBe('/deals/deal-xyz');
 
-    // Orchestrator called: downstream disabled (config {}), CRM-first gate on,
-    // and the selected client/team carried into the form.
+    // Orchestrator called: downstream write automations disabled, duplicate
+    // detection (warning-only, never writes) on, CRM-first gate on, and the
+    // selected client/team carried into the form.
     const callArg = orchestrateMock.mock.calls[0]![0] as {
       config: unknown;
       form: { dealName: string; existingClientId?: string; existingTeamId?: string };
-      context: { requireCrmClient?: boolean };
+      context: { requireCrmClient?: boolean; existingDeals?: unknown[] };
     };
-    expect(callArg.config).toEqual({});
+    expect(callArg.config).toEqual({ duplicateDetectionEnabled: true });
     expect(callArg.form.dealName).toBe('Acme WC');
     expect(callArg.form.existingClientId).toBe('client-guid-1');
     expect(callArg.form.existingTeamId).toBe('team-guid-1');
     expect(callArg.context.requireCrmClient).toBe(true);
+    expect(callArg.context.existingDeals).toEqual([]);
+  });
+});
+
+describe('Pre-create duplicate detection — real candidates, real warning (not silently inert)', () => {
+  it('loads this banker\'s pipeline deals and carries them into the orchestrator as duplicate-detection candidates', async () => {
+    setBanker();
+    loadBankerPipelineMock.mockResolvedValue([
+      { id: 'deal-existing-1', name: 'Acme WC', clientName: 'Acme Holdings', amount: 500_000, createdOn: '2026-06-01T00:00:00Z' },
+    ]);
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-xyz',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await completeHappyPath(user, container);
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
+    );
+    const callArg = orchestrateMock.mock.calls[0]![0] as {
+      context: { existingDeals?: Array<{ dealId: string; dealName?: string }> };
+    };
+    expect(callArg.context.existingDeals).toEqual([
+      expect.objectContaining({ dealId: 'deal-existing-1', dealName: 'Acme WC' }),
+    ]);
+  });
+
+  it('a possible-duplicate warning from the orchestrator is surfaced to the banker, not silently dropped', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-xyz',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: {
+        module: 'duplicate-detection',
+        kind: 'possible_duplicate_found',
+        detail: 'Possible duplicate(s) found; warning only.',
+        candidates: ['deal-existing-1'],
+      },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await completeHappyPath(user, container);
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="duplicate-warning"]')).not.toBeNull(),
+    );
+    expect(screen.getByText(/may duplicate an existing one/i)).toBeInTheDocument();
+    // The deal is still created — a warning is not a block.
+    expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull();
+  });
+
+  it('no duplicate found renders no warning banner', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-xyz',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await completeHappyPath(user, container);
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
+    );
+    expect(container.querySelector('[data-banker-new-deal-result="duplicate-warning"]')).toBeNull();
   });
 });
 
