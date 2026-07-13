@@ -58,7 +58,7 @@ describe('Phase 264 (P3) — PortfolioLoanBoardingDetail SharePoint upload wirin
     expect(container.querySelector('[data-portfolio-upload-dry-run-banner]')).not.toBeNull();
   });
 
-  it('a DRY_RUN upload never claims a file was stored, and (with metadata enabled) persists the attempt', async () => {
+  it('a DRY_RUN upload never claims a file was stored, and never persists a phantom metadata row even with metadata enabled', async () => {
     const pkg = createEmptyPortfolioLoanBoardingPackage();
     pkg.packageId = 'pkg-1';
     pkg.identity.loanNumber = 'LN-1001';
@@ -79,9 +79,8 @@ describe('Phase 264 (P3) — PortfolioLoanBoardingDetail SharePoint upload wirin
 
     await waitFor(() => expect(container.querySelector('[data-portfolio-upload-done]')).not.toBeNull());
     expect(container.querySelector('[data-portfolio-upload-done]')?.textContent).toMatch(/no file was actually stored/i);
-    expect(adapter.attachDocumentRecord).toHaveBeenCalledWith(
-      'pkg-1',
-      expect.objectContaining({ fileReference: undefined }),
-    );
+    // Phase 264 (P0) hardening: DRY_RUN never writes a "stored" metadata row —
+    // no phantom record, even when document-metadata persistence is enabled.
+    expect(adapter.attachDocumentRecord).not.toHaveBeenCalled();
   });
 });

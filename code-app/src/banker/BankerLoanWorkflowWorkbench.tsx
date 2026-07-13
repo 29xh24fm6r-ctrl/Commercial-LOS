@@ -117,7 +117,7 @@ export function BankerLoanWorkflowWorkbench({
     const q = query.trim().toLowerCase();
     if (q.length === 0) return rows;
     return rows.filter(
-      (r) => r.name.toLowerCase().includes(q) || (r.borrower ?? '').toLowerCase().includes(q),
+      (r) => (r.name ?? '').toLowerCase().includes(q) || (r.borrower ?? '').toLowerCase().includes(q),
     );
   }, [model, queue, diligenceDealIds, query]);
 

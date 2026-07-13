@@ -137,6 +137,16 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsTimeline: true,
   },
 ];
+// NOTE: forward stage-advance (DealStageProgressionCard -> stageAdvanceWriteDependency.ts
+// -> buildLiveStageAdvanceDeps.ts) is a real, armed, audited + timelined governed write and
+// belongs in this list. It is deliberately NOT added as its own dedicated registration phase
+// here -- doing so correctly also requires adding matching entries to AUDIT_BY_WRITE_ID,
+// OUTCOME_BY_WRITE_ID, and TIMELINE_BY_WRITE_ID (each independently cross-verified against the
+// real source in auditPayloadDiscipline.test.ts / outcomeUnionDiscipline.test.ts /
+// timelinePayloadDiscipline.test.ts) plus every hardcoded GOVERNED_WRITES.length citation across
+// release-candidate docs. Tracked as a follow-up registration phase; see the New Deal Intake /
+// Loan Workflow audit report for detail. The DELIBERATELY_BLOCKED entry below is corrected in the
+// meantime so this file stops asserting the false "AUTO_STAGE_ADVANCE_ENABLED is off" claim.
 
 // ---------------------------------------------------------------------------
 // Deliberately blocked surfaces (schema or governance gap; not a missing
@@ -157,21 +167,21 @@ export interface DeliberatelyBlockedEntry {
 export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [
   {
     id: 'stage-progression-advance',
-    label: 'Stage progression (Advance Stage write)',
+    label: 'Stage progression — Return / Decline / Withdraw (canonical engine)',
     phase: 28,
     reason:
-      'WIRED_DISABLED: the deterministic stage ordering contract, OGB-aligned per-stage exit-gate contract ' +
-      '(complete package including complete credit memo gates Intake -> Underwriting; Underwriting is review), ' +
-      'the four-kind transition engine (advance/return/decline/withdraw, with audit + timeline, ' +
-      'fail-closed), the banker stage control, and the OGB single authorized-approver policy now all exist and ' +
-      'are covered by tests (src/workflow/stageOrderingContract.ts, stageGateContract.ts, ' +
-      'canonicalStageTransition.ts, StageWorkflowControl.tsx, approvalAuthorityMatrix.ts). The LIVE ' +
-      'stage-progression write stays blocked pending two operator-owned acts: (1) the maker adds the ' +
-      'cr664_sequence ordinal to the stage reference table and seeds the seven ordered stage rows, ' +
-      'then regenerates the SDK; and (2) the certified, evidence-backed AUTO_STAGE_ADVANCE_ENABLED ' +
-      'flip (default-off today). Until the ordering resolves READY and the flag is armed, every ' +
-      'transition stays fail-closed and writes nothing. See docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md ' +
-      'and docs/STAGE_SCHEMA_SETUP.md.',
+      'WIRED_DISABLED, scoped specifically to the CANONICAL transition engine ' +
+      '(src/workflow/canonicalStageTransition.ts + StageWorkflowControl.tsx + approvalAuthorityMatrix.ts): ' +
+      'Return / Decline / Withdraw. That control is built, tested, and gated on AUTO_STAGE_ADVANCE_ENABLED, ' +
+      'but is not mounted in any live workspace, so it stays preview-only regardless of the flag. ' +
+      'NOTE: this is now DISTINCT from forward Advance, which IS live via a SEPARATE surface -- ' +
+      'DealStageProgressionCard.tsx -> stageAdvanceWriteDependency.ts -> buildLiveStageAdvanceDeps.ts ' +
+      '(real audited + timelined write, not yet registered as its own GOVERNED_WRITES entry -- see that ' +
+      "file's header). AUTO_STAGE_ADVANCE_ENABLED itself is ARMED (true, dealOriginationFeatureFlags.ts) " +
+      'as of the WF-1A phase — it is not the remaining blocker for forward Advance. The remaining ' +
+      'prerequisite for BOTH paths is a data-seeding fact this static inventory cannot verify: the maker ' +
+      'adding the cr664_sequence ordinal to the stage reference table and seeding the seven ordered stage ' +
+      'rows in the target environment. See docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md and docs/STAGE_SCHEMA_SETUP.md.',
     enablementMapPath: 'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md',
   },
 ];
@@ -288,8 +298,9 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'cr664_sequence ordinal is not yet added to the stage reference table and the seven ordered ' +
       'rows are not yet seeded, so the contract resolves UNAVAILABLE (fail-closed) in this ' +
       'environment. Resolves READY once the maker seeds cr664_sequence and regenerates the SDK ' +
-      '(docs/STAGE_SCHEMA_SETUP.md); the live write is additionally gated by ' +
-      'AUTO_STAGE_ADVANCE_ENABLED (default-off).',
+      '(docs/STAGE_SCHEMA_SETUP.md). AUTO_STAGE_ADVANCE_ENABLED itself is ARMED (true) as of WF-1A -- ' +
+      'this schema-seeding gap, not the flag, is what still fail-closes the live forward-Advance write ' +
+      '(DealStageProgressionCard.tsx) in an unseeded environment.',
     blockerKind: 'schema',
   },
   {
@@ -1031,6 +1042,6 @@ export const REFERENCE_DATA_GOVERNED: Readonly<
     progressionEnabled: false,
     introducedInPhase: 41,
     progressionBlockedReason:
-      'Stage reconciliation: the canonical stage VOCABULARY is now the seven-code set in src/workflow/stageOrderingContract.ts (CANONICAL_STAGES), seeded via cr664_sequence on cr664_stagereferences. The legacy 9-stage catalog here is RETIRED from the deal cockpit (the canonical Stage Map supersedes it) and remains only for non-cockpit consumers. Stage progression stays OFF: the schema gap is unclosed (cr664_stagereferences sequence not yet seeded) and AUTO_STAGE_ADVANCE_ENABLED is false. See docs/STAGE_RECONCILIATION_MAP.md, docs/STAGE_SCHEMA_SETUP.md and src/shared/governance/stageProgressionAvailability.ts.',
+      'Stage reconciliation: the canonical stage VOCABULARY is now the seven-code set in src/workflow/stageOrderingContract.ts (CANONICAL_STAGES), seeded via cr664_sequence on cr664_stagereferences. The legacy 9-stage catalog here is RETIRED from the deal cockpit (the canonical Stage Map supersedes it) and remains only for non-cockpit consumers. Progression for THIS legacy catalog stays OFF because the schema gap is unclosed (cr664_stagereferences sequence not yet seeded) -- not because of AUTO_STAGE_ADVANCE_ENABLED, which is ARMED (true) as of WF-1A and gates the live canonical Stage Map advance instead (see GOVERNED_WRITES \'deal-stage-advance\'). See docs/STAGE_RECONCILIATION_MAP.md, docs/STAGE_SCHEMA_SETUP.md and src/shared/governance/stageProgressionAvailability.ts.',
   },
 });

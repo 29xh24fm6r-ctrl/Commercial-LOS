@@ -111,8 +111,19 @@ function deriveCreditBlockers(
     (creditMemo?.sections ?? []).map((section) => normalize(section.sectionLabel)),
   );
 
+  // These three CREDIT_APPROVAL requirement ids ask about review / approval /
+  // committee status, which this schema has no field for (CreditMemoStatusKey
+  // is only draft/final/stale -- there is no reviewed/approved/committee state
+  // to check). Falling into the generic "checked via memo presence" branch
+  // below was a real correctness bug: a deal could reach Commitment with a
+  // draft memo and ZERO committee involvement, regardless of dollar amount,
+  // because any memo record made all three silently read as "met". Every
+  // OTHER credit requirement id (e.g. UNDERWRITING's "spreading analysis")
+  // keeps the existing memo-presence proxy check unchanged.
+  const UNVERIFIABLE_CREDIT_REQUIREMENT_IDS = new Set(['reviewed memo', 'committee package', 'approved credit memo']);
+
   for (const requirement of stage.creditRequirements) {
-    if (requirement.id.includes('memo') && !hasMemo) {
+    if (requirement.id === 'credit memo' && !hasMemo) {
       blockers.push(blocker(requirement, 'blocked', `Missing credit artifact: ${requirement.label}`));
       continue;
     }
@@ -122,8 +133,23 @@ function deriveCreditBlockers(
       if (!hasSection) {
         blockers.push(blocker(requirement, 'blocked', `Missing credit memo section: ${requirement.label}`));
       }
+      continue;
     }
-    if (!requirement.id.includes('memo') && !requirement.id.includes('section') && !hasMemo) {
+    if (UNVERIFIABLE_CREDIT_REQUIREMENT_IDS.has(requirement.id)) {
+      // Never silently "met" (that was the bug), and never hard-block a live
+      // write path with no remediation UI to clear it — surface as always
+      // visible/at-risk instead, matching how untracked deep facts are
+      // handled elsewhere in this system.
+      blockers.push(
+        blocker(
+          requirement,
+          'at-risk',
+          `${requirement.label} cannot be verified automatically (no reviewed/approved/committee status is tracked yet) -- confirm manually before relying on this stage gate alone.`,
+        ),
+      );
+      continue;
+    }
+    if (requirement.id !== 'credit memo' && !hasMemo) {
       blockers.push(blocker(requirement, 'blocked', `Missing credit evidence: ${requirement.label}`));
     }
   }

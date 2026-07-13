@@ -27,8 +27,14 @@ export const NEW_DEAL_CREATE_ADAPTER_ENABLED = false as const;
 /**
  * Production Stage/Status reference rows are not yet seeded/approved
  * (the only active rows are TEST-environment labels).
+ *
+ * Currently unused (no call site references it -- the config-driven
+ * `productionReferencesApproved` prerequisite in `isNewDealCreateAdapterEnabled`
+ * is supplied by the caller, not this constant). Kept `false` to match its own
+ * doc comment and the module's stated "hard false this phase" discipline; do
+ * not flip this without also wiring it into a real gate.
  */
-export const NEW_DEAL_CREATE_PRODUCTION_REFERENCES_APPROVED = true as const;
+export const NEW_DEAL_CREATE_PRODUCTION_REFERENCES_APPROVED = false as const;
 
 /** Injected enablement config (never read from env / secret). */
 export interface NewDealCreateFeatureFlagConfig {

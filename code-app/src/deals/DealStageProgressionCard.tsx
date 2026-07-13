@@ -28,7 +28,7 @@ import { generateDestinationStageWork } from './generateDestinationStageWork';
 import { useOptionalBanker } from '../banker/BankerContext';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import type { LoanWorkflowStageId, LoanWorkflowState } from '../workflow/loanWorkflowTypes';
-import { CANONICAL_STAGES, recognizeCanonicalStage } from '../workflow/stageOrderingContract';
+import { CANONICAL_STAGES, canonicalStageByCode, recognizeCanonicalStage } from '../workflow/stageOrderingContract';
 import { Card, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { SeverityGlyph } from '../shared/SeverityGlyph';
@@ -373,7 +373,7 @@ function StageAdvanceControl({
   const [state, setState] = useState<
     { kind: 'idle' } | { kind: 'saving' } | { kind: 'done'; outcome: StageAdvanceOutcome }
   >({ kind: 'idle' });
-  const { refresh } = useDealData();
+  const { refresh, applyVerifiedDealPatch } = useDealData();
 
   // ARC Phase 3 — fail-closed caller guard: the live advance requires BOTH the write-seam policy AND
   // the shared requirement engine's tracked-blocking to be clear. This keeps the button and the actual
@@ -392,11 +392,12 @@ function StageAdvanceControl({
       actorSystemUserId: actor.systemUserId ?? '',
       actorEmail: actor.email,
     });
+    const entryDateIso = new Date().toISOString();
     const outcome = await advanceWorkflowStage({
       authorized: Boolean(actor.systemUserId),
       dealId,
       correlationId: newCorrelationId('sa'),
-      entryDateIso: new Date().toISOString(),
+      entryDateIso,
       workflow,
       requestedNextStageId: nextStageId,
       transport: deps.transport,
@@ -406,6 +407,14 @@ function StageAdvanceControl({
     // On a verified advance, seed the destination stage's standard work as real governed tasks
     // (idempotent by title), then reload tasks + activity so the new work appears immediately.
     if (outcome.kind === 'advanced') {
+      // Merge the readback-verified stage into the shared context FIRST — every cockpit
+      // surface (header, Stage Map, Metric Deck, Attention Console, Copilot) reads the
+      // deal off DealDataProvider, which refresh() never reloads. Without this, the whole
+      // cockpit keeps showing the pre-advance stage until a hard reload.
+      applyVerifiedDealPatch?.({
+        stage: canonicalStageByCode(outcome.to)?.name ?? outcome.to,
+        stageEntryDate: entryDateIso,
+      });
       await generateDestinationStageWork({
         dealId,
         stageCode: nextStageId,
