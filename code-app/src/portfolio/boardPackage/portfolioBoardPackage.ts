@@ -1,9 +1,41 @@
-import type { PortfolioRiskSnapshot } from '../portfolioRiskEngine';
+import type { PortfolioBand } from '../portfolioRiskEngine';
 import type { RegulatoryClassificationSnapshot } from '../regulatoryClassification/regulatoryClassification';
 import type { WatchlistBoard } from '../watchlist/watchlist';
 import type { PortfolioStressTestSnapshot } from '../stressTesting/stressTesting';
 import { formatCurrency, formatPercent } from '../../shared/formatters';
 import { csvCell } from '../../portfolioBoarding/portfolioImportColumns';
+
+/**
+ * The concentration/risk fields the board package actually reads — a
+ * narrower, structurally-compatible slice of `PortfolioRiskSnapshot` (the
+ * deal-pipeline risk engine's output) rather than that type itself. This
+ * lets EITHER the deal-pipeline risk snapshot OR a boarded-book-native
+ * equivalent (built from `PortfolioBookSnapshot`'s own concentration rows,
+ * since boarded loans and pre-close deals are different data models) satisfy
+ * this input — a real `PortfolioRiskSnapshot` already has every field here,
+ * so passing one requires no adapter at all.
+ */
+export interface PortfolioBoardPackageRiskInput {
+  readonly exposure: {
+    readonly totalExposure: number;
+    readonly largestExposure: number | undefined;
+    readonly dealsAboveThresholdCount: number;
+  };
+  readonly concentration: {
+    readonly singleNamePct: number;
+    readonly singleNameClient: string | undefined;
+    readonly singleNameBand: PortfolioBand;
+    readonly top5Pct: number;
+    readonly top5Band: PortfolioBand;
+    readonly topProductPct: number;
+    readonly topProductLabel: string | undefined;
+    readonly topProductBand: PortfolioBand;
+    readonly topBankerPct: number;
+    readonly topBankerLabel: string | undefined;
+    readonly topBankerBand: PortfolioBand;
+  };
+  readonly findings: readonly { readonly label: string; readonly severity: string }[];
+}
 
 /**
  * Phase 264 (P3) — one-click board/regulator package export.
@@ -36,7 +68,7 @@ export interface PortfolioBoardPackageInput {
   /** ISO date the package is generated as-of. Caller-supplied — never Date.now(). */
   readonly asOfDate: string;
   readonly institutionName?: string;
-  readonly risk: PortfolioRiskSnapshot;
+  readonly risk: PortfolioBoardPackageRiskInput;
   readonly classification: RegulatoryClassificationSnapshot;
   readonly watchlist: WatchlistBoard;
   /** Optional — a board package can be generated without having run a stress scenario. */
@@ -83,7 +115,7 @@ function buildExecutiveSummarySection(pkg: PortfolioBoardPackageInput): Portfoli
   };
 }
 
-function buildConcentrationSection(risk: PortfolioRiskSnapshot): PortfolioBoardPackageSection {
+function buildConcentrationSection(risk: PortfolioBoardPackageRiskInput): PortfolioBoardPackageSection {
   const c = risk.concentration;
   const topFindings = risk.findings.slice(0, 5).map(
     (f) => `${f.severity.toUpperCase()} — ${f.label}`,

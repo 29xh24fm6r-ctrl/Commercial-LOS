@@ -694,7 +694,7 @@ function bandToSeverity(band: PortfolioBand): PortfolioFindingSeverity {
 }
 
 /** value < watchAt → low; < elevatedAt → watch; < highAt → elevated; else high. */
-function classifyBand(
+export function classifyBand(
   value: number,
   [watchAt, elevatedAt, highAt]: PortfolioRiskBandCutpoints,
 ): PortfolioBand {

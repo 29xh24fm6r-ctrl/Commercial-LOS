@@ -47,6 +47,10 @@ import { PortfolioProfitabilityPanel } from './profitability/PortfolioProfitabil
 import { deriveLoanProfitability } from './profitability/loanProfitability';
 import { PortfolioClassificationPanel } from './riskRating/PortfolioClassificationPanel';
 import { deriveDualRiskRating, type DualRatingRecord } from './riskRating/dualRiskRating';
+import { deriveRegulatoryClassificationSnapshot } from './regulatoryClassification/regulatoryClassification';
+import { RegulatoryClassificationPoolPanel } from './regulatoryClassification/RegulatoryClassificationPoolPanel';
+import { StressTestScenarioPanel } from './stressTesting/StressTestScenarioPanel';
+import { PortfolioBoardPackagePanel } from './boardPackage/PortfolioBoardPackagePanel';
 import { EarlyWarningPanel } from './earlyWarning/EarlyWarningPanel';
 import { deriveEarlyWarningQueue } from './earlyWarning/earlyWarning';
 import { ExceptionQueuePanel } from './exceptions/ExceptionQueuePanel';
@@ -68,6 +72,9 @@ import {
   toLoanReviewCandidate,
   toReviewQueueLoanInput,
   toWatchlistInput,
+  toClassificationPoolInputs,
+  toStressTestLoanInputs,
+  toBoardPackageRiskInput,
 } from './data/boardedLoanAdapters';
 import {
   derivePortfolioBookSnapshot,
@@ -152,11 +159,12 @@ export function PortfolioCommandCenterBook() {
         .filter((rating) => rating.loanId !== undefined)
         .map((rating) => [rating.loanId!, rating]),
     );
+    const bookSnapshot = derivePortfolioBookSnapshot(scopedLoans, ratingRecords, now);
 
     return {
       loans: scopedLoans,
       ratings: ratingRecords,
-      snapshot: derivePortfolioBookSnapshot(scopedLoans, ratingRecords, now),
+      snapshot: bookSnapshot,
       profitability: scopedLoans
         .map(toLoanProfitabilityInputs)
         .filter((input): input is NonNullable<typeof input> => input !== undefined)
@@ -181,6 +189,18 @@ export function PortfolioCommandCenterBook() {
           toLoanReviewCandidate(row, ratingByLoanId.get(row.id)?.obligorGrade, 0),
         ),
       ),
+      // Phase 264 (P3) — CECL-style classification pooling over the same
+      // already-computed dual ratings (no re-rating, just aggregation).
+      classificationSnapshot: deriveRegulatoryClassificationSnapshot(
+        toClassificationPoolInputs(scopedLoans, ratingRecords),
+      ),
+      // Phase 264 (P3) — stress-test engine input; the panel owns its own
+      // scenario-input state and calls the engine itself.
+      stressTestLoans: toStressTestLoanInputs(scopedLoans),
+      // Phase 264 (P3) — the boarded book's own concentration rollup, adapted
+      // into the board package's risk/concentration input (the deal-pipeline
+      // risk engine doesn't apply to boarded loans — see toBoardPackageRiskInput).
+      boardPackageRisk: toBoardPackageRiskInput(bookSnapshot),
     };
   }, [filterSelection, loans, now]);
 
@@ -233,6 +253,11 @@ export function PortfolioCommandCenterBook() {
       <MigrationReconciliationPanel />
       <PortfolioProfitabilityPanel loans={book?.profitability ?? []} />
       <PortfolioClassificationPanel ratings={book?.ratings ?? []} />
+      {/* Phase 264 (P3) — CECL-style pooling: complements the per-loan panel
+          above with a portfolio-level exposure x PD x LGD roll-up. */}
+      <RegulatoryClassificationPoolPanel
+        snapshot={book?.classificationSnapshot ?? deriveRegulatoryClassificationSnapshot([])}
+      />
       <EarlyWarningPanel queue={book?.earlyWarningQueue} />
       <ExceptionQueuePanel queues={[]} />
       <WatchlistBoardPanel board={book?.watchlistBoard} />
@@ -248,6 +273,21 @@ export function PortfolioCommandCenterBook() {
         writeDisabledReason="Board existing portfolio loans from the Loan Workflow workspace."
       />
       <VariableRateControlCenter />
+      {/* Phase 264 (P3) — rate/collateral what-if scenarios against the real
+          boarded-loan book. Ephemeral: no Dataverse write, no persistence. */}
+      <StressTestScenarioPanel loans={book?.stressTestLoans ?? []} />
+      {/* Phase 264 (P3) — one-click board/regulator package aggregating the
+          panels above. No stress-test scenario is lifted into this package
+          (the panel above runs its own, ad hoc) — the section is honestly
+          omitted rather than a fake "no run yet" zero. */}
+      <PortfolioBoardPackagePanel
+        input={{
+          asOfDate: now,
+          risk: book?.boardPackageRisk ?? toBoardPackageRiskInput(derivePortfolioBookSnapshot([], [], now)),
+          classification: book?.classificationSnapshot ?? deriveRegulatoryClassificationSnapshot([]),
+          watchlist: book?.watchlistBoard ?? deriveWatchlist([], now),
+        }}
+      />
     </section>
   );
 }
