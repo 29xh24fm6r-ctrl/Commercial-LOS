@@ -3,10 +3,12 @@
  * (stageAdvanceWriteDependency.ts). Kept SDK-only and SEPARATE from the pure
  * seam so the core stays importable without the data client.
  *
- * DISABLED in effect: `advanceWorkflowStage` refuses with `disabled` while
- * AUTO_STAGE_ADVANCE_ENABLED is false (its default), so importing or building
- * these deps performs NO IO — the sinks are only reached by an explicit, gated,
- * authorized invocation. No borrower-comms module is imported.
+ * AUTO_STAGE_ADVANCE_ENABLED is ARMED (true) as of the WF-1A phase — this is a
+ * LIVE write path, mounted via DealStageProgressionCard.tsx in the banker/manager/
+ * team workspaces. `advanceWorkflowStage` still fail-closes with `disabled` if the
+ * flag were ever unset, and the sinks are only reached by an explicit, gated,
+ * authorized invocation — but do not assume importing/building these deps is inert.
+ * No borrower-comms module is imported.
  *
  * Each sink mirrors a PROVEN governed-write pattern (nothing invented):
  *   - updateDealStage resolves the canonical target stage code to its live

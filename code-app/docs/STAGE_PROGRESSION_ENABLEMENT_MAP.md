@@ -37,6 +37,30 @@ Status: **Built in code, default-OFF, pending maker seed + flag.** (was: Blocked
 > until the future risk-rating spec lands. Credit Approval has no amount tiers; it requires only a
 > recorded approval by an authorized approver plus the other documented approval evidence.
 >
+> ## 0.1 Status update — WF-1A (supersedes §0's "default-off" framing for forward Advance)
+>
+> §0 above (and this whole document) describes ONE stage-progression path: the canonical 4-kind
+> transition engine (`canonicalStageTransition.ts` / `StageWorkflowControl.tsx`, covering ADVANCE,
+> RETURN, DECLINE, WITHDRAW). A LATER, separate phase (WF-1A / Phase 237F) shipped a SECOND,
+> simpler live path for forward Advance ONLY:
+> `DealStageProgressionCard.tsx` (mounted in the banker/manager/team deal workspaces) ->
+> `src/workflow/stageAdvanceWriteDependency.ts` -> `src/deals/buildLiveStageAdvanceDeps.ts`.
+>
+> As of WF-1A:
+> - `AUTO_STAGE_ADVANCE_ENABLED` is **ARMED (`true`)** — §0's "default-off... flip" language is now
+>   stale for this flag. It gates BOTH paths, but is no longer the reason either stays inert.
+> - Forward Advance via `DealStageProgressionCard.tsx` is a **real, live, audited + timelined write**
+>   today, once an environment's `cr664_dealstagereferences.cr664_sequence` is seeded (the schema
+>   prerequisite in §0 remains the real, environment-dependent gate — this document cannot verify
+>   whether any given environment has completed that seed).
+> - RETURN / DECLINE / WITHDRAW remain preview-only — but the reason is that
+>   `StageWorkflowControl.tsx` is not mounted in any live workspace, NOT that the flag is off.
+>
+> §15's "Re-confirmation" below is **stale**: "No Advance Stage UI control exists anywhere in the
+> app" is no longer true (`DealStageProgressionCard.tsx` is that control, for forward Advance). See
+> `src/shared/governance/platformInventory.ts`'s `DELIBERATELY_BLOCKED.stage-progression-advance`
+> entry, which has been corrected to scope its "still blocked" claim to RETURN/DECLINE/WITHDRAW only.
+>
 > The historical Phase-43 plan follows.
 
 This document converts the Phase 28 schema gap into a concrete

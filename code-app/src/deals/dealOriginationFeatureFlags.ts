@@ -2,13 +2,17 @@
  * Phase 171-180 -- Deal origination operating arc: feature flags.
  *
  * Pure, fail-closed gates for the banker create path and EVERY downstream
- * automation domain. No IO, no env/secret reads. Every gate defaults DISABLED;
- * an absent / malformed config leaves all gates off. Each domain is gated
- * independently so creating a deal never secretly performs every automation.
+ * automation domain. No IO, no env/secret reads. An absent / malformed config
+ * leaves a gate off. Each domain is gated independently so creating a deal
+ * never secretly performs every automation.
  *
- * NOTE: these are hard `false` constants this phase. A later, separately
+ * NOTE: most of these are still hard `false` constants -- a later, separately
  * certified phase flips a specific domain only after its dependency readiness,
- * authorization, approved references, and audit path are proven.
+ * authorization, approved references, and audit path are proven. THREE domains
+ * have since been deliberately armed to `true` (Completion Phase A / WF-1A):
+ * AUTO_STAGE_ADVANCE_ENABLED, TASK_GENERATION_ENABLED, DUPLICATE_DETECTION_ENABLED
+ * -- see each constant's own comment for its evidence trail. Do not assume
+ * "defaults DISABLED" holds for the whole module; check the individual constant.
  */
 
 // ---------------------------------------------------------------------------

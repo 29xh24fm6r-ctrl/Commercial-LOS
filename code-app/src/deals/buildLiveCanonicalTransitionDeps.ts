@@ -3,10 +3,12 @@
  * (canonicalStageTransition.ts). Kept SDK-only and SEPARATE from the pure engine
  * so the core stays importable without the data client.
  *
- * DISABLED in effect: `executeCanonicalStageTransition` refuses with `disabled`
- * while AUTO_STAGE_ADVANCE_ENABLED is false (its default), so importing or building
- * these deps performs NO IO — the sinks are only reached by an explicit, gated,
- * authorized invocation. NO borrower-comms module is imported (DECLINE/WITHDRAW
+ * DISABLED IN PRACTICE, but not because of the flag: AUTO_STAGE_ADVANCE_ENABLED is
+ * ARMED (true, as of WF-1A) — the reason `executeCanonicalStageTransition` is never
+ * reached live today is that StageWorkflowControl.tsx (the only UI for RETURN/
+ * DECLINE/WITHDRAW) is not mounted in any workspace. Do not assume the flag alone
+ * keeps this inert; the sinks are only reached by an explicit, gated, authorized
+ * invocation once mounted. NO borrower-comms module is imported (DECLINE/WITHDRAW
  * never send anything).
  *
  * Each sink mirrors a PROVEN governed-write pattern (nothing invented):
@@ -88,8 +90,9 @@ export interface LiveCanonicalTransitionDeps {
 
 /**
  * App-default LIVE deps for the canonical transition engine. Building these performs
- * no IO; the engine stays fail-closed until an operator arms AUTO_STAGE_ADVANCE_ENABLED
- * and the stage + status reference tables are seeded.
+ * no IO. AUTO_STAGE_ADVANCE_ENABLED is already armed; the engine stays fail-closed on
+ * this path today because StageWorkflowControl.tsx is not mounted anywhere (and,
+ * independently, until the stage + status reference tables are seeded).
  */
 export function buildLiveCanonicalTransitionDeps(
   actor: LiveCanonicalTransitionActor,

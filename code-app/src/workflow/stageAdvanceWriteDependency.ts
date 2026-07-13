@@ -9,10 +9,13 @@ import { AUTO_STAGE_ADVANCE_ENABLED } from '../deals/dealOriginationFeatureFlags
  * (approved next stage + readiness not blocked) before any write, updates the deal
  * stage through an INJECTED transport, and emits audit + timeline evidence.
  *
- *   - DEFAULT-OFF (AUTO_STAGE_ADVANCE_ENABLED) and fail-closed.
+ *   - Gated on AUTO_STAGE_ADVANCE_ENABLED, which is ARMED (true) as of the WF-1A phase — this is a
+ *     LIVE write path (DealStageProgressionCard.tsx supplies the live transport). Fail-closed if the
+ *     flag were ever unset.
  *   - No write happens unless the policy allows the transition; blockers fail closed.
- *   - Injected transport/audit/timeline (no SDK in the static graph) — unit-testable,
- *     no real write until an operator wires the live transport AND enables the gate.
+ *   - Injected transport/audit/timeline (no SDK in the static graph) — unit-testable in isolation,
+ *     and a real write once an operator wires the live transport, which is already the case in
+ *     production (buildLiveStageAdvanceDeps.ts).
  *   - A transport failure surfaces as update_failed (never fake success). Audit /
  *     timeline failures after a successful stage write are honest partial successes.
  *   - WFLOW-B: after a successful update the stage write is PROVEN by a Dataverse

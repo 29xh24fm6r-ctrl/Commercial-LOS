@@ -1,5 +1,5 @@
 /**
- * Phase 170M -- Governed in-app New Deal create adapter (DISABLED by default).
+ * Phase 170M -- Governed in-app New Deal create adapter.
  *
  * Proof chain:
  *   - Phase 170K proved the minimal cr664_loandeal create payload works with
@@ -12,12 +12,16 @@
  * create that follows the SAME coordination pattern as the existing governed
  * writes (dealTaskActions / documentActions: create -> emit cr664_AuditEvent).
  *
- * It is OFF by default. `createGovernedNewDeal` refuses with `disabled` unless
- * its injected `enabled` gate is true. The app's default deps wire that gate to
- * NEW_DEAL_CREATE_ADAPTER_ENABLED (hard `false` this phase), and NO UI button
- * calls this adapter. + New Deal stays disabled; new-deal-create stays in
- * NOT_WIRED. The adapter never hardcodes a Stage/Status GUID -- the binds come
- * from the fail-closed resolver's verified active rows.
+ * `createGovernedNewDeal` refuses with `disabled` unless its injected `enabled`
+ * gate is true. The MODULE-LEVEL constant NEW_DEAL_CREATE_ADAPTER_ENABLED stays
+ * hard `false` (and the standalone admin NewDealCreatePanel/newDealCreateController
+ * surface built against it is correctly disabled) -- but this is no longer the
+ * only caller. BankerNewDealCreate.tsx (the live banker create surface, gated by
+ * its own BANKER_CREATE_PILOT rollout) forces `enabled: true` directly at its call
+ * site, bypassing the module constant entirely. Do not read "constant is false" as
+ * "no UI button calls this adapter" -- one does, live, today. The adapter never
+ * hardcodes a Stage/Status GUID -- the binds come from the fail-closed resolver's
+ * verified active rows.
  */
 
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
