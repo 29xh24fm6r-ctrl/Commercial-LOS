@@ -57,6 +57,7 @@ export function PortfolioLoanBoardingDetail({
         borrowerLegalName={pkg.identity.borrowerLegalName}
         uploadConfigured={docs.uploadConfigured}
         uploadMode={docs.uploadMode}
+        connectorAvailable={docs.connectorAvailable}
         uploadDocument={docs.uploadDocument}
       />
       <FdicExaminerPackagePreview package={pkg} />
