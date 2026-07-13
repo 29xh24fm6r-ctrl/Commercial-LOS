@@ -125,4 +125,16 @@ describe('arc governance -- risk domain gates stay hard-false post-launch', () =
     // advancement only; the uncontrolled auto-advance write gate stays off elsewhere.
     expect((flags as Record<string, unknown>).AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
   });
+
+  it('the other two Completion-Phase-A-armed domains stay armed (this file is the single pin for every non-default flag)', async () => {
+    // Kept alongside AUTO_STAGE_ADVANCE_ENABLED above so a reviewer scanning only
+    // this "risk domain gates" file sees the FULL set of armed domains, not just
+    // stage-advance -- TASK_GENERATION_ENABLED and DUPLICATE_DETECTION_ENABLED are
+    // also true and were previously unpinned here (each is separately pinned
+    // elsewhere -- dealOriginationFeatureFlags.test.ts -- but that doesn't help a
+    // reader relying on this file's "risk domain gates" framing).
+    const flags = await import('../../deals/dealOriginationFeatureFlags');
+    expect((flags as Record<string, unknown>).TASK_GENERATION_ENABLED).toBe(true);
+    expect((flags as Record<string, unknown>).DUPLICATE_DETECTION_ENABLED).toBe(true);
+  });
 });

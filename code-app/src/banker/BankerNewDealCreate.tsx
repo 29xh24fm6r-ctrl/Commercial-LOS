@@ -19,6 +19,8 @@ import { CREATE_CLIENT_RELATIONSHIP_ENABLED } from '../crm/write/createClientRel
 import {
   loadClientRelationshipOptions,
   loadTeamOptions,
+  isOptionListTruncated,
+  OPTION_CAP,
   type CrmLinkOption,
 } from '../crm/dealCrmLinkOptions';
 import type { DealOriginationResult } from '../deals/dealOriginationOutcomes';
@@ -369,14 +371,23 @@ function ClientStep({
           </p>
         </div>
       ) : (
-        <OptionPicker
-          state={state}
-          selected={selected}
-          onSelect={onSelect}
-          placeholder="Search client relationships…"
-          testId="client"
-          emptyLabel="No matching client relationship."
-        />
+        <>
+          {state.kind === 'ready' && isOptionListTruncated(state.options) && (
+            <p style={styles.stepHint} role="note" data-new-deal-client-list-truncated>
+              Showing the first {OPTION_CAP} client relationships. If the client you&rsquo;re
+              looking for isn&rsquo;t listed, it may not appear in this search yet — check the
+              CRM Hub directly.
+            </p>
+          )}
+          <OptionPicker
+            state={state}
+            selected={selected}
+            onSelect={onSelect}
+            placeholder="Search client relationships…"
+            testId="client"
+            emptyLabel="No matching client relationship."
+          />
+        </>
       )}
 
       <div style={styles.stepActions}>

@@ -27,6 +27,8 @@ const loadTeamsMock = vi.fn();
 vi.mock('../crm/dealCrmLinkOptions', () => ({
   loadClientRelationshipOptions: (...a: unknown[]) => loadClientsMock(...a),
   loadTeamOptions: (...a: unknown[]) => loadTeamsMock(...a),
+  OPTION_CAP: 200,
+  isOptionListTruncated: (options: unknown[]) => options.length >= 200,
 }));
 
 // Pipeline-deal read for pre-create duplicate-detection candidates. Mocked
@@ -114,6 +116,24 @@ describe('CRM-first New Deal create surface — gating', () => {
     expect(container.querySelector('[data-banker-new-deal-form]')).toBeNull();
     // Loaders never run when the surface is not live.
     expect(loadClientsMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('Step 1 — client list truncation is surfaced honestly, never silently hidden', () => {
+  it('shows a truncation notice when the client list hits the fetch cap (200)', async () => {
+    loadClientsMock.mockResolvedValue(
+      Array.from({ length: 200 }, (_, i) => ({ id: `client-${i}`, name: `Client ${i}`, sublabel: undefined, active: true })),
+    );
+    setBanker();
+    const { container } = renderCreate();
+    await waitFor(() => expect(container.querySelector('[data-new-deal-client-list-truncated]')).not.toBeNull());
+  });
+
+  it('shows no truncation notice for a client list under the cap', async () => {
+    setBanker();
+    const { container } = renderCreate();
+    await screen.findByRole('option', { name: /Acme Holdings LLC/i });
+    expect(container.querySelector('[data-new-deal-client-list-truncated]')).toBeNull();
   });
 });
 

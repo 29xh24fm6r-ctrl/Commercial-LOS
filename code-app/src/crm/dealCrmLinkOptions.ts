@@ -40,7 +40,21 @@ export interface CrmLinkOption {
 /** Clear label for a CRM-company option in the Link CRM client modal. */
 export const CRM_COMPANY_OPTION_SUBLABEL = 'CRM Company — will create/link borrower client record';
 
-const OPTION_CAP = 200;
+/**
+ * Every loader below fetches at most this many rows (client-side filtered by
+ * the caller's search box after that). There is no server-side search-as-you-
+ * type, so once a bank's book exceeds this cap, a real client/team sorting
+ * alphabetically after the cutoff is silently invisible -- the search box
+ * reports "no match" for a record that genuinely exists. `isOptionListTruncated`
+ * lets a caller detect that case (result length === the cap) and warn the
+ * banker instead of implying the list is complete.
+ */
+export const OPTION_CAP = 200;
+
+/** True when a loaded option list may be missing records past the fetch cap. */
+export function isOptionListTruncated(options: readonly CrmLinkOption[]): boolean {
+  return options.length >= OPTION_CAP;
+}
 
 function firstString(...vals: unknown[]): string | undefined {
   for (const v of vals) {
