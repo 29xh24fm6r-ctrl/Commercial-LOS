@@ -19,6 +19,7 @@ import {
 } from './existingLoanEntryAdapter';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import type { ParsedLoanRow } from './portfolioImportParser';
+import { csvCell } from './portfolioImportColumns';
 
 export interface ImportActor {
   readonly actorEmail: string | undefined;
@@ -132,6 +133,33 @@ export async function runPortfolioImport(
 // ---------------------------------------------------------------------------
 // Live dependencies
 // ---------------------------------------------------------------------------
+
+/** Single-source description of a per-row board outcome (on-screen + CSV export share this). */
+export function describeImportOutcome(kind: BoardExistingLoanOutcome['kind']): string {
+  switch (kind) {
+    case 'duplicate': return 'Skipped — a loan with this number already exists.';
+    case 'unauthorized': return 'Not boarded — you are not authorized.';
+    case 'identity-unresolved': return 'Not boarded — no Dataverse identity available.';
+    case 'invalid-input': return 'Not boarded — required fields were missing.';
+    case 'write-failed': return 'Not boarded — the write failed; please retry.';
+    case 'readback-mismatch': return 'Not boarded — the record did not verify on readback.';
+    case 'audit-failed': return 'Boarded but its audit failed — an operator must reattempt the audit.';
+    default: return 'Not boarded.';
+  }
+}
+
+/**
+ * Every failed row from a completed import run, one per row — never
+ * truncated (Phase 264, P1). The on-screen result view previews the first 50;
+ * this is the complete report for an operator correcting a real loan tape.
+ */
+export function buildImportFailureReportCsv(results: readonly ImportRowResult[]): string {
+  const headers = ['Row', 'Loan Number', 'Reason'];
+  const lines = results
+    .filter((r) => !r.boarded)
+    .map((r) => [String(r.rowNumber), r.loanNumber, describeImportOutcome(r.outcome.kind)].map(csvCell).join(','));
+  return [headers.map(csvCell).join(','), ...lines].join('\n') + '\n';
+}
 
 export function buildLiveImportRunnerDeps(): ImportRunnerDeps {
   const base = buildLiveExistingLoanDeps();

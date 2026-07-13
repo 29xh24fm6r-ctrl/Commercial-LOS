@@ -1,7 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseCsv, autoMapColumns, validateRows, parseAndValidateCsv } from './portfolioImportParser';
+import {
+  parseCsv,
+  autoMapColumns,
+  validateRows,
+  parseAndValidateCsv,
+  buildImportErrorReportCsv,
+  buildImportValidRowsCsv,
+} from './portfolioImportParser';
 import { buildImportTemplateCsv, templateHeaders } from './portfolioImportColumns';
-import { runPortfolioImport, type ImportRunnerDeps } from './portfolioImportRunner';
+import { runPortfolioImport, buildImportFailureReportCsv, describeImportOutcome, type ImportRunnerDeps } from './portfolioImportRunner';
 import type { ExistingLoanInput, BoardExistingLoanOutcome, ExistingLoanDeps } from './existingLoanEntryAdapter';
 
 /**
@@ -234,5 +241,88 @@ describe('runPortfolioImport', () => {
 
     expect(summary.successCount).toBe(0);
     expect(summary.results[0].outcome.kind).toBe('unauthorized');
+  });
+});
+
+/**
+ * Phase 264 (P1) — full-report CSV export. The on-screen preview truncates to
+ * 50 errors / 25 ready rows for readability; these builders back the "download
+ * full report" escape hatch and must NEVER truncate, however many rows exist.
+ */
+describe('buildImportErrorReportCsv', () => {
+  it('includes every error row, never truncated', () => {
+    const errors = Array.from({ length: 60 }, (_, i) => ({
+      rowNumber: i + 1,
+      loanNumber: `L-${i + 1}`,
+      messages: ['Borrower Legal Name is required.'],
+    }));
+
+    const csv = buildImportErrorReportCsv(errors);
+    const lines = csv.trim().split('\n');
+
+    expect(lines).toHaveLength(61); // header + 60 rows
+    expect(lines[0]).toBe('Row,Loan Number,Issues');
+    expect(lines[60]).toBe('60,L-60,Borrower Legal Name is required.');
+  });
+
+  it('quotes a message containing a comma', () => {
+    const csv = buildImportErrorReportCsv([
+      { rowNumber: 1, loanNumber: 'L-1', messages: ['Index is not a valid number ("abc").', 'Spread is required.'] },
+    ]);
+    expect(csv).toContain('"Index is not a valid number (""abc""). Spread is required."');
+  });
+
+  it('renders a missing loan number as an empty cell, not "undefined"', () => {
+    const csv = buildImportErrorReportCsv([{ rowNumber: 1, loanNumber: undefined, messages: ['Loan Number is required.'] }]);
+    expect(csv).toContain('1,,Loan Number is required.');
+  });
+});
+
+describe('buildImportValidRowsCsv', () => {
+  it('includes every ready row, never truncated', () => {
+    const csv = `${HEADER}\n${Array.from({ length: 30 }, (_, i) => `L-${i + 1},Acme ${i + 1},Current,1,1,2022-01-01,No,`).join('\n')}`;
+    const { valid } = parseAndValidateCsv(csv);
+    expect(valid).toHaveLength(30);
+
+    const report = buildImportValidRowsCsv(valid);
+    const lines = report.trim().split('\n');
+
+    expect(lines).toHaveLength(31); // header + 30 rows
+    expect(lines[0]).toBe('Row,Loan Number,Borrower,Status,Outstanding Principal');
+    expect(lines[30]).toBe('30,L-30,Acme 30,Current,1');
+  });
+});
+
+describe('describeImportOutcome', () => {
+  it('gives a distinct, readable reason for every non-success outcome kind', () => {
+    const kinds: BoardExistingLoanOutcome['kind'][] = [
+      'unauthorized', 'identity-unresolved', 'invalid-input', 'duplicate',
+      'write-failed', 'readback-mismatch', 'audit-failed', 'unknown',
+    ];
+    const reasons = kinds.map(describeImportOutcome);
+    expect(new Set(reasons).size).toBe(kinds.length);
+    for (const r of reasons) expect(r.length).toBeGreaterThan(0);
+  });
+});
+
+describe('buildImportFailureReportCsv', () => {
+  it('includes only the failed rows, never truncated, and never the successes', () => {
+    const results = [
+      { rowNumber: 1, loanNumber: 'L-1', boarded: true, outcome: { kind: 'success', loanId: 'x', loanNumber: 'L-1', correlationId: 'c', childCreated: 0, childErrors: [], auditId: undefined } as BoardExistingLoanOutcome },
+      ...Array.from({ length: 55 }, (_, i) => ({
+        rowNumber: i + 2,
+        loanNumber: `L-${i + 2}`,
+        boarded: false,
+        outcome: { kind: 'write-failed', error: 'boom', correlationId: 'c' } as BoardExistingLoanOutcome,
+      })),
+    ];
+
+    const csv = buildImportFailureReportCsv(results);
+    const lines = csv.trim().split('\n');
+
+    expect(lines).toHaveLength(56); // header + 55 failures (the 1 success excluded)
+    expect(lines[0]).toBe('Row,Loan Number,Reason');
+    expect(csv).not.toContain('L-1,');
+    expect(lines[1]).toBe('2,L-2,Not boarded — the write failed; please retry.');
   });
 });

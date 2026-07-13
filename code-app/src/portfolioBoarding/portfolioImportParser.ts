@@ -15,6 +15,7 @@ import {
   SCALAR_IMPORT_COLUMNS,
   CHILD_IMPORT_COLUMNS,
   INFORMATIONAL_IMPORT_COLUMNS,
+  csvCell,
   type ScalarColumnKey,
   type InformationalKey,
 } from './portfolioImportColumns';
@@ -367,4 +368,39 @@ export function validateRows(
 /** Convenience: parse + validate raw CSV text in one step. */
 export function parseAndValidateCsv(text: string, existingLoanNumbers: Iterable<string> = []): ParsedImport {
   return validateRows(parseCsv(text), existingLoanNumbers);
+}
+
+// ---------------------------------------------------------------------------
+// Full-report CSV export (Phase 264, P1) — the on-screen preview truncates to
+// 50 errors / 25 ready rows for readability, but an operator correcting a real
+// bank loan tape needs every row, not just the first page. These build the
+// COMPLETE report as a downloadable CSV; nothing here is ever truncated.
+// ---------------------------------------------------------------------------
+
+/** Every validation error, one per row — never truncated. */
+export function buildImportErrorReportCsv(errors: readonly RowError[]): string {
+  const headers = ['Row', 'Loan Number', 'Issues'];
+  const lines = errors.map((e) =>
+    [String(e.rowNumber), e.loanNumber ?? '', e.messages.join(' ')].map(csvCell).join(','),
+  );
+  return [headers.map(csvCell).join(','), ...lines].join('\n') + '\n';
+}
+
+/** Every row that passed validation and is ready to board — never truncated. */
+export function buildImportValidRowsCsv(valid: readonly ParsedLoanRow[]): string {
+  const headers = ['Row', 'Loan Number', 'Borrower', 'Status', 'Outstanding Principal'];
+  const lines = valid.map((v) =>
+    [
+      String(v.rowNumber),
+      v.loanNumber,
+      v.borrowerLegalName,
+      v.input.loanStatus ?? '',
+      v.input.currentOutstandingPrincipal !== undefined && v.input.currentOutstandingPrincipal !== null
+        ? String(v.input.currentOutstandingPrincipal)
+        : '',
+    ]
+      .map(csvCell)
+      .join(','),
+  );
+  return [headers.map(csvCell).join(','), ...lines].join('\n') + '\n';
 }
