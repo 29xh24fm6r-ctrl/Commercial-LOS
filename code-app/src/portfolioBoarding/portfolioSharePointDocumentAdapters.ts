@@ -201,9 +201,10 @@ export function createLiveSharePointDocumentAdapter(
 }
 
 /**
- * Mode-resolving factory, mirroring `getEmailAdapter()`. `connector` is only
- * consulted in LIVE mode (DRY_RUN never touches it); pass it once an
- * operator has wired a real `PortfolioSharePointConnectorPort`.
+ * Mode-resolving factory, mirroring the Outlook email adapter's mode switch
+ * in `outlookEmailAdapters.ts`. `connector` is only consulted in LIVE mode
+ * (DRY_RUN never touches it); pass it once an operator has wired a real
+ * `PortfolioSharePointConnectorPort`.
  */
 export function getSharePointDocumentAdapter(connector?: PortfolioSharePointConnectorPort): PortfolioSharePointDocumentPort {
   if (SHAREPOINT_DOCUMENT_MODE !== 'LIVE') return dryRunSharePointDocumentAdapter;
