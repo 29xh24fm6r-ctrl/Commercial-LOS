@@ -23,6 +23,8 @@ export interface PortfolioBoardingFeatureFlagConfig {
   commandCenterEnabled?: boolean;
   /** Phase 140P Ã¢â‚¬â€ exposes the FDIC/board package surface. Default: off. */
   fdicPackageEnabled?: boolean;
+  /** Phase 264 (P0) — enables SharePoint document upload (independent of documentMetadataEnabled). Default: off. */
+  documentSharePointUploadEnabled?: boolean;
 }
 
 export interface PortfolioBoardingFeatureFlags {
@@ -31,6 +33,7 @@ export interface PortfolioBoardingFeatureFlags {
   readonly PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED: boolean;
   readonly PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED: boolean;
   readonly PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: boolean;
+  readonly PORTFOLIO_BOARDING_DOCUMENT_SHAREPOINT_UPLOAD_ENABLED: boolean;
 }
 
 /** The safe defaults: every portfolio boarding runtime capability is off. */
@@ -45,6 +48,7 @@ export const PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS: PortfolioBoardingFeatureF
     PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED: false,
     PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED: false,
     PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: false,
+    PORTFOLIO_BOARDING_DOCUMENT_SHAREPOINT_UPLOAD_ENABLED: false,
   });
 
 /**
@@ -63,5 +67,7 @@ export function resolvePortfolioBoardingFeatureFlags(
     PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED:
       config?.commandCenterEnabled === true,
     PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: config?.fdicPackageEnabled === true,
+    PORTFOLIO_BOARDING_DOCUMENT_SHAREPOINT_UPLOAD_ENABLED:
+      config?.documentSharePointUploadEnabled === true,
   };
 }

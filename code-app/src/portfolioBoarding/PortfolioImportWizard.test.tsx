@@ -61,6 +61,11 @@ describe('PortfolioImportWizard', () => {
     expect(container.querySelector('[data-portfolio-import-error-count]')?.textContent).toMatch(/1 need attention/);
     expect(container.querySelector('[data-portfolio-import-errors]')?.textContent).toMatch(/Loan Number is required/i);
 
+    // Phase 264 (P1) — full-report export escape hatches are present whenever
+    // there is anything to export, independent of the 50/25 on-screen preview cap.
+    expect(container.querySelector('[data-portfolio-import-download-errors]')?.textContent).toMatch(/1 row/);
+    expect(container.querySelector('[data-portfolio-import-download-valid]')?.textContent).toMatch(/2 ready rows/);
+
     // Confirm → the governed runner is called with exactly the 2 valid rows.
     await user.click(container.querySelector('[data-portfolio-import-confirm]') as HTMLElement);
     await waitFor(() => expect(container.querySelector('[data-portfolio-import-result]')).not.toBeNull());
@@ -69,6 +74,45 @@ describe('PortfolioImportWizard', () => {
     expect(runImport.mock.calls[0][1]).toMatchObject({ actorSystemUserId: 'sys-1', authorized: true });
     expect(screen.getByText(/Imported/i).textContent).toMatch(/2 of 2/);
     expect(onImported).toHaveBeenCalledTimes(1);
+    // No failures on this run — the failure-report download hatch does not render.
+    expect(container.querySelector('[data-portfolio-import-download-failures]')).toBeNull();
+  });
+
+  it('exposes a full failure-report download when the import completes with failures', async () => {
+    const runImport = vi.fn(
+      async (rows: ParsedImport['valid'], _actor: unknown, fileName: string): Promise<ImportSummary> => ({
+        correlationId: 'imp-2',
+        fileName,
+        rowCount: rows.length,
+        successCount: 0,
+        failureCount: rows.length,
+        results: rows.map((r) => ({
+          rowNumber: r.rowNumber,
+          loanNumber: r.loanNumber,
+          outcome: { kind: 'write-failed', error: 'boom', correlationId: 'c' },
+          boarded: false,
+        })),
+        auditWritten: true,
+        auditError: undefined,
+      }),
+    );
+    const user = userEvent.setup();
+    const { container } = render(
+      <PortfolioImportWizard
+        authorized
+        actorEmail="op@bank.test"
+        actorSystemUserId="sys-1"
+        existingLoanNumbers={[]}
+        runImport={runImport}
+      />,
+    );
+
+    await user.upload(container.querySelector('[data-portfolio-import-file]') as HTMLInputElement, file('book.csv', CSV));
+    await waitFor(() => expect(container.querySelector('[data-portfolio-import-preview]')).not.toBeNull());
+    await user.click(container.querySelector('[data-portfolio-import-confirm]') as HTMLElement);
+    await waitFor(() => expect(container.querySelector('[data-portfolio-import-result]')).not.toBeNull());
+
+    expect(container.querySelector('[data-portfolio-import-download-failures]')?.textContent).toMatch(/2 rows/);
   });
 
   it('disables import for an unauthorized actor and exposes a template download button', () => {

@@ -13,7 +13,14 @@ import {
   type ExtendedLoanAttributes,
 } from './extendedLoanAttributes';
 
-const ROW_CAP = 200;
+// Phase 264 (P1) — pagination. This used to be a hard `$top` cap that silently
+// truncated any portfolio over 200 loans. It is now a per-request PAGE size:
+// `loadBoardedLoans` walks every page via Dataverse skip-token paging until the
+// server reports no further page, so a real bank's full boarded-loan book loads
+// completely. MAX_PAGES is a pathological-input safety ceiling only (200 * 50 =
+// 10,000 rows) — hitting it is reported via `truncated`, never silently dropped.
+const PAGE_SIZE = 200;
+const MAX_PAGES = 50;
 
 export interface BoardedLoanRow {
   readonly id: string;
@@ -199,12 +206,12 @@ const EXTENDED_SELECT: readonly string[] = [...CORE_SELECT, ...OPTIONAL_PORTFOLI
 export const EXTENDED_SELECT_FOR_TESTS: readonly string[] = EXTENDED_SELECT;
 
 /**
- * Session-level provisioning state for additive portfolio-book columns. Probed
- * once per session by attempting the read with the columns and caching the
- * result; `'absent'` means we omit them from every subsequent `$select` so
- * reads never re-hit the Dataverse `0x80060888` "could not find a property"
- * failure. Fail-closed: unprovisioned additive columns degrade to core-only,
- * never a crash.
+ * Session-level provisioning state for additive portfolio-book columns.
+ * Resolved once per session from real Dataverse entity metadata (see
+ * `ExtendedColumnCapabilityReader` below) and cached; `'absent'` means we omit
+ * the additive columns from every subsequent `$select` so reads never hit the
+ * Dataverse `0x80060888` "could not find a property" failure. Fail-closed:
+ * unprovisioned additive columns degrade to core-only, never a crash.
  */
 export type ExtendedColumnProvisioning = 'unknown' | 'present' | 'absent';
 
@@ -220,20 +227,63 @@ export function resetExtendedColumnProvisioningForTests(): void {
   extendedColumnProvisioning = 'unknown';
 }
 
+/** Result of asking Dataverse what attributes actually exist on the live entity. */
+export interface ExtendedColumnCapabilityResult {
+  readonly success: boolean;
+  /** Logical names of every attribute on the live entity; only set when `success`. */
+  readonly attributeLogicalNames?: readonly string[];
+}
+
+/**
+ * Injected for testability: resolves the LIVE entity's real attribute
+ * capability via Dataverse entity metadata — the schema-capability contract
+ * that replaces inferring provisioning from a failed read's error-message
+ * wording (Phase 264, P1).
+ */
+export type ExtendedColumnCapabilityReader = () => Promise<ExtendedColumnCapabilityResult>;
+
+/**
+ * Resolves provisioning from real entity metadata: `'present'` only when every
+ * additive column's logical name is among the live entity's attributes,
+ * `'absent'` otherwise — including when the metadata call itself fails
+ * (fail-closed; never assume provisioned on an inconclusive answer).
+ */
+async function resolveExtendedColumnProvisioning(
+  checkCapability: ExtendedColumnCapabilityReader,
+): Promise<ExtendedColumnProvisioning> {
+  const res = await checkCapability();
+  if (!res.success || !res.attributeLogicalNames) return 'absent';
+  const present = new Set(res.attributeLogicalNames.map((n) => n.toLowerCase()));
+  return OPTIONAL_PORTFOLIO_BOOK_SELECT.every((c) => present.has(c.toLowerCase())) ? 'present' : 'absent';
+}
+
 /** Minimal shape of a boarded-loan read response (subset of IOperationResult). */
 export interface BoardedLoanReadResponse {
   readonly success: boolean;
   readonly data?: readonly RawBoardedLoan[] | null;
   readonly error?: { readonly message?: string } | null;
+  /** Server-issued paging token for the next page; absent/undefined means "no more pages". */
+  readonly skipToken?: string | null;
 }
 
-/** Reader injected for testability: given a `$select`, returns the raw response. */
-export type BoardedLoanReader = (select: readonly string[]) => Promise<BoardedLoanReadResponse>;
+/**
+ * Reader injected for testability: given a `$select` (and, for a page beyond
+ * the first, the previous page's `skipToken`), returns the raw response.
+ * Existing single-page callers/mocks that only accept `select` remain valid —
+ * `skipToken` is an additional trailing parameter they are free to ignore.
+ */
+export type BoardedLoanReader = (
+  select: readonly string[],
+  skipToken?: string,
+) => Promise<BoardedLoanReadResponse>;
 
 /**
- * True when a failed read looks like an additive portfolio-book column is not
- * provisioned — the Dataverse `0x80060888` "Could not find a property named ..."
- * error. Any other failure is surfaced honestly.
+ * DEFENSIVE BACKSTOP ONLY — not the capability contract. If entity metadata
+ * said the additive columns were present but the live read still fails the
+ * same way (schema-propagation lag, metadata cache staleness), this recognizes
+ * the Dataverse `0x80060888` "Could not find a property named ..." error so we
+ * can still degrade to core-only rather than crash. It is never consulted
+ * unless the metadata-based check above already said `'present'`.
  */
 function looksLikeMissingExtendedColumn(res: BoardedLoanReadResponse): boolean {
   const msg = (res.error?.message ?? '').toLowerCase();
@@ -247,42 +297,121 @@ function looksLikeMissingExtendedColumn(res: BoardedLoanReadResponse): boolean {
 }
 
 /**
- * Provisioning-aware read core. Includes additive portfolio-book columns unless
- * this session already learned they are absent. On a missing-column failure it
- * strips the columns, retries once, and caches `'absent'` for the rest of the
- * session. Never throws the `0x80060888` missing-property error.
+ * Provisioning-aware SINGLE-PAGE read core. Resolves provisioning once per
+ * session from real entity metadata (`checkCapability`) rather than by
+ * parsing a failed read's error text. The reactive error-text check is kept
+ * only as a defensive backstop for the rare case live behavior disagrees with
+ * metadata — it is never the primary detection path, so a wording change in
+ * Dataverse's error text can no longer silently break provisioning detection.
+ * Never throws the `0x80060888` missing-property error either way. Returns
+ * the mapped rows for this page plus the server's `skipToken` (if any) so a
+ * caller can walk further pages.
  */
-export async function loadBoardedLoansWith(read: BoardedLoanReader): Promise<readonly BoardedLoanRow[]> {
+async function readBoardedLoanPage(
+  read: BoardedLoanReader,
+  checkCapability: ExtendedColumnCapabilityReader,
+  skipToken?: string,
+): Promise<{ readonly rows: readonly BoardedLoanRow[]; readonly nextSkipToken: string | undefined }> {
+  if (extendedColumnProvisioning === 'unknown') {
+    extendedColumnProvisioning = await resolveExtendedColumnProvisioning(checkCapability);
+  }
+
   const includeExtended = extendedColumnProvisioning !== 'absent';
-  let res = await read(includeExtended ? EXTENDED_SELECT : CORE_SELECT);
-  let stripped = false;
+  let res = await read(includeExtended ? EXTENDED_SELECT : CORE_SELECT, skipToken);
 
   if (!res.success && includeExtended && looksLikeMissingExtendedColumn(res)) {
     extendedColumnProvisioning = 'absent';
-    stripped = true;
-    res = await read(CORE_SELECT);
+    res = await read(CORE_SELECT, skipToken);
   }
 
   if (!res.success) {
     throw new Error(`Portfolio loans read failed: ${res.error?.message ?? 'non-success'}`);
   }
 
-  // A clean read that actually carried the additive columns proves they are provisioned.
-  if (includeExtended && !stripped) {
-    extendedColumnProvisioning = 'present';
-  }
-
-  return (res.data ?? []).map(mapBoardedLoanRow).filter((r) => r.id.length > 0);
+  return {
+    rows: (res.data ?? []).map(mapBoardedLoanRow).filter((r) => r.id.length > 0),
+    nextSkipToken: res.skipToken ?? undefined,
+  };
 }
 
-export function loadBoardedLoans(): Promise<readonly BoardedLoanRow[]> {
-  return loadBoardedLoansWith(async (select) => {
+/**
+ * Provisioning-aware read of a SINGLE page. Kept as its own export (same
+ * behavior/shape as before) because it is the unit the provisioning tests
+ * exercise directly, one page at a time.
+ */
+export async function loadBoardedLoansWith(
+  read: BoardedLoanReader,
+  checkCapability: ExtendedColumnCapabilityReader,
+): Promise<readonly BoardedLoanRow[]> {
+  return (await readBoardedLoanPage(read, checkCapability)).rows;
+}
+
+export interface BoardedLoansLoadResult {
+  readonly rows: readonly BoardedLoanRow[];
+  /** True only if MAX_PAGES was exhausted and the server reported a further page — never a silent drop below that. */
+  readonly truncated: boolean;
+}
+
+/**
+ * Walks every page (via Dataverse skip-token paging) until the server reports
+ * no further page, or the MAX_PAGES safety ceiling is hit. Replaces the old
+ * `$top=200` hard cap: a real portfolio's full boarded-loan book loads in full.
+ */
+export async function loadAllBoardedLoansWith(
+  read: BoardedLoanReader,
+  checkCapability: ExtendedColumnCapabilityReader,
+): Promise<BoardedLoansLoadResult> {
+  const rows: BoardedLoanRow[] = [];
+  let skipToken: string | undefined;
+  let pageCount = 0;
+  do {
+    const page = await readBoardedLoanPage(read, checkCapability, skipToken);
+    rows.push(...page.rows);
+    skipToken = page.nextSkipToken;
+    pageCount += 1;
+  } while (skipToken && pageCount < MAX_PAGES);
+  return { rows, truncated: Boolean(skipToken) };
+}
+
+function liveBoardedLoanReader(): BoardedLoanReader {
+  return async (select, skipToken) => {
     const { Cr664_portfolioboardedloansService } = await import('../generated/services/Cr664_portfolioboardedloansService');
-    const res = await Cr664_portfolioboardedloansService.getAll({ select: [...select], top: ROW_CAP });
+    const res = await Cr664_portfolioboardedloansService.getAll({
+      select: [...select],
+      maxPageSize: PAGE_SIZE,
+      ...(skipToken ? { skipToken } : {}),
+    });
     return {
       success: res.success,
       data: res.data as readonly RawBoardedLoan[] | undefined,
       error: res.error,
+      skipToken: res.skipToken,
     };
-  });
+  };
+}
+
+/**
+ * Live schema-capability check: asks Dataverse entity metadata for every
+ * attribute logical name on `cr664_portfolioboardedloan`. This is the real
+ * capability contract — provisioning is decided from what the live entity
+ * actually has, never from parsing an error message.
+ */
+function liveExtendedColumnCapabilityReader(): ExtendedColumnCapabilityReader {
+  return async () => {
+    const { Cr664_portfolioboardedloansService } = await import('../generated/services/Cr664_portfolioboardedloansService');
+    const res = await Cr664_portfolioboardedloansService.getMetadata({ schema: { columns: 'all' } });
+    const attributes = res.data?.Attributes;
+    if (!res.success || !attributes) return { success: false };
+    return { success: true, attributeLogicalNames: attributes.map((a) => a.LogicalName) };
+  };
+}
+
+/** Back-compat shape most callers want: every boarded loan, fully paged. */
+export async function loadBoardedLoans(): Promise<readonly BoardedLoanRow[]> {
+  return (await loadAllBoardedLoansWith(liveBoardedLoanReader(), liveExtendedColumnCapabilityReader())).rows;
+}
+
+/** Same load, plus the `truncated` signal for callers that want to surface it. */
+export function loadBoardedLoansWithMeta(): Promise<BoardedLoansLoadResult> {
+  return loadAllBoardedLoansWith(liveBoardedLoanReader(), liveExtendedColumnCapabilityReader());
 }

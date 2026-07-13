@@ -70,7 +70,7 @@ export const PORTFOLIO_BOARDING_READINESS: readonly PortfolioBoardingReadinessIt
   Object.freeze([
     Object.freeze({ label: 'Boarding schema plan + model', present: true, detail: 'Phase 140 schema plan and Dataverse mapper are present in src/portfolioBoarding.' }),
     Object.freeze({ label: 'Persistence adapter', present: true, detail: 'portfolioLoanBoardingDataverseAdapter / writeAdapter / persistence resolver are present.' }),
-    Object.freeze({ label: 'Document upload adapter', present: true, detail: 'portfolioLoanDocumentUploadAdapter is present but gated; no binary upload is wired here.' }),
+    Object.freeze({ label: 'Document upload adapter', present: true, detail: 'SharePoint document upload port (portfolioSharePointDocumentAdapters) is present: DRY_RUN validates + records honestly with no fake link; LIVE requires an operator-registered SharePoint Online connector, not yet wired.' }),
     Object.freeze({ label: 'Runtime schema gate', present: true, detail: 'portfolioBoardingRuntimeSchemaGate fails closed until the target schema is verified.' }),
     Object.freeze({
       label: 'Live runtime persistence enabled',

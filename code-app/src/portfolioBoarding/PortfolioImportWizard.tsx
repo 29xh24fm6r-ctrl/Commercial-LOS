@@ -1,13 +1,37 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import { buildImportTemplateCsv } from './portfolioImportColumns';
-import { parseAndValidateCsv, type ParsedImport } from './portfolioImportParser';
+import {
+  parseAndValidateCsv,
+  buildImportErrorReportCsv,
+  buildImportValidRowsCsv,
+  type ParsedImport,
+} from './portfolioImportParser';
 import {
   runPortfolioImport,
   buildLiveImportRunnerDeps,
+  buildImportFailureReportCsv,
+  describeImportOutcome,
   type ImportSummary,
 } from './portfolioImportRunner';
 import { formatCurrency } from '../shared/formatters';
+
+/** Triggers a browser download of `content` as `fileName`; a no-op in non-DOM/test environments. */
+function downloadCsv(fileName: string, content: string) {
+  try {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch {
+    // Download is a no-op in non-DOM/test environments.
+  }
+}
 
 /**
  * Phase 261 (C) — Upload Existing Portfolio wizard.
@@ -65,19 +89,7 @@ export function PortfolioImportWizard({
   const existingSet = useMemo(() => existingLoanNumbers.map((n) => n), [existingLoanNumbers]);
 
   function downloadTemplate() {
-    try {
-      const blob = new Blob([buildImportTemplateCsv()], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'existing-portfolio-import-template.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      // Download is a no-op in non-DOM/test environments.
-    }
+    downloadCsv('existing-portfolio-import-template.csv', buildImportTemplateCsv());
   }
 
   async function onFile(file: File) {
@@ -211,6 +223,14 @@ function ImportPreview({
             ))}
           </ul>
           {parsed.errors.length > 50 && <div style={styles.hint}>…and {parsed.errors.length - 50} more.</div>}
+          <button
+            type="button"
+            style={styles.downloadReportBtn}
+            data-portfolio-import-download-errors
+            onClick={() => downloadCsv('portfolio-import-errors.csv', buildImportErrorReportCsv(parsed.errors))}
+          >
+            ↓ Download full error report ({parsed.errors.length} row{parsed.errors.length === 1 ? '' : 's'})
+          </button>
         </div>
       )}
 
@@ -239,6 +259,16 @@ function ImportPreview({
         </table>
       )}
       {parsed.valid.length > 25 && <div style={styles.hint}>Showing 25 of {parsed.valid.length} ready rows.</div>}
+      {parsed.valid.length > 0 && (
+        <button
+          type="button"
+          style={styles.downloadReportBtn}
+          data-portfolio-import-download-valid
+          onClick={() => downloadCsv('portfolio-import-ready-rows.csv', buildImportValidRowsCsv(parsed.valid))}
+        >
+          ↓ Download all {parsed.valid.length} ready row{parsed.valid.length === 1 ? '' : 's'}
+        </button>
+      )}
 
       <div style={styles.actions}>
         <button type="button" style={styles.cancelBtn} data-portfolio-import-cancel onClick={onCancel}>
@@ -274,16 +304,27 @@ function ImportResult({ summary, onReset }: { summary: ImportSummary; onReset: (
       </div>
 
       {summary.failureCount > 0 && (
-        <ul style={styles.errorList} data-portfolio-import-result-failures>
-          {summary.results
-            .filter((r) => !r.boarded)
-            .slice(0, 50)
-            .map((r) => (
-              <li key={r.rowNumber} style={styles.errorItem}>
-                <strong>Row {r.rowNumber} ({r.loanNumber}):</strong> {describeOutcome(r.outcome.kind)}
-              </li>
-            ))}
-        </ul>
+        <>
+          <ul style={styles.errorList} data-portfolio-import-result-failures>
+            {summary.results
+              .filter((r) => !r.boarded)
+              .slice(0, 50)
+              .map((r) => (
+                <li key={r.rowNumber} style={styles.errorItem}>
+                  <strong>Row {r.rowNumber} ({r.loanNumber}):</strong> {describeImportOutcome(r.outcome.kind)}
+                </li>
+              ))}
+          </ul>
+          {summary.failureCount > 50 && <div style={styles.hint}>…and {summary.failureCount - 50} more.</div>}
+          <button
+            type="button"
+            style={styles.downloadReportBtn}
+            data-portfolio-import-download-failures
+            onClick={() => downloadCsv('portfolio-import-failures.csv', buildImportFailureReportCsv(summary.results))}
+          >
+            ↓ Download full failure report ({summary.failureCount} row{summary.failureCount === 1 ? '' : 's'})
+          </button>
+        </>
       )}
 
       <button type="button" style={styles.cancelBtn} data-portfolio-import-reset onClick={onReset}>
@@ -291,19 +332,6 @@ function ImportResult({ summary, onReset }: { summary: ImportSummary; onReset: (
       </button>
     </div>
   );
-}
-
-function describeOutcome(kind: string): string {
-  switch (kind) {
-    case 'duplicate': return 'Skipped — a loan with this number already exists.';
-    case 'unauthorized': return 'Not boarded — you are not authorized.';
-    case 'identity-unresolved': return 'Not boarded — no Dataverse identity available.';
-    case 'invalid-input': return 'Not boarded — required fields were missing.';
-    case 'write-failed': return 'Not boarded — the write failed; please retry.';
-    case 'readback-mismatch': return 'Not boarded — the record did not verify on readback.';
-    case 'audit-failed': return 'Boarded but its audit failed — an operator must reattempt the audit.';
-    default: return 'Not boarded.';
-  }
 }
 
 function formatAmount(amount: number | null | undefined): string {
@@ -336,6 +364,7 @@ const styles: Record<string, CSSProperties> = {
   tdStrong: { padding: `${spacing.xs} ${spacing.sm}`, color: palette.text, fontWeight: typography.weight.semibold, borderBottom: `1px solid ${palette.divider}` },
   actions: { display: 'flex', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' },
   cancelBtn: { background: palette.surfaceAlt, color: palette.text, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, fontFamily: typography.family, cursor: 'pointer' },
+  downloadReportBtn: { alignSelf: 'flex-start', background: palette.surface, color: palette.cobalt, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.xs, fontWeight: typography.weight.semibold, fontFamily: typography.family, cursor: 'pointer' },
   confirmBtn: { background: palette.cobalt, color: palette.cobaltFg, border: 'none', borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.lg}`, fontSize: typography.size.sm, fontWeight: typography.weight.bold, fontFamily: typography.family, cursor: 'pointer' },
   confirmBtnDisabled: { background: palette.surfaceAlt, color: palette.textSubtle, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.lg}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, fontFamily: typography.family, cursor: 'not-allowed' },
   result: { display: 'flex', flexDirection: 'column', gap: spacing.md },
