@@ -62,6 +62,8 @@ modules it names. Read the modules.
 | ---------------------------------------- | ------------------------------------------------------------------------- |
 | Typed Dataverse services                 | [src/generated/services/](../src/generated/services/) (regenerated; do not hand-edit) |
 | Model types                              | [src/generated/models/](../src/generated/models/) (regenerated; do not hand-edit) |
+| Portfolio boarding target schema (13-table `cr664_portfolioboardedloan*` family) | [portfolioLoanBoardingDataverseSchemaPlan.ts](../src/portfolioBoarding/portfolioLoanBoardingDataverseSchemaPlan.ts) |
+| Legacy portfolio/covenant/stress-test entities (superseded, dead — do not build against) | [../../src/Entities/README_LEGACY_PORTFOLIO_SCHEMA.md](../../src/Entities/README_LEGACY_PORTFOLIO_SCHEMA.md) |
 
 ## Cross-cutting docs
 
