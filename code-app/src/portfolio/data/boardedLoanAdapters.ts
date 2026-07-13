@@ -5,11 +5,23 @@ import type { LoanReviewCandidate } from '../loanReview/loanReview';
 import type { LoanProfitabilityInputs } from '../profitability/loanProfitability';
 import type {
   DualRatingInput,
+  DualRatingRecord,
   FacilityInputs,
   ObligorGrade,
   RegulatoryClassification,
 } from '../riskRating/dualRiskRating';
 import type { WatchlistInput } from '../watchlist/watchlist';
+import {
+  classifyBand,
+  DEFAULT_SINGLE_NAME_PCT_BANDS,
+  DEFAULT_GROUP_PCT_BANDS,
+  DEFAULT_SEGMENT_PCT_BANDS,
+  PORTFOLIO_LARGE_EXPOSURE_THRESHOLD,
+} from '../portfolioRiskEngine';
+import type { ClassificationPoolInput } from '../regulatoryClassification/regulatoryClassification';
+import type { StressTestLoanInput } from '../stressTesting/stressTesting';
+import type { PortfolioBoardPackageRiskInput } from '../boardPackage/portfolioBoardPackage';
+import type { PortfolioBookSnapshot } from '../portfolioBookSnapshot';
 
 export type PortfolioRatingMap = Readonly<Record<string, ObligorGrade>>;
 
@@ -160,5 +172,111 @@ export function toLoanReviewCandidate(
     segment: row.extended?.product ?? row.status,
     originatingBanker: row.portfolioManager,
     lastReviewedDate: row.nextReviewDate,
+  };
+}
+
+/**
+ * Phase 264 (P3) — pairs each already-computed dual rating record with its
+ * loan's exposure/borrower for the regulatory-classification pooling engine.
+ * A rating with no matching loan (should not happen, but never assumed) is
+ * paired with exposure 0 and an undefined borrower rather than dropped —
+ * the pooling engine itself excludes non-positive exposure honestly.
+ */
+export function toClassificationPoolInputs(
+  loans: readonly BoardedLoanRow[],
+  ratings: readonly DualRatingRecord[],
+): ClassificationPoolInput[] {
+  const loanById = new Map(loans.map((row) => [row.id, row]));
+  return ratings
+    .filter((rating): rating is DualRatingRecord & { loanId: string } => rating.loanId !== undefined)
+    .map((rating) => {
+      const loan = loanById.get(rating.loanId);
+      return {
+        loanId: rating.loanId,
+        borrowerName: loan?.borrower,
+        exposure: finiteNumber(loan?.outstanding) ?? 0,
+        rating,
+      };
+    });
+}
+
+/**
+ * Phase 264 (P3) — boarded loans -> stress-test engine input. `collateralValue`
+ * is always undefined: collateral value lives on child entities not yet read
+ * by the main boarded-loan query (WI-6, deferred) — genuinely unknown, never
+ * fabricated. The stress engine already treats an undefined collateral value
+ * as "collateral-shock impact not computable" rather than guessing.
+ */
+export function toStressTestLoanInputs(
+  loans: readonly BoardedLoanRow[],
+): StressTestLoanInput[] {
+  return loans.map((row) => ({
+    loanId: row.id,
+    borrowerName: row.borrower,
+    exposure: finiteNumber(row.outstanding) ?? 0,
+    interestRateType: row.interestRateType,
+    currentSpreadPct: finiteNumber(row.spread),
+    collateralValue: undefined,
+  }));
+}
+
+function clampPct(n: number): number {
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+/**
+ * Phase 264 (P3) — adapts the boarded book's own concentration rollup
+ * (`PortfolioBookSnapshot`) into the board package's risk/concentration
+ * input. The deal-pipeline risk engine (`portfolioRiskEngine.ts`) cannot be
+ * reused directly here: boarded loans and pre-close deals are different data
+ * models (no `ManagerVMRow` exists for a boarded loan). "Unknown
+ * borrower"/"Unknown product"/"Unassigned" buckets are excluded from the
+ * concentration figures (mirroring the deal-pipeline engine's `isUnknown`
+ * exclusion) so an absence-of-data bucket is never reported as a real
+ * concentration finding. No risk-finding engine exists yet for boarded loans
+ * (the deal-pipeline findings need per-deal document/task counts that boarded
+ * loans don't track), so `findings` is honestly empty, never fabricated.
+ */
+export function toBoardPackageRiskInput(
+  snapshot: PortfolioBookSnapshot,
+): PortfolioBoardPackageRiskInput {
+  const knownBorrowers = snapshot.byBorrower.filter((r) => r.label !== 'Unknown borrower');
+  const knownProducts = snapshot.byProduct.filter((r) => r.label !== 'Unknown product');
+  const knownManagers = snapshot.byPortfolioManager.filter((r) => r.label !== 'Unassigned');
+
+  const singleName = knownBorrowers[0];
+  const top5Pct = clampPct(knownBorrowers.slice(0, 5).reduce((sum, r) => sum + r.sharePct, 0));
+  const topProduct = knownProducts[0];
+  const topManager = knownManagers[0];
+
+  const totalExposure = snapshot.commandRibbon.totalExposure;
+  const dealsAboveThresholdCount = snapshot.loans.filter((row) => {
+    const outstanding = finiteNumber(row.outstanding);
+    return outstanding !== undefined && outstanding >= PORTFOLIO_LARGE_EXPOSURE_THRESHOLD;
+  }).length;
+
+  return {
+    exposure: {
+      totalExposure,
+      largestExposure: snapshot.topExposures[0]?.outstanding,
+      dealsAboveThresholdCount,
+    },
+    concentration: {
+      singleNamePct: singleName?.sharePct ?? 0,
+      singleNameClient: singleName?.label,
+      singleNameBand: classifyBand(singleName?.sharePct ?? 0, DEFAULT_SINGLE_NAME_PCT_BANDS),
+      top5Pct,
+      top5Band: classifyBand(top5Pct, DEFAULT_GROUP_PCT_BANDS),
+      topProductPct: topProduct?.sharePct ?? 0,
+      topProductLabel: topProduct?.label,
+      topProductBand: classifyBand(topProduct?.sharePct ?? 0, DEFAULT_SEGMENT_PCT_BANDS),
+      // The boarded book tracks a portfolio MANAGER (who owns the relationship
+      // post-boarding), not an originating banker — the closest available
+      // analogous "who's concentrated here" dimension.
+      topBankerPct: topManager?.sharePct ?? 0,
+      topBankerLabel: topManager?.label,
+      topBankerBand: classifyBand(topManager?.sharePct ?? 0, DEFAULT_SEGMENT_PCT_BANDS),
+    },
+    findings: [],
   };
 }

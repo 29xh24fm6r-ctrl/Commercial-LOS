@@ -353,6 +353,33 @@ describe('PE-WIRE-1 — boarded book branch', () => {
     expect(document.querySelector('[data-covenant-review="ready"]')).toBeInTheDocument();
     expect(document.querySelector('[data-loan-review="ready"]')).toBeInTheDocument();
     expect(document.querySelector('[data-exception-queue="empty"]')).toBeInTheDocument();
+
+    // Phase 264 (P3) — new panels render (honestly empty, since boardedLoan()'s
+    // "Bank internal 4" rating is deliberately unmapped, so no rated loan feeds
+    // the classification pool).
+    expect(document.querySelector('[data-regulatory-classification-pool="empty"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-stress-test-form]')).toBeInTheDocument();
+    expect(document.querySelector('[data-board-package="ready"]')).toBeInTheDocument();
+  });
+
+  it('Phase 264 (P3) — a rated loan populates the classification pool and board package with real figures', async () => {
+    setFilter(undefined);
+    renderBookCockpit([boardedLoan({ riskRating: 'Substandard' })]);
+
+    expect(await screen.findByText(/Live boarded portfolio exposure/i)).toBeInTheDocument();
+    expect(document.querySelector('[data-regulatory-classification-pool="ready"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-classification-pool="Substandard"]')).toBeInTheDocument();
+
+    const boardPackage = document.querySelector('[data-board-package="ready"]');
+    expect(boardPackage).toBeInTheDocument();
+    expect(boardPackage?.querySelector('[data-board-package-section="regulatory-classification"]')?.textContent).toMatch(
+      /Substandard: 1 loan/,
+    );
+    // Main Street Holdings is a real (not "Unknown") borrower name, so with a
+    // single loan it correctly IS the single-name concentration (100%).
+    expect(boardPackage?.querySelector('[data-board-package-section="concentration-risk"]')?.textContent).toMatch(
+      /Single-name concentration: 100% \(high\) — Main Street Holdings/,
+    );
   });
 });
 

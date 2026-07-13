@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BoardedLoanRow } from '../../portfolioBoarding/boardedLoansList';
-import { deriveDualRiskRating } from '../riskRating/dualRiskRating';
+import { deriveDualRiskRating, type DualRatingRecord } from '../riskRating/dualRiskRating';
+import { derivePortfolioBookSnapshot } from '../portfolioBookSnapshot';
 import {
   mapRiskRatingToObligorGrade,
   toDualRatingInput,
@@ -9,6 +10,9 @@ import {
   toLoanReviewCandidate,
   toReviewQueueLoanInput,
   toWatchlistInput,
+  toClassificationPoolInputs,
+  toStressTestLoanInputs,
+  toBoardPackageRiskInput,
   type PortfolioRatingMap,
 } from './boardedLoanAdapters';
 
@@ -115,5 +119,95 @@ describe('boarded loan adapters', () => {
       segment: 'C&I Term Loan',
       originatingBanker: 'Jordan Banker',
     });
+  });
+});
+
+describe('Phase 264 (P3) — toClassificationPoolInputs', () => {
+  function rating(over: Partial<DualRatingRecord> = {}): DualRatingRecord {
+    return {
+      loanId: 'loan-1',
+      effectiveDate: '2026-07-02',
+      obligorGrade: 6,
+      obligorLabel: 'Substandard',
+      pd: 0.15,
+      facilityBand: 'well_secured',
+      facilityLabel: 'Well secured',
+      lgd: 0.3,
+      blendedGrade: 6,
+      classification: 'Substandard',
+      criticized: true,
+      classified: true,
+      overridden: false,
+      drivers: [],
+      ...over,
+    };
+  }
+
+  it('pairs a rating with its matching loan\'s exposure and borrower', () => {
+    const inputs = toClassificationPoolInputs([row()], [rating()]);
+    expect(inputs).toEqual([
+      { loanId: 'loan-1', borrowerName: 'Main Street Holdings', exposure: 6_000_000, rating: rating() },
+    ]);
+  });
+
+  it('drops a rating with no loanId (never fabricates one)', () => {
+    const inputs = toClassificationPoolInputs([row()], [rating({ loanId: undefined })]);
+    expect(inputs).toHaveLength(0);
+  });
+
+  it('pairs exposure 0 / undefined borrower when no matching loan is found, rather than dropping the rating', () => {
+    const inputs = toClassificationPoolInputs([], [rating({ loanId: 'unmatched' })]);
+    expect(inputs).toEqual([{ loanId: 'unmatched', borrowerName: undefined, exposure: 0, rating: rating({ loanId: 'unmatched' }) }]);
+  });
+});
+
+describe('Phase 264 (P3) — toStressTestLoanInputs', () => {
+  it('maps rate structure and leaves collateralValue undefined (WI-6, deferred — never fabricated)', () => {
+    const inputs = toStressTestLoanInputs([row({ interestRateType: 'Variable', spread: 2.5 })]);
+    expect(inputs).toEqual([
+      { loanId: 'loan-1', borrowerName: 'Main Street Holdings', exposure: 6_000_000, interestRateType: 'Variable', currentSpreadPct: 2.5, collateralValue: undefined },
+    ]);
+  });
+
+  it('defaults missing exposure to 0, never NaN/undefined', () => {
+    const inputs = toStressTestLoanInputs([row({ outstanding: undefined })]);
+    expect(inputs[0].exposure).toBe(0);
+  });
+});
+
+describe('Phase 264 (P3) — toBoardPackageRiskInput', () => {
+  it('excludes "Unknown borrower"/"Unknown product"/"Unassigned" from concentration figures, never treats an absence bucket as a real finding', () => {
+    const loans = [
+      row({ id: 'a', borrower: undefined, outstanding: 9_000_000, extended: undefined, portfolioManager: undefined }),
+      row({ id: 'b', borrower: 'Acme LLC', outstanding: 1_000_000, extended: { schemaVersion: 1, product: 'SBA 7(a)' }, portfolioManager: 'Jane Manager' }),
+    ];
+    const snapshot = derivePortfolioBookSnapshot(loans, []);
+    const risk = toBoardPackageRiskInput(snapshot);
+
+    // Unknown borrower is 90% of exposure but must NOT be reported as the single name.
+    expect(risk.concentration.singleNameClient).toBe('Acme LLC');
+    expect(risk.concentration.singleNamePct).toBe(10);
+    expect(risk.concentration.topProductLabel).toBe('SBA 7(a)');
+    expect(risk.concentration.topBankerLabel).toBe('Jane Manager');
+    expect(risk.findings).toEqual([]);
+  });
+
+  it('reports honest zeros when every loan is unknown/unassigned — never fabricates a concentration finding', () => {
+    const loans = [row({ id: 'a', borrower: undefined, extended: undefined, portfolioManager: undefined })];
+    const snapshot = derivePortfolioBookSnapshot(loans, []);
+    const risk = toBoardPackageRiskInput(snapshot);
+
+    expect(risk.concentration.singleNameClient).toBeUndefined();
+    expect(risk.concentration.singleNamePct).toBe(0);
+    expect(risk.concentration.singleNameBand).toBe('low');
+  });
+
+  it('counts deals at/above the internal large-exposure threshold from real outstanding amounts', () => {
+    const loans = [row({ id: 'a', outstanding: 6_000_000 }), row({ id: 'b', outstanding: 1_000_000 })];
+    const snapshot = derivePortfolioBookSnapshot(loans, []);
+    const risk = toBoardPackageRiskInput(snapshot);
+
+    expect(risk.exposure.dealsAboveThresholdCount).toBe(1);
+    expect(risk.exposure.largestExposure).toBe(6_000_000);
   });
 });
