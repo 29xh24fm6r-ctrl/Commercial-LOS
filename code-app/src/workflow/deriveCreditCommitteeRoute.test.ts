@@ -6,15 +6,16 @@ import { deriveCreditCommitteeRoute } from './deriveCreditCommitteeRoute';
  */
 
 describe('Phase 142C — credit committee route', () => {
-  it('a high amount requires a credit committee', () => {
-    const r = deriveCreditCommitteeRoute({ input: { amount: 6000000 }, routeKey: 'credit_committee_required', committeePolicy: 'credit_committee', packageReadiness: 'review_ready', covenantStatus: 'in_compliance', evidenceComplete: true });
+  it('a committee-policy rule requires a credit committee', () => {
+    const r = deriveCreditCommitteeRoute({ input: { amount: 6000000 }, routeKey: 'annual_review_with_covenant_exception', committeePolicy: 'credit_committee', packageReadiness: 'review_ready', covenantStatus: 'in_compliance', evidenceComplete: true });
     expect(r.committeeRequired).toBe(true);
     expect(r.committeeType).toBe('credit_committee');
   });
 
-  it('a higher amount requires a senior / executive committee', () => {
-    expect(deriveCreditCommitteeRoute({ input: { amount: 16000000 }, routeKey: 'x', committeePolicy: 'none' }).committeeType).toBe('senior_credit_committee');
-    expect(deriveCreditCommitteeRoute({ input: { amount: 60000000 }, routeKey: 'x', committeePolicy: 'none' }).committeeType).toBe('executive_credit_review');
+  it('a high amount alone never escalates the committee (OGB single-approver policy, no amount tiers)', () => {
+    expect(deriveCreditCommitteeRoute({ input: { amount: 16000000 }, routeKey: 'x', committeePolicy: 'none' }).committeeType).toBe('none');
+    expect(deriveCreditCommitteeRoute({ input: { amount: 60000000 }, routeKey: 'x', committeePolicy: 'none' }).committeeType).toBe('none');
+    expect(deriveCreditCommitteeRoute({ input: { amount: 60000000 }, routeKey: 'x', committeePolicy: 'none' }).committeeRequired).toBe(false);
   });
 
   it('a board-visibility policy produces board_visibility_only when configured', () => {

@@ -350,15 +350,8 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/shared/portfolioBoarding/portfolioLoanDocumentClassifier.ts', reason: 'Shared helper/model consumed by an unrouted subsystem; becomes reachable transitively once its consumer routes.', plannedPhase: 'Phase 3+' },
   { path: 'src/shared/portfolioBoarding/portfolioLoanDocumentReadiness.ts', reason: 'Shared helper/model consumed by an unrouted subsystem; becomes reachable transitively once its consumer routes.', plannedPhase: 'Phase 3+' },
   // â”€â”€ src/workflow â”€â”€
-  { path: 'src/workflow/WorkflowRoutingPanel.tsx', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/workflow/checklistWriteDependency.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/workflow/deriveConfigurableWorkflowRoute.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/workflow/deriveCreditCommitteeRoute.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/workflow/deriveWorkflowRoute.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/workflow/deriveWorkflowRoutingReadiness.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/workflow/deriveWorkflowStageSequence.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/workflow/workflowRouteRuleRegistry.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/workflow/workflowRoutingConfigTypes.ts', reason: 'Workflow stage-gate panels are deal-scoped (require DealDataProvider); surfaced inside the deal workspace, not standalone (GATE candidate).', plannedPhase: 'Phase 3+' },
+  { path: 'src/workflow/deriveWorkflowRoute.ts', reason: 'A separate, older (Phase 142A) route-derivation engine with its own type vocabulary (workflowRouteRegistry.ts/workflowRoutingTypes.ts); superseded by the live Phase 142C engine (deriveConfigurableWorkflowRoute.ts) and never mounted.', plannedPhase: 'Phase 3+' },
   // Stage Advancement engine + control (RETURN/DECLINE/WITHDRAW only -- forward ADVANCE is LIVE via
   // the separate DealStageProgressionCard.tsx surface): built and tested, but this specific
   // control/engine pair is WIRED_DISABLED because it is not mounted in any live workspace.

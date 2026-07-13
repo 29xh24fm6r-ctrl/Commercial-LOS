@@ -20,7 +20,7 @@ describe('Phase 142C — workflow routing panel', () => {
   });
 
   it('renders the credit committee requirement', () => {
-    renderPanel({ productType: 'small_business', amount: 9000000, documentReadiness: 'complete', covenantStatus: 'in_compliance', packageReadiness: 'review_ready' });
+    renderPanel({ annualReviewDueStatus: 'due', covenantStatus: 'breach', documentReadiness: 'complete', packageReadiness: 'review_ready' });
     expect(screen.getByText(/Committee materials/i)).toBeInTheDocument();
     expect(screen.getByText(/Voting: disabled/i)).toBeInTheDocument();
   });
