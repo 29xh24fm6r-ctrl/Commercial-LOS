@@ -3,7 +3,6 @@ import type { BoardedLoanRow } from '../../portfolioBoarding/boardedLoansList';
 import { deriveDualRiskRating } from '../riskRating/dualRiskRating';
 import {
   mapRiskRatingToObligorGrade,
-  PORTFOLIO_RATING_MAP,
   toDualRatingInput,
   toEarlyWarningInput,
   toLoanProfitabilityInputs,
@@ -47,9 +46,19 @@ function row(overrides: Partial<BoardedLoanRow> = {}): BoardedLoanRow {
 }
 
 describe('boarded loan adapters', () => {
-  it('keeps the default rating map empty until OGB ratifies the paper mapping', () => {
-    expect(PORTFOLIO_RATING_MAP).toEqual({});
+  it('defaults to the OBLIGOR_SCALE convention for unambiguous rating strings', () => {
+    expect(mapRiskRatingToObligorGrade('Substandard')).toBe(6);
+    expect(mapRiskRatingToObligorGrade('8')).toBe(8);
+    expect(mapRiskRatingToObligorGrade(' Doubtful ')).toBe(7);
+  });
+
+  it('never maps a bare "Pass" — it spans grades 1-4 in this scale, so one grade would be fabricated precision', () => {
     expect(mapRiskRatingToObligorGrade('Pass')).toBeUndefined();
+  });
+
+  it('excludes any rating string outside the unambiguous default set (fail-closed, unchanged)', () => {
+    expect(mapRiskRatingToObligorGrade('Bank internal 4')).toBeUndefined();
+    expect(mapRiskRatingToObligorGrade('RR-9')).toBeUndefined();
   });
 
   it('maps ratified rating strings only when the caller supplies the approved map', () => {
