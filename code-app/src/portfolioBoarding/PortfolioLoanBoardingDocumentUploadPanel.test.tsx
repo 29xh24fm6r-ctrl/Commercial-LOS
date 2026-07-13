@@ -8,147 +8,133 @@ import type { DocumentUploadResult } from './usePortfolioLoanDocumentPersistence
 /**
  * Phase 264 (P0) — PortfolioLoanBoardingDocumentUploadPanel real form.
  *
- * Pins:
- *   - "not configured" copy when the upload flag is off (unchanged baseline).
- *   - the real file-input form renders once uploadConfigured + a loan are present.
- *   - a DRY_RUN upload shows the honest "no file was actually stored" copy,
- *     never a fake stored-at link.
- *   - a LIVE upload with a real fileReference shows the "Stored at <url>" copy.
- *   - an upload failure renders the reason via role="alert".
+ * Pins (honest, mode-aware UI):
+ *   - real document-type selector + file input; no placeholder text.
+ *   - feature-disabled and connector-not-registered states are explained, never crash.
+ *   - a DRY_RUN success says exactly "Recorded (dry-run) — no file was actually stored" and NEVER
+ *     "Stored at" / a link.
+ *   - a LIVE success with a real URL renders a real anchor link; LIVE never shows the DRY_RUN copy.
+ *   - failures render via role="alert"; loading state shows; no duplicate submission while loading.
  */
 
 function file(name: string, content = 'hello'): File {
   return new File([content], name, { type: 'application/pdf' });
 }
 
+type PanelProps = Parameters<typeof PortfolioLoanBoardingDocumentUploadPanel>[0];
+
+function renderPanel(overrides: Partial<PanelProps> = {}) {
+  const props: PanelProps = {
+    loanId: 'loan-1',
+    loanNumber: 'LN-1001',
+    borrowerLegalName: 'Acme LLC',
+    uploadConfigured: true,
+    uploadMode: 'DRY_RUN',
+    connectorAvailable: false,
+    uploadDocument: vi.fn(async (): Promise<DocumentUploadResult> => ({ ok: true, operation: 'uploadDocument', fileReference: undefined, mode: 'DRY_RUN' })),
+    ...overrides,
+  };
+  return { ...render(<PortfolioLoanBoardingDocumentUploadPanel {...props} />), props };
+}
+
 describe('Phase 264 (P0) — PortfolioLoanBoardingDocumentUploadPanel', () => {
-  it('shows "not configured" when the upload flag is off', () => {
-    render(
-      <PortfolioLoanBoardingDocumentUploadPanel
-        loanId={undefined}
-        loanNumber={undefined}
-        borrowerLegalName={undefined}
-        uploadConfigured={false}
-        uploadMode="DRY_RUN"
-        uploadDocument={vi.fn()}
-      />,
-    );
+  it('shows "not configured" (feature disabled) when the upload flag is off', () => {
+    const { container } = renderPanel({ loanId: undefined, loanNumber: undefined, uploadConfigured: false });
     expect(screen.getByText('Document upload not configured')).toBeInTheDocument();
-    expect(screen.queryByText(/document type/i)).not.toBeInTheDocument();
+    expect(container.querySelector('[data-portfolio-upload-form]')).toBeNull();
   });
 
   it('shows "not configured" when the flag is on but no loan is selected yet', () => {
-    render(
-      <PortfolioLoanBoardingDocumentUploadPanel
-        loanId={undefined}
-        loanNumber={undefined}
-        borrowerLegalName={undefined}
-        uploadConfigured={true}
-        uploadMode="DRY_RUN"
-        uploadDocument={vi.fn()}
-      />,
-    );
+    renderPanel({ loanId: undefined, loanNumber: undefined });
     expect(screen.getByText('Document upload not configured')).toBeInTheDocument();
     expect(screen.getByText(/A loan must be selected/i)).toBeInTheDocument();
   });
 
-  it('renders the real upload form once configured and a loan is selected, with a DRY RUN banner', () => {
-    const { container } = render(
-      <PortfolioLoanBoardingDocumentUploadPanel
-        loanId="loan-1"
-        loanNumber="LN-1001"
-        borrowerLegalName="Acme LLC"
-        uploadConfigured={true}
-        uploadMode="DRY_RUN"
-        uploadDocument={vi.fn()}
-      />,
-    );
+  it('LIVE selected without a wired connector renders a clear fail-closed explanation (never a form, never a crash)', () => {
+    const { container } = renderPanel({ uploadMode: 'LIVE', connectorAvailable: false });
+    expect(container.querySelector('[data-portfolio-upload-connector-missing]')).not.toBeNull();
+    expect(screen.getByText('SharePoint connector not registered')).toBeInTheDocument();
+    expect(container.querySelector('[data-portfolio-upload-form]')).toBeNull();
+  });
+
+  it('renders the REAL document-type selector + file input (no placeholder text) with a DRY RUN banner', () => {
+    const { container } = renderPanel();
     expect(container.querySelector('[data-portfolio-upload-form]')).not.toBeNull();
+    expect(container.querySelector('[data-portfolio-upload-document-type]')).not.toBeNull();
     expect(container.querySelector('[data-portfolio-upload-file]')).not.toBeNull();
     expect(container.querySelector('[data-portfolio-upload-dry-run-banner]')).not.toBeNull();
+    // The old placeholder wording is gone.
+    expect(screen.queryByText(/form will render here/i)).not.toBeInTheDocument();
   });
 
-  it('a DRY_RUN upload shows honest "no file was actually stored" copy — never a fake link', async () => {
-    const uploadDocument = vi.fn(
-      async (_loanId: string, _upload: unknown, _doc: unknown): Promise<DocumentUploadResult> => ({ ok: true, operation: 'uploadDocument', fileReference: undefined, mode: 'DRY_RUN' }),
-    );
+  it('a DRY_RUN success shows the exact honest copy — never "Stored at", never a link', async () => {
     const user = userEvent.setup();
-    const { container } = render(
-      <PortfolioLoanBoardingDocumentUploadPanel
-        loanId="loan-1"
-        loanNumber="LN-1001"
-        borrowerLegalName="Acme LLC"
-        uploadConfigured={true}
-        uploadMode="DRY_RUN"
-        uploadDocument={uploadDocument}
-      />,
-    );
-
+    const { container } = renderPanel();
     await user.upload(container.querySelector('[data-portfolio-upload-file]') as HTMLInputElement, file('note.pdf'));
-
     await waitFor(() => expect(container.querySelector('[data-portfolio-upload-done]')).not.toBeNull());
-    expect(container.querySelector('[data-portfolio-upload-done]')?.textContent).toMatch(/no file was actually stored/i);
-    expect(container.querySelector('[data-portfolio-upload-done]')?.textContent).not.toMatch(/Stored at/i);
-    expect(uploadDocument).toHaveBeenCalledTimes(1);
-    expect(uploadDocument.mock.calls[0][0]).toBe('loan-1');
-    expect(uploadDocument.mock.calls[0][1]).toMatchObject({ loanNumber: 'LN-1001', fileName: 'note.pdf' });
+    const done = container.querySelector('[data-portfolio-upload-done]')!;
+    expect(done.textContent).toMatch(/Recorded \(dry-run\) — no file was actually stored/i);
+    expect(done.textContent).not.toMatch(/Stored at/i);
+    expect(done.querySelector('a')).toBeNull();
+    expect(container.querySelector('[data-portfolio-upload-link]')).toBeNull();
   });
 
-  it('a LIVE upload with a real link shows "Stored at <url>"', async () => {
-    const uploadDocument = vi.fn(
-      async (): Promise<DocumentUploadResult> => ({
-        ok: true,
-        operation: 'uploadDocument',
-        fileReference: 'https://bank.sharepoint.com/x/note.pdf',
-        mode: 'LIVE',
-      }),
-    );
+  it('passes the selected document type and file through to uploadDocument', async () => {
+    const uploadDocument = vi.fn(async (): Promise<DocumentUploadResult> => ({ ok: true, operation: 'uploadDocument', fileReference: undefined, mode: 'DRY_RUN' }));
     const user = userEvent.setup();
-    const { container } = render(
-      <PortfolioLoanBoardingDocumentUploadPanel
-        loanId="loan-1"
-        loanNumber="LN-1001"
-        borrowerLegalName="Acme LLC"
-        uploadConfigured={true}
-        uploadMode="LIVE"
-        uploadDocument={uploadDocument}
-      />,
-    );
-
+    const { container } = renderPanel({ uploadDocument });
     await user.upload(container.querySelector('[data-portfolio-upload-file]') as HTMLInputElement, file('note.pdf'));
+    await waitFor(() => expect(uploadDocument).toHaveBeenCalledTimes(1));
+    const [loanIdArg, uploadArg, docArg] = uploadDocument.mock.calls[0] as unknown as Parameters<PanelProps['uploadDocument']>;
+    expect(loanIdArg).toBe('loan-1');
+    expect(uploadArg).toMatchObject({ loanNumber: 'LN-1001', fileName: 'note.pdf' });
+    expect((docArg as { documentName?: string }).documentName).toBe('note.pdf');
+  });
 
+  it('a LIVE success with a real URL renders a real anchor LINK (safe attrs), and no DRY_RUN copy', async () => {
+    const url = 'https://bank.sharepoint.com/x/note.pdf';
+    const uploadDocument = vi.fn(async (): Promise<DocumentUploadResult> => ({ ok: true, operation: 'uploadDocument', fileReference: url, mode: 'LIVE' }));
+    const user = userEvent.setup();
+    const { container } = renderPanel({ uploadMode: 'LIVE', connectorAvailable: true, uploadDocument });
+    await user.upload(container.querySelector('[data-portfolio-upload-file]') as HTMLInputElement, file('note.pdf'));
     await waitFor(() => expect(container.querySelector('[data-portfolio-upload-done]')).not.toBeNull());
-    expect(container.querySelector('[data-portfolio-upload-done]')?.textContent).toMatch(
-      /Stored at https:\/\/bank\.sharepoint\.com\/x\/note\.pdf/,
-    );
-    // LIVE mode does not show the DRY RUN banner.
+    const link = container.querySelector('[data-portfolio-upload-link]') as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe(url);
+    expect(link.getAttribute('rel')).toContain('noopener');
+    expect(container.querySelector('[data-portfolio-upload-done]')?.textContent).toMatch(/Stored at/);
+    expect(container.querySelector('[data-portfolio-upload-done]')?.textContent).not.toMatch(/dry-run/i);
     expect(container.querySelector('[data-portfolio-upload-dry-run-banner]')).toBeNull();
   });
 
-  it('renders the failure reason via role="alert" when the upload fails', async () => {
+  it('renders the failure reason via role="alert" when the upload fails (empty file)', async () => {
+    const uploadDocument = vi.fn(async (): Promise<DocumentUploadResult> => ({ ok: false, operation: 'uploadDocument', errorCode: 'invalid-input', message: 'The file is empty.' }));
+    const user = userEvent.setup();
+    const { container } = renderPanel({ uploadDocument });
+    await user.upload(container.querySelector('[data-portfolio-upload-file]') as HTMLInputElement, file('note.pdf'));
+    await waitFor(() => expect(container.querySelector('[data-portfolio-upload-error]')).not.toBeNull());
+    const alert = container.querySelector('[data-portfolio-upload-error]')!;
+    expect(alert.getAttribute('role')).toBe('alert');
+    expect(alert.textContent).toMatch(/The file is empty\./);
+  });
+
+  it('shows a loading state and prevents duplicate submission while a file is uploading', async () => {
+    let resolveUpload: (r: DocumentUploadResult) => void = () => {};
     const uploadDocument = vi.fn(
-      async (): Promise<DocumentUploadResult> => ({
-        ok: false,
-        operation: 'uploadDocument',
-        errorCode: 'invalid-input',
-        message: 'The file is empty.',
-      }),
+      () => new Promise<DocumentUploadResult>((resolve) => { resolveUpload = resolve; }),
     );
     const user = userEvent.setup();
-    const { container } = render(
-      <PortfolioLoanBoardingDocumentUploadPanel
-        loanId="loan-1"
-        loanNumber="LN-1001"
-        borrowerLegalName="Acme LLC"
-        uploadConfigured={true}
-        uploadMode="DRY_RUN"
-        uploadDocument={uploadDocument}
-      />,
-    );
+    const { container } = renderPanel({ uploadDocument });
+    const fileInput = container.querySelector('[data-portfolio-upload-file]') as HTMLInputElement;
 
-    await user.upload(container.querySelector('[data-portfolio-upload-file]') as HTMLInputElement, file('note.pdf'));
+    await user.upload(fileInput, file('note.pdf'));
+    // Loading state visible + file input disabled → no duplicate submission possible.
+    await waitFor(() => expect(container.querySelector('[data-portfolio-upload-pending]')).not.toBeNull());
+    expect(fileInput.disabled).toBe(true);
+    expect(uploadDocument).toHaveBeenCalledTimes(1);
 
-    await waitFor(() => expect(container.querySelector('[data-portfolio-upload-error]')).not.toBeNull());
-    expect(container.querySelector('[data-portfolio-upload-error]')?.textContent).toMatch(/The file is empty\./);
+    resolveUpload({ ok: true, operation: 'uploadDocument', fileReference: undefined, mode: 'DRY_RUN' });
+    await waitFor(() => expect(container.querySelector('[data-portfolio-upload-done]')).not.toBeNull());
+    expect(uploadDocument).toHaveBeenCalledTimes(1);
   });
 });

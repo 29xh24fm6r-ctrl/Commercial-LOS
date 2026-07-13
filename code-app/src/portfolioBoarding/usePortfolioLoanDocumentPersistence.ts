@@ -98,10 +98,19 @@ export interface DocumentUploadResult extends DocumentPersistenceResult {
 
 export interface UsePortfolioLoanDocumentPersistence {
   enabled: boolean;
-  /** Whether a safe SharePoint upload path is enabled (Phase 264 — no longer hardcoded false). */
+  /**
+   * Whether the SharePoint upload FEATURE is enabled (its own flag is on). This is NOT the same as
+   * a real connector being wired — see `connectorAvailable`. Phase 264: no longer hardcoded false.
+   */
   uploadConfigured: boolean;
-  /** DRY_RUN (validated, no real link) or LIVE (a real SharePoint connector is wired). */
+  /** DRY_RUN (validated, no real link) or LIVE (LIVE mode selected). */
   uploadMode: 'DRY_RUN' | 'LIVE';
+  /**
+   * Whether the injected SharePoint adapter can actually store a file (a connector is wired). Always
+   * false for DRY_RUN (expected) and for the not-yet-registered LIVE adapter. The UI uses this to
+   * distinguish "LIVE but no connector registered" (a fail-closed explanation) from a real live path.
+   */
+  connectorAvailable: boolean;
   state: DocumentRequestState;
   addDocument(loanId: string, doc: PortfolioLoanDocumentRecord): Promise<DocumentPersistenceResult>;
   updateDocument(
@@ -147,6 +156,7 @@ export function usePortfolioLoanDocumentPersistence(
   const flagOn = options.documentMetadataEnabled === true;
   const enabled = flagOn && adapter.enabled;
   const uploadConfigured = options.sharePointUploadEnabled === true;
+  const connectorAvailable = sharePointAdapter.configured === true;
   const [state, setState] = useState<DocumentRequestState>({ kind: 'idle' });
 
   const run = useCallback(
@@ -219,10 +229,11 @@ export function usePortfolioLoanDocumentPersistence(
         return failure;
       }
 
-      // Accepted (a real link in LIVE; undefined in DRY_RUN — never fabricated).
-      // Persist the metadata row's fileReference only when metadata persistence
-      // is separately enabled; otherwise the upload outcome stands on its own.
-      if (enabled) {
+      // Persist the metadata row's fileReference ONLY for a LIVE upload — a file was genuinely
+      // stored and a real URL exists — AND only when metadata persistence is separately enabled.
+      // DRY_RUN never writes a "stored" metadata row and never a fileReference: no phantom record,
+      // no fake link, the document is never marked physically stored.
+      if (enabled && uploadResult.mode === 'LIVE') {
         const metaResult = await adapter.attachDocumentRecord(loanId, {
           ...doc,
           fileReference: uploadResult.webUrl,
@@ -255,6 +266,7 @@ export function usePortfolioLoanDocumentPersistence(
     enabled,
     uploadConfigured,
     uploadMode: sharePointAdapter.mode,
+    connectorAvailable,
     state,
     addDocument,
     updateDocument,
