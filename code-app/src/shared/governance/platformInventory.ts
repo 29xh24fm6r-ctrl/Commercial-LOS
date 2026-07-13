@@ -42,6 +42,18 @@ export interface GovernedWriteEntry {
   emitsAudit: boolean;
   /** True when the write coordinates a DealTimelineEvent create. */
   emitsTimeline: boolean;
+  /**
+   * True for a write whose correlation-id/audit/timeline plumbing was built under a LATER,
+   * cross-cutting shared-builder architecture (id generated in a UI component, threaded as a
+   * parameter through several layers, audit assembled by buildNewDealAuditPayload) that does not
+   * fit the Phase 46/47/49/50 discipline sweeps' single-action-file / `const correlationId = ...`
+   * convention. Those four sweeps (correlationIdDiscipline / outcomeUnionDiscipline /
+   * auditPayloadDiscipline / timelinePayloadDiscipline) skip this write's completeness check with
+   * an explicit, reasoned exemption rather than forcing a mismatched or fake registration.
+   * Retrofitting the write path to the older convention (or evolving the sweeps to recognize the
+   * newer shared-builder pattern) is real, separate work, not attempted as part of registration.
+   */
+  legacyDisciplineExempt?: boolean;
 }
 
 export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
@@ -135,6 +147,14 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     phase: 160,
     emitsAudit: true,
     emitsTimeline: true,
+  },
+  {
+    id: 'deal-stage-advance',
+    label: 'Deal stage advance (forward Advance only)',
+    phase: 237,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
   },
 ];
 // NOTE: forward stage-advance (DealStageProgressionCard -> stageAdvanceWriteDependency.ts

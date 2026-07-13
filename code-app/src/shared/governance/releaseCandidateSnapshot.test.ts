@@ -49,7 +49,7 @@ function readDoc(rel: string): string {
  * update the value here in the same commit.
  */
 const PHASE_111_SNAPSHOT = Object.freeze({
-  governedWrites: 13,
+  governedWrites: 14,
   localOnlyFlows: 16,
   notWired: 9,
   deliberatelyBlocked: 1,

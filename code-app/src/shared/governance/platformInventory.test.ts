@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the eleven shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70)', () => {
+  it('contains the fourteen shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70, 160, 237)', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -37,6 +37,7 @@ describe('platformInventory — governed writes', () => {
         'deal-document-review',
         'deal-document-review-task-create',
         'deal-log-activity',
+        'deal-stage-advance',
         'deal-task-complete',
       ].sort(),
     );
@@ -58,11 +59,20 @@ describe('platformInventory — governed writes', () => {
         'deal-borrower-update-email',
         'deal-log-activity',
         'credit-memo-draft-save',
+        'deal-stage-advance',
       ].includes(w.id),
     );
     for (const w of dealWrites) {
       expect(w.emitsTimeline).toBe(true);
     }
+  });
+
+  it('deal-stage-advance is registered but marked legacyDisciplineExempt (its write path predates the Phase 46/47/49/50 single-action-file convention)', () => {
+    const entry = GOVERNED_WRITES.find((w) => w.id === 'deal-stage-advance');
+    expect(entry).toBeDefined();
+    expect(entry!.emitsAudit).toBe(true);
+    expect(entry!.emitsTimeline).toBe(true);
+    expect(entry!.legacyDisciplineExempt).toBe(true);
   });
 
   it('does NOT list any unbuilt write surface as a shipped governed write', () => {
@@ -974,8 +984,8 @@ describe('platformInventory — Phase 67 handoff classification', () => {
     expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
   });
 
-  it('GOVERNED_WRITES count: Phase 160 added the 13th governed write (deal-log-activity)', () => {
-    expect(GOVERNED_WRITES.length).toBe(13);
+  it('GOVERNED_WRITES count: Phase 237 added the 14th governed write (deal-stage-advance)', () => {
+    expect(GOVERNED_WRITES.length).toBe(14);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {

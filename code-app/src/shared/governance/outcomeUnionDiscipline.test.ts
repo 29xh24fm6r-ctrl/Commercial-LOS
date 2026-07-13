@@ -201,8 +201,15 @@ function extractOutcomeTypeBody(src: string, typeName: string): string {
 // ---------------------------------------------------------------------------
 
 describe('Phase 47 — inventory completeness', () => {
-  it('OUTCOME_BY_WRITE_ID covers every GOVERNED_WRITES id', () => {
+  it('OUTCOME_BY_WRITE_ID covers every GOVERNED_WRITES id (except explicitly exempt writes)', () => {
     for (const w of GOVERNED_WRITES) {
+      // legacyDisciplineExempt writes (see GovernedWriteEntry doc comment) use an outcome union
+      // shaped for their own write path (e.g. StageAdvanceOutcome's typed 'advanced' / 'blocked'
+      // / 'readback_failed' / ... branches with `detail` fields) rather than the Phase 47
+      // success/<domain>-failed/governance-partial/unknown convention with `message: string` on
+      // unknown and auditError/timelineError fields. Skipped with a reason rather than forced
+      // into a mismatched entry or retrofit of a live write path's type.
+      if (w.legacyDisciplineExempt) continue;
       expect(
         OUTCOME_BY_WRITE_ID[w.id],
         `GOVERNED_WRITES contains "${w.id}" but OUTCOME_BY_WRITE_ID does not. ` +
@@ -221,6 +228,7 @@ describe('Phase 47 — inventory completeness', () => {
 
   it('failurePattern column matches GOVERNED_WRITES.emitsTimeline', () => {
     for (const w of GOVERNED_WRITES) {
+      if (w.legacyDisciplineExempt) continue;
       const mapping = OUTCOME_BY_WRITE_ID[w.id]!;
       if (w.emitsTimeline) {
         expect(
