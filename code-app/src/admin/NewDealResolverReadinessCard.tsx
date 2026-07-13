@@ -61,8 +61,10 @@ export function NewDealResolverReadinessCard() {
       </div>
       <Body state={state} />
       <p style={styles.footnote} data-admin-resolver-readiness-footnote>
-        Read-only check of the typed Stage/Status data sources. Create remains
-        disabled regardless of this result.
+        Read-only check of the typed Stage/Status data sources. This is the
+        PUBLIC/admin create path only — it stays gated regardless of this
+        result. Authorized banker create is a separate, already-live path
+        (see the panel header above); this check does not gate it.
       </p>
     </div>
   );
@@ -94,7 +96,8 @@ function Body({ state }: { state: State }) {
           .
         </p>
         <p style={styles.line} data-admin-resolver-create-note>
-          Create remains disabled.
+          Public/admin create remains disabled (authorized banker create is
+          live via a separate path).
         </p>
       </div>
     );

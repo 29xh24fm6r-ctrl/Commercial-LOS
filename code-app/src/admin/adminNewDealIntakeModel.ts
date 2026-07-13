@@ -161,9 +161,9 @@ export const NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST: readonly NewDealIntakeCheck
     }),
     Object.freeze({
       order: 9,
-      title: 'Enable + New Deal',
+      title: 'Enable + New Deal (public/admin control)',
       detail:
-        'Done: Phase 227/228A enabled the public + New Deal control after production-approved Stage/Status references and governed create adapter smoke evidence.',
+        'Pending: the PUBLIC + New Deal control this checklist tracks stays disabled -- it still needs production-approved Stage/Status references (step 6) and a governed public-facing create adapter (step 7) before a controlled smoke (step 8). Separately, a BANKER-only create path (BankerNewDealCreate, gated by its own BANKER_CREATE_PILOT rollout) is live today -- that is a distinct surface from this checklist and does not by itself satisfy this step.',
       done: false,
     }),
   ]);
