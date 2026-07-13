@@ -232,15 +232,21 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     id: 'new-deal-create',
     label: 'New Deal create',
     reason:
-      'WIRED_DISABLED: a governed, audited create adapter now exists ' +
-      '(src/deals/newDealCreateAdapter.ts) and is wired behind a controlled, ' +
-      'fail-closed enablement gate and admin surface (Phase 170M-170N). It is ' +
-      'DISABLED by default -- NEW_DEAL_CREATE_ADAPTER_ENABLED=false and ' +
-      'NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED=false -- so no live create or audit ' +
-      'occurs. Stage/Status resolve READY in TEST via the fail-closed resolver ' +
-      '(cr664_dealstagereferences / cr664_dealstatusreferences, Phase 170D-170I); ' +
-      'live create stays off pending production-approved reference rows and a ' +
-      'certified enablement decision (Phase 170Q). Separate from Advance Stage / ' +
+      'WIRED_DISABLED, scoped to the PUBLIC/admin create path only. A governed, audited ' +
+      'create adapter exists (src/deals/newDealCreateAdapter.ts). It is disabled by default -- ' +
+      'NEW_DEAL_CREATE_ADAPTER_ENABLED=false and NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED=false -- ' +
+      'so no public/admin live create or audit occurs. Its standalone controlled admin UI ' +
+      '(Phase 170M-170N -- NewDealCreatePanel.tsx / newDealCreateController.ts / ' +
+      'newDealCreateEnablement.ts) was removed: the submit button had no click handler and ' +
+      'the admin panel mounted it with no enablement config, so it was permanently inert -- ' +
+      'confusing dead weight next to the actually-live banker path (see below), not a real ' +
+      'second create surface. NOTE: this is DISTINCT from banker create, which IS live -- ' +
+      'BankerNewDealCreate.tsx calls the SAME adapter directly with its own ' +
+      'BANKER_CREATE_PILOT rollout gate, bypassing NEW_DEAL_CREATE_ADAPTER_ENABLED entirely. ' +
+      'Stage/Status resolve READY in TEST via the fail-closed resolver ' +
+      '(cr664_dealstagereferences / cr664_dealstatusreferences, Phase 170D-170I); public/admin ' +
+      'live create stays off pending production-approved reference rows and a certified ' +
+      'enablement decision for that specific surface. Separate from Advance Stage / ' +
       'stage-progression ordering (see stage-progression-advance).',
     blockerKind: 'schema',
   },
