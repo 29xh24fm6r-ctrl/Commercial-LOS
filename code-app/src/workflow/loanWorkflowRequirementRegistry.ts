@@ -72,6 +72,25 @@ const DOCUMENT_REVIEW_LEVEL: Readonly<Record<string, DocumentReviewLevel>> = Obj
  */
 const TASK_SEVERITY: Readonly<Record<string, RequirementSeverity>> = Object.freeze({});
 
+/**
+ * Credit-requirement severity policy override (which credit requirements BLOCK vs stay
+ * recommended/visible). Default for category 'credit' is 'blocking' (derivedRequirement below) --
+ * correct for the literal memo-presence and section requirements, which are genuinely verifiable
+ * facts. These three CREDIT_APPROVAL ids ask about review / approval / committee status, which the
+ * schema has no field for (CreditMemoStatusKey is only draft/final/stale). There is a matching
+ * AUTHORED DEEP requirement for the real concept (CREDIT_APPROVAL:approval_authority etc., in
+ * DEEP_REQUIREMENTS below, correctly untracked/fail-closed) -- these shallow, stage-def-derived
+ * duplicates must NOT also hard-block, or Credit Approval exit becomes permanently unsatisfiable
+ * (there is no UI path to ever clear them). Demoted to 'recommended' so they stay visible/honest
+ * (loanWorkflowRules.ts's deriveCreditBlockers marks them 'at-risk', never silently "met") without
+ * stranding a live write path. Key = `${scope}:${rawId}`.
+ */
+const CREDIT_SEVERITY_OVERRIDE: Readonly<Record<string, RequirementSeverity>> = Object.freeze({
+  'CREDIT_APPROVAL:reviewed memo': 'recommended',
+  'CREDIT_APPROVAL:committee package': 'recommended',
+  'CREDIT_APPROVAL:approved credit memo': 'recommended',
+});
+
 function derivedRequirement(
   stage: LoanWorkflowStageDefinition,
   category: RequirementCategory,
@@ -97,7 +116,12 @@ function derivedRequirement(
   };
   const m = map[category];
   const policyKey = `${scope}:${rawId}`;
-  const severity: RequirementSeverity = category === 'task' ? (TASK_SEVERITY[policyKey] ?? 'recommended') : m.severity;
+  const severity: RequirementSeverity =
+    category === 'task'
+      ? (TASK_SEVERITY[policyKey] ?? 'recommended')
+      : category === 'credit'
+        ? (CREDIT_SEVERITY_OVERRIDE[policyKey] ?? m.severity)
+        : m.severity;
   return {
     id: shallowRequirementId(scope, category, rawId),
     scope,

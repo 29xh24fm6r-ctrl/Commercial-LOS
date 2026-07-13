@@ -150,6 +150,46 @@ describe('ARC Phase 3 — deep-fact evaluator (dormant until tracked; fails clos
   });
 });
 
+describe('Credit Approval — committee/reviewed/approved memo requirements never permanently block exit', () => {
+  const creditApprovalDeal: DealDetail = { ...baseDeal, stage: 'Credit Approval' };
+  const memo: CreditMemoData = {
+    memos: [{ id: 'm1', name: 'Memo', status: 'Draft', statusKey: 'draft', memoType: 'x', version: 1, generatedAt: '2026-07-01T00:00:00Z', modifiedOn: undefined, borrowerSafe: false, textPreview: undefined }],
+    sections: [
+      { id: 's1', sectionKey: 'executive_summary', sectionLabel: 'Executive Summary', reviewStatus: undefined, reviewStatusKey: undefined, lastGeneratedAt: undefined, modifiedOn: undefined, textPreview: undefined },
+      { id: 's2', sectionKey: 'repayment_analysis', sectionLabel: 'Repayment Analysis', reviewStatus: undefined, reviewStatusKey: undefined, lastGeneratedAt: undefined, modifiedOn: undefined, textPreview: undefined },
+    ],
+  };
+  const facts: WorkflowRequirementFacts = {
+    deal: creditApprovalDeal,
+    tasks: emptyTasks,
+    documents: docsOf({ received: [mkDoc('Approval evidence', 'received')] }),
+    creditMemo: memo,
+  };
+
+  it('reviewed/committee/approved requirements land in recommended, never blocking — a draft memo with no committee record is not a permanent dead end', () => {
+    const r = deriveStageExitReadiness('CREDIT_APPROVAL', facts);
+    const blockingIds = r.blocking.map((b) => b.id);
+    const recommendedIds = r.recommended.map((b) => b.id);
+    expect(blockingIds).not.toContain('CREDIT_APPROVAL:credit:reviewed memo');
+    expect(blockingIds).not.toContain('CREDIT_APPROVAL:credit:committee package');
+    expect(blockingIds).not.toContain('CREDIT_APPROVAL:credit:approved credit memo');
+    expect(recommendedIds).toContain('CREDIT_APPROVAL:credit:reviewed memo');
+    expect(recommendedIds).toContain('CREDIT_APPROVAL:credit:committee package');
+    expect(recommendedIds).toContain('CREDIT_APPROVAL:credit:approved credit memo');
+  });
+
+  it('Credit Approval exit is genuinely reachable once fields/documents/memo/sections are provided (not stranded)', () => {
+    const r = deriveStageExitReadiness('CREDIT_APPROVAL', facts);
+    expect(evaluateStageExitPolicy(r).allowed).toBe(true);
+  });
+
+  it('the literal credit-memo-presence requirement still hard-blocks when no memo exists at all', () => {
+    const r = deriveStageExitReadiness('CREDIT_APPROVAL', { ...facts, creditMemo: { memos: [], sections: [] } });
+    expect(r.blocking.map((b) => b.id)).toContain('CREDIT_APPROVAL:credit:credit memo');
+    expect(evaluateStageExitPolicy(r).allowed).toBe(false);
+  });
+});
+
 describe('ARC Phase 2 — engine live policy equals the write-seam policy for Intake', () => {
   const cases: { name: string; facts: WorkflowRequirementFacts }[] = [
     { name: 'missing loan application', facts: { deal: baseDeal, tasks: emptyTasks, documents: docsOf({}), creditMemo: noMemo } },
