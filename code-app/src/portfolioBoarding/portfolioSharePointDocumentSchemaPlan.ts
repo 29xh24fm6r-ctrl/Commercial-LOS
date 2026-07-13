@@ -36,20 +36,50 @@ const FORBIDDEN_PATH_CHARS = /["*:<>?/\\|]/g;
 const MAX_FOLDER_SEGMENT_LENGTH = 128;
 
 /**
- * SharePoint forbids `" * : < > ? / \ |` in folder/file names. Replaces each
- * with a hyphen, collapses whitespace, and trims — never throws, never
- * silently drops the whole segment even if every character were forbidden.
+ * Sanitize one folder/file name segment for SharePoint. It is deterministic and
+ * never throws:
+ *   - drops control characters (0x00–0x1F, 0x7F);
+ *   - replaces the SharePoint-forbidden characters `" * : < > ? / \ |` with a
+ *     hyphen (so an embedded `/` or `\` can NEVER create an unintended nested
+ *     path);
+ *   - collapses internal whitespace and trims;
+ *   - strips leading/trailing dots so a value like `.`, `..`, or `report.`
+ *     can never become a navigable/traversal segment or an invalid trailing-dot
+ *     name (SharePoint rejects trailing dots) — internal dots (e.g. `LN.1001`)
+ *     are preserved;
+ *   - falls back to `Unnamed` when nothing usable survives (never an empty
+ *     segment, never a fabricated real value).
  */
+/** Drop control characters (0x00-0x1F, 0x7F) without a control-char regex literal in source. */
+function stripControlChars(value: string): string {
+  let out = '';
+  for (const ch of value) {
+    const code = ch.codePointAt(0);
+    if (code !== undefined && (code < 0x20 || code === 0x7f)) continue;
+    out += ch;
+  }
+  return out;
+}
+
 export function sanitizeSharePointPathSegment(value: string): string {
-  const replaced = value.replace(FORBIDDEN_PATH_CHARS, '-').trim().replace(/\s+/g, ' ');
-  const truncated = replaced.slice(0, MAX_FOLDER_SEGMENT_LENGTH).trim();
+  const cleaned = stripControlChars(value)
+    .replace(FORBIDDEN_PATH_CHARS, '-')
+    .trim()
+    .replace(/\s+/g, ' ');
+  // Neutralize path-traversal / trailing-dot behavior: `.` and `..` become empty,
+  // `report.` → `report`. Internal dots survive.
+  const deDotted = cleaned.replace(/^\.+/, '').replace(/\.+$/, '').trim();
+  const truncated = deDotted.slice(0, MAX_FOLDER_SEGMENT_LENGTH).trim();
   return truncated.length > 0 ? truncated : 'Unnamed';
 }
 
 /**
  * One folder per boarded loan: `{libraryRoot}/{loanNumber} - {borrower}`.
- * Falls back to just the loan number when no borrower name is available
- * (never fabricates a borrower name to fill the gap).
+ * Falls back to just the loan number when no USABLE borrower name is available
+ * (never fabricates a borrower name to fill the gap). A borrower value that has
+ * no usable characters after sanitization — blank, all-forbidden, or a `.`/`..`
+ * traversal value — is treated as absent, so the folder is `{loanNumber}` alone
+ * rather than a meaningless `{loanNumber} - Unnamed`.
  */
 export function deriveLoanFolderPath(
   loanNumber: string,
@@ -57,9 +87,9 @@ export function deriveLoanFolderPath(
   libraryRootPath: string = DEFAULT_LIBRARY_ROOT_PATH,
 ): string {
   const safeLoanNumber = sanitizeSharePointPathSegment(loanNumber);
-  const folderName = borrowerLegalName && borrowerLegalName.trim().length > 0
-    ? `${safeLoanNumber} - ${sanitizeSharePointPathSegment(borrowerLegalName)}`
-    : safeLoanNumber;
+  const safeBorrower = borrowerLegalName ? sanitizeSharePointPathSegment(borrowerLegalName) : '';
+  const hasUsableBorrower = safeBorrower.length > 0 && safeBorrower !== 'Unnamed';
+  const folderName = hasUsableBorrower ? `${safeLoanNumber} - ${safeBorrower}` : safeLoanNumber;
   const safeRoot = libraryRootPath.replace(/^\/+|\/+$/g, '');
   return `${safeRoot}/${folderName}`;
 }

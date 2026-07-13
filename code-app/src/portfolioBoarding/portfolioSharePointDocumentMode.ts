@@ -26,20 +26,32 @@
  *   - Mode is read ONCE at module load from
  *     `import.meta.env.VITE_SHAREPOINT_MODE`. Toggling requires a rebuild +
  *     redeploy. No runtime mutation.
- *   - Only the case-insensitive string "LIVE" resolves to LIVE. Any other
- *     value (including missing or misspelled) resolves to DRY_RUN. The
- *     default is intentionally conservative: a typo must NEVER silently
- *     enable a real network call.
+ *   - STRICT + fail-closed: ONLY the exact literal "LIVE" (after trimming
+ *     surrounding whitespace) resolves to LIVE. Missing, blank, lowercase or
+ *     mixed-case ("live" / "Live"), or any other value resolves to DRY_RUN.
+ *     A typo or a loosely-cased value must NEVER silently enable a real
+ *     network call. (This is intentionally stricter than the Outlook email
+ *     mode, which upper-cases before comparing.)
  */
 
 export type SharePointDocumentMode = 'DRY_RUN' | 'LIVE';
+
+/**
+ * Pure, fail-closed resolver from a raw env value to the mode. Exported so the
+ * full case matrix (unset / blank / exact LIVE / lowercase / mixed-case /
+ * unrelated) is directly testable without a build-time env stub. Only the
+ * EXACT trimmed literal "LIVE" selects LIVE.
+ */
+export function resolveSharePointDocumentMode(raw: string | null | undefined): SharePointDocumentMode {
+  return (raw ?? '').trim() === 'LIVE' ? 'LIVE' : 'DRY_RUN';
+}
 
 function readSharePointModeFromEnv(): SharePointDocumentMode {
   // Vite exposes `import.meta.env` at build time. The optional chain guards
   // a non-Vite test environment where it may be undefined.
   const env = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env;
-  const raw = String(env?.VITE_SHAREPOINT_MODE ?? '').trim().toUpperCase();
-  return raw === 'LIVE' ? 'LIVE' : 'DRY_RUN';
+  const raw = env?.VITE_SHAREPOINT_MODE;
+  return resolveSharePointDocumentMode(raw == null ? undefined : String(raw));
 }
 
 export const SHAREPOINT_DOCUMENT_MODE: SharePointDocumentMode = readSharePointModeFromEnv();

@@ -26,6 +26,8 @@ interface Props {
   readonly borrowerLegalName: string | undefined;
   readonly uploadConfigured: boolean;
   readonly uploadMode: 'DRY_RUN' | 'LIVE';
+  /** Whether a real SharePoint connector is wired. False for DRY_RUN (expected) and for LIVE-not-registered. */
+  readonly connectorAvailable: boolean;
   readonly uploadDocument: (
     loanId: string,
     upload: {
@@ -57,16 +59,21 @@ export function PortfolioLoanBoardingDocumentUploadPanel({
   borrowerLegalName,
   uploadConfigured,
   uploadMode,
+  connectorAvailable,
   uploadDocument,
 }: Props) {
   const [documentType, setDocumentType] = useState<string>(PORTFOLIO_LOAN_DOCUMENTS[0]?.documentType ?? 'other');
   const [ui, setUi] = useState<UploadUiState>({ kind: 'idle' });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canUpload = uploadConfigured && Boolean(loanId) && Boolean(loanNumber);
+  // LIVE mode selected + flag on, but no real connector wired: a fail-closed state, explained
+  // proactively (never a fake DRY_RUN success, never a crash).
+  const liveButNoConnector = uploadConfigured && uploadMode === 'LIVE' && !connectorAvailable;
+  const canUpload = uploadConfigured && !liveButNoConnector && Boolean(loanId) && Boolean(loanNumber);
 
   async function onFileSelected(file: File) {
     if (!loanId || !loanNumber) return;
+    if (ui.kind === 'uploading') return; // guard against duplicate submission while a file is in flight
     setUi({ kind: 'uploading' });
     try {
       const buffer = await file.arrayBuffer();
@@ -98,7 +105,17 @@ export function PortfolioLoanBoardingDocumentUploadPanel({
         title="Document Upload"
         subtitle={canUpload ? `Upload adapter connected — ${uploadMode}` : 'Upload adapter not configured'}
       />
-      {!canUpload && (
+      {liveButNoConnector && (
+        <div role="status" style={notConfiguredStyle} data-portfolio-upload-connector-missing>
+          <p style={titleStyle}>SharePoint connector not registered</p>
+          <p style={detailStyle}>
+            LIVE mode is selected, but the SharePoint Online connector has not been registered or wired
+            for this app yet. No file can be stored until an operator adds the SharePoint Online data
+            source, regenerates the SDK, and wires the connector. Nothing was stored.
+          </p>
+        </div>
+      )}
+      {!liveButNoConnector && !canUpload && (
         <div role="status" style={notConfiguredStyle} data-portfolio-upload-not-configured>
           <p style={titleStyle}>Document upload not configured</p>
           <p style={detailStyle}>
@@ -151,11 +168,25 @@ export function PortfolioLoanBoardingDocumentUploadPanel({
             </p>
           )}
           {ui.kind === 'done' && (
-            <p style={ui.result.fileReference ? okStyle : mutedStyle} role="status" data-portfolio-upload-done>
-              {ui.result.fileReference
-                ? `Uploaded. Stored at ${ui.result.fileReference}`
-                : 'Recorded (dry-run) — no file was actually stored; the SharePoint connector is not yet live.'}
-            </p>
+            ui.result.fileReference ? (
+              // LIVE success: render a real, safe link to the genuine URL the connector returned.
+              // The URL is never constructed here — it comes straight from the upload result.
+              <p style={okStyle} role="status" data-portfolio-upload-done>
+                Uploaded. Stored at{' '}
+                <a
+                  href={ui.result.fileReference}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-portfolio-upload-link
+                >
+                  {ui.result.fileReference}
+                </a>
+              </p>
+            ) : (
+              <p style={mutedStyle} role="status" data-portfolio-upload-done>
+                Recorded (dry-run) — no file was actually stored.
+              </p>
+            )
           )}
           {ui.kind === 'error' && (
             <p style={errStyle} role="alert" data-portfolio-upload-error>

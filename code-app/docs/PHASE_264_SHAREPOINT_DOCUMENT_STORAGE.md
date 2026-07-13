@@ -84,20 +84,56 @@ generated; never hand-edit" rule. `createLiveSharePointDocumentAdapter`
 already contains the real, tested upload logic — wiring in a real connector
 once one exists is a one-line construction change, not a rewrite.
 
-## Exact operator steps to go LIVE
+## Operator activation runbook (LIVE SharePoint uploads)
 
-1. In Power Apps Studio, open this Code App's Data pane → Add data source →
-   SharePoint Online. Point it at the bank's document library (the default
-   root folder name is "Portfolio Loans"; pass a different `libraryRootPath`
-   to `createLiveSharePointDocumentAdapter` if the bank uses another name).
-2. Regenerate the SDK (the same step used for every other data source) — this
-   produces `src/generated/services/SharePointOnlineService.ts` and its model.
-3. Implement a thin `PortfolioSharePointConnectorPort` wrapper around the
-   generated service's `CreateFolderIfNotExists`/`CreateFile`/`ListFolder`-
-   equivalent actions (names depend on the generated connector's exact
-   action set) and pass it to `createLiveSharePointDocumentAdapter`.
-4. Set `VITE_SHAREPOINT_MODE=LIVE` and set
-   `documentSharePointUploadEnabled: true` in the resolved feature-flag config.
-5. Rebuild and redeploy.
+**This implementation phase did NOT perform any of the steps below.** It prepared the code only:
+DRY_RUN is the default, no connector was registered/provisioned, no live network call was made, and
+no feature flag or launch gate was enabled. Activating LIVE uploads is an operator task:
 
-No step above was performed by the agent — this phase only prepared the code.
+1. Open the Code App in **Power Apps Studio**.
+2. Open the **Data** pane.
+3. **Add** the `SharePoint Online` data source.
+4. Point it at the bank's intended SharePoint **site and document library**.
+5. Confirm the intended **library root**. The application default is `Portfolio Loans`; pass a
+   different `libraryRootPath` to `createLiveSharePointDocumentAdapter` if the bank uses another name.
+6. **Regenerate the Code App SDK** using the repository's normal generated-data-source workflow (the
+   same step that produced `Office365OutlookService.ts` for email).
+7. Confirm the generated **SharePoint service and models** appear under `src/generated/`.
+8. **Inspect the actual generated operations and signatures.** The connector's real action names may
+   differ from the illustrative `createFolderIfNotExists` / `createFile` / `listFolder` shape used by
+   `PortfolioSharePointConnectorPort` — do NOT assume names like `CreateFolderIfNotExists`,
+   `CreateFile`, or `ListFolder`. Base the wrapper on the ACTUAL generated SDK.
+9. Implement a thin, repository-owned `PortfolioSharePointConnectorPort` wrapper around the generated
+   service (mapping the real generated actions to `createFolderIfNotExists`/`createFile`/`listFolder`).
+10. **Do not edit the generated service itself** (`src/generated/` is generated; never hand-edit).
+11. Wire that wrapper into `createLiveSharePointDocumentAdapter(connector)` (a one-line construction
+    change at the adapter-selection site — the logic is already written and tested).
+12. Configure:
+    - `VITE_SHAREPOINT_MODE=LIVE` (only the EXACT literal `LIVE` selects LIVE; lowercase/typos stay DRY_RUN)
+    - resolved `documentSharePointUploadEnabled: true` in the feature-flag config
+13. Confirm **document-metadata persistence** configuration SEPARATELY
+    (`documentMetadataEnabled` is an independent flag — SharePoint upload does not enable it).
+14. Rebuild.
+15. Run the targeted tests (schema-plan, mode, adapters, hook, panel, feature flags).
+16. Run the typecheck (`npx tsc -b`).
+17. Run the full suite.
+18. Deploy through the normal controlled release process.
+19. Perform an authorized operator smoke test using a **non-production or approved test loan**.
+20. Verify:
+    - exactly ONE per-loan folder is used;
+    - the folder name is sanitized correctly (forbidden characters neutralized, no traversal);
+    - the file exists in SharePoint;
+    - the returned URL is genuine;
+    - the metadata row stores the genuine URL in `cr664_filereference` when metadata persistence is enabled;
+    - the DRY_RUN wording ("Recorded (dry-run) — no file was actually stored") is ABSENT during a LIVE success;
+    - no duplicate file was created (ensure-folder + create-file each ran once).
+21. **Record evidence** before any production gate or launch certification is changed.
+
+## Field mapping confirmation
+
+- File reference field: `cr664_filereference` on `cr664_portfolioboardedloandocuments` — a **String**
+  column that can hold the real returned SharePoint URL. **No schema migration** is required.
+- DRY_RUN never populates `cr664_filereference` and never creates a "stored" metadata row.
+
+No step above was performed by this phase — the code is prepared and fully tested against a mock
+connector; only an operator can register the real connector and flip the configuration.

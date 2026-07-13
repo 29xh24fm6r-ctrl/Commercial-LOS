@@ -23,6 +23,12 @@ function input(overrides: Partial<SharePointDocumentUploadInput> = {}): SharePoi
   };
 }
 
+/** A stand-in file with only a byteLength — lets size-boundary tests avoid allocating ~100 MB.
+ *  The adapter reads `content.byteLength` for validation and never scans the bytes. */
+function sizedContent(byteLength: number): Uint8Array {
+  return { byteLength } as unknown as Uint8Array;
+}
+
 describe('Phase 264 (P0) — dryRunSharePointDocumentAdapter', () => {
   it('validates real input and returns uploaded with NO fake link', async () => {
     const result = await dryRunSharePointDocumentAdapter.upload(input());
@@ -36,13 +42,23 @@ describe('Phase 264 (P0) — dryRunSharePointDocumentAdapter', () => {
 
   it('rejects a file over the size limit', async () => {
     const result = await dryRunSharePointDocumentAdapter.upload(
-      input({ content: new Uint8Array(MAX_UPLOAD_BYTES + 1) }),
+      input({ content: sizedContent(MAX_UPLOAD_BYTES + 1) }),
     );
     expect(result.kind).toBe('invalid-input');
   });
 
+  it('accepts a file at EXACTLY the 100 MB limit (the boundary is inclusive; only larger fails)', async () => {
+    const result = await dryRunSharePointDocumentAdapter.upload(input({ content: sizedContent(MAX_UPLOAD_BYTES) }));
+    expect(result.kind).toBe('uploaded');
+  });
+
   it('rejects a missing loan number', async () => {
     const result = await dryRunSharePointDocumentAdapter.upload(input({ loanNumber: '' }));
+    expect(result.kind).toBe('invalid-input');
+  });
+
+  it('rejects a blank file name', async () => {
+    const result = await dryRunSharePointDocumentAdapter.upload(input({ fileName: '   ' }));
     expect(result.kind).toBe('invalid-input');
   });
 
@@ -67,6 +83,22 @@ describe('Phase 264 (P0) — notYetRegisteredSharePointDocumentAdapter', () => {
   it('list also fails closed', async () => {
     const result = await notYetRegisteredSharePointDocumentAdapter.list({ loanNumber: 'LN-1001' });
     expect(result.kind).toBe('not-configured');
+  });
+
+  it('does not throw, never returns a fake URL, and is NOT a DRY_RUN success', async () => {
+    let threw = false;
+    let result;
+    try {
+      result = await notYetRegisteredSharePointDocumentAdapter.upload(input());
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(false);
+    expect(result!.kind).toBe('not-configured');
+    // No webUrl field at all on a not-configured result, and it never claims 'uploaded'.
+    expect((result as Record<string, unknown>).webUrl).toBeUndefined();
+    expect(result!.kind).not.toBe('uploaded');
+    expect(notYetRegisteredSharePointDocumentAdapter.mode).toBe('LIVE');
   });
 });
 
@@ -177,6 +209,71 @@ describe('Phase 264 (P0) — createLiveSharePointDocumentAdapter', () => {
     await adapter.upload(input());
 
     expect(connector.createFolderIfNotExists).toHaveBeenCalledWith('Bank Docs/LN-1001 - Acme LLC');
+  });
+});
+
+describe('Phase 264 (P0) — createLiveSharePointDocumentAdapter failure classification', () => {
+  // Repository convention (mirrors outlookEmailAdapters): 408/429/5xx + no-status/transport are
+  // transient (retryable); every other 4xx is permanent (needs operator action).
+  const cases: ReadonlyArray<{ label: string; status: number | undefined; expected: 'transient-failure' | 'permanent-failure' }> = [
+    { label: 'authentication (401)', status: 401, expected: 'permanent-failure' },
+    { label: 'authorization (403)', status: 403, expected: 'permanent-failure' },
+    { label: 'not-found / invalid path (404)', status: 404, expected: 'permanent-failure' },
+    { label: 'conflict (409)', status: 409, expected: 'permanent-failure' },
+    { label: 'file too large (413)', status: 413, expected: 'permanent-failure' },
+    { label: 'throttling (429)', status: 429, expected: 'transient-failure' },
+    { label: 'server error (500)', status: 500, expected: 'transient-failure' },
+    { label: 'server unavailable (503)', status: 503, expected: 'transient-failure' },
+    { label: 'timeout (408)', status: 408, expected: 'transient-failure' },
+    { label: 'transport / no status', status: undefined, expected: 'transient-failure' },
+    { label: 'unknown non-4xx/5xx (302)', status: 302, expected: 'transient-failure' },
+  ];
+
+  for (const c of cases) {
+    it(`classifies an upload ${c.label} as ${c.expected}`, async () => {
+      const connector = mockConnector({
+        createFile: vi.fn(async () => ({ success: false, error: { message: 'x', status: c.status } })),
+      });
+      const result = await createLiveSharePointDocumentAdapter(connector).upload(input());
+      expect(result.kind).toBe(c.expected);
+    });
+  }
+
+  it('fails closed (permanent) when the connector reports success but returns NO webUrl (malformed response) — never fabricates a URL', async () => {
+    const connector = mockConnector({
+      createFile: vi.fn(async () => ({ success: true, data: { itemId: 'item-1' } })), // no webUrl
+    });
+    const result = await createLiveSharePointDocumentAdapter(connector).upload(input());
+    expect(result.kind).toBe('permanent-failure');
+    expect((result as Record<string, unknown>).webUrl).toBeUndefined();
+  });
+
+  it('calls ensure-folder and create-file EXACTLY ONCE each on success (no duplicate upload)', async () => {
+    const connector = mockConnector();
+    await createLiveSharePointDocumentAdapter(connector).upload(input());
+    expect(connector.createFolderIfNotExists).toHaveBeenCalledTimes(1);
+    expect(connector.createFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('a folder-ensure failure prevents any file upload (createFile never called)', async () => {
+    const connector = mockConnector({
+      createFolderIfNotExists: vi.fn(async () => ({ success: false, error: { message: 'no site', status: 404 } })),
+    });
+    const result = await createLiveSharePointDocumentAdapter(connector).upload(input());
+    expect(result.kind).toBe('permanent-failure');
+    expect(connector.createFile).not.toHaveBeenCalled();
+  });
+
+  it('validates size at the boundary before the connector (exactly 100 MB is accepted, larger is rejected pre-flight)', async () => {
+    const atLimit = mockConnector();
+    await createLiveSharePointDocumentAdapter(atLimit).upload(input({ content: sizedContent(MAX_UPLOAD_BYTES) }));
+    expect(atLimit.createFile).toHaveBeenCalledTimes(1);
+
+    const over = mockConnector();
+    const overResult = await createLiveSharePointDocumentAdapter(over).upload(input({ content: sizedContent(MAX_UPLOAD_BYTES + 1) }));
+    expect(overResult.kind).toBe('invalid-input');
+    expect(over.createFolderIfNotExists).not.toHaveBeenCalled();
+    expect(over.createFile).not.toHaveBeenCalled();
   });
 });
 

@@ -61,10 +61,15 @@ export interface PortfolioSharePointConnectorPort {
 function validateUploadInput(input: SharePointDocumentUploadInput): string | undefined {
   if (!input.loanNumber || input.loanNumber.trim().length === 0) return 'A loan number is required.';
   if (!input.fileName || input.fileName.trim().length === 0) return 'A file name is required.';
+  // Size is read as byteLength only — the whole (possibly very large) file is never scanned to validate.
   if (input.content.byteLength === 0) return 'The file is empty.';
   if (input.content.byteLength > MAX_UPLOAD_BYTES) {
     return `The file is larger than the ${(MAX_UPLOAD_BYTES / (1024 * 1024)).toFixed(0)} MB limit.`;
   }
+  // The per-loan folder must resolve to a usable path (the schema plan sanitizes forbidden/traversal
+  // input and never returns empty, so this is a defensive guard rather than a common failure).
+  const folderPath = deriveLoanFolderPath(input.loanNumber, input.borrowerLegalName);
+  if (folderPath.trim().length === 0) return 'The resolved SharePoint folder path is unusable.';
   return undefined;
 }
 
@@ -167,6 +172,16 @@ export function createLiveSharePointDocumentAdapter(
         if (!uploadResult.success || !uploadResult.data) {
           const { message, status } = describeConnectorError(uploadResult.error);
           return { kind: classifyHttpStatus(status), reason: message };
+        }
+
+        // A LIVE success MUST carry a genuine web URL — the value persisted to cr664_filereference.
+        // If the connector reported success without one, FAIL CLOSED (a malformed connector response);
+        // never manufacture a URL from folder/name assumptions.
+        if (!uploadResult.data.webUrl || uploadResult.data.webUrl.trim().length === 0) {
+          return {
+            kind: 'permanent-failure',
+            reason: 'SharePoint connector reported success but returned no file URL; nothing was recorded.',
+          };
         }
 
         return {
