@@ -11,8 +11,7 @@ import { CreditCommitteePackageReviewQueuePanel } from '../committee/CreditCommi
 import { deriveCreditCommitteePackageQueue } from '../committee/creditCommitteePackageQueue';
 import { AnnualPortfolioReviewCommandCenter } from '../portfolioAnnualReview/AnnualPortfolioReviewCommandCenter';
 import type { AnnualReviewCycle } from '../shared/annualReview/annualReviewTypes';
-import { PortfolioLoanBoardingPreview } from '../portfolioBoarding/PortfolioLoanBoardingPreview';
-import { createEmptyPortfolioLoanBoardingPackage } from '../shared/portfolioBoarding/portfolioLoanBoardingTypes';
+import { PortfolioLoanBoardingForm } from '../portfolioBoarding/PortfolioLoanBoardingForm';
 import { CrmIntelligencePanel } from '../crm/intelligence/CrmIntelligencePanel';
 import { CrmCommandCenterRoute } from '../crm/commandCenter/CrmCommandCenterRoute';
 
@@ -170,12 +169,10 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     key: 'portfolio-boarding',
     flag: 'PORTFOLIO_BOARDING_SURFACE_ROUTE_ENABLED',
     label: 'Portfolio loan boarding',
-    description: 'Read-only portfolio loan boarding package preview (empty package).',
+    description: 'Manual portfolio loan boarding form — governed live persistence, disabled by default.',
     workspace: 'manager',
-    entryModule: 'src/portfolioBoarding/PortfolioLoanBoardingPreview.tsx',
-    render: () => (
-      <PortfolioLoanBoardingPreview package={createEmptyPortfolioLoanBoardingPackage()} />
-    ),
+    entryModule: 'src/portfolioBoarding/PortfolioLoanBoardingForm.tsx',
+    render: () => <PortfolioLoanBoardingForm />,
   },
 ];
 

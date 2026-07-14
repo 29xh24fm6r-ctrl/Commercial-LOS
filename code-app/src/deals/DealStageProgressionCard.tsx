@@ -11,6 +11,7 @@ import {
 } from '../shared/governance/stageProgressionAvailability';
 import { loadStageProgressionAvailability } from './stageProgressionAvailabilityLoader';
 import { deriveLoanWorkflowState } from '../workflow/deriveLoanWorkflowState';
+import { GenerateWorkflowChecklistButton } from '../workflow/GenerateWorkflowChecklistButton';
 import { evaluateStageTransitionPolicy } from '../workflow/stageTransitionPolicy';
 import { advanceWorkflowStage, type StageAdvanceOutcome } from '../workflow/stageAdvanceWriteDependency';
 import {
@@ -156,6 +157,18 @@ export function DealStageProgressionCard({
       )}
 
       <NextActionBlock eligibility={eligibility} />
+
+      {hasActor && (
+        <GenerateWorkflowChecklistButton
+          workflow={deriveLoanWorkflowState({
+            deal,
+            tasks: tasksData,
+            documents: documentsData,
+            creditMemo: creditMemoData,
+          })}
+          dealId={deal.id}
+        />
+      )}
 
       {!availability.available && (
         <div style={styles.schemaLimitationBox} role="status" aria-label="Stage progression write availability">
@@ -435,6 +448,7 @@ function StageAdvanceControl({
       transport: deps.transport,
       auditSink: deps.auditSink,
       timelineSink: deps.timelineSink,
+      onDealBoarded: deps.onDealBoarded,
     });
     // On a verified advance, seed the destination stage's standard work as real governed tasks
     // (idempotent by title), then reload tasks + activity so the new work appears immediately.

@@ -28,7 +28,16 @@ vi.mock('./newDealAuditActorResolver', () => ({
   createActorChangedByResolver: () => resolveActor,
 }));
 
+const { mapDealToExistingLoanInput, boardExistingLoan, buildLiveExistingLoanDeps } = vi.hoisted(() => ({
+  mapDealToExistingLoanInput: vi.fn(),
+  boardExistingLoan: vi.fn(),
+  buildLiveExistingLoanDeps: vi.fn(() => ({})),
+}));
+vi.mock('../portfolioBoarding/mapDealToExistingLoanInput', () => ({ mapDealToExistingLoanInput }));
+vi.mock('../portfolioBoarding/existingLoanEntryAdapter', () => ({ boardExistingLoan, buildLiveExistingLoanDeps }));
+
 import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
+import type { DealDetail } from './dealQueries';
 
 beforeEach(() => {
   loandealsUpdate.mockReset();
@@ -37,7 +46,17 @@ beforeEach(() => {
   stageGetAll.mockReset();
   timelineCreate.mockReset();
   resolveActor.mockReset();
+  mapDealToExistingLoanInput.mockReset();
+  boardExistingLoan.mockReset();
+  buildLiveExistingLoanDeps.mockReset().mockReturnValue({});
 });
+
+const testDeal: DealDetail = {
+  id: 'deal-1', name: 'Test Deal', clientName: 'Acme LLC', stage: 'CLOSING_FUNDING', status: 'Active', amount: 500_000,
+  bankerName: 'M. Paller', targetCloseDate: '2026-12-31T00:00:00Z', productType: 'Term Loan', loanStructure: 'Senior Secured',
+  customerType: 'C&I', industry: 'Manufacturing', guarantorStructure: 'One PG', pricingType: 'Floating', spreadIndex: 'SOFR',
+  spreadMargin: 275, collateralSummary: 'Equipment', createdOn: '2026-07-01T00:00:00Z', stageEntryDate: '2026-07-08T00:00:00Z', isClosed: false,
+};
 
 const actor = { actorSystemUserId: 'sys-1', actorEmail: 'banker@oldglorybank.com' };
 
@@ -231,5 +250,56 @@ describe('buildLiveStageAdvanceDeps — timelineSink', () => {
     expect(res.ok).toBe(true);
     const payload = timelineCreate.mock.calls[0][0] as Record<string, unknown>;
     expect('cr664_EventBy@odata.bind' in payload).toBe(false);
+  });
+});
+
+describe('buildLiveStageAdvanceDeps — onDealBoarded (reuses the already-live Phase 259 write path)', () => {
+  it('maps the deal, boards it through boardExistingLoan/buildLiveExistingLoanDeps, and reports success', async () => {
+    const mappedInput = { loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true };
+    mapDealToExistingLoanInput.mockReturnValue(mappedInput);
+    boardExistingLoan.mockResolvedValue({ kind: 'success', loanId: 'row-1', loanNumber: 'deal-1', correlationId: 'c1', childCreated: 0, childErrors: [], auditId: 'a1' });
+    const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
+
+    const result = await onDealBoarded.run(testDeal);
+
+    expect(mapDealToExistingLoanInput).toHaveBeenCalledWith({
+      deal: testDeal,
+      authorized: true,
+      actorEmail: actor.actorEmail,
+      actorSystemUserId: actor.actorSystemUserId,
+    });
+    expect(boardExistingLoan).toHaveBeenCalledWith(mappedInput, {});
+    expect(result).toEqual({ ok: true, detail: 'Boarded as portfolio loan deal-1.' });
+  });
+
+  it('reports a duplicate loan (already boarded) as ok — not an error', async () => {
+    mapDealToExistingLoanInput.mockReturnValue({ loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true });
+    boardExistingLoan.mockResolvedValue({ kind: 'duplicate', reason: 'exists', loanNumber: 'deal-1' });
+    const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
+
+    const result = await onDealBoarded.run(testDeal);
+
+    expect(result).toEqual({ ok: true, detail: 'Already boarded (loan number deal-1 exists).' });
+  });
+
+  it('reports a write failure honestly, never a fake success', async () => {
+    mapDealToExistingLoanInput.mockReturnValue({ loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true });
+    boardExistingLoan.mockResolvedValue({ kind: 'write-failed', error: 'field rejected', correlationId: 'c1' });
+    const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
+
+    const result = await onDealBoarded.run(testDeal);
+
+    expect(result.ok).toBe(false);
+    expect(result.detail).toContain('field rejected');
+  });
+
+  it('skips auto-boarding honestly when the deal cannot be mapped (e.g. no borrower name) — never fabricates', async () => {
+    mapDealToExistingLoanInput.mockReturnValue(null);
+    const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
+
+    const result = await onDealBoarded.run(testDeal);
+
+    expect(result.ok).toBe(false);
+    expect(boardExistingLoan).not.toHaveBeenCalled();
   });
 });

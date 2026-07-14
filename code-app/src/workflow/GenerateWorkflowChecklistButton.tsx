@@ -1,12 +1,26 @@
 import { useState } from 'react';
 import { useOptionalBanker } from '../banker/BankerContext';
 import { useDealData } from '../deals/DealDataProvider';
-import { generateWorkflowChecklist, type WorkflowGenerationOutcome } from './workflowGenerationActions';
+import {
+  generateWorkflowChecklist,
+  type WorkflowChecklistGenerationDeps,
+  type WorkflowGenerationOutcome,
+} from './workflowGenerationActions';
 import { getLoanWorkflowTemplate } from './loanWorkflowTemplates';
 import type { LoanWorkflowState } from './loanWorkflowTypes';
+import { createChecklistWriteDependency } from './checklistWriteDependency';
+import { buildLiveChecklistRowTransport, buildLiveChecklistAuditSink } from '../deals/checklistLiveWriteDeps';
+import { newCorrelationId } from '../shared/governance/correlationId';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
-export function GenerateWorkflowChecklistButton({ workflow }: { workflow: LoanWorkflowState }) {
+export interface GenerateWorkflowChecklistButtonProps {
+  readonly workflow: LoanWorkflowState;
+  readonly dealId: string;
+  /** Test-only override; production defaults to the live write dependency. */
+  readonly deps?: WorkflowChecklistGenerationDeps;
+}
+
+export function GenerateWorkflowChecklistButton({ workflow, dealId, deps }: GenerateWorkflowChecklistButtonProps) {
   const banker = useOptionalBanker();
   const { documents, refresh } = useDealData();
   const [outcome, setOutcome] = useState<WorkflowGenerationOutcome | null>(null);
@@ -15,10 +29,21 @@ export function GenerateWorkflowChecklistButton({ workflow }: { workflow: LoanWo
     : [];
 
   async function handleClick() {
+    const authorized = !!banker?.systemUserId;
+    const resolvedDeps =
+      deps ??
+      createChecklistWriteDependency({
+        authorized,
+        dealId,
+        correlationId: newCorrelationId('checklist'),
+        transport: buildLiveChecklistRowTransport(),
+        auditSink: buildLiveChecklistAuditSink(banker?.email),
+      });
     const result = await generateWorkflowChecklist({
-      authorized: !!banker?.systemUserId,
+      authorized,
       template: getLoanWorkflowTemplate(workflow.currentStage.id),
       existingNames,
+      deps: resolvedDeps,
     });
     setOutcome(result);
     if (result.kind === 'success') refresh('documents');
