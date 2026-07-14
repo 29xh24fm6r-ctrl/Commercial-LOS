@@ -90,9 +90,9 @@ export interface CrmDeliveryLedger {
    * New-deal → CRM client linkage is operational (governed, not inert). Delivered by the
    * CRM-first intake create path (src/deals/newDealCreateAdapter.ts): it fails closed with
    * `client_required` unless a client is selected and verifies the bound client on create
-   * (`link_readback_mismatch`), enforced by dealOriginationOrchestrator. NOTE: the separate
-   * CRM-F decision model (src/crm/linkage/newDealCrmClientLinkage.ts) is NOT the source — it is
-   * currently unwired; this field reflects the actually-enforced intake path, not that module.
+   * (`link_readback_mismatch`), enforced by dealOriginationOrchestrator. (The earlier, separate
+   * CRM-F decision model that predated this enforced path was removed as dead code — it was
+   * never wired to the intake flow.)
    */
   readonly newDealLinkageOperational: boolean;
   /** Live hub create path is wired (Phase 261 — true today). */

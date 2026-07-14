@@ -145,8 +145,14 @@ describe('Phase 46 — newCorrelationId shared helper', () => {
 // ---------------------------------------------------------------------------
 
 describe('Phase 46 — inventory completeness', () => {
-  it('ACTION_BY_WRITE_ID covers every GOVERNED_WRITES id', () => {
+  it('ACTION_BY_WRITE_ID covers every GOVERNED_WRITES id (except explicitly exempt writes)', () => {
     for (const w of GOVERNED_WRITES) {
+      // legacyDisciplineExempt writes (see GovernedWriteEntry doc comment) generate their
+      // correlation id in a UI component and thread it as a parameter through several layers,
+      // not via a single action file's `const correlationId = newCorrelationId(prefix)` — the
+      // convention this sweep's ACTION_BY_WRITE_ID map assumes. Skipped with a reason rather
+      // than forced into a mismatched entry.
+      if (w.legacyDisciplineExempt) continue;
       expect(
         ACTION_BY_WRITE_ID[w.id],
         `GOVERNED_WRITES contains "${w.id}" but ACTION_BY_WRITE_ID does not. ` +
@@ -244,6 +250,7 @@ describe('Phase 46 — audit emission stamps cr664_correlationid', () => {
 
 describe('Phase 46 — timeline emission matches GOVERNED_WRITES.emitsTimeline', () => {
   for (const w of GOVERNED_WRITES) {
+    if (w.legacyDisciplineExempt) continue; // see ACTION_BY_WRITE_ID completeness check above
     const mapping = ACTION_BY_WRITE_ID[w.id]!;
     if (w.id === 'alert-dismiss') continue; // shares alertActions.ts
     if (w.emitsTimeline) {

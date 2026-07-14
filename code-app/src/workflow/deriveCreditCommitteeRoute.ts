@@ -2,34 +2,25 @@
  * Phase 142C — Credit committee route deriver.
  *
  * PURE, READ-ONLY. Decides whether (and which) credit committee is required from
- * amount thresholds + the matched rule's committee policy + readiness context.
- * Voting and approval are STRUCTURALLY disabled; it records no votes, submits no
- * package, and makes no approval/decline/waiver.
+ * the matched rule's committee policy + readiness context. Voting and approval
+ * are STRUCTURALLY disabled; it records no votes, submits no package, and makes
+ * no approval/decline/waiver.
  *
- * NOTE (2026-07-14, docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md finding H3): this
- * multi-tier ($5M/$15M/$50M) committee model is unreconciled with `approvalAuthorityMatrix.ts`,
- * which implements OGB's separate single-approver, no-amount-tiers policy. Neither is wired to a
- * live surface today. Do not wire this up as the live CREDIT_APPROVAL authority check without
- * first reconciling it against approvalAuthorityMatrix.ts — they encode different policies.
+ * There is deliberately NO amount-based escalation here: OGB has ratified a
+ * single authorized-approver gate with no amount tiers (see
+ * approvalAuthorityMatrix.ts). A committee is only in play when a rule
+ * explicitly sets a non-'none' committeePolicy (e.g. a covenant exception or
+ * construction/project-based route) — never merely because the loan amount
+ * crosses a threshold.
  */
 
 import {
-  DEFAULT_WORKFLOW_POLICY_THRESHOLDS,
   type WorkflowRoutingInput,
   type WorkflowCommitteeRoute,
   type WorkflowCommitteeType,
   type WorkflowPackageReadiness,
-  type WorkflowPolicyThresholds,
   type WorkflowRoutingBlocker,
 } from './workflowRoutingConfigTypes';
-
-const RANK: Record<WorkflowCommitteeType, number> = {
-  none: 0,
-  board_visibility_only: 1,
-  credit_committee: 2,
-  senior_credit_committee: 3,
-  executive_credit_review: 4,
-};
 
 export interface DeriveCreditCommitteeRouteInput {
   input: WorkflowRoutingInput;
@@ -38,28 +29,15 @@ export interface DeriveCreditCommitteeRouteInput {
   packageReadiness?: WorkflowPackageReadiness;
   covenantStatus?: WorkflowRoutingInput['covenantStatus'];
   evidenceComplete?: boolean;
-  thresholds?: WorkflowPolicyThresholds;
-}
-
-function amountCommitteeType(amount: number | undefined, t: WorkflowPolicyThresholds): WorkflowCommitteeType {
-  if (amount === undefined) return 'none';
-  if (amount >= t.executiveReviewAmount) return 'executive_credit_review';
-  if (amount >= t.seniorCommitteeAmount) return 'senior_credit_committee';
-  if (amount >= t.creditCommitteeAmount) return 'credit_committee';
-  return 'none';
 }
 
 export function deriveCreditCommitteeRoute(
   args: DeriveCreditCommitteeRouteInput,
 ): WorkflowCommitteeRoute {
-  const t = args.thresholds ?? DEFAULT_WORKFLOW_POLICY_THRESHOLDS;
-  const amountType = amountCommitteeType(args.input.amount, t);
-  const committeeType: WorkflowCommitteeType =
-    RANK[args.committeePolicy] >= RANK[amountType] ? args.committeePolicy : amountType;
+  const committeeType: WorkflowCommitteeType = args.committeePolicy;
   const committeeRequired = committeeType !== 'none';
 
   const reasonCodes: string[] = [];
-  if (amountType !== 'none') reasonCodes.push('amount_threshold');
   if (args.committeePolicy !== 'none') reasonCodes.push('committee_policy');
   if (args.covenantStatus === 'breach' || args.covenantStatus === 'review_required') reasonCodes.push('covenant_exception');
 

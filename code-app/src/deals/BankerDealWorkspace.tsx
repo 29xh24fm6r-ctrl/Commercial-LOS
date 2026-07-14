@@ -27,6 +27,7 @@ import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
 import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
 import { DealPortfolioBoardingStatusPanel } from '../workflow/DealPortfolioBoardingStatusPanel';
+import { DealWorkflowRoutingPanel } from '../workflow/DealWorkflowRoutingPanel';
 import { DealIntelligenceProvider } from '../shared/dealIntelligenceContext';
 import { DealIntelligenceBeacon } from '../shared/DealIntelligenceBeacon';
 import { LoadingState } from '../shared/LoadingState';
@@ -261,6 +262,15 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="portfolio-boarding-status"
               >
                 <DealPortfolioBoardingStatusPanel />
+              </div>
+              {/* ARC Phase 3 — Phase 142C configurable workflow-routing engine,
+                  wired live against this deal. Read-only decision support only. */}
+              <div
+                id="workflow-routing"
+                data-deal-card="workflow-routing"
+                data-cockpit-anchor="workflow-routing"
+              >
+                <DealWorkflowRoutingPanel />
               </div>
               <div
                 id="activity-timeline"

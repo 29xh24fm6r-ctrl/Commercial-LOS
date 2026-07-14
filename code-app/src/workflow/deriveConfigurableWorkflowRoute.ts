@@ -6,21 +6,12 @@
  * checkpoints, committee requirement, blockers, and next best actions. It creates
  * no tasks, mutates no stages, and NEVER approves credit. Missing core data or
  * conflicting top-priority rules return `route_review_required`.
- *
- * NOTE (2026-07-14, docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md findings H3/H4): this is
- * the multi-tier/future route + committee model — it and its sibling `deriveCreditCommitteeRoute`
- * are the ones with the $5M/$15M/$50M dollar tiers. `deriveWorkflowRoute.ts` +
- * `approvalAuthorityMatrix.ts` are the simpler, currently-live-adjacent pair (a single
- * no-amount-tiers approver gate). Neither pair is wired to a live surface today, and they are NOT
- * reconciled with each other — they can disagree on the same deal's committee requirement. Do not
- * wire both pairs up without first picking one as canonical.
  */
 
 import { WORKFLOW_ROUTE_RULE_REGISTRY } from './workflowRouteRuleRegistry';
 import { deriveCreditCommitteeRoute } from './deriveCreditCommitteeRoute';
 import { buildRouteStages, deriveWorkflowStageSequence } from './deriveWorkflowStageSequence';
 import {
-  DEFAULT_WORKFLOW_POLICY_THRESHOLDS,
   type WorkflowRoutingInput,
   type WorkflowRouteRule,
   type WorkflowRouteRuleCondition,
@@ -29,7 +20,6 @@ import {
   type WorkflowApprovalCheckpoint,
   type WorkflowRoutingBlocker,
   type WorkflowRoutingWarning,
-  type WorkflowPolicyThresholds,
 } from './workflowRoutingConfigTypes';
 
 const ROUTE_NAMES: Record<string, string> = {
@@ -44,9 +34,6 @@ const ROUTE_NAMES: Record<string, string> = {
   annual_review_package_review: 'Annual review — package review',
   portfolio_boarded_loan_review: 'Portfolio boarded-loan review',
   exception_remediation: 'Exception remediation',
-  credit_committee_required: 'Credit committee required',
-  senior_credit_committee_required: 'Senior credit committee required',
-  executive_visibility_required: 'Executive visibility required',
   fdic_examiner_package_required: 'FDIC / examiner package',
   review_required: 'Review required (insufficient routing data)',
 };
@@ -103,7 +90,6 @@ function hasAnyRoutingSignal(input: WorkflowRoutingInput): boolean {
 export interface DeriveConfigurableWorkflowRouteInput {
   input: WorkflowRoutingInput;
   rules?: readonly WorkflowRouteRule[];
-  thresholds?: WorkflowPolicyThresholds;
 }
 
 function reviewRequiredResult(input: WorkflowRoutingInput, reason: string, matched: readonly string[], evaluated: number): WorkflowRouteDerivationResult {
@@ -134,7 +120,6 @@ export function deriveConfigurableWorkflowRoute(
 ): WorkflowRouteDerivationResult {
   const { input } = args;
   const rules = args.rules ?? WORKFLOW_ROUTE_RULE_REGISTRY;
-  const thresholds = args.thresholds ?? DEFAULT_WORKFLOW_POLICY_THRESHOLDS;
 
   const matched = rules.filter((r) => ruleMatches(input, r)).sort((a, b) => b.priority - a.priority);
   const matchedKeys = matched.map((r) => r.ruleKey);
@@ -155,7 +140,7 @@ export function deriveConfigurableWorkflowRoute(
 
   const committee = deriveCreditCommitteeRoute({
     input, routeKey: rule.routeKey, committeePolicy: rule.committeePolicy,
-    packageReadiness: input.packageReadiness, covenantStatus: input.covenantStatus, evidenceComplete, thresholds,
+    packageReadiness: input.packageReadiness, covenantStatus: input.covenantStatus, evidenceComplete,
   });
 
   const seq = deriveWorkflowStageSequence({ stages, currentStageKey: input.stage, input, evidenceComplete });

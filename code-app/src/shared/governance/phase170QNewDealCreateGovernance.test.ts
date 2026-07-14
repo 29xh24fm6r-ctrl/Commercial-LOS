@@ -18,12 +18,15 @@ import { NOT_WIRED } from './platformInventory';
 
 const ROOT = resolve(__dirname, '..', '..', '..');
 
+// newDealCreateEnablement.ts / newDealCreateController.ts / NewDealCreatePanel.tsx (the
+// standalone Phase 170M-170N controlled admin create surface) were removed: the submit button
+// had no click handler and the admin panel mounted it with no enablement config, so it was
+// permanently inert -- dead weight, not a real second create surface. The governed adapter and
+// its feature flags remain (now the sole basis for both the public/admin NOT_WIRED path and the
+// live BankerNewDealCreate.tsx pilot path).
 const NEW_DEAL_CREATE_FILES = [
   'src/deals/newDealCreateAdapter.ts',
   'src/deals/newDealCreateFeatureFlags.ts',
-  'src/deals/newDealCreateEnablement.ts',
-  'src/deals/newDealCreateController.ts',
-  'src/deals/NewDealCreatePanel.tsx',
 ] as const;
 
 function read(rel: string): string {
@@ -87,22 +90,4 @@ describe('Phase 170Q -- no Graph / external HTTP / write-scope expansion', () =>
       expect(src).not.toMatch(/cr664_organization|cr664_person|portfolioboarding|stagehistory|SendEmail|borrowerupdate/i);
     });
   }
-});
-
-describe('Phase 170Q -- production stays disabled unless explicit rollout config', () => {
-  it('the enablement reader requires explicit production rollout approval', async () => {
-    const { evaluateNewDealCreateEnablement } = await import(
-      '../../deals/newDealCreateEnablement'
-    );
-    // A production environment with an otherwise-approved config but no
-    // productionRolloutApproved stays blocked.
-    expect(
-      evaluateNewDealCreateEnablement({
-        config: { adapterEnabled: true, auditWired: true },
-        environment: { name: 'production', isProduction: true },
-        authorization: { isAdminOrDev: true, actorSystemUserId: 'sys-1' },
-        resolverReady: true,
-      }),
-    ).toBe('environment_not_allowed');
-  });
 });
