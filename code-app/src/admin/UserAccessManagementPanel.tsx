@@ -12,6 +12,7 @@ import {
   formatSafeReadWorkspaceName,
 } from './adminUserAccessDisplay';
 import { WorkspaceEntitlementManager } from './WorkspaceEntitlementManager';
+import { AdminAccessGrantPanel } from './AdminAccessGrantPanel';
 
 /**
  * Phase 204N — read-only detail polish. The console explains WHY workspace/profile
@@ -24,12 +25,14 @@ const SAFE_READ_EXPLANATION =
   'This console uses the live-safe entitlement fields only and shows raw profile IDs where available.';
 
 /**
- * Phase 169B -- User & Access Management panel (read-only + preview).
+ * Phase 169B -- User & Access Management panel.
  *
  * Renders the real app-level user / workspace-entitlement records
  * (read-only), an always-visible app-level-vs-platform-security
- * disclaimer, and a PREVIEW-ONLY grant form whose submit is disabled
- * with the exact blocker. No live write is performed in this phase.
+ * disclaimer, the governed primary-workspace change control
+ * (WorkspaceEntitlementManager), and the governed Admin access
+ * grant/revoke control (AdminAccessGrantPanel) — the one workspace whose
+ * additional access is actually checked anywhere in the app.
  *
  * This panel is rendered only inside the already admin-gated, authorized
  * branch of AdminOperationsConsole, so it inherits the route gate.
@@ -70,8 +73,9 @@ export function UserAccessManagementPanel() {
       <header style={styles.head}>
         <h3 style={styles.title}>User &amp; Access Management</h3>
         <p style={styles.subtitle}>
-          Existing LOS app-level users and workspace entitlements. Read-only in
-          this release.
+          Existing LOS app-level users and workspace entitlements. Change a
+          user's primary workspace or grant/revoke Admin access below;
+          everything else here is read-only.
         </p>
       </header>
 
@@ -88,6 +92,7 @@ export function UserAccessManagementPanel() {
       <UsersTable state={state} />
       <EntitlementsTable state={state} />
       <WorkspaceEntitlementManager />
+      <AdminAccessGrantPanel />
       <AddUserGuidance />
     </section>
   );
@@ -232,9 +237,11 @@ function AddUserGuidance() {
       <p style={styles.blocker}>
         New platform users are provisioned by an operator (the user’s Dataverse
         identity and platform-user record are created with the seed/provisioning
-        process), not from this app. Once a user exists, set their workspace
-        above with the governed, audited <strong>Workspace entitlement</strong>{' '}
-        control.
+        process), not from this app. Once a user exists, set their primary
+        workspace above with the governed, audited{' '}
+        <strong>Workspace entitlement</strong> control, or grant them
+        additional <strong>Admin</strong> access with the{' '}
+        <strong>Grant / Revoke Admin Access</strong> control above.
       </p>
       <p style={styles.roleNotice} data-admin-user-access-role-notice>
         Microsoft tenant and Dataverse security roles are assigned in the Power

@@ -20,6 +20,7 @@ import { FullSystemActivationLaunchPanel } from '../admin/FullSystemActivationLa
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { AdminDealReferenceValues } from '../admin/AdminDealReferenceValues';
+import { AdminLoanRemovalPanel } from '../admin/AdminLoanRemovalPanel';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { palette, spacing, typography } from '../shared/theme';
 
@@ -107,6 +108,11 @@ function AdminWorkspaceContent() {
             are fail-closed to a resolved Dataverse identity, readback-verified,
             and audited (inherits the admin route + AdminProvider gate). */}
         <AdminDealReferenceValues />
+        {/* Admin-managed removal of a pipeline deal or a boarded portfolio loan.
+            No hard delete exists anywhere in this app (see dealRemovalWrite.ts /
+            portfolioLoanRemovalWrite.ts for why); this is a governed, audited,
+            reversible withdrawal that hides the loan from every active view. */}
+        <AdminLoanRemovalPanel />
         <StageGovernanceDiagnostics />
         <EmailLiveDiagnostics />
         <PerformanceDiagnostics />
