@@ -10,10 +10,15 @@
  *
  * Pure and FAIL-CLOSED: a missing record, missing approval, or unverified approver yields false.
  *
- * NOTE (2026-07-14, docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md finding H3): a SEPARATE,
- * unreconciled multi-tier ($5M/$15M/$50M) committee model exists in `deriveCreditCommitteeRoute.ts`
- * / `deriveConfigurableWorkflowRoute.ts`. If OGB's policy ever grows amount tiers, reconcile with
- * that model rather than maintaining two independent answers to "who must approve this loan."
+ * RECONCILED (2026-07-14, second pass): `deriveCreditCommitteeRoute.ts` / `deriveConfigurableWorkflowRoute.ts`
+ * previously carried a separate, unreconciled multi-tier ($5M/$15M/$50M) amount-based committee
+ * model (audit finding H3) — that model has since been removed there in favor of this same
+ * single-authorized-approver, no-amount-tiers policy (a committee is now only in play when a
+ * routing rule explicitly sets a committeePolicy, never merely from crossing a dollar amount).
+ * The live per-actor authority check itself is `evaluateCreditApprovalAuthority` in
+ * `creditApprovalAuthority.ts`, not this module (see the SUPERSEDED note below) — but the policy
+ * shape (no amount tiers) is now consistent across both the routing/visibility layer and the
+ * individual-authority layer.
  */
 
 export interface ApprovalRecord {

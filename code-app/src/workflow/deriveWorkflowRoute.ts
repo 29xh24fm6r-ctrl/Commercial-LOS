@@ -7,11 +7,11 @@
  * amount data routes to `review_required`; a covenant exception routes to the
  * covenant-exception annual-review route; credit-committee-required is a finding.
  *
- * NOTE (2026-07-14, docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md finding H4): this is the
- * SIMPLER of two parallel, unreconciled route models — this one keys off a coarse `amountBand`
- * enum. `deriveConfigurableWorkflowRoute.ts` is the other: a raw-dollar rule-registry model with
- * finer amount tiers. Neither is wired to a live surface today. Do not wire BOTH up without first
- * reconciling which one is canonical — they can disagree on the same deal.
+ * SUPERSEDED (2026-07-14, second pass, audit finding H4): this older (Phase 142A) route model,
+ * keyed off a coarse `amountBand` enum, has been superseded by the live Phase 142C engine
+ * (`deriveConfigurableWorkflowRoute.ts`, mounted via `DealWorkflowRoutingPanel.tsx`) and is never
+ * mounted anywhere. Do not wire this one up alongside the live engine — they can disagree on the
+ * same deal; `deriveConfigurableWorkflowRoute.ts` is canonical.
  */
 
 import { getWorkflowRoute } from './workflowRouteRegistry';
