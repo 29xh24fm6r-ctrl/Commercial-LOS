@@ -287,6 +287,197 @@ describe('Phase 115 — runBootstrap fail-closed paths', () => {
   });
 });
 
+describe('2026-07-14 regression — live "No LOS profile exists" investigation', () => {
+  /**
+   * Pins runBootstrap()'s behavior against the EXACT live record shape reported
+   * for mpaller@oldglorybank.com after the "Access not provisioned" failure
+   * surfaced post-deploy: an active cr664_platformuser row exists (verified live
+   * via the Dataverse Web API using the same signed-in account), yet the deployed
+   * app rendered NotProvisionedError.
+   *
+   * This test proves the CODE resolves this exact shape successfully — so if the
+   * live app is still failing against a record that looks like this, the bug is
+   * NOT in runBootstrap()/AuthGate.tsx's resolution logic (which this test suite
+   * has pinned since Phase 115 and is unchanged), and is instead in something
+   * outside this versioned source: most likely the generated SDK's data-source
+   * binding for cr664_platformusers (code-app/.power/schemas/appschemas/
+   * dataSourcesInfo.ts — gitignored, never committed, regenerated locally by
+   * `pac code add-data-source`) returning an empty/errored result that this
+   * function has no way to distinguish from "no such record" (see the fail-closed
+   * note below) — or a stale/mismatched live deployment.
+   *
+   * Deliberately does NOT include cr664_losuserprofiles or the linked
+   * workspaceentitlements row from the live report: runBootstrap() never queries
+   * either table (see the Phase 115 header comment), so their state is provably
+   * irrelevant to whether this resolves — confirming the reported LOS-profile/
+   * entitlement data has no bearing on this specific failure.
+   */
+  it('resolves successfully for the exact live platformuser record reported for mpaller@oldglorybank.com', async () => {
+    getContextMock.mockResolvedValue(ctxFor('mpaller@oldglorybank.com', 'Matthew Paller'));
+    platformUserGetAllMock.mockResolvedValue({
+      success: true,
+      data: [
+        platformUserRow({
+          cr664_platformuserid: 'e20d1fcd-4fbc-4439-962e-975c1db08aeb',
+          cr664_email: 'mpaller@oldglorybank.com',
+          cr664_fullname: 'Matthew Paller',
+          cr664_activestatus: true,
+          _cr664_primaryworkspace_value: 'ws-admin-live',
+        }),
+      ],
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformusersService.getAll>>);
+    platformWorkspaceGetMock.mockResolvedValue({
+      success: true,
+      data: workspaceRow({
+        cr664_platformworkspaceid: 'ws-admin-live',
+        cr664_workspacename: 'Admin Workspace',
+      }),
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformworkspacesService.get>>);
+
+    const result = await runBootstrap();
+
+    expect(result.upn).toBe('mpaller@oldglorybank.com');
+    expect(result.profileId).toBe('e20d1fcd-4fbc-4439-962e-975c1db08aeb');
+    expect(result.route).toBe('/workspaces/admin');
+  });
+
+  /**
+   * Documents the exact ambiguity a live investigator needs to rule out: this
+   * function cannot tell "the API call succeeded with zero matching rows" apart
+   * from "the API call errored / hit a broken data-source binding and the SDK
+   * swallowed it into an empty result." Both present identically here. If the
+   * generated Cr664_platformusersService ever starts surfacing thrown errors
+   * instead of an empty `.data` array for a broken connection, this seam should
+   * NOT reclassify that as "not provisioned" — it should propagate as a distinct
+   * failure so AuthGate's 'failed' state (not 'not-provisioned') renders instead,
+   * pointing an operator at a connection problem rather than a missing user.
+   */
+  it('cannot distinguish "no matching row" from "data.length === 0 for any other reason" — both throw NotProvisionedError', async () => {
+    getContextMock.mockResolvedValue(ctxFor('mpaller@oldglorybank.com'));
+    // Same shape as a genuine empty result — this is the ambiguity, made explicit.
+    platformUserGetAllMock.mockResolvedValue({
+      success: true,
+      data: [],
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformusersService.getAll>>);
+
+    await expect(runBootstrap()).rejects.toBeInstanceOf(NotProvisionedError);
+  });
+});
+
+describe('2026-07-14 fix — IOperationResult.success is checked, not just .data', () => {
+  /**
+   * The actual root-cause fix: a broken data-source connection/binding can
+   * resolve `IOperationResult<T>` with `success: false` rather than throwing.
+   * Before this fix, runBootstrap() read `.data?.[0]` directly with no
+   * `.success` check, so this case was indistinguishable from "zero matching
+   * rows" and surfaced as the misleading NotProvisionedError ("No LOS profile
+   * exists") — even for a signed-in user with a verified-live, verified-active
+   * PlatformUser record (see the exact reported shape pinned above). These
+   * tests pin the corrected behavior: a lookup failure must throw a plain
+   * Error (which AuthGate's 'failed' state renders as "Sign-in failed"), never
+   * NotProvisionedError or UnresolvedWorkspaceError.
+   */
+  it('throws a plain Error (not NotProvisionedError) when the PlatformUser lookup itself fails', async () => {
+    getContextMock.mockResolvedValue(ctxFor('mpaller@oldglorybank.com'));
+    platformUserGetAllMock.mockResolvedValue({
+      success: false,
+      data: undefined,
+      error: new Error('data source connection error'),
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformusersService.getAll>>);
+
+    let caught: unknown;
+    try {
+      await runBootstrap();
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught).not.toBeInstanceOf(NotProvisionedError);
+    expect((caught as Error).message).toContain('PlatformUser lookup failed');
+    expect((caught as Error).message).toContain('mpaller@oldglorybank.com');
+    expect((caught as Error).message).toContain('data source connection error');
+    // The broken lookup must not be silently retried against the workspace
+    // service — the chain fails at the earliest broken link.
+    expect(platformWorkspaceGetMock).not.toHaveBeenCalled();
+  });
+
+  it('describes a PowerDataRuntimeHttpError-shaped failure (no Error instance, just a message field) without crashing', async () => {
+    getContextMock.mockResolvedValue(ctxFor('mpaller@oldglorybank.com'));
+    platformUserGetAllMock.mockResolvedValue({
+      success: false,
+      data: undefined,
+      error: { message: 'HTTP 401 Unauthorized' },
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformusersService.getAll>>);
+
+    await expect(runBootstrap()).rejects.toThrow(/HTTP 401 Unauthorized/);
+  });
+
+  it('throws a plain Error when a lookup fails with no error detail at all', async () => {
+    getContextMock.mockResolvedValue(ctxFor('mpaller@oldglorybank.com'));
+    platformUserGetAllMock.mockResolvedValue({
+      success: false,
+      data: undefined,
+      error: undefined,
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformusersService.getAll>>);
+
+    await expect(runBootstrap()).rejects.toThrow(/no error detail returned/);
+  });
+
+  it('throws a plain Error (not UnresolvedWorkspaceError) when the PlatformWorkspace lookup itself fails', async () => {
+    getContextMock.mockResolvedValue(ctxFor('mpaller@oldglorybank.com'));
+    platformUserGetAllMock.mockResolvedValue({
+      success: true,
+      data: [platformUserRow({ _cr664_primaryworkspace_value: 'ws-admin-live' })],
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformusersService.getAll>>);
+    platformWorkspaceGetMock.mockResolvedValue({
+      success: false,
+      data: undefined,
+      error: new Error('data source connection error'),
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformworkspacesService.get>>);
+
+    let caught: unknown;
+    try {
+      await runBootstrap();
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught).not.toBeInstanceOf(UnresolvedWorkspaceError);
+    expect((caught as Error).message).toContain('PlatformWorkspace lookup failed');
+    expect((caught as Error).message).toContain('ws-admin-live');
+    expect((caught as Error).message).toContain('data source connection error');
+  });
+
+  it('resolves successfully for the exact live record shape when both lookups report success: true (control case for the fix)', async () => {
+    // Same exact live shape as the regression test above, re-run to confirm
+    // the .success-check addition is purely additive: a healthy connection
+    // still resolves the real user through to their real route.
+    getContextMock.mockResolvedValue(ctxFor('mpaller@oldglorybank.com', 'Matthew Paller'));
+    platformUserGetAllMock.mockResolvedValue({
+      success: true,
+      data: [
+        platformUserRow({
+          cr664_platformuserid: 'e20d1fcd-4fbc-4439-962e-975c1db08aeb',
+          cr664_email: 'mpaller@oldglorybank.com',
+          cr664_fullname: 'Matthew Paller',
+          cr664_activestatus: true,
+          _cr664_primaryworkspace_value: 'ws-admin-live',
+        }),
+      ],
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformusersService.getAll>>);
+    platformWorkspaceGetMock.mockResolvedValue({
+      success: true,
+      data: workspaceRow({
+        cr664_platformworkspaceid: 'ws-admin-live',
+        cr664_workspacename: 'Admin Workspace',
+      }),
+    } as unknown as Awaited<ReturnType<typeof Cr664_platformworkspacesService.get>>);
+
+    const result = await runBootstrap();
+    expect(result.route).toBe('/workspaces/admin');
+  });
+});
+
 describe('Phase 115 — bootstrap result shape', () => {
   it('keeps the BootstrapResult shape unchanged from pre-Phase-115 (no breaking field changes for downstream consumers)', async () => {
     getContextMock.mockResolvedValue(ctxFor('mpaller@oldglorybank.com'));
