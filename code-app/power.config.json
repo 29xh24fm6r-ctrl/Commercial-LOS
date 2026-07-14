@@ -60,8 +60,7 @@
         },
         "bankers": {
           "entitySetName": "cr664_bankers",
-          "logicalName": "cr664_banker",
-          "isHidden": false
+          "logicalName": "cr664_banker"
         },
         "dealtasks": {
           "entitySetName": "cr664_dealtask1s",

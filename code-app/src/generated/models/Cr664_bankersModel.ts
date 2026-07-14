@@ -22,7 +22,10 @@ export type Cr664_bankersstatuscode = keyof typeof Cr664_bankersstatuscode;
 
 export interface Cr664_bankersBase {
   cr664_activeflag?: boolean;
+  cr664_approvallimit?: number;
+  cr664_approvaloverrideauthority?: boolean;
   cr664_bankerid: string;
+  cr664_creditcommitteemember?: boolean;
   cr664_email?: string;
   cr664_fullname: string;
   cr664_managername?: string;
@@ -43,11 +46,15 @@ export interface Cr664_bankersBase {
   statecode: Cr664_bankersstatecode;
   statuscode?: Cr664_bankersstatuscode;
   timezoneruleversionnumber?: number;
+  "TransactionCurrencyId@odata.bind"?: string;
   utcconversiontimezonecode?: number;
 }
 
 export interface Cr664_bankers extends Cr664_bankersBase {
   cr664_activeflagname?: string;
+  cr664_approvallimit_base?: number;
+  cr664_approvaloverrideauthorityname?: string;
+  cr664_creditcommitteemembername?: string;
   cr664_roletypename?: string;
   cr664_teamname?: string;
   cr664_userloginmappingname?: string;
@@ -56,6 +63,7 @@ export interface Cr664_bankers extends Cr664_bankersBase {
   createdon?: string;
   createdonbehalfbyname?: string;
   createdonbehalfbyyominame: string;
+  exchangerate?: number;
   modifiedbyname?: string;
   modifiedbyyominame: string;
   modifiedon?: string;
@@ -66,6 +74,7 @@ export interface Cr664_bankers extends Cr664_bankersBase {
   owningbusinessunitname: string;
   statecodename?: string;
   statuscodename?: string;
+  transactioncurrencyidname?: string;
   versionnumber?: number;
   cr664_team?: object;
   _cr664_team_value?: string;
@@ -85,4 +94,6 @@ export interface Cr664_bankers extends Cr664_bankersBase {
   _owningteam_value?: string;
   owninguser?: object;
   _owninguser_value?: string;
+  transactioncurrencyid?: object;
+  _transactioncurrencyid_value?: string;
 }
