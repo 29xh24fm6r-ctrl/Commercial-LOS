@@ -23,10 +23,8 @@ namespace CommercialLendingLOS.Plugins
     /// module across the TypeScript/C# boundary. If you change the policy in one, change it in
     /// both, or the client and server will disagree about who can approve what.
     ///
-    /// TODO CONFIRM before deploying: LoanRequestProfileToLoanDealLookupAttribute below is a
-    /// placeholder — the actual schema name of the lookup from cr664_loanrequestprofile to
-    /// cr664_loandeal could not be verified from the authoring session (no live Dataverse
-    /// access). Confirm it against the live CommercialLendingLOS solution. Until confirmed, the
+    /// Verified live against CommercialLendingLOS: cr664_loanrequestprofile.cr664_deal
+    /// targets cr664_loandeal. The constant below uses that confirmed logical name. The
     /// amount-conflict cross-check silently no-ops (logged via ITracingService) rather than
     /// fabricating a wrong comparison.
     /// </summary>
@@ -51,8 +49,8 @@ namespace CommercialLendingLOS.Plugins
 
         private const string LoanRequestProfileEntity = "cr664_loanrequestprofile";
         private const string LoanRequestProfileRequestedAmountAttribute = "cr664_requestedamount";
-        // TODO CONFIRM — see class-level doc comment.
-        private const string LoanRequestProfileToLoanDealLookupAttribute = "cr664_loandeal";
+        // Verified live: cr664_loanrequestprofile.cr664_deal targets cr664_loandeal.
+        private const string LoanRequestProfileToLoanDealLookupAttribute = "cr664_deal";
 
         public void Execute(IServiceProvider serviceProvider)
         {
@@ -206,7 +204,7 @@ namespace CommercialLendingLOS.Plugins
         }
 
         /// <summary>
-        /// Best-effort cross-check read — see the TODO CONFIRM class-level note. Returns null (no
+        /// Cross-check read using the live-verified cr664_deal lookup. Returns null (no
         /// cross-check performed, not a fabricated value) if the relationship cannot be resolved.
         /// </summary>
         private static decimal? TryResolveRequestProfileAmount(IOrganizationService service, Guid dealId, ITracingService tracing)
