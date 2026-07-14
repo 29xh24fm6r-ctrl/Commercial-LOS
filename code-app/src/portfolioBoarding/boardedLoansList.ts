@@ -378,6 +378,10 @@ function liveBoardedLoanReader(): BoardedLoanReader {
     const { Cr664_portfolioboardedloansService } = await import('../generated/services/Cr664_portfolioboardedloansService');
     const res = await Cr664_portfolioboardedloansService.getAll({
       select: [...select],
+      // Admin → Loan Removal (portfolioLoanRemovalWrite.ts) flips statecode to
+      // Inactive on a removed loan; exclude it here so the portfolio board
+      // reflects removals without a separate "show removed" leak.
+      filter: 'statecode eq 0',
       maxPageSize: PAGE_SIZE,
       ...(skipToken ? { skipToken } : {}),
     });

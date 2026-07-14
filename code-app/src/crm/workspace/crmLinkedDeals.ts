@@ -67,7 +67,9 @@ export const loadLinkedDealsForOrganization: LinkedDealsLoader = async (organiza
     const { Cr664_loandealsService } = await import('../../generated/services/Cr664_loandealsService');
     const res = await Cr664_loandealsService.getAll({
       select: ['cr664_loandealid', 'cr664_dealname', 'cr664_amount'],
-      filter: `_cr664_client_value eq ${orgId}`,
+      // Admin → Loan Removal (dealRemovalWrite.ts) deactivates a removed deal;
+      // exclude it here so a withdrawn deal doesn't linger in the CRM widget.
+      filter: `_cr664_client_value eq ${orgId} and statecode eq 0`,
       top: 100,
     });
     if (res.success !== true) {
