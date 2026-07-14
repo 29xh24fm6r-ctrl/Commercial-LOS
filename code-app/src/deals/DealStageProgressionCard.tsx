@@ -400,6 +400,10 @@ function StageAdvanceControl({
       entryDateIso,
       workflow,
       requestedNextStageId: nextStageId,
+      // The write seam re-checks the same stricter engine this component already gates the
+      // button on — closes a defense-in-depth gap rather than relying solely on this
+      // client-side check (see stageAdvanceWriteDependency.ts's `facts` doc comment).
+      facts,
       transport: deps.transport,
       auditSink: deps.auditSink,
       timelineSink: deps.timelineSink,

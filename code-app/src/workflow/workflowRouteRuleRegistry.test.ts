@@ -17,9 +17,15 @@ describe('Phase 142C — route rule registry', () => {
       'small_business_standard', 'sba_7a_standard', 'commercial_real_estate', 'construction_or_project_based',
       'working_capital_line', 'annual_review_standard', 'annual_review_with_covenant_exception',
       'annual_review_missing_financials', 'annual_review_package_review', 'portfolio_boarded_loan_review',
-      'exception_remediation', 'credit_committee_required', 'executive_visibility_required', 'fdic_examiner_package_required',
+      'exception_remediation', 'fdic_examiner_package_required',
     ]) {
       expect(routeKeys.has(k)).toBe(true);
+    }
+  });
+
+  it('contains no amount-based route condition (OGB single-approver policy, no amount tiers)', () => {
+    for (const r of WORKFLOW_ROUTE_RULE_REGISTRY) {
+      expect(r.conditions.some((c) => c.field === 'amount')).toBe(false);
     }
   });
 
@@ -39,8 +45,8 @@ describe('Phase 142C — route rule registry', () => {
     expect(serialized).not.toMatch(/\beval\b|function\s*\(|=>|\bselect\b|\$filter|\bwhere\b/i);
   });
 
-  it('the credit committee route has a committee policy but no approval action', () => {
-    const cc = WORKFLOW_ROUTE_RULE_REGISTRY.find((r) => r.routeKey === 'credit_committee_required')!;
+  it('a committee-policy rule carries a committee policy but no approval action', () => {
+    const cc = WORKFLOW_ROUTE_RULE_REGISTRY.find((r) => r.routeKey === 'annual_review_with_covenant_exception')!;
     expect(cc.committeePolicy).toBe('credit_committee');
     expect(JSON.stringify(cc)).not.toMatch(/\bapprove\b|approval_action|recordVote/i);
   });

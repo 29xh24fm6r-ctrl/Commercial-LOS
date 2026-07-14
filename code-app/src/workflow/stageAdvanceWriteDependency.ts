@@ -1,6 +1,11 @@
 import { evaluateStageTransitionPolicy } from './stageTransitionPolicy';
 import type { LoanWorkflowState, LoanWorkflowStageId } from './loanWorkflowTypes';
 import { AUTO_STAGE_ADVANCE_ENABLED } from '../deals/dealOriginationFeatureFlags';
+import {
+  deriveStageExitReadiness,
+  evaluateStageExitPolicy,
+  type WorkflowRequirementFacts,
+} from './loanWorkflowRequirementEngine';
 
 /**
  * Phase 237F — governed stage-advancement write dependency.
@@ -82,6 +87,18 @@ export interface StageAdvanceInput {
   readonly transport?: StageAdvanceTransport;
   readonly auditSink?: StageAdvanceAuditSink;
   readonly timelineSink?: StageAdvanceTimelineSink;
+  /**
+   * ARC Phase 3 — the same fact set (deal + tasks + documents + creditMemo) the requirement
+   * engine's stricter exit-readiness check (evaluateStageExitPolicy/deriveStageExitReadiness)
+   * consumes. OPTIONAL for backward compatibility with any caller that hasn't been updated to
+   * supply it: when absent, this seam behaves exactly as before (legacy policy only). When
+   * present, the write seam becomes the single source of truth for the stricter gate too,
+   * instead of relying on the caller (today, only DealStageProgressionCard.tsx) to have already
+   * re-checked it client-side before calling this function. Closes a defense-in-depth gap: any
+   * future caller of advanceWorkflowStage that supplies facts gets the SAME fail-closed guarantee
+   * the UI button already enforces, not just the shallower legacy policy.
+   */
+  readonly facts?: WorkflowRequirementFacts;
 }
 
 export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<StageAdvanceOutcome> {
@@ -93,6 +110,23 @@ export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<St
   const policy = evaluateStageTransitionPolicy(input.workflow, input.requestedNextStageId);
   if (!policy.allowed) {
     return { kind: 'blocked', reason: policy.reason, blockers: policy.blockers };
+  }
+
+  // ARC Phase 3 — the stricter requirement-engine guard, when facts are supplied. Tracked
+  // requirements the engine considers blocking must ALSO be clear, not just the legacy policy's
+  // shallower checks (e.g. Underwriting's analysis documents must be REVIEWED, not merely
+  // received). Untracked deep facts never block here (they surface as "future", matching the UI).
+  if (input.facts) {
+    const enginePolicy = evaluateStageExitPolicy(
+      deriveStageExitReadiness(input.workflow.currentStage.id, input.facts),
+    );
+    if (!enginePolicy.allowed) {
+      return {
+        kind: 'blocked',
+        reason: enginePolicy.reason,
+        blockers: enginePolicy.blocking.map((b) => b.uiCopy),
+      };
+    }
   }
 
   if (!input.transport || !input.auditSink || !input.timelineSink) {

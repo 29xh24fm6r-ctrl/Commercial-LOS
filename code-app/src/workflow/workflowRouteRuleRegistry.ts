@@ -3,12 +3,15 @@
  *
  * Static, governed route rules with declarative (non-executable) conditions. No
  * user-editable rules, no eval/function bodies, no SQL/OData, no route mutation,
- * and no credit approval. The credit-committee rule carries a committee policy
- * but never an approval action.
+ * and no credit approval. A rule may carry a committee policy (e.g. a covenant
+ * exception or construction/project-based route) but it is never an approval
+ * action. There is deliberately NO loan-amount condition in this registry: OGB
+ * has ratified a single authorized-approver gate with no amount tiers (see
+ * approvalAuthorityMatrix.ts) — amount alone must never escalate a route to a
+ * committee.
  */
 
 import {
-  DEFAULT_WORKFLOW_POLICY_THRESHOLDS,
   type WorkflowRouteRule,
   type WorkflowRouteRuleCondition,
 } from './workflowRoutingConfigTypes';
@@ -20,8 +23,6 @@ function cond(
 ): WorkflowRouteRuleCondition {
   return { field, operator, value };
 }
-
-const T = DEFAULT_WORKFLOW_POLICY_THRESHOLDS;
 
 export const WORKFLOW_ROUTE_RULE_REGISTRY: readonly WorkflowRouteRule[] = Object.freeze([
   {
@@ -45,13 +46,6 @@ export const WORKFLOW_ROUTE_RULE_REGISTRY: readonly WorkflowRouteRule[] = Object
     conditions: [cond('requestedAction', 'equals', 'fdic_package')],
     requiredStages: ['package_preparation', 'fdic_package_review'], approvalCheckpoints: ['manager_review'], requiredRoles: ['manager'], committeePolicy: 'board_visibility_only',
     packageRequirements: ['annual_review_fdic_package'], evidenceRequirements: ['evidence_inventory', 'audit_trail_summary'], blockers: [], warnings: [], riskClass: 'runtime_read',
-  },
-  {
-    ruleKey: 'rule_credit_committee_required', routeKey: 'credit_committee_required', priority: 85,
-    description: 'Loan amount at or above the credit committee threshold.',
-    conditions: [cond('amount', 'greater_than_or_equal', T.creditCommitteeAmount)],
-    requiredStages: ['underwriting', 'package_preparation', 'manager_review', 'credit_committee_review'], approvalCheckpoints: ['manager_review', 'committee_review'], requiredRoles: ['banker', 'manager'], committeePolicy: 'credit_committee',
-    packageRequirements: ['annual_review_credit_memo'], evidenceRequirements: ['financial_statement_support'], blockers: [], warnings: ['Amount meets the credit committee threshold (finding, not an approval).'], riskClass: 'credit_decision_support',
   },
   {
     ruleKey: 'rule_annual_review_package_review', routeKey: 'annual_review_package_review', priority: 80,
@@ -80,13 +74,6 @@ export const WORKFLOW_ROUTE_RULE_REGISTRY: readonly WorkflowRouteRule[] = Object
     conditions: [cond('exceptionStatus', 'equals', 'open')],
     requiredStages: ['intake', 'manager_review'], approvalCheckpoints: ['manager_review'], requiredRoles: ['banker', 'manager'], committeePolicy: 'none',
     packageRequirements: [], evidenceRequirements: [], blockers: ['Open exception requires remediation.'], warnings: [], riskClass: 'runtime_read',
-  },
-  {
-    ruleKey: 'rule_executive_visibility', routeKey: 'executive_visibility_required', priority: 60,
-    description: 'Amount or relationship risk requires executive visibility.',
-    conditions: [cond('amount', 'greater_than_or_equal', T.executiveReviewAmount)],
-    requiredStages: ['underwriting', 'package_preparation', 'manager_review', 'credit_committee_review', 'board_package_review'], approvalCheckpoints: ['manager_review', 'committee_review'], requiredRoles: ['manager', 'executive'], committeePolicy: 'executive_credit_review',
-    packageRequirements: ['annual_review_board_package'], evidenceRequirements: [], blockers: [], warnings: ['Executive visibility flagged (finding, not an approval).'], riskClass: 'credit_decision_support',
   },
   {
     ruleKey: 'rule_sba_7a_standard', routeKey: 'sba_7a_standard', priority: 50,

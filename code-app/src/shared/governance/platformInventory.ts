@@ -42,6 +42,18 @@ export interface GovernedWriteEntry {
   emitsAudit: boolean;
   /** True when the write coordinates a DealTimelineEvent create. */
   emitsTimeline: boolean;
+  /**
+   * True for a write whose correlation-id/audit/timeline plumbing was built under a LATER,
+   * cross-cutting shared-builder architecture (id generated in a UI component, threaded as a
+   * parameter through several layers, audit assembled by buildNewDealAuditPayload) that does not
+   * fit the Phase 46/47/49/50 discipline sweeps' single-action-file / `const correlationId = ...`
+   * convention. Those four sweeps (correlationIdDiscipline / outcomeUnionDiscipline /
+   * auditPayloadDiscipline / timelinePayloadDiscipline) skip this write's completeness check with
+   * an explicit, reasoned exemption rather than forcing a mismatched or fake registration.
+   * Retrofitting the write path to the older convention (or evolving the sweeps to recognize the
+   * newer shared-builder pattern) is real, separate work, not attempted as part of registration.
+   */
+  legacyDisciplineExempt?: boolean;
 }
 
 export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
@@ -135,6 +147,14 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     phase: 160,
     emitsAudit: true,
     emitsTimeline: true,
+  },
+  {
+    id: 'deal-stage-advance',
+    label: 'Deal stage advance (forward Advance only)',
+    phase: 237,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
   },
 ];
 // NOTE: forward stage-advance (DealStageProgressionCard -> stageAdvanceWriteDependency.ts
@@ -232,15 +252,21 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     id: 'new-deal-create',
     label: 'New Deal create',
     reason:
-      'WIRED_DISABLED: a governed, audited create adapter now exists ' +
-      '(src/deals/newDealCreateAdapter.ts) and is wired behind a controlled, ' +
-      'fail-closed enablement gate and admin surface (Phase 170M-170N). It is ' +
-      'DISABLED by default -- NEW_DEAL_CREATE_ADAPTER_ENABLED=false and ' +
-      'NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED=false -- so no live create or audit ' +
-      'occurs. Stage/Status resolve READY in TEST via the fail-closed resolver ' +
-      '(cr664_dealstagereferences / cr664_dealstatusreferences, Phase 170D-170I); ' +
-      'live create stays off pending production-approved reference rows and a ' +
-      'certified enablement decision (Phase 170Q). Separate from Advance Stage / ' +
+      'WIRED_DISABLED, scoped to the PUBLIC/admin create path only. A governed, audited ' +
+      'create adapter exists (src/deals/newDealCreateAdapter.ts). It is disabled by default -- ' +
+      'NEW_DEAL_CREATE_ADAPTER_ENABLED=false and NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED=false -- ' +
+      'so no public/admin live create or audit occurs. Its standalone controlled admin UI ' +
+      '(Phase 170M-170N -- NewDealCreatePanel.tsx / newDealCreateController.ts / ' +
+      'newDealCreateEnablement.ts) was removed: the submit button had no click handler and ' +
+      'the admin panel mounted it with no enablement config, so it was permanently inert -- ' +
+      'confusing dead weight next to the actually-live banker path (see below), not a real ' +
+      'second create surface. NOTE: this is DISTINCT from banker create, which IS live -- ' +
+      'BankerNewDealCreate.tsx calls the SAME adapter directly with its own ' +
+      'BANKER_CREATE_PILOT rollout gate, bypassing NEW_DEAL_CREATE_ADAPTER_ENABLED entirely. ' +
+      'Stage/Status resolve READY in TEST via the fail-closed resolver ' +
+      '(cr664_dealstagereferences / cr664_dealstatusreferences, Phase 170D-170I); public/admin ' +
+      'live create stays off pending production-approved reference rows and a certified ' +
+      'enablement decision for that specific surface. Separate from Advance Stage / ' +
       'stage-progression ordering (see stage-progression-advance).',
     blockerKind: 'schema',
   },

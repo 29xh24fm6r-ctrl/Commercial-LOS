@@ -9,6 +9,7 @@ import {
 import { attentionDestinationFor, focusAttentionTarget } from './attentionNavigation';
 import { deriveCreditMemoFreshness } from './creditMemoFreshness';
 import { deriveDealCockpitMetrics } from './dealCockpitMetrics';
+import { deriveDealBlockerModelForStage } from './dealBlockerModel';
 import { DealProfileEditLauncher } from './DealProfileEditModal';
 import { Card, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
@@ -51,6 +52,24 @@ export function DealBlockers() {
   const memoData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
   const activityData = activity.kind === 'ready' ? activity.data : undefined;
   const blockersResult = deriveBlockers(deal, tasksData, documentsData);
+  // The authoritative stage-exit blocker model (the SAME model DealMetricDeck's "Blockers" tile
+  // and the Stage Map advance guard use) — a mandatory requirement holding stage advancement,
+  // distinct from this console's own aging/hygiene heuristics above (stale-stage, missing-info,
+  // overdue items). Surfaced as its own clearly-labeled signal so the Attention Console's overall
+  // "blocked" status and count agree with the Metric Deck tile and the advance button instead of
+  // silently disagreeing whenever a hard stage-exit blocker exists that isn't also an aging signal.
+  const stageExitModel = deriveDealBlockerModelForStage(deal.stage, {
+    deal,
+    tasks: tasksData,
+    documents: documentsData,
+    creditMemo: memoData,
+  });
+  const stageExitSignals: BlockerSignal[] = (stageExitModel?.hardBlockers ?? []).map((b) => ({
+    id: `stage-exit:${b.id}`,
+    severity: 'blocked',
+    label: `Stage exit: ${b.label}`,
+    detail: b.detail,
+  }));
   const memoSignals: BlockerSignal[] = [];
   if (creditMemo.kind === 'ready') {
     const freshness = deriveCreditMemoFreshness({
@@ -72,16 +91,13 @@ export function DealBlockers() {
       });
     }
   }
-  const combinedStatus: BlockerStatus = memoSignals.some(
-    (s) => s.severity === 'blocked',
-  )
+  const anySignals = [...blockersResult.signals, ...memoSignals, ...stageExitSignals];
+  const combinedStatus: BlockerStatus = anySignals.some((s) => s.severity === 'blocked')
     ? 'blocked'
-    : blockersResult.status === 'blocked'
-      ? 'blocked'
-      : memoSignals.length > 0 || blockersResult.status === 'at-risk'
-        ? 'at-risk'
-        : 'clear';
-  const signals = [...blockersResult.signals, ...memoSignals];
+    : anySignals.length > 0
+      ? 'at-risk'
+      : 'clear';
+  const signals = anySignals;
   const closedDealNote = blockersResult.closedDealNote;
   const status = combinedStatus;
   const statusKey = statusToSeverity(status);

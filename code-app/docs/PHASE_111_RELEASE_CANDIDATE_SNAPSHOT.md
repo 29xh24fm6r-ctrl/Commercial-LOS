@@ -23,7 +23,7 @@ Snapshot date: 2026-05-21. Snapshot anchor: end of Phase 110.
 | Latest commit | Phase 110 — Communication Lane Final Release Lock | +8 phases |
 | Tests | **2523 passing** across **111 test files** | +345 tests / +7 files |
 | Build | `tsc -b && vite build` clean (~1047 kB minified / ~235 kB gzip) | +125 kB / +14 kB |
-| `GOVERNED_WRITES` | **13** entries | +2 since Phase 110 (Phase 105 `deal-borrower-update-email`, Phase 160 `deal-log-activity`) |
+| `GOVERNED_WRITES` | **14** entries | +2 since Phase 110 (Phase 105 `deal-borrower-update-email`, Phase 160 `deal-log-activity`); +1 since (Phase 237 `deal-stage-advance`, forward stage-advance write — legacyDisciplineExempt from the Phase 46/47/49/50 sweeps, see platformInventory.ts) |
 | `LOCAL_ONLY_FLOWS` | **16** entries | +1 (Phase 105 updated `borrower-update-draft` shape; net inventory shifted) |
 | `NOT_WIRED` | **9** entries | Includes Phase 160 classification of blocked `new-deal-create` |
 | `DELIBERATELY_BLOCKED` | **1** entry (`stage-progression-advance`) | unchanged |

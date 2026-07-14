@@ -25,7 +25,7 @@ describe('Phase 142C — routing readiness', () => {
   });
 
   it('is blocked by missing committee evidence', () => {
-    const r = readiness({ amount: 9000000, productType: 'small_business', documentReadiness: 'complete', covenantStatus: 'in_compliance', packageReadiness: 'blocked' });
+    const r = readiness({ annualReviewDueStatus: 'due', covenantStatus: 'breach', documentReadiness: 'complete', packageReadiness: 'blocked' });
     expect(r.readinessStatus).toBe('blocked_missing_evidence');
   });
 

@@ -49,14 +49,7 @@ export interface WorkflowRoutingInput {
 }
 
 export interface WorkflowRoutingContext {
-  policyThresholds?: WorkflowPolicyThresholds;
   permittedWorkspaces?: readonly string[];
-}
-
-export interface WorkflowPolicyThresholds {
-  creditCommitteeAmount: number;
-  seniorCommitteeAmount: number;
-  executiveReviewAmount: number;
 }
 
 export type WorkflowConditionOperator =
@@ -177,9 +170,3 @@ export interface WorkflowRouteDerivationResult {
   canMutateWorkflow: false;
   canApproveCredit: false;
 }
-
-export const DEFAULT_WORKFLOW_POLICY_THRESHOLDS: WorkflowPolicyThresholds = Object.freeze({
-  creditCommitteeAmount: 5000000,
-  seniorCommitteeAmount: 15000000,
-  executiveReviewAmount: 50000000,
-});

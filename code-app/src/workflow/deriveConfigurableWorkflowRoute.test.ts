@@ -31,8 +31,10 @@ describe('Phase 142C — route derivation', () => {
     expect(route({ annualReviewDueStatus: 'due', documentReadiness: 'missing', covenantStatus: 'in_compliance' }).routeKey).toBe('annual_review_missing_financials');
   });
 
-  it('a high amount selects credit_committee_required', () => {
-    expect(route({ productType: 'small_business', amount: 9000000 }).routeKey).toBe('credit_committee_required');
+  it('a high amount alone does not escalate the route to a committee (OGB single-approver policy, no amount tiers)', () => {
+    const r = route({ productType: 'small_business', amount: 9000000 });
+    expect(r.routeKey).toBe('small_business_standard');
+    expect(r.creditCommittee.committeeRequired).toBe(false);
   });
 
   it('package caveats select annual_review_package_review', () => {

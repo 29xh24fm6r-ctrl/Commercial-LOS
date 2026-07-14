@@ -71,7 +71,7 @@ const LIVE_WORKSPACE_NAMES: ReadonlyArray<readonly [string, string]> = [
 // Audit-cited governance counts. Kept in one place so a drift trips
 // both the count assertion AND the doc-citation assertion.
 const AUDIT_COUNTS = Object.freeze({
-  governedWrites: 13,
+  governedWrites: 14,
   localOnlyFlows: 16,
   notWired: 9,
   deliberatelyBlocked: 1,

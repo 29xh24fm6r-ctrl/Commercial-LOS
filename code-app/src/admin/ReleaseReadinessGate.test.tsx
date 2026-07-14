@@ -241,11 +241,11 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     ).toBeInTheDocument();
   });
 
-  it('reports the current count of governed writes (count is 12 at Phase 105 — Phase 70 added the 11th, Phase 105 added the 12th)', () => {
+  it('reports the current count of governed writes (count is 14 — Phase 160 added the 13th, Phase 237 added the 14th)', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
-    expect(GOVERNED_WRITES.length).toBe(13);
+    expect(GOVERNED_WRITES.length).toBe(14);
     expect(
       within(inv).getByText(`Governed writes (${GOVERNED_WRITES.length})`),
     ).toBeInTheDocument();
