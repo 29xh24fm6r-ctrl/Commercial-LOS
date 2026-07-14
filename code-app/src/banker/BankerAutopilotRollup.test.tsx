@@ -72,6 +72,7 @@ beforeEach(() => {
     email: 'm@bank.test',
     systemUserId: 'sys-1',
     writeDisabledReason: undefined,
+    roleType: undefined,
   });
 });
 

@@ -1,6 +1,12 @@
 import { evaluateStageTransitionPolicy } from './stageTransitionPolicy';
 import type { LoanWorkflowState, LoanWorkflowStageId } from './loanWorkflowTypes';
 import { AUTO_STAGE_ADVANCE_ENABLED } from '../deals/dealOriginationFeatureFlags';
+import {
+  deriveStageExitReadiness,
+  evaluateStageExitPolicy,
+  type WorkflowRequirementFacts,
+} from './loanWorkflowRequirementEngine';
+import { isInterimAuthorizedApproverRole } from './approvalAuthorityMatrix';
 
 /**
  * Phase 237F — governed stage-advancement write dependency.
@@ -9,6 +15,12 @@ import { AUTO_STAGE_ADVANCE_ENABLED } from '../deals/dealOriginationFeatureFlags
  * (approved next stage + readiness not blocked) before any write, updates the deal
  * stage through an INJECTED transport, and emits audit + timeline evidence.
  *
+ *   - 2026-07-14 remediation (docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md, findings C2/C3):
+ *     this seam now ALSO enforces the shared requirement engine's stricter exit readiness
+ *     (evaluateStageExitPolicy/deriveStageExitReadiness — the same engine the UI displays), and,
+ *     when exiting CREDIT_APPROVAL, an interim approval-authority role check
+ *     (isInterimAuthorizedApproverRole). Both are hard, fail-closed gates: the write path can no
+ *     longer allow anything the UI itself would refuse to show as ready.
  *   - Gated on AUTO_STAGE_ADVANCE_ENABLED, which is ARMED (true) as of the WF-1A phase — this is a
  *     LIVE write path (DealStageProgressionCard.tsx supplies the live transport). Fail-closed if the
  *     flag were ever unset.
@@ -24,6 +36,13 @@ import { AUTO_STAGE_ADVANCE_ENABLED } from '../deals/dealOriginationFeatureFlags
  *     as advanced unless persistence is confirmed.
  *   - There is NO auto-advance: the caller (an explicit banker action) supplies the
  *     requested next stage; this adapter only writes the explicitly requested move.
+ *
+ *   ⚠ ALL of the above is CLIENT-SIDE enforcement only (docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md,
+ *     finding C1). Nothing in this repository validates a stage write at the Dataverse layer —
+ *     `Cr664_loandealsService.update()` (src/generated/services) accepts any field change from any
+ *     caller with ordinary write access to cr664_loandeals, so these gates can be bypassed entirely
+ *     by a direct API call. See docs/DATAVERSE_SECURITY_ROLE_RUNBOOK.md for the security-role
+ *     configuration this write path assumes exists but cannot verify or enforce from code.
  */
 
 export type StageAdvanceOutcome =
@@ -79,6 +98,19 @@ export interface StageAdvanceInput {
   readonly workflow: LoanWorkflowState;
   /** The explicitly-requested next stage (from a banker action — never inferred). */
   readonly requestedNextStageId: LoanWorkflowStageId | undefined;
+  /**
+   * The same deal/task/document/credit-memo facts the UI already evaluates through the shared
+   * requirement engine. REQUIRED so this seam can enforce the identical, stricter exit policy the
+   * UI displays — closing the gap where the write path previously allowed transitions the UI's own
+   * "governed exit criteria" list showed as unmet (e.g. a document merely received, not reviewed).
+   */
+  readonly facts: WorkflowRequirementFacts;
+  /**
+   * cr664_Banker.cr664_roletype (or equivalent) of the advancing actor. Used only as an interim
+   * approval-authority proxy when exiting CREDIT_APPROVAL — see approvalAuthorityMatrix.ts.
+   * Undefined fails closed (treated as not authorized).
+   */
+  readonly advancingActorRoleType?: string;
   readonly transport?: StageAdvanceTransport;
   readonly auditSink?: StageAdvanceAuditSink;
   readonly timelineSink?: StageAdvanceTimelineSink;
@@ -93,6 +125,30 @@ export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<St
   const policy = evaluateStageTransitionPolicy(input.workflow, input.requestedNextStageId);
   if (!policy.allowed) {
     return { kind: 'blocked', reason: policy.reason, blockers: policy.blockers };
+  }
+
+  // HARD requirement-engine guard — the same governed exit criteria the UI displays. Closes the
+  // gap where this seam previously allowed a transition the UI's own requirement list showed as
+  // unmet (e.g. Underwriting documents received-but-not-reviewed).
+  const enginePolicy = evaluateStageExitPolicy(deriveStageExitReadiness(policy.from, input.facts));
+  if (!enginePolicy.allowed) {
+    return {
+      kind: 'blocked',
+      reason: enginePolicy.reason,
+      // The specific per-item reason (e.g. "received but not yet reviewed"), not just the generic
+      // uiCopy label — this is a write-seam diagnostic, not the UI's requirements list.
+      blockers: enginePolicy.blocking.map((b) => b.reason || b.uiCopy),
+    };
+  }
+
+  // HARD interim approval-authority guard — CREDIT_APPROVAL exit only. See approvalAuthorityMatrix.ts
+  // for why this is a role-based proxy rather than a verified approval record.
+  if (policy.from === 'CREDIT_APPROVAL' && !isInterimAuthorizedApproverRole(input.advancingActorRoleType)) {
+    return {
+      kind: 'blocked',
+      reason: 'Advancing out of Credit Approval requires an authorized approver role (interim policy).',
+      blockers: ['Approval authority: the advancing actor’s role is not an authorized approver.'],
+    };
   }
 
   if (!input.transport || !input.auditSink || !input.timelineSink) {

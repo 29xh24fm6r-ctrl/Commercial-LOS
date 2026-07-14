@@ -35,6 +35,23 @@ describe('Phase 142C — route derivation', () => {
     expect(route({ productType: 'small_business', amount: 9000000 }).routeKey).toBe('credit_committee_required');
   });
 
+  // 2026-07-14 remediation (finding C4): amount-tier rules previously used priorities that put the
+  // lowest threshold ($5M) ahead of the highest ($50M), so a $60M loan silently misrouted to the
+  // credit-committee-only route instead of executive visibility. These boundary cases pin the fix.
+  it('an amount at the credit committee floor ($5,000,000) selects credit_committee_required', () => {
+    expect(route({ productType: 'small_business', amount: 5000000 }).routeKey).toBe('credit_committee_required');
+  });
+
+  it('an amount in the senior committee band ($15M-$49.99M) selects senior_credit_committee_required', () => {
+    expect(route({ productType: 'small_business', amount: 15000000 }).routeKey).toBe('senior_credit_committee_required');
+    expect(route({ productType: 'small_business', amount: 49999999 }).routeKey).toBe('senior_credit_committee_required');
+  });
+
+  it('an amount at or above $50,000,000 selects executive_visibility_required, not a lower committee tier', () => {
+    expect(route({ productType: 'small_business', amount: 50000000 }).routeKey).toBe('executive_visibility_required');
+    expect(route({ productType: 'cre', amount: 60000000 }).routeKey).toBe('executive_visibility_required');
+  });
+
   it('package caveats select annual_review_package_review', () => {
     expect(route({ packageReadiness: 'draft_ready_with_caveats' }).routeKey).toBe('annual_review_package_review');
   });

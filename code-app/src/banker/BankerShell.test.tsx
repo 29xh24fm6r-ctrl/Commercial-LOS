@@ -156,6 +156,7 @@ function setUpBanker(overrides: Partial<{ writeDisabledReason: string | undefine
     email: 'mpaller@oldglorybank.com',
     systemUserId: 'sys-1',
     writeDisabledReason: undefined,
+    roleType: undefined,
     ...overrides,
   });
 }

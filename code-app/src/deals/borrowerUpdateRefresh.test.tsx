@@ -99,6 +99,7 @@ function setUpBanker({ withSystemUserId = true } = {}) {
     writeDisabledReason: withSystemUserId
       ? undefined
       : 'No matching cr664_users row for the signed-in Entra OID.',
+    roleType: undefined,
   });
 }
 

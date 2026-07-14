@@ -6,6 +6,14 @@
  * checkpoints, committee requirement, blockers, and next best actions. It creates
  * no tasks, mutates no stages, and NEVER approves credit. Missing core data or
  * conflicting top-priority rules return `route_review_required`.
+ *
+ * NOTE (2026-07-14, docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md findings H3/H4): this is
+ * the multi-tier/future route + committee model — it and its sibling `deriveCreditCommitteeRoute`
+ * are the ones with the $5M/$15M/$50M dollar tiers. `deriveWorkflowRoute.ts` +
+ * `approvalAuthorityMatrix.ts` are the simpler, currently-live-adjacent pair (a single
+ * no-amount-tiers approver gate). Neither pair is wired to a live surface today, and they are NOT
+ * reconciled with each other — they can disagree on the same deal's committee requirement. Do not
+ * wire both pairs up without first picking one as canonical.
  */
 
 import { WORKFLOW_ROUTE_RULE_REGISTRY } from './workflowRouteRuleRegistry';
@@ -37,6 +45,7 @@ const ROUTE_NAMES: Record<string, string> = {
   portfolio_boarded_loan_review: 'Portfolio boarded-loan review',
   exception_remediation: 'Exception remediation',
   credit_committee_required: 'Credit committee required',
+  senior_credit_committee_required: 'Senior credit committee required',
   executive_visibility_required: 'Executive visibility required',
   fdic_examiner_package_required: 'FDIC / examiner package',
   review_required: 'Review required (insufficient routing data)',

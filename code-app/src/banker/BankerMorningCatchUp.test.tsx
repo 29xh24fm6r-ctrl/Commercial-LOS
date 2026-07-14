@@ -87,6 +87,7 @@ beforeEach(() => {
     email: 'm@bank.test',
     systemUserId: 'sys-1',
     writeDisabledReason: undefined,
+    roleType: undefined,
   });
 });
 
@@ -594,6 +595,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
         email: 'm@bank.test',
         systemUserId: 'sys-1',
         writeDisabledReason: undefined,
+        roleType: undefined,
       });
       loadMock.mockResolvedValue(emptyData());
       render(<BankerMorningCatchUp />);
@@ -946,6 +948,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
         email: 'm@bank.test',
         systemUserId: 'sys-1',
         writeDisabledReason: undefined,
+        roleType: undefined,
       });
       loadMock.mockResolvedValue(dataWithOverdueTask());
       render(<BankerMorningCatchUp />);

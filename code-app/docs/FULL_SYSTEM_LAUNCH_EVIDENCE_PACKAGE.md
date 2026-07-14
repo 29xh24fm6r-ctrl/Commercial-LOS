@@ -1,5 +1,12 @@
 # Full System Launch — Evidence Package
 
+> **Stale scaffold (flagged 2026-07-14):** this doc predates later evidence capture —
+> e.g. `portfolioBoarding`/`crmLivePersistence` evidence has since been recorded
+> elsewhere (see [LOS_WORKFLOW_TRUTH_MATRIX.md](LOS_WORKFLOW_TRUTH_MATRIX.md)'s
+> evidence table). Treat this file as a historical scaffold, not a current status
+> snapshot; see [LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md](LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md)
+> (finding M6).
+
 This package is the structure the Phase 224 aggregator
 (`deriveFullSystemActivation`) consumes to render the final launch decision. It is
 intentionally **empty of asserted passes**: every smoke outcome and rollback flag

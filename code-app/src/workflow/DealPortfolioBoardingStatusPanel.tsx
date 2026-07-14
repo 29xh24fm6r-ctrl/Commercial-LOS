@@ -27,28 +27,31 @@ export function DealPortfolioBoardingStatusPanel({
 } = {}) {
   const { deal } = useDealData();
   const claimsBoarded = recognizeCanonicalStage(deal.stage)?.code === 'BOARDED';
-  const [handoffStatus, setHandoffStatus] = useState<PortfolioBoardingStatus | 'loading' | null>(null);
+  // Keyed result, not a tri-state 'loading' flag: the effect below only calls setState from its
+  // async callback (never synchronously in the effect body — no react-hooks/set-state-in-effect
+  // violation). "Loading" is DERIVED by comparing the current (deal.id, deal.stage) key against
+  // the key the latest committed result belongs to, rather than tracked via an explicit
+  // synchronous setState('loading') kickoff.
+  const [handoffResult, setHandoffResult] = useState<{ key: string; status: PortfolioBoardingStatus } | null>(null);
+  const handoffKey = `${deal.id}::${deal.stage ?? ''}`;
 
   useEffect(() => {
-    if (!claimsBoarded) {
-      setHandoffStatus(null);
-      return;
-    }
+    if (!claimsBoarded) return;
     let cancelled = false;
-    setHandoffStatus('loading');
     void loadHandoff(deal.id, deal.stage).then((handoff) => {
-      if (!cancelled) setHandoffStatus(deriveBoardedHandoffStatus(handoff));
+      if (!cancelled) setHandoffResult({ key: handoffKey, status: deriveBoardedHandoffStatus(handoff) });
     });
     return () => {
       cancelled = true;
     };
-  }, [claimsBoarded, deal.id, deal.stage, loadHandoff]);
+  }, [claimsBoarded, deal.id, deal.stage, handoffKey, loadHandoff]);
 
+  const hasFreshHandoffResult = claimsBoarded && handoffResult?.key === handoffKey;
   const status: PortfolioBoardingStatus =
-    claimsBoarded && handoffStatus && handoffStatus !== 'loading'
-      ? handoffStatus
+    hasFreshHandoffResult && handoffResult
+      ? handoffResult.status
       : derivePortfolioBoardingStatus(deal.stage);
-  const loadingHandoffProof = claimsBoarded && handoffStatus === 'loading';
+  const loadingHandoffProof = claimsBoarded && !hasFreshHandoffResult;
 
   return (
     <Card>

@@ -53,6 +53,8 @@ import {
 export interface StageAdvanceActor {
   readonly systemUserId: string | undefined;
   readonly email: string | undefined;
+  /** cr664_Banker.cr664_roletype — interim approval-authority proxy, see approvalAuthorityMatrix.ts. */
+  readonly roleType?: string;
 }
 
 export function DealStageProgressionCard({
@@ -400,6 +402,8 @@ function StageAdvanceControl({
       entryDateIso,
       workflow,
       requestedNextStageId: nextStageId,
+      facts,
+      advancingActorRoleType: actor.roleType,
       transport: deps.transport,
       auditSink: deps.auditSink,
       timelineSink: deps.timelineSink,

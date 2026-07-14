@@ -81,6 +81,7 @@ export function BankerProvider({ children }: { children: React.ReactNode }) {
             email: banker.cr664_email ?? bootstrap.upn,
             systemUserId,
             writeDisabledReason,
+            roleType: banker.cr664_roletypename,
           },
         });
       })

@@ -51,6 +51,7 @@ function setBanker(over: Partial<ReturnType<typeof useBanker>> = {}) {
     email: 'm@bank.test',
     systemUserId: 'sys-1',
     writeDisabledReason: undefined,
+    roleType: undefined,
     ...over,
   });
 }

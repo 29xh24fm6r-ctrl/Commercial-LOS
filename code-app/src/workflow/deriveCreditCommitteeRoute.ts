@@ -5,6 +5,12 @@
  * amount thresholds + the matched rule's committee policy + readiness context.
  * Voting and approval are STRUCTURALLY disabled; it records no votes, submits no
  * package, and makes no approval/decline/waiver.
+ *
+ * NOTE (2026-07-14, docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md finding H3): this
+ * multi-tier ($5M/$15M/$50M) committee model is unreconciled with `approvalAuthorityMatrix.ts`,
+ * which implements OGB's separate single-approver, no-amount-tiers policy. Neither is wired to a
+ * live surface today. Do not wire this up as the live CREDIT_APPROVAL authority check without
+ * first reconciling it against approvalAuthorityMatrix.ts — they encode different policies.
  */
 
 import {

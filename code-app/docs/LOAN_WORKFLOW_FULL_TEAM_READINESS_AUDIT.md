@@ -308,6 +308,17 @@ A banker must be able to move a **real** deal Intake → Underwriting → Credit
 
 # PART 2 — REMEDIATION STATUS (branch `feature/workflow-team-ready`)
 
+> **SUPERSEDED (2026-07-14):** The claim below that "All four transition kinds are
+> live-wired, persisted, audited, timelined, and readback-proven" is **false** —
+> RETURN/DECLINE/WITHDRAW have a backend engine but no mounted UI in the live banker
+> workspace (`StageWorkflowControl.tsx` is listed `WIRED_DISABLED`/unmounted in
+> [platformInventory.ts](../src/shared/governance/platformInventory.ts)); only ADVANCE
+> is reachable. Part 1 above (the original, more conservative audit) is closer to
+> reality. For current, verified status see
+> [LOS_WORKFLOW_TRUTH_MATRIX.md](LOS_WORKFLOW_TRUTH_MATRIX.md) and
+> [LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md](LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md)
+> (finding C5). The remainder of Part 2 is kept for history only.
+
 **Date:** 2026-07-07
 **Mode:** Remediation. One branch, one commit per phase (WFLOW-B … WFLOW-J).
 **What changed since Part 1:** the six hard blockers are remediated **in code, fail-closed, and under test.** The two items that only a human operator can close (an authentic machine-proven live smoke, and a risk-rating system) are now *explicitly surfaced as blockers* instead of silently passing — the code can no longer overclaim them.

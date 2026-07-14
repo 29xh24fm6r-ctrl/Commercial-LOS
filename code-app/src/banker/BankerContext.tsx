@@ -12,6 +12,11 @@ export interface BankerIdentity {
   /** Reason systemUserId is undefined, surfaced so write UIs can
    *  explain why their controls are disabled. */
   writeDisabledReason: string | undefined;
+  /** cr664_roletypename off the banker's own record (CommercialBanker /
+   *  RelationshipManager / PortfolioManager / Support). Job-function role,
+   *  not a per-user approval limit or committee membership — used as an
+   *  INTERIM approval-authority proxy (see approvalAuthorityMatrix.ts). */
+  roleType: string | undefined;
 }
 
 const BankerContext = createContext<BankerIdentity | null>(null);

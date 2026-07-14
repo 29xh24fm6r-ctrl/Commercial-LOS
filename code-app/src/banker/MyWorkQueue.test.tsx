@@ -127,6 +127,7 @@ beforeEach(() => {
     email: 'm@bank.test',
     systemUserId: 'sys-user-1',
     writeDisabledReason: undefined,
+    roleType: undefined,
   });
 });
 
@@ -148,6 +149,7 @@ describe('MyWorkQueue — Phase 53 receive integration', () => {
       email: 'm@bank.test',
       systemUserId: undefined,
       writeDisabledReason: 'Could not resolve systemuserid',
+      roleType: undefined,
     });
     loadMock.mockResolvedValue(workQueueData());
     render(<MyWorkQueue />);
@@ -476,6 +478,7 @@ describe('MyWorkQueue — Phase 55 review integration', () => {
       email: 'm@bank.test',
       systemUserId: undefined,
       writeDisabledReason: 'Could not resolve systemuserid',
+      roleType: undefined,
     });
     loadMock.mockResolvedValue({
       ...workQueueData({ outstandingDocuments: [] }),

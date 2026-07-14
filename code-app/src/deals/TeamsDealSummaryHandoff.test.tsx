@@ -147,6 +147,7 @@ function bankerIdentity(over: Partial<BankerIdentity> = {}): BankerIdentity {
     email: 'mpaller@bank.example',
     systemUserId: 'sys-1',
     writeDisabledReason: undefined,
+    roleType: undefined,
     ...over,
   };
 }

@@ -1,5 +1,15 @@
 # LOAN WORKFLOW — TEAM-READY AFTER-ACTION REPORT (AAR)
 
+> **SUPERSEDED (2026-07-14):** This report's claim that "all four transition kinds are
+> live-wired, persisted, audited, timelined, and readback-proven" is **false** — it is
+> contradicted by this codebase's own `DELIBERATELY_BLOCKED`/`NOT_WIRED` entries in
+> [platformInventory.ts](../src/shared/governance/platformInventory.ts) and by this
+> document's own "Handoff notes" below, which admit RETURN/DECLINE/WITHDRAW have no
+> mounted UI. Only ADVANCE is reachable from the live banker workspace. For the current,
+> verified status, see [LOS_WORKFLOW_TRUTH_MATRIX.md](LOS_WORKFLOW_TRUTH_MATRIX.md) and
+> [LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md](LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md)
+> (finding C5). The remainder of this document is kept for history only.
+
 **Date:** 2026-07-07
 **Branch:** `feature/workflow-team-ready` (one branch, one commit per phase)
 **Source of truth:** `LOAN_WORKFLOW_FULL_TEAM_READINESS_AUDIT.md` (Part 1 audit + Part 2 remediation status)

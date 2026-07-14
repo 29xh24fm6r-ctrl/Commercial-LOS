@@ -5,6 +5,13 @@
  * user-editable rules, no eval/function bodies, no SQL/OData, no route mutation,
  * and no credit approval. The credit-committee rule carries a committee policy
  * but never an approval action.
+ *
+ * 2026-07-14 remediation (docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md, finding C4):
+ * the three amount-tier rules (credit committee $5M / senior credit committee $15M / executive
+ * visibility $50M) are all `amount >= threshold` conditions, so a large loan matches every tier
+ * simultaneously. Selection is highest-`priority`-wins (see deriveConfigurableWorkflowRoute.ts),
+ * so priorities MUST be ordered highest-threshold-wins across these three: executive_visibility >
+ * senior_credit_committee > credit_committee_required. Do not renumber one without the others.
  */
 
 import {
@@ -54,6 +61,13 @@ export const WORKFLOW_ROUTE_RULE_REGISTRY: readonly WorkflowRouteRule[] = Object
     packageRequirements: ['annual_review_credit_memo'], evidenceRequirements: ['financial_statement_support'], blockers: [], warnings: ['Amount meets the credit committee threshold (finding, not an approval).'], riskClass: 'credit_decision_support',
   },
   {
+    ruleKey: 'rule_senior_credit_committee', routeKey: 'senior_credit_committee_required', priority: 86,
+    description: 'Loan amount at or above the senior credit committee threshold.',
+    conditions: [cond('amount', 'greater_than_or_equal', T.seniorCommitteeAmount)],
+    requiredStages: ['underwriting', 'package_preparation', 'manager_review', 'credit_committee_review'], approvalCheckpoints: ['manager_review', 'committee_review'], requiredRoles: ['banker', 'manager'], committeePolicy: 'senior_credit_committee',
+    packageRequirements: ['annual_review_credit_memo'], evidenceRequirements: ['financial_statement_support'], blockers: [], warnings: ['Amount meets the senior credit committee threshold (finding, not an approval).'], riskClass: 'credit_decision_support',
+  },
+  {
     ruleKey: 'rule_annual_review_package_review', routeKey: 'annual_review_package_review', priority: 80,
     description: 'Annual review package is draft-ready with caveats.',
     conditions: [cond('packageReadiness', 'equals', 'draft_ready_with_caveats')],
@@ -82,7 +96,7 @@ export const WORKFLOW_ROUTE_RULE_REGISTRY: readonly WorkflowRouteRule[] = Object
     packageRequirements: [], evidenceRequirements: [], blockers: ['Open exception requires remediation.'], warnings: [], riskClass: 'runtime_read',
   },
   {
-    ruleKey: 'rule_executive_visibility', routeKey: 'executive_visibility_required', priority: 60,
+    ruleKey: 'rule_executive_visibility', routeKey: 'executive_visibility_required', priority: 87,
     description: 'Amount or relationship risk requires executive visibility.',
     conditions: [cond('amount', 'greater_than_or_equal', T.executiveReviewAmount)],
     requiredStages: ['underwriting', 'package_preparation', 'manager_review', 'credit_committee_review', 'board_package_review'], approvalCheckpoints: ['manager_review', 'committee_review'], requiredRoles: ['manager', 'executive'], committeePolicy: 'executive_credit_review',

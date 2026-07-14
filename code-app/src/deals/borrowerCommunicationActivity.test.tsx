@@ -151,6 +151,7 @@ function setUpStandardMocks(events: TimelineEvent[]) {
     email: 'm.paller@bank.example.com',
     systemUserId: 'sys-user-1',
     writeDisabledReason: undefined,
+    roleType: undefined,
   });
 }
 
