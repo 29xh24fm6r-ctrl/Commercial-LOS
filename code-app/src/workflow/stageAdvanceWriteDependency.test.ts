@@ -213,30 +213,47 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
       });
     }
 
-    it('blocks a Commercial Banker (not an authorized approver role) from exiting Credit Approval', async () => {
+    it('blocks a banker who is not a credit committee member from exiting Credit Approval', async () => {
       const upd = vi.fn(async () => ({ ok: true }));
       const out = await advanceWorkflowStage(creditApprovalInput({
-        advancingActorRoleType: 'CommercialBanker',
+        advancingBankerAuthority: { approvalLimit: 1_000_000, creditCommitteeMember: false, approvalOverrideAuthority: false },
         transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
       }));
       expect(out.kind).toBe('blocked');
-      if (out.kind === 'blocked') expect(out.reason).toMatch(/authorized approver role/i);
+      if (out.kind === 'blocked') expect(out.reason).toMatch(/credit committee authority/i);
       expect(upd).not.toHaveBeenCalled();
     });
 
-    it('blocks when no role is supplied at all (fails closed)', async () => {
-      const out = await advanceWorkflowStage(creditApprovalInput({ advancingActorRoleType: undefined }));
+    it('blocks a committee member whose approval limit is below the deal amount', async () => {
+      const out = await advanceWorkflowStage(creditApprovalInput({
+        advancingBankerAuthority: { approvalLimit: 1_000, creditCommitteeMember: true, approvalOverrideAuthority: false },
+      }));
+      expect(out.kind).toBe('blocked');
+      if (out.kind === 'blocked') expect(out.reason).toMatch(/exceeds your individual approval authority/i);
+    });
+
+    it('blocks when no banker authority is supplied at all (fails closed, no banker record)', async () => {
+      const out = await advanceWorkflowStage(creditApprovalInput({ advancingBankerAuthority: undefined }));
       expect(out.kind).toBe('blocked');
     });
 
-    it('allows a Relationship Manager (authorized approver role) to exit Credit Approval', async () => {
+    it('allows a credit committee member within their approval limit to exit Credit Approval', async () => {
       const upd = vi.fn(async () => ({ ok: true }));
       const out = await advanceWorkflowStage(creditApprovalInput({
-        advancingActorRoleType: 'RelationshipManager',
+        advancingBankerAuthority: { approvalLimit: 1_000_000, creditCommitteeMember: true, approvalOverrideAuthority: false },
         transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
       }));
       expect(out.kind).toBe('advanced');
       expect(upd).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows override authority to bypass both the committee and limit checks', async () => {
+      const upd = vi.fn(async () => ({ ok: true }));
+      const out = await advanceWorkflowStage(creditApprovalInput({
+        advancingBankerAuthority: { approvalLimit: 0, creditCommitteeMember: false, approvalOverrideAuthority: true },
+        transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
+      }));
+      expect(out.kind).toBe('advanced');
     });
   });
 });

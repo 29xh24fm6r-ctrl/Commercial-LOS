@@ -100,6 +100,7 @@ function setUpBanker({ withSystemUserId = true } = {}) {
       ? undefined
       : 'No matching cr664_users row for the signed-in Entra OID.',
     roleType: undefined,
+    creditAuthority: { approvalLimit: undefined, creditCommitteeMember: undefined, approvalOverrideAuthority: undefined },
   });
 }
 

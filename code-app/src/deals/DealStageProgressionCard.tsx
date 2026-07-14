@@ -18,6 +18,12 @@ import {
   evaluateStageExitPolicy,
   type WorkflowRequirementFacts,
 } from '../workflow/loanWorkflowRequirementEngine';
+import {
+  evaluateCreditApprovalAuthority,
+  describeCreditApprovalAuthorityReason,
+  type BankerCreditAuthority,
+  type CreditApprovalAuthorityResult,
+} from '../workflow/creditApprovalAuthority';
 import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
 import { AUTO_STAGE_ADVANCE_ENABLED } from './dealOriginationFeatureFlags';
 import { remediationForRequirement, type RemediationRoute } from './dealBlockerModel';
@@ -53,8 +59,10 @@ import {
 export interface StageAdvanceActor {
   readonly systemUserId: string | undefined;
   readonly email: string | undefined;
-  /** cr664_Banker.cr664_roletype — interim approval-authority proxy, see approvalAuthorityMatrix.ts. */
+  /** cr664_Banker.cr664_roletype — job-function role, display/analytics only (superseded as an approval-authority signal). */
   readonly roleType?: string;
+  /** The real credit-authority signal (approval limit / committee membership / override) — see creditApprovalAuthority.ts. */
+  readonly creditAuthority?: BankerCreditAuthority;
 }
 
 export function DealStageProgressionCard({
@@ -383,10 +391,27 @@ function StageAdvanceControl({
   // requires the analysis documents REVIEWED). Untracked deep facts are surfaced as "future" and do NOT
   // block here. The governed seam still enforces its own policy as defense-in-depth.
   const enginePolicy = evaluateStageExitPolicy(deriveStageExitReadiness(workflow.currentStage.id, facts));
+  // 2026-07-14 — credit-authority pre-check (mirrors the write seam's own hard gate, see
+  // creditApprovalAuthority.ts) so the button is disabled with a safe reason BEFORE a click, not
+  // only after a rejected write. Not applicable outside CREDIT_APPROVAL.
+  const authorityPolicy: CreditApprovalAuthorityResult =
+    workflow.currentStage.id === 'CREDIT_APPROVAL'
+      ? evaluateCreditApprovalAuthority({
+          actorResolved: Boolean(actor.systemUserId),
+          banker: actor.creditAuthority,
+          dealAmount: facts.deal.amount,
+          requestProfileAmount: undefined,
+        })
+      : { allowed: true };
 
   async function onAdvance(nextStageId: LoanWorkflowStageId) {
     if (!enginePolicy.allowed) {
       setState({ kind: 'done', outcome: { kind: 'blocked', reason: enginePolicy.reason, blockers: enginePolicy.blocking.map((b) => b.uiCopy) } });
+      return;
+    }
+    if (!authorityPolicy.allowed) {
+      const reason = describeCreditApprovalAuthorityReason(authorityPolicy.reasonCode);
+      setState({ kind: 'done', outcome: { kind: 'blocked', reason, blockers: [reason] } });
       return;
     }
     setState({ kind: 'saving' });
@@ -403,7 +428,7 @@ function StageAdvanceControl({
       workflow,
       requestedNextStageId: nextStageId,
       facts,
-      advancingActorRoleType: actor.roleType,
+      advancingBankerAuthority: actor.creditAuthority,
       transport: deps.transport,
       auditSink: deps.auditSink,
       timelineSink: deps.timelineSink,
@@ -449,9 +474,15 @@ function StageAdvanceControl({
       <div style={styles.advanceButtons}>
         {workflow.nextPermittedStages.map((stage) => {
           const policy = evaluateStageTransitionPolicy(workflow, stage.id);
-          const allowed = policy.allowed && enginePolicy.allowed;
+          const allowed = policy.allowed && enginePolicy.allowed && authorityPolicy.allowed;
           const disabled = saving || !allowed;
-          const reason = !policy.allowed ? policy.reason : !enginePolicy.allowed ? enginePolicy.reason : undefined;
+          const reason = !policy.allowed
+            ? policy.reason
+            : !enginePolicy.allowed
+              ? enginePolicy.reason
+              : !authorityPolicy.allowed
+                ? describeCreditApprovalAuthorityReason(authorityPolicy.reasonCode)
+                : undefined;
           return (
             <button
               key={stage.id}

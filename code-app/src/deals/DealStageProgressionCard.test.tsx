@@ -250,3 +250,89 @@ describe('DealStageProgressionCard — governed advance flow (armed + seeded + a
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// 2026-07-14 — real Dataverse credit-authority check (creditApprovalAuthority.ts). Exiting
+// CREDIT_APPROVAL is proactively gated in the UI (not just after a rejected write), with safe,
+// internals-free messaging.
+// ---------------------------------------------------------------------------
+
+function creditApprovalDealData(): DealData {
+  return {
+    deal: { ...baseDeal, stage: 'Credit Approval' },
+    tasks: { kind: 'ready', data: { open: [], completed: [] } satisfies DealTasksResult },
+    documents: {
+      kind: 'ready',
+      data: {
+        outstanding: [],
+        received: [
+          { id: 'd1', name: 'Approval Evidence', dueDate: undefined, requestDate: undefined, receivedDate: '2026-07-01T00:00:00Z', reviewer: undefined, uploaded: true, modifiedOn: undefined, status: 'received' },
+        ],
+        reviewed: [],
+      } satisfies DealDocumentsResult,
+    },
+    creditMemo: {
+      kind: 'ready',
+      data: {
+        memos: [{ id: 'm1', name: 'Memo', status: 'Final', statusKey: 'final', memoType: 'standard', version: 1, generatedAt: '2026-07-01T00:00:00Z', modifiedOn: undefined, borrowerSafe: false, textPreview: undefined }],
+        sections: [
+          { id: 's1', sectionKey: 'executive_summary', sectionLabel: 'Executive Summary', reviewStatus: undefined, reviewStatusKey: undefined, lastGeneratedAt: undefined, modifiedOn: undefined, textPreview: undefined },
+          { id: 's2', sectionKey: 'repayment_analysis', sectionLabel: 'Repayment Analysis', reviewStatus: undefined, reviewStatusKey: undefined, lastGeneratedAt: undefined, modifiedOn: undefined, textPreview: undefined },
+        ],
+      } satisfies CreditMemoData,
+    },
+    activity: { kind: 'ready', data: [] satisfies TimelineEvent[] },
+    refresh: () => undefined,
+  };
+}
+
+describe('DealStageProgressionCard — credit-authority gate (Dataverse cr664_banker authority fields)', () => {
+  it('DISABLES Advance to Commitment with a safe, internals-free reason when the banker has no credit-authority record', async () => {
+    useDealDataMock.mockReturnValue(creditApprovalDealData());
+    render(
+      <DealStageProgressionCard
+        stageAdvanceActor={{ systemUserId: 'sysuser-1', email: 'banker@oldglorybank.com' }}
+        loadAvailability={AVAILABLE}
+      />,
+    );
+    const btn = await screen.findByRole('button', { name: /Advance to Commitment/i });
+    expect(btn).toBeDisabled();
+    expect(btn.getAttribute('data-stage-advance-allowed')).toBe('false');
+    expect(btn.getAttribute('title')).toMatch(/banker profile is not set up for approval actions/i);
+    expect(btn.getAttribute('title')).not.toMatch(/cr664_|approvallimit|creditcommitteemember/i);
+  });
+
+  it('DISABLES Advance to Commitment for a banker who is not a credit committee member', async () => {
+    useDealDataMock.mockReturnValue(creditApprovalDealData());
+    render(
+      <DealStageProgressionCard
+        stageAdvanceActor={{
+          systemUserId: 'sysuser-1',
+          email: 'banker@oldglorybank.com',
+          creditAuthority: { approvalLimit: 10_000_000, creditCommitteeMember: false, approvalOverrideAuthority: false },
+        }}
+        loadAvailability={AVAILABLE}
+      />,
+    );
+    const btn = await screen.findByRole('button', { name: /Advance to Commitment/i });
+    expect(btn).toBeDisabled();
+    expect(btn.getAttribute('title')).toMatch(/credit committee authority/i);
+  });
+
+  it('ENABLES Advance to Commitment for a credit committee member within their approval limit', async () => {
+    useDealDataMock.mockReturnValue(creditApprovalDealData());
+    render(
+      <DealStageProgressionCard
+        stageAdvanceActor={{
+          systemUserId: 'sysuser-1',
+          email: 'banker@oldglorybank.com',
+          creditAuthority: { approvalLimit: 10_000_000, creditCommitteeMember: true, approvalOverrideAuthority: false },
+        }}
+        loadAvailability={AVAILABLE}
+      />,
+    );
+    const btn = await screen.findByRole('button', { name: /Advance to Commitment/i });
+    expect(btn).toBeEnabled();
+    expect(btn.getAttribute('data-stage-advance-allowed')).toBe('true');
+  });
+});

@@ -34,21 +34,12 @@ export function approvalSatisfies(record: ApprovalRecord | undefined | null): bo
 }
 
 /**
- * INTERIM approval-authority proxy (2026-07-14 remediation).
- *
- * `approvalSatisfies` above models the intended OGB policy but has never been wired to a live
- * signal — there is no per-user approval limit or committee-membership field anywhere in the
- * Dataverse schema today (see docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md, finding C3).
- * The only role-shaped field that exists and is already fetched for every banker session is
- * cr664_Banker.cr664_roletype (job function: CommercialBanker / RelationshipManager /
- * PortfolioManager / Support) — NOT a true approval entitlement.
- *
- * Until a real approval-authority field exists, this function is the sole gate on advancing a
- * deal OUT of CREDIT_APPROVAL: Relationship Managers and Portfolio Managers are treated as
- * authorized approvers; Commercial Bankers and Support are not. This is a coarse, honest
- * placeholder — it verifies job function, not that a specific approval was actually recorded —
- * and should be replaced once a real Dataverse approval-authority/committee-membership field is
- * added.
+ * SUPERSEDED (2026-07-14, second pass): this job-function role proxy was an interim stand-in
+ * used only until real authority fields existed. They now exist —
+ * cr664_Banker.cr664_approvallimit / cr664_creditcommitteemember / cr664_approvaloverrideauthority
+ * (see scripts/dataverse/create-banker-credit-authority-fields.ps1). The live CREDIT_APPROVAL exit
+ * gate now calls `evaluateCreditApprovalAuthority` in `creditApprovalAuthority.ts` instead of this
+ * function. Kept here, unused by the live path, as history/audit trail — do not wire this back in.
  */
 export type InterimApproverRoleType = 'CommercialBanker' | 'RelationshipManager' | 'PortfolioManager' | 'Support';
 

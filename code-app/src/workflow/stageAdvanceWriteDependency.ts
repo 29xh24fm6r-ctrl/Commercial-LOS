@@ -6,7 +6,11 @@ import {
   evaluateStageExitPolicy,
   type WorkflowRequirementFacts,
 } from './loanWorkflowRequirementEngine';
-import { isInterimAuthorizedApproverRole } from './approvalAuthorityMatrix';
+import {
+  evaluateCreditApprovalAuthority,
+  describeCreditApprovalAuthorityReason,
+  type BankerCreditAuthority,
+} from './creditApprovalAuthority';
 
 /**
  * Phase 237F — governed stage-advancement write dependency.
@@ -18,9 +22,11 @@ import { isInterimAuthorizedApproverRole } from './approvalAuthorityMatrix';
  *   - 2026-07-14 remediation (docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md, findings C2/C3):
  *     this seam now ALSO enforces the shared requirement engine's stricter exit readiness
  *     (evaluateStageExitPolicy/deriveStageExitReadiness — the same engine the UI displays), and,
- *     when exiting CREDIT_APPROVAL, an interim approval-authority role check
- *     (isInterimAuthorizedApproverRole). Both are hard, fail-closed gates: the write path can no
- *     longer allow anything the UI itself would refuse to show as ready.
+ *     when exiting CREDIT_APPROVAL, a real credit-authority check (evaluateCreditApprovalAuthority
+ *     — approval limit / credit committee membership / override authority, driven by the
+ *     cr664_banker fields provisioned in scripts/dataverse/create-banker-credit-authority-fields.ps1).
+ *     Both are hard, fail-closed gates: the write path can no longer allow anything the UI itself
+ *     would refuse to show as ready.
  *   - Gated on AUTO_STAGE_ADVANCE_ENABLED, which is ARMED (true) as of the WF-1A phase — this is a
  *     LIVE write path (DealStageProgressionCard.tsx supplies the live transport). Fail-closed if the
  *     flag were ever unset.
@@ -106,11 +112,17 @@ export interface StageAdvanceInput {
    */
   readonly facts: WorkflowRequirementFacts;
   /**
-   * cr664_Banker.cr664_roletype (or equivalent) of the advancing actor. Used only as an interim
-   * approval-authority proxy when exiting CREDIT_APPROVAL — see approvalAuthorityMatrix.ts.
-   * Undefined fails closed (treated as not authorized).
+   * The advancing actor's cr664_banker credit-authority fields (approval limit / credit committee
+   * membership / override authority) — see creditApprovalAuthority.ts. Undefined means no banker
+   * record was found/resolved for the actor and fails closed on CREDIT_APPROVAL exit.
    */
-  readonly advancingActorRoleType?: string;
+  readonly advancingBankerAuthority?: BankerCreditAuthority;
+  /**
+   * cr664_loanrequestprofile.cr664_requestedamount, when a live read path supplies it (see the
+   * "known gap" note in governedRequestedAmount.ts — no live caller supplies this yet). Undefined
+   * is safe: the amount-conflict cross-check simply has nothing to compare against.
+   */
+  readonly requestProfileAmount?: number;
   readonly transport?: StageAdvanceTransport;
   readonly auditSink?: StageAdvanceAuditSink;
   readonly timelineSink?: StageAdvanceTimelineSink;
@@ -141,14 +153,21 @@ export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<St
     };
   }
 
-  // HARD interim approval-authority guard — CREDIT_APPROVAL exit only. See approvalAuthorityMatrix.ts
-  // for why this is a role-based proxy rather than a verified approval record.
-  if (policy.from === 'CREDIT_APPROVAL' && !isInterimAuthorizedApproverRole(input.advancingActorRoleType)) {
-    return {
-      kind: 'blocked',
-      reason: 'Advancing out of Credit Approval requires an authorized approver role (interim policy).',
-      blockers: ['Approval authority: the advancing actor’s role is not an authorized approver.'],
-    };
+  // HARD credit-authority guard — CREDIT_APPROVAL exit only. See creditApprovalAuthority.ts.
+  if (policy.from === 'CREDIT_APPROVAL') {
+    const authority = evaluateCreditApprovalAuthority({
+      actorResolved: input.authorized,
+      banker: input.advancingBankerAuthority,
+      dealAmount: input.facts.deal.amount,
+      requestProfileAmount: input.requestProfileAmount,
+    });
+    if (!authority.allowed) {
+      return {
+        kind: 'blocked',
+        reason: describeCreditApprovalAuthorityReason(authority.reasonCode),
+        blockers: [describeCreditApprovalAuthorityReason(authority.reasonCode)],
+      };
+    }
   }
 
   if (!input.transport || !input.auditSink || !input.timelineSink) {

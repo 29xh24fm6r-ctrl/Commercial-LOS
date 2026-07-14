@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    2026-07-14 Dataverse credit-authority integration.
+
+    Dataverse plugins run in a sandboxed CLR host that only supports the classic .NET Framework
+    plugin contract (IPlugin) — NOT modern .NET (net6.0+/net8.0+). net462 is the lowest common
+    denominator that the Plugin Registration Tool / pac plugin push both accept without
+    complaint; bump to net472 if your organization's tooling requires it, but do not target
+    a modern TFM here or registration will reject the assembly.
+
+    NOT BUILT IN THE AUTHORING SESSION: no `dotnet` SDK was available where this was written.
+    This project has been reviewed by inspection, not verified by compilation — build it before
+    registering, and expect to fix any typos/API drift the review missed.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net462</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>CommercialLendingLOS.Plugins</AssemblyName>
+    <RootNamespace>CommercialLendingLOS.Plugins</RootNamespace>
+    <SignAssembly>false</SignAssembly>
+    <!-- Dataverse plugin assemblies are typically registered unsigned (Sandbox isolation mode)
+         unless your organization's registration policy requires strong-naming. -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Version is illustrative — confirm/bump to the latest 9.x release compatible with your
+         target Dataverse org before building; this could not be verified against NuGet from the
+         authoring session (no network/dotnet access). -->
+    <PackageReference Include="Microsoft.CrmSdk.CoreAssemblies" Version="9.0.2.51" />
+  </ItemGroup>
+
+</Project>

@@ -152,6 +152,7 @@ function setUpStandardMocks(events: TimelineEvent[]) {
     systemUserId: 'sys-user-1',
     writeDisabledReason: undefined,
     roleType: undefined,
+    creditAuthority: { approvalLimit: undefined, creditCommitteeMember: undefined, approvalOverrideAuthority: undefined },
   });
 }
 

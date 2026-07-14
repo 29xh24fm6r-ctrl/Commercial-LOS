@@ -88,6 +88,7 @@ beforeEach(() => {
     systemUserId: 'sys-1',
     writeDisabledReason: undefined,
     roleType: undefined,
+    creditAuthority: { approvalLimit: undefined, creditCommitteeMember: undefined, approvalOverrideAuthority: undefined },
   });
 });
 
@@ -596,6 +597,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
         systemUserId: 'sys-1',
         writeDisabledReason: undefined,
         roleType: undefined,
+        creditAuthority: { approvalLimit: undefined, creditCommitteeMember: undefined, approvalOverrideAuthority: undefined },
       });
       loadMock.mockResolvedValue(emptyData());
       render(<BankerMorningCatchUp />);
@@ -949,6 +951,7 @@ describe('BankerMorningCatchUp — Phase 89', () => {
         systemUserId: 'sys-1',
         writeDisabledReason: undefined,
         roleType: undefined,
+        creditAuthority: { approvalLimit: undefined, creditCommitteeMember: undefined, approvalOverrideAuthority: undefined },
       });
       loadMock.mockResolvedValue(dataWithOverdueTask());
       render(<BankerMorningCatchUp />);
