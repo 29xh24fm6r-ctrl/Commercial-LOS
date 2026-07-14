@@ -1,0 +1,63 @@
+name: Build Dataverse Plugin
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "code-app/dataverse-plugins/**"
+      - ".github/workflows/build-dataverse-plugin.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "code-app/dataverse-plugins/**"
+      - ".github/workflows/build-dataverse-plugin.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build CommercialLendingLOS plugin
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          msbuild "code-app/dataverse-plugins/CommercialLendingLOS.Plugins/CommercialLendingLOS.Plugins.csproj" /t:Restore /p:Configuration=Release
+
+      - name: Build
+        shell: pwsh
+        run: |
+          msbuild "code-app/dataverse-plugins/CommercialLendingLOS.Plugins/CommercialLendingLOS.Plugins.csproj" /t:Build /p:Configuration=Release /p:ContinuousIntegrationBuild=true
+
+      - name: Verify output
+        shell: pwsh
+        run: |
+          $dll = "code-app/dataverse-plugins/CommercialLendingLOS.Plugins/bin/Release/net462/CommercialLendingLOS.Plugins.dll"
+          if (-not (Test-Path $dll)) {
+            throw "Expected plugin assembly was not produced: $dll"
+          }
+          "PLUGIN_DLL=$dll" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "### Dataverse plugin build" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "Built assembly: ``$dll``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CommercialLendingLOS-Plugins
+          path: |
+            code-app/dataverse-plugins/CommercialLendingLOS.Plugins/bin/Release/net462/CommercialLendingLOS.Plugins.dll
+            code-app/dataverse-plugins/CommercialLendingLOS.Plugins/bin/Release/net462/CommercialLendingLOS.Plugins.pdb
+          if-no-files-found: error
+          retention-days: 30
