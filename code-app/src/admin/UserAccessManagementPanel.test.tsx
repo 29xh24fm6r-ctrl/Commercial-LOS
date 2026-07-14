@@ -21,6 +21,15 @@ vi.mock('./WorkspaceEntitlementManager', () => ({
   WorkspaceEntitlementManager: () => <div data-testid="entitlement-manager-stub" />,
 }));
 
+// The governed Admin access grant/revoke control is likewise a separate
+// concern with its own admin-context + governed-write dependencies and
+// dedicated test (AdminAccessGrantPanel.test.tsx). Stub it here for the
+// same reason: this file uses no AdminProvider, so the real component's
+// useAdmin() call would throw with no context to read.
+vi.mock('./AdminAccessGrantPanel', () => ({
+  AdminAccessGrantPanel: () => <div data-testid="access-grant-panel-stub" />,
+}));
+
 import { loadAdminUserAccessSummary } from './adminUserAccessQueries';
 import { UserAccessManagementPanel } from './UserAccessManagementPanel';
 
