@@ -78,6 +78,31 @@ export function deriveWorkflowStageSequence(
     }
   }
 
+  // 2026-07-14 remediation (finding M2): propagate blocks to any stage that transitively
+  // dependsOn an already-blocked stage. Previously a stage like credit_committee_review
+  // (dependsOn manager_review -> package_preparation) was never reported blocked even
+  // when package_preparation was, because only the three direct checks above populated
+  // blockedStages. Fixed-point over `stages` (not the static STAGE_CATALOG) so this
+  // respects whatever route-specific dependsOn graph was passed in.
+  const blockedSet = new Set(blockedStages);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const s of stages) {
+      if (blockedSet.has(s.stageKey)) continue;
+      const blockedDependency = s.dependsOn.find((dep) => blockedSet.has(dep));
+      if (blockedDependency) {
+        blockedSet.add(s.stageKey);
+        blockedStages.push(s.stageKey);
+        blockers.push({
+          code: 'dependency_blocked',
+          message: `Stage "${s.stageKey}" is blocked: it depends on stage "${blockedDependency}", which is blocked.`,
+        });
+        changed = true;
+      }
+    }
+  }
+
   // Candidate-completed (evidence-based) — NEVER an approval stage.
   const completedStages: string[] = [];
   for (const k of keys) {

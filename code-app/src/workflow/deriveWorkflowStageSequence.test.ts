@@ -37,6 +37,18 @@ describe('Phase 142C — stage sequence', () => {
     expect(r.blockedStages).toContain('package_preparation');
   });
 
+  // 2026-07-14 remediation (finding M2): a stage that transitively dependsOn a blocked stage
+  // must itself be reported blocked, not just the directly-checked stage.
+  it('cascades a block to stages that transitively depend on a blocked stage', () => {
+    const AR_WITH_COMMITTEE = buildRouteStages([
+      'borrower_documents', 'spreading', 'covenant_testing', 'package_preparation', 'manager_review', 'credit_committee_review',
+    ]);
+    const r = seq(AR_WITH_COMMITTEE, { documentReadiness: 'complete', packageReadiness: 'blocked' });
+    expect(r.blockedStages).toContain('package_preparation');
+    expect(r.blockedStages).toContain('manager_review');
+    expect(r.blockedStages).toContain('credit_committee_review');
+  });
+
   it('does not auto-complete an approval stage', () => {
     const r = seq(AR, { documentReadiness: 'complete', covenantStatus: 'in_compliance' });
     expect(r.completedStages).not.toContain('manager_review');

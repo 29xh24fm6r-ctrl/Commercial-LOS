@@ -80,6 +80,7 @@ modules it names. Read the modules.
 | Microsoft Vibe scope coverage tracker (Phase 69) | [MICROSOFT_VIBE_CAPABILITY_COVERAGE.md](MICROSOFT_VIBE_CAPABILITY_COVERAGE.md) |
 | Standing engineering rules               | [ENGINEERING_OPERATING_RULES.md](ENGINEERING_OPERATING_RULES.md)          |
 | Phase brief + AAR format                 | [PHASE_EXECUTION_TEMPLATE.md](PHASE_EXECUTION_TEMPLATE.md)                |
+| **Loan workflow live-wiring status** (source of truth) | [LOS_WORKFLOW_TRUTH_MATRIX.md](LOS_WORKFLOW_TRUTH_MATRIX.md) — verified accurate against code as of 2026-07-14; see [LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md](LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md). `LOAN_WORKFLOW_TEAM_READY_AAR.md` and Part 2 of `LOAN_WORKFLOW_FULL_TEAM_READINESS_AUDIT.md` are **superseded** — their "all four transition kinds are live-wired" claim was false. |
 
 ---
 

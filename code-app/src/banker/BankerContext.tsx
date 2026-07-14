@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { BankerCreditAuthority } from '../workflow/creditApprovalAuthority';
 
 export interface BankerIdentity {
   bankerId: string;
@@ -12,6 +13,18 @@ export interface BankerIdentity {
   /** Reason systemUserId is undefined, surfaced so write UIs can
    *  explain why their controls are disabled. */
   writeDisabledReason: string | undefined;
+  /** cr664_roletypename off the banker's own record (CommercialBanker /
+   *  RelationshipManager / PortfolioManager / Support) — job-function role,
+   *  kept for display/analytics only. SUPERSEDED as an approval-authority
+   *  signal; see `creditAuthority` below. */
+  roleType: string | undefined;
+  /**
+   * cr664_approvallimit / cr664_creditcommitteemember / cr664_approvaloverrideauthority off the
+   * banker's own record — the real, live credit-authority signal (see creditApprovalAuthority.ts).
+   * Any field undefined means it isn't populated for this banker yet; callers must treat that as
+   * fail-closed, not as `false`.
+   */
+  creditAuthority: BankerCreditAuthority;
 }
 
 const BankerContext = createContext<BankerIdentity | null>(null);

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
+import type { Cr664_bankers } from '../generated/models/Cr664_bankersModel';
 import { useBootstrap } from '../bootstrap/BootstrapContext';
 import { resolveCurrentSystemUserId } from '../shared/governance/currentUserLookup';
 import { BankerIdentityProvider, type BankerIdentity } from './BankerContext';
+import type { BankerCreditAuthorityFields } from './bankerCreditAuthorityFields';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
 
@@ -55,7 +57,9 @@ export function BankerProvider({ children }: { children: React.ReactNode }) {
     Promise.all([bankerLookup, systemUserLookup])
       .then(([bankerResult, systemUser]) => {
         if (cancelled) return;
-        const banker = bankerResult.data?.[0];
+        // Cast: the credit-authority fields exist live but are not yet in the generated model —
+        // see bankerCreditAuthorityFields.ts for why this is a deliberate, documented stopgap.
+        const banker = bankerResult.data?.[0] as (Cr664_bankers & BankerCreditAuthorityFields) | undefined;
         if (!banker) {
           setState({ kind: 'not-banker' });
           return;
@@ -81,6 +85,12 @@ export function BankerProvider({ children }: { children: React.ReactNode }) {
             email: banker.cr664_email ?? bootstrap.upn,
             systemUserId,
             writeDisabledReason,
+            roleType: banker.cr664_roletypename,
+            creditAuthority: {
+              approvalLimit: banker.cr664_approvallimit,
+              creditCommitteeMember: banker.cr664_creditcommitteemember,
+              approvalOverrideAuthority: banker.cr664_approvaloverrideauthority,
+            },
           },
         });
       })

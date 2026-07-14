@@ -21,6 +21,11 @@
  *     `cr664_ChangedBy` lookup.
  *   - the timeline sink emits a `StageChanged` `cr664_dealtimelineevent`,
  *     mirroring `dealTaskActions`.
+ *
+ * ⚠ 2026-07-14 remediation note (docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md, finding C1):
+ *   `Cr664_loandealsService.update()` itself performs no validation — the fail-closed gating
+ *   described above (and in stageAdvanceWriteDependency.ts) is enforced entirely by THIS app's
+ *   client code, not by Dataverse. See docs/DATAVERSE_SECURITY_ROLE_RUNBOOK.md.
  */
 
 import {

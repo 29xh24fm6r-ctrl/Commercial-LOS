@@ -51,6 +51,8 @@ function setBanker(over: Partial<ReturnType<typeof useBanker>> = {}) {
     email: 'm@bank.test',
     systemUserId: 'sys-1',
     writeDisabledReason: undefined,
+    roleType: undefined,
+    creditAuthority: { approvalLimit: undefined, creditCommitteeMember: undefined, approvalOverrideAuthority: undefined },
     ...over,
   });
 }

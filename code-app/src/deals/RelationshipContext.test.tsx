@@ -119,6 +119,8 @@ function asBanker() {
     email: 'm@bank.test',
     systemUserId: 'sys-1',
     writeDisabledReason: undefined,
+    roleType: undefined,
+    creditAuthority: { approvalLimit: undefined, creditCommitteeMember: undefined, approvalOverrideAuthority: undefined },
   });
 }
 

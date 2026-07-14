@@ -77,7 +77,7 @@ export function BankerDealWorkspace({
   dealId,
   workspaceName = 'Banker Workspace',
 }: BankerDealWorkspaceProps) {
-  const { bankerId, fullName, email, systemUserId } = useBanker();
+  const { bankerId, fullName, email, systemUserId, roleType, creditAuthority } = useBanker();
   const [state, setState] = useState<DealLoadResult | { kind: 'loading' }>({ kind: 'loading' });
 
   useEffect(() => {
@@ -205,7 +205,7 @@ export function BankerDealWorkspace({
                 data-deal-card="stage-progression"
                 data-cockpit-anchor="stage-map"
               >
-                <DealStageProgressionCard stageAdvanceActor={{ systemUserId, email }} />
+                <DealStageProgressionCard stageAdvanceActor={{ systemUserId, email, roleType, creditAuthority }} />
               </div>
               {/* Stage reconciliation: the legacy Loan Workflow Command Center
                   (11-stage Opportunity/Qualification spine) was retired here so the

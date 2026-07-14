@@ -6,6 +6,12 @@
  * no tasks, mutates no approvals, and NEVER approves credit. Missing product /
  * amount data routes to `review_required`; a covenant exception routes to the
  * covenant-exception annual-review route; credit-committee-required is a finding.
+ *
+ * SUPERSEDED (2026-07-14, second pass, audit finding H4): this older (Phase 142A) route model,
+ * keyed off a coarse `amountBand` enum, has been superseded by the live Phase 142C engine
+ * (`deriveConfigurableWorkflowRoute.ts`, mounted via `DealWorkflowRoutingPanel.tsx`) and is never
+ * mounted anywhere. Do not wire this one up alongside the live engine — they can disagree on the
+ * same deal; `deriveConfigurableWorkflowRoute.ts` is canonical.
  */
 
 import { getWorkflowRoute } from './workflowRouteRegistry';
