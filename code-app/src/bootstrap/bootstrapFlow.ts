@@ -50,13 +50,29 @@ import { resolveWorkspaceRoute } from './workspaceRoutes';
  *   but the live env doesn't populate them and PlatformUser has
  *   everything needed for first-launch routing.
  *
- * Fail-closed contract (unchanged):
+ * Fail-closed contract:
  *   - No UPN in context  → NotProvisionedError.
- *   - No PlatformUser    → NotProvisionedError.
+ *   - PlatformUser lookup itself fails (`success: false` — e.g. a broken
+ *     data-source connection/binding) → plain Error, NOT NotProvisionedError.
+ *   - PlatformUser lookup succeeds with zero matching rows → NotProvisionedError.
+ *   - PlatformWorkspace lookup itself fails → plain Error, NOT UnresolvedWorkspaceError.
  *   - PlatformUser with no PrimaryWorkspace → UnresolvedWorkspaceError(undefined).
  *   - Workspace name not in `workspaceRoutes` → UnresolvedWorkspaceError(name).
  *   Every failure renders AuthGate's ErrorState. No default
  *   workspace, no fallback dashboard, no silent demotion.
+ *
+ *   2026-07-14 incident note: `IOperationResult<T>` (the generated SDK's return
+ *   shape) carries a `success: boolean` alongside `data` — a broken data-source
+ *   binding can resolve with `success: false` rather than throwing. This module
+ *   previously read `.data?.[0]` directly with no `.success` check, so a
+ *   genuine API/connection failure was indistinguishable from "no such row" and
+ *   surfaced as the misleading "No LOS profile exists" (NotProvisionedError)
+ *   even when a valid PlatformUser record existed and was independently
+ *   confirmed readable via a direct Web API call. Every lookup below now checks
+ *   `.success` first and throws a distinct, honest error when the call itself
+ *   failed, so AuthGate's 'failed' state (not 'not-provisioned') renders —
+ *   pointing an operator at a connection/binding problem instead of a missing
+ *   user.
  */
 
 export interface BootstrapResult {
@@ -89,6 +105,13 @@ function escapeOData(value: string): string {
   return value.replace(/'/g, "''");
 }
 
+/** Best-effort, safe stringification of an IOperationResult['error'] (Error | PowerDataRuntimeHttpError | undefined). */
+function describeOperationError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) return String((error as { message: unknown }).message);
+  return error === undefined ? '(no error detail returned)' : String(error);
+}
+
 export async function runBootstrap(): Promise<BootstrapResult> {
   const ctx = await getContext();
   const upn = ctx.user.userPrincipalName;
@@ -99,6 +122,12 @@ export async function runBootstrap(): Promise<BootstrapResult> {
     filter: `cr664_email eq '${escapeOData(upn)}'`,
     top: 1,
   });
+  // HARD distinction: an API/connection failure is NOT "no such row" — see the
+  // 2026-07-14 incident note above. Never let a broken lookup masquerade as an
+  // honest "not provisioned" verdict.
+  if (!platformUsers.success) {
+    throw new Error(`PlatformUser lookup failed for ${upn}: ${describeOperationError(platformUsers.error)}`);
+  }
   const platformUser = platformUsers.data?.[0];
   if (!platformUser) throw new NotProvisionedError(upn);
 
@@ -106,6 +135,9 @@ export async function runBootstrap(): Promise<BootstrapResult> {
   if (!workspaceId) throw new UnresolvedWorkspaceError(undefined);
 
   const workspace = await Cr664_platformworkspacesService.get(workspaceId);
+  if (!workspace.success) {
+    throw new Error(`PlatformWorkspace lookup failed for ${workspaceId}: ${describeOperationError(workspace.error)}`);
+  }
   const workspaceName = workspace.data?.cr664_workspacename;
   const route = resolveWorkspaceRoute(workspaceName);
   if (!route) throw new UnresolvedWorkspaceError(workspaceName);
