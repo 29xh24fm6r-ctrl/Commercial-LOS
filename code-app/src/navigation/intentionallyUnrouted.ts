@@ -199,6 +199,7 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/deals/documentChecklistUiEnableReadiness.ts', reason: 'Deal sub-feature module (checklist UI generation) not yet wired into DealRoute (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/deals/documentChecklistUiGenerationAction.ts', reason: 'Deal sub-feature module (checklist UI generation) not yet wired into DealRoute (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/deals/newDealChecklistGenerationLiveDeps.ts', reason: 'Deal sub-feature module (checklist UI generation) not yet wired into DealRoute (WIRE candidate).', plannedPhase: 'Phase 3+' },
+  { path: 'src/deals/documentChecklistFileFields.ts', reason: 'Dataverse remediation — STOPGAP type augmentation for the six new cr664_documentchecklist upload columns (scripts/dataverse/create-document-checklist-file-columns.ps1). Nothing reads these fields yet since they do not exist live; delete once a real SDK regen makes them part of Cr664_documentchecklistsModel.ts (WIRE candidate).', plannedPhase: 'Operator enablement' },
   // â”€â”€ src/executive â”€â”€
   { path: 'src/executive/ProductProfitabilityAvailabilityPanel.tsx', reason: 'Executive sub-surface not yet routed (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/executive/productProfitabilityAvailabilityModel.ts', reason: 'Executive sub-surface not yet routed (WIRE candidate).', plannedPhase: 'Phase 3+' },

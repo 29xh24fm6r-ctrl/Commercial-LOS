@@ -31,6 +31,9 @@ import {
   type CreateDocumentReviewTaskOutcome,
 } from './dealTaskActions';
 import { EMAIL_MODE } from './emailDelivery/emailMode';
+import { uploadDocumentFile, type UploadDocumentFileOutcome } from './documentUploadAction';
+import { buildLiveDocumentUploadDeps } from './documentUploadLiveDeps';
+import { isDocumentFileUploadEnabled } from './dealOriginationFeatureFlags';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
@@ -157,6 +160,26 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       actorEmail: banker.email,
       receiveNote: note,
     });
+    refresh('after-document-receive');
+    return outcome;
+  }
+
+  async function handleUploadFile(file: File): Promise<UploadDocumentFileOutcome> {
+    if (!pendingReceiveDoc || !banker?.email) {
+      return { kind: 'unknown', message: 'Cannot upload: missing document or actor identity.' };
+    }
+    const outcome = await uploadDocumentFile(
+      {
+        documentId: pendingReceiveDoc.id,
+        documentName: pendingReceiveDoc.name,
+        dealId: deal.id,
+        actorEmail: banker.email,
+        fileName: file.name,
+        mimeType: file.type,
+        content: new Uint8Array(await file.arrayBuffer()),
+      },
+      buildLiveDocumentUploadDeps(),
+    );
     refresh('after-document-receive');
     return outcome;
   }
@@ -333,6 +356,11 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           doc={pendingReceiveDoc}
           onConfirm={handleReceiveConfirm}
           onClose={() => setPendingReceiveDoc(null)}
+          // File upload UI only renders once DOCUMENT_FILE_UPLOAD_ENABLED is armed (after the
+          // schema in scripts/dataverse/create-document-checklist-file-columns.ps1 exists live) —
+          // this component itself stays flag-agnostic; ReceiveDocumentModal falls back to the
+          // unchanged metadata-only flow when this prop is omitted.
+          onUploadFile={isDocumentFileUploadEnabled() ? handleUploadFile : undefined}
         />
       )}
       {!readOnly && pendingReviewDoc && banker?.fullName && (

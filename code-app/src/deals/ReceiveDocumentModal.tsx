@@ -1,19 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DealDocument } from './dealDocumentQueries';
 import type { MarkDocumentReceivedOutcome } from './documentActions';
+import type { UploadDocumentFileOutcome } from './documentUploadAction';
+import { ALLOWED_MIME_TYPES, MAX_UPLOAD_BYTES } from './documentUploadAction';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
+
+type ReceiveOutcome = MarkDocumentReceivedOutcome | UploadDocumentFileOutcome;
 
 interface ReceiveDocumentModalProps {
   doc: DealDocument;
   onConfirm: (note: string) => Promise<MarkDocumentReceivedOutcome>;
   onClose: () => void;
+  /**
+   * Optional: when supplied, a file picker renders alongside the note field
+   * and selecting a file switches the submit action to a real binary upload
+   * instead of the metadata-only "mark received" write. Callers pass this
+   * ONLY when DOCUMENT_FILE_UPLOAD_ENABLED resolves true — this component
+   * itself stays flag-agnostic, matching every other gated-capability prop
+   * in this codebase (e.g. StageAdvanceControl's canAdvance).
+   */
+  onUploadFile?: (file: File) => Promise<UploadDocumentFileOutcome>;
 }
 
 type ModalState =
   | { kind: 'editing' }
   | { kind: 'submitting' }
-  | { kind: 'outcome'; outcome: MarkDocumentReceivedOutcome };
+  | { kind: 'outcome'; outcome: ReceiveOutcome };
 
 /**
  * Phase 51: banker-side "Mark Document Received" governed flow.
@@ -34,9 +47,12 @@ export function ReceiveDocumentModal({
   doc,
   onConfirm,
   onClose,
+  onUploadFile,
 }: ReceiveDocumentModalProps) {
   const [note, setNote] = useState('');
   const [state, setState] = useState<ModalState>({ kind: 'editing' });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | undefined>(undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -55,14 +71,39 @@ export function ReceiveDocumentModal({
   }, [onClose, state.kind]);
 
   const trimmedNote = note.trim();
-  const canSubmit = state.kind === 'editing' && trimmedNote.length > 0;
+  const canSubmit =
+    state.kind === 'editing' && (selectedFile !== null || trimmedNote.length > 0) && !fileError;
   const inProgress = state.kind === 'submitting';
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) {
+      setSelectedFile(null);
+      setFileError(undefined);
+      return;
+    }
+    if (!ALLOWED_MIME_TYPES.has(file.type)) {
+      setSelectedFile(null);
+      setFileError(`"${file.type || 'unknown type'}" is not an accepted file type. Accepted: PDF, Word, Excel, JPEG, PNG.`);
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setSelectedFile(null);
+      setFileError(`The file is larger than the ${(MAX_UPLOAD_BYTES / (1024 * 1024)).toFixed(0)} MB limit.`);
+      return;
+    }
+    setFileError(undefined);
+    setSelectedFile(file);
+  }
 
   async function handleConfirm() {
     if (!canSubmit) return;
     setState({ kind: 'submitting' });
     try {
-      const outcome = await onConfirm(trimmedNote);
+      // A selected file supersedes the metadata-only write — uploadDocumentFile already
+      // stamps cr664_receiveddate itself, so calling both would double-write.
+      const outcome =
+        selectedFile && onUploadFile ? await onUploadFile(selectedFile) : await onConfirm(trimmedNote);
       setState({ kind: 'outcome', outcome });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -102,29 +143,55 @@ export function ReceiveDocumentModal({
         {state.kind === 'outcome' ? (
           <OutcomeBlock outcome={state.outcome} />
         ) : (
-          <section style={styles.noteSection}>
-            <label htmlFor="receive-document-note" style={styles.label}>
-              Receipt note <span style={styles.required}>required</span>
-            </label>
-            <textarea
-              id="receive-document-note"
-              ref={textareaRef}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              disabled={inProgress}
-              placeholder="Describe how the document arrived (e.g. emailed by borrower, hand-delivered) and any context worth recording. The note is copied to the audit event and the deal activity timeline."
-              rows={4}
-              aria-required="true"
-              aria-describedby="receive-document-note-help"
-              style={{ ...styles.textarea, opacity: inProgress ? 0.6 : 1 }}
-            />
-            <p id="receive-document-note-help" style={styles.helperLine}>
-              Metadata-only: this records receipt on the deal timeline and audit
-              trail. The cr664_DocumentChecklist schema has no file column, so no
-              binary upload occurs in this phase. See
-              docs/PHASE_51_DOCUMENT_UPLOAD_SCOPE.md for the exact blocker.
-            </p>
-          </section>
+          <>
+            {onUploadFile && (
+              <section style={styles.noteSection}>
+                <label htmlFor="receive-document-file" style={styles.label}>
+                  Attach file <span style={styles.optional}>optional</span>
+                </label>
+                <input
+                  id="receive-document-file"
+                  type="file"
+                  accept={[...ALLOWED_MIME_TYPES].join(',')}
+                  disabled={inProgress}
+                  onChange={handleFileChange}
+                  style={{ opacity: inProgress ? 0.6 : 1 }}
+                />
+                {fileError && (
+                  <p role="alert" style={{ ...styles.helperLine, color: palette.atRiskFg }}>{fileError}</p>
+                )}
+                {selectedFile && !fileError && (
+                  <p style={styles.helperLine}>
+                    {selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB) will be uploaded and this
+                    document marked received in one governed write.
+                  </p>
+                )}
+              </section>
+            )}
+            <section style={styles.noteSection}>
+              <label htmlFor="receive-document-note" style={styles.label}>
+                Receipt note{' '}
+                <span style={styles.required}>{selectedFile ? 'optional with a file attached' : 'required'}</span>
+              </label>
+              <textarea
+                id="receive-document-note"
+                ref={textareaRef}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                disabled={inProgress}
+                placeholder="Describe how the document arrived (e.g. emailed by borrower, hand-delivered) and any context worth recording. The note is copied to the audit event and the deal activity timeline."
+                rows={4}
+                aria-required={selectedFile ? 'false' : 'true'}
+                aria-describedby="receive-document-note-help"
+                style={{ ...styles.textarea, opacity: inProgress ? 0.6 : 1 }}
+              />
+              <p id="receive-document-note-help" style={styles.helperLine}>
+                {onUploadFile
+                  ? 'Attaching a file uploads the real document to Dataverse and marks it received in one step. Leaving the attachment empty falls back to a metadata-only receipt (no binary), same as before.'
+                  : 'Metadata-only: this records receipt on the deal timeline and audit trail. Binary file upload is not enabled in this environment yet.'}
+              </p>
+            </section>
+          </>
         )}
 
         <footer style={styles.footer}>
@@ -148,7 +215,7 @@ export function ReceiveDocumentModal({
                 disabled={!canSubmit}
                 style={canSubmit ? styles.primaryButton : styles.primaryButtonDisabled}
               >
-                {inProgress ? 'Recording…' : 'Mark received'}
+                {inProgress ? (selectedFile ? 'Uploading…' : 'Recording…') : selectedFile ? 'Upload & mark received' : 'Mark received'}
               </button>
             </>
           )}
@@ -158,7 +225,7 @@ export function ReceiveDocumentModal({
   );
 }
 
-function OutcomeBlock({ outcome }: { outcome: MarkDocumentReceivedOutcome }) {
+function OutcomeBlock({ outcome }: { outcome: ReceiveOutcome }) {
   // Phase 74: outcome blocks announce to assistive tech when they
   // appear. Success is polite (role=status); error / partial /
   // unknown are assertive (role=alert) so screen readers surface
@@ -174,6 +241,47 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReceivedOutcome }) {
           <p style={styles.outcomeDetail}>
             Document marked received; audit and timeline events recorded.
           </p>
+        </div>
+      );
+    case 'dependency_not_ready':
+      return (
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
+          <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>Upload not enabled</div>
+          <p style={styles.outcomeDetail}>{outcome.detail}</p>
+        </div>
+      );
+    case 'invalid-input':
+      return (
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
+          <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>Cannot upload this file</div>
+          <p style={styles.outcomeDetail}>{outcome.reason}</p>
+        </div>
+      );
+    case 'upload-failed':
+      return (
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
+          <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>Upload failed</div>
+          <p style={styles.outcomeDetail}>The document is unchanged. Refresh and try again.</p>
+          <p style={styles.outcomeDetailMono}>{outcome.error}</p>
+        </div>
+      );
+    case 'readback-mismatch':
+      return (
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.blockedBg, borderColor: palette.blocked }}
+        >
+          <div style={{ ...styles.outcomeTitle, color: palette.blockedFg }}>Upload could not be confirmed</div>
+          <p style={styles.outcomeDetail}>{outcome.detail}</p>
         </div>
       );
     case 'receive-failed':
@@ -334,6 +442,13 @@ const styles: Record<string, React.CSSProperties> = {
   required: {
     marginLeft: spacing.xxs,
     color: palette.atRiskFg,
+    textTransform: 'none',
+    letterSpacing: 0,
+    fontWeight: typography.weight.regular,
+  },
+  optional: {
+    marginLeft: spacing.xxs,
+    color: palette.textSubtle,
     textTransform: 'none',
     letterSpacing: 0,
     fontWeight: typography.weight.regular,

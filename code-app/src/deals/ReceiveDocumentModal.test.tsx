@@ -50,7 +50,7 @@ describe('ReceiveDocumentModal', () => {
     expect(button).toBeDisabled();
   });
 
-  it('renders the metadata-only banker-safe helper line (no binary upload claim)', () => {
+  it('renders the metadata-only banker-safe helper line and no file picker when onUploadFile is omitted', () => {
     render(
       <ReceiveDocumentModal
         doc={sampleDoc}
@@ -59,9 +59,77 @@ describe('ReceiveDocumentModal', () => {
       />,
     );
     // Conservative-copy invariant: the modal must say metadata-only,
-    // must NOT claim binary upload happens here.
+    // must NOT claim binary upload happens here, and must not render a file
+    // picker at all — DOCUMENT_FILE_UPLOAD_ENABLED-gated capabilities stay
+    // absent, not merely disabled, matching this codebase's convention.
     expect(screen.getByText(/metadata-only/i)).toBeInTheDocument();
-    expect(screen.getByText(/no binary upload occurs in this phase/i)).toBeInTheDocument();
+    expect(screen.getByText(/binary file upload is not enabled in this environment/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/attach file/i)).not.toBeInTheDocument();
+  });
+
+  it('renders a file picker and allows submit without a note when onUploadFile is provided', async () => {
+    const onUploadFile = vi.fn().mockResolvedValue({ kind: 'success' });
+    render(
+      <ReceiveDocumentModal doc={sampleDoc} onConfirm={vi.fn()} onClose={vi.fn()} onUploadFile={onUploadFile} />,
+    );
+
+    expect(screen.getByLabelText(/attach file/i)).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: /mark received/i });
+    expect(button).toBeDisabled();
+
+    const user = userEvent.setup();
+    const file = new File(['%PDF-1.4 fake'], 'tax.pdf', { type: 'application/pdf' });
+    await user.upload(screen.getByLabelText(/attach file/i), file);
+
+    expect(screen.getByRole('button', { name: /^upload & mark received$/i })).not.toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: /^upload & mark received$/i }));
+    expect(onUploadFile).toHaveBeenCalledWith(file);
+  });
+
+  it('rejects a disallowed file type client-side before any submit is possible', async () => {
+    const onUploadFile = vi.fn();
+    render(
+      <ReceiveDocumentModal doc={sampleDoc} onConfirm={vi.fn()} onClose={vi.fn()} onUploadFile={onUploadFile} />,
+    );
+
+    // applyAccept:false simulates a user bypassing the input's `accept` filter (e.g. picking
+    // "All Files" in the OS dialog) — the accept attribute is advisory only, so the component's
+    // own validateInput/handleFileChange check is the real, non-bypassable boundary under test.
+    const user = userEvent.setup({ applyAccept: false });
+    const badFile = new File(['zip content'], 'archive.zip', { type: 'application/zip' });
+    await user.upload(screen.getByLabelText(/attach file/i), badFile);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/not an accepted file type/i);
+    // Falls back to requiring the note, since no valid file is selected.
+    expect(screen.getByRole('button', { name: /^mark received$/i })).toBeDisabled();
+  });
+
+  it('rejects an oversized file client-side', async () => {
+    render(
+      <ReceiveDocumentModal doc={sampleDoc} onConfirm={vi.fn()} onClose={vi.fn()} onUploadFile={vi.fn()} />,
+    );
+
+    const user = userEvent.setup();
+    const oversized = new File([new Uint8Array(26 * 1024 * 1024)], 'huge.pdf', { type: 'application/pdf' });
+    await user.upload(screen.getByLabelText(/attach file/i), oversized);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/larger than the 25 MB limit/i);
+  });
+
+  it('falls back to the metadata-only onConfirm path when no file is attached, even with onUploadFile available', async () => {
+    const onConfirm = vi.fn().mockResolvedValue({ kind: 'success' } satisfies MarkDocumentReceivedOutcome);
+    const onUploadFile = vi.fn();
+    render(
+      <ReceiveDocumentModal doc={sampleDoc} onConfirm={onConfirm} onClose={vi.fn()} onUploadFile={onUploadFile} />,
+    );
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/receipt note/i), 'hand-delivered, no scan available');
+    await user.click(screen.getByRole('button', { name: /^mark received$/i }));
+
+    expect(onConfirm).toHaveBeenCalledWith('hand-delivered, no scan available');
+    expect(onUploadFile).not.toHaveBeenCalled();
   });
 
   it('prevents double-submit while the action is in-flight', async () => {
