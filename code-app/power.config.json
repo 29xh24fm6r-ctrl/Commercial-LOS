@@ -40,13 +40,11 @@
         },
         "platformusers": {
           "entitySetName": "cr664_platformusers",
-          "logicalName": "cr664_platformuser",
-          "isHidden": false
+          "logicalName": "cr664_platformuser"
         },
         "platformworkspaces": {
           "entitySetName": "cr664_platformworkspaces",
-          "logicalName": "cr664_platformworkspace",
-          "isHidden": false
+          "logicalName": "cr664_platformworkspace"
         },
         "workspaceentitlements": {
           "entitySetName": "cr664_workspaceentitlementses",
@@ -55,8 +53,7 @@
         },
         "users": {
           "entitySetName": "systemusers",
-          "logicalName": "systemuser",
-          "isHidden": false
+          "logicalName": "systemuser"
         },
         "bankers": {
           "entitySetName": "cr664_bankers",
