@@ -33,12 +33,25 @@ import {
 import { EMAIL_MODE } from './emailDelivery/emailMode';
 import { uploadDocumentFile, type UploadDocumentFileOutcome } from './documentUploadAction';
 import { buildLiveDocumentUploadDeps } from './documentUploadLiveDeps';
-import { isDocumentFileUploadEnabled } from './dealOriginationFeatureFlags';
+import {
+  isDocumentFileUploadEnabled,
+  DOCUMENT_CHECKLIST_GENERATION_ENABLED,
+} from './dealOriginationFeatureFlags';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
 import { CreateDocumentReviewTaskModal } from './CreateDocumentReviewTaskModal';
 import { DocumentChecklistPilotPanel } from './DocumentChecklistPilotPanel';
+import { DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED } from './documentChecklistPilotConfig';
+import { createChecklistWriteDependency } from '../workflow/checklistWriteDependency';
+import { buildLiveChecklistRowTransport, buildLiveChecklistAuditSink } from './checklistLiveWriteDeps';
+import {
+  generateWorkflowChecklist,
+  type WorkflowGenerationOutcome,
+} from '../workflow/workflowGenerationActions';
+import { getLoanWorkflowTemplate } from '../workflow/loanWorkflowTemplates';
+import { deriveLoanWorkflowState } from '../workflow/deriveLoanWorkflowState';
+import { newCorrelationId } from '../shared/governance/correlationId';
 import { Card } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { parseCalendarDate } from '../shared/formatters';
@@ -73,6 +86,52 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
   const [pendingReviewTaskDoc, setPendingReviewTaskDoc] =
     useState<DealDocument | null>(null);
   const openTasks = tasks.kind === 'ready' ? tasks.data.open : [];
+
+  // Document checklist generation — governed live write via checklistLiveWriteDeps.ts
+  // (the same certified path GenerateWorkflowChecklistButton uses on the Stage Map
+  // card). Both DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED (UI gate) and
+  // DOCUMENT_CHECKLIST_GENERATION_ENABLED (runtime write gate, enforced again inside
+  // createChecklistWriteDependency) must be true, or the panel's own generateDisabled
+  // invariant keeps the control disabled — flipping either flag alone changes nothing.
+  const [checklistGenerationState, setChecklistGenerationState] = useState<
+    { kind: 'idle' } | { kind: 'pending' } | { kind: 'done'; outcome: WorkflowGenerationOutcome }
+  >({ kind: 'idle' });
+
+  async function handleGenerateChecklist() {
+    if (!banker?.systemUserId) return;
+    setChecklistGenerationState({ kind: 'pending' });
+    const workflow = deriveLoanWorkflowState({
+      deal,
+      tasks: tasks.kind === 'ready' ? tasks.data : undefined,
+      documents: documents.kind === 'ready' ? documents.data : undefined,
+      creditMemo: creditMemo.kind === 'ready' ? creditMemo.data : undefined,
+    });
+    const existingNames =
+      documents.kind === 'ready'
+        ? [
+            ...documents.data.outstanding,
+            ...documents.data.received,
+            ...documents.data.reviewed,
+          ].map((d) => d.name)
+        : [];
+    const outcome = await generateWorkflowChecklist({
+      authorized: true,
+      template: getLoanWorkflowTemplate(workflow.currentStage.id),
+      existingNames,
+      deps: createChecklistWriteDependency({
+        authorized: true,
+        dealId: deal.id,
+        correlationId: newCorrelationId('checklist'),
+        transport: buildLiveChecklistRowTransport(),
+        auditSink: buildLiveChecklistAuditSink(banker.email),
+      }),
+    });
+    setChecklistGenerationState({ kind: 'done', outcome });
+    // Idempotency (188B): skipped_duplicate_detected means every approved name is
+    // already present — a genuine no-op, not a failure, so it stays fail-visible via
+    // checklistGenerationState without a refresh (nothing new to read back).
+    if (outcome.kind === 'success') refresh('documents');
+  }
 
   async function handleRequestConfirm(note: string): Promise<RequestDocumentOutcome> {
     if (!pendingRequestDoc || !banker?.systemUserId) {
@@ -320,8 +379,11 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           onCreateReviewTask={(doc) => setPendingReviewTaskDoc(doc)}
         />
       </Card>
-      {/* Phase 188D: banker-only, pilot-DISABLED read-only checklist preview.
-          Never creates rows, sends requests, or contacts a borrower. */}
+      {/* Banker-only checklist preview. The generate control is live-capable ONLY
+          when both DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED (UI gate) and
+          DOCUMENT_CHECKLIST_GENERATION_ENABLED (runtime write gate) are true; either
+          flag false (the shipped default for both) keeps the panel's own
+          generateDisabled invariant in force and the control stays disabled. */}
       {!readOnly && banker && (
         <DocumentChecklistPilotPanel
           existingDocumentNames={
@@ -333,7 +395,22 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
                 ].map((d) => d.name)
               : []
           }
+          onGenerate={handleGenerateChecklist}
+          generateActionEnabled={
+            Boolean(DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED) &&
+            Boolean(DOCUMENT_CHECKLIST_GENERATION_ENABLED) &&
+            checklistGenerationState.kind !== 'pending'
+          }
         />
+      )}
+      {!readOnly && banker && checklistGenerationState.kind === 'done' && (
+        <p
+          role="status"
+          style={styles.muted}
+          data-doc-checklist-generation-outcome={checklistGenerationState.outcome.kind}
+        >
+          {checklistGenerationState.outcome.detail}
+        </p>
       )}
       {!readOnly && showAddDoc && banker?.systemUserId && (
         <AddRequiredDocumentModal

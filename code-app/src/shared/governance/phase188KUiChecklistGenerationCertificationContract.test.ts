@@ -170,16 +170,37 @@ describe('188K — panel disabled by default, live-dep + comms free', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. The UI action cannot be reached from a normal panel render.
+// 3. The UI action is wired through the certified checklistWriteDependency /
+//    checklistLiveWriteDeps path (the same one GenerateWorkflowChecklistButton
+//    uses on the Stage Map card) — never through the inert 188J/188K bridge —
+//    and stays double-gated at the call site.
 // ---------------------------------------------------------------------------
-describe('188K — UI action unreachable from a normal panel render', () => {
-  it('DealDocuments mounts the panel banker-only, read-only, with no action wiring', () => {
+describe('188K -> live wiring — DealDocuments injects the governed checklist write path', () => {
+  it('DealDocuments mounts the panel banker-only, with a real onGenerate + generateActionEnabled', () => {
     expect(DEAL_DOCS).toMatch(/<DocumentChecklistPilotPanel/);
     expect(DEAL_DOCS).toMatch(/!readOnly && banker/);
-    // No onGenerate / generateActionEnabled is ever passed in runtime.
-    expect(DEAL_DOCS).not.toMatch(/onGenerate/);
-    expect(DEAL_DOCS).not.toMatch(/generateActionEnabled/);
+    expect(DEAL_DOCS).toMatch(/onGenerate=\{handleGenerateChecklist\}/);
+    expect(DEAL_DOCS).toMatch(/generateActionEnabled=\{/);
+    // The inert 188J/188K test-only bridge is never used for the live wiring.
     expect(DEAL_DOCS).not.toMatch(/documentChecklistUiGenerationAction/);
+  });
+
+  it('the button stays double-gated: both flags must be true at the call site', () => {
+    expect(DEAL_DOCS).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED\)/);
+    expect(DEAL_DOCS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED\)/);
+  });
+
+  it('the handler is the certified live path — checklistWriteDependency + checklistLiveWriteDeps — not a direct SDK call or the generator adapter', () => {
+    expect(DEAL_DOCS).toMatch(/createChecklistWriteDependency/);
+    expect(DEAL_DOCS).toMatch(/buildLiveChecklistRowTransport/);
+    expect(DEAL_DOCS).toMatch(/buildLiveChecklistAuditSink/);
+    expect(DEAL_DOCS).not.toMatch(/generateAuditedDocumentChecklist/);
+    expect(DEAL_DOCS).not.toMatch(/newDealChecklistGenerationLiveDeps/);
+  });
+
+  it('the handler requires an authorized banker before writing and only refreshes on a clean success', () => {
+    expect(DEAL_DOCS).toMatch(/if \(!banker\?\.systemUserId\) return;/);
+    expect(DEAL_DOCS).toMatch(/if \(outcome\.kind === 'success'\) refresh\('documents'\);/);
   });
 });
 

@@ -19,8 +19,14 @@ import { evaluateBankerCreateRollout } from '../../deals/bankerNewDealCreateRoll
  * New Deal create → deal review → tasks → documents → checklist → CRM facts →
  * credit memo preview → readiness/status. These tests enforce the go/no-go
  * matrix in docs/PHASE_191_BANKER_V1_RELEASE_CANDIDATE_HARDENING.md as
- * executable invariants. This phase enables NOTHING: no checklist generation,
- * no borrower comms, no fake data, no permission widening, no schema change.
+ * executable invariants. This phase enables NOTHING beyond the double-gated
+ * checklist-generation wiring documented below: no borrower comms, no fake
+ * data, no permission widening, no schema change. Document checklist
+ * generation is WIRED (DealDocuments injects a real, governed onGenerate
+ * backed by checklistWriteDependency/checklistLiveWriteDeps) but stays
+ * disabled by default — DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED and
+ * DOCUMENT_CHECKLIST_GENERATION_ENABLED both default false, and the panel's
+ * own generateDisabled invariant fails closed until an operator flips both.
  *
  * We assert against actual CODE (comments stripped) so safety docstrings that
  * legitimately name "email / borrower / handoff" never trip a comms pin.
@@ -198,14 +204,26 @@ describe('191 — deal workspace primary surfaces mounted', () => {
 // 6. Document checklist pilot stays safe/controlled + comms-free.
 // ---------------------------------------------------------------------------
 describe('191 — document checklist pilot safe/controlled', () => {
-  it('the panel is mounted banker-only, read-only (never in manager read-only mode)', () => {
+  it('the panel is mounted banker-only, never in manager read-only mode', () => {
     expect(DEAL_DOCUMENTS).toMatch(/!readOnly && banker && \(\s*<DocumentChecklistPilotPanel/);
-    // No generate action wiring is passed from the production document surface.
-    expect(DEAL_DOCUMENTS).not.toMatch(/onGenerate/);
-    expect(DEAL_DOCUMENTS).not.toMatch(/generateActionEnabled/);
   });
 
-  it('the panel renders disabled by default (generation never reachable from prod UI)', () => {
+  it('the generate action is wired through the certified live path, double-gated at the call site', () => {
+    // DealDocuments now injects a real onGenerate + generateActionEnabled — the
+    // 188K remediation. It is wired through checklistWriteDependency /
+    // checklistLiveWriteDeps (the same certified path GenerateWorkflowChecklistButton
+    // uses), never the inert 188J/188K test-only bridge.
+    expect(DEAL_DOCUMENTS).toMatch(/onGenerate=\{handleGenerateChecklist\}/);
+    expect(DEAL_DOCUMENTS).toMatch(/generateActionEnabled=\{/);
+    expect(DEAL_DOCUMENTS).toMatch(/createChecklistWriteDependency/);
+    expect(DEAL_DOCUMENTS).not.toMatch(/documentChecklistUiGenerationAction/);
+    expect(DEAL_DOCUMENTS).not.toMatch(/generateAuditedDocumentChecklist/);
+    // Both gates must be true at the call site or the panel stays disabled.
+    expect(DEAL_DOCUMENTS).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED\)/);
+    expect(DEAL_DOCUMENTS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED\)/);
+  });
+
+  it('the panel itself still defaults to disabled (its own generateDisabled invariant is unchanged)', () => {
     expect(CHECKLIST_PANEL).toMatch(/const generateDisabled = true/);
     expect(CHECKLIST_PANEL).toMatch(
       /generateActionEnabled = DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED/,
