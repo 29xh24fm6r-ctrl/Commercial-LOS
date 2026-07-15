@@ -6,7 +6,8 @@
 import type { GetEntityMetadataOptions, EntityMetadata } from '@microsoft/power-apps/data/metadata/dataverse';
 import type { IGetOptions, IGetAllOptions } from '../models/CommonModels';
 import type { IOperationResult } from '@microsoft/power-apps/data';
-import type { SystemusersBase, Systemusers, SystemusersImageColumnName, SystemusersUploadColumnName } from '../models/SystemusersModel';
+import type { SystemusersBase, Systemusers } from '../models/SystemusersModel';
+import type { SystemusersUploadColumnName } from '../models/SystemusersModel';
 import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesInfo';
 import { getClient } from '@microsoft/power-apps/data';
 
@@ -79,25 +80,6 @@ export class SystemusersService {
       columnName,
       fileDisplayName || file.name,
       data,
-    );
-    return result;
-  }
-
-  public static async downloadImage(id: string, columnName: SystemusersImageColumnName, fullSize: boolean = false): Promise<IOperationResult<Uint8Array>> {
-    const result = await SystemusersService.client.downloadImageFromRecord(
-      SystemusersService.dataSourceName,
-      id,
-      columnName,
-      fullSize,
-    );
-    return result;
-  }
-
-  public static async deleteFileOrImage(id: string, columnName: SystemusersUploadColumnName): Promise<IOperationResult<void>> {
-    const result = await SystemusersService.client.deleteFileOrImageFromRecord(
-      SystemusersService.dataSourceName,
-      id,
-      columnName,
     );
     return result;
   }

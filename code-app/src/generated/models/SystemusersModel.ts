@@ -308,6 +308,4 @@ export interface Systemusers extends SystemusersBase {
   transactioncurrencyid?: object;
   _transactioncurrencyid_value?: string;
 }
-export type SystemusersImageColumnName = 'entityimage';
-
-export type SystemusersUploadColumnName = SystemusersImageColumnName;
+export type SystemusersUploadColumnName = 'entityimage';
