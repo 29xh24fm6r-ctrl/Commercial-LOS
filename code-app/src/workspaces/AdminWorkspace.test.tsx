@@ -57,6 +57,7 @@ vi.mock('../admin/V1GoLiveReleaseCertificationPanel', () => ({ V1GoLiveReleaseCe
 vi.mock('../admin/FullSystemActivationLaunchPanel', () => ({ FullSystemActivationLaunchPanel: () => <div data-testid="panel-FullSystemActivationLaunchPanel" /> }));
 vi.mock('../admin/PerformanceDiagnostics', () => ({ PerformanceDiagnostics: () => <div data-testid="panel-PerformanceDiagnostics" /> }));
 vi.mock('../admin/EmailLiveDiagnostics', () => ({ EmailLiveDiagnostics: () => <div data-testid="panel-EmailLiveDiagnostics" /> }));
+vi.mock('../admin/PlatformOperationsWorkspacePanel', () => ({ PlatformOperationsWorkspacePanel: () => <div data-testid="panel-PlatformOperationsWorkspacePanel" /> }));
 
 import { AdminWorkspace } from './AdminWorkspace';
 

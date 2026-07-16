@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { render, screen, within, cleanup } from '@testing-library/react';
-import { deriveOperatorLaunchConsole, type OperatorLaunchConsoleInput } from './operatorLaunchConsoleModel';
+import { deriveOperatorLaunchConsole } from './operatorLaunchConsoleModel';
+import type { OperatorLaunchConsoleInput } from './operatorLaunchConsoleModel';
 import { OperatorLaunchConsole } from './OperatorLaunchConsole';
 
 /** Phase 210 / A4 — operator launch console. */
@@ -62,6 +63,90 @@ describe('console rendering', () => {
     expect(screen.getByTestId('capability-entitlement-grant-smoke').textContent).toMatch(/none/);
     expect(screen.getByTestId('capability-document-upload-rollback').textContent).toMatch(/rollback:/);
     // Observe-only: no buttons / inputs anywhere in the console.
+    expect(within(root).queryByRole('button')).toBeNull();
+    expect(within(root).queryByRole('textbox')).toBeNull();
+    cleanup();
+  });
+});
+
+// Factory Arc Phase 4 — Platform Operations Workspace extended the model/UI with
+// route/DI/auth/audit-sink state, latest write evidence, enablement provenance, and
+// a console-level deployment commit. All additive/optional — this proves the new
+// fields render honestly (undefined vs null vs a real value are visually distinct)
+// without weakening the observe-only contract already pinned above.
+const phase4Input: OperatorLaunchConsoleInput = {
+  deploymentCommit: 'abc1234',
+  capabilities: [
+    {
+      key: 'new-deal-create', label: 'New Deal Create', category: 'deal',
+      flags: [{ name: 'BANKER_CREATE_PILOT_ENABLED', value: true, required: true }],
+      rollback: 'Set BANKER_CREATE_PILOT_ENABLED = false.',
+      routeState: 'Mounted — "+ New Deal" button.',
+      diState: 'Live write adapter wired: newDealCreateAdapter.ts.',
+      actorAuthorizationRequirement: 'Resolved Dataverse systemuser + banker authorization.',
+      auditSinkState: 'Writes audited via dealOriginationAudit.ts.',
+      latestSuccessfulWrite: { actor: 'mpaller@oldglorybank.com', at: '2026-07-10T00:00:00Z', correlationId: 'corr-42' },
+      latestFailedWrite: null,
+      enabledBy: null,
+      enabledOn: null,
+    },
+    {
+      key: 'audit-event-writes', label: 'Audit-event writes', category: 'observability',
+      flags: [],
+      rollback: 'N/A — no independent flag.',
+      // routeState/diState/etc intentionally omitted -> undefined -> renders "unknown".
+      // latestSuccessfulWrite/latestFailedWrite intentionally omitted -> "not yet correlated".
+    },
+  ],
+};
+
+describe('Factory Arc Phase 4 — extended fields render honestly', () => {
+  it('renders a real deployment commit at the console level', () => {
+    render(<OperatorLaunchConsole input={phase4Input} />);
+    expect(screen.getByTestId('operator-launch-console-deployment-commit').textContent).toMatch(/abc1234/);
+    cleanup();
+  });
+
+  it('shows "unknown" for a null deployment commit, never a fabricated value', () => {
+    render(<OperatorLaunchConsole input={{ ...phase4Input, deploymentCommit: null }} />);
+    expect(screen.getByTestId('operator-launch-console-deployment-commit').textContent).toMatch(/unknown/);
+    cleanup();
+  });
+
+  it('renders route/DI/auth/audit-sink state and the latest successful write when supplied', () => {
+    render(<OperatorLaunchConsole input={phase4Input} />);
+    const wiring = screen.getByTestId('capability-new-deal-create-wiring');
+    expect(wiring.textContent).toMatch(/Mounted/);
+    expect(wiring.textContent).toMatch(/newDealCreateAdapter/);
+    expect(wiring.textContent).toMatch(/Resolved Dataverse systemuser/);
+    expect(wiring.textContent).toMatch(/dealOriginationAudit/);
+
+    const writes = screen.getByTestId('capability-new-deal-create-writes');
+    expect(writes.textContent).toMatch(/2026-07-10T00:00:00Z/);
+    expect(writes.textContent).toMatch(/mpaller@oldglorybank\.com/);
+    expect(writes.textContent).toMatch(/latest failure:\s*none recorded/);
+    cleanup();
+  });
+
+  it('distinguishes "not yet correlated" (undefined) from a real null/value, and "unknown" wiring text when omitted', () => {
+    render(<OperatorLaunchConsole input={phase4Input} />);
+    const writes = screen.getByTestId('capability-audit-event-writes-writes');
+    expect(writes.textContent).toMatch(/not yet correlated/);
+    const wiring = screen.getByTestId('capability-audit-event-writes-wiring');
+    expect(wiring.textContent).toMatch(/unknown/);
+    cleanup();
+  });
+
+  it('shows an honest enablement line — no fabricated actor/date for a static flag constant', () => {
+    render(<OperatorLaunchConsole input={phase4Input} />);
+    const enablement = screen.getByTestId('capability-new-deal-create-enablement');
+    expect(enablement.textContent).toMatch(/no change-history source for this flag/i);
+    cleanup();
+  });
+
+  it('the extended fields still introduce no write control', () => {
+    render(<OperatorLaunchConsole input={phase4Input} />);
+    const root = screen.getByTestId('operator-launch-console');
     expect(within(root).queryByRole('button')).toBeNull();
     expect(within(root).queryByRole('textbox')).toBeNull();
     cleanup();

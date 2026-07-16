@@ -29,8 +29,12 @@ describe('211 — registry is a pure, side-effect-free read model', () => {
   });
 });
 
-describe('211 — covers the nine certified capabilities', () => {
-  it('exposes exactly the nine smoke capabilities', () => {
+describe('211 — covers the nine originally-certified capabilities plus Factory Arc Phase 4 additions', () => {
+  it('exposes exactly fourteen smoke capabilities (the original nine, unchanged, plus five Phase 4 additions)', () => {
+    // Phase 4 added 5 slots (task-generation, crm-manual-write, portfolio-boarding-manual,
+    // borrower-sms, audit-event-writes) additively, so the Platform Operations workspace can
+    // cover all 12 required capabilities without renaming (and thus silently breaking) any of
+    // the original nine.
     expect([...SMOKE_CAPABILITIES].sort()).toEqual(
       [
         'admin-entitlement-grant',
@@ -42,6 +46,11 @@ describe('211 — covers the nine certified capabilities', () => {
         'new-deal-create',
         'portfolio-boarding',
         'stage-progression',
+        'task-generation',
+        'crm-manual-write',
+        'portfolio-boarding-manual',
+        'borrower-sms',
+        'audit-event-writes',
       ].sort(),
     );
   });
@@ -50,7 +59,7 @@ describe('211 — covers the nine certified capabilities', () => {
 describe('211 — never fabricates a pass; missing evidence blocks GO', () => {
   it('an empty registry blocks GO for every capability with not-run', () => {
     const rows = deriveCapabilitySmokeReadiness({ source: 'out-of-band', records: [] });
-    expect(rows).toHaveLength(9);
+    expect(rows).toHaveLength(14);
     expect(rows.every((r) => r.smokeOutcome === 'not-run' && r.blocksGo)).toBe(true);
   });
 });

@@ -432,10 +432,12 @@ export const PRODUCTION_SURFACE_INVENTORY: readonly ProductionSurfaceInventoryEn
     componentOrModel: 'OperatorLaunchConsole (+ operatorLaunchConsoleModel.ts)',
     visibleCopy: '"Operator Launch Console" / "Per-capability gate state, latest smoke, and rollback. Observe-only — no gate is flipped here."',
     occurrenceCount: 2,
-    triggeringSource: 'not found mounted under any of the 7 scanned workspace/admin files — reached via a separate operator route',
+    triggeringSource:
+      'Mounted (Factory Arc Phase 4) via src/admin/PlatformOperationsWorkspacePanel.tsx inside AdminWorkspace.tsx, fed live by platformOperationsLiveDeps.ts.',
     currentAudience: 'admin-platform-operations',
     correctFutureAudience: 'admin-platform-operations',
-    replacementOperationalSignal: 'This IS essentially the Phase 4 Platform Operations > Runtime Capabilities spec already — consolidate rather than rebuild. See Phase 4.',
+    replacementOperationalSignal:
+      'Done — this IS the Phase 4 Platform Operations > Runtime Capabilities / Feature Activation / Smoke Evidence / Deployment Version / Audit History surface; consolidated rather than rebuilt, per this entry\'s original note.',
     migrationPhase: 'no-change-already-admin-scoped',
   },
 ] as const;

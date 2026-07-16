@@ -19,19 +19,22 @@ export interface IntentionallyUnroutedModule {
 
 export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   // â”€â”€ src/access â”€â”€
-  { path: 'src/access/OperatorLaunchConsole.tsx', reason: 'Access/evidence/identity internals; reachable transitively via their consumers.', plannedPhase: 'Phase 3+' },
+  // OperatorLaunchConsole.tsx / operatorLaunchConsoleModel.ts: Factory Arc Phase 4 mounted
+  // these (extended for the Platform Operations Workspace) into AdminWorkspace.tsx — genuinely
+  // reachable now, no longer grandfathered here.
   { path: 'src/access/adminEntitlementGrantAdapter.ts', reason: 'Access/evidence/identity internals; reachable transitively via their consumers.', plannedPhase: 'Phase 3+' },
   { path: 'src/access/adminEntitlementRevokeAdapter.ts', reason: 'Access/evidence/identity internals; reachable transitively via their consumers.', plannedPhase: 'Phase 3+' },
   { path: 'src/access/finalLaunchSmokeEvidence.ts', reason: 'Access/evidence/identity internals; reachable transitively via their consumers.', plannedPhase: 'Phase 3+' },
   { path: 'src/access/finalLaunchSmokeEvidenceLoader.ts', reason: 'Access/evidence/identity internals; reachable transitively via their consumers.', plannedPhase: 'Phase 3+' },
-  { path: 'src/access/operatorLaunchConsoleModel.ts', reason: 'Access/evidence/identity internals; reachable transitively via their consumers.', plannedPhase: 'Phase 3+' },
-  { path: 'src/access/operatorSmokeEvidenceRegistry.ts', reason: 'Access/evidence/identity internals; reachable transitively via their consumers.', plannedPhase: 'Phase 3+' },
+  // operatorSmokeEvidenceRegistry.ts: Factory Arc Phase 4 wired this into
+  // platformOperationsLiveDeps.ts — genuinely reachable now.
   // â”€â”€ src/activation â”€â”€
   { path: 'src/activation/adminEntitlementActivation.ts', reason: 'Activation/launch console internals; reachable once the admin activation surface routes (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/activation/borrowerCommsActivation.ts', reason: 'Activation/launch console internals; reachable once the admin activation surface routes (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/activation/checklistGenerationActivation.ts', reason: 'Activation/launch console internals; reachable once the admin activation surface routes (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/activation/crmActivation.ts', reason: 'Activation/launch console internals; reachable once the admin activation surface routes (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/activation/documentUploadActivation.ts', reason: 'Activation/launch console internals; reachable once the admin activation surface routes (WIRE candidate).', plannedPhase: 'Phase 3+' },
+  // documentUploadActivation.ts: Factory Arc Phase 4 reads DOCUMENT_UPLOAD_ENABLED from here
+  // in platformOperationsCapabilitySpecs.ts — genuinely reachable now.
   { path: 'src/activation/finalLaunchReadiness.ts', reason: 'Activation/launch console internals; reachable once the admin activation surface routes (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/activation/fullSystemActivation.ts', reason: 'Activation/launch console internals; reachable once the admin activation surface routes (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/activation/launchReadiness.ts', reason: 'Activation/launch console internals; reachable once the admin activation surface routes (WIRE candidate).', plannedPhase: 'Phase 3+' },

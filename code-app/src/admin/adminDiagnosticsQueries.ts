@@ -138,6 +138,53 @@ export async function loadAuditAnomalies(): Promise<AuditAnomalyRow[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Latest write per capability (Factory Arc Phase 4 — Platform Operations)
+// ---------------------------------------------------------------------------
+
+export interface CapabilityWriteEvidenceRow {
+  actor: string | null;
+  at: string | null;
+  correlationId: string | null;
+}
+
+/**
+ * The latest audit event whose `cr664_sourcescreensourceprocess` starts with the
+ * given prefix, for the given outcome. Only call this with a prefix VERIFIED
+ * against a real write adapter's `sourceProcess` string (see
+ * dealOriginationAudit.ts callers) — an unverified/guessed prefix would either
+ * match nothing (silently honest) or, worse, match the wrong capability
+ * (silently misleading), so callers must not invent one.
+ */
+export async function loadLatestCapabilityWrite(
+  sourceProcessPrefix: string,
+  outcome: 'success' | 'failure',
+): Promise<CapabilityWriteEvidenceRow | null> {
+  const outcomeFilter =
+    outcome === 'success'
+      ? `cr664_outcomestatus eq ${AUDIT_OUTCOME_SUCCEEDED}`
+      : `cr664_outcomestatus ne ${AUDIT_OUTCOME_SUCCEEDED}`;
+  const result = await Cr664_auditeventsService.getAll({
+    filter: [
+      `startswith(cr664_sourcescreensourceprocess, '${sourceProcessPrefix}')`,
+      outcomeFilter,
+      `statecode eq 0`,
+    ].join(' and '),
+    orderBy: ['cr664_changeddate desc'],
+    top: 1,
+  });
+  if (!result.success) {
+    throw new Error(result.error?.message ?? `Failed to load latest ${outcome} write for ${sourceProcessPrefix}`);
+  }
+  const r = result.data?.[0];
+  if (!r) return null;
+  return {
+    actor: r.cr664_actorusername ?? r.cr664_changedbyname ?? null,
+    at: r.cr664_changeddate ?? null,
+    correlationId: r.cr664_correlationid ?? null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Alert Backlog (active alerts only)
 // ---------------------------------------------------------------------------
 

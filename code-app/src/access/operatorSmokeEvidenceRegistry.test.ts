@@ -31,8 +31,12 @@ const registry = (records: OperatorSmokeEvidence[], source: SmokeEvidenceRegistr
 });
 
 describe('Phase 211 — registry shape', () => {
-  it('exposes the nine capabilities and four outcomes', () => {
-    expect(SMOKE_CAPABILITIES).toHaveLength(9);
+  it('exposes fourteen capabilities and four outcomes', () => {
+    // Factory Arc Phase 4 added 5 slots (task-generation, crm-manual-write,
+    // portfolio-boarding-manual, borrower-sms, audit-event-writes) so the Platform
+    // Operations workspace can cover all 12 required capabilities without renaming
+    // (and thus silently breaking) any existing slot.
+    expect(SMOKE_CAPABILITIES).toHaveLength(14);
     expect(SMOKE_OUTCOMES).toEqual(['passed', 'failed', 'partial', 'not-run']);
   });
 });
@@ -58,7 +62,7 @@ describe('Phase 211 — latestEvidenceByCapability', () => {
 describe('Phase 211 — deriveCapabilitySmokeReadiness', () => {
   it('reports not-run / blocks-GO for every capability with no evidence', () => {
     const rows = deriveCapabilitySmokeReadiness(registry([]));
-    expect(rows).toHaveLength(9);
+    expect(rows).toHaveLength(14);
     for (const r of rows) {
       expect(r.smokeOutcome).toBe('not-run');
       expect(r.smokePassed).toBe(false);

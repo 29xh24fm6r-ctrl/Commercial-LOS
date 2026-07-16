@@ -69,6 +69,7 @@ function makeAdminData(overrides: Partial<AdminData> = {}): AdminData {
       kind: 'ready',
       data: { systemSettings: [], activeKpiThresholds: [] },
     },
+    platformOperations: { kind: 'ready', data: { capabilities: [] } },
     refresh: () => undefined,
     ...overrides,
   };

@@ -1,5 +1,18 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { execSync } from 'node:child_process'
+
+// Mirrors vite.config.ts's real build-commit define (kept separate per this
+// file's own header comment on why vite/vitest config aren't unified) so
+// __PLATFORM_DEPLOYMENT_COMMIT__ resolves identically under `vitest run` and
+// `vite build` — see src/shared/deploymentCommit.ts.
+function resolveBuildCommit(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { cwd: __dirname }).toString().trim()
+  } catch {
+    return 'unknown'
+  }
+}
 
 /**
  * Kept separate from vite.config.ts. Project uses Vite 8 (rolldown);
@@ -14,6 +27,9 @@ const reactPlugin = react() as any;
 
 export default defineConfig({
   plugins: [reactPlugin],
+  define: {
+    __PLATFORM_DEPLOYMENT_COMMIT__: JSON.stringify(resolveBuildCommit()),
+  },
   test: {
     // Default to Node for fast action/logic tests; component tests
     // opt into jsdom via `// @vitest-environment jsdom` at the top
