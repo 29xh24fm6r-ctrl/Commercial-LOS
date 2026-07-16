@@ -317,16 +317,19 @@ export const PRODUCTION_SURFACE_INVENTORY: readonly ProductionSurfaceInventoryEn
     migrationPhase: 'no-change-already-admin-scoped',
   },
   {
-    file: 'src/admin/fullSystemLaunchReadinessModel.ts',
-    componentOrModel: 'deriveFullSystemLaunchReadiness (+ FullSystemLaunchReadinessConsole.tsx)',
+    file: 'src/admin/releaseGovernanceSnapshot.ts',
+    componentOrModel: 'deriveReleaseGovernanceSnapshot (+ FullSystemLaunchReadinessConsole.tsx)',
     visibleCopy: '"CRM writeback remains gated." / "Workflow writes remain gated."',
     occurrenceCount: 55,
     triggeringSource: 'static, offline, governance-constant-derived (no live Dataverse read)',
     currentAudience: 'admin-platform-operations',
     correctFutureAudience: 'admin-platform-operations',
     replacementOperationalSignal:
-      'Rename to releaseGovernanceSnapshot.ts; retire deriveFullSystemLaunchReadiness from any runtime import outside admin/build-time. See Phase 5.',
-    migrationPhase: 'phase-5-retire-launch-readiness',
+      'Done — renamed from fullSystemLaunchReadinessModel.ts (deriveFullSystemLaunchReadiness -> ' +
+      'deriveReleaseGovernanceSnapshot). Was already admin-only; releaseGovernanceRuntimeImportGuard.test.ts ' +
+      'now enforces it (plus the retired name) is never imported by src/banker, src/manager, src/deals, ' +
+      'src/portfolioBoarding, or src/portfolio.',
+    migrationPhase: 'no-change-already-admin-scoped',
   },
   {
     file: 'src/admin/fullActivationLaunchCertificationModel.ts',

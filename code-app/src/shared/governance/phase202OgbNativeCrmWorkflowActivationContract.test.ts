@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { deriveOgbCrmWorkflowActivation } from '../../admin/ogbCrmWorkflowActivationModel';
-import { deriveFullSystemLaunchReadiness } from '../../admin/fullSystemLaunchReadinessModel';
+import { deriveReleaseGovernanceSnapshot } from '../../admin/releaseGovernanceSnapshot';
 import { WORKSPACE_ROUTES } from '../../bootstrap/workspaceRoutes';
 import { BANKER_CREATE_PILOT_ENABLED } from '../../deals/bankerCreatePilotConfig';
 import { CRM_LIVE_PERSISTENCE_ENABLED } from '../../crm/crmFeatureFlags';
@@ -120,7 +120,7 @@ describe('202 — user-facing surfaces are OGB-native active (no external/brand 
   });
 
   it('the launch-readiness CRM domain label is OGB-native (no external brand)', () => {
-    const r = deriveFullSystemLaunchReadiness();
+    const r = deriveReleaseGovernanceSnapshot();
     const crm = r.domains.find((d) => d.id === 'crm-salesforce-ncino')!;
     expect(crm.label).not.toMatch(/Salesforce|nCino/);
     expect(crm.label).toMatch(/OGB CRM/);
@@ -129,7 +129,7 @@ describe('202 — user-facing surfaces are OGB-native active (no external/brand 
 
 describe('202 — governance posture preserved', () => {
   it('full-system readiness remains deterministic CONDITIONAL_GO', () => {
-    expect(deriveFullSystemLaunchReadiness().recommendation).toBe('CONDITIONAL_GO');
+    expect(deriveReleaseGovernanceSnapshot().recommendation).toBe('CONDITIONAL_GO');
   });
   it('no fake-data identifiers in the reframed surfaces', () => {
     const FAKE = /\b(sampleDeals|demoData|mockClients|fakeBorrower|sampleData|seedData|FAKE_DATA)\b/;

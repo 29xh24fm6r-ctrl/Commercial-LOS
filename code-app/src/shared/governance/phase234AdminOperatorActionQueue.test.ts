@@ -49,7 +49,7 @@ describe('Phase 234 — admin operator action queue go-live blocker clearing con
     const modelSrc = SRC('../../admin/adminOperatorActionQueueModel.ts');
     // It reads the existing readiness derivations; it does not re-assign feature flags.
     expect(modelSrc).toMatch(/deriveEliteCrmLosActivationReadiness/);
-    expect(modelSrc).toMatch(/deriveFullSystemLaunchReadiness/);
+    expect(modelSrc).toMatch(/deriveReleaseGovernanceSnapshot/);
     expect(modelSrc).not.toMatch(/_ENABLED\s*=/);
     for (const file of FILES) {
       expect(SRC(file), file).not.toMatch(/grantEntitlement|grantRole|addRole|securityRole/i);

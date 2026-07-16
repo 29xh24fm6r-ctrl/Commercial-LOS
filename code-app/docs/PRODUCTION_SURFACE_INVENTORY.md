@@ -88,7 +88,7 @@ Phase 3 lands).
 
 The following are entire files whose sole purpose is launch/certification/activation modeling,
 and all are confirmed mounted only in `src/workspaces/AdminWorkspace.tsx`:
-`fullSystemLaunchReadinessModel.ts` (+ console, 55 occurrences),
+`releaseGovernanceSnapshot.ts` (renamed from `fullSystemLaunchReadinessModel.ts` in Phase 5; + console, 55 occurrences),
 `fullActivationLaunchCertificationModel.ts` (+ panel, 69), `v1GoLiveReleaseCertificationModel.ts`
 (+ panel, 42), `eliteCrmLosActivationReadinessModel.ts` (+ panel, 23),
 `ogbCrmWorkflowActivationModel.ts` (+ panel, 26), `controlledLiveCutoverReadiness.ts` (23),

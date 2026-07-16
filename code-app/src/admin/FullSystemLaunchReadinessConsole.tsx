@@ -2,16 +2,16 @@ import { type CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 import {
-  deriveFullSystemLaunchReadiness,
+  deriveReleaseGovernanceSnapshot,
   type LaunchDomainStatus,
   type LaunchReadinessDomain,
-} from './fullSystemLaunchReadinessModel';
+} from './releaseGovernanceSnapshot';
 
 /**
  * Phase 197 — Full System Launch Readiness console (READ-ONLY).
  *
  * Renders one honest admin/operator view of whether the entire OGB LOS is ready
- * for V1 launch. It is a pure projection of `deriveFullSystemLaunchReadiness()`.
+ * for V1 launch. It is a pure projection of `deriveReleaseGovernanceSnapshot()`.
  * It performs NO action: no create / write / apply / enable / send, no borrower
  * communication, no gate flip, no SDK call. It only reports the current
  * fail-closed posture. Not route-mounted (no entitlement/route widening).
@@ -38,7 +38,7 @@ const STANDING_SAFETY_LINES: readonly string[] = [
 ];
 
 export function FullSystemLaunchReadinessConsole() {
-  const readiness = deriveFullSystemLaunchReadiness();
+  const readiness = deriveReleaseGovernanceSnapshot();
   return (
     <section style={styles.wrap} aria-label="V1 Full System Launch Readiness" data-full-system-launch-readiness>
       <header style={styles.head}>

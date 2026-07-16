@@ -4247,7 +4247,13 @@ describe('Phase 197 Ã¢â‚¬â€ full system launch readiness', () => {
 
   it('the Phase 197 model / console / contract / component-test files exist', () => {
     for (const f of [
-      'src/admin/fullSystemLaunchReadinessModel.ts',
+      // Factory Arc Phase 5 renamed src/admin/fullSystemLaunchReadinessModel.ts to
+      // src/admin/releaseGovernanceSnapshot.ts (deriveFullSystemLaunchReadiness ->
+      // deriveReleaseGovernanceSnapshot) to reframe it as an Admin Platform
+      // Operations release-governance report rather than a live "launch console"
+      // concept. This snapshot tracks the current file layout, so it follows the
+      // rename rather than pinning a path that no longer exists.
+      'src/admin/releaseGovernanceSnapshot.ts',
       'src/admin/FullSystemLaunchReadinessConsole.tsx',
       'src/admin/FullSystemLaunchReadinessConsole.test.tsx',
       'src/shared/governance/phase197FullSystemLaunchReadinessContract.test.ts',

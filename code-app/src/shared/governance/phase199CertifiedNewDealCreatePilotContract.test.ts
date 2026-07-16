@@ -10,7 +10,7 @@ import {
   BANKER_CREATE_PILOT,
   bankerCreatePilotGateValues,
 } from '../../deals/bankerCreatePilotConfig';
-import { deriveFullSystemLaunchReadiness } from '../../admin/fullSystemLaunchReadinessModel';
+import { deriveReleaseGovernanceSnapshot } from '../../admin/releaseGovernanceSnapshot';
 import { BANKER_NEW_DEAL_CREATE_ENABLED } from '../../deals/dealOriginationFeatureFlags';
 import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from '../../deals/newDealCreateFeatureFlags';
 import { NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED } from '../../admin/adminNewDealIntakeModel';
@@ -110,7 +110,7 @@ describe('199 — no broad write enablement + recommendation stable', () => {
     expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
   });
   it('CRM + workflow domains remain conditional / gated in the readiness model', () => {
-    const r = deriveFullSystemLaunchReadiness();
+    const r = deriveReleaseGovernanceSnapshot();
     const crm = r.domains.find((d) => d.id === 'crm-salesforce-ncino')!;
     const wf = r.domains.find((d) => d.id === 'workflow-factory')!;
     expect(crm.status).toBe('conditional');
@@ -119,6 +119,6 @@ describe('199 — no broad write enablement + recommendation stable', () => {
     expect([...wf.details, ...wf.safetyNotes].join(' ')).toMatch(/fail-closed/i);
   });
   it('the launch recommendation remains CONDITIONAL_GO', () => {
-    expect(deriveFullSystemLaunchReadiness().recommendation).toBe('CONDITIONAL_GO');
+    expect(deriveReleaseGovernanceSnapshot().recommendation).toBe('CONDITIONAL_GO');
   });
 });

@@ -16,7 +16,8 @@
  * Banker/manager-facing models may import and consume ONLY
  * `OperationalCapabilityState` (and the pure helpers below). Importing
  * `ReleaseGovernanceState`, or reading a release-governance model directly
- * (fullSystemLaunchReadinessModel, operatorSmokeEvidenceRegistry, any
+ * (releaseGovernanceSnapshot — renamed in Phase 5 from
+ * fullSystemLaunchReadinessModel —, operatorSmokeEvidenceRegistry, any
  * "launchReadiness"/"finalLaunch"-named module), from src/banker/**,
  * src/manager/**, src/deals/**, or src/portfolio/** is what
  * bankerFacingLaunchLanguageGuard.test.ts and

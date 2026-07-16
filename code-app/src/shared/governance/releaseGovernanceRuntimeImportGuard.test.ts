@@ -14,10 +14,16 @@ import { resolve, join, relative } from 'node:path';
  */
 
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');
-const SCAN_ROOTS = ['src/banker', 'src/manager', 'src/deals', 'src/portfolioBoarding'];
+// Factory Arc Phase 5 added src/portfolio (the manager/executive-facing portfolio
+// analytics workspace — distinct from src/portfolioBoarding, the loan boarding
+// workflow, already scanned) per that phase's explicit proof requirement.
+const SCAN_ROOTS = ['src/banker', 'src/manager', 'src/deals', 'src/portfolioBoarding', 'src/portfolio'];
 
 const FORBIDDEN_IMPORT_PATTERNS: readonly RegExp[] = [
+  // Factory Arc Phase 5 renamed fullSystemLaunchReadinessModel.ts to
+  // releaseGovernanceSnapshot.ts; forbid both the retired and the current name.
   /fullSystemLaunchReadinessModel/,
+  /releaseGovernanceSnapshot/,
   /fullActivationLaunchCertificationModel/,
   /v1GoLiveReleaseCertificationModel/,
   /operatorSmokeEvidenceRegistry/,
