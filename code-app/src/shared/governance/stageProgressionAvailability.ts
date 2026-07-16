@@ -17,6 +17,12 @@
 
 import type { StageOrderingResult, StageTransitionGraph } from '../../workflow/stageOrderingContract';
 import type { StatusReferenceResult } from '../../workflow/statusReferenceContract';
+import {
+  capabilityAvailable,
+  capabilityUnavailable,
+  type CapabilityAvailability,
+  type CapabilityBlockingReason,
+} from './capabilityAvailability';
 
 export interface StageProgressionAvailability {
   available: boolean;
@@ -84,6 +90,42 @@ export function deriveStageProgressionAvailability(
  */
 export function stageProgressionAvailability(): StageProgressionAvailability {
   return deriveStageProgressionAvailability(ROWS_NOT_LOADED);
+}
+
+/**
+ * Factory Arc Phase 6 — the "stage-advancement" CapabilityAvailability,
+ * composing the three independent facts DealStageProgressionCard.tsx already
+ * checks: a resolved actor (audit-identity), the AUTO_STAGE_ADVANCE_ENABLED
+ * deployment gate (permission — same bucket as the other deployment-level
+ * flags in new-deal-create), and this schema/ordering readiness (connection —
+ * a live backend dependency, the stage-reference rows, must be seeded).
+ *
+ * Deliberately excludes per-stage business/workflow policy
+ * (evaluateStageTransitionPolicy, credit-approval authority) — those answer
+ * "can THIS deal advance right now," a deal-state question belonging to
+ * dealBlockerModel.ts / stageTransitionPolicy.ts / creditApprovalAuthority.ts,
+ * not "is the stage-advancement action itself live for ANY deal right now."
+ * Conflating the two would misrepresent a normal per-deal workflow block as a
+ * system capability outage.
+ */
+export function deriveStageAdvancementAvailability(
+  hasActor: boolean,
+  autoStageAdvanceEnabled: boolean,
+  schemaAvailability: StageProgressionAvailability,
+  checkedAt: string,
+): CapabilityAvailability {
+  const reasons: CapabilityBlockingReason[] = [];
+  if (!hasActor) {
+    reasons.push({ kind: 'audit-identity', detail: 'No resolved actor identity is available for this banker context.' });
+  }
+  if (!autoStageAdvanceEnabled) {
+    reasons.push({ kind: 'permission', detail: 'Stage advancement is not enabled for your role/workspace.' });
+  }
+  if (!schemaAvailability.available) {
+    reasons.push({ kind: 'connection', detail: schemaAvailability.banner });
+  }
+  if (reasons.length === 0) return capabilityAvailable('stage-advancement', checkedAt);
+  return capabilityUnavailable('stage-advancement', reasons, checkedAt);
 }
 
 const REMEDIATION_READY: readonly string[] = [

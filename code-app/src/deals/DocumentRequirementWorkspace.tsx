@@ -12,6 +12,7 @@ import { deriveRequiredDocuments, type DocumentRequirementDerivationInput, type 
 import { loadDocumentRequirements } from './documentRequirementLiveReader';
 import { performDocumentRequirementAction, type DocumentRequirementActionOutcome } from './documentRequirementActions';
 import { buildLiveDocumentRequirementActionDeps } from './documentRequirementLiveDeps';
+import { deriveBankerIdentityGatedAvailability } from './bankerIdentityGatedAvailability';
 
 /**
  * The real banker-managed underwriting document requirement workspace —
@@ -111,6 +112,20 @@ export function DocumentRequirementWorkspace({ dealId, deal, banker, onAfterActi
     }
   }
 
+  // Factory Arc Phase 6 — same normalized CapabilityAvailability DealDocuments.tsx
+  // uses for the same underlying identity fact (this component receives no
+  // writeDisabledReason prop, so only systemUserId is considered — identical to
+  // the prior Boolean(banker?.systemUserId) check). Computed before the
+  // loading/failed early returns below so hook order stays unconditional. Not
+  // memoized: new Date() inside a useMemo body defeats React Compiler's
+  // memoization-preservation check, and this derivation is cheap regardless.
+  const documentRequirementWritesAvailability = deriveBankerIdentityGatedAvailability(
+    'document-requirement-writes',
+    { systemUserId: banker?.systemUserId },
+    new Date().toISOString(),
+  );
+  const canWrite = documentRequirementWritesAvailability.available;
+
   if (state.kind === 'loading') {
     return <p style={styles.muted}>Loading document requirements…</p>;
   }
@@ -122,8 +137,6 @@ export function DocumentRequirementWorkspace({ dealId, deal, banker, onAfterActi
       </div>
     );
   }
-
-  const canWrite = Boolean(banker?.systemUserId);
 
   return (
     <section style={styles.wrap} aria-label="Document Requirements" data-doc-requirement-workspace="panel">

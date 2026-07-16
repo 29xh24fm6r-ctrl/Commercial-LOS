@@ -6,6 +6,7 @@ import {
   createFollowUpTask,
   addRelationship,
   buildLiveCrmWriteDeps,
+  deriveCrmWritesAvailability,
   type CrmWriteDeps,
 } from './crmWriteAdapter';
 import { Cr664_crmorganizationsService } from '../../generated/services/Cr664_crmorganizationsService';
@@ -50,6 +51,45 @@ function stubDeps(over: Partial<CrmWriteDeps> = {}): CrmWriteDeps {
 }
 
 const ACTOR = { actorEmail: 'banker@bank.test', actorSystemUserId: 'sys-1', authorized: true };
+
+const NOW = '2026-07-16T12:00:00.000Z';
+
+describe('Factory Arc Phase 6 — deriveCrmWritesAvailability', () => {
+  it('an authorized, identity-resolved actor is available with no blocking reasons', () => {
+    const a = deriveCrmWritesAvailability(ACTOR, NOW);
+    expect(a).toEqual({ id: 'crm-writes', available: true, blockingReasons: [], checkedAt: NOW });
+  });
+
+  it('an unauthorized actor maps to the permission reason kind, using authGate\'s own reason text', () => {
+    const a = deriveCrmWritesAvailability({ ...ACTOR, authorized: false }, NOW);
+    expect(a.available).toBe(false);
+    expect(a.blockingReasons).toEqual([{ kind: 'permission', detail: 'You are not authorized to update the CRM.' }]);
+  });
+
+  it('an unresolved identity maps to the audit-identity reason kind', () => {
+    const a = deriveCrmWritesAvailability({ authorized: true, actorSystemUserId: '', actorEmail: '' }, NOW);
+    expect(a.available).toBe(false);
+    expect(a.blockingReasons).toEqual([
+      { kind: 'audit-identity', detail: 'No Dataverse identity is available for the signed-in user; nothing was saved.' },
+    ]);
+  });
+
+  it('carries checkedAt verbatim', () => {
+    const a = deriveCrmWritesAvailability(ACTOR, '2020-01-01T00:00:00.000Z');
+    expect(a.checkedAt).toBe('2020-01-01T00:00:00.000Z');
+  });
+
+  it('a caller-supplied specificReason overrides the generic authGate copy', () => {
+    const a = deriveCrmWritesAvailability(
+      { authorized: true, actorSystemUserId: '', actorEmail: '' },
+      NOW,
+      'No Dataverse systemuser is provisioned for the current Entra identity.',
+    );
+    expect(a.blockingReasons).toEqual([
+      { kind: 'audit-identity', detail: 'No Dataverse systemuser is provisioned for the current Entra identity.' },
+    ]);
+  });
+});
 
 describe('addCompany', () => {
   it('creates the organization, verifies readback, and writes an audit', async () => {

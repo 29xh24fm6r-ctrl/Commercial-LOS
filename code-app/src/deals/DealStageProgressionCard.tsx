@@ -7,6 +7,7 @@ import {
 } from './stageProgressionGuard';
 import {
   stageProgressionAvailability,
+  deriveStageAdvancementAvailability,
   type StageProgressionAvailability,
 } from '../shared/governance/stageProgressionAvailability';
 import { loadStageProgressionAvailability } from './stageProgressionAvailabilityLoader';
@@ -116,13 +117,20 @@ export function DealStageProgressionCard({
       cancelled = true;
     };
   }, [hasActor, loadAvailability]);
-  // Armed reads the same raw gate the write seam uses (advanceWorkflowStage:
+  // Factory Arc Phase 6 — canAdvance derives from ONE normalized
+  // CapabilityAvailability instead of three ad hoc && checks. Armed reads the
+  // same raw gate the write seam uses (advanceWorkflowStage:
   // `enabled ?? Boolean(AUTO_STAGE_ADVANCE_ENABLED)`), so flipping the constant
-  // arms the card and the write together — no separate config plumbing.
-  const canAdvance =
-    Boolean(stageAdvanceActor?.systemUserId) &&
-    Boolean(AUTO_STAGE_ADVANCE_ENABLED) &&
-    availability.available;
+  // arms the card and the write together — no separate config plumbing. Not
+  // memoized: new Date() inside a useMemo body defeats React Compiler's
+  // memoization-preservation check, and this derivation is cheap regardless.
+  const stageAdvancementAvailability = deriveStageAdvancementAvailability(
+    hasActor,
+    Boolean(AUTO_STAGE_ADVANCE_ENABLED),
+    availability,
+    new Date().toISOString(),
+  );
+  const canAdvance = stageAdvancementAvailability.available;
 
   const sev = statusToSeverity(eligibility.status);
   const accent = severityPalette[sev].bar;

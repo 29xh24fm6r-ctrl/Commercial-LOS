@@ -7,6 +7,9 @@ import {
 import { derivePortfolioLoanBoardingFormState } from './derivePortfolioLoanBoardingFormState';
 import { usePortfolioLoanBoardingPersistence } from './usePortfolioLoanBoardingPersistence';
 import { buildLivePortfolioBoardingRuntimeAdapter } from './buildLivePortfolioBoardingRuntimeDeps';
+import { derivePortfolioBoardingAvailability } from './resolvePortfolioLoanBoardingPersistenceAdapter';
+import { describeUnavailability } from '../shared/governance/operationalCapabilityState';
+import { toOperationalCapabilityState } from '../shared/governance/capabilityAvailability';
 import { BOARDING_FORM_SECTIONS } from './portfolioLoanBoardingFormModel';
 import { BoardingScalarSectionEditor, BoardingRepeatableSectionEditor } from './PortfolioLoanBoardingFormControls';
 import {
@@ -55,6 +58,19 @@ export function PortfolioLoanBoardingForm({
   const resolution = buildLivePortfolioBoardingRuntimeAdapter({ isAuthorizedOperator });
   const persistence = usePortfolioLoanBoardingPersistence(resolution.adapter);
   const formState = derivePortfolioLoanBoardingFormState(pkg);
+  // Factory Arc Phase 6 — one normalized CapabilityAvailability composed from
+  // the same facts the resolver above already evaluated (resolution.gate).
+  // Also fixes a real bug: the submit button's `disabled` previously checked
+  // only `persistence.state.kind === 'pending'`, never `persistence.enabled`
+  // — a banker could click "Board this loan" while disabled and only learn it
+  // failed after a spinner. It now stays disabled up front, honestly. Not
+  // memoized: new Date() inside a useMemo body defeats React Compiler's
+  // memoization-preservation check, and this derivation is cheap regardless.
+  const boardingAvailability = derivePortfolioBoardingAvailability(
+    isAuthorizedOperator,
+    resolution.gate,
+    new Date().toISOString(),
+  );
 
   function updateScalarSection<K extends keyof PortfolioLoanBoardingPackage>(section: K) {
     return (key: string, value: unknown) => {
@@ -95,7 +111,17 @@ export function PortfolioLoanBoardingForm({
           <p style={styles.failureNote} role="status">{persistence.state.message ?? 'Boarding failed.'}</p>
         )}
         <CardFooter>
-          <button type="button" style={styles.submitButton} onClick={handleSubmit} disabled={persistence.state.kind === 'pending'}>
+          {/* Factory Arc Phase 6 bug fix: previously only checked
+              persistence.state.kind === 'pending', never persistence.enabled /
+              boardingAvailability.available — a banker could click this while
+              disabled and only learn it failed after a spinner. */}
+          <button
+            type="button"
+            style={styles.submitButton}
+            onClick={handleSubmit}
+            disabled={persistence.state.kind === 'pending' || !persistence.enabled || !boardingAvailability.available}
+            title={boardingAvailability.available ? undefined : describeUnavailability(toOperationalCapabilityState(boardingAvailability))}
+          >
             {persistence.state.kind === 'pending' ? 'Boarding…' : 'Board this loan'}
           </button>
         </CardFooter>

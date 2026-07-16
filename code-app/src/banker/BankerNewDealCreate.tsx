@@ -5,8 +5,11 @@ import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import {
   evaluateBankerCreateRollout,
+  deriveNewDealCreateAvailability,
   type BankerCreateRolloutState,
 } from '../deals/bankerNewDealCreateRollout';
+import { describeUnavailability } from '../shared/governance/operationalCapabilityState';
+import { toOperationalCapabilityState } from '../shared/governance/capabilityAvailability';
 import {
   BANKER_CREATE_PILOT,
   bankerCreatePilotGateValues,
@@ -60,22 +63,6 @@ type OptionsState =
 
 type Step = 1 | 2 | 3;
 
-function gateMessage(state: BankerCreateRolloutState): string {
-  switch (state) {
-    case 'unauthorized':
-      return 'You are not authorized to create deals (no Dataverse systemuser / banker rights). No record has been created.';
-    case 'references_not_approved':
-      return 'Production Stage/Status references are not approved. No record has been created.';
-    case 'resolver_not_ready':
-      return 'Stage/Status references are not ready. No record has been created.';
-    case 'environment_not_allowed':
-      return 'New Deal create is not approved for this environment. No record has been created.';
-    case 'disabled':
-    default:
-      return 'New Deal creation is not enabled in this environment. No record has been created.';
-  }
-}
-
 export function BankerNewDealCreate() {
   const { bankerId, systemUserId, writeDisabledReason, email } = useBanker();
   const [step, setStep] = useState<Step>(1);
@@ -106,7 +93,13 @@ export function BankerNewDealCreate() {
       }),
     [systemUserId, bankerAuthorized],
   );
-  const live = rollout === 'live_controlled';
+  // Factory Arc Phase 6 — the button's live/disabled state and its banker-facing
+  // reason both derive from ONE normalized CapabilityAvailability, not from
+  // branching on the raw BankerCreateRolloutState enum directly in the component.
+  // Not memoized: new Date() inside a useMemo body defeats React Compiler's
+  // memoization-preservation check, and this derivation is cheap regardless.
+  const availability = deriveNewDealCreateAvailability(rollout, new Date().toISOString());
+  const live = availability.available;
 
   // Load the EXISTING client / team options once the surface is live. The
   // loaders read Dataverse and NEVER create — search / select only.
@@ -238,7 +231,8 @@ export function BankerNewDealCreate() {
 
       {!live ? (
         <div style={styles.note} role="note" data-banker-new-deal-state={rollout}>
-          <strong>Create disabled:</strong> {gateMessage(rollout)}
+          <strong>Create disabled:</strong>{' '}
+          {describeUnavailability(toOperationalCapabilityState(availability, 'Create deal'))}
         </div>
       ) : (
         <div style={styles.form} data-banker-new-deal-form>

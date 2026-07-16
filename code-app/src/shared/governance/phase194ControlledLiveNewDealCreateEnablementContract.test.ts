@@ -133,8 +133,13 @@ describe('194 — create path requires a certified actor + context', () => {
   it('the create surface requires a resolved banker identity to go live', () => {
     expect(NEW_DEAL_SURFACE).toMatch(/useBanker\(\)/);
     expect(NEW_DEAL_SURFACE).toMatch(/bankerAuthorized = Boolean\(systemUserId\) && !writeDisabledReason/);
-    // The form + submit render only when rollout === 'live_controlled'.
-    expect(NEW_DEAL_SURFACE).toMatch(/const live = rollout === 'live_controlled'/);
+    // Factory Arc Phase 6 — the form + submit still render only when the rollout
+    // resolves to live_controlled, but now via ONE normalized CapabilityAvailability
+    // (deriveNewDealCreateAvailability) instead of a direct `rollout === 'live_controlled'`
+    // comparison in the component. deriveNewDealCreateAvailability's own test file pins
+    // that `available` is true if and only if the rollout state is 'live_controlled'.
+    expect(NEW_DEAL_SURFACE).toMatch(/const availability = deriveNewDealCreateAvailability\(rollout, /);
+    expect(NEW_DEAL_SURFACE).toMatch(/const live = availability\.available/);
     expect(NEW_DEAL_SURFACE).toMatch(/canSubmit =\s*\n?\s*live &&/);
   });
 

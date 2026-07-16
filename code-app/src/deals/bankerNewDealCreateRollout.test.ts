@@ -2,7 +2,10 @@
 import {
   evaluateBankerCreateRollout,
   isBankerNewDealCreateLive,
+  deriveNewDealCreateAvailability,
+  describeBankerCreateRolloutState,
   type BankerCreateRolloutInput,
+  type BankerCreateRolloutState,
 } from './bankerNewDealCreateRollout';
 
 /**
@@ -72,6 +75,53 @@ describe('Phase 181C -- live only when every gate passes', () => {
         approved({ environmentIsProduction: true, productionRolloutApproved: true }),
       ),
     ).toBe('live_controlled');
+  });
+});
+
+const NOW = '2026-07-16T12:00:00.000Z';
+
+describe('Factory Arc Phase 6 -- deriveNewDealCreateAvailability', () => {
+  it('live_controlled -> available, no blocking reasons', () => {
+    const a = deriveNewDealCreateAvailability('live_controlled', NOW);
+    expect(a).toEqual({ id: 'new-deal-create', available: true, blockingReasons: [], checkedAt: NOW });
+  });
+
+  it('unauthorized maps to the audit-identity reason kind (an identity-resolution fact)', () => {
+    const a = deriveNewDealCreateAvailability('unauthorized', NOW);
+    expect(a.available).toBe(false);
+    expect(a.blockingReasons).toEqual([{ kind: 'audit-identity', detail: describeBankerCreateRolloutState('unauthorized') }]);
+  });
+
+  it('references_not_approved / resolver_not_ready map to the connection reason kind', () => {
+    for (const state of ['references_not_approved', 'resolver_not_ready'] as const) {
+      const a = deriveNewDealCreateAvailability(state, NOW);
+      expect(a.blockingReasons[0]!.kind, state).toBe('connection');
+      expect(a.blockingReasons[0]!.detail, state).toBe(describeBankerCreateRolloutState(state));
+    }
+  });
+
+  it('environment_not_allowed / disabled map to the permission reason kind', () => {
+    for (const state of ['environment_not_allowed', 'disabled'] as const) {
+      const a = deriveNewDealCreateAvailability(state, NOW);
+      expect(a.blockingReasons[0]!.kind, state).toBe('permission');
+      expect(a.blockingReasons[0]!.detail, state).toBe(describeBankerCreateRolloutState(state));
+    }
+  });
+
+  it('carries checkedAt verbatim', () => {
+    const a = deriveNewDealCreateAvailability('disabled', '2020-01-01T00:00:00.000Z');
+    expect(a.checkedAt).toBe('2020-01-01T00:00:00.000Z');
+  });
+
+  it('every non-live state produces exactly one blocking reason with real plain-language detail', () => {
+    const states: BankerCreateRolloutState[] = [
+      'disabled', 'unauthorized', 'resolver_not_ready', 'references_not_approved', 'environment_not_allowed',
+    ];
+    for (const s of states) {
+      const a = deriveNewDealCreateAvailability(s, NOW);
+      expect(a.blockingReasons, s).toHaveLength(1);
+      expect(a.blockingReasons[0]!.detail.length, s).toBeGreaterThan(0);
+    }
   });
 });
 

@@ -78,6 +78,26 @@ describe('PortfolioLoanBoardingForm', () => {
     expect(screen.queryByText('Collateral item #1')).not.toBeInTheDocument();
   });
 
+  it('Factory Arc Phase 6 regression: the submit button itself is disabled (not just inert) while boarding is unavailable', () => {
+    render(<PortfolioLoanBoardingForm />);
+    const button = screen.getByRole('button', { name: 'Board this loan' });
+    // Previously this button's `disabled` only checked the in-flight pending
+    // state, never persistence.enabled — a banker could click it and only
+    // learn it failed after a spinner. It must be disabled up front.
+    expect(button).toBeDisabled();
+    expect(button.getAttribute('title')).toMatch(/not enabled in this environment/i);
+  });
+
+  it('the submit button is enabled once boarding is genuinely live', () => {
+    buildAdapterMock.mockReturnValue({
+      gate: { schemaReady: true, livePersistenceEnabled: true, routeEnabled: true, canCreate: true, canUpdate: true, canRead: true, canSearch: true, blockers: [], warnings: [] },
+      live: true,
+      adapter: { enabled: true, createBoardedLoan: vi.fn(), updateBoardedLoan: vi.fn(), searchBoardedLoans: vi.fn() },
+    } as never);
+    render(<PortfolioLoanBoardingForm />);
+    expect(screen.getByRole('button', { name: 'Board this loan' })).not.toBeDisabled();
+  });
+
   it('clicking "Board this loan" with a disabled adapter never calls create, and reports the honest disabled failure', async () => {
     const createBoardedLoan = vi.fn(async () => ({ ok: true, operation: 'create', recordId: 'x' }));
     buildAdapterMock.mockReturnValue({

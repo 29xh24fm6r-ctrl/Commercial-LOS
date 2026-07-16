@@ -215,7 +215,13 @@ describe('191 — document requirement workspace safe/controlled', () => {
   });
 
   it('actions are gated on an authorized banker (systemUserId) before any write is attempted', () => {
-    expect(DOC_REQUIREMENT_WORKSPACE).toMatch(/canWrite\s*=\s*Boolean\(banker\?\.systemUserId\)/);
+    // Factory Arc Phase 6 — canWrite still derives from Boolean(banker?.systemUserId)
+    // (this component receives no writeDisabledReason prop), but now via ONE
+    // normalized CapabilityAvailability (deriveBankerIdentityGatedAvailability)
+    // instead of an inline boolean expression.
+    expect(DOC_REQUIREMENT_WORKSPACE).toMatch(/deriveBankerIdentityGatedAvailability\(/);
+    expect(DOC_REQUIREMENT_WORKSPACE).toMatch(/\{ systemUserId: banker\?\.systemUserId \}/);
+    expect(DOC_REQUIREMENT_WORKSPACE).toMatch(/canWrite\s*=\s*documentRequirementWritesAvailability\.available/);
   });
 
   it('the workspace path wires no borrower comms (code, sans docstring)', () => {

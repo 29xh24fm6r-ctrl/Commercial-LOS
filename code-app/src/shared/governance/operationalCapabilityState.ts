@@ -24,10 +24,18 @@
  * releaseGovernanceRuntimeImportGuard.test.ts exist to catch.
  */
 
-export type CapabilityAvailability = 'available' | 'temporarily_unavailable' | 'not_configured';
+/**
+ * Factory Arc Phase 6 note: this is the 3-value STATE ENUM for one
+ * `OperationalCapabilityState`, not the Phase 6 `CapabilityAvailability`
+ * record (id + boolean + typed blocking reasons + checkedAt) — see
+ * capabilityAvailability.ts, which projects its richer result down to this
+ * shape via toOperationalCapabilityState() for the button to render. Named
+ * `*Kind` here specifically to keep that distinct name free.
+ */
+export type CapabilityAvailabilityKind = 'available' | 'temporarily_unavailable' | 'not_configured';
 
 export interface OperationalCapabilityState {
-  readonly availability: CapabilityAvailability;
+  readonly availability: CapabilityAvailabilityKind;
   /** Plain operational language — never "gated" / "pilot disabled" / "pending certification". */
   readonly reason?: string;
   /** The banker action this state affects, e.g. "Send borrower email". */

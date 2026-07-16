@@ -4,6 +4,7 @@ import {
   stageProgressionDiagnostics,
   deriveStageProgressionAvailability,
   deriveStageProgressionDiagnostics,
+  deriveStageAdvancementAvailability,
 } from './stageProgressionAvailability';
 import { resolveStageOrdering, CANONICAL_STAGE_CODES, type StageReferenceRow } from '../../workflow/stageOrderingContract';
 
@@ -117,5 +118,49 @@ describe('deriveStageProgressionDiagnostics (data-driven ready case)', () => {
     expect(d.available).toBe(true);
     expect(d.overallSeverity).toBe('clear');
     expect(d.checks.find((c) => c.id === 'stage-ordering-resolved')!.state).toBe('present');
+  });
+});
+
+const NOW = '2026-07-16T12:00:00.000Z';
+const readySchema = deriveStageProgressionAvailability(readyOrdering());
+const notSeededSchema = stageProgressionAvailability();
+
+describe('Factory Arc Phase 6 — deriveStageAdvancementAvailability', () => {
+  it('all three facts satisfied -> available, no blocking reasons', () => {
+    const a = deriveStageAdvancementAvailability(true, true, readySchema, NOW);
+    expect(a).toEqual({ id: 'stage-advancement', available: true, blockingReasons: [], checkedAt: NOW });
+  });
+
+  it('no resolved actor -> unavailable with an audit-identity reason', () => {
+    const a = deriveStageAdvancementAvailability(false, true, readySchema, NOW);
+    expect(a.available).toBe(false);
+    expect(a.blockingReasons).toContainEqual(
+      expect.objectContaining({ kind: 'audit-identity' }),
+    );
+  });
+
+  it('the deployment flag off -> unavailable with a permission reason', () => {
+    const a = deriveStageAdvancementAvailability(true, false, readySchema, NOW);
+    expect(a.available).toBe(false);
+    expect(a.blockingReasons).toContainEqual(
+      expect.objectContaining({ kind: 'permission' }),
+    );
+  });
+
+  it('the schema/ordering not seeded -> unavailable with a connection reason using the schema banner', () => {
+    const a = deriveStageAdvancementAvailability(true, true, notSeededSchema, NOW);
+    expect(a.available).toBe(false);
+    expect(a.blockingReasons).toEqual([{ kind: 'connection', detail: notSeededSchema.banner }]);
+  });
+
+  it('multiple blockers all appear (never silently drops one for another)', () => {
+    const a = deriveStageAdvancementAvailability(false, false, notSeededSchema, NOW);
+    expect(a.blockingReasons).toHaveLength(3);
+    expect(a.blockingReasons.map((r) => r.kind).sort()).toEqual(['audit-identity', 'connection', 'permission']);
+  });
+
+  it('carries checkedAt verbatim', () => {
+    const a = deriveStageAdvancementAvailability(true, true, readySchema, '2020-01-01T00:00:00.000Z');
+    expect(a.checkedAt).toBe('2020-01-01T00:00:00.000Z');
   });
 });

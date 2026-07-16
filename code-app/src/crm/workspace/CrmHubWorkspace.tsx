@@ -18,6 +18,7 @@ import {
   type LinkedDealsLoader,
   type LinkedDealsResult,
 } from './crmLinkedDeals';
+import { deriveCrmWritesAvailability } from '../write/crmWriteAdapter';
 
 /**
  * Phase 260 — Relationship CRM (elite CRM cockpit).
@@ -90,7 +91,18 @@ export function CrmHubWorkspace({
   const [selected, setSelected] = useState<CrmRecord | undefined>(undefined);
   const [reloadNonce, setReloadNonce] = useState(0);
 
-  const authorized = !writeDisabledReason && Boolean(actorSystemUserId);
+  // Factory Arc Phase 6 — the write actions' enabled/disabled state derives from
+  // ONE normalized CapabilityAvailability, not an ad hoc boolean expression.
+  // `specificReason` (writeDisabledReason) carries BankerProvider's real
+  // identity-resolution fact so the banner keeps its specific text instead of
+  // authGate()'s generic fallback copy. Not memoized: new Date() inside a
+  // useMemo body defeats React Compiler's memoization-preservation check.
+  const crmWritesAvailability = deriveCrmWritesAvailability(
+    { actorEmail, actorSystemUserId, authorized: Boolean(actorSystemUserId) && !writeDisabledReason },
+    new Date().toISOString(),
+    writeDisabledReason,
+  );
+  const authorized = crmWritesAvailability.available;
 
   useEffect(() => {
     let cancelled = false;

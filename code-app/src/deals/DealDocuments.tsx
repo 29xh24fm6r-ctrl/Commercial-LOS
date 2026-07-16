@@ -34,6 +34,9 @@ import {
   type CreateDocumentReviewTaskOutcome,
 } from './dealTaskActions';
 import { EMAIL_MODE } from './emailDelivery/emailMode';
+import { deriveBankerIdentityGatedAvailability } from './bankerIdentityGatedAvailability';
+import { describeUnavailability } from '../shared/governance/operationalCapabilityState';
+import { toOperationalCapabilityState } from '../shared/governance/capabilityAvailability';
 import { uploadDocumentFile, type UploadDocumentFileOutcome } from './documentUploadAction';
 import { buildLiveDocumentUploadDeps } from './documentUploadLiveDeps';
 import { isDocumentFileUploadEnabled } from './dealOriginationFeatureFlags';
@@ -82,7 +85,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
   const [requirementDefinitions, setRequirementDefinitions] = useState<readonly RequiredDocumentDefinition[]>([]);
 
   async function handleRequestConfirm(note: string): Promise<RequestDocumentOutcome> {
-    if (!pendingRequestDoc || !banker?.systemUserId) {
+    if (!pendingRequestDoc || !banker?.systemUserId || !borrowerRequestSendAvailability.available) {
       return { kind: 'unknown', message: 'Cannot submit: missing document or system user id.' };
     }
     const outcome = await requestDocument({
@@ -105,7 +108,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     subject: string;
     body: string;
   }): Promise<SendDocumentRequestEmailOutcome> {
-    if (!pendingRequestDoc || !banker?.systemUserId) {
+    if (!pendingRequestDoc || !banker?.systemUserId || !borrowerRequestSendAvailability.available) {
       return {
         kind: 'unknown',
         message: 'Cannot send: missing document or system user id.',
@@ -131,7 +134,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     body: string;
     method: HandoffMethod;
   }): Promise<PrepareDocumentRequestHandoffOutcome> {
-    if (!pendingRequestDoc || !banker?.systemUserId) {
+    if (!pendingRequestDoc || !banker?.systemUserId || !borrowerRequestSendAvailability.available) {
       return {
         kind: 'unknown',
         message: 'Cannot prepare handoff: missing document or system user id.',
@@ -268,7 +271,26 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       : coreBlockerModel;
   const missingRequiredDocuments = blockerModel?.missingRequiredDocuments ?? [];
 
-  const canWrite = !readOnly && !!banker?.systemUserId;
+  // Factory Arc Phase 6 — canWrite derives from ONE normalized
+  // CapabilityAvailability rather than an ad hoc identity boolean.
+  // `readOnly` stays a separate, deal-scoped view gate (not a capability fact).
+  // Not memoized: new Date() inside a useMemo body defeats React Compiler's
+  // memoization-preservation check, and this derivation is cheap regardless.
+  const documentRequirementWritesAvailability = deriveBankerIdentityGatedAvailability(
+    'document-requirement-writes',
+    { systemUserId: banker?.systemUserId, writeDisabledReason: banker?.writeDisabledReason },
+    new Date().toISOString(),
+  );
+  const canWrite = !readOnly && documentRequirementWritesAvailability.available;
+  // Same underlying identity fact gates the borrower-request-send handlers below
+  // (request / email / handoff) — no separate transport-readiness fact exists
+  // pre-click today (EMAIL_MODE's DRY_RUN/LIVE/HANDOFF distinction is an
+  // honest post-send outcome concern owned by Phase 10, left untouched here).
+  const borrowerRequestSendAvailability = deriveBankerIdentityGatedAvailability(
+    'borrower-request-sends',
+    { systemUserId: banker?.systemUserId, writeDisabledReason: banker?.writeDisabledReason },
+    new Date().toISOString(),
+  );
 
   // Phase 125E — right-rail operational widget. Outstanding count
   // drives the tonal CountBadge; received+reviewed / total drives
@@ -303,9 +325,12 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
               : undefined
           }
         />
-        {!readOnly && banker?.writeDisabledReason && (
+        {/* banker !== null distinguishes "confirmed unavailable" from "banker context still
+            resolving" — the latter must stay silent, not flash a disabled banner. */}
+        {!readOnly && banker !== null && !documentRequirementWritesAvailability.available && (
           <p style={styles.writeDisabledBanner} role="status">
-            <strong>Request disabled:</strong> {banker.writeDisabledReason}
+            <strong>Request disabled:</strong>{' '}
+            {describeUnavailability(toOperationalCapabilityState(documentRequirementWritesAvailability))}
           </p>
         )}
         {canWrite && (
