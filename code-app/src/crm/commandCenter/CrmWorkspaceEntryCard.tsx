@@ -19,10 +19,10 @@ export function CrmWorkspaceEntryCard({ routeAvailable, routeHref }: Props) {
     <Card>
       <CardHeader
         title="CRM Command Center"
-        subtitle="CRM and lending workflow preview intelligence"
+        subtitle="External CRM and lending-system sync status"
       />
       <p style={descStyle}>
-        Review source-of-truth, matching, sync preview, and dry-run posture.
+        Review source-of-truth, contact matching, and sync status for Salesforce and nCino.
       </p>
       {routeAvailable && routeHref ? (
         <a href={routeHref} style={linkStyle}>
@@ -34,7 +34,7 @@ export function CrmWorkspaceEntryCard({ routeAvailable, routeHref }: Props) {
         </p>
       )}
       <p style={safetyStyle}>
-        Read-only preview intelligence. No sync, push, or write actions.
+        Read-only status. CRM record editing happens in the CRM Hub.
       </p>
     </Card>
   );

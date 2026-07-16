@@ -10,12 +10,11 @@ import { deriveUnifiedCrmReadiness } from '../readiness/unifiedCrmReadiness';
  * The single standalone CRM destination (mounted at /surfaces/crm-command-center) for
  * authorized team users — so CRM no longer lives only as the hidden crm-hub BankerShell
  * tab. It tells ONE honest story:
- *   - a unified-readiness header (the CRM-B model) — the single source of readiness truth,
- *     reconciling the live identity-gated CRM Hub with the flag-gated spine, and
- *   - the built read-only CRM intelligence cockpit below it.
+ *   - a team-readiness header — the single source of readiness truth, and
+ *   - the built read-only CRM intelligence cockpit below it (external sync status).
  *
- * Read-only: renders status + intelligence only. Live create/edit stay in the identity-gated
- * CRM Hub; this route never performs a write. There is no second readiness story.
+ * Read-only: renders status + intelligence only. Live create/edit stay in the CRM Hub;
+ * this route never performs a write. There is no second readiness story.
  */
 export function CrmCommandCenterRoute() {
   const readiness = deriveUnifiedCrmReadiness();
@@ -26,8 +25,8 @@ export function CrmCommandCenterRoute() {
       <header style={headerStyle}>
         <h2 style={titleStyle}>CRM Command Center</h2>
         <p style={subtitleStyle}>
-          Unified CRM readiness — the live identity-gated CRM Hub and the flag-gated spine, one story.
-          Live create and edit happen in the CRM Hub (Banker workspace); this routed surface is read-only.
+          Team CRM readiness and external sync status. Live create and edit happen in the CRM Hub
+          (Banker workspace); this routed surface is read-only.
         </p>
       </header>
 

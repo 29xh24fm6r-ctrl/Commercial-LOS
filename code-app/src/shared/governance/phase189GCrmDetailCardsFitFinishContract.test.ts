@@ -136,13 +136,23 @@ describe('no write affordances / no fabricated CRM spine', () => {
 });
 
 describe('source-fact traceability language present + deterministic order', () => {
-  it('names the authorized deal row, 189B view-model, 189E gate, and "no new CRM lookup"', () => {
-    expect(CARDS).toMatch(/189B view-model/);
-    expect(CARDS).toMatch(/189E readiness/);
+  // Factory Arc Phase 8: the traceability copy no longer cites internal phase
+  // codes ("189B view-model" / "189E readiness") to a banker — it names the
+  // CRM relationship view and the readiness audit in plain language instead.
+  // The underlying traceability guarantee (authorized deal row -> view ->
+  // readiness gate -> "no new CRM lookup") is unchanged and still pinned here.
+  it('names the authorized deal row, the CRM relationship view, the readiness gate, and "no new CRM lookup"', () => {
+    expect(CARDS).toMatch(/CRM relationship view/);
+    expect(CARDS).toMatch(/readiness audit/);
     expect(CARDS).toMatch(/No new CRM lookup/i);
     expect(CARDS).toMatch(/authorized deal row/i);
     expect(CARDS).toMatch(/data-source-fact/);
     expect(CARDS).toMatch(/data-testid="crm-detail-provenance"/);
+  });
+
+  it('the user-visible PROVENANCE and SECTION_SOURCE_FACT strings cite no internal phase code', () => {
+    const provenance = CARDS.slice(CARDS.indexOf('const PROVENANCE'), CARDS.indexOf('function isSurrogateId'));
+    expect(provenance).not.toMatch(/189[A-Z]/);
   });
 
   it('declares the six sections in deterministic order', () => {

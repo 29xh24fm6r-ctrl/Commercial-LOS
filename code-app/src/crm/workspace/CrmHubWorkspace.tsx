@@ -132,11 +132,24 @@ export function CrmHubWorkspace({
   const personOptions = useMemo(() => optionsFor('people'), [state]);
 
   // Follow-up tasks live in the timeline domain (eventType 'follow-up-task'); count
-  // them so the "Follow-ups due" / "Open tasks" cards read real data, not undefined.
+  // them so the "Follow-up activity" card reads real data, not undefined. Named
+  // "activity," not "due"/"open": cr664_crmtimelineevents has no status/completed
+  // field, so this is a count of all follow-up-task events ever recorded, not a
+  // filtered open/pending count — the label must not claim a distinction the
+  // schema doesn't make (Factory Arc Phase 8 honesty fix).
   const taskCount = useMemo(() => {
     if (state.kind !== 'ready') return undefined;
     const t = state.data.timelineEvents;
     return t.status === 'ready' ? t.records.filter((r) => r.eventType === 'follow-up-task').length : undefined;
+  }, [state]);
+
+  // Factory Arc Phase 8 — "last relationship activity": timelineEvents is already
+  // sorted newest-first by crmWorkspaceData.ts's sortTimeline(), so the first
+  // record's occurredAt is a real timestamp, not a fabricated one.
+  const lastActivityAt = useMemo(() => {
+    if (state.kind !== 'ready') return undefined;
+    const t = state.data.timelineEvents;
+    return t.status === 'ready' ? t.records[0]?.occurredAt : undefined;
   }, [state]);
 
   const count = (domain: CrmDomainKey): number | undefined => {
@@ -144,6 +157,20 @@ export function CrmHubWorkspace({
     const r = state.data[domain];
     return r.status === 'ready' ? r.records.length : undefined;
   };
+
+  // Factory Arc Phase 8 — "missing contact roles": an organization with zero
+  // linked people has no contact at all, so it is missing every contact role.
+  // Real derivation over already-loaded data (CrmRecord.organizationId, mapped
+  // from the live _cr664_employerorganization_value lookup) — no new query, no
+  // invented "required role" taxonomy (none exists in this schema today).
+  const missingContactRolesCount = useMemo(() => {
+    if (state.kind !== 'ready') return undefined;
+    const orgs = state.data.organizations;
+    const people = state.data.people;
+    if (orgs.status !== 'ready' || people.status !== 'ready') return undefined;
+    const orgIdsWithContacts = new Set(people.records.map((p) => p.organizationId).filter((id): id is string => Boolean(id)));
+    return orgs.records.filter((org) => !orgIdsWithContacts.has(org.id)).length;
+  }, [state]);
 
   // Keyboard-first navigation for the CRM lists: "/" focuses search, j/k move
   // row focus, Enter opens (handled on the row). Ignored while typing in a field.
@@ -244,14 +271,26 @@ export function CrmHubWorkspace({
         </div>
       </div>
 
-      {/* Dashboard cards */}
+      {/* Dashboard cards — Factory Arc Phase 8: "CRM records available" (Companies /
+          Contacts / Active relationships), "last relationship activity" (the Recent
+          activity card's detail line), "open follow-ups" (Follow-up activity, honestly
+          labeled — see the taskCount comment above), and "missing contact roles" are
+          all real, derived from already-loaded live CRM data. No global writeback-gate
+          pill here. */}
       <div style={styles.cardRow} data-crm-cards>
         <DashCard label="Companies" value={count('organizations')} loading={state.kind === 'loading'} empty="Add companies to start" onClick={() => setView('companies')} />
         <DashCard label="Contacts" value={count('people')} loading={state.kind === 'loading'} empty="Add people to relationships" onClick={() => setView('contacts')} />
         <DashCard label="Active relationships" value={count('relationships')} loading={state.kind === 'loading'} empty="Map your relationships" onClick={() => setView('relationships')} />
-        <DashCard label="Follow-ups due" value={taskCount} loading={state.kind === 'loading'} empty="No follow-ups scheduled" onClick={() => setView('activities')} />
-        <DashCard label="Recent activity" value={count('timelineEvents')} loading={state.kind === 'loading'} empty="No activity logged yet" onClick={() => setView('timeline')} />
-        <DashCard label="Open tasks" value={taskCount} loading={state.kind === 'loading'} empty="No CRM tasks yet" onClick={() => setView('activities')} />
+        <DashCard label="Follow-up activity" value={taskCount} loading={state.kind === 'loading'} empty="No follow-ups logged" onClick={() => setView('activities')} />
+        <DashCard
+          label="Recent activity"
+          value={count('timelineEvents')}
+          loading={state.kind === 'loading'}
+          empty="No activity logged yet"
+          onClick={() => setView('timeline')}
+          detail={lastActivityAt ? `Last: ${formatWhen(lastActivityAt)}` : undefined}
+        />
+        <DashCard label="Missing contact roles" value={missingContactRolesCount} loading={state.kind === 'loading'} empty="Every company has a contact" onClick={() => setView('companies')} />
       </div>
 
       {/* Main area */}
@@ -299,7 +338,22 @@ export function CrmHubWorkspace({
   );
 }
 
-function DashCard({ label, value, loading, empty, onClick }: { label: string; value: number | undefined; loading: boolean; empty: string; onClick?: () => void }) {
+function DashCard({
+  label,
+  value,
+  loading,
+  empty,
+  onClick,
+  detail,
+}: {
+  label: string;
+  value: number | undefined;
+  loading: boolean;
+  empty: string;
+  onClick?: () => void;
+  /** Optional real-data subtext (e.g. a last-activity date) shown below the value. */
+  detail?: string;
+}) {
   const interactive = typeof onClick === 'function';
   const body = (
     <>
@@ -309,7 +363,10 @@ function DashCard({ label, value, loading, empty, onClick }: { label: string; va
       ) : value === undefined || value === 0 ? (
         <span style={styles.cardEmpty}>{empty}</span>
       ) : (
-        <span style={styles.cardValue}>{value}</span>
+        <>
+          <span style={styles.cardValue}>{value}</span>
+          {detail && <span style={styles.cardDetail}>{detail}</span>}
+        </>
       )}
     </>
   );
@@ -560,7 +617,7 @@ function DetailDrawer({
       {isOrganization && (
         <DrawerSection title="Edit company details">
           <p style={styles.editHint}>
-            Editing is governed: identity-gated, allow-listed, and audited. Type (the company&rsquo;s role) and
+            Editing is authorized and audited. Type (the company&rsquo;s role) and
             Industry are separate; click a value below to edit it.
           </p>
           <OrgIndustryProvenance record={record} />
@@ -742,6 +799,7 @@ const styles: Record<string, CSSProperties> = {
   cardLabel: { fontSize: typography.size.xs, color: palette.textMuted, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },
   cardValue: { fontFamily: typography.display, fontSize: typography.size.display, fontWeight: typography.weight.semibold, color: palette.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', lineHeight: 1.05 },
   cardEmpty: { fontSize: typography.size.sm, color: palette.textMuted, fontWeight: typography.weight.medium },
+  cardDetail: { fontSize: typography.size.xs, color: palette.textSubtle },
   cardSkeleton: { width: 48, height: 22, borderRadius: radius.sm, background: palette.surfaceAlt },
   main: { minHeight: 220, position: 'relative' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: typography.size.sm, background: palette.surface, border: `1px solid ${palette.panelBorder}`, borderRadius: radius.md, boxShadow: shadow.card, overflow: 'hidden' },
