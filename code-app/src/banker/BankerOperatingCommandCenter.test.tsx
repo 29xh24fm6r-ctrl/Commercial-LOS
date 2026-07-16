@@ -90,45 +90,86 @@ describe('Banker Operating Command Center — action cockpit', () => {
     expect(pipeline.textContent).not.toMatch(/INTAKE|CREDIT_APPROVAL/); // codes never shown raw
   });
 
-  // The governance truth is DEMOTED, not deleted: every gated/Read-only fact from the old cards
-  // survives in the System status strip, and a gated live-write domain still never reads "enabled".
-  describe('governance honesty preserved (demoted to the status strip)', () => {
-    function pill(id: string): HTMLElement {
-      const el = region().querySelector<HTMLElement>(`[data-operating-domain="${id}"]`);
-      expect(el, `status pill ${id}`).not.toBeNull();
+  // Factory Arc Phase 3: the old global gate/certification pill strip is retired outright, not
+  // demoted — it answered a release-governance question ("which feature flags are true"), not an
+  // operational one. It's replaced by live Portfolio & Workflow Health tiles derived from this
+  // banker's own kpis, each a real navigable count, never an invented/global label.
+  describe('Portfolio & Workflow Health (replaces the retired System status strip)', () => {
+    const health = () => screen.getByRole('region', { name: /Portfolio and workflow health/i });
+
+    function tile(label: string): HTMLElement {
+      const el = health().querySelector<HTMLElement>(`[data-health-tile="${label}"]`);
+      expect(el, `health tile ${label}`).not.toBeNull();
       return el!;
     }
 
-    it('exposes every domain from the old cards as a status pill', () => {
-      render(<BankerOperatingCommandCenter kpis={kpis()} />);
-      for (const id of [
-        'crm', 'loan-workflow', 'daily-actions', 'new-deal', 'document-readiness',
-        'borrower-communications', 'crm-writeback', 'portfolio-handoff', 'email-mode',
-      ]) {
-        expect(pill(id)).toBeTruthy();
-      }
+    it('renders a live count for every health metric sourced from kpis', () => {
+      render(
+        <BankerOperatingCommandCenter
+          kpis={kpis({
+            activeDeals: 4,
+            totalAmount: 1_200_000,
+            outstandingDocumentCount: 3,
+            pendingReviewDocumentCount: 2,
+            overdueTaskCount: 1,
+            draftMemoCount: 5,
+            closingSoonCount: 6,
+            staleActivityCount: 7,
+          })}
+        />,
+      );
+      expect(tile('Active deals').textContent).toMatch(/4/);
+      expect(tile('Active deals').textContent).toMatch(/\$1\.2M/);
+      expect(tile('Documents outstanding').textContent).toMatch(/3/);
+      expect(tile('Documents awaiting review').textContent).toMatch(/2/);
+      expect(tile('Tasks overdue').textContent).toMatch(/1/);
+      expect(tile('Credit memos in draft').textContent).toMatch(/5/);
+      expect(tile('Closing in 14 days').textContent).toMatch(/6/);
+      expect(tile('Stale 14+ days').textContent).toMatch(/7/);
     });
 
-    it.each([
-      ['borrower-communications', 'Send gated'],
-      ['document-readiness', 'Generation gated'],
-      ['portfolio-handoff', 'Boarding persistence gated'],
-      ['new-deal', 'Create gated'],
-    ])('%s reads gated and never "enabled"', (id, gatedValue) => {
+    it('never shows global gate/certification language', () => {
       render(<BankerOperatingCommandCenter kpis={kpis()} />);
-      const value = pill(id).querySelector('[data-domain-value]');
-      expect(value?.textContent).toBe(gatedValue);
-      expect(value?.textContent).not.toMatch(/\benabled\b/i);
+      expect(screen.queryByText(/gated/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/certification|certified/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/DRY_RUN|LIVE\b/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\bpilot\b/i)).not.toBeInTheDocument();
+      expect(health().querySelector('[data-operating-domain]')).toBeNull();
     });
 
-    it('carries the full governance detail in a tooltip (discoverable, not headline)', () => {
-      render(<BankerOperatingCommandCenter kpis={kpis()} />);
-      expect(pill('borrower-communications').getAttribute('title')).toMatch(/fail-closed|gated/i);
+    it('clicking a tile navigates to the right tab', () => {
+      const onSelectTab = vi.fn();
+      render(
+        <BankerOperatingCommandCenter
+          kpis={kpis({ outstandingDocumentCount: 1, overdueTaskCount: 1, activeDeals: 1 })}
+          onSelectTab={onSelectTab}
+        />,
+      );
+      fireEvent.click(tile('Active deals'));
+      expect(onSelectTab).toHaveBeenCalledWith('active-deals');
+      fireEvent.click(tile('Documents outstanding'));
+      expect(onSelectTab).toHaveBeenCalledWith('due-diligence');
+      fireEvent.click(tile('Tasks overdue'));
+      expect(onSelectTab).toHaveBeenCalledWith('tasks');
     });
 
-    it('surfaces the email transport mode (DRY_RUN) honestly', () => {
-      render(<BankerOperatingCommandCenter kpis={kpis()} />);
-      expect(within(pill('email-mode')).getByText(/DRY_RUN|LIVE/)).toBeInTheDocument();
+    it('shows a loading state instead of stale or zeroed tiles', () => {
+      render(<BankerOperatingCommandCenter kpis={null} loading />);
+      expect(within(health()).getByText(/Loading portfolio health/i)).toBeInTheDocument();
+      expect(health().querySelector('[data-health-tile]')).toBeNull();
+    });
+
+    it('shows an honest, local error state when the health query fails', () => {
+      render(<BankerOperatingCommandCenter kpis={null} healthError="network timeout" />);
+      const alert = within(health()).getByRole('alert');
+      expect(alert.textContent).toMatch(/Could not load portfolio health/i);
+      expect(alert.textContent).toMatch(/network timeout/i);
+      expect(health().querySelector('[data-health-tile]')).toBeNull();
+    });
+
+    it('shows an honest unavailable state when kpis are absent without an error', () => {
+      render(<BankerOperatingCommandCenter kpis={null} />);
+      expect(within(health()).getByText(/Portfolio health is unavailable right now/i)).toBeInTheDocument();
     });
   });
 

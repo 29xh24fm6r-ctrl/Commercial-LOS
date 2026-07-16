@@ -10,7 +10,6 @@ import { deriveFullProductionLaunchEvidence } from '../../admin/fullProductionLa
 import { deriveV1ActivationReadiness } from '../../shared/readiness/v1ActivationReadinessModel';
 import { deriveOgbCrmWorkflowActivation } from '../../admin/ogbCrmWorkflowActivationModel';
 import { deriveEliteCrmLosActivationReadiness } from '../../admin/eliteCrmLosActivationReadinessModel';
-import { deriveBankerOperatingCommandCenterModel } from '../../banker/bankerOperatingCommandCenterModel';
 import { deriveManagerOperatingCommandCenterModel } from '../../manager/managerOperatingCommandCenterModel';
 import { CRM_LIVE_PERSISTENCE_DEFAULT } from '../../admin/adminCrmOnboardingModel';
 import { PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT } from '../../admin/adminPortfolioBoardingModel';
@@ -56,9 +55,6 @@ function panelLiveStatus(): Record<string, Partial<Record<ActivationDomainKey, b
   const elite = deriveEliteCrmLosActivationReadiness();
   const el = (id: string) => elite.domains.find((d) => d.id === id)?.state === 'ready';
 
-  const banker = deriveBankerOperatingCommandCenterModel();
-  const bk = (id: string) => banker.domains.find((d) => d.id === id)?.state === 'operational';
-
   const manager = deriveManagerOperatingCommandCenterModel();
   const mg = (id: string) => manager.domains.find((d) => d.id === id)?.state === 'operational';
 
@@ -91,12 +87,10 @@ function panelLiveStatus(): Record<string, Partial<Record<ActivationDomainKey, b
       documentChecklist: el('document-checklist'),
       portfolioBoarding: el('portfolio-boarding'),
     },
-    'Banker Operating Command Center': {
-      crmWriteback: bk('crm-writeback'),
-      documentChecklist: bk('document-readiness'),
-      borrowerSend: bk('borrower-communications'),
-      portfolioBoarding: bk('portfolio-handoff'),
-    },
+    // Factory Arc Phase 2/3 retired the Banker Operating Command Center's per-capability
+    // gate/domain concept entirely (see bankerOperatingCommandCenterModel.ts) — it no longer
+    // reports a "live/gated" status for any domain, so it has nothing to compare against the
+    // authority here. The Manager panel (out of scope for this phase) still does.
     'Manager Operating Command Center': {
       crmWriteback: mg('crm-writeback'),
       documentChecklist: mg('document-readiness'),

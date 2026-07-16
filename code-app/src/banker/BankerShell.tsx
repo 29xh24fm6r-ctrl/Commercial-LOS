@@ -237,6 +237,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
                   kpis={kpis}
                   deals={state.kind === 'ready' ? state.data.deals : []}
                   loading={state.kind === 'loading'}
+                  healthError={state.kind === 'failed' ? state.message : undefined}
                   onSelectTab={setTab}
                 />
               </ErrorBoundary>
@@ -337,6 +338,7 @@ function TabContent({
   kpis,
   deals,
   loading,
+  healthError,
   onSelectTab,
 }: {
   tab: ShellTab;
@@ -345,6 +347,8 @@ function TabContent({
   kpis: ReturnType<typeof deriveBankerPersonalActivity> | null;
   deals: readonly import('./dealQueries').PipelineDeal[];
   loading: boolean;
+  /** Set when loadBankerWorkQueueData failed — distinct from "still loading". */
+  healthError?: string;
   onSelectTab: (tab: ShellTab) => void;
 }) {
   switch (tab) {
@@ -355,6 +359,7 @@ function TabContent({
             kpis={kpis}
             deals={deals}
             loading={loading}
+            healthError={healthError}
             onSelectTab={onSelectTab}
           />
           <PersonalActivitySummary />
