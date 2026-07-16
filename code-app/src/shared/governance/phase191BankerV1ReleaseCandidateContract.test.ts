@@ -19,14 +19,12 @@ import { evaluateBankerCreateRollout } from '../../deals/bankerNewDealCreateRoll
  * New Deal create → deal review → tasks → documents → checklist → CRM facts →
  * credit memo preview → readiness/status. These tests enforce the go/no-go
  * matrix in docs/PHASE_191_BANKER_V1_RELEASE_CANDIDATE_HARDENING.md as
- * executable invariants. This phase enables NOTHING beyond the double-gated
- * checklist-generation wiring documented below: no borrower comms, no fake
- * data, no permission widening, no schema change. Document checklist
- * generation is WIRED (DealDocuments injects a real, governed onGenerate
- * backed by checklistWriteDependency/checklistLiveWriteDeps) but stays
- * disabled by default — DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED and
- * DOCUMENT_CHECKLIST_GENERATION_ENABLED both default false, and the panel's
- * own generateDisabled invariant fails closed until an operator flips both.
+ * executable invariants: no borrower comms, no fake data, no permission
+ * widening, no schema change. Document requirement generation is a real,
+ * live-capable banker workflow (DocumentRequirementWorkspace, see §6) — every
+ * write is authenticated (requires an authorized banker), audited, and
+ * duplicate-safe; it replaced the retired 188D-K disabled-by-default 3-item
+ * pilot panel.
  *
  * We assert against actual CODE (comments stripped) so safety docstrings that
  * legitimately name "email / borrower / handoff" never trip a comms pin.
@@ -46,7 +44,7 @@ const NEW_DEAL_CREATE = read('src/banker/BankerNewDealCreate.tsx');
 const DEAL_ROUTE = read('src/deals/DealRoute.tsx');
 const DEAL_WORKSPACE = read('src/deals/BankerDealWorkspace.tsx');
 const DEAL_DOCUMENTS = read('src/deals/DealDocuments.tsx');
-const CHECKLIST_PANEL = read('src/deals/DocumentChecklistPilotPanel.tsx');
+const DOC_REQUIREMENT_WORKSPACE = read('src/deals/DocumentRequirementWorkspace.tsx');
 const CRM_PANEL = read('src/crm/CrmRelationshipPanel.tsx');
 const CRM_DETAIL_CARDS = read('src/crm/CrmRelationshipDetailCards.tsx');
 const PKG = read('package.json');
@@ -201,59 +199,43 @@ describe('191 — deal workspace primary surfaces mounted', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6. Document checklist pilot stays safe/controlled + comms-free.
+// 6. The real document requirement workspace is mounted banker-only,
+//    governed, and comms-free (replaces the retired 3-item pilot panel).
 // ---------------------------------------------------------------------------
-describe('191 — document checklist pilot safe/controlled', () => {
-  it('the panel is mounted banker-only, never in manager read-only mode', () => {
-    expect(DEAL_DOCUMENTS).toMatch(/!readOnly && banker && \(\s*<DocumentChecklistPilotPanel/);
+describe('191 — document requirement workspace safe/controlled', () => {
+  it('the workspace is mounted banker-only, never in manager read-only mode', () => {
+    expect(DEAL_DOCUMENTS).toMatch(/!readOnly && banker && \(\s*<DocumentRequirementWorkspace/);
   });
 
-  it('the generate action is wired through the certified live path, double-gated at the call site', () => {
-    // DealDocuments now injects a real onGenerate + generateActionEnabled — the
-    // 188K remediation. It is wired through checklistWriteDependency /
-    // checklistLiveWriteDeps (the same certified path GenerateWorkflowChecklistButton
-    // uses), never the inert 188J/188K test-only bridge.
-    expect(DEAL_DOCUMENTS).toMatch(/onGenerate=\{handleGenerateChecklist\}/);
-    expect(DEAL_DOCUMENTS).toMatch(/generateActionEnabled=\{/);
-    expect(DEAL_DOCUMENTS).toMatch(/createChecklistWriteDependency/);
-    expect(DEAL_DOCUMENTS).not.toMatch(/documentChecklistUiGenerationAction/);
-    expect(DEAL_DOCUMENTS).not.toMatch(/generateAuditedDocumentChecklist/);
-    // Both gates must be true at the call site or the panel stays disabled.
-    expect(DEAL_DOCUMENTS).toMatch(/DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED\)/);
-    expect(DEAL_DOCUMENTS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED\)/);
+  it('every write routes through the governed performDocumentRequirementAction seam, never a direct SDK call', () => {
+    expect(DOC_REQUIREMENT_WORKSPACE).toMatch(/performDocumentRequirementAction/);
+    expect(DOC_REQUIREMENT_WORKSPACE).toMatch(/buildLiveDocumentRequirementActionDeps/);
+    expect(DOC_REQUIREMENT_WORKSPACE).not.toMatch(/Cr664_\w+Service/);
+    expect(DOC_REQUIREMENT_WORKSPACE).not.toMatch(/@microsoft\/power-apps|getClient/);
   });
 
-  it('the panel itself still defaults to disabled (its own generateDisabled invariant is unchanged)', () => {
-    expect(CHECKLIST_PANEL).toMatch(/const generateDisabled = true/);
-    expect(CHECKLIST_PANEL).toMatch(
-      /generateActionEnabled = DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED/,
-    );
+  it('actions are gated on an authorized banker (systemUserId) before any write is attempted', () => {
+    expect(DOC_REQUIREMENT_WORKSPACE).toMatch(/canWrite\s*=\s*Boolean\(banker\?\.systemUserId\)/);
   });
 
-  it('the checklist pilot path wires no borrower comms (code, sans docstring)', () => {
-    const code = stripComments(CHECKLIST_PANEL);
+  it('the workspace path wires no borrower comms (code, sans docstring)', () => {
+    const code = stripComments(DOC_REQUIREMENT_WORKSPACE);
+    // Note: unlike the retired pilot panel, this workspace legitimately carries
+    // `banker.email` / `actorEmail` for AUDIT actor-identity resolution (the same
+    // established pattern documentActions.ts uses) — that is not borrower comms,
+    // so a bare "email" match would be a false positive. These checks instead
+    // pin the absence of any actual comms module / send-flow / SMS / Outlook /
+    // handoff integration or borrower-facing send language.
     for (const re of [
-      /\bemail\b/i,
       /\bsms\b/i,
       /\boutlook\b/i,
       /\bhandoff\b/i,
       /mailto:/i,
-      /sendDocumentRequest|sendBorrower|BorrowerCommunication/,
+      /borrower.?facing|borrower.?email|send.*email|email.*borrower/i,
+      /sendDocumentRequest|sendBorrower|BorrowerCommunication|emailDelivery/,
     ]) {
       expect(code).not.toMatch(re);
     }
-    // The panel imports only pure local + shared-UI + react modules.
-    const specs = (CHECKLIST_PANEL.match(/from '([^']+)'/g) ?? []).map((m) =>
-      m.replace(/^from '|'$/g, ''),
-    );
-    const allowed = new Set([
-      'react',
-      '../shared/Badge',
-      '../shared/theme',
-      './documentChecklistPilotViewModel',
-      './documentChecklistPilotConfig',
-    ]);
-    for (const s of specs) expect(allowed.has(s), `unexpected import ${s}`).toBe(true);
   });
 });
 

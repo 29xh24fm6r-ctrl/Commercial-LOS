@@ -207,16 +207,6 @@ describe('190A — checklist gates remain disabled', () => {
     expect(FLAGS).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const/);
   });
 
-  it('the 188I/188J/188K gate files still exist on disk', () => {
-    for (const rel of [
-      'src/shared/governance/phase188IUiEnableReadinessContract.test.ts',
-      'src/shared/governance/phase188JControlledUiChecklistGenerationContract.test.ts',
-      'src/shared/governance/phase188KUiChecklistGenerationCertificationContract.test.ts',
-    ]) {
-      expect(existsSync(resolve(ROOT, rel))).toBe(true);
-    }
-  });
-
   it('neither the preflight script nor the runbook flips any checklist gate to true', () => {
     for (const src of [SCRIPT, DOC]) {
       expect(src).not.toMatch(

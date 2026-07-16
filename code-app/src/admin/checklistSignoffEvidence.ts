@@ -16,7 +16,7 @@ import { DOCUMENT_CHECKLIST_GENERATION_ENABLED } from '../deals/dealOriginationF
 export const ACTIVE_CHECKLIST_RULESET_MODULES = [
   'src/activation/checklistGenerationActivation.ts',
   'src/deals/newDealChecklistGenerationAdapter.ts',
-  'src/deals/documentChecklistPilotViewModel.ts',
+  'src/deals/documentRequirementDerivation.ts',
   'src/deals/documentChecklistUiEnableReadiness.ts',
 ] as const;
 
