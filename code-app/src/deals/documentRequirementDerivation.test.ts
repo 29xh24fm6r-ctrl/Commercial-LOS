@@ -92,4 +92,95 @@ describe('deriveRequiredDocuments', () => {
       expect(def.reason.length).toBeGreaterThan(0);
     }
   });
+
+  // Factory Arc Phase 1 gap: no prior test constructed an input with customerType set,
+  // leaving the 'ownership-information' rule (keyed on customerType) untested.
+  it('a C&I / commercial / industrial customer type requires Ownership Information', () => {
+    const list = names(input({ stage: 'UNDERWRITING', customerType: 'Commercial & Industrial' }));
+    expect(list).toContain('Ownership Information');
+  });
+
+  it('a non-C&I customer type does not require Ownership Information', () => {
+    const list = names(input({ stage: 'UNDERWRITING', customerType: 'Consumer' }));
+    expect(list).not.toContain('Ownership Information');
+  });
+
+  // Factory Arc Phase 7 — SBA vs conventional, using the real admin-managed
+  // productType reference field (no invented data source).
+  describe('SBA vs conventional (Factory Arc Phase 7)', () => {
+    it('an SBA 7(a) product requires SBA Form 1919 and SBA Form 912 once underwriting begins', () => {
+      const list = names(input({ stage: 'UNDERWRITING', productType: 'SBA 7(a)' }));
+      expect(list).toContain('SBA Form 1919 (Borrower Information Form)');
+      expect(list).toContain('SBA Form 912 (Statement of Personal History)');
+    });
+
+    it('an SBA 504 product also requires the SBA forms (substring match, not an exact-name list)', () => {
+      const list = names(input({ stage: 'UNDERWRITING', productType: 'SBA504' }));
+      expect(list).toContain('SBA Form 1919 (Borrower Information Form)');
+    });
+
+    it('a conventional product does not require the SBA forms', () => {
+      const list = names(input({ stage: 'UNDERWRITING', productType: 'Conventional Term Loan' }));
+      expect(list).not.toContain('SBA Form 1919 (Borrower Information Form)');
+      expect(list).not.toContain('SBA Form 912 (Statement of Personal History)');
+    });
+
+    it('the SBA forms are stage-gated like every other underwriting document', () => {
+      const list = names(input({ stage: 'INTAKE', productType: 'SBA 7(a)' }));
+      expect(list).not.toContain('SBA Form 1919 (Borrower Information Form)');
+    });
+  });
+
+  // Factory Arc Phase 7 — exception mechanism.
+  describe('exceptions (Factory Arc Phase 7)', () => {
+    it('a rule key listed in exceptions is excluded even though it would otherwise apply', () => {
+      const list = names(
+        input({ stage: 'UNDERWRITING', productType: 'SBA 7(a)', exceptions: ['sba-borrower-information-form'] }),
+      );
+      expect(list).not.toContain('SBA Form 1919 (Borrower Information Form)');
+      // The sibling SBA rule (a different key) is unaffected.
+      expect(list).toContain('SBA Form 912 (Statement of Personal History)');
+    });
+
+    it('exempting one rule never affects unrelated rules', () => {
+      const list = names(
+        input({ stage: 'UNDERWRITING', collateralSummary: 'Real estate', exceptions: ['appraisal-report'] }),
+      );
+      expect(list).not.toContain('Appraisal Report');
+      expect(list).toContain('Title Report');
+      expect(list).toContain('Loan Application');
+    });
+
+    it('an unknown exception key is a harmless no-op (never throws, never excludes an unrelated rule)', () => {
+      const withException = names(input({ stage: 'UNDERWRITING', exceptions: ['not-a-real-rule-key'] }));
+      const withoutException = names(input({ stage: 'UNDERWRITING' }));
+      expect(withException).toEqual(withoutException);
+    });
+
+    it('an empty exceptions array behaves identically to omitting exceptions', () => {
+      const withEmpty = names(input({ stage: 'UNDERWRITING', productType: 'SBA 7(a)', exceptions: [] }));
+      const withUndefined = names(input({ stage: 'UNDERWRITING', productType: 'SBA 7(a)' }));
+      expect(withEmpty).toEqual(withUndefined);
+    });
+
+    it('remains deterministic with exceptions present', () => {
+      const i = input({ stage: 'UNDERWRITING', productType: 'SBA 7(a)', exceptions: ['sba-borrower-information-form'] });
+      expect(deriveRequiredDocuments(i)).toEqual(deriveRequiredDocuments(i));
+    });
+  });
+
+  // Factory Arc Phase 7 — forward-compatible fields (loanPurpose, borrowerLegalStructure,
+  // guarantorCount, maxGuarantorOwnershipPercent) are declared but read by no rule yet;
+  // supplying them must never change the derived output.
+  it('forward-compatible Phase 7 fields (no rule reads them yet) never change the derived output', () => {
+    const base = input({ stage: 'UNDERWRITING', productType: 'Term Loan', guarantorStructure: 'Personal guarantee' });
+    const withExtras = input({
+      ...base,
+      loanPurpose: 'Working capital',
+      borrowerLegalStructure: 'LLC',
+      guarantorCount: 2,
+      maxGuarantorOwnershipPercent: 45,
+    });
+    expect(deriveRequiredDocuments(withExtras)).toEqual(deriveRequiredDocuments(base));
+  });
 });

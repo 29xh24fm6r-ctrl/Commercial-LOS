@@ -6,14 +6,41 @@
  * requirements that currently apply.
  *
  * Requirements are keyed off deal type (customerType/loanStructure), product
- * (productType), borrower (industry — the only structured borrower attribute
- * on DealDetail today), guarantors (guarantorStructure), collateral
- * (collateralSummary), and stage (the canonical stage code, via
- * recognizeCanonicalStage). "Purpose" has no dedicated DealDetail field yet;
- * until one exists, purpose-driven rules infer from productType/loanStructure
- * text — this is documented explicitly rather than silently assumed, the same
- * honesty convention the rest of this codebase uses for name-substring
- * matching (see loanWorkflowRequirementEngine.ts).
+ * (productType — including SBA-vs-conventional, see below), borrower
+ * (industry — the only structured borrower attribute on DealDetail today),
+ * guarantors (guarantorStructure), collateral (collateralSummary), and stage
+ * (the canonical stage code, via recognizeCanonicalStage).
+ *
+ * Factory Arc Phase 7 asks this derivation to "ultimately include" deal type,
+ * product, loan purpose, borrower legal structure, guarantor count/ownership%,
+ * collateral types, construction status, SBA vs conventional, stage, and
+ * exception rules. Status per factor, checked against the real DealDetail
+ * shape (dealQueries.ts) and reference-data option sets before adding
+ * anything, per this codebase's no-fake-data discipline:
+ *   - deal type / product / collateral / stage: already used (see RULES below).
+ *   - SBA vs conventional: NOW used — `productType` is a real, admin-managed
+ *     reference-lookup field (AdminDealReferenceValues.tsx) whose live values
+ *     already include "SBA 7(a)" / "SBA504" / "SBARefinance"
+ *     (Cr664_dealtask1sModel.ts's option set, productProcessRegistry.ts) — a
+ *     substring match on it is a real signal, not an invented one.
+ *   - exception rules: NOW supported — `exceptions` (below) lets a caller
+ *     exempt specific rule keys for a deal. The derivation itself has no
+ *     concept of WHY (that belongs to whatever governed surface eventually
+ *     collects the exception + its audit trail — out of scope here, this is
+ *     just the mechanism).
+ *   - "Purpose" (loanPurpose), borrower legal structure, guarantor count, and
+ *     guarantor ownership % have NO dedicated DealDetail field today (verified
+ *     against dealQueries.ts's DealDetail interface) — inventing a rule
+ *     against data that doesn't exist would be exactly the "no fake data"
+ *     violation this codebase's tests exist to catch. These four are declared
+ *     on the input type below as explicitly optional and UNUSED by any rule
+ *     yet, so the derivation is forward-compatible the moment a real field
+ *     lands, without a breaking signature change. This mirrors the same
+ *     documented-gap convention loanWorkflowRequirementEngine.ts uses for
+ *     name-substring matching.
+ *   - construction status has no rule either, for the same reason: no
+ *     "construction" value exists anywhere in this repo's real product/
+ *     loan-structure reference data (checked before writing this).
  *
  * v1 rule set. Like the retired pilot's approved-name list, this is a
  * starting lending rule set intended for lending-owner review before being
@@ -34,6 +61,26 @@ export interface DocumentRequirementDerivationInput {
   readonly industry: string | undefined;
   /** The deal's current stage, as stored (code or ratified name); resolved via recognizeCanonicalStage. */
   readonly stage: string | undefined;
+  /**
+   * Rule keys (RequiredDocumentDefinition.key) to exempt for this deal — the
+   * Phase 7 "exception rules" mechanism. A banker/admin surface that collects
+   * a reason + audit trail for an exception is out of scope here; this is
+   * only the derivation-layer plumbing that honors one once supplied.
+   */
+  readonly exceptions?: readonly string[];
+  /**
+   * Not yet sourced from any real DealDetail field (dealQueries.ts) — no rule
+   * reads this today. Declared now so the derivation signature is
+   * forward-compatible once a real "loan purpose" field exists; see the
+   * header comment for why this isn't inferred from other text fields.
+   */
+  readonly loanPurpose?: string;
+  /** Not yet sourced from any real DealDetail field — no rule reads this today. See header comment. */
+  readonly borrowerLegalStructure?: string;
+  /** Not yet sourced from any real DealDetail field — no rule reads this today. See header comment. */
+  readonly guarantorCount?: number;
+  /** Not yet sourced from any real DealDetail field — no rule reads this today. See header comment. */
+  readonly maxGuarantorOwnershipPercent?: number;
 }
 
 export interface RequiredDocumentDefinition {
@@ -166,6 +213,22 @@ const RULES: readonly DocumentRequirementRule[] = [
     minStageSequence: UNDERWRITING_SEQUENCE,
     appliesWhen: (i) => includesAny(i.customerType, ['c&i', 'commercial', 'industrial']),
   },
+  {
+    key: 'sba-borrower-information-form',
+    documentName: 'SBA Form 1919 (Borrower Information Form)',
+    reason: 'Product is an SBA-guaranteed facility.',
+    reviewLevel: 'reviewed',
+    minStageSequence: UNDERWRITING_SEQUENCE,
+    appliesWhen: (i) => includesAny(i.productType, ['sba']),
+  },
+  {
+    key: 'sba-statement-of-personal-history',
+    documentName: 'SBA Form 912 (Statement of Personal History)',
+    reason: 'Product is an SBA-guaranteed facility.',
+    reviewLevel: 'reviewed',
+    minStageSequence: UNDERWRITING_SEQUENCE,
+    appliesWhen: (i) => includesAny(i.productType, ['sba']),
+  },
 ];
 
 function stageSequence(stage: string | undefined): number | undefined {
@@ -177,15 +240,19 @@ function stageSequence(stage: string | undefined): number | undefined {
  * (same input -> same output), no IO, no invented documents beyond this rule
  * table. A rule with an unresolved `minStageSequence` gate (stage not
  * canonical / not yet seeded) is excluded rather than guessed active — fail
- * closed, matching this codebase's stage-ordering convention.
+ * closed, matching this codebase's stage-ordering convention. A rule key
+ * listed in `input.exceptions` is skipped regardless of whether it would
+ * otherwise apply — the Phase 7 exception mechanism.
  */
 export function deriveRequiredDocuments(
   input: DocumentRequirementDerivationInput,
 ): readonly RequiredDocumentDefinition[] {
   const currentSequence = stageSequence(input.stage);
+  const exceptions = new Set(input.exceptions ?? []);
   const results: RequiredDocumentDefinition[] = [];
   const seen = new Set<string>();
   for (const rule of RULES) {
+    if (exceptions.has(rule.key)) continue;
     if (rule.minStageSequence !== undefined) {
       if (currentSequence === undefined || currentSequence < rule.minStageSequence) continue;
     }
