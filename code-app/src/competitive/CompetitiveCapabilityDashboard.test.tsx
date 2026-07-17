@@ -10,10 +10,12 @@ import { deriveExecutiveProductStrategyDashboard } from './deriveExecutiveProduc
 
 describe('Phase 142A — competitive dashboard', () => {
   it('renders the matrix summary, gaps, and next phases', () => {
-    render(<CompetitiveCapabilityDashboard />);
+    const { container } = render(<CompetitiveCapabilityDashboard />);
     expect(screen.getByText(/categories scored across/i)).toBeInTheDocument();
     expect(screen.getByText(/top gaps to close/i)).toBeInTheDocument();
-    expect(screen.getByText(/Phase 142B/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Governed platform object\/view metadata surfaces/).length).toBeGreaterThanOrEqual(1);
+    // Factory Arc Phase 13 — no internal phase-tracking code should ever render.
+    expect(container.textContent ?? '').not.toMatch(/Phase \d/i);
   });
 
   it('renders the backlog with risk classes', () => {

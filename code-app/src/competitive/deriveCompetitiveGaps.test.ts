@@ -21,7 +21,11 @@ describe('Phase 142H — competitive gaps', () => {
     for (const g of gaps) {
       expect(g.riskClass).toBeTruthy();
       expect(g.safetyBlocker).toBeTruthy();
-      expect(g.recommendedFuturePhase).toMatch(/Phase 142/);
+      expect(g.recommendedFuturePhase).toBeTruthy();
+      // Factory Arc Phase 13 — recommendedFuturePhase is rendered verbatim to an
+      // executive in ExecutiveProductStrategyPanel.tsx; it must read as a plain
+      // roadmap item, never leak this codebase's internal phase-tracking vocabulary.
+      expect(g.recommendedFuturePhase).not.toMatch(/Phase \d/i);
       expect(g.prerequisite).toBeTruthy();
     }
   });

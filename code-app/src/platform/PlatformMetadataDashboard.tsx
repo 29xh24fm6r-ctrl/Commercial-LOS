@@ -123,7 +123,7 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
 
       {workflowRouting && (
         <div style={sectionStyle}>
-          <span style={sectionTitleStyle}>Workflow routing (142C)</span>
+          <span style={sectionTitleStyle}>Workflow routing</span>
           <ul style={ulStyle}>
             {workflowRouting.routeCount !== undefined && <li style={itemStyle}>Routes: {workflowRouting.routeCount}</li>}
             {workflowRouting.creditCommitteeRouteCount !== undefined && <li style={itemStyle}>Credit committee routes: {workflowRouting.creditCommitteeRouteCount}</li>}
@@ -136,7 +136,7 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
 
       {productProcessTemplates && (
         <div style={sectionStyle}>
-          <span style={sectionTitleStyle}>Product / process templates (142D)</span>
+          <span style={sectionTitleStyle}>Product / process templates</span>
           <ul style={ulStyle}>
             {productProcessTemplates.totalTemplates !== undefined && <li style={itemStyle}>Templates: {productProcessTemplates.totalTemplates}</li>}
             {productProcessTemplates.activeCount !== undefined && <li style={itemStyle}>Active: {productProcessTemplates.activeCount} · Planned: {productProcessTemplates.plannedCount ?? 0} · Disabled: {productProcessTemplates.disabledCount ?? 0}</li>}
@@ -150,7 +150,7 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
 
       {servicing && (
         <div style={sectionStyle}>
-          <span style={sectionTitleStyle}>Servicing lifecycle (142E)</span>
+          <span style={sectionTitleStyle}>Servicing lifecycle</span>
           <ul style={ulStyle}>
             {servicing.lifecycleStage && <li style={itemStyle}>Stage: {servicing.lifecycleStage}</li>}
             {servicing.lifecycleHealth && <li style={itemStyle}>Health: {servicing.lifecycleHealth}</li>}
@@ -163,7 +163,7 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
 
       {integration && (
         <div style={sectionStyle}>
-          <span style={sectionTitleStyle}>Integration readiness (142F)</span>
+          <span style={sectionTitleStyle}>Integration readiness</span>
           <ul style={ulStyle}>
             {integration.requiredCount !== undefined && <li style={itemStyle}>Required integrations: {integration.requiredCount}</li>}
             {integration.blockedCount !== undefined && <li style={itemStyle}>Blocked integrations: {integration.blockedCount}</li>}
@@ -175,7 +175,7 @@ export function PlatformMetadataDashboard({ context, workflowRouting, productPro
 
       {adminConfiguration && (
         <div style={sectionStyle}>
-          <span style={sectionTitleStyle}>Admin configuration review (142G)</span>
+          <span style={sectionTitleStyle}>Admin configuration review</span>
           <ul style={ulStyle}>
             {adminConfiguration.pendingCount !== undefined && <li style={itemStyle}>Pending proposals: {adminConfiguration.pendingCount}</li>}
             {adminConfiguration.blockedUnsafeCount !== undefined && <li style={itemStyle}>Blocked unsafe: {adminConfiguration.blockedUnsafeCount}</li>}

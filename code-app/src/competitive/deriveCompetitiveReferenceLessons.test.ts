@@ -43,6 +43,11 @@ describe('Phase 142A — reference lessons', () => {
 
   it('surfaces gaps to close and recommended phases', () => {
     expect(result.gapsToClose.length).toBeGreaterThan(0);
-    expect(result.recommendedPhases[0]).toMatch(/142B/);
+    expect(result.recommendedPhases[0]).toMatch(/Governed platform object\/view metadata surfaces/);
+    // Factory Arc Phase 13 — recommendedPhases is rendered verbatim to an
+    // executive; it must never leak this codebase's internal phase-tracking codes.
+    for (const p of result.recommendedPhases) {
+      expect(p).not.toMatch(/Phase \d/i);
+    }
   });
 });

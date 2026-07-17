@@ -93,7 +93,7 @@ export function CompetitiveCapabilityDashboard({ platformMetadata, executiveStra
 
       {platformMetadata && (
         <div style={sectionStyle}>
-          <span style={sectionTitleStyle}>Platform metadata status (142B)</span>
+          <span style={sectionTitleStyle}>Platform metadata status</span>
           <ul style={ulStyle}>
             {platformMetadata.objectModelStatus && <li style={itemStyle}>Object model: {platformMetadata.objectModelStatus}</li>}
             {platformMetadata.viewModelStatus && <li style={itemStyle}>View model: {platformMetadata.viewModelStatus}</li>}

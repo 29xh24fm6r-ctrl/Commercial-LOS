@@ -294,7 +294,7 @@ export async function sendBorrowerUpdateEmail(
   if (input.bankerNote.trim().length === 0) {
     return {
       kind: 'unknown',
-      message: 'Banker note must not be empty (required by Phase 23 + Phase 105 audit discipline).',
+      message: 'Banker note must not be empty (required for audit discipline).',
     };
   }
 

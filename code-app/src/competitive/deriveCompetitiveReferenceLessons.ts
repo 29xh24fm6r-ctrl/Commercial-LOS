@@ -85,13 +85,13 @@ const BACKLOG: readonly CompetitiveBacklogItem[] = [
 ];
 
 const RECOMMENDED_PHASES: readonly string[] = [
-  'Phase 142B — Governed platform object/view metadata surfaces',
-  'Phase 142C — Configurable workflow routing and credit committee route deriver',
-  'Phase 142D — Product/process template registry for commercial loan workflows',
-  'Phase 142E — Servicing/lifecycle model inspired by Frappe Lending',
-  'Phase 142F — Integration adapter registry (AML/bureau/scoring/core), disabled by default',
-  'Phase 142G — Admin configuration review queue, no schema mutation',
-  'Phase 142H — Competitive dashboard and executive product strategy surface',
+  'Governed platform object/view metadata surfaces',
+  'Configurable workflow routing and credit committee route deriver',
+  'Product/process template registry for commercial loan workflows',
+  'Servicing/lifecycle model inspired by Frappe Lending',
+  'Integration adapter registry (AML/bureau/scoring/core), disabled by default',
+  'Admin configuration review queue, no schema mutation',
+  'Competitive dashboard and executive product strategy surface',
 ];
 
 export interface DeriveCompetitiveReferenceLessonsInput {
