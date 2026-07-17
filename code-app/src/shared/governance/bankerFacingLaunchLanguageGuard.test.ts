@@ -18,16 +18,33 @@ import { INVENTORIED_FILES } from './productionSurfaceInventory';
  * covered src/shared and src/admin): src/admin and src/access are the
  * correct home for this vocabulary (Admin / Platform Operations), so this
  * guard does not scan them — a new admin-only certification model is not a
- * violation of the arc's goal. Directories in scope are the ones a banker or
- * manager can actually see: src/banker, src/deals, src/manager,
- * src/portfolioBoarding, src/crm, and src/workspaces (excluding the
- * Admin/Executive workspace shells, which are intentionally
- * platform-operations-scoped).
+ * violation of the arc's goal. Directories in scope are the ones a banker,
+ * manager, team member, or EXECUTIVE can actually see: src/banker, src/deals,
+ * src/manager, src/portfolioBoarding, src/crm, src/workspaces, src/team, and
+ * src/executive (excluding the Admin/Executive workspace SHELL files, which
+ * are thin routing/composition wrappers, not content surfaces).
+ *
+ * Factory Arc Phase 15: src/team and src/executive were added. They were
+ * missing from the original Phase 1 scope even though real, non-admin users
+ * (team members, business executives — distinct from Admin/Platform
+ * Operations) see both. This gap is exactly how the Executive Restart
+ * Readiness Command Center's "Gated activation" wording (a considered,
+ * already-documented Phase 14 residual-risk decision — see
+ * productionSurfaceInventory.ts — not a new violation) went unguarded.
  */
 
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 
-const SCAN_ROOTS = ['src/banker', 'src/deals', 'src/manager', 'src/portfolioBoarding', 'src/crm', 'src/workspaces'];
+const SCAN_ROOTS = [
+  'src/banker',
+  'src/deals',
+  'src/manager',
+  'src/portfolioBoarding',
+  'src/crm',
+  'src/workspaces',
+  'src/team',
+  'src/executive',
+];
 
 /** Workspace shells that are intentionally platform-operations/executive-scoped, not banker-facing. */
 const EXCLUDED_FILES = new Set([

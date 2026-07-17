@@ -46,6 +46,7 @@ export type MigrationPhase =
   | 'phase-11-new-deal-semantics'
   | 'phase-12-navigation-role-cleanup'
   | 'phase-14-operational-dashboard-redesign'
+  | 'phase-15-executive-restart-readiness-scope'
   | 'no-change-already-admin-scoped'
   | 'no-change-orphaned-unrouted';
 
@@ -308,7 +309,10 @@ export const PRODUCTION_SURFACE_INVENTORY: readonly ProductionSurfaceInventoryEn
       'counts (deal/at-risk/blocked totals, active banker + flagged-deal counts) sourced from ' +
       'ManagerDataProvider\'s already-loaded teamPipeline/teamBankers, replacing the static "Active" ' +
       'placeholder. The CardFooter certifications no longer print raw flag names with a literal ": ' +
-      'true"/": false" suffix.',
+      'true"/": false" suffix. Phase 15 — the raw supervisionAnchors kebab-case ids this entry\'s ' +
+      'visibleCopy names (e.g. "manager-workflow-launch-readiness") also no longer render verbatim; ' +
+      'SUPERVISION_ANCHOR_LABEL now maps each id to a friendly display name at render time (the ' +
+      'underlying id array is unchanged — it is a pinned test contract, not user-visible).',
     migrationPhase: 'phase-14-operational-dashboard-redesign',
   },
   {
@@ -321,6 +325,48 @@ export const PRODUCTION_SURFACE_INVENTORY: readonly ProductionSurfaceInventoryEn
     correctFutureAudience: 'admin-platform-operations',
     replacementOperationalSignal: 'Move this panel (or its live-relevant parts) out of the manager workspace entirely. See Phase 3/4.',
     migrationPhase: 'phase-3-banker-dashboard',
+  },
+
+  // ---------------------------------------------------------------------
+  // Executive-facing. Factory Arc Phase 15: src/executive was never in the
+  // original Phase 1 SCAN (see the file-level doc comment above) even
+  // though real business executives — not Admin/Platform Operations — see
+  // it. Phase 15's independent validation pass added src/executive (and
+  // src/team, which turned out clean) to
+  // bankerFacingLaunchLanguageGuard.test.ts's SCAN_ROOTS. Every file in
+  // src/executive/ and src/team/ was clean except the two below.
+  // ---------------------------------------------------------------------
+  {
+    file: 'src/executive/executiveRestartReadinessModel.ts',
+    componentOrModel: 'deriveExecutiveRestartReadinessModel',
+    visibleCopy: '"Gated activation" (Badge/section-title text) / "certified"/"certification" in domain detail copy',
+    occurrenceCount: 12,
+    triggeringSource: 'static per-domain headline/detail strings, plus CRM/deal-origination/portfolio-boarding feature-flag defaults',
+    currentAudience: 'manager-operational',
+    correctFutureAudience: 'manager-operational',
+    replacementOperationalSignal:
+      'Phase 14 already fixed the one real accuracy bug here (New Deal create read a dead legacy constant ' +
+      'instead of the real pilot switch — see the Phase 14 comment in the source). This is NOT the raw-' +
+      'token-as-label bug: "Gated activation" / "Operating readiness" are already friendly, human-phrased ' +
+      'labels (OVERALL_LABEL / domain.headline), never the bare ExecutiveRestartState union member. The ' +
+      'open question is architectural, not a language-honesty bug: this card is a global gate/certification-' +
+      'category summary sitting beside the executive\'s real operational dashboard (ExecutiveCommandCenter), ' +
+      'the same shape of surface Phase 3 removed entirely for bankers — and the equivalent detail already ' +
+      'exists in Admin Platform Operations (OperatorLaunchConsole, Phase 4). Deliberately left mounted ' +
+      '(not removed) in Phase 14 and again in Phase 15 rather than force a large removal in either phase; ' +
+      'a future phase should make the keep-vs-remove call explicitly.',
+    migrationPhase: 'phase-15-executive-restart-readiness-scope',
+  },
+  {
+    file: 'src/executive/ExecutiveRestartReadinessCommandCenter.tsx',
+    componentOrModel: 'ExecutiveRestartReadinessCommandCenter',
+    visibleCopy: '"Gated activation categories" section title / "Gated activation" Badge label',
+    occurrenceCount: 3,
+    triggeringSource: 'deriveExecutiveRestartReadinessModel()',
+    currentAudience: 'manager-operational',
+    correctFutureAudience: 'manager-operational',
+    replacementOperationalSignal: 'Same disposition as executiveRestartReadinessModel.ts above.',
+    migrationPhase: 'phase-15-executive-restart-readiness-scope',
   },
 
   // ---------------------------------------------------------------------

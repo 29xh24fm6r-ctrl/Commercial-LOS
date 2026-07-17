@@ -21,7 +21,14 @@ const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 // workspaces (Finding B) that were never in scope, which is precisely how a
 // release-evidence import (crmCertificationAttribution.ts, since relocated to
 // src/access/ where only Admin/Platform Operations code may live) went undetected.
-const SCAN_ROOTS = ['src/banker', 'src/manager', 'src/deals', 'src/portfolioBoarding', 'src/portfolio', 'src/crm', 'src/team'];
+// Factory Arc Phase 15 added src/executive — the executive dashboard is a real
+// business-executive surface (distinct from Admin/Platform Operations), and this
+// directory was never in scope for this guard even though
+// executiveRestartReadinessModel.ts is a first-class tracked panel in
+// crossPanelLaunchCoherence.test.ts. No live violation exists today (the file
+// only imports feature-flag constants), but the gap was dormant, not provably
+// safe, and matches the exact shape of the Phase 12 Finding B gap.
+const SCAN_ROOTS = ['src/banker', 'src/manager', 'src/deals', 'src/portfolioBoarding', 'src/portfolio', 'src/crm', 'src/team', 'src/executive'];
 
 const FORBIDDEN_IMPORT_PATTERNS: readonly RegExp[] = [
   // Factory Arc Phase 5 renamed fullSystemLaunchReadinessModel.ts to

@@ -63,12 +63,16 @@ describe('Phase 233 — Manager Operating Command Center', () => {
     }
   });
 
-  it('points managers to existing supervision anchors', () => {
+  it('points managers to existing supervision anchors, shown as friendly names (not raw anchor ids)', () => {
     render(<ManagerOperatingCommandCenter />);
     const anchors = screen.getByRole('region', { name: /Supervision anchors/i });
 
-    expect(within(anchors).getByText('manager-workflow-launch-readiness')).toBeInTheDocument();
-    expect(within(anchors).getByText('crm-manager-working-surface')).toBeInTheDocument();
+    // Factory Arc Phase 15 — the raw kebab-case anchor ids used to render
+    // verbatim; the visible list now shows a friendly display name for each.
+    expect(within(anchors).getByText('Manager Workflow Launch Readiness panel')).toBeInTheDocument();
+    expect(within(anchors).getByText('CRM manager working surface')).toBeInTheDocument();
+    expect(within(anchors).queryByText('manager-workflow-launch-readiness')).toBeNull();
+    expect(within(anchors).queryByText('crm-manager-working-surface')).toBeNull();
   });
 
   it('exposes no buttons, forms, inputs, or write controls', () => {

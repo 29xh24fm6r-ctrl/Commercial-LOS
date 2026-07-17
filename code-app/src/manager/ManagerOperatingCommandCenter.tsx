@@ -15,6 +15,22 @@ const BADGE_BY_STATE: Record<ManagerOperatingDomainState, 'clear' | 'neutral' | 
   gated: 'atRisk',
 };
 
+/** Factory Arc Phase 15 — friendly display names for `supervisionAnchors`,
+ *  which is a stable kebab-case anchor-ID contract other tests pin
+ *  (managerOperatingCommandCenterModel.test.ts,
+ *  phase233ManagerExecutiveOperatingReadiness.test.ts) and so must not
+ *  change. Only the RENDERED text changes here — the raw ids were being
+ *  shown verbatim in the "Supervision anchors" list. Falls back to the raw
+ *  id for any future anchor added here without a label (never blank). */
+const SUPERVISION_ANCHOR_LABEL: Record<string, string> = {
+  'manager-bloomberg-control-panel': 'Manager control panel',
+  'manager-workflow-launch-readiness': 'Manager Workflow Launch Readiness panel',
+  'crm-manager-working-surface': 'CRM manager working surface',
+  'team-work-queue': 'Team work queue',
+  'banker-workload-summary': 'Banker workload summary',
+  'deals-by-stage': 'Deals by stage',
+};
+
 export function ManagerOperatingCommandCenter() {
   const { teamPipeline, teamBankers } = useManagerData();
   const vm = deriveManagerOperatingCommandCenterModel({
@@ -63,7 +79,7 @@ export function ManagerOperatingCommandCenter() {
             <h3 style={styles.panelTitle}>Supervision anchors</h3>
             <ul style={styles.list}>
               {vm.supervisionAnchors.map((anchor) => (
-                <li key={anchor}>{anchor}</li>
+                <li key={anchor}>{SUPERVISION_ANCHOR_LABEL[anchor] ?? anchor}</li>
               ))}
             </ul>
           </section>
