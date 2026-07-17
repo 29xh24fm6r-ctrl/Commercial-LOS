@@ -31,14 +31,32 @@ describe('Phase 233 — Manager Operating Command Center model', () => {
     expect(byId.get('crm-coverage')?.state).toBe('operational');
     expect(byId.get('workflow-bottlenecks')?.state).toBe('operational');
 
-    // Live-write gates are reset to safe defaults: checklist, CRM writeback, borrower send,
-    // and portfolio boarding are all gated.
+    // Live-write gates are reset to safe defaults: checklist, CRM writeback,
+    // borrower send, and the certified self-service portfolio boarding pipeline
+    // are all gated (state stays flag-driven so it never disagrees with the
+    // cross-panel launch-coherence authority — crossPanelLaunchCoherence.test.ts).
     expect(byId.get('document-readiness')?.state).toBe('gated');
     expect(byId.get('crm-writeback')?.state).toBe('gated');
     expect(byId.get('borrower-communication')?.state).toBe('gated');
     expect(byId.get('portfolio-boarding')?.state).toBe('gated');
     // New Deal create stays gated by its global constant.
     expect(byId.get('new-deal-intake')?.state).toBe('gated');
+  });
+
+  // Factory Arc Phase 9 — the certified self-service boarding pipeline correctly
+  // stays "gated" (matching the launch-coherence authority), but the old copy
+  // implied NO boarding happens at all until certification — false. Two write
+  // paths already work today with no feature flag: the manual "Board existing
+  // loan" action (existingLoanEntryAdapter.ts) and auto-boarding on stage advance
+  // to Boarded (buildLiveStageAdvanceDeps.ts). The card's copy must say so.
+  it('portfolio boarding stays gated (matching the authority) but its copy names the two live write paths', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const boarding = vm.domains.find((d) => d.id === 'portfolio-boarding')!;
+
+    expect(boarding.state).toBe('gated');
+    expect(boarding.summary).toMatch(/Board existing loan/);
+    expect(boarding.summary).toMatch(/Boarded stage/);
+    expect(boarding.nextAction).toMatch(/Board existing loan/);
   });
 
   it('points managers to existing supervision surfaces instead of inventing a parallel engine', () => {

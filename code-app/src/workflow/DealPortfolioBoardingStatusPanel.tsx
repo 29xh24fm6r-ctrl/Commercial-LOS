@@ -81,10 +81,11 @@ export function DealPortfolioBoardingStatusPanel({
 
 function badgeVariantFor(phase: PortfolioBoardingStatus['phase']): SeverityKey {
   switch (phase) {
-    case 'eligible':
+    case 'ready':
     case 'boarded':
       return 'clear';
-    case 'unverified-handoff':
+    case 'requires-completion':
+    case 'failed':
       return 'blocked';
     default:
       return 'neutral';

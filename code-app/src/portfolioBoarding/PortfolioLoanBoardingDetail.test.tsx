@@ -78,7 +78,7 @@ describe('Phase 264 (P3) — PortfolioLoanBoardingDetail SharePoint upload wirin
     await user.upload(container.querySelector('[data-portfolio-upload-file]') as HTMLInputElement, file('note.pdf'));
 
     await waitFor(() => expect(container.querySelector('[data-portfolio-upload-done]')).not.toBeNull());
-    expect(container.querySelector('[data-portfolio-upload-done]')?.textContent).toMatch(/no file was actually stored/i);
+    expect(container.querySelector('[data-portfolio-upload-done]')?.textContent).toMatch(/document not stored, connector unavailable/i);
     // Phase 264 (P0) hardening: DRY_RUN never writes a "stored" metadata row —
     // no phantom record, even when document-metadata persistence is enabled.
     expect(adapter.attachDocumentRecord).not.toHaveBeenCalled();

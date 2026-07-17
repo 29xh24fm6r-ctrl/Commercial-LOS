@@ -27,7 +27,7 @@ describe('Phase 233 — Manager Operating Command Center', () => {
       'Document checklist readiness',
       'CRM writeback gate',
       'Borrower communication gate',
-      'Portfolio boarding gate',
+      'Portfolio boarding',
     ]) {
       expect(within(region).getByText(label)).toBeInTheDocument();
     }
@@ -62,7 +62,6 @@ describe('Phase 233 — Manager Operating Command Center', () => {
       ['document-readiness', 'Generation gated'],
       ['crm-writeback', 'Writeback gated'],
       ['borrower-communication', 'Send gated'],
-      ['portfolio-boarding', 'Boarding persistence gated'],
     ])('%s reads gated and never "enabled" at the safe default', (id, gatedLabel) => {
       const { container } = render(<ManagerOperatingCommandCenter />);
       const el = card(container, id);
@@ -71,5 +70,20 @@ describe('Phase 233 — Manager Operating Command Center', () => {
       expect(value?.textContent).not.toMatch(/\benabled\b/i); // value never over-asserts
       expect(within(el).getByText('gated')).toBeInTheDocument(); // status badge
     });
+  });
+
+  // Factory Arc Phase 9 — the certified self-service boarding pipeline correctly
+  // stays gated (matching the launch-coherence authority), but its value text no
+  // longer implies zero boarding capability exists — it names the two write paths
+  // that already work today outside that certification gate.
+  it('portfolio-boarding reads gated for the certified pipeline, but names the live manual/auto-board paths', () => {
+    const { container } = render(<ManagerOperatingCommandCenter />);
+    const el = container.querySelector<HTMLElement>('[data-operating-domain="portfolio-boarding"]');
+    expect(el).not.toBeNull();
+    const value = el!.querySelector('[data-domain-value]');
+    expect(value?.textContent).toMatch(/gated/i);
+    expect(value?.textContent).toMatch(/manual board \+ auto-board already live/i);
+    expect(within(el!).getByText('gated')).toBeInTheDocument(); // status badge
+    expect(within(el!).getAllByText(/Board existing loan/).length).toBeGreaterThan(0);
   });
 });

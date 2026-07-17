@@ -139,19 +139,28 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
       nextAction: 'Keep borrower outreach on governed handoff paths until live-send is certified.',
     },
     {
+      // Factory Arc Phase 9: `state` stays flag-driven (matching the
+      // certified-launch authority the cross-panel coherence guard checks
+      // against — crossPanelLaunchCoherence.test.ts) so this card never
+      // disagrees with the authority on whether the FULL, admin-governed
+      // self-service boarding pipeline is live. What changed is the copy:
+      // the old summary/nextAction implied NO boarding happens at all
+      // until that pipeline is certified, which is false — two write
+      // paths already work today with no flag at all: the manual "Board
+      // existing loan" action (existingLoanEntryAdapter.ts, mounted via
+      // ExistingPortfolioLoansPanel.tsx) and auto-boarding when a deal
+      // reaches the Boarded stage (buildLiveStageAdvanceDeps.ts).
       id: 'portfolio-boarding',
-      label: 'Portfolio boarding gate',
-      state: PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED
-        ? 'operational'
-        : 'gated',
+      label: 'Portfolio boarding',
+      state: gateState(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED),
       value: liveWriteValue(
         PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
-        'Boarding persistence',
-        'Boarding persistence gated',
+        'Self-service boarding pipeline',
+        'Certified pipeline gated — manual board + auto-board already live',
       ),
       summary:
-        'Portfolio handoff/readiness is available while booked-loan persistence remains governed by explicit boarding gates.',
-      nextAction: 'Certify boarding persistence and evidence package before any live boarding writes.',
+        'The certified self-service boarding pipeline (full package, admin-governed) is not yet enabled. Loans already board to the portfolio today through the manual "Board existing loan" action and automatically once a deal reaches the Boarded stage.',
+      nextAction: 'Use "Board existing loan" or advance a deal to Boarded for real boarding today; certify the full self-service pipeline before enabling it broadly.',
     },
   ];
 
@@ -159,13 +168,13 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
     title: 'Manager Operating Command Center',
     subtitle: 'Team CRM + LOS supervision cockpit for the lending restart',
     posture:
-      'Managers supervise pipeline, banker workload, CRM coverage, and workflow bottlenecks read-only. New Deal create, CRM writeback, stage advancement, borrower send, checklist generation, and portfolio boarding persistence remain governed by certified gates.',
+      'Managers supervise pipeline, banker workload, CRM coverage, and workflow bottlenecks read-only. New Deal create, CRM writeback, stage advancement, borrower send, checklist generation, and the certified self-service portfolio boarding pipeline remain governed by certified gates — but loans already board today through the manual "Board existing loan" action and auto-boarding on stage advancement.',
     domains,
     supervisionActions: [
       'Start with pipeline supervision, banker workload, and CRM coverage.',
       'Triage workflow bottlenecks from the Manager Workflow Launch Readiness panel.',
       'Use duplicate detection and task intelligence as safe internal core supervision signals.',
-      'Do not treat gated create/writeback/send/boarding controls as enabled until admin certification clears them.',
+      'Do not treat gated create/writeback/send/self-service-boarding controls as enabled until admin certification clears them — manual boarding and auto-board already work outside those gates.',
     ],
     supervisionAnchors: [
       'manager-bloomberg-control-panel',

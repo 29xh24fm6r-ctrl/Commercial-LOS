@@ -11,8 +11,8 @@ import type { DocumentUploadResult } from './usePortfolioLoanDocumentPersistence
  * Pins (honest, mode-aware UI):
  *   - real document-type selector + file input; no placeholder text.
  *   - feature-disabled and connector-not-registered states are explained, never crash.
- *   - a DRY_RUN success says exactly "Recorded (dry-run) — no file was actually stored" and NEVER
- *     "Stored at" / a link.
+ *   - a DRY_RUN success says exactly "Attempt recorded — document not stored, connector unavailable"
+ *     and NEVER "Stored at" / a link.
  *   - a LIVE success with a real URL renders a real anchor link; LIVE never shows the DRY_RUN copy.
  *   - failures render via role="alert"; loading state shows; no duplicate submission while loading.
  */
@@ -73,7 +73,7 @@ describe('Phase 264 (P0) — PortfolioLoanBoardingDocumentUploadPanel', () => {
     await user.upload(container.querySelector('[data-portfolio-upload-file]') as HTMLInputElement, file('note.pdf'));
     await waitFor(() => expect(container.querySelector('[data-portfolio-upload-done]')).not.toBeNull());
     const done = container.querySelector('[data-portfolio-upload-done]')!;
-    expect(done.textContent).toMatch(/Recorded \(dry-run\) — no file was actually stored/i);
+    expect(done.textContent).toMatch(/Attempt recorded — document not stored, connector unavailable/i);
     expect(done.textContent).not.toMatch(/Stored at/i);
     expect(done.querySelector('a')).toBeNull();
     expect(container.querySelector('[data-portfolio-upload-link]')).toBeNull();

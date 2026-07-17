@@ -130,8 +130,9 @@ export function PortfolioLoanBoardingDocumentUploadPanel({
         <div style={formStyle} data-portfolio-upload-form>
           {uploadMode === 'DRY_RUN' && (
             <p style={dryRunBannerStyle} data-portfolio-upload-dry-run-banner>
-              DRY RUN — no SharePoint connector is wired yet. This validates the file and records the
-              attempt, but no file is actually stored and no link is created.
+              Document storage is unavailable — no connector to store the file is configured. Selecting
+              a file validates it and records the attempt, but the file itself is not stored and no
+              link is created.
             </p>
           )}
 
@@ -184,7 +185,7 @@ export function PortfolioLoanBoardingDocumentUploadPanel({
               </p>
             ) : (
               <p style={mutedStyle} role="status" data-portfolio-upload-done>
-                Recorded (dry-run) — no file was actually stored.
+                Attempt recorded — document not stored, connector unavailable.
               </p>
             )
           )}

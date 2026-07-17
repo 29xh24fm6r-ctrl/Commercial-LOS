@@ -61,9 +61,25 @@ describe('DealPortfolioBoardingStatusPanel — real boarding-handoff evidence, n
     };
     const loadHandoff = vi.fn(async () => readiness);
     render(<DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} />);
-    await waitFor(() => expect(screen.getByText('Boarding unverified')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Requires completion')).toBeInTheDocument());
     expect(screen.getByText(/unproven \(fail-closed\)/i)).toBeInTheDocument();
     expect(screen.queryByText('Boarded')).toBeNull();
     expect(screen.queryByText('Ready for portfolio boarding')).toBeNull();
+  });
+
+  // Factory Arc Phase 9 residual gap, documented rather than silently left implicit: the
+  // panel only calls loadHandoff for deals whose OWN stage claims BOARDED (see the
+  // `if (!claimsBoarded) return;` guard above). A "premature-handoff" verdict — an active
+  // portfolio record exists but the deal is NOT at BOARDED — is a real case
+  // deriveBoardedHandoffStatus can classify as "Boarding failed" (see
+  // portfolioBoardingStatus.test.ts), but this panel cannot currently surface it: doing so
+  // would mean checking handoff evidence for every deal regardless of stage, a query-per-
+  // deal-load behavior change beyond this phase's scope.
+  it('a pre-BOARDED stage never checks for a premature handoff record — the panel reflects the honest stage-only signal', () => {
+    setup('Underwriting');
+    const loadHandoff = vi.fn();
+    render(<DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} />);
+    expect(loadHandoff).not.toHaveBeenCalled();
+    expect(screen.getByText('Not ready for boarding')).toBeInTheDocument();
   });
 });

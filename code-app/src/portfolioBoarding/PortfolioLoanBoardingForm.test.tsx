@@ -57,9 +57,11 @@ describe('PortfolioLoanBoardingForm', () => {
     }
   });
 
-  it('shows the disabled-persistence notice while live boarding is not enabled', () => {
+  it('shows the disabled-persistence notice while live boarding is not enabled, pointing at the paths that already work', () => {
     render(<PortfolioLoanBoardingForm />);
-    expect(screen.getByText(/not enabled in this environment/i)).toBeInTheDocument();
+    expect(screen.getByText(/saving here isn.t available yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/Board existing loan/)).toBeInTheDocument();
+    expect(screen.getByText(/Boarded stage/)).toBeInTheDocument();
   });
 
   it('editing a scalar field (e.g. loan number) updates the input value', () => {
@@ -98,7 +100,7 @@ describe('PortfolioLoanBoardingForm', () => {
     expect(screen.getByRole('button', { name: 'Board this loan' })).not.toBeDisabled();
   });
 
-  it('clicking "Board this loan" with a disabled adapter never calls create, and reports the honest disabled failure', async () => {
+  it('clicking "Board this loan" with a disabled adapter never calls create — the button stays disabled and honestly labeled', async () => {
     const createBoardedLoan = vi.fn(async () => ({ ok: true, operation: 'create', recordId: 'x' }));
     buildAdapterMock.mockReturnValue({
       ...disabledAdapter(),
@@ -106,11 +108,13 @@ describe('PortfolioLoanBoardingForm', () => {
     } as never);
     render(<PortfolioLoanBoardingForm />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Board this loan' }));
+    const button = screen.getByRole('button', { name: 'Board this loan' });
+    fireEvent.click(button);
 
-    // Fail-closed: the hook's own `enabled` check short-circuits before ever calling
-    // the injected adapter — never a fake success from a disabled adapter.
-    await vi.waitFor(() => expect(screen.getAllByText(/not enabled/i).length).toBeGreaterThan(0));
+    // Fail-closed: the button itself is disabled up front (Factory Arc Phase 6), so a
+    // click never reaches the injected adapter — never a fake success.
+    expect(button).toBeDisabled();
+    expect(button.getAttribute('title')).toMatch(/not enabled in this environment/i);
     expect(createBoardedLoan).not.toHaveBeenCalled();
   });
 

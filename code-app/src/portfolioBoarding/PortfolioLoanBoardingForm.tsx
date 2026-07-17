@@ -36,13 +36,15 @@ import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
- * The governed manual boarding form. Every write goes through
+ * The full self-service boarding form. Every write goes through
  * `usePortfolioLoanBoardingPersistence`, which is fed a runtime-resolved
  * adapter: disabled by default (PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED
  * / _ROUTE_ENABLED are the safe-off defaults), so submitting previews and
- * reports "not enabled in this environment" until an operator with live
- * Dataverse access records a real smoke and flips those flags — the same
- * governed pattern as StageWorkflowControl and CrmWriteActions.
+ * validates only — the same governed pattern as StageWorkflowControl and
+ * CrmWriteActions. Two other write paths already board loans for real with
+ * no flag gate: the manual "Board existing loan" action
+ * (existingLoanEntryAdapter.ts) and auto-boarding on stage advance to
+ * Boarded (buildLiveStageAdvanceDeps.ts) — Factory Arc Phase 9.
  */
 export function PortfolioLoanBoardingForm({
   initialPackage,
@@ -100,8 +102,10 @@ export function PortfolioLoanBoardingForm({
         />
         {!persistence.enabled && (
           <p style={styles.disabledNote} role="status">
-            Live boarding persistence is not enabled in this environment. This form previews and
-            validates; nothing is saved until an operator enables it after a recorded smoke test.
+            This form previews and validates a full boarding package, but saving here isn&rsquo;t
+            available yet. To board a closed loan today, use &ldquo;Board existing loan&rdquo; in
+            the Portfolio workspace, or advance the deal to the Boarded stage to board it
+            automatically.
           </p>
         )}
         {persistence.state.kind === 'success' && (
