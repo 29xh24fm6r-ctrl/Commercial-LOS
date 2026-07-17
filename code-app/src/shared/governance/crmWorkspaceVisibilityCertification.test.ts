@@ -139,7 +139,7 @@ describe('BUGFIX-CRM-VISIBLE — preview inputs are honest (not-connected, zero 
   it('executive preview shows no revenue figures and is not-connected', () => {
     const i = executiveCrmPreviewInput();
     expect(i.revenueDataAvailability).toMatch(/no revenue figures/i);
-    expect(i.relationshipIntelligenceGaps).toBe(0);
+    expect(i.accountsNeedingAttention).toBe(0);
     expect(i.crmCommandCenterHref).toBeUndefined();
     expect(i.nextExecutiveStep).toMatch(/CRM coverage and activation/i);
   });

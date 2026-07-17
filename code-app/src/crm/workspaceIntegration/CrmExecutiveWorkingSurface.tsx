@@ -6,7 +6,8 @@ export interface CrmExecutiveSurfaceInput {
   crmCoverageStatus: string;
   salesforceActivationPosture: string;
   ncinoActivationPosture: string;
-  relationshipIntelligenceGaps: number;
+  /** Real at-risk-account count (CRM-ELITE-1 Phase 3) — was the unwired "relationshipIntelligenceGaps" (always 0). */
+  accountsNeedingAttention: number;
   productStrategyCrmReadiness: string;
   revenueDataAvailability: string;
   nextExecutiveStep: string;
@@ -25,7 +26,7 @@ export function CrmExecutiveWorkingSurface({ input }: Props) {
         <MetricCell label="CRM Coverage" value={input.crmCoverageStatus} />
         <MetricCell label="CRM" value={input.salesforceActivationPosture} />
         <MetricCell label="Lending Workflow" value={input.ncinoActivationPosture} />
-        <MetricCell label="Intelligence Gaps" value={String(input.relationshipIntelligenceGaps)} highlight={input.relationshipIntelligenceGaps > 0} />
+        <MetricCell label="Accounts Needing Attention" value={String(input.accountsNeedingAttention)} highlight={input.accountsNeedingAttention > 0} />
         <MetricCell label="Product Strategy" value={input.productStrategyCrmReadiness} />
         <MetricCell label="Revenue Data" value={input.revenueDataAvailability} />
       </div>

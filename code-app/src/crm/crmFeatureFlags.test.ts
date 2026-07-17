@@ -6,6 +6,9 @@ import {
   CRM_VENDOR_EDITING_ENABLED,
   CRM_TIMELINE_ENABLED,
   CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED,
+  CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED,
+  CRM_LIVE_ROLLUPS_ENABLED,
+  CRM_DAILY_ACTION_QUEUE_ENABLED,
   CRM_FEATURE_FLAG_DEFAULTS,
   deriveCrmFeatureFlagState,
 } from './crmFeatureFlags';
@@ -68,5 +71,35 @@ describe('Phase 141L Ã¢â‚¬â€ CRM feature flag dependency rules', () =
       contactEditingEnabled: true,
     });
     expect(withPersistence.CRM_CONTACT_EDITING_ENABLED).toBe(true);
+  });
+});
+
+describe('CRM-ELITE-1 — new capability-surfacing flags default off', () => {
+  it('every new flag constant defaults to false', () => {
+    expect(CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED).toBe(false);
+    expect(CRM_LIVE_ROLLUPS_ENABLED).toBe(false);
+    expect(CRM_DAILY_ACTION_QUEUE_ENABLED).toBe(false);
+  });
+
+  it('every new flag is listed in CRM_FEATURE_FLAG_DEFAULTS, off', () => {
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED).toBe(false);
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_ROLLUPS_ENABLED).toBe(false);
+    expect(CRM_FEATURE_FLAG_DEFAULTS.CRM_DAILY_ACTION_QUEUE_ENABLED).toBe(false);
+  });
+
+  it('no config → the new flags stay disabled; explicit config enables them', () => {
+    const off = deriveCrmFeatureFlagState();
+    expect(off.CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED).toBe(false);
+    expect(off.CRM_LIVE_ROLLUPS_ENABLED).toBe(false);
+    expect(off.CRM_DAILY_ACTION_QUEUE_ENABLED).toBe(false);
+
+    const on = deriveCrmFeatureFlagState({
+      relationshipHealthDisplayEnabled: true,
+      liveRollupsEnabled: true,
+      dailyActionQueueEnabled: true,
+    });
+    expect(on.CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED).toBe(true);
+    expect(on.CRM_LIVE_ROLLUPS_ENABLED).toBe(true);
+    expect(on.CRM_DAILY_ACTION_QUEUE_ENABLED).toBe(true);
   });
 });

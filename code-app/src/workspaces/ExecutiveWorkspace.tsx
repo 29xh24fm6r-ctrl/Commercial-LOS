@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ExecutiveProvider } from '../executive/ExecutiveProvider';
 import { ExecutiveDataProvider } from '../executive/ExecutiveDataProvider';
@@ -26,6 +27,10 @@ import { ProductStrategyNavigationCard } from '../competitive/ProductStrategyNav
 import { buildExecutiveProductStrategySurfaceState } from '../competitive/buildExecutiveProductStrategySurfaceState';
 import { CrmExecutiveWorkingSurface } from '../crm/workspaceIntegration/CrmExecutiveWorkingSurface';
 import { executiveCrmPreviewInput } from '../crm/workspaceIntegration/crmWorkspacePreviewInputs';
+import { deriveExecutiveCrmSurfaceInput } from '../crm/workspaceIntegration/crmWorkspaceRollupInputs';
+import { CRM_LIVE_ROLLUPS_ENABLED } from '../crm/crmFeatureFlags';
+import { loadCrmWorkspaceData, type CrmWorkspaceData } from '../crm/workspace/crmWorkspaceData';
+import { deriveOrgHealthInputs, deriveAccountRollupRecords } from '../crm/workspace/crmRelationshipHealthData';
 import { ExecutiveWorkflowLaunchReadinessPanel } from '../workflow/ExecutiveWorkflowLaunchReadinessPanel';
 import { ExecutiveRestartReadinessCommandCenter } from '../executive/ExecutiveRestartReadinessCommandCenter';
 import { palette, spacing, typography } from '../shared/theme';
@@ -44,6 +49,33 @@ import { palette, spacing, typography } from '../shared/theme';
  * aggregates). It does NOT mount BankerProvider / ManagerProvider or
  * query their operational data.
  */
+// CRM-ELITE-1 Phase 3 — live executive CRM rollup data. Mirrors the LoadState +
+// cancellation-guard pattern CrmHubWorkspace.tsx already uses. Only loads when
+// the flag is on; flag-off leaves the workspace exactly as it renders today.
+type CrmRollupLoadState =
+  | { kind: 'loading' }
+  | { kind: 'ready'; data: CrmWorkspaceData }
+  | { kind: 'failed'; message: string };
+
+function useCrmRollupWorkspaceData(): CrmRollupLoadState {
+  const [state, setState] = useState<CrmRollupLoadState>({ kind: 'loading' });
+  useEffect(() => {
+    if (!CRM_LIVE_ROLLUPS_ENABLED) return;
+    let cancelled = false;
+    loadCrmWorkspaceData()
+      .then((data) => {
+        if (!cancelled) setState({ kind: 'ready', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setState({ kind: 'failed', message: err instanceof Error ? err.message : String(err) });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return state;
+}
+
 export function ExecutiveWorkspace() {
   return (
     <ExecutiveProvider>
@@ -56,6 +88,17 @@ export function ExecutiveWorkspace() {
 
 function ExecutiveWorkspaceContent() {
   const { fullName, upn } = useExecutive();
+  const crmRollupState = useCrmRollupWorkspaceData();
+  // Reaching this content means ExecutiveProvider has already authorized the
+  // viewer as an executive — the same authorization the rollup is scoped to,
+  // so this is not a permission widening.
+  const liveExecutiveCrmSurfaceInput = useMemo(() => {
+    if (crmRollupState.kind !== 'ready') return undefined;
+    const nowIso = new Date().toISOString();
+    const orgHealthInputs = deriveOrgHealthInputs(crmRollupState.data, nowIso);
+    const accounts = [...deriveAccountRollupRecords(orgHealthInputs, new Map(), nowIso)];
+    return deriveExecutiveCrmSurfaceInput({ accounts, viewerEntitled: true }, undefined);
+  }, [crmRollupState]);
   const bootstrap = useBootstrap();
   const entitled = useEntitledRoutes();
   const [searchParams] = useSearchParams();
@@ -124,7 +167,20 @@ function ExecutiveWorkspaceContent() {
             {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 — visible read-only CRM
                 strategy intelligence (honest preview posture; no fake revenue/ROE,
                 no credit decisioning, no write controls, no permission widening). */}
-            <CrmExecutiveWorkingSurface input={executiveCrmPreviewInput()} />
+            {!CRM_LIVE_ROLLUPS_ENABLED && (
+              <CrmExecutiveWorkingSurface input={executiveCrmPreviewInput()} />
+            )}
+            {CRM_LIVE_ROLLUPS_ENABLED && liveExecutiveCrmSurfaceInput && (
+              <CrmExecutiveWorkingSurface input={liveExecutiveCrmSurfaceInput} />
+            )}
+            {CRM_LIVE_ROLLUPS_ENABLED && crmRollupState.kind === 'loading' && (
+              <div style={styles.crmRollupNotice} aria-hidden="true">Loading CRM strategy intelligence…</div>
+            )}
+            {CRM_LIVE_ROLLUPS_ENABLED && crmRollupState.kind === 'failed' && (
+              <div style={styles.crmRollupNotice} role="alert">
+                CRM strategy intelligence is temporarily unavailable. Refresh to try again.
+              </div>
+            )}
             {/* Existing board-safe snapshot cards remain below as detail. */}
             <PortfolioSummary />
             <AtRiskPortfolioSummary />
@@ -209,5 +265,14 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
     gap: spacing.lg,
+  },
+  crmRollupNotice: {
+    padding: `${spacing.md} ${spacing.lg}`,
+    color: palette.textMuted,
+    fontSize: typography.size.sm,
+    fontStyle: 'italic',
+    background: palette.surface,
+    border: `1px solid ${palette.border}`,
+    borderRadius: 8,
   },
 };

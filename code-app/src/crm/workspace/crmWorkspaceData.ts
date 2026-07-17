@@ -82,7 +82,8 @@ export interface CrmRecord {
    * Related-organization id, threaded through from the raw record's lookup so the
    * detail drawer can filter the already-loaded workspace data by a selected
    * company — NO new reads. People carry their employer org; timeline events carry
-   * their linked org.
+   * their linked org; relationships carry the source (else target) organization —
+   * the coverage-team proxy consumed by crmRelationshipHealthData.ts.
    */
   readonly organizationId?: string;
   /** Related-person id (timeline events linked to a contact). */
@@ -218,6 +219,9 @@ export function mapRelationship(r: Cr664_crmrelationships): CrmRecord {
     title: s(r.cr664_name) ?? s(r.cr664_relationshiptype) ?? 'Relationship',
     subtitle: s(r.cr664_role) ?? s(r.cr664_relationshiptype),
     badge: r.cr664_active === false ? 'Inactive' : r.cr664_active === true ? 'Active' : undefined,
+    // Coverage-team proxy: prefer the source organization lookup, else the target
+    // organization lookup — whichever side of the relationship is an org.
+    organizationId: s(r._cr664_sourceorganization_value) ?? s(r._cr664_targetorganization_value),
     detail: pick([
       row('Type', s(r.cr664_relationshiptype)),
       row('Role', s(r.cr664_role)),

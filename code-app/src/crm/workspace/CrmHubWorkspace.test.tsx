@@ -47,6 +47,13 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
     expect(container.querySelectorAll('[data-crm-card]').length).toBe(6);
   });
 
+  it('CRM-ELITE-1 Phase 5 — surfaces a discoverable entry point to the CRM intelligence panel', async () => {
+    const { container } = await renderHub(fixture());
+    const link = container.querySelector('[data-crm-intelligence-link]');
+    expect(link).not.toBeNull();
+    expect(link).toHaveAttribute('href', '/surfaces/crm-intelligence');
+  });
+
   it('renders the scaffolding immediately (header present even before data resolves — never blank)', () => {
     const { container } = render(<CrmHubWorkspace loadData={() => new Promise(() => {})} />);
     expect(screen.getByRole('heading', { name: 'Relationship CRM' })).toBeInTheDocument();

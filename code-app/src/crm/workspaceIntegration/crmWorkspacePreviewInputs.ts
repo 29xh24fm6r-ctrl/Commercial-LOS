@@ -34,12 +34,16 @@ export function bankerCrmPreviewInput(): CrmBankerSurfaceInput {
   };
 }
 
-/** Manager CRM posture (active; read-only). */
+/**
+ * Manager CRM posture — the flag-OFF fallback (CRM_LIVE_ROLLUPS_ENABLED = false).
+ * Kept in place deliberately as a zero-regression-risk fallback; the live path is
+ * `crmWorkspaceRollupInputs.ts`'s deriveManagerCrmSurfaceInput.
+ */
 export function managerCrmPreviewInput(): CrmManagerSurfaceInput {
   return {
     teamCrmReadiness: CRM_ACTIVE,
     bankerFollowUpWorkload: 0,
-    sourceOfTruthConflicts: 0,
+    accountsNeedingAttention: 0,
     salesforceReadinessByPipeline: CRM_ACTIVE,
     ncinoReadinessByPipeline: WORKFLOW_ACTIVE,
     syncPreviewBlockedCount: 0,
@@ -48,13 +52,17 @@ export function managerCrmPreviewInput(): CrmManagerSurfaceInput {
   };
 }
 
-/** Executive CRM posture (active; no fake revenue). */
+/**
+ * Executive CRM posture — the flag-OFF fallback (CRM_LIVE_ROLLUPS_ENABLED = false).
+ * Kept in place deliberately as a zero-regression-risk fallback; the live path is
+ * `crmWorkspaceRollupInputs.ts`'s deriveExecutiveCrmSurfaceInput.
+ */
 export function executiveCrmPreviewInput(): CrmExecutiveSurfaceInput {
   return {
     crmCoverageStatus: CRM_ACTIVE,
     salesforceActivationPosture: 'Active',
     ncinoActivationPosture: 'Active',
-    relationshipIntelligenceGaps: 0,
+    accountsNeedingAttention: 0,
     productStrategyCrmReadiness: CRM_ACTIVE,
     revenueDataAvailability: 'Not available (no revenue figures shown)',
     nextExecutiveStep: 'Review CRM coverage and activation.',

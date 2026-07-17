@@ -5,7 +5,8 @@ import { palette, spacing, typography, radius } from '../../shared/theme';
 export interface CrmManagerSurfaceInput {
   teamCrmReadiness: string;
   bankerFollowUpWorkload: number;
-  sourceOfTruthConflicts: number;
+  /** Real at-risk-account count (CRM-ELITE-1 Phase 3) — was the unwired "sourceOfTruthConflicts" (always 0). */
+  accountsNeedingAttention: number;
   salesforceReadinessByPipeline: string;
   ncinoReadinessByPipeline: string;
   syncPreviewBlockedCount: number;
@@ -24,7 +25,7 @@ export function CrmManagerWorkingSurface({ input }: Props) {
       <div style={gridStyle}>
         <MetricCell label="Team Readiness" value={input.teamCrmReadiness} />
         <MetricCell label="Banker Follow-ups" value={String(input.bankerFollowUpWorkload)} highlight={input.bankerFollowUpWorkload > 0} />
-        <MetricCell label="SoT Conflicts" value={String(input.sourceOfTruthConflicts)} highlight={input.sourceOfTruthConflicts > 0} />
+        <MetricCell label="Accounts Needing Attention" value={String(input.accountsNeedingAttention)} highlight={input.accountsNeedingAttention > 0} />
         <MetricCell label="CRM" value={input.salesforceReadinessByPipeline} />
         <MetricCell label="Lending Workflow" value={input.ncinoReadinessByPipeline} />
         <MetricCell label="Sync Blocked" value={String(input.syncPreviewBlockedCount)} highlight={input.syncPreviewBlockedCount > 0} />
