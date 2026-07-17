@@ -45,6 +45,26 @@ const FORBIDDEN_IMPORT_PATTERNS: readonly RegExp[] = [
   /finalLaunch/i,
 ];
 
+/**
+ * node:path's `relative`/`join` use the platform separator — backslashes on
+ * Windows. SCAN_ROOTS and the sanity-check assertion below are written in
+ * repo-relative POSIX form, so unnormalized paths break that assertion on
+ * Windows and make every failure message inconsistent with the rest of this
+ * codebase's path conventions. Normalizing at construction (inside
+ * listSourceFiles, before any filtering/assertion/message use) avoids that
+ * regardless of platform.
+ *
+ * Deliberately duplicated (not imported) from the identical helper in
+ * bankerFacingLaunchLanguageGuard.test.ts: it's a one-line, dependency-free
+ * function, and these two governance-guard test files are intentionally
+ * self-contained (each owns its own SCAN_ROOTS/patterns/doc comments) —
+ * sharing a module for one line would couple two independently-evolving
+ * guards for no real benefit.
+ */
+function normalizeRepoPath(path: string): string {
+  return path.replaceAll('\\', '/');
+}
+
 function listSourceFiles(dir: string): string[] {
   const abs = resolve(REPO_ROOT, dir);
   let entries: string[];
@@ -58,12 +78,12 @@ function listSourceFiles(dir: string): string[] {
     const entryAbs = join(abs, entry);
     const stat = statSync(entryAbs);
     if (stat.isDirectory()) {
-      files.push(...listSourceFiles(relative(REPO_ROOT, entryAbs)));
+      files.push(...listSourceFiles(normalizeRepoPath(relative(REPO_ROOT, entryAbs))));
       continue;
     }
     if (!/\.(ts|tsx)$/.test(entry)) continue;
     if (/\.test\.(ts|tsx)$/.test(entry)) continue;
-    files.push(relative(REPO_ROOT, entryAbs));
+    files.push(normalizeRepoPath(relative(REPO_ROOT, entryAbs)));
   }
   return files;
 }
