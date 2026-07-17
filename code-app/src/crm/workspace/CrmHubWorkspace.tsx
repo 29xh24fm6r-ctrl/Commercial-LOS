@@ -30,7 +30,7 @@ import { CrmRelationshipRollups } from '../CrmRollupCards';
 import type { CrmHealthInput } from '../crmRelationshipHealthModel';
 import { deriveLiveBankerCrmDailyActionInput } from '../dailyActions/deriveLiveBankerCrmDailyActionInput';
 import { deriveBankerCrmDailyActionQueue } from '../dailyActions/bankerCrmDailyActionQueue';
-import { BankerCrmDailyActionQueue } from '../dailyActions/BankerCrmDailyActionQueue';
+import { BankerCrmDailyActionQueue } from '../dailyActions/BankerCrmDailyActionQueuePanel';
 
 /**
  * Phase 260 — Relationship CRM (elite CRM cockpit).
