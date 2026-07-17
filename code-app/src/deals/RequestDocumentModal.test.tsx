@@ -123,7 +123,9 @@ describe('RequestDocumentModal — Phase 61 Outlook send path', () => {
         onSendEmail={onSendEmail}
       />,
     );
-    expect(screen.getByRole('status', { name: /email delivery mode/i })).toBeInTheDocument();
+    // Factory Arc Phase 10: the mode badge is honest plain text, not a raw EMAIL_MODE token.
+    expect(screen.getByRole('status', { name: /live outlook send is unavailable/i })).toBeInTheDocument();
+    expect(screen.getByText(/send preview only/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/send email through outlook/i)).toBeChecked();
     expect(screen.getByLabelText(/send to/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/subject/i)).toHaveValue(
@@ -216,7 +218,9 @@ describe('RequestDocumentModal — Phase 61 Outlook send path', () => {
     await user.click(screen.getByRole('button', { name: /^record request & send$/i }));
 
     await screen.findByText(/request recorded/i);
-    expect(screen.getByText(/send recorded \(dry_run\)/i)).toBeInTheDocument();
+    // Factory Arc Phase 10: honest communication-state text, no raw "DRY_RUN" token.
+    expect(screen.getByText(/email prepared — not sent to outlook/i)).toBeInTheDocument();
+    expect(screen.getByText(/live email sending is unavailable/i)).toBeInTheDocument();
     expect(screen.getAllByText(/b\*\*\*@e\*\*\*\.com/i).length).toBeGreaterThan(0);
 
     expect(onConfirm).toHaveBeenCalledTimes(1);

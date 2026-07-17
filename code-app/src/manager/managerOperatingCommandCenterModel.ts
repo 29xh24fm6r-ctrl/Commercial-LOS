@@ -130,13 +130,28 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
       nextAction: 'Require schema, adapter, policy, and operator certification before CRM writeback is enabled.',
     },
     {
+      // Factory Arc Phase 10: `state` stays flag-driven (matching the
+      // certified-launch authority the cross-panel coherence guard checks
+      // against — crossPanelLaunchCoherence.test.ts) so this card never
+      // disagrees with the authority on whether the CERTIFIED, connector-
+      // driven automated LIVE send is live. What changed is the copy: the
+      // old summary/nextAction implied no borrower communication happens
+      // at all until that pipeline is certified, which is false — bankers
+      // already draft, copy, and (in HANDOFF/DRY_RUN mode) hand off
+      // borrower updates and document requests today with full audit and
+      // activity-history tracking, with no flag gate at all
+      // (DraftBorrowerUpdateModal.tsx / RequestDocumentModal.tsx).
       id: 'borrower-communication',
-      label: 'Borrower communication gate',
+      label: 'Borrower communication',
       state: BORROWER_MESSAGING_ENABLED ? 'operational' : 'gated',
-      value: liveWriteValue(BORROWER_MESSAGING_ENABLED, 'Send', 'Send gated'),
+      value: liveWriteValue(
+        BORROWER_MESSAGING_ENABLED,
+        'Automated send',
+        'Certified automated send gated — drafting, copy, and handoff already live',
+      ),
       summary:
-        'Borrower-safe drafting/handoff is separate from live send. Send remains fail-closed by default across the team.',
-      nextAction: 'Keep borrower outreach on governed handoff paths until live-send is certified.',
+        'Bankers already draft, copy, and hand off borrower updates and document requests today, fully audited. What is gated is the certified, connector-driven automated live send used at deal creation.',
+      nextAction: 'Use the Borrower Update and Document Request modals for governed outreach today; certify the automated send pipeline before enabling it broadly.',
     },
     {
       // Factory Arc Phase 9: `state` stays flag-driven (matching the
@@ -168,13 +183,13 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
     title: 'Manager Operating Command Center',
     subtitle: 'Team CRM + LOS supervision cockpit for the lending restart',
     posture:
-      'Managers supervise pipeline, banker workload, CRM coverage, and workflow bottlenecks read-only. New Deal create, CRM writeback, stage advancement, borrower send, checklist generation, and the certified self-service portfolio boarding pipeline remain governed by certified gates — but loans already board today through the manual "Board existing loan" action and auto-boarding on stage advancement.',
+      'Managers supervise pipeline, banker workload, CRM coverage, and workflow bottlenecks read-only. New Deal create, CRM writeback, stage advancement, checklist generation, the certified automated borrower-send pipeline, and the certified self-service portfolio boarding pipeline remain governed by certified gates — but borrower drafting/copy/handoff and loan boarding (manual "Board existing loan" plus auto-board on stage advance) already work today.',
     domains,
     supervisionActions: [
       'Start with pipeline supervision, banker workload, and CRM coverage.',
       'Triage workflow bottlenecks from the Manager Workflow Launch Readiness panel.',
       'Use duplicate detection and task intelligence as safe internal core supervision signals.',
-      'Do not treat gated create/writeback/send/self-service-boarding controls as enabled until admin certification clears them — manual boarding and auto-board already work outside those gates.',
+      'Do not treat gated create/writeback/automated-send/self-service-boarding controls as enabled until admin certification clears them — borrower drafting/copy/handoff and manual/auto-board loan boarding already work outside those gates.',
     ],
     supervisionAnchors: [
       'manager-bloomberg-control-panel',

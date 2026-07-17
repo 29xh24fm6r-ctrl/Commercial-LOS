@@ -12,13 +12,12 @@
  *     either the Office 365 Outlook connector is registered (→ LIVE)
  *     or the customer chooses the no-admin handoff path (→ HANDOFF).
  *
- *   - LIVE: the (future) Office 365 Outlook connector service IS
- *     invoked. Today the LIVE adapter is a stub that returns a
- *     permanent failure with a clear "connector not yet registered"
- *     reason — the audit event records the failure honestly. When the
- *     connector is registered and the SDK regenerated, the LIVE
- *     adapter's `send` method swaps in the typed connector call;
- *     nothing else in the coordination changes.
+ *   - LIVE: the Office 365 Outlook connector service IS invoked for
+ *     real (Phase 104, `outlookEmailAdapters.ts` calls
+ *     `Office365OutlookService.SendEmailV2`). The connector is
+ *     registered; switching an environment to LIVE is a deploy
+ *     configuration change plus an operator-recorded diagnostic
+ *     smoke test, not a code change.
  *
  *   - HANDOFF (Phase 63): the app DOES NOT send email at all. Instead
  *     it prepares a borrower-safe subject + body, surfaces an "Open in

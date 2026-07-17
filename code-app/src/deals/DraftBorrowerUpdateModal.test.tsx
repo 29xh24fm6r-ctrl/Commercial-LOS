@@ -101,11 +101,12 @@ beforeEach(() => {
 });
 
 describe('DraftBorrowerUpdateModal — guardrails and structure', () => {
-  it('renders the Phase 105 mode banner reflecting EMAIL_MODE', () => {
+  it('renders the Phase 105 mode banner reflecting EMAIL_MODE (Factory Arc Phase 10: honest communication-state language, no raw token)', () => {
     render(<DraftBorrowerUpdateModal {...defaultProps()} />);
-    // Default test EMAIL_MODE is DRY_RUN, so the banner should say so.
-    expect(screen.getByText(/Mode: DRY_RUN\./)).toBeInTheDocument();
-    expect(screen.getByText(/nothing leaves the client/i)).toBeInTheDocument();
+    // Default test EMAIL_MODE is DRY_RUN, so the banner should describe that honestly.
+    expect(screen.getByText(/Live email sending is unavailable/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing leaves the client/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Mode: DRY_RUN/)).not.toBeInTheDocument();
   });
 
   it('renders all four template options in the selector', () => {
@@ -342,6 +343,40 @@ describe('DraftBorrowerUpdateModal — Phase 105 Send flow', () => {
     ).toBeInTheDocument();
     // Forbidden vocabulary stays off the screen.
     const body = document.body.textContent ?? '';
+    expect(body).not.toMatch(/\bdelivered\b/i);
+  });
+
+  // Factory Arc Phase 10 — the DRY_RUN success outcome uses the target
+  // "draft prepared" communication-state vocabulary, never a raw "DRY_RUN:"
+  // token or an instruction to edit an env var.
+  it('renders the "Draft prepared" success outcome for a DRY_RUN send (not a raw DRY_RUN token)', async () => {
+    const onSendEmail = vi.fn().mockResolvedValue({
+      kind: 'success',
+      mode: 'DRY_RUN',
+      providerMessageId: undefined,
+      maskedRecipient: 'b***@e***.com',
+    } as SendBorrowerUpdateEmailOutcome);
+    render(<DraftBorrowerUpdateModal {...defaultProps({ onSendEmail })} />);
+    const user = userEvent.setup();
+
+    await user.type(
+      screen.getByLabelText(/banker note \/ reason for this update/i),
+      'Borrower called.',
+    );
+    await user.type(screen.getByLabelText(/recipient email/i), 'borrower@example.com');
+    await user.click(
+      screen.getByRole('button', { name: /send borrower update through outlook/i }),
+    );
+
+    expect(
+      await screen.findByText(/Draft prepared for b\*\*\*@e\*\*\*\.com/),
+    ).toBeInTheDocument();
+    // The banner AND the outcome panel both honestly describe live sending
+    // as unavailable — two distinct elements, hence getAllByText here.
+    expect(screen.getAllByText(/Live email sending is unavailable/i).length).toBeGreaterThan(0);
+    const body = document.body.textContent ?? '';
+    expect(body).not.toMatch(/DRY_RUN:/);
+    expect(body).not.toMatch(/flip VITE_EMAIL_MODE/i);
     expect(body).not.toMatch(/\bdelivered\b/i);
   });
 

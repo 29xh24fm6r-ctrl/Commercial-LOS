@@ -26,7 +26,7 @@ describe('Phase 233 — Manager Operating Command Center', () => {
       'New Deal intake gate posture',
       'Document checklist readiness',
       'CRM writeback gate',
-      'Borrower communication gate',
+      'Borrower communication',
       'Portfolio boarding',
     ]) {
       expect(within(region).getByText(label)).toBeInTheDocument();
@@ -61,7 +61,6 @@ describe('Phase 233 — Manager Operating Command Center', () => {
     it.each([
       ['document-readiness', 'Generation gated'],
       ['crm-writeback', 'Writeback gated'],
-      ['borrower-communication', 'Send gated'],
     ])('%s reads gated and never "enabled" at the safe default', (id, gatedLabel) => {
       const { container } = render(<ManagerOperatingCommandCenter />);
       const el = card(container, id);
@@ -85,5 +84,21 @@ describe('Phase 233 — Manager Operating Command Center', () => {
     expect(value?.textContent).toMatch(/manual board \+ auto-board already live/i);
     expect(within(el!).getByText('gated')).toBeInTheDocument(); // status badge
     expect(within(el!).getAllByText(/Board existing loan/).length).toBeGreaterThan(0);
+  });
+
+  // Factory Arc Phase 10 — the certified automated borrower-send pipeline
+  // correctly stays gated (matching the launch-coherence authority), but its
+  // value text no longer implies zero borrower-communication capability
+  // exists — it names the live drafting/copy/handoff paths that already
+  // work today outside that certification gate.
+  it('borrower-communication reads gated for the certified pipeline, but names the live drafting/copy/handoff paths', () => {
+    const { container } = render(<ManagerOperatingCommandCenter />);
+    const el = container.querySelector<HTMLElement>('[data-operating-domain="borrower-communication"]');
+    expect(el).not.toBeNull();
+    const value = el!.querySelector('[data-domain-value]');
+    expect(value?.textContent).toMatch(/gated/i);
+    expect(value?.textContent).toMatch(/already live/i);
+    expect(within(el!).getByText('gated')).toBeInTheDocument(); // status badge
+    expect(within(el!).getAllByText(/draft/i).length).toBeGreaterThan(0);
   });
 });

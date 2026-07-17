@@ -59,6 +59,25 @@ describe('Phase 233 — Manager Operating Command Center model', () => {
     expect(boarding.nextAction).toMatch(/Board existing loan/);
   });
 
+  // Factory Arc Phase 10 — the certified automated borrower-send pipeline
+  // correctly stays "gated" (matching the launch-coherence authority), but
+  // the old copy implied NO borrower communication happens at all until
+  // certification — false. Bankers already draft, copy, and hand off
+  // borrower updates and document requests today with full audit tracking
+  // (DraftBorrowerUpdateModal.tsx / RequestDocumentModal.tsx). The card's
+  // copy must say so.
+  it('borrower communication stays gated (matching the authority) but its copy names the live drafting/copy/handoff paths', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const comms = vm.domains.find((d) => d.id === 'borrower-communication')!;
+
+    expect(comms.state).toBe('gated');
+    expect(comms.label).not.toMatch(/gate/i);
+    expect(comms.summary).toMatch(/draft/i);
+    expect(comms.summary).toMatch(/handoff|handed off|hand off/i);
+    expect(comms.nextAction).toMatch(/Borrower Update/);
+    expect(comms.nextAction).toMatch(/Document Request/);
+  });
+
   it('points managers to existing supervision surfaces instead of inventing a parallel engine', () => {
     const vm = deriveManagerOperatingCommandCenterModel();
 
