@@ -5,7 +5,7 @@ import {
 } from '../../admin/runtimeVerifiedSchemaBridge';
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crmFeatureFlags';
 import { isFeatureSurfaceFlagEnabled } from '../../navigation/featureSurfaceFlags';
-import { isCrmCertificationAttributed } from '../certification/crmCertificationAttribution';
+import { isCrmCertificationAttributed } from '../../access/crmCertificationAttribution';
 
 /**
  * CRM-B — Unified CRM readiness model.

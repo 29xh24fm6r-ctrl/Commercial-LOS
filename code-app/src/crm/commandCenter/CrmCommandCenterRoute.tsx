@@ -15,10 +15,24 @@ import { deriveUnifiedCrmReadiness } from '../readiness/unifiedCrmReadiness';
  *
  * Read-only: renders status + intelligence only. Live create/edit stay in the CRM Hub;
  * this route never performs a write. There is no second readiness story.
+ *
+ * Factory Arc Phase 12: `audience` controls which readiness dimensions are visible.
+ * The `certification-attribution` dimension is release/launch-evidence attribution
+ * data (see crmCertificationAttribution.ts), not a CRM operating fact a banker/team/
+ * manager needs — it is shown only when `audience === 'admin'`. Non-admin counts are
+ * computed from the filtered dimension list so the subtitle never overclaims (or
+ * underclaims) based on a dimension the viewer can't see.
  */
-export function CrmCommandCenterRoute() {
+export function CrmCommandCenterRoute({ audience = 'team' }: { audience?: 'team' | 'admin' }) {
   const readiness = deriveUnifiedCrmReadiness();
-  const blocked = readiness.dimensions.filter((d) => d.status === 'blocked');
+  const dimensions =
+    audience === 'admin'
+      ? readiness.dimensions
+      : readiness.dimensions.filter((d) => d.key !== 'certification-attribution');
+  const readyCount = dimensions.filter((d) => d.status === 'ready').length;
+  const totalCount = dimensions.length;
+  const teamReady = readyCount === totalCount;
+  const blocked = dimensions.filter((d) => d.status === 'blocked');
 
   return (
     <div style={rootStyle}>
@@ -34,13 +48,13 @@ export function CrmCommandCenterRoute() {
         <CardHeader
           title="Team readiness"
           subtitle={
-            readiness.teamReady
+            teamReady
               ? 'CRM is team-ready across all dimensions.'
-              : `${readiness.readyCount}/${readiness.totalCount} readiness dimensions ready — ${blocked.length} outstanding.`
+              : `${readyCount}/${totalCount} readiness dimensions ready — ${blocked.length} outstanding.`
           }
         />
         <ul style={listStyle}>
-          {readiness.dimensions.map((d) => (
+          {dimensions.map((d) => (
             <li key={d.key} style={rowStyle}>
               <span style={badgeStyle(d.status === 'ready')}>{d.status === 'ready' ? 'READY' : 'BLOCKED'}</span>
               <span style={labelStyle}>{d.label}</span>

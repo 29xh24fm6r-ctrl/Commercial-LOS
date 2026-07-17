@@ -8,9 +8,9 @@ import {
   validateCandidateCrmSmoke,
   CRM_LIVE_PERSISTENCE_EVIDENCE_SLOT,
 } from './crmCertificationAttribution';
-import { deriveUnifiedCrmReadiness } from '../readiness/unifiedCrmReadiness';
+import { deriveUnifiedCrmReadiness } from '../crm/readiness/unifiedCrmReadiness';
 
-const ROOT = resolve(__dirname, '..', '..', '..');
+const ROOT = resolve(__dirname, '..', '..');
 const committedSmoke = JSON.parse(
   readFileSync(resolve(ROOT, CRM_LIVE_PERSISTENCE_EVIDENCE_SLOT.path), 'utf8').replace(/^﻿/, ''),
 );

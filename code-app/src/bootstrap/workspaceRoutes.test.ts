@@ -95,6 +95,10 @@ describe('Phase 116 — substring regex fallback preserved for non-alias names',
     expect(resolveWorkspaceRoute('Board Reporting')).toBe(WORKSPACE_ROUTES.executive);
   });
 
+  it('a non-alias name containing the word "admin" still resolves to admin (Factory Arc Phase 12 — was untested for the admin case, symmetric with the other four roles above)', () => {
+    expect(resolveWorkspaceRoute('Platform Admin Console')).toBe(WORKSPACE_ROUTES.admin);
+  });
+
   it('a non-alias name containing only the substring "manage" (no "manager") does NOT match manager', () => {
     // \b word-boundary means "Management" alone (without "manager")
     // doesn't trip the manager regex. This catches the original

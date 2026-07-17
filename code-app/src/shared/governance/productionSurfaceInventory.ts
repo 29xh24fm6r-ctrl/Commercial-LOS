@@ -44,6 +44,7 @@ export type MigrationPhase =
   | 'phase-9-portfolio-presentation'
   | 'phase-10-borrower-communications'
   | 'phase-11-new-deal-semantics'
+  | 'phase-12-navigation-role-cleanup'
   | 'no-change-already-admin-scoped'
   | 'no-change-orphaned-unrouted';
 
@@ -201,8 +202,16 @@ export const PRODUCTION_SURFACE_INVENTORY: readonly ProductionSurfaceInventoryEn
     triggeringSource: 'static subtitle string',
     currentAudience: 'banker-operational',
     correctFutureAudience: 'banker-operational',
-    replacementOperationalSignal: 'Same as crmCommandCenterViewModel.ts.',
-    migrationPhase: 'phase-8-crm-presentation',
+    replacementOperationalSignal:
+      'Phase 8 copy fix done. Phase 12 closed a separate leak on this same file: it rendered ' +
+      'deriveUnifiedCrmReadiness()\'s full 10-dimension model — including "certification-attribution," a ' +
+      'release/launch-evidence fact — to every workspace (banker/team/manager/admin alike). Added an ' +
+      '`audience` prop (default \'team\'); only audience==="admin" now sees that dimension, wired via the ' +
+      'admin-only crm-command-center-admin entry in featureSurfaces.tsx. The underlying attribution module ' +
+      '(crmCertificationAttribution.ts) also moved src/crm/certification/ -> src/access/ so the import-graph ' +
+      'guard (releaseGovernanceRuntimeImportGuard.test.ts) can scan src/crm without breaking the legitimate ' +
+      'admin-only consumer (crmTeamReadinessCertification.ts).',
+    migrationPhase: 'phase-12-navigation-role-cleanup',
   },
   {
     file: 'src/crm/CrmRelationshipDetailCards.tsx',
@@ -475,7 +484,6 @@ export const INVENTORIED_FILES: readonly string[] = [
     'src/crm/readiness/unifiedCrmReadiness.ts',
     'src/crm/readiness/crmRoleMountRegistry.ts',
     'src/crm/certification/crmTeamReadinessCertification.ts',
-    'src/crm/certification/crmCertificationAttribution.ts',
     'src/crm/activation/crmActivationSafety.ts',
     'src/crm/seed/crmCanonicalSeedReadiness.ts',
     'src/crm/connectors/crmConnectorReadiness.ts',

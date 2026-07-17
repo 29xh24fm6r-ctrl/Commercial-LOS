@@ -3,8 +3,8 @@ import {
   deriveEvidenceIntegrity,
   isAttributableOperatorUpn,
   type EvidenceConfidence,
-} from '../../access/finalLaunchSmokeEvidence';
-import { committedFinalLaunchEvidenceIntegrity } from '../../access/committedFinalLaunchEvidence';
+} from './finalLaunchSmokeEvidence';
+import { committedFinalLaunchEvidenceIntegrity } from './committedFinalLaunchEvidence';
 
 /**
  * CRM-H — CRM live-persistence certification attribution guard.
@@ -18,6 +18,13 @@ import { committedFinalLaunchEvidenceIntegrity } from '../../access/committedFin
  * smoke replaces it.
  *
  * PURE: reads the committed evidence integrity; flips nothing; fabricates no identity.
+ *
+ * Factory Arc Phase 12: moved from src/crm/certification/ to src/access/ — this is
+ * release/launch-evidence attribution content (the same family as
+ * finalLaunchSmokeEvidence.ts / operatorSmokeEvidenceRegistry.ts, both already here),
+ * not CRM business logic. Banker/team/manager-facing directories must never directly
+ * import launch-evidence internals; see unifiedCrmReadiness.ts for how the banker-safe
+ * CRM readiness surface consumes this data at arm's length instead.
  */
 
 /** Where an operator drops the corrected, attributed live smoke (replacing the sentinel one). */

@@ -17,7 +17,11 @@ const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 // Factory Arc Phase 5 added src/portfolio (the manager/executive-facing portfolio
 // analytics workspace — distinct from src/portfolioBoarding, the loan boarding
 // workflow, already scanned) per that phase's explicit proof requirement.
-const SCAN_ROOTS = ['src/banker', 'src/manager', 'src/deals', 'src/portfolioBoarding', 'src/portfolio'];
+// Factory Arc Phase 12 added src/crm and src/team — both are banker/team-reachable
+// workspaces (Finding B) that were never in scope, which is precisely how a
+// release-evidence import (crmCertificationAttribution.ts, since relocated to
+// src/access/ where only Admin/Platform Operations code may live) went undetected.
+const SCAN_ROOTS = ['src/banker', 'src/manager', 'src/deals', 'src/portfolioBoarding', 'src/portfolio', 'src/crm', 'src/team'];
 
 const FORBIDDEN_IMPORT_PATTERNS: readonly RegExp[] = [
   // Factory Arc Phase 5 renamed fullSystemLaunchReadinessModel.ts to

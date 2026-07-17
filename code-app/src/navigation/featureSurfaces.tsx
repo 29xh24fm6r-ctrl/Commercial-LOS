@@ -96,10 +96,10 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     flag: 'CRM_COMMAND_CENTER_ROUTE_ENABLED',
     label: 'CRM command center (admin)',
     description:
-      'Admin-workspace CRM destination: unified CRM readiness + read-only CRM intelligence. Read-only; live create/edit stay in the identity-gated CRM Hub. Gated to the admin workspace.',
+      'Admin-workspace CRM destination: unified CRM readiness + read-only CRM intelligence, including the certification-attribution (release-evidence) dimension visible only to admins. Read-only; live create/edit stay in the identity-gated CRM Hub. Gated to the admin workspace.',
     workspace: 'admin',
     entryModule: 'src/crm/commandCenter/CrmCommandCenterRoute.tsx',
-    render: () => <CrmCommandCenterRoute />,
+    render: () => <CrmCommandCenterRoute audience="admin" />,
   },
   {
     key: 'crm-intelligence',
