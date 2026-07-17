@@ -114,10 +114,45 @@ describe('Phase 233 — Manager Operating Command Center model', () => {
   it('certifies safe internal production-core signals stay distinct from live write gates', () => {
     const vm = deriveManagerOperatingCommandCenterModel();
 
-    expect(vm.certifications.join(' ')).toMatch(/Duplicate detection safe internal core: true/);
-    expect(vm.certifications.join(' ')).toMatch(/Task generation safe internal core: true/);
+    expect(vm.certifications.join(' ')).toMatch(/Duplicate detection runs as a safe, internal-only/);
+    expect(vm.certifications.join(' ')).toMatch(/Task generation runs as a safe, internal-only/);
     expect(vm.certifications.join(' ')).toMatch(/No hidden create\/update\/delete action/i);
     expect(vm.certifications.join(' ')).toMatch(/No external platform sync or borrower send/i);
+  });
+
+  // Factory Arc Phase 14 — the certifications footer previously printed the raw
+  // flag identifier plus a literal ": true"/": false" (e.g. "Duplicate detection
+  // safe internal core: true"). It must now read as plain assurance prose.
+  it('the certifications footer never leaks a raw flag name or a bare boolean', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const joined = vm.certifications.join(' ');
+    expect(joined).not.toMatch(/:\s*(true|false)\b/i);
+    expect(joined).not.toMatch(/DUPLICATE_DETECTION_ENABLED|TASK_GENERATION_ENABLED|AUTO_STAGE_ADVANCE_ENABLED|CRM_ROUTE_ENABLED/);
+  });
+
+  // Factory Arc Phase 14 — pipeline-supervision and banker-workload now read
+  // real team-scoped counts when live data is supplied, instead of a static
+  // "Active" placeholder that is not a count of anything.
+  it('shows real live counts for pipeline-supervision and banker-workload when team data is supplied', () => {
+    const vm = deriveManagerOperatingCommandCenterModel({
+      teamPipeline: [
+        { id: 'd1', name: 'Deal 1', clientName: 'A', stage: 'Underwriting', status: 'Active', amount: 100, targetCloseDate: undefined, stageEntryDate: undefined, modifiedOn: undefined, assignedBankerId: 'b1', assignedBankerName: 'B', collateralSummary: undefined, productType: undefined, loanStructure: undefined, pricingType: undefined },
+      ],
+      teamBankers: [
+        { id: 'b1', fullName: 'B', email: undefined, roleType: undefined, active: true },
+        { id: 'b2', fullName: 'C', email: undefined, roleType: undefined, active: false },
+      ],
+    });
+    const byId = new Map(vm.domains.map((d) => [d.id, d]));
+    expect(byId.get('pipeline-supervision')?.value).toMatch(/1 active deal/);
+    expect(byId.get('banker-workload')?.value).toMatch(/1 active banker/);
+  });
+
+  it('falls back to the plain "Active" label when no live team data is supplied (no fabricated count)', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const byId = new Map(vm.domains.map((d) => [d.id, d]));
+    expect(byId.get('pipeline-supervision')?.value).toBe('Active');
+    expect(byId.get('banker-workload')?.value).toBe('Active');
   });
 
   it('source remains pure/read-only with no SDK, fetch, GUID, or Dataverse mutation primitive', () => {

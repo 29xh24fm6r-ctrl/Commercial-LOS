@@ -11,6 +11,7 @@ import { deriveV1ActivationReadiness } from '../../shared/readiness/v1Activation
 import { deriveOgbCrmWorkflowActivation } from '../../admin/ogbCrmWorkflowActivationModel';
 import { deriveEliteCrmLosActivationReadiness } from '../../admin/eliteCrmLosActivationReadinessModel';
 import { deriveManagerOperatingCommandCenterModel } from '../../manager/managerOperatingCommandCenterModel';
+import { deriveExecutiveRestartReadinessModel } from '../../executive/executiveRestartReadinessModel';
 import { CRM_LIVE_PERSISTENCE_DEFAULT } from '../../admin/adminCrmOnboardingModel';
 import { PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT } from '../../admin/adminPortfolioBoardingModel';
 
@@ -97,6 +98,20 @@ function panelLiveStatus(): Record<string, Partial<Record<ActivationDomainKey, b
       borrowerSend: mg('borrower-communication'),
       portfolioBoarding: mg('portfolio-boarding'),
     },
+    // Factory Arc Phase 14 — the executive restart readiness model reports
+    // per-category gate status via `gatedActivationCategories` (the NOT-yet-
+    // enabled category labels) rather than a per-domain state field; a
+    // category is "live" when its label is absent from that list.
+    'Executive Restart Readiness Command Center': (() => {
+      const exec = deriveExecutiveRestartReadinessModel();
+      const gated = new Set(exec.gatedActivationCategories);
+      return {
+        crmWriteback: !gated.has('CRM writeback / live persistence'),
+        documentChecklist: !gated.has('Document checklist generation'),
+        borrowerSend: !gated.has('Borrower communication send'),
+        portfolioBoarding: !gated.has('Portfolio boarding live persistence'),
+      };
+    })(),
     'CRM Onboarding Admin Panel': {
       crmWriteback: CRM_LIVE_PERSISTENCE_DEFAULT === true,
     },
@@ -177,5 +192,8 @@ describe('Completion Phase B — cross-panel launch coherence (both directions)'
     expect(
       deriveManagerOperatingCommandCenterModel().domains.find((d) => d.id === 'new-deal-intake')?.state,
     ).toBe('operational');
+    // Factory Arc Phase 14 — same fix applied to the Executive Restart
+    // Readiness model, which had the identical dead-constant bug.
+    expect(deriveExecutiveRestartReadinessModel().gatedActivationCategories).not.toContain('New Deal create');
   });
 });

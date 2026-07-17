@@ -8,6 +8,8 @@ import {
 import { BANKER_CREATE_PILOT_ENABLED } from '../deals/bankerCreatePilotConfig';
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
 import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
+import { summarizeTeamPipeline, dealTeamSeverity } from './teamSignals';
+import type { TeamDeal, TeamBanker } from './managerQueries';
 
 /**
  * Phase 233 — Manager Operating Command Center model.
@@ -19,9 +21,28 @@ import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/p
  * communication, and portfolio boarding. It reads existing feature-flag constants
  * only — no fetch, no SDK, no Dataverse mutation — and points managers at the
  * existing manager supervision surfaces rather than inventing a parallel engine.
+ *
+ * Factory Arc Phase 14: `deriveManagerOperatingCommandCenterModel` now accepts
+ * OPTIONAL already-loaded team data (the same `teamPipeline`/`teamBankers`
+ * ManagerDataProvider already fetches for every other manager card — no new
+ * query is introduced here) so the pipeline-supervision and banker-workload
+ * domains show real counts instead of a static, uninformative "Active" string.
+ * Still pure: this function never fetches; the caller (the component) supplies
+ * whatever it already has, and a missing/loading value falls back to the prior
+ * "Active" (available, not yet counted) text rather than fabricating a number.
  */
 
 export type ManagerOperatingDomainState = 'operational' | 'review' | 'gated';
+
+/** Factory Arc Phase 14: friendly Badge TEXT, distinct from the internal state
+ *  discriminant. Fixes the pre-existing bug (see productionSurfaceInventory.ts)
+ *  where the raw `ManagerOperatingDomainState` union member was rendered
+ *  verbatim as the Badge's visible label, not just used to pick its color. */
+export const MANAGER_OPERATING_DOMAIN_STATE_LABEL: Record<ManagerOperatingDomainState, string> = {
+  operational: 'Live',
+  review: 'Review needed',
+  gated: 'Pending certification',
+};
 
 export interface ManagerOperatingDomain {
   readonly id: string;
@@ -60,13 +81,30 @@ function liveWriteValue(armed: boolean, armedNoun: string, gatedLabel: string): 
   return armed ? `${armedNoun} armed — pending certification` : gatedLabel;
 }
 
-export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingCommandCenterModel {
+export interface ManagerOperatingLiveSupervisionData {
+  /** Already-loaded team pipeline (ManagerDataProvider's `teamPipeline`, ready state only). */
+  readonly teamPipeline?: readonly TeamDeal[];
+  /** Already-loaded team roster (ManagerDataProvider's `teamBankers`, ready state only). */
+  readonly teamBankers?: readonly TeamBanker[];
+}
+
+export function deriveManagerOperatingCommandCenterModel(
+  live: ManagerOperatingLiveSupervisionData = {},
+): ManagerOperatingCommandCenterModel {
+  const pipelineCounts = live.teamPipeline ? summarizeTeamPipeline([...live.teamPipeline]) : null;
+  const flaggedDealCount = live.teamPipeline
+    ? live.teamPipeline.filter((d) => dealTeamSeverity(d).severity !== 'clear').length
+    : null;
+  const activeBankerCount = live.teamBankers ? live.teamBankers.filter((b) => b.active).length : null;
+
   const domains: ManagerOperatingDomain[] = [
     {
       id: 'pipeline-supervision',
       label: 'Pipeline supervision',
       state: 'operational',
-      value: 'Active',
+      value: pipelineCounts
+        ? `${pipelineCounts.total} active deal${pipelineCounts.total === 1 ? '' : 's'} · ${pipelineCounts.atRisk} at risk · ${pipelineCounts.blocked} blocked`
+        : 'Active',
       summary:
         'Team pipeline health, deals-by-stage, closing forecast, and at-risk/blocked deals are available read-only from the manager command surfaces.',
       nextAction: 'Supervise pipeline movement from the Manager control panel and stage/forecast cards before directing banker work.',
@@ -75,7 +113,10 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
       id: 'banker-workload',
       label: 'Banker workload balance',
       state: 'operational',
-      value: 'Active',
+      value:
+        activeBankerCount != null && flaggedDealCount != null
+          ? `${activeBankerCount} active banker${activeBankerCount === 1 ? '' : 's'} · ${flaggedDealCount} flagged deal${flaggedDealCount === 1 ? '' : 's'}`
+          : 'Active',
       summary:
         'Per-banker workload, work queue, and production roll-up are visible so the manager can balance assignments without any live mutation.',
       nextAction: 'Use banker workload and work-queue surfaces to rebalance review effort; assignment writes remain governed.',
@@ -213,10 +254,24 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
       'deals-by-stage',
     ],
     certifications: [
-      `Duplicate detection safe internal core: ${String(DUPLICATE_DETECTION_ENABLED)}`,
-      `Task generation safe internal core: ${String(TASK_GENERATION_ENABLED)}`,
-      `Stage advancement live gate: ${String(AUTO_STAGE_ADVANCE_ENABLED)}`,
-      `CRM route default: ${String(CRM_FEATURE_FLAG_DEFAULTS.CRM_ROUTE_ENABLED)}`,
+      // Factory Arc Phase 14: previously rendered as raw internal flag names
+      // with a literal ": true"/": false" suffix (e.g. "Duplicate detection
+      // safe internal core: true") — the same raw-identifier-as-UI-text
+      // anti-pattern eliminated elsewhere in this arc. Rewritten as plain
+      // assurance statements; still derived from the live flag values, just
+      // never printing the flag's own name or a bare boolean.
+      DUPLICATE_DETECTION_ENABLED
+        ? 'Duplicate detection runs as a safe, internal-only supervision signal.'
+        : 'Duplicate detection is not active.',
+      TASK_GENERATION_ENABLED
+        ? 'Task generation runs as a safe, internal-only supervision signal.'
+        : 'Task generation is not active.',
+      AUTO_STAGE_ADVANCE_ENABLED
+        ? 'Stage advancement can move live on workflow completion.'
+        : 'Stage advancement requires a manual action; nothing advances automatically.',
+      CRM_FEATURE_FLAG_DEFAULTS.CRM_ROUTE_ENABLED
+        ? 'The CRM route is reachable from this workspace.'
+        : 'The CRM route is not reachable from this workspace.',
       'No external platform sync or borrower send is triggered by this supervision dashboard.',
       'No hidden create/update/delete action is introduced by this command center.',
     ],

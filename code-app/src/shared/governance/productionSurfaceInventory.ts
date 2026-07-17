@@ -45,6 +45,7 @@ export type MigrationPhase =
   | 'phase-10-borrower-communications'
   | 'phase-11-new-deal-semantics'
   | 'phase-12-navigation-role-cleanup'
+  | 'phase-14-operational-dashboard-redesign'
   | 'no-change-already-admin-scoped'
   | 'no-change-orphaned-unrouted';
 
@@ -282,8 +283,15 @@ export const PRODUCTION_SURFACE_INVENTORY: readonly ProductionSurfaceInventoryEn
     triggeringSource: 'same global flags as bankerOperatingCommandCenterModel.ts',
     currentAudience: 'manager-operational',
     correctFutureAudience: 'manager-operational',
-    replacementOperationalSignal: 'Team-scoped operational metrics (workload, exceptions, approvals pending), not global gate labels. See Phase 3/6.',
-    migrationPhase: 'phase-3-banker-dashboard',
+    replacementOperationalSignal:
+      'Phase 14 — pipeline-supervision and banker-workload now show real team-scoped counts (deal/at-risk/' +
+      'blocked totals, active-banker + flagged-deal counts) instead of a static "Active" label. crm-coverage ' +
+      'and workflow-bottlenecks remain a plain availability label (no cheap live count exists yet without a ' +
+      'new query — left honest rather than fabricated). The five live-write domains (new-deal-intake, ' +
+      'document-readiness, crm-writeback, borrower-communication, portfolio-boarding) stay intentionally ' +
+      'flag-driven so `state` never disagrees with the cross-panel launch-coherence authority — see the ' +
+      'per-domain Phase 9/10/11 comments in the source for why each is safe as-is.',
+    migrationPhase: 'phase-14-operational-dashboard-redesign',
   },
   {
     file: 'src/manager/ManagerOperatingCommandCenter.tsx',
@@ -294,8 +302,14 @@ export const PRODUCTION_SURFACE_INVENTORY: readonly ProductionSurfaceInventoryEn
     currentAudience: 'manager-operational',
     correctFutureAudience: 'manager-operational',
     replacementOperationalSignal:
-      'Worse than the banker version — the raw internal state token is printed as the Badge LABEL, not just used for color. Fix in the same pass as Phase 3.',
-    migrationPhase: 'phase-3-banker-dashboard',
+      'Phase 14 — fixed. The Badge now renders MANAGER_OPERATING_DOMAIN_STATE_LABEL (a friendly word: ' +
+      '"Live" / "Review needed" / "Pending certification"), never the raw ManagerOperatingDomainState ' +
+      'union member. The pipeline-supervision and banker-workload domains also now show real team-scoped ' +
+      'counts (deal/at-risk/blocked totals, active banker + flagged-deal counts) sourced from ' +
+      'ManagerDataProvider\'s already-loaded teamPipeline/teamBankers, replacing the static "Active" ' +
+      'placeholder. The CardFooter certifications no longer print raw flag names with a literal ": ' +
+      'true"/": false" suffix.',
+    migrationPhase: 'phase-14-operational-dashboard-redesign',
   },
   {
     file: 'src/workspaces/ManagerWorkspace.tsx',

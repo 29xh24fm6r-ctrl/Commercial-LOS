@@ -4,8 +4,10 @@ import { Card, CardFooter, CardHeader } from '../shared/Card';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import {
   deriveManagerOperatingCommandCenterModel,
+  MANAGER_OPERATING_DOMAIN_STATE_LABEL,
   type ManagerOperatingDomainState,
 } from './managerOperatingCommandCenterModel';
+import { useManagerData } from './ManagerDataProvider';
 
 const BADGE_BY_STATE: Record<ManagerOperatingDomainState, 'clear' | 'neutral' | 'atRisk'> = {
   operational: 'clear',
@@ -14,7 +16,11 @@ const BADGE_BY_STATE: Record<ManagerOperatingDomainState, 'clear' | 'neutral' | 
 };
 
 export function ManagerOperatingCommandCenter() {
-  const vm = deriveManagerOperatingCommandCenterModel();
+  const { teamPipeline, teamBankers } = useManagerData();
+  const vm = deriveManagerOperatingCommandCenterModel({
+    teamPipeline: teamPipeline.kind === 'ready' ? teamPipeline.data : undefined,
+    teamBankers: teamBankers.kind === 'ready' ? teamBankers.data : undefined,
+  });
 
   return (
     <section aria-label="Manager Operating Command Center" data-manager-operating-command-center>
@@ -32,7 +38,7 @@ export function ManagerOperatingCommandCenter() {
             <article key={domain.id} style={styles.domain} data-operating-domain={domain.id}>
               <div style={styles.domainHead}>
                 <h3 style={styles.domainTitle}>{domain.label}</h3>
-                <Badge variant={BADGE_BY_STATE[domain.state]}>{domain.state}</Badge>
+                <Badge variant={BADGE_BY_STATE[domain.state]}>{MANAGER_OPERATING_DOMAIN_STATE_LABEL[domain.state]}</Badge>
               </div>
               <div style={styles.value} data-domain-value>{domain.value}</div>
               <p style={styles.summary}>{domain.summary}</p>
