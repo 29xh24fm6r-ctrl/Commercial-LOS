@@ -1,4 +1,5 @@
-﻿import { ManagerProvider } from '../manager/ManagerProvider';
+﻿import { useEffect, useMemo, useState } from 'react';
+import { ManagerProvider } from '../manager/ManagerProvider';
 import { ManagerDataProvider } from '../manager/ManagerDataProvider';
 import { useManager } from '../manager/ManagerContext';
 import { ManagerBloombergControlPanel } from '../manager/ManagerBloombergControlPanel';
@@ -33,9 +34,40 @@ import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { PortfolioCommandCenter } from '../portfolio/PortfolioCommandCenter';
 import { CrmManagerWorkingSurface } from '../crm/workspaceIntegration/CrmManagerWorkingSurface';
 import { managerCrmPreviewInput } from '../crm/workspaceIntegration/crmWorkspacePreviewInputs';
+import { deriveManagerCrmSurfaceInput } from '../crm/workspaceIntegration/crmWorkspaceRollupInputs';
+import { CRM_LIVE_ROLLUPS_ENABLED } from '../crm/crmFeatureFlags';
+import { loadCrmWorkspaceData, type CrmWorkspaceData } from '../crm/workspace/crmWorkspaceData';
+import { deriveOrgHealthInputs, deriveAccountRollupRecords } from '../crm/workspace/crmRelationshipHealthData';
 import { ManagerWorkflowLaunchReadinessPanel } from '../workflow/ManagerWorkflowLaunchReadinessPanel';
 import { ManagerOperatingCommandCenter } from '../manager/ManagerOperatingCommandCenter';
 import { palette, spacing, typography } from '../shared/theme';
+
+// CRM-ELITE-1 Phase 3 — live manager CRM rollup data. Mirrors the LoadState +
+// cancellation-guard pattern CrmHubWorkspace.tsx already uses. Only loads when
+// the flag is on; flag-off leaves the workspace exactly as it renders today.
+type CrmRollupLoadState =
+  | { kind: 'loading' }
+  | { kind: 'ready'; data: CrmWorkspaceData }
+  | { kind: 'failed'; message: string };
+
+function useCrmRollupWorkspaceData(): CrmRollupLoadState {
+  const [state, setState] = useState<CrmRollupLoadState>({ kind: 'loading' });
+  useEffect(() => {
+    if (!CRM_LIVE_ROLLUPS_ENABLED) return;
+    let cancelled = false;
+    loadCrmWorkspaceData()
+      .then((data) => {
+        if (!cancelled) setState({ kind: 'ready', data });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setState({ kind: 'failed', message: err instanceof Error ? err.message : String(err) });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return state;
+}
 
 export function ManagerWorkspace() {
   return (
@@ -51,6 +83,17 @@ export function ManagerWorkspace() {
 
 function ManagerWorkspaceContent() {
   const { fullName, email, teamName } = useManager();
+  const crmRollupState = useCrmRollupWorkspaceData();
+  // Reaching this content means ManagerProvider has already authorized the
+  // viewer as a manager — the same authorization the rollup is scoped to, so
+  // this is not a permission widening.
+  const liveManagerCrmSurfaceInput = useMemo(() => {
+    if (crmRollupState.kind !== 'ready') return undefined;
+    const nowIso = new Date().toISOString();
+    const orgHealthInputs = deriveOrgHealthInputs(crmRollupState.data, nowIso);
+    const accounts = [...deriveAccountRollupRecords(orgHealthInputs, new Map(), nowIso)];
+    return deriveManagerCrmSurfaceInput({ accounts, viewerEntitled: true }, undefined);
+  }, [crmRollupState]);
   const bootstrap = useBootstrap();
   const entitled = useEntitledRoutes();
   const [searchParams] = useSearchParams();
@@ -161,7 +204,20 @@ function ManagerWorkspaceContent() {
           {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 â€” visible read-only CRM
               team intelligence (honest preview posture; no assignment mutation,
               no CRM writes, no permission widening). */}
-          {!isPortfolio && <CrmManagerWorkingSurface input={managerCrmPreviewInput()} />}
+          {!isPortfolio && !CRM_LIVE_ROLLUPS_ENABLED && (
+            <CrmManagerWorkingSurface input={managerCrmPreviewInput()} />
+          )}
+          {!isPortfolio && CRM_LIVE_ROLLUPS_ENABLED && liveManagerCrmSurfaceInput && (
+            <CrmManagerWorkingSurface input={liveManagerCrmSurfaceInput} />
+          )}
+          {!isPortfolio && CRM_LIVE_ROLLUPS_ENABLED && crmRollupState.kind === 'loading' && (
+            <div style={styles.crmRollupNotice} aria-hidden="true">Loading CRM team intelligence…</div>
+          )}
+          {!isPortfolio && CRM_LIVE_ROLLUPS_ENABLED && crmRollupState.kind === 'failed' && (
+            <div style={styles.crmRollupNotice} role="alert">
+              CRM team intelligence is temporarily unavailable. Refresh to try again.
+            </div>
+          )}
           {!isPortfolio && <TeamWorkQueue />}
           {!isPortfolio && <ManagerBankerFilterControl />}
           {!isPortfolio && <ManagerMorningCatchUp />}
@@ -256,5 +312,14 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
     gap: spacing.lg,
+  },
+  crmRollupNotice: {
+    padding: `${spacing.md} ${spacing.lg}`,
+    color: palette.textMuted,
+    fontSize: typography.size.sm,
+    fontStyle: 'italic',
+    background: palette.surface,
+    border: `1px solid ${palette.border}`,
+    borderRadius: 8,
   },
 };

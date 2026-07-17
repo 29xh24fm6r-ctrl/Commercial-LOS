@@ -20,7 +20,30 @@ readiness view is `readiness/unifiedCrmReadiness.ts`.)
   - **Identity-gated and flag-INDEPENDENT** — it does **not** read `CRM_LIVE_PERSISTENCE_ENABLED`.
 - **Reads:** `workspace/crmWorkspaceData.ts` (the 10 `cr664_crm*` tables, null-safe, per-domain
   fail-closed) and `intelligence/loadCrmIntelligence.ts` (NAICS concentration / advisor map —
-  routed only behind `CRM_INTELLIGENCE_ROUTE_ENABLED`).
+  routed only behind `CRM_INTELLIGENCE_ROUTE_ENABLED`; the CRM Hub now surfaces a visible
+  "Industry & advisor intelligence" link to `/surfaces/crm-intelligence` next to its view tabs, so
+  the route is discoverable once its flag is verified live and flipped).
+- **Relationship health + rollups (CRM-ELITE-1):** `workspace/crmRelationshipHealthData.ts` derives
+  one `CrmHealthInput` per organization and `CrmAccountRollupRecord[]` from the SAME already-loaded
+  `CrmWorkspaceData` — zero new reads. A domain that failed to load leaves its input field
+  `undefined` (honestly unknown), never `0` (an evidenced zero). Consumed by:
+  - `workspace/CrmHubWorkspace.tsx` — a real `CrmRelationshipHealthCard` in the record detail
+    drawer + a real team `CrmRelationshipRollups` above the record table, behind
+    `CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED` (default off).
+  - `workspaceIntegration/crmWorkspaceRollupInputs.ts` — replaces the hardcoded manager/executive
+    strip (`workspaceIntegration/crmWorkspacePreviewInputs.ts`'s `managerCrmPreviewInput` /
+    `executiveCrmPreviewInput`, kept in place only as the flag-off fallback) with real rollup-derived
+    copy and counts, behind `CRM_LIVE_ROLLUPS_ENABLED` (default off). The old "SoT Conflicts" /
+    "Intelligence Gaps" fields were retired and renamed `accountsNeedingAttention` (a real at-risk
+    account count) rather than silently repurposed under their old, now-inaccurate label.
+  - `dailyActions/deriveLiveBankerCrmDailyActionInput.ts` — populates the banker daily action queue
+    (`dailyActions/BankerCrmDailyActionQueue.tsx`, mounted at the top of the CRM Hub's Companies
+    view) with ONLY the two categories backed by a real signal (missing contacts, activity gaps).
+    The five Salesforce/nCino-metaphor-lane categories are hard-pinned to empty arrays — behind
+    `CRM_DAILY_ACTION_QUEUE_ENABLED` (default off).
+  - Known schema gap: `overdueTaskCount` is always `undefined` —
+    `cr664_crmtimelineevents` has no status/completed field, so overdue detection has no live signal
+    behind it today. This is a gap, not a bug; do not fabricate it.
 - **New-deal → CRM client linkage:** delivered by `../deals/newDealCreateAdapter.ts` (fails closed
   with `client_required`; verifies the bound client via `link_readback_mismatch`), enforced by
   `../deals/dealOriginationOrchestrator.ts`. (The `linkage/newDealCrmClientLinkage.ts` decision

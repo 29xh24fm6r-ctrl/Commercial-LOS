@@ -113,6 +113,29 @@ describe('Phase 258 — CRM domain mappers', () => {
     expect(r.badge).toBe('Active');
   });
 
+  it('threads the relationship organization FK for coverage-count filtering (source, else target)', () => {
+    const sourced = mapRelationship({
+      cr664_crmrelationshipid: 'rel-2',
+      cr664_name: 'Acme Coverage',
+      _cr664_sourceorganization_value: 'org-9',
+      _cr664_targetorganization_value: 'org-other',
+    } as never);
+    expect(sourced.organizationId).toBe('org-9');
+
+    const targetOnly = mapRelationship({
+      cr664_crmrelationshipid: 'rel-3',
+      cr664_name: 'Acme Coverage 2',
+      _cr664_targetorganization_value: 'org-9',
+    } as never);
+    expect(targetOnly.organizationId).toBe('org-9');
+
+    const neither = mapRelationship({
+      cr664_crmrelationshipid: 'rel-4',
+      cr664_name: 'Person-only relationship',
+    } as never);
+    expect(neither.organizationId).toBeUndefined();
+  });
+
   it('maps a vendor with an Approved badge', () => {
     const r = mapVendorProfile({
       cr664_crmvendorprofileid: 'v-1',

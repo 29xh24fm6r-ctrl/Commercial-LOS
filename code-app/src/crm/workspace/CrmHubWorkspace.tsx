@@ -19,6 +19,18 @@ import {
   type LinkedDealsResult,
 } from './crmLinkedDeals';
 import { deriveCrmWritesAvailability } from '../write/crmWriteAdapter';
+import { CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED, CRM_DAILY_ACTION_QUEUE_ENABLED } from '../crmFeatureFlags';
+import {
+  deriveOrgHealthInputs,
+  deriveAccountRollupRecords,
+  type OrgHealthInputResult,
+} from './crmRelationshipHealthData';
+import { CrmRelationshipHealthCard } from '../CrmRelationshipHealthCard';
+import { CrmRelationshipRollups } from '../CrmRollupCards';
+import type { CrmHealthInput } from '../crmRelationshipHealthModel';
+import { deriveLiveBankerCrmDailyActionInput } from '../dailyActions/deriveLiveBankerCrmDailyActionInput';
+import { deriveBankerCrmDailyActionQueue } from '../dailyActions/bankerCrmDailyActionQueue';
+import { BankerCrmDailyActionQueue } from '../dailyActions/BankerCrmDailyActionQueue';
 
 /**
  * Phase 260 — Relationship CRM (elite CRM cockpit).
@@ -172,6 +184,38 @@ export function CrmHubWorkspace({
     return orgs.records.filter((org) => !orgIdsWithContacts.has(org.id)).length;
   }, [state]);
 
+  // CRM-ELITE-1 Phase 1 — real per-org relationship health inputs, derived from
+  // the SAME already-loaded workspace data (no new reads). Pure + cheap, so it
+  // is computed unconditionally; Phase 2 (health card / team rollup) and Phase
+  // 4 (daily action queue) each gate their own DISPLAY independently.
+  const orgHealthInputs: readonly OrgHealthInputResult[] = useMemo(() => {
+    if (state.kind !== 'ready') return [];
+    return deriveOrgHealthInputs(state.data, new Date().toISOString());
+  }, [state]);
+
+  const healthByOrgId = useMemo(() => {
+    return new Map(orgHealthInputs.map((r) => [r.organizationId, r]));
+  }, [orgHealthInputs]);
+
+  // No banker/team ownership data is in scope for this phase — pass an empty
+  // map rather than guess (every rollup record's bankerId is honestly null).
+  const teamRollupInput = useMemo(
+    () => ({
+      accounts: [...deriveAccountRollupRecords(orgHealthInputs, new Map(), new Date().toISOString())],
+      viewerEntitled: authorized,
+    }),
+    [orgHealthInputs, authorized],
+  );
+
+  // CRM-ELITE-1 Phase 4 — banker daily action queue populated ONLY from real
+  // signals (missing-contact / activity-gap); no deal-link data is bulk-loaded
+  // here (linked deals are a per-record read), so dealRouteHref is honestly
+  // absent for every action rather than guessed.
+  const bankerDailyActionQueueViewModel = useMemo(() => {
+    if (!CRM_DAILY_ACTION_QUEUE_ENABLED) return undefined;
+    return deriveBankerCrmDailyActionQueue(deriveLiveBankerCrmDailyActionInput(orgHealthInputs, new Map()));
+  }, [orgHealthInputs]);
+
   // Keyboard-first navigation for the CRM lists: "/" focuses search, j/k move
   // row focus, Enter opens (handled on the row). Ignored while typing in a field.
   function onListKeyDown(e: React.KeyboardEvent<HTMLElement>) {
@@ -269,6 +313,14 @@ export function CrmHubWorkspace({
             );
           })}
         </div>
+        {/* CRM-ELITE-1 Phase 5 — the only prior path to industry concentration
+            + advisor intelligence was the flag-filtered command palette, so
+            almost no one could ever find it. A visible entry point here is
+            the fix; the route itself stays behind CRM_INTELLIGENCE_ROUTE_ENABLED
+            (an honest "not yet enabled" state renders while it is off). */}
+        <a href="/surfaces/crm-intelligence" style={styles.intelligenceLink} data-crm-intelligence-link>
+          Industry &amp; advisor intelligence →
+        </a>
       </div>
 
       {/* Dashboard cards — Factory Arc Phase 8: "CRM records available" (Companies /
@@ -292,6 +344,19 @@ export function CrmHubWorkspace({
         />
         <DashCard label="Missing contact roles" value={missingContactRolesCount} loading={state.kind === 'loading'} empty="Every company has a contact" onClick={() => setView('companies')} />
       </div>
+
+      {/* CRM-ELITE-1 Phase 2 — real team rollup (coverage, health, overdue tasks)
+          over the same authorized read the Hub already shows. */}
+      {CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED && state.kind === 'ready' && (
+        <CrmRelationshipRollups scope="team" input={teamRollupInput} />
+      )}
+
+      {/* CRM-ELITE-1 Phase 4 — banker daily action queue, mounted at the top of
+          the Companies view (the existing workflow) rather than as a separate
+          destination a banker has to remember to open. */}
+      {CRM_DAILY_ACTION_QUEUE_ENABLED && view === 'companies' && bankerDailyActionQueueViewModel && (
+        <BankerCrmDailyActionQueue viewModel={bankerDailyActionQueueViewModel} />
+      )}
 
       {/* Main area */}
       <div style={styles.main} data-crm-main>
@@ -326,6 +391,11 @@ export function CrmHubWorkspace({
           actor={{ actorEmail, actorSystemUserId, authorized, writeDisabledReason }}
           writeFns={writeFns}
           loadLinkedDeals={loadLinkedDeals}
+          healthInput={
+            CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED
+              ? healthByOrgId.get(spec.domain === 'organizations' ? selected.id : selected.organizationId ?? '')?.input
+              : undefined
+          }
           onWritten={() => setReloadNonce((n) => n + 1)}
           onClose={() => setSelected(undefined)}
         />
@@ -519,6 +589,7 @@ function DetailDrawer({
   actor,
   writeFns,
   loadLinkedDeals,
+  healthInput,
   onWritten,
   onClose,
 }: {
@@ -529,6 +600,8 @@ function DetailDrawer({
   actor: { actorEmail?: string; actorSystemUserId?: string; authorized: boolean; writeDisabledReason?: string };
   writeFns?: CrmWriteFns;
   loadLinkedDeals: LinkedDealsLoader;
+  /** CRM-ELITE-1 Phase 2 — this record's real relationship-health input, when available. */
+  healthInput?: CrmHealthInput;
   onWritten: () => void;
   onClose: () => void;
 }) {
@@ -596,6 +669,12 @@ function DetailDrawer({
           </dl>
         )}
       </DrawerSection>
+
+      {healthInput && (
+        <DrawerSection title="Relationship health">
+          <CrmRelationshipHealthCard input={healthInput} />
+        </DrawerSection>
+      )}
 
       {isOrganization && (
         <DrawerSection title="Record actions">
@@ -794,6 +873,7 @@ const styles: Record<string, CSSProperties> = {
   viewTab: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', borderBottom: '2px solid transparent', marginBottom: -1, padding: `${spacing.xs} ${spacing.sm}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.textMuted, cursor: 'pointer', fontFamily: typography.family },
   viewTabActive: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', borderBottom: `2px solid ${palette.accent}`, marginBottom: -1, padding: `${spacing.xs} ${spacing.sm}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.text, cursor: 'pointer', fontFamily: typography.family },
   viewTabCount: { fontSize: typography.size.xs, color: palette.textSubtle, background: palette.surfaceAlt, borderRadius: radius.pill, padding: '0 6px', fontWeight: typography.weight.semibold },
+  intelligenceLink: { flexShrink: 0, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.cobalt, textDecoration: 'none', whiteSpace: 'nowrap' },
   cardRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: spacing.sm },
   card,
   cardLabel: { fontSize: typography.size.xs, color: palette.textMuted, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.bold },

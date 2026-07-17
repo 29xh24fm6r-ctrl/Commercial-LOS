@@ -28,6 +28,15 @@ export const CRM_CONTACT_EDITING_ENABLED = false;
 export const CRM_VENDOR_EDITING_ENABLED = false;
 export const CRM_TIMELINE_ENABLED = false;
 export const CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED = false;
+// CRM-ELITE-1 Phase 2 — read-only relationship-health card + team rollup inside
+// the already-live, already-authorized CRM Hub. No new Dataverse read, no write.
+export const CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED = false as const;
+// CRM-ELITE-1 Phase 3 — live manager/executive CRM rollups, replacing the
+// hardcoded crmWorkspacePreviewInputs.ts strip. Read-only.
+export const CRM_LIVE_ROLLUPS_ENABLED = false as const;
+// CRM-ELITE-1 Phase 4 — banker daily action queue populated from real signals
+// only (missing-contact / activity-gap categories). Read-only.
+export const CRM_DAILY_ACTION_QUEUE_ENABLED = false as const;
 
 export interface CrmFeatureFlagConfig {
   /** Enables the live Dataverse persistence adapter. Default: disabled. */
@@ -42,6 +51,12 @@ export interface CrmFeatureFlagConfig {
   timelineEnabled?: boolean;
   /** Enables annual-review CRM integration (read-only seam). Default: off. */
   annualReviewIntegrationEnabled?: boolean;
+  /** Enables the relationship-health card + team rollup inside the CRM Hub. Default: off. */
+  relationshipHealthDisplayEnabled?: boolean;
+  /** Enables live manager/executive CRM rollups (replaces the hardcoded preview strip). Default: off. */
+  liveRollupsEnabled?: boolean;
+  /** Enables the banker daily action queue (real signals only). Default: off. */
+  dailyActionQueueEnabled?: boolean;
 }
 
 export interface CrmFeatureFlagState {
@@ -51,6 +66,9 @@ export interface CrmFeatureFlagState {
   readonly CRM_VENDOR_EDITING_ENABLED: boolean;
   readonly CRM_TIMELINE_ENABLED: boolean;
   readonly CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED: boolean;
+  readonly CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED: boolean;
+  readonly CRM_LIVE_ROLLUPS_ENABLED: boolean;
+  readonly CRM_DAILY_ACTION_QUEUE_ENABLED: boolean;
 }
 
 /** The safe defaults: every CRM runtime capability is off. */
@@ -61,6 +79,9 @@ export const CRM_FEATURE_FLAG_DEFAULTS: CrmFeatureFlagState = Object.freeze({
   CRM_VENDOR_EDITING_ENABLED: false,
   CRM_TIMELINE_ENABLED: false,
   CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED: false,
+  CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED: false,
+  CRM_LIVE_ROLLUPS_ENABLED: false,
+  CRM_DAILY_ACTION_QUEUE_ENABLED: false,
 });
 
 /**
@@ -87,5 +108,9 @@ export function deriveCrmFeatureFlagState(
     CRM_TIMELINE_ENABLED: livePersistence && config?.timelineEnabled === true,
     CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED:
       config?.annualReviewIntegrationEnabled === true,
+    CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED:
+      config?.relationshipHealthDisplayEnabled === true,
+    CRM_LIVE_ROLLUPS_ENABLED: config?.liveRollupsEnabled === true,
+    CRM_DAILY_ACTION_QUEUE_ENABLED: config?.dailyActionQueueEnabled === true,
   };
 }
