@@ -86,6 +86,21 @@ const FORBIDDEN_PATTERNS: readonly RegExp[] = [
   /\bsafe default\b/i,
 ];
 
+/**
+ * node:path's `relative`/`join` use the platform separator — backslashes on
+ * Windows. Every other path in this file (SCAN_ROOTS, EXCLUDED_FILES,
+ * ALLOWLIST via INVENTORIED_FILES, and the sanity-check assertion below) is
+ * written in repo-relative POSIX form. Without normalizing at the source,
+ * candidateFiles on Windows never matches EXCLUDED_FILES/ALLOWLIST, so every
+ * already-cataloged file is treated as new — including ones that legitimately
+ * contain FORBIDDEN_PATTERNS vocabulary as internal identifiers/types/config
+ * values (DRY_RUN, rollout, certification, certified, gated), producing
+ * cascading false positives.
+ */
+function normalizeRepoPath(path: string): string {
+  return path.replaceAll('\\', '/');
+}
+
 function listSourceFiles(dir: string): string[] {
   const abs = resolve(REPO_ROOT, dir);
   let entries: string[];
@@ -99,12 +114,12 @@ function listSourceFiles(dir: string): string[] {
     const entryAbs = join(abs, entry);
     const stat = statSync(entryAbs);
     if (stat.isDirectory()) {
-      files.push(...listSourceFiles(relative(REPO_ROOT, entryAbs)));
+      files.push(...listSourceFiles(normalizeRepoPath(relative(REPO_ROOT, entryAbs))));
       continue;
     }
     if (!/\.(ts|tsx)$/.test(entry)) continue;
     if (/\.test\.(ts|tsx)$/.test(entry)) continue;
-    files.push(relative(REPO_ROOT, entryAbs));
+    files.push(normalizeRepoPath(relative(REPO_ROOT, entryAbs)));
   }
   return files;
 }
