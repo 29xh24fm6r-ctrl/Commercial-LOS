@@ -4,8 +4,10 @@ import { Card, CardFooter, CardHeader } from '../shared/Card';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import {
   deriveManagerOperatingCommandCenterModel,
+  MANAGER_OPERATING_DOMAIN_STATE_LABEL,
   type ManagerOperatingDomainState,
 } from './managerOperatingCommandCenterModel';
+import { useManagerData } from './ManagerDataProvider';
 
 const BADGE_BY_STATE: Record<ManagerOperatingDomainState, 'clear' | 'neutral' | 'atRisk'> = {
   operational: 'clear',
@@ -13,8 +15,28 @@ const BADGE_BY_STATE: Record<ManagerOperatingDomainState, 'clear' | 'neutral' | 
   gated: 'atRisk',
 };
 
+/** Factory Arc Phase 15 — friendly display names for `supervisionAnchors`,
+ *  which is a stable kebab-case anchor-ID contract other tests pin
+ *  (managerOperatingCommandCenterModel.test.ts,
+ *  phase233ManagerExecutiveOperatingReadiness.test.ts) and so must not
+ *  change. Only the RENDERED text changes here — the raw ids were being
+ *  shown verbatim in the "Supervision anchors" list. Falls back to the raw
+ *  id for any future anchor added here without a label (never blank). */
+const SUPERVISION_ANCHOR_LABEL: Record<string, string> = {
+  'manager-bloomberg-control-panel': 'Manager control panel',
+  'manager-workflow-launch-readiness': 'Manager Workflow Launch Readiness panel',
+  'crm-manager-working-surface': 'CRM manager working surface',
+  'team-work-queue': 'Team work queue',
+  'banker-workload-summary': 'Banker workload summary',
+  'deals-by-stage': 'Deals by stage',
+};
+
 export function ManagerOperatingCommandCenter() {
-  const vm = deriveManagerOperatingCommandCenterModel();
+  const { teamPipeline, teamBankers } = useManagerData();
+  const vm = deriveManagerOperatingCommandCenterModel({
+    teamPipeline: teamPipeline.kind === 'ready' ? teamPipeline.data : undefined,
+    teamBankers: teamBankers.kind === 'ready' ? teamBankers.data : undefined,
+  });
 
   return (
     <section aria-label="Manager Operating Command Center" data-manager-operating-command-center>
@@ -32,7 +54,7 @@ export function ManagerOperatingCommandCenter() {
             <article key={domain.id} style={styles.domain} data-operating-domain={domain.id}>
               <div style={styles.domainHead}>
                 <h3 style={styles.domainTitle}>{domain.label}</h3>
-                <Badge variant={BADGE_BY_STATE[domain.state]}>{domain.state}</Badge>
+                <Badge variant={BADGE_BY_STATE[domain.state]}>{MANAGER_OPERATING_DOMAIN_STATE_LABEL[domain.state]}</Badge>
               </div>
               <div style={styles.value} data-domain-value>{domain.value}</div>
               <p style={styles.summary}>{domain.summary}</p>
@@ -57,7 +79,7 @@ export function ManagerOperatingCommandCenter() {
             <h3 style={styles.panelTitle}>Supervision anchors</h3>
             <ul style={styles.list}>
               {vm.supervisionAnchors.map((anchor) => (
-                <li key={anchor}>{anchor}</li>
+                <li key={anchor}>{SUPERVISION_ANCHOR_LABEL[anchor] ?? anchor}</li>
               ))}
             </ul>
           </section>

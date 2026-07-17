@@ -371,11 +371,10 @@ export function RequestDocumentModal({
                     <p style={styles.helperLine}>
                       The body of the email is the request note above. The full
                       recipient address is recorded only on the audit event; the
-                      timeline and outcome panel show a masked form. Mode is{' '}
-                      <strong>{EMAIL_MODE}</strong>:
+                      timeline and outcome panel show a masked form.{' '}
                       {EMAIL_MODE === 'DRY_RUN'
-                        ? ' nothing leaves the client.'
-                        : ' Outlook will attempt delivery.'}
+                        ? 'Live email sending is unavailable — the audit and timeline rows are still recorded, but nothing leaves the client.'
+                        : 'Outlook will attempt to hand off the message for real.'}
                     </p>
                   </>
                 )}
@@ -486,9 +485,8 @@ export function RequestDocumentModal({
                   </p>
                 ) : (
                   <p style={styles.helperLine}>
-                    Mode is <strong>{EMAIL_MODE}</strong>. Choose one of the
-                    options above to record the handoff method on the audit
-                    row.
+                    Choose one of the options above to record the handoff
+                    method on the audit row.
                   </p>
                 )}
               </section>
@@ -566,12 +564,21 @@ function ModeBadge() {
   // LIVE is the only mode that performs an actual network send today.
   // DRY_RUN and HANDOFF both keep the message client-side; we tint
   // them as neutral surfaces so a banker can't mistake DRY_RUN or
-  // HANDOFF for a real send.
+  // HANDOFF for a real send. Factory Arc Phase 10: plain
+  // communication-state text, never the raw EMAIL_MODE token.
   const isLive = EMAIL_MODE === 'LIVE';
+  const isHandoff = EMAIL_MODE === 'HANDOFF';
+  const label = isLive ? 'Live send available' : isHandoff ? 'Send via your Outlook' : 'Send preview only';
   return (
     <span
       role="status"
-      aria-label={`Email delivery mode: ${EMAIL_MODE}`}
+      aria-label={
+        isLive
+          ? 'Live Outlook send is available'
+          : isHandoff
+            ? 'Send happens from your own Outlook client'
+            : 'Live Outlook send is unavailable — request is still recorded'
+      }
       style={{
         ...styles.modeBadge,
         background: isLive ? palette.clearBg : palette.surfaceAlt,
@@ -579,7 +586,7 @@ function ModeBadge() {
         borderColor: isLive ? palette.clear : palette.border,
       }}
     >
-      Mode: {EMAIL_MODE}
+      {label}
     </span>
   );
 }
@@ -685,14 +692,13 @@ function SendOutcomeBlock({ outcome }: { outcome: SendDocumentRequestEmailOutcom
           style={{ ...styles.outcomeBox, background: palette.clearBg, borderColor: palette.clear }}
         >
           <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>
-            {isLive ? 'Outlook accepted the message' : 'Send recorded (DRY_RUN)'}
+            {isLive ? 'Outlook accepted the message' : 'Email prepared — not sent to Outlook'}
           </div>
           <p style={styles.outcomeDetail}>
-            Recipient: <strong>{outcome.maskedRecipient}</strong>. Mode:{' '}
-            <strong>{outcome.mode}</strong>.{' '}
+            Recipient: <strong>{outcome.maskedRecipient}</strong>.{' '}
             {isLive
               ? 'Audit and timeline events recorded. The full address is on the audit row.'
-              : 'No message left the client. The audit + timeline events record the simulated send honestly.'}
+              : 'Live email sending is unavailable in this environment. No message left the client — the audit and timeline events record the request honestly.'}
           </p>
           {outcome.providerMessageId && (
             <p style={styles.outcomeDetailMono}>Provider id: {outcome.providerMessageId}</p>

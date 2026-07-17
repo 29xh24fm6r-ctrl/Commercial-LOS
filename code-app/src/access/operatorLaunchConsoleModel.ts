@@ -11,6 +11,20 @@
  * No fabricated state: a capability with no recorded smoke shows "none", a
  * disabled capability shows exactly which required flags are false, and a blocked
  * capability shows its blockers (e.g. missing schema). Nothing is invented.
+ *
+ * Factory Arc Phase 4 — Platform Operations Workspace. Extended (additively,
+ * all new fields optional) with the remaining per-capability facts the phase
+ * spec asks admins to see: route/DI wiring state, the actor-authorization
+ * requirement, the audit-sink state, the latest successful/failed write (when a
+ * live audit query has been correlated to that capability — see
+ * platformOperationsLiveDeps.ts), and who/when enabled it. There is no
+ * Dataverse-tracked change history for a TypeScript feature-flag constant, so
+ * `enabledBy`/`enabledOn` are honestly `null` unless the caller has a real
+ * source (e.g. a future admin-editable setting) — never fabricated from the
+ * flag's current value. `deploymentCommit` is console-level (one build, not
+ * per-capability) and is read from a real build-time value — see
+ * platformOperationsLiveDeps.ts — falling back to `null`, never a placeholder
+ * string, when it cannot be determined.
  */
 
 export type CapabilityGateState = 'enabled' | 'disabled' | 'blocked';
@@ -40,6 +54,13 @@ export interface CapabilitySmokeResult {
   at: string | null;
 }
 
+/** A single recorded write outcome, surfaced honestly (no synthesized actor/time). */
+export interface CapabilityWriteEvidence {
+  actor: string | null;
+  at: string | null;
+  correlationId: string | null;
+}
+
 export interface CapabilityControlInput {
   key: string;
   label: string;
@@ -50,10 +71,35 @@ export interface CapabilityControlInput {
   /** Latest recorded smoke result, or null if none has been run. */
   latestSmoke?: CapabilitySmokeResult | null;
   rollback: string;
+  /** Whether the capability's route/UI entry point is mounted today. Static architecture fact, not a live probe. */
+  routeState?: string;
+  /** Which write adapter (if any) is wired for this capability's live writes. Static architecture fact. */
+  diState?: string;
+  /** What the acting user must have (permission/identity/role) for a write to be attempted. */
+  actorAuthorizationRequirement?: string;
+  /** Whether writes for this capability pass through the governed audit-event sink. */
+  auditSinkState?: string;
+  /**
+   * Latest successful/failed write evidence from a live audit-event query correlated to this
+   * capability. `undefined` means no live query has been correlated to this capability yet
+   * (honest "not wired", distinct from "wired and found nothing"); `null` means the query ran
+   * and found no matching event.
+   */
+  latestSuccessfulWrite?: CapabilityWriteEvidence | null;
+  latestFailedWrite?: CapabilityWriteEvidence | null;
+  /**
+   * Who/when last changed this capability's enablement. A TypeScript feature-flag constant has
+   * no Dataverse-tracked change history, so this is `null` unless a real source exists — never
+   * inferred from the flag's current value.
+   */
+  enabledBy?: string | null;
+  enabledOn?: string | null;
 }
 
 export interface OperatorLaunchConsoleInput {
   capabilities: CapabilityControlInput[];
+  /** Build-time commit the running app was built from, or null when it could not be determined. */
+  deploymentCommit?: string | null;
 }
 
 export interface CapabilityControlState {
@@ -66,6 +112,14 @@ export interface CapabilityControlState {
   blockers: string[];
   latestSmoke: CapabilitySmokeResult | null;
   rollback: string;
+  routeState: string | null;
+  diState: string | null;
+  actorAuthorizationRequirement: string | null;
+  auditSinkState: string | null;
+  latestSuccessfulWrite: CapabilityWriteEvidence | null | undefined;
+  latestFailedWrite: CapabilityWriteEvidence | null | undefined;
+  enabledBy: string | null;
+  enabledOn: string | null;
 }
 
 export interface OperatorLaunchConsoleState {
@@ -73,6 +127,7 @@ export interface OperatorLaunchConsoleState {
   counts: { enabled: number; disabled: number; blocked: number };
   /** This console never flips a gate from the UI. */
   canFlipFromUi: false;
+  deploymentCommit: string | null;
 }
 
 function assess(c: CapabilityControlInput): CapabilityControlState {
@@ -106,6 +161,14 @@ function assess(c: CapabilityControlInput): CapabilityControlState {
     blockers,
     latestSmoke: c.latestSmoke ?? null,
     rollback: c.rollback,
+    routeState: c.routeState ?? null,
+    diState: c.diState ?? null,
+    actorAuthorizationRequirement: c.actorAuthorizationRequirement ?? null,
+    auditSinkState: c.auditSinkState ?? null,
+    latestSuccessfulWrite: c.latestSuccessfulWrite,
+    latestFailedWrite: c.latestFailedWrite,
+    enabledBy: c.enabledBy ?? null,
+    enabledOn: c.enabledOn ?? null,
   };
 }
 
@@ -119,5 +182,6 @@ export function deriveOperatorLaunchConsole(input: OperatorLaunchConsoleInput): 
       blocked: capabilities.filter((c) => c.state === 'blocked').length,
     },
     canFlipFromUi: false,
+    deploymentCommit: input.deploymentCommit ?? null,
   };
 }

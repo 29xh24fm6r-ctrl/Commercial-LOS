@@ -31,14 +31,71 @@ describe('Phase 233 — Manager Operating Command Center model', () => {
     expect(byId.get('crm-coverage')?.state).toBe('operational');
     expect(byId.get('workflow-bottlenecks')?.state).toBe('operational');
 
-    // Live-write gates are reset to safe defaults: checklist, CRM writeback, borrower send,
-    // and portfolio boarding are all gated.
+    // Live-write gates are reset to safe defaults: checklist, CRM writeback,
+    // borrower send, and the certified self-service portfolio boarding pipeline
+    // are all gated (state stays flag-driven so it never disagrees with the
+    // cross-panel launch-coherence authority — crossPanelLaunchCoherence.test.ts).
     expect(byId.get('document-readiness')?.state).toBe('gated');
     expect(byId.get('crm-writeback')?.state).toBe('gated');
     expect(byId.get('borrower-communication')?.state).toBe('gated');
     expect(byId.get('portfolio-boarding')?.state).toBe('gated');
-    // New Deal create stays gated by its global constant.
-    expect(byId.get('new-deal-intake')?.state).toBe('gated');
+    // New Deal create is the one live domain — BANKER_CREATE_PILOT_ENABLED is
+    // true, and an authorized banker reaches a real create flow today. See
+    // the dedicated test below for why this differs from every other domain.
+    expect(byId.get('new-deal-intake')?.state).toBe('operational');
+  });
+
+  // Factory Arc Phase 11 — unlike portfolio-boarding/borrower-communication
+  // (Phase 9/10), where the flag-driven state correctly agreed with the
+  // authority and only the copy was wrong, new-deal-intake's OLD state was
+  // itself factually wrong: it read a dead constant (BANKER_NEW_DEAL_CREATE_ENABLED,
+  // hard false) that no reachable code path gates on, and reported "gated"
+  // for a capability that is actually live today via BANKER_CREATE_PILOT_ENABLED
+  // (bankerCreatePilotConfig.ts) — proven live by BankerNewDealCreate.test.tsx's
+  // own "Create enabled" assertion for an authorized banker.
+  it('new-deal-intake reads operational — the real pilot switch is on, not the dead legacy constant', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const intake = vm.domains.find((d) => d.id === 'new-deal-intake')!;
+
+    expect(intake.state).toBe('operational');
+    expect(intake.label).not.toMatch(/gate/i);
+    expect(intake.value).toBe('Create enabled');
+    expect(intake.summary).toMatch(/authorized banker can create a new deal today/i);
+  });
+
+  // Factory Arc Phase 9 — the certified self-service boarding pipeline correctly
+  // stays "gated" (matching the launch-coherence authority), but the old copy
+  // implied NO boarding happens at all until certification — false. Two write
+  // paths already work today with no feature flag: the manual "Board existing
+  // loan" action (existingLoanEntryAdapter.ts) and auto-boarding on stage advance
+  // to Boarded (buildLiveStageAdvanceDeps.ts). The card's copy must say so.
+  it('portfolio boarding stays gated (matching the authority) but its copy names the two live write paths', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const boarding = vm.domains.find((d) => d.id === 'portfolio-boarding')!;
+
+    expect(boarding.state).toBe('gated');
+    expect(boarding.summary).toMatch(/Board existing loan/);
+    expect(boarding.summary).toMatch(/Boarded stage/);
+    expect(boarding.nextAction).toMatch(/Board existing loan/);
+  });
+
+  // Factory Arc Phase 10 — the certified automated borrower-send pipeline
+  // correctly stays "gated" (matching the launch-coherence authority), but
+  // the old copy implied NO borrower communication happens at all until
+  // certification — false. Bankers already draft, copy, and hand off
+  // borrower updates and document requests today with full audit tracking
+  // (DraftBorrowerUpdateModal.tsx / RequestDocumentModal.tsx). The card's
+  // copy must say so.
+  it('borrower communication stays gated (matching the authority) but its copy names the live drafting/copy/handoff paths', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const comms = vm.domains.find((d) => d.id === 'borrower-communication')!;
+
+    expect(comms.state).toBe('gated');
+    expect(comms.label).not.toMatch(/gate/i);
+    expect(comms.summary).toMatch(/draft/i);
+    expect(comms.summary).toMatch(/handoff|handed off|hand off/i);
+    expect(comms.nextAction).toMatch(/Borrower Update/);
+    expect(comms.nextAction).toMatch(/Document Request/);
   });
 
   it('points managers to existing supervision surfaces instead of inventing a parallel engine', () => {
@@ -57,10 +114,45 @@ describe('Phase 233 — Manager Operating Command Center model', () => {
   it('certifies safe internal production-core signals stay distinct from live write gates', () => {
     const vm = deriveManagerOperatingCommandCenterModel();
 
-    expect(vm.certifications.join(' ')).toMatch(/Duplicate detection safe internal core: true/);
-    expect(vm.certifications.join(' ')).toMatch(/Task generation safe internal core: true/);
+    expect(vm.certifications.join(' ')).toMatch(/Duplicate detection runs as a safe, internal-only/);
+    expect(vm.certifications.join(' ')).toMatch(/Task generation runs as a safe, internal-only/);
     expect(vm.certifications.join(' ')).toMatch(/No hidden create\/update\/delete action/i);
     expect(vm.certifications.join(' ')).toMatch(/No external platform sync or borrower send/i);
+  });
+
+  // Factory Arc Phase 14 — the certifications footer previously printed the raw
+  // flag identifier plus a literal ": true"/": false" (e.g. "Duplicate detection
+  // safe internal core: true"). It must now read as plain assurance prose.
+  it('the certifications footer never leaks a raw flag name or a bare boolean', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const joined = vm.certifications.join(' ');
+    expect(joined).not.toMatch(/:\s*(true|false)\b/i);
+    expect(joined).not.toMatch(/DUPLICATE_DETECTION_ENABLED|TASK_GENERATION_ENABLED|AUTO_STAGE_ADVANCE_ENABLED|CRM_ROUTE_ENABLED/);
+  });
+
+  // Factory Arc Phase 14 — pipeline-supervision and banker-workload now read
+  // real team-scoped counts when live data is supplied, instead of a static
+  // "Active" placeholder that is not a count of anything.
+  it('shows real live counts for pipeline-supervision and banker-workload when team data is supplied', () => {
+    const vm = deriveManagerOperatingCommandCenterModel({
+      teamPipeline: [
+        { id: 'd1', name: 'Deal 1', clientName: 'A', stage: 'Underwriting', status: 'Active', amount: 100, targetCloseDate: undefined, stageEntryDate: undefined, modifiedOn: undefined, assignedBankerId: 'b1', assignedBankerName: 'B', collateralSummary: undefined, productType: undefined, loanStructure: undefined, pricingType: undefined },
+      ],
+      teamBankers: [
+        { id: 'b1', fullName: 'B', email: undefined, roleType: undefined, active: true },
+        { id: 'b2', fullName: 'C', email: undefined, roleType: undefined, active: false },
+      ],
+    });
+    const byId = new Map(vm.domains.map((d) => [d.id, d]));
+    expect(byId.get('pipeline-supervision')?.value).toMatch(/1 active deal/);
+    expect(byId.get('banker-workload')?.value).toMatch(/1 active banker/);
+  });
+
+  it('falls back to the plain "Active" label when no live team data is supplied (no fabricated count)', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const byId = new Map(vm.domains.map((d) => [d.id, d]));
+    expect(byId.get('pipeline-supervision')?.value).toBe('Active');
+    expect(byId.get('banker-workload')?.value).toBe('Active');
   });
 
   it('source remains pure/read-only with no SDK, fetch, GUID, or Dataverse mutation primitive', () => {

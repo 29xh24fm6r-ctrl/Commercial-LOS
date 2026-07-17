@@ -17,6 +17,26 @@ table/column edits a maker can perform.
 
 ## Step 1 — Add the ordering column to `cr664_dealstagereferences`
 
+Two equivalent options.
+
+### Option A — run the provisioning script (recommended, idempotent, scripted)
+
+```powershell
+# from code-app/
+powershell -File scripts/dataverse/verify-document-checklist-and-stage-schema.ps1               # inspect live state first
+powershell -File scripts/dataverse/create-dealstagereference-sequence-column.ps1                # DRY-RUN — prints the plan, writes nothing
+powershell -File scripts/dataverse/create-dealstagereference-sequence-column.ps1 -Apply          # creates the missing column(s) + publishes
+```
+
+Dry-run by default, create-missing-only (never overwrites/renames/deletes), environment-host +
+solution-existence checks before any mutation, same safety model as every other script in
+`scripts/dataverse/`. Does not create a separate `cr664_stagereferences` table (that plan is
+explicitly superseded — see `STAGE_PROGRESSION_ENABLEMENT_MAP.md`) and does not create a Dataverse
+alternate key/unique index on `cr664_sequence` (see the script's own header for why that wouldn't
+safely express "unique among active rows only").
+
+### Option B — enter the columns by hand
+
 In make.powerapps.com → **Tables** → **Deal Stage Reference** (`cr664_dealstagereferences`) →
 **Columns** → **+ New column**:
 

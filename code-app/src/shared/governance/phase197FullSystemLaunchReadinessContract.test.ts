@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  deriveFullSystemLaunchReadiness,
+  deriveReleaseGovernanceSnapshot,
   type LaunchReadinessDomain,
-} from '../../admin/fullSystemLaunchReadinessModel';
+} from '../../admin/releaseGovernanceSnapshot';
 import { evaluateBankerCreateRollout } from '../../deals/bankerNewDealCreateRollout';
 import { BANKER_NEW_DEAL_CREATE_ENABLED } from '../../deals/dealOriginationFeatureFlags';
 import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from '../../deals/newDealCreateFeatureFlags';
@@ -28,7 +28,7 @@ const ROOT = resolve(__dirname, '..', '..', '..');
 const read = (rel: string) => readFileSync(resolve(ROOT, rel), 'utf8');
 
 const DOC_REL = 'docs/PHASE_197_FULL_SYSTEM_LAUNCH_READINESS.md';
-const MODEL_REL = 'src/admin/fullSystemLaunchReadinessModel.ts';
+const MODEL_REL = 'src/admin/releaseGovernanceSnapshot.ts';
 const CONSOLE_REL = 'src/admin/FullSystemLaunchReadinessConsole.tsx';
 const COMPONENT_TEST_REL = 'src/admin/FullSystemLaunchReadinessConsole.test.tsx';
 const CONTRACT_TEST_REL = 'src/shared/governance/phase197FullSystemLaunchReadinessContract.test.ts';
@@ -36,7 +36,7 @@ const CONTRACT_TEST_REL = 'src/shared/governance/phase197FullSystemLaunchReadine
 const DOC = existsSync(resolve(ROOT, DOC_REL)) ? read(DOC_REL) : '';
 const SNAPSHOT = read('src/shared/governance/releaseCandidateSnapshot.test.ts');
 
-const readiness = deriveFullSystemLaunchReadiness();
+const readiness = deriveReleaseGovernanceSnapshot();
 const byId = (id: string): LaunchReadinessDomain => {
   const d = readiness.domains.find((x) => x.id === id);
   if (!d) throw new Error(`domain ${id} missing`);
@@ -67,7 +67,7 @@ describe('197 — files exist and snapshot tracks the phase', () => {
 // 2. Recommendation + domains.
 // ---------------------------------------------------------------------------
 describe('197 — model recommendation + domains', () => {
-  it('deriveFullSystemLaunchReadiness() returns CONDITIONAL_GO', () => {
+  it('deriveReleaseGovernanceSnapshot() returns CONDITIONAL_GO', () => {
     expect(readiness.recommendation).toBe('CONDITIONAL_GO');
     expect(readiness.label).toBe('CONDITIONAL GO');
   });

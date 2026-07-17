@@ -256,6 +256,66 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
       expect(out.kind).toBe('advanced');
     });
   });
+
+  describe('auto-board on advance to BOARDED', () => {
+    const closingFundingFacts: WorkflowRequirementFacts = {
+      deal: baseDeal,
+      tasks: { open: [], completed: [{ id: 't1', title: 'Booking quality control', completed: true, dueDate: undefined, assigneeName: undefined, modifiedOn: '2026-07-01T00:00:00Z' }] },
+      documents: docsOf({ received: [mkDoc('Booking Package', 'received')] }),
+      creditMemo: noMemo,
+    };
+    function closingFundingInput(over: Partial<StageAdvanceInput> = {}) {
+      return input({
+        workflow: workflow({ stageId: 'CLOSING_FUNDING', nextIds: ['BOARDED'], status: 'clear' }),
+        requestedNextStageId: 'BOARDED',
+        facts: closingFundingFacts,
+        ...over,
+      });
+    }
+
+    it('does not call onDealBoarded for a non-BOARDED advance', async () => {
+      const onDealBoarded = { run: vi.fn(async () => ({ ok: true, detail: 'boarded' })) };
+      const out = await advanceWorkflowStage(input({ onDealBoarded }));
+      expect(out.kind).toBe('advanced');
+      expect(onDealBoarded.run).not.toHaveBeenCalled();
+      if (out.kind === 'advanced') expect(out.boardingOutcome).toBeUndefined();
+    });
+
+    it('calls onDealBoarded with the deal after a verified advance to BOARDED, and reports its outcome', async () => {
+      const onDealBoarded = { run: vi.fn(async () => ({ ok: true, detail: 'Boarded as portfolio loan deal-1.' })) };
+      const out = await advanceWorkflowStage(closingFundingInput({ onDealBoarded }));
+      expect(out.kind).toBe('advanced');
+      expect(onDealBoarded.run).toHaveBeenCalledWith(baseDeal);
+      if (out.kind === 'advanced') {
+        expect(out.to).toBe('BOARDED');
+        expect(out.boardingOutcome).toEqual({ ok: true, detail: 'Boarded as portfolio loan deal-1.' });
+      }
+    });
+
+    it('a boarding failure is reported honestly but does NOT revert or fail the already-persisted advance', async () => {
+      const onDealBoarded = { run: vi.fn(async () => ({ ok: false, detail: 'Auto-boarding failed: write-failed' })) };
+      const out = await advanceWorkflowStage(closingFundingInput({ onDealBoarded }));
+      expect(out.kind).toBe('advanced');
+      if (out.kind === 'advanced') {
+        expect(out.boardingOutcome).toEqual({ ok: false, detail: 'Auto-boarding failed: write-failed' });
+      }
+    });
+
+    it('a thrown error from onDealBoarded is caught and reported, never propagated', async () => {
+      const onDealBoarded = { run: vi.fn(async () => { throw new Error('unexpected'); }) };
+      const out = await advanceWorkflowStage(closingFundingInput({ onDealBoarded }));
+      expect(out.kind).toBe('advanced');
+      if (out.kind === 'advanced') {
+        expect(out.boardingOutcome).toEqual({ ok: false, detail: 'unexpected' });
+      }
+    });
+
+    it('advancing to BOARDED with no onDealBoarded injected simply omits boardingOutcome', async () => {
+      const out = await advanceWorkflowStage(closingFundingInput());
+      expect(out.kind).toBe('advanced');
+      if (out.kind === 'advanced') expect(out.boardingOutcome).toBeUndefined();
+    });
+  });
 });
 
 describe('ARC Phase 3 — the write seam re-checks the stricter requirement engine (INTAKE scenario)', () => {

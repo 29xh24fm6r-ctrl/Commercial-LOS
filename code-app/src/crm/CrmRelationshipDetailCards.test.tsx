@@ -154,13 +154,14 @@ describe('Phase 189G — fit-and-finish + source-fact traceability', () => {
     ]);
   });
 
-  it('shows a provenance banner naming the authorized deal row, 189B view-model, and 189E gate', () => {
+  it('shows a provenance banner naming the authorized deal row and the readiness gate, with no internal phase codes', () => {
     renderCards(realGraph);
     const banner = screen.getByTestId('crm-detail-provenance');
     expect(banner.textContent).toMatch(/already-authorized deal row/i);
-    expect(banner.textContent).toMatch(/189B view-model/);
-    expect(banner.textContent).toMatch(/189E readiness/);
+    expect(banner.textContent).toMatch(/CRM relationship view/);
+    expect(banner.textContent).toMatch(/readiness audit/);
     expect(banner.textContent).toMatch(/no new CRM lookup/i);
+    expect(banner.textContent).not.toMatch(/189[A-Z]/);
   });
 
   it('every safe section carries a source-fact chip tracing it to authorized context (not a new lookup)', () => {
@@ -170,9 +171,10 @@ describe('Phase 189G — fit-and-finish + source-fact traceability', () => {
       expect(sec.getAttribute('data-section-state')).toBe('safe');
       const fact = sec.querySelector('[data-source-fact]') as HTMLElement;
       expect(fact).not.toBeNull();
-      expect(fact.textContent).toMatch(/189B view-model/);
-      expect(fact.textContent).toMatch(/189E readiness/);
+      expect(fact.textContent).toMatch(/CRM relationship view/);
+      expect(fact.textContent).toMatch(/readiness audit/);
       expect(fact.textContent).toMatch(/No new CRM lookup/i);
+      expect(fact.textContent).not.toMatch(/189[A-Z]/);
     }
   });
 

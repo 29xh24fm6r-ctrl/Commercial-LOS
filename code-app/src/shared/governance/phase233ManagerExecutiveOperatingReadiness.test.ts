@@ -79,7 +79,7 @@ describe('Phase 233 — manager + executive operating readiness activation contr
     expect(execVm.domains.map((d) => d.id)).toContain('admin-activation');
   });
 
-  it('reflects the SAFE-DEFAULT gated live-write domains while New Deal create stays gated', () => {
+  it('reflects the SAFE-DEFAULT gated live-write domains while New Deal create reads operational', () => {
     const managerVm = deriveManagerOperatingCommandCenterModel();
     const byId = new Map(managerVm.domains.map((d) => [d.id, d]));
     // Live-write gates are reset to safe defaults: checklist, CRM writeback,
@@ -87,8 +87,10 @@ describe('Phase 233 — manager + executive operating readiness activation contr
     for (const id of ['document-readiness', 'crm-writeback', 'borrower-communication', 'portfolio-boarding']) {
       expect(byId.get(id)?.state, id).toBe('gated');
     }
-    // New Deal create stays gated by its global constant.
-    expect(byId.get('new-deal-intake')?.state).toBe('gated');
+    // Factory Arc Phase 11 — New Deal create now reads the real pilot switch
+    // (BANKER_CREATE_PILOT_ENABLED), not the dead legacy constant, and that
+    // switch is on — an authorized banker reaches a live create flow today.
+    expect(byId.get('new-deal-intake')?.state).toBe('operational');
 
     // The overall executive restart posture stays gated activation while the live-write gates are off.
     const execVm = deriveExecutiveRestartReadinessModel();

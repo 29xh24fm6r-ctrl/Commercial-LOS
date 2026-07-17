@@ -299,3 +299,57 @@ describe('Phase 134A — executive route is name-gated', () => {
     expect(screen.queryByTestId('gate-children')).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Factory Arc Phase 12 — WorkspaceGate: admin admission. Every other
+// workspace (banker/team/manager/executive) already had dedicated fast-path
+// + fail-closed coverage above; admin used the identical WorkspaceGate
+// mechanism (no special-casing) but had none. This closes that gap.
+// ---------------------------------------------------------------------------
+
+describe('Factory Arc Phase 12 — WorkspaceGate: admin admission', () => {
+  it('admits an admin-primary user to /workspaces/admin (fast path)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    mountGate({
+      bootstrapRoute: WORKSPACE_ROUTES.admin,
+      initialPath: WORKSPACE_ROUTES.admin,
+      allowed: WORKSPACE_ROUTES.admin,
+    });
+    expect(await screen.findByTestId('gate-children')).toBeInTheDocument();
+  });
+
+  it('bounces a manager-entitled (non-admin) user away from /workspaces/admin (no proxy)', async () => {
+    loadManagerIdentityMock.mockResolvedValue({
+      kind: 'ready',
+      identity: {
+        bankerId: 'b1',
+        fullName: 'Test',
+        email: 'banker@oldglorybank.com',
+        teamId: 'team-1',
+        teamName: 'Capital Markets',
+      },
+    });
+    mountGate({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      initialPath: WORKSPACE_ROUTES.admin,
+      allowed: WORKSPACE_ROUTES.admin,
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('primary-route')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('gate-children')).not.toBeInTheDocument();
+  });
+
+  it('fails closed for a non-entitled user hitting the /workspaces/admin URL directly', async () => {
+    loadManagerIdentityMock.mockResolvedValue({ kind: 'not-banker' });
+    mountGate({
+      bootstrapRoute: WORKSPACE_ROUTES.banker,
+      initialPath: WORKSPACE_ROUTES.admin,
+      allowed: WORKSPACE_ROUTES.admin,
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('primary-route')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('gate-children')).not.toBeInTheDocument();
+  });
+});

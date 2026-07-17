@@ -1,170 +1,39 @@
-﻿import {
-  BANKER_NEW_DEAL_CREATE_ENABLED,
-  TASK_GENERATION_ENABLED,
-  DOCUMENT_CHECKLIST_GENERATION_ENABLED,
-  DUPLICATE_DETECTION_ENABLED,
-  BORROWER_MESSAGING_ENABLED,
-  AUTO_STAGE_ADVANCE_ENABLED,
-} from '../deals/dealOriginationFeatureFlags';
-import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
-import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
-
-export type BankerOperatingDomainState = 'operational' | 'review' | 'gated';
-
-export interface BankerOperatingDomain {
-  readonly id: string;
-  readonly label: string;
-  readonly state: BankerOperatingDomainState;
-  readonly value: string;
-  readonly summary: string;
-  readonly nextAction: string;
-}
-
 export interface BankerOperatingCommandCenterModel {
   readonly title: string;
-  readonly subtitle: string;
   readonly posture: string;
-  readonly domains: readonly BankerOperatingDomain[];
-  readonly todayActions: readonly string[];
   readonly dealCockpitAnchors: readonly string[];
-  readonly certifications: readonly string[];
-}
-
-function gateState(enabled: boolean): BankerOperatingDomainState {
-  return enabled ? 'operational' : 'gated';
 }
 
 /**
- * Completion Phase C — banker dashboard label honesty.
+ * Factory Arc Phase 2/3 — banker operating layer identity.
  *
- * The banker layer reads each live-write FLAG (the first gate) but, by role isolation (Phase 48),
- * cannot import the launch authority and therefore cannot see its certification/evidence state.
- * So it must never present a bare "enabled" for a live-write domain off the flag alone — that
- * would over-assert a live capability the runtime certification gate still governs. When a flag is
- * armed we say "armed — pending certification"; when off, "gated". The word "enabled" is reserved
- * for the genuinely-live, evidenced New Deal create pilot. (The cross-panel coherence guard
- * additionally fails CI if this card's `state` ever disagrees with the authority.)
+ * Prior to this phase, this module also derived a `domains` array of
+ * per-capability "operational / review / gated" pills sourced directly from
+ * global feature-flag constants (BANKER_NEW_DEAL_CREATE_ENABLED,
+ * DOCUMENT_CHECKLIST_GENERATION_ENABLED, etc.) and a `certifications` array
+ * of raw boolean strings — release-governance concepts, not operational
+ * ones, presented as if they were live per-banker state. That machinery is
+ * retired: BankerOperatingCommandCenter.tsx's "System status" pill strip is
+ * gone (replaced by live Portfolio & Workflow Health metrics derived from
+ * the banker's own deals — see BankerOperatingCommandCenter.tsx), and this
+ * module has nothing left to inject a capability-availability adapter INTO,
+ * because it no longer models per-capability gate/certification state at
+ * all. releaseGovernanceRuntimeImportGuard.test.ts enforces that this file
+ * (and every other file under src/banker, src/manager, src/deals,
+ * src/portfolioBoarding) never re-imports a release-governance model to
+ * rebuild that concept.
+ *
+ * What remains is pure identity/navigation data: the command center's
+ * title, its one-line posture statement, and the deal-cockpit anchor ids it
+ * points bankers to instead of inventing a parallel workflow — still
+ * pinned by bankerOperatingCommandCenterModel.test.ts and
+ * phase232BankerOperatingSurfaceActivation.test.ts.
  */
-function liveWriteValue(armed: boolean, armedNoun: string, gatedLabel: string): string {
-  return armed ? `${armedNoun} armed — pending certification` : gatedLabel;
-}
-
 export function deriveBankerOperatingCommandCenterModel(): BankerOperatingCommandCenterModel {
-  const domains: BankerOperatingDomain[] = [
-    {
-      id: 'crm',
-      label: 'CRM relationship intelligence',
-      state: 'operational',
-      value: 'Active',
-      summary:
-        'Relationship context, contact readiness, record ownership, and activity review are available from your operating surfaces.',
-      nextAction: 'Review CRM intelligence and relationship context before advancing deal work.',
-    },
-    {
-      id: 'loan-workflow',
-      label: 'Loan workflow cockpit',
-      state: 'operational',
-      value: 'Active',
-      summary:
-        'Deal-level Loan Workflow Command Center, stage readiness, blockers, documents, tasks, and credit readiness are mounted in the authorized deal workspace.',
-      nextAction: 'Open active deals and work from the workflow command center before changing stage posture.',
-    },
-    {
-      id: 'daily-actions',
-      label: 'Daily banker action queue',
-      state: TASK_GENERATION_ENABLED ? 'operational' : 'review',
-      value: TASK_GENERATION_ENABLED ? 'Core actions active' : 'Review-only',
-      summary:
-        'Safe internal task-generation intelligence is available for prioritization; destructive or external actions remain separate governed controls.',
-      nextAction: 'Use daily actions to prioritize review work; do not assume external sends or live writes.',
-    },
-    {
-      id: 'new-deal',
-      label: 'New Deal intake',
-      state: gateState(BANKER_NEW_DEAL_CREATE_ENABLED),
-      value: BANKER_NEW_DEAL_CREATE_ENABLED ? 'Create enabled' : 'Create gated',
-      summary:
-        'New Deal create is live for authorized bankers — deals open at Intake / Open and are audited.',
-      nextAction: 'Create deals from the “+ New Deal” action; duplicate detection runs before a deal is created.',
-    },
-    {
-      id: 'document-readiness',
-      label: 'Document checklist readiness',
-      state: DOCUMENT_CHECKLIST_GENERATION_ENABLED ? 'operational' : 'gated',
-      value: liveWriteValue(DOCUMENT_CHECKLIST_GENERATION_ENABLED, 'Generation', 'Generation gated'),
-      summary:
-        'Document readiness is visible in the deal cockpit. Checklist generation remains gated unless explicitly certified.',
-      nextAction: 'Review missing documents and request paths; certify generation adapter before enabling automated generation.',
-    },
-    {
-      id: 'borrower-communications',
-      label: 'Borrower communications',
-      state: BORROWER_MESSAGING_ENABLED ? 'operational' : 'gated',
-      value: liveWriteValue(BORROWER_MESSAGING_ENABLED, 'Send', 'Send gated'),
-      summary:
-        'Borrower-safe drafting and handoff controls are separate from live-send capability; send remains fail-closed by default.',
-      nextAction: 'Draft/review borrower updates only through governed handoff paths until live-send is certified.',
-    },
-    {
-      id: 'crm-writeback',
-      // This pill tracks the AUTOMATED CRM persistence/writeback domain (the
-      // CRM_LIVE_PERSISTENCE_ENABLED flag) — the same domain the launch authority
-      // governs, so its `state` stays coupled to the flag (the coherence guard
-      // compares state, not label). The label/summary are relabelled so bankers no
-      // longer read a bare "Read-only" and think the whole CRM is dead: manual,
-      // identity-gated CRM writes (create/update company, contact, activity,
-      // follow-up) are LIVE and governed, independent of this automated gate.
-      label: 'CRM automated writeback',
-      state: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'operational' : 'gated',
-      value: CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED ? 'CRM automation live' : 'CRM automation paused',
-      summary:
-        'Automated CRM persistence (system/bulk writeback) is gated. Authorized bankers still create and update companies, contacts, activities, and follow-ups through the governed manual path (verified + audited) — that CRM is live and is the relationship system of record.',
-      nextAction: 'Add and update relationship records in the CRM workspace; automated writeback stays gated until certified.',
-    },
-    {
-      id: 'portfolio-handoff',
-      label: 'Portfolio boarding handoff',
-      state: PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED
-        ? 'operational'
-        : 'gated',
-      value: liveWriteValue(
-        PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
-        'Boarding persistence',
-        'Boarding persistence gated',
-      ),
-      summary:
-        'Portfolio handoff/readiness surfaces are available while booked-loan persistence remains governed by explicit boarding gates.',
-      nextAction: 'Use handoff readiness; certify boarding persistence and evidence package before live boarding writes.',
-    },
-  ];
-
   return {
     title: 'Banker Operating Command Center',
-    subtitle: 'Unified CRM + LOS workflow cockpit for daily lending operations',
     posture:
-      'Operate from CRM, your active deal workflow, daily actions, and each deal’s readiness. Live create, stage advancement, borrower send, checklist generation, and portfolio boarding stay governed and are available where they are enabled for you.',
-    domains,
-    todayActions: [
-      'Start with CRM and your daily action queue.',
-      'Work active deals from the deal cockpit.',
-      'Use duplicate detection and task suggestions to prioritize your work.',
-      'Live create, send, and portfolio boarding are available only where they have been enabled for you.',
-    ],
-    dealCockpitAnchors: [
-      'stage-map',
-      'workstreams',
-      'crm-relationship',
-      'credit-memo',
-      'tasks',
-      'documents',
-    ],
-    certifications: [
-      `Duplicate detection safe internal core: ${String(DUPLICATE_DETECTION_ENABLED)}`,
-      `Task generation safe internal core: ${String(TASK_GENERATION_ENABLED)}`,
-      `Stage advancement live gate: ${String(AUTO_STAGE_ADVANCE_ENABLED)}`,
-      `CRM route default: ${String(CRM_FEATURE_FLAG_DEFAULTS.CRM_ROUTE_ENABLED)}`,
-      'No external platform sync or borrower send is triggered by this dashboard.',
-      'No hidden create/update/delete action is introduced by this command center.',
-    ],
+      'Operate from CRM, your active deal workflow, daily actions, and each deal’s readiness — live create, stage advancement, borrower send, checklist generation, and portfolio boarding are available where authorized and governed by audited writes.',
+    dealCockpitAnchors: ['stage-map', 'workstreams', 'crm-relationship', 'credit-memo', 'tasks', 'documents'],
   };
 }

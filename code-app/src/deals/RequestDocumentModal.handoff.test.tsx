@@ -63,7 +63,7 @@ beforeEach(() => {
 });
 
 describe('RequestDocumentModal — Phase 63 HANDOFF mode UI', () => {
-  it('renders Mode: HANDOFF badge and the Open in Outlook + Copy email buttons', () => {
+  it('renders the honest handoff-mode badge and the Open in Outlook + Copy email buttons', () => {
     render(
       <RequestDocumentModal
         doc={sampleDoc}
@@ -72,9 +72,11 @@ describe('RequestDocumentModal — Phase 63 HANDOFF mode UI', () => {
         onPrepareHandoff={vi.fn()}
       />,
     );
+    // Factory Arc Phase 10: honest plain text, not a raw "Mode: HANDOFF" token.
     expect(
-      screen.getByRole('status', { name: /email delivery mode: handoff/i }),
+      screen.getByRole('status', { name: /send happens from your own outlook client/i }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/send via your outlook/i)).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /open in outlook/i }),
     ).toBeInTheDocument();

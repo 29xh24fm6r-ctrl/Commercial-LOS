@@ -17,6 +17,9 @@ import {
 import type { AddRequiredDocumentOutcome } from './addRequiredDocumentAction';
 import { AddRequiredDocumentModal } from './AddRequiredDocumentModal';
 import { deriveDealBlockerModelForStage } from './dealBlockerModel';
+import { mergeDocumentRequirementBlockers } from './documentRequirementBlockerMerge';
+import type { DocumentRequirementRow } from './documentRequirementLifecycle';
+import type { RequiredDocumentDefinition } from './documentRequirementDerivation';
 import {
   sendDocumentRequestEmail,
   type SendDocumentRequestEmailOutcome,
@@ -31,11 +34,17 @@ import {
   type CreateDocumentReviewTaskOutcome,
 } from './dealTaskActions';
 import { EMAIL_MODE } from './emailDelivery/emailMode';
+import { deriveBankerIdentityGatedAvailability } from './bankerIdentityGatedAvailability';
+import { describeUnavailability } from '../shared/governance/operationalCapabilityState';
+import { toOperationalCapabilityState } from '../shared/governance/capabilityAvailability';
+import { uploadDocumentFile, type UploadDocumentFileOutcome } from './documentUploadAction';
+import { buildLiveDocumentUploadDeps } from './documentUploadLiveDeps';
+import { isDocumentFileUploadEnabled } from './dealOriginationFeatureFlags';
 import { ReceiveDocumentModal } from './ReceiveDocumentModal';
 import { RequestDocumentModal } from './RequestDocumentModal';
 import { ReviewDocumentModal } from './ReviewDocumentModal';
 import { CreateDocumentReviewTaskModal } from './CreateDocumentReviewTaskModal';
-import { DocumentChecklistPilotPanel } from './DocumentChecklistPilotPanel';
+import { DocumentRequirementWorkspace } from './DocumentRequirementWorkspace';
 import { Card } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { parseCalendarDate } from '../shared/formatters';
@@ -70,9 +79,13 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
   const [pendingReviewTaskDoc, setPendingReviewTaskDoc] =
     useState<DealDocument | null>(null);
   const openTasks = tasks.kind === 'ready' ? tasks.data.open : [];
+  // Populated by DocumentRequirementWorkspace after each (re)load so this card's own
+  // blocker computation can union in dynamically-derived requirements (see below).
+  const [requirementRows, setRequirementRows] = useState<readonly DocumentRequirementRow[]>([]);
+  const [requirementDefinitions, setRequirementDefinitions] = useState<readonly RequiredDocumentDefinition[]>([]);
 
   async function handleRequestConfirm(note: string): Promise<RequestDocumentOutcome> {
-    if (!pendingRequestDoc || !banker?.systemUserId) {
+    if (!pendingRequestDoc || !banker?.systemUserId || !borrowerRequestSendAvailability.available) {
       return { kind: 'unknown', message: 'Cannot submit: missing document or system user id.' };
     }
     const outcome = await requestDocument({
@@ -95,7 +108,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     subject: string;
     body: string;
   }): Promise<SendDocumentRequestEmailOutcome> {
-    if (!pendingRequestDoc || !banker?.systemUserId) {
+    if (!pendingRequestDoc || !banker?.systemUserId || !borrowerRequestSendAvailability.available) {
       return {
         kind: 'unknown',
         message: 'Cannot send: missing document or system user id.',
@@ -121,7 +134,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     body: string;
     method: HandoffMethod;
   }): Promise<PrepareDocumentRequestHandoffOutcome> {
-    if (!pendingRequestDoc || !banker?.systemUserId) {
+    if (!pendingRequestDoc || !banker?.systemUserId || !borrowerRequestSendAvailability.available) {
       return {
         kind: 'unknown',
         message: 'Cannot prepare handoff: missing document or system user id.',
@@ -157,6 +170,26 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       actorEmail: banker.email,
       receiveNote: note,
     });
+    refresh('after-document-receive');
+    return outcome;
+  }
+
+  async function handleUploadFile(file: File): Promise<UploadDocumentFileOutcome> {
+    if (!pendingReceiveDoc || !banker?.email) {
+      return { kind: 'unknown', message: 'Cannot upload: missing document or actor identity.' };
+    }
+    const outcome = await uploadDocumentFile(
+      {
+        documentId: pendingReceiveDoc.id,
+        documentName: pendingReceiveDoc.name,
+        dealId: deal.id,
+        actorEmail: banker.email,
+        fileName: file.name,
+        mimeType: file.type,
+        content: new Uint8Array(await file.arrayBuffer()),
+      },
+      buildLiveDocumentUploadDeps(),
+    );
     refresh('after-document-receive');
     return outcome;
   }
@@ -222,15 +255,42 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
 
   // Missing mandatory documents for the current stage, from the ONE authoritative blocker model —
   // these seed the "Add required document" picker so the banker sees exactly what advancement needs.
-  const blockerModel = deriveDealBlockerModelForStage(deal.stage, {
+  const coreBlockerModel = deriveDealBlockerModelForStage(deal.stage, {
     deal,
     tasks: tasks.kind === 'ready' ? tasks.data : undefined,
     documents: documents.kind === 'ready' ? documents.data : undefined,
     creditMemo: creditMemo.kind === 'ready' ? creditMemo.data : undefined,
   });
+  // Additively unions in any unsatisfied dynamically-derived document requirement
+  // (documentRequirementDerivation.ts) the static per-stage engine above doesn't
+  // already know about — an acknowledged-but-not-yet-reviewed requirement keeps
+  // counting here, exactly like any other hard blocker.
+  const blockerModel =
+    coreBlockerModel && requirementRows.length > 0
+      ? mergeDocumentRequirementBlockers(coreBlockerModel, requirementRows, requirementDefinitions)
+      : coreBlockerModel;
   const missingRequiredDocuments = blockerModel?.missingRequiredDocuments ?? [];
 
-  const canWrite = !readOnly && !!banker?.systemUserId;
+  // Factory Arc Phase 6 — canWrite derives from ONE normalized
+  // CapabilityAvailability rather than an ad hoc identity boolean.
+  // `readOnly` stays a separate, deal-scoped view gate (not a capability fact).
+  // Not memoized: new Date() inside a useMemo body defeats React Compiler's
+  // memoization-preservation check, and this derivation is cheap regardless.
+  const documentRequirementWritesAvailability = deriveBankerIdentityGatedAvailability(
+    'document-requirement-writes',
+    { systemUserId: banker?.systemUserId, writeDisabledReason: banker?.writeDisabledReason },
+    new Date().toISOString(),
+  );
+  const canWrite = !readOnly && documentRequirementWritesAvailability.available;
+  // Same underlying identity fact gates the borrower-request-send handlers below
+  // (request / email / handoff) — no separate transport-readiness fact exists
+  // pre-click today (EMAIL_MODE's DRY_RUN/LIVE/HANDOFF distinction is an
+  // honest post-send outcome concern owned by Phase 10, left untouched here).
+  const borrowerRequestSendAvailability = deriveBankerIdentityGatedAvailability(
+    'borrower-request-sends',
+    { systemUserId: banker?.systemUserId, writeDisabledReason: banker?.writeDisabledReason },
+    new Date().toISOString(),
+  );
 
   // Phase 125E — right-rail operational widget. Outstanding count
   // drives the tonal CountBadge; received+reviewed / total drives
@@ -265,9 +325,12 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
               : undefined
           }
         />
-        {!readOnly && banker?.writeDisabledReason && (
+        {/* banker !== null distinguishes "confirmed unavailable" from "banker context still
+            resolving" — the latter must stay silent, not flash a disabled banner. */}
+        {!readOnly && banker !== null && !documentRequirementWritesAvailability.available && (
           <p style={styles.writeDisabledBanner} role="status">
-            <strong>Request disabled:</strong> {banker.writeDisabledReason}
+            <strong>Request disabled:</strong>{' '}
+            {describeUnavailability(toOperationalCapabilityState(documentRequirementWritesAvailability))}
           </p>
         )}
         {canWrite && (
@@ -297,19 +360,28 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           onCreateReviewTask={(doc) => setPendingReviewTaskDoc(doc)}
         />
       </Card>
-      {/* Phase 188D: banker-only, pilot-DISABLED read-only checklist preview.
-          Never creates rows, sends requests, or contacts a borrower. */}
+      {/* The real banker-managed underwriting document requirement workflow — requirements
+          are derived from this deal's type/product/borrower/guarantors/collateral/stage
+          (documentRequirementDerivation.ts), never a hardcoded name list. Every action is
+          authenticated, audited, duplicate-safe, and bound to this authorized deal + banker. */}
       {!readOnly && banker && (
-        <DocumentChecklistPilotPanel
-          existingDocumentNames={
-            documents.kind === 'ready'
-              ? [
-                  ...documents.data.outstanding,
-                  ...documents.data.received,
-                  ...documents.data.reviewed,
-                ].map((d) => d.name)
-              : []
-          }
+        <DocumentRequirementWorkspace
+          dealId={deal.id}
+          deal={{
+            productType: deal.productType,
+            loanStructure: deal.loanStructure,
+            customerType: deal.customerType,
+            guarantorStructure: deal.guarantorStructure,
+            collateralSummary: deal.collateralSummary,
+            industry: deal.industry,
+            stage: deal.stage,
+          }}
+          banker={{ systemUserId: banker.systemUserId, email: banker.email, fullName: banker.fullName }}
+          onAfterAction={() => refresh('documents')}
+          onRowsLoaded={(rows, definitions) => {
+            setRequirementRows(rows);
+            setRequirementDefinitions(definitions);
+          }}
         />
       )}
       {!readOnly && showAddDoc && banker?.systemUserId && (
@@ -333,6 +405,11 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
           doc={pendingReceiveDoc}
           onConfirm={handleReceiveConfirm}
           onClose={() => setPendingReceiveDoc(null)}
+          // File upload UI only renders once DOCUMENT_FILE_UPLOAD_ENABLED is armed (after the
+          // schema in scripts/dataverse/create-document-checklist-file-columns.ps1 exists live) —
+          // this component itself stays flag-agnostic; ReceiveDocumentModal falls back to the
+          // unchanged metadata-only flow when this prop is omitted.
+          onUploadFile={isDocumentFileUploadEnabled() ? handleUploadFile : undefined}
         />
       )}
       {!readOnly && pendingReviewDoc && banker?.fullName && (

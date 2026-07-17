@@ -1,6 +1,15 @@
 /**
  * Phase 146A — CRM Command Center view model.
  * Pure view model. Read-only. No writes. No external calls.
+ *
+ * Factory Arc Phase 8: this surface reports external CRM/lending-system
+ * sync connector status, distinct from CRM record editing (which lives in
+ * the CRM Hub and is already live/governed there). Copy here describes the
+ * connector/sync state factually — no "dry-run," "gated," or "disabled by
+ * launch phase" framing, since a banker reading this needs to know where
+ * to make an edit, not which engineering flag is set. User-facing strings
+ * use the neutral "CRM System" / "Lending Workflow" lane labels rather than
+ * vendor product names (see crmVendorBrandCopyCertification.test.ts).
  */
 
 import { CRM_SOURCE_OF_TRUTH_MAP } from '../sourceOfTruth/crmSourceOfTruthMap';
@@ -61,9 +70,9 @@ export function deriveCrmCommandCenterViewModel(): CrmCommandCenterViewModel {
 
   return {
     title: 'CRM Command Center',
-    subtitle: 'CRM and lending workflow intelligence, preview-only and controlled',
+    subtitle: 'External CRM and lending-system sync status',
     safetyCopy:
-      'Live CRM and lending workflow writes are disabled. This cockpit shows read-only intelligence, matching, source-of-truth, sync preview, and dry-run readiness only.',
+      'This page shows connector and sync status for the CRM System and Lending Workflow lanes below, plus source-of-truth and matching intelligence. It does not create, update, or link records — CRM record editing happens in the CRM Hub.',
 
     readOnly: true,
     previewOnly: true,
@@ -84,23 +93,23 @@ export function deriveCrmCommandCenterViewModel(): CrmCommandCenterViewModel {
       label: 'CRM System',
       domainsOwned: sfOwned.length,
       domainsReadSource: sfRead.length,
-      connectorStatus: 'not_configured',
-      writebackStatus: 'disabled',
+      connectorStatus: 'Not connected',
+      writebackStatus: 'Manual only — automated sync not set up',
     },
     ncinoLane: {
       provider: 'ncino',
       label: 'Lending Workflow',
       domainsOwned: ncOwned.length,
       domainsReadSource: ncRead.length,
-      connectorStatus: 'not_configured',
-      writebackStatus: 'disabled',
+      connectorStatus: 'Not connected',
+      writebackStatus: 'Manual only — automated sync not set up',
     },
 
     sourceOfTruthSummary: `${domains.length} domains mapped. ${disabled.length} disabled by default.`,
     entityMatchingSummary: 'Entity matching operates on authorized labels only. No auto-link.',
-    syncPreviewSummary: 'Sync preview is preview-only. No records created, updated, or linked.',
-    writebackPosture: 'All writeback is dry-run only. Live writes disabled.',
+    syncPreviewSummary: 'Sync preview shows proposed matches only. No records created, updated, or linked.',
+    writebackPosture: 'Automated writeback to the CRM System and Lending Workflow lanes is not set up. CRM edits are made manually in the CRM Hub.',
     relationshipTimelineSummary: 'Relationship timeline is read-only. No live CRM lookup performed.',
-    nextSafeAction: 'Review source-of-truth map and connector readiness before proceeding.',
+    nextSafeAction: 'Review source-of-truth map and connector status before proceeding.',
   };
 }

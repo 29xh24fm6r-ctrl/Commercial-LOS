@@ -29,6 +29,12 @@ import {
   type VerifiedBoardingSchemaState,
   type PortfolioBoardingRuntimeSchemaGateResult,
 } from './portfolioBoardingRuntimeSchemaGate';
+import {
+  capabilityAvailable,
+  capabilityUnavailable,
+  type CapabilityAvailability,
+  type CapabilityBlockingReason,
+} from '../shared/governance/capabilityAvailability';
 
 export interface RuntimeAdapterResolveInput {
   flags: PortfolioBoardingFeatureFlags;
@@ -76,4 +82,38 @@ export function resolvePortfolioLoanBoardingRuntimeAdapter(
     live: false,
     adapter: createDisabledPortfolioBoardingLivePersistenceAdapter(),
   };
+}
+
+/**
+ * Factory Arc Phase 6 — the "portfolio-boarding" CapabilityAvailability,
+ * composed from the same facts `resolvePortfolioLoanBoardingRuntimeAdapter`
+ * already evaluates: operator authorization (audit-identity), the two
+ * deployment-level feature flags (permission), and the schema-verification
+ * gate's own blockers (connection — a live backend dependency, the verified
+ * boarding schema, isn't ready). No duplicated logic: `gate` is the SAME
+ * `PortfolioBoardingRuntimeSchemaGateResult` the adapter resolver produces.
+ */
+export function derivePortfolioBoardingAvailability(
+  isAuthorizedOperator: boolean,
+  gate: PortfolioBoardingRuntimeSchemaGateResult,
+  checkedAt: string,
+): CapabilityAvailability {
+  const reasons: CapabilityBlockingReason[] = [];
+  if (!isAuthorizedOperator) {
+    reasons.push({
+      kind: 'audit-identity',
+      detail: 'No resolved actor identity is available for this banker/manager session.',
+    });
+  }
+  if (!gate.livePersistenceEnabled || !gate.routeEnabled) {
+    reasons.push({
+      kind: 'permission',
+      detail: 'Live boarding persistence is not enabled in this environment.',
+    });
+  }
+  for (const blocker of gate.blockers) {
+    reasons.push({ kind: 'connection', detail: blocker });
+  }
+  if (reasons.length === 0) return capabilityAvailable('portfolio-boarding', checkedAt);
+  return capabilityUnavailable('portfolio-boarding', reasons, checkedAt);
 }

@@ -1,5 +1,6 @@
 import { evaluateStageTransitionPolicy } from './stageTransitionPolicy';
 import type { LoanWorkflowState, LoanWorkflowStageId } from './loanWorkflowTypes';
+import type { DealDetail } from '../deals/dealQueries';
 import { AUTO_STAGE_ADVANCE_ENABLED } from '../deals/dealOriginationFeatureFlags';
 import {
   deriveStageExitReadiness,
@@ -52,7 +53,18 @@ import {
  */
 
 export type StageAdvanceOutcome =
-  | { kind: 'advanced'; from: LoanWorkflowStageId; to: LoanWorkflowStageId }
+  | {
+      kind: 'advanced';
+      from: LoanWorkflowStageId;
+      to: LoanWorkflowStageId;
+      /**
+       * Only set when `to === 'BOARDED'` and an `onDealBoarded` dependency was
+       * injected — the stage advance itself always succeeds independently of
+       * this; a boarding failure is reported here honestly, never silently
+       * dropped, and never blocks or reverses the already-persisted stage move.
+       */
+      boardingOutcome?: { ok: boolean; detail: string };
+    }
   | { kind: 'disabled'; detail: string }
   | { kind: 'unauthorized'; detail: string }
   | { kind: 'blocked'; reason: string; blockers: readonly string[] }
@@ -93,6 +105,15 @@ export interface StageAdvanceAuditSink {
 export interface StageAdvanceTimelineSink {
   write(event: { correlationId: string; dealId: string; toStageId: LoanWorkflowStageId }): Promise<{ ok: boolean; error?: string }>;
 }
+/**
+ * Best-effort side effect fired only for a verified advance TO the BOARDED
+ * stage. Never affects the advance's own outcome — a boarding failure is
+ * reported via `StageAdvanceOutcome.advanced.boardingOutcome`, not by
+ * failing the transition that already, correctly, persisted.
+ */
+export interface StageAdvanceOnDealBoarded {
+  run(deal: DealDetail): Promise<{ ok: boolean; detail: string }>;
+}
 
 export interface StageAdvanceInput {
   /** Defaults to AUTO_STAGE_ADVANCE_ENABLED (false). */
@@ -126,6 +147,8 @@ export interface StageAdvanceInput {
   readonly transport?: StageAdvanceTransport;
   readonly auditSink?: StageAdvanceAuditSink;
   readonly timelineSink?: StageAdvanceTimelineSink;
+  /** Fired only when the verified advance's target is BOARDED. Optional — absent means no auto-boarding attempt is made. */
+  readonly onDealBoarded?: StageAdvanceOnDealBoarded;
 }
 
 export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<StageAdvanceOutcome> {
@@ -213,6 +236,17 @@ export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<St
   const timeline = await input.timelineSink.write({ correlationId: input.correlationId, dealId: input.dealId, toStageId: policy.to });
   if (!timeline.ok) {
     return { kind: 'timeline_failed_partial_success', detail: 'Stage advanced and audited but the timeline write failed.' };
+  }
+
+  // Auto-board: best-effort, never reverses or blocks the already-persisted advance.
+  if (policy.to === 'BOARDED' && input.onDealBoarded) {
+    let boardingOutcome: { ok: boolean; detail: string };
+    try {
+      boardingOutcome = await input.onDealBoarded.run(input.facts.deal);
+    } catch (err: unknown) {
+      boardingOutcome = { ok: false, detail: err instanceof Error ? err.message : String(err) };
+    }
+    return { kind: 'advanced', from: policy.from, to: policy.to, boardingOutcome };
   }
 
   return { kind: 'advanced', from: policy.from, to: policy.to };

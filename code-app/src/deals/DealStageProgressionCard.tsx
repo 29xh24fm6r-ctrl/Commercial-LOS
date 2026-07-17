@@ -7,10 +7,12 @@ import {
 } from './stageProgressionGuard';
 import {
   stageProgressionAvailability,
+  deriveStageAdvancementAvailability,
   type StageProgressionAvailability,
 } from '../shared/governance/stageProgressionAvailability';
 import { loadStageProgressionAvailability } from './stageProgressionAvailabilityLoader';
 import { deriveLoanWorkflowState } from '../workflow/deriveLoanWorkflowState';
+import { GenerateWorkflowChecklistButton } from '../workflow/GenerateWorkflowChecklistButton';
 import { evaluateStageTransitionPolicy } from '../workflow/stageTransitionPolicy';
 import { advanceWorkflowStage, type StageAdvanceOutcome } from '../workflow/stageAdvanceWriteDependency';
 import {
@@ -115,13 +117,20 @@ export function DealStageProgressionCard({
       cancelled = true;
     };
   }, [hasActor, loadAvailability]);
-  // Armed reads the same raw gate the write seam uses (advanceWorkflowStage:
+  // Factory Arc Phase 6 — canAdvance derives from ONE normalized
+  // CapabilityAvailability instead of three ad hoc && checks. Armed reads the
+  // same raw gate the write seam uses (advanceWorkflowStage:
   // `enabled ?? Boolean(AUTO_STAGE_ADVANCE_ENABLED)`), so flipping the constant
-  // arms the card and the write together — no separate config plumbing.
-  const canAdvance =
-    Boolean(stageAdvanceActor?.systemUserId) &&
-    Boolean(AUTO_STAGE_ADVANCE_ENABLED) &&
-    availability.available;
+  // arms the card and the write together — no separate config plumbing. Not
+  // memoized: new Date() inside a useMemo body defeats React Compiler's
+  // memoization-preservation check, and this derivation is cheap regardless.
+  const stageAdvancementAvailability = deriveStageAdvancementAvailability(
+    hasActor,
+    Boolean(AUTO_STAGE_ADVANCE_ENABLED),
+    availability,
+    new Date().toISOString(),
+  );
+  const canAdvance = stageAdvancementAvailability.available;
 
   const sev = statusToSeverity(eligibility.status);
   const accent = severityPalette[sev].bar;
@@ -156,6 +165,18 @@ export function DealStageProgressionCard({
       )}
 
       <NextActionBlock eligibility={eligibility} />
+
+      {hasActor && (
+        <GenerateWorkflowChecklistButton
+          workflow={deriveLoanWorkflowState({
+            deal,
+            tasks: tasksData,
+            documents: documentsData,
+            creditMemo: creditMemoData,
+          })}
+          dealId={deal.id}
+        />
+      )}
 
       {!availability.available && (
         <div style={styles.schemaLimitationBox} role="status" aria-label="Stage progression write availability">
@@ -435,6 +456,7 @@ function StageAdvanceControl({
       transport: deps.transport,
       auditSink: deps.auditSink,
       timelineSink: deps.timelineSink,
+      onDealBoarded: deps.onDealBoarded,
     });
     // On a verified advance, seed the destination stage's standard work as real governed tasks
     // (idempotent by title), then reload tasks + activity so the new work appears immediately.

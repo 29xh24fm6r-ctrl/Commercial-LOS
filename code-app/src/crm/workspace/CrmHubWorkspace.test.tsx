@@ -94,7 +94,7 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
     );
 
     // Cards read the real follow-up-task count (was hardcoded undefined).
-    const followUps = container.querySelector('[data-crm-card="Follow-ups due"]') as HTMLElement;
+    const followUps = container.querySelector('[data-crm-card="Follow-up activity"]') as HTMLElement;
     expect(within(followUps).getByText('1')).toBeInTheDocument();
 
     const user = userEvent.setup();
@@ -211,6 +211,52 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
     const type = drawer.querySelector('[data-crm-inline-edit-trigger="cr664_organizationtype"]') as HTMLElement;
     expect(type).not.toBeNull();
     expect(type.textContent).toContain('Borrower');
+  });
+
+  it('Factory Arc Phase 8 — "Missing contact roles" counts organizations with zero linked people', async () => {
+    const { container } = await renderHub(
+      fixture({
+        organizations: {
+          status: 'ready',
+          records: [rec('o1', 'Has Contact'), rec('o2', 'No Contact'), rec('o3', 'Also No Contact')],
+        },
+        people: { status: 'ready', records: [rec('p1', 'Jane Doe', { organizationId: 'o1' })] },
+      }),
+    );
+    const card = container.querySelector('[data-crm-card="Missing contact roles"]') as HTMLElement;
+    expect(card).not.toBeNull();
+    expect(within(card).getByText('2')).toBeInTheDocument();
+  });
+
+  it('Factory Arc Phase 8 — an honest empty state when every organization has a contact', async () => {
+    const { container } = await renderHub(
+      fixture({
+        organizations: { status: 'ready', records: [rec('o1', 'Has Contact')] },
+        people: { status: 'ready', records: [rec('p1', 'Jane Doe', { organizationId: 'o1' })] },
+      }),
+    );
+    const card = container.querySelector('[data-crm-card="Missing contact roles"]') as HTMLElement;
+    expect(within(card).getByText('Every company has a contact')).toBeInTheDocument();
+  });
+
+  it('Factory Arc Phase 8 — "Recent activity" shows the real last-activity date (the first loaded record)', async () => {
+    // loadCrmWorkspaceData() (crmWorkspaceData.ts) always pre-sorts the timeline domain
+    // newest-first before this component ever sees it (this test injects loadData
+    // directly, bypassing that loader, so the fixture below supplies the order the
+    // real loader would have produced — records[0] is what the component reads).
+    const { container } = await renderHub(
+      fixture({
+        timelineEvents: {
+          status: 'ready',
+          records: [
+            rec('a2', 'note', { occurredAt: '2026-06-20T10:00:00Z', eventType: 'note' }),
+            rec('a1', 'call', { occurredAt: '2026-06-01T10:00:00Z', eventType: 'call' }),
+          ],
+        },
+      }),
+    );
+    const card = container.querySelector('[data-crm-card="Recent activity"]') as HTMLElement;
+    expect(card.textContent).toMatch(/Jun.*20.*2026|2026.*Jun.*20/i);
   });
 
   it('uses no banker-facing engineering language', async () => {

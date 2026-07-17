@@ -64,7 +64,7 @@ export function LoanWorkflowCommandCenter() {
       <Section title="Required documents" items={workflow.readiness.missingDocuments.map((item) => item.label)} empty="No required documents missing for this stage." />
       <Section title="Required tasks" items={workflow.readiness.missingTasks.map((item) => item.label)} empty="No required tasks missing for this stage." />
       <div style={styles.actions} aria-label="Workflow explicit actions">
-        <GenerateWorkflowChecklistButton workflow={workflow} />
+        <GenerateWorkflowChecklistButton workflow={workflow} dealId={deal.id} />
         <GenerateWorkflowTasksButton workflow={workflow} />
         <AdvanceWorkflowStageButton workflow={workflow} />
       </div>

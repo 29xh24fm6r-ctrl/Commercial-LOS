@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { deriveFullSystemLaunchReadiness } from '../../admin/fullSystemLaunchReadinessModel';
+import { deriveReleaseGovernanceSnapshot } from '../../admin/releaseGovernanceSnapshot';
 
 /**
  * PHASE 200 — V1 cutover execution evidence contract.
@@ -111,7 +111,7 @@ describe('200 — hygiene', () => {
 });
 
 describe('200 — recommendation stays deterministic', () => {
-  it('deriveFullSystemLaunchReadiness() remains CONDITIONAL_GO', () => {
-    expect(deriveFullSystemLaunchReadiness().recommendation).toBe('CONDITIONAL_GO');
+  it('deriveReleaseGovernanceSnapshot() remains CONDITIONAL_GO', () => {
+    expect(deriveReleaseGovernanceSnapshot().recommendation).toBe('CONDITIONAL_GO');
   });
 });

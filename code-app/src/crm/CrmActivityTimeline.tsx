@@ -92,7 +92,8 @@ export function CrmActivityTimeline({ input, persistenceGateSatisfied = false, o
       <CardFooter>
         <span data-testid="crm-timeline-footer">
           Read-only CRM timeline. No fabricated activity/task history, no fake completion, no
-          borrower communication. Live activity logging is gated by the persistence adapter.
+          borrower communication. Logging a new activity here requires an authorized persistence
+          connection.
         </span>
       </CardFooter>
     </Card>

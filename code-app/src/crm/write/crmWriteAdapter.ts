@@ -19,6 +19,11 @@
 import { newCorrelationId } from '../../shared/governance/correlationId';
 import { isValidPartyType } from '../crmPartyTypes';
 import { isNaicsCode6 } from '../naics/naicsSectorMap';
+import {
+  capabilityAvailable,
+  capabilityUnavailable,
+  type CapabilityAvailability,
+} from '../../shared/governance/capabilityAvailability';
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -104,6 +109,41 @@ export function authGate(actor: CrmActor): { ok: true } | { ok: false; outcome: 
     };
   }
   return { ok: true };
+}
+
+/**
+ * Factory Arc Phase 6 — the "crm-writes" CapabilityAvailability, derived from
+ * the SAME authGate() every write call already runs (no duplicated logic —
+ * one source of truth for whether a write would be attempted at all).
+ * `authGate`'s 'unauthorized' outcome is an authorization-scope fact, so it
+ * maps to 'permission'; 'identity-unresolved' is exactly the "no resolved
+ * actor identity" case, so it maps to 'audit-identity'. No feature flag or
+ * connector-readiness fact gates CRM writes today — identity/authorization is
+ * the only real blocker, matching the research this phase's wiring was based on.
+ *
+ * `specificReason`, when supplied, overrides authGate()'s generic copy — the
+ * caller (CrmHubWorkspace.tsx) already has a MORE specific upstream fact from
+ * identity resolution (e.g. "No Dataverse systemuser is provisioned for the
+ * current Entra identity."), and Phase 6 asks for specific reasons, not a
+ * generic fallback when a better one is available.
+ */
+export function deriveCrmWritesAvailability(
+  actor: CrmActor,
+  checkedAt: string,
+  specificReason?: string,
+): CapabilityAvailability {
+  const gate = authGate(actor);
+  if (gate.ok) return capabilityAvailable('crm-writes', checkedAt);
+  const outcome = gate.outcome;
+  if (outcome.kind === 'unauthorized') {
+    return capabilityUnavailable('crm-writes', [{ kind: 'permission', detail: specificReason ?? outcome.reason }], checkedAt);
+  }
+  if (outcome.kind === 'identity-unresolved') {
+    return capabilityUnavailable('crm-writes', [{ kind: 'audit-identity', detail: specificReason ?? outcome.reason }], checkedAt);
+  }
+  // authGate() only ever returns 'unauthorized' or 'identity-unresolved' on the ok:false branch;
+  // this is unreachable at runtime, kept only to satisfy CrmWriteOutcome's broader type.
+  return capabilityUnavailable('crm-writes', [{ kind: 'permission', detail: specificReason ?? 'You are not authorized to update the CRM.' }], checkedAt);
 }
 
 export function buildAuditPayload(opts: {

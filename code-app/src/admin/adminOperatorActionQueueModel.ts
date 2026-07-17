@@ -2,7 +2,7 @@ import {
   deriveEliteCrmLosActivationReadiness,
   type EliteReadinessDomain,
 } from './eliteCrmLosActivationReadinessModel';
-import { deriveFullSystemLaunchReadiness } from './fullSystemLaunchReadinessModel';
+import { deriveReleaseGovernanceSnapshot } from './releaseGovernanceSnapshot';
 import { BORROWER_MESSAGING_ENABLED } from '../deals/dealOriginationFeatureFlags';
 
 /**
@@ -101,7 +101,7 @@ function eliteActionItem(domain: EliteReadinessDomain, groupId: OperatorActionGr
 
 export function deriveAdminOperatorActionQueueModel(): AdminOperatorActionQueueModel {
   const elite = deriveEliteCrmLosActivationReadiness();
-  const launch = deriveFullSystemLaunchReadiness();
+  const launch = deriveReleaseGovernanceSnapshot();
 
   const actionsByGroup = new Map<OperatorActionGroupId, OperatorActionItem[]>();
   for (const id of GROUP_ORDER) actionsByGroup.set(id, []);

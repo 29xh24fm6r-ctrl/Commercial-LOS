@@ -1,9 +1,19 @@
 /**
- * Phase 197 Ã¢â‚¬â€ Full System Launch Readiness model.
+ * Phase 197 — Full System Launch Readiness model.
  *
- * PURE, READ-ONLY, OFFLINE. `deriveFullSystemLaunchReadiness()` produces one
+ * Factory Arc Phase 5 renamed this file from `fullSystemLaunchReadinessModel.ts`
+ * (identifier `deriveFullSystemLaunchReadiness` -> `deriveReleaseGovernanceSnapshot`,
+ * interface `FullSystemLaunchReadiness` -> `ReleaseGovernanceSnapshot`). This module
+ * was already admin-only — mounted only by FullSystemLaunchReadinessConsole.tsx
+ * inside AdminWorkspace.tsx, never imported by src/banker, src/manager, src/deals,
+ * src/portfolioBoarding, or src/portfolio (see releaseGovernanceRuntimeImportGuard.test.ts,
+ * which now also scans src/portfolio). The rename reframes it explicitly as a
+ * release-governance snapshot for Admin Platform Operations, not a live "launch
+ * console" concept a banker or manager could ever reach.
+ *
+ * PURE, READ-ONLY, OFFLINE. `deriveReleaseGovernanceSnapshot()` produces one
  * honest view of whether the entire OGB LOS is ready for V1 launch. It is
- * derived ONLY from existing governance constants + static phase posture Ã¢â‚¬â€ it
+ * derived ONLY from existing governance constants + static phase posture — it
  * makes no SDK call, no Dataverse read/write, no fetch, and flips no gate. It
  * never enables anything; it only reports the current, fail-closed posture.
  */
@@ -32,7 +42,7 @@ export interface LaunchReadinessDomain {
   readonly safetyNotes: readonly string[];
 }
 
-export interface FullSystemLaunchReadiness {
+export interface ReleaseGovernanceSnapshot {
   readonly recommendation: LaunchRecommendation;
   readonly label: string;
   readonly summary: string;
@@ -57,8 +67,8 @@ export function launchRecommendationLabel(rec: LaunchRecommendation): string {
  * read live (all false by default) so this view is tied to the real posture,
  * never to fabricated state.
  */
-export function deriveFullSystemLaunchReadiness(): FullSystemLaunchReadiness {
-  // The default (no-override) rollout decision Ã¢â‚¬â€ disabled until an operator
+export function deriveReleaseGovernanceSnapshot(): ReleaseGovernanceSnapshot {
+  // The default (no-override) rollout decision — disabled until an operator
   // enables the certified pilot switch with all preconditions met.
   const defaultRollout = evaluateBankerCreateRollout();
   const createGatesAllFalse =
@@ -92,7 +102,7 @@ export function deriveFullSystemLaunchReadiness(): FullSystemLaunchReadiness {
         'A controlled live New Deal create path exists and is certified (Phase 194/195).',
         `The three global create gates remain false (BANKER_NEW_DEAL_CREATE_ENABLED=${BANKER_NEW_DEAL_CREATE_ENABLED}, NEW_DEAL_CREATE_ADAPTER_ENABLED=${NEW_DEAL_CREATE_ADAPTER_ENABLED}, NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED=${NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED}).`,
         `evaluateBankerCreateRollout() returns "${defaultRollout}" by default; operator enablement and signoff are required for live create.`,
-        'No actorless create is allowed Ã¢â‚¬â€ a resolved actor systemuser + banker authorization are required.',
+        'No actorless create is allowed — a resolved actor systemuser + banker authorization are required.',
       ],
       requiredActions: [
         'Operator enables the certified pilot switch for the approved pilot context and signs off.',
@@ -169,7 +179,7 @@ export function deriveFullSystemLaunchReadiness(): FullSystemLaunchReadiness {
       status: 'ready',
       details: [
         'Permission-before-render remains required across every workspace and deal surface.',
-        'Unauthorized users fail closed Ã¢â‚¬â€ they are bounced to their resolved route or shown an honest error, never leaked an unauthorized surface.',
+        'Unauthorized users fail closed — they are bounced to their resolved route or shown an honest error, never leaked an unauthorized surface.',
       ],
       requiredActions: [],
       safetyNotes: [
@@ -237,7 +247,7 @@ export function deriveFullSystemLaunchReadiness(): FullSystemLaunchReadiness {
   const gatesSummary =
     createGatesAllFalse && checklistGatesAllFalse
       ? 'All create and checklist gates remain false.'
-      : 'One or more gates are no longer at their safe default Ã¢â‚¬â€ review before launch.';
+      : 'One or more gates are no longer at their safe default — review before launch.';
 
   return {
     recommendation,

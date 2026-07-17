@@ -53,25 +53,25 @@ const SECTION_LABEL: Record<CrmDetailSectionKey, string> = {
   salesforceSpine: 'Salesforce-style spine',
 };
 
-// Per-section provenance: names the authorized deal row, the 189B view-model,
-// and the 189E readiness gate. No new CRM lookup is performed.
+// Per-section provenance: names the authorized deal row, the CRM relationship
+// view model, and the readiness audit that gates which sections render.
 const SECTION_SOURCE_FACT: Record<CrmDetailSectionKey, string> = {
   clientIdentity:
-    'Source: authorized deal row (cr664_Client lookup) → 189B view-model · gated by 189E readiness. No new CRM lookup.',
+    'Source: authorized deal row (cr664_Client lookup) → the CRM relationship view, gated by the readiness audit. No new CRM lookup.',
   teamOwnership:
-    'Source: authorized deal row (cr664_Team lookup) → 189B view-model · gated by 189E readiness. No new CRM lookup.',
+    'Source: authorized deal row (cr664_Team lookup) → the CRM relationship view, gated by the readiness audit. No new CRM lookup.',
   assignedBanker:
-    'Source: authorized deal row (cr664_AssignedBanker lookup) → 189B view-model · gated by 189E readiness. No new CRM lookup.',
+    'Source: authorized deal row (cr664_AssignedBanker lookup) → the CRM relationship view, gated by the readiness audit. No new CRM lookup.',
   platformWorkspaceBridge:
-    'Source: already-authorized workspace context → 189B view-model · gated by 189E readiness. No new CRM lookup.',
+    'Source: already-authorized workspace context → the CRM relationship view, gated by the readiness audit. No new CRM lookup.',
   relationshipIntegrity:
-    'Source: 189E readiness audit facts over the authorized deal context (read-only). No new CRM lookup.',
+    'Source: readiness audit facts over the authorized deal context (read-only). No new CRM lookup.',
   salesforceSpine:
-    'Source: 189E readiness gate. The cr664_crm* spine is not seeded and not wired.',
+    'Source: the readiness audit. The CRM relationship spine is not seeded and not wired.',
 };
 
 const PROVENANCE =
-  'Every value below is derived from the already-authorized deal row via the 189B view-model and gated by the 189E readiness audit — no new CRM lookup is performed.';
+  'Every value below is derived from the already-authorized deal row via the CRM relationship view and gated by the readiness audit — no new CRM lookup is performed.';
 
 function isSurrogateId(id: string): boolean {
   return id.startsWith(CRM_NAME_REF_PREFIX);

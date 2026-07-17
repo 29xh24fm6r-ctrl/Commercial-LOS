@@ -117,7 +117,7 @@ export function GreetingHeader({
           </h1>
           <p style={styles.subtitle}>
             {openTaskCount === undefined ? (
-              <span style={styles.subtitleLoading}>Loading workloadÃ¢â‚¬Â¦</span>
+              <span style={styles.subtitleLoading}>Loading workload…</span>
             ) : (
               <>
                 You have{' '}

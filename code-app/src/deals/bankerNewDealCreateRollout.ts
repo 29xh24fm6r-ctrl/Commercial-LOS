@@ -16,6 +16,12 @@
 import { BANKER_NEW_DEAL_CREATE_ENABLED } from './dealOriginationFeatureFlags';
 import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from './newDealCreateFeatureFlags';
 import { NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED } from '../admin/adminNewDealIntakeModel';
+import {
+  capabilityAvailable,
+  capabilityUnavailable,
+  type CapabilityAvailability,
+  type CapabilityBlockingReasonKind,
+} from '../shared/governance/capabilityAvailability';
 
 export type BankerCreateRolloutState =
   | 'live_controlled'
@@ -78,4 +84,54 @@ export function evaluateBankerCreateRollout(
 /** True only when banker create is fully live-controlled. */
 export function isBankerNewDealCreateLive(input: BankerCreateRolloutInput = {}): boolean {
   return evaluateBankerCreateRollout(input) === 'live_controlled';
+}
+
+/**
+ * Plain-language line the "+ New Deal" surface shows a banker for a
+ * non-live rollout state. Moved here (from BankerNewDealCreate.tsx) so both
+ * the banner text and deriveNewDealCreateAvailability() below read from one
+ * source — no risk of the two drifting apart.
+ */
+export function describeBankerCreateRolloutState(state: BankerCreateRolloutState): string {
+  switch (state) {
+    case 'unauthorized':
+      return 'You are not authorized to create deals (no Dataverse systemuser / banker rights). No record has been created.';
+    case 'references_not_approved':
+      return 'Production Stage/Status references are not approved. No record has been created.';
+    case 'resolver_not_ready':
+      return 'Stage/Status references are not ready. No record has been created.';
+    case 'environment_not_allowed':
+      return 'New Deal create is not approved for this environment. No record has been created.';
+    case 'disabled':
+    default:
+      return 'New Deal creation is not enabled in this environment. No record has been created.';
+  }
+}
+
+/**
+ * Factory Arc Phase 6 — the "new-deal-create" CapabilityAvailability, derived
+ * from the same rollout state the button already computes. Each non-live
+ * state maps to the blocking-reason kind that best matches its underlying
+ * fact: 'unauthorized' is fundamentally an identity-resolution fact
+ * (Boolean(actorSystemUserId) && bankerAuthorized), so it's 'audit-identity';
+ * 'references_not_approved'/'resolver_not_ready' are live-dependency-readiness
+ * facts, so 'connection'; 'environment_not_allowed'/'disabled' are
+ * deployment-environment authorization facts, so 'permission'.
+ */
+export function deriveNewDealCreateAvailability(
+  state: BankerCreateRolloutState,
+  checkedAt: string,
+): CapabilityAvailability {
+  if (state === 'live_controlled') return capabilityAvailable('new-deal-create', checkedAt);
+  const kind: CapabilityBlockingReasonKind =
+    state === 'unauthorized'
+      ? 'audit-identity'
+      : state === 'references_not_approved' || state === 'resolver_not_ready'
+        ? 'connection'
+        : 'permission';
+  return capabilityUnavailable(
+    'new-deal-create',
+    [{ kind, detail: describeBankerCreateRolloutState(state) }],
+    checkedAt,
+  );
 }

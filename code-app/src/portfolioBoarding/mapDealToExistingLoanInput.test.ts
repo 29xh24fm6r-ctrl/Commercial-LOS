@@ -1,0 +1,94 @@
+import { describe, it, expect } from 'vitest';
+import type { DealDetail } from '../deals/dealQueries';
+import { mapDealToExistingLoanInput } from './mapDealToExistingLoanInput';
+
+function deal(overrides: Partial<DealDetail> = {}): DealDetail {
+  return {
+    id: 'deal-1',
+    name: 'Acme Expansion',
+    clientName: 'Acme Manufacturing LLC',
+    stage: 'BOARDED',
+    status: 'Active',
+    amount: 2_000_000,
+    bankerName: 'Banker',
+    targetCloseDate: '2026-08-31',
+    productType: 'Term Loan',
+    loanStructure: 'Senior secured',
+    customerType: 'C&I',
+    industry: 'Manufacturing',
+    guarantorStructure: 'Corporate',
+    pricingType: 'Floating',
+    spreadIndex: 'SOFR',
+    spreadMargin: 250,
+    collateralSummary: 'Equipment',
+    createdOn: '2026-01-01',
+    stageEntryDate: '2026-06-01',
+    isClosed: true,
+    ...overrides,
+  };
+}
+
+describe('mapDealToExistingLoanInput', () => {
+  it('maps only genuinely-present deal fields — never fabricates a value', () => {
+    const input = mapDealToExistingLoanInput({
+      deal: deal(),
+      authorized: true,
+      actorEmail: 'banker@oldglorybank.com',
+      actorSystemUserId: 'sys-1',
+    });
+    expect(input).not.toBeNull();
+    expect(input!.loanNumber).toBe('deal-1');
+    expect(input!.borrowerLegalName).toBe('Acme Manufacturing LLC');
+    expect(input!.originalCommitmentAmount).toBe(2_000_000);
+    expect(input!.currentOutstandingPrincipal).toBe(2_000_000);
+    expect(input!.originatedDealId).toBe('deal-1');
+    expect(input!.index).toBe('SOFR');
+    expect(input!.spread).toBe(250);
+    expect(input!.product).toBe('Term Loan');
+    expect(input!.loanStatus).toBe('active');
+    expect(input!.authorized).toBe(true);
+  });
+
+  it('never invents fields the deal does not carry (e.g. no risk rating, no booking date)', () => {
+    const input = mapDealToExistingLoanInput({
+      deal: deal(),
+      authorized: true,
+      actorEmail: 'banker@oldglorybank.com',
+      actorSystemUserId: 'sys-1',
+    });
+    expect(input!.currentRiskRating).toBeUndefined();
+    expect(input!.bookingDate).toBeUndefined();
+    expect(input!.maturityDate).toBeUndefined();
+  });
+
+  it('returns null (skip auto-boarding) when the deal has no client/borrower name — never fabricates one', () => {
+    const input = mapDealToExistingLoanInput({
+      deal: deal({ clientName: undefined }),
+      authorized: true,
+      actorEmail: 'banker@oldglorybank.com',
+      actorSystemUserId: 'sys-1',
+    });
+    expect(input).toBeNull();
+  });
+
+  it('returns null for a blank/whitespace-only client name', () => {
+    const input = mapDealToExistingLoanInput({
+      deal: deal({ clientName: '   ' }),
+      authorized: true,
+      actorEmail: 'banker@oldglorybank.com',
+      actorSystemUserId: 'sys-1',
+    });
+    expect(input).toBeNull();
+  });
+
+  it('passes through the unauthorized/unresolved actor state honestly rather than defaulting to authorized', () => {
+    const input = mapDealToExistingLoanInput({
+      deal: deal(),
+      authorized: false,
+      actorEmail: undefined,
+      actorSystemUserId: undefined,
+    });
+    expect(input!.authorized).toBe(false);
+    expect(input!.actorSystemUserId).toBeUndefined();
+  });
+});

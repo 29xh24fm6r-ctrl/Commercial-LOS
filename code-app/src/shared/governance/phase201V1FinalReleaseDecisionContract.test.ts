@@ -6,9 +6,9 @@ import {
   type FinalReleaseDecision,
 } from '../../admin/finalV1ReleaseDecisionModel';
 import {
-  deriveFullSystemLaunchReadiness,
+  deriveReleaseGovernanceSnapshot,
   type LaunchReadinessDomain,
-} from '../../admin/fullSystemLaunchReadinessModel';
+} from '../../admin/releaseGovernanceSnapshot';
 import { WORKSPACE_ROUTES } from '../../bootstrap/workspaceRoutes';
 import { BANKER_NEW_DEAL_CREATE_ENABLED } from '../../deals/dealOriginationFeatureFlags';
 import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from '../../deals/newDealCreateFeatureFlags';
@@ -41,7 +41,7 @@ const APP = read('src/App.tsx');
 const VALID: readonly FinalReleaseDecision[] = ['GO', 'CONDITIONAL_GO', 'NO_GO'];
 
 /** A set of domains all marked ready (for the positive GO path). */
-const ALL_READY: LaunchReadinessDomain[] = deriveFullSystemLaunchReadiness().domains.map((d) => ({
+const ALL_READY: LaunchReadinessDomain[] = deriveReleaseGovernanceSnapshot().domains.map((d) => ({
   ...d,
   status: 'ready',
 }));
@@ -166,7 +166,7 @@ describe('201 — NO_GO is forced on blockers', () => {
 
 describe('201 — all 10 domains represented + gates + no widening', () => {
   it('the readiness model still derives all 10 domains', () => {
-    expect(deriveFullSystemLaunchReadiness().domains).toHaveLength(10);
+    expect(deriveReleaseGovernanceSnapshot().domains).toHaveLength(10);
   });
   it('create + pilot-UI gates remain false; checklist generation is gated', () => {
     expect(BANKER_NEW_DEAL_CREATE_ENABLED).toBe(false);

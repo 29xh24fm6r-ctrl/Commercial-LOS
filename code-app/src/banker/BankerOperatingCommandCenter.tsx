@@ -1,10 +1,5 @@
 import type { CSSProperties } from 'react';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
-import { EMAIL_MODE } from '../deals/emailDelivery/emailMode';
-import {
-  deriveBankerOperatingCommandCenterModel,
-  type BankerOperatingDomainState,
-} from './bankerOperatingCommandCenterModel';
 import {
   deriveBankerWorkQueue,
   deriveBankerPipelineByStage,
@@ -18,18 +13,31 @@ import type { PipelineDeal } from './dealQueries';
 /**
  * Banker Operating Command Center — the banker's ACTION cockpit.
  *
- * Reframed from a status board for the builder into an action board for the banker: what needs
- * me, where my pipeline sits, and what's next. The governance truth is NOT lost — every gated /
- * DRY_RUN / Read-only fact from the old cards survives in the demoted "System status" strip
- * (compact pills + tooltips), visually subordinate to the work. Read-only: this surface only reads
- * the data the dashboard already loads and navigates to existing tabs; it introduces no write.
+ * Factory Arc Phase 3: the old "System status" strip (per-capability
+ * gated/operational/review pills sourced from global feature-flag constants,
+ * plus a raw DRY_RUN email-mode pill) is retired, not just visually
+ * demoted — it answered "which engineering feature flags are true," which
+ * is a release-governance question, not an operational one, and does not
+ * belong on a banker's dashboard (see docs/PRODUCTION_SURFACE_INVENTORY.md).
+ * It's replaced by "Portfolio & Workflow Health": live counts derived from
+ * this banker's own deals (the same `kpis` rollup already loaded for
+ * section 1's work queue) — never invented, never a global label. A metric
+ * with no live data source yet (deals-with-blockers aggregate, borrower
+ * responses awaiting action, boarding exceptions) is left OFF the dashboard
+ * entirely rather than faked; see the doc comment on PortfolioHealthSection.
+ *
+ * Read-only: this surface only reads the data the dashboard already loads
+ * and navigates to existing tabs; it introduces no write.
  */
 export interface BankerOperatingCommandCenterProps {
-  /** The KPI rollup the dashboard already computes; null/absent while the snapshot is loading. */
+  /** The KPI rollup the dashboard already computes; null/absent while the snapshot is loading or failed. */
   readonly kpis?: BankerPersonalActivity | null;
   /** The banker's deals (for the honest pipeline-by-stage view). */
   readonly deals?: readonly PipelineDeal[];
   readonly loading?: boolean;
+  /** Set when the dashboard's underlying query failed — distinct from "still loading" so the
+   *  banker sees an honest local error instead of an indefinite/blank loading state. */
+  readonly healthError?: string;
   /** Navigate to an existing shell tab when a work item is actioned. */
   readonly onSelectTab?: (tab: WorkTab) => void;
 }
@@ -40,21 +48,15 @@ const TONE_COLOR: Record<WorkTone, string> = {
   info: palette.cobalt,
 };
 
-const STATE_TINT: Record<BankerOperatingDomainState, { bg: string; fg: string }> = {
-  operational: { bg: palette.clearBg, fg: palette.clearFg },
-  review: { bg: palette.neutralBg, fg: palette.neutralFg },
-  gated: { bg: palette.atRiskBg, fg: palette.atRiskFg },
-};
-
 export function BankerOperatingCommandCenter({
   kpis = null,
   deals = [],
   loading = false,
+  healthError,
   onSelectTab,
 }: BankerOperatingCommandCenterProps) {
   const work = kpis ? deriveBankerWorkQueue(kpis) : [];
   const pipeline = deriveBankerPipelineByStage(deals);
-  const status = deriveBankerOperatingCommandCenterModel();
 
   return (
     <section
@@ -121,45 +123,97 @@ export function BankerOperatingCommandCenter({
           )}
         </section>
 
-        {/* 4 — System status (demoted governance truth: compact pills + tooltips) */}
-        <section style={styles.card} aria-label="System status">
-          <h3 style={styles.cardTitle}>System status</h3>
-          <p style={styles.statusHint}>
-            What’s live vs. gated for you — hover a pill for detail. Nothing here is hidden.
-          </p>
-          <div style={styles.pillWrap}>
-            {status.domains.map((d) => {
-              const tint = STATE_TINT[d.state];
-              return (
-                <span
-                  key={d.id}
-                  style={{ ...styles.pill, background: tint.bg, color: tint.fg }}
-                  data-operating-domain={d.id}
-                  title={d.summary}
-                >
-                  <span style={styles.pillLabel}>{d.label}</span>
-                  <span style={styles.pillValue} data-domain-value>
-                    {d.value}
-                  </span>
-                </span>
-              );
-            })}
-            <span
-              style={{
-                ...styles.pill,
-                background: EMAIL_MODE === 'LIVE' ? palette.clearBg : palette.neutralBg,
-                color: EMAIL_MODE === 'LIVE' ? palette.clearFg : palette.neutralFg,
-              }}
-              data-operating-domain="email-mode"
-              title="Borrower email transport mode. DRY_RUN never invokes the live Outlook connector."
-            >
-              <span style={styles.pillLabel}>Email</span>
-              <span style={styles.pillValue}>{EMAIL_MODE}</span>
-            </span>
-          </div>
-        </section>
+        {/* 4 — Portfolio & Workflow Health: live counts derived from this banker's own deals. */}
+        <PortfolioHealthSection kpis={kpis} loading={loading} healthError={healthError} onSelectTab={onSelectTab} />
       </div>
     </section>
+  );
+}
+
+/**
+ * Every tile here reads a field already computed on `kpis: BankerPersonalActivity`
+ * (src/shared/analytics/bankerPersonalActivity.ts) — the same rollup section 1's
+ * work queue already consumes, so this introduces no new query. Three metrics
+ * the factory-arc brief asked for are deliberately OMITTED rather than faked,
+ * because no live per-banker data source exists for them yet:
+ *   - "Deals with blockers" — dealBlockerModel.ts is per-deal only; no aggregation
+ *     across a banker's pipeline exists.
+ *   - "Borrower responses awaiting action" — no inbound-reply tracking exists
+ *     anywhere in the data model yet (borrower communication is outbound-log only).
+ *   - "Boarding exceptions" — the portfolio-boarding exception count exists
+ *     (portfolioBoardingCommandCenterAdapter.ts) but nothing scopes boarded loans
+ *     to an originating banker.
+ * Add them here once (and only once) a genuine live source exists for each.
+ */
+function PortfolioHealthSection({
+  kpis,
+  loading,
+  healthError,
+  onSelectTab,
+}: {
+  kpis: BankerPersonalActivity | null;
+  loading: boolean;
+  healthError: string | undefined;
+  onSelectTab?: (tab: WorkTab) => void;
+}) {
+  return (
+    <section style={styles.card} aria-label="Portfolio and workflow health">
+      <h3 style={styles.cardTitle}>Portfolio &amp; workflow health</h3>
+      {loading ? (
+        <p style={styles.muted}>Loading portfolio health…</p>
+      ) : healthError ? (
+        <div style={styles.healthErrorBox} role="alert">
+          <p style={styles.healthErrorText}>Could not load portfolio health: {healthError}</p>
+        </div>
+      ) : !kpis ? (
+        <p style={styles.muted}>Portfolio health is unavailable right now.</p>
+      ) : (
+        <div style={styles.healthGrid}>
+          <HealthTile
+            label="Active deals"
+            count={kpis.activeDeals}
+            detail={kpis.activeDeals > 0 ? formatCurrencyCompact(kpis.totalAmount) : undefined}
+            tab="active-deals"
+            onSelectTab={onSelectTab}
+          />
+          <HealthTile label="Documents outstanding" count={kpis.outstandingDocumentCount} tab="due-diligence" onSelectTab={onSelectTab} />
+          <HealthTile label="Documents awaiting review" count={kpis.pendingReviewDocumentCount} tab="due-diligence" onSelectTab={onSelectTab} />
+          <HealthTile label="Tasks overdue" count={kpis.overdueTaskCount} tab="tasks" onSelectTab={onSelectTab} />
+          <HealthTile label="Credit memos in draft" count={kpis.draftMemoCount} tab="active-deals" onSelectTab={onSelectTab} />
+          <HealthTile label="Closing in 14 days" count={kpis.closingSoonCount} tab="active-deals" onSelectTab={onSelectTab} />
+          <HealthTile label="Stale 14+ days" count={kpis.staleActivityCount} tab="active-deals" onSelectTab={onSelectTab} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HealthTile({
+  label,
+  count,
+  detail,
+  tab,
+  onSelectTab,
+}: {
+  label: string;
+  count: number;
+  detail?: string;
+  tab: WorkTab;
+  onSelectTab?: (tab: WorkTab) => void;
+}) {
+  return (
+    <button
+      type="button"
+      style={styles.healthTile}
+      onClick={() => onSelectTab?.(tab)}
+      data-health-tile={label}
+    >
+      <span className="cc-tnum" style={styles.healthCount}>
+        {count}
+      </span>
+      <span style={styles.healthLabel}>{label}</span>
+      {detail && <span style={styles.healthDetail}>{detail}</span>}
+    </button>
   );
 }
 
@@ -287,18 +341,39 @@ const styles: Record<string, CSSProperties> = {
     color: palette.text,
     fontVariantNumeric: 'tabular-nums',
   },
-  statusHint: { margin: `0 0 ${spacing.sm}`, fontSize: typography.size.xs, color: palette.textSubtle },
-  pillWrap: { display: 'flex', flexWrap: 'wrap', gap: spacing.xs },
-  pill: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: spacing.xxs,
-    padding: `${spacing.xxs} ${spacing.sm}`,
-    borderRadius: radius.pill,
-    fontSize: typography.size.xs,
-    lineHeight: 1.3,
-    cursor: 'default',
+  healthGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gap: spacing.sm,
   },
-  pillLabel: { fontWeight: typography.weight.semibold },
-  pillValue: { opacity: 0.85 },
+  healthTile: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 2,
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.md,
+    padding: `${spacing.sm} ${spacing.md}`,
+    cursor: 'pointer',
+    textAlign: 'left',
+    fontFamily: typography.family,
+    color: palette.text,
+  },
+  healthCount: {
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
+    fontVariantNumeric: 'tabular-nums',
+    lineHeight: 1,
+    color: palette.text,
+  },
+  healthLabel: { fontSize: typography.size.xs, color: palette.textMuted },
+  healthDetail: { fontSize: typography.size.xs, color: palette.textSubtle },
+  healthErrorBox: {
+    background: palette.blockedBg,
+    border: `1px solid ${palette.blockedBg}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+  },
+  healthErrorText: { margin: 0, color: palette.blockedFg, fontSize: typography.size.sm },
 };

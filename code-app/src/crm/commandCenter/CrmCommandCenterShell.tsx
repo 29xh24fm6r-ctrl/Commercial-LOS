@@ -13,7 +13,7 @@ export function CrmCommandCenterShell() {
       <header style={headerStyle}>
         <h2 style={titleStyle}>CRM Command Center</h2>
         <p style={subtitleStyle}>
-          CRM and lending workflow intelligence — read-only, preview-only, dry-run only
+          External CRM and lending-system sync status
         </p>
       </header>
       <CrmCommandCenter />

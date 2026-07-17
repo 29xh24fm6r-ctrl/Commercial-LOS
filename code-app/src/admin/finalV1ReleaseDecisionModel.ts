@@ -11,9 +11,9 @@
  */
 
 import {
-  deriveFullSystemLaunchReadiness,
+  deriveReleaseGovernanceSnapshot,
   type LaunchReadinessDomain,
-} from './fullSystemLaunchReadinessModel';
+} from './releaseGovernanceSnapshot';
 import {
   BANKER_NEW_DEAL_CREATE_ENABLED,
   DOCUMENT_CHECKLIST_GENERATION_ENABLED,
@@ -63,7 +63,7 @@ function detectForbiddenGateState(): boolean {
 export function deriveFinalV1ReleaseDecision(
   input: FinalV1ReleaseDecisionInput = {},
 ): FinalV1ReleaseDecision {
-  const domains = input.domainsOverride ?? deriveFullSystemLaunchReadiness().domains;
+  const domains = input.domainsOverride ?? deriveReleaseGovernanceSnapshot().domains;
   const blockingDomains = domains.filter((d) => d.status === 'blocked').map((d) => d.label);
   const conditionalDomains = domains.filter((d) => d.status === 'conditional').map((d) => d.label);
 

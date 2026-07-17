@@ -42,6 +42,10 @@ export function OperatorLaunchConsole({ input }: Props) {
         }
       />
 
+      <div style={metaStyle} data-testid="operator-launch-console-deployment-commit">
+        deployment commit: {s.deploymentCommit ?? 'unknown'}
+      </div>
+
       <div data-testid="operator-launch-console" data-can-flip={String(s.canFlipFromUi)}>
         {s.capabilities.map((c) => (
           <section
@@ -75,6 +79,32 @@ export function OperatorLaunchConsole({ input }: Props) {
 
             <div style={rollbackStyle} data-testid={`capability-${c.key}-rollback`}>
               rollback: {c.rollback}
+            </div>
+
+            <div style={metaStyle} data-testid={`capability-${c.key}-wiring`}>
+              route: {c.routeState ?? 'unknown'} · adapter: {c.diState ?? 'unknown'} · auth:{' '}
+              {c.actorAuthorizationRequirement ?? 'unknown'} · audit sink: {c.auditSinkState ?? 'unknown'}
+            </div>
+
+            <div style={metaStyle} data-testid={`capability-${c.key}-writes`}>
+              latest success:{' '}
+              {c.latestSuccessfulWrite === undefined
+                ? 'not yet correlated'
+                : c.latestSuccessfulWrite === null
+                  ? 'none recorded'
+                  : `${c.latestSuccessfulWrite.at ?? 'unknown time'}${c.latestSuccessfulWrite.actor ? ` (${c.latestSuccessfulWrite.actor})` : ''}`}
+              {' · '}
+              latest failure:{' '}
+              {c.latestFailedWrite === undefined
+                ? 'not yet correlated'
+                : c.latestFailedWrite === null
+                  ? 'none recorded'
+                  : `${c.latestFailedWrite.at ?? 'unknown time'}${c.latestFailedWrite.actor ? ` (${c.latestFailedWrite.actor})` : ''}`}
+            </div>
+
+            <div style={metaStyle} data-testid={`capability-${c.key}-enablement`}>
+              enabled by: {c.enabledBy ?? 'no change-history source for this flag'} · enabled on:{' '}
+              {c.enabledOn ?? 'unknown'}
             </div>
           </section>
         ))}

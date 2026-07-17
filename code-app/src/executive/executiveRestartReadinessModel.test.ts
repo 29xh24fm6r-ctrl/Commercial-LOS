@@ -33,14 +33,25 @@ describe('Phase 233 — Executive Restart Readiness model', () => {
 
   it('lists the live-write categories that remain gated under safe defaults', () => {
     const vm = deriveExecutiveRestartReadinessModel();
-    // Live-write gates are reset to safe defaults; every live-write category stays gated.
+    // Factory Arc Phase 14 — New Deal create no longer appears here: it now reads
+    // BANKER_CREATE_PILOT_ENABLED (the real switch an authorized banker's create
+    // flow actually gates on), which is true today, matching Phase 11's fix to
+    // the Manager Operating Command Center's equivalent domain.
     expect(vm.gatedActivationCategories).toEqual([
-      'New Deal create',
       'CRM writeback / live persistence',
       'Document checklist generation',
       'Borrower communication send',
       'Portfolio boarding live persistence',
     ]);
+  });
+
+  // Factory Arc Phase 14 — the executive restart model previously read the dead
+  // BANKER_NEW_DEAL_CREATE_ENABLED constant (hard `false`) instead of the real
+  // pilot switch, so it over-reported "New Deal create" as gated when an
+  // authorized banker reaches a live create flow today.
+  it('reads the real New Deal create pilot switch, not the dead legacy constant', () => {
+    const vm = deriveExecutiveRestartReadinessModel();
+    expect(vm.gatedActivationCategories).not.toContain('New Deal create');
   });
 
   it('uses leadership restart language and asserts no hidden writes / no route widening', () => {

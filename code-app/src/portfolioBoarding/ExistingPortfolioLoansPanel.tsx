@@ -16,6 +16,11 @@ import {
   type ExistingLoanChildKey,
   type ExistingLoanInput,
 } from './existingLoanEntryAdapter';
+import { loadBoardedLoanRecordCounts, type BoardedLoanChildCounts } from './loadBoardedLoanRecordCounts';
+import {
+  deriveBoardedLoanRecordCompleteness,
+  type PortfolioBoardedLoanRecordCompleteness,
+} from './portfolioBoardedLoanRecordCompleteness';
 
 /**
  * Phase 259 — Existing Portfolio Loans panel.
@@ -39,6 +44,8 @@ interface Props extends Identity {
   boardLoan?: (input: ExistingLoanInput) => Promise<BoardExistingLoanOutcome>;
   /** PM-1 — assignable portfolio managers; injected for tests, defaults to the live systemuser read. */
   loadManagers?: () => Promise<readonly PortfolioManagerOption[]>;
+  /** Factory Arc Phase 9 — per-loan child-record counts for the detail drawer; injected for tests, defaults to the live read. */
+  loadRecordCounts?: (loanId: string) => Promise<BoardedLoanChildCounts>;
 }
 
 /** PM-1 — load state for the portfolio-manager picker (honest failure; no fabrication). */
@@ -180,6 +187,7 @@ export function ExistingPortfolioLoansPanel({
   loadLoans = loadBoardedLoans,
   boardLoan = (input) => boardExistingLoan(input, buildLiveExistingLoanDeps()),
   loadManagers = loadPortfolioManagerOptions,
+  loadRecordCounts = loadBoardedLoanRecordCounts,
 }: Props) {
   const authorized = !writeDisabledReason && Boolean(actorSystemUserId);
   const [list, setList] = useState<ListState>({ kind: 'loading' });
@@ -626,7 +634,9 @@ export function ExistingPortfolioLoansPanel({
 
       <BoardedList list={list} onOpen={setSelected} />
 
-      {selected && <BoardedDetailDrawer row={selected} onClose={() => setSelected(undefined)} />}
+      {selected && (
+        <BoardedDetailDrawer row={selected} onClose={() => setSelected(undefined)} loadRecordCounts={loadRecordCounts} />
+      )}
     </section>
   );
 }
@@ -725,7 +735,19 @@ function BoardedList({ list, onOpen }: { list: ListState; onOpen: (r: BoardedLoa
   );
 }
 
-function BoardedDetailDrawer({ row, onClose }: { row: BoardedLoanRow; onClose: () => void }) {
+type RecordCompletenessResult =
+  | { kind: 'ready'; completeness: PortfolioBoardedLoanRecordCompleteness }
+  | { kind: 'failed' };
+
+function BoardedDetailDrawer({
+  row,
+  onClose,
+  loadRecordCounts,
+}: {
+  row: BoardedLoanRow;
+  onClose: () => void;
+  loadRecordCounts: (loanId: string) => Promise<BoardedLoanChildCounts>;
+}) {
   const rows: Array<{ label: string; value: string }> = [
     { label: 'Loan number', value: row.loanNumber ?? '—' },
     { label: 'Borrower', value: row.borrower ?? '—' },
@@ -735,6 +757,30 @@ function BoardedDetailDrawer({ row, onClose }: { row: BoardedLoanRow; onClose: (
     { label: 'Maturity', value: row.maturityDate ?? '—' },
     { label: 'Boarding source', value: row.boardingSource ?? '—' },
   ];
+
+  // Keyed result, not a tri-state 'loading' flag: the effect below only calls setState from its
+  // async callback (never synchronously in the effect body). "Loading" is DERIVED by comparing
+  // the current loan id against the key the latest committed result belongs to, matching
+  // DealPortfolioBoardingStatusPanel.tsx's established pattern.
+  const [recordResult, setRecordResult] = useState<{ loanId: string; result: RecordCompletenessResult } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadRecordCounts(row.id)
+      .then((counts) => {
+        if (!cancelled) setRecordResult({ loanId: row.id, result: { kind: 'ready', completeness: deriveBoardedLoanRecordCompleteness(counts) } });
+      })
+      .catch(() => {
+        if (!cancelled) setRecordResult({ loanId: row.id, result: { kind: 'failed' } });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [row.id, loadRecordCounts]);
+
+  const hasFreshRecordResult = recordResult?.loanId === row.id;
+  const recordState: { kind: 'loading' } | RecordCompletenessResult =
+    hasFreshRecordResult && recordResult ? recordResult.result : { kind: 'loading' };
+
   return (
     <aside style={styles.drawer} role="dialog" aria-label="Portfolio loan detail" data-boarded-loan-detail>
       <div style={styles.drawerHead}>
@@ -754,6 +800,35 @@ function BoardedDetailDrawer({ row, onClose }: { row: BoardedLoanRow; onClose: (
           </div>
         ))}
       </dl>
+      <div style={styles.recordCompletenessSection} data-boarded-loan-record-completeness>
+        <div style={styles.recordCompletenessTitle}>Related records</div>
+        {recordState.kind === 'loading' && (
+          <p style={styles.recordCompletenessNote}>Loading related records…</p>
+        )}
+        {recordState.kind === 'failed' && (
+          <p style={styles.recordCompletenessNote} role="alert">
+            Related-record counts could not be loaded right now.
+          </p>
+        )}
+        {recordState.kind === 'ready' && (
+          <>
+            <p style={styles.recordCompletenessNote}>
+              {recordState.completeness.totalRecords} record{recordState.completeness.totalRecords === 1 ? '' : 's'} across{' '}
+              {recordState.completeness.groupsWithRecords} of {recordState.completeness.groups.length} groups.
+              {recordState.completeness.groupsFailedToLoad > 0 &&
+                ` ${recordState.completeness.groupsFailedToLoad} group${recordState.completeness.groupsFailedToLoad === 1 ? '' : 's'} could not be read.`}
+            </p>
+            <dl style={styles.detailList}>
+              {recordState.completeness.groups.map((g) => (
+                <div key={g.key} style={styles.detailRow} data-record-group={g.key}>
+                  <dt style={styles.detailLabel}>{g.label}</dt>
+                  <dd style={styles.detailValue}>{g.count === null ? 'Could not load' : g.count}</dd>
+                </div>
+              ))}
+            </dl>
+          </>
+        )}
+      </div>
     </aside>
   );
 }
@@ -813,4 +888,7 @@ const styles: Record<string, CSSProperties> = {
   detailRow: { display: 'grid', gridTemplateColumns: '180px 1fr', gap: spacing.sm },
   detailLabel: { fontSize: typography.size.xs, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: typography.letterSpacing.label, fontWeight: typography.weight.semibold },
   detailValue: { margin: 0, fontSize: typography.size.sm, color: palette.text },
+  recordCompletenessSection: { display: 'flex', flexDirection: 'column', gap: spacing.xs, borderTop: `1px solid ${palette.panelBorder}`, paddingTop: spacing.sm },
+  recordCompletenessTitle: { fontSize: typography.size.sm, fontWeight: typography.weight.semibold, color: palette.text },
+  recordCompletenessNote: { margin: 0, fontSize: typography.size.xs, color: palette.textMuted },
 };

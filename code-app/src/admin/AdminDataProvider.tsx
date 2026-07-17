@@ -11,6 +11,8 @@ import {
   type RefreshStatusSummary,
   type ConfigurationSnapshot,
 } from './adminDiagnosticsQueries';
+import { buildPlatformOperationsConsoleInput } from './platformOperationsLiveDeps';
+import type { OperatorLaunchConsoleInput } from '../access/operatorLaunchConsoleModel';
 import {
   timed,
   recordRefresh,
@@ -35,6 +37,7 @@ export type AdminDataKey =
   | 'alerts'
   | 'refreshStatus'
   | 'configuration'
+  | 'platformOperations'
   | 'after-resolve'
   | 'after-alert-resolve';
 
@@ -44,6 +47,8 @@ export interface AdminData {
   alerts: AsyncResult<AlertRow[]>;
   refreshStatus: AsyncResult<RefreshStatusSummary | null>;
   configuration: AsyncResult<ConfigurationSnapshot>;
+  /** Factory Arc Phase 4 — Platform Operations Workspace console input. */
+  platformOperations: AsyncResult<OperatorLaunchConsoleInput>;
   refresh: (key: AdminDataKey) => void;
 }
 
@@ -71,6 +76,9 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
   const [configuration, setConfiguration] = useState<AsyncResult<ConfigurationSnapshot>>({
     kind: 'loading',
   });
+  const [platformOperations, setPlatformOperations] = useState<
+    AsyncResult<OperatorLaunchConsoleInput>
+  >({ kind: 'loading' });
 
   // Used by the unmount cleanup AND by refresh() so a refresh fired
   // after unmount cannot late-write into stale state. Lives on a ref
@@ -125,6 +133,14 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
     bind(setConfiguration, p);
     return p;
   }
+  function reloadPlatformOperations(): Promise<unknown> {
+    setPlatformOperations({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'buildPlatformOperationsConsoleInput', () =>
+      buildPlatformOperationsConsoleInput(),
+    );
+    bind(setPlatformOperations, p);
+    return p;
+  }
 
   // Initial load.
   useEffect(() => {
@@ -139,6 +155,7 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       reloadAlerts(),
       reloadRefreshStatus(),
       reloadConfiguration(),
+      reloadPlatformOperations(),
     ]).then(() => {
       const endedAt =
         typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -170,6 +187,9 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       case 'configuration':
         reloadConfiguration();
         break;
+      case 'platformOperations':
+        reloadPlatformOperations();
+        break;
       case 'after-resolve':
         // Targeted reload after Phase-18 resolve: just the two cards
         // the write affects. No global refresh storm.
@@ -187,7 +207,15 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AdminDataContext.Provider
-      value={{ dataQuality, auditAnomalies, alerts, refreshStatus, configuration, refresh }}
+      value={{
+        dataQuality,
+        auditAnomalies,
+        alerts,
+        refreshStatus,
+        configuration,
+        platformOperations,
+        refresh,
+      }}
     >
       {children}
     </AdminDataContext.Provider>

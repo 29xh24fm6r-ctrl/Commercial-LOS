@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { WORKSPACE_ROUTES } from '../../bootstrap/workspaceRoutes';
-import { deriveFullSystemLaunchReadiness } from '../../admin/fullSystemLaunchReadinessModel';
+import { deriveReleaseGovernanceSnapshot } from '../../admin/releaseGovernanceSnapshot';
 import { evaluateBankerCreateRollout } from '../../deals/bankerNewDealCreateRollout';
 import { BANKER_NEW_DEAL_CREATE_ENABLED } from '../../deals/dealOriginationFeatureFlags';
 import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from '../../deals/newDealCreateFeatureFlags';
@@ -99,7 +99,7 @@ describe('198 — console stays read-only / action-free', () => {
 
 describe('198 — no drift', () => {
   it('the recommendation remains CONDITIONAL_GO', () => {
-    expect(deriveFullSystemLaunchReadiness().recommendation).toBe('CONDITIONAL_GO');
+    expect(deriveReleaseGovernanceSnapshot().recommendation).toBe('CONDITIONAL_GO');
   });
   it('create + checklist gates remain false and rollout disabled by default', () => {
     expect(BANKER_NEW_DEAL_CREATE_ENABLED).toBe(false);

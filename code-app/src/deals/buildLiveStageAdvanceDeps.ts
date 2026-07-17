@@ -37,7 +37,9 @@ import type {
   StageAdvanceTransport,
   StageAdvanceAuditSink,
   StageAdvanceTimelineSink,
+  StageAdvanceOnDealBoarded,
 } from '../workflow/stageAdvanceWriteDependency';
+import type { DealDetail } from './dealQueries';
 
 // The generated services + the (SDK-touching) actor resolver are pulled in via
 // GUARDED dynamic imports so this module keeps the Power Apps SDK OUT of the
@@ -60,6 +62,7 @@ export interface LiveStageAdvanceDeps {
   readonly transport: StageAdvanceTransport;
   readonly auditSink: StageAdvanceAuditSink;
   readonly timelineSink: StageAdvanceTimelineSink;
+  readonly onDealBoarded: StageAdvanceOnDealBoarded;
 }
 
 /**
@@ -227,5 +230,35 @@ export function buildLiveStageAdvanceDeps(actor: LiveStageAdvanceActor): LiveSta
     },
   };
 
-  return { transport, auditSink, timelineSink };
+  // Auto-board: reuses the ALREADY-LIVE Phase 259 "Add Existing Loan" write path
+  // (existingLoanEntryAdapter.ts, mounted via ExistingPortfolioLoansPanel.tsx) — no
+  // feature flag gates this, so a deal reaching BOARDED boards for real immediately.
+  const onDealBoarded: StageAdvanceOnDealBoarded = {
+    async run(deal: DealDetail) {
+      const { mapDealToExistingLoanInput } = await import('../portfolioBoarding/mapDealToExistingLoanInput');
+      const input = mapDealToExistingLoanInput({
+        deal,
+        authorized: Boolean(actor.actorSystemUserId),
+        actorEmail: actor.actorEmail,
+        actorSystemUserId: actor.actorSystemUserId,
+      });
+      if (!input) {
+        return { ok: false, detail: 'Deal has no borrower/client name to board — skipped auto-boarding.' };
+      }
+      const { boardExistingLoan, buildLiveExistingLoanDeps } = await import(
+        '../portfolioBoarding/existingLoanEntryAdapter'
+      );
+      const outcome = await boardExistingLoan(input, buildLiveExistingLoanDeps());
+      if (outcome.kind === 'success') {
+        return { ok: true, detail: `Boarded as portfolio loan ${outcome.loanNumber}.` };
+      }
+      if (outcome.kind === 'duplicate') {
+        return { ok: true, detail: `Already boarded (loan number ${outcome.loanNumber} exists).` };
+      }
+      const detail = 'reason' in outcome ? outcome.reason : 'error' in outcome ? outcome.error : outcome.kind;
+      return { ok: false, detail: `Auto-boarding failed: ${detail}` };
+    },
+  };
+
+  return { transport, auditSink, timelineSink, onDealBoarded };
 }

@@ -1,9 +1,9 @@
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
 import {
-  BANKER_NEW_DEAL_CREATE_ENABLED,
   DOCUMENT_CHECKLIST_GENERATION_ENABLED,
   BORROWER_MESSAGING_ENABLED,
 } from '../deals/dealOriginationFeatureFlags';
+import { BANKER_CREATE_PILOT_ENABLED } from '../deals/bankerCreatePilotConfig';
 import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
 
 /**
@@ -46,7 +46,12 @@ function gateActivation(enabled: boolean): ExecutiveRestartState {
 
 export function deriveExecutiveRestartReadinessModel(): ExecutiveRestartReadinessModel {
   const crmWritebackEnabled = CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED;
-  const newDealEnabled = BANKER_NEW_DEAL_CREATE_ENABLED;
+  // Factory Arc Phase 14: this previously read BANKER_NEW_DEAL_CREATE_ENABLED, a
+  // hard-`false` legacy constant no reachable code path gates on — the same bug
+  // Phase 11 found and fixed on the Manager Operating Command Center. The real
+  // switch the reachable banker create surface (BankerNewDealCreate.tsx) gates
+  // on is BANKER_CREATE_PILOT_ENABLED, which is `true` today.
+  const newDealEnabled = BANKER_CREATE_PILOT_ENABLED;
   const checklistEnabled = DOCUMENT_CHECKLIST_GENERATION_ENABLED;
   const borrowerSendEnabled = BORROWER_MESSAGING_ENABLED;
   const portfolioEnabled =

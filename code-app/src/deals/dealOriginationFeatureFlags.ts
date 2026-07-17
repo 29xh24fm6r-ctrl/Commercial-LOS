@@ -31,6 +31,11 @@ export const TASK_GENERATION_ENABLED = true as const;
 // Completion Phase A — safe default (off); arm only after the live checklist write transport is
 // injected and a real document-checklist smoke is captured.
 export const DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const;
+// Dataverse remediation (document-checklist file upload) — safe default (off); arm only after
+// scripts/dataverse/create-document-checklist-file-columns.ps1 has actually been run -Apply
+// against the live org, the SDK is regenerated, and a real upload smoke is captured. See
+// src/deals/documentUploadAction.ts and docs/PHASE_51_DOCUMENT_UPLOAD_SCOPE.md §7.
+export const DOCUMENT_FILE_UPLOAD_ENABLED = false as const;
 export const PORTFOLIO_SIDE_EFFECTS_ENABLED = false as const;
 // Completion Phase A — borrower send is the highest-risk domain (live email). Safe default
 // (off); arm only after the Outlook connector is registered, the SDK regenerated, and a real
@@ -54,6 +59,7 @@ export interface DealOriginationFeatureFlagConfig {
   readonly autoStageAdvanceEnabled?: boolean;
   readonly taskGenerationEnabled?: boolean;
   readonly documentChecklistEnabled?: boolean;
+  readonly documentFileUploadEnabled?: boolean;
   readonly portfolioSideEffectsEnabled?: boolean;
   readonly borrowerMessagingMode?: SendMode;
   readonly borrowerEmailTransportEnabled?: boolean;
@@ -79,6 +85,7 @@ export function isMalformedOriginationConfig(config: unknown): boolean {
     'autoStageAdvanceEnabled',
     'taskGenerationEnabled',
     'documentChecklistEnabled',
+    'documentFileUploadEnabled',
     'portfolioSideEffectsEnabled',
     'borrowerEmailTransportEnabled',
     'borrowerSmsTransportEnabled',
@@ -125,6 +132,10 @@ export function isTaskGenerationEnabled(config?: DealOriginationFeatureFlagConfi
 export function isDocumentChecklistEnabled(config?: DealOriginationFeatureFlagConfig): boolean {
   if (isMalformedOriginationConfig(config)) return false;
   return gate(DOCUMENT_CHECKLIST_GENERATION_ENABLED, config?.documentChecklistEnabled);
+}
+export function isDocumentFileUploadEnabled(config?: DealOriginationFeatureFlagConfig): boolean {
+  if (isMalformedOriginationConfig(config)) return false;
+  return gate(DOCUMENT_FILE_UPLOAD_ENABLED, config?.documentFileUploadEnabled);
 }
 export function isPortfolioSideEffectsEnabled(config?: DealOriginationFeatureFlagConfig): boolean {
   if (isMalformedOriginationConfig(config)) return false;

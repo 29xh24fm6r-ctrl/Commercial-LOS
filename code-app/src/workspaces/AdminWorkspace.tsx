@@ -21,6 +21,7 @@ import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { AdminDealReferenceValues } from '../admin/AdminDealReferenceValues';
 import { AdminLoanRemovalPanel } from '../admin/AdminLoanRemovalPanel';
+import { PlatformOperationsWorkspacePanel } from '../admin/PlatformOperationsWorkspacePanel';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { palette, spacing, typography } from '../shared/theme';
 
@@ -68,6 +69,16 @@ function AdminWorkspaceContent() {
       </header>
       <main style={styles.main}>
         <AdminOperationsConsole />
+        {/* Factory Arc Phase 4 — Platform Operations Workspace: the 12-capability
+            runtime/wiring/audit console (Runtime Capabilities, Dataverse Bindings,
+            Smoke Evidence, Deployment Version, Feature Activation, Audit History).
+            Admin-only (inherits the WorkspaceGate route + adminWorkspaceEntitlementQuery
+            live entitlement gate) — bankers cannot reach this data, not merely have it
+            hidden by CSS. Placed first among the launch/readiness panels since it is the
+            live, operational replacement this phase's brief describes; the legacy
+            static launch-readiness panels below remain for now (Phase 5 retires them
+            from runtime UI). */}
+        <PlatformOperationsWorkspacePanel />
         <ReleaseReadinessGate />
         {/* Phase 236: read-only V1.0 go-live release certification — the single
             leadership answer (operating restart ready; live-write expansion gated).

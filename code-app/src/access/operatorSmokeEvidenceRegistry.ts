@@ -21,11 +21,16 @@ export const SMOKE_CAPABILITIES = [
   'admin-entitlement-revoke',
   'new-deal-create',
   'stage-progression',
+  'task-generation',
   'crm-writeback',
+  'crm-manual-write',
   'portfolio-boarding',
+  'portfolio-boarding-manual',
   'checklist-generation',
   'borrower-communication',
+  'borrower-sms',
   'document-upload',
+  'audit-event-writes',
 ] as const;
 export type SmokeCapability = (typeof SMOKE_CAPABILITIES)[number];
 

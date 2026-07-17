@@ -32,12 +32,13 @@ beforeEach(() => {
   loadLoans = vi.fn(async () => existingRows());
 });
 
-function renderPanel(identity = IDENTITY) {
+function renderPanel(identity = IDENTITY, extra: Record<string, unknown> = {}) {
   return render(
     <ExistingPortfolioLoansPanel
       {...identity}
       loadLoans={loadLoans as never}
       boardLoan={boardLoan as (i: ExistingLoanInput) => Promise<BoardExistingLoanOutcome>}
+      {...extra}
     />,
   );
 }
@@ -58,6 +59,42 @@ describe('Phase 259 — ExistingPortfolioLoansPanel', () => {
     const detail = container.querySelector('[data-boarded-loan-detail]') as HTMLElement;
     expect(detail).not.toBeNull();
     expect(within(detail).getByText(/Existing portfolio loan \(manually boarded\)/i)).toBeInTheDocument();
+  });
+
+  // Factory Arc Phase 9 — the detail drawer shows REAL per-loan child-record
+  // counts (collateral, guarantors, etc.), not a fabricated readiness claim.
+  it('shows real per-loan record completeness in the detail drawer, distinguishing zero from a failed read', async () => {
+    const loadRecordCounts = vi.fn(async () => ({
+      borrowers: 0,
+      collateral: 2,
+      guarantors: 1,
+      covenants: 0,
+      ticklers: null, // a failed read for this group — must render distinctly from 0
+      insurance: 0,
+      documents: 3,
+      exceptions: 0,
+      reviews: 0,
+      examinerNotes: 0,
+    }));
+    const { container } = renderPanel(IDENTITY, { loadRecordCounts });
+    await waitList();
+    const user = userEvent.setup();
+    await user.click(container.querySelector('[data-boarded-loan-row="l1"]') as HTMLElement);
+
+    await waitFor(() => expect(loadRecordCounts).toHaveBeenCalledWith('l1'));
+    const section = await waitFor(() => {
+      const el = container.querySelector('[data-boarded-loan-record-completeness]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    await waitFor(() => expect(within(section).getByText(/6 records across 3 of 10 groups/i)).toBeInTheDocument());
+
+    const collateralRow = section.querySelector('[data-record-group="collateral"]') as HTMLElement;
+    expect(within(collateralRow).getByText('2')).toBeInTheDocument();
+    const ticklersRow = section.querySelector('[data-record-group="ticklers"]') as HTMLElement;
+    expect(within(ticklersRow).getByText('Could not load')).toBeInTheDocument();
+    const borrowersRow = section.querySelector('[data-record-group="borrowers"]') as HTMLElement;
+    expect(within(borrowersRow).getByText('0')).toBeInTheDocument();
   });
 
   it('opens the form and keeps Board disabled until required fields are entered', async () => {

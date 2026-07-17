@@ -209,19 +209,20 @@ export function DraftBorrowerUpdateModal({
         <p style={styles.modeBanner} role="status">
           {EMAIL_MODE === 'LIVE' ? (
             <>
-              <strong>Mode: LIVE.</strong> Clicking Send will hand the
-              message to Outlook through the registered connector. The
-              app reports <em>Outlook accepted</em> — meaning the
-              connector took the request for handoff. Acceptance is
-              not proof that the recipient received the message. Copy
-              remains available for an offline workflow.
+              Clicking Send hands the message to Outlook through the
+              registered connector. The app reports the connector{' '}
+              <em>accepted</em> it for handoff — that is not proof the
+              borrower received the message. Copy remains available
+              for an offline workflow.
             </>
           ) : (
             <>
-              <strong>Mode: DRY_RUN.</strong> Send is wired end-to-end
-              (audit + BorrowerUpdateSent timeline + outcome union) but
-              the adapter synthesizes acceptance locally — nothing
-              leaves the client. Copy works exactly as before.
+              <strong>Live email sending is unavailable.</strong>{' '}
+              Nothing leaves the client when you click Send — the
+              audit and activity-history rows are still recorded so
+              this update is tracked on the deal, but the message does
+              not reach the borrower. Copy the draft to send it
+              yourself through your own mail client.
             </>
           )}
         </p>
@@ -401,16 +402,18 @@ export function DraftBorrowerUpdateModal({
 
 function ModeBadge() {
   // LIVE is the only mode that performs an actual network send today.
-  // DRY_RUN is tinted neutral so the banker cannot mistake it for a
-  // real send. Mirrors the RequestDocumentModal mode-badge shape.
+  // The non-LIVE badge is tinted neutral so the banker cannot mistake
+  // it for a real send. Mirrors the RequestDocumentModal mode-badge shape.
+  // Factory Arc Phase 10: plain communication-state text, never the raw
+  // EMAIL_MODE token.
   const isLive = EMAIL_MODE === 'LIVE';
   return (
     <Badge
       variant={isLive ? 'clear' : 'neutral'}
       appearance="outline"
-      aria-label={`Email delivery mode: ${EMAIL_MODE}`}
+      aria-label={isLive ? 'Live Outlook send is available' : 'Live Outlook send is unavailable — use Copy instead'}
     >
-      Mode: {EMAIL_MODE}
+      {isLive ? 'Live send available' : 'Send preview only'}
     </Badge>
   );
 }
@@ -424,12 +427,12 @@ function SendOutcomePanel({ send }: { send: SendState }) {
         <div style={{ ...styles.outcomeTitle, color: palette.clearFg }}>
           {o.mode === 'LIVE'
             ? `Outlook accepted borrower update to ${o.maskedRecipient}`
-            : `DRY_RUN: borrower update prepared for ${o.maskedRecipient}`}
+            : `Draft prepared for ${o.maskedRecipient}`}
         </div>
         <p style={styles.outcomeDetail}>
           {o.mode === 'LIVE'
             ? 'The connector accepted the request for handoff. The audit row carries the full recipient; the timeline row shows the masked form. This is acceptance — not a delivery confirmation.'
-            : 'Nothing left the client. The audit + BorrowerUpdateSent timeline rows were emitted so the workflow is exercised end-to-end. To send for real, flip VITE_EMAIL_MODE=LIVE.'}
+            : 'Nothing left the client. The audit and activity-history rows were recorded so this update is tracked on the deal. Live email sending is unavailable in this environment right now.'}
         </p>
       </div>
     );
