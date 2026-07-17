@@ -119,6 +119,20 @@ describe('CRM-first New Deal create surface — gating', () => {
     // Loaders never run when the surface is not live.
     expect(loadClientsMock).not.toHaveBeenCalled();
   });
+
+  // Factory Arc Phase 11 — a resolved identity that is still not authorized
+  // to create deals (e.g. a manager/team/portfolio-only role) is a distinct
+  // scenario from a missing identity entirely — both must fail closed, but
+  // the proof list requires each be independently exercised.
+  it('a resolved identity that is not authorized to create deals also sees the honest disabled state', () => {
+    setBanker({ systemUserId: 'sys-1', writeDisabledReason: 'Role does not permit deal creation.' });
+    const { container } = renderCreate();
+    const note = container.querySelector('[data-banker-new-deal-state]');
+    expect(note?.getAttribute('data-banker-new-deal-state')).toBe('unauthorized');
+    expect(note?.textContent).toMatch(/not authorized/i);
+    expect(container.querySelector('[data-banker-new-deal-form]')).toBeNull();
+    expect(loadClientsMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('Step 1 — client list truncation is surfaced honestly, never silently hidden', () => {
@@ -296,6 +310,41 @@ describe('Result banners — honest partials are never a clean success', () => {
       expect(container.querySelector('[data-banker-new-deal-result="client_required"]')).not.toBeNull(),
     );
     expect(screen.getByText(/Select the CRM client relationship/i)).toBeInTheDocument();
+  });
+
+  // Factory Arc Phase 11 — the resolver_not_ready banner must render the
+  // orchestrator's specific reason (missing/inactive/duplicate reference
+  // data, or a real Dataverse read failure), never a single generic
+  // sentence for every cause — this is the "missing reference data" /
+  // "Dataverse failure" proof scenarios at the component level.
+  it('resolver_not_ready renders the specific reason, not a generic sentence (missing reference data)', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'resolver_not_ready',
+      userFacingMessage: 'No active Stage reference matches the configured code/name. No record has been created.',
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await completeHappyPath(user, container);
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="resolver_not_ready"]')).not.toBeNull(),
+    );
+    expect(screen.getByText(/No active Stage reference matches the configured code\/name/i)).toBeInTheDocument();
+  });
+
+  it('resolver_not_ready renders the specific reason for a real Dataverse read failure', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'resolver_not_ready',
+      userFacingMessage: 'Could not reach Dataverse to verify Stage/Status references (timeout after 30s). No record has been created.',
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await completeHappyPath(user, container);
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="resolver_not_ready"]')).not.toBeNull(),
+    );
+    expect(screen.getByText(/Could not reach Dataverse to verify Stage\/Status references/i)).toBeInTheDocument();
   });
 
   it('link_readback_mismatch renders a distinct warning (created but link unverified)', async () => {

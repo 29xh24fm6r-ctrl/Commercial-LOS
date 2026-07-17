@@ -60,6 +60,22 @@ describe('orchestrator -- create outcome mapping (no downstream on non-success)'
     });
   }
 
+  // Factory Arc Phase 11 — the adapter's specific resolverDetail() text must
+  // reach the banker-facing userFacingMessage verbatim, not be discarded in
+  // favor of one generic "Stage/Status references are not ready" sentence.
+  it('resolver_not_ready propagates the adapter\'s specific detail into userFacingMessage', async () => {
+    const res = await orchestrateDealOrigination(input(), {
+      runGovernedCreate: createReturning({
+        kind: 'resolver_not_ready',
+        resolution: 'serviceError',
+        detail: 'Could not reach Dataverse to verify Stage/Status references (timeout after 30s).',
+      }),
+    });
+    expect(res.kind).toBe('resolver_not_ready');
+    expect(res.userFacingMessage).toContain('Could not reach Dataverse to verify Stage/Status references (timeout after 30s).');
+    expect(res.userFacingMessage).toMatch(/No record has been created/i);
+  });
+
   it('create audit_failed_partial -> top audit_failed_partial, downstream NOT run', async () => {
     const crm = vi.fn(async () => ({ module: 'crm-automation', kind: 'success' as const }));
     const res = await orchestrateDealOrigination(input(), {

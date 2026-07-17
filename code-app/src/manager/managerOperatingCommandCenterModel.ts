@@ -1,11 +1,11 @@
 import {
-  BANKER_NEW_DEAL_CREATE_ENABLED,
   TASK_GENERATION_ENABLED,
   DOCUMENT_CHECKLIST_GENERATION_ENABLED,
   DUPLICATE_DETECTION_ENABLED,
   BORROWER_MESSAGING_ENABLED,
   AUTO_STAGE_ADVANCE_ENABLED,
 } from '../deals/dealOriginationFeatureFlags';
+import { BANKER_CREATE_PILOT_ENABLED } from '../deals/bankerCreatePilotConfig';
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
 import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
 
@@ -99,13 +99,26 @@ export function deriveManagerOperatingCommandCenterModel(): ManagerOperatingComm
       nextAction: 'Triage bottlenecks from the Manager Workflow Launch Readiness panel; stage advancement remains a certified gate.',
     },
     {
+      // Factory Arc Phase 11: this card previously read
+      // BANKER_NEW_DEAL_CREATE_ENABLED (a hard-`false` legacy constant no
+      // reachable code path actually gates on) and reported New Deal create
+      // as "gated" — factually wrong. The real, single switch the reachable
+      // banker create surface (BankerNewDealCreate.tsx) gates on is
+      // BANKER_CREATE_PILOT_ENABLED (bankerCreatePilotConfig.ts), which is
+      // `true` today — an authorized banker reaches a live create flow right
+      // now, with production reference approval, identity, and the governed
+      // create adapter all still enforced at submit. Unlike the
+      // portfolio-boarding/borrower-communication cards (Phase 9/10), this
+      // domain's `state` itself needed to change, not just its copy — the
+      // old flag-driven value disagreed with reality in the "says gated but
+      // is actually live" direction, not the safe direction.
       id: 'new-deal-intake',
-      label: 'New Deal intake gate posture',
-      state: gateState(BANKER_NEW_DEAL_CREATE_ENABLED),
-      value: BANKER_NEW_DEAL_CREATE_ENABLED ? 'Create enabled' : 'Create gated',
+      label: 'New Deal intake',
+      state: gateState(BANKER_CREATE_PILOT_ENABLED),
+      value: BANKER_CREATE_PILOT_ENABLED ? 'Create enabled' : 'Create disabled',
       summary:
-        'New Deal intake readiness is visible to the manager. Banker create remains governed by production reference approval and certified create adapter gates.',
-      nextAction: 'Confirm intake readiness and duplicate detection coverage; create stays gated until certified controls clear it.',
+        'An authorized banker can create a new deal today through the governed CRM-first intake flow — identity, production reference approval, and the create adapter are enforced at submit, never bypassed.',
+      nextAction: 'Direct bankers to the "+ New Deal" action; review any resolver_not_ready or create_failed outcomes with the reference-data owner.',
     },
     {
       id: 'document-readiness',

@@ -229,17 +229,34 @@ function linkReadbackMismatch(args: {
   return undefined;
 }
 
-function resolverDetail(r: NewDealReferenceResolution): string {
+/**
+ * Factory Arc Phase 11 — a specific, banker-honest reason per resolution kind,
+ * never the raw camelCase resolution code (the old `default: return r.kind`
+ * literally rendered "missingStage"/"inactiveStatus" etc. to the outcome
+ * consumer). Distinguishes "reference data is missing/inactive/ambiguous"
+ * from "the read itself failed" (serviceError) — the real Dataverse-failure
+ * case — so a caller can show the banker a specific reason instead of one
+ * generic sentence for every cause. Mirrors NewDealResolverReadinessCard.tsx's
+ * admin-facing `blockedReason()` wording, adapted for the banker audience.
+ */
+function resolverDetail(r: Exclude<NewDealReferenceResolution, { kind: 'ready' }>): string {
   switch (r.kind) {
     case 'notConfigured':
       return r.reason;
-    case 'serviceError':
-      return r.message;
+    case 'missingStage':
+      return 'No active Stage reference matches the configured code/name.';
+    case 'missingStatus':
+      return 'No active Status reference matches the configured code/name.';
     case 'duplicateStage':
+      return `Multiple active Stage references match the configured code/name (${r.count}).`;
     case 'duplicateStatus':
-      return `${r.kind} (count ${r.count})`;
-    default:
-      return r.kind;
+      return `Multiple active Status references match the configured code/name (${r.count}).`;
+    case 'inactiveStage':
+      return 'The matched Stage reference is inactive.';
+    case 'inactiveStatus':
+      return 'The matched Status reference is inactive.';
+    case 'serviceError':
+      return `Could not reach Dataverse to verify Stage/Status references (${r.message}).`;
   }
 }
 

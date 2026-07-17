@@ -39,8 +39,28 @@ describe('Phase 233 — Manager Operating Command Center model', () => {
     expect(byId.get('crm-writeback')?.state).toBe('gated');
     expect(byId.get('borrower-communication')?.state).toBe('gated');
     expect(byId.get('portfolio-boarding')?.state).toBe('gated');
-    // New Deal create stays gated by its global constant.
-    expect(byId.get('new-deal-intake')?.state).toBe('gated');
+    // New Deal create is the one live domain — BANKER_CREATE_PILOT_ENABLED is
+    // true, and an authorized banker reaches a real create flow today. See
+    // the dedicated test below for why this differs from every other domain.
+    expect(byId.get('new-deal-intake')?.state).toBe('operational');
+  });
+
+  // Factory Arc Phase 11 — unlike portfolio-boarding/borrower-communication
+  // (Phase 9/10), where the flag-driven state correctly agreed with the
+  // authority and only the copy was wrong, new-deal-intake's OLD state was
+  // itself factually wrong: it read a dead constant (BANKER_NEW_DEAL_CREATE_ENABLED,
+  // hard false) that no reachable code path gates on, and reported "gated"
+  // for a capability that is actually live today via BANKER_CREATE_PILOT_ENABLED
+  // (bankerCreatePilotConfig.ts) — proven live by BankerNewDealCreate.test.tsx's
+  // own "Create enabled" assertion for an authorized banker.
+  it('new-deal-intake reads operational — the real pilot switch is on, not the dead legacy constant', () => {
+    const vm = deriveManagerOperatingCommandCenterModel();
+    const intake = vm.domains.find((d) => d.id === 'new-deal-intake')!;
+
+    expect(intake.state).toBe('operational');
+    expect(intake.label).not.toMatch(/gate/i);
+    expect(intake.value).toBe('Create enabled');
+    expect(intake.summary).toMatch(/authorized banker can create a new deal today/i);
   });
 
   // Factory Arc Phase 9 — the certified self-service boarding pipeline correctly

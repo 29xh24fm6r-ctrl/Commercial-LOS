@@ -266,8 +266,12 @@ export async function orchestrateDealOrigination(
     case 'client_required':
       return baseResult('client_required', { kind: 'skipped' }, { kind: 'skipped' }, create.reason);
     case 'resolver_not_ready':
+      // Factory Arc Phase 11 — propagate the adapter's own specific reason
+      // (missing/inactive/duplicate reference data vs. a Dataverse read
+      // failure — resolverDetail() in newDealCreateAdapter.ts) instead of
+      // one generic sentence for every cause.
       return baseResult('resolver_not_ready', { kind: 'skipped' }, { kind: 'skipped' },
-        'Stage/Status references are not ready; create is blocked. No record has been created.');
+        `${create.detail} No record has been created.`);
     case 'create_failed':
       return baseResult('create_failed', { kind: 'failed', error: create.error }, { kind: 'skipped' },
         'The deal could not be created. No record has been created.');

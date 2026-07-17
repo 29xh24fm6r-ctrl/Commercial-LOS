@@ -169,5 +169,13 @@ describe('Completion Phase B — cross-panel launch coherence (both directions)'
     expect(
       deriveFullActivationLaunchCertification().domains.find((d) => d.id === 'new-deal-create')?.status,
     ).toBe('enabled');
+    // Factory Arc Phase 11 — the Manager Operating Command Center's
+    // new-deal-intake domain now reads the same real pilot switch
+    // (BANKER_CREATE_PILOT_ENABLED) instead of a dead legacy constant, so it
+    // must agree with the authority too, exactly like the other pilot-reading
+    // surfaces above.
+    expect(
+      deriveManagerOperatingCommandCenterModel().domains.find((d) => d.id === 'new-deal-intake')?.state,
+    ).toBe('operational');
   });
 });

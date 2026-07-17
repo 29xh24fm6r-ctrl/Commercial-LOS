@@ -23,7 +23,7 @@ describe('Phase 233 — Manager Operating Command Center', () => {
       'Banker workload balance',
       'CRM relationship coverage',
       'Workflow bottlenecks',
-      'New Deal intake gate posture',
+      'New Deal intake',
       'Document checklist readiness',
       'CRM writeback gate',
       'Borrower communication',
@@ -100,5 +100,19 @@ describe('Phase 233 — Manager Operating Command Center', () => {
     expect(value?.textContent).toMatch(/already live/i);
     expect(within(el!).getByText('gated')).toBeInTheDocument(); // status badge
     expect(within(el!).getAllByText(/draft/i).length).toBeGreaterThan(0);
+  });
+
+  // Factory Arc Phase 11 — new-deal-intake is the one domain that reads
+  // "operational" honestly today (the real pilot switch, BANKER_CREATE_PILOT_ENABLED,
+  // is on), unlike the other live-write domains above which correctly stay
+  // gated. Its badge must never render the raw "gated" token.
+  it('new-deal-intake reads operational, "Create enabled", and never a "gated" badge', () => {
+    const { container } = render(<ManagerOperatingCommandCenter />);
+    const el = container.querySelector<HTMLElement>('[data-operating-domain="new-deal-intake"]');
+    expect(el).not.toBeNull();
+    const value = el!.querySelector('[data-domain-value]');
+    expect(value?.textContent).toBe('Create enabled');
+    expect(within(el!).getByText('operational')).toBeInTheDocument();
+    expect(within(el!).queryByText('gated')).toBeNull();
   });
 });

@@ -136,6 +136,31 @@ describe('Phase 170M -- resolver dependency (fail closed)', () => {
       expect(d.createSpy).not.toHaveBeenCalled();
     }
   });
+
+  // Factory Arc Phase 11 — the proof list requires distinguishing "missing
+  // reference data" from "a Dataverse failure" as separate, specific
+  // scenarios, not one generic sentence for every resolver_not_ready cause.
+  it('resolver_not_ready carries a specific, honest detail per resolution kind — never the raw camelCase code', async () => {
+    const cases: Array<[NewDealReferenceResolution, RegExp, RegExp[]]> = [
+      [{ kind: 'missingStage' }, /No active Stage reference matches/i, [/missingStage/]],
+      [{ kind: 'missingStatus' }, /No active Status reference matches/i, [/missingStatus/]],
+      [{ kind: 'duplicateStage', count: 2 }, /Multiple active Stage references.*\(2\)/i, [/duplicateStage/]],
+      [{ kind: 'duplicateStatus', count: 3 }, /Multiple active Status references.*\(3\)/i, [/duplicateStatus/]],
+      [{ kind: 'inactiveStage' }, /matched Stage reference is inactive/i, [/inactiveStage/]],
+      [{ kind: 'inactiveStatus' }, /matched Status reference is inactive/i, [/inactiveStatus/]],
+      // "serviceError" is the real Dataverse-failure scenario — distinct
+      // wording from the missing/inactive/duplicate reference-data cases.
+      [{ kind: 'serviceError', message: 'timeout after 30s' }, /Could not reach Dataverse.*timeout after 30s/i, [/^serviceError$/]],
+    ];
+    for (const [r, expected, forbidden] of cases) {
+      const d = deps({ resolveReferences: async () => r });
+      const out = await createGovernedNewDeal(baseInput(), d);
+      expect(out.kind).toBe('resolver_not_ready');
+      if (out.kind !== 'resolver_not_ready') continue;
+      expect(out.detail).toMatch(expected);
+      for (const f of forbidden) expect(out.detail).not.toMatch(f);
+    }
+  });
 });
 
 describe('Phase 170M -- payload discipline (allow-list, resolved binds, no GUID)', () => {

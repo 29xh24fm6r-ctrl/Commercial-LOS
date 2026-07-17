@@ -692,9 +692,13 @@ function ResultBanner({ submit }: { submit: SubmitState }) {
         </div>
       );
     case 'resolver_not_ready':
+      // Factory Arc Phase 11 — the specific reason (missing/inactive/duplicate
+      // reference data, or a Dataverse read failure) lives on
+      // r.userFacingMessage, set by the orchestrator from the adapter's own
+      // resolverDetail() — never one generic sentence for every cause.
       return (
         <div style={styles.bannerError} role="alert" data-banker-new-deal-result="resolver_not_ready">
-          Stage/Status references are not ready. No record has been created.
+          {r.userFacingMessage}
         </div>
       );
     default:
