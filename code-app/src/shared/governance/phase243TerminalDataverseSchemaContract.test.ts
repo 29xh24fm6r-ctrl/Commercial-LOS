@@ -34,7 +34,13 @@ function stripPsComments(src: string): string {
 // create-missing-only over METADATA, which this script does not touch at all. It is still
 // dry-run-by-default, -Apply-gated, resolves bankers by email (never a hardcoded GUID), and
 // never creates a banker record — see the script's own header for its safety model.
-const SCHEMA_SCRIPT_EXCLUDE = new Set(['run-final-launch-smokes.ps1', 'seed-banker-credit-authority.ps1']);
+// attempt-governance-bypass-smoke.ps1 (2026-07-21) is likewise NOT a schema script: it
+// legitimately PATCHes a single caller-supplied TEST deal's DATA (stage/status/amount) to prove
+// the governance plugin rejects the bypass — that is the entire point of the smoke. It never
+// touches METADATA (no attribute/entity create/delete), is dry-run by default, -Apply-gated,
+// refuses to run against a non-"TEST -" deal name, and restores the deal's original stage/status
+// afterward. See its own header for the full safety model.
+const SCHEMA_SCRIPT_EXCLUDE = new Set(['run-final-launch-smokes.ps1', 'seed-banker-credit-authority.ps1', 'attempt-governance-bypass-smoke.ps1']);
 const ps1Files = () => readdirSync(DV).filter((f) => f.endsWith('.ps1') && !SCHEMA_SCRIPT_EXCLUDE.has(f));
 const code = (name: string) => stripPsComments(readFileSync(resolve(DV, name), 'utf8'));
 

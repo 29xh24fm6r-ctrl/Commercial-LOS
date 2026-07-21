@@ -36,6 +36,8 @@ import {
   resolveStatusReferenceId,
   resolveStatusReferenceBind,
 } from './dealReferenceResolvers';
+import { GOVERNANCE_REASON_FIELD_ENABLED } from './dealOriginationFeatureFlags';
+import { GOVERNED_TRANSITION_REASON_COLUMN } from './governedTransitionReasonSchema';
 import type {
   CanonicalStageTransport,
   CanonicalAuditSink,
@@ -120,6 +122,20 @@ export function buildLiveCanonicalTransitionDeps(
             return { ok: false, error: `No active cr664_dealstatusreferences row for status code "${input.newStatus}"; seed the status reference table before transitioning.` };
           }
           patch['cr664_StatusReference@odata.bind'] = statusBind;
+        }
+
+        // Governance initiative (2026-07-21) — write the reason onto the SAME record/request the
+        // enforcement plugin inspects, not only into the audit event's notes (a separate entity the
+        // plugin cannot see). Fail-closed behind GOVERNANCE_REASON_FIELD_ENABLED until an operator
+        // provisions the column (see governedTransitionReasonSchema.ts) — omitted entirely, never
+        // written to a non-existent field, when the flag is off.
+        if (GOVERNANCE_REASON_FIELD_ENABLED && (input.reasonCode || input.reasonText)) {
+          const reason = input.reasonCode
+            ? `${input.reasonCode}${input.reasonText ? ` — ${input.reasonText}` : ''}`
+            : (input.reasonText ?? '');
+          if (reason.trim().length > 0) {
+            patch[GOVERNED_TRANSITION_REASON_COLUMN] = reason;
+          }
         }
 
         if (Object.keys(patch).length === 0) {
