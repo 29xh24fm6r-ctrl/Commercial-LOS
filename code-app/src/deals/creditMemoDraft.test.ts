@@ -281,16 +281,33 @@ describe('buildCreditMemoDraft — tasks/docs/blockers reflected conservatively'
   });
 
   it('Risks section is non-alarmist when no signals fire', () => {
-    // Use a deal whose stageEntryDate is recent so deriveBlockers
-    // does NOT flag stale-stage. The default fullyPopulatedDeal has
-    // an old stageEntryDate which intentionally exercises that signal.
+    // Fresh stageEntryDate so deriveBlockers does NOT flag stale-stage. A non-canonical stage so
+    // the stage-exit requirement engine does not apply (recognizeCanonicalStage returns undefined),
+    // isolating the operational-signal path this test targets.
     const freshDeal: DealDetail = {
       ...fullyPopulatedDeal,
+      stage: 'Pre-qualification', // not a canonical stage → no stage-exit hard blockers
       stageEntryDate: '2026-05-01T00:00:00Z', // 12 days before FIXED_NOW
     };
     const { body } = buildCreditMemoDraft(['risks-blockers'], fullCtx({ deal: freshDeal }));
     expect(body).toContain('No blocking or at-risk signals detected');
     expect(body).toContain('Banker review still required.');
+  });
+
+  it('P1-9: Risks section surfaces the SAME stage-exit hard blockers as the Attention Console (not just operational signals)', () => {
+    // A canonical-stage deal missing its mandatory exit documents/fields has hard blockers in the
+    // workspace. The memo previously used only deriveBlockers and read "no blocking signals"; it now
+    // unions in the stage-exit requirement model, so the two reconcile at generation time.
+    const intakeDeal: DealDetail = {
+      ...fullyPopulatedDeal,
+      stage: 'Intake',
+      stageEntryDate: '2026-05-01T00:00:00Z',
+    };
+    // No documents provided → the Intake "Loan application" required document is unmet.
+    const { body } = buildCreditMemoDraft(['risks-blockers'], fullCtx({ deal: intakeDeal, documents: makeDocsResult([]) }));
+    expect(body).not.toContain('No blocking or at-risk signals detected');
+    expect(body).toContain('Stage exit:');
+    expect(body).toMatch(/Overall status: blocked/i);
   });
 
   it('Recommended Next Steps reads as process items only — no credit-decision verbs', () => {

@@ -217,9 +217,11 @@ async function createMemoSection(opts: {
     cr664_lastgeneratedat: opts.nowIso,
     cr664_reviewstatus: SECTION_REVIEW_STATUS_PENDING,
     'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
-    ownerid: opts.input.systemUserId,
-    owneridtype: 'systemuser',
-    statecode: 0,
+    // Owner + state are SERVER-DEFAULTED (owner = the calling user), exactly like the audit +
+    // timeline writes above. Setting `ownerid` to a raw systemuser id sent a scalar for the
+    // polymorphic owner lookup, which Dataverse rejects with a PrimitiveValue deserialization
+    // error — the reported Save-Draft failure. If a specific owner is ever required, it must be an
+    // `ownerid@odata.bind: /systemusers(<id>)` (or /teams(<id>)) reference, never a raw string.
   };
   try {
     const result = await Cr664_creditmemodraftsectionsService.create(
@@ -275,9 +277,9 @@ export async function saveCreditMemoDraft(
       cr664_workspaceid: input.workspaceId,
       cr664_memo_schema_version: 'phase25',
       'cr664_Deal@odata.bind': `/cr664_loandeals(${input.dealId})`,
-      ownerid: input.systemUserId,
-      owneridtype: 'systemuser',
-      statecode: 0,
+      // Owner + state SERVER-DEFAULTED (owner = the calling user) — same discipline as the audit +
+      // timeline writes. A raw `ownerid` string is a scalar for a polymorphic owner lookup, which
+      // Dataverse rejects (PrimitiveValue deserialization) — the reported Save-Draft crash.
     };
     const result = await Cr664_creditmemo1sService.create(
       memoPayload as unknown as Parameters<

@@ -3,6 +3,7 @@ import type { DealTask, DealTasksResult } from './dealTaskQueries';
 import type { DealDocument, DealDocumentsResult } from './dealDocumentQueries';
 import type { CreditMemoData, CreditMemoSummary } from './creditMemoQueries';
 import { deriveBlockers, type BlockerSignal } from './blockerRules';
+import { deriveDealBlockerModelForStage } from './dealBlockerModel';
 
 /**
  * Phase 24: pure credit memo DRAFT generator. Produces an editable
@@ -330,14 +331,35 @@ function risksBlockers(
   if (result.closedDealNote) {
     return sectionWrap(label, result.closedDealNote);
   }
-  if (result.signals.length === 0) {
+  // Reconcile with the Attention Console / deal workspace: also surface the SAME stage-exit HARD
+  // blockers (mandatory missing fields + documents) from the authoritative requirement engine.
+  // Previously the memo used only `deriveBlockers`, so a deal whose ONLY blockers were stage-exit
+  // requirements read "no blocking signals" here while the workspace showed active blockers.
+  const stageModel = deriveDealBlockerModelForStage(ctx.deal.stage, {
+    deal: ctx.deal,
+    tasks: ctx.tasks,
+    documents: ctx.documents,
+    creditMemo: ctx.existingMemos,
+  });
+  const stageExitSignals: BlockerSignal[] = (stageModel?.hardBlockers ?? []).map((b) => ({
+    id: `stage-exit:${b.id}`,
+    severity: 'blocked',
+    label: `Stage exit: ${b.label}`,
+    detail: b.detail,
+  }));
+
+  const signals = [...result.signals, ...stageExitSignals];
+  if (signals.length === 0) {
     return sectionWrap(
       label,
       'No blocking or at-risk signals detected from the current data. Banker review still required.',
     );
   }
-  const lines: string[] = [`Overall status: ${result.status}`, ''];
-  for (const s of result.signals) {
+  const status = signals.some((s) => s.severity === 'blocked')
+    ? 'blocked'
+    : 'at-risk';
+  const lines: string[] = [`Overall status: ${status}`, ''];
+  for (const s of signals) {
     lines.push(`  - [${severityTag(s)}] ${s.label}`);
     lines.push(`      ${s.detail}`);
   }

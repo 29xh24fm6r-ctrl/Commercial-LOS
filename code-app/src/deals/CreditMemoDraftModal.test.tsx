@@ -365,7 +365,7 @@ describe('CreditMemoDraftModal — Phase 25 Save Draft flow', () => {
     expect(buttons[0]!.textContent).toMatch(/close/i);
   });
 
-  it('renders the CRITICAL governance-partial outcome with per-section + audit + timeline errors', async () => {
+  it('renders the CRITICAL governance-partial outcome with banker-safe messaging — NEVER the raw technical errors', async () => {
     const onSave = vi.fn().mockResolvedValue({
       kind: 'governance-partial',
       memoId: 'memo-1',
@@ -389,12 +389,14 @@ describe('CreditMemoDraftModal — Phase 25 Save Draft flow', () => {
     await user.click(screen.getByRole('button', { name: /save credit memo draft/i }));
 
     await screen.findByText(/Critical: governance write failed/i);
-    expect(
-      screen.getByText(/Do not retry — the draft may already be saved\./i),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/section boom/i)).toBeInTheDocument();
-    expect(screen.getByText(/audit boom/i)).toBeInTheDocument();
-    expect(screen.getByText(/timeline boom/i)).toBeInTheDocument();
+    // Banker-safe: an honest "do not retry, already saved" message + a section-count summary +
+    // a support reference — but the raw OData/Dataverse/technical error strings are NEVER shown.
+    expect(screen.getByText(/Do not retry — the draft is already saved/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 section draft could not be saved/i)).toBeInTheDocument();
+    expect(screen.getByText(/memo-1/)).toBeInTheDocument(); // support reference
+    expect(screen.queryByText(/section boom/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/audit boom/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/timeline boom/i)).not.toBeInTheDocument();
   });
 
   it('prevents double-submit: the in-flight Save Draft button is disabled', async () => {
