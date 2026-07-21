@@ -1,4 +1,5 @@
 ﻿import type { CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { Badge } from '../shared/Badge';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -98,14 +99,14 @@ export function PortfolioBoardingAdminPanel() {
 
       <div style={styles.actions}>
         {liveEnabled ? (
-          <a
-            href={WORKSPACE_ROUTES.manager}
+          <Link
+            to={WORKSPACE_ROUTES.manager}
             style={styles.manageLink}
             data-admin-portfolio-action="open"
             aria-label="Open Portfolio workspace"
           >
             Open Portfolio workspace
-          </a>
+          </Link>
         ) : (
           <>
             <DisabledAction label="Portfolio create disabled" id="create" />

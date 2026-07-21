@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { Badge } from '../shared/Badge';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -164,14 +165,14 @@ export function NewDealIntakePanel() {
       </div>
 
       <div style={styles.actions}>
-        <a
-          href={WORKSPACE_ROUTES.banker}
+        <Link
+          to={WORKSPACE_ROUTES.banker}
           style={styles.manageLink}
           data-admin-new-deal-open
           aria-label="Open Banker Workspace to create a deal"
         >
           Open Banker Workspace
-        </a>
+        </Link>
         <button
           type="button"
           disabled

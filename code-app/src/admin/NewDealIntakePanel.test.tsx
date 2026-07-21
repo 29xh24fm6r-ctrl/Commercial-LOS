@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 // The Phase 170H readiness card reads the typed Stage/Status data sources
 // on mount; mock the reader so panel tests stay deterministic and never
@@ -21,7 +22,7 @@ import { NewDealIntakePanel } from './NewDealIntakePanel';
 
 describe('Phase 170J -- New Deal Intake panel', () => {
   it('renders the panel marked Banker create live with the reconciled status, not a missing-data-source claim', () => {
-    const { container } = render(<NewDealIntakePanel />);
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
     expect(
       screen.getByRole('region', { name: 'New Deal Intake' }),
     ).toBeInTheDocument();
@@ -34,7 +35,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
   });
 
   it('shows the reconciled readiness truth table (Ready(TEST) / Pending / Not wired / Gated)', () => {
-    const { container } = render(<NewDealIntakePanel />);
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
     const truth = container.querySelector('[data-admin-new-deal-truth]') as HTMLElement;
     expect(truth).not.toBeNull();
     expect(within(truth).getByText('Stage/Status resolver readiness')).toBeInTheDocument();
@@ -48,7 +49,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
   });
 
   it('shows the required future fields including Stage and Status (now Ready, not Blocked)', () => {
-    const { container } = render(<NewDealIntakePanel />);
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
     const fields = container.querySelector('[data-admin-new-deal-fields]') as HTMLElement;
     for (const label of [
       'Deal Name',
@@ -71,7 +72,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
   });
 
   it('shows the Phase 170D confirmed live reference targets, now registered (Ready in TEST)', () => {
-    const { container } = render(<NewDealIntakePanel />);
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
     const targets = container.querySelector('[data-admin-new-deal-targets]') as HTMLElement;
     expect(targets).not.toBeNull();
     expect(within(targets).getByText('cr664_dealstagereferences')).toBeInTheDocument();
@@ -85,7 +86,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
   });
 
   it('marks the reference/resolver/runtime steps done and leaves production/adapter/create/enable pending', () => {
-    const { container } = render(<NewDealIntakePanel />);
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
     const checklist = container.querySelector('[data-admin-new-deal-checklist]') as HTMLElement;
     const items = Array.from(checklist.querySelectorAll('li'));
     expect(items.length).toBe(9);
@@ -94,7 +95,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
   });
 
   it('shows the enablement checklist with resolver and create-adapter steps', () => {
-    const { container } = render(<NewDealIntakePanel />);
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
     const checklist = container.querySelector('[data-admin-new-deal-checklist]') as HTMLElement;
     expect(
       within(checklist).getByText(/--inspect-new-deal-references/i),
@@ -104,7 +105,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
   });
 
   it('keeps the PUBLIC create action gated (no console create) and links bankers to the workspace', () => {
-    const { container } = render(<NewDealIntakePanel />);
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
     const create = container.querySelector('[data-admin-new-deal-create]') as HTMLButtonElement;
     expect(create).not.toBeNull();
     expect(create).toBeDisabled();
@@ -115,7 +116,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
   });
 
   it('notes that authorized bankers create live from the Banker Workspace (public create gated)', () => {
-    const { container } = render(<NewDealIntakePanel />);
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
     const footnote = container.querySelector('[data-admin-new-deal-footnote]');
     expect(footnote?.textContent).toMatch(/Banker Workspace/i);
     expect(footnote?.textContent).toMatch(/Public \/ anonymous create stays gated/i);
@@ -123,7 +124,7 @@ describe('Phase 170J -- New Deal Intake panel', () => {
   });
 
   it('has no enabled button in the panel', () => {
-    const { container } = render(<NewDealIntakePanel />);
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
     for (const b of Array.from(container.querySelectorAll('button'))) {
       expect(b).toBeDisabled();
     }
