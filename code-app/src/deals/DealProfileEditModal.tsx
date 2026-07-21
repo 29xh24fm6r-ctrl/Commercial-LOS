@@ -322,8 +322,8 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
                 data-deal-profile-field="amount"
               />
               <span id="deal-profile-amount-help" style={styles.readonlyReason}>
-                The approved loan amount (cr664_amount). A mandatory Intake exit criterion — verified on
-                save and audited.
+                The approved loan amount. Required to move the deal out of Intake — verified on save
+                and recorded in the audit trail.
               </span>
             </FieldLabel>
 
