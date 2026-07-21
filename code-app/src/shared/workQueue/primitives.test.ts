@@ -7,9 +7,12 @@ import {
   STALE_STAGE_AT_RISK_DAYS,
   WORK_QUEUE_TIER_RANK,
   WORK_QUEUE_TIER_WINDOW,
+  ALERT_SEVERITIES,
   compareWorkQueueItems,
   countBySeverity,
   daysFromNow,
+  filterAlertWorkItems,
+  isAlertWorkItem,
   formatQueueDate,
   isPastDue,
   isReceivedDocumentPendingReview,
@@ -274,5 +277,28 @@ describe('isReceivedDocumentPendingReview (Phase 54)', () => {
         nowMs: NOW_MS,
       }),
     ).toBe(false);
+  });
+});
+
+describe('P1-10 / P2-17 — alert tier selector', () => {
+  it('ALERT_SEVERITIES is exactly the act-now tier (blocked + overdue)', () => {
+    expect([...ALERT_SEVERITIES].sort()).toEqual(['blocked', 'overdue']);
+  });
+
+  it('isAlertWorkItem is true for blocked/overdue and false for at-risk/upcoming', () => {
+    expect(isAlertWorkItem({ severity: 'blocked' })).toBe(true);
+    expect(isAlertWorkItem({ severity: 'overdue' })).toBe(true);
+    expect(isAlertWorkItem({ severity: 'at-risk' })).toBe(false);
+    expect(isAlertWorkItem({ severity: 'upcoming' })).toBe(false);
+  });
+
+  it('filterAlertWorkItems keeps only the alert tier and preserves order', () => {
+    const items: { id: string; severity: WorkQueueSeverity }[] = [
+      { id: 'a', severity: 'upcoming' },
+      { id: 'b', severity: 'blocked' },
+      { id: 'c', severity: 'at-risk' },
+      { id: 'd', severity: 'overdue' },
+    ];
+    expect(filterAlertWorkItems(items).map((i) => i.id)).toEqual(['b', 'd']);
   });
 });

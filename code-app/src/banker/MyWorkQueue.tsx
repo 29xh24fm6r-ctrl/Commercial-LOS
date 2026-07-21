@@ -30,6 +30,7 @@ import { Badge, StatusDot } from '../shared/Badge';
 import {
   MAX_WORK_QUEUE_ROWS,
   countBySeverity,
+  filterAlertWorkItems,
   formatQueueDate,
   overallBadgeLabel,
   overallSeverityKey,
@@ -61,7 +62,16 @@ type State =
   | { kind: 'ready'; data: BankerWorkQueueData }
   | { kind: 'failed'; message: string };
 
-export function MyWorkQueue() {
+/**
+ * P1-10 / P2-17 — `filter` selects which slice of the banker's work queue this surface shows so a
+ * badge's destination matches the badge's meaning:
+ *   - 'all'    → the full work list (Tasks & Actions): blockers, overdue, at-risk, upcoming.
+ *   - 'alerts' → only the act-now ALERT tier (blockers + overdue) counted by the "My Alerts" badge,
+ *                so opening My Alerts is no longer a mislabeled duplicate of the full Tasks queue.
+ */
+export type MyWorkQueueFilter = 'all' | 'alerts';
+
+export function MyWorkQueue({ filter = 'all' }: { filter?: MyWorkQueueFilter } = {}) {
   const { bankerId, fullName, email, systemUserId } = useBanker();
   const navigate = useNavigate();
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -207,17 +217,26 @@ export function MyWorkQueue() {
     );
   }
 
-  const items = deriveBankerWorkQueue({ data: state.data });
+  const allItems = deriveBankerWorkQueue({ data: state.data });
+  // P1-10 / P2-17 — in 'alerts' mode restrict to the shared ALERT tier so the "My Alerts" tab shows
+  // exactly the urgent items its badge counts, not the full work list.
+  const items = filter === 'alerts' ? filterAlertWorkItems(allItems) : allItems;
+  const isAlerts = filter === 'alerts';
+  const title = isAlerts ? 'My Alerts' : 'My Work Queue';
   const visible = items.slice(0, MAX_WORK_QUEUE_ROWS);
   const counts = countBySeverity(items);
 
   if (items.length === 0) {
     return (
       <Card>
-        <CardHeader title="My Work Queue" subtitle="No urgent work items." />
+        <CardHeader
+          title={title}
+          subtitle={isAlerts ? 'No urgent alerts.' : 'No urgent work items.'}
+        />
         <p style={styles.empty}>
-          No urgent work items across your active deals at this time. Keep an
-          eye on Personal Pipeline for upcoming closings.
+          {isAlerts
+            ? 'No blocked or overdue items across your active deals right now. Check Tasks & Actions for upcoming and at-risk work.'
+            : 'No urgent work items across your active deals at this time. Keep an eye on Personal Pipeline for upcoming closings.'}
         </p>
       </Card>
     );
@@ -237,7 +256,7 @@ export function MyWorkQueue() {
     <>
       <Card>
         <CardHeader
-          title="My Work Queue"
+          title={title}
           subtitle={subtitleForCounts(counts)}
           trailing={
             <Badge variant={overallSeverityKey(counts)}>

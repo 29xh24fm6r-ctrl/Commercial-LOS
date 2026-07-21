@@ -416,9 +416,11 @@ function TabContent({
         </div>
       );
     case 'my-alerts':
+      // P1-10 / P2-17 — the My Alerts badge counts the urgent (blocked + overdue) tier, so its
+      // destination shows exactly that alert slice, not the full Tasks & Actions work list.
       return (
         <div style={styles.tabStack}>
-          <MyWorkQueue />
+          <MyWorkQueue filter="alerts" />
         </div>
       );
     case 'signals':

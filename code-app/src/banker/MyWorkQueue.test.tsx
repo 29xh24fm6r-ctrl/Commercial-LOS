@@ -601,3 +601,77 @@ describe('MyWorkQueue — Phase 55 review integration', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('MyWorkQueue — P1-10 / P2-17 alerts filter (My Alerts destination)', () => {
+  function closingSoon(): string {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 5); // within CLOSING_SOON_DAYS → an 'upcoming' (non-alert) item
+    d.setUTCHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+
+  // One alert item (overdue document on deal-77) + one non-alert item (a deal closing soon).
+  function mixedData(): BankerWorkQueueData {
+    return {
+      ...workQueueData(),
+      deals: [
+        ...workQueueData().deals,
+        {
+          id: 'deal-88',
+          name: 'Beta Bridge Loan',
+          clientName: 'Beta',
+          stage: 'Underwriting',
+          status: 'Active',
+          amount: 500_000,
+          targetCloseDate: closingSoon(),
+          lastActivityOn: undefined,
+          stageEntryDate: new Date().toISOString(),
+          isClosed: false,
+          collateralSummary: undefined,
+        },
+      ],
+    };
+  }
+
+  it('default (Tasks & Actions) shows BOTH the overdue alert and the closing-soon item', async () => {
+    loadMock.mockResolvedValue(mixedData());
+    render(<MyWorkQueue />);
+    expect(await screen.findByText(/personal financial statement/i)).toBeInTheDocument();
+    // The deal name appears in both the row title and the "Deal:" meta line — assert at least one.
+    expect(screen.getAllByText(/beta bridge loan/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('My Work Queue')).toBeInTheDocument();
+  });
+
+  it("alerts mode shows ONLY the urgent alert item and titles the surface 'My Alerts'", async () => {
+    loadMock.mockResolvedValue(mixedData());
+    render(<MyWorkQueue filter="alerts" />);
+    expect(await screen.findByText(/personal financial statement/i)).toBeInTheDocument();
+    // The closing-soon (upcoming) item is NOT an alert — it must not appear at the My Alerts destination.
+    expect(screen.queryByText(/beta bridge loan/i)).not.toBeInTheDocument();
+    expect(screen.getByText('My Alerts')).toBeInTheDocument();
+  });
+
+  it('alerts mode with no blocked/overdue items shows the honest empty-alerts state', async () => {
+    // Only a closing-soon (upcoming) item, no alerts.
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      deals: [
+        {
+          id: 'deal-88',
+          name: 'Beta Bridge Loan',
+          clientName: 'Beta',
+          stage: 'Underwriting',
+          status: 'Active',
+          amount: 500_000,
+          targetCloseDate: closingSoon(),
+          lastActivityOn: undefined,
+          stageEntryDate: new Date().toISOString(),
+          isClosed: false,
+          collateralSummary: undefined,
+        },
+      ],
+    });
+    render(<MyWorkQueue filter="alerts" />);
+    expect(await screen.findByText(/no blocked or overdue items/i)).toBeInTheDocument();
+  });
+});
