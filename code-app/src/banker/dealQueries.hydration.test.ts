@@ -65,7 +65,7 @@ describe('Phase 170L — loadBankerPipeline stage/status hydration', () => {
         }),
       ],
     });
-    const out = await loadBankerPipeline('banker-1');
+    const out = await loadBankerPipeline('banker-1', { includeTestDeals: true });
     expect(out[0].stage).toBe('TEST - Stage Phase 121');
   });
 
@@ -79,7 +79,7 @@ describe('Phase 170L — loadBankerPipeline stage/status hydration', () => {
         }),
       ],
     });
-    const out = await loadBankerPipeline('banker-1');
+    const out = await loadBankerPipeline('banker-1', { includeTestDeals: true });
     expect(out[0].status).toBe('TEST — Status Phase 121');
   });
 
@@ -94,7 +94,7 @@ describe('Phase 170L — loadBankerPipeline stage/status hydration', () => {
         }),
       ],
     });
-    const out = await loadBankerPipeline('banker-1');
+    const out = await loadBankerPipeline('banker-1', { includeTestDeals: true });
     expect(out[0].stage).toBe('TEST - Stage Phase 121');
   });
 
@@ -108,7 +108,7 @@ describe('Phase 170L — loadBankerPipeline stage/status hydration', () => {
         }),
       ],
     });
-    const out = await loadBankerPipeline('banker-1');
+    const out = await loadBankerPipeline('banker-1', { includeTestDeals: true });
     expect(out[0].stage).toBe('Legacy Stage');
     expect(out[0].status).toBe('Legacy Status');
   });
@@ -122,7 +122,7 @@ describe('Phase 170L — loadBankerPipeline stage/status hydration', () => {
         }),
       ],
     });
-    const out = await loadBankerPipeline('banker-1');
+    const out = await loadBankerPipeline('banker-1', { includeTestDeals: true });
     expect(out[0].status).toBe('Active');
   });
 
@@ -136,13 +136,13 @@ describe('Phase 170L — loadBankerPipeline stage/status hydration', () => {
         }),
       ],
     });
-    const out = await loadBankerPipeline('banker-1');
+    const out = await loadBankerPipeline('banker-1', { includeTestDeals: true });
     expect(out[0].stage).toBe('Shadow Stage Wins');
   });
 
   it('6. surfaces honest undefined and never leaks a GUID when no display value exists', async () => {
     getAllMock.mockResolvedValue({ success: true, data: [dealRow()] });
-    const out = await loadBankerPipeline('banker-1');
+    const out = await loadBankerPipeline('banker-1', { includeTestDeals: true });
     expect(out[0].stage).toBeUndefined();
     expect(out[0].status).toBeUndefined();
     // The deal id is still carried, but must never leak into stage/status.
@@ -191,13 +191,13 @@ describe('Phase 170L — end-to-end: hydrated pipeline suppresses the missing-st
         }),
       ],
     });
-    const items = deriveFrom(await loadBankerPipeline('banker-1'));
+    const items = deriveFrom(await loadBankerPipeline('banker-1', { includeTestDeals: true }));
     expect(items.some((i) => i.title === 'Stage not set')).toBe(false);
   });
 
   it('4. still emits "Stage not set" when neither lookup nor shadow has a stage', async () => {
     getAllMock.mockResolvedValue({ success: true, data: [dealRow()] });
-    const items = deriveFrom(await loadBankerPipeline('banker-1'));
+    const items = deriveFrom(await loadBankerPipeline('banker-1', { includeTestDeals: true }));
     expect(items.some((i) => i.title === 'Stage not set')).toBe(true);
   });
 });
@@ -224,5 +224,31 @@ describe('Phase 170L — read-only / scope discipline', () => {
     // Hydration reads the deal-reference lookup formatted value, never a raw id.
     expect(SRC).toMatch(/getLookupFormattedValue\(raw, 'cr664_stagereference'\)/);
     expect(SRC).not.toMatch(/_cr664_stagereference_value['"`]\s*\]/); // never surfaces the raw _value id
+  });
+});
+
+describe('P1-11 — loadBankerPipeline excludes classified test/smoke deals by default', () => {
+  beforeEach(() => getAllMock.mockReset());
+
+  it('EXCLUDES the [SMOKE TEST ...] deal from the normal (default) banker pipeline', async () => {
+    getAllMock.mockResolvedValue({ success: true, data: [dealRow()] });
+    const out = await loadBankerPipeline('banker-1');
+    expect(out).toHaveLength(0); // the supervised smoke deal must not inflate operational counts
+  });
+
+  it('INCLUDES it under the authorized admin opt-in (nothing is deleted)', async () => {
+    getAllMock.mockResolvedValue({ success: true, data: [dealRow()] });
+    const out = await loadBankerPipeline('banker-1', { includeTestDeals: true });
+    expect(out).toHaveLength(1);
+    expect(out[0]!.id).toBe(SMOKE_DEAL_ID);
+  });
+
+  it('keeps a real operational deal alongside an excluded smoke deal', async () => {
+    getAllMock.mockResolvedValue({
+      success: true,
+      data: [dealRow(), dealRow({ cr664_loandealid: 'real-1', cr664_dealname: 'Acme Expansion' })],
+    });
+    const out = await loadBankerPipeline('banker-1');
+    expect(out.map((d) => d.name)).toEqual(['Acme Expansion']);
   });
 });
