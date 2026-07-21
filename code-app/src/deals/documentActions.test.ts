@@ -369,6 +369,9 @@ describe('markDocumentReceived', () => {
     expect(
       Number.isNaN(new Date(payload.cr664_receiveddate as string).getTime()),
     ).toBe(false);
+    // Defect 8: also stamps the CANONICAL requirement status (under_review) so the Documents panel
+    // and the Document Requirements workspace read the same lifecycle state.
+    expect(payload.cr664_requirementstatus).toBe(788190103);
   });
 
   it('emits an audit event with Outstanding → Received state and the receiveddate fieldname', async () => {
@@ -553,7 +556,7 @@ describe('markDocumentReviewed', () => {
     expect(timelineCreate).toHaveBeenCalledTimes(1);
   });
 
-  it('writes cr664_reviewer (and ONLY cr664_reviewer) on the document', async () => {
+  it('writes cr664_reviewer + the canonical reviewed status, and preserves the received/upload/request fields', async () => {
     docUpdate.mockReturnValue(successUpdate());
     auditCreate.mockReturnValue(successAudit('a-1'));
     timelineCreate.mockReturnValue(successTimeline('t-1'));
@@ -565,8 +568,9 @@ describe('markDocumentReviewed', () => {
       expect.objectContaining({ cr664_reviewer: 'M. Paller' }),
     );
     const payload = docUpdate.mock.calls[0]![1] as Record<string, unknown>;
-    // Phase 55 must NOT touch any other field on the row — the binary
-    // / uploadStatus / receiveddate state is preserved.
+    // Defect 8: stamps the CANONICAL requirement status (reviewed) so the Documents panel and the
+    // Document Requirements workspace agree — the file/received/request state is NOT clobbered.
+    expect(payload.cr664_requirementstatus).toBe(788190104);
     expect(payload.cr664_receiveddate).toBeUndefined();
     expect(payload.cr664_uploadstatus).toBeUndefined();
     expect(payload.cr664_requestdate).toBeUndefined();
