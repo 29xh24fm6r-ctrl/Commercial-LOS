@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { hydrateDealIndustryFromCrm } from './hydrateDealIndustryFromCrm';
+import { hydrateDealIndustryFromCrm, refreshDealIndustryFromCrm } from './hydrateDealIndustryFromCrm';
 import type { DealIndustryProjection } from '../crm/dealIndustryProjection';
 
 const derived: DealIndustryProjection = {
@@ -9,6 +9,15 @@ const derived: DealIndustryProjection = {
   sectorCode: '56',
   sectorTitle: 'Administrative and Support Services',
   dealIndustry: 'Other',
+};
+
+const derivedManufacturing: DealIndustryProjection = {
+  kind: 'derived',
+  organizationId: 'org-9',
+  naicsCode: '332710',
+  sectorCode: '31-33',
+  sectorTitle: 'Manufacturing',
+  dealIndustry: 'Manufacturing',
 };
 
 describe('hydrateDealIndustryFromCrm — link/edit → governed apply', () => {
@@ -54,5 +63,40 @@ describe('hydrateDealIndustryFromCrm — link/edit → governed apply', () => {
     });
     expect(res.appliedPatch).toBeUndefined();
     expect(res.hydration.source).toBe('crm-derived'); // decision unchanged; only the persist failed
+  });
+});
+
+describe('refreshDealIndustryFromCrm — P1-7 explicit, provenance-aware refresh', () => {
+  it('refreshes a previously CRM-derived industry after a later NAICS change (governed apply)', async () => {
+    const applyDealIndustry = vi.fn(async () => ({ ok: true, verified: { industry: 'Manufacturing' } }));
+    const res = await refreshDealIndustryFromCrm('client-1', 'Other', 'crm-derived', {
+      loadProjection: async () => derivedManufacturing,
+      applyDealIndustry,
+    });
+    expect(applyDealIndustry).toHaveBeenCalledWith('Manufacturing');
+    expect(res.decision.action).toBe('apply');
+    expect(res.decision.previousIndustry).toBe('Other');
+    expect(res.appliedPatch).toEqual({ industry: 'Manufacturing' });
+  });
+
+  it('preserves an explicit manual override — never writes even when the derivation differs', async () => {
+    const applyDealIndustry = vi.fn(async () => ({ ok: true }));
+    const res = await refreshDealIndustryFromCrm('client-1', 'Healthcare', 'manual', {
+      loadProjection: async () => derivedManufacturing,
+      applyDealIndustry,
+    });
+    expect(applyDealIndustry).not.toHaveBeenCalled();
+    expect(res.decision.action).toBe('keep-manual');
+    expect(res.appliedPatch).toBeUndefined();
+  });
+
+  it('does not write when the derived value is already up to date', async () => {
+    const applyDealIndustry = vi.fn(async () => ({ ok: true }));
+    const res = await refreshDealIndustryFromCrm('client-1', 'Other', 'crm-derived', {
+      loadProjection: async () => derived,
+      applyDealIndustry,
+    });
+    expect(applyDealIndustry).not.toHaveBeenCalled();
+    expect(res.decision.action).toBe('up-to-date');
   });
 });
