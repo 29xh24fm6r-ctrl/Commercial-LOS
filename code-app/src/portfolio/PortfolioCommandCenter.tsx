@@ -553,30 +553,51 @@ function BookKpiRibbon({ snapshot }: { snapshot: PortfolioBookSnapshot }) {
       ariaLabel: `${ribbon.unmappedRatingCount} boarded loans with unmapped risk ratings`,
     },
   ];
+  const unmapped = snapshot.unmappedRatingLoans;
   return (
-    <section
-      style={styles.commandStrip}
-      aria-label="Portfolio KPI ribbon"
-      data-portfolio-cockpit-section="book-kpi-ribbon"
-    >
-      {tiles.map((t) => {
-        const slug = t.label.toLowerCase().replace(/\s+/g, '-');
-        return (
-          <div
-            key={t.label}
-            style={{
-              ...styles.kpiTile,
-              borderTopColor: severityPalette[t.tone].bar,
-            }}
-            aria-label={t.ariaLabel}
-            data-portfolio-kpi={slug}
-          >
-            <span style={styles.kpiLabel}>{t.label}</span>
-            <span style={styles.kpiValue}>{t.value}</span>
-          </div>
-        );
-      })}
-    </section>
+    <>
+      <section
+        style={styles.commandStrip}
+        aria-label="Portfolio KPI ribbon"
+        data-portfolio-cockpit-section="book-kpi-ribbon"
+      >
+        {tiles.map((t) => {
+          const slug = t.label.toLowerCase().replace(/\s+/g, '-');
+          return (
+            <div
+              key={t.label}
+              style={{
+                ...styles.kpiTile,
+                borderTopColor: severityPalette[t.tone].bar,
+              }}
+              aria-label={t.ariaLabel}
+              data-portfolio-kpi={slug}
+            >
+              <span style={styles.kpiLabel}>{t.label}</span>
+              <span style={styles.kpiValue}>{t.value}</span>
+            </div>
+          );
+        })}
+      </section>
+      {unmapped.length > 0 && (
+        // P2-16 — the Unmapped ratings tile deep-links here: the exact loans whose risk-rating text the
+        // dual-rating mapping could not resolve. Count === this list length by construction.
+        <details style={styles.unmappedDrill} data-portfolio-unmapped-drilldown>
+          <summary style={styles.unmappedSummary}>
+            {unmapped.length} boarded loan{unmapped.length === 1 ? '' : 's'} with an unmapped risk rating — review
+          </summary>
+          <ul style={styles.unmappedList} aria-label="Boarded loans with unmapped risk ratings">
+            {unmapped.map((row) => (
+              <li key={row.id} style={styles.unmappedRow} data-portfolio-unmapped-loan={row.id}>
+                <span style={styles.unmappedLoanId}>{row.loanNumber ?? row.id}</span>
+                <span>{row.borrower ?? 'Unknown borrower'}</span>
+                <span style={styles.unmappedRating}>rating “{row.riskRating}” unmapped</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </>
   );
 }
 
@@ -1410,6 +1431,36 @@ const styles: Record<string, React.CSSProperties> = {
     color: palette.text,
     lineHeight: typography.lineHeight.tight,
   },
+  unmappedDrill: {
+    marginTop: spacing.xs,
+    padding: `${spacing.xs} ${spacing.sm}`,
+    background: palette.surfaceAlt,
+    border: `1px solid ${palette.divider}`,
+    borderRadius: radius.sm,
+  },
+  unmappedSummary: {
+    cursor: 'pointer',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: palette.text,
+  },
+  unmappedList: {
+    listStyle: 'none',
+    margin: `${spacing.xs} 0 0`,
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: spacing.xxs,
+  },
+  unmappedRow: {
+    display: 'flex',
+    gap: spacing.sm,
+    flexWrap: 'wrap' as const,
+    fontSize: typography.size.sm,
+    color: palette.textMuted,
+  },
+  unmappedLoanId: { fontWeight: typography.weight.semibold, color: palette.text },
+  unmappedRating: { fontStyle: 'italic' as const },
   analyticsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',

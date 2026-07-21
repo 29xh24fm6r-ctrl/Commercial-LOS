@@ -40,6 +40,13 @@ export interface PortfolioBookSnapshot {
   readonly isEmpty: boolean;
   readonly loans: readonly BoardedLoanRow[];
   readonly commandRibbon: PortfolioBookRibbon;
+  /**
+   * P2-16 — the exact boarded loans behind `commandRibbon.unmappedRatingCount`: rows that carry a
+   * risk-rating string the dual-rating mapping could not resolve to an obligor grade. The count is
+   * `unmappedRatingLoans.length` by construction, so the ribbon tile always reconciles with — and can
+   * deep-link to — this record set.
+   */
+  readonly unmappedRatingLoans: readonly BoardedLoanRow[];
   readonly byBorrower: readonly PortfolioBookConcentrationRow[];
   readonly byProduct: readonly PortfolioBookConcentrationRow[];
   readonly byRiskRating: readonly PortfolioBookConcentrationRow[];
@@ -144,16 +151,19 @@ export function derivePortfolioBookSnapshot(
   const rowsWithRatingText = loans.filter((row) => row.riskRating !== undefined);
   const criticizedCount = ratings.filter((rating) => rating.obligorGrade >= 5).length;
   const classifiedCount = ratings.filter((rating) => rating.obligorGrade >= 6).length;
+  // P2-16 — one predicate feeds both the count and the drill-through list, so they can never diverge.
+  const unmappedRatingLoans = rowsWithRatingText.filter((row) => !ratedLoanIds.has(row.id));
 
   return {
     isEmpty: loans.length === 0,
     loans,
+    unmappedRatingLoans,
     commandRibbon: {
       loanCount: loans.length,
       totalExposure,
       criticizedCount,
       classifiedCount,
-      unmappedRatingCount: rowsWithRatingText.filter((row) => !ratedLoanIds.has(row.id)).length,
+      unmappedRatingCount: unmappedRatingLoans.length,
       watchlistCount: loans.filter((row) => row.watchlist).length,
     },
     byBorrower: concentration(loans, totalExposure, (row) => row.borrower ?? 'Unknown borrower'),

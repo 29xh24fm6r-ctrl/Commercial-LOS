@@ -101,6 +101,31 @@ describe('derivePortfolioBookSnapshot', () => {
       outstanding: 8_000_000,
       sharePct: 80,
     });
+    // P2-16 — the unmapped list reconciles with the count and points at the exact loan ('b': 'Pass'
+    // carries a rating string the dual-rating map deliberately does not resolve).
+    expect(snapshot.unmappedRatingLoans).toHaveLength(snapshot.commandRibbon.unmappedRatingCount);
+    expect(snapshot.unmappedRatingLoans.map((r) => r.id)).toEqual(['b']);
+  });
+
+  it('P2-16: unmapped-rating count equals the drill-through list, and lists exactly the unmapped loans', () => {
+    const snapshot = derivePortfolioBookSnapshot(
+      [
+        loan({ id: 'rated', riskRating: 'Substandard', outstanding: 1_000_000 }),
+        loan({ id: 'unmapped-1', riskRating: 'Bank internal 4', outstanding: 500_000 }),
+        loan({ id: 'unmapped-2', riskRating: 'Pass', outstanding: 250_000 }),
+        loan({ id: 'no-rating-text', riskRating: undefined, outstanding: 100_000 }),
+      ],
+      [rating({ loanId: 'rated', obligorGrade: 6 })],
+      '2026-07-02T00:00:00.000Z',
+    );
+    // Count is derived from the list, so they cannot diverge.
+    expect(snapshot.commandRibbon.unmappedRatingCount).toBe(2);
+    expect(snapshot.unmappedRatingLoans).toHaveLength(2);
+    // Exactly the two loans with rating text that did not resolve to a dual rating.
+    expect(snapshot.unmappedRatingLoans.map((r) => r.id).sort()).toEqual(['unmapped-1', 'unmapped-2']);
+    // A loan WITHOUT rating text is not "unmapped" (nothing to map); a rated loan is excluded.
+    expect(snapshot.unmappedRatingLoans.map((r) => r.id)).not.toContain('no-rating-text');
+    expect(snapshot.unmappedRatingLoans.map((r) => r.id)).not.toContain('rated');
   });
 
   it('builds maturity and exposure bands from boarded loan dates and balances', () => {

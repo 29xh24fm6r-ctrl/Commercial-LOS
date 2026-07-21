@@ -360,6 +360,15 @@ describe('PE-WIRE-1 — boarded book branch', () => {
     expect(document.querySelector('[data-regulatory-classification-pool="empty"]')).toBeInTheDocument();
     expect(document.querySelector('[data-stress-test-form]')).toBeInTheDocument();
     expect(document.querySelector('[data-board-package="ready"]')).toBeInTheDocument();
+
+    // P2-16 — the Unmapped ratings tile (1) deep-links to a drill-through listing that exact loan,
+    // so the count reconciles with a record set the user can act on.
+    expect(screen.getByLabelText('1 boarded loans with unmapped risk ratings')).toBeInTheDocument();
+    const drill = document.querySelector('[data-portfolio-unmapped-drilldown]');
+    expect(drill).toBeInTheDocument();
+    const rows = drill?.querySelectorAll('[data-portfolio-unmapped-loan]');
+    expect(rows?.length).toBe(1);
+    expect(drill?.textContent).toMatch(/Bank internal 4/);
   });
 
   it('Phase 264 (P3) — a rated loan populates the classification pool and board package with real figures', async () => {
