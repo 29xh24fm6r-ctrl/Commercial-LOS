@@ -1,5 +1,6 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
+import { buildTeamVisibilityFilter } from '../shared/deals/dealVisibilityScopes';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
@@ -158,13 +159,22 @@ export interface TeamDeal {
  * Ordered by target close date asc so the closing-forecast and
  * at-risk computations can stream from the same ordered list.
  */
-export async function loadTeamPipeline(teamId: string): Promise<TeamDeal[]> {
+export interface LoadTeamPipelineOptions {
+  /**
+   * P0-4 — the team's member banker ids. When supplied, the scope ALSO includes active deals
+   * assigned to any of these bankers even if their Owning Team was skipped, so a legitimate deal
+   * never disappears from Manager oversight (see dealVisibilityScopes). Omitted = team-owned only
+   * (backwards-compatible).
+   */
+  readonly memberBankerIds?: readonly string[];
+}
+
+export async function loadTeamPipeline(
+  teamId: string,
+  options: LoadTeamPipelineOptions = {},
+): Promise<TeamDeal[]> {
   const result = await Cr664_loandealsService.getAll({
-    filter: [
-      `_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-      `(cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilter(teamId, { memberBankerIds: options.memberBankerIds }),
     orderBy: ['cr664_targetclosedate asc'],
   });
 

@@ -1,5 +1,6 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
+import { buildTeamVisibilityFilter } from '../shared/deals/dealVisibilityScopes';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
@@ -142,13 +143,22 @@ export interface TeamDealRow {
   pricingType?: string | undefined;
 }
 
-export async function loadTeamDeals(teamId: string): Promise<TeamDealRow[]> {
+export interface LoadTeamDealsOptions {
+  /**
+   * P0-4 — the team's member banker ids. When provided, the team scope ALSO includes active deals
+   * assigned to any of these bankers even if their Owning Team was skipped, so a legitimate deal
+   * never disappears from Team/Manager oversight (see dealVisibilityScopes). Omitted = team-owned only
+   * (backwards-compatible).
+   */
+  readonly memberBankerIds?: readonly string[];
+}
+
+export async function loadTeamDeals(
+  teamId: string,
+  options: LoadTeamDealsOptions = {},
+): Promise<TeamDealRow[]> {
   const result = await Cr664_loandealsService.getAll({
-    filter: [
-      `_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-      `(cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilter(teamId, { memberBankerIds: options.memberBankerIds }),
     orderBy: ['cr664_targetclosedate asc'],
   });
   if (!result.success) {
@@ -200,6 +210,23 @@ export async function loadTeamDeals(teamId: string): Promise<TeamDealRow[]> {
         d.cr664_pricingtypereferencename,
     };
   });
+}
+
+/**
+ * P0-4 — active banker ids on the given team. Used by TeamDataProvider to activate the Owning-Team
+ * fallback in `loadTeamDeals` (deals owned by the team OR assigned to a team member, so a deal whose
+ * Owning Team was skipped still surfaces to the team). Mirrors the manager workspace's
+ * `loadTeamBankers`; the duplication is one OData filter, justified by the src/team↔src/manager
+ * role-isolation invariant (a team file cannot import a manager file).
+ */
+export async function loadTeamMemberBankerIds(teamId: string): Promise<string[]> {
+  const result = await Cr664_bankersService.getAll({
+    filter: [`_cr664_team_value eq ${teamId}`, `statecode eq 0`].join(' and '),
+  });
+  if (!result.success) {
+    throw new Error(result.error?.message ?? 'Failed to load team member bankers');
+  }
+  return (result.data ?? []).map((b) => b.cr664_bankerid).filter((id): id is string => Boolean(id));
 }
 
 // ---------------------------------------------------------------------------
