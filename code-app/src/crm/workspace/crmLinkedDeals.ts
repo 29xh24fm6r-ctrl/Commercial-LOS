@@ -54,28 +54,69 @@ export function mapLinkedDeal(d: RawLoanDeal): LinkedDeal {
 
 const GUID = /^[0-9a-fA-F-]{36}$/;
 
+interface RawClientRelationship {
+  readonly cr664_clientrelationshipid: string;
+}
+
 /**
- * Live loader: the deals whose Client lookup is this organization. The org id is
- * a Dataverse GUID (validated — also blocks OData-filter injection). Fails closed
- * to 'unavailable' when the service is absent or the read fails.
+ * Live loader: the deals linked to this CRM company.
+ *
+ * DEFECT 6 root cause: a loan deal's `cr664_Client` lookup targets a
+ * cr664_CLIENTRELATIONSHIP, NOT the CRM organization. The old query filtered deals by
+ * `_cr664_client_value eq <organizationId>`, comparing a clientrelationship id to an organization id
+ * — which never matched, so a company with real linked deals showed "No deals are linked".
+ *
+ * Fix: resolve the org's bridged client relationship(s) FIRST, via the governed reverse link the
+ * bridge stamps (`cr664_Organization` → `_cr664_organization_value`), then load the deals whose
+ * Client lookup points at any of those client relationships. Purely id-based — similar company names
+ * can never cause a false match. Fails closed to 'unavailable'.
  */
 export const loadLinkedDealsForOrganization: LinkedDealsLoader = async (organizationId) => {
   const orgId = organizationId.trim();
   if (orgId.length === 0) return { status: 'ready', deals: [] };
   if (!GUID.test(orgId)) return { status: 'ready', deals: [] };
   try {
+    // Step 1 — the client relationship(s) bridged to this organization.
+    const { Cr664_clientrelationshipsService } = await import(
+      '../../generated/services/Cr664_clientrelationshipsService'
+    );
+    const rel = await Cr664_clientrelationshipsService.getAll({
+      select: ['cr664_clientrelationshipid'],
+      filter: `_cr664_organization_value eq ${orgId} and statecode eq 0`,
+      top: 50,
+    });
+    if (rel.success !== true) {
+      return { status: 'unavailable', reason: 'Linked deals could not be loaded.' };
+    }
+    const clientIds = (rel.data ?? [])
+      .map((r) => (r as unknown as RawClientRelationship).cr664_clientrelationshipid)
+      .filter((id): id is string => typeof id === 'string' && GUID.test(id.trim()));
+
+    // Step 2 — deals whose Client is any bridged relationship for this org. Also include a direct
+    // org-id match defensively (a legacy/direct link), unioned by deal id. All id-based, GUID-guarded
+    // (also blocks OData-filter injection).
+    const targetIds = [...new Set([...clientIds, orgId])];
+    const clientFilter = targetIds.map((id) => `_cr664_client_value eq ${id}`).join(' or ');
     const { Cr664_loandealsService } = await import('../../generated/services/Cr664_loandealsService');
     const res = await Cr664_loandealsService.getAll({
       select: ['cr664_loandealid', 'cr664_dealname', 'cr664_amount'],
       // Admin → Loan Removal (dealRemovalWrite.ts) deactivates a removed deal;
       // exclude it here so a withdrawn deal doesn't linger in the CRM widget.
-      filter: `_cr664_client_value eq ${orgId} and statecode eq 0`,
+      filter: `(${clientFilter}) and statecode eq 0`,
       top: 100,
     });
     if (res.success !== true) {
       return { status: 'unavailable', reason: 'Linked deals could not be loaded.' };
     }
-    return { status: 'ready', deals: (res.data ?? []).map((d) => mapLinkedDeal(d as RawLoanDeal)) };
+    const seen = new Set<string>();
+    const deals: LinkedDeal[] = [];
+    for (const d of res.data ?? []) {
+      const mapped = mapLinkedDeal(d as RawLoanDeal);
+      if (seen.has(mapped.id)) continue;
+      seen.add(mapped.id);
+      deals.push(mapped);
+    }
+    return { status: 'ready', deals };
   } catch {
     return { status: 'unavailable', reason: 'Linked deals are not available for this record yet.' };
   }
