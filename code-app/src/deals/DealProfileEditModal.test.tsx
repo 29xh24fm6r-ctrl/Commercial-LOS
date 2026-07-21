@@ -202,6 +202,49 @@ describe('DealProfileEditModal — fields + governed save', () => {
     expect(document.querySelector('[data-deal-profile-save]')).toBeDisabled();
   });
 
+  it('P2-14: a thrown governed write recovers into the outcome block (never hangs at "saving")', async () => {
+    setContext(deal());
+    setBanker();
+    // The governed adapter throws (e.g. dep construction / network fault) instead of resolving.
+    updateMock.mockRejectedValue(new Error('network down'));
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+    await user.selectOptions(document.querySelector('[data-deal-profile-field="industry"]') as HTMLSelectElement, 'Retail');
+    await user.click(document.querySelector('[data-deal-profile-save]') as HTMLButtonElement);
+
+    // Recovers into the honest write-failed outcome (pending cleared, controls restored) — not stuck.
+    await waitFor(() =>
+      expect(document.querySelector('[data-deal-profile-outcome="write-failed"]')).not.toBeNull(),
+    );
+    expect(screen.getByText(/network down/i)).toBeInTheDocument();
+    // A Back/Close control exists so the banker can recover.
+    expect(document.querySelector('[data-deal-profile-done]')).not.toBeNull();
+    expect(applyPatch).not.toHaveBeenCalled();
+  });
+
+  it('P2-14: duplicate-submit is ignored — a slow save is only invoked once despite repeated clicks', async () => {
+    setContext(deal());
+    setBanker();
+    let resolveUpdate: (v: unknown) => void = () => {};
+    updateMock.mockImplementation(
+      () => new Promise((res) => { resolveUpdate = res; }),
+    );
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+    await user.selectOptions(document.querySelector('[data-deal-profile-field="industry"]') as HTMLSelectElement, 'Retail');
+    const saveBtn = document.querySelector('[data-deal-profile-save]') as HTMLButtonElement;
+    await user.click(saveBtn);
+    // Button is disabled while in flight; further clicks must not re-invoke the adapter.
+    expect(saveBtn).toBeDisabled();
+    await user.click(saveBtn);
+    await user.click(saveBtn);
+    resolveUpdate({ kind: 'updated', dealId: 'deal-1', correlationId: 'x', verified: { industry: 'Retail' }, changedLabels: ['Industry'], auditId: 'a' });
+    await waitFor(() => expect(screen.getByText(/Deal profile saved/i)).toBeInTheDocument());
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
   it('a readback mismatch is an honest failure and does NOT update the cockpit', async () => {
     setContext(deal());
     setBanker();
