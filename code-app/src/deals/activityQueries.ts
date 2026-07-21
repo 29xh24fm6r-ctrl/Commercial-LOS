@@ -70,6 +70,24 @@ function lookupEventTypeKey(v: unknown): TimelineEventTypeKey | undefined {
 const VISIBILITY_ADMIN_ONLY = 788190003;
 
 /**
+ * Resolve the acting user's DISPLAY NAME for a timeline row.
+ *
+ * Root cause of the "By Unknown user" defect: the render read `cr664_eventbyname`, a separate text
+ * column that the governed writes never populate — they bind the `cr664_EventBy` LOOKUP (to
+ * cr664_user) only. The Dataverse-standard way to read a lookup's display text is the FormattedValue
+ * annotation on the lookup's `*_value` field (the same pattern dealTaskQueries uses for the assignee).
+ * We prefer that; fall back to the legacy name column if it happens to be set; otherwise undefined so
+ * the render can honestly show "Unknown user" only when the actor truly could not be resolved.
+ */
+function resolveActorName(raw: Record<string, unknown>): string | undefined {
+  const formatted = raw['_cr664_eventby_value@OData.Community.Display.V1.FormattedValue'];
+  if (typeof formatted === 'string' && formatted.trim().length > 0) return formatted;
+  const legacy = raw['cr664_eventbyname'];
+  if (typeof legacy === 'string' && legacy.trim().length > 0) return legacy;
+  return undefined;
+}
+
+/**
  * Load all visible timeline events for the given deal. Caller must
  * have already authorized read access to dealId via loadDealForBanker;
  * DealDataProvider only mounts after BankerDealWorkspace is 'ready'.
@@ -106,7 +124,7 @@ export async function loadDealActivity(dealId: string): Promise<TimelineEvent[]>
       eventTypeKey: lookupEventTypeKey(e.cr664_eventtype),
       eventSubType: e.cr664_eventsubtype,
       isSystemGenerated: e.cr664_issystemgenerated === true,
-      actorName: e.cr664_eventbyname,
+      actorName: resolveActorName(e as unknown as Record<string, unknown>),
       relatedEntityType: e.cr664_relatedentitytype,
       relatedEntityId: e.cr664_relatedentityid,
     }),
