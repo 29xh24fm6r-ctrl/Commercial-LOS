@@ -163,8 +163,20 @@ function deriveClosingBlockers(
 ): LoanWorkflowBlocker[] {
   if (stage.closingRequirements.length === 0) return [];
   if (missingDocuments.length === 0 && missingTasks.length === 0) return [];
+  // D13: there is no real conditions-precedent / post-close-exception record
+  // behind these labels -- this proxy only knows the stage has an outstanding
+  // required document or task. The old "Closing blocker: <label>" copy
+  // implied the labeled condition itself had been checked and failed, which
+  // overstates precision this check doesn't have. Name the actual missing
+  // item(s) instead so the banker isn't sent chasing a condition-precedent
+  // review when the real gap is, say, an unrelated missing document.
+  const outstanding = [...missingDocuments, ...missingTasks].map((item) => item.label);
   return stage.closingRequirements.map((requirement) =>
-    blocker(requirement, 'blocked', `Closing blocker: ${requirement.label}`),
+    blocker(
+      requirement,
+      'blocked',
+      `${requirement.label} cannot be confirmed while this stage has an outstanding requirement: ${outstanding.join(', ')}. Resolve it, then re-check.`,
+    ),
   );
 }
 

@@ -259,13 +259,20 @@ export function PortfolioCommandCenterBook() {
         snapshot={book?.classificationSnapshot ?? deriveRegulatoryClassificationSnapshot([])}
       />
       <EarlyWarningPanel queue={book?.earlyWarningQueue} />
-      <ExceptionQueuePanel queues={[]} />
+      {/* D9 remediation: the credit-admin exception feed (document/core-data
+          completeness) has no live loader yet — pass dataAvailable={false} so
+          the panel shows an honest "not connected" state instead of implying
+          a confirmed-clean queue. See covenantMonitoring.ts's WIRE-candidate
+          note in intentionallyUnrouted.ts. */}
+      <ExceptionQueuePanel queues={[]} dataAvailable={false} />
       <WatchlistBoardPanel board={book?.watchlistBoard} />
-      <CovenantReviewPanel
-        reviewQueue={book?.reviewQueue}
-        covenantBreachCount={0}
-        covenantAtRiskCount={0}
-      />
+      {/* D9 remediation: covenant breach/trend-to-breach detection (DSCR,
+          leverage, liquidity, TNW, current ratio over real financials) has no
+          live loader yet either — omit the counts so the panel renders "Not
+          available" rather than a fabricated 0. reviewQueue itself IS real
+          (derived from live boarded-loan review-cadence data) and is
+          unaffected. */}
+      <CovenantReviewPanel reviewQueue={book?.reviewQueue} />
       <LoanReviewPanel scope={book?.loanReviewScope} />
       <ExistingPortfolioLoansPanel
         actorEmail={undefined}

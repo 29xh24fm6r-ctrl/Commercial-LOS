@@ -19,4 +19,19 @@ describe('ExceptionQueuePanel', () => {
     expect(within(panel).getByText(/open/i)).toBeInTheDocument();
     expect(panel.querySelector('[data-exception-by-type]')).not.toBeNull();
   });
+
+  it('D9 — discloses an unwired feed as "not-available", never as a confirmed-clean queue', () => {
+    render(<ExceptionQueuePanel queues={[]} dataAvailable={false} />);
+    const panel = screen.getByLabelText('Credit-admin exceptions');
+    expect(panel).toHaveAttribute('data-exception-queue', 'not-available');
+    expect(panel).toHaveTextContent(/not yet connected/i);
+    expect(panel).not.toHaveTextContent(/^No open exceptions\./);
+  });
+
+  it('D9 — dataAvailable defaults to true so existing honest-zero callers are unaffected', () => {
+    render(<ExceptionQueuePanel queues={[]} />);
+    const panel = screen.getByLabelText('Credit-admin exceptions');
+    expect(panel).toHaveAttribute('data-exception-queue', 'empty');
+    expect(panel).toHaveTextContent(/No open exceptions/);
+  });
 });

@@ -352,7 +352,10 @@ describe('PE-WIRE-1 — boarded book branch', () => {
     expect(document.querySelector('[data-watchlist="ready"]')).toBeInTheDocument();
     expect(document.querySelector('[data-covenant-review="ready"]')).toBeInTheDocument();
     expect(document.querySelector('[data-loan-review="ready"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-exception-queue="empty"]')).toBeInTheDocument();
+    // D9 remediation: the exception feed has no live loader yet, so the panel
+    // now renders an honest "not-available" state instead of implying a
+    // confirmed-clean queue (see ExceptionQueuePanel's dataAvailable prop).
+    expect(document.querySelector('[data-exception-queue="not-available"]')).toBeInTheDocument();
 
     // Phase 264 (P3) — new panels render (honestly empty, since boardedLoan()'s
     // "Bank internal 4" rating is deliberately unmapped, so no rated loan feeds

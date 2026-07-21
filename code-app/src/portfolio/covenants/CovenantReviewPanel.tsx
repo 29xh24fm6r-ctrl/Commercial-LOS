@@ -17,6 +17,12 @@ interface ReviewQueueLike {
 
 interface Props {
   readonly reviewQueue?: ReviewQueueLike;
+  /**
+   * `undefined`/omitted means the covenant-test feed (DSCR/leverage/liquidity/
+   * TNW/current-ratio breach detection over real financials) isn't wired to a
+   * live source yet — rendered as "Not available", distinct from a genuine,
+   * checked zero. Pass an explicit number (including 0) once the feed is live.
+   */
   readonly covenantBreachCount?: number;
   readonly covenantAtRiskCount?: number;
 }
@@ -27,9 +33,11 @@ const STATUS_TONE: Record<'current' | 'due_soon' | 'overdue', 'clear' | 'atRisk'
   overdue: 'blocked',
 };
 
-export function CovenantReviewPanel({ reviewQueue, covenantBreachCount = 0, covenantAtRiskCount = 0 }: Props) {
+export function CovenantReviewPanel({ reviewQueue, covenantBreachCount, covenantAtRiskCount }: Props) {
   const entries = reviewQueue?.entries ?? [];
-  const hasContent = entries.length > 0 || covenantBreachCount > 0 || covenantAtRiskCount > 0;
+  const breachKnown = typeof covenantBreachCount === 'number';
+  const atRiskKnown = typeof covenantAtRiskCount === 'number';
+  const hasContent = entries.length > 0 || (breachKnown && covenantBreachCount! > 0) || (atRiskKnown && covenantAtRiskCount! > 0);
 
   if (!hasContent) {
     return (
@@ -38,8 +46,9 @@ export function CovenantReviewPanel({ reviewQueue, covenantBreachCount = 0, cove
           <h3 style={styles.title}>Covenants & reviews</h3>
         </header>
         <p style={styles.guidance}>
-          No reviews due and no covenant breaches. Review cadence tightens with the loan grade; covenant
+          No reviews due{breachKnown && atRiskKnown ? ' and no covenant breaches' : ''}. Review cadence tightens with the loan grade; covenant
           tests (DSCR, leverage, liquidity, TNW, current ratio) surface breaches and trend-to-breach here.
+          {!(breachKnown && atRiskKnown) && ' Covenant breach/trend-to-breach detection is not connected to a live data source yet — this is not a confirmed-clean result for that part.'}
         </p>
       </section>
     );
@@ -55,8 +64,8 @@ export function CovenantReviewPanel({ reviewQueue, covenantBreachCount = 0, cove
       <div style={styles.heroRow}>
         <Hero label="Reviews overdue" value={String(reviewQueue?.overdue ?? 0)} tone={(reviewQueue?.overdue ?? 0) > 0 ? 'blocked' : 'clear'} />
         <Hero label="Reviews due soon" value={String(reviewQueue?.dueSoon ?? 0)} tone={(reviewQueue?.dueSoon ?? 0) > 0 ? 'atRisk' : 'clear'} />
-        <Hero label="Covenant breaches" value={String(covenantBreachCount)} tone={covenantBreachCount > 0 ? 'blocked' : 'clear'} />
-        <Hero label="Trend to breach" value={String(covenantAtRiskCount)} tone={covenantAtRiskCount > 0 ? 'atRisk' : 'clear'} />
+        <Hero label="Covenant breaches" value={breachKnown ? String(covenantBreachCount) : 'Not available'} tone={breachKnown && covenantBreachCount! > 0 ? 'blocked' : 'clear'} />
+        <Hero label="Trend to breach" value={atRiskKnown ? String(covenantAtRiskCount) : 'Not available'} tone={atRiskKnown && covenantAtRiskCount! > 0 ? 'atRisk' : 'clear'} />
       </div>
 
       {entries.length > 0 && (

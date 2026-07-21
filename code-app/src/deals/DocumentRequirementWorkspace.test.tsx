@@ -77,6 +77,15 @@ describe('DocumentRequirementWorkspace', () => {
     expect(within(debtScheduleRow).getByText('Required — Reviewed')).toBeInTheDocument();
   });
 
+  it('D6 — discloses that checklist generation is disabled by default, so there is no undiscoverable button', async () => {
+    loadMock.mockResolvedValue({ kind: 'ready', rows: rowsFixture() });
+    render(<DocumentRequirementWorkspace dealId="deal-1" deal={deal} banker={banker} />);
+
+    await screen.findByText('Loan Application');
+    const notice = screen.getByText(/document checklist generation is disabled by default/i);
+    expect(notice).toBeInTheDocument();
+  });
+
   it('refresh preserves all states: acknowledging one row reloads and leaves an unrelated row exactly as it was', async () => {
     loadMock.mockResolvedValueOnce({ kind: 'ready', rows: rowsFixture('not_assessed') });
     render(<DocumentRequirementWorkspace dealId="deal-1" deal={deal} banker={banker} />);
