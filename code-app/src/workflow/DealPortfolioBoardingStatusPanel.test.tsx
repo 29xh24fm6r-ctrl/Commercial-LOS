@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../deals/DealDataProvider', () => ({ useDealData: vi.fn() }));
 
@@ -27,7 +26,7 @@ describe('DealPortfolioBoardingStatusPanel — real boarding-handoff evidence, n
   it('a pre-boarding stage (Closing & Funding) uses the honest stage-only signal, no live evidence lookup', () => {
     setup('Closing & Funding');
     const loadHandoff = vi.fn();
-    render(<MemoryRouter><DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} /></MemoryRouter>);
+    render(<DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} />);
     expect(screen.getByText('Ready for portfolio boarding')).toBeInTheDocument();
     expect(loadHandoff).not.toHaveBeenCalled();
   });
@@ -43,7 +42,7 @@ describe('DealPortfolioBoardingStatusPanel — real boarding-handoff evidence, n
       blockers: [],
     };
     const loadHandoff = vi.fn(async () => readiness);
-    render(<MemoryRouter><DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} /></MemoryRouter>);
+    render(<DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} />);
     expect(screen.getByText('Verifying…')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Boarded')).toBeInTheDocument());
     expect(loadHandoff).toHaveBeenCalledWith('deal-1', 'Boarded / Servicing');
@@ -61,7 +60,7 @@ describe('DealPortfolioBoardingStatusPanel — real boarding-handoff evidence, n
       blockers: ['Deal stage is BOARDED but no active cr664_portfolioboardedloans handoff record exists for this deal; the closing→servicing handoff is unproven (fail-closed).'],
     };
     const loadHandoff = vi.fn(async () => readiness);
-    render(<MemoryRouter><DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} /></MemoryRouter>);
+    render(<DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} />);
     await waitFor(() => expect(screen.getByText('Requires completion')).toBeInTheDocument());
     expect(screen.getByText(/unproven \(fail-closed\)/i)).toBeInTheDocument();
     expect(screen.queryByText('Boarded')).toBeNull();
@@ -79,7 +78,7 @@ describe('DealPortfolioBoardingStatusPanel — real boarding-handoff evidence, n
   it('a pre-BOARDED stage never checks for a premature handoff record — the panel reflects the honest stage-only signal', () => {
     setup('Underwriting');
     const loadHandoff = vi.fn();
-    render(<MemoryRouter><DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} /></MemoryRouter>);
+    render(<DealPortfolioBoardingStatusPanel loadHandoff={loadHandoff} />);
     expect(loadHandoff).not.toHaveBeenCalled();
     expect(screen.getByText('Not ready for boarding')).toBeInTheDocument();
   });
