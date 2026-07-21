@@ -34,6 +34,44 @@ export function isCanonicalStatusCode(value: string): value is DealStatusCode {
   return CANONICAL_STATUS_SET.has(value);
 }
 
+/**
+ * Ratified display names — mirrors `scripts/seed-stage-references.mjs`'s `STATUS_SEEDS` exactly, the
+ * same pattern `stageOrderingContract.ts`'s `CANONICAL_STAGES`/`recognizeCanonicalStage` uses for
+ * stages. `deal.status` (from `dealQueries.ts`) is the seeded row's display NAME, not its code — this
+ * is the single place that maps one to the other.
+ */
+const CANONICAL_STATUS_NAMES: Readonly<Record<DealStatusCode, string>> = {
+  OPEN: 'Open',
+  ON_HOLD: 'On Hold',
+  DECLINED: 'Declined',
+  WITHDRAWN: 'Withdrawn',
+  BOARDED: 'Boarded',
+};
+
+const STATUS_NAME_TO_CODE: ReadonlyMap<string, DealStatusCode> = new Map(
+  CANONICAL_STATUS_CODES.map((code) => [CANONICAL_STATUS_NAMES[code].toLowerCase(), code]),
+);
+
+/**
+ * Governance initiative (2026-07-21) — recognize a stored deal-status string (name or exact code) as
+ * a canonical `DealStatusCode`. Returns `undefined` for anything unrecognized — NEVER a guessed
+ * default (in particular, never silently defaults to `OPEN`, since guessing "open/actionable" for a
+ * status the app cannot actually identify could wrongly permit further governed transitions on a
+ * deal whose true disposition is unknown). Callers must fail closed on `undefined`, exactly like
+ * `resolveStageOrdering`'s `unavailable` result.
+ */
+export function recognizeCanonicalStatus(stored: string | null | undefined): DealStatusCode | undefined {
+  const v = (stored ?? '').trim();
+  if (v.length === 0) return undefined;
+  if (isCanonicalStatusCode(v.toUpperCase())) return v.toUpperCase() as DealStatusCode;
+  return STATUS_NAME_TO_CODE.get(v.toLowerCase());
+}
+
+/** The ratified display name for a canonical status code — the inverse of `recognizeCanonicalStatus`. */
+export function canonicalStatusName(code: DealStatusCode): string {
+  return CANONICAL_STATUS_NAMES[code];
+}
+
 /** Structural shape of a status-reference row — a subset of the generated model. */
 export interface StatusReferenceRow {
   readonly cr664_code?: string | null;

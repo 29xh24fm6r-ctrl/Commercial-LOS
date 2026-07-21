@@ -14,6 +14,7 @@ import { RelationshipContext } from './RelationshipContext';
 import { DealCrmRelationshipPanel } from '../crm/CrmRelationshipPanel';
 import { DealBlockers } from './DealBlockers';
 import { DealStageProgressionCard } from './DealStageProgressionCard';
+import { DealGovernedTransitionPanel } from './DealGovernedTransitionPanel';
 import { DealTasks } from './DealTasks';
 import { DealDocuments } from './DealDocuments';
 import { CreditMemo } from './CreditMemo';
@@ -206,6 +207,10 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="stage-map"
               >
                 <DealStageProgressionCard stageAdvanceActor={{ systemUserId, email, roleType, creditAuthority }} />
+                {/* Governance initiative (2026-07-21) — Return/Decline/Withdraw, mounted live
+                    alongside the existing Advance control (see DealGovernedTransitionPanel's doc
+                    comment for why Advance itself stays on DealStageProgressionCard). */}
+                <DealGovernedTransitionPanel />
               </div>
               {/* Stage reconciliation: the legacy Loan Workflow Command Center
                   (11-stage Opportunity/Qualification spine) was retired here so the

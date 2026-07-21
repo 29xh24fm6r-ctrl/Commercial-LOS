@@ -213,13 +213,55 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   untracked('BOARDED:servicing_owner', 'BOARDED', 'servicing', 'Servicing owner assigned', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'servicing-owner assignment not yet tracked (ARC PR 16)'),
 ];
 
-/** Non-forward placeholders (governed live paths pending ARC PR 10/11/12). */
+/**
+ * Governance initiative (2026-07-21) — Return/Decline/Withdraw are now LIVE requirements, not
+ * placeholders: `src/workflow/loanWorkflowRequirementEngine.ts`'s `deriveTransitionReadiness` checks
+ * them for real (delegating to `canonicalStageTransition.ts`'s pure policy, per
+ * `docs/governance/CANONICAL_TRANSITION_POLICY_CONTRACT.md` §3.2-3.4/§10). The reason facts below are
+ * genuinely checkable today (the caller supplies the reason text directly — no missing Dataverse
+ * record blocks them), so they are authored as real (`tracked: true`) requirements, not `untracked()`
+ * placeholders. `RETURN:authorization` and `DECLINE:adverse_action` remain `untracked` — this app has
+ * no authorization tier beyond identity resolution (contract §5) and no adverse-action completion
+ * tracking yet — but are demoted to `recommended` (visible, non-blocking) via
+ * `NON_FORWARD_SEVERITY_OVERRIDE` below so they inform without stranding a now-live path on a check
+ * this app cannot yet perform (mirrors `CREDIT_SEVERITY_OVERRIDE`'s established pattern above).
+ */
+const NON_FORWARD_SEVERITY_OVERRIDE: Readonly<Record<string, RequirementSeverity>> = Object.freeze({
+  'RETURN:authorization': 'recommended',
+  'DECLINE:adverse_action': 'recommended',
+});
+
+function checkableNonForward(
+  id: string,
+  scope: RequirementScope,
+  category: RequirementCategory,
+  label: string,
+  resolverSurface: ResolverSurface,
+  responsibleRole: ResponsibleRole,
+): CanonicalRequirement {
+  return {
+    id,
+    scope,
+    label,
+    description: `${label} — governed action requirement.`,
+    category,
+    severity: 'blocking',
+    resolverSurface,
+    responsibleRole,
+    backingType: 'review_record',
+    tracked: true,
+    matchMode: 'typed',
+    uiCopy: label,
+    blockerReason: `${label} is required.`,
+  };
+}
+
 const NON_FORWARD_REQUIREMENTS: readonly CanonicalRequirement[] = [
-  untracked('RETURN:reason', 'RETURN', 'task', 'Return reason + required remediation items', 'Tasks', 'banker', 'review_record', 'governed Return path not yet live (ARC PR 10)'),
-  untracked('RETURN:authorization', 'RETURN', 'task', 'Authorized actor for return', 'Tasks', 'banker', 'review_record', 'governed Return path not yet live (ARC PR 10)'),
-  untracked('DECLINE:reason', 'DECLINE', 'adverse_action', 'Decline reason code', 'Approval', 'credit_officer', 'review_record', 'governed Decline path not yet live (ARC PR 11)'),
-  untracked('DECLINE:adverse_action', 'DECLINE', 'adverse_action', 'Adverse-action requirement tracked', 'Approval', 'credit_officer', 'review_record', 'adverse-action tracking not yet live (ARC PR 11)'),
-  untracked('WITHDRAW:reason', 'WITHDRAW', 'task', 'Withdrawal reason', 'Tasks', 'banker', 'review_record', 'governed Withdraw path not yet live (ARC PR 12)'),
+  checkableNonForward('RETURN:reason', 'RETURN', 'task', 'Return reason', 'Tasks', 'banker'),
+  { ...untracked('RETURN:authorization', 'RETURN', 'task', 'Authorized actor for return', 'Tasks', 'banker', 'review_record', 'no return-authorization tier beyond identity resolution exists yet (governance contract §5)'), severity: NON_FORWARD_SEVERITY_OVERRIDE['RETURN:authorization'] },
+  checkableNonForward('DECLINE:reason', 'DECLINE', 'adverse_action', 'Decline reason code', 'Approval', 'credit_officer'),
+  { ...untracked('DECLINE:adverse_action', 'DECLINE', 'adverse_action', 'Adverse-action requirement tracked', 'Approval', 'credit_officer', 'review_record', 'adverse-action notification/documentation workflow not yet implemented (governance contract §3.3)'), severity: NON_FORWARD_SEVERITY_OVERRIDE['DECLINE:adverse_action'] },
+  checkableNonForward('WITHDRAW:reason', 'WITHDRAW', 'task', 'Withdrawal reason', 'Tasks', 'banker'),
 ];
 
 /** The full canonical requirement registry (shallow derived + deep authored + non-forward placeholders). */
