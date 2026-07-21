@@ -44,7 +44,7 @@ if ($Apply) {
   }
   if (-not (Confirm-Mutation $true $Force.IsPresent $orgUrl)) { Write-Status 'crm-full' 'BLOCKED' 'Operator did not confirm. Aborting (no mutation).'; exit 1 }
 } elseif (-not $tokenOk) {
-  # Dry-run without a usable token: do not make failing metadata calls — plan everything.
+  # Dry-run without a usable token: do not make failing metadata calls - plan everything.
   Write-Host 'Note: no Dataverse-authorized token; dry-run plans all schema as WOULD CREATE (no live existence checks).'
   $token = $null
 }

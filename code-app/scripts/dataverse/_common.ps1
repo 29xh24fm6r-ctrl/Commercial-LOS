@@ -63,7 +63,7 @@ function Get-DataverseToken([string]$orgUrl) {
 
 # Validates a token actually works against THIS org via WhoAmI. A token can be
 # issued for the user yet rejected by Dataverse (e.g. the calling app is not a
-# provisioned application user → 401). Returns $true only on a 200 WhoAmI.
+# provisioned application user -> 401). Returns $true only on a 200 WhoAmI.
 function Test-DataverseToken([string]$orgUrl, [string]$token) {
   if (-not $token -or -not $orgUrl) { return $false }
   try {

@@ -2,8 +2,8 @@
   Phase 248 - verify-pac-table-access.ps1
 
   READ-ONLY. Proves LIVE TABLE REACHABILITY for the CRM spine + portfolio boarding
-  tables using `pac org fetch` (FetchXML, count=1). A successful fetch — including the
-  "No results returned" zero-row case — proves the table exists and is queryable.
+  tables using `pac org fetch` (FetchXML, count=1). A successful fetch - including the
+  "No results returned" zero-row case - proves the table exists and is queryable.
 
   It performs NO mutation, NO flag flip, NO deploy, NO email. It only runs read-only
   FetchXML queries.

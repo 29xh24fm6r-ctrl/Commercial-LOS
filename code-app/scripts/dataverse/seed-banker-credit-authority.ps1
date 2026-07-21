@@ -2,18 +2,18 @@
   seed-banker-credit-authority.ps1
 
   Assigns cr664_banker credit-authority DATA (approval limit / credit committee membership /
-  override authority) — separate from create-banker-credit-authority-fields.ps1, which only
+  override authority) - separate from create-banker-credit-authority-fields.ps1, which only
   creates the COLUMNS (schema). This split is deliberate: this repo's Dataverse schema scripts
   are asserted, by phase243TerminalDataverseSchemaContract.test.ts, to never PATCH existing
   metadata (create-missing-only). Seeding a banker record's data IS a legitimate PATCH, just of
-  data, not metadata — so it lives here, outside that assertion, mirroring the existing precedent
+  data, not metadata - so it lives here, outside that assertion, mirroring the existing precedent
   for run-final-launch-smokes.ps1 (also excluded from the schema-script safety assertions because
   it legitimately does something the metadata scripts don't).
 
-  NEVER assigns authority on its own without an explicit run — this script requires -Apply AND a
+  NEVER assigns authority on its own without an explicit run - this script requires -Apply AND a
   -SeedFile. There is NO default seed data and NO hardcoded banker GUID anywhere in this file:
   bankers are resolved by EMAIL, mirroring BankerProvider.tsx's own resolution strategy. The seed
-  file itself is a local, .gitignore'd JSON — do not commit real banker data to the repo.
+  file itself is a local, .gitignore'd JSON - do not commit real banker data to the repo.
 
   Seed file shape:
     [
@@ -23,9 +23,9 @@
   SAFETY:
     - DRY-RUN BY DEFAULT. Pass -Apply to actually write.
     - Confirms the target environment via `pac org who` AND checks the resolved org host matches
-      the expected org — BLOCKED on mismatch (override with -ExpectedOrgHost if deliberate).
+      the expected org - BLOCKED on mismatch (override with -ExpectedOrgHost if deliberate).
     - Every entry is resolved by email before any write; entries with no matching cr664_banker
-      record are skipped (BLOCKED, not created) — this script never creates banker records.
+      record are skipped (BLOCKED, not created) - this script never creates banker records.
     - Only the fields present in a seed entry are patched; omitted fields are left untouched.
 
     powershell -File scripts/dataverse/seed-banker-credit-authority.ps1 -SeedFile .\my-local-seed.json                # dry-run (default)
@@ -70,7 +70,7 @@ Write-Host ("Seed entries: {0}" -f @($seedEntries).Count)
 
 if (-not $Apply) {
   foreach ($entry in $seedEntries) {
-    if (-not $entry.email) { Write-Status 'seed' 'BLOCKED' 'A seed entry is missing "email" — entries are resolved by email, never a hardcoded GUID.'; continue }
+    if (-not $entry.email) { Write-Status 'seed' 'BLOCKED' 'A seed entry is missing "email" - entries are resolved by email, never a hardcoded GUID.'; continue }
     Write-Status $entry.email 'UNKNOWN' 'WOULD SEED (dry-run; pass -Apply to write)'
   }
   Write-Host ("EVIDENCE: [banker-credit-authority][seed] mode=dry-run entries={0} ts={1}" -f @($seedEntries).Count, (Get-Date -Format o))
@@ -82,7 +82,7 @@ if (-not (Test-DataverseToken $orgUrl $token)) { Write-Status 'seed' 'BLOCKED' '
 if (-not (Confirm-Mutation $true $Force.IsPresent $orgUrl)) { Write-Status 'seed' 'BLOCKED' 'Operator did not confirm. Aborting.'; exit 1 }
 
 foreach ($entry in $seedEntries) {
-  if (-not $entry.email) { Write-Status 'seed' 'BLOCKED' 'A seed entry is missing "email" — bankers are resolved by email, never by a hardcoded GUID. Skipping this entry.'; continue }
+  if (-not $entry.email) { Write-Status 'seed' 'BLOCKED' 'A seed entry is missing "email" - bankers are resolved by email, never by a hardcoded GUID. Skipping this entry.'; continue }
   $escapedEmail = $entry.email.Replace("'", "''")
   try {
     $lookup = Invoke-DataverseGet $orgUrl $token ("cr664_bankers?`$select=cr664_bankerid,cr664_email&`$filter=cr664_email eq '{0}'&`$top=1" -f $escapedEmail)

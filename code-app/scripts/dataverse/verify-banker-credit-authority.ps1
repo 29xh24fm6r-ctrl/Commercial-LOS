@@ -1,14 +1,14 @@
 <#
   verify-banker-credit-authority.ps1
 
-  READ-ONLY. Companion to create-banker-credit-authority-fields.ps1 — never mutates anything, no
+  READ-ONLY. Companion to create-banker-credit-authority-fields.ps1 - never mutates anything, no
   -Apply flag exists on this script at all (mirrors verify-full-schema.ps1's pure-read pattern).
 
   Reports:
     - Existence + AttributeType for the three cr664_banker credit-authority columns.
     - Identity of cr664_loandeal.cr664_stagereference / cr664_statusreference (expected: Lookup)
       and cr664_loandeal.cr664_amount / cr664_loanrequestprofile.cr664_requestedamount (expected: Money).
-    - Banker authority configuration — aggregate counts by default (how many active bankers have
+    - Banker authority configuration - aggregate counts by default (how many active bankers have
       each field populated), or one specific banker via -BankerEmail. Deliberately does NOT dump
       every banker's authority data by default: that's sensitive, and this script's stdout may end
       up in a CI log.
@@ -16,7 +16,7 @@
       baseline reported when this work started, so drift is visible in future runs).
     - Repo-artifact cross-check: whether cr664_banker's generated service file exists and whether
       the new columns are visible in that generated model yet (they won't be until a real SDK
-      regeneration runs — see regenerate-powerapps-sdk.ps1 — this is expected today, not a failure).
+      regeneration runs - see regenerate-powerapps-sdk.ps1 - this is expected today, not a failure).
 
     powershell -File scripts/dataverse/verify-banker-credit-authority.ps1
     powershell -File scripts/dataverse/verify-banker-credit-authority.ps1 -BankerEmail someone@example.com
@@ -108,7 +108,7 @@ foreach ($t in @('cr664_permissiongroups', 'cr664_rolepermissiongroups')) {
     $r = Invoke-DataverseGet $orgUrl $token ("{0}?`$select=cr664_name&`$top=5000" -f $t)
     Write-Status $t 'PASS' ("{0} rows" -f $r.value.Count)
   } catch {
-    if ($_.Exception.Response.StatusCode.value__ -eq 404) { Write-Status $t 'UNKNOWN' 'table not found (logical name may differ — confirm against the live solution)' }
+    if ($_.Exception.Response.StatusCode.value__ -eq 404) { Write-Status $t 'UNKNOWN' 'table not found (logical name may differ - confirm against the live solution)' }
     else { Write-Status $t 'UNKNOWN' 'query failed' }
   }
 }
@@ -122,6 +122,6 @@ Write-Status 'Cr664_bankersService.ts' $(if ($serviceExists) { 'PASS' } else { '
 if (Test-Path -LiteralPath $modelPath) {
   $modelText = Get-Content -Raw -LiteralPath $modelPath
   $inGeneratedModel = $modelText -match 'cr664_approvallimit'
-  Write-Status 'Cr664_bankersModel.ts' $(if ($inGeneratedModel) { 'PASS' } else { 'UNKNOWN' }) $(if ($inGeneratedModel) { 'credit-authority fields ARE in the generated model' } else { 'credit-authority fields NOT yet in the generated model — expected until a real `pac code add-data-source -t cr664_banker` regen runs; the app reads them via src/banker/bankerCreditAuthorityFields.ts as a documented stopgap' })
+  Write-Status 'Cr664_bankersModel.ts' $(if ($inGeneratedModel) { 'PASS' } else { 'UNKNOWN' }) $(if ($inGeneratedModel) { 'credit-authority fields ARE in the generated model' } else { 'credit-authority fields NOT yet in the generated model - expected until a real `pac code add-data-source -t cr664_banker` regen runs; the app reads them via src/banker/bankerCreditAuthorityFields.ts as a documented stopgap' })
 }
 Write-Host ("EVIDENCE: [banker-credit-authority][verify-repo] ts={0}" -f (Get-Date -Format o))
