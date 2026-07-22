@@ -196,7 +196,7 @@ export function GreetingHeader({
         <div style={styles.readOnlyBanner} role="status">
           <strong>Read-only mode.</strong> {writeDisabledReason} Write actions
           remain disabled until the underlying issue is resolved.
-          (Identity chip: {fullName} Ã‚Â· {email}.)
+          (Identity chip: {fullName} · {email}.)
         </div>
       )}
       </div>

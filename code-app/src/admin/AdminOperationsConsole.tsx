@@ -66,7 +66,7 @@ export function AdminOperationsConsole() {
       data-admin-ops-console="ready"
     >
       <header style={styles.head}>
-        <div style={styles.eyebrow}>Commercial Lending Ã‚Â· Administration</div>
+        <div style={styles.eyebrow}>Commercial Lending · Administration</div>
         <h2 style={styles.title}>Operations Console</h2>
         <p style={styles.subtitle}>
           Manage app-level access, deals, portfolio loans, and CRM. Each module

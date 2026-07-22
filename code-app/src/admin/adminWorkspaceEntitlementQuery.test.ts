@@ -549,7 +549,10 @@ describe('204G — buildAdminEntitlementDiagnostic gate reporting', () => {
     // Another user's email and entitlement name are redacted.
     expect(r.losUserProfileName).not.toMatch(/ckingma/);
     expect(r.entitlementName).not.toMatch(/ckingma/);
-    expect(r.losUserProfileName).toMatch(/redacted/);
+    // D19 — pins the exact redaction placeholder text (guards against mojibake regressing:
+    // this string was previously double-mis-encoded as 'Â«redacted-other-identityÂ»').
+    expect(r.losUserProfileName).toBe('«redacted-other-identity»');
+    expect(r.entitlementName).toBe('«redacted-other-identity»');
     // The raw GUID profile id is never present anywhere in the diagnostic.
     expect(JSON.stringify(d)).not.toContain(guid);
     expect(JSON.stringify(d)).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
