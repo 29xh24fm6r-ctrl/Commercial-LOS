@@ -6,6 +6,7 @@ import {
   type BankerWorkQueueData,
 } from './workQueueQueries';
 import { deriveBankerPersonalActivity } from '../shared/analytics/bankerPersonalActivity';
+import { parseCalendarDate } from '../shared/formatters';
 import { PersonalActivitySummary } from './PersonalActivitySummary';
 import { BankerMorningCatchUp } from './BankerMorningCatchUp';
 import { BankerAutopilotRollup } from './BankerAutopilotRollup';
@@ -175,19 +176,22 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   const closingSoonDeals = useMemo(() => {
     if (state.kind !== 'ready') return [];
     const horizonMs = 14 * 24 * 60 * 60 * 1000;
-    const nowMs = now.getTime();
+    // Remediation 2026-07-22 (Workstream H) — targetCloseDate is date-only; comparing a raw
+    // `new Date(...)` (UTC midnight) against the exact current instant shifted the 14-day window
+    // boundary by several hours for any US timezone (a deal closing "today" could drop out of the
+    // window hours before today locally ends). Compare against the start of today instead.
+    const startOfTodayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     return state.data.deals
       .filter((d) => {
-        if (!d.targetCloseDate) return false;
-        const t = new Date(d.targetCloseDate).getTime();
-        if (Number.isNaN(t)) return false;
-        const delta = t - nowMs;
+        const t = parseCalendarDate(d.targetCloseDate)?.getTime();
+        if (t === undefined) return false;
+        const delta = t - startOfTodayMs;
         return delta >= 0 && delta <= horizonMs;
       })
       .slice()
       .sort((a, b) => {
-        const at = new Date(a.targetCloseDate ?? '').getTime();
-        const bt = new Date(b.targetCloseDate ?? '').getTime();
+        const at = parseCalendarDate(a.targetCloseDate)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const bt = parseCalendarDate(b.targetCloseDate)?.getTime() ?? Number.POSITIVE_INFINITY;
         return at - bt;
       })
       .slice(0, 6);

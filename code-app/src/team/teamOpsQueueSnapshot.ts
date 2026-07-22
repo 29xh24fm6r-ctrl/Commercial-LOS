@@ -15,6 +15,7 @@ import {
   deriveDealIntelligenceViewModel,
   type DealIntelligenceViewModel,
 } from '../shared/dealIntelligenceViewModel';
+import { parseCalendarDate } from '../shared/formatters';
 
 /**
  * Phase 127A — Team Ops Queue snapshot deriver.
@@ -280,9 +281,10 @@ function projectTeamDealToVM(
   let dueSoonTaskCount = 0;
   const dueSoonThreshold = now.getTime() + DUE_SOON_DAYS * MS_PER_DAY;
   for (const t of openTasks) {
-    if (!t.dueDate) continue;
-    const due = new Date(t.dueDate).getTime();
-    if (Number.isNaN(due)) continue;
+    // Remediation 2026-07-22 (Workstream H) — dueDate is date-only; a raw `new Date(...)` parsed
+    // it as UTC midnight, shifting it a calendar day early for any viewer west of UTC.
+    const due = parseCalendarDate(t.dueDate)?.getTime();
+    if (due === undefined) continue;
     if (due < now.getTime()) overdueTaskCount += 1;
     else if (due <= dueSoonThreshold) dueSoonTaskCount += 1;
   }
@@ -302,13 +304,11 @@ function projectTeamDealToVM(
 
   // Closing-next-30: targetCloseDate in [now, now + 30d].
   let isClosingNext30 = false;
-  if (td.targetCloseDate) {
-    const t = new Date(td.targetCloseDate).getTime();
-    if (!Number.isNaN(t)) {
-      const delta = t - now.getTime();
-      if (delta >= 0 && delta <= CLOSING_SOON_DAYS * MS_PER_DAY) {
-        isClosingNext30 = true;
-      }
+  const t = parseCalendarDate(td.targetCloseDate)?.getTime();
+  if (t !== undefined) {
+    const delta = t - now.getTime();
+    if (delta >= 0 && delta <= CLOSING_SOON_DAYS * MS_PER_DAY) {
+      isClosingNext30 = true;
     }
   }
 
@@ -504,9 +504,8 @@ function buildLanes(
     if (!t.dealId) continue;
     const r = rowByDealId.get(t.dealId);
     if (!r) continue;
-    if (!t.dueDate) continue;
-    const due = new Date(t.dueDate).getTime();
-    if (Number.isNaN(due)) continue;
+    const due = parseCalendarDate(t.dueDate)?.getTime();
+    if (due === undefined) continue;
     const daysUntilDue = Math.round((due - now.getTime()) / MS_PER_DAY);
     if (due < now.getTime()) {
       overdueTasks.push({
@@ -566,7 +565,7 @@ function buildLanes(
     if (d.status === 'outstanding') {
       const daysUntilDue = d.dueDate
         ? Math.round(
-            (new Date(d.dueDate).getTime() - now.getTime()) / MS_PER_DAY,
+            ((parseCalendarDate(d.dueDate)?.getTime() ?? now.getTime()) - now.getTime()) / MS_PER_DAY,
           )
         : undefined;
       outstandingDocuments.push({
@@ -602,7 +601,7 @@ function buildLanes(
         dueDate: d.dueDate,
         daysUntilDue: d.dueDate
           ? Math.round(
-              (new Date(d.dueDate).getTime() - now.getTime()) / MS_PER_DAY,
+              ((parseCalendarDate(d.dueDate)?.getTime() ?? now.getTime()) - now.getTime()) / MS_PER_DAY,
             )
           : undefined,
         daysStale: undefined,
@@ -687,7 +686,7 @@ function buildLanes(
         dueDate: r.teamDeal.targetCloseDate,
         daysUntilDue: r.teamDeal.targetCloseDate
           ? Math.round(
-              (new Date(r.teamDeal.targetCloseDate).getTime() - now.getTime()) /
+              ((parseCalendarDate(r.teamDeal.targetCloseDate)?.getTime() ?? now.getTime()) - now.getTime()) /
                 MS_PER_DAY,
             )
           : undefined,
@@ -700,7 +699,7 @@ function buildLanes(
     if (r.isClosingNext30) {
       const daysUntilDue = r.teamDeal.targetCloseDate
         ? Math.round(
-            (new Date(r.teamDeal.targetCloseDate).getTime() - now.getTime()) /
+            ((parseCalendarDate(r.teamDeal.targetCloseDate)?.getTime() ?? now.getTime()) - now.getTime()) /
               MS_PER_DAY,
           )
         : undefined;

@@ -4,6 +4,7 @@ import type { DealDocument, DealDocumentsResult } from './dealDocumentQueries';
 import type { CreditMemoData, CreditMemoSummary } from './creditMemoQueries';
 import { deriveBlockers, type BlockerSignal } from './blockerRules';
 import { deriveDealBlockerModelForStage } from './dealBlockerModel';
+import { parseCalendarDate } from '../shared/formatters';
 
 /**
  * Phase 24: pure credit memo DRAFT generator. Produces an editable
@@ -451,25 +452,23 @@ function formatAmount(n: number | undefined): string | undefined {
 }
 
 function formatDate(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
-  // Force UTC so the rendered date matches the underlying ISO value —
-  // a banker reading the memo sees the data's date, not their
-  // local-timezone interpretation of a midnight-UTC timestamp.
-  return d.toLocaleDateString('en-US', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  // Remediation 2026-07-22 (Workstream H) — consolidated onto the shared parseCalendarDate
+  // utility (was a second, independent UTC-forced workaround for the same date-only day-shift
+  // problem `formatCalendarDate` already solves elsewhere in the app).
+  const d = parseCalendarDate(iso);
+  if (!d) return undefined;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function isOverdue(t: DealTask, now: Date): boolean {
   if (!t.dueDate) return false;
-  const d = new Date(t.dueDate);
-  if (Number.isNaN(d.getTime())) return false;
-  return d.getTime() < now.getTime();
+  // Remediation 2026-07-22 (Workstream H) — dueDate is date-only; compare calendar dates (local
+  // midnight to local midnight) rather than a raw `new Date(...)` (UTC midnight) against the exact
+  // current instant, which falsely flagged a task due "today" as overdue hours early.
+  const d = parseCalendarDate(t.dueDate);
+  if (!d) return false;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return d.getTime() < startOfToday.getTime();
 }
 
 // Re-exported for consumers that want to test or surface raw helpers
