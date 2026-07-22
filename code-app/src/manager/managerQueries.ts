@@ -6,6 +6,9 @@ import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sS
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
+import { classifyLegacyDocumentStatus, isGovernedExcusedDocument } from '../deals/documentStatusClassification';
+import { requirementStatusFromCode } from '../deals/documentRequirementStatusCodes';
+import type { DocumentRequirementFields } from '../deals/documentRequirementFields';
 
 /**
  * Schema reality (verified before coding — see Entity XML inspection
@@ -383,15 +386,10 @@ export interface TeamScopedDocument {
   dealName: string | undefined;
 }
 
-function deriveDocStatus(opts: {
-  reviewer: string | undefined;
-  receivedDate: string | undefined;
-  uploaded: boolean;
-}): TeamScopedDocumentStatus {
-  if (opts.reviewer && opts.reviewer.trim().length > 0) return 'reviewed';
-  if (opts.receivedDate || opts.uploaded) return 'received';
-  return 'outstanding';
-}
+// Remediation 2026-07-22 (Workstream G) — delegates to
+// documentStatusClassification.ts, the one canonical rule shared with
+// dealDocumentQueries.ts / workQueueQueries.ts / teamQueries.ts.
+const deriveDocStatus = classifyLegacyDocumentStatus;
 
 /**
  * Document checklist rows whose parent deal sits on the manager's
@@ -412,26 +410,38 @@ export async function loadManagerTeamDocuments(
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Failed to load team documents');
   }
-  return (result.data ?? []).map((d): TeamScopedDocument => {
-    const uploaded = d.cr664_uploadstatus === true;
-    return {
-      id: d.cr664_documentchecklistid,
-      name: d.cr664_documentname,
-      dueDate: d.cr664_duedate,
-      requestDate: d.cr664_requestdate,
-      receivedDate: d.cr664_receiveddate,
-      reviewer: d.cr664_reviewer,
-      uploaded,
-      modifiedOn: d.modifiedon,
-      status: deriveDocStatus({
-        reviewer: d.cr664_reviewer,
+  // Remediation 2026-07-22 (Workstream G) — exclude documents the Document
+  // Requirement workspace has Waived or marked Not Applicable; they persist
+  // no reviewer/receivedDate/upload and would otherwise be miscounted as
+  // "outstanding" in the manager rollup (see documentStatusClassification.ts).
+  return (result.data ?? [])
+    .filter((d) => {
+      const raw = d as unknown as DocumentRequirementFields;
+      return !isGovernedExcusedDocument({
+        waived: raw.cr664_waived,
+        requirementStatus: requirementStatusFromCode(raw.cr664_requirementstatus),
+      });
+    })
+    .map((d): TeamScopedDocument => {
+      const uploaded = d.cr664_uploadstatus === true;
+      return {
+        id: d.cr664_documentchecklistid,
+        name: d.cr664_documentname,
+        dueDate: d.cr664_duedate,
+        requestDate: d.cr664_requestdate,
         receivedDate: d.cr664_receiveddate,
+        reviewer: d.cr664_reviewer,
         uploaded,
-      }),
-      dealId: d._cr664_deal_value,
-      dealName: d.cr664_dealname,
-    };
-  });
+        modifiedOn: d.modifiedon,
+        status: deriveDocStatus({
+          reviewer: d.cr664_reviewer,
+          receivedDate: d.cr664_receiveddate,
+          uploaded,
+        }),
+        dealId: d._cr664_deal_value,
+        dealName: d.cr664_dealname,
+      };
+    });
 }
 
 export type TeamScopedMemoStatusKey = 'draft' | 'final' | 'stale';

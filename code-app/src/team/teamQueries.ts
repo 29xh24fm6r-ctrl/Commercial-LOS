@@ -6,6 +6,9 @@ import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sS
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
+import { classifyLegacyDocumentStatus, isGovernedExcusedDocument } from '../deals/documentStatusClassification';
+import { requirementStatusFromCode } from '../deals/documentRequirementStatusCodes';
+import type { DocumentRequirementFields } from '../deals/documentRequirementFields';
 
 /**
  * Team Workspace queries. Live operational data — Team Workspace is
@@ -304,15 +307,10 @@ export interface TeamDocumentRow {
   dealName: string | undefined;
 }
 
-function deriveDocStatus(opts: {
-  reviewer: string | undefined;
-  receivedDate: string | undefined;
-  uploaded: boolean;
-}): TeamDocumentStatus {
-  if (opts.reviewer && opts.reviewer.trim().length > 0) return 'reviewed';
-  if (opts.receivedDate || opts.uploaded) return 'received';
-  return 'outstanding';
-}
+// Remediation 2026-07-22 (Workstream G) — delegates to
+// documentStatusClassification.ts, the one canonical rule shared with
+// dealDocumentQueries.ts / workQueueQueries.ts / managerQueries.ts.
+const deriveDocStatus = classifyLegacyDocumentStatus;
 
 export async function loadTeamDocuments(teamId: string): Promise<TeamDocumentRow[]> {
   const result = await Cr664_documentchecklistsService.getAll({
@@ -325,27 +323,39 @@ export async function loadTeamDocuments(teamId: string): Promise<TeamDocumentRow
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Failed to load team documents');
   }
-  return (result.data ?? []).map((d): TeamDocumentRow => {
-    const uploaded = d.cr664_uploadstatus === true;
-    const status = deriveDocStatus({
-      reviewer: d.cr664_reviewer,
-      receivedDate: d.cr664_receiveddate,
-      uploaded,
+  // Remediation 2026-07-22 (Workstream G) — exclude documents the Document
+  // Requirement workspace has Waived or marked Not Applicable; they persist
+  // no reviewer/receivedDate/upload and would otherwise be miscounted as
+  // "outstanding" in the team rollup (see documentStatusClassification.ts).
+  return (result.data ?? [])
+    .filter((d) => {
+      const raw = d as unknown as DocumentRequirementFields;
+      return !isGovernedExcusedDocument({
+        waived: raw.cr664_waived,
+        requirementStatus: requirementStatusFromCode(raw.cr664_requirementstatus),
+      });
+    })
+    .map((d): TeamDocumentRow => {
+      const uploaded = d.cr664_uploadstatus === true;
+      const status = deriveDocStatus({
+        reviewer: d.cr664_reviewer,
+        receivedDate: d.cr664_receiveddate,
+        uploaded,
+      });
+      return {
+        id: d.cr664_documentchecklistid,
+        name: d.cr664_documentname,
+        dueDate: d.cr664_duedate,
+        requestDate: d.cr664_requestdate,
+        receivedDate: d.cr664_receiveddate,
+        reviewer: d.cr664_reviewer,
+        uploaded,
+        modifiedOn: d.modifiedon,
+        status,
+        dealId: d._cr664_deal_value,
+        dealName: d.cr664_dealname,
+      };
     });
-    return {
-      id: d.cr664_documentchecklistid,
-      name: d.cr664_documentname,
-      dueDate: d.cr664_duedate,
-      requestDate: d.cr664_requestdate,
-      receivedDate: d.cr664_receiveddate,
-      reviewer: d.cr664_reviewer,
-      uploaded,
-      modifiedOn: d.modifiedon,
-      status,
-      dealId: d._cr664_deal_value,
-      dealName: d.cr664_dealname,
-    };
-  });
 }
 
 // ---------------------------------------------------------------------------
