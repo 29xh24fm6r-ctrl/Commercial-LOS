@@ -12,6 +12,11 @@ import { createChecklistWriteDependency } from './checklistWriteDependency';
 import { buildLiveChecklistRowTransport, buildLiveChecklistAuditSink } from '../deals/checklistLiveWriteDeps';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import { DOCUMENT_CHECKLIST_GENERATION_ENABLED } from '../deals/dealOriginationFeatureFlags';
+
+/** Banker-safe copy for the disabled state -- never the raw flag name. */
+const DISABLED_NOTICE =
+  'Automatic checklist generation is not yet enabled in this environment. Add required documents individually below.';
 
 export interface GenerateWorkflowChecklistButtonProps {
   readonly workflow: LoanWorkflowState;
@@ -47,6 +52,22 @@ export function GenerateWorkflowChecklistButton({ workflow, dealId, deps }: Gene
     });
     setOutcome(result);
     if (result.kind === 'success') refresh('documents');
+  }
+
+  // Remediation 2026-07-22 (Workstream G) — with no deps override (the real, live path),
+  // DOCUMENT_CHECKLIST_GENERATION_ENABLED is a hard-coded `false` in this phase, so this button
+  // could never succeed in production; it previously still rendered as an active, clickable
+  // button that always failed with the internal flag NAME as its error text. Show an honest,
+  // non-interactive notice instead. A `deps` override (tests, or a future call site that supplies
+  // an already-armed dependency) still renders the real interactive button unchanged.
+  if (!deps && !DOCUMENT_CHECKLIST_GENERATION_ENABLED) {
+    return (
+      <div style={styles.wrap}>
+        <span role="status" style={styles.status} data-checklist-generation-disabled>
+          {DISABLED_NOTICE}
+        </span>
+      </div>
+    );
   }
 
   return (

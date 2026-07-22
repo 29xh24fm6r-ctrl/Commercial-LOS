@@ -33,10 +33,11 @@ function makeDeps(overrides: Partial<DocumentUploadDeps> = {}): DocumentUploadDe
 }
 
 describe('uploadDocumentFile', () => {
-  it('fails closed with dependency_not_ready when DOCUMENT_FILE_UPLOAD_ENABLED is off (the real default)', async () => {
+  it('fails closed with dependency_not_ready when DOCUMENT_FILE_UPLOAD_ENABLED is off (the real default), using banker-safe copy that never names the internal flag', async () => {
     const deps = makeDeps();
     const outcome = await uploadDocumentFile(baseInput({ enabledOverride: false }), deps);
-    expect(outcome).toEqual({ kind: 'dependency_not_ready', detail: 'DOCUMENT_FILE_UPLOAD_ENABLED is false; upload stays fail-closed.' });
+    expect(outcome).toEqual({ kind: 'dependency_not_ready', detail: 'Document file upload is not yet enabled in this environment.' });
+    expect((outcome as { detail: string }).detail).not.toMatch(/DOCUMENT_FILE_UPLOAD_ENABLED/);
     expect(deps.uploadFile).not.toHaveBeenCalled();
   });
 

@@ -51,7 +51,8 @@ const FORBIDDEN_SENSITIVE_KEY = /^(tax.?id|taxidentifier|ssn|tin|ein|fulltaxid)$
 
 export async function crmWriteback(input: CrmWritebackInput): Promise<CrmWritebackOutcome> {
   const enabled = input.enabled ?? Boolean(CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED);
-  if (!enabled) return { kind: 'disabled', detail: 'CRM_LIVE_PERSISTENCE_ENABLED is false; CRM writeback stays fail-closed.' };
+  // Remediation 2026-07-22 (Workstream G) — banker-safe copy; never the raw internal flag name.
+  if (!enabled) return { kind: 'disabled', detail: 'CRM writeback is not enabled yet; no change was made.' };
   if (input.authorized !== true) return { kind: 'unauthorized', detail: 'Actor is not authorized for CRM writeback.' };
   if (!input.actorUpn || !input.correlationId) return { kind: 'validation_error', detail: 'Missing actorUpn or correlationId.' };
 

@@ -153,7 +153,8 @@ export interface StageAdvanceInput {
 
 export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<StageAdvanceOutcome> {
   const enabled = input.enabled ?? Boolean(AUTO_STAGE_ADVANCE_ENABLED);
-  if (!enabled) return { kind: 'disabled', detail: 'AUTO_STAGE_ADVANCE_ENABLED is false; stage advancement stays fail-closed.' };
+  // Remediation 2026-07-22 (Workstream G) — banker-safe copy; never the raw internal flag name.
+  if (!enabled) return { kind: 'disabled', detail: 'Stage advancement is not enabled yet; no change was made to the deal.' };
   if (input.authorized !== true) return { kind: 'unauthorized', detail: 'Actor is not authorized to advance the workflow stage.' };
 
   // HARD policy guard — no write unless the transition is approved + readiness ok.
