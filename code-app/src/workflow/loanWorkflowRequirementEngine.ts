@@ -5,7 +5,13 @@ import type { CreditMemoData } from '../deals/creditMemoQueries';
 import { deriveLoanWorkflowReadiness } from './loanWorkflowRules';
 import { getLoanWorkflowStage } from './loanWorkflowStages';
 import type { LoanWorkflowRequirement, LoanWorkflowStageDefinition } from './loanWorkflowTypes';
-import type { CanonicalStageCode } from './stageOrderingContract';
+import type { CanonicalStageCode, StageOrderingResult } from './stageOrderingContract';
+import {
+  evaluateCanonicalStageTransition,
+  type CanonicalTransitionRequest,
+  type DealStatusCode,
+  type StructuredDeclineReason,
+} from './canonicalStageTransition';
 import {
   authoredDeepRequirementsForScope,
   requirementsForScope,
@@ -261,16 +267,33 @@ export function evaluateStageExitPolicy(readiness: StageExitReadiness): StageExi
   };
 }
 
+/** Inputs a non-forward (return/decline/withdraw) readiness check needs — see {@link deriveTransitionReadiness}. */
+export interface NonForwardTransitionInput {
+  readonly ordering: StageOrderingResult;
+  readonly currentStatus: DealStatusCode;
+  /** RETURN/WITHDRAW free-text reason. */
+  readonly reason?: string;
+  /** DECLINE structured reason. */
+  readonly declineReason?: StructuredDeclineReason;
+  readonly authorized: boolean;
+}
+
 /**
- * The engine's readiness verdict for a specific transition. Forward advances evaluate the source
- * stage's exit; non-forward paths (return/decline/withdraw) are PREVIEW-ONLY in ARC Phase 1 and
- * report their placeholder requirements (all untracked) — they are not yet live.
+ * Governance initiative (2026-07-21) — the engine's readiness verdict for a specific transition.
+ * Forward advances evaluate the source stage's exit (unchanged). Non-forward paths (return/decline/
+ * withdraw) delegate their pass/fail decision to `canonicalStageTransition.ts`'s pure policy
+ * evaluator — the SAME function `StageWorkflowControl.tsx`'s live write path calls — so there is one
+ * evaluator for these three transition kinds, not two. This function additionally attaches the
+ * registry's descriptive metadata (labels, resolver surfaces, the still-untracked advisory items) for
+ * UI display; it does not re-derive the pass/fail decision itself. See
+ * `docs/governance/CANONICAL_TRANSITION_POLICY_CONTRACT.md` §10 for the parity discipline this keeps.
  */
 export function deriveTransitionReadiness(
   from: RequirementScope,
   kind: 'advance' | 'return' | 'decline' | 'withdraw',
   facts: WorkflowRequirementFacts,
   requestedTo?: CanonicalStageCode,
+  nonForward?: NonForwardTransitionInput,
 ): TransitionReadiness {
   if (kind === 'advance') {
     const stageCode = from as CanonicalStageCode;
@@ -286,9 +309,57 @@ export function deriveTransitionReadiness(
       reason: exit.status === 'blocked' ? `${stage.label} exit criteria are not satisfied.` : '',
     };
   }
-  // Non-forward — preview-only in Phase 1.
+
   const scope: RequirementScope = kind === 'return' ? 'RETURN' : kind === 'decline' ? 'DECLINE' : 'WITHDRAW';
-  const reqs = requirementsForScope(scope).map((r) => evaluated(r, 'untracked', r.blockerReason));
-  const exit: StageExitReadiness = { scope, status: 'blocked', requirements: reqs, blocking: [], recommended: [], untracked: reqs };
-  return { from, kind, status: 'preview-only', exit, reason: `The governed ${kind} path is not yet live (preview-only).` };
+  const registryReqs = requirementsForScope(scope);
+
+  if (!nonForward) {
+    // No policy inputs supplied — cannot evaluate; fail closed exactly like an unmet requirement
+    // (never silently "ready"). Callers that want a real verdict must supply `nonForward`.
+    const reqs = registryReqs.map((r) => evaluated(r, 'untracked', r.blockerReason));
+    const exit: StageExitReadiness = { scope, status: 'blocked', requirements: reqs, blocking: reqs.filter((r) => r.severity === 'blocking'), recommended: reqs.filter((r) => r.severity === 'recommended'), untracked: reqs };
+    return { from, kind, status: 'blocked', exit, reason: 'Insufficient inputs to evaluate this transition.' };
+  }
+
+  const stageTransitionKind = kind === 'return' ? 'RETURN' : kind === 'decline' ? 'DECLINE' : 'WITHDRAW';
+  const request: CanonicalTransitionRequest = {
+    kind: stageTransitionKind,
+    currentStage: from as CanonicalStageCode,
+    currentStatus: nonForward.currentStatus,
+    targetStage: kind === 'return' ? requestedTo : undefined,
+    reason: nonForward.reason,
+    declineReason: nonForward.declineReason,
+  };
+  const policy = evaluateCanonicalStageTransition({ request, ordering: nonForward.ordering, authorized: nonForward.authorized });
+
+  // Build the requirement list for display: the checkable reason requirement gets a real met/unmet
+  // verdict from the policy outcome; the still-untracked advisory item (authorization/adverse-action)
+  // stays 'untracked' + 'recommended' (visible, never blocking — see the registry's severity override).
+  const reasonReqId = `${scope}:reason`;
+  const requirements = registryReqs.map((r) => {
+    if (r.id === reasonReqId) {
+      const reasonMissing = !policy.allowed && /reason/i.test(policy.reason);
+      return evaluated(r, reasonMissing ? 'unmet' : 'met', r.blockerReason);
+    }
+    return evaluated(r, 'untracked', r.blockerReason);
+  });
+  const blocking = requirements.filter((r) => r.canBlockTransition && r.tracked);
+  const recommended = requirements.filter((r) => r.severity === 'recommended');
+  const untracked = requirements.filter((r) => r.status === 'untracked');
+  const exit: StageExitReadiness = {
+    scope,
+    status: policy.allowed ? 'ready' : 'blocked',
+    requirements,
+    blocking,
+    recommended,
+    untracked,
+  };
+  return {
+    from,
+    kind,
+    to: policy.allowed && kind === 'return' ? policy.to : undefined,
+    status: policy.allowed ? 'ready' : 'blocked',
+    exit,
+    reason: policy.allowed ? '' : policy.reason,
+  };
 }

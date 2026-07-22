@@ -39,7 +39,7 @@ export function DealSummary() {
     <Card>
       <WidgetHeader
         title="Deal Summary"
-        subtitle="Schema-actual fields from the cr664_loandeal record."
+        subtitle="Key fields from the deal record."
         icon={<MemoIcon />}
         iconTone="neutral"
       />

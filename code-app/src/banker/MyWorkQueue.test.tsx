@@ -34,8 +34,12 @@ vi.mock('../deals/documentActions', () => ({
 // Phase 70: MyWorkQueue now imports createDocumentReviewTask +
 // CreateDocumentReviewTaskModal. Both pull in the SDK transitively;
 // stub them at the module boundary so the test runtime stays clean.
+// Remediation 2026-07-22 (Workstream F): also mock completeTask (the
+// "My Tasks" Complete action's governed write); CompleteTaskModal itself
+// stays real, same as ReceiveDocumentModal/ReviewDocumentModal below.
 vi.mock('../deals/dealTaskActions', () => ({
   createDocumentReviewTask: vi.fn(),
+  completeTask: vi.fn(),
 }));
 vi.mock('../deals/CreateDocumentReviewTaskModal', () => ({
   CreateDocumentReviewTaskModal: () => null,
@@ -55,12 +59,14 @@ import {
   markDocumentReceived,
   markDocumentReviewed,
 } from '../deals/documentActions';
+import { completeTask } from '../deals/dealTaskActions';
 import { useBanker } from './BankerContext';
 import { MyWorkQueue } from './MyWorkQueue';
 
 const loadMock = vi.mocked(loadBankerWorkQueueData);
 const receiveMock = vi.mocked(markDocumentReceived);
 const reviewMock = vi.mocked(markDocumentReviewed);
+const completeMock = vi.mocked(completeTask);
 const useBankerMock = vi.mocked(useBanker);
 
 function overdueDueDate(): string {
@@ -119,6 +125,7 @@ beforeEach(() => {
   loadMock.mockReset();
   receiveMock.mockReset();
   reviewMock.mockReset();
+  completeMock.mockReset();
   navigateSpy.mockReset();
   useBankerMock.mockReset();
   useBankerMock.mockReturnValue({
@@ -422,11 +429,11 @@ describe('MyWorkQueue — Phase 54 pending-review surfacing', () => {
     render(<MyWorkQueue />);
 
     // No items at all — neither overdue-document (no due date) nor
-    // pending-review (within threshold). The empty-state copy
-    // appears in two places (card subtitle + body) — we narrow the
-    // assertion to the body line.
+    // pending-review (within threshold), and no tasks. Remediation
+    // 2026-07-22 (Workstream F) — 'all' mode's empty state when both
+    // My Tasks and Signals are empty.
     await screen.findByText(
-      /No urgent work items across your active deals/i,
+      /No open tasks or signals across your active deals/i,
     );
     expect(screen.queryByText(/recent receipt/i)).not.toBeInTheDocument();
   });
@@ -599,5 +606,301 @@ describe('MyWorkQueue — Phase 55 review integration', () => {
     expect(
       screen.queryByRole('button', { name: /mark document.*received/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('MyWorkQueue — P1-10 / P2-17 alerts filter (My Alerts destination)', () => {
+  function closingSoon(): string {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + 5); // within CLOSING_SOON_DAYS → an 'upcoming' (non-alert) item
+    d.setUTCHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+
+  // One alert item (overdue document on deal-77) + one non-alert item (a deal closing soon).
+  function mixedData(): BankerWorkQueueData {
+    return {
+      ...workQueueData(),
+      deals: [
+        ...workQueueData().deals,
+        {
+          id: 'deal-88',
+          name: 'Beta Bridge Loan',
+          clientName: 'Beta',
+          stage: 'Underwriting',
+          status: 'Active',
+          amount: 500_000,
+          targetCloseDate: closingSoon(),
+          lastActivityOn: undefined,
+          stageEntryDate: new Date().toISOString(),
+          isClosed: false,
+          collateralSummary: undefined,
+        },
+      ],
+    };
+  }
+
+  it('default (Tasks & Actions) shows BOTH the overdue alert and the closing-soon item in the Signals section', async () => {
+    loadMock.mockResolvedValue(mixedData());
+    render(<MyWorkQueue />);
+    expect(await screen.findByText(/personal financial statement/i)).toBeInTheDocument();
+    // The deal name appears in both the row title and the "Deal:" meta line — assert at least one.
+    expect(screen.getAllByText(/beta bridge loan/i).length).toBeGreaterThan(0);
+    // Remediation 2026-07-22 (Workstream F) — both are risk signals (no tasks in this fixture), so
+    // they render in the separate "Signals" card, not a merged "My Work Queue" list.
+    expect(screen.getByText('Signals')).toBeInTheDocument();
+  });
+
+  it("alerts mode shows ONLY the urgent alert item and titles the surface 'My Alerts'", async () => {
+    loadMock.mockResolvedValue(mixedData());
+    render(<MyWorkQueue filter="alerts" />);
+    expect(await screen.findByText(/personal financial statement/i)).toBeInTheDocument();
+    // The closing-soon (upcoming) item is NOT an alert — it must not appear at the My Alerts destination.
+    expect(screen.queryByText(/beta bridge loan/i)).not.toBeInTheDocument();
+    expect(screen.getByText('My Alerts')).toBeInTheDocument();
+  });
+
+  it('alerts mode with no blocked/overdue items shows the honest empty-alerts state', async () => {
+    // Only a closing-soon (upcoming) item, no alerts.
+    loadMock.mockResolvedValue({
+      ...workQueueData({ outstandingDocuments: [] }),
+      deals: [
+        {
+          id: 'deal-88',
+          name: 'Beta Bridge Loan',
+          clientName: 'Beta',
+          stage: 'Underwriting',
+          status: 'Active',
+          amount: 500_000,
+          targetCloseDate: closingSoon(),
+          lastActivityOn: undefined,
+          stageEntryDate: new Date().toISOString(),
+          isClosed: false,
+          collateralSummary: undefined,
+        },
+      ],
+    });
+    render(<MyWorkQueue filter="alerts" />);
+    expect(await screen.findByText(/no blocked or overdue items/i)).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Remediation 2026-07-22 (Workstream F) — My Tasks / Signals separation
+// ---------------------------------------------------------------------------
+
+function futureDueDate(): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + 20);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+describe('MyWorkQueue — Workstream F: My Tasks shows real assigned tasks, separate from Signals', () => {
+  it('renders a non-overdue open task in "My Tasks" — invisible everywhere before this remediation', async () => {
+    loadMock.mockResolvedValue(
+      workQueueData({
+        outstandingDocuments: [],
+        tasks: [
+          {
+            id: 'task-future',
+            dealId: 'deal-77',
+            title: 'Order insurance certificate',
+            dueDate: futureDueDate(),
+            modifiedOn: undefined,
+            completed: false,
+          },
+        ],
+      }),
+    );
+    render(<MyWorkQueue />);
+
+    expect(await screen.findByText('My Tasks')).toBeInTheDocument();
+    expect(screen.getByText(/order insurance certificate/i)).toBeInTheDocument();
+    // Not a signal — must not appear under the Signals card too.
+    expect(screen.getByText('Signals')).toBeInTheDocument();
+    expect(screen.getByText(/no blocked, at-risk, or document signals/i)).toBeInTheDocument();
+  });
+
+  it('an overdue task appears in My Tasks and NOT duplicated in Signals', async () => {
+    loadMock.mockResolvedValue(
+      workQueueData({
+        outstandingDocuments: [],
+        tasks: [
+          {
+            id: 'task-overdue',
+            dealId: 'deal-77',
+            title: 'Review pricing sheet',
+            dueDate: overdueDueDate(),
+            modifiedOn: undefined,
+            completed: false,
+          },
+        ],
+      }),
+    );
+    render(<MyWorkQueue />);
+
+    await screen.findByText('My Tasks');
+    // Exactly one occurrence of the task title across the whole page (My Tasks only).
+    expect(screen.getAllByText(/review pricing sheet/i)).toHaveLength(1);
+  });
+
+  it('the My Tasks count matches the number of rows actually rendered', async () => {
+    loadMock.mockResolvedValue(
+      workQueueData({
+        outstandingDocuments: [],
+        tasks: [
+          { id: 'task-1', dealId: 'deal-77', title: 'Task one', dueDate: overdueDueDate(), modifiedOn: undefined, completed: false },
+          { id: 'task-2', dealId: 'deal-77', title: 'Task two', dueDate: futureDueDate(), modifiedOn: undefined, completed: false },
+        ],
+      }),
+    );
+    render(<MyWorkQueue />);
+
+    await screen.findByText('Task one');
+    expect(screen.getByText('Task two')).toBeInTheDocument();
+    // The badge in the My Tasks header equals the number of rows shown (2).
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('clicking a task row navigates to its deal (does NOT open the Complete modal)', async () => {
+    loadMock.mockResolvedValue(
+      workQueueData({
+        outstandingDocuments: [],
+        tasks: [
+          { id: 'task-1', dealId: 'deal-77', title: 'Confirm collateral', dueDate: overdueDueDate(), modifiedOn: undefined, completed: false },
+        ],
+      }),
+    );
+    render(<MyWorkQueue />);
+
+    const user = userEvent.setup();
+    const rowTitle = await screen.findByText(/confirm collateral/i);
+    await user.click(rowTitle);
+
+    expect(navigateSpy).toHaveBeenCalledWith('/deals/deal-77');
+  });
+
+  it('clicking Complete opens the CompleteTaskModal without navigating', async () => {
+    loadMock.mockResolvedValue(
+      workQueueData({
+        outstandingDocuments: [],
+        tasks: [
+          { id: 'task-1', dealId: 'deal-77', title: 'Confirm collateral', dueDate: overdueDueDate(), modifiedOn: undefined, completed: false },
+        ],
+      }),
+    );
+    render(<MyWorkQueue />);
+
+    const user = userEvent.setup();
+    const completeButton = await screen.findByRole('button', {
+      name: /complete task confirm collateral/i,
+    });
+    await user.click(completeButton);
+
+    expect(await screen.findByRole('heading', { name: /complete task/i })).toBeInTheDocument();
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('does NOT render the Complete button when systemUserId is missing', async () => {
+    useBankerMock.mockReturnValue({
+      bankerId: 'banker-1',
+      fullName: 'M. Paller',
+      email: 'm@bank.test',
+      systemUserId: undefined,
+      writeDisabledReason: 'Could not resolve systemuserid',
+      roleType: undefined,
+      creditAuthority: { approvalLimit: undefined, creditCommitteeMember: undefined, approvalOverrideAuthority: undefined },
+    });
+    loadMock.mockResolvedValue(
+      workQueueData({
+        outstandingDocuments: [],
+        tasks: [
+          { id: 'task-1', dealId: 'deal-77', title: 'Confirm collateral', dueDate: overdueDueDate(), modifiedOn: undefined, completed: false },
+        ],
+      }),
+    );
+    render(<MyWorkQueue />);
+
+    await screen.findByText(/confirm collateral/i);
+    expect(screen.queryByRole('button', { name: /complete task/i })).not.toBeInTheDocument();
+  });
+
+  it('submitting the Complete modal invokes completeTask with taskId/dealId/systemUserId/note, then reloads and calls onDataChanged', async () => {
+    const onDataChanged = vi.fn();
+    loadMock.mockResolvedValue(
+      workQueueData({
+        outstandingDocuments: [],
+        tasks: [
+          { id: 'task-1', dealId: 'deal-77', title: 'Confirm collateral', dueDate: overdueDueDate(), modifiedOn: undefined, completed: false },
+        ],
+      }),
+    );
+    completeMock.mockResolvedValue({ kind: 'success' });
+    render(<MyWorkQueue onDataChanged={onDataChanged} />);
+
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: /complete task confirm collateral/i }),
+    );
+    await user.type(screen.getByLabelText(/completion note/i), 'Confirmed via email');
+    await user.click(screen.getByRole('button', { name: /^complete task$/i }));
+
+    await waitFor(() => {
+      expect(completeMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: 'task-1',
+          taskName: 'Confirm collateral',
+          dealId: 'deal-77',
+          systemUserId: 'sys-user-1',
+          actorEmail: 'm@bank.test',
+          completionNote: 'Confirmed via email',
+        }),
+      );
+    });
+    // Local reload (list) + the shell-level onDataChanged callback (badges/rail).
+    await waitFor(() => expect(loadMock).toHaveBeenCalledTimes(2));
+    expect(onDataChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT reload or call onDataChanged when the complete write fails', async () => {
+    const onDataChanged = vi.fn();
+    loadMock.mockResolvedValue(
+      workQueueData({
+        outstandingDocuments: [],
+        tasks: [
+          { id: 'task-1', dealId: 'deal-77', title: 'Confirm collateral', dueDate: overdueDueDate(), modifiedOn: undefined, completed: false },
+        ],
+      }),
+    );
+    completeMock.mockResolvedValue({ kind: 'task-failed', taskError: 'row locked' });
+    render(<MyWorkQueue onDataChanged={onDataChanged} />);
+
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: /complete task confirm collateral/i }),
+    );
+    await user.type(screen.getByLabelText(/completion note/i), 'note');
+    await user.click(screen.getByRole('button', { name: /^complete task$/i }));
+
+    expect(await screen.findByText(/row locked/i)).toBeInTheDocument();
+    expect(loadMock).toHaveBeenCalledTimes(1);
+    expect(onDataChanged).not.toHaveBeenCalled();
+  });
+
+  it('a document Mark-received action also calls onDataChanged on success (shell-level badge freshness)', async () => {
+    const onDataChanged = vi.fn();
+    loadMock.mockResolvedValue(workQueueData());
+    receiveMock.mockResolvedValue({ kind: 'success' });
+    render(<MyWorkQueue onDataChanged={onDataChanged} />);
+
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: /mark document.*received/i }),
+    );
+    await user.type(screen.getByLabelText(/receipt note/i), 'received');
+    await user.click(screen.getByRole('button', { name: /^mark received$/i }));
+
+    await waitFor(() => expect(onDataChanged).toHaveBeenCalledTimes(1));
   });
 });

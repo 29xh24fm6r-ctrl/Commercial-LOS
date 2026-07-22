@@ -194,6 +194,32 @@ describe('saveCreditMemoDraft', () => {
     expect(typeof payload.cr664_generatedat).toBe('string');
   });
 
+  it('REGRESSION: never sends a raw ownerid/owneridtype/statecode scalar on the memo create (owner is server-defaulted)', async () => {
+    // The reported Save-Draft crash was `ownerid: <systemUserId>` — a scalar for the polymorphic
+    // owner lookup — which Dataverse rejects with a PrimitiveValue deserialization error. Owner must
+    // be server-defaulted (like the audit/timeline writes), or set via `ownerid@odata.bind` only.
+    memoCreate.mockReturnValue(memoOk('memo-1'));
+    sectionCreate.mockReturnValue(sectionOk('s-1'));
+    auditCreate.mockReturnValue(auditOk('a-1'));
+    timelineCreate.mockReturnValue(timelineOk('t-1'));
+
+    await saveCreditMemoDraft(baseInput(), okResolver);
+
+    const memoPayload = memoCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(memoPayload.ownerid).toBeUndefined();
+    expect(memoPayload.owneridtype).toBeUndefined();
+    expect(memoPayload.statecode).toBeUndefined();
+    // The deal relationship is still bound with correct OData lookup syntax.
+    expect(memoPayload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-77)');
+
+    for (const call of sectionCreate.mock.calls) {
+      const sectionPayload = call[0] as Record<string, unknown>;
+      expect(sectionPayload.ownerid).toBeUndefined();
+      expect(sectionPayload.owneridtype).toBeUndefined();
+      expect(sectionPayload.statecode).toBeUndefined();
+    }
+  });
+
   it('creates one cr664_creditmemodraftsection per included section, all in Pending review', async () => {
     memoCreate.mockReturnValue(memoOk('memo-1'));
     sectionCreate.mockReturnValueOnce(sectionOk('s-1')).mockReturnValueOnce(sectionOk('s-2'));

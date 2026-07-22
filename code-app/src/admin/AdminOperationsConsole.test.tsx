@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { BootstrapProvider } from '../bootstrap/BootstrapContext';
 
 // The User & Access panel performs a read on mount; mock it so the
@@ -79,11 +80,13 @@ function renderConsole(
   writeDisabledReason?: string,
 ) {
   return render(
-    <BootstrapProvider value={bootstrap(route)}>
-      <AdminIdentityProvider value={adminIdentity(writeDisabledReason)}>
-        <AdminOperationsConsole />
-      </AdminIdentityProvider>
-    </BootstrapProvider>,
+    <MemoryRouter>
+      <BootstrapProvider value={bootstrap(route)}>
+        <AdminIdentityProvider value={adminIdentity(writeDisabledReason)}>
+          <AdminOperationsConsole />
+        </AdminIdentityProvider>
+      </BootstrapProvider>
+    </MemoryRouter>,
   );
 }
 

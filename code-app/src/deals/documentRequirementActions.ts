@@ -38,27 +38,14 @@ import {
   type DocumentRequirementAction,
   type DocumentRequirementStatus,
 } from './documentRequirementLifecycle';
+import { REQUIREMENT_STATUS_CODES, requirementStatusFromCode } from './documentRequirementStatusCodes';
 
-/** Persisted cr664_requirementstatus option-set values. */
-export const REQUIREMENT_STATUS_CODES: Readonly<Record<DocumentRequirementStatus, number>> = Object.freeze({
-  not_assessed: 788190100,
-  outstanding: 788190101,
-  requested: 788190102,
-  under_review: 788190103,
-  reviewed: 788190104,
-  waived: 788190105,
-  not_applicable: 788190106,
-});
-
-const STATUS_BY_CODE: ReadonlyMap<number, DocumentRequirementStatus> = new Map(
-  Object.entries(REQUIREMENT_STATUS_CODES).map(([status, code]) => [code, status as DocumentRequirementStatus]),
-);
-
-/** Reverse lookup for reading a persisted cr664_requirementstatus value back off a live row. */
-export function requirementStatusFromCode(code: number | undefined): DocumentRequirementStatus | undefined {
-  if (code === undefined) return undefined;
-  return STATUS_BY_CODE.get(code);
-}
+// Re-exported for existing consumers (documentRequirementActions.test.ts,
+// documentRequirementLiveReader.ts) — the canonical definitions now live in
+// documentRequirementStatusCodes.ts, a pure lookup module read-only role
+// surfaces (Manager, Team) can safely import without tripping
+// readOnlySurfaceGuard.test.ts's action-module import guard.
+export { REQUIREMENT_STATUS_CODES, requirementStatusFromCode };
 
 /** Actions that persist an actor-identity lookup and therefore fail closed on an unresolved actor. */
 const IDENTITY_BOUND_ACTIONS: ReadonlySet<DocumentRequirementAction> = new Set(['acknowledge', 'waive']);

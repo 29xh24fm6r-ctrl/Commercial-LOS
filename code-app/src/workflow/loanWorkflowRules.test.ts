@@ -169,3 +169,44 @@ describe('deriveLoanWorkflowReadiness — Credit Approval credit requirements', 
     expect(byId.get('spreading analysis')?.severity).toBe('blocked');
   });
 });
+
+describe('deriveLoanWorkflowReadiness — closing blockers (D13 honesty fix)', () => {
+  it('names the actual outstanding document/task instead of implying the closing-requirement label itself was checked and failed', () => {
+    const stage = getLoanWorkflowStage('DOCUMENTATION');
+    const readiness = deriveLoanWorkflowReadiness({
+      deal: baseDeal,
+      stage,
+      tasks: emptyTasks,
+      documents: emptyDocuments, // every required document for this stage is missing
+      creditMemo: { memos: [], sections: [] },
+    });
+    expect(readiness.closingBlockers.length).toBeGreaterThan(0);
+    for (const closingBlocker of readiness.closingBlockers) {
+      // Never the old, over-precise "Closing blocker: <label>" phrasing.
+      expect(closingBlocker.label).not.toMatch(/^Closing blocker:/);
+      // Names at least one real missing document/task the reader can act on.
+      expect(closingBlocker.label).toMatch(/outstanding requirement/i);
+      expect(closingBlocker.label).toMatch(/Loan agreement|Insurance evidence/);
+    }
+  });
+
+  it('reports no closing blockers once every required document/task for the stage is satisfied', () => {
+    const stage = getLoanWorkflowStage('DOCUMENTATION');
+    const documents: DealDocumentsResult = {
+      outstanding: [],
+      received: [],
+      reviewed: [
+        { id: 'd1', name: 'Loan agreement', dueDate: undefined, requestDate: undefined, receivedDate: '2026-06-01T00:00:00Z', reviewer: 'Banker', uploaded: true, modifiedOn: undefined, status: 'reviewed' },
+        { id: 'd2', name: 'Insurance evidence', dueDate: undefined, requestDate: undefined, receivedDate: '2026-06-01T00:00:00Z', reviewer: 'Banker', uploaded: true, modifiedOn: undefined, status: 'reviewed' },
+      ],
+    };
+    const readiness = deriveLoanWorkflowReadiness({
+      deal: baseDeal,
+      stage,
+      tasks: { open: [], completed: [{ id: 't1', title: 'Documentation checklist review', completed: true, dueDate: undefined, assigneeName: undefined, modifiedOn: undefined }] },
+      documents,
+      creditMemo: { memos: [], sections: [] },
+    });
+    expect(readiness.closingBlockers).toEqual([]);
+  });
+});

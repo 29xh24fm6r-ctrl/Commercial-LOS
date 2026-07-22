@@ -72,7 +72,7 @@ function Write-Artifact($capability, $obj) {
   return $file
 }
 
-# Sentinel / non-attributable operator values — mirrors SENTINEL_OPERATOR_UPNS in
+# Sentinel / non-attributable operator values - mirrors SENTINEL_OPERATOR_UPNS in
 # src/access/finalLaunchSmokeEvidence.ts. A passed artifact may never attribute to one.
 $SENTINEL_UPNS = @('unknown-operator', 'unknown', '', 'system', 'service-account', 'serviceaccount', 'n/a', 'na', 'none', '00000000-0000-0000-0000-000000000000')
 
@@ -92,8 +92,8 @@ function Test-HasId($v) {
 
 # ---- fail-closed manual-evidence validation (mirrors finalLaunchSmokeEvidence.ts) --------
 # Parse-shape checks apply to every record. When outcome=passed, ALSO enforce the same
-# acceptance predicate deriveEvidenceIntegrity() uses — attributable identity + shape GO +
-# class-appropriate machine proof — so a recorded "passed" artifact can NEVER be one the
+# acceptance predicate deriveEvidenceIntegrity() uses - attributable identity + shape GO +
+# class-appropriate machine proof - so a recorded "passed" artifact can NEVER be one the
 # TypeScript gate will silently reject as EVIDENCE_INSUFFICIENT (NONE). A placeholder is
 # recorded outcome=failed, never a passed record without proof.
 function Test-ManualEvidence($e) {
@@ -110,7 +110,7 @@ function Test-ManualEvidence($e) {
     if ($e.deliveryVerified -isnot [bool] -and $e.auditVerified -isnot [bool]) { $errs += 'borrowerSend requires deliveryVerified or auditVerified boolean' }
   }
 
-  # Acceptance parity — only a genuinely GO-eligible artifact may be recorded outcome=passed.
+  # Acceptance parity - only a genuinely GO-eligible artifact may be recorded outcome=passed.
   if ($e.outcome -eq 'passed') {
     if (-not (Test-AttributableUpn $e.operatorUpn)) { $errs += "passed evidence needs an attributable operatorUpn (not a sentinel): '$($e.operatorUpn)'" }
     if ($e.liveOperationPerformed -ne $true) { $errs += 'passed evidence requires liveOperationPerformed=true' }

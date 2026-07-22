@@ -1,4 +1,6 @@
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
+import { isTestOrSmokeDealName } from '../shared/deals/testDealClassification';
+import { parseCalendarDate } from '../shared/formatters';
 
 /**
  * ⚠️ TRANSITIONAL OPERATIONAL FALLBACK — DO NOT EXPAND.
@@ -73,6 +75,10 @@ export async function loadPipelineByStageFallback(): Promise<StageAggregate[]> {
 
   const map = new Map<string, StageAggregate>();
   for (const d of result.data ?? []) {
+    // Remediation 2026-07-22 (Workstream A/N) — org-wide scope is intentional (SPEC W2), but test
+    // deals must still be excluded, matching the Banker/Manager/Team pipelines, or Executive's
+    // aggregate count/total disagrees with theirs by exactly the population of test deals.
+    if (isTestOrSmokeDealName(d.cr664_dealname)) continue;
     const key = d.cr664_stagereferencename ?? UNKNOWN_STAGE;
     const existing = map.get(key);
     if (existing) {
@@ -111,6 +117,7 @@ export async function loadClosingForecastFallback(
   const buckets = new Map<string, MonthBucketAggregate>();
 
   for (const d of result.data ?? []) {
+    if (isTestOrSmokeDealName(d.cr664_dealname)) continue;
     const amount = d.cr664_amount ?? 0;
     let key: string;
     let label: string;
@@ -120,8 +127,11 @@ export async function loadClosingForecastFallback(
       key = NO_DATE_KEY;
       label = 'No target close date';
     } else {
-      const dt = new Date(d.cr664_targetclosedate);
-      if (Number.isNaN(dt.getTime())) {
+      // Remediation 2026-07-22 (Workstream H) — cr664_targetclosedate is a date-only field;
+      // `new Date(...)` parsed it as UTC midnight, which then bucketed/labeled it as the PRIOR
+      // calendar day for any viewer west of UTC. parseCalendarDate builds local midnight instead.
+      const dt = parseCalendarDate(d.cr664_targetclosedate);
+      if (!dt) {
         key = NO_DATE_KEY;
         label = 'No target close date';
       } else if (dt.getTime() < monthStart) {

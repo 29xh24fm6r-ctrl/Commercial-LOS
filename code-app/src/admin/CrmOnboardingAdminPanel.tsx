@@ -1,4 +1,5 @@
 ﻿import type { CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { Badge } from '../shared/Badge';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -108,14 +109,14 @@ export function CrmOnboardingAdminPanel() {
       <div style={styles.actions}>
         {liveEnabled ? (
           <>
-            <a
-              href={WORKSPACE_ROUTES.banker}
+            <Link
+              to={WORKSPACE_ROUTES.banker}
               style={styles.manageLink}
               data-admin-crm-action="open"
               aria-label="Open CRM workspace"
             >
               Open CRM workspace
-            </a>
+            </Link>
             <DisabledAction label="External CRM sync off" id="sync" />
           </>
         ) : (

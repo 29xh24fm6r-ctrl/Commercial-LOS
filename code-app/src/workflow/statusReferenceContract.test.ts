@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveStatusReferences,
   isCanonicalStatusCode,
+  recognizeCanonicalStatus,
   CANONICAL_STATUS_CODES,
   type StatusReferenceRow,
 } from './statusReferenceContract';
@@ -59,5 +60,27 @@ describe('resolveStatusReferences', () => {
 
   it('is unavailable for an empty table', () => {
     expect(resolveStatusReferences([]).status).toBe('unavailable');
+  });
+});
+
+describe('recognizeCanonicalStatus (governance initiative, 2026-07-21)', () => {
+  it('recognizes the exact code, case-insensitively', () => {
+    expect(recognizeCanonicalStatus('OPEN')).toBe('OPEN');
+    expect(recognizeCanonicalStatus('open')).toBe('OPEN');
+    expect(recognizeCanonicalStatus('withdrawn')).toBe('WITHDRAWN');
+  });
+
+  it('recognizes the ratified display name, case-insensitively', () => {
+    expect(recognizeCanonicalStatus('Open')).toBe('OPEN');
+    expect(recognizeCanonicalStatus('on hold')).toBe('ON_HOLD');
+    expect(recognizeCanonicalStatus('Declined')).toBe('DECLINED');
+    expect(recognizeCanonicalStatus('Boarded')).toBe('BOARDED');
+  });
+
+  it('never guesses a default for an unrecognized value — including never defaulting to OPEN', () => {
+    expect(recognizeCanonicalStatus('Active')).toBeUndefined();
+    expect(recognizeCanonicalStatus('Frozen')).toBeUndefined();
+    expect(recognizeCanonicalStatus(undefined)).toBeUndefined();
+    expect(recognizeCanonicalStatus('')).toBeUndefined();
   });
 });

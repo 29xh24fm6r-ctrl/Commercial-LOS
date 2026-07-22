@@ -35,6 +35,8 @@ import {
 } from './dealTaskActions';
 import { EMAIL_MODE } from './emailDelivery/emailMode';
 import { deriveBankerIdentityGatedAvailability } from './bankerIdentityGatedAvailability';
+import { findDocumentReceivedByActorName } from './documentReceivedByLookup';
+import type { TimelineEvent } from './activityQueries';
 import { describeUnavailability } from '../shared/governance/operationalCapabilityState';
 import { toOperationalCapabilityState } from '../shared/governance/capabilityAvailability';
 import { uploadDocumentFile, type UploadDocumentFileOutcome } from './documentUploadAction';
@@ -63,7 +65,7 @@ interface DealDocumentsProps {
 }
 
 export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
-  const { deal, documents, tasks, creditMemo, refresh } = useDealData();
+  const { deal, documents, tasks, creditMemo, activity, refresh } = useDealData();
   const banker = useOptionalBanker();
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [pendingRequestDoc, setPendingRequestDoc] = useState<DealDocument | null>(
@@ -353,6 +355,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
         )}
         <Body
           documents={documents}
+          activity={activity}
           canWrite={canWrite}
           onRequest={(doc) => setPendingRequestDoc(doc)}
           onReceive={(doc) => setPendingReceiveDoc(doc)}
@@ -457,6 +460,7 @@ function subtitleFor(documents: AsyncResult<DealDocumentsResult>): string | unde
 
 function Body({
   documents,
+  activity,
   canWrite,
   onRequest,
   onReceive,
@@ -464,6 +468,7 @@ function Body({
   onCreateReviewTask,
 }: {
   documents: AsyncResult<DealDocumentsResult>;
+  activity: AsyncResult<TimelineEvent[]>;
   canWrite: boolean;
   onRequest: (doc: DealDocument) => void;
   onReceive: (doc: DealDocument) => void;
@@ -477,6 +482,12 @@ function Body({
   const { outstanding, received, reviewed } = documents.data;
   const total = outstanding.length + received.length + reviewed.length;
   if (total === 0) return <p style={styles.muted}>No documents on this deal yet.</p>;
+  // D8 remediation: cr664_documentchecklist has no "received by" column
+  // (only cr664_receiveddate); the receiving actor is captured on the
+  // DocumentUploaded timeline event markDocumentReceived already emits.
+  // `activity` may still be loading/failed — that's honestly "unknown",
+  // never a fabricated name.
+  const activityEvents = activity.kind === 'ready' ? activity.data : undefined;
 
   return (
     <div style={styles.lists}>
@@ -486,6 +497,7 @@ function Body({
         emptyHint="No outstanding documents."
         status="outstanding"
         canWrite={canWrite}
+        activityEvents={activityEvents}
         onRequest={onRequest}
         onReceive={onReceive}
         onReview={onReview}
@@ -497,6 +509,7 @@ function Body({
         emptyHint="None received yet."
         status="received"
         canWrite={canWrite}
+        activityEvents={activityEvents}
         onRequest={onRequest}
         onReceive={onReceive}
         onReview={onReview}
@@ -508,6 +521,7 @@ function Body({
         emptyHint="No reviewed documents yet."
         status="reviewed"
         canWrite={false}
+        activityEvents={activityEvents}
         onRequest={onRequest}
         onReceive={onReceive}
         onReview={onReview}
@@ -523,6 +537,7 @@ function Group({
   emptyHint,
   status,
   canWrite,
+  activityEvents,
   onRequest,
   onReceive,
   onReview,
@@ -533,6 +548,7 @@ function Group({
   emptyHint: string;
   status: DocumentStatus;
   canWrite: boolean;
+  activityEvents: readonly TimelineEvent[] | undefined;
   onRequest: (doc: DealDocument) => void;
   onReceive: (doc: DealDocument) => void;
   onReview: (doc: DealDocument) => void;
@@ -554,6 +570,7 @@ function Group({
               doc={d}
               status={status}
               canWrite={canWrite}
+              receivedBy={status === 'received' ? findDocumentReceivedByActorName(activityEvents, d.id) : undefined}
               onRequest={onRequest}
               onReceive={onReceive}
               onReview={onReview}
@@ -570,6 +587,7 @@ function DocumentRow({
   doc,
   status,
   canWrite,
+  receivedBy,
   onRequest,
   onReceive,
   onReview,
@@ -578,6 +596,8 @@ function DocumentRow({
   doc: DealDocument;
   status: DocumentStatus;
   canWrite: boolean;
+  /** D8 — who received this document, derived from the timeline (undefined = unknown, never fabricated). */
+  receivedBy?: string;
   onRequest: (doc: DealDocument) => void;
   onReceive: (doc: DealDocument) => void;
   onReview: (doc: DealDocument) => void;
@@ -628,6 +648,7 @@ function DocumentRow({
           {status === 'received' && (
             <>
               <Meta label="Received" value={formatDate(doc.receivedDate)} />
+              <Meta label="Received by" value={receivedBy ?? 'Unknown'} />
               {doc.uploaded && <Meta label="Source" value="Uploaded" />}
               {isReceivedDocumentPendingReview({
                 receivedDate: doc.receivedDate,

@@ -384,6 +384,36 @@ describe('updateDealProfile — loan amount (governed number field)', () => {
   });
 });
 
+describe('updateDealProfile — amortization months (Remediation 2026-07-22, Workstream E, governed integer field)', () => {
+  it('writes cr664_amortizationmonths as an integer and returns a numeric verified value (audited)', async () => {
+    const { deps, store, calls } = fakeDeps();
+    const out = await updateDealProfile(input({ amortizationMonths: '240' }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_amortizationmonths: 240 });
+    expect(calls.audit).toBe(1);
+    if (out.kind === 'updated') {
+      expect(out.verified.amortizationMonths).toBe(240);
+      expect(typeof out.verified.amortizationMonths).toBe('number');
+      expect(out.changedLabels).toContain('Amortization (months)');
+    }
+  });
+
+  it('rejects zero / negative / non-integer / implausibly large values (no write)', async () => {
+    for (const bad of ['0', '-12', 'abc', '36.5', '601']) {
+      const { deps, calls } = fakeDeps();
+      const out = await updateDealProfile(input({ amortizationMonths: bad }), deps);
+      expect(out.kind).toBe('invalid-input');
+      expect(calls.update).toBe(0);
+    }
+  });
+
+  it('fails closed (readback-mismatch) when the value does not read back as written', async () => {
+    const { deps } = fakeDeps({ readDeal: async () => ({ success: true, row: { cr664_amortizationmonths: 60 } }) });
+    const out = await updateDealProfile(input({ amortizationMonths: '240' }), deps);
+    expect(out.kind).toBe('readback-mismatch');
+  });
+});
+
 describe('updateDealProfile — write-boundary discipline (source)', () => {
   const SRC = readFileSync(resolve(__dirname, 'updateDealProfile.ts'), 'utf8');
 

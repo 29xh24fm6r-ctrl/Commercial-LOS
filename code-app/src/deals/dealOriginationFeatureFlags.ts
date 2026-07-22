@@ -48,6 +48,12 @@ export const BORROWER_TWILIO_TRANSPORT_ENABLED = false as const;
 /** Duplicate detection may run as a warning; merge is never auto-applied. */
 export const DUPLICATE_DETECTION_ENABLED = true as const;
 export const DUPLICATE_MERGE_APPLY_ENABLED = false as const;
+// Governance initiative (2026-07-21) — safe default (off); arm only after
+// scripts/dataverse/create-governed-transition-reason-field.ps1 has actually been run -Apply
+// against the live org and the SDK is regenerated. Until then, RETURN/DECLINE/WITHDRAW reasons are
+// written to the audit event's notes only (client-enforced, not yet server-verifiable) — see
+// src/deals/governedTransitionReasonSchema.ts and docs/governance/DEPLOYMENT_AND_ROLLBACK_PLAN.md.
+export const GOVERNANCE_REASON_FIELD_ENABLED = false as const;
 
 /** Borrower-invite / messaging mode for the controlled path. */
 export type SendMode = 'disabled' | 'prepare_only' | 'send_enabled';

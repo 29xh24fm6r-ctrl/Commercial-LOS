@@ -9,7 +9,7 @@
     Not Assessed -> Outstanding -> Requested -> Under Review -> Reviewed
     (governed alternate states: Waived, Not Applicable; Reopen returns to Outstanding)
 
-    cr664_requirementstatus  Picklist   The persisted lifecycle status (7 custom options — see
+    cr664_requirementstatus  Picklist   The persisted lifecycle status (7 custom options - see
                                          "REQUIREMENT STATUS OPTION VALUES" below; the numeric
                                          values MUST match REQUIREMENT_STATUS_CODES in
                                          src/deals/documentRequirementActions.ts exactly).
@@ -19,10 +19,10 @@
     cr664_acknowledgeddate    DateTime  When the requirement was acknowledged.
     cr664_revieweddate        DateTime  When the document was reviewed (distinct from the existing
                                          cr664_reviewer text column, which records WHO reviewed it;
-                                         this records WHEN — "received without reviewed" must be
+                                         this records WHEN - "received without reviewed" must be
                                          expressible as receiveddate set + revieweddate unset).
     cr664_waived               Boolean  Whether the requirement was waived.
-    cr664_waiverreason           Memo   The required justification for a waiver (never optional —
+    cr664_waiverreason           Memo   The required justification for a waiver (never optional -
                                          performDocumentRequirementAction refuses a waive with no
                                          reason before this column is ever written to).
 
@@ -38,19 +38,19 @@
     script targets cr664_user for the same reason, consistently.
 
   DOES NOT:
-    - Create a separate stage-reference-style table for requirement status — the status lives on
+    - Create a separate stage-reference-style table for requirement status - the status lives on
       the existing cr664_documentchecklist row, per the user's explicit instruction to use "the
       existing authoritative checklist table."
     - Create a Dataverse alternate key / unique index on any of these columns.
-    - Seed any row data — reconciliation (documentRequirementReconciliation.ts) is purely a runtime
+    - Seed any row data - reconciliation (documentRequirementReconciliation.ts) is purely a runtime
       read-time merge of derived requirements against whatever rows already exist; nothing here
       pre-populates cr664_documentchecklist.
     - Flip any application feature flag.
 
-  SAFETY MODEL (same as every other script in this directory — see _common.ps1):
+  SAFETY MODEL (same as every other script in this directory - see _common.ps1):
     - DRY-RUN BY DEFAULT. Mutation happens only when you pass -Apply.
     - Confirms the target environment via `pac org who` AND checks the resolved org host matches
-      the expected org — BLOCKED on any mismatch. Override with -ExpectedOrgHost if deliberate.
+      the expected org - BLOCKED on any mismatch. Override with -ExpectedOrgHost if deliberate.
     - Confirms the CommercialLendingLOS solution exists in the target org before any mutation.
     - CREATE-MISSING-ONLY. Every column/relationship is existence-checked first and skipped if
       present. Nothing is ever overwritten, renamed, or deleted. There is NO delete path.
@@ -145,7 +145,7 @@ $targetTableExists = Test-DataverseTable $orgUrl $token $LookupRelationship.toTa
 if ($targetTableExists -eq $true) {
   Write-Status $LookupRelationship.toTable 'PASS' 'lookup target table exists'
 } elseif ($targetTableExists -eq $false) {
-  Write-Status $LookupRelationship.toTable 'BLOCKED' 'lookup target table cr664_user does not exist in this org — cr664_acknowledgedby cannot be created. Investigate before proceeding.'
+  Write-Status $LookupRelationship.toTable 'BLOCKED' 'lookup target table cr664_user does not exist in this org - cr664_acknowledgedby cannot be created. Investigate before proceeding.'
 } else {
   Write-Status $LookupRelationship.toTable 'UNKNOWN' 'could not verify lookup target table (no token / transient error).'
 }
@@ -243,14 +243,14 @@ foreach ($col in $ScalarColumns) {
 $lookupResult = New-DataverseRelationshipIfMissing -RelDef $LookupRelationship -OrgUrl $orgUrl -Token $token -Apply:$Apply.IsPresent
 if ($lookupResult -eq 'created') { $created++ }
 
-# --- Publish — only if something was actually created this run. ---
+# --- Publish - only if something was actually created this run. ---
 if ($Apply -and $created -gt 0) {
   Write-Host '== Publishing customizations (columns/relationship were created) =='
   $headers = @{ Authorization = "Bearer $token"; 'OData-MaxVersion' = '4.0'; 'OData-Version' = '4.0'; 'Content-Type' = 'application/json' }
   Invoke-RestMethod -Method Post -Uri ("{0}/api/data/v9.2/PublishAllXml" -f $orgUrl.TrimEnd('/')) -Headers $headers -Body '{}' | Out-Null
   Write-Status 'publish' 'PASS' 'customizations published'
 } elseif ($Apply) {
-  Write-Status 'publish' 'PASS' 'nothing created this run — publish skipped (idempotent no-op)'
+  Write-Status 'publish' 'PASS' 'nothing created this run - publish skipped (idempotent no-op)'
 }
 
 # --- Post-create metadata verification: re-GET each scalar attribute, confirm the type matches. ---
@@ -273,7 +273,7 @@ if ($Apply -or $token) {
     } elseif ($null -eq $actualType) {
       Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'UNKNOWN' 'could not read AttributeType (no token / not yet created in dry-run)'
     } else {
-      Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'BLOCKED' ("AttributeType={0} but expected {1} — investigate before relying on this column" -f $actualType, $expected)
+      Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'BLOCKED' ("AttributeType={0} but expected {1} - investigate before relying on this column" -f $actualType, $expected)
     }
   }
 }

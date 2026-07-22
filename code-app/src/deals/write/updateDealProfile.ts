@@ -16,14 +16,20 @@
  *   - customerType         (choice enum)   → cr664_customertype
  *   - industry             (choice enum)   → cr664_industry
  *   - guarantorStructure   (choice enum)   → cr664_guarantorstructure
+ *   - amortizationMonths   (integer)       → cr664_amortizationmonths
  *
  * Loan amount (cr664_amount) is a mandatory Intake exit criterion, so it is edited here through
  * the same governed authorize→validate→update→readback→audit discipline (the live-smoke gap: no
  * supported UI path to populate it). Deliberately still OUT of scope: stage, status, banker, and
  * the Client lookup (Phase 2 projects the verified CRM client). productType / loanStructure
- * / pricingType are reference LOOKUPS with no registered datasource or reference
- * list yet, so they are not editable here — the modal shows them read-only
- * rather than fabricate a dropdown.
+ * / pricingType are reference LOOKUPS, editable via DEAL_REFERENCE_LOOKUPS below.
+ *
+ * Remediation 2026-07-22 (Workstream E) added amortizationMonths — cr664_amortizationmonths
+ * already exists live on cr664_loandeals but had no read/write path anywhere in the app. No
+ * schema change; the field spec just never covered it. Genuinely missing schema (loan term,
+ * loan purpose, a deal-level ownership/legal-structure classification distinct from guarantor
+ * structure) stays OUT of scope — those require an operator-authorized Dataverse column, not a
+ * code change.
  *
  * It creates nothing (no borrowers, no CRM records), changes no stage/status,
  * writes no amount/client, and fabricates no default values. Pure over injected
@@ -50,7 +56,8 @@ export type DealProfileField =
   | 'collateralSummary'
   | 'customerType'
   | 'industry'
-  | 'guarantorStructure';
+  | 'guarantorStructure'
+  | 'amortizationMonths';
 
 /** A scalar patch value: a string to set, or `null` to clear. */
 export type DealProfilePatch = Partial<Record<DealProfileField, string | null>>;
@@ -81,7 +88,7 @@ export interface UpdateDealProfileInput {
   readonly allowedReferenceIds?: readonly string[];
 }
 
-type FieldKind = 'text' | 'date' | 'choice' | 'number';
+type FieldKind = 'text' | 'date' | 'choice' | 'number' | 'integer';
 
 interface FieldSpec {
   readonly kind: FieldKind;
@@ -103,6 +110,7 @@ export const DEAL_PROFILE_FIELD_SPECS: Readonly<Record<DealProfileField, FieldSp
   customerType: { kind: 'choice', writeKey: 'cr664_customertype', readKey: 'cr664_customertype', options: Cr664_loandealscr664_customertype, label: 'Customer type' },
   industry: { kind: 'choice', writeKey: 'cr664_industry', readKey: 'cr664_industry', options: Cr664_loandealscr664_industry, label: 'Industry' },
   guarantorStructure: { kind: 'choice', writeKey: 'cr664_guarantorstructure', readKey: 'cr664_guarantorstructure', options: Cr664_loandealscr664_guarantorstructure, label: 'Guarantor structure' },
+  amortizationMonths: { kind: 'integer', writeKey: 'cr664_amortizationmonths', readKey: 'cr664_amortizationmonths', label: 'Amortization (months)' },
 };
 
 /**
@@ -154,6 +162,8 @@ export interface VerifiedProfilePatch {
   readonly productType?: string | undefined;
   readonly loanStructure?: string | undefined;
   readonly pricingType?: string | undefined;
+  /** Numeric so callers can render it directly (months), same convention as `amount`. */
+  readonly amortizationMonths?: number | undefined;
 }
 
 export type UpdateDealProfileOutcome =
@@ -307,6 +317,18 @@ function prepareField(
       }
       return { ok: true, prepared: { field, spec, writeValue: num, displayValue: value } };
     }
+    case 'integer': {
+      // Whole months only; a 50-year (600-month) cap rejects nonsensical values without
+      // fabricating a "real" business-rule ceiling this schema doesn't define.
+      const n = Number(value.replace(/[,\s]/g, ''));
+      if (!Number.isInteger(n) || n <= 0) {
+        return { ok: false, reason: `${spec.label} must be a positive whole number of months.` };
+      }
+      if (n > 600) {
+        return { ok: false, reason: `${spec.label} is implausibly large; check the value.` };
+      }
+      return { ok: true, prepared: { field, spec, writeValue: n, displayValue: String(n) } };
+    }
   }
 }
 
@@ -327,6 +349,8 @@ function readbackConfirms(row: Record<string, unknown>, p: PreparedField): boole
     case 'date':
       return dayKey(actual) !== null && dayKey(actual) === dayKey(p.writeValue as string);
     case 'choice':
+      return Number(actual) === p.writeValue;
+    case 'integer':
       return Number(actual) === p.writeValue;
   }
 }
@@ -453,8 +477,8 @@ export async function updateDealProfile(
   const verified: VerifiedProfilePatch = {};
   const changedLabels: string[] = [];
   for (const p of prepared) {
-    if (p.spec.kind === 'number') {
-      // Project the numeric value so the cockpit's currency formatter + completeness read it directly.
+    if (p.spec.kind === 'number' || p.spec.kind === 'integer') {
+      // Project the numeric value so the cockpit's currency/count formatting reads it directly.
       (verified as Record<string, number | undefined>)[p.field] =
         p.writeValue === null ? undefined : (p.writeValue as number);
     } else {

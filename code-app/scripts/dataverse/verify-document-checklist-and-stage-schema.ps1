@@ -2,24 +2,24 @@
   verify-document-checklist-and-stage-schema.ps1
 
   READ-ONLY. Companion to create-document-checklist-file-columns.ps1 and
-  create-dealstagereference-sequence-column.ps1 — never mutates anything, no -Apply flag exists on
+  create-dealstagereference-sequence-column.ps1 - never mutates anything, no -Apply flag exists on
   this script at all (mirrors verify-banker-credit-authority.ps1 / verify-full-schema.ps1's pattern).
 
-  This is the item-A "inspect live Dataverse metadata before modifying anything" step — run this
+  This is the item-A "inspect live Dataverse metadata before modifying anything" step - run this
   FIRST, before either provisioning script, so the plan below is checked against reality rather than
   assumed.
 
   Reports:
     - Existence + AttributeType for the six new cr664_documentchecklist upload columns.
     - Existence + AttributeType for cr664_dealstagereference.cr664_sequence /
-      cr664_stagetype — and whether the live column actually exists (the generated TS model already
+      cr664_stagetype - and whether the live column actually exists (the generated TS model already
       has cr664_sequence?: number, which does NOT prove the live column exists; this check resolves
       that discrepancy directly rather than assuming either way).
     - Row count + cr664_sequence uniqueness for cr664_dealstagereferences (does NOT print row data
-      by default — aggregate counts only, since row content may include operator-entered labels).
+      by default - aggregate counts only, since row content may include operator-entered labels).
     - Repo-artifact cross-check: whether both generated service files exist and whether the new
       columns are visible in the generated models yet (they won't be for the six new upload columns
-      until a real SDK regeneration runs — expected, not a failure, until that happens).
+      until a real SDK regeneration runs - expected, not a failure, until that happens).
 
     powershell -File scripts/dataverse/verify-document-checklist-and-stage-schema.ps1
 #>
@@ -58,11 +58,11 @@ foreach ($c in $uploadColumns) {
   $actual = Get-DataverseAttributeType $orgUrl $token 'cr664_documentchecklist' $c.logical
   $status = if ($actual -eq $c.expected) { 'PASS' } elseif ($null -eq $actual) { 'UNKNOWN' } else { 'BLOCKED' }
   if ($status -eq 'PASS') { $uploadColumnsOk++ }
-  Write-Status ("cr664_documentchecklist.{0}" -f $c.logical) $status ("AttributeType={0} expected={1}" -f $(if ($actual) { $actual } else { '(unreadable — likely does not exist yet)' }), $c.expected)
+  Write-Status ("cr664_documentchecklist.{0}" -f $c.logical) $status ("AttributeType={0} expected={1}" -f $(if ($actual) { $actual } else { '(unreadable - likely does not exist yet)' }), $c.expected)
 }
 Write-Host ("EVIDENCE: [document-checklist-upload][verify-columns] ok={0}/{1} ts={2}" -f $uploadColumnsOk, $uploadColumns.Count, (Get-Date -Format o))
 
-# --- 2. cr664_dealstagereference sequence column — resolve the generated-model-vs-live
+# --- 2. cr664_dealstagereference sequence column - resolve the generated-model-vs-live
 #     discrepancy directly rather than assuming either state. ---
 Write-Host '-- cr664_dealstagereferences ordering column --'
 $stageColumns = @(
@@ -72,17 +72,17 @@ $stageColumns = @(
 foreach ($c in $stageColumns) {
   $actual = Get-DataverseAttributeType $orgUrl $token 'cr664_dealstagereference' $c.logical
   $status = if ($actual -eq $c.expected) { 'PASS' } elseif ($null -eq $actual) { 'UNKNOWN' } else { 'BLOCKED' }
-  Write-Status ("cr664_dealstagereference.{0}" -f $c.logical) $status ("AttributeType={0} expected={1}" -f $(if ($actual) { $actual } else { '(unreadable — likely does not exist yet)' }), $c.expected)
+  Write-Status ("cr664_dealstagereference.{0}" -f $c.logical) $status ("AttributeType={0} expected={1}" -f $(if ($actual) { $actual } else { '(unreadable - likely does not exist yet)' }), $c.expected)
 }
 $modelPath = Join-Path $repo 'src\generated\models\Cr664_dealstagereferencesModel.ts'
 if (Test-Path $modelPath) {
   $modelHasSequence = (Get-Content $modelPath -Raw) -match 'cr664_sequence\?:\s*number'
-  Write-Status 'generated model' $(if ($modelHasSequence) { 'PASS' } else { 'UNKNOWN' }) ("Cr664_dealstagereferencesModel.ts {0} cr664_sequence — this reflects what a PRIOR regen produced, not necessarily the current live schema; trust the live AttributeType check above." -f $(if ($modelHasSequence) { 'already declares' } else { 'does not yet declare' }))
+  Write-Status 'generated model' $(if ($modelHasSequence) { 'PASS' } else { 'UNKNOWN' }) ("Cr664_dealstagereferencesModel.ts {0} cr664_sequence - this reflects what a PRIOR regen produced, not necessarily the current live schema; trust the live AttributeType check above." -f $(if ($modelHasSequence) { 'already declares' } else { 'does not yet declare' }))
 } else {
   Write-Status 'generated model' 'UNKNOWN' 'Cr664_dealstagereferencesModel.ts not found in this checkout.'
 }
 
-# --- 3. Row count + sequence uniqueness (aggregate only — no row content printed). ---
+# --- 3. Row count + sequence uniqueness (aggregate only - no row content printed). ---
 Write-Host '-- cr664_dealstagereferences row state (aggregate only) --'
 if ($token -and $orgUrl) {
   try {
@@ -100,7 +100,7 @@ if ($token -and $orgUrl) {
     Write-Status 'row state' 'UNKNOWN' ("could not read cr664_dealstagereferences rows: {0}" -f $_.Exception.Message)
   }
 } else {
-  Write-Status 'row state' 'UNKNOWN' 'no token — cannot read live rows.'
+  Write-Status 'row state' 'UNKNOWN' 'no token - cannot read live rows.'
 }
 
 # --- 4. Repo-artifact cross-check. ---
@@ -110,7 +110,7 @@ $checklistModelPath = Join-Path $repo 'src\generated\models\Cr664_documentcheckl
 Write-Status 'Cr664_documentchecklistsService.ts' $(if (Test-Path $checklistServicePath) { 'PASS' } else { 'BLOCKED' }) $(if (Test-Path $checklistServicePath) { 'present' } else { 'missing from this checkout' })
 if (Test-Path $checklistModelPath) {
   $modelHasFile = (Get-Content $checklistModelPath -Raw) -match 'cr664_documentfile'
-  Write-Status 'Cr664_documentchecklistsModel.ts' $(if ($modelHasFile) { 'PASS' } else { 'UNKNOWN' }) ("{0} cr664_documentfile — expected UNKNOWN until a real SDK regen runs after the columns above are created." -f $(if ($modelHasFile) { 'already declares' } else { 'does not yet declare' }))
+  Write-Status 'Cr664_documentchecklistsModel.ts' $(if ($modelHasFile) { 'PASS' } else { 'UNKNOWN' }) ("{0} cr664_documentfile - expected UNKNOWN until a real SDK regen runs after the columns above are created." -f $(if ($modelHasFile) { 'already declares' } else { 'does not yet declare' }))
 }
 
 Write-Host ("EVIDENCE: [document-checklist-and-stage-schema][verify] ts={0}" -f (Get-Date -Format o))

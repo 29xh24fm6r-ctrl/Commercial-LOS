@@ -169,7 +169,7 @@ function UsersTable({ state }: { state: LoadState }) {
           <tr key={u.id}>
             <td style={styles.td}>{u.fullName}</td>
             <td style={styles.td}>{u.email}</td>
-            <td style={styles.td}>{u.primaryWorkspaceName ?? 'Not selected'}</td>
+            <td style={styles.td}>{formatSafeReadWorkspaceName(u.primaryWorkspaceName)}</td>
             <td style={styles.td}>
               <Badge variant={u.active ? 'clear' : 'neutral'} appearance="outline">
                 {u.active ? 'Active' : 'Inactive'}

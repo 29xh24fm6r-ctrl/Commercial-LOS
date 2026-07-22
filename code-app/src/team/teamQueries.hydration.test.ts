@@ -56,7 +56,7 @@ import { loadTeamDeals } from './teamQueries';
 function dealRow(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     cr664_loandealid: 'd-1',
-    cr664_dealname: 'Test Deal',
+    cr664_dealname: 'Acme Hydration Fixture Deal',
     cr664_amount: 1_000_000,
     cr664_targetclosedate: '2026-07-01',
     cr664_stageentrydate: '2026-05-20',

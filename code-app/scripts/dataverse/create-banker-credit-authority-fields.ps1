@@ -12,13 +12,13 @@
   See docs/DATAVERSE_SECURITY_ROLE_RUNBOOK.md and src/workflow/creditApprovalAuthority.ts for how
   these are consumed by the app.
 
-  SAFETY MODEL (same as every other script in this directory — see _common.ps1):
+  SAFETY MODEL (same as every other script in this directory - see _common.ps1):
     - DRY-RUN BY DEFAULT. Mutation happens only when you pass -Apply.
     - Confirms the target environment via `pac org who` AND checks the resolved org host matches
-      the expected org (org3a57b8d4.crm.dynamics.com) — BLOCKED on any mismatch, so this can never
+      the expected org (org3a57b8d4.crm.dynamics.com) - BLOCKED on any mismatch, so this can never
       accidentally target the wrong environment. Override with -ExpectedOrgHost if you are
       deliberately running this against a different environment (e.g. a sandbox/test org).
-    - Confirms the CommercialLendingLOS solution exists in the target org before any mutation —
+    - Confirms the CommercialLendingLOS solution exists in the target org before any mutation -
       BLOCKED if not found. (Existing scripts only print a solution name from local JSON without
       checking the live org; this is a genuine strengthening, not just following precedent.)
     - CREATE-MISSING-ONLY. Every column is existence-checked first and skipped if present. Nothing
@@ -27,11 +27,11 @@
     - Re-verifies metadata (AttributeType) for all three columns after create/skip.
 
   AUTHORITY SEEDING is a SEPARATE script: seed-banker-credit-authority.ps1. This script only
-  ever creates the three COLUMNS above (schema) — it never writes a banker record (data). That
+  ever creates the three COLUMNS above (schema) - it never writes a banker record (data). That
   split matters for governance: this repo's Dataverse schema scripts are asserted (by
   phase243TerminalDataverseSchemaContract.test.ts) to never PATCH existing metadata; seeding a
   banker's authority values is a legitimate DATA write under an explicit opt-in flag, not a
-  metadata write, so it lives in its own script excluded from that metadata-only assertion —
+  metadata write, so it lives in its own script excluded from that metadata-only assertion -
   same precedent as run-final-launch-smokes.ps1.
 
     powershell -File scripts/dataverse/create-banker-credit-authority-fields.ps1            # dry-run (default)
@@ -62,7 +62,7 @@ $envInfo = Resolve-DataverseEnv
 $token = if ($envInfo) { Get-DataverseToken $envInfo.OrgUrl } else { $null }
 $orgUrl = if ($envInfo) { $envInfo.OrgUrl } else { $null }
 
-# --- Environment identity check (BLOCKED on mismatch, always — not just under -Apply, so a
+# --- Environment identity check (BLOCKED on mismatch, always - not just under -Apply, so a
 #     dry-run also warns loudly if pac is pointed somewhere unexpected). ---
 if ($envInfo -and $envInfo.OrgUrl) {
   $orgHostMatches = $envInfo.OrgUrl -match [regex]::Escape($ExpectedOrgHost)
@@ -77,7 +77,7 @@ if ($envInfo -and $envInfo.OrgUrl) {
   if ($Apply) { Write-Status 'environment' 'BLOCKED' 'Apply requires a confirmed, matching environment. Aborting.'; exit 1 }
 }
 
-# --- Solution existence check (new — existing scripts only print a solution name from local
+# --- Solution existence check (new - existing scripts only print a solution name from local
 #     JSON without ever verifying it live). ---
 function Test-DataverseSolutionExists([string]$OrgUrl, [string]$Token, [string]$UniqueName) {
   if (-not $Token -or -not $OrgUrl) { return $null }
@@ -169,14 +169,14 @@ foreach ($col in $Columns) {
   $created++
 }
 
-# --- Publish — only if something was actually created this run. ---
+# --- Publish - only if something was actually created this run. ---
 if ($Apply -and $created -gt 0) {
   Write-Host '== Publishing customizations (columns were created) =='
   $headers = @{ Authorization = "Bearer $token"; 'OData-MaxVersion' = '4.0'; 'OData-Version' = '4.0'; 'Content-Type' = 'application/json' }
   Invoke-RestMethod -Method Post -Uri ("{0}/api/data/v9.2/PublishAllXml" -f $orgUrl.TrimEnd('/')) -Headers $headers -Body '{}' | Out-Null
   Write-Status 'publish' 'PASS' 'customizations published'
 } elseif ($Apply) {
-  Write-Status 'publish' 'PASS' 'nothing created this run — publish skipped (idempotent no-op)'
+  Write-Status 'publish' 'PASS' 'nothing created this run - publish skipped (idempotent no-op)'
 }
 
 # --- Post-create metadata verification: re-GET each attribute, confirm the type matches. ---
@@ -191,7 +191,7 @@ if ($Apply -or $token) {
     } elseif ($null -eq $actualType) {
       Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'UNKNOWN' 'could not read AttributeType (no token / not yet created in dry-run)'
     } else {
-      Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'BLOCKED' ("AttributeType={0} but expected {1} — investigate before relying on this column" -f $actualType, $expected)
+      Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'BLOCKED' ("AttributeType={0} but expected {1} - investigate before relying on this column" -f $actualType, $expected)
     }
   }
 }

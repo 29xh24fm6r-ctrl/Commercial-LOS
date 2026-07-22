@@ -69,6 +69,9 @@ export function DealPortfolioBoardingStatusPanel({
       <p style={styles.note} data-portfolio-boarding-note>
         {loadingHandoffProof ? 'Confirming the portfolio handoff record for this boarded deal…' : status.note}
       </p>
+      {/* Note: this deal-workflow panel is constrained by the Phase-142A strategy-purity governance
+          (no react-router import in src/workflow/*). It therefore uses a plain anchor rather than a
+          router Link; the admin/banker workspace-switch buttons (the P0-3 audit target) use <Link>. */}
       <a href={WORKSPACE_ROUTES.manager} className="cc-link" style={styles.link} data-portfolio-boarding-open>
         Open Portfolio workspace
       </a>

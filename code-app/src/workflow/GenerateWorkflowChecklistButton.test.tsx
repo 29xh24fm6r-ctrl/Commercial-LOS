@@ -89,18 +89,18 @@ beforeEach(() => {
 });
 
 describe('GenerateWorkflowChecklistButton', () => {
-  it('reports dependency_not_ready when no deps override is given (live gate DOCUMENT_CHECKLIST_GENERATION_ENABLED is off)', async () => {
+  it('Remediation 2026-07-22 (Workstream G) — with no deps override (live gate off), shows an honest disabled notice instead of a dead active button, and never leaks the internal flag name', () => {
     useDealDataMock.mockReturnValue(dealData());
     useOptionalBankerMock.mockReturnValue(banker());
     render(<GenerateWorkflowChecklistButton workflow={workflow()} dealId="deal-1" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate checklist' }));
-
-    await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
-    expect(screen.getByRole('status').textContent).toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED is false/);
-    // Confirms the live factories ARE what gets wired by default (not a stub).
-    expect(rowTransportFactoryMock).toHaveBeenCalledTimes(1);
-    expect(auditSinkFactoryMock).toHaveBeenCalledWith('mpaller@oldglorybank.com');
+    expect(screen.queryByRole('button', { name: 'Generate checklist' })).toBeNull();
+    const notice = screen.getByRole('status');
+    expect(notice.textContent).not.toMatch(/DOCUMENT_CHECKLIST_GENERATION_ENABLED/);
+    expect(notice.textContent).toMatch(/not yet enabled/i);
+    // Never builds the live write dependency for a button that can't succeed.
+    expect(rowTransportFactoryMock).not.toHaveBeenCalled();
+    expect(auditSinkFactoryMock).not.toHaveBeenCalled();
   });
 
   it('uses an injected deps override instead of building live deps (test seam)', async () => {

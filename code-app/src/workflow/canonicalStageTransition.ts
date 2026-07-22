@@ -262,7 +262,8 @@ export async function executeCanonicalStageTransition(
 ): Promise<CanonicalTransitionOutcome> {
   const enabled = input.enabled ?? Boolean(AUTO_STAGE_ADVANCE_ENABLED);
   if (!enabled) {
-    return { kind: 'disabled', detail: 'AUTO_STAGE_ADVANCE_ENABLED is false; stage transitions stay fail-closed.' };
+    // Remediation 2026-07-22 (Workstream G) — banker-safe copy; never the raw internal flag name.
+    return { kind: 'disabled', detail: 'Stage transitions are not enabled yet; no change was made to the deal.' };
   }
 
   const policy = evaluateCanonicalStageTransition(input);

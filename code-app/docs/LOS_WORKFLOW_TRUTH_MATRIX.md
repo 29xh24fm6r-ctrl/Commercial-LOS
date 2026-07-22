@@ -3,6 +3,27 @@
 **Companion to** [LOS_FULL_WORKFLOW_ACTIVATION_ARC.md](./LOS_FULL_WORKFLOW_ACTIVATION_ARC.md). **PR 0 — read-only audit; no runtime change.**
 **Grounded in source as of master `14d521f`.** This is the honest per-transition current state; every future arc PR is measured against it.
 
+> **Update 2026-07-21 (E2E certification pass, `docs/E2E_CERTIFICATION_TEST_SCRIPT_2026-07-21.md`).**
+> Per the codebase's own `CANONICAL_SOURCES.md`/doc-lineage convention, corrections are appended rather
+> than the original claims rewritten. Two specific claims below are now stale — confirmed against current
+> source, not re-asserted from an older doc:
+> - **T2's "Required facts NOT in the live gate: risk rating — ABSENT/PLACEHOLDER... approval
+>   authority... shallow booleans, caller-supplied"** is superseded. `src/workflow/creditApprovalAuthority.ts`
+>   is a real, fail-closed authority check (banker's `cr664_approvallimit`/`cr664_creditcommitteemember`/
+>   `cr664_approvaloverrideauthority`) and is wired directly into the live write seam
+>   (`stageAdvanceWriteDependency.ts`), not just tested. An unauthorized/over-limit approver is genuinely
+>   blocked from exiting Credit Approval today. Risk rating itself remains not live-gated.
+> - **T6's boarding-readiness claim ("SHALLOW — a regex on the stage string... not a boarded-loan
+>   record")** is superseded for the LOS-originated path. Once a deal's stage claims BOARDED, a real
+>   `cr664_portfolioboardedloans` handoff record is reconciled (`boardingHandoffReadiness.ts`,
+>   `loadBoardingHandoffForDeal.ts`) and is now created automatically on stage advance to BOARDED via
+>   `buildLiveStageAdvanceDeps.ts`'s `onDealBoarded.run` — not only through the separate manual
+>   `existingLoanEntryAdapter` path this doc originally described as the sole real write.
+>
+> Everything else in this document (Return/Decline/Withdraw preview-only, document/task substring
+> matching, credit-memo lifecycle presence-only, conditions-precedent as a derived proxy rather than a
+> real record) was independently re-verified during the 2026-07-21 pass and remains accurate.
+
 > **Headline:** the system is **not yet** a complete, team-operable commercial loan workflow. Only forward
 > **Advance** has a live write path; **Return/Decline/Withdraw are preview-only**; and the *live* stage gate is
 > materially shallower than the *rigorous contract* gate. Several commercial-lending facts are shallow,

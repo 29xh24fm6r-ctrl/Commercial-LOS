@@ -109,7 +109,17 @@ export function ManagerDataProvider({ children }: { children: React.ReactNode })
         });
     }
 
-    bind(() => loadTeamPipeline(teamId), setTeamPipeline);
+    // P0-4 — resolve the team's member banker ids first, then scope the pipeline to deals owned by
+    // the team OR assigned to a member banker, so a legitimate active deal whose Owning Team was
+    // skipped still appears in Manager oversight (reconciles Banker↔Team↔Manager counts). If the
+    // banker load fails we fall back to the team-owned-only scope rather than dropping the pipeline.
+    bind(
+      () =>
+        loadTeamBankers(teamId)
+          .then((bankers) => loadTeamPipeline(teamId, { memberBankerIds: bankers.map((b) => b.id) }))
+          .catch(() => loadTeamPipeline(teamId)),
+      setTeamPipeline,
+    );
     bind(() => loadTeamBankers(teamId), setTeamBankers);
     bind(() => loadManagerTeamTasks(teamId), setTeamTasks);
     bind(() => loadManagerTeamDocuments(teamId), setTeamDocuments);

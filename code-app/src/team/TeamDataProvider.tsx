@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useTeam } from './TeamContext';
 import {
   loadTeamDeals,
+  loadTeamMemberBankerIds,
   loadTeamTasks,
   loadTeamDocuments,
   loadTeamMemos,
@@ -75,7 +76,15 @@ export function TeamDataProvider({ children }: { children: React.ReactNode }) {
         });
     }
 
-    bind(setDeals, loadTeamDeals(teamId));
+    // P0-4 — resolve the team's member banker ids first, then scope the pipeline to deals owned by
+    // the team OR assigned to a member banker, so a legitimate active deal whose Owning Team was
+    // skipped still appears in team oversight. If the banker load fails, fall back to team-owned-only.
+    bind(
+      setDeals,
+      loadTeamMemberBankerIds(teamId)
+        .then((memberBankerIds) => loadTeamDeals(teamId, { memberBankerIds }))
+        .catch(() => loadTeamDeals(teamId)),
+    );
     bind(setTasks, loadTeamTasks(teamId));
     bind(setDocuments, loadTeamDocuments(teamId));
     bind(setMemos, loadTeamMemos(teamId));

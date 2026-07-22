@@ -24,7 +24,7 @@
   NEXT (operator), after -Apply:
     1. scripts/dataverse/publish-customizations.ps1
     2. scripts/dataverse/regenerate-powerapps-sdk.ps1   (so cr664_category lands
-       on the generated model — the app reads it via a local interface until then)
+       on the generated model - the app reads it via a local interface until then)
     3. node scripts/seed-deal-reference-values.mjs --verify   (then --commit)
 #>
 [CmdletBinding()]

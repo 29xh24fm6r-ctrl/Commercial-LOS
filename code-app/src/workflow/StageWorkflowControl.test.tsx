@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { StageWorkflowControl } from './StageWorkflowControl';
 import { resolveStageOrdering, CANONICAL_STAGE_CODES, type StageReferenceRow } from './stageOrderingContract';
 import type { StageGateFacts } from './stageGateContract';
+import type { CanonicalTransitionOutcome } from './canonicalStageTransition';
 
 const ORDERING = (() => {
   const seq: Record<string, number> = { INTAKE: 10, UNDERWRITING: 20, CREDIT_APPROVAL: 30, COMMITMENT: 40, DOCUMENTATION: 50, CLOSING_FUNDING: 60, BOARDED: 70 };
@@ -80,28 +81,56 @@ describe('StageWorkflowControl — governed actions', () => {
     expect(screen.getByText(/not enabled in this environment/i)).toBeInTheDocument();
   });
 
-  it('live + authorized advance invokes the governed transition with the ADVANCE request', () => {
-    const onTransition = vi.fn();
+  it('live + authorized advance invokes the governed transition with the ADVANCE request and renders a real success outcome', async () => {
+    const outcome: CanonicalTransitionOutcome = { kind: 'transitioned', transition: 'ADVANCE', from: 'INTAKE', to: 'UNDERWRITING', status: 'OPEN', adverseActionPending: false };
+    const onTransition = vi.fn().mockResolvedValue(outcome);
     render(
       <StageWorkflowControl ordering={ORDERING} currentStage="INTAKE" currentStatus="OPEN" gateFacts={INTAKE_MET} authorized liveEnabled onTransition={onTransition} />,
     );
     fireEvent.click(btn(/Advance stage/i));
     expect(onTransition).toHaveBeenCalledTimes(1);
     expect(onTransition.mock.calls[0][0]).toMatchObject({ kind: 'ADVANCE', currentStage: 'INTAKE' });
+    await waitFor(() => expect(screen.getByText(/Advanced to UNDERWRITING/i)).toBeInTheDocument());
+    expect(screen.getByText(/Advanced to UNDERWRITING/i)).toHaveAttribute('data-stage-message-kind', 'success');
   });
 
-  it('decline requires a reason then submits a structured DECLINE (live)', () => {
-    const onTransition = vi.fn();
+  it('decline requires a structured reason code then submits, and a server rejection is shown honestly (never a fake success)', async () => {
+    const outcome: CanonicalTransitionOutcome = { kind: 'update_failed', detail: 'This deal is no longer at the stage you are declining from.' };
+    const onTransition = vi.fn().mockResolvedValue(outcome);
     render(
       <StageWorkflowControl ordering={ORDERING} currentStage="UNDERWRITING" currentStatus="OPEN" gateFacts={{}} authorized liveEnabled onTransition={onTransition} />,
     );
     fireEvent.click(btn(/^Decline$/i));
-    // confirm is disabled until a reason is typed
+    // confirm is disabled until a reason code is selected
     expect(btn(/Confirm decline/i)).toBeDisabled();
-    fireEvent.change(screen.getByLabelText(/Structured decline reason/i), { target: { value: 'DSCR_TOO_LOW' } });
+    fireEvent.change(screen.getByLabelText(/Decline reason code/i), { target: { value: 'INSUFFICIENT_COLLATERAL' } });
     fireEvent.click(btn(/Confirm decline/i));
     expect(onTransition).toHaveBeenCalledTimes(1);
-    expect(onTransition.mock.calls[0][0]).toMatchObject({ kind: 'DECLINE', declineReason: { code: 'DSCR_TOO_LOW' } });
+    expect(onTransition.mock.calls[0][0]).toMatchObject({ kind: 'DECLINE', declineReason: { code: 'INSUFFICIENT_COLLATERAL' } });
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('alert')).toHaveTextContent(/Update rejected: This deal is no longer at the stage you are declining from\./);
+    expect(screen.queryByText(/declined\./i)).not.toBeInTheDocument();
+  });
+
+  it('a thrown transport error is shown honestly, never as a silent success', async () => {
+    const onTransition = vi.fn().mockRejectedValue(new Error('network unavailable'));
+    render(
+      <StageWorkflowControl ordering={ORDERING} currentStage="COMMITMENT" currentStatus="OPEN" gateFacts={{}} authorized liveEnabled onTransition={onTransition} />,
+    );
+    fireEvent.click(btn(/^Withdraw$/i));
+    fireEvent.change(screen.getByLabelText(/Reason for withdrawal/i), { target: { value: 'borrower withdrew' } });
+    fireEvent.click(btn(/Confirm withdraw/i));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('alert')).toHaveTextContent(/Update rejected: network unavailable/);
+  });
+
+  it('showAdvance=false hides the Advance button and exit-gate checklist (deal-workspace mount avoids a second, disagreeing Advance control)', () => {
+    render(
+      <StageWorkflowControl ordering={ORDERING} currentStage="INTAKE" currentStatus="OPEN" gateFacts={INTAKE_MET} authorized liveEnabled showAdvance={false} />,
+    );
+    expect(screen.queryByRole('button', { name: /Advance stage/i })).toBeNull();
+    expect(document.querySelector('[data-exit-gate]')).toBeNull();
+    expect(screen.getByRole('button', { name: /Return to earlier/i })).toBeInTheDocument();
   });
 
   it('terminal status → no exit gate, no enabled actions', () => {

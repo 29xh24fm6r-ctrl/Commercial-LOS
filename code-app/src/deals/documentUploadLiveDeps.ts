@@ -19,9 +19,10 @@ import { timelineEventByBind } from './timelineActorBind';
 import { newCorrelationId } from '../shared/governance/correlationId';
 import type { DocumentUploadDeps } from './documentUploadAction';
 import { DOCUMENT_UPLOAD_ENUMS, assertChangedByCoreUserBind } from './documentUploadAction';
+import { DOCUMENT_CHECKLIST_ENTITY_SET, DOCUMENT_CHECKLIST_FILE_COLUMN } from './documentUploadSchema';
 
-const CHECKLIST_ENTITY_SET = 'cr664_documentchecklists';
-const CHECKLIST_FILE_COLUMN = 'cr664_documentfile';
+const CHECKLIST_ENTITY_SET = DOCUMENT_CHECKLIST_ENTITY_SET;
+const CHECKLIST_FILE_COLUMN = DOCUMENT_CHECKLIST_FILE_COLUMN;
 
 export function buildLiveDocumentUploadDeps(): DocumentUploadDeps {
   return {

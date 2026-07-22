@@ -351,15 +351,12 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/shared/portfolioBoarding/portfolioLoanDocumentReadiness.ts', reason: 'Shared helper/model consumed by an unrouted subsystem; becomes reachable transitively once its consumer routes.', plannedPhase: 'Phase 3+' },
   // â”€â”€ src/workflow â”€â”€
   { path: 'src/workflow/deriveWorkflowRoute.ts', reason: 'A separate, older (Phase 142A) route-derivation engine with its own type vocabulary (workflowRouteRegistry.ts/workflowRoutingTypes.ts); superseded by the live Phase 142C engine (deriveConfigurableWorkflowRoute.ts) and never mounted.', plannedPhase: 'Phase 3+' },
-  // Stage Advancement engine + control (RETURN/DECLINE/WITHDRAW only -- forward ADVANCE is LIVE via
-  // the separate DealStageProgressionCard.tsx surface): built and tested, but this specific
-  // control/engine pair is WIRED_DISABLED because it is not mounted in any live workspace.
-  // AUTO_STAGE_ADVANCE_ENABLED is itself ARMED (true, since WF-1A) -- it is NOT the remaining
-  // blocker here; mounting is. See docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md.
-  { path: 'src/workflow/StageWorkflowControl.tsx', reason: 'Stage Advancement control for RETURN/DECLINE/WITHDRAW; mounted in the deal workspace once hosted (GATE candidate, WIRED_DISABLED -- unmounted, not flag-gated: AUTO_STAGE_ADVANCE_ENABLED is already armed).', plannedPhase: 'Operator enablement' },
-  { path: 'src/workflow/canonicalStageTransition.ts', reason: 'Stage Advancement governed transition engine for RETURN/DECLINE/WITHDRAW; unhosted (GATE candidate, WIRED_DISABLED -- unmounted, not flag-gated: AUTO_STAGE_ADVANCE_ENABLED is already armed; forward ADVANCE is live via the separate DealStageProgressionCard.tsx path).', plannedPhase: 'Operator enablement' },
-  { path: 'src/workflow/stageGateContract.ts', reason: 'Stage Advancement exit-gate contract; reachable once StageWorkflowControl is hosted in the deal workspace (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
-  { path: 'src/workflow/approvalAuthorityMatrix.ts', reason: 'Stage Advancement OGB single authorized-approver policy; reachable once the CREDIT_APPROVAL gate is wired into a hosted control (transitive, WIRED_DISABLED).', plannedPhase: 'Operator enablement' },
+  // Governance initiative (2026-07-21) — StageWorkflowControl.tsx, canonicalStageTransition.ts, and
+  // stageGateContract.ts are now genuinely reachable (BankerDealWorkspace.tsx ->
+  // DealGovernedTransitionPanel.tsx -> StageWorkflowControl.tsx mounts RETURN/DECLINE/WITHDRAW
+  // live) — their entries are removed here, not merely reworded. See
+  // docs/governance/ADR_001_PLATFORM_ENFORCED_CREDIT_WORKFLOW_GOVERNANCE.md.
+  { path: 'src/workflow/approvalAuthorityMatrix.ts', reason: 'Superseded single authorized-approver policy stub (see its own SUPERSEDED header comment) -- creditApprovalAuthority.ts is the real, live authority check; this file is kept only as history and deliberately not re-wired.', plannedPhase: 'Historical -- do not route' },
   { path: 'src/workflow/losWorkflowTruthMatrix.ts', reason: 'PR 0 machine-readable workflow truth matrix — inert descriptive data for the LOS Full Workflow Activation ARC (docs/LOS_WORKFLOW_TRUTH_MATRIX.md); not wired into any gate, write path, or UI.', plannedPhase: 'ARC documentation' },
   // ── LOS Full Workflow Activation ARC — WIP reconciliation (metadata only) ──
   // These 12 modules are in-flight toward the LOS Full Workflow Activation ARC
@@ -372,8 +369,6 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/crm/certification/crmTeamReadinessCertification.ts', reason: 'ARC WIP: CRM team-readiness certification infrastructure (composes existing readiness dimensions into one verdict). Inert/pure; not mounted.', plannedPhase: 'ARC PR 22' },
   { path: 'src/crm/readiness/crmRoleMountRegistry.ts', reason: 'ARC WIP: CRM role-mount readiness registry (frozen config of which roles have CRM mounted). Inert data; not consumed by a live surface yet.', plannedPhase: 'ARC PR 22' },
   { path: 'src/crm/seed/crmCanonicalSeedReadiness.ts', reason: 'ARC WIP: CRM canonical seed/backfill readiness model over measured facts. Inert/pure; not mounted.', plannedPhase: 'ARC PR 22' },
-  { path: 'src/deals/buildLiveCanonicalTransitionDeps.ts', reason: 'ARC WIP: live Dataverse deps for the canonical Return/Decline/Withdraw transition engine (forward Advance is live via the separate DealStageProgressionCard.tsx surface). SAFETY: contains live write sinks (deal update + audit/timeline create) but is INERT while unrouted + unmounted -- AUTO_STAGE_ADVANCE_ENABLED is already armed (true); unmounting, not the flag, is what keeps this inert.', plannedPhase: 'ARC PR 10/11/12/21' },
-  { path: 'src/deals/dealReferenceResolvers.ts', reason: 'ARC WIP: fail-closed stage/status reference-code resolvers. SAFETY: live-READ only via guarded dynamic import; inert while unrouted (imported only by buildLiveCanonicalTransitionDeps).', plannedPhase: 'ARC PR 10/11/12/21' },
   { path: 'src/deals/loadStageSeedReadiness.ts', reason: 'ARC WIP: live loader for stage-seed readiness proof. SAFETY: live-READ only via guarded dynamic import; inert while unrouted.', plannedPhase: 'ARC PR 4 or PR 23' },
   { path: 'src/workflow/stageExitGateReconciliation.ts', reason: 'ARC WIP: pure reconciliation between the shallow live transition gate and the rigorous exit gate; blocks certification on untracked facts. Inert/pure; not the live gate.', plannedPhase: 'ARC PR 22' },
   { path: 'src/workflow/stageSeedReadiness.ts', reason: 'ARC WIP: pure deterministic stage-seed readiness evaluator (7 canonical stages, active, unique ascending sequence). Inert/pure; not gate-consumed yet.', plannedPhase: 'ARC PR 4 or PR 23' },

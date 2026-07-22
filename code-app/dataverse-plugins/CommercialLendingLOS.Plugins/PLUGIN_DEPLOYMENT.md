@@ -1,32 +1,53 @@
-# LoanDealStageAuthorityPlugin — deployment
+# LoanDealGovernedTransitionPlugin — deployment
 
 **Status: NOT built, registered, or deployed.** This project was authored in a session with no
 `dotnet` SDK, no Power Platform CLI (`pac`), and no Dataverse credentials — everything below has
-been reviewed by inspection for correctness, not verified by a compiler or a live registration.
-Budget real time to fix whatever the review missed before trusting this in production.
+been reviewed by inspection for correctness against the TypeScript sources it mirrors, not
+verified by a compiler or a live registration. Budget real time to fix whatever the review missed
+before trusting this in production.
+
+This document supersedes the prior `LoanDealStageAuthorityPlugin` deployment notes — that plugin
+(narrowly scoped to the CREDIT_APPROVAL → COMMITMENT authority rule) has been deleted and folded
+into this one, which enforces the full canonical transition policy. See
+`docs/governance/CANONICAL_TRANSITION_POLICY_CONTRACT.md` for the policy itself,
+`docs/governance/ADR_001_PLATFORM_ENFORCED_CREDIT_WORKFLOW_GOVERNANCE.md` for why this
+architecture, and `docs/governance/DEPLOYMENT_AND_ROLLBACK_PLAN.md` for the full sequencing this
+file is one step of.
 
 ## What this is
 
-A synchronous PreOperation plugin on `Update` of `cr664_loandeal`, filtered to
-`cr664_stagereference` and `cr664_statusreference`. It enforces the same credit-authority rule as
-`src/workflow/creditApprovalAuthority.ts` — approval limit / credit committee membership / override
-authority — but server-side, so a direct Web API call, data import, Power Automate flow, or any
-other integration writing straight to `cr664_loandeal` cannot bypass the application's approval
-gate the way it currently can (see `docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md`, finding C1).
+A plugin registered **twice** on `Update` of `cr664_loandeal`, filtered to `cr664_stagereference`
+and `cr664_statusreference`:
+
+1. **Stage 10 (Pre-validation)** — evaluates the full policy against the pre-image; on rejection,
+   writes a `cr664_auditevents` row (outcome = Blocked) and throws. This is the step that gives
+   rejected attempts a durable audit trail even though the triggering write never commits.
+2. **Stage 20 (Pre-operation)** — re-evaluates the same policy against the freshest pre-image
+   (inside the write's own transaction) and throws on rejection with no further audit write. This
+   is the authoritative gate that actually prevents the invalid write from persisting.
+
+It enforces: the 7-stage adjacency graph (no skips), terminal-status lock (DECLINED/WITHDRAWN/
+BOARDED accept no further transition), the CREDIT_APPROVAL → COMMITMENT credit-authority rule
+(approval limit / credit-committee membership / override authority), and — once the reason column
+below is provisioned and `RequireReasonFieldToEnforce` is flipped `true` — non-empty reason
+enforcement for RETURN/DECLINE/WITHDRAW.
 
 ## Before you build
 
-1. **Confirm the two `TODO CONFIRM` items in `LoanDealStageAuthorityPlugin.cs`** against the live
-   `CommercialLendingLOS` solution:
-   - The schema/logical name of the lookup attribute on `cr664_loanrequestprofile` that references
-     `cr664_loandeal` (the code currently assumes `cr664_loandeal` — verify, don't trust).
-   - Confirm `cr664_dealstagereferences.cr664_code` / `cr664_dealstatusreferences.cr664_code` are
-     the right fields carrying the canonical stage/status codes (`CREDIT_APPROVAL`, `COMMITMENT`,
-     etc.) — this one was cross-checked against the repo's own generated models
-     (`src/generated/models/Cr664_dealstagereferencesModel.ts`) and should be correct, but the
-     live schema is the source of truth, not the repo.
-2. Confirm the `Microsoft.CrmSdk.CoreAssemblies` NuGet version in the `.csproj` is current — it was
-   set to a plausible recent version without being able to check NuGet from the authoring session.
+1. **Confirm every `TODO CONFIRM` in `LoanDealGovernedTransitionPlugin.cs`** against the live
+   `CommercialLendingLOS` solution — the singular entity logical name (`cr664_loandeal`), the
+   `cr664_loanrequestprofile.cr664_deal` lookup, and the `cr664_platformuser` singular logical name
+   used to resolve `cr664_ChangedBy`.
+2. **Confirm the audit option-set integer values** (`AuditEntityTypeLoanDeal = 788190000`,
+   `AuditEventCategoryLifecycle = 788190002`, `AuditEventTypeStageChange = 788190000`,
+   `AuditEventTypeStatusChange = 788190001`, `AuditOutcomeBlocked = 788190002`) against the live
+   `cr664_auditevents` option-set metadata — these were taken from this repo's own generated model
+   (`src/generated/models/Cr664_auditeventsModel.ts`), not a live metadata browse.
+3. **Provision the reason column** (only needed before flipping `RequireReasonFieldToEnforce`):
+   run `scripts/dataverse/create-governed-transition-reason-field.ps1` (dry-run by default,
+   `-Apply` creates the column). See `src/deals/governedTransitionReasonSchema.ts` for the exact
+   column name and rationale.
+4. Confirm the `Microsoft.CrmSdk.CoreAssemblies` NuGet version in the `.csproj` is current.
 
 ## Build
 
@@ -41,44 +62,46 @@ review above missed — this file was never run through a compiler.
 
 ## Register (Plugin Registration Tool)
 
-1. Install the Plugin Registration Tool: `dotnet tool install --global Microsoft.PowerApps.CLI` (for
-   `pac`) or download the classic Plugin Registration Tool (`PluginRegistration.exe`) via NuGet
-   package `Microsoft.CrmSdk.XrmTooling.PluginRegistrationTool`.
+1. Install the Plugin Registration Tool (`pac` or the classic `PluginRegistration.exe` via the
+   `Microsoft.CrmSdk.XrmTooling.PluginRegistrationTool` NuGet package).
 2. Connect to the target org (`org3a57b8d4.crm.dynamics.com`, solution `CommercialLendingLOS`).
-3. Register a new assembly: point at `CommercialLendingLOS.Plugins.dll`. Isolation mode: **Sandbox**
-   (do not register as unsandboxed unless your organization's policy explicitly requires it).
-4. Register a new step on `LoanDealStageAuthorityPlugin`:
-   - **Message**: `Update`
-   - **Primary Entity**: `cr664_loandeal`
-   - **Filtering Attributes**: `cr664_stagereference`, `cr664_statusreference` (step only fires
-     when one of these is part of the update — matches the plugin's own defensive re-check)
-   - **Stage**: **PreOperation** (synchronous) — this is load-bearing. PostOperation or
-     asynchronous registration would let the write land before/regardless of this check.
-   - **Execution Mode**: Synchronous
-   - **Images**: register a **Pre-Image** named exactly `PreImage` (the code looks up this alias
-     literally) with attributes `cr664_stagereference`, `cr664_statusreference`, `cr664_amount`.
-
-## Alternative: `pac plugin push` (newer CLI-based flow, if your org supports it)
-
-```powershell
-pac plugin init   # first time only, if not already a plugin package project
-pac plugin push --pluginPackage dataverse-plugins/CommercialLendingLOS.Plugins
-```
-
-`pac plugin push` handles both assembly registration and (for simple cases) step registration from
-a manifest; consult current `pac` docs for your CLI version, since step/image configuration via
-this path may still require the classic tool or a `pac plugin` step-registration file — this
-session could not verify current `pac plugin` command behavior (no `pac` CLI available).
+3. Register a new assembly: point at `CommercialLendingLOS.Plugins.dll`. Isolation mode:
+   **Sandbox**.
+4. Register **two** steps on `LoanDealGovernedTransitionPlugin`, both on `Update` /
+   `cr664_loandeal`, filtered to `cr664_stagereference, cr664_statusreference`:
+   - **Step A** — **Stage: Pre-validation**, **Execution Mode: Synchronous**. Register a
+     **Pre-Image** named exactly `PreImage` with attributes
+     `cr664_stagereference, cr664_statusreference, cr664_amount, cr664_governedactionreason`.
+   - **Step B** — **Stage: Pre-operation**, **Execution Mode: Synchronous**, same filtering
+     attributes, same `PreImage` pre-image configuration.
+   - Both stages are load-bearing — see the ADR for why pre-validation alone is not sufficient
+     (it runs before locking, so a narrow race window between it and pre-operation exists) and why
+     pre-operation alone would lose the durable rejection-audit trail (its writes roll back with
+     the aborted transaction).
 
 ## Verify after registering
 
-- Manually update a test deal's `cr664_stagereference` while it's in `CREDIT_APPROVAL`, via a
-  direct Web API call (bypassing the app), as a test user who is NOT a credit committee member —
-  confirm the API call is rejected with the plugin's denial message, not silently accepted.
-- Repeat as a test user who IS a credit committee member within their approval limit — confirm the
-  write succeeds.
-- Confirm the plugin does NOT fire (no error, normal write) for stage/status changes unrelated to
-  exiting `CREDIT_APPROVAL` — e.g. advancing INTAKE → UNDERWRITING should be completely unaffected.
+Run every scenario in `docs/governance/LIVE_OPERATOR_CERTIFICATION_SCRIPT.md` — it is the
+authoritative post-registration verification script for this initiative, superseding the narrower
+verification checklist a prior version of this document carried. At minimum, before considering
+this "done":
+
+- A direct Web API stage-skip (e.g. INTAKE → CREDIT_APPROVAL) is rejected with a specific reason,
+  and a `cr664_auditevents` row (outcome Blocked) exists for it.
+- A direct Web API write attempting to modify a DECLINED/WITHDRAWN/BOARDED deal's stage or status
+  is rejected.
+- A non-committee, non-override banker cannot move a deal out of CREDIT_APPROVAL; a
+  committee-member banker within their limit can.
+- A stage/status write unrelated to a governed transition (e.g. this row's `cr664_amount` alone)
+  is completely unaffected — the plugin does not fire.
+- Two near-simultaneous conflicting transition attempts on the same deal: the first commits, the
+  second is rejected against the deal's new true state (see `CONCURRENCY_PROTECTION.md`).
+
+## Rollback
+
+See `docs/governance/DEPLOYMENT_AND_ROLLBACK_PLAN.md`. Summary: disable (or delete) either plugin
+step via the Plugin Registration Tool to return to today's client-only enforcement instantly — no
+schema change, no client redeploy required to roll back.
 
 ## Anything still not deployed after you follow this doc
 

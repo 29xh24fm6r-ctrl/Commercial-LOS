@@ -5,7 +5,7 @@ import type { DealTasksResult } from '../deals/dealTaskQueries';
 import type { CreditMemoData } from '../deals/creditMemoQueries';
 import { deriveLoanWorkflowReadiness } from './loanWorkflowRules';
 import { getLoanWorkflowStage } from './loanWorkflowStages';
-import { CANONICAL_STAGE_CODES } from './stageOrderingContract';
+import { CANONICAL_STAGE_CODES, resolveStageOrdering } from './stageOrderingContract';
 import {
   LOAN_WORKFLOW_REQUIREMENTS,
   requirementsForScope,
@@ -167,12 +167,48 @@ describe('ARC Phase 1 — transition readiness', () => {
     expect(wrong.reason).toMatch(/not an approved next stage/i);
   });
 
-  it('Return / Decline / Withdraw are PREVIEW-ONLY in Phase 1 (not yet live)', () => {
+  it('Return / Decline / Withdraw fail closed as blocked when no policy inputs are supplied (never silently ready)', () => {
     const facts: WorkflowRequirementFacts = { deal: baseDeal };
     for (const kind of ['return', 'decline', 'withdraw'] as const) {
       const t = deriveTransitionReadiness('UNDERWRITING', kind, facts);
-      expect(t.status).toBe('preview-only');
-      expect(t.reason).toMatch(/not yet live|preview-only/i);
+      expect(t.status).toBe('blocked');
     }
+  });
+
+  it('governance initiative (2026-07-21): Return / Decline / Withdraw are LIVE — same policy as canonicalStageTransition, not a placeholder', () => {
+    const facts: WorkflowRequirementFacts = { deal: baseDeal };
+    const ordering = resolveStageOrdering(
+      CANONICAL_STAGE_CODES.map((code, i) => ({ cr664_code: code, cr664_name: code, cr664_sequence: (i + 1) * 10, cr664_activeflag: true })),
+    );
+
+    const returnOk = deriveTransitionReadiness('CREDIT_APPROVAL', 'return', facts, 'UNDERWRITING', {
+      ordering, currentStatus: 'OPEN', reason: 'needs updated financials', authorized: true,
+    });
+    expect(returnOk.status).toBe('ready');
+    expect(returnOk.to).toBe('UNDERWRITING');
+
+    const returnNoReason = deriveTransitionReadiness('CREDIT_APPROVAL', 'return', facts, 'UNDERWRITING', {
+      ordering, currentStatus: 'OPEN', reason: '   ', authorized: true,
+    });
+    expect(returnNoReason.status).toBe('blocked');
+    expect(returnNoReason.reason).toMatch(/reason/i);
+    const reasonReq = returnNoReason.exit.requirements.find((r) => r.id === 'RETURN:reason');
+    expect(reasonReq?.status).toBe('unmet');
+
+    const declineOk = deriveTransitionReadiness('UNDERWRITING', 'decline', facts, undefined, {
+      ordering, currentStatus: 'OPEN', declineReason: { code: 'INSUFFICIENT_COLLATERAL' }, authorized: true,
+    });
+    expect(declineOk.status).toBe('ready');
+
+    const withdrawUnauthorized = deriveTransitionReadiness('UNDERWRITING', 'withdraw', facts, undefined, {
+      ordering, currentStatus: 'OPEN', reason: 'borrower withdrew', authorized: false,
+    });
+    expect(withdrawUnauthorized.status).toBe('blocked');
+
+    // The still-untracked advisory items (authorization/adverse-action) never block a return/decline
+    // that otherwise satisfies its checkable requirements — they surface as visible, non-blocking.
+    const authAdvisory = returnOk.exit.requirements.find((r) => r.id === 'RETURN:authorization');
+    expect(authAdvisory?.severity).toBe('recommended');
+    expect(returnOk.exit.blocking).toHaveLength(0);
   });
 });

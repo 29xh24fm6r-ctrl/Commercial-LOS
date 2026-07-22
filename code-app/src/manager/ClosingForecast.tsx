@@ -4,6 +4,7 @@ import type { TeamDeal } from './managerQueries';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import { parseCalendarDate } from '../shared/formatters';
 
 interface MonthBucket {
   key: string;
@@ -63,7 +64,8 @@ function Body({ teamPipeline }: { teamPipeline: AsyncResult<TeamDeal[]> }) {
   );
 }
 
-function bucketByMonth(deals: TeamDeal[], now: Date = new Date()): MonthBucket[] {
+/** Exported for Remediation 2026-07-22 (Workstream H) date-shift regression coverage. */
+export function bucketByMonth(deals: TeamDeal[], now: Date = new Date()): MonthBucket[] {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const buckets = new Map<string, MonthBucket>();
 
@@ -76,8 +78,11 @@ function bucketByMonth(deals: TeamDeal[], now: Date = new Date()): MonthBucket[]
       key = NO_DATE_KEY;
       label = 'No target close date';
     } else {
-      const dt = new Date(d.targetCloseDate);
-      if (Number.isNaN(dt.getTime())) {
+      // Remediation 2026-07-22 (Workstream H) — targetCloseDate is a date-only field; a raw
+      // `new Date(...)` parses it as UTC midnight, which then buckets/labels it as the PRIOR
+      // calendar day for any viewer west of UTC. parseCalendarDate builds local midnight instead.
+      const dt = parseCalendarDate(d.targetCloseDate);
+      if (!dt) {
         key = NO_DATE_KEY;
         label = 'No target close date';
       } else if (dt.getTime() < monthStart) {

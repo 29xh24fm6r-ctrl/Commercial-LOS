@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useBanker } from './BankerContext';
 import { loadBankerWorkQueueData, type BankerWorkQueueData } from './workQueueQueries';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
@@ -144,9 +144,9 @@ export function BankerLoanWorkflowWorkbench({
           <button type="button" style={styles.secondaryBtn} data-loan-action-add-existing onClick={() => onAddExistingLoan?.()}>
             Add Existing Loan
           </button>
-          <a href={WORKSPACE_ROUTES.manager} style={styles.linkBtn} data-loan-action-open-portfolio>
+          <Link to={WORKSPACE_ROUTES.manager} style={styles.linkBtn} data-loan-action-open-portfolio>
             Open Portfolio
-          </a>
+          </Link>
         </div>
       </header>
 

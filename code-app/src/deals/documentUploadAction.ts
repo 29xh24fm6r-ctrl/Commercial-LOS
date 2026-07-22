@@ -140,7 +140,12 @@ export async function uploadDocumentFile(
 ): Promise<UploadDocumentFileOutcome> {
   const enabled = input.enabledOverride ?? isDocumentFileUploadEnabled(input.config);
   if (!enabled) {
-    return { kind: 'dependency_not_ready', detail: 'DOCUMENT_FILE_UPLOAD_ENABLED is false; upload stays fail-closed.' };
+    // Remediation 2026-07-22 (Workstream G) — banker-safe copy; never the raw internal flag name
+    // (was "DOCUMENT_FILE_UPLOAD_ENABLED is false; upload stays fail-closed.").
+    return {
+      kind: 'dependency_not_ready',
+      detail: 'Document file upload is not yet enabled in this environment.',
+    };
   }
   if (!deps) {
     return { kind: 'dependency_not_ready', detail: 'No live upload dependency injected.' };

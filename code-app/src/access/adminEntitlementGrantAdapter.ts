@@ -1,6 +1,17 @@
 /**
  * Phase 208 / Lane A2 — Governed app-level entitlement GRANT write adapter.
  *
+ * SUPERSEDED NOTICE (2026-07-21 E2E certification pass, D12): this adapter has
+ * zero call sites outside its own tests and remains permanently disabled by
+ * design. The capability it targets — a real, live, server-verified admin
+ * entitlement grant — is DELIVERED today via a different, later module:
+ * `src/admin/adminAccessGrantWrite.ts` (`writeAdminAccessGrant`), consumed by
+ * `src/admin/AdminAccessGrantPanel.tsx`. That path has no disabled-by-default
+ * flag, enforces actor-tier gating, duplicate/self-lockout guards, readback
+ * verification, and audit — it is the real one. This file is kept only as
+ * historical design work; do not re-wire it believing entitlement grants are
+ * unimplemented, and do not treat it as the live gate for this capability.
+ *
  * Pure orchestration over an INJECTED entitlement-write transport and audit sink
  * — it performs no `fetch`, imports no SDK, and is DISABLED BY DEFAULT. It grants
  * exactly ONE app-level workspace entitlement (a `cr664_workspaceentitlements`

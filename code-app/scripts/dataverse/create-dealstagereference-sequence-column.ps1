@@ -10,25 +10,25 @@
                                      code path today; included because STAGE_SCHEMA_SETUP.md lists
                                      it as an optional Step 1 addition.
 
-  DOES NOT create a separate cr664_stagereferences table. That plan was explicitly superseded —
+  DOES NOT create a separate cr664_stagereferences table. That plan was explicitly superseded -
   see docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md's status banner: ordering rides on the
   ALREADY-REGISTERED cr664_dealstagereferences table via this cr664_sequence ordinal instead.
 
   DOES NOT seed any row. Seeding is scripts/seed-stage-references.mjs (already exists, already
-  idempotent/ID-preserving/fail-closed on duplicates — see that script's own header). Run this
+  idempotent/ID-preserving/fail-closed on duplicates - see that script's own header). Run this
   script first (Step 1), then that one (Step 2), per STAGE_SCHEMA_SETUP.md.
 
   NO DATAVERSE ALTERNATE KEY / UNIQUE INDEX is created on cr664_sequence. A literal DB-level unique
   key would enforce uniqueness across ALL rows including retired ones, blocking a legitimate future
-  re-sequencing during a stage-set migration — Dataverse has no native "unique among active rows
+  re-sequencing during a stage-set migration - Dataverse has no native "unique among active rows
   only" constraint. Uniqueness-among-active-rows is enforced at the application level instead: the
   seed script's existing fail-closed duplicate-match handling, plus a governance test pinning
   CANONICAL_STAGES sequence uniqueness in code (src/shared/governance/stageSequenceUniqueness.test.ts).
 
-  SAFETY MODEL (same as every other script in this directory — see _common.ps1):
+  SAFETY MODEL (same as every other script in this directory - see _common.ps1):
     - DRY-RUN BY DEFAULT. Mutation happens only when you pass -Apply.
     - Confirms the target environment via `pac org who` AND checks the resolved org host matches
-      the expected org — BLOCKED on any mismatch. Override with -ExpectedOrgHost if deliberate.
+      the expected org - BLOCKED on any mismatch. Override with -ExpectedOrgHost if deliberate.
     - Confirms the CommercialLendingLOS solution exists in the target org before any mutation.
     - CREATE-MISSING-ONLY. Every column is existence-checked first and skipped if present. Nothing
       is ever overwritten, renamed, or deleted. There is NO delete path.
@@ -167,14 +167,14 @@ foreach ($col in $Columns) {
   $created++
 }
 
-# --- Publish — only if something was actually created this run. ---
+# --- Publish - only if something was actually created this run. ---
 if ($Apply -and $created -gt 0) {
   Write-Host '== Publishing customizations (columns were created) =='
   $headers = @{ Authorization = "Bearer $token"; 'OData-MaxVersion' = '4.0'; 'OData-Version' = '4.0'; 'Content-Type' = 'application/json' }
   Invoke-RestMethod -Method Post -Uri ("{0}/api/data/v9.2/PublishAllXml" -f $orgUrl.TrimEnd('/')) -Headers $headers -Body '{}' | Out-Null
   Write-Status 'publish' 'PASS' 'customizations published'
 } elseif ($Apply) {
-  Write-Status 'publish' 'PASS' 'nothing created this run — publish skipped (idempotent no-op)'
+  Write-Status 'publish' 'PASS' 'nothing created this run - publish skipped (idempotent no-op)'
 }
 
 # --- Post-create metadata verification. ---
@@ -189,7 +189,7 @@ if ($Apply -or $token) {
     } elseif ($null -eq $actualType) {
       Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'UNKNOWN' 'could not read AttributeType (no token / not yet created in dry-run)'
     } else {
-      Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'BLOCKED' ("AttributeType={0} but expected {1} — investigate before relying on this column" -f $actualType, $expected)
+      Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'BLOCKED' ("AttributeType={0} but expected {1} - investigate before relying on this column" -f $actualType, $expected)
     }
   }
 }

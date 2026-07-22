@@ -13,7 +13,7 @@ import {
   reconcileDocumentRequirements,
   type LiveDocumentChecklistRow,
 } from './documentRequirementReconciliation';
-import { requirementStatusFromCode } from './documentRequirementActions';
+import { requirementStatusFromCode } from './documentRequirementStatusCodes';
 import type { DocumentRequirementRow } from './documentRequirementLifecycle';
 import type { DocumentRequirementFields } from './documentRequirementFields';
 

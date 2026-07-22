@@ -352,7 +352,10 @@ describe('PE-WIRE-1 — boarded book branch', () => {
     expect(document.querySelector('[data-watchlist="ready"]')).toBeInTheDocument();
     expect(document.querySelector('[data-covenant-review="ready"]')).toBeInTheDocument();
     expect(document.querySelector('[data-loan-review="ready"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-exception-queue="empty"]')).toBeInTheDocument();
+    // D9 remediation: the exception feed has no live loader yet, so the panel
+    // now renders an honest "not-available" state instead of implying a
+    // confirmed-clean queue (see ExceptionQueuePanel's dataAvailable prop).
+    expect(document.querySelector('[data-exception-queue="not-available"]')).toBeInTheDocument();
 
     // Phase 264 (P3) — new panels render (honestly empty, since boardedLoan()'s
     // "Bank internal 4" rating is deliberately unmapped, so no rated loan feeds
@@ -360,6 +363,15 @@ describe('PE-WIRE-1 — boarded book branch', () => {
     expect(document.querySelector('[data-regulatory-classification-pool="empty"]')).toBeInTheDocument();
     expect(document.querySelector('[data-stress-test-form]')).toBeInTheDocument();
     expect(document.querySelector('[data-board-package="ready"]')).toBeInTheDocument();
+
+    // P2-16 — the Unmapped ratings tile (1) deep-links to a drill-through listing that exact loan,
+    // so the count reconciles with a record set the user can act on.
+    expect(screen.getByLabelText('1 boarded loans with unmapped risk ratings')).toBeInTheDocument();
+    const drill = document.querySelector('[data-portfolio-unmapped-drilldown]');
+    expect(drill).toBeInTheDocument();
+    const rows = drill?.querySelectorAll('[data-portfolio-unmapped-loan]');
+    expect(rows?.length).toBe(1);
+    expect(drill?.textContent).toMatch(/Bank internal 4/);
   });
 
   it('Phase 264 (P3) — a rated loan populates the classification pool and board package with real figures', async () => {

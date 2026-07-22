@@ -71,6 +71,16 @@ const TIMELINE_EVENT_TYPE_DOCUMENT_UPLOADED = 788190010;
 const TIMELINE_EVENT_TYPE_NOTE_LOGGED = 788190002;
 const TIMELINE_SUBTYPE_DOCUMENT_REVIEWED = 'documentchecklist:reviewed';
 
+// Canonical cr664_requirementstatus option-set values — the SINGLE source of truth is
+// documentRequirementActions.ts REQUIREMENT_STATUS_CODES. Stamped here so the legacy Documents-panel
+// request/receive/review path persists the SAME canonical status the Document Requirements workspace
+// reads. Previously these actions wrote only the fact fields (requestdate / receiveddate / reviewer)
+// and left cr664_requirementstatus unset, so the two panels could disagree (Documents showed
+// "Received/Reviewed" while Requirements inferred a different lifecycle state). (Defect 8.)
+const REQUIREMENT_STATUS_REQUESTED = 788190102;
+const REQUIREMENT_STATUS_UNDER_REVIEW = 788190103;
+const REQUIREMENT_STATUS_REVIEWED = 788190104;
+
 function beforeStateForRequest(prior: string | undefined): string {
   if (!prior) return 'Not yet requested';
   return `Previously requested (${prior})`;
@@ -188,6 +198,7 @@ export async function requestDocument(
   try {
     const update = await Cr664_documentchecklistsService.update(input.documentId, {
       cr664_requestdate: nowIso,
+      cr664_requirementstatus: REQUIREMENT_STATUS_REQUESTED,
     } as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1]);
     if (!update.success) {
       void emitAuditEvent({
@@ -412,6 +423,7 @@ export async function markDocumentReceived(
   try {
     const update = await Cr664_documentchecklistsService.update(input.documentId, {
       cr664_receiveddate: nowIso,
+      cr664_requirementstatus: REQUIREMENT_STATUS_UNDER_REVIEW,
     } as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1]);
     if (!update.success) {
       void emitAuditEventForReceive({
@@ -651,6 +663,7 @@ export async function markDocumentReviewed(
   try {
     const update = await Cr664_documentchecklistsService.update(input.documentId, {
       cr664_reviewer: reviewerName,
+      cr664_requirementstatus: REQUIREMENT_STATUS_REVIEWED,
     } as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1]);
     if (!update.success) {
       void emitAuditEventForReview({

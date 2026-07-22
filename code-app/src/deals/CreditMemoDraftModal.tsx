@@ -407,11 +407,9 @@ function ConfirmBlock({
     <section style={styles.confirmBlock} aria-label="Save draft confirmation">
       <h3 style={styles.confirmHeading}>Confirm save</h3>
       <p style={styles.confirmIntro}>
-        <strong>Draft only, not final.</strong> A new <code>cr664_creditmemo1</code>{' '}
-        record will be created in <em>Draft</em> status, with one{' '}
-        <code>cr664_creditmemodraftsection</code> per included section in{' '}
-        <em>Pending</em> review status. An audit event and a timeline entry will be
-        emitted. No memo is finalized, exported, or submitted.
+        <strong>Draft only, not final.</strong> This saves a <em>Draft</em> credit memo, with each
+        included section saved as a pending section draft. The save is recorded on the deal&rsquo;s
+        activity timeline and audit trail. No memo is finalized, exported, or submitted.
       </p>
       <dl style={styles.confirmFacts}>
         <Fact label="Deal" value={deal.name} />
@@ -479,10 +477,10 @@ function OutcomeBlock({ outcome }: { outcome: SaveCreditMemoDraftOutcome }) {
             Could not save draft
           </div>
           <p style={styles.outcomeDetail}>
-            The draft was not saved. A Failed audit event was recorded best-effort.
-            You can safely retry.
+            The draft was not saved. This can happen if the connection dropped or the record was
+            briefly locked. You can safely try again. If it keeps failing, contact support — the
+            technical detail has been recorded for diagnostics.
           </p>
-          <p style={styles.outcomeDetailMono}>{outcome.memoError}</p>
         </div>
       );
     case 'governance-partial':
@@ -495,30 +493,22 @@ function OutcomeBlock({ outcome }: { outcome: SaveCreditMemoDraftOutcome }) {
             Critical: governance write failed
           </div>
           <p style={styles.outcomeDetail}>
-            The draft memo was saved, but one or more governance writes failed.
-            Do not retry — the draft may already be saved.
+            The draft memo was saved, but one or more follow-up records (its activity-timeline entry,
+            audit entry, or a section draft) could not be written. Do not retry — the draft is already
+            saved.
           </p>
           {outcome.sectionErrors.length > 0 && (
             <div style={styles.outcomePartialBlock}>
-              <strong>Section drafts not saved:</strong>
-              <ul style={styles.outcomeList}>
-                {outcome.sectionErrors.map((s) => (
-                  <li key={s.sectionKey}>
-                    <code>{s.sectionKey}</code>: <span>{s.error}</span>
-                  </li>
-                ))}
-              </ul>
+              <strong>
+                {outcome.sectionErrors.length} section draft
+                {outcome.sectionErrors.length === 1 ? '' : 's'} could not be saved.
+              </strong>
             </div>
           )}
-          {outcome.auditError && (
-            <p style={styles.outcomeDetailMono}>Audit: {outcome.auditError}</p>
-          )}
-          {outcome.timelineError && (
-            <p style={styles.outcomeDetailMono}>Timeline: {outcome.timelineError}</p>
-          )}
           <p style={styles.outcomeDetail}>
-            Action: capture this message and ask the AuditEvent / TimelineEvent owner to
-            investigate. The memo row itself is at <code>{outcome.memoId}</code>.
+            Please notify support so the missing records can be completed. Reference:{' '}
+            <span style={styles.supportRef}>{outcome.memoId}</span> (the technical detail has been
+            recorded for diagnostics).
           </p>
         </div>
       );
@@ -778,6 +768,12 @@ const styles: Record<string, React.CSSProperties> = {
     background: palette.surfaceAlt,
     padding: `${spacing.xxs} ${spacing.xs}`,
     borderRadius: radius.sm,
+    wordBreak: 'break-word',
+  },
+  supportRef: {
+    fontFamily: typography.mono,
+    fontSize: typography.size.sm,
+    color: palette.text,
     wordBreak: 'break-word',
   },
   outcomePartialBlock: {

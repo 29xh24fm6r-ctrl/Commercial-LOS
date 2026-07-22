@@ -1,5 +1,6 @@
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 import type { Cr664_loandeals } from '../generated/models/Cr664_loandealsModel';
+import { operationalDeals } from '../shared/deals/testDealClassification';
 
 export interface PipelineDeal {
   id: string;
@@ -97,12 +98,25 @@ function toPipelineDeal(d: Cr664_loandeals): PipelineDeal {
   };
 }
 
+export interface LoadBankerPipelineOptions {
+  /**
+   * P1-11 — include classified TEST/SMOKE deals. Default false: the normal banker pipeline (and
+   * every count derived from it) excludes test/smoke records. An authorized admin surface passes
+   * true to see them. Records are never deleted — this is aggregation-only.
+   */
+  readonly includeTestDeals?: boolean;
+}
+
 /**
  * Active deals assigned to the given banker, ordered by target close date.
  * Active = Dataverse statecode 0 (Active). Terminal statuses are excluded so
- * closed-won / closed-lost don't show up in the working pipeline.
+ * closed-won / closed-lost don't show up in the working pipeline. Classified test/smoke deals are
+ * also excluded by default (P1-11) so supervised smoke-test records don't inflate operational counts.
  */
-export async function loadBankerPipeline(bankerId: string): Promise<PipelineDeal[]> {
+export async function loadBankerPipeline(
+  bankerId: string,
+  options: LoadBankerPipelineOptions = {},
+): Promise<PipelineDeal[]> {
   const filter = [
     `_cr664_assignedbanker_value eq ${bankerId}`,
     `statecode eq 0`,
@@ -114,5 +128,6 @@ export async function loadBankerPipeline(bankerId: string): Promise<PipelineDeal
     orderBy: ['cr664_targetclosedate asc'],
   });
 
-  return (result.data ?? []).map(toPipelineDeal);
+  const deals = (result.data ?? []).map(toPipelineDeal);
+  return [...operationalDeals(deals, { includeTest: options.includeTestDeals })];
 }

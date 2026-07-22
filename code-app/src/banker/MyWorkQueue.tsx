@@ -6,6 +6,7 @@ import {
   type BankerWorkQueueData,
 } from './workQueueQueries';
 import {
+  deriveBankerOpenTasks,
   deriveBankerWorkQueue,
   type WorkQueueDocumentMetadata,
   type WorkQueueItem,
@@ -17,19 +18,24 @@ import {
   type MarkDocumentReviewedOutcome,
 } from '../deals/documentActions';
 import {
+  completeTask,
   createDocumentReviewTask,
+  type CompleteTaskOutcome,
   type CreateDocumentReviewTaskOutcome,
 } from '../deals/dealTaskActions';
 import { ReceiveDocumentModal } from '../deals/ReceiveDocumentModal';
 import { ReviewDocumentModal } from '../deals/ReviewDocumentModal';
 import { CreateDocumentReviewTaskModal } from '../deals/CreateDocumentReviewTaskModal';
+import { CompleteTaskModal } from '../deals/CompleteTaskModal';
 import type { DealDocument } from '../deals/dealDocumentQueries';
+import type { DealTask } from '../deals/dealTaskQueries';
 import { LoadingState } from '../shared/LoadingState';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import {
   MAX_WORK_QUEUE_ROWS,
   countBySeverity,
+  filterAlertWorkItems,
   formatQueueDate,
   overallBadgeLabel,
   overallSeverityKey,
@@ -61,7 +67,29 @@ type State =
   | { kind: 'ready'; data: BankerWorkQueueData }
   | { kind: 'failed'; message: string };
 
-export function MyWorkQueue() {
+/**
+ * P1-10 / P2-17 — `filter` selects which slice of the banker's work queue this surface shows so a
+ * badge's destination matches the badge's meaning:
+ *   - 'all'    → the full work list (Tasks & Actions): blockers, overdue, at-risk, upcoming.
+ *   - 'alerts' → only the act-now ALERT tier (blockers + overdue) counted by the "My Alerts" badge,
+ *                so opening My Alerts is no longer a mislabeled duplicate of the full Tasks queue.
+ */
+export type MyWorkQueueFilter = 'all' | 'alerts';
+
+export interface MyWorkQueueProps {
+  readonly filter?: MyWorkQueueFilter;
+  /**
+   * Remediation 2026-07-22 (Workstream F) — fires after every successful
+   * in-queue write (task complete, document receive/review, create review
+   * task) so a parent shell (BankerShell) holding its own separate
+   * loadBankerWorkQueueData snapshot (tab badges, header "N tasks pending",
+   * right-rail My Tasks panel) can refresh too, without this component
+   * taking on ownership of that shared state.
+   */
+  readonly onDataChanged?: () => void;
+}
+
+export function MyWorkQueue({ filter = 'all', onDataChanged }: MyWorkQueueProps = {}) {
   const { bankerId, fullName, email, systemUserId } = useBanker();
   const navigate = useNavigate();
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -74,6 +102,9 @@ export function MyWorkQueue() {
   // duplicate-task hint is necessarily skipped here (openTasks=[]).
   const [pendingReviewTask, setPendingReviewTask] =
     useState<{ dealId: string; meta: WorkQueueDocumentMetadata } | null>(null);
+  // Remediation 2026-07-22 (Workstream F) — Complete action for a real "My Tasks" row.
+  const [pendingComplete, setPendingComplete] =
+    useState<{ dealId: string; task: DealTask } | null>(null);
 
   const reload = useCallback(() => {
     let cancelled = false;
@@ -118,6 +149,7 @@ export function MyWorkQueue() {
       // Either branch persisted the receiveddate stamp; the queue's
       // outstanding filter will drop the row on next reload.
       reload();
+      onDataChanged?.();
     }
     return outcome;
   }
@@ -145,6 +177,7 @@ export function MyWorkQueue() {
       // pendingReview filter (no reviewer) will drop the row on
       // next reload. Phase 54's signal also clears.
       reload();
+      onDataChanged?.();
     }
     return outcome;
   }
@@ -174,6 +207,31 @@ export function MyWorkQueue() {
       // cr664_reviewer — that's still Phase 55's job); the
       // reload just keeps state coherent.
       reload();
+      onDataChanged?.();
+    }
+    return outcome;
+  }
+
+  // Remediation 2026-07-22 (Workstream F) — the "My Tasks" section's Complete
+  // action. Reuses the same governed completeTask write DealTasks.tsx uses;
+  // a completed task drops out of BankerWorkQueueData.tasks on next reload
+  // (loadOpenTasksForDeals already filters cr664_completed != true).
+  async function handleCompleteConfirm(note: string): Promise<CompleteTaskOutcome> {
+    if (!pendingComplete || !systemUserId) {
+      return { kind: 'unknown', message: 'Cannot submit: missing task or system user id.' };
+    }
+    const outcome = await completeTask({
+      taskId: pendingComplete.task.id,
+      taskName: pendingComplete.task.title,
+      dealId: pendingComplete.dealId,
+      priorAssigneeName: pendingComplete.task.assigneeName,
+      systemUserId,
+      actorEmail: email,
+      completionNote: note,
+    });
+    if (outcome.kind === 'success' || outcome.kind === 'governance-partial') {
+      reload();
+      onDataChanged?.();
     }
     return outcome;
   }
@@ -207,17 +265,127 @@ export function MyWorkQueue() {
     );
   }
 
-  const items = deriveBankerWorkQueue({ data: state.data });
-  const visible = items.slice(0, MAX_WORK_QUEUE_ROWS);
-  const counts = countBySeverity(items);
+  const isAlerts = filter === 'alerts';
 
-  if (items.length === 0) {
+  // P1-10 / P2-17 — 'alerts' mode is UNCHANGED: one merged card restricted to the shared ALERT
+  // tier (blocked + overdue, including overdue tasks) so "My Alerts" shows exactly what its badge
+  // counts. Remediation 2026-07-22 (Workstream F) only restructures the 'all' ("Tasks & Actions")
+  // mode below, where real tasks and risk signals were previously interleaved in one list under a
+  // single "My Work Queue" title — see the two-section render further down.
+  if (isAlerts) {
+    const allItems = deriveBankerWorkQueue({ data: state.data });
+    const items = filterAlertWorkItems(allItems);
+    const visible = items.slice(0, MAX_WORK_QUEUE_ROWS);
+    const counts = countBySeverity(items);
+
+    if (items.length === 0) {
+      return (
+        <Card>
+          <CardHeader title="My Alerts" subtitle="No urgent alerts." />
+          <p style={styles.empty}>
+            No blocked or overdue items across your active deals right now. Check Tasks & Actions
+            for upcoming and at-risk work.
+          </p>
+        </Card>
+      );
+    }
+
+    const receiveModalDoc = pendingReceive
+      ? toDealDocumentShape(pendingReceive.meta, 'outstanding')
+      : null;
+    const reviewModalDoc = pendingReview
+      ? toDealDocumentShape(pendingReview.meta, 'received')
+      : null;
+    const reviewTaskModalDoc = pendingReviewTask
+      ? toDealDocumentShape(pendingReviewTask.meta, 'received')
+      : null;
+
+    return (
+      <>
+        <Card>
+          <CardHeader
+            title="My Alerts"
+            subtitle={subtitleForCounts(counts)}
+            trailing={
+              <Badge variant={overallSeverityKey(counts)}>{overallBadgeLabel(counts)}</Badge>
+            }
+          />
+          <ul style={styles.list} aria-label="My work queue items">
+            {visible.map((item) => (
+              <Row
+                key={item.id}
+                item={item}
+                canReceive={canReceive}
+                canReview={canReceive}
+                onOpen={() => navigate(`/deals/${item.dealId}`)}
+                onReceive={(meta) => setPendingReceive({ dealId: item.dealId, meta })}
+                onReview={(meta) => setPendingReview({ dealId: item.dealId, meta })}
+                onCreateReviewTask={(meta) => setPendingReviewTask({ dealId: item.dealId, meta })}
+              />
+            ))}
+          </ul>
+          {items.length > MAX_WORK_QUEUE_ROWS && (
+            <p style={styles.muted}>
+              Showing the {MAX_WORK_QUEUE_ROWS} most urgent of {items.length} work items. Resolve a
+              few and refresh to see the rest.
+            </p>
+          )}
+          <CardFooter>
+            <span>Scoped to your active deals.</span>
+            <span>
+              Open a row to act in the Deal Workspace, or use Mark received / Mark reviewed inline
+              for documents.
+            </span>
+          </CardFooter>
+        </Card>
+        {receiveModalDoc && pendingReceive && (
+          <ReceiveDocumentModal
+            doc={receiveModalDoc}
+            onConfirm={handleReceiveConfirm}
+            onClose={() => setPendingReceive(null)}
+          />
+        )}
+        {reviewModalDoc && pendingReview && fullName && (
+          <ReviewDocumentModal
+            doc={reviewModalDoc}
+            reviewerName={fullName}
+            onConfirm={handleReviewConfirm}
+            onClose={() => setPendingReview(null)}
+          />
+        )}
+        {reviewTaskModalDoc && pendingReviewTask && (
+          <CreateDocumentReviewTaskModal
+            doc={reviewTaskModalDoc}
+            openTasks={[]}
+            bankerName={fullName}
+            onConfirm={handleCreateReviewTaskConfirm}
+            onClose={() => setPendingReviewTask(null)}
+          />
+        )}
+      </>
+    );
+  }
+
+  // 'all' mode ("Tasks & Actions") — Remediation 2026-07-22 (Workstream F): two clearly separate
+  // sections instead of one merged list. "My Tasks" is built independently from the banker's real
+  // open tasks (deriveBankerOpenTasks); "Signals" is everything else (blocked/at-risk deals, memo
+  // review, overdue/pending-review documents) — the overdue-task rows that used to appear here are
+  // excluded so a task is never shown twice across the two sections.
+  const taskItems = deriveBankerOpenTasks({ data: state.data });
+  const signalItems = deriveBankerWorkQueue({ data: state.data }).filter(
+    (i) => i.type !== 'open-task',
+  );
+  const visibleTasks = taskItems.slice(0, MAX_WORK_QUEUE_ROWS);
+  const visibleSignals = signalItems.slice(0, MAX_WORK_QUEUE_ROWS);
+  const signalCounts = countBySeverity(signalItems);
+
+  if (taskItems.length === 0 && signalItems.length === 0) {
     return (
       <Card>
-        <CardHeader title="My Work Queue" subtitle="No urgent work items." />
+        <CardHeader title="Tasks & Actions" subtitle="No urgent work items." />
         <p style={styles.empty}>
-          No urgent work items across your active deals at this time. Keep an
-          eye on Personal Pipeline for upcoming closings.
+          No open tasks or signals across your active deals at this time. Keep an eye on Personal
+          Pipeline for upcoming closings.
         </p>
       </Card>
     );
@@ -237,48 +405,113 @@ export function MyWorkQueue() {
     <>
       <Card>
         <CardHeader
-          title="My Work Queue"
-          subtitle={subtitleForCounts(counts)}
+          title="My Tasks"
+          subtitle={
+            taskItems.length === 0
+              ? 'No open tasks.'
+              : `${taskItems.length} open task${taskItems.length === 1 ? '' : 's'}`
+          }
           trailing={
-            <Badge variant={overallSeverityKey(counts)}>
-              {overallBadgeLabel(counts)}
+            <Badge variant={taskItems.some((t) => t.severity === 'overdue') ? 'atRisk' : 'neutral'}>
+              {taskItems.length}
             </Badge>
           }
         />
-        <ul style={styles.list} aria-label="My work queue items">
-          {visible.map((item) => (
-            <Row
-              key={item.id}
-              item={item}
-              canReceive={canReceive}
-              canReview={canReceive /* same gate: systemUserId present */}
-              onOpen={() => navigate(`/deals/${item.dealId}`)}
-              onReceive={(meta) =>
-                setPendingReceive({ dealId: item.dealId, meta })
-              }
-              onReview={(meta) =>
-                setPendingReview({ dealId: item.dealId, meta })
-              }
-              onCreateReviewTask={(meta) =>
-                setPendingReviewTask({ dealId: item.dealId, meta })
-              }
-            />
-          ))}
-        </ul>
-        {items.length > MAX_WORK_QUEUE_ROWS && (
-          <p style={styles.muted}>
-            Showing the {MAX_WORK_QUEUE_ROWS} most urgent of {items.length} work
-            items. Resolve a few and refresh to see the rest.
-          </p>
+        {taskItems.length === 0 ? (
+          <p style={styles.empty}>No open tasks assigned to you on your active deals.</p>
+        ) : (
+          <>
+            <ul style={styles.list} aria-label="My tasks">
+              {visibleTasks.map((item) => (
+                <TaskRow
+                  key={item.id}
+                  item={item}
+                  canComplete={!!systemUserId}
+                  onOpen={() => navigate(`/deals/${item.dealId}`)}
+                  onComplete={() =>
+                    setPendingComplete({
+                      dealId: item.dealId,
+                      task: {
+                        id: item.taskMetadata!.taskId,
+                        title: item.title,
+                        completed: false,
+                        dueDate: item.dateIso,
+                        assigneeName: undefined,
+                        modifiedOn: undefined,
+                      },
+                    })
+                  }
+                />
+              ))}
+            </ul>
+            {taskItems.length > MAX_WORK_QUEUE_ROWS && (
+              <p style={styles.muted}>
+                Showing the {MAX_WORK_QUEUE_ROWS} most urgent of {taskItems.length} open tasks.
+              </p>
+            )}
+          </>
         )}
         <CardFooter>
           <span>Scoped to your active deals.</span>
+          <span>Open a row to act in the Deal Workspace, or complete inline.</span>
+        </CardFooter>
+      </Card>
+      <Card>
+        <CardHeader
+          title="Signals"
+          subtitle={
+            signalItems.length === 0 ? 'No active signals.' : subtitleForCounts(signalCounts)
+          }
+          trailing={
+            signalItems.length > 0 && (
+              <Badge variant={overallSeverityKey(signalCounts)}>
+                {overallBadgeLabel(signalCounts)}
+              </Badge>
+            )
+          }
+        />
+        {signalItems.length === 0 ? (
+          <p style={styles.empty}>
+            No blocked, at-risk, or document signals across your active deals right now.
+          </p>
+        ) : (
+          <>
+            <ul style={styles.list} aria-label="Deal and document signals">
+              {visibleSignals.map((item) => (
+                <Row
+                  key={item.id}
+                  item={item}
+                  canReceive={canReceive}
+                  canReview={canReceive /* same gate: systemUserId present */}
+                  onOpen={() => navigate(`/deals/${item.dealId}`)}
+                  onReceive={(meta) => setPendingReceive({ dealId: item.dealId, meta })}
+                  onReview={(meta) => setPendingReview({ dealId: item.dealId, meta })}
+                  onCreateReviewTask={(meta) => setPendingReviewTask({ dealId: item.dealId, meta })}
+                />
+              ))}
+            </ul>
+            {signalItems.length > MAX_WORK_QUEUE_ROWS && (
+              <p style={styles.muted}>
+                Showing the {MAX_WORK_QUEUE_ROWS} most urgent of {signalItems.length} signals.
+              </p>
+            )}
+          </>
+        )}
+        <CardFooter>
+          <span>Blocked, at-risk, and document review signals — not tasks assigned to you.</span>
           <span>
-            Open a row to act in the Deal Workspace, or use Mark received /
-            Mark reviewed inline for documents.
+            Open a row to act in the Deal Workspace, or use Mark received / Mark reviewed inline
+            for documents.
           </span>
         </CardFooter>
       </Card>
+      {pendingComplete && (
+        <CompleteTaskModal
+          task={pendingComplete.task}
+          onConfirm={handleCompleteConfirm}
+          onClose={() => setPendingComplete(null)}
+        />
+      )}
       {receiveModalDoc && pendingReceive && (
         <ReceiveDocumentModal
           doc={receiveModalDoc}
@@ -309,6 +542,84 @@ export function MyWorkQueue() {
         />
       )}
     </>
+  );
+}
+
+/**
+ * Remediation 2026-07-22 (Workstream F) — a real "My Tasks" row: the deal
+ * task itself, with an inline Complete action (reusing the same governed
+ * completeTask write DealTasks.tsx uses) alongside the existing
+ * click-to-navigate behavior. No document/signal actions — those live on
+ * Row, in the separate Signals section.
+ */
+function TaskRow({
+  item,
+  canComplete,
+  onOpen,
+  onComplete,
+}: {
+  item: WorkQueueItem;
+  canComplete: boolean;
+  onOpen: () => void;
+  onComplete: () => void;
+}) {
+  const sev = severityToKey(item.severity);
+  return (
+    <li
+      style={styles.row}
+      className="cc-row-hover"
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      tabIndex={0}
+      role="link"
+      aria-label={`Open deal ${item.dealName}`}
+    >
+      <div style={styles.rowHead}>
+        <span style={styles.rowTitle}>
+          <StatusDot variant={sev} /> {item.title}
+        </span>
+        <Badge variant={sev}>{severityLabel(item.severity)}</Badge>
+      </div>
+      <p style={styles.rowReason}>{item.reason}</p>
+      <div style={styles.rowMeta}>
+        <span>
+          <span style={styles.metaLabel}>Deal: </span>
+          {item.dealName}
+        </span>
+        {item.dateIso && (
+          <span>
+            <span style={styles.metaLabel}>Due: </span>
+            {formatQueueDate(item.dateIso) ?? '—'}
+          </span>
+        )}
+      </div>
+      {canComplete && item.taskMetadata && (
+        <div style={styles.rowActions}>
+          <button
+            type="button"
+            onClick={(e) => {
+              // Stop the row's onClick from also firing — Complete must not also navigate.
+              e.stopPropagation();
+              onComplete();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+              }
+            }}
+            style={styles.receiveButton}
+            aria-label={`Complete task ${item.title}`}
+          >
+            Complete
+          </button>
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -481,8 +792,8 @@ function typeLabel(t: WorkQueueItem['type']): string {
   switch (t) {
     case 'blocked-deal':
       return 'Blocked deal';
-    case 'overdue-task':
-      return 'Overdue task';
+    case 'open-task':
+      return 'Task';
     case 'overdue-document':
       return 'Overdue document';
     case 'pending-review-document':

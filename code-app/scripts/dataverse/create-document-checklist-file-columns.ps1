@@ -2,13 +2,13 @@
   create-document-checklist-file-columns.ps1
 
   Provisions the columns needed for true binary document upload on cr664_documentchecklist,
-  closing the exact schema blocker recorded in docs/PHASE_51_DOCUMENT_UPLOAD_SCOPE.md §3 and
+  closing the exact schema blocker recorded in docs/PHASE_51_DOCUMENT_UPLOAD_SCOPE.md section 3 and
   NOT_WIRED.document-upload in src/shared/governance/platformInventory.ts:
 
     cr664_documentfile       File      The binary content itself. MaxSizeInKB capped (default
                                         25600 = 25MB; override with -MaxFileSizeKB).
     cr664_originalfilename   String    The filename as uploaded (the schema has no place for
-                                        this today — see PHASE_51 §6 "Known limitations").
+                                        this today - see PHASE_51 section 6 "Known limitations").
     cr664_mimetype           String    Browser-reported content type, recorded honestly (never
                                         inferred/guessed server-side).
     cr664_filesizebytes      Whole Number  Byte count at upload time, for audit/quota purposes.
@@ -21,21 +21,21 @@
     This mirrors src/deals/newDealAuditActorResolver.ts's cr664_ChangedBy pattern exactly, for two
     independent reasons: (1) binding a REQUIRED actor-identity lookup to /systemusers(...) was
     REJECTED live in a real production incident on this exact table family ("Entity 'cr664_User'
-    With Id = <actor systemuser id> Does Not Exist" — see that resolver's header comment); (2) the
+    With Id = <actor systemuser id> Does Not Exist" - see that resolver's header comment); (2) the
     underlying Dataverse solution already has an unwired cr664_LoanDocument.cr664_UploadedBy ->
-    cr664_User relationship (src/Entities/cr664_LoanDocument/Entity.xml) — this script's choice is
+    cr664_User relationship (src/Entities/cr664_LoanDocument/Entity.xml) - this script's choice is
     consistent with that existing (if unwired) precedent, not a new guess.
 
-  SAFETY MODEL (same as every other script in this directory — see _common.ps1):
+  SAFETY MODEL (same as every other script in this directory - see _common.ps1):
     - DRY-RUN BY DEFAULT. Mutation happens only when you pass -Apply.
     - Confirms the target environment via `pac org who` AND checks the resolved org host matches
-      the expected org — BLOCKED on any mismatch. Override with -ExpectedOrgHost if deliberate.
+      the expected org - BLOCKED on any mismatch. Override with -ExpectedOrgHost if deliberate.
     - Confirms the CommercialLendingLOS solution exists in the target org before any mutation.
     - CREATE-MISSING-ONLY. Every column/relationship is existence-checked first and skipped if
       present. Nothing is ever overwritten, renamed, or deleted. There is NO delete path.
     - Publishes customizations (PublishAllXml) ONLY if this run actually created something.
     - Re-verifies metadata (AttributeType) for every scalar column after create/skip.
-    - Does NOT flip DOCUMENT_FILE_UPLOAD_ENABLED or any other application flag — that is a
+    - Does NOT flip DOCUMENT_FILE_UPLOAD_ENABLED or any other application flag - that is a
       separate, deliberate, evidence-backed operator act, same discipline as every other flag in
       this codebase (see src/deals/dealOriginationFeatureFlags.ts).
 
@@ -115,7 +115,7 @@ $targetTableExists = Test-DataverseTable $orgUrl $token $LookupRelationship.toTa
 if ($targetTableExists -eq $true) {
   Write-Status $LookupRelationship.toTable 'PASS' 'lookup target table exists'
 } elseif ($targetTableExists -eq $false) {
-  Write-Status $LookupRelationship.toTable 'BLOCKED' 'lookup target table cr664_user does not exist in this org — cr664_uploadedby cannot be created. Investigate before proceeding.'
+  Write-Status $LookupRelationship.toTable 'BLOCKED' 'lookup target table cr664_user does not exist in this org - cr664_uploadedby cannot be created. Investigate before proceeding.'
 } else {
   Write-Status $LookupRelationship.toTable 'UNKNOWN' 'could not verify lookup target table (no token / transient error).'
 }
@@ -204,14 +204,14 @@ foreach ($col in $ScalarColumns) {
 $lookupResult = New-DataverseRelationshipIfMissing -RelDef $LookupRelationship -OrgUrl $orgUrl -Token $token -Apply:$Apply.IsPresent
 if ($lookupResult -eq 'created') { $created++ }
 
-# --- Publish — only if something was actually created this run. ---
+# --- Publish - only if something was actually created this run. ---
 if ($Apply -and $created -gt 0) {
   Write-Host '== Publishing customizations (columns/relationship were created) =='
   $headers = @{ Authorization = "Bearer $token"; 'OData-MaxVersion' = '4.0'; 'OData-Version' = '4.0'; 'Content-Type' = 'application/json' }
   Invoke-RestMethod -Method Post -Uri ("{0}/api/data/v9.2/PublishAllXml" -f $orgUrl.TrimEnd('/')) -Headers $headers -Body '{}' | Out-Null
   Write-Status 'publish' 'PASS' 'customizations published'
 } elseif ($Apply) {
-  Write-Status 'publish' 'PASS' 'nothing created this run — publish skipped (idempotent no-op)'
+  Write-Status 'publish' 'PASS' 'nothing created this run - publish skipped (idempotent no-op)'
 }
 
 # --- Post-create metadata verification: re-GET each scalar attribute, confirm the type matches. ---
@@ -232,7 +232,7 @@ if ($Apply -or $token) {
     } elseif ($null -eq $actualType) {
       Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'UNKNOWN' 'could not read AttributeType (no token / not yet created in dry-run)'
     } else {
-      Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'BLOCKED' ("AttributeType={0} but expected {1} — investigate before relying on this column" -f $actualType, $expected)
+      Write-Status ("{0}.{1}" -f $TableLogical, $col.logicalName) 'BLOCKED' ("AttributeType={0} but expected {1} - investigate before relying on this column" -f $actualType, $expected)
     }
   }
 }

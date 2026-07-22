@@ -1,4 +1,10 @@
-import { deriveDealIndustryHydration, type DealIndustryHydration } from './dealIndustryHydration';
+import {
+  deriveDealIndustryHydration,
+  deriveDealIndustryRefresh,
+  type DealIndustryHydration,
+  type DealIndustryRefreshDecision,
+  type DealIndustrySource,
+} from './dealIndustryHydration';
 import type { DealIndustryProjection } from '../crm/dealIndustryProjection';
 
 /**
@@ -41,4 +47,32 @@ export async function hydrateDealIndustryFromCrm(
     if (res.ok) return { hydration, appliedPatch: res.verified };
   }
   return { hydration };
+}
+
+export interface RefreshDealIndustryResult {
+  readonly decision: DealIndustryRefreshDecision;
+  /** The verified deal patch to merge (present only when a refresh governed-applied a new industry). */
+  readonly appliedPatch?: Record<string, unknown>;
+}
+
+/**
+ * P1-7 — explicit "refresh Industry from CRM NAICS" for when the linked company's NAICS changed after
+ * the deal was created. Provenance-aware: `priorSource` is the known source of the current stored
+ * Industry (e.g. from the last hydration outcome / audit). A previously CRM-derived value is updated
+ * when the derivation changed; an explicit manual override is preserved and never overwritten. The
+ * apply goes through the same governed write, so both the refresh and a kept override are auditable.
+ */
+export async function refreshDealIndustryFromCrm(
+  clientRelationshipId: string | undefined,
+  currentDealIndustry: string | undefined,
+  priorSource: DealIndustrySource,
+  deps: HydrateDealIndustryDeps,
+): Promise<RefreshDealIndustryResult> {
+  const projection = await deps.loadProjection(clientRelationshipId);
+  const decision = deriveDealIndustryRefresh(projection, currentDealIndustry, priorSource);
+  if (decision.action === 'apply' && decision.industryToApply !== undefined) {
+    const res = await deps.applyDealIndustry(decision.industryToApply);
+    if (res.ok) return { decision, appliedPatch: res.verified };
+  }
+  return { decision };
 }

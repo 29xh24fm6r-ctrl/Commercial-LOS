@@ -271,25 +271,34 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
   const saving = save.kind === 'saving';
 
   async function onSave() {
-    if (!hasChanges || !banker?.systemUserId) return;
+    // P2-14 — duplicate-submit guard: ignore re-entry while a save is in flight.
+    if (!hasChanges || !banker?.systemUserId || saving) return;
     setSave({ kind: 'saving' });
-    const outcome = await updateDealProfile(
-      {
-        dealId: deal.id,
-        actorEmail: banker.email,
-        actorSystemUserId: banker.systemUserId,
-        authorized: true,
-        patch,
-        referencePatch,
-        allowedReferenceIds,
-      },
-      buildLiveUpdateDealProfileDeps(),
-    );
-    if (outcome.kind === 'updated') {
-      // Merge ONLY the readback-verified fields into the cockpit's deal row.
-      applyVerifiedDealPatch?.(outcome.verified as Partial<DealDetail>);
+    try {
+      const outcome = await updateDealProfile(
+        {
+          dealId: deal.id,
+          actorEmail: banker.email,
+          actorSystemUserId: banker.systemUserId,
+          authorized: true,
+          patch,
+          referencePatch,
+          allowedReferenceIds,
+        },
+        buildLiveUpdateDealProfileDeps(),
+      );
+      if (outcome.kind === 'updated') {
+        // Merge ONLY the readback-verified fields into the cockpit's deal row.
+        applyVerifiedDealPatch?.(outcome.verified as Partial<DealDetail>);
+      }
+      setSave({ kind: 'done', outcome });
+    } catch (err: unknown) {
+      // P2-14 — never leave the modal stuck at 'saving' if the governed write (or its dep
+      // construction) throws. Recover into the outcome block so the pending state clears and the
+      // banker can act (Back to edit, or Close). Surfaced as the honest write-failed outcome.
+      const message = err instanceof Error ? err.message : String(err);
+      setSave({ kind: 'done', outcome: { kind: 'write-failed', error: message, correlationId: '' } });
     }
-    setSave({ kind: 'done', outcome });
   }
 
   const titleId = 'deal-profile-edit-title';
@@ -322,8 +331,8 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
                 data-deal-profile-field="amount"
               />
               <span id="deal-profile-amount-help" style={styles.readonlyReason}>
-                The approved loan amount (cr664_amount). A mandatory Intake exit criterion — verified on
-                save and audited.
+                The approved loan amount. Required to move the deal out of Intake — verified on save
+                and recorded in the audit trail.
               </span>
             </FieldLabel>
 

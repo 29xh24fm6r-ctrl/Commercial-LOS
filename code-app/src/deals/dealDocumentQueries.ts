@@ -1,4 +1,7 @@
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
+import { classifyLegacyDocumentStatus, isGovernedExcusedDocument } from './documentStatusClassification';
+import { requirementStatusFromCode } from './documentRequirementStatusCodes';
+import type { DocumentRequirementFields } from './documentRequirementFields';
 
 export type DocumentStatus = 'outstanding' | 'received' | 'reviewed';
 
@@ -36,16 +39,11 @@ export interface DealDocumentsResult {
  *   received   = cr664_receiveddate set OR cr664_uploadstatus === true
  *                (but no reviewer yet)
  *   outstanding = neither received nor reviewed
+ *
+ * Delegates to documentStatusClassification.ts — the one canonical rule
+ * shared with workQueueQueries.ts / managerQueries.ts / teamQueries.ts.
  */
-function deriveStatus(opts: {
-  reviewer: string | undefined;
-  receivedDate: string | undefined;
-  uploaded: boolean;
-}): DocumentStatus {
-  if (opts.reviewer && opts.reviewer.trim().length > 0) return 'reviewed';
-  if (opts.receivedDate || opts.uploaded) return 'received';
-  return 'outstanding';
-}
+const deriveStatus = classifyLegacyDocumentStatus;
 
 /**
  * Load all active document-checklist rows for the given deal. Caller
@@ -64,25 +62,39 @@ export async function loadDealDocuments(dealId: string): Promise<DealDocumentsRe
     throw new Error(message);
   }
 
-  const all = (result.data ?? []).map((d): DealDocument => {
-    const uploaded = d.cr664_uploadstatus === true;
-    const status = deriveStatus({
-      reviewer: d.cr664_reviewer,
-      receivedDate: d.cr664_receiveddate,
-      uploaded,
+  // Remediation 2026-07-22 (Workstream G) — a row the Document Requirement
+  // workspace (documentRequirementActions.ts) has already Waived or marked
+  // Not Applicable persists no reviewer/receivedDate/upload, so it must be
+  // excluded here rather than falling through to "outstanding": it is
+  // already visible, correctly labeled, on the same Documents card via
+  // DocumentRequirementWorkspace, and must not double-count as a live gap.
+  const all = (result.data ?? [])
+    .filter((d) => {
+      const raw = d as unknown as DocumentRequirementFields;
+      return !isGovernedExcusedDocument({
+        waived: raw.cr664_waived,
+        requirementStatus: requirementStatusFromCode(raw.cr664_requirementstatus),
+      });
+    })
+    .map((d): DealDocument => {
+      const uploaded = d.cr664_uploadstatus === true;
+      const status = deriveStatus({
+        reviewer: d.cr664_reviewer,
+        receivedDate: d.cr664_receiveddate,
+        uploaded,
+      });
+      return {
+        id: d.cr664_documentchecklistid,
+        name: d.cr664_documentname,
+        dueDate: d.cr664_duedate,
+        requestDate: d.cr664_requestdate,
+        receivedDate: d.cr664_receiveddate,
+        reviewer: d.cr664_reviewer,
+        uploaded,
+        modifiedOn: d.modifiedon,
+        status,
+      };
     });
-    return {
-      id: d.cr664_documentchecklistid,
-      name: d.cr664_documentname,
-      dueDate: d.cr664_duedate,
-      requestDate: d.cr664_requestdate,
-      receivedDate: d.cr664_receiveddate,
-      reviewer: d.cr664_reviewer,
-      uploaded,
-      modifiedOn: d.modifiedon,
-      status,
-    };
-  });
 
   const outstanding = all
     .filter((d) => d.status === 'outstanding')

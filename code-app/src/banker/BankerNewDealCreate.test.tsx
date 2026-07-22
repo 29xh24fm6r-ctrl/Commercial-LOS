@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 
@@ -25,10 +25,23 @@ vi.mock('../deals/newDealReferenceReader', () => ({
 const loadClientsMock = vi.fn();
 const loadTeamsMock = vi.fn();
 vi.mock('../crm/dealCrmLinkOptions', () => ({
-  loadClientRelationshipOptions: (...a: unknown[]) => loadClientsMock(...a),
+  loadClientLinkTargetOptions: (...a: unknown[]) => loadClientsMock(...a),
   loadTeamOptions: (...a: unknown[]) => loadTeamsMock(...a),
   OPTION_CAP: 200,
   isOptionListTruncated: (options: unknown[]) => options.length >= 200,
+}));
+
+// The org-bridge write is only exercised when a banker selects an unbridged CRM company
+// (sourceKind: 'organization'); every other test in this file selects a plain client
+// relationship, so this mock stays unused unless a test explicitly wires it.
+const bridgeOrgMock = vi.fn();
+vi.mock('../crm/write/bridgeOrgToClientRelationship', () => ({
+  bridgeOrgToClientRelationship: (...a: unknown[]) => bridgeOrgMock(...a),
+  bridgedClientRelationshipId: (outcome: { kind: string; clientRelationshipId?: string }) =>
+    outcome.kind === 'created' || outcome.kind === 'linked-existing' || outcome.kind === 'audit-failed'
+      ? (outcome.clientRelationshipId ?? null)
+      : null,
+  buildLiveBridgeOrgToClientDeps: vi.fn(() => ({})),
 }));
 
 // Pipeline-deal read for pre-create duplicate-detection candidates. Mocked
@@ -37,6 +50,25 @@ vi.mock('../crm/dealCrmLinkOptions', () => ({
 const loadBankerPipelineMock = vi.fn();
 vi.mock('./dealQueries', () => ({
   loadBankerPipeline: (...a: unknown[]) => loadBankerPipelineMock(...a),
+}));
+
+// Remediation 2026-07-22 (Workstream E) — the 3 reference-lookup dropdowns' live loader, and the
+// follow-up profile-completion write + its live deps factory. DEAL_REFERENCE_LOOKUPS / types stay
+// real (static config, no IO) via importOriginal; only the IO-bearing loader is mocked.
+const loadReferenceOptionsMock = vi.fn();
+vi.mock('../deals/write/dealReferenceOptions', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../deals/write/dealReferenceOptions')>();
+  return {
+    ...actual,
+    loadLiveDealReferenceOptionsByCategory: (...a: unknown[]) => loadReferenceOptionsMock(...a),
+  };
+});
+const updateDealProfileMock = vi.fn();
+vi.mock('../deals/write/updateDealProfile', () => ({
+  updateDealProfile: (...a: unknown[]) => updateDealProfileMock(...a),
+}));
+vi.mock('../deals/write/buildLiveUpdateDealProfileDeps', () => ({
+  buildLiveUpdateDealProfileDeps: vi.fn(() => ({})),
 }));
 
 import { useBanker } from './BankerContext';
@@ -57,10 +89,10 @@ function setBanker(over: Partial<ReturnType<typeof useBanker>> = {}) {
   });
 }
 
-function renderCreate() {
+function renderCreate(props: { onCreated?: () => void } = {}) {
   return render(
     <MemoryRouter>
-      <BankerNewDealCreate />
+      <BankerNewDealCreate {...props} />
     </MemoryRouter>,
   );
 }
@@ -77,6 +109,14 @@ beforeEach(() => {
   loadClientsMock.mockResolvedValue(CLIENTS);
   loadTeamsMock.mockResolvedValue(TEAMS);
   loadBankerPipelineMock.mockResolvedValue([]);
+  // Default: no active reference rows for any category — the 3 dropdowns stay unavailable
+  // unless a test explicitly supplies options. Never blocks create either way.
+  loadReferenceOptionsMock.mockResolvedValue({
+    productType: { kind: 'empty', reason: 'no rows' },
+    loanStructure: { kind: 'empty', reason: 'no rows' },
+    pricingType: { kind: 'empty', reason: 'no rows' },
+  });
+  updateDealProfileMock.mockReset();
 });
 
 /** Drive the flow to a created deal: select client → team → details → submit. */
@@ -88,8 +128,9 @@ async function completeHappyPath(user: ReturnType<typeof userEvent.setup>, conta
   await screen.findByRole('option', { name: /Commercial East/i });
   await user.click(screen.getByRole('option', { name: /Commercial East/i }));
   await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
-  // Step 3: name + submit.
+  // Step 3: name + amount (Remediation 2026-07-22, Workstream E — amount is now mandatory) + submit.
   await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
+  await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '1000000');
   await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
 }
 
@@ -219,6 +260,86 @@ describe('Happy path — existing client + team bind and readback via the orches
     expect(callArg.form.existingTeamId).toBe('team-guid-1');
     expect(callArg.context.requireCrmClient).toBe(true);
     expect(callArg.context.existingDeals).toEqual([]);
+  });
+});
+
+describe('Remediation 2026-07-22 (Workstream D) — unbridged CRM company selection bridges before create', () => {
+  it('runs the governed org bridge and creates the deal against the resulting client-relationship id, not the raw organization id', async () => {
+    setBanker();
+    loadClientsMock.mockResolvedValue([
+      {
+        id: 'org-guid-1',
+        name: 'Omni Corp',
+        sublabel: 'CRM Company — will create/link borrower client record',
+        active: true,
+        sourceKind: 'organization',
+        organizationType: 'Borrower',
+      },
+    ]);
+    bridgeOrgMock.mockResolvedValue({
+      kind: 'created',
+      clientRelationshipId: 'bridged-client-guid',
+      clientName: 'Omni Corp',
+      correlationId: 'corr-1',
+      auditId: 'audit-1',
+    });
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-xyz',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+
+    await screen.findByRole('option', { name: /Omni Corp/i });
+    await user.click(screen.getByRole('option', { name: /Omni Corp/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Omni Deal');
+    // Remediation 2026-07-22 (Workstream E) — amount is now mandatory.
+    await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '750000');
+    await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
+
+    await waitFor(() => expect(orchestrateMock).toHaveBeenCalled());
+    expect(bridgeOrgMock).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-guid-1', organizationName: 'Omni Corp' }),
+      expect.anything(),
+    );
+    const callArg = orchestrateMock.mock.calls[0]![0] as { form: { existingClientId?: string } };
+    // The bridged CLIENT RELATIONSHIP id is bound, never the raw CRM organization id.
+    expect(callArg.form.existingClientId).toBe('bridged-client-guid');
+    expect(callArg.form.existingClientId).not.toBe('org-guid-1');
+  });
+
+  it('surfaces an honest error and never calls the orchestrator when the bridge fails', async () => {
+    setBanker();
+    loadClientsMock.mockResolvedValue([
+      { id: 'org-guid-1', name: 'Omni Corp', active: true, sourceKind: 'organization', organizationType: 'Borrower' },
+    ]);
+    bridgeOrgMock.mockResolvedValue({ kind: 'write-failed', error: 'Dataverse write denied', correlationId: 'corr-2' });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+
+    await screen.findByRole('option', { name: /Omni Corp/i });
+    await user.click(screen.getByRole('option', { name: /Omni Corp/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Omni Deal');
+    // Remediation 2026-07-22 (Workstream E) — amount is now mandatory.
+    await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '750000');
+    await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Dataverse write denied/)).toBeInTheDocument();
+    });
+    expect(orchestrateMock).not.toHaveBeenCalled();
   });
 });
 
@@ -399,5 +520,247 @@ describe('Result banners — honest partials are never a clean success', () => {
       expect(container.querySelector('[data-banker-new-deal-result="create_failed"]')).not.toBeNull(),
     );
     expect(screen.getByText(/could not be created/i)).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Remediation 2026-07-22 (Workstream E) — expanded loan-structure capture
+// ---------------------------------------------------------------------------
+
+describe('Workstream E — requested amount is mandatory for every create', () => {
+  it('Create stays disabled with no amount typed, and an honest hint appears only for an invalid non-blank value', async () => {
+    setBanker();
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+
+    await screen.findByRole('option', { name: /Acme Holdings LLC/i });
+    await user.click(screen.getByRole('option', { name: /Acme Holdings LLC/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
+
+    const submitButton = container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement;
+    expect(submitButton.disabled).toBe(true);
+    expect(container.querySelector('[data-new-deal-amount-invalid]')).toBeNull();
+
+    await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '0');
+    expect((container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement).disabled).toBe(true);
+    expect(container.querySelector('[data-new-deal-amount-invalid]')).not.toBeNull();
+
+    await user.clear(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement);
+    await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '500000');
+    expect((container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement).disabled).toBe(false);
+    expect(container.querySelector('[data-new-deal-amount-invalid]')).toBeNull();
+  });
+
+  it('never calls the orchestrator while amount is blank/invalid, even if the button were force-clicked', async () => {
+    setBanker();
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await screen.findByRole('option', { name: /Acme Holdings LLC/i });
+    await user.click(screen.getByRole('option', { name: /Acme Holdings LLC/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
+    await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
+    expect(orchestrateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('Workstream E — expanded field capture: governed follow-up profile-completion write', () => {
+  it('sends only the extra fields actually filled in as a follow-up updateDealProfile write once the deal is created, and confirms it to the banker', async () => {
+    setBanker();
+    loadReferenceOptionsMock.mockResolvedValue({
+      productType: { kind: 'ready', options: [{ id: 'pt-1', name: 'Term Loan', active: true }] },
+      loanStructure: { kind: 'empty', reason: 'no rows' },
+      pricingType: { kind: 'empty', reason: 'no rows' },
+    });
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-new-1',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    updateDealProfileMock.mockResolvedValue({
+      kind: 'updated',
+      dealId: 'deal-new-1',
+      correlationId: 'corr-1',
+      verified: {},
+      changedLabels: ['Target close date', 'Collateral', 'Product type'],
+      auditId: 'audit-1',
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+
+    await screen.findByRole('option', { name: /Acme Holdings LLC/i });
+    await user.click(screen.getByRole('option', { name: /Acme Holdings LLC/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
+    await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '1000000');
+    // Only fill in target close date + collateral + the product-type dropdown; leave the rest unset.
+    await user.type(container.querySelector('[data-banker-new-deal-target-close]') as HTMLInputElement, '2026-12-31');
+    await user.type(container.querySelector('[data-banker-new-deal-collateral]') as HTMLTextAreaElement, 'Equipment lien');
+    await user.selectOptions(
+      container.querySelector('[data-banker-new-deal-reference="productType"]') as HTMLSelectElement,
+      'pt-1',
+    );
+    await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
+
+    await waitFor(() => expect(updateDealProfileMock).toHaveBeenCalledTimes(1));
+    const call = updateDealProfileMock.mock.calls[0]![0];
+    expect(call.dealId).toBe('deal-new-1');
+    expect(call.patch).toEqual({ targetCloseDate: '2026-12-31', collateralSummary: 'Equipment lien' });
+    expect(call.referencePatch).toEqual({ productType: { id: 'pt-1', name: 'Term Loan' } });
+    expect(call.allowedReferenceIds).toContain('pt-1');
+
+    expect(
+      await screen.findByText(/Additional loan-structure details saved/i),
+    ).toBeInTheDocument();
+  });
+
+  it('does NOT issue a follow-up write when nothing beyond name/amount was filled in', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-new-2',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await completeHappyPath(user, container);
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
+    );
+    expect(updateDealProfileMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Additional loan-structure details saved/i)).not.toBeInTheDocument();
+  });
+
+  it('an honest partial banner appears (pointing at Complete/Edit Deal Profile) when the follow-up write fails, without retracting the create', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-new-3',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    updateDealProfileMock.mockResolvedValue({
+      kind: 'write-failed',
+      error: 'row locked',
+      correlationId: 'corr-2',
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await screen.findByRole('option', { name: /Acme Holdings LLC/i });
+    await user.click(screen.getByRole('option', { name: /Acme Holdings LLC/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
+    await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '1000000');
+    await user.type(container.querySelector('[data-banker-new-deal-collateral]') as HTMLTextAreaElement, 'Equipment');
+    await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
+
+    // The main create success banner still appears — a created deal is a created deal.
+    expect(
+      await screen.findByText(/Deal created/i),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/could not be saved: row locked/i)).toBeInTheDocument();
+    expect(screen.getByText(/Complete\/Edit Deal Profile/i)).toBeInTheDocument();
+  });
+});
+
+describe('Workstream E — duplicate-submit protection (rapid double-click)', () => {
+  it('two rapid clicks on Create invoke the orchestrator only once', async () => {
+    setBanker();
+    let resolveOrchestrate!: (v: unknown) => void;
+    orchestrateMock.mockImplementation(
+      () => new Promise((resolve) => { resolveOrchestrate = resolve; }),
+    );
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await screen.findByRole('option', { name: /Acme Holdings LLC/i });
+    await user.click(screen.getByRole('option', { name: /Acme Holdings LLC/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
+    await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '1000000');
+
+    const submitButton = container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement;
+    // A rapid double-click (fireEvent, back-to-back). Behavioral regression test for
+    // "only one orchestrator call ever results from clicking Create twice in a row" —
+    // covers the combination of the disabled-attribute re-render AND the synchronous
+    // submittingRef guard together, not an isolated proof of either mechanism alone.
+    fireEvent.click(submitButton);
+    fireEvent.click(submitButton);
+
+    await waitFor(() => expect(orchestrateMock).toHaveBeenCalled());
+    resolveOrchestrate({
+      kind: 'success_created_only',
+      createdDealId: 'deal-new-4',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
+    );
+    expect(orchestrateMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Workstream E — onCreated fires so a parent shell can refresh the board + pipeline total', () => {
+  it('calls onCreated exactly once the moment createdDealId is set, even when the follow-up write is skipped', async () => {
+    setBanker();
+    const onCreated = vi.fn();
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-new-5',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate({ onCreated });
+    await completeHappyPath(user, container);
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+  });
+
+  it('does NOT call onCreated when create fails (no deal record exists)', async () => {
+    setBanker();
+    const onCreated = vi.fn();
+    orchestrateMock.mockResolvedValue({
+      kind: 'create_failed',
+      createOutcome: { kind: 'failed', error: 'boom' },
+      userFacingMessage: 'failed',
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate({ onCreated });
+    await completeHappyPath(user, container);
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="create_failed"]')).not.toBeNull(),
+    );
+    expect(onCreated).not.toHaveBeenCalled();
   });
 });

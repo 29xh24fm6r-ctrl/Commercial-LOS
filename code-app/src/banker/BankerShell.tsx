@@ -1,10 +1,12 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useBanker } from './BankerContext';
 import {
   loadBankerWorkQueueData,
   type BankerWorkQueueData,
 } from './workQueueQueries';
 import { deriveBankerPersonalActivity } from '../shared/analytics/bankerPersonalActivity';
+import { parseCalendarDate } from '../shared/formatters';
 import { PersonalActivitySummary } from './PersonalActivitySummary';
 import { BankerMorningCatchUp } from './BankerMorningCatchUp';
 import { BankerAutopilotRollup } from './BankerAutopilotRollup';
@@ -95,9 +97,26 @@ export interface BankerShellProps {
   workspaceLinks?: ReadonlyArray<import('../bootstrap/workspaceEntitlements').WorkspaceLink>;
 }
 
+/**
+ * Remediation 2026-07-22 (Workstream C) — the deal cockpit is a separate route from this shell's
+ * own local-tab navigation, so a nav click from inside a deal must navigate back to this route
+ * carrying which tab to land on, rather than silently doing nothing. Validates against the real
+ * tab set so a stale/forged location.state can never select a tab that doesn't exist.
+ */
+function resolveInitialTab(state: unknown): ShellTab {
+  if (state && typeof state === 'object' && 'initialTab' in state) {
+    const candidate = (state as { initialTab?: unknown }).initialTab;
+    if (typeof candidate === 'string' && TAB_SPECS.some((t) => t.key === candidate)) {
+      return candidate as ShellTab;
+    }
+  }
+  return 'dashboard';
+}
+
 export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps) {
   const { bankerId, fullName, email, systemUserId, writeDisabledReason } = useBanker();
-  const [tab, setTab] = useState<ShellTab>('dashboard');
+  const location = useLocation();
+  const [tab, setTab] = useState<ShellTab>(() => resolveInitialTab(location.state));
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
   const reload = useCallback(() => {
@@ -148,6 +167,18 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
     return () => cancelAnimationFrame(raf);
   }, [newDealFocusNonce]);
 
+  // Remediation 2026-07-22 (Workstream E) — PersonalPipeline (the Kanban board) does its own
+  // independent loadBankerPipeline fetch, entirely separate from this shell's own `state`. Bumping
+  // this nonce (passed down as PersonalPipeline's refreshToken) is what makes a just-created deal
+  // appear on the board in-session instead of only after a tab switch / reload; `reload()` below
+  // refreshes this shell's own KPIs (including the pipeline-total) the same way MyWorkQueue's
+  // onDataChanged already does for tasks.
+  const [dealsRefreshNonce, setDealsRefreshNonce] = useState(0);
+  const onDealCreated = useCallback(() => {
+    setDealsRefreshNonce((n) => n + 1);
+    reload();
+  }, [reload]);
+
   const now = useMemo(() => new Date(), [state]);
   const kpis = useMemo(() => {
     if (state.kind !== 'ready') return null;
@@ -157,19 +188,22 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   const closingSoonDeals = useMemo(() => {
     if (state.kind !== 'ready') return [];
     const horizonMs = 14 * 24 * 60 * 60 * 1000;
-    const nowMs = now.getTime();
+    // Remediation 2026-07-22 (Workstream H) — targetCloseDate is date-only; comparing a raw
+    // `new Date(...)` (UTC midnight) against the exact current instant shifted the 14-day window
+    // boundary by several hours for any US timezone (a deal closing "today" could drop out of the
+    // window hours before today locally ends). Compare against the start of today instead.
+    const startOfTodayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     return state.data.deals
       .filter((d) => {
-        if (!d.targetCloseDate) return false;
-        const t = new Date(d.targetCloseDate).getTime();
-        if (Number.isNaN(t)) return false;
-        const delta = t - nowMs;
+        const t = parseCalendarDate(d.targetCloseDate)?.getTime();
+        if (t === undefined) return false;
+        const delta = t - startOfTodayMs;
         return delta >= 0 && delta <= horizonMs;
       })
       .slice()
       .sort((a, b) => {
-        const at = new Date(a.targetCloseDate ?? '').getTime();
-        const bt = new Date(b.targetCloseDate ?? '').getTime();
+        const at = parseCalendarDate(a.targetCloseDate)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const bt = parseCalendarDate(b.targetCloseDate)?.getTime() ?? Number.POSITIVE_INFINITY;
         return at - bt;
       })
       .slice(0, 6);
@@ -189,6 +223,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
       })
       .slice(0, 3);
   }, [state]);
+  const navigate = useNavigate();
 
   const activeNav: LendingOSNavKey = TAB_SPECS.find((t) => t.key === tab)?.nav ?? 'dashboard';
   const activityDealOptions =
@@ -238,7 +273,10 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
                   deals={state.kind === 'ready' ? state.data.deals : []}
                   loading={state.kind === 'loading'}
                   healthError={state.kind === 'failed' ? state.message : undefined}
+                  onWorkQueueDataChanged={reload}
                   onSelectTab={setTab}
+                  onDealCreated={onDealCreated}
+                  dealsRefreshNonce={dealsRefreshNonce}
                 />
               </ErrorBoundary>
             </div>
@@ -248,6 +286,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
               state={state}
               closingSoonDeals={closingSoonDeals}
               topTasks={topTasks}
+              onOpenTask={(dealId) => navigate(`/deals/${dealId}`)}
             />
           </aside>
         </div>
@@ -340,6 +379,9 @@ function TabContent({
   loading,
   healthError,
   onSelectTab,
+  onWorkQueueDataChanged,
+  onDealCreated,
+  dealsRefreshNonce,
 }: {
   tab: ShellTab;
   onNewDeal: () => void;
@@ -350,6 +392,19 @@ function TabContent({
   /** Set when loadBankerWorkQueueData failed — distinct from "still loading". */
   healthError?: string;
   onSelectTab: (tab: ShellTab) => void;
+  /**
+   * Remediation 2026-07-22 (Workstream F) — MyWorkQueue fetches its own
+   * BankerWorkQueueData snapshot independently of this shell's own `state`
+   * (tab badges, header "N tasks pending", right-rail My Tasks panel). Without
+   * this callback, completing a task or acting on a document inside the
+   * "Tasks & Actions" / "My Alerts" tabs updated MyWorkQueue's own list but
+   * left every shell-level count stale until the banker navigated away and back.
+   */
+  onWorkQueueDataChanged: () => void;
+  /** Remediation 2026-07-22 (Workstream E) — bumps dealsRefreshNonce + reloads shell KPIs. */
+  onDealCreated: () => void;
+  /** Remediation 2026-07-22 (Workstream E) — passed to PersonalPipeline as its refreshToken. */
+  dealsRefreshNonce: number;
 }) {
   switch (tab) {
     case 'dashboard':
@@ -370,9 +425,9 @@ function TabContent({
       return (
         <div style={styles.tabStack}>
           <div data-header-new-deal-target>
-            <BankerNewDealCreate />
+            <BankerNewDealCreate onCreated={onDealCreated} />
           </div>
-          <PersonalPipeline />
+          <PersonalPipeline refreshToken={dealsRefreshNonce} />
         </div>
       );
     case 'loan-workflow':
@@ -394,7 +449,7 @@ function TabContent({
     case 'tasks':
       return (
         <div style={styles.tabStack}>
-          <MyWorkQueue />
+          <MyWorkQueue onDataChanged={onWorkQueueDataChanged} />
         </div>
       );
     case 'due-diligence':
@@ -416,9 +471,11 @@ function TabContent({
         </div>
       );
     case 'my-alerts':
+      // P1-10 / P2-17 — the My Alerts badge counts the urgent (blocked + overdue) tier, so its
+      // destination shows exactly that alert slice, not the full Tasks & Actions work list.
       return (
         <div style={styles.tabStack}>
-          <MyWorkQueue />
+          <MyWorkQueue filter="alerts" onDataChanged={onWorkQueueDataChanged} />
         </div>
       );
     case 'signals':
@@ -438,10 +495,12 @@ function RightRail({
   state,
   closingSoonDeals,
   topTasks,
+  onOpenTask,
 }: {
   state: LoadState;
   closingSoonDeals: readonly { id: string; name: string; targetCloseDate: string | undefined }[];
-  topTasks: readonly { id: string; title: string; dueDate: string | undefined }[];
+  topTasks: readonly { id: string; dealId: string; title: string; dueDate: string | undefined }[];
+  onOpenTask: (dealId: string) => void;
 }) {
   return (
     <div style={styles.railStack}>
@@ -478,7 +537,7 @@ function RightRail({
         )}
       </div>
 
-      <MyTasksRailPanel state={state} tasks={topTasks} />
+      <MyTasksRailPanel state={state} tasks={topTasks} onOpenTask={onOpenTask} />
     </div>
   );
 }
@@ -486,9 +545,11 @@ function RightRail({
 function MyTasksRailPanel({
   state,
   tasks,
+  onOpenTask,
 }: {
   state: LoadState;
-  tasks: readonly { id: string; title: string; dueDate: string | undefined }[];
+  tasks: readonly { id: string; dealId: string; title: string; dueDate: string | undefined }[];
+  onOpenTask: (dealId: string) => void;
 }) {
   const pending = state.kind === 'ready' ? state.data.tasks.length : 0;
   return (
@@ -514,7 +575,21 @@ function MyTasksRailPanel({
       {state.kind === 'ready' && tasks.length > 0 && (
         <ul style={styles.railList}>
           {tasks.map((t) => (
-            <li key={t.id} style={styles.railItem}>
+            <li
+              key={t.id}
+              style={{ ...styles.railItem, cursor: 'pointer' }}
+              className="cc-row-hover"
+              onClick={() => onOpenTask(t.dealId)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onOpenTask(t.dealId);
+                }
+              }}
+              tabIndex={0}
+              role="link"
+              aria-label={`Open deal for task ${t.title}`}
+            >
               <div style={styles.railItemTitle}>{t.title}</div>
               <div style={styles.railItemMeta}>{formatTaskDue(t.dueDate)}</div>
             </li>

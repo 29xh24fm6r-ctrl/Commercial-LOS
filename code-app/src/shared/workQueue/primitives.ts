@@ -208,6 +208,26 @@ export function countBySeverity(
   return { blocked, overdue, atRisk, upcoming, total: items.length };
 }
 
+/**
+ * P1-10 / P2-17 — the canonical "alert" tier. A work item is an ALERT when it is act-now urgent:
+ * a hard blocker or an overdue task/document. This is the single shared definition used by the
+ * banker "My Alerts" surface so its destination shows exactly the urgent items — distinct from the
+ * full "Tasks & Actions" work list, which also carries at-risk and upcoming items. Keeping the
+ * predicate here (not inline in a role card) prevents the badge concept and the destination filter
+ * from drifting apart.
+ */
+export const ALERT_SEVERITIES: readonly WorkQueueSeverity[] = ['blocked', 'overdue'];
+
+export function isAlertWorkItem(item: { severity: WorkQueueSeverity }): boolean {
+  return ALERT_SEVERITIES.includes(item.severity);
+}
+
+export function filterAlertWorkItems<T extends { severity: WorkQueueSeverity }>(
+  items: readonly T[],
+): T[] {
+  return items.filter(isAlertWorkItem);
+}
+
 export function subtitleForCounts(c: WorkQueueSeverityCounts): string {
   const bits: string[] = [];
   if (c.blocked > 0) bits.push(`${c.blocked} blocked`);

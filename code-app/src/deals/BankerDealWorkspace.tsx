@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useBanker } from '../banker/BankerContext';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
-import { LendingOSLayout } from '../banker/LendingOSLayout';
+import { LendingOSLayout, type LendingOSNavKey } from '../banker/LendingOSLayout';
 import { loadDealForBanker, type DealLoadResult } from './dealQueries';
 import { DealHeader } from './DealHeader';
 import { DealCockpitNav } from './DealCockpitNav';
@@ -14,6 +14,7 @@ import { RelationshipContext } from './RelationshipContext';
 import { DealCrmRelationshipPanel } from '../crm/CrmRelationshipPanel';
 import { DealBlockers } from './DealBlockers';
 import { DealStageProgressionCard } from './DealStageProgressionCard';
+import { DealGovernedTransitionPanel } from './DealGovernedTransitionPanel';
 import { DealTasks } from './DealTasks';
 import { DealDocuments } from './DealDocuments';
 import { CreditMemo } from './CreditMemo';
@@ -79,6 +80,17 @@ export function BankerDealWorkspace({
 }: BankerDealWorkspaceProps) {
   const { bankerId, fullName, email, systemUserId, roleType, creditAuthority } = useBanker();
   const [state, setState] = useState<DealLoadResult | { kind: 'loading' }>({ kind: 'loading' });
+  const navigate = useNavigate();
+
+  /**
+   * Remediation 2026-07-22 (Workstream C) — the deal cockpit is a separate route from
+   * BankerShell's own local-tab navigation, so a sidebar click here previously did nothing
+   * (LendingOSLayout disables every nav button when `onNavSelect` is undefined). Navigate back to
+   * the Banker Command Center carrying which tab to land on; BankerShell reads it on mount.
+   */
+  const handleNavSelect = (key: LendingOSNavKey) => {
+    navigate(WORKSPACE_ROUTES.banker, { state: { initialTab: key } });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +117,7 @@ export function BankerDealWorkspace({
   const shellWrap = (body: React.ReactNode) => (
     <LendingOSLayout
       activeNav="active-deals"
+      onNavSelect={handleNavSelect}
       fullName={fullName}
       email={email}
       workspaceName={workspaceName}
@@ -206,6 +219,10 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="stage-map"
               >
                 <DealStageProgressionCard stageAdvanceActor={{ systemUserId, email, roleType, creditAuthority }} />
+                {/* Governance initiative (2026-07-21) — Return/Decline/Withdraw, mounted live
+                    alongside the existing Advance control (see DealGovernedTransitionPanel's doc
+                    comment for why Advance itself stays on DealStageProgressionCard). */}
+                <DealGovernedTransitionPanel />
               </div>
               {/* Stage reconciliation: the legacy Loan Workflow Command Center
                   (11-stage Opportunity/Qualification spine) was retired here so the

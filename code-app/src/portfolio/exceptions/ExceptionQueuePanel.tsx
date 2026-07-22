@@ -13,6 +13,15 @@ import { derivePortfolioExceptionSummary } from './creditAdminExceptions';
 
 interface Props {
   readonly queues?: readonly CreditAdminQueue[];
+  /**
+   * False when the per-loan document/core-data completeness feed that would
+   * populate `queues` isn't wired to a live source yet (see
+   * `covenantMonitoring.ts`'s WIRE-candidate note in `intentionallyUnrouted.ts`).
+   * Defaults to true so every other caller/test keeps its existing "checked,
+   * genuinely zero" behavior; only an explicit `false` renders the honest
+   * "not connected" state instead of implying a confirmed-clean queue.
+   */
+  readonly dataAvailable?: boolean;
 }
 
 const SEV_TONE: Record<ExceptionSeverity, 'blocked' | 'atRisk' | 'info'> = {
@@ -21,18 +30,21 @@ const SEV_TONE: Record<ExceptionSeverity, 'blocked' | 'atRisk' | 'info'> = {
   low: 'info',
 };
 
-export function ExceptionQueuePanel({ queues }: Props) {
+export function ExceptionQueuePanel({ queues, dataAvailable = true }: Props) {
   const s = derivePortfolioExceptionSummary(queues ?? []);
 
   if (s.totalOpen === 0) {
     return (
-      <section style={styles.wrap} aria-label="Credit-admin exceptions" data-exception-queue="empty">
+      <section style={styles.wrap} aria-label="Credit-admin exceptions" data-exception-queue={dataAvailable ? 'empty' : 'not-available'}>
         <header style={styles.head}>
           <h3 style={styles.title}>Credit-admin exceptions</h3>
         </header>
         <p style={styles.guidance}>
-          No open exceptions. As loans are checked for completeness, missing required documents (financials,
-          insurance, UCC, appraisal, flood, tax returns) and core-data gaps surface here with SLA aging.
+          {dataAvailable ? (
+            'No open exceptions. As loans are checked for completeness, missing required documents (financials, insurance, UCC, appraisal, flood, tax returns) and core-data gaps surface here with SLA aging.'
+          ) : (
+            'Exception feed not yet connected — this is not a confirmed-clean result. The per-loan document/core-data completeness check that populates this queue is not wired to a live data source yet.'
+          )}
         </p>
       </section>
     );

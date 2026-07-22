@@ -317,8 +317,7 @@ export function RequestDocumentModal({
               {!emailSurfaceVisible && (
                 <p id="request-document-note-help" style={styles.helperLine}>
                   In-app request only. No borrower email is sent in this phase. The note is
-                  recorded on the deal timeline and audit trail; cr664_DocumentChecklist
-                  itself has no request-note column.
+                  recorded on the deal timeline and audit trail.
                 </p>
               )}
             </section>

@@ -3,6 +3,7 @@ import type { DealTask } from './dealTaskQueries';
 import type { CompleteTaskOutcome } from './dealTaskActions';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import { parseCalendarDate } from '../shared/formatters';
 
 interface CompleteTaskModalProps {
   task: DealTask;
@@ -52,7 +53,14 @@ export function CompleteTaskModal({ task, onConfirm, onClose }: CompleteTaskModa
   }
 
   const dueLabel = formatDate(task.dueDate);
-  const overdue = !task.completed && task.dueDate ? new Date(task.dueDate).getTime() < Date.now() : false;
+  // Remediation 2026-07-22 (Workstream H) — dueDate is date-only; compare calendar dates (local
+  // midnight to local midnight) rather than a raw `new Date(...)` (UTC midnight) against the exact
+  // current instant, which falsely flagged a task due "today" as overdue hours early in any US
+  // timezone.
+  const dueDate = task.dueDate ? parseCalendarDate(task.dueDate) : undefined;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const overdue = !task.completed && dueDate ? dueDate.getTime() < startOfToday.getTime() : false;
 
   return (
     <div
@@ -213,9 +221,10 @@ function Fact({
 }
 
 function formatDate(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
+  // Remediation 2026-07-22 (Workstream H) — dueDate is date-only; parseCalendarDate builds local
+  // midnight so the displayed day never shifts across timezones (was a raw `new Date(iso)`).
+  const d = parseCalendarDate(iso);
+  if (!d) return undefined;
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 

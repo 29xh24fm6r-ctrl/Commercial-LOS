@@ -138,3 +138,98 @@ export function deriveDealIndustryHydration(
     }
   }
 }
+
+/**
+ * P1-7 — source-aware refresh of a deal's Industry after its linked company's NAICS may have changed.
+ *
+ * `deriveDealIndustryHydration` above is provenance-blind: any non-empty Industry looks manual, so it
+ * will never update a value it once auto-derived. That is correct for first-time hydration but wrong
+ * for an explicit "refresh from CRM NAICS" gesture, where a value that was previously CRM-derived
+ * must track a later NAICS change, while a value the banker actually typed must be preserved.
+ *
+ * This decision takes the KNOWN provenance of the current stored value (`priorSource`) and:
+ *  - applies the CRM-derived value when Industry is empty OR was previously CRM-derived and the
+ *    derivation has since changed (explicit, auditable refresh — `previousIndustry` records the swap);
+ *  - preserves an explicit manual override (priorSource 'manual') and never overwrites it;
+ *  - reports up-to-date / unresolved honestly otherwise.
+ *
+ * The caller persists `industryToApply` (when present) through the same governed deal-profile write
+ * (validate → write → readback → audit), so every refresh and every preserved override is auditable.
+ */
+export type DealIndustryRefreshAction = 'apply' | 'keep-manual' | 'up-to-date' | 'unresolved';
+
+export interface DealIndustryRefreshDecision {
+  readonly action: DealIndustryRefreshAction;
+  readonly source: DealIndustrySource;
+  /** The governed deal industry to persist — present ONLY when action === 'apply'. */
+  readonly industryToApply?: string;
+  /** The value being replaced by an explicit refresh (present only when a stale derived value changes). */
+  readonly previousIndustry?: string;
+  readonly status: string;
+  readonly remediation?: DealIndustryRemediation;
+  readonly unavailable: boolean;
+}
+
+export function deriveDealIndustryRefresh(
+  projection: DealIndustryProjection,
+  currentDealIndustry: string | undefined,
+  priorSource: DealIndustrySource,
+): DealIndustryRefreshDecision {
+  const current = (currentDealIndustry ?? '').trim();
+  const hasCurrent = current.length > 0;
+  // An explicit manual override is authoritative and never auto-overwritten by a refresh.
+  const treatAsManual = hasCurrent && priorSource === 'manual';
+
+  if (projection.kind === 'derived') {
+    if (treatAsManual) {
+      return {
+        action: 'keep-manual',
+        source: 'manual',
+        status:
+          current === projection.dealIndustry
+            ? `Manual (${current}) · matches CRM-derived`
+            : `Manual (${current}) · CRM-derived differs (${projection.dealIndustry}) — manual override kept`,
+        unavailable: false,
+      };
+    }
+    // Empty, or a previously CRM-derived/unknown value: track the (possibly changed) derivation.
+    if (hasCurrent && current === projection.dealIndustry) {
+      return {
+        action: 'up-to-date',
+        source: 'crm-derived',
+        status: `CRM-derived · NAICS ${projection.naicsCode} · ${projection.sectorTitle} → ${projection.dealIndustry} (up to date)`,
+        unavailable: false,
+      };
+    }
+    return {
+      action: 'apply',
+      source: 'crm-derived',
+      industryToApply: projection.dealIndustry,
+      previousIndustry: hasCurrent ? current : undefined,
+      status: hasCurrent
+        ? `CRM-derived refresh · NAICS ${projection.naicsCode} · ${projection.sectorTitle} → ${projection.dealIndustry} (was ${current})`
+        : `CRM-derived · NAICS ${projection.naicsCode} · ${projection.sectorTitle} → ${projection.dealIndustry}`,
+      unavailable: false,
+    };
+  }
+
+  // Non-derived projections: a real manual override is preserved; otherwise mirror the hydration
+  // decision's honest unresolved/unavailable status and remediation (no fabrication).
+  if (treatAsManual) {
+    const hydration = deriveDealIndustryHydration(projection, current);
+    return {
+      action: 'keep-manual',
+      source: 'manual',
+      status: hydration.status,
+      unavailable: hydration.unavailable,
+    };
+  }
+  const hydration = deriveDealIndustryHydration(projection, undefined);
+  return {
+    action: 'unresolved',
+    source: 'none',
+    status: hydration.status,
+    remediation: hydration.remediation,
+    unavailable: hydration.unavailable,
+  };
+}

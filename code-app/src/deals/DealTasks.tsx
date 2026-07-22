@@ -322,9 +322,17 @@ function ErrorBlock({ title, detail }: { title: string; detail: string }) {
 function isOverdue(task: DealTask): boolean {
   if (task.completed) return false;
   if (!task.dueDate) return false;
-  const due = new Date(task.dueDate);
-  if (Number.isNaN(due.getTime())) return false;
-  return due.getTime() < Date.now();
+  // Remediation 2026-07-22 (Workstream H) — dueDate is a date-only calendar field. Parsing it with
+  // a raw `new Date(...)` treats it as UTC midnight, which for any US timezone is several hours
+  // BEFORE local midnight of that same calendar day — a task due "today" would falsely flag as
+  // overdue hours before today actually ends locally. Compare calendar dates (local midnight to
+  // local midnight) instead: a task due today is not yet overdue; it becomes overdue starting
+  // tomorrow.
+  const due = parseCalendarDate(task.dueDate);
+  if (!due) return false;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return due.getTime() < startOfToday.getTime();
 }
 
 function formatDate(iso: string | undefined): string | undefined {

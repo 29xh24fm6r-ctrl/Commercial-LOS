@@ -1,9 +1,14 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
+import { buildTeamVisibilityFilter } from '../shared/deals/dealVisibilityScopes';
+import { operationalDeals } from '../shared/deals/testDealClassification';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
+import { classifyLegacyDocumentStatus, isGovernedExcusedDocument } from '../deals/documentStatusClassification';
+import { requirementStatusFromCode } from '../deals/documentRequirementStatusCodes';
+import type { DocumentRequirementFields } from '../deals/documentRequirementFields';
 
 /**
  * Team Workspace queries. Live operational data — Team Workspace is
@@ -142,13 +147,28 @@ export interface TeamDealRow {
   pricingType?: string | undefined;
 }
 
-export async function loadTeamDeals(teamId: string): Promise<TeamDealRow[]> {
+export interface LoadTeamDealsOptions {
+  /**
+   * P0-4 — the team's member banker ids. When provided, the team scope ALSO includes active deals
+   * assigned to any of these bankers even if their Owning Team was skipped, so a legitimate deal
+   * never disappears from Team/Manager oversight (see dealVisibilityScopes). Omitted = team-owned only
+   * (backwards-compatible).
+   */
+  readonly memberBankerIds?: readonly string[];
+  /**
+   * Remediation 2026-07-22 (Workstream A/N) — admin-only escape hatch to include TEST/SMOKE/QA
+   * deals. Default false so the Team Ops Queue's active-deal counts agree with Banker's
+   * loadBankerPipeline (which already excludes them) instead of over-counting.
+   */
+  readonly includeTestDeals?: boolean;
+}
+
+export async function loadTeamDeals(
+  teamId: string,
+  options: LoadTeamDealsOptions = {},
+): Promise<TeamDealRow[]> {
   const result = await Cr664_loandealsService.getAll({
-    filter: [
-      `_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-      `(cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilter(teamId, { memberBankerIds: options.memberBankerIds }),
     orderBy: ['cr664_targetclosedate asc'],
   });
   if (!result.success) {
@@ -164,7 +184,7 @@ export async function loadTeamDeals(teamId: string): Promise<TeamDealRow[]> {
   // phase fixes. This brings the team pipeline rows (consumed by the
   // Team Ops Queue snapshot + every other team surface) to label
   // parity with the manager / portfolio cockpits.
-  return (result.data ?? []).map((d): TeamDealRow => {
+  const mapped = (result.data ?? []).map((d): TeamDealRow => {
     const raw = d as unknown as Record<string, unknown>;
     return {
       id: d.cr664_loandealid,
@@ -200,6 +220,24 @@ export async function loadTeamDeals(teamId: string): Promise<TeamDealRow[]> {
         d.cr664_pricingtypereferencename,
     };
   });
+  return [...operationalDeals(mapped, { includeTest: options.includeTestDeals === true })];
+}
+
+/**
+ * P0-4 — active banker ids on the given team. Used by TeamDataProvider to activate the Owning-Team
+ * fallback in `loadTeamDeals` (deals owned by the team OR assigned to a team member, so a deal whose
+ * Owning Team was skipped still surfaces to the team). Mirrors the manager workspace's
+ * `loadTeamBankers`; the duplication is one OData filter, justified by the src/team↔src/manager
+ * role-isolation invariant (a team file cannot import a manager file).
+ */
+export async function loadTeamMemberBankerIds(teamId: string): Promise<string[]> {
+  const result = await Cr664_bankersService.getAll({
+    filter: [`_cr664_team_value eq ${teamId}`, `statecode eq 0`].join(' and '),
+  });
+  if (!result.success) {
+    throw new Error(result.error?.message ?? 'Failed to load team member bankers');
+  }
+  return (result.data ?? []).map((b) => b.cr664_bankerid).filter((id): id is string => Boolean(id));
 }
 
 // ---------------------------------------------------------------------------
@@ -269,15 +307,10 @@ export interface TeamDocumentRow {
   dealName: string | undefined;
 }
 
-function deriveDocStatus(opts: {
-  reviewer: string | undefined;
-  receivedDate: string | undefined;
-  uploaded: boolean;
-}): TeamDocumentStatus {
-  if (opts.reviewer && opts.reviewer.trim().length > 0) return 'reviewed';
-  if (opts.receivedDate || opts.uploaded) return 'received';
-  return 'outstanding';
-}
+// Remediation 2026-07-22 (Workstream G) — delegates to
+// documentStatusClassification.ts, the one canonical rule shared with
+// dealDocumentQueries.ts / workQueueQueries.ts / managerQueries.ts.
+const deriveDocStatus = classifyLegacyDocumentStatus;
 
 export async function loadTeamDocuments(teamId: string): Promise<TeamDocumentRow[]> {
   const result = await Cr664_documentchecklistsService.getAll({
@@ -290,27 +323,39 @@ export async function loadTeamDocuments(teamId: string): Promise<TeamDocumentRow
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Failed to load team documents');
   }
-  return (result.data ?? []).map((d): TeamDocumentRow => {
-    const uploaded = d.cr664_uploadstatus === true;
-    const status = deriveDocStatus({
-      reviewer: d.cr664_reviewer,
-      receivedDate: d.cr664_receiveddate,
-      uploaded,
+  // Remediation 2026-07-22 (Workstream G) — exclude documents the Document
+  // Requirement workspace has Waived or marked Not Applicable; they persist
+  // no reviewer/receivedDate/upload and would otherwise be miscounted as
+  // "outstanding" in the team rollup (see documentStatusClassification.ts).
+  return (result.data ?? [])
+    .filter((d) => {
+      const raw = d as unknown as DocumentRequirementFields;
+      return !isGovernedExcusedDocument({
+        waived: raw.cr664_waived,
+        requirementStatus: requirementStatusFromCode(raw.cr664_requirementstatus),
+      });
+    })
+    .map((d): TeamDocumentRow => {
+      const uploaded = d.cr664_uploadstatus === true;
+      const status = deriveDocStatus({
+        reviewer: d.cr664_reviewer,
+        receivedDate: d.cr664_receiveddate,
+        uploaded,
+      });
+      return {
+        id: d.cr664_documentchecklistid,
+        name: d.cr664_documentname,
+        dueDate: d.cr664_duedate,
+        requestDate: d.cr664_requestdate,
+        receivedDate: d.cr664_receiveddate,
+        reviewer: d.cr664_reviewer,
+        uploaded,
+        modifiedOn: d.modifiedon,
+        status,
+        dealId: d._cr664_deal_value,
+        dealName: d.cr664_dealname,
+      };
     });
-    return {
-      id: d.cr664_documentchecklistid,
-      name: d.cr664_documentname,
-      dueDate: d.cr664_duedate,
-      requestDate: d.cr664_requestdate,
-      receivedDate: d.cr664_receiveddate,
-      reviewer: d.cr664_reviewer,
-      uploaded,
-      modifiedOn: d.modifiedon,
-      status,
-      dealId: d._cr664_deal_value,
-      dealName: d.cr664_dealname,
-    };
-  });
 }
 
 // ---------------------------------------------------------------------------

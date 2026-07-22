@@ -13,6 +13,7 @@ import { loadDocumentRequirements } from './documentRequirementLiveReader';
 import { performDocumentRequirementAction, type DocumentRequirementActionOutcome } from './documentRequirementActions';
 import { buildLiveDocumentRequirementActionDeps } from './documentRequirementLiveDeps';
 import { deriveBankerIdentityGatedAvailability } from './bankerIdentityGatedAvailability';
+import { buildDocumentChecklistUiEnableReadiness } from './documentChecklistUiEnableReadiness';
 
 /**
  * The real banker-managed underwriting document requirement workspace —
@@ -144,6 +145,16 @@ export function DocumentRequirementWorkspace({ dealId, deal, banker, onAfterActi
         <h3 style={styles.title}>Document Requirements</h3>
         <p style={styles.subtitle}>
           Derived from this deal&rsquo;s type, product, borrower, guarantors, collateral, and stage.
+        </p>
+        {/* D6 remediation: there is no "Generate checklist" button anywhere in
+            this workspace today — DOCUMENT_CHECKLIST_GENERATION_ENABLED stays
+            off, so this list is the derived requirement view, not a
+            generator. Rather than leaving a banker to wonder whether they're
+            missing a control, say so explicitly using the already-built,
+            IO-free 188I readiness model (default mode — reads no live data,
+            triggers nothing, matches its own "enables NOTHING" contract). */}
+        <p style={styles.checklistGenerationNotice} data-doc-checklist-generation-notice>
+          {buildDocumentChecklistUiEnableReadiness({}).blockers[0]}
         </p>
       </header>
       <ul style={styles.list}>
@@ -295,6 +306,7 @@ const styles: Record<string, CSSProperties> = {
   head: { display: 'flex', flexDirection: 'column', gap: 2 },
   title: { margin: 0, fontSize: typography.size.md, fontWeight: typography.weight.bold, color: palette.text },
   subtitle: { margin: 0, color: palette.textMuted, fontSize: typography.size.sm, lineHeight: typography.lineHeight.snug },
+  checklistGenerationNotice: { margin: 0, color: palette.textSubtle, fontSize: typography.size.xs, lineHeight: typography.lineHeight.snug, fontStyle: 'italic' },
   list: { display: 'flex', flexDirection: 'column', gap: spacing.sm, listStyle: 'none', margin: 0, padding: 0 },
   row: {
     display: 'flex',

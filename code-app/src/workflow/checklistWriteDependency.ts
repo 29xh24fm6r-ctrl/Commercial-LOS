@@ -62,7 +62,12 @@ export function createChecklistWriteDependency(
     async createMissingRows(names: readonly string[]): Promise<WorkflowGenerationOutcome> {
       const enabled = config.enabled ?? Boolean(DOCUMENT_CHECKLIST_GENERATION_ENABLED);
       if (!enabled) {
-        return { kind: 'dependency_not_ready', detail: 'DOCUMENT_CHECKLIST_GENERATION_ENABLED is false; generation stays fail-closed.' };
+        // Remediation 2026-07-22 (Workstream G) — banker-safe copy; never the raw internal flag
+        // name (was "DOCUMENT_CHECKLIST_GENERATION_ENABLED is false; generation stays fail-closed.").
+        return {
+          kind: 'dependency_not_ready',
+          detail: 'Automatic checklist generation is not yet enabled in this environment.',
+        };
       }
       if (config.authorized !== true) {
         return { kind: 'unauthorized', detail: 'Actor is not authorized to write checklist rows.' };

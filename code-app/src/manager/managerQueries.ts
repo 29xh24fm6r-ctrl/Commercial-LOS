@@ -1,9 +1,14 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
+import { buildTeamVisibilityFilter } from '../shared/deals/dealVisibilityScopes';
+import { operationalDeals } from '../shared/deals/testDealClassification';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
+import { classifyLegacyDocumentStatus, isGovernedExcusedDocument } from '../deals/documentStatusClassification';
+import { requirementStatusFromCode } from '../deals/documentRequirementStatusCodes';
+import type { DocumentRequirementFields } from '../deals/documentRequirementFields';
 
 /**
  * Schema reality (verified before coding — see Entity XML inspection
@@ -158,13 +163,30 @@ export interface TeamDeal {
  * Ordered by target close date asc so the closing-forecast and
  * at-risk computations can stream from the same ordered list.
  */
-export async function loadTeamPipeline(teamId: string): Promise<TeamDeal[]> {
+export interface LoadTeamPipelineOptions {
+  /**
+   * P0-4 — the team's member banker ids. When supplied, the scope ALSO includes active deals
+   * assigned to any of these bankers even if their Owning Team was skipped, so a legitimate deal
+   * never disappears from Manager oversight (see dealVisibilityScopes). Omitted = team-owned only
+   * (backwards-compatible).
+   */
+  readonly memberBankerIds?: readonly string[];
+  /**
+   * Remediation 2026-07-22 (Workstream A/N) — admin-only escape hatch to include TEST/SMOKE/QA
+   * deals. Default false: this is the canonical team pipeline every Manager/Team/Portfolio view
+   * derives from, so it must apply the same operational exclusion the Banker pipeline already
+   * does (loadBankerPipeline) — otherwise Manager/Team counts disagree with Banker counts by
+   * exactly the population of test deals.
+   */
+  readonly includeTestDeals?: boolean;
+}
+
+export async function loadTeamPipeline(
+  teamId: string,
+  options: LoadTeamPipelineOptions = {},
+): Promise<TeamDeal[]> {
   const result = await Cr664_loandealsService.getAll({
-    filter: [
-      `_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-      `(cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilter(teamId, { memberBankerIds: options.memberBankerIds }),
     orderBy: ['cr664_targetclosedate asc'],
   });
 
@@ -178,7 +200,7 @@ export async function loadTeamPipeline(teamId: string): Promise<TeamDeal[]> {
   // SDK returns undefined for clientName / stage / status / banker
   // in the operator's live env even when Maker Portal shows them
   // populated, which is the live-screenshot bug fixed here.
-  return (result.data ?? []).map((d): TeamDeal => {
+  const mapped = (result.data ?? []).map((d): TeamDeal => {
     const raw = d as unknown as Record<string, unknown>;
     return {
       id: d.cr664_loandealid,
@@ -214,6 +236,7 @@ export async function loadTeamPipeline(teamId: string): Promise<TeamDeal[]> {
         d.cr664_pricingtypereferencename,
     };
   });
+  return [...operationalDeals(mapped, { includeTest: options.includeTestDeals === true })];
 }
 
 export interface TeamBanker {
@@ -363,15 +386,10 @@ export interface TeamScopedDocument {
   dealName: string | undefined;
 }
 
-function deriveDocStatus(opts: {
-  reviewer: string | undefined;
-  receivedDate: string | undefined;
-  uploaded: boolean;
-}): TeamScopedDocumentStatus {
-  if (opts.reviewer && opts.reviewer.trim().length > 0) return 'reviewed';
-  if (opts.receivedDate || opts.uploaded) return 'received';
-  return 'outstanding';
-}
+// Remediation 2026-07-22 (Workstream G) — delegates to
+// documentStatusClassification.ts, the one canonical rule shared with
+// dealDocumentQueries.ts / workQueueQueries.ts / teamQueries.ts.
+const deriveDocStatus = classifyLegacyDocumentStatus;
 
 /**
  * Document checklist rows whose parent deal sits on the manager's
@@ -392,26 +410,38 @@ export async function loadManagerTeamDocuments(
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Failed to load team documents');
   }
-  return (result.data ?? []).map((d): TeamScopedDocument => {
-    const uploaded = d.cr664_uploadstatus === true;
-    return {
-      id: d.cr664_documentchecklistid,
-      name: d.cr664_documentname,
-      dueDate: d.cr664_duedate,
-      requestDate: d.cr664_requestdate,
-      receivedDate: d.cr664_receiveddate,
-      reviewer: d.cr664_reviewer,
-      uploaded,
-      modifiedOn: d.modifiedon,
-      status: deriveDocStatus({
-        reviewer: d.cr664_reviewer,
+  // Remediation 2026-07-22 (Workstream G) — exclude documents the Document
+  // Requirement workspace has Waived or marked Not Applicable; they persist
+  // no reviewer/receivedDate/upload and would otherwise be miscounted as
+  // "outstanding" in the manager rollup (see documentStatusClassification.ts).
+  return (result.data ?? [])
+    .filter((d) => {
+      const raw = d as unknown as DocumentRequirementFields;
+      return !isGovernedExcusedDocument({
+        waived: raw.cr664_waived,
+        requirementStatus: requirementStatusFromCode(raw.cr664_requirementstatus),
+      });
+    })
+    .map((d): TeamScopedDocument => {
+      const uploaded = d.cr664_uploadstatus === true;
+      return {
+        id: d.cr664_documentchecklistid,
+        name: d.cr664_documentname,
+        dueDate: d.cr664_duedate,
+        requestDate: d.cr664_requestdate,
         receivedDate: d.cr664_receiveddate,
+        reviewer: d.cr664_reviewer,
         uploaded,
-      }),
-      dealId: d._cr664_deal_value,
-      dealName: d.cr664_dealname,
-    };
-  });
+        modifiedOn: d.modifiedon,
+        status: deriveDocStatus({
+          reviewer: d.cr664_reviewer,
+          receivedDate: d.cr664_receiveddate,
+          uploaded,
+        }),
+        dealId: d._cr664_deal_value,
+        dealName: d.cr664_dealname,
+      };
+    });
 }
 
 export type TeamScopedMemoStatusKey = 'draft' | 'final' | 'stale';

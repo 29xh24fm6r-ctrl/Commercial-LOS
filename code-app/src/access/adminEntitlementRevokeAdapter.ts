@@ -1,6 +1,15 @@
 /**
  * Phase 209 / Lane A3 — Governed app-level entitlement REVOKE/DEACTIVATE adapter.
  *
+ * SUPERSEDED NOTICE (2026-07-21 E2E certification pass, D12): this adapter has
+ * zero call sites outside its own tests and remains permanently disabled by
+ * design. Live, server-verified grant/revoke is DELIVERED today via
+ * `src/admin/adminAccessGrantWrite.ts` (`writeAdminAccessGrant`, revoke action)
+ * consumed by `src/admin/AdminAccessGrantPanel.tsx` — no disabled-by-default
+ * flag, self-lockout guard, readback, audit. This file is historical design
+ * work only; do not re-wire it or treat it as the live gate for this
+ * capability.
+ *
  * Pure orchestration over an INJECTED entitlement-revoke transport and audit
  * sink — no `fetch`, no SDK import, DISABLED BY DEFAULT. It DEACTIVATES exactly
  * one app-level workspace entitlement (it never deletes — the row is preserved

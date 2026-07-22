@@ -250,6 +250,14 @@ const DEALS_ALLOWED_CROSS_IMPORTS: readonly DealsExceptionEntry[] = [
       'directories and are not affected by the shell wrap.',
   },
   {
+    file: 'deals/DealGovernedTransitionPanel.tsx',
+    allowedFrom: ['../banker/BankerContext'],
+    reason:
+      'Governance initiative (2026-07-21): mounts the RETURN/DECLINE/WITHDRAW workflow control, ' +
+      'which needs the resolved banker identity (systemUserId/email) to authorize and attribute ' +
+      'the governed write — same pattern as DealTasks.tsx/DealDocuments.tsx below.',
+  },
+  {
     file: 'deals/DealTasks.tsx',
     allowedFrom: ['../banker/BankerContext'],
     reason:

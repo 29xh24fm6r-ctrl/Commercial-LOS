@@ -4,6 +4,9 @@ import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmem
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
 import { loadBankerPipeline, type PipelineDeal } from './dealQueries';
 import { timed } from '../shared/observability/perfRegistry';
+import { isGovernedExcusedDocument } from '../deals/documentStatusClassification';
+import { requirementStatusFromCode } from '../deals/documentRequirementStatusCodes';
+import type { DocumentRequirementFields } from '../deals/documentRequirementFields';
 
 /**
  * Phase 32: banker-scoped data fetch for the My Work Queue.
@@ -201,6 +204,17 @@ async function loadDocumentsAwaitingActionForDeals(
     throw new Error(result.error?.message ?? 'Failed to load banker documents');
   }
   const rows = (result.data ?? [])
+    .filter((d) => {
+      // Remediation 2026-07-22 (Workstream G) — a document the Document
+      // Requirement workspace has Waived or marked Not Applicable must never
+      // surface in the cross-deal work queue as something still needing
+      // action (see documentStatusClassification.ts).
+      const raw = d as unknown as DocumentRequirementFields;
+      return !isGovernedExcusedDocument({
+        waived: raw.cr664_waived,
+        requirementStatus: requirementStatusFromCode(raw.cr664_requirementstatus),
+      });
+    })
     .map((d) => ({
       id: d.cr664_documentchecklistid,
       dealId: d._cr664_deal_value ?? '',

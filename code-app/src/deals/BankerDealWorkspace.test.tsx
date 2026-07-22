@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { DealLoadResult } from './dealQueries';
 
 /**
@@ -371,5 +372,35 @@ describe('Phase 125B — BankerDealWorkspace.tsx static-source pins', () => {
   it('does NOT import any sendXEmail governed-write action', () => {
     expect(SRC).not.toMatch(/from\s+['"][^'"]*sendDocumentRequestEmail['"]/);
     expect(SRC).not.toMatch(/from\s+['"][^'"]*sendBorrowerUpdateEmail['"]/);
+  });
+});
+
+describe('Remediation 2026-07-22 (Workstream C) — sidebar navigation from an open deal', () => {
+  it('sidebar nav buttons are clickable (not disabled) inside the deal cockpit', async () => {
+    loadDealForBankerMock.mockResolvedValue(sparseDeal());
+    renderWorkspace();
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: /TEST — Deal Phase 121/i })).toBeInTheDocument();
+    });
+    const dashboardButton = screen.getByRole('button', { name: /dashboard/i });
+    expect(dashboardButton).not.toBeDisabled();
+  });
+
+  it('clicking a sidebar nav item navigates to the Banker Command Center carrying which tab to open', async () => {
+    loadDealForBankerMock.mockResolvedValue(sparseDeal());
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/deals/d-sparse']}>
+        <Routes>
+          <Route path="/deals/:dealId" element={<BankerDealWorkspace dealId="d-sparse" />} />
+          <Route path="/workspaces/banker" element={<div>Landed on Banker Command Center</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: /TEST — Deal Phase 121/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /active deals/i }));
+    expect(screen.getByText('Landed on Banker Command Center')).toBeInTheDocument();
   });
 });

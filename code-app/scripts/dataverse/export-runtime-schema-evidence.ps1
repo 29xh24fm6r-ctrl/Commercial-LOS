@@ -55,7 +55,7 @@ $ts = (Get-Date -Format o)
 
 # Phase 253: CRM measures the FULL runtime schema (crm-full.schema.json, 10 tables / 147
 # columns) so the bridge can hydrate once the operator builds it.
-# Phase 255A: portfolio is NO LONGER measured here (see header) — verify-full-portfolio-
+# Phase 255A: portfolio is NO LONGER measured here (see header) - verify-full-portfolio-
 # runtime-schema.ps1 is the single writer of runtime-schema-evidence.portfolio.json. This
 # loop intentionally handles CRM only so it can never clobber the full portfolio artifact.
 foreach ($f in @(@{ domain = 'crm'; file = 'crm-full.schema.json' })) {

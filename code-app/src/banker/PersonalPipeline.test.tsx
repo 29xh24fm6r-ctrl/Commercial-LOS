@@ -56,10 +56,10 @@ function deal(overrides: Partial<PipelineDeal>): PipelineDeal {
   };
 }
 
-function renderShell() {
+function renderShell(props: { refreshToken?: number } = {}) {
   return render(
     <MemoryRouter>
-      <PersonalPipeline />
+      <PersonalPipeline {...props} />
     </MemoryRouter>,
   );
 }
@@ -86,12 +86,12 @@ describe('Phase 119 — PersonalPipeline stage grouping', () => {
     expect(screen.queryByText(/^Underwriting$/)).toBeNull();
   });
 
-  it('groups deals into stage sections sorted by canonical ordinal', async () => {
+  it('groups deals into stage sections sorted by canonical sequence (Workstream B: canonical 7-stage vocabulary)', async () => {
     loadMock.mockResolvedValue([
       deal({ id: 'd1', name: 'Northwind WC', stage: 'Underwriting' }),
-      deal({ id: 'd2', name: 'Acme Term Loan', stage: 'Application' }),
-      deal({ id: 'd3', name: 'Globex CRE', stage: 'Closing' }),
-      deal({ id: 'd4', name: 'Initech LOC', stage: 'Application' }),
+      deal({ id: 'd2', name: 'Acme Term Loan', stage: 'Intake' }),
+      deal({ id: 'd3', name: 'Globex CRE', stage: 'Closing & Funding' }),
+      deal({ id: 'd4', name: 'Initech LOC', stage: 'Intake' }),
     ]);
     renderShell();
 
@@ -99,14 +99,14 @@ describe('Phase 119 — PersonalPipeline stage grouping', () => {
       expect(screen.getByText('Northwind WC')).toBeInTheDocument();
     });
 
-    // Three stage sections: Application, Underwriting, Closing.
-    const applicationSection = screen.getByRole('region', { name: /Stage: Application/i });
+    // Three stage sections: Intake, Underwriting, Closing & Funding.
+    const intakeSection = screen.getByRole('region', { name: /^Stage: Intake$/i });
     const underwritingSection = screen.getByRole('region', { name: /Stage: Underwriting/i });
-    const closingSection = screen.getByRole('region', { name: /Stage: Closing/i });
+    const closingSection = screen.getByRole('region', { name: /Stage: Closing & Funding/i });
 
-    expect(within(applicationSection).getByText('Acme Term Loan')).toBeInTheDocument();
-    expect(within(applicationSection).getByText('Initech LOC')).toBeInTheDocument();
-    expect(within(applicationSection).getByText('2 deals')).toBeInTheDocument();
+    expect(within(intakeSection).getByText('Acme Term Loan')).toBeInTheDocument();
+    expect(within(intakeSection).getByText('Initech LOC')).toBeInTheDocument();
+    expect(within(intakeSection).getByText('2 deals')).toBeInTheDocument();
 
     expect(within(underwritingSection).getByText('Northwind WC')).toBeInTheDocument();
     expect(within(underwritingSection).getByText('1 deal')).toBeInTheDocument();
@@ -114,16 +114,33 @@ describe('Phase 119 — PersonalPipeline stage grouping', () => {
     expect(within(closingSection).getByText('Globex CRE')).toBeInTheDocument();
     expect(within(closingSection).getByText('1 deal')).toBeInTheDocument();
 
-    // Canonical order: Application (30) < Underwriting (50) < Closing (80).
+    // Canonical order: Intake (10) < Underwriting (20) < Closing & Funding (60).
     // Sections appear in DOM in that order.
     const sections = screen.getAllByRole('region');
     const order = sections.map((s) => s.getAttribute('aria-label'));
-    expect(order.indexOf('Stage: Application')).toBeLessThan(
+    expect(order.indexOf('Stage: Intake')).toBeLessThan(
       order.indexOf('Stage: Underwriting'),
     );
     expect(order.indexOf('Stage: Underwriting')).toBeLessThan(
-      order.indexOf('Stage: Closing'),
+      order.indexOf('Stage: Closing & Funding'),
     );
+  });
+
+  it('Workstream B — a newly-created Intake deal appears on the board (the confirmed live-audit defect)', async () => {
+    loadMock.mockResolvedValue([
+      deal({ id: 'd1', name: 'Brand New Deal', stage: 'Intake' }),
+    ]);
+    renderShell();
+
+    await waitFor(() => {
+      expect(screen.getByText('Brand New Deal')).toBeInTheDocument();
+    });
+
+    // Must land in a real, ordered "Intake" lane -- not an unordered custom lane keyed by the raw
+    // string, and not the "Stage unknown" lane.
+    const intakeSection = screen.getByRole('region', { name: /^Stage: Intake$/i });
+    expect(within(intakeSection).getByText('Brand New Deal')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /Stage unknown/i })).toBeNull();
   });
 
   it('files deals with missing / blank stage into a "Stage unknown" section sorted last', async () => {
@@ -248,16 +265,17 @@ describe('Phase 119 — PersonalPipeline stage grouping', () => {
       expect(screen.getByText('Northwind WC')).toBeInTheDocument();
     });
 
-    // The Underwriting lane has the deal; other canonical non-terminal
-    // lanes (Origination, Screening, Application, Pricing, Committee,
-    // Documentation, Closing, Funded) are present but empty. Each of
+    // The Underwriting lane has the deal; the other 5 canonical
+    // non-terminal lanes (Intake, Credit Approval, Commitment,
+    // Documentation, Closing & Funding) are present but empty. Each of
     // their bodies renders the honest empty-state copy.
     const emptyStateCount = screen.getAllByText('No deals in this stage.').length;
-    // 9 canonical non-terminal stages - 1 with the deal = 8 empty lanes.
-    expect(emptyStateCount).toBe(8);
+    // 6 canonical non-terminal stages (Workstream B: BOARDED is terminal, excluded) - 1 with the
+    // deal = 5 empty lanes.
+    expect(emptyStateCount).toBe(5);
   });
 
-  it('Phase 124 — renders all 9 canonical non-terminal lanes when there is at least one deal', async () => {
+  it('Workstream B — renders all 6 canonical non-terminal lanes when there is at least one deal', async () => {
     loadMock.mockResolvedValue([
       deal({ id: 'd1', name: 'Sample', stage: 'Underwriting' }),
     ]);
@@ -267,22 +285,21 @@ describe('Phase 119 — PersonalPipeline stage grouping', () => {
       expect(screen.getByText('Sample')).toBeInTheDocument();
     });
 
-    // The canonical non-terminal lanes from STAGE_CATALOG.
+    // The canonical non-terminal lanes (same vocabulary as the deal cockpit Stage Map). BOARDED is
+    // the one terminal canonical stage and is excluded.
     for (const stageLabel of [
-      'Origination',
-      'Screening',
-      'Application',
-      'Pricing',
+      'Intake',
       'Underwriting',
-      'Committee',
+      'Credit Approval',
+      'Commitment',
       'Documentation',
-      'Closing',
-      'Funded',
+      'Closing & Funding',
     ]) {
       expect(
         screen.getByRole('region', { name: `Stage: ${stageLabel}` }),
       ).toBeInTheDocument();
     }
+    expect(screen.queryByRole('region', { name: /Stage: Boarded/i })).toBeNull();
   });
 
   it('Phase 124 — terminal lanes (Closed Won / Closed Lost / Cancelled) are NOT rendered', async () => {
@@ -383,5 +400,116 @@ describe('Phase 119 — PersonalPipeline stage grouping', () => {
     expect(text).not.toMatch(/\bdelivered\b/i);
     expect(text).not.toMatch(/\bemail\s+(sent|delivered)\b/i);
     expect(text).not.toMatch(/\bborrower\s+(?:was|has\s+been)\s+notified\b/i);
+  });
+
+  it('Workstream B — every active deal appears exactly once across all lanes, none silently dropped', async () => {
+    loadMock.mockResolvedValue([
+      deal({ id: 'd1', name: 'Intake Deal', stage: 'Intake' }),
+      deal({ id: 'd2', name: 'Underwriting Deal', stage: 'Underwriting' }),
+      deal({ id: 'd3', name: 'Credit Approval Deal', stage: 'Credit Approval' }),
+      deal({ id: 'd4', name: 'Commitment Deal', stage: 'Commitment' }),
+      deal({ id: 'd5', name: 'Documentation Deal', stage: 'Documentation' }),
+      deal({ id: 'd6', name: 'Closing Deal', stage: 'Closing & Funding' }),
+      deal({ id: 'd7', name: 'Legacy Stage Deal', stage: 'TEST — Stage Phase 121' }),
+      deal({ id: 'd8', name: 'No Stage Deal', stage: undefined }),
+    ]);
+    renderShell();
+
+    const names = [
+      'Intake Deal',
+      'Underwriting Deal',
+      'Credit Approval Deal',
+      'Commitment Deal',
+      'Documentation Deal',
+      'Closing Deal',
+      'Legacy Stage Deal',
+      'No Stage Deal',
+    ];
+    await waitFor(() => {
+      for (const name of names) expect(screen.getByText(name)).toBeInTheDocument();
+    });
+
+    // Each deal name appears exactly once in the whole board -- no duplication, no drop.
+    for (const name of names) {
+      expect(screen.getAllByText(name)).toHaveLength(1);
+    }
+    // The unrecognized legacy value gets its own diagnostic lane (visible, not dropped, not
+    // merged into a real canonical lane).
+    expect(
+      screen.getByRole('region', { name: 'Stage: TEST — Stage Phase 121' }),
+    ).toBeInTheDocument();
+  });
+
+  it('Workstream B — a BOARDED-stage deal (should already be excluded upstream) is never placed in one of the 6 active canonical lanes', async () => {
+    // loadBankerPipeline already excludes terminal-status deals at the query level; this pins
+    // that PersonalPipeline does not independently re-include a BOARDED-stage deal into an active
+    // lane even if one somehow appeared in the loader's result (fail-closed, not fail-open) --
+    // there is no canonical "Boarded" lane among the 6 active stages, since BOARDED is the one
+    // terminal canonical stage. It still renders honestly (never silently dropped), just outside
+    // the 6 fixed lanes.
+    loadMock.mockResolvedValue([
+      deal({ id: 'd1', name: 'Somehow Boarded', stage: 'Boarded / Servicing' }),
+    ]);
+    renderShell();
+
+    await waitFor(() => {
+      expect(screen.getByText('Somehow Boarded')).toBeInTheDocument();
+    });
+
+    for (const activeLabel of [
+      'Intake',
+      'Underwriting',
+      'Credit Approval',
+      'Commitment',
+      'Documentation',
+      'Closing & Funding',
+    ]) {
+      const section = screen.getByRole('region', { name: `Stage: ${activeLabel}` });
+      expect(within(section).queryByText('Somehow Boarded')).toBeNull();
+    }
+  });
+});
+
+describe('Remediation 2026-07-22 (Workstream E) — refreshToken triggers an in-session refetch', () => {
+  it('refetches when refreshToken changes, so a deal created elsewhere on the same tab appears without a tab switch/reload', async () => {
+    loadMock.mockResolvedValueOnce([deal({ id: 'd1', name: 'Before Create' })]);
+    const { rerender } = render(
+      <MemoryRouter>
+        <PersonalPipeline refreshToken={0} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText('Before Create')).toBeInTheDocument());
+    expect(loadMock).toHaveBeenCalledTimes(1);
+
+    loadMock.mockResolvedValueOnce([
+      deal({ id: 'd1', name: 'Before Create' }),
+      deal({ id: 'd2', name: 'Just Created' }),
+    ]);
+    rerender(
+      <MemoryRouter>
+        <PersonalPipeline refreshToken={1} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Just Created')).toBeInTheDocument());
+    expect(loadMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does NOT refetch on an unrelated re-render when refreshToken is unchanged', async () => {
+    loadMock.mockResolvedValue([deal({ id: 'd1', name: 'Stable Deal' })]);
+    const { rerender } = render(
+      <MemoryRouter>
+        <PersonalPipeline refreshToken={0} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText('Stable Deal')).toBeInTheDocument());
+    expect(loadMock).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <MemoryRouter>
+        <PersonalPipeline refreshToken={0} />
+      </MemoryRouter>,
+    );
+    expect(loadMock).toHaveBeenCalledTimes(1);
   });
 });

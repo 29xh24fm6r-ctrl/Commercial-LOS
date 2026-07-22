@@ -188,7 +188,7 @@ function SafeSection({
           {!isSurrogateId(vm.canonicalClient.id) && (
             <Field label="Record id" value={vm.canonicalClient.id} mono />
           )}
-          <Field label="Type" value="borrower/client stub (cr664_clientrelationship)" />
+          <Field label="Type" value="Borrower / client record" />
           {vm.canonicalClient.borrowerType && (
             <Field label="Borrower type" value={vm.canonicalClient.borrowerType} />
           )}

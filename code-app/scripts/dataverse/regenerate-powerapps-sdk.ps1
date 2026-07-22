@@ -23,7 +23,7 @@ $schemaDir = Join-Path $PSScriptRoot 'schema'
 # (e.g. cr664_crmorganization), NOT the plural entity-set name (cr664_crmorganizations).
 # Registering with the plural entity-set name produces an invalid/duplicate data source.
 # Phase 253B: register the FULL CRM contract (crm-full.schema.json = 10 tables), not the
-# old 5-table spine — otherwise only 5/10 CRM services/data sources are generated and the
+# old 5-table spine - otherwise only 5/10 CRM services/data sources are generated and the
 # runtime evidence reports services=5/10 datasources=5/10 (BLOCKED). Portfolio still uses
 # its spine (full portfolio buildout is a later phase).
 $logicalNames = @()

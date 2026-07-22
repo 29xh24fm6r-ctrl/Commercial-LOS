@@ -4,6 +4,7 @@
  */
 
 import type { Cr664_documentchecklistsBase, Cr664_documentchecklists } from '../models/Cr664_documentchecklistsModel';
+import type { Cr664_documentchecklistsUploadColumnName } from '../models/Cr664_documentchecklistsModel';
 import type { GetEntityMetadataOptions, EntityMetadata } from '@microsoft/power-apps/data/metadata/dataverse';
 import type { IGetOptions, IGetAllOptions } from '../models/CommonModels';
 import type { IOperationResult } from '@microsoft/power-apps/data';
@@ -68,5 +69,18 @@ export class Cr664_documentchecklistsService {
         },
       },
     });
+  }
+
+  public static async upload(id: string, columnName: Cr664_documentchecklistsUploadColumnName, file: File, fileDisplayName?: string): Promise<IOperationResult<void>> {
+    const arrayBuffer = await file.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    const result = await Cr664_documentchecklistsService.client.uploadFileToRecord(
+      Cr664_documentchecklistsService.dataSourceName,
+      id,
+      columnName,
+      fileDisplayName || file.name,
+      data,
+    );
+    return result;
   }
 }
