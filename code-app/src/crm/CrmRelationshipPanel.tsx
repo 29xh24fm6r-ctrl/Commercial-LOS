@@ -1,5 +1,4 @@
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -260,10 +259,20 @@ function mapBridgeFailureToLinkOutcome(
   }
 }
 
-export function DealCrmRelationshipPanel() {
+export function DealCrmRelationshipPanel({
+  onNavigateToDeal,
+}: {
+  /**
+   * D16 — navigates to a sibling deal's cockpit route. Optional and threaded from
+   * the caller (BankerDealWorkspace.tsx, already inside the app's Router) rather
+   * than importing react-router here — this panel stays decoupled from routing
+   * per its own governance pin (phase189CCrmRelationshipPanelContract.test.ts).
+   * When omitted, sibling-deal rows render as plain, non-interactive text.
+   */
+  onNavigateToDeal?: (dealId: string) => void;
+} = {}) {
   const { deal, applyVerifiedDealPatch } = useDealData();
   const banker = useOptionalBanker();
-  const navigate = useNavigate();
 
   // Which link modal (if any) is open.
   const [modal, setModal] = useState<DealCrmLinkTarget | null>(null);
@@ -525,17 +534,21 @@ export function DealCrmRelationshipPanel() {
                 {siblingResult.siblingDeals.map((d) => (
                   <li
                     key={d.id}
-                    style={{ ...rowStyle, cursor: 'pointer' }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Open deal ${d.name}`}
-                    onClick={() => navigate(`/deals/${d.id}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        navigate(`/deals/${d.id}`);
-                      }
-                    }}
+                    style={onNavigateToDeal ? { ...rowStyle, cursor: 'pointer' } : rowStyle}
+                    role={onNavigateToDeal ? 'button' : undefined}
+                    tabIndex={onNavigateToDeal ? 0 : undefined}
+                    aria-label={onNavigateToDeal ? `Open deal ${d.name}` : undefined}
+                    onClick={onNavigateToDeal ? () => onNavigateToDeal(d.id) : undefined}
+                    onKeyDown={
+                      onNavigateToDeal
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onNavigateToDeal(d.id);
+                            }
+                          }
+                        : undefined
+                    }
                   >
                     <span style={itemStyle}>{d.name}</span>
                     {d.stage && <Badge variant="neutral">{d.stage}</Badge>}

@@ -2,7 +2,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router-dom';
 
 /**
  * Remediation 2026-07-22 (Workstream D) — pins the fix for "sibling deals shown in Deal
@@ -52,12 +51,8 @@ beforeEach(() => {
   siblingMock.mockReset();
 });
 
-function renderPanel() {
-  return render(
-    <MemoryRouter initialEntries={['/deals/current-deal']}>
-      <DealCrmRelationshipPanel />
-    </MemoryRouter>,
-  );
+function renderPanel(onNavigateToDeal?: (dealId: string) => void) {
+  return render(<DealCrmRelationshipPanel onNavigateToDeal={onNavigateToDeal} />);
 }
 
 describe('DealCrmRelationshipPanel — authoritative CRM sibling deals', () => {
@@ -82,7 +77,7 @@ describe('DealCrmRelationshipPanel — authoritative CRM sibling deals', () => {
     expect(siblingMock).toHaveBeenCalledWith('current-deal', 1_000_000, 'client-guid');
   });
 
-  it('D16 — clicking a sibling deal navigates to that deal\'s cockpit route (not a dead link)', async () => {
+  it('D16 — clicking a sibling deal invokes onNavigateToDeal with the correct deal id (not a dead link)', async () => {
     siblingMock.mockResolvedValue({
       status: 'ready',
       siblingDeals: [
@@ -92,23 +87,29 @@ describe('DealCrmRelationshipPanel — authoritative CRM sibling deals', () => {
       totalRelationshipExposure: 1_750_000,
       exposureIncomplete: false,
     });
-    let currentPath = '';
-    function LocationProbe() {
-      currentPath = useLocation().pathname;
-      return null;
-    }
-    render(
-      <MemoryRouter initialEntries={['/deals/current-deal']}>
-        <DealCrmRelationshipPanel />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
+    const onNavigateToDeal = vi.fn();
+    renderPanel(onNavigateToDeal);
     await waitFor(() => expect(screen.getByText('Acme Equipment Loan')).toBeInTheDocument());
     const user = userEvent.setup();
     // Two distinct sibling deals present — clicking the SECOND proves correct-id navigation,
     // not just "some navigation happened".
     await user.click(screen.getByText('Acme Equipment Loan'));
-    await waitFor(() => expect(currentPath).toBe('/deals/sib-2'));
+    expect(onNavigateToDeal).toHaveBeenCalledWith('sib-2');
+    expect(onNavigateToDeal).not.toHaveBeenCalledWith('sib-1');
+  });
+
+  it('D16 — sibling-deal rows render non-interactively when onNavigateToDeal is not supplied (backward compatible)', async () => {
+    siblingMock.mockResolvedValue({
+      status: 'ready',
+      siblingDeals: [
+        { id: 'sib-1', name: 'Acme Working Capital', stage: 'Underwriting', amount: '$500,000', amountValue: 500_000 },
+      ],
+      totalRelationshipExposure: 1_500_000,
+      exposureIncomplete: false,
+    });
+    renderPanel();
+    await waitFor(() => expect(screen.getByText('Acme Working Capital')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Open deal Acme Working Capital/ })).toBeNull();
   });
 
   it('flags incomplete exposure honestly rather than showing a fabricated total', async () => {

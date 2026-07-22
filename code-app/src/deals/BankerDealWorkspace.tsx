@@ -250,7 +250,7 @@ export function BankerDealWorkspace({
                 data-deal-card="crm-relationship"
                 data-cockpit-anchor="crm-relationship"
               >
-                <DealCrmRelationshipPanel />
+                <DealCrmRelationshipPanel onNavigateToDeal={(id) => navigate(`/deals/${id}`)} />
               </div>
               <div
                 id="credit-memo"

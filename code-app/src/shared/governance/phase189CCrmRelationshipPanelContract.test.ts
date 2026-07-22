@@ -58,7 +58,11 @@ describe('mounts ONLY in BankerDealWorkspace — no App/router/WorkspaceGate cha
     expect(BANKER_WORKSPACE).toMatch(
       /import \{ DealCrmRelationshipPanel \} from '\.\.\/crm\/CrmRelationshipPanel';/,
     );
-    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel \/>/);
+    // D16 — BankerDealWorkspace threads an onNavigateToDeal callback (built from its OWN
+    // already-permitted useNavigate) into the panel, so the panel itself never imports
+    // react-router (pinned below). The tag match allows this optional callback prop while
+    // still confirming the panel is actually rendered here.
+    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel\b[\s\S]*?\/>/);
   });
 
   it('App.tsx, WorkspaceGate, and workspaceRoutes do NOT reference the panel', () => {
