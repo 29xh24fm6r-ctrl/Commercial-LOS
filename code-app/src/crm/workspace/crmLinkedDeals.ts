@@ -17,6 +17,12 @@ export interface LinkedDeal {
   readonly stage?: string;
   readonly status?: string;
   readonly amount?: string;
+  /**
+   * Remediation 2026-07-22 (Workstream D) — the raw numeric amount, alongside the formatted
+   * display string above. Needed so a consumer (e.g. total relationship exposure) can aggregate
+   * without re-parsing a locale-formatted currency string.
+   */
+  readonly amountValue?: number;
 }
 
 export type LinkedDealsResult =
@@ -40,15 +46,14 @@ function str(v: unknown): string | undefined {
 
 /** Map a raw loan-deal row to the read-only linked-deal shape. Pure; exported for tests. */
 export function mapLinkedDeal(d: RawLoanDeal): LinkedDeal {
+  const hasAmount = typeof d.cr664_amount === 'number' && Number.isFinite(d.cr664_amount);
   return {
     id: d.cr664_loandealid,
     name: str(d.cr664_dealname) ?? 'Deal',
     stage: str(d.cr664_stagereferencename),
     status: str(d.cr664_statusreferencename),
-    amount:
-      typeof d.cr664_amount === 'number' && Number.isFinite(d.cr664_amount)
-        ? formatCurrency(d.cr664_amount)
-        : undefined,
+    amount: hasAmount ? formatCurrency(d.cr664_amount!) : undefined,
+    amountValue: hasAmount ? d.cr664_amount : undefined,
   };
 }
 

@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, useState } from 'react';
+import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -29,6 +29,8 @@ import {
 import { loadLiveDealIndustryProjection } from './dealIndustryProjection';
 import { hydrateDealIndustryFromCrm } from '../deals/hydrateDealIndustryFromCrm';
 import type { DealIndustryHydration } from '../deals/dealIndustryHydration';
+import { loadLiveDealCrmSiblingDeals, type DealCrmSiblingDealsResult } from '../deals/dealCrmSiblingDeals';
+import { formatCurrency } from '../shared/formatters';
 import { updateDealProfile } from '../deals/write/updateDealProfile';
 import { buildLiveUpdateDealProfileDeps } from '../deals/write/buildLiveUpdateDealProfileDeps';
 import type { DealDetail } from '../deals/dealQueries';
@@ -65,6 +67,7 @@ export function CrmRelationshipPanel({
   clientAction,
   teamAction,
   industryStatus,
+  siblingDealsSection,
 }: {
   viewModel: CrmRelationshipViewModel;
   /** Optional interactive affordance rendered in the Client section (e.g. the
@@ -75,6 +78,9 @@ export function CrmRelationshipPanel({
   /** Optional CRM/NAICS-derived Industry status + remediation, rendered in the
    *  Client section (the deal Industry is derived from the linked client). */
   industryStatus?: ReactNode;
+  /** Optional authoritative, ID-based sibling-deals + relationship-exposure section
+   *  (see dealCrmSiblingDeals.ts), rendered in the Client section. */
+  siblingDealsSection?: ReactNode;
 }) {
   const vm = viewModel;
   return (
@@ -111,6 +117,7 @@ export function CrmRelationshipPanel({
           )}
           {clientAction}
           {industryStatus}
+          {siblingDealsSection}
         </section>
 
         {/* Team + assigned banker */}
@@ -264,6 +271,10 @@ export function DealCrmRelationshipPanel() {
   // honest unresolved state and the banker can still enter Industry manually.
   const [industryHydration, setIndustryHydration] = useState<DealIndustryHydration | null>(null);
   const [industryBusy, setIndustryBusy] = useState(false);
+  // Remediation 2026-07-22 (Workstream D) — authoritative, ID-based sibling deals for this CRM
+  // client (see dealCrmSiblingDeals.ts). Never fabricated; a missing hop is an honest unresolved
+  // status, same discipline as the Industry hydration above.
+  const [siblingResult, setSiblingResult] = useState<DealCrmSiblingDealsResult | null>(null);
   // Optimistic, readback-verified links made in this session. A successful
   // `linkDealCrmEntity` reads the deal back and proves it now points at the
   // selected record, so reflecting that here is truthful — not fabricated.
@@ -417,6 +428,35 @@ export function DealCrmRelationshipPanel() {
     }
   }
 
+  // Remediation 2026-07-22 (Workstream D) — the CRM-derived Industry previously only ever
+  // refreshed when a banker manually clicked "Check CRM industry" (never automatically on
+  // workspace load), so a deal opened for the first time after its client was linked showed no
+  // Industry status at all until someone happened to click the button. Auto-run once per distinct
+  // linked client so the cockpit always reflects the current CRM/NAICS derivation without a manual
+  // step. This only reads + (when ungated) writes through the exact same governed path the manual
+  // button already used — no new write surface, no bypass of the "never overwrite manual" rule.
+  useEffect(() => {
+    if (!effectiveClientId) return;
+    void refreshDealIndustryFromCrm(effectiveClientId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveClientId]);
+
+  // Remediation 2026-07-22 (Workstream D) — real, ID-based sibling deals for this CRM client
+  // (never display-name matching). Loads whenever the linked client changes.
+  useEffect(() => {
+    if (!effectiveClientId) {
+      setSiblingResult(null);
+      return;
+    }
+    let cancelled = false;
+    loadLiveDealCrmSiblingDeals(deal.id, deal.amount, effectiveClientId).then((result) => {
+      if (!cancelled) setSiblingResult(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [deal.id, deal.amount, effectiveClientId]);
+
   const clientMissing = viewModel.canonicalClient === null;
   const teamMissing = viewModel.team === null;
 
@@ -466,6 +506,47 @@ export function DealCrmRelationshipPanel() {
       </div>
     ) : undefined;
 
+  // Remediation 2026-07-22 (Workstream D) — real, ID-based sibling deals + total relationship
+  // exposure for this CRM client, reconciled with the CRM Hub's own linked-deals view (never a
+  // separate name-matched list). Rendered for any role that can see this panel (not banker-only),
+  // since relationship exposure is relevant to Manager/Executive review too.
+  const siblingDealsSection =
+    clientLinked && siblingResult ? (
+      <div style={industryStatusStyle} data-crm-sibling-deals data-crm-sibling-deals-status={siblingResult.status}>
+        <div style={labelStyle}>Related deals (CRM)</div>
+        {siblingResult.status === 'ready' ? (
+          <>
+            {siblingResult.siblingDeals.length === 0 ? (
+              <div style={emptyStyle}>No other deals for this CRM client.</div>
+            ) : (
+              <ul style={listStyle} aria-label="Sibling deals for this CRM client">
+                {siblingResult.siblingDeals.map((d) => (
+                  <li key={d.id} style={rowStyle}>
+                    <span style={itemStyle}>{d.name}</span>
+                    {d.stage && <Badge variant="neutral">{d.stage}</Badge>}
+                    {d.amount && <span style={valueStyle}>{d.amount}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div style={noteStyle} data-crm-sibling-deals-exposure>
+              Total relationship exposure (this deal + siblings):{' '}
+              <strong>{formatCurrency(siblingResult.totalRelationshipExposure)}</strong>
+              {siblingResult.exposureIncomplete && ' (incomplete — one or more deals have no recorded amount)'}
+            </div>
+          </>
+        ) : (
+          <div style={emptyStyle}>
+            {siblingResult.status === 'no-org-link'
+              ? 'The linked client is not bridged to a CRM company, so related deals cannot be resolved.'
+              : siblingResult.status === 'unavailable'
+                ? 'Related deals could not be loaded.'
+                : 'No CRM client is linked to this deal.'}
+          </div>
+        )}
+      </div>
+    ) : undefined;
+
   const clientAction = clientMissing ? (
     authorized ? (
       <button
@@ -509,6 +590,7 @@ export function DealCrmRelationshipPanel() {
         clientAction={clientAction}
         teamAction={teamAction}
         industryStatus={industryStatus}
+        siblingDealsSection={siblingDealsSection}
       />
       <CrmRelationshipDetailCards viewModel={viewModel} readiness={readiness} />
       {modal === 'client' && (

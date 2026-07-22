@@ -25,10 +25,23 @@ vi.mock('../deals/newDealReferenceReader', () => ({
 const loadClientsMock = vi.fn();
 const loadTeamsMock = vi.fn();
 vi.mock('../crm/dealCrmLinkOptions', () => ({
-  loadClientRelationshipOptions: (...a: unknown[]) => loadClientsMock(...a),
+  loadClientLinkTargetOptions: (...a: unknown[]) => loadClientsMock(...a),
   loadTeamOptions: (...a: unknown[]) => loadTeamsMock(...a),
   OPTION_CAP: 200,
   isOptionListTruncated: (options: unknown[]) => options.length >= 200,
+}));
+
+// The org-bridge write is only exercised when a banker selects an unbridged CRM company
+// (sourceKind: 'organization'); every other test in this file selects a plain client
+// relationship, so this mock stays unused unless a test explicitly wires it.
+const bridgeOrgMock = vi.fn();
+vi.mock('../crm/write/bridgeOrgToClientRelationship', () => ({
+  bridgeOrgToClientRelationship: (...a: unknown[]) => bridgeOrgMock(...a),
+  bridgedClientRelationshipId: (outcome: { kind: string; clientRelationshipId?: string }) =>
+    outcome.kind === 'created' || outcome.kind === 'linked-existing' || outcome.kind === 'audit-failed'
+      ? (outcome.clientRelationshipId ?? null)
+      : null,
+  buildLiveBridgeOrgToClientDeps: vi.fn(() => ({})),
 }));
 
 // Pipeline-deal read for pre-create duplicate-detection candidates. Mocked
@@ -219,6 +232,82 @@ describe('Happy path — existing client + team bind and readback via the orches
     expect(callArg.form.existingTeamId).toBe('team-guid-1');
     expect(callArg.context.requireCrmClient).toBe(true);
     expect(callArg.context.existingDeals).toEqual([]);
+  });
+});
+
+describe('Remediation 2026-07-22 (Workstream D) — unbridged CRM company selection bridges before create', () => {
+  it('runs the governed org bridge and creates the deal against the resulting client-relationship id, not the raw organization id', async () => {
+    setBanker();
+    loadClientsMock.mockResolvedValue([
+      {
+        id: 'org-guid-1',
+        name: 'Omni Corp',
+        sublabel: 'CRM Company — will create/link borrower client record',
+        active: true,
+        sourceKind: 'organization',
+        organizationType: 'Borrower',
+      },
+    ]);
+    bridgeOrgMock.mockResolvedValue({
+      kind: 'created',
+      clientRelationshipId: 'bridged-client-guid',
+      clientName: 'Omni Corp',
+      correlationId: 'corr-1',
+      auditId: 'audit-1',
+    });
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-xyz',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+
+    await screen.findByRole('option', { name: /Omni Corp/i });
+    await user.click(screen.getByRole('option', { name: /Omni Corp/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Omni Deal');
+    await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
+
+    await waitFor(() => expect(orchestrateMock).toHaveBeenCalled());
+    expect(bridgeOrgMock).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-guid-1', organizationName: 'Omni Corp' }),
+      expect.anything(),
+    );
+    const callArg = orchestrateMock.mock.calls[0]![0] as { form: { existingClientId?: string } };
+    // The bridged CLIENT RELATIONSHIP id is bound, never the raw CRM organization id.
+    expect(callArg.form.existingClientId).toBe('bridged-client-guid');
+    expect(callArg.form.existingClientId).not.toBe('org-guid-1');
+  });
+
+  it('surfaces an honest error and never calls the orchestrator when the bridge fails', async () => {
+    setBanker();
+    loadClientsMock.mockResolvedValue([
+      { id: 'org-guid-1', name: 'Omni Corp', active: true, sourceKind: 'organization', organizationType: 'Borrower' },
+    ]);
+    bridgeOrgMock.mockResolvedValue({ kind: 'write-failed', error: 'Dataverse write denied', correlationId: 'corr-2' });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+
+    await screen.findByRole('option', { name: /Omni Corp/i });
+    await user.click(screen.getByRole('option', { name: /Omni Corp/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Omni Deal');
+    await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Dataverse write denied/)).toBeInTheDocument();
+    });
+    expect(orchestrateMock).not.toHaveBeenCalled();
   });
 });
 

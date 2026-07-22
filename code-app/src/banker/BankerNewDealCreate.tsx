@@ -20,12 +20,35 @@ import {
 } from '../deals/newDealCrmIntakeGate';
 import { CREATE_CLIENT_RELATIONSHIP_ENABLED } from '../crm/write/createClientRelationship';
 import {
-  loadClientRelationshipOptions,
+  loadClientLinkTargetOptions,
   loadTeamOptions,
   isOptionListTruncated,
   OPTION_CAP,
   type CrmLinkOption,
 } from '../crm/dealCrmLinkOptions';
+import {
+  bridgeOrgToClientRelationship,
+  bridgedClientRelationshipId,
+  buildLiveBridgeOrgToClientDeps,
+  type BridgeOrgToClientOutcome,
+} from '../crm/write/bridgeOrgToClientRelationship';
+
+/** Honest, banker-safe description of a failed CRM-org bridge (never a raw error dump). */
+function describeBridgeFailure(bridge: BridgeOrgToClientOutcome): string {
+  switch (bridge.kind) {
+    case 'unauthorized':
+    case 'identity-unresolved':
+    case 'not-eligible':
+    case 'invalid-input':
+      return bridge.reason;
+    case 'write-failed':
+      return bridge.error;
+    case 'readback-mismatch':
+      return 'The CRM client relationship could not be verified after creation.';
+    default:
+      return 'Could not create or find the CRM client relationship for the selected company.';
+  }
+}
 import type { DealOriginationResult } from '../deals/dealOriginationOutcomes';
 import type { ExistingDealSignal } from '../deals/newDealDuplicateDetection';
 
@@ -103,12 +126,20 @@ export function BankerNewDealCreate() {
 
   // Load the EXISTING client / team options once the surface is live. The
   // loaders read Dataverse and NEVER create — search / select only.
+  //
+  // Remediation 2026-07-22 (Workstream D) — was loadClientRelationshipOptions (existing
+  // cr664_clientrelationships only), which meant a real CRM Hub company with no bridged client
+  // relationship yet was simply invisible here even though CRM Hub itself lists it, and even
+  // though the in-deal "Link CRM client" modal already correctly offers it. Switched to
+  // loadClientLinkTargetOptions -- the SAME union CRM Hub and the Link CRM client modal already
+  // use -- so this list reconciles with CRM Hub's eligible set. Selecting an unbridged CRM company
+  // (sourceKind: 'organization') runs the exact same governed bridge onSubmit below before create.
   useEffect(() => {
     if (!live) return;
     // clients/teams start in { kind: 'loading' }; the async callbacks below
     // resolve them (no synchronous setState in the effect body).
     let alive = true;
-    loadClientRelationshipOptions()
+    loadClientLinkTargetOptions()
       .then((options) => alive && setClients({ kind: 'ready', options }))
       .catch((err: unknown) =>
         alive && setClients({ kind: 'error', message: err instanceof Error ? err.message : String(err) }),
@@ -160,6 +191,34 @@ export function BankerNewDealCreate() {
     if (!canSubmit || !systemUserId) return;
     setSubmit({ kind: 'submitting' });
     try {
+      // Remediation 2026-07-22 (Workstream D) — the deal's cr664_Client lookup targets a
+      // cr664_clientrelationship, never a cr664_crmorganization directly. When the banker picked
+      // an unbridged CRM company (sourceKind: 'organization'), run the SAME governed bridge the
+      // in-deal "Link CRM client" modal already uses to create/find the canonical client
+      // relationship, then use THAT id for the deal's Client lookup. Never creates a client
+      // automatically outside this explicit selection + explicit submit.
+      let resolvedClientId = selectedClient?.id;
+      if (selectedClient?.sourceKind === 'organization') {
+        const bridge = await bridgeOrgToClientRelationship(
+          {
+            organizationId: selectedClient.id,
+            organizationName: selectedClient.name,
+            organizationType: selectedClient.organizationType ?? '',
+            website: selectedClient.website,
+            taxIdPresent: selectedClient.taxIdPresent,
+            actorEmail: email,
+            actorSystemUserId: systemUserId,
+            authorized: true,
+          },
+          buildLiveBridgeOrgToClientDeps(),
+        );
+        const bridgedId = bridgedClientRelationshipId(bridge);
+        if (!bridgedId) {
+          setSubmit({ kind: 'error', message: describeBridgeFailure(bridge) });
+          return;
+        }
+        resolvedClientId = bridgedId;
+      }
       const amt = amount.trim().length > 0 ? Number(amount) : undefined;
       const [orchestratorMod, adapter, reader] = await Promise.all([
         import('../deals/dealOriginationOrchestrator'),
@@ -176,7 +235,7 @@ export function BankerNewDealCreate() {
             actorEmail: email,
             amount: amt,
             // CRM-first: carry the selected existing client / team into create.
-            existingClientId: selectedClient?.id,
+            existingClientId: resolvedClientId,
             existingTeamId: selectedTeam?.id,
           },
           // Downstream write automations all disabled this pilot. Duplicate
