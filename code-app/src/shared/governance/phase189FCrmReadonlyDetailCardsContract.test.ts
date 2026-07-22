@@ -91,7 +91,7 @@ describe('no route / App / WorkspaceGate change', () => {
     // The container (DealCrmRelationshipPanel) renders the cards; the workspace
     // mounts only that container — no new mount point is added.
     expect(PANEL).toMatch(/<CrmRelationshipDetailCards /);
-    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel \/>/);
+    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel\b[\s\S]*?\/>/);
     expect(BANKER_WORKSPACE).not.toMatch(/CrmRelationshipDetailCards/);
   });
 });

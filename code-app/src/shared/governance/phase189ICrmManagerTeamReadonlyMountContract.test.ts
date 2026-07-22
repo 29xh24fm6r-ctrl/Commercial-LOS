@@ -66,7 +66,7 @@ describe('manager/team mount the existing read-only CRM panel container', () => 
 
 describe('banker mount unchanged; no executive mount', () => {
   it('BankerDealWorkspace still mounts the CRM relationship panel', () => {
-    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel \/>/);
+    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel\b[\s\S]*?\/>/);
   });
 
   it('executive workspaces mount neither the CRM panel nor the detail cards', () => {

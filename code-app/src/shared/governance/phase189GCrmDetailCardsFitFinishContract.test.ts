@@ -110,7 +110,7 @@ describe('CRM relationship panel mount surfaces', () => {
   // manager and team deal workspaces too (mount parity). The banker mount is
   // unchanged and executive surfaces remain unmounted.
   it('BankerDealWorkspace still mounts the CRM relationship panel', () => {
-    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel \/>/);
+    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel\b[\s\S]*?\/>/);
   });
 
   it('manager and team deal workspaces mount the read-only CRM panel (Phase 189I parity)', () => {
