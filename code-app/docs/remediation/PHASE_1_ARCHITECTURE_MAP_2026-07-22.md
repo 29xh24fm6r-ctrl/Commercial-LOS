@@ -187,14 +187,28 @@ mechanism; intermediate stages have no dedicated data capture, only fact-placeho
 unmounted gate-contract engine. Tie-out/reconciliation exists only as an unrelated bulk-migration
 schema plan, not part of this per-deal path.
 
-## L. Role/workspace wiring
+## L. Role/workspace wiring — correction after implementation attempt
 
-Root cause of "Primary Workspace: Not selected": `adminUserAccessQueries.ts:57-82` never selects
-`_cr664_primaryworkspace_value` and hardcodes `primaryWorkspaceName: undefined` — a genuine code gap,
-not a data problem, since `bootstrapFlow.ts` successfully resolves the same field for login using the
-identical pattern this admin query should reuse. Login/landing itself is deliberately fail-closed
-with no default-by-role fallback (a documented design choice, not a bug) — a user with a truly empty
-workspace FK correctly cannot log in and gets an honest error, this is working as designed.
+**Correction**: the initial diagnostic read of "Primary Workspace: Not selected" as a simple missing
+`select` field turned out to be wrong once the fix was attempted. `adminUserAccessQueries.ts`'s
+4-field `select` list is a **tested, pinned governance contract**
+(`phase204MAdminUserAccessPlatformUserSafeReadContract.test.ts`,
+`phase204NAdminUserAccessDetailPolishContract.test.ts`) recording **three separate prior live
+incidents** (204K/204L/204M) where widening this exact query — including, per its own comments,
+fields believed to be "just a plain lookup" — broke the entire platform-user read live. Reusing
+`bootstrapFlow.ts`'s pattern here without live verification would repeat a mistake this codebase has
+already paid for three times; the correct fix does not touch this select at all.
+
+The real, narrower gap: `src/admin/adminUserAccessDisplay.ts` already ships a purpose-built,
+honestly-worded helper for exactly this situation — `formatSafeReadWorkspaceName`, which renders
+"Not selected by safe-read contract" instead of a bare, unexplained blank. `UserAccessManagementPanel.tsx`
+already uses this helper correctly for the entitlements table (line ~215) but bypasses it for the
+users table (line ~172), rendering the un-explained literal `'Not selected'` instead. **Fixed**: swap
+that one render call site to use the existing helper, matching the entitlements table. No query
+changed, no new live-read risk, and the label now explains itself instead of reading as a data-entry
+gap. Login/landing itself is deliberately fail-closed with no default-by-role fallback (a documented
+design choice, not a bug) — a user with a truly empty workspace FK correctly cannot log in and gets
+an honest error; this is unrelated and working as designed.
 
 ## M. Banker-safe UI language
 

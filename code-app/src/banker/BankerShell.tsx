@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useBanker } from './BankerContext';
 import {
   loadBankerWorkQueueData,
@@ -95,9 +96,26 @@ export interface BankerShellProps {
   workspaceLinks?: ReadonlyArray<import('../bootstrap/workspaceEntitlements').WorkspaceLink>;
 }
 
+/**
+ * Remediation 2026-07-22 (Workstream C) — the deal cockpit is a separate route from this shell's
+ * own local-tab navigation, so a nav click from inside a deal must navigate back to this route
+ * carrying which tab to land on, rather than silently doing nothing. Validates against the real
+ * tab set so a stale/forged location.state can never select a tab that doesn't exist.
+ */
+function resolveInitialTab(state: unknown): ShellTab {
+  if (state && typeof state === 'object' && 'initialTab' in state) {
+    const candidate = (state as { initialTab?: unknown }).initialTab;
+    if (typeof candidate === 'string' && TAB_SPECS.some((t) => t.key === candidate)) {
+      return candidate as ShellTab;
+    }
+  }
+  return 'dashboard';
+}
+
 export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps) {
   const { bankerId, fullName, email, systemUserId, writeDisabledReason } = useBanker();
-  const [tab, setTab] = useState<ShellTab>('dashboard');
+  const location = useLocation();
+  const [tab, setTab] = useState<ShellTab>(() => resolveInitialTab(location.state));
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
   const reload = useCallback(() => {

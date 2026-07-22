@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import type { BankerWorkQueueData } from './workQueueQueries';
 
 /**
@@ -168,6 +169,19 @@ beforeEach(() => {
   logActivityMock.mockReset();
 });
 
+/**
+ * Remediation 2026-07-22 (Workstream C) — BankerShell now reads `useLocation()` (to resolve which
+ * tab a deal-cockpit "back to workspace" navigation should land on), which requires a Router
+ * context. Production always mounts BankerShell inside the app's real router; wrap it here too.
+ */
+function renderShell() {
+  return render(
+    <MemoryRouter>
+      <BankerShell workspaceName="Banker Workspace" />
+    </MemoryRouter>,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Shell layout regions
 // ---------------------------------------------------------------------------
@@ -176,7 +190,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('renders the dark sidebar with Lending OS navigation', () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     const nav = screen.getByRole('navigation', { name: /lending os navigation/i });
     expect(nav).toBeInTheDocument();
     // Brand block
@@ -187,7 +201,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('renders the canonical sidebar nav items as real (clickable) buttons', () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     for (const label of [
       'Dashboard',
       'Active Deals',
@@ -205,7 +219,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('hides unbuilt placeholder sidebar items (Schedule / Contacts / Vendors / Settings / Help) from the launch nav', () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     for (const id of ['schedule', 'contacts', 'vendors', 'settings', 'help']) {
       expect(container.querySelector(`[data-nav-placeholder="${id}"]`)).toBeNull();
     }
@@ -216,7 +230,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('renders the personal greeting header (h1 + task-count subtitle)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     // Greeting is "Good <morning/afternoon/evening>, Matt"
     const heading = screen.getByRole('heading', { level: 1 });
     expect(heading.textContent).toMatch(/Good \w+, Matt$/);
@@ -231,7 +245,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('renders the + New Deal header action as an enabled governed shortcut, with Log Activity enabled for governed writers', () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     // The disabled global-search placeholder is hidden from the launch UI.
     expect(container.querySelector('[data-search-placeholder="lending-os-search"]')).toBeNull();
     expect(screen.getByRole('button', { name: /^Log Activity$/i })).not.toBeDisabled();
@@ -245,7 +259,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('keeps Log Activity disabled when governed write identity is unavailable', () => {
     setUpBanker({ writeDisabledReason: 'No cr664_systemuser binding for this banker.' });
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     expect(container.querySelector('[data-action-placeholder="log-activity"]')).not.toBeNull();
   });
 
@@ -253,7 +267,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
     setUpBanker();
     loadMock.mockResolvedValue(dataWithOneDeal());
     logActivityMock.mockResolvedValue({ kind: 'success', activityId: 'activity-1' });
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole('button', { name: /^Log Activity$/i }));
@@ -282,7 +296,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('renders the flat KPI grid with 10 tonal tiles', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     await waitFor(() => {
       const tiles = container.querySelectorAll('[data-kpi-tile]');
       expect(tiles.length).toBe(10);
@@ -292,7 +306,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('marks the unavailable KPI tiles (WEIGHTED / WIN RATE / HIGH PROB / YTD CLOSED) with bank-user "Not available" copy', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     await waitFor(() => {
       expect(container.querySelectorAll('[data-kpi-tile]').length).toBe(10);
     });
@@ -305,7 +319,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('renders the tab bar with the Phase 125F labels plus the Phase 257 Loan Workflow + CRM Hub tabs', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     await waitFor(() => {
       const tablist = screen.getByRole('tablist', { name: /banker workspace sections/i });
       expect(within(tablist).getAllByRole('tab').length).toBe(10);
@@ -331,7 +345,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('renders the right rail with Closing Soon + My Tasks (no calendar/Outlook dev copy)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     await waitFor(() => {
       expect(screen.getByText(/Closing Soon/i)).toBeInTheDocument();
     });
@@ -344,7 +358,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('switching tabs swaps the rendered card without leaking previous panel content', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     const user = userEvent.setup();
     // Default tab is Dashboard
     expect(screen.getByTestId('card-personal-activity-summary')).toBeInTheDocument();
@@ -357,7 +371,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('renders the read-only banner when banker has no Dataverse systemuser', () => {
     setUpBanker({ writeDisabledReason: 'No cr664_systemuser binding for this banker.' });
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     expect(
       screen.getByText(/No cr664_systemuser binding for this banker/i),
     ).toBeInTheDocument();
@@ -368,7 +382,7 @@ describe('Phase 125F — Lending OS shell layout', () => {
   it('zero data renders honest zero counts (no fabricated values)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     await waitFor(() => {
       expect(container.querySelectorAll('[data-kpi-tile]').length).toBe(10);
     });
@@ -386,7 +400,7 @@ describe('Phase 166 — dashboard KPI card interactions', () => {
   async function renderReady(data = dataWithOneDeal()) {
     setUpBanker();
     loadMock.mockResolvedValue(data);
-    const utils = render(<BankerShell workspaceName="Banker Workspace" />);
+    const utils = renderShell();
     // Wait for the real (ready) KPI tiles, not the 10 loading placeholders.
     await waitFor(() => {
       expect(
@@ -490,7 +504,7 @@ describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', 
   it('CRM Hub sidebar nav click opens the live CRM workspace (Phase 258 system)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     const user = userEvent.setup();
     // Default tab is Dashboard.
     expect(screen.getByTestId('card-personal-activity-summary')).toBeInTheDocument();
@@ -506,7 +520,7 @@ describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', 
   it('Loan Workflow sidebar nav click navigates to the real Loan Workflow workspace surface', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     const user = userEvent.setup();
     expect(screen.getByTestId('card-personal-activity-summary')).toBeInTheDocument();
 
@@ -525,7 +539,7 @@ describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', 
   it('every real sidebar nav button is clickable AND lands on a non-empty content panel (no dead nav)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     const user = userEvent.setup();
     for (const label of ['CRM Hub', 'Loan Workflow']) {
       const navButton = screen.getByRole('button', { name: new RegExp(`^${label}$`, 'i') });
@@ -542,7 +556,7 @@ describe('Phase 257 — + New Deal header shortcut opens the governed create flo
   it('clicking + New Deal routes to the Active Deals New Deal panel (production Intake/Open framing)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     const user = userEvent.setup();
     // Dashboard first; New Deal panel not yet mounted.
     expect(container.querySelector('[data-banker-new-deal="panel"]')).toBeNull();
@@ -561,7 +575,7 @@ describe('Phase 257 — + New Deal header shortcut opens the governed create flo
   it('+ New Deal is reachable from a non-dashboard tab too (header shortcut is global)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     const user = userEvent.setup();
     // Move to Tasks tab first.
     await user.click(screen.getByRole('tab', { name: /^Tasks & Actions$/i }));
@@ -607,7 +621,7 @@ describe('Phase 258 — CRM is reachable via the CRM Hub tab (its own system)', 
   it('opens the live CRM workspace from the CRM Hub tab', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    const { container } = render(<BankerShell workspaceName="Banker Workspace" />);
+    const { container } = renderShell();
     const user = userEvent.setup();
     await user.click(screen.getByRole('tab', { name: /^CRM Hub$/i }));
     expect(container.querySelector('[data-crm-hub="workspace"]')).not.toBeNull();
@@ -617,7 +631,7 @@ describe('Phase 258 — CRM is reachable via the CRM Hub tab (its own system)', 
   it('keeps existing dashboard cards (Personal Activity + Morning Catch-Up) rendered', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     expect(await screen.findByTestId('card-personal-activity-summary')).toBeInTheDocument();
     expect(screen.getByTestId('card-morning-catchup')).toBeInTheDocument();
   });
@@ -625,7 +639,7 @@ describe('Phase 258 — CRM is reachable via the CRM Hub tab (its own system)', 
   it('the dashboard no longer mounts the CRM readiness command center (moved to its own tab)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
-    render(<BankerShell workspaceName="Banker Workspace" />);
+    renderShell();
     await screen.findByTestId('card-personal-activity-summary');
     // No CRM Command Center region on the dashboard anymore.
     expect(screen.queryByRole('region', { name: 'CRM Command Center' })).toBeNull();

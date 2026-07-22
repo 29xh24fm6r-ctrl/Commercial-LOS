@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, MouseEvent } from 'react';
 import {
   ActivityIcon,
   AlertIcon,
@@ -48,6 +48,18 @@ const ITEMS: ReadonlyArray<DealCockpitNavItem> = [
   { id: 'deal-summary', label: 'Summary', icon: <ChecklistIcon /> },
 ];
 
+/**
+ * Remediation 2026-07-22 (Workstream C) — a plain `<a href="#…">` inside a `BrowserRouter` pushes
+ * a new history entry for the *same* deal URL on every click. A banker who clicks a couple of
+ * these anchors and then hits Back just walks backward through duplicate history entries for the
+ * same page ("Back returns to the same deal"). Scroll to the target section directly instead of
+ * letting the browser navigate the hash — no history entry, same visual behavior.
+ */
+function scrollToSection(id: string, event: MouseEvent<HTMLAnchorElement>) {
+  event.preventDefault();
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 export function DealCockpitNav() {
   return (
     <nav
@@ -62,6 +74,7 @@ export function DealCockpitNav() {
               href={`#${it.id}`}
               style={styles.link}
               data-cockpit-anchor-link={it.id}
+              onClick={(event) => scrollToSection(it.id, event)}
             >
               <span style={styles.icon} aria-hidden="true">
                 {it.icon}

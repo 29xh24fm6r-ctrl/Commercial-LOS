@@ -103,6 +103,29 @@ describe('Phase 169B -- panel renders real read-only data', () => {
     ).toBe('Admin — 788190002');
   });
 
+  it('Remediation 2026-07-22 (Workstream L) — a user with no primary workspace name reads the safe-read explanation, not a bare "Not selected"', async () => {
+    loadMock.mockResolvedValue({
+      ...summary(),
+      users: [
+        {
+          id: 'u3',
+          email: 'nobody@oldglorybank.com',
+          fullName: 'No Workspace User',
+          primaryWorkspaceName: undefined,
+          active: true,
+          identityStatus: 'Active',
+        },
+      ],
+    });
+    const { container } = render(<UserAccessManagementPanel />);
+    await waitFor(() => {
+      expect(screen.getByText('No Workspace User')).toBeInTheDocument();
+    });
+    const usersTable = container.querySelector('[data-admin-user-access-users="table"]')!;
+    expect(within(usersTable as HTMLElement).getByText('Not selected by safe-read contract')).toBeInTheDocument();
+    expect(within(usersTable as HTMLElement).queryByText('Not selected', { exact: true })).not.toBeInTheDocument();
+  });
+
   it('shows the raw profile GUID and an honest blank workspace label (Phase 204N)', async () => {
     loadMock.mockResolvedValue(summary());
     const { container } = render(<UserAccessManagementPanel />);

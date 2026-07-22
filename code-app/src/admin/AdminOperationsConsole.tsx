@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { useBootstrap } from '../bootstrap/BootstrapContext';
 import { useEntitledRoutes } from '../bootstrap/workspaceEntitlements';
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
@@ -140,10 +141,28 @@ function ManageAffordance({ module }: { module: AdminConsoleModule }) {
       </span>
     );
   }
-  const href = m.kind === 'route' ? m.route : `#${m.anchor}`;
+  // Remediation 2026-07-22 (Workstream C) — `route` kind must use the router's <Link>, not a raw
+  // <a href>: a plain anchor forces a full browser navigation to that path, which the Power Apps
+  // Code App host does not serve the SPA shell for, surfacing a raw RouteNotFound response instead
+  // of navigating in-app (confirmed root cause of "Open Banker Workspace" breaking out of the
+  // host). `in-console` stays a same-page hash anchor — that one is a real in-page jump, not a
+  // route change, so it's safe as plain <a href="#...">.
+  if (m.kind === 'route') {
+    return (
+      <Link
+        to={m.route}
+        style={styles.manageLink}
+        data-admin-ops-action={module.id}
+        data-admin-ops-manage={m.kind}
+        aria-label={`${module.title}: ${m.label}`}
+      >
+        {m.label}
+      </Link>
+    );
+  }
   return (
     <a
-      href={href}
+      href={`#${m.anchor}`}
       style={styles.manageLink}
       data-admin-ops-action={module.id}
       data-admin-ops-manage={m.kind}
