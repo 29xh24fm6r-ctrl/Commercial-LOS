@@ -16,17 +16,24 @@ describe('Phase 256B — consume final-launch smoke evidence + verify launch', (
     expect(loaded.errors).toEqual([]); // still structurally parseable
     expect(loaded.records.map((r) => r.capability).sort()).toEqual([...FINAL_LAUNCH_CAPABILITIES].sort());
     const r = deriveFinalLaunchReadiness({ records: loaded.records });
-    // CRM-K: crmLivePersistence is now GO (attributed re-capture); the other four remain
-    // integrity-insufficient (sentinel identity / missing machine proof / no receipt).
+    // CRM-K: crmLivePersistence is GO (attributed re-capture); Workstream K additionally
+    // re-captured a real portfolioBoarding smoke that is also now GO. The other three remain
+    // integrity-insufficient (missing machine proof / no receipt).
     expect(r.allCapabilitiesGo).toBe(false);
     expect(r.capabilities.find((c) => c.capability === 'crmLivePersistence')?.evidenceInsufficient).toBe(false);
-    expect(r.capabilities.filter((c) => c.capability !== 'crmLivePersistence').every((c) => c.evidenceInsufficient)).toBe(true);
+    expect(r.capabilities.find((c) => c.capability === 'portfolioBoarding')?.evidenceInsufficient).toBe(false);
+    expect(
+      r.capabilities
+        .filter((c) => c.capability !== 'crmLivePersistence' && c.capability !== 'portfolioBoarding')
+        .every((c) => c.evidenceInsufficient),
+    ).toBe(true);
     expect(r.crmHydrated).toBe(true);
     expect(r.portfolioHydrated).toBe(true);
     expect(r.deploymentAllowed).toBe(false);
-    // CRM-K: New Deal create + crmLivePersistence (now GO via the attributed re-capture) project
-    // enabled; CRM's actual enablement still awaits only its gate-flag flip (deployment withheld).
-    expect(r.projectedEnabledCount).toBe(2);
+    // CRM-K: New Deal create + crmLivePersistence + portfolioBoarding (all now GO via attributed
+    // re-capture) project enabled; their actual enablement still awaits only their gate-flag
+    // flips (deployment withheld).
+    expect(r.projectedEnabledCount).toBe(3);
   });
 
   it('Phase 5: every launch projection is gated on integrity — committed evidence insufficient → not launched (1/6)', () => {

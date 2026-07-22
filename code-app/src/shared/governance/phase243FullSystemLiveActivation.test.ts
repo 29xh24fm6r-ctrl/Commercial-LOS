@@ -56,9 +56,10 @@ describe('Phase 243 — full system live activation governance contract', () => 
       // Certification toggle remains true (unchanged), but the domain is honestly NOT enabled
       // because its final-launch smoke evidence is present-but-insufficient.
       expect(d.certified, d.key).toBe(true);
-      // CRM-K: crmWriteback's committed smoke is now attributed/HIGH (sufficient); it stays NOT
-      // enabled because its gate flag is off. The other four remain evidence-insufficient.
-      expect(d.evidenceInsufficient, d.key).toBe(d.key !== 'crmWriteback');
+      // CRM-K: crmWriteback's committed smoke is attributed/HIGH; Workstream K's re-captured
+      // portfolioBoarding smoke now also grades HIGH. Both stay NOT enabled because their gate
+      // flags are off. The other three remain evidence-insufficient.
+      expect(d.evidenceInsufficient, d.key).toBe(d.key !== 'crmWriteback' && d.key !== 'portfolioBoarding');
       expect(d.enabled, d.key).toBe(false);
     }
   });
