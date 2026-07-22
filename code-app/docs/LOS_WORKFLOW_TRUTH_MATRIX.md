@@ -20,9 +20,19 @@
 >   `buildLiveStageAdvanceDeps.ts`'s `onDealBoarded.run` — not only through the separate manual
 >   `existingLoanEntryAdapter` path this doc originally described as the sole real write.
 >
-> Everything else in this document (Return/Decline/Withdraw preview-only, document/task substring
-> matching, credit-memo lifecycle presence-only, conditions-precedent as a derived proxy rather than a
-> real record) was independently re-verified during the 2026-07-21 pass and remains accurate.
+> Everything else in this document (document/task substring matching, credit-memo lifecycle
+> presence-only, conditions-precedent as a derived proxy rather than a real record) was independently
+> re-verified during the 2026-07-21 pass and remains accurate.
+>
+> **Update 2026-07-22 (Final Production Completion pass).** T7/T8/T9's "PREVIEW-ONLY... not mounted
+> with live deps" claim is now superseded. `src/deals/DealGovernedTransitionPanel.tsx` mounts
+> `StageWorkflowControl` with `liveEnabled` and real `buildLiveCanonicalTransitionDeps`, and is itself
+> mounted directly in `src/deals/BankerDealWorkspace.tsx` (governance initiative, 2026-07-21).
+> Return/Decline/Withdraw are LIVE-wired in the banker workspace today, gated only by
+> `AUTO_STAGE_ADVANCE_ENABLED` (true) and `GOVERNANCE_REASON_FIELD_ENABLED` (false — reasons are
+> written to the audit event's notes only, not yet a queryable deal column). See
+> `docs/remediation/FINAL_PRODUCTION_COMPLETION_LIFECYCLE_TRUTH_MATRIX_2026-07-22.md` for the full
+> current lifecycle matrix.
 
 > **Headline:** the system is **not yet** a complete, team-operable commercial loan workflow. Only forward
 > **Advance** has a live write path; **Return/Decline/Withdraw are preview-only**; and the *live* stage gate is
