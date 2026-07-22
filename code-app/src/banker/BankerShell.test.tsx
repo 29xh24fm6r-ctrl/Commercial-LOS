@@ -293,6 +293,19 @@ describe('Phase 125F — Lending OS shell layout', () => {
     });
   });
 
+  it('D20 — Escape closes the Log Activity modal', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(dataWithOneDeal());
+    renderShell();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: /^Log Activity$/i }));
+    expect(screen.getByRole('dialog', { name: /^Log activity$/i })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /^Log activity$/i })).toBeNull());
+  });
+
   it('renders the flat KPI grid with 10 tonal tiles', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());

@@ -193,6 +193,18 @@ describe('DealProfileEditModal — fields + governed save', () => {
     expect(await screen.findByText(/Deal profile saved/i)).toBeInTheDocument();
   });
 
+  it('D20 — Escape closes the modal', async () => {
+    setContext(deal());
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+    expect(document.querySelector('[data-deal-profile-cancel]')).not.toBeNull();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(document.querySelector('[data-deal-profile-cancel]')).toBeNull());
+  });
+
   it('Save is disabled until a field changes', async () => {
     setContext(deal());
     setBanker();
