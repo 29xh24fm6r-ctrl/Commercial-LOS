@@ -189,6 +189,69 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
     });
   });
 
+  // Workstream I/J (2026-07-22) — locks in that "memo readiness" for ENTERING Credit Approval
+  // (UNDERWRITING's own "spreading analysis" credit requirement) is already a real, live, hard
+  // block at the write seam when zero credit memos exist — not merely a UI-cosmetic check. This is
+  // the shallow/tracked layer (`deriveCreditBlockers` in loanWorkflowRules.ts, matchMode 'inferred',
+  // proxied by memo presence), distinct from the deeper reviewed/committee/approved-status facts
+  // which are correctly `untracked` (see loanWorkflowRequirementRegistry.ts's CREDIT_SEVERITY_OVERRIDE
+  // and DEEP_REQUIREMENTS — those gate CREDIT_APPROVAL's own exit to Commitment, a later transition).
+  describe('memo-existence gate for Credit Approval entry (Workstream I/J)', () => {
+    it('blocks Underwriting -> Credit Approval when the deal has zero credit memos', async () => {
+      const underwritingDeal: DealDetail = { ...baseDeal, collateralSummary: 'A/R borrowing base' };
+      const facts: WorkflowRequirementFacts = {
+        deal: underwritingDeal,
+        tasks: emptyTasks,
+        documents: docsOf({
+          reviewed: [
+            mkDoc('Business Financial Statements', 'reviewed'),
+            mkDoc('Tax Returns', 'reviewed'),
+            mkDoc('Ownership Information', 'reviewed'),
+            mkDoc('Collateral Support', 'reviewed'),
+          ],
+        }),
+        // Zero memos — the one fact under test.
+        creditMemo: noMemo,
+      };
+      const upd = vi.fn(async () => ({ ok: true }));
+      const out = await advanceWorkflowStage(input({
+        workflow: workflow({ stageId: 'UNDERWRITING', nextIds: ['CREDIT_APPROVAL'], status: 'clear' }),
+        requestedNextStageId: 'CREDIT_APPROVAL',
+        facts,
+        transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
+      }));
+      expect(out.kind).toBe('blocked');
+      if (out.kind === 'blocked') expect(out.blockers.join(' ')).toMatch(/spreading.*repayment analysis/i);
+      expect(upd).not.toHaveBeenCalled();
+    });
+
+    it('allows Underwriting -> Credit Approval once at least one credit memo exists (all else satisfied)', async () => {
+      const underwritingDeal: DealDetail = { ...baseDeal, collateralSummary: 'A/R borrowing base' };
+      const facts: WorkflowRequirementFacts = {
+        deal: underwritingDeal,
+        tasks: emptyTasks,
+        documents: docsOf({
+          reviewed: [
+            mkDoc('Business Financial Statements', 'reviewed'),
+            mkDoc('Tax Returns', 'reviewed'),
+            mkDoc('Ownership Information', 'reviewed'),
+            mkDoc('Collateral Support', 'reviewed'),
+          ],
+        }),
+        creditMemo: { memos: [{ id: 'm1', name: 'Memo', status: 'Draft', statusKey: 'draft', memoType: 'standard', version: 1, generatedAt: '2026-07-01T00:00:00Z', modifiedOn: undefined, borrowerSafe: false, textPreview: undefined }], sections: [] },
+      };
+      const upd = vi.fn(async () => ({ ok: true }));
+      const out = await advanceWorkflowStage(input({
+        workflow: workflow({ stageId: 'UNDERWRITING', nextIds: ['CREDIT_APPROVAL'], status: 'clear' }),
+        requestedNextStageId: 'CREDIT_APPROVAL',
+        facts,
+        transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
+      }));
+      expect(out.kind).toBe('advanced');
+      expect(upd).toHaveBeenCalledTimes(1);
+    });
+  });
+
   // 2026-07-14 remediation (docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md, finding C3): an
   // interim, role-based approval-authority gate on exiting CREDIT_APPROVAL.
   describe('interim approval-authority gate (finding C3)', () => {
