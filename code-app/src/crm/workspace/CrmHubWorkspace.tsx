@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Badge } from '../../shared/Badge';
 import { Guilloche } from '../../design';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
@@ -605,6 +606,7 @@ function DetailDrawer({
   onWritten: () => void;
   onClose: () => void;
 }) {
+  const navigate = useNavigate();
   const domain = (key: CrmDomainKey): readonly CrmRecord[] => {
     if (!data) return [];
     const r = data[key];
@@ -737,7 +739,21 @@ function DetailDrawer({
         ) : (
           <ul style={styles.relatedList} data-crm-related="deal">
             {linkedDeals.deals.map((d) => (
-              <li key={d.id} style={styles.relatedItem} data-crm-related-item={d.id}>
+              <li
+                key={d.id}
+                style={{ ...styles.relatedItem, cursor: 'pointer' }}
+                data-crm-related-item={d.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open deal ${d.name}`}
+                onClick={() => navigate(`/deals/${d.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/deals/${d.id}`);
+                  }
+                }}
+              >
                 <span style={styles.relatedTitle}>{d.name}</span>
                 <span style={styles.relatedSub}>{[d.stage, d.status, d.amount].filter(Boolean).join(' · ') || '—'}</span>
               </li>

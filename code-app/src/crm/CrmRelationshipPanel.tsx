@@ -1,4 +1,5 @@
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -262,6 +263,7 @@ function mapBridgeFailureToLinkOutcome(
 export function DealCrmRelationshipPanel() {
   const { deal, applyVerifiedDealPatch } = useDealData();
   const banker = useOptionalBanker();
+  const navigate = useNavigate();
 
   // Which link modal (if any) is open.
   const [modal, setModal] = useState<DealCrmLinkTarget | null>(null);
@@ -521,7 +523,20 @@ export function DealCrmRelationshipPanel() {
             ) : (
               <ul style={listStyle} aria-label="Sibling deals for this CRM client">
                 {siblingResult.siblingDeals.map((d) => (
-                  <li key={d.id} style={rowStyle}>
+                  <li
+                    key={d.id}
+                    style={{ ...rowStyle, cursor: 'pointer' }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Open deal ${d.name}`}
+                    onClick={() => navigate(`/deals/${d.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`/deals/${d.id}`);
+                      }
+                    }}
+                  >
                     <span style={itemStyle}>{d.name}</span>
                     {d.stage && <Badge variant="neutral">{d.stage}</Badge>}
                     {d.amount && <span style={valueStyle}>{d.amount}</span>}
