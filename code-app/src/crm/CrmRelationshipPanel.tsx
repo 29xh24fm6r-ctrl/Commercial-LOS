@@ -620,9 +620,10 @@ export function DealCrmRelationshipPanel() {
                 effectiveClientSource: 'crm-client-relationship',
                 clientLookupClassification: 'real-lookup',
               } as Partial<DealDetail>);
-              // Auto-hydrate the governed Industry from the linked company's NAICS
-              // so the banker need not re-enter it when CRM already classifies it.
-              void refreshDealIndustryFromCrm(entityId);
+              // Remediation 2026-07-22 (Workstream D) — Industry auto-hydration no longer needs an
+              // explicit call here: the effect above already re-runs the governed CRM/NAICS check
+              // whenever effectiveClientId changes, which this setLinkedClient(...) call triggers.
+              // An explicit call here would double-fire the same governed check.
             }
           }}
           onClose={() => setModal(null)}
