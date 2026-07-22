@@ -66,8 +66,7 @@
         },
         "documentchecklists": {
           "entitySetName": "cr664_documentchecklists",
-          "logicalName": "cr664_documentchecklist",
-          "isHidden": false
+          "logicalName": "cr664_documentchecklist"
         },
         "creditmemos": {
           "entitySetName": "cr664_creditmemo1s",

@@ -21,14 +21,19 @@ export const Cr664_documentchecklistsstatuscode = {
 export type Cr664_documentchecklistsstatuscode = keyof typeof Cr664_documentchecklistsstatuscode;
 
 export interface Cr664_documentchecklistsBase {
-  "cr664_Deal@odata.bind": string;
+  "cr664_Deal@odata.bind"?: string;
   cr664_documentchecklistid: string;
   cr664_documentname: string;
   cr664_documenttype?: Cr664_documentchecklistscr664_documenttype;
   cr664_duedate?: string;
+  cr664_filesizebytes?: number;
+  cr664_mimetype?: string;
+  cr664_originalfilename?: string;
   cr664_receiveddate?: string;
   cr664_requestdate?: string;
   cr664_reviewer?: string;
+  "cr664_UploadedBy@odata.bind"?: string;
+  cr664_uploadedon?: string;
   cr664_uploadstatus?: boolean;
   importsequencenumber?: number;
   overriddencreatedon?: string;
@@ -42,7 +47,10 @@ export interface Cr664_documentchecklistsBase {
 
 export interface Cr664_documentchecklists extends Cr664_documentchecklistsBase {
   cr664_dealname?: string;
+  cr664_documentfile?: string;
+  cr664_documentfile_name?: string;
   cr664_documenttypename?: string;
+  cr664_uploadedbyname?: string;
   cr664_uploadstatusname?: string;
   createdbyname?: string;
   createdbyyominame: string;
@@ -62,6 +70,8 @@ export interface Cr664_documentchecklists extends Cr664_documentchecklistsBase {
   versionnumber?: number;
   cr664_deal?: object;
   _cr664_deal_value?: string;
+  cr664_uploadedby?: object;
+  _cr664_uploadedby_value?: string;
   createdby?: object;
   _createdby_value?: string;
   createdonbehalfby?: object;
@@ -77,3 +87,4 @@ export interface Cr664_documentchecklists extends Cr664_documentchecklistsBase {
   owninguser?: object;
   _owninguser_value?: string;
 }
+export type Cr664_documentchecklistsUploadColumnName = 'cr664_documentfile';
