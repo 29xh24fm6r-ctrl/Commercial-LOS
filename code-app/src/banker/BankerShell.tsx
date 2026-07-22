@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useBanker } from './BankerContext';
 import {
   loadBankerWorkQueueData,
@@ -211,6 +211,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
       })
       .slice(0, 3);
   }, [state]);
+  const navigate = useNavigate();
 
   const activeNav: LendingOSNavKey = TAB_SPECS.find((t) => t.key === tab)?.nav ?? 'dashboard';
   const activityDealOptions =
@@ -260,6 +261,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
                   deals={state.kind === 'ready' ? state.data.deals : []}
                   loading={state.kind === 'loading'}
                   healthError={state.kind === 'failed' ? state.message : undefined}
+                  onWorkQueueDataChanged={reload}
                   onSelectTab={setTab}
                 />
               </ErrorBoundary>
@@ -270,6 +272,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
               state={state}
               closingSoonDeals={closingSoonDeals}
               topTasks={topTasks}
+              onOpenTask={(dealId) => navigate(`/deals/${dealId}`)}
             />
           </aside>
         </div>
@@ -362,6 +365,7 @@ function TabContent({
   loading,
   healthError,
   onSelectTab,
+  onWorkQueueDataChanged,
 }: {
   tab: ShellTab;
   onNewDeal: () => void;
@@ -372,6 +376,15 @@ function TabContent({
   /** Set when loadBankerWorkQueueData failed — distinct from "still loading". */
   healthError?: string;
   onSelectTab: (tab: ShellTab) => void;
+  /**
+   * Remediation 2026-07-22 (Workstream F) — MyWorkQueue fetches its own
+   * BankerWorkQueueData snapshot independently of this shell's own `state`
+   * (tab badges, header "N tasks pending", right-rail My Tasks panel). Without
+   * this callback, completing a task or acting on a document inside the
+   * "Tasks & Actions" / "My Alerts" tabs updated MyWorkQueue's own list but
+   * left every shell-level count stale until the banker navigated away and back.
+   */
+  onWorkQueueDataChanged: () => void;
 }) {
   switch (tab) {
     case 'dashboard':
@@ -416,7 +429,7 @@ function TabContent({
     case 'tasks':
       return (
         <div style={styles.tabStack}>
-          <MyWorkQueue />
+          <MyWorkQueue onDataChanged={onWorkQueueDataChanged} />
         </div>
       );
     case 'due-diligence':
@@ -442,7 +455,7 @@ function TabContent({
       // destination shows exactly that alert slice, not the full Tasks & Actions work list.
       return (
         <div style={styles.tabStack}>
-          <MyWorkQueue filter="alerts" />
+          <MyWorkQueue filter="alerts" onDataChanged={onWorkQueueDataChanged} />
         </div>
       );
     case 'signals':
@@ -462,10 +475,12 @@ function RightRail({
   state,
   closingSoonDeals,
   topTasks,
+  onOpenTask,
 }: {
   state: LoadState;
   closingSoonDeals: readonly { id: string; name: string; targetCloseDate: string | undefined }[];
-  topTasks: readonly { id: string; title: string; dueDate: string | undefined }[];
+  topTasks: readonly { id: string; dealId: string; title: string; dueDate: string | undefined }[];
+  onOpenTask: (dealId: string) => void;
 }) {
   return (
     <div style={styles.railStack}>
@@ -502,7 +517,7 @@ function RightRail({
         )}
       </div>
 
-      <MyTasksRailPanel state={state} tasks={topTasks} />
+      <MyTasksRailPanel state={state} tasks={topTasks} onOpenTask={onOpenTask} />
     </div>
   );
 }
@@ -510,9 +525,11 @@ function RightRail({
 function MyTasksRailPanel({
   state,
   tasks,
+  onOpenTask,
 }: {
   state: LoadState;
-  tasks: readonly { id: string; title: string; dueDate: string | undefined }[];
+  tasks: readonly { id: string; dealId: string; title: string; dueDate: string | undefined }[];
+  onOpenTask: (dealId: string) => void;
 }) {
   const pending = state.kind === 'ready' ? state.data.tasks.length : 0;
   return (
@@ -538,7 +555,21 @@ function MyTasksRailPanel({
       {state.kind === 'ready' && tasks.length > 0 && (
         <ul style={styles.railList}>
           {tasks.map((t) => (
-            <li key={t.id} style={styles.railItem}>
+            <li
+              key={t.id}
+              style={{ ...styles.railItem, cursor: 'pointer' }}
+              className="cc-row-hover"
+              onClick={() => onOpenTask(t.dealId)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onOpenTask(t.dealId);
+                }
+              }}
+              tabIndex={0}
+              role="link"
+              aria-label={`Open deal for task ${t.title}`}
+            >
               <div style={styles.railItemTitle}>{t.title}</div>
               <div style={styles.railItemMeta}>{formatTaskDue(t.dueDate)}</div>
             </li>

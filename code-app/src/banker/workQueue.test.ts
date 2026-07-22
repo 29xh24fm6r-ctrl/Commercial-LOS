@@ -6,7 +6,7 @@ import type {
   WorkQueueMemoRow,
   WorkQueueTaskRow,
 } from './workQueueQueries';
-import { deriveBankerWorkQueue, type WorkQueueItem } from './workQueue';
+import { deriveBankerOpenTasks, deriveBankerWorkQueue, type WorkQueueItem } from './workQueue';
 
 const NOW = new Date('2026-05-13T12:00:00Z');
 
@@ -132,7 +132,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
       data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] },
       now: NOW,
     });
-    const item = find(items, 'overdue-task');
+    const item = find(items, 'open-task');
     expect(item).toBeDefined();
     expect(item!.severity).toBe('overdue');
     expect(item!.title).toBe('Confirm collateral');
@@ -267,7 +267,7 @@ describe('deriveBankerWorkQueue — individual signal types', () => {
 });
 
 describe('deriveBankerWorkQueue — sort order (severity tier wins)', () => {
-  it('blocked-deal sits above overdue-task even if the task is far overdue', () => {
+  it('blocked-deal sits above open-task even if the task is far overdue', () => {
     const d = deal({ targetCloseDate: '2026-05-01T00:00:00Z' }); // blocked (12d past)
     const t = task({ dueDate: '2025-12-01T00:00:00Z' }); // ~160 days overdue
     const items = deriveBankerWorkQueue({
@@ -548,5 +548,78 @@ describe('deriveBankerWorkQueue — pending-review-document (Phase 54)', () => {
     );
     expect(pendingItems[0]!.title).toBe('Older receipt');
     expect(pendingItems[1]!.title).toBe('Newer receipt');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Remediation 2026-07-22 (Workstream F) — deriveBankerOpenTasks
+// ---------------------------------------------------------------------------
+
+describe('deriveBankerOpenTasks', () => {
+  it('returns an open task that is not yet due (invisible everywhere before this remediation)', () => {
+    const d = deal({});
+    const t = task({ id: 't-future', title: 'Confirm insurance', dueDate: '2026-06-01T00:00:00Z' }); // 19d after NOW
+    const items = deriveBankerOpenTasks({ data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] }, now: NOW });
+    expect(items).toHaveLength(1);
+    expect(items[0]!.type).toBe('open-task');
+    expect(items[0]!.severity).toBe('upcoming');
+    expect(items[0]!.title).toBe('Confirm insurance');
+    expect(items[0]!.taskMetadata).toEqual({ taskId: 't-future' });
+  });
+
+  it('returns an overdue open task with severity overdue', () => {
+    const d = deal({});
+    const t = task({ id: 't-overdue', dueDate: '2026-04-01T00:00:00Z' });
+    const items = deriveBankerOpenTasks({ data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] }, now: NOW });
+    expect(items).toHaveLength(1);
+    expect(items[0]!.severity).toBe('overdue');
+  });
+
+  it('includes a task with no due date at all (never silently dropped)', () => {
+    const d = deal({});
+    const t = task({ id: 't-no-due', dueDate: undefined });
+    const items = deriveBankerOpenTasks({ data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] }, now: NOW });
+    expect(items).toHaveLength(1);
+    expect(items[0]!.severity).toBe('upcoming');
+  });
+
+  it('excludes completed tasks', () => {
+    const d = deal({});
+    const t = task({ completed: true });
+    const items = deriveBankerOpenTasks({ data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] }, now: NOW });
+    expect(items).toHaveLength(0);
+  });
+
+  it('excludes a task whose deal is closed', () => {
+    const d = deal({ isClosed: true });
+    const t = task({});
+    const items = deriveBankerOpenTasks({ data: { deals: [d], tasks: [t], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] }, now: NOW });
+    expect(items).toHaveLength(0);
+  });
+
+  it('returns every open task across multiple deals, matching a raw open-task count exactly', () => {
+    const d1 = deal({ id: 'deal-1', name: 'Deal One' });
+    const d2 = deal({ id: 'deal-2', name: 'Deal Two' });
+    const tasks = [
+      task({ id: 't-1', dealId: 'deal-1', dueDate: '2026-04-01T00:00:00Z' }), // overdue
+      task({ id: 't-2', dealId: 'deal-1', dueDate: '2026-06-01T00:00:00Z' }), // upcoming
+      task({ id: 't-3', dealId: 'deal-2', dueDate: undefined }), // no due date
+      task({ id: 't-4', dealId: 'deal-2', completed: true }), // completed — excluded
+    ];
+    const items = deriveBankerOpenTasks({ data: { deals: [d1, d2], tasks, outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] }, now: NOW });
+    // 3 open tasks (t-4 excluded) — matches openTaskCount's data.tasks.length definition
+    // once the completed task is already filtered server-side, same as bankerPersonalActivity.ts.
+    expect(items).toHaveLength(3);
+    expect(items.map((i) => i.taskMetadata?.taskId).sort()).toEqual(['t-1', 't-2', 't-3']);
+  });
+
+  it("deriveBankerWorkQueue's merged signal list includes ONLY the overdue subset of open tasks (not upcoming ones), so My Tasks and Signals never double-count", () => {
+    const d = deal({});
+    const overdue = task({ id: 't-overdue', dueDate: '2026-04-01T00:00:00Z' });
+    const upcoming = task({ id: 't-upcoming', dueDate: '2026-06-01T00:00:00Z' });
+    const merged = deriveBankerWorkQueue({ data: { deals: [d], tasks: [overdue, upcoming], outstandingDocuments: [], pendingReviewDocuments: [], memos: [], memoSections: [] }, now: NOW });
+    const taskItemsInMerged = merged.filter((i) => i.type === 'open-task');
+    expect(taskItemsInMerged).toHaveLength(1);
+    expect(taskItemsInMerged[0]!.taskMetadata).toEqual({ taskId: 't-overdue' });
   });
 });

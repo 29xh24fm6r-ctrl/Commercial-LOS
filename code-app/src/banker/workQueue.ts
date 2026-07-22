@@ -10,6 +10,7 @@ import {
   CLOSING_SOON_DAYS,
   PENDING_REVIEW_AT_RISK_DAYS,
   STALE_STAGE_AT_RISK_DAYS,
+  WORK_QUEUE_TIER_WINDOW,
   compareWorkQueueItems,
   daysFromNow,
   isPastDue,
@@ -35,7 +36,7 @@ import {
 
 export type WorkQueueItemType =
   | 'blocked-deal'
-  | 'overdue-task'
+  | 'open-task'
   | 'overdue-document'
   | 'pending-review-document'
   | 'at-risk-deal'
@@ -61,6 +62,12 @@ export interface WorkQueueDocumentMetadata {
   receivedDate: string | undefined;
 }
 
+/** Remediation 2026-07-22 (Workstream F) — carries the raw task id so MyWorkQueue's "My Tasks"
+ *  section can invoke completeTask without re-fetching the task (mirrors documentMetadata). */
+export interface WorkQueueTaskMetadata {
+  taskId: string;
+}
+
 export interface WorkQueueItem extends WorkQueueItemBase {
   type: WorkQueueItemType;
   dealId: string;
@@ -71,6 +78,8 @@ export interface WorkQueueItem extends WorkQueueItemBase {
    *  MyWorkQueue invoke the Phase 51 markDocumentReceived action
    *  without re-fetching the document. */
   documentMetadata?: WorkQueueDocumentMetadata;
+  /** Populated only on open-task rows (see WorkQueueTaskMetadata). */
+  taskMetadata?: WorkQueueTaskMetadata;
 }
 
 export interface DeriveWorkQueueInput {
@@ -122,13 +131,14 @@ export function deriveBankerWorkQueue(input: DeriveWorkQueueInput): WorkQueueIte
     });
   }
 
-  // 2. Task-level overdue items.
-  for (const t of input.data.tasks) {
-    if (t.completed) continue;
-    if (!isPastDue(t.dueDate, nowMs)) continue;
-    const deal = dealById.get(t.dealId);
-    if (!deal || deal.isClosed) continue;
-    items.push(taskOverdueItem(t, deal, nowMs));
+  // 2. Task-level overdue items — reuses deriveBankerOpenTasks (Remediation
+  //    2026-07-22, Workstream F — the same list "My Tasks" renders), filtered to
+  //    the overdue subset, so there is exactly one task-derivation rule instead
+  //    of two definitions that could drift apart. Only the overdue subset
+  //    belongs in this merged signal list; the full open-task list (overdue +
+  //    not-yet-due) is deriveBankerOpenTasks's own, separate output.
+  for (const item of deriveBankerOpenTasks(input)) {
+    if (item.severity === 'overdue') items.push(item);
   }
 
   // 3. Document-level overdue items (outstanding, past due date).
@@ -158,6 +168,34 @@ export function deriveBankerWorkQueue(input: DeriveWorkQueueInput): WorkQueueIte
     items.push(pendingReviewDocumentItem(d, deal, nowMs));
   }
 
+  items.sort(compareWorkQueueItems);
+  return items;
+}
+
+/**
+ * Remediation 2026-07-22 (Workstream F) — every open (not-completed) task
+ * across the banker's active, authorized deals, overdue or not. Before this,
+ * the only task-shaped rows anywhere in the banker workspace were the
+ * overdue subset baked into deriveBankerWorkQueue's merged signal list — a
+ * non-overdue open task was invisible everywhere, even though the "Tasks &
+ * Actions" tab badge (kpis.openTaskCount, all open tasks) implied it should
+ * be there. MyWorkQueue's "My Tasks" section renders this list directly, and
+ * deriveBankerWorkQueue folds its overdue subset into the merged signal list
+ * (for "My Alerts") — one shared derivation, not two.
+ */
+export function deriveBankerOpenTasks(input: DeriveWorkQueueInput): WorkQueueItem[] {
+  const now = input.now ?? new Date();
+  const nowMs = now.getTime();
+  const dealById = new Map<string, PipelineDeal>();
+  for (const d of input.data.deals) dealById.set(d.id, d);
+
+  const items: WorkQueueItem[] = [];
+  for (const t of input.data.tasks) {
+    if (t.completed) continue;
+    const deal = dealById.get(t.dealId);
+    if (!deal || deal.isClosed) continue;
+    items.push(openTaskItem(t, deal, nowMs));
+  }
   items.sort(compareWorkQueueItems);
   return items;
 }
@@ -278,23 +316,49 @@ function pushDealSignals(opts: {
   }
 }
 
-function taskOverdueItem(
+/** Cap used only to keep a far-future/no-due-date task's sortKey from drifting into another tier's window. */
+const OPEN_TASK_MAX_SORT_HORIZON_DAYS = WORK_QUEUE_TIER_WINDOW - 1;
+
+function openTaskItem(
   t: WorkQueueTaskRow,
   deal: PipelineDeal,
   nowMs: number,
 ): WorkQueueItem {
   const days = daysFromNow(t.dueDate, nowMs);
-  const overdueDays = days != null ? Math.abs(days) : 0;
+  if (days != null && days < 0) {
+    const overdueDays = Math.abs(days);
+    return {
+      id: `${t.id}::open-task`,
+      type: 'open-task',
+      severity: 'overdue',
+      dealId: deal.id,
+      dealName: deal.name,
+      title: t.title,
+      reason: `Open task overdue by ${overdueDays} day(s) on "${deal.name}".`,
+      dateIso: t.dueDate,
+      sortKey: tierBase('overdue') + overdueDays,
+      taskMetadata: { taskId: t.id },
+    };
+  }
+  // Not overdue: due today/in the future, or no due date set at all.
+  const dueInDays = days != null ? Math.min(days, OPEN_TASK_MAX_SORT_HORIZON_DAYS) : OPEN_TASK_MAX_SORT_HORIZON_DAYS;
   return {
-    id: `${t.id}::overdue-task`,
-    type: 'overdue-task',
-    severity: 'overdue',
+    id: `${t.id}::open-task`,
+    type: 'open-task',
+    severity: 'upcoming',
     dealId: deal.id,
     dealName: deal.name,
     title: t.title,
-    reason: `Open task overdue by ${overdueDays} day(s) on "${deal.name}".`,
+    reason:
+      days != null
+        ? days === 0
+          ? `Open task due today on "${deal.name}".`
+          : `Open task due in ${days} day(s) on "${deal.name}".`
+        : `Open task on "${deal.name}" (no due date set).`,
     dateIso: t.dueDate,
-    sortKey: tierBase('overdue') + overdueDays,
+    // Sooner due dates rank higher within the upcoming tier; no due date sorts last.
+    sortKey: tierBase('upcoming') + (OPEN_TASK_MAX_SORT_HORIZON_DAYS - dueInDays),
+    taskMetadata: { taskId: t.id },
   };
 }
 
