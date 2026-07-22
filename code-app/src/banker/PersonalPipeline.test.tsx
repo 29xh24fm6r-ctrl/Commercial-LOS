@@ -56,10 +56,10 @@ function deal(overrides: Partial<PipelineDeal>): PipelineDeal {
   };
 }
 
-function renderShell() {
+function renderShell(props: { refreshToken?: number } = {}) {
   return render(
     <MemoryRouter>
-      <PersonalPipeline />
+      <PersonalPipeline {...props} />
     </MemoryRouter>,
   );
 }
@@ -467,5 +467,49 @@ describe('Phase 119 — PersonalPipeline stage grouping', () => {
       const section = screen.getByRole('region', { name: `Stage: ${activeLabel}` });
       expect(within(section).queryByText('Somehow Boarded')).toBeNull();
     }
+  });
+});
+
+describe('Remediation 2026-07-22 (Workstream E) — refreshToken triggers an in-session refetch', () => {
+  it('refetches when refreshToken changes, so a deal created elsewhere on the same tab appears without a tab switch/reload', async () => {
+    loadMock.mockResolvedValueOnce([deal({ id: 'd1', name: 'Before Create' })]);
+    const { rerender } = render(
+      <MemoryRouter>
+        <PersonalPipeline refreshToken={0} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText('Before Create')).toBeInTheDocument());
+    expect(loadMock).toHaveBeenCalledTimes(1);
+
+    loadMock.mockResolvedValueOnce([
+      deal({ id: 'd1', name: 'Before Create' }),
+      deal({ id: 'd2', name: 'Just Created' }),
+    ]);
+    rerender(
+      <MemoryRouter>
+        <PersonalPipeline refreshToken={1} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Just Created')).toBeInTheDocument());
+    expect(loadMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does NOT refetch on an unrelated re-render when refreshToken is unchanged', async () => {
+    loadMock.mockResolvedValue([deal({ id: 'd1', name: 'Stable Deal' })]);
+    const { rerender } = render(
+      <MemoryRouter>
+        <PersonalPipeline refreshToken={0} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByText('Stable Deal')).toBeInTheDocument());
+    expect(loadMock).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <MemoryRouter>
+        <PersonalPipeline refreshToken={0} />
+      </MemoryRouter>,
+    );
+    expect(loadMock).toHaveBeenCalledTimes(1);
   });
 });

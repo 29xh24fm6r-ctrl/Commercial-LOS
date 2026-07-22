@@ -148,7 +148,9 @@ describe('191 — no fake/sample/demo data in the production banker path', () =>
 describe('191 — New Deal create mounted + governed (fail-closed)', () => {
   it('BankerShell mounts the New Deal create surface', () => {
     expect(BANKER_SHELL).toMatch(/import \{ BankerNewDealCreate \} from '\.\/BankerNewDealCreate'/);
-    expect(BANKER_SHELL).toMatch(/<BankerNewDealCreate\s*\/>/);
+    // Remediation 2026-07-22 (Workstream E) — now takes an onCreated prop (board/KPI refresh
+    // wiring), so the tag is no longer bare; the check just needs "mounted", any attributes.
+    expect(BANKER_SHELL).toMatch(/<BankerNewDealCreate\b[^>]*\/>/);
   });
 
   it('the create surface is governed by the certified Phase 181C rollout gate', () => {

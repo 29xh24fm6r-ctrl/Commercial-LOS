@@ -167,6 +167,18 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
     return () => cancelAnimationFrame(raf);
   }, [newDealFocusNonce]);
 
+  // Remediation 2026-07-22 (Workstream E) — PersonalPipeline (the Kanban board) does its own
+  // independent loadBankerPipeline fetch, entirely separate from this shell's own `state`. Bumping
+  // this nonce (passed down as PersonalPipeline's refreshToken) is what makes a just-created deal
+  // appear on the board in-session instead of only after a tab switch / reload; `reload()` below
+  // refreshes this shell's own KPIs (including the pipeline-total) the same way MyWorkQueue's
+  // onDataChanged already does for tasks.
+  const [dealsRefreshNonce, setDealsRefreshNonce] = useState(0);
+  const onDealCreated = useCallback(() => {
+    setDealsRefreshNonce((n) => n + 1);
+    reload();
+  }, [reload]);
+
   const now = useMemo(() => new Date(), [state]);
   const kpis = useMemo(() => {
     if (state.kind !== 'ready') return null;
@@ -263,6 +275,8 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
                   healthError={state.kind === 'failed' ? state.message : undefined}
                   onWorkQueueDataChanged={reload}
                   onSelectTab={setTab}
+                  onDealCreated={onDealCreated}
+                  dealsRefreshNonce={dealsRefreshNonce}
                 />
               </ErrorBoundary>
             </div>
@@ -366,6 +380,8 @@ function TabContent({
   healthError,
   onSelectTab,
   onWorkQueueDataChanged,
+  onDealCreated,
+  dealsRefreshNonce,
 }: {
   tab: ShellTab;
   onNewDeal: () => void;
@@ -385,6 +401,10 @@ function TabContent({
    * left every shell-level count stale until the banker navigated away and back.
    */
   onWorkQueueDataChanged: () => void;
+  /** Remediation 2026-07-22 (Workstream E) — bumps dealsRefreshNonce + reloads shell KPIs. */
+  onDealCreated: () => void;
+  /** Remediation 2026-07-22 (Workstream E) — passed to PersonalPipeline as its refreshToken. */
+  dealsRefreshNonce: number;
 }) {
   switch (tab) {
     case 'dashboard':
@@ -405,9 +425,9 @@ function TabContent({
       return (
         <div style={styles.tabStack}>
           <div data-header-new-deal-target>
-            <BankerNewDealCreate />
+            <BankerNewDealCreate onCreated={onDealCreated} />
           </div>
-          <PersonalPipeline />
+          <PersonalPipeline refreshToken={dealsRefreshNonce} />
         </div>
       );
     case 'loan-workflow':

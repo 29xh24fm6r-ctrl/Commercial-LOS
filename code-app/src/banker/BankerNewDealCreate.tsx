@@ -1,7 +1,21 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { useBanker } from './BankerContext';
 import { Badge } from '../shared/Badge';
+import { Cr664_loandealscr664_guarantorstructure } from '../generated/models/Cr664_loandealsModel';
+import {
+  updateDealProfile,
+  type DealProfilePatch,
+  type DealReferencePatch,
+  type UpdateDealProfileOutcome,
+} from '../deals/write/updateDealProfile';
+import { buildLiveUpdateDealProfileDeps } from '../deals/write/buildLiveUpdateDealProfileDeps';
+import {
+  loadLiveDealReferenceOptionsByCategory,
+  DEAL_REFERENCE_LOOKUPS,
+  type DealReferenceLookupField,
+  type DealReferenceOptionsByCategory,
+} from '../deals/write/dealReferenceOptions';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import {
   evaluateBankerCreateRollout,
@@ -76,7 +90,7 @@ import type { ExistingDealSignal } from '../deals/newDealDuplicateDetection';
 type SubmitState =
   | { kind: 'idle' }
   | { kind: 'submitting' }
-  | { kind: 'done'; result: DealOriginationResult }
+  | { kind: 'done'; result: DealOriginationResult; profileOutcome?: UpdateDealProfileOutcome | 'skipped' }
   | { kind: 'error'; message: string };
 
 type OptionsState =
@@ -84,13 +98,39 @@ type OptionsState =
   | { kind: 'ready'; options: readonly CrmLinkOption[] }
   | { kind: 'error'; message: string };
 
+/** Remediation 2026-07-22 (Workstream E) — the 3 reference-lookup dropdowns' load state. */
+type RefLoadState = { kind: 'loading' } | { kind: 'ready'; byCategory: DealReferenceOptionsByCategory };
+
 type Step = 1 | 2 | 3;
 
-export function BankerNewDealCreate() {
+export interface BankerNewDealCreateProps {
+  /**
+   * Remediation 2026-07-22 (Workstream E) — fires the moment a deal record exists
+   * (createdDealId is set), regardless of whether the downstream loan-structure
+   * profile-completion write below also succeeds, so a parent shell can refresh
+   * the board (PersonalPipeline) and pipeline-total KPI in-session instead of
+   * requiring a tab switch or reload.
+   */
+  readonly onCreated?: () => void;
+}
+
+export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}) {
   const { bankerId, systemUserId, writeDisabledReason, email } = useBanker();
   const [step, setStep] = useState<Step>(1);
   const [dealName, setDealName] = useState('');
   const [amount, setAmount] = useState('');
+  // Remediation 2026-07-22 (Workstream E) — expanded loan-structure capture. All optional at the
+  // UI layer (a banker may not know every detail at Intake); only whichever of these are actually
+  // filled in are sent as a governed follow-up profile-completion write once the deal exists (see
+  // runProfileFollowUp below). None of these gate canSubmit except amount (see canSubmit).
+  const [targetCloseDate, setTargetCloseDate] = useState('');
+  const [collateralSummary, setCollateralSummary] = useState('');
+  const [guarantorStructure, setGuarantorStructure] = useState('');
+  const [amortizationMonths, setAmortizationMonths] = useState('');
+  const [productTypeSel, setProductTypeSel] = useState('');
+  const [loanStructureSel, setLoanStructureSel] = useState('');
+  const [pricingTypeSel, setPricingTypeSel] = useState('');
+  const [refOptions, setRefOptions] = useState<RefLoadState>({ kind: 'loading' });
   const [selectedClient, setSelectedClient] = useState<CrmLinkOption | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<CrmLinkOption | null>(null);
   const [clients, setClients] = useState<OptionsState>({ kind: 'loading' });
@@ -99,6 +139,10 @@ export function BankerNewDealCreate() {
   // Loaded so pre-create duplicate detection (warning-only, never blocks by
   // default) has real candidates to compare against instead of an empty set.
   const [existingDeals, setExistingDeals] = useState<readonly ExistingDealSignal[]>([]);
+  // Remediation 2026-07-22 (Workstream E) — a synchronous lock independent of React state batching.
+  // canSubmit already guards on submit.kind !== 'submitting', but two rapid clicks can both read
+  // that check before either click's setState has committed; this ref closes that race.
+  const submittingRef = useRef(false);
 
   const bankerAuthorized = Boolean(systemUserId) && !writeDisabledReason;
   const rollout = useMemo<BankerCreateRolloutState>(
@@ -149,6 +193,12 @@ export function BankerNewDealCreate() {
       .catch((err: unknown) =>
         alive && setTeams({ kind: 'error', message: err instanceof Error ? err.message : String(err) }),
       );
+    // Remediation 2026-07-22 (Workstream E) — the same live reference list
+    // DealProfileEditModal.tsx already uses for Product Type / Loan Structure /
+    // Pricing Type. loadLiveDealReferenceOptionsByCategory never rejects (a fetch
+    // failure resolves to `unavailable` per-field); the field simply stays
+    // unavailable rather than blocking create.
+    loadLiveDealReferenceOptionsByCategory().then((byCategory) => alive && setRefOptions({ kind: 'ready', byCategory }));
     // Best-effort: duplicate detection degrades to "no candidates" (never
     // blocks, never throws into the create flow) if this read fails. Dynamic
     // import keeps the static graph SDK-free, matching the submit path below.
@@ -179,16 +229,85 @@ export function BankerNewDealCreate() {
   const clientRelationshipsExist = clients.kind === 'ready' && clients.options.length > 0;
   const clientStepSatisfied =
     selectedClient !== null || NEW_DEAL_ALLOW_CREATE_WITHOUT_CRM_CLIENT === true;
+  // Remediation 2026-07-22 (Workstream E) — requested amount is now mandatory for every deal this
+  // wizard creates (every deal here opens at Intake; see the onSubmit context.stageLabel below).
+  // No deal-level "Prospect" classification exists in the schema to exempt from this rule — only
+  // the CRM organization entity carries a Prospect type, a different record one hop away — so the
+  // rule applies to 100% of creates rather than fabricating an exemption this schema can't express.
+  const amountNumber = Number(amount.trim());
+  const amountValid = amount.trim().length > 0 && Number.isFinite(amountNumber) && amountNumber > 0;
   const canSubmit =
     live &&
     step === 3 &&
     clientStepSatisfied &&
     dealName.trim().length > 0 &&
+    amountValid &&
     submit.kind !== 'submitting' &&
     Boolean(systemUserId);
 
+  /**
+   * Remediation 2026-07-22 (Workstream E) — governed follow-up write for the loan-structure
+   * fields captured on this form beyond name/amount/client/team (which the create adapter's
+   * allow-list keeps minimal — see newDealCreateAdapter.ts). Reuses updateDealProfile.ts /
+   * buildLiveUpdateDealProfileDeps.ts UNCHANGED — the same authorize→validate→update→readback→
+   * audit write DealProfileEditModal.tsx already uses, so this is a second call into an
+   * already-proven path, not a new write surface. Returns 'skipped' when nothing beyond
+   * name/amount was actually filled in (no follow-up write is issued in that case).
+   */
+  async function runProfileFollowUp(
+    dealId: string,
+    suid: string,
+  ): Promise<UpdateDealProfileOutcome | 'skipped'> {
+    const patch: DealProfilePatch = {};
+    if (targetCloseDate.trim()) patch.targetCloseDate = targetCloseDate.trim();
+    if (collateralSummary.trim()) patch.collateralSummary = collateralSummary.trim();
+    if (guarantorStructure.trim()) patch.guarantorStructure = guarantorStructure.trim();
+    if (amortizationMonths.trim()) patch.amortizationMonths = amortizationMonths.trim();
+
+    const referencePatch: DealReferencePatch = {};
+    const allowedReferenceIds: string[] = [];
+    if (refOptions.kind === 'ready') {
+      const selections: ReadonlyArray<[DealReferenceLookupField, string]> = [
+        ['productType', productTypeSel],
+        ['loanStructure', loanStructureSel],
+        ['pricingType', pricingTypeSel],
+      ];
+      for (const [field, selectedId] of selections) {
+        if (!selectedId) continue;
+        const fieldResult = refOptions.byCategory[field];
+        if (fieldResult.kind !== 'ready') continue;
+        const option = fieldResult.options.find((o) => o.id === selectedId);
+        if (!option) continue;
+        referencePatch[field] = { id: option.id, name: option.name };
+        allowedReferenceIds.push(...fieldResult.options.map((o) => o.id));
+      }
+    }
+
+    if (Object.keys(patch).length === 0 && Object.keys(referencePatch).length === 0) {
+      return 'skipped';
+    }
+    return updateDealProfile(
+      {
+        dealId,
+        actorEmail: email,
+        actorSystemUserId: suid,
+        authorized: true,
+        patch,
+        referencePatch,
+        allowedReferenceIds,
+      },
+      buildLiveUpdateDealProfileDeps(),
+    );
+  }
+
   async function onSubmit() {
+    // Remediation 2026-07-22 (Workstream E) — synchronous re-entrancy guard: canSubmit's
+    // `submit.kind !== 'submitting'` check can race a rapid double-click, since React may not
+    // have committed the first click's setState before the second click's handler reads it.
+    // This ref closes that gap independent of state batching.
+    if (submittingRef.current) return;
     if (!canSubmit || !systemUserId) return;
+    submittingRef.current = true;
     setSubmit({ kind: 'submitting' });
     try {
       // Remediation 2026-07-22 (Workstream D) — the deal's cr664_Client lookup targets a
@@ -219,7 +338,9 @@ export function BankerNewDealCreate() {
         }
         resolvedClientId = bridgedId;
       }
-      const amt = amount.trim().length > 0 ? Number(amount) : undefined;
+      // Remediation 2026-07-22 (Workstream E) — amount is now mandatory (canSubmit already
+      // guards this), so amountNumber is always a valid, finite, positive number here.
+      const amt = amountNumber;
       const [orchestratorMod, adapter, reader] = await Promise.all([
         import('../deals/dealOriginationOrchestrator'),
         import('../deals/newDealCreateAdapter'),
@@ -266,9 +387,20 @@ export function BankerNewDealCreate() {
           },
         },
       );
-      setSubmit({ kind: 'done', result });
+      // Remediation 2026-07-22 (Workstream E) — the moment a deal record exists, let the parent
+      // shell refresh the board + pipeline-total KPI, and (if any loan-structure fields were
+      // filled in) run the governed follow-up write. Both happen regardless of downstream
+      // automation outcome — a created deal is a created deal even if link/audit partially failed.
+      let profileOutcome: UpdateDealProfileOutcome | 'skipped' | undefined;
+      if (result.createdDealId) {
+        onCreated?.();
+        profileOutcome = await runProfileFollowUp(result.createdDealId, systemUserId);
+      }
+      setSubmit({ kind: 'done', result, profileOutcome });
     } catch (err) {
       setSubmit({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
+    } finally {
+      submittingRef.current = false;
     }
   }
 
@@ -320,8 +452,24 @@ export function BankerNewDealCreate() {
             <DetailsStep
               dealName={dealName}
               amount={amount}
+              amountValid={amountValid}
               onDealName={setDealName}
               onAmount={setAmount}
+              targetCloseDate={targetCloseDate}
+              onTargetCloseDate={setTargetCloseDate}
+              collateralSummary={collateralSummary}
+              onCollateralSummary={setCollateralSummary}
+              guarantorStructure={guarantorStructure}
+              onGuarantorStructure={setGuarantorStructure}
+              amortizationMonths={amortizationMonths}
+              onAmortizationMonths={setAmortizationMonths}
+              productTypeSel={productTypeSel}
+              onProductTypeSel={setProductTypeSel}
+              loanStructureSel={loanStructureSel}
+              onLoanStructureSel={setLoanStructureSel}
+              pricingTypeSel={pricingTypeSel}
+              onPricingTypeSel={setPricingTypeSel}
+              refOptions={refOptions}
               onBack={() => setStep(2)}
               onSubmit={onSubmit}
               canSubmit={canSubmit}
@@ -507,8 +655,24 @@ function TeamStep({
 function DetailsStep({
   dealName,
   amount,
+  amountValid,
   onDealName,
   onAmount,
+  targetCloseDate,
+  onTargetCloseDate,
+  collateralSummary,
+  onCollateralSummary,
+  guarantorStructure,
+  onGuarantorStructure,
+  amortizationMonths,
+  onAmortizationMonths,
+  productTypeSel,
+  onProductTypeSel,
+  loanStructureSel,
+  onLoanStructureSel,
+  pricingTypeSel,
+  onPricingTypeSel,
+  refOptions,
   onBack,
   onSubmit,
   canSubmit,
@@ -518,8 +682,24 @@ function DetailsStep({
 }: {
   dealName: string;
   amount: string;
+  amountValid: boolean;
   onDealName: (v: string) => void;
   onAmount: (v: string) => void;
+  targetCloseDate: string;
+  onTargetCloseDate: (v: string) => void;
+  collateralSummary: string;
+  onCollateralSummary: (v: string) => void;
+  guarantorStructure: string;
+  onGuarantorStructure: (v: string) => void;
+  amortizationMonths: string;
+  onAmortizationMonths: (v: string) => void;
+  productTypeSel: string;
+  onProductTypeSel: (v: string) => void;
+  loanStructureSel: string;
+  onLoanStructureSel: (v: string) => void;
+  pricingTypeSel: string;
+  onPricingTypeSel: (v: string) => void;
+  refOptions: RefLoadState;
   onBack: () => void;
   onSubmit: () => void;
   canSubmit: boolean;
@@ -555,7 +735,7 @@ function DetailsStep({
         />
       </label>
       <label style={styles.label}>
-        Amount (optional)
+        Amount
         <input
           type="number"
           value={amount}
@@ -566,6 +746,86 @@ function DetailsStep({
           disabled={submitting}
         />
       </label>
+      {amount.trim().length > 0 && !amountValid ? (
+        <span style={styles.requiredHint} data-new-deal-amount-invalid>
+          Amount must be a positive number.
+        </span>
+      ) : null}
+      <label style={styles.label}>
+        Target close date (optional)
+        <input
+          type="date"
+          value={targetCloseDate}
+          onChange={(e) => onTargetCloseDate(e.target.value)}
+          style={styles.input}
+          data-banker-new-deal-target-close
+          disabled={submitting}
+        />
+      </label>
+      <label style={styles.label}>
+        Collateral (optional)
+        <textarea
+          value={collateralSummary}
+          onChange={(e) => onCollateralSummary(e.target.value)}
+          rows={2}
+          style={{ ...styles.input, resize: 'vertical' }}
+          data-banker-new-deal-collateral
+          disabled={submitting}
+        />
+      </label>
+      <label style={styles.label}>
+        Guaranty / guarantor structure (optional)
+        <select
+          value={guarantorStructure}
+          onChange={(e) => onGuarantorStructure(e.target.value)}
+          style={styles.input}
+          data-banker-new-deal-guarantor-structure
+          disabled={submitting}
+        >
+          <option value="">— Not set —</option>
+          {Object.values(Cr664_loandealscr664_guarantorstructure).map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </label>
+      <label style={styles.label}>
+        Amortization, months (optional)
+        <input
+          type="number"
+          value={amortizationMonths}
+          min="1"
+          step="1"
+          onChange={(e) => onAmortizationMonths(e.target.value)}
+          style={styles.input}
+          data-banker-new-deal-amortization
+          disabled={submitting}
+        />
+      </label>
+      <ReferenceSelect
+        field="productType"
+        value={productTypeSel}
+        onChange={onProductTypeSel}
+        state={refOptions}
+        disabled={submitting}
+      />
+      <ReferenceSelect
+        field="loanStructure"
+        value={loanStructureSel}
+        onChange={onLoanStructureSel}
+        state={refOptions}
+        disabled={submitting}
+      />
+      <ReferenceSelect
+        field="pricingType"
+        value={pricingTypeSel}
+        onChange={onPricingTypeSel}
+        state={refOptions}
+        disabled={submitting}
+      />
+      <p style={styles.stepHint}>
+        Loan purpose, term, and ownership status are not yet captured here — they need a new
+        Dataverse field this environment does not have yet.
+      </p>
       <div style={styles.stepActions}>
         <button type="button" onClick={onBack} style={styles.actionGhost} data-new-deal-details-back>
           ← Back
@@ -582,6 +842,68 @@ function DetailsStep({
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Remediation 2026-07-22 (Workstream E) — one of the 3 reference-lookup dropdowns
+ * (Product Type / Loan Structure / Pricing Type), fed by the same live, category-scoped
+ * cr664_producttypereferences list DealProfileEditModal.tsx already uses. No "current value"
+ * concept at create time (unlike the profile-edit modal), so this is simpler: unset, or one
+ * of the loaded active options. Stays a disabled hint (never a fabricated dropdown) while the
+ * category's list is loading, empty, or unavailable.
+ */
+function ReferenceSelect({
+  field,
+  value,
+  onChange,
+  state,
+  disabled,
+}: {
+  field: DealReferenceLookupField;
+  value: string;
+  onChange: (v: string) => void;
+  state: RefLoadState;
+  disabled: boolean;
+}) {
+  const label = DEAL_REFERENCE_LOOKUPS[field].label;
+  if (state.kind === 'loading') {
+    return (
+      <label style={styles.label}>
+        {label} (optional)
+        <span style={styles.pickerNote} data-banker-new-deal-reference-loading={field}>
+          Loading…
+        </span>
+      </label>
+    );
+  }
+  const result = state.byCategory[field];
+  if (result.kind !== 'ready') {
+    return (
+      <label style={styles.label}>
+        {label} (optional)
+        <span style={styles.pickerNote} data-banker-new-deal-reference-unavailable={field}>
+          {result.reason}
+        </span>
+      </label>
+    );
+  }
+  return (
+    <label style={styles.label}>
+      {label} (optional)
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={styles.input}
+        disabled={disabled}
+        data-banker-new-deal-reference={field}
+      >
+        <option value="">— Not set —</option>
+        {result.options.map((o) => (
+          <option key={o.id} value={o.id}>{o.name}</option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -680,7 +1002,65 @@ function ResultBanner({ submit }: { submit: SubmitState }) {
       </div>
     );
   }
-  const r = submit.result;
+  return (
+    <>
+      <OutcomeBanner result={submit.result} />
+      <ProfileFollowUpBanner profileOutcome={submit.profileOutcome} />
+    </>
+  );
+}
+
+/**
+ * Remediation 2026-07-22 (Workstream E) — honest outcome of the follow-up loan-structure
+ * profile-completion write (target close date / collateral / guaranty / product-loan-pricing
+ * type / amortization), separate from the main create outcome above: a created deal is still a
+ * created deal even if this second, best-effort write did not fully persist. Points the banker
+ * at the existing Complete/Edit Deal Profile surface (DealProfileEditModal.tsx) to finish it,
+ * rather than silently dropping the values or blocking the create.
+ */
+function ProfileFollowUpBanner({
+  profileOutcome,
+}: {
+  profileOutcome: UpdateDealProfileOutcome | 'skipped' | undefined;
+}) {
+  if (profileOutcome === undefined || profileOutcome === 'skipped') return null;
+  if (profileOutcome.kind === 'updated') {
+    return (
+      <div style={styles.bannerOk} role="status" data-banker-new-deal-profile-followup="updated">
+        ✓ Additional loan-structure details saved: {profileOutcome.changedLabels.join(', ')}.
+      </div>
+    );
+  }
+  const detail = describeProfileFollowUpFailure(profileOutcome);
+  return (
+    <div style={styles.bannerWarn} role="alert" data-banker-new-deal-profile-followup={profileOutcome.kind}>
+      The deal was created, but the additional loan-structure details could not be saved: {detail}
+      {' '}Use Complete/Edit Deal Profile on the deal to add them.
+    </div>
+  );
+}
+
+function describeProfileFollowUpFailure(outcome: Exclude<UpdateDealProfileOutcome, { kind: 'updated' }>): string {
+  switch (outcome.kind) {
+    case 'unauthorized':
+    case 'identity-unresolved':
+      return outcome.reason;
+    case 'invalid-input':
+      return outcome.reason;
+    case 'empty-patch':
+      return outcome.reason;
+    case 'write-failed':
+      return outcome.error;
+    case 'readback-mismatch':
+      return `the ${outcome.field} field did not verify on readback.`;
+    case 'audit-failed':
+      return `governance logging failed (${outcome.auditError ?? 'unknown'}).`;
+    default:
+      return 'an unexpected error occurred.';
+  }
+}
+
+function OutcomeBanner({ result: r }: { result: DealOriginationResult }) {
   switch (r.kind) {
     case 'success_created_only':
     case 'success_created_with_automation':

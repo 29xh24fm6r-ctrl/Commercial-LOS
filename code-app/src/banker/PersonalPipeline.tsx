@@ -42,7 +42,18 @@ type State =
 const ALL = '__all__';
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export function PersonalPipeline() {
+export interface PersonalPipelineProps {
+  /**
+   * Remediation 2026-07-22 (Workstream E) — this board does its own independent
+   * loadBankerPipeline fetch, keyed only on bankerId, so a deal created elsewhere on the same
+   * "Active Deals" tab (BankerNewDealCreate) never appeared here until a tab switch or reload.
+   * Bumping this value (BankerShell passes a nonce it increments on create) forces a refetch
+   * in-session. Purely a refetch trigger — its value is never rendered.
+   */
+  readonly refreshToken?: number;
+}
+
+export function PersonalPipeline({ refreshToken }: PersonalPipelineProps = {}) {
   const { bankerId } = useBanker();
   const navigate = useNavigate();
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -64,7 +75,7 @@ export function PersonalPipeline() {
     return () => {
       cancelled = true;
     };
-  }, [bankerId]);
+  }, [bankerId, refreshToken]);
 
   const derived = useMemo(() => {
     if (state.kind !== 'ready') {
