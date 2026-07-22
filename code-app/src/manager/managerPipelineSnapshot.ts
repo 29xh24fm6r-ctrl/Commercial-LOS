@@ -25,6 +25,7 @@ import {
   deriveDealIntelligenceViewModel,
   type DealIntelligenceViewModel,
 } from '../shared/dealIntelligenceViewModel';
+import { parseCalendarDate } from '../shared/formatters';
 
 /**
  * Phase 124A — Manager pipeline snapshot deriver.
@@ -344,12 +345,15 @@ function projectTeamDealToVM(
   const rawVm = deriveDealIntelligenceViewModel({ deal, metrics, blockers });
   const vm = muteLoaderGapNextBestAction(rawVm);
 
-  // Overdue = open task whose dueDate has parsed and is in the past.
+  // Overdue = open task whose dueDate has parsed and is in the past. Uses
+  // parseCalendarDate (local-midnight, date-only) so a task due "today" is
+  // never misclassified as overdue for a viewer west of UTC (Workstream H
+  // fixed this everywhere else; this call site was missed).
   let overdueTaskCount = 0;
   for (const t of tasksResult.open) {
     if (!t.dueDate) continue;
-    const due = new Date(t.dueDate).getTime();
-    if (!Number.isNaN(due) && due < now.getTime()) {
+    const due = parseCalendarDate(t.dueDate)?.getTime();
+    if (due !== undefined && due < now.getTime()) {
       overdueTaskCount += 1;
     }
   }
@@ -549,8 +553,8 @@ function buildCommandStrip(
     // dates are NOT counted (they belong on the blocker/at-risk
     // signal). Missing dates are NOT counted.
     if (r.teamDeal.targetCloseDate) {
-      const tc = new Date(r.teamDeal.targetCloseDate).getTime();
-      if (!Number.isNaN(tc)) {
+      const tc = parseCalendarDate(r.teamDeal.targetCloseDate)?.getTime();
+      if (tc !== undefined) {
         const delta = tc - now.getTime();
         if (delta >= 0 && delta <= closeHorizonMs) {
           closingNext30DayCount += 1;
