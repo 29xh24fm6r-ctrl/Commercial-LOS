@@ -1,6 +1,7 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 import { buildTeamVisibilityFilter } from '../shared/deals/dealVisibilityScopes';
+import { operationalDeals } from '../shared/deals/testDealClassification';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
@@ -167,6 +168,14 @@ export interface LoadTeamPipelineOptions {
    * (backwards-compatible).
    */
   readonly memberBankerIds?: readonly string[];
+  /**
+   * Remediation 2026-07-22 (Workstream A/N) — admin-only escape hatch to include TEST/SMOKE/QA
+   * deals. Default false: this is the canonical team pipeline every Manager/Team/Portfolio view
+   * derives from, so it must apply the same operational exclusion the Banker pipeline already
+   * does (loadBankerPipeline) — otherwise Manager/Team counts disagree with Banker counts by
+   * exactly the population of test deals.
+   */
+  readonly includeTestDeals?: boolean;
 }
 
 export async function loadTeamPipeline(
@@ -188,7 +197,7 @@ export async function loadTeamPipeline(
   // SDK returns undefined for clientName / stage / status / banker
   // in the operator's live env even when Maker Portal shows them
   // populated, which is the live-screenshot bug fixed here.
-  return (result.data ?? []).map((d): TeamDeal => {
+  const mapped = (result.data ?? []).map((d): TeamDeal => {
     const raw = d as unknown as Record<string, unknown>;
     return {
       id: d.cr664_loandealid,
@@ -224,6 +233,7 @@ export async function loadTeamPipeline(
         d.cr664_pricingtypereferencename,
     };
   });
+  return [...operationalDeals(mapped, { includeTest: options.includeTestDeals === true })];
 }
 
 export interface TeamBanker {

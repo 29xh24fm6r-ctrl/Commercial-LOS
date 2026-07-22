@@ -1,6 +1,7 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 import { buildTeamVisibilityFilter } from '../shared/deals/dealVisibilityScopes';
+import { operationalDeals } from '../shared/deals/testDealClassification';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
@@ -151,6 +152,12 @@ export interface LoadTeamDealsOptions {
    * (backwards-compatible).
    */
   readonly memberBankerIds?: readonly string[];
+  /**
+   * Remediation 2026-07-22 (Workstream A/N) — admin-only escape hatch to include TEST/SMOKE/QA
+   * deals. Default false so the Team Ops Queue's active-deal counts agree with Banker's
+   * loadBankerPipeline (which already excludes them) instead of over-counting.
+   */
+  readonly includeTestDeals?: boolean;
 }
 
 export async function loadTeamDeals(
@@ -174,7 +181,7 @@ export async function loadTeamDeals(
   // phase fixes. This brings the team pipeline rows (consumed by the
   // Team Ops Queue snapshot + every other team surface) to label
   // parity with the manager / portfolio cockpits.
-  return (result.data ?? []).map((d): TeamDealRow => {
+  const mapped = (result.data ?? []).map((d): TeamDealRow => {
     const raw = d as unknown as Record<string, unknown>;
     return {
       id: d.cr664_loandealid,
@@ -210,6 +217,7 @@ export async function loadTeamDeals(
         d.cr664_pricingtypereferencename,
     };
   });
+  return [...operationalDeals(mapped, { includeTest: options.includeTestDeals === true })];
 }
 
 /**
