@@ -7,28 +7,28 @@ import { ErrorState } from '../shared/ErrorState';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
-import { STAGE_CATALOG } from '../shared/stages/stageCatalog';
+import { CANONICAL_STAGES, recognizeCanonicalStage } from '../workflow/stageOrderingContract';
 import { STALE_ACTIVITY_DAYS } from '../shared/analytics/bankerPersonalActivity';
 
 /**
- * Phase 124 — rich pipeline / stage-board.
+ * Remediation 2026-07-22 (Workstream B) — the board's lanes are now built from the same
+ * canonical 7-stage vocabulary the deal cockpit's Stage Map already uses
+ * (`stageOrderingContract.ts`), not the legacy 9-stage `stageCatalog.ts`. A new Intake deal was
+ * disappearing into an unordered "custom lane" because no vocabulary-B stage is named "Intake" (or
+ * "Credit Approval" / "Commitment" / "Closing & Funding") -- this was the confirmed root cause of
+ * "a newly created deal doesn't show up on the board where I'd expect it."
  *
- * Returns the canonical ordinal for a stage name (case-insensitive
- * match against catalog id or label). Unknown stages return a
- * mid-range fallback so they sort after known stages but before
- * missing-stage rows. Missing / undefined stage returns +infinity so
- * those rows always group last as "Stage unknown" rather than silently
- * landing inside a real stage section.
+ * Returns the canonical sequence for a stage name (case-insensitive match against the canonical
+ * code or ratified name). Unknown/legacy stages return a mid-range fallback so they sort after
+ * known stages but before missing-stage rows. Missing / undefined stage returns +infinity so those
+ * rows always group last as "Stage unknown" rather than silently landing inside a real section.
  */
 function stageOrdinal(stageName: string | undefined): number {
   if (!stageName) return Number.POSITIVE_INFINITY;
-  const normalized = stageName.trim().toLowerCase();
-  if (!normalized) return Number.POSITIVE_INFINITY;
-  for (const stage of STAGE_CATALOG) {
-    if (stage.id === normalized || stage.label.toLowerCase() === normalized) {
-      return stage.ordinal;
-    }
-  }
+  const trimmed = stageName.trim();
+  if (!trimmed) return Number.POSITIVE_INFINITY;
+  const recognized = recognizeCanonicalStage(trimmed);
+  if (recognized) return recognized.sequence;
   return 9999;
 }
 
@@ -208,59 +208,70 @@ interface Lane {
 }
 
 /**
- * Phase 124 — canonical stage lanes.
+ * Remediation 2026-07-22 (Workstream B) — canonical stage lanes.
  *
- * Lane set = (every non-terminal STAGE_CATALOG stage) ∪ (every custom
- * stage present in `deals`). The Stage-unknown lane only appears when
- * at least one deal in the visible set has a missing or unparseable
- * stage. Terminal stages (closed-won / closed-lost / cancelled) are
- * excluded because `loadBankerPipeline` already filters out
- * cr664_isterminalstatus = true at the loader level — surfacing
- * terminal lanes here would be misleading dead space.
+ * Lane set = (every non-terminal canonical stage: Intake … Closing & Funding) ∪ (every
+ * unrecognized/legacy stage present in `deals`, in its own diagnostic lane). The Stage-unknown
+ * lane only appears when at least one deal in the visible set has a missing or unparseable stage.
+ * BOARDED (the one terminal canonical stage) is excluded because `loadBankerPipeline` already
+ * filters out `cr664_isterminalstatus = true` at the loader level — surfacing a terminal lane here
+ * would be misleading dead space.
  *
- * Empty canonical lanes ARE rendered (with an honest "No deals in
- * this stage." empty state) — that's the Kanban contract: the lane
- * shape is determined by the canonical pipeline, not by what
- * happens to have a row today. The operator can see at a glance
- * which stages are dry.
+ * A deal is matched to a canonical lane via `recognizeCanonicalStage` (exact code OR ratified name,
+ * case-insensitive) — the same recognizer the deal cockpit's Stage Map already uses, so a deal
+ * never disappears because this screen speaks a different stage language than the cockpit does.
+ * Anything that doesn't recognize (a genuinely legacy/custom value, e.g. an operator-entered
+ * placeholder) still gets its own labeled diagnostic lane rather than being silently dropped.
+ *
+ * Empty canonical lanes ARE rendered (with an honest "No deals in this stage." empty state) —
+ * that's the Kanban contract: the lane shape is determined by the canonical pipeline, not by what
+ * happens to have a row today. The operator can see at a glance which stages are dry.
  */
 function buildLanes(deals: readonly PipelineDeal[]): Lane[] {
-  const byStageKey = new Map<string, PipelineDeal[]>();
+  const canonicalStages = CANONICAL_STAGES.filter((s) => s.code !== 'BOARDED');
+  const dealsByCanonicalCode = new Map<string, PipelineDeal[]>();
+  const customLaneGroups = new Map<string, PipelineDeal[]>();
+  const unknownDeals: PipelineDeal[] = [];
+
   for (const d of deals) {
-    const label = d.stage && d.stage.trim().length > 0
-      ? d.stage.trim()
-      : STAGE_UNKNOWN_LABEL;
-    const key = label.toLowerCase();
-    const arr = byStageKey.get(key) ?? [];
+    const stage = d.stage?.trim();
+    if (!stage) {
+      unknownDeals.push(d);
+      continue;
+    }
+    const recognized = recognizeCanonicalStage(stage);
+    if (recognized && recognized.code !== 'BOARDED') {
+      const arr = dealsByCanonicalCode.get(recognized.code) ?? [];
+      arr.push(d);
+      dealsByCanonicalCode.set(recognized.code, arr);
+      continue;
+    }
+    // Unrecognized (or a BOARDED deal that slipped through the terminal-status filter, which
+    // should not happen but is still shown honestly rather than dropped) — its own diagnostic lane,
+    // keyed by the exact stored text so distinct legacy values don't collapse together.
+    const key = stage.toLowerCase();
+    const arr = customLaneGroups.get(key) ?? [];
     arr.push(d);
-    byStageKey.set(key, arr);
+    customLaneGroups.set(key, arr);
   }
 
-  // Canonical non-terminal lanes from STAGE_CATALOG.
-  const canonicalLanes: Lane[] = STAGE_CATALOG
-    .filter((s) => !s.isTerminal)
-    .map((s) => {
-      const key = s.label.toLowerCase();
-      const laneDeals = byStageKey.get(key) ?? [];
-      return {
-        key,
-        label: s.label,
-        ordinal: s.ordinal,
-        deals: laneDeals,
-        amountSummary: amountSummary(laneDeals),
-      };
-    });
-  const canonicalKeys = new Set(canonicalLanes.map((l) => l.key));
+  // Canonical non-terminal lanes from the same vocabulary the deal cockpit Stage Map uses.
+  const canonicalLanes: Lane[] = canonicalStages.map((s) => {
+    const laneDeals = dealsByCanonicalCode.get(s.code) ?? [];
+    return {
+      key: s.code.toLowerCase(),
+      label: s.name,
+      ordinal: s.sequence,
+      deals: laneDeals,
+      amountSummary: amountSummary(laneDeals),
+    };
+  });
 
-  // Lanes for custom-named stages present in the data but not in
-  // STAGE_CATALOG. The live env's `cr664_dealstagereference` table
-  // is operator-populated and may contain names like
-  // "TEST — Stage Phase 121" that don't match any catalog entry.
+  // Lanes for unrecognized/legacy stage values present in the data. The live env's
+  // `cr664_dealstagereference` table is operator-populated and may contain names like
+  // "TEST — Stage Phase 121" that don't match the canonical vocabulary.
   const customLanes: Lane[] = [];
-  const unknownKey = STAGE_UNKNOWN_LABEL.toLowerCase();
-  for (const [key, laneDeals] of byStageKey.entries()) {
-    if (key === unknownKey) continue;
-    if (canonicalKeys.has(key)) continue;
+  for (const [key, laneDeals] of customLaneGroups.entries()) {
     const label = laneDeals[0]!.stage!.trim();
     customLanes.push({
       key,
@@ -273,11 +284,10 @@ function buildLanes(deals: readonly PipelineDeal[]): Lane[] {
 
   // Stage unknown lane — only appears when at least one deal has a
   // missing / blank stage. Never fabricated.
-  const unknownDeals = byStageKey.get(unknownKey) ?? [];
   const unknownLane: Lane | null =
     unknownDeals.length > 0
       ? {
-          key: unknownKey,
+          key: STAGE_UNKNOWN_LABEL.toLowerCase(),
           label: STAGE_UNKNOWN_LABEL,
           ordinal: Number.POSITIVE_INFINITY,
           deals: unknownDeals,
