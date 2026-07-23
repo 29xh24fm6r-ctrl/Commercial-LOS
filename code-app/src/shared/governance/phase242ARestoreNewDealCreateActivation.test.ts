@@ -58,9 +58,11 @@ describe('Phase 242A — restore certified New Deal create activation', () => {
       // WF-1A: stageAdvancement's gate (AUTO_STAGE_ADVANCE_ENABLED) is intentionally armed
       // for the walk; the other four live-write gates stay at safe default (off).
       expect(d.gateFlagOn, d.key).toBe(d.key === 'stageAdvancement');
-      // CRM-K: crmWriteback is now attributed/HIGH (sufficient); the other four stay insufficient.
-      expect(d.evidenceInsufficient, d.key).toBe(d.key !== 'crmWriteback');
-      // Still gated DOWN and NOT enabled for any — crm's flag is off; the rest lack evidence.
+      // CRM-K: crmWriteback is attributed/HIGH; Workstream K also re-captured a real
+      // portfolioBoarding smoke that now grades HIGH. Both are sufficient; the other three
+      // stay insufficient.
+      expect(d.evidenceInsufficient, d.key).toBe(d.key !== 'crmWriteback' && d.key !== 'portfolioBoarding');
+      // Still gated DOWN and NOT enabled for any — crm/portfolio's flags are off; the rest lack evidence.
       expect(d.enabled, d.key).toBe(false);
     }
   });

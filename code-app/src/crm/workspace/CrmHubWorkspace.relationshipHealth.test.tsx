@@ -11,6 +11,7 @@ vi.mock('../crmFeatureFlags', async (importOriginal) => {
 });
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { CrmHubWorkspace } from './CrmHubWorkspace';
 import type { CrmWorkspaceData, CrmDomainKey, CrmRecord } from './crmWorkspaceData';
 
@@ -30,7 +31,11 @@ function fixture(over: Partial<Record<CrmDomainKey, CrmWorkspaceData[CrmDomainKe
 }
 
 async function renderHub(data: CrmWorkspaceData) {
-  const utils = render(<CrmHubWorkspace loadData={async () => data} />);
+  const utils = render(
+    <MemoryRouter>
+      <CrmHubWorkspace loadData={async () => data} />
+    </MemoryRouter>,
+  );
   await waitFor(() => expect(utils.container.querySelector('[data-crm-cards]')).not.toBeNull());
   return utils;
 }

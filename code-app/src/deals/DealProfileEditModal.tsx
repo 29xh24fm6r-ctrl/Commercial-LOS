@@ -270,6 +270,19 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
   const hasChanges = Object.keys(patch).length > 0 || Object.keys(referencePatch).length > 0;
   const saving = save.kind === 'saving';
 
+  // D20 — Escape closes the modal (matches AddDealTaskModal.tsx's established
+  // pattern); never while a save is in flight.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !saving) {
+        e.preventDefault();
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose, saving]);
+
   async function onSave() {
     // P2-14 — duplicate-submit guard: ignore re-entry while a save is in flight.
     if (!hasChanges || !banker?.systemUserId || saving) return;

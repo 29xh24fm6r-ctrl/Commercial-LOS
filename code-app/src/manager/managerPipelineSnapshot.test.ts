@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -273,6 +273,46 @@ describe('Phase 124A — command strip', () => {
     });
     expect(s.commandStrip.closingNext30DayCount).toBe(2);
     expect(s.commandStrip.closingNext30DayAmount).toBe(300_000);
+  });
+
+  describe('D8 — date-only fields parse as a calendar date, not UTC midnight (timezone boundary)', () => {
+    // A raw `new Date(dateOnlyString)` parses "2026-07-22" as UTC midnight, which for any
+    // timezone west of UTC is the PRIOR local day — wrongly classifying a task/deal due "today"
+    // as overdue/past. This sandbox's runner is UTC by default (no visible drift), so these
+    // tests force America/New_York for the duration of the assertion, matching the convention
+    // already used by src/team/SharedClosingCalendar.test.ts for the same class of bug.
+    const ORIGINAL_TZ = process.env.TZ;
+    beforeAll(() => {
+      process.env.TZ = 'America/New_York';
+    });
+    afterAll(() => {
+      process.env.TZ = ORIGINAL_TZ;
+    });
+
+    it('a task due-date-only "today" is NOT counted as overdue', () => {
+      const now = new Date(2026, 6, 22); // local midnight, July 22, 2026 (Eastern)
+      const s = deriveManagerPipelineSnapshot({
+        teamPipeline: [deal({ id: 'd1' })],
+        teamBankers: [],
+        teamTasks: [task({ id: 't1', dealId: 'd1', dueDate: '2026-07-22' })],
+        teamDocuments: [],
+        now,
+      });
+      expect(s.commandStrip.overdueTaskCount).toBe(0);
+    });
+
+    it('a deal target-close-date-only "today" IS counted in closingNext30DayCount, not excluded as past', () => {
+      const now = new Date(2026, 6, 22); // local midnight, July 22, 2026 (Eastern)
+      const s = deriveManagerPipelineSnapshot({
+        teamPipeline: [deal({ id: 'd1', targetCloseDate: '2026-07-22', amount: 250_000 })],
+        teamBankers: [],
+        teamTasks: [],
+        teamDocuments: [],
+        now,
+      });
+      expect(s.commandStrip.closingNext30DayCount).toBe(1);
+      expect(s.commandStrip.closingNext30DayAmount).toBe(250_000);
+    });
   });
 
   it('Phase 125A — avgDaysInStage is undefined when no deal has stageEntryDate (honest absence)', () => {

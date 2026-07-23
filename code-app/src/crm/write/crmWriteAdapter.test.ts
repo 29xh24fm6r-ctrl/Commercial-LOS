@@ -15,6 +15,7 @@ import { Cr664_crmrelationshipsService } from '../../generated/services/Cr664_cr
 import { Cr664_crmtimelineeventsService } from '../../generated/services/Cr664_crmtimelineeventsService';
 import { Cr664_crmcontactpointsService } from '../../generated/services/Cr664_crmcontactpointsService';
 import { Cr664_crmauditentriesService } from '../../generated/services/Cr664_crmauditentriesService';
+import { Cr664_dealtimelineeventsService } from '../../generated/services/Cr664_dealtimelineeventsService';
 
 // Mock the generated services so buildLiveCrmWriteDeps' dynamic imports resolve to stubs — this
 // is exactly where SDK/schema drift bites (each dep extracts a per-entity id key), and it was
@@ -25,6 +26,7 @@ vi.mock('../../generated/services/Cr664_crmrelationshipsService', () => ({ Cr664
 vi.mock('../../generated/services/Cr664_crmtimelineeventsService', () => ({ Cr664_crmtimelineeventsService: { create: vi.fn(), get: vi.fn() } }));
 vi.mock('../../generated/services/Cr664_crmcontactpointsService', () => ({ Cr664_crmcontactpointsService: { create: vi.fn() } }));
 vi.mock('../../generated/services/Cr664_crmauditentriesService', () => ({ Cr664_crmauditentriesService: { create: vi.fn() } }));
+vi.mock('../../generated/services/Cr664_dealtimelineeventsService', () => ({ Cr664_dealtimelineeventsService: { create: vi.fn() } }));
 
 /**
  * Phase 261 (B) — governed CRM writes: payload shape, readback verification,
@@ -227,6 +229,89 @@ describe('logActivity', () => {
     const outcome = await logActivity({ ...ACTOR, activityType: 'note', summary: '' }, stubDeps());
     expect(outcome.kind).toBe('invalid-input');
   });
+
+  describe('D3 — cross-write onto the originating deal\'s Activity Timeline', () => {
+    it('does not attempt a cross-write when no originatedDealId is supplied', async () => {
+      const createDealTimelineEvent = vi.fn(async () => ({ success: true, id: 'dt-1' }));
+      const outcome = await logActivity({ ...ACTOR, activityType: 'note', summary: 'No deal link' }, stubDeps({ createDealTimelineEvent }));
+      expect(outcome.kind).toBe('success');
+      expect(createDealTimelineEvent).not.toHaveBeenCalled();
+    });
+
+    it('does not attempt a cross-write when originatedDealId is supplied but no createDealTimelineEvent dep is injected (backward compatible)', async () => {
+      const outcome = await logActivity({ ...ACTOR, activityType: 'note', summary: 'Deal-linked', originatedDealId: 'deal-1' }, stubDeps());
+      expect(outcome.kind).toBe('success');
+      if (outcome.kind === 'success') expect(outcome.childErrors).toEqual([]);
+    });
+
+    it('cross-writes a matching cr664_dealtimelineevent when originatedDealId + the dep are both supplied', async () => {
+      const createDealTimelineEvent = vi.fn(async (_p: Record<string, unknown>) => ({ success: true, id: 'dt-1' }));
+      const outcome = await logActivity(
+        { ...ACTOR, activityType: 'call', summary: 'Discussed renewal terms', occurredAt: '2026-07-20T10:00:00.000Z', originatedDealId: 'deal-1' },
+        stubDeps({ createDealTimelineEvent }),
+      );
+      expect(outcome.kind).toBe('success');
+      if (outcome.kind === 'success') expect(outcome.childErrors).toEqual([]);
+      expect(createDealTimelineEvent).toHaveBeenCalledTimes(1);
+      const payload = createDealTimelineEvent.mock.calls[0]![0];
+      expect(payload.cr664_eventtype).toBe(788190000); // CallLogged — same code the deal timeline reader recognizes
+      expect(payload.cr664_summary).toBe('Discussed renewal terms');
+      expect(payload.cr664_eventat).toBe('2026-07-20T10:00:00.000Z');
+      expect(payload.cr664_relatedentitytype).toBe('cr664_loandeal');
+      expect(payload.cr664_relatedentityid).toBe('deal-1');
+      expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-1)');
+    });
+
+    it('maps each CRM activity type to the matching real deal-timeline eventtype code', async () => {
+      const cases: Array<['call' | 'email' | 'meeting' | 'note', number]> = [
+        ['call', 788190000],
+        ['email', 788190001],
+        ['note', 788190002],
+        ['meeting', 788190003],
+      ];
+      for (const [activityType, expected] of cases) {
+        const createDealTimelineEvent = vi.fn(async (_p: Record<string, unknown>) => ({ success: true, id: 'dt-1' }));
+        await logActivity({ ...ACTOR, activityType, summary: 'x', originatedDealId: 'deal-1' }, stubDeps({ createDealTimelineEvent }));
+        expect(createDealTimelineEvent.mock.calls[0]![0].cr664_eventtype).toBe(expected);
+      }
+    });
+
+    it('binds cr664_EventBy from the resolved actor when resolveActorChangedBy is supplied', async () => {
+      const createDealTimelineEvent = vi.fn(async (_p: Record<string, unknown>) => ({ success: true, id: 'dt-1' }));
+      const resolveActorChangedBy = vi.fn(async () => ({ ok: true as const, changedByBind: '/cr664_users(user-1)' }));
+      await logActivity(
+        { ...ACTOR, activityType: 'note', summary: 'x', originatedDealId: 'deal-1' },
+        stubDeps({ createDealTimelineEvent, resolveActorChangedBy }),
+      );
+      expect(resolveActorChangedBy).toHaveBeenCalledWith(ACTOR.actorEmail);
+      expect(createDealTimelineEvent.mock.calls[0]![0]['cr664_EventBy@odata.bind']).toBe('/cr664_users(user-1)');
+    });
+
+    it('omits cr664_EventBy (never blocks) when the actor cannot be resolved', async () => {
+      const createDealTimelineEvent = vi.fn(async (_p: Record<string, unknown>) => ({ success: true, id: 'dt-1' }));
+      const resolveActorChangedBy = vi.fn(async () => ({ ok: false as const, reason: 'no match' }));
+      const outcome = await logActivity(
+        { ...ACTOR, activityType: 'note', summary: 'x', originatedDealId: 'deal-1' },
+        stubDeps({ createDealTimelineEvent, resolveActorChangedBy }),
+      );
+      expect(outcome.kind).toBe('success');
+      expect(createDealTimelineEvent.mock.calls[0]![0]).not.toHaveProperty('cr664_EventBy@odata.bind');
+    });
+
+    it('surfaces a cross-write failure as a child-write error without failing the overall CRM outcome', async () => {
+      const createDealTimelineEvent = vi.fn(async () => ({ success: false, error: { message: 'boom' } }));
+      const outcome = await logActivity(
+        { ...ACTOR, activityType: 'note', summary: 'x', originatedDealId: 'deal-1' },
+        stubDeps({ createDealTimelineEvent }),
+      );
+      expect(outcome.kind).toBe('success');
+      if (outcome.kind === 'success') {
+        expect(outcome.childErrors).toHaveLength(1);
+        expect(outcome.childErrors[0]!.kind).toBe('deal-timeline-event');
+        expect(outcome.childErrors[0]!.error).toMatch(/boom/);
+      }
+    });
+  });
 });
 
 describe('createFollowUpTask', () => {
@@ -272,6 +357,7 @@ describe('buildLiveCrmWriteDeps — per-entity id extraction + honest mapping (S
     vi.mocked(Cr664_crmtimelineeventsService.create).mockResolvedValue({ success: true, data: { cr664_crmtimelineeventid: 't-9' } } as never);
     vi.mocked(Cr664_crmcontactpointsService.create).mockResolvedValue({ success: true, data: { cr664_crmcontactpointid: 'cp-9' } } as never);
     vi.mocked(Cr664_crmauditentriesService.create).mockResolvedValue({ success: true, data: { cr664_crmauditentryid: 'a-9' } } as never);
+    vi.mocked(Cr664_dealtimelineeventsService.create).mockResolvedValue({ success: true, data: { cr664_dealtimelineeventid: 'dt-9' } } as never);
     const deps = buildLiveCrmWriteDeps();
     expect(await deps.createOrganization({})).toEqual({ success: true, id: 'org-9', error: undefined });
     expect(await deps.createPerson({})).toEqual({ success: true, id: 'p-9', error: undefined });
@@ -279,6 +365,8 @@ describe('buildLiveCrmWriteDeps — per-entity id extraction + honest mapping (S
     expect(await deps.createTimelineEvent({})).toEqual({ success: true, id: 't-9', error: undefined });
     expect(await deps.createContactPoint({})).toEqual({ success: true, id: 'cp-9', error: undefined });
     expect(await deps.emitAudit({})).toEqual({ success: true, id: 'a-9', error: undefined });
+    expect(await deps.createDealTimelineEvent?.({})).toEqual({ success: true, id: 'dt-9', error: undefined });
+    expect(deps.resolveActorChangedBy).toBeDefined();
   });
 
   it('maps a rejected create to a failure the governed pipeline surfaces (not a false success)', async () => {

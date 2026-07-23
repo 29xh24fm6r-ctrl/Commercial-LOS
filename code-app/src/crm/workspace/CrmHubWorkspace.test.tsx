@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('@microsoft/power-apps/data', () => ({ getClient: () => ({}) }));
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { CrmHubWorkspace } from './CrmHubWorkspace';
 import type { CrmWorkspaceData, CrmDomainKey, CrmRecord } from './crmWorkspaceData';
 
@@ -29,7 +30,11 @@ function fixture(over: Partial<Record<CrmDomainKey, CrmWorkspaceData[CrmDomainKe
 }
 
 async function renderHub(data: CrmWorkspaceData) {
-  const utils = render(<CrmHubWorkspace loadData={async () => data} />);
+  const utils = render(
+    <MemoryRouter>
+      <CrmHubWorkspace loadData={async () => data} />
+    </MemoryRouter>,
+  );
   await waitFor(() => expect(utils.container.querySelector('[data-crm-cards]')).not.toBeNull());
   return utils;
 }
@@ -55,7 +60,11 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
   });
 
   it('renders the scaffolding immediately (header present even before data resolves — never blank)', () => {
-    const { container } = render(<CrmHubWorkspace loadData={() => new Promise(() => {})} />);
+    const { container } = render(
+      <MemoryRouter>
+        <CrmHubWorkspace loadData={() => new Promise(() => {})} />
+      </MemoryRouter>,
+    );
     expect(screen.getByRole('heading', { name: 'Relationship CRM' })).toBeInTheDocument();
     expect(container.querySelector('[data-crm-command-bar]')).not.toBeNull();
   });
@@ -127,10 +136,12 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
       deals: [{ id: 'd1', name: 'Acme Expansion', stage: 'Underwriting', status: 'Active', amount: '$2,000,000' }],
     });
     const { container } = render(
-      <CrmHubWorkspace
-        loadData={async () => fixture({ organizations: { status: 'ready', records: [rec('o1', 'Acme Holdings')] } })}
-        loadLinkedDeals={loadLinkedDeals}
-      />,
+      <MemoryRouter>
+        <CrmHubWorkspace
+          loadData={async () => fixture({ organizations: { status: 'ready', records: [rec('o1', 'Acme Holdings')] } })}
+          loadLinkedDeals={loadLinkedDeals}
+        />
+      </MemoryRouter>,
     );
     await waitFor(() => expect(container.querySelector('[data-crm-cards]')).not.toBeNull());
     const user = userEvent.setup();
@@ -138,6 +149,39 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
     const drawer = container.querySelector('[data-crm-detail-drawer]') as HTMLElement;
     await waitFor(() => expect(within(drawer).getByText('Acme Expansion')).toBeInTheDocument());
     expect(within(drawer).getByText(/Underwriting/)).toBeInTheDocument();
+  });
+
+  it('D16 — clicking a linked deal navigates to that deal\'s cockpit route (not a dead link)', async () => {
+    const loadLinkedDeals = async () => ({
+      status: 'ready' as const,
+      deals: [
+        { id: 'd1', name: 'Acme Expansion', stage: 'Underwriting', status: 'Active', amount: '$2,000,000' },
+        { id: 'd2', name: 'Acme Refinance', stage: 'Credit Approval', status: 'Active', amount: '$500,000' },
+      ],
+    });
+    let currentPath = '';
+    function LocationProbe() {
+      currentPath = useLocation().pathname;
+      return null;
+    }
+    const { container } = render(
+      <MemoryRouter initialEntries={['/crm']}>
+        <CrmHubWorkspace
+          loadData={async () => fixture({ organizations: { status: 'ready', records: [rec('o1', 'Acme Holdings')] } })}
+          loadLinkedDeals={loadLinkedDeals}
+        />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(container.querySelector('[data-crm-cards]')).not.toBeNull());
+    const user = userEvent.setup();
+    await user.click(container.querySelector('[data-crm-record="o1"]') as HTMLElement);
+    const drawer = container.querySelector('[data-crm-detail-drawer]') as HTMLElement;
+    await waitFor(() => expect(within(drawer).getByText('Acme Expansion')).toBeInTheDocument());
+    // Two distinct linked deals present — clicking the SECOND one must navigate to ITS id, not
+    // the first (proves correctness, not just "some navigation happened").
+    await user.click(within(drawer).getByText('Acme Refinance'));
+    await waitFor(() => expect(currentPath).toBe('/deals/d2'));
   });
 
   it('switches views and renders an activity timeline', async () => {

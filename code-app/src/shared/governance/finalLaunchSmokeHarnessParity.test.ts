@@ -29,11 +29,14 @@ const HARNESS = readFileSync(resolve(REPO_ROOT, 'scripts/dataverse/run-final-lau
 describe('final-launch smoke harness ↔ evidence-integrity gate parity', () => {
   it('the committed artifacts grade exactly as the gate authority says (no inferred passes)', () => {
     const integ = committedFinalLaunchEvidenceIntegrity();
-    // crmLivePersistence is the one accepted-HIGH artifact (real record id, attributable
-    // UPN, non-synthetic clock). Everything else is present-but-insufficient today.
+    // crmLivePersistence and portfolioBoarding (Workstream K re-capture) are the two
+    // accepted-HIGH artifacts (real record ids, attributable UPN, non-synthetic clock).
+    // Everything else is present-but-insufficient today.
     expect(integ.crmLivePersistence?.accepted).toBe(true);
     expect(integ.crmLivePersistence?.confidence).toBe('HIGH');
-    const insufficient: FinalLaunchCapability[] = ['portfolioBoarding', 'documentChecklist', 'borrowerSend', 'stageAdvancement'];
+    expect(integ.portfolioBoarding?.accepted).toBe(true);
+    expect(integ.portfolioBoarding?.confidence).toBe('HIGH');
+    const insufficient: FinalLaunchCapability[] = ['documentChecklist', 'borrowerSend', 'stageAdvancement'];
     for (const cap of insufficient) {
       expect(integ[cap]?.accepted, `${cap} must not be accepted with placeholder evidence`).toBe(false);
     }

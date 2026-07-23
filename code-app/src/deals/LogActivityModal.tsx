@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import type { LogActivityOutcome } from './logActivityActions';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
@@ -24,6 +24,19 @@ export function LogActivityModal({
   const [note, setNote] = useState('');
   const [outcome, setOutcome] = useState<LogActivityOutcome | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // D20 — Escape closes the modal (matches AddDealTaskModal.tsx's established
+  // pattern); never while a save is in flight.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !saving) {
+        e.preventDefault();
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose, saving]);
 
   const canSave =
     !writeDisabledReason &&

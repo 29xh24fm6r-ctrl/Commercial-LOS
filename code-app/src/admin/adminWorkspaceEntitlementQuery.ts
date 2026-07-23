@@ -515,7 +515,7 @@ export interface AdminEntitlementDiagnosticInput {
   readonly failureSummary?: string;
 }
 
-const REDACTED_OTHER = 'Â«redacted-other-identityÂ»';
+const REDACTED_OTHER = '«redacted-other-identity»';
 
 /** Show a profile label only when it is the current user's own UPN; else redact. */
 function sanitizeProfileLabel(label: string | undefined, upn: string): string {

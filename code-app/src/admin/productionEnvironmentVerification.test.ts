@@ -41,16 +41,18 @@ describe('Phase 241/242A/256B — production environment verification', () => {
       // WF-1A: stageAdvancement's gate (AUTO_STAGE_ADVANCE_ENABLED) is intentionally armed
       // for the "walk one deal" pilot; the other four live-write gates stay at safe default (off).
       expect(d.gateFlagOn, d.key).toBe(d.key === 'stageAdvancement');
-      // CRM-K: crmWriteback now carries an ATTRIBUTED, HIGH-confidence operator smoke
-      // (mpaller@oldglorybank.com), so its evidence is sufficient; the other four remain
-      // integrity-insufficient. crmWriteback is STILL not enabled because its gate flag is off.
-      const crmAttributed = d.key === 'crmWriteback';
-      expect(d.evidenceHigh, d.key).toBe(crmAttributed);
-      expect(d.evidenceInsufficient, d.key).toBe(!crmAttributed);
+      // CRM-K: crmWriteback carries an ATTRIBUTED, HIGH-confidence operator smoke
+      // (mpaller@oldglorybank.com). Workstream K additionally re-captured a real
+      // portfolioBoarding smoke (affectedRecordIds, non-synthetic clock) — it now
+      // also grades HIGH, so both are evidence-sufficient; the remaining three stay
+      // integrity-insufficient. Neither is enabled because its gate flag is off.
+      const evidenceSufficient = d.key === 'crmWriteback' || d.key === 'portfolioBoarding';
+      expect(d.evidenceHigh, d.key).toBe(evidenceSufficient);
+      expect(d.evidenceInsufficient, d.key).toBe(!evidenceSufficient);
       // Still NOT enabled for ANY of these domains — either the gate flag is off (crm/others)
       // or the evidence is insufficient (enabledCount stays 1/6 above).
       expect(d.enabled, d.key).toBe(false);
-      if (!crmAttributed) expect(d.evidenceIssues.length, d.key).toBeGreaterThan(0);
+      if (!evidenceSufficient) expect(d.evidenceIssues.length, d.key).toBeGreaterThan(0);
     }
 
     // The operator certification constant is unchanged (still all six true); the integrity

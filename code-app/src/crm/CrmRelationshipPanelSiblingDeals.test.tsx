@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 /**
  * Remediation 2026-07-22 (Workstream D) — pins the fix for "sibling deals shown in Deal
@@ -50,6 +51,10 @@ beforeEach(() => {
   siblingMock.mockReset();
 });
 
+function renderPanel(onNavigateToDeal?: (dealId: string) => void) {
+  return render(<DealCrmRelationshipPanel onNavigateToDeal={onNavigateToDeal} />);
+}
+
 describe('DealCrmRelationshipPanel — authoritative CRM sibling deals', () => {
   it('shows the same sibling deals the CRM Hub resolves, and the total relationship exposure includes the current deal', async () => {
     siblingMock.mockResolvedValue({
@@ -61,7 +66,7 @@ describe('DealCrmRelationshipPanel — authoritative CRM sibling deals', () => {
       exposureIncomplete: false,
     });
 
-    render(<DealCrmRelationshipPanel />);
+    renderPanel();
 
     await waitFor(() => {
       expect(screen.getByText('Acme Working Capital')).toBeInTheDocument();
@@ -72,6 +77,41 @@ describe('DealCrmRelationshipPanel — authoritative CRM sibling deals', () => {
     expect(siblingMock).toHaveBeenCalledWith('current-deal', 1_000_000, 'client-guid');
   });
 
+  it('D16 — clicking a sibling deal invokes onNavigateToDeal with the correct deal id (not a dead link)', async () => {
+    siblingMock.mockResolvedValue({
+      status: 'ready',
+      siblingDeals: [
+        { id: 'sib-1', name: 'Acme Working Capital', stage: 'Underwriting', amount: '$500,000', amountValue: 500_000 },
+        { id: 'sib-2', name: 'Acme Equipment Loan', stage: 'Intake', amount: '$250,000', amountValue: 250_000 },
+      ],
+      totalRelationshipExposure: 1_750_000,
+      exposureIncomplete: false,
+    });
+    const onNavigateToDeal = vi.fn();
+    renderPanel(onNavigateToDeal);
+    await waitFor(() => expect(screen.getByText('Acme Equipment Loan')).toBeInTheDocument());
+    const user = userEvent.setup();
+    // Two distinct sibling deals present — clicking the SECOND proves correct-id navigation,
+    // not just "some navigation happened".
+    await user.click(screen.getByText('Acme Equipment Loan'));
+    expect(onNavigateToDeal).toHaveBeenCalledWith('sib-2');
+    expect(onNavigateToDeal).not.toHaveBeenCalledWith('sib-1');
+  });
+
+  it('D16 — sibling-deal rows render non-interactively when onNavigateToDeal is not supplied (backward compatible)', async () => {
+    siblingMock.mockResolvedValue({
+      status: 'ready',
+      siblingDeals: [
+        { id: 'sib-1', name: 'Acme Working Capital', stage: 'Underwriting', amount: '$500,000', amountValue: 500_000 },
+      ],
+      totalRelationshipExposure: 1_500_000,
+      exposureIncomplete: false,
+    });
+    renderPanel();
+    await waitFor(() => expect(screen.getByText('Acme Working Capital')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Open deal Acme Working Capital/ })).toBeNull();
+  });
+
   it('flags incomplete exposure honestly rather than showing a fabricated total', async () => {
     siblingMock.mockResolvedValue({
       status: 'ready',
@@ -79,7 +119,7 @@ describe('DealCrmRelationshipPanel — authoritative CRM sibling deals', () => {
       totalRelationshipExposure: 1_000_000,
       exposureIncomplete: true,
     });
-    render(<DealCrmRelationshipPanel />);
+    renderPanel();
     await waitFor(() => {
       expect(screen.getByText(/incomplete/i)).toBeInTheDocument();
     });
@@ -87,7 +127,7 @@ describe('DealCrmRelationshipPanel — authoritative CRM sibling deals', () => {
 
   it('shows an honest unresolved note when the client is not bridged to a CRM organization', async () => {
     siblingMock.mockResolvedValue({ status: 'no-org-link' });
-    render(<DealCrmRelationshipPanel />);
+    renderPanel();
     await waitFor(() => {
       expect(screen.getByText(/not bridged to a CRM company/i)).toBeInTheDocument();
     });

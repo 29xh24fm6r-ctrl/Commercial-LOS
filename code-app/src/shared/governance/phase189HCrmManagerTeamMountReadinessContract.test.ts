@@ -110,7 +110,7 @@ describe('CRM relationship panel mount surfaces', () => {
   // deal workspaces. The banker mount is unchanged. (The 189H audit module
   // itself is unchanged — it remains a point-in-time readiness assessment.)
   it('BankerDealWorkspace still mounts the CRM relationship panel', () => {
-    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel \/>/);
+    expect(BANKER_WORKSPACE).toMatch(/<DealCrmRelationshipPanel\b[\s\S]*?\/>/);
   });
 
   it('manager and team deal workspaces mount the read-only CRM panel via the existing crm container (Phase 189I)', () => {

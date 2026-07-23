@@ -47,8 +47,20 @@ export interface DuplicateDetectionInput {
   readonly detectionEnabledOverride?: boolean;
 }
 
+// D12 — common U.S. business-entity suffixes. Stripped (with a trailing period
+// tolerated) so "Acme LLC", "ACME, L.L.C.", and "acme llc" all normalize to the
+// same key -- capitalization/punctuation/legal-suffix variants of the same
+// borrower must not slip past duplicate detection as unrelated records.
+const LEGAL_SUFFIX_RE = /\b(l\s*l\s*c|inc|incorporated|corp|corporation|co|company|ltd|limited|lp|llp|pllc|pc)\b\.?/g;
+
 function norm(s: string | undefined): string {
-  return (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return (s ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[.,]/g, '')
+    .replace(LEGAL_SUFFIX_RE, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**

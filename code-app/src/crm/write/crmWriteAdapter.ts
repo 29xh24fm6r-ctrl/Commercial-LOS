@@ -24,6 +24,8 @@ import {
   capabilityUnavailable,
   type CapabilityAvailability,
 } from '../../shared/governance/capabilityAvailability';
+import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../../shared/governance/timelineEnums';
+import { createActorChangedByResolver, type ResolveActorChangedBy } from '../../deals/newDealAuditActorResolver';
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -77,6 +79,17 @@ export interface CrmWriteDeps {
   readonly readTimelineEvent: (id: string) => Promise<ReadResult>;
   readonly createContactPoint: (payload: Record<string, unknown>) => Promise<WriteResult>;
   readonly emitAudit: (payload: Record<string, unknown>) => Promise<WriteResult>;
+  /**
+   * D3 — optional. When supplied, `logActivity()` best-effort cross-writes a matching
+   * cr664_dealtimelineevents row whenever the CRM activity names an originating deal
+   * (`originatedDealId`), so a CRM-logged call/email/meeting/note also appears on that
+   * deal's own Activity Timeline, not only the CRM timeline. Omitted in tests/callers
+   * that don't need the cross-write; a failure here never blocks or reverts the CRM
+   * write, it is surfaced as a child-write error.
+   */
+  readonly createDealTimelineEvent?: (payload: Record<string, unknown>) => Promise<WriteResult>;
+  /** Optional resolver for the deal timeline's cr664_EventBy bind (best-effort; omitted, never blocking, when unresolved or absent). */
+  readonly resolveActorChangedBy?: ResolveActorChangedBy;
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +400,64 @@ const ACTIVITY_LABEL: Record<CrmActivityType, string> = {
   note: 'Note',
 };
 
+/** The real cr664_dealtimelineevent eventtype codes (src/deals/activityQueries.ts), reused
+ *  verbatim so a cross-written CRM activity shows up as the SAME kind of interaction on the
+ *  deal's Activity Timeline, not a generic note. */
+const CRM_ACTIVITY_TO_DEAL_TIMELINE_EVENT_TYPE: Record<CrmActivityType, number> = {
+  call: 788190000, // CallLogged
+  email: 788190001, // EmailLogged
+  note: 788190002, // NoteLogged
+  meeting: 788190003, // MeetingLogged
+};
+
+/**
+ * D3 — best-effort cross-write of a CRM-logged activity onto the originating deal's
+ * cr664_dealtimelineevents so it reconciles with that deal's own Activity Timeline and
+ * activity counts. Never blocks or reverts the CRM write that already succeeded; a
+ * failure is surfaced as a child-write error, matching addContact's contact-point pattern.
+ */
+async function crossWriteDealTimelineEvent(opts: {
+  readonly input: LogActivityInput;
+  readonly dealId: string;
+  readonly occurredAt: string;
+  readonly summary: string;
+  readonly deps: CrmWriteDeps;
+}): Promise<ChildWriteError[]> {
+  if (!opts.deps.createDealTimelineEvent) return [];
+  const label = ACTIVITY_LABEL[opts.input.activityType] ?? 'Activity';
+  let eventByBind: Record<string, string> = {};
+  if (opts.deps.resolveActorChangedBy) {
+    try {
+      const actor = await opts.deps.resolveActorChangedBy(opts.input.actorEmail);
+      if (actor.ok && actor.changedByBind) eventByBind = { 'cr664_EventBy@odata.bind': actor.changedByBind };
+    } catch {
+      // Best-effort — an unresolved actor omits cr664_EventBy; never blocks the cross-write.
+    }
+  }
+  const payload = {
+    cr664_title: `CRM ${label}`,
+    cr664_summary: opts.summary,
+    cr664_eventat: opts.occurredAt,
+    cr664_eventtype: CRM_ACTIVITY_TO_DEAL_TIMELINE_EVENT_TYPE[opts.input.activityType] ?? 788190002,
+    cr664_visibilityscope: TIMELINE_VISIBILITY_BANKER_AND_MANAGER,
+    cr664_issystemgenerated: false,
+    cr664_relatedentitytype: 'cr664_loandeal',
+    cr664_relatedentityid: opts.dealId,
+    'cr664_Deal@odata.bind': `/cr664_loandeals(${opts.dealId})`,
+    ...eventByBind,
+    cr664_eventsubtype: `crm-activity:${opts.input.activityType}`,
+  };
+  try {
+    const res = await opts.deps.createDealTimelineEvent(payload);
+    if (!res.success) {
+      return [{ kind: 'deal-timeline-event', label: 'Deal activity timeline', error: res.error?.message ?? 'non-success' }];
+    }
+    return [];
+  } catch (err: unknown) {
+    return [{ kind: 'deal-timeline-event', label: 'Deal activity timeline', error: err instanceof Error ? err.message : String(err) }];
+  }
+}
+
 export async function logActivity(input: LogActivityInput, deps: CrmWriteDeps): Promise<CrmWriteOutcome> {
   const summary = trimmed(input.summary);
   if (summary.length === 0) return { kind: 'invalid-input', reason: 'An activity summary is required.' };
@@ -395,6 +466,7 @@ export async function logActivity(input: LogActivityInput, deps: CrmWriteDeps): 
   const followUp = trimmed(input.nextFollowUpDate);
   const outcome = trimmed(input.outcome);
   const notesParts = [outcome ? `Outcome: ${outcome}` : '', followUp ? `Next follow-up: ${followUp}` : ''].filter(Boolean);
+  const dealId = trimmed(input.originatedDealId);
 
   const payload = compact({
     cr664_name: `${label}: ${summary.slice(0, 80)}`,
@@ -423,6 +495,8 @@ export async function logActivity(input: LogActivityInput, deps: CrmWriteDeps): 
     create: deps.createTimelineEvent,
     read: deps.readTimelineEvent,
     emitAudit: deps.emitAudit,
+    extraChildren:
+      dealId.length > 0 ? () => crossWriteDealTimelineEvent({ input, dealId, occurredAt, summary, deps }) : undefined,
   });
 }
 
@@ -586,5 +660,11 @@ export function buildLiveCrmWriteDeps(): CrmWriteDeps {
       const r = await s.create(payload as never);
       return { success: r.success, id: r.data?.cr664_crmauditentryid, error: r.error ?? undefined };
     },
+    createDealTimelineEvent: async (payload) => {
+      const { Cr664_dealtimelineeventsService: s } = await import('../../generated/services/Cr664_dealtimelineeventsService');
+      const r = await s.create(payload as never);
+      return { success: r.success, id: r.data?.cr664_dealtimelineeventid, error: r.error ?? undefined };
+    },
+    resolveActorChangedBy: createActorChangedByResolver(),
   };
 }

@@ -259,7 +259,18 @@ function mapBridgeFailureToLinkOutcome(
   }
 }
 
-export function DealCrmRelationshipPanel() {
+export function DealCrmRelationshipPanel({
+  onNavigateToDeal,
+}: {
+  /**
+   * D16 — navigates to a sibling deal's cockpit route. Optional and threaded from
+   * the caller (BankerDealWorkspace.tsx, already inside the app's Router) rather
+   * than importing react-router here — this panel stays decoupled from routing
+   * per its own governance pin (phase189CCrmRelationshipPanelContract.test.ts).
+   * When omitted, sibling-deal rows render as plain, non-interactive text.
+   */
+  onNavigateToDeal?: (dealId: string) => void;
+} = {}) {
   const { deal, applyVerifiedDealPatch } = useDealData();
   const banker = useOptionalBanker();
 
@@ -521,7 +532,24 @@ export function DealCrmRelationshipPanel() {
             ) : (
               <ul style={listStyle} aria-label="Sibling deals for this CRM client">
                 {siblingResult.siblingDeals.map((d) => (
-                  <li key={d.id} style={rowStyle}>
+                  <li
+                    key={d.id}
+                    style={onNavigateToDeal ? { ...rowStyle, cursor: 'pointer' } : rowStyle}
+                    role={onNavigateToDeal ? 'button' : undefined}
+                    tabIndex={onNavigateToDeal ? 0 : undefined}
+                    aria-label={onNavigateToDeal ? `Open deal ${d.name}` : undefined}
+                    onClick={onNavigateToDeal ? () => onNavigateToDeal(d.id) : undefined}
+                    onKeyDown={
+                      onNavigateToDeal
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onNavigateToDeal(d.id);
+                            }
+                          }
+                        : undefined
+                    }
+                  >
                     <span style={itemStyle}>{d.name}</span>
                     {d.stage && <Badge variant="neutral">{d.stage}</Badge>}
                     {d.amount && <span style={valueStyle}>{d.amount}</span>}

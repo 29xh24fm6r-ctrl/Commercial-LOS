@@ -111,6 +111,11 @@ describe('Phase 169A -- Admin Operations Console rendering', () => {
     }
   });
 
+  it('D19 — renders the eyebrow heading with a correctly-encoded middle dot, not mojibake', () => {
+    renderConsole(WORKSPACE_ROUTES.admin);
+    expect(screen.getByText('Commercial Lending · Administration')).toBeInTheDocument();
+  });
+
   it('shows the app-level-only governance disclaimer (Power Platform admin center handoff)', () => {
     const { container } = renderConsole(WORKSPACE_ROUTES.admin);
     const disclaimer = container.querySelector('[data-admin-ops-disclaimer]');
