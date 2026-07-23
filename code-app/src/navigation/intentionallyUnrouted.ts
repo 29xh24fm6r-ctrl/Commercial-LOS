@@ -389,6 +389,11 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/workflow/loanWorkflowRequirementEngine.ts', reason: 'ARC Phase 1: requirement evaluation engine (met/unmet/untracked/unavailable, blocking vs recommended, where-to-resolve). Compatibility adapter delegates tracked facts to the existing live readiness. Inert; wired by a later ARC PR.', plannedPhase: 'ARC Phase 1 (wired PR 3/20)' },
   // â”€â”€ src/workspaces â”€â”€
   { path: 'src/workspaces/WorkspaceShell.tsx', reason: 'Workspace shell sub-surface not yet routed.', plannedPhase: 'Phase 3+' },
+  // final-seven-workstreams Workstream 5A — prepared schema shape for loan purpose/term/ownership
+  // status, deliberately NOT wired into any UI: the Dataverse columns it mirrors do not exist yet
+  // (schema change requires Matthew's explicit authorization, see
+  // docs/final-seven-workstreams/05_DEAL_SCHEMA_EXPANSION.md). Consumed only by its own test.
+  { path: 'src/deals/dealPurposeTermOwnershipSchema.ts', reason: 'Phase 5A: prepared purpose/term/ownership option-set + validators, mirroring the NOT-YET-APPLIED provisioning script. Inert; wired only after Phase 5B schema authorization.', plannedPhase: 'Phase 5B (operator-authorized)' },
 ];
 
 /** Set of allow-listed paths for O(1) membership checks. */
