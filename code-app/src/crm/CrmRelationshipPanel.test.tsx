@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
 import { CrmRelationshipPanel, DealCrmRelationshipPanel } from './CrmRelationshipPanel';
 import {
   deriveCrmRelationshipViewModel,
   type CrmRelationshipGraphInput,
 } from './crmRelationshipViewModel';
 import { buildCrmRelationshipInput } from './buildCrmRelationshipInput';
+import type { DealIndustryProjection } from './dealIndustryProjection';
 
 /** Mutable mock of the workspace context the connected container reads. */
 const DEFAULT_MOCK_DEAL: Record<string, unknown> = {
@@ -16,16 +17,38 @@ const DEFAULT_MOCK_DEAL: Record<string, unknown> = {
 };
 const mockState = vi.hoisted(() => ({
   deal: { id: 'd1', name: 'Mock Deal', clientName: 'Mock Client LLC' } as Record<string, unknown>,
+  // No `systemUserId` by default (matches the original static mock), so
+  // `authorized` is false and no write affordance renders — most tests below
+  // rely on that. The overlapping-request regression test opts in to a
+  // resolved identity so the manual "re-check" button is present to click.
+  banker: { bankerId: 'b1', fullName: 'Mock Banker', email: 'b@x.com' } as Record<string, unknown>,
 }));
 vi.mock('../deals/DealDataProvider', () => ({
   useDealData: () => ({ deal: mockState.deal }),
 }));
 vi.mock('../banker/BankerContext', () => ({
-  useOptionalBanker: () => ({ bankerId: 'b1', fullName: 'Mock Banker', email: 'b@x.com' }),
+  useOptionalBanker: () => mockState.banker,
+}));
+
+// SDK boundary mock: whenever the connected container has a client id, it
+// auto-fires a real CRM/NAICS industry refresh on mount. Left unmocked, that
+// chains into unmocked generated-service dynamic imports that can settle after
+// a test (and RTL's own `cleanup()`) have moved on — see
+// CrmRelationshipPanel.tsx's `refreshDealIndustryFromCrm` lifecycle guard
+// regression test below, which controls this mock's resolution timing
+// directly to prove unmount safety.
+const { loadLiveDealIndustryProjectionMock } = vi.hoisted(() => ({
+  loadLiveDealIndustryProjectionMock: vi.fn(),
+}));
+vi.mock('./dealIndustryProjection', () => ({
+  loadLiveDealIndustryProjection: loadLiveDealIndustryProjectionMock,
 }));
 
 beforeEach(() => {
   mockState.deal = { ...DEFAULT_MOCK_DEAL };
+  mockState.banker = { bankerId: 'b1', fullName: 'Mock Banker', email: 'b@x.com' };
+  loadLiveDealIndustryProjectionMock.mockReset();
+  loadLiveDealIndustryProjectionMock.mockResolvedValue({ kind: 'no-org-link' });
 });
 
 const fullGraph: CrmRelationshipGraphInput = {
@@ -187,5 +210,110 @@ describe('builder + panel integration', () => {
     expect(screen.getByTestId('crm-relationship-panel').getAttribute('data-relationship-status')).toBe(
       'partial',
     );
+  });
+});
+
+describe('refreshDealIndustryFromCrm — unmount + overlapping-request safety', () => {
+  const LINKED_DEAL = {
+    id: 'd1',
+    name: 'Mock Deal',
+    clientName: 'Mock Client LLC',
+    clientId: 'client-guid',
+    clientLookupClassification: 'real-lookup' as const,
+  };
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  }
+
+  it('unmounting before the CRM industry refresh resolves produces no unhandled rejection and no post-unmount state update', async () => {
+    mockState.deal = { ...LINKED_DEAL };
+    const { promise, resolve } = deferred<DealIndustryProjection>();
+    loadLiveDealIndustryProjectionMock.mockReturnValue(promise);
+
+    const unhandledRejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => unhandledRejections.push(reason);
+    process.on('unhandledRejection', onUnhandledRejection);
+
+    try {
+      const { unmount } = render(<DealCrmRelationshipPanel />);
+      // Industry refresh has started (mount effect fired) but has not resolved yet.
+      await waitFor(() => expect(loadLiveDealIndustryProjectionMock).toHaveBeenCalled());
+
+      // Unmount BEFORE the in-flight request settles.
+      unmount();
+
+      // Now let it resolve — this is the exact interleaving that previously threw
+      // "ReferenceError: window is not defined" from a setState call reaching a
+      // torn-down environment (the plugin's mounted-guard must swallow this).
+      resolve({ kind: 'no-org-link' });
+      await act(async () => {
+        await promise;
+        // Flush the microtask that runs the guarded state-update attempt after
+        // the awaited projection settles.
+        await Promise.resolve();
+      });
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+    }
+
+    expect(unhandledRejections).toEqual([]);
+  });
+
+  it('an older, slower industry-refresh response never overwrites a newer one', async () => {
+    // The re-check button disables itself while a request is in flight, so the
+    // realistic source of an overlapping SECOND request is the mount effect
+    // re-firing on a client change (a rapid re-link) before the FIRST request for
+    // the prior client has settled — not two rapid clicks. Neither projection
+    // kind used here (`no-org-link` / `no-naics`) sets `industryToApply`, so this
+    // never reaches the governed write path — only the two distinct status texts
+    // are compared.
+    mockState.deal = { ...LINKED_DEAL, clientId: 'client-guid-1' };
+    // A resolved Dataverse identity is required for the industry status
+    // section (including its status text) to render at all.
+    mockState.banker = { bankerId: 'b1', fullName: 'Mock Banker', email: 'b@x.com', systemUserId: 'sys-1' };
+
+    const first = deferred<DealIndustryProjection>();
+    const second = deferred<DealIndustryProjection>();
+    loadLiveDealIndustryProjectionMock
+      .mockReturnValueOnce(first.promise) // request for client-guid-1
+      .mockReturnValueOnce(second.promise); // request for client-guid-2
+
+    const { rerender } = render(<DealCrmRelationshipPanel />);
+    await waitFor(() => expect(loadLiveDealIndustryProjectionMock).toHaveBeenCalledTimes(1));
+    expect(loadLiveDealIndustryProjectionMock).toHaveBeenNthCalledWith(1, 'client-guid-1');
+
+    // The client changes again (re-link) before the first request settles —
+    // effectiveClientId changes, re-firing the effect with a genuinely
+    // overlapping second request.
+    mockState.deal = { ...LINKED_DEAL, clientId: 'client-guid-2' };
+    rerender(<DealCrmRelationshipPanel />);
+    await waitFor(() => expect(loadLiveDealIndustryProjectionMock).toHaveBeenCalledTimes(2));
+    expect(loadLiveDealIndustryProjectionMock).toHaveBeenNthCalledWith(2, 'client-guid-2');
+
+    // Resolve the NEWER (second) request first, then the OLDER (first) request
+    // — the worst-case ordering for a naive implementation with no guard.
+    second.resolve({ kind: 'no-naics', organizationId: 'org-2' });
+    await act(async () => {
+      await second.promise;
+    });
+
+    first.resolve({ kind: 'no-org-link' });
+    await act(async () => {
+      await first.promise;
+    });
+
+    // The stale first (older) response must not have overwritten the newer,
+    // already-applied second response.
+    expect(
+      screen.getByText(/Industry\/NAICS unresolved — the linked CRM company has no NAICS code\./),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Industry\/NAICS unresolved — the linked client is not bridged/),
+    ).toBeNull();
   });
 });

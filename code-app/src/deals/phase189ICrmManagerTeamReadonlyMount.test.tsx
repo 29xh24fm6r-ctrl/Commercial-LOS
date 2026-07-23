@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 /**
@@ -16,6 +16,15 @@ import { MemoryRouter } from 'react-router-dom';
  * loaders, child queries, governed write services, modals, and SDK-backed cards
  * are mocked at the boundary so no Dataverse/SDK chain is pulled in. The CRM
  * panel/cards are deliberately NOT mocked — they render for real.
+ *
+ * `loadLiveDealIndustryProjection` IS mocked (SDK boundary): the panel auto-
+ * fires a real CRM/NAICS industry refresh on mount whenever the deal carries a
+ * client id (READY_DEAL does), independent of role authorization. Left
+ * unmocked, that refresh chains into unmocked generated-service dynamic
+ * imports that settle after this test (and RTL's per-test `cleanup()`) have
+ * already moved on — an unhandled rejection plus a post-unmount state update.
+ * Mocking it to resolve immediately lets every test explicitly await that
+ * refresh to completion before finishing (see `expectReadOnlyCrmMount`).
  */
 
 const {
@@ -26,6 +35,7 @@ const {
   loadDealDocuments,
   loadDealCreditMemo,
   loadDealActivity,
+  loadLiveDealIndustryProjectionMock,
 } = vi.hoisted(() => ({
   loadDealForBankerMock: vi.fn(),
   loadDealForManagerMock: vi.fn(),
@@ -34,6 +44,11 @@ const {
   loadDealDocuments: vi.fn(),
   loadDealCreditMemo: vi.fn(),
   loadDealActivity: vi.fn(),
+  loadLiveDealIndustryProjectionMock: vi.fn(),
+}));
+
+vi.mock('../crm/dealIndustryProjection', () => ({
+  loadLiveDealIndustryProjection: loadLiveDealIndustryProjectionMock,
 }));
 
 vi.mock('./dealQueries', () => ({
@@ -174,6 +189,15 @@ async function expectReadOnlyCrmMount() {
   expect(within(panel).queryByRole('button')).toBeNull();
   expect(within(cards).queryByRole('button')).toBeNull();
   expect(within(panel).queryByRole('textbox')).toBeNull();
+
+  // Await the panel's auto-fired CRM/NAICS industry refresh (it runs on mount
+  // for any authorized role once a client id is present, per
+  // CrmRelationshipPanel.tsx's effectiveClientId effect) to completion, so no
+  // work is still in flight when this test — and RTL's afterEach `cleanup()`
+  // — finish. `act` flushes the state updates chained after the mocked
+  // projection promise resolves.
+  await waitFor(() => expect(loadLiveDealIndustryProjectionMock).toHaveBeenCalled());
+  await act(async () => {});
 }
 
 beforeEach(() => {
@@ -184,6 +208,8 @@ beforeEach(() => {
   loadDealDocuments.mockReset();
   loadDealCreditMemo.mockReset();
   loadDealActivity.mockReset();
+  loadLiveDealIndustryProjectionMock.mockReset();
+  loadLiveDealIndustryProjectionMock.mockResolvedValue({ kind: 'no-org-link' });
   resolveEmptyChildren();
 });
 

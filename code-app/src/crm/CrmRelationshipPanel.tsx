@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { Card, CardHeader, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
@@ -294,6 +294,21 @@ export function DealCrmRelationshipPanel({
   const [linkedClient, setLinkedClient] = useState<{ id: string; name: string } | null>(null);
   const [linkedTeam, setLinkedTeam] = useState<{ id: string; name: string } | null>(null);
 
+  // Lifecycle guard for refreshDealIndustryFromCrm's async work (auto-run effect
+  // + manual re-check button both call it). `isMountedRef` prevents any state
+  // update after unmount; `industryRefreshRequestIdRef` is a monotonically
+  // increasing generation counter so a slower, older in-flight request can never
+  // overwrite the result of a newer one that started after it (e.g. the client
+  // changes again, or the banker clicks re-check, before the first call settles).
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+  const industryRefreshRequestIdRef = useRef(0);
+
   // A banker can perform the governed write only with a resolved Dataverse
   // identity and no write-disabled reason (mirrors every other governed
   // write surface). Manager read-only mode has no banker → no write.
@@ -425,17 +440,25 @@ export function DealCrmRelationshipPanel({
   // patch — no full reload. Fail-closed: any missing hop is an honest unresolved
   // state, and nothing is written unless a valid NAICS actually derives.
   async function refreshDealIndustryFromCrm(clientRelationshipId: string | undefined) {
-    setIndustryBusy(true);
+    const requestId = ++industryRefreshRequestIdRef.current;
+    // True only while this call is both the latest request AND the component is
+    // still mounted — false for a stale/superseded call or one that settles
+    // after unmount, in which case no state update below may run.
+    const isCurrent = () =>
+      isMountedRef.current && industryRefreshRequestIdRef.current === requestId;
+
+    if (isCurrent()) setIndustryBusy(true);
     try {
       const { hydration, appliedPatch } = await hydrateDealIndustryFromCrm(
         clientRelationshipId,
         deal.industry ?? undefined,
         { loadProjection: loadLiveDealIndustryProjection, applyDealIndustry },
       );
+      if (!isCurrent()) return;
       if (appliedPatch) applyVerifiedDealPatch?.(appliedPatch as Partial<DealDetail>);
       setIndustryHydration(hydration);
     } finally {
-      setIndustryBusy(false);
+      if (isCurrent()) setIndustryBusy(false);
     }
   }
 
