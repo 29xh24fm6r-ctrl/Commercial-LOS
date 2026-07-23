@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { Input } from '../../design';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
 import {
@@ -77,6 +77,21 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, fi
     [load, debounced],
   );
 
+  // PR 103 — keyboard commit parity with the mouse/touch path. -1 = nothing
+  // highlighted yet; otherwise an index into `hits`. Reset whenever the
+  // result set changes so a stale highlight from a previous query can never
+  // be committed by an Enter press. This reset happens SYNCHRONOUSLY during
+  // render (React's documented "adjust state while rendering" pattern)
+  // rather than in a useEffect — a useEffect would only correct the index
+  // one render *after* the new hits are already on screen, leaving a frame
+  // where a stale highlight is visibly (and committably) wrong.
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [hitsForHighlight, setHitsForHighlight] = useState(hits);
+  if (hits !== hitsForHighlight) {
+    setHitsForHighlight(hits);
+    setHighlightedIndex(hits.length > 0 ? 0 : -1);
+  }
+
   function choose(hit: NaicsHit) {
     setQuery(`${hit.code} — ${hit.title}`);
     setConfirmed({ code: hit.code, title: hit.title });
@@ -90,6 +105,40 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, fi
     setOpen(true);
     void ensureLoaded();
     if (next.trim().length === 0) onSelect(null);
+  }
+
+  function onInputKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (!open || hits.length === 0) {
+      if (e.key === 'ArrowDown') {
+        setOpen(true);
+        void ensureLoaded();
+      }
+      return;
+    }
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedIndex((i) => (i + 1) % hits.length);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedIndex((i) => (i <= 0 ? hits.length - 1 : i - 1));
+        break;
+      case 'Enter':
+        // A form-submit default is never appropriate here — this field is
+        // never inside a <form> that should submit on Enter.
+        e.preventDefault();
+        if (highlightedIndex >= 0 && highlightedIndex < hits.length) {
+          choose(hits[highlightedIndex]!);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setOpen(false);
+        break;
+      default:
+        break;
+    }
   }
 
   // AC3/AC4 — direct code entry uses the AUTHORITATIVE exact lookup (a server-side `cr664_code`
@@ -147,11 +196,17 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, fi
         placeholder="Type an industry, e.g. “auto repair” or a code"
         aria-label={label}
         aria-expanded={open}
+        aria-activedescendant={
+          open && highlightedIndex >= 0 && highlightedIndex < hits.length
+            ? `naics-option-${hits[highlightedIndex]!.code}`
+            : undefined
+        }
         role="combobox"
         aria-autocomplete="list"
         data-crm-field="naics"
         onFocus={() => { setOpen(true); void ensureLoaded(); }}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onInputKeyDown}
       />
       {open && debounced.trim().length > 0 && (
         <div style={styles.panel} role="listbox" aria-label="NAICS results">
@@ -169,13 +224,26 @@ export function NaicsTypeahead({ value, onSelect, loader = loadNaicsRowsLive, fi
           {load.kind === 'ready' && hits.length === 0 && (
             <div style={styles.note}>No NAICS match for “{debounced.trim()}”.</div>
           )}
-          {hits.map((h) => (
-            <button key={h.code} type="button" role="option" aria-selected={false} style={styles.option} data-crm-naics-option={h.code} onClick={() => choose(h)}>
-              <span style={styles.optCode}>{h.code}</span>
-              <span style={styles.optTitle}>{h.title}</span>
-              <span style={styles.optSector}>{h.sectorCode} · {h.sectorTitle}</span>
-            </button>
-          ))}
+          {hits.map((h, i) => {
+            const highlighted = i === highlightedIndex;
+            return (
+              <button
+                key={h.code}
+                id={`naics-option-${h.code}`}
+                type="button"
+                role="option"
+                aria-selected={highlighted}
+                style={highlighted ? styles.optionHighlighted : styles.option}
+                data-crm-naics-option={h.code}
+                onMouseEnter={() => setHighlightedIndex(i)}
+                onClick={() => choose(h)}
+              >
+                <span style={styles.optCode}>{h.code}</span>
+                <span style={styles.optTitle}>{h.title}</span>
+                <span style={styles.optSector}>{h.sectorCode} · {h.sectorTitle}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -214,6 +282,7 @@ const styles: Record<string, CSSProperties> = {
   // (data pending, not a failure): legible Treasury-Blue info treatment, not dim error text.
   noteInfo: { display: 'flex', alignItems: 'center', gap: spacing.xs, padding: `${spacing.sm} ${spacing.md}`, color: palette.infoFg, background: palette.infoBg, borderLeft: `2px solid ${palette.info}`, fontSize: typography.size.sm, lineHeight: typography.lineHeight.snug },
   option: { display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: spacing.sm, rowGap: 2, width: '100%', textAlign: 'left', padding: `${spacing.xs} ${spacing.md}`, background: 'transparent', border: 'none', borderBottom: `1px solid ${palette.divider}`, cursor: 'pointer', fontFamily: typography.family },
+  optionHighlighted: { display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: spacing.sm, rowGap: 2, width: '100%', textAlign: 'left', padding: `${spacing.xs} ${spacing.md}`, background: palette.cobaltBg, border: 'none', borderBottom: `1px solid ${palette.divider}`, cursor: 'pointer', fontFamily: typography.family },
   optCode: { fontFamily: typography.mono, fontSize: typography.size.sm, color: palette.text, fontWeight: typography.weight.semibold },
   optTitle: { fontSize: typography.size.sm, color: palette.text },
   optSector: { gridColumn: '1 / -1', fontSize: typography.size.xs, color: palette.textSubtle },
