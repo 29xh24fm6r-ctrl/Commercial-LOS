@@ -408,6 +408,22 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/closing/documents/closingDocumentGeneration.ts', reason: 'Workstream 6: the preview/generate/regenerate pipeline. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
   { path: 'src/closing/documents/closingDocumentPackage.ts', reason: 'Workstream 6: package/supersession summarizer. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
   { path: 'src/closing/documents/ClosingDocumentsPanel.tsx', reason: 'Workstream 6: the read-plus-governed-action UI panel. Inert; not mounted in any workspace pending live storage.', plannedPhase: 'Follow-up (schema + integration)' },
+  // final-seven-workstreams Workstream 7 — the funding authorization framework. A new, fully-tested
+  // (61 tests) capability with no live Dataverse table for authorization records yet (see
+  // fundingAuthorizationStorage.ts's doc comment) — not mounted in any workspace pending an
+  // operator-authorized schema addition and a real integration point. See
+  // docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md.
+  { path: 'src/funding/fundingAuthorizationTypes.ts', reason: 'Workstream 7: shared types for the funding-authorization framework. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingAuthorizationPolicy.ts', reason: 'Workstream 7: pure policy engine (dual control, self-approval prohibition, facility-amount cap). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingReadiness.ts', reason: 'Workstream 7: pure disbursement-readiness derivation. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingAudit.ts', reason: 'Workstream 7: governed audit-recording helper. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingTimeline.ts', reason: 'Workstream 7: pure timeline-event payload builder (no live wiring yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingAuthorizationStorage.ts', reason: 'Workstream 7: storage seam + in-memory reference implementation — NO live Dataverse factory exists (no table for this yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingFeatureFlags.ts', reason: 'Workstream 7: the capability gate (default false). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingRequestAdapter.ts', reason: 'Workstream 7: governed funding-request write. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingApprovalAdapter.ts', reason: 'Workstream 7: governed approve/reject/revoke writes. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingDisbursementConfirmation.ts', reason: 'Workstream 7: the sole path to FUNDED, with re-verified readiness at confirmation time. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/FundingAuthorizationPanel.tsx', reason: 'Workstream 7: the read-plus-governed-action UI panel. Inert; not mounted in any workspace pending live storage.', plannedPhase: 'Follow-up (schema + integration)' },
 ];
 
 /** Set of allow-listed paths for O(1) membership checks. */
