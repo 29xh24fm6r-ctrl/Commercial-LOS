@@ -14,13 +14,19 @@
  */
 
 const TEST_DEAL_PATTERNS: readonly RegExp[] = [
-  // A bracketed classification tag: [SMOKE TEST - …], [TEST], [QA], [DEMO], [SANDBOX], [DO NOT USE].
-  /\[\s*(smoke\s*test|smoke|test|qa|demo|sandbox|do\s*not\s*use)\b[^\]]*\]/i,
+  // A bracketed classification tag: [SMOKE TEST - …], [TEST], [QA], [DEMO], [SANDBOX], [DO NOT USE],
+  // [SYSTEM TEST].
+  /\[\s*(system\s*test|smoke\s*test|smoke|test|qa|demo|sandbox|do\s*not\s*use)\b[^\]]*\]/i,
   // Explicit phrases anywhere in the name.
   /\bsmoke\s*test\b/i,
   /\bqa\s*test\b/i,
   /\btest\s*deal\b/i,
   /\bdo\s*not\s*use\b/i,
+  // final-seven-workstreams (2026-07-23) — the repository's own controlled-test-record naming rule
+  // is "SYSTEM TEST - <description>" as a NAME PREFIX (not necessarily bracketed). Anchored at the
+  // start so an unrelated deal that happens to mention "system test" mid-sentence is never
+  // misclassified.
+  /^\s*system\s*test\s*-/i,
 ];
 
 /** True when a deal NAME matches the test/smoke naming convention. Pure + deterministic. */

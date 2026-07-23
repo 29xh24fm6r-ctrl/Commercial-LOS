@@ -1,7 +1,8 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
+import { useState, type CSSProperties, type FormEvent } from 'react';
 import type { LogActivityOutcome } from './logActivityActions';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import { ACTIVITY_TYPE_OPTIONS, type CanonicalActivityType } from '../activity/canonicalActivityLogging';
+import { useDialogDismissal } from '../shared/ui/useDialogDismissal';
 
 export interface LogActivityDealOption {
   id: string;
@@ -38,18 +39,15 @@ export function LogActivityModal({
   const [outcome, setOutcome] = useState<LogActivityOutcome | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // D20 — Escape closes the modal (matches AddDealTaskModal.tsx's established
-  // pattern); never while a save is in flight.
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !saving) {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, saving]);
+  // D20 / Workstream 3C (final-seven-workstreams) — Escape closes the modal (never while a save is
+  // in flight), plus a focus trap and focus-return while open. Click-outside-to-dismiss is
+  // deliberately OFF here — this form can hold meaningful unsaved text (note/outcome/follow-up),
+  // and an accidental outside click losing that would be worse than requiring Escape or Close.
+  const dialogRef = useDialogDismissal<HTMLDivElement>({
+    onClose,
+    disabled: saving,
+    closeOnOutsideClick: false,
+  });
 
   const canSave =
     !writeDisabledReason &&
@@ -89,7 +87,7 @@ export function LogActivityModal({
 
   return (
     <div style={styles.overlay} role="dialog" aria-modal="true" aria-label="Log activity">
-      <div style={styles.modal}>
+      <div style={styles.modal} ref={dialogRef}>
         <h2 style={styles.title}>Log Activity</h2>
         {blocker && (
           <p style={styles.blocker} role="alert">

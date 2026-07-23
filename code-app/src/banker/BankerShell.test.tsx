@@ -342,6 +342,19 @@ describe('Phase 125F — Lending OS shell layout', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /^Log activity$/i })).toBeNull());
   });
 
+  it('Workstream 3C (final-seven-workstreams) — clicking outside the Log Activity modal does NOT close it (unsaved-note risk)', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(dataWithOneDeal());
+    renderShell();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: /^Log Activity$/i }));
+    expect(screen.getByRole('dialog', { name: /^Log activity$/i })).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.getByRole('dialog', { name: /^Log activity$/i })).toBeInTheDocument();
+  });
+
   it('renders the flat KPI grid with 10 tonal tiles', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());

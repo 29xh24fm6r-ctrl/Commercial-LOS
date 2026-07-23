@@ -5,6 +5,14 @@
 (or disproved) against CURRENT code, not assumed from the historical audit. Citations are exact
 file/line references and test names.
 
+> **Update 2026-07-23 (final-seven-workstreams, Workstream 2).** D3's "Reverse direction (deal-logged
+> note appearing on the CRM timeline) remains a gap" note below is now superseded.
+> `src/deals/logActivityActions.ts`'s `logActivity()` now best-effort cross-writes a matching
+> `cr664_crmtimelineevents` row onto the deal's bridged CRM organization (via the new
+> `src/deals/dealBridgedOrganizationLookup.ts`) whenever one exists, closing the direction this
+> table originally left open. Both directions now cross-write; see
+> `docs/final-seven-workstreams/02_UNIFIED_ACTIVITY_IMPLEMENTATION.md` for the full account.
+
 | ID | Finding | Disposition | Evidence / citations | Action this pass |
 |---|---|---|---|---|
 | D1 | NAICS-to-deal-industry mapping missing/blocking | **PARTIALLY FIXED** | One authoritative pipeline: `src/crm/naics/naicsSectorMap.ts` → `src/crm/naics/naicsIndustryMap.ts` → `src/crm/dealIndustryProjection.ts` → `src/deals/dealIndustryHydration.ts` → `src/deals/hydrateDealIndustryFromCrm.ts`. Auto-hydrates on CRM link (Workstream D), never overwrites a manual value, honestly reports `no-mapping` rather than fabricating (never blocks on an unmapped sector). Gate clears via governed `updateDealProfile` write, not cosmetically. **Residual, non-code gap:** only 5 of 20 NAICS sectors are seeded (`scripts/seed-naics-industry-map.mjs`); 722511 and 561422 both fall in intentionally-unmapped sectors and correctly resolve `no-mapping`, never a wrong guess. Widening sector coverage is a data/business decision, not a defect. | None — already correct; no code change |
