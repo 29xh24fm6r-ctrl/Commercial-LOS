@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { palette, radius, shadow, spacing, typography } from '../../shared/theme';
 import { CRM_PARTY_TYPE_OPTIONS } from '../crmPartyTypes';
@@ -9,6 +9,7 @@ import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
 import { isDealLinkableOrgType } from '../orgClientBridgeEligibility';
 import type { BridgeOrgToClientOutcome } from '../write/bridgeOrgToClientRelationship';
 import { ACTIVITY_TYPE_OPTIONS } from '../../activity/canonicalActivityLogging';
+import { detectCrmOrganizationDuplicates } from '../write/crmDuplicateDetection';
 
 /**
  * Phase 261 (B) — CRM write action bar + modal forms.
@@ -241,6 +242,21 @@ function CrmActionModal({
   const set = (k: string, v: string) => setFields((s) => ({ ...s, [k]: v }));
   const val = (k: string) => fields[k] ?? '';
 
+  // PR 104 -- warn-only CRM organization duplicate check, mirroring the
+  // deal-creation detector. Never blocks Add Company; only surfaces a
+  // possible/exact name match so the banker can link the existing company
+  // instead of creating a near-duplicate.
+  const companyName = kind === 'company' ? val('name') : '';
+  const companyWebsite = kind === 'company' ? val('website') : '';
+  const duplicateOutcome = useMemo(() => {
+    if (kind !== 'company' || companyName.trim().length === 0) return undefined;
+    return detectCrmOrganizationDuplicates({
+      candidateName: companyName,
+      candidateWebsite: companyWebsite,
+      existing: companyOptions.map((o) => ({ organizationId: o.id, name: o.label })),
+    });
+  }, [kind, companyName, companyWebsite, companyOptions]);
+
   async function submit() {
     setBusy(true);
     const a = { actorEmail: actor.actorEmail, actorSystemUserId: actor.actorSystemUserId, authorized: actor.authorized };
@@ -348,6 +364,14 @@ function CrmActionModal({
                 ),
               )}
             </div>
+
+            {!outcome && (duplicateOutcome?.kind === 'exact_duplicate_found' || duplicateOutcome?.kind === 'possible_duplicate_found') && (
+              <div style={styles.warn} role="alert" data-crm-action-duplicate-warning>
+                ⚠ {duplicateOutcome.detail} ({duplicateOutcome.candidates.length} match
+                {duplicateOutcome.candidates.length === 1 ? '' : 'es'}). You can still save — check the Companies list
+                first if this may already exist.
+              </div>
+            )}
 
             {outcome && (
               <div style={styles.err} role="alert" data-crm-action-error>{describeFailure(outcome)}</div>
@@ -508,4 +532,5 @@ const styles: Record<string, CSSProperties> = {
   ok: { background: palette.clearBg, border: `1px solid ${palette.clear}`, borderRadius: radius.sm, padding: `${spacing.md} ${spacing.md}`, color: palette.text, fontSize: typography.size.sm, display: 'flex', flexDirection: 'column', gap: spacing.sm },
   okActions: { display: 'flex', justifyContent: 'flex-end' },
   err: { background: palette.atRiskBg, border: `1px solid ${palette.atRisk}`, borderRadius: radius.sm, padding: `${spacing.sm} ${spacing.md}`, color: palette.text, fontSize: typography.size.sm },
+  warn: { background: palette.atRiskBg, border: `1px solid ${palette.atRisk}`, borderRadius: radius.sm, padding: `${spacing.sm} ${spacing.md}`, color: palette.text, fontSize: typography.size.sm },
 };
