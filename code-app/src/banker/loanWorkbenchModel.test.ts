@@ -104,3 +104,39 @@ describe('Phase 258 — deriveLoanWorkbench', () => {
     expect(rowsForSection(model, 'recent').map((r) => r.id)).toEqual(['newer', 'older']);
   });
 });
+
+describe('D-01 — a classified test/smoke deal is a full row (findable) but excluded from queue-card counts', () => {
+  it('a test-flagged deal still belongs to its sections (findable via rowsForSection / search) but does not increment counts.active', () => {
+    const model = deriveLoanWorkbench(
+      [
+        deal({ id: 'real-1', name: 'Acme WC' }),
+        deal({
+          id: '310da4b3-cb86-f111-ab10-70a8a59b1fe2',
+          name: 'SYSTEM TEST - Read Path Forensic Deal',
+          stage: 'Underwriting',
+          isTestRecord: true,
+        }),
+      ],
+      [],
+      'Dana',
+      NOW,
+    );
+
+    // The count is an operational-only KPI: only the real deal contributes.
+    expect(model.counts.active).toBe(1);
+
+    // But the test row is still present and section-browsable/searchable —
+    // it is never dropped from `rows`, only excluded from the tally.
+    const active = rowsForSection(model, 'active');
+    expect(active.map((r) => r.id)).toContain('310da4b3-cb86-f111-ab10-70a8a59b1fe2');
+    const testRow = model.rows.find((r) => r.id === '310da4b3-cb86-f111-ab10-70a8a59b1fe2')!;
+    expect(testRow.isTestRecord).toBe(true);
+    expect(testRow.stage).toBe('Underwriting');
+  });
+
+  it('a deal with isTestRecord omitted (an ordinary handwritten fixture) is treated as a real deal and counted', () => {
+    const model = deriveLoanWorkbench([deal({ id: 'd1', name: 'No flag set' })], [], 'Dana', NOW);
+    expect(model.counts.active).toBe(1);
+    expect(model.rows[0]!.isTestRecord).toBeUndefined();
+  });
+});

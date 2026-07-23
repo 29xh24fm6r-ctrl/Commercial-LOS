@@ -14,7 +14,10 @@ vi.mock('./BankerContext', () => ({
   useBanker: vi.fn(() => ({ bankerId: 'banker-1', fullName: 'Dana Banker', email: 'dana@b.test', systemUserId: 'sys-1', writeDisabledReason: undefined })),
 }));
 
+import { loadBankerWorkQueueData } from './workQueueQueries';
 import { BankerLoanWorkflowWorkbench } from './BankerLoanWorkflowWorkbench';
+
+const loadWorkQueueMock = vi.mocked(loadBankerWorkQueueData);
 
 const NOW = new Date('2026-06-26T12:00:00Z');
 
@@ -39,6 +42,7 @@ beforeEach(() => {
   onOpenDeal = vi.fn();
   onNewDeal = vi.fn();
   onAddExistingLoan = vi.fn();
+  loadWorkQueueMock.mockReset();
 });
 
 async function renderWorkbench(d: BankerWorkQueueData = data()) {
@@ -144,5 +148,58 @@ describe('Phase 260 — BankerLoanWorkflowWorkbench (elite)', () => {
     for (const banned of ['not wired', 'writeback gated', 'future phase', 'command center readiness', 'no governed', 'read-only in this release']) {
       expect(text).not.toContain(banned);
     }
+  });
+});
+
+describe('D-01 — the known production test deal stays findable in Loan Workflow, excluded only from the queue-card count', () => {
+  const KNOWN_DEAL_ID = '310da4b3-cb86-f111-ab10-70a8a59b1fe2';
+
+  it('the default loader (no loadData override) requests includeTestDeals: true', async () => {
+    loadWorkQueueMock.mockResolvedValue(data());
+    render(
+      <MemoryRouter>
+        <BankerLoanWorkflowWorkbench onOpenDeal={onOpenDeal} now={NOW} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(loadWorkQueueMock).toHaveBeenCalled());
+    expect(loadWorkQueueMock).toHaveBeenCalledWith('banker-1', { includeTestDeals: true });
+  });
+
+  it('the known SYSTEM TEST deal is findable via quick search and shows a TEST badge, but is excluded from the "My Active Deals" count', async () => {
+    const withTestDeal: BankerWorkQueueData = {
+      ...data(),
+      deals: [
+        ...data().deals,
+        {
+          id: KNOWN_DEAL_ID,
+          name: 'SYSTEM TEST - Read Path Forensic Deal',
+          clientName: 'N/A',
+          stage: 'Underwriting',
+          status: 'Active',
+          amount: 250_000,
+          targetCloseDate: undefined,
+          lastActivityOn: '2026-06-20T00:00:00Z',
+          stageEntryDate: '2026-06-20T00:00:00Z',
+          createdOn: '2026-06-20T00:00:00Z',
+          isClosed: false,
+          collateralSummary: undefined,
+          isTestRecord: true,
+        },
+      ],
+    };
+    const { container } = await renderWorkbench(withTestDeal);
+
+    // "My Active Deals" (the default queue) count reflects only the ONE real
+    // deal — the test record is excluded from the KPI-style tile number.
+    const activeCard = container.querySelector('[data-loan-queue-card="active"]') as HTMLElement;
+    expect(within(activeCard).getByText('1')).toBeInTheDocument();
+
+    // But it IS findable via the quick-search box — the known id/name never
+    // silently disappears from this surface.
+    const user = userEvent.setup();
+    await user.type(container.querySelector('[data-loan-search]') as HTMLElement, 'system test');
+    const row = container.querySelector(`[data-loan-row="${KNOWN_DEAL_ID}"]`) as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(within(row).getByText('TEST')).toBeInTheDocument();
   });
 });

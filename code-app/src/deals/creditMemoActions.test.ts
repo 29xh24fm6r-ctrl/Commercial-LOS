@@ -412,6 +412,50 @@ describe('saveCreditMemoDraft', () => {
     expect(subtype2).toContain(`correlation:${c2 as string}`);
   });
 
+  it('D-02 known-deal regression: a second draft save ("update" the version) for the known Underwriting deal creates a brand-new v2 row bound to the SAME deal — never mutates the v1 row', async () => {
+    // Deal 310da4b3-cb86-f111-ab10-70a8a59b1fe2 — the known production Underwriting deal this
+    // forensic pass investigated. This module has no update path by design (see module docstring);
+    // "saving a newer version" is always a NEW create, never a patch of the prior draft.
+    const KNOWN_DEAL_ID = '310da4b3-cb86-f111-ab10-70a8a59b1fe2';
+    memoCreate
+      .mockReturnValueOnce(memoOk('memo-v1'))
+      .mockReturnValueOnce(memoOk('memo-v2'));
+    sectionCreate.mockReturnValue(sectionOk('s'));
+    auditCreate.mockReturnValue(auditOk('a-1'));
+    timelineCreate.mockReturnValue(timelineOk('t-1'));
+
+    const v1 = await saveCreditMemoDraft(
+      baseInput({ dealId: KNOWN_DEAL_ID, version: 1, sections: [] }),
+      okResolver,
+    );
+    const v2 = await saveCreditMemoDraft(
+      baseInput({ dealId: KNOWN_DEAL_ID, version: 2, sections: [] }),
+      okResolver,
+    );
+
+    expect(v1.kind).toBe('success');
+    expect(v2.kind).toBe('success');
+    if (v1.kind === 'success') expect(v1.memoId).toBe('memo-v1');
+    if (v2.kind === 'success') expect(v2.memoId).toBe('memo-v2');
+    expect(memoCreate).toHaveBeenCalledTimes(2);
+
+    const call1 = memoCreate.mock.calls[0]![0] as Record<string, unknown>;
+    const call2 = memoCreate.mock.calls[1]![0] as Record<string, unknown>;
+    // Both rows bind to the exact same deal — this is a NEW row per save, not
+    // an update of the first, and both stay correctly scoped to this deal.
+    expect(call1['cr664_Deal@odata.bind']).toBe(`/cr664_loandeals(${KNOWN_DEAL_ID})`);
+    expect(call2['cr664_Deal@odata.bind']).toBe(`/cr664_loandeals(${KNOWN_DEAL_ID})`);
+    expect(call1.cr664_version).toBe(1);
+    expect(call2.cr664_version).toBe(2);
+    // No update/patch method exists on the mocked service surface at all.
+    const memoServiceAny = Cr664_creditmemo1sService as unknown as Record<string, unknown>;
+    expect(
+      Object.keys(memoServiceAny).filter(
+        (k) => k !== 'create' && typeof memoServiceAny[k] === 'function',
+      ),
+    ).toEqual([]);
+  });
+
   it('does NOT touch any existing memo record — only create is ever called', async () => {
     memoCreate.mockReturnValue(memoOk('memo-1'));
     sectionCreate.mockReturnValue(sectionOk('s'));

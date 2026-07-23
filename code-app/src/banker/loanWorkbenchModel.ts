@@ -44,6 +44,14 @@ export interface WorkbenchRow {
   readonly targetCloseDate: string | undefined;
   /** Section memberships this row belongs to. */
   readonly sections: readonly WorkbenchSectionKey[];
+  /**
+   * D-01 fix — true for a classified test/smoke deal (see
+   * testDealClassification.ts). The row still belongs to its sections (so
+   * search and section-browsing find it), but it is excluded from the
+   * section COUNT tallies below so the queue-card numbers stay an
+   * operational-only KPI.
+   */
+  readonly isTestRecord?: boolean;
 }
 
 export interface WorkbenchModel {
@@ -127,6 +135,7 @@ export function deriveLoanWorkbench(
       createdOn: d.createdOn,
       targetCloseDate: d.targetCloseDate,
       sections,
+      isTestRecord: d.isTestRecord,
     };
   });
 
@@ -139,6 +148,12 @@ export function deriveLoanWorkbench(
     attention: 0,
   };
   for (const r of rows) {
+    // D-01 fix: a classified test/smoke record still belongs to its sections
+    // (so section-browsing and search find it — see rowsForSection below and
+    // the quick-search box in BankerLoanWorkflowWorkbench.tsx), but it is
+    // excluded from the queue-card COUNT tallies so those numbers stay an
+    // operational-only KPI, matching the banker dashboard's own convention.
+    if (r.isTestRecord) continue;
     for (const sec of r.sections) counts[sec] += 1;
   }
 

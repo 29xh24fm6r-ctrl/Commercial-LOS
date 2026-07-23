@@ -112,3 +112,74 @@ describe('Phase 258 — created deal is included by the Loan Workflow query mode
     expect(deals[0]!.isClosed).toBe(false);
   });
 });
+
+/**
+ * D-01 — forensic regression using the known production deal this pass
+ * investigated: 310da4b3-cb86-f111-ab10-70a8a59b1fe2, advanced to
+ * Underwriting, absent from PersonalPipeline / Active Deals / Loan Workflow /
+ * stage-filter options. This row passes EVERY predicate the canonical query
+ * filters on (assigned banker, active, non-terminal) — the ONLY reason it was
+ * excluded was the P1-11 test/smoke name-classification gate applying to a
+ * name that also matches this initiative's OWN mandated "SYSTEM TEST -"
+ * controlled-record convention. The fix is NOT to weaken that gate (real
+ * smoke/QA noise must still stay out of operational KPI counts) — it is that
+ * `includeTestDeals: true` (already used by PersonalPipeline.tsx and the Loan
+ * Workflow workbench's default loader; see PersonalPipeline.tsx /
+ * BankerLoanWorkflowWorkbench.tsx) is the one, already-existing, canonical
+ * escape hatch for "list views must still find it," and every returned deal
+ * now carries `isTestRecord` so those surfaces can label it instead of
+ * silently mixing it in.
+ */
+describe('D-01 — known production Underwriting test deal passes every predicate except name-classification', () => {
+  const KNOWN_DEAL_ID = '310da4b3-cb86-f111-ab10-70a8a59b1fe2';
+
+  function knownUnderwritingTestDealRow(): Record<string, unknown> {
+    return {
+      cr664_loandealid: KNOWN_DEAL_ID,
+      // The repo's own mandated controlled-test-record naming convention.
+      cr664_dealname: 'SYSTEM TEST - Read Path Forensic Deal',
+      cr664_clientname: 'N/A',
+      _cr664_assignedbanker_value: BANKER_ID,
+      '_cr664_stagereference_value@OData.Community.Display.V1.FormattedValue': 'Underwriting',
+      '_cr664_statusreference_value@OData.Community.Display.V1.FormattedValue': 'Active',
+      cr664_amount: 250_000,
+      cr664_targetclosedate: '2026-09-01',
+      modifiedon: '2026-07-15T00:00:00Z',
+      cr664_stageentrydate: '2026-07-01T00:00:00Z',
+      // Every OTHER predicate the canonical query filters on is satisfied.
+      statecode: 0,
+      cr664_isterminalstatus: false,
+      cr664_closedflag: false,
+    };
+  }
+
+  it('EXCLUDED by the default (dashboard/KPI) call — the exact predicate is the name-classification gate, not banker/active/terminal', async () => {
+    getAllMock.mockResolvedValue({ success: true, data: [knownUnderwritingTestDealRow()] } as never);
+    const deals = await loadBankerPipeline(BANKER_ID);
+    expect(deals).toHaveLength(0);
+  });
+
+  it('RETRIEVABLE with includeTestDeals: true (PersonalPipeline / Loan Workflow path), correctly flagged and in Underwriting', async () => {
+    getAllMock.mockResolvedValue({ success: true, data: [knownUnderwritingTestDealRow()] } as never);
+    const deals = await loadBankerPipeline(BANKER_ID, { includeTestDeals: true });
+    expect(deals).toHaveLength(1);
+    const d = deals[0]!;
+    expect(d.id).toBe(KNOWN_DEAL_ID);
+    expect(d.stage).toBe('Underwriting');
+    expect(d.isTestRecord).toBe(true);
+    expect(d.isClosed).toBe(false);
+  });
+
+  it('a real (non-test-named) deal in the same shape is included by BOTH the default and includeTestDeals calls, unflagged', async () => {
+    const realRow = { ...knownUnderwritingTestDealRow(), cr664_loandealid: 'real-1', cr664_dealname: 'Acme Expansion' };
+    getAllMock.mockResolvedValue({ success: true, data: [realRow] } as never);
+
+    const defaultDeals = await loadBankerPipeline(BANKER_ID);
+    expect(defaultDeals).toHaveLength(1);
+    expect(defaultDeals[0]!.isTestRecord).toBe(false);
+
+    const inclusiveDeals = await loadBankerPipeline(BANKER_ID, { includeTestDeals: true });
+    expect(inclusiveDeals).toHaveLength(1);
+    expect(inclusiveDeals[0]!.isTestRecord).toBe(false);
+  });
+});
