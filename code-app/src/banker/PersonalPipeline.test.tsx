@@ -513,3 +513,48 @@ describe('Remediation 2026-07-22 (Workstream E) — refreshToken triggers an in-
     expect(loadMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('D-01 — the known production test deal stays findable (labeled), not silently excluded', () => {
+  const KNOWN_DEAL_ID = '310da4b3-cb86-f111-ab10-70a8a59b1fe2';
+
+  it('requests includeTestDeals: true (the escape hatch for a findable list, not a hidden aggregate)', async () => {
+    loadMock.mockResolvedValue([]);
+    renderShell();
+    await waitFor(() => expect(loadMock).toHaveBeenCalled());
+    expect(loadMock).toHaveBeenCalledWith('banker-1', { includeTestDeals: true });
+  });
+
+  it('renders the known SYSTEM TEST deal on the board with a visible TEST badge, and its stage as a filter option', async () => {
+    loadMock.mockResolvedValue([
+      deal({
+        id: KNOWN_DEAL_ID,
+        name: 'SYSTEM TEST - Read Path Forensic Deal',
+        stage: 'Underwriting',
+        isTestRecord: true,
+      }),
+      // A second, distinct stage so the Stage filter dropdown itself renders
+      // (PersonalPipeline only shows the filter row when there's more than
+      // one distinct stage/status among the loaded deals).
+      deal({ id: 'real-1', name: 'Acme Expansion', stage: 'Intake' }),
+    ]);
+    renderShell();
+
+    const card = await screen.findByRole('button', {
+      name: /Open deal SYSTEM TEST - Read Path Forensic Deal/i,
+    });
+    expect(within(card).getByText('TEST')).toBeInTheDocument();
+    // The stage-filter dropdown offers "Underwriting" — it is no longer
+    // invisible to the stage-filter options derivation.
+    expect(screen.getByRole('option', { name: 'Underwriting' })).toBeInTheDocument();
+    // The card renders inside the Underwriting LANE itself, not just the filter list.
+    const underwritingLane = screen.getByRole('region', { name: /Stage: Underwriting/i });
+    expect(within(underwritingLane).getByText('SYSTEM TEST - Read Path Forensic Deal')).toBeInTheDocument();
+  });
+
+  it('an ordinary (non-test-named) deal never shows the TEST badge', async () => {
+    loadMock.mockResolvedValue([deal({ id: 'real-1', name: 'Acme Expansion', isTestRecord: false })]);
+    renderShell();
+    const card = await screen.findByRole('button', { name: /Open deal Acme Expansion/i });
+    expect(within(card).queryByText('TEST')).toBeNull();
+  });
+});

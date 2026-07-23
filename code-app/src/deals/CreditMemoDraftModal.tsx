@@ -477,9 +477,14 @@ function OutcomeBlock({ outcome }: { outcome: SaveCreditMemoDraftOutcome }) {
             Could not save draft
           </div>
           <p style={styles.outcomeDetail}>
-            The draft was not saved. This can happen if the connection dropped or the record was
-            briefly locked. You can safely try again. If it keeps failing, contact support — the
-            technical detail has been recorded for diagnostics.
+            The draft was not saved. No credit memo record was created.
+          </p>
+          <p style={styles.outcomeDetailMono} data-credit-memo-save-error>
+            {outcome.memoError}
+          </p>
+          <p style={styles.outcomeDetail}>
+            If this looks transient, you can safely try again. If it persists, share this exact
+            message with support.
           </p>
         </div>
       );

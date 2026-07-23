@@ -299,12 +299,25 @@ async function loadMemoSectionsForDeals(
     .filter((s) => s.dealId !== '');
 }
 
+export interface LoadBankerWorkQueueDataOptions {
+  /**
+   * D-01 fix — forwarded to loadBankerPipeline. Defaults to false so the
+   * banker dashboard's own KPI tiles / tab badges (deriveBankerPersonalActivity,
+   * driven by BankerShell's default no-options call) keep excluding classified
+   * test/smoke deals from their counts, unchanged. The Loan Workflow workbench
+   * passes true so a controlled test record stays findable there (its own
+   * "My Active Deals" tile count still excludes it — see loanWorkbenchModel.ts).
+   */
+  readonly includeTestDeals?: boolean;
+}
+
 export async function loadBankerWorkQueueData(
   bankerId: string,
+  options: LoadBankerWorkQueueDataOptions = {},
 ): Promise<BankerWorkQueueData> {
   // Step 1: authorized deal ids.
   const deals = await timed(PERF_GROUP, 'loadBankerPipeline', () =>
-    loadBankerPipeline(bankerId),
+    loadBankerPipeline(bankerId, { includeTestDeals: options.includeTestDeals }),
   );
   if (deals.length === 0) {
     return {

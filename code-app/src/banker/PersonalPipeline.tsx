@@ -63,7 +63,13 @@ export function PersonalPipeline({ refreshToken }: PersonalPipelineProps = {}) {
   useEffect(() => {
     let cancelled = false;
     setState({ kind: 'loading' });
-    loadBankerPipeline(bankerId)
+    // D-01 fix: Active Deals is a findable LIST, not an aggregate KPI — a
+    // controlled/labeled test record (e.g. "SYSTEM TEST - ...") must stay
+    // reachable here by exact stage/status/search, unlike the dashboard's own
+    // KPI tiles (deriveBankerPersonalActivity, unchanged) which still exclude
+    // test records from their counts. Every returned deal carries
+    // `isTestRecord` so DealCard can label it instead of showing it unlabeled.
+    loadBankerPipeline(bankerId, { includeTestDeals: true })
       .then((deals) => {
         if (!cancelled) setState({ kind: 'ready', deals });
       })
@@ -365,6 +371,13 @@ function DealCard({
     >
       <div style={styles.dealCardTopRow}>
         <span style={styles.dealCardName}>{deal.name}</span>
+        {deal.isTestRecord && (
+          <span data-deal-card-test-badge="true">
+            <Badge variant="neutral" appearance="outline">
+              TEST
+            </Badge>
+          </span>
+        )}
         {isStale && (
           <Badge variant="atRisk" appearance="outline">
             Stale {STALE_ACTIVITY_DAYS}d+

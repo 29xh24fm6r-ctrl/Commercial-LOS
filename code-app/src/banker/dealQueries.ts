@@ -1,6 +1,6 @@
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 import type { Cr664_loandeals } from '../generated/models/Cr664_loandealsModel';
-import { operationalDeals } from '../shared/deals/testDealClassification';
+import { operationalDeals, isTestOrSmokeDealName } from '../shared/deals/testDealClassification';
 
 export interface PipelineDeal {
   id: string;
@@ -8,6 +8,17 @@ export interface PipelineDeal {
   clientName: string | undefined;
   stage: string | undefined;
   status: string | undefined;
+  /**
+   * True when the deal name matches the controlled test/smoke naming
+   * convention (see testDealClassification.ts). Populated by
+   * loadBankerPipeline/toPipelineDeal for every real read — optional here
+   * only so hand-built PipelineDeal fixtures elsewhere (which represent
+   * ordinary, non-test deals) don't all need updating; omitted is treated
+   * as false everywhere it's read. Any caller that opts in to seeing test
+   * records (includeTestDeals: true) can use this to label them instead of
+   * silently mixing them into an unlabeled operational list.
+   */
+  isTestRecord?: boolean;
   amount: number | undefined;
   targetCloseDate: string | undefined;
   lastActivityOn: string | undefined;
@@ -67,6 +78,7 @@ function toPipelineDeal(d: Cr664_loandeals): PipelineDeal {
   return {
     id: d.cr664_loandealid,
     name: d.cr664_dealname,
+    isTestRecord: isTestOrSmokeDealName(d.cr664_dealname),
     clientName: d.cr664_clientname,
     // Phase 170L — formatted-value-first hydration parity with the deal
     // detail / team / manager read models. Deals created via the

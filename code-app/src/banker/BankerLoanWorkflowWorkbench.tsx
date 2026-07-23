@@ -56,8 +56,20 @@ const QUEUE: readonly QueueSpec[] = [
   { key: 'boarding', label: 'Portfolio Boarding', tone: 'neutral' },
 ];
 
+/**
+ * D-01 fix — the workbench's own quick-search box + section-browsing already
+ * let a banker find an exact record, so (unlike the dashboard's default
+ * loadBankerWorkQueueData(bankerId) call in BankerShell.tsx, which stays
+ * test-excluded for its own KPI tiles) this surface asks for classified
+ * test/smoke deals too. loanWorkbenchModel.ts still excludes them from the
+ * queue-card COUNT tallies — only the underlying rows include them.
+ */
+function loadWorkbenchData(bankerId: string): Promise<BankerWorkQueueData> {
+  return loadBankerWorkQueueData(bankerId, { includeTestDeals: true });
+}
+
 export function BankerLoanWorkflowWorkbench({
-  loadData = loadBankerWorkQueueData,
+  loadData = loadWorkbenchData,
   onOpenDeal,
   onNewDeal,
   onAddExistingLoan,
@@ -251,7 +263,14 @@ function DealTable({ rows, onOpen, now }: { rows: readonly WorkbenchRow[]; onOpe
               }
             }}
           >
-            <td style={styles.tdStrong}>{r.name}</td>
+            <td style={styles.tdStrong}>
+              {r.name}
+              {r.isTestRecord && (
+                <span data-loan-row-test-badge="true" style={{ marginLeft: spacing.xs }}>
+                  <Badge variant="neutral" appearance="outline">TEST</Badge>
+                </span>
+              )}
+            </td>
             <td style={styles.td}>{r.borrower ?? '—'}</td>
             <td style={styles.td}>{formatAmount(r.amount)}</td>
             <td style={styles.td}>{r.stage ?? 'Intake'}</td>

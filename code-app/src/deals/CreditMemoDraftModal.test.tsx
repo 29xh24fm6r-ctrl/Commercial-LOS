@@ -365,6 +365,64 @@ describe('CreditMemoDraftModal — Phase 25 Save Draft flow', () => {
     expect(buttons[0]!.textContent).toMatch(/close/i);
   });
 
+  it('D-02 fix: memo-failed surfaces the REAL service error, never the old generic "dropped connection" copy', async () => {
+    const onSave = vi.fn().mockResolvedValue({
+      kind: 'memo-failed',
+      memoError: 'cr664_memoname exceeds maximum length of 100 characters',
+    } satisfies SaveCreditMemoDraftOutcome);
+    render(
+      <CreditMemoDraftModal
+        deal={baseDeal}
+        tasks={noTasks}
+        documents={noDocs}
+        existingMemos={undefined}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /save credit memo draft/i }));
+    await user.type(screen.getByLabelText(/save note/i), 'For review');
+    await user.click(screen.getByRole('button', { name: /save credit memo draft/i }));
+
+    await screen.findByText(/Could not save draft/i);
+    // The real, exact service error is shown verbatim — this is the actionable blocker.
+    expect(
+      screen.getByText('cr664_memoname exceeds maximum length of 100 characters'),
+    ).toBeInTheDocument();
+    // The old hardcoded, error-discarding copy must never appear again.
+    expect(screen.queryByText(/connection dropped/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/briefly locked/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/technical detail has been recorded for diagnostics/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('D-02 fix: a different memo-failed error string renders that exact different message (proves it is not a second hardcoded string)', async () => {
+    const onSave = vi.fn().mockResolvedValue({
+      kind: 'memo-failed',
+      memoError: 'Required attribute cr664_workspaceid is missing',
+    } satisfies SaveCreditMemoDraftOutcome);
+    render(
+      <CreditMemoDraftModal
+        deal={baseDeal}
+        tasks={noTasks}
+        documents={noDocs}
+        existingMemos={undefined}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /save credit memo draft/i }));
+    await user.type(screen.getByLabelText(/save note/i), 'For review');
+    await user.click(screen.getByRole('button', { name: /save credit memo draft/i }));
+
+    expect(
+      await screen.findByText('Required attribute cr664_workspaceid is missing'),
+    ).toBeInTheDocument();
+  });
+
   it('renders the CRITICAL governance-partial outcome with banker-safe messaging — NEVER the raw technical errors', async () => {
     const onSave = vi.fn().mockResolvedValue({
       kind: 'governance-partial',
