@@ -388,6 +388,33 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'deferral rationale.',
     blockerKind: 'compound',
   },
+  {
+    id: 'origination-loan-structure-fields',
+    label: 'Loan Purpose / Loan Term / Ownership Structure (deal-level)',
+    reason:
+      'PR 105 -- three fields (loan purpose, loan term in months, a deal-level ' +
+      'ownership/legal-structure classification distinct from cr664_guarantorstructure) ' +
+      'have no backing Dataverse column on cr664_loandeal. The governed write path ' +
+      '(src/deals/write/updateDealProfile.ts) already documents this exact gap and stays ' +
+      'out of scope pending an operator-authorized schema change -- see ' +
+      'docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md for the exact column ' +
+      'spec, create/verify/rollback scripts, and the ORIGINATION_LOAN_STRUCTURE_FIELDS_ENABLED ' +
+      'flag that stays false until the migration is applied and verified.',
+    blockerKind: 'schema',
+  },
+  {
+    id: 'financial-spread-persistence',
+    label: 'Global Cash Flow figures (deal-level persistence)',
+    reason:
+      'PR 105 -- GlobalCashFlowPanel.tsx computes a real DSCR from banker-entered figures ' +
+      '(src/deals/globalCashFlow.ts) but has no Dataverse column to round-trip them through, ' +
+      'so entries are local-only (session-scoped; reset on reload), following the same ' +
+      'disclosed convention as this file\'s LOCAL_ONLY_FLOWS. The additive JSON column ' +
+      'cr664_financialspreadinputs (mirroring the live cr664_extendedloanattributes precedent) ' +
+      'is specced in docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md; ' +
+      'FINANCIAL_SPREAD_PERSISTENCE_ENABLED stays false until that migration is applied.',
+    blockerKind: 'schema',
+  },
 ];
 
 // ---------------------------------------------------------------------------

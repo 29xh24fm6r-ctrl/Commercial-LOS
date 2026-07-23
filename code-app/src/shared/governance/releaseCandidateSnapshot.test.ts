@@ -51,7 +51,11 @@ function readDoc(rel: string): string {
 const PHASE_111_SNAPSHOT = Object.freeze({
   governedWrites: 14,
   localOnlyFlows: 16,
-  notWired: 9,
+  // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
+  // financial-spread-persistence) for the schema-pending Global Cash Flow /
+  // core loan structure capabilities -- see
+  // docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md.
+  notWired: 11,
   deliberatelyBlocked: 1,
 });
 
