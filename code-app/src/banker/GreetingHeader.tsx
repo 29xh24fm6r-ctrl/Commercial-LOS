@@ -204,7 +204,7 @@ export function GreetingHeader({
         <LogActivityModal
           deals={activityDealOptions}
           writeDisabledReason={writeDisabledReason}
-          onConfirm={async (dealId, note) => {
+          onConfirm={async (dealId, note, extra) => {
             const deal = activityDealOptions.find((option) => option.id === dealId);
             const result = await logActivity({
               dealId,
@@ -213,6 +213,9 @@ export function GreetingHeader({
               systemUserId,
               actorEmail: email,
               note,
+              activityType: extra.activityType,
+              outcome: extra.outcome,
+              nextFollowUpDate: extra.nextFollowUpDate,
             });
             if (result.kind === 'success' || result.kind === 'governance-partial') {
               onActivityLogged?.();

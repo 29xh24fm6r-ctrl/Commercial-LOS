@@ -389,6 +389,41 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/workflow/loanWorkflowRequirementEngine.ts', reason: 'ARC Phase 1: requirement evaluation engine (met/unmet/untracked/unavailable, blocking vs recommended, where-to-resolve). Compatibility adapter delegates tracked facts to the existing live readiness. Inert; wired by a later ARC PR.', plannedPhase: 'ARC Phase 1 (wired PR 3/20)' },
   // â”€â”€ src/workspaces â”€â”€
   { path: 'src/workspaces/WorkspaceShell.tsx', reason: 'Workspace shell sub-surface not yet routed.', plannedPhase: 'Phase 3+' },
+  // final-seven-workstreams Workstream 5A — prepared schema shape for loan purpose/term/ownership
+  // status, deliberately NOT wired into any UI: the Dataverse columns it mirrors do not exist yet
+  // (schema change requires Matthew's explicit authorization, see
+  // docs/final-seven-workstreams/05_DEAL_SCHEMA_EXPANSION.md). Consumed only by its own test.
+  { path: 'src/deals/dealPurposeTermOwnershipSchema.ts', reason: 'Phase 5A: prepared purpose/term/ownership option-set + validators, mirroring the NOT-YET-APPLIED provisioning script. Inert; wired only after Phase 5B schema authorization.', plannedPhase: 'Phase 5B (operator-authorized)' },
+  // final-seven-workstreams Workstream 6 — the closing-document generation framework. A new,
+  // fully-tested (49 tests) capability with no live Dataverse table to persist generated documents
+  // in yet (see closingDocumentStorage.ts's doc comment) — not mounted in any workspace pending an
+  // operator-authorized schema addition and a real integration point. See
+  // docs/final-seven-workstreams/06_CLOSING_DOCUMENT_FRAMEWORK.md.
+  { path: 'src/closing/documents/closingDocumentTypes.ts', reason: 'Workstream 6: shared types for the closing-document framework. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/closing/documents/closingDocumentTemplateRegistry.ts', reason: 'Workstream 6: the 5-template pilot registry. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/closing/documents/closingDocumentEligibility.ts', reason: 'Workstream 6: pure eligibility/fact-validation logic. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/closing/documents/closingDocumentContentRenderer.ts', reason: 'Workstream 6: pure content rendering + content hashing. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/closing/documents/closingDocumentStorage.ts', reason: 'Workstream 6: storage seam + in-memory reference implementation — NO live Dataverse factory exists (no table for this yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/closing/documents/closingDocumentAudit.ts', reason: 'Workstream 6: governed audit-recording helper for document generation. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/closing/documents/closingDocumentGeneration.ts', reason: 'Workstream 6: the preview/generate/regenerate pipeline. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/closing/documents/closingDocumentPackage.ts', reason: 'Workstream 6: package/supersession summarizer. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/closing/documents/ClosingDocumentsPanel.tsx', reason: 'Workstream 6: the read-plus-governed-action UI panel. Inert; not mounted in any workspace pending live storage.', plannedPhase: 'Follow-up (schema + integration)' },
+  // final-seven-workstreams Workstream 7 — the funding authorization framework. A new, fully-tested
+  // (61 tests) capability with no live Dataverse table for authorization records yet (see
+  // fundingAuthorizationStorage.ts's doc comment) — not mounted in any workspace pending an
+  // operator-authorized schema addition and a real integration point. See
+  // docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md.
+  { path: 'src/funding/fundingAuthorizationTypes.ts', reason: 'Workstream 7: shared types for the funding-authorization framework. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingAuthorizationPolicy.ts', reason: 'Workstream 7: pure policy engine (dual control, self-approval prohibition, facility-amount cap). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingReadiness.ts', reason: 'Workstream 7: pure disbursement-readiness derivation. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingAudit.ts', reason: 'Workstream 7: governed audit-recording helper. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingTimeline.ts', reason: 'Workstream 7: pure timeline-event payload builder (no live wiring yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingAuthorizationStorage.ts', reason: 'Workstream 7: storage seam + in-memory reference implementation — NO live Dataverse factory exists (no table for this yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingFeatureFlags.ts', reason: 'Workstream 7: the capability gate (default false). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingRequestAdapter.ts', reason: 'Workstream 7: governed funding-request write. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingApprovalAdapter.ts', reason: 'Workstream 7: governed approve/reject/revoke writes. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingDisbursementConfirmation.ts', reason: 'Workstream 7: the sole path to FUNDED, with re-verified readiness at confirmation time. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/FundingAuthorizationPanel.tsx', reason: 'Workstream 7: the read-plus-governed-action UI panel. Inert; not mounted in any workspace pending live storage.', plannedPhase: 'Follow-up (schema + integration)' },
 ];
 
 /** Set of allow-listed paths for O(1) membership checks. */

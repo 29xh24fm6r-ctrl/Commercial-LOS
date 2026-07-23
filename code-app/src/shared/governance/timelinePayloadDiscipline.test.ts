@@ -37,6 +37,17 @@ interface TimelineMapping {
    *  pattern (`creditmemo:draft-saved|correlation:<id>`); the task
    *  and document writes use the bare `correlation:<id>`. */
   subtypeHasDomainPrefix: boolean;
+  /**
+   * Workstream 2 (final-seven-workstreams) — true for the one write whose eventtype is no longer
+   * a single hardcoded local const but a canonical lookup keyed by activityType
+   * (`ACTIVITY_TYPE_TO_DEAL_TIMELINE_EVENT_TYPE[activityType]`, imported from
+   * `../activity/canonicalActivityLogging.ts`, shared with the CRM-scoped writer). `eventTypeConst`/
+   * `eventTypeValue` above still describe its DEFAULT ('note' -> NoteLogged) for the other
+   * cross-file invariants (distinctness, domain-prefix reuse), but the "declares a local const" /
+   * "uses the const, not a bare literal" checks below are replaced with lookup-specific ones for
+   * this entry.
+   */
+  usesCanonicalActivityTypeMap?: boolean;
 }
 
 const TIMELINE_BY_WRITE_ID: Readonly<Record<string, TimelineMapping>> =
@@ -88,6 +99,7 @@ const TIMELINE_BY_WRITE_ID: Readonly<Record<string, TimelineMapping>> =
       eventTypeConst: 'TIMELINE_EVENT_TYPE_NOTE_LOGGED',
       eventTypeValue: 788190002,
       subtypeHasDomainPrefix: true,
+      usesCanonicalActivityTypeMap: true,
     },
     'deal-document-review-task-create': {
       file: 'src/deals/dealTaskActions.ts',
@@ -242,6 +254,26 @@ describe('Phase 50 — visibility constant is imported from the shared helper', 
 
 describe('Phase 50 — per-write timeline event-type constants are pinned', () => {
   for (const m of Object.values(TIMELINE_BY_WRITE_ID)) {
+    if (m.usesCanonicalActivityTypeMap) {
+      it(`${m.file} imports the canonical activity-type -> deal-timeline-eventtype map (shared with the CRM-scoped writer) instead of a local const`, () => {
+        const src = readSource(m.file);
+        expect(src).toMatch(
+          /import\s*\{[^}]*\bACTIVITY_TYPE_TO_DEAL_TIMELINE_EVENT_TYPE\b[^}]*\}\s*from\s+['"]\.\.\/activity\/canonicalActivityLogging['"]/,
+        );
+        // The canonical module itself pins the default ('note') to the documented value.
+        const canonicalSrc = readSource('src/activity/canonicalActivityLogging.ts');
+        expect(canonicalSrc).toMatch(new RegExp(`note:\\s*${m.eventTypeValue}\\b`));
+      });
+
+      it(`${m.file} uses the canonical lookup in cr664_eventtype (not a bare numeric literal)`, () => {
+        const src = readSource(m.file);
+        expect(src).toMatch(/cr664_eventtype\s*:\s*ACTIVITY_TYPE_TO_DEAL_TIMELINE_EVENT_TYPE\[\w+\]/);
+        const bareRe = new RegExp(`cr664_eventtype\\s*:\\s*${m.eventTypeValue}\\b`);
+        expect(bareRe.test(src)).toBe(false);
+      });
+      continue;
+    }
+
     it(`${m.file} declares ${m.eventTypeConst} = ${m.eventTypeValue}`, () => {
       const src = readSource(m.file);
       const re = new RegExp(

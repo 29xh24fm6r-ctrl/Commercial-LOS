@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useDialogDismissal } from '../shared/ui/useDialogDismissal';
 import { useDealData } from './DealDataProvider';
 import { useOptionalBanker } from '../banker/BankerContext';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -270,18 +271,15 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
   const hasChanges = Object.keys(patch).length > 0 || Object.keys(referencePatch).length > 0;
   const saving = save.kind === 'saving';
 
-  // D20 — Escape closes the modal (matches AddDealTaskModal.tsx's established
-  // pattern); never while a save is in flight.
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !saving) {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, saving]);
+  // D20 / Workstream 3C (final-seven-workstreams) — Escape closes the modal (never while a save is
+  // in flight), plus a focus trap and focus-return while open. Click-outside-to-dismiss stays OFF
+  // — this form edits real deal-profile fields and an accidental outside click discarding pending
+  // edits would be worse than requiring Escape or the Close button.
+  const dialogRef = useDialogDismissal<HTMLDivElement>({
+    onClose,
+    disabled: saving,
+    closeOnOutsideClick: false,
+  });
 
   async function onSave() {
     // P2-14 — duplicate-submit guard: ignore re-entry while a save is in flight.
@@ -318,7 +316,7 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby={titleId} style={styles.overlay}>
-      <div style={styles.card} data-deal-profile-modal>
+      <div style={styles.card} data-deal-profile-modal ref={dialogRef}>
         <header style={styles.header}>
           <h2 id={titleId} style={styles.title}>Deal Profile</h2>
           <p style={styles.subtitle}>

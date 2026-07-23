@@ -1,16 +1,24 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
+import { useState, type CSSProperties, type FormEvent } from 'react';
 import type { LogActivityOutcome } from './logActivityActions';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import { ACTIVITY_TYPE_OPTIONS, type CanonicalActivityType } from '../activity/canonicalActivityLogging';
+import { useDialogDismissal } from '../shared/ui/useDialogDismissal';
 
 export interface LogActivityDealOption {
   id: string;
   name: string;
 }
 
+export interface LogActivityConfirmInput {
+  activityType: CanonicalActivityType;
+  outcome: string | undefined;
+  nextFollowUpDate: string | undefined;
+}
+
 export interface LogActivityModalProps {
   deals: readonly LogActivityDealOption[];
   writeDisabledReason: string | undefined;
-  onConfirm: (dealId: string, note: string) => Promise<LogActivityOutcome>;
+  onConfirm: (dealId: string, note: string, extra: LogActivityConfirmInput) => Promise<LogActivityOutcome>;
   onClose: () => void;
 }
 
@@ -22,21 +30,24 @@ export function LogActivityModal({
 }: LogActivityModalProps) {
   const [dealId, setDealId] = useState(deals[0]?.id ?? '');
   const [note, setNote] = useState('');
+  // Workstream 2 (final-seven-workstreams) — the deal-scoped form now captures the same
+  // canonical activity-type / outcome / next-follow-up fields the CRM-scoped form does, instead of
+  // a bare note (D4's field-set inconsistency).
+  const [activityType, setActivityType] = useState<CanonicalActivityType>('note');
+  const [activityOutcome, setActivityOutcome] = useState('');
+  const [nextFollowUpDate, setNextFollowUpDate] = useState('');
   const [outcome, setOutcome] = useState<LogActivityOutcome | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // D20 — Escape closes the modal (matches AddDealTaskModal.tsx's established
-  // pattern); never while a save is in flight.
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !saving) {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, saving]);
+  // D20 / Workstream 3C (final-seven-workstreams) — Escape closes the modal (never while a save is
+  // in flight), plus a focus trap and focus-return while open. Click-outside-to-dismiss is
+  // deliberately OFF here — this form can hold meaningful unsaved text (note/outcome/follow-up),
+  // and an accidental outside click losing that would be worse than requiring Escape or Close.
+  const dialogRef = useDialogDismissal<HTMLDivElement>({
+    onClose,
+    disabled: saving,
+    closeOnOutsideClick: false,
+  });
 
   const canSave =
     !writeDisabledReason &&
@@ -51,7 +62,13 @@ export function LogActivityModal({
     setSaving(true);
     setOutcome(null);
     try {
-      setOutcome(await onConfirm(dealId, note.trim()));
+      setOutcome(
+        await onConfirm(dealId, note.trim(), {
+          activityType,
+          outcome: activityOutcome.trim() || undefined,
+          nextFollowUpDate: nextFollowUpDate.trim() || undefined,
+        }),
+      );
     } catch (err: unknown) {
       setOutcome({
         kind: 'unknown',
@@ -70,7 +87,7 @@ export function LogActivityModal({
 
   return (
     <div style={styles.overlay} role="dialog" aria-modal="true" aria-label="Log activity">
-      <div style={styles.modal}>
+      <div style={styles.modal} ref={dialogRef}>
         <h2 style={styles.title}>Log Activity</h2>
         {blocker && (
           <p style={styles.blocker} role="alert">
@@ -94,11 +111,46 @@ export function LogActivityModal({
             </select>
           </label>
           <label style={styles.label}>
+            Type
+            <select
+              value={activityType}
+              onChange={(event) => setActivityType(event.target.value as CanonicalActivityType)}
+              style={styles.input}
+              disabled={saving || !!writeDisabledReason || deals.length === 0}
+            >
+              {ACTIVITY_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={styles.label}>
             Activity note
             <textarea
               value={note}
               onChange={(event) => setNote(event.target.value)}
               style={styles.textarea}
+              disabled={saving || !!writeDisabledReason || deals.length === 0}
+            />
+          </label>
+          <label style={styles.label}>
+            Outcome (optional)
+            <input
+              type="text"
+              value={activityOutcome}
+              onChange={(event) => setActivityOutcome(event.target.value)}
+              style={styles.input}
+              disabled={saving || !!writeDisabledReason || deals.length === 0}
+            />
+          </label>
+          <label style={styles.label}>
+            Next follow-up date (optional)
+            <input
+              type="date"
+              value={nextFollowUpDate}
+              onChange={(event) => setNextFollowUpDate(event.target.value)}
+              style={styles.input}
               disabled={saving || !!writeDisabledReason || deals.length === 0}
             />
           </label>

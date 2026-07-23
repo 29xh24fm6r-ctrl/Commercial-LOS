@@ -8,6 +8,7 @@ import { buildLiveCrmWriteFns, type CrmWriteFns } from '../write/crmWriteActions
 import type { CrmWriteOutcome } from '../write/crmWriteAdapter';
 import { isDealLinkableOrgType } from '../orgClientBridgeEligibility';
 import type { BridgeOrgToClientOutcome } from '../write/bridgeOrgToClientRelationship';
+import { ACTIVITY_TYPE_OPTIONS } from '../../activity/canonicalActivityLogging';
 
 /**
  * Phase 261 (B) — CRM write action bar + modal forms.
@@ -412,9 +413,7 @@ function fieldsFor(kind: CrmActionKind, companies: readonly CrmOption[], people:
       ];
     case 'activity':
       return [
-        { key: 'activityType', label: 'Type', type: 'select', required: true, options: [
-          { value: 'call', label: 'Call' }, { value: 'email', label: 'Email' }, { value: 'meeting', label: 'Meeting' }, { value: 'note', label: 'Note' },
-        ], placeholder: 'Call' },
+        { key: 'activityType', label: 'Type', type: 'select', required: true, options: [...ACTIVITY_TYPE_OPTIONS], placeholder: 'Call' },
         { key: 'occurredAt', label: 'Date', type: 'date' },
         { key: 'summary', label: 'What happened', type: 'text', required: true, full: true },
         { key: 'outcome', label: 'Outcome', type: 'text' },

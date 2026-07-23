@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('./DealDataProvider', () => ({ useDealData: vi.fn() }));
@@ -203,6 +203,18 @@ describe('DealProfileEditModal — fields + governed save', () => {
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(document.querySelector('[data-deal-profile-cancel]')).toBeNull());
+  });
+
+  it('Workstream 3C (final-seven-workstreams) — clicking outside the dialog does NOT close it (unsaved-edit risk)', async () => {
+    setContext(deal());
+    setBanker();
+    const user = userEvent.setup();
+    render(<DealProfileEditLauncher source="missing-fields" />);
+    await user.click(screen.getByRole('button', { name: /Complete Deal Profile/i }));
+    expect(document.querySelector('[data-deal-profile-cancel]')).not.toBeNull();
+
+    fireEvent.mouseDown(document.body);
+    expect(document.querySelector('[data-deal-profile-cancel]')).not.toBeNull();
   });
 
   it('Save is disabled until a field changes', async () => {

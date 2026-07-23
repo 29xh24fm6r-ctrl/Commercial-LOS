@@ -83,4 +83,28 @@ describe('resolveDealIndustryFromNaics', () => {
     expect(resolveDealIndustryFromNaics('abc', ROWS).kind).toBe('no-sector');
     expect(resolveDealIndustryFromNaics('12345', ROWS).kind).toBe('no-sector'); // not 6 digits
   });
+
+  // final-seven-workstreams Workstream 3A — the two codes the D1 disposition table names as
+  // reproducible examples of an intentionally-unmapped sector (only 5 of 20 sectors are seeded
+  // with a live cr664_naicsindustrymap row today; sector 72 and sector 56 are both, correctly,
+  // among the 15 left unmapped pending business approval — see
+  // docs/final-seven-workstreams/03_RESIDUAL_REMEDIATION.md for the proposed full-coverage matrix,
+  // not applied). This pins that they resolve HONESTLY, never a fabricated guess.
+  it('722511 (Full-Service Restaurants, sector 72) is honestly no-mapping — sector 72 is not yet seeded', () => {
+    const r = resolveDealIndustryFromNaics('722511', ROWS);
+    expect(r.kind).toBe('no-mapping');
+    if (r.kind === 'no-mapping') {
+      expect(r.sector.sectorCode).toBe('72');
+      expect(r.naicsCode).toBe('722511');
+    }
+  });
+
+  it('561422 (Telemarketing Bureaus, sector 56) is honestly no-mapping — sector 56 is not yet seeded', () => {
+    const r = resolveDealIndustryFromNaics('561422', ROWS);
+    expect(r.kind).toBe('no-mapping');
+    if (r.kind === 'no-mapping') {
+      expect(r.sector.sectorCode).toBe('56');
+      expect(r.naicsCode).toBe('561422');
+    }
+  });
 });

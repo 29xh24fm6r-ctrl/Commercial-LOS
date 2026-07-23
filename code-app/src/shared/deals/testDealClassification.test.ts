@@ -22,6 +22,17 @@ describe('P1-11 — test/smoke deal classification', () => {
     }
   });
 
+  it('final-seven-workstreams (2026-07-23) — classifies this repository\'s own controlled test-record convention, "SYSTEM TEST - <description>"', () => {
+    for (const name of [
+      'SYSTEM TEST - Runbook 1 Stage Advancement Demo',
+      '  SYSTEM TEST - leading whitespace',
+      'system test - lowercase variant',
+      '[SYSTEM TEST] bracketed variant',
+    ]) {
+      expect(isTestOrSmokeDealName(name)).toBe(true);
+    }
+  });
+
   it('does NOT misclassify ordinary deal names (no false positives on the word "test")', () => {
     for (const name of [
       'Acme Expansion',
@@ -29,6 +40,8 @@ describe('P1-11 — test/smoke deal classification', () => {
       'Contest Holdings LLC', // contains "test" as a substring but is not a test deal
       'Greatest Manufacturing Inc',
       'Northwest Testing Labs Term Loan', // a real borrower that happens to do testing
+      'System Solutions Testing Corp', // contains "System" and "Testing" but not the "SYSTEM TEST -" prefix
+      'We passed the system test - great news', // "system test" appears, but not as the required NAME PREFIX
       undefined,
       null,
       '',

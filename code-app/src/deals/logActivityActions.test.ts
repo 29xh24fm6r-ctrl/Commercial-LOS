@@ -190,3 +190,140 @@ describe('Phase 160 -- logActivity', () => {
     expect(auditCreate).not.toHaveBeenCalled();
   });
 });
+
+describe('Workstream 2 (final-seven-workstreams) -- canonical activity type + outcome/follow-up', () => {
+  it('defaults to activityType "note" (NoteLogged) when omitted, matching original behavior', async () => {
+    timelineCreate.mockReturnValue(successTimeline('activity-1'));
+    auditCreate.mockReturnValue(successAudit('audit-1'));
+
+    await logActivity(input(), okResolver, {});
+
+    const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.cr664_eventtype).toBe(788190002);
+    expect(payload.cr664_title).toBe('Banker Note logged');
+  });
+
+  it('maps each canonical activityType to the same deal-timeline eventtype code the CRM cross-write uses', async () => {
+    const cases: Array<[string, number]> = [
+      ['call', 788190000],
+      ['email', 788190001],
+      ['meeting', 788190003],
+      ['note', 788190002],
+    ];
+    for (const [activityType, code] of cases) {
+      timelineCreate.mockReset();
+      auditCreate.mockReset();
+      timelineCreate.mockReturnValue(successTimeline('activity-x'));
+      auditCreate.mockReturnValue(successAudit('audit-x'));
+      await logActivity(input({ activityType: activityType as never }), okResolver, {});
+      const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+      expect(payload.cr664_eventtype, activityType).toBe(code);
+    }
+  });
+
+  it('folds outcome and next-follow-up date onto cr664_summary as text (no dedicated column exists)', async () => {
+    timelineCreate.mockReturnValue(successTimeline('activity-1'));
+    auditCreate.mockReturnValue(successAudit('audit-1'));
+
+    await logActivity(
+      input({ outcome: 'Left voicemail', nextFollowUpDate: '2026-08-01' }),
+      okResolver,
+      {},
+    );
+
+    const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(payload.cr664_summary).toBe(
+      'Client called to confirm diligence timing. · Outcome: Left voicemail · Next follow-up: 2026-08-01',
+    );
+  });
+
+  it('still only carries the same known field set when activityType/outcome/nextFollowUpDate are supplied', async () => {
+    timelineCreate.mockReturnValue(successTimeline('activity-1'));
+    auditCreate.mockReturnValue(successAudit('audit-1'));
+
+    await logActivity(
+      input({ activityType: 'call', outcome: 'Connected', nextFollowUpDate: '2026-08-01' }),
+      okResolver,
+      {},
+    );
+
+    const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(Object.keys(payload).sort()).toEqual(
+      [
+        'cr664_Deal@odata.bind',
+        'cr664_EventBy@odata.bind',
+        'cr664_eventat',
+        'cr664_eventsubtype',
+        'cr664_eventtype',
+        'cr664_issystemgenerated',
+        'cr664_relatedentityid',
+        'cr664_relatedentitytype',
+        'cr664_summary',
+        'cr664_title',
+        'cr664_visibilityscope',
+      ].sort(),
+    );
+  });
+});
+
+describe('Workstream 2 (final-seven-workstreams) -- reverse cross-write onto the deal\'s bridged CRM company timeline', () => {
+  it('cross-writes a cr664_crmtimelineevents row when the deal\'s client is bridged to a CRM organization', async () => {
+    timelineCreate.mockReturnValue(successTimeline('activity-1'));
+    auditCreate.mockReturnValue(successAudit('audit-1'));
+    const resolveDealBridgedOrganizationId = vi.fn(async (_dealId: string) => ({ status: 'ready' as const, organizationId: 'org-1' }));
+    const createCrmTimelineEvent = vi.fn(async (_payload: Record<string, unknown>) => ({ success: true, id: 'crm-timeline-1' }));
+
+    await logActivity(input({ activityType: 'call' }), okResolver, {
+      resolveDealBridgedOrganizationId,
+      createCrmTimelineEvent,
+    });
+
+    expect(resolveDealBridgedOrganizationId).toHaveBeenCalledWith('deal-1');
+    expect(createCrmTimelineEvent).toHaveBeenCalledTimes(1);
+    const crmPayload = createCrmTimelineEvent.mock.calls[0]![0] as Record<string, unknown>;
+    expect(crmPayload['cr664_Organization@odata.bind']).toBe('/cr664_crmorganizations(org-1)');
+    expect(crmPayload['cr664_OriginatedLoanDeal@odata.bind']).toBe('/cr664_loandeals(deal-1)');
+    expect(crmPayload.cr664_eventtype).toBe('call');
+    expect(crmPayload.cr664_actor).toBe('banker@oldglorybank.com');
+  });
+
+  it.each([
+    ['no-client-link', { status: 'no-client-link' as const }],
+    ['no-org-link', { status: 'no-org-link' as const }],
+    ['unavailable', { status: 'unavailable' as const, error: 'lookup failed' }],
+  ])('does not cross-write when the bridge resolves to %s', async (_label, bridgeResult) => {
+    timelineCreate.mockReturnValue(successTimeline('activity-1'));
+    auditCreate.mockReturnValue(successAudit('audit-1'));
+    const createCrmTimelineEvent = vi.fn(async () => ({ success: true, id: 'crm-timeline-1' }));
+
+    await logActivity(input(), okResolver, {
+      resolveDealBridgedOrganizationId: async () => bridgeResult,
+      createCrmTimelineEvent,
+    });
+
+    expect(createCrmTimelineEvent).not.toHaveBeenCalled();
+  });
+
+  it('does not cross-write at all when no cross-write deps are supplied (backward compatible)', async () => {
+    timelineCreate.mockReturnValue(successTimeline('activity-1'));
+    auditCreate.mockReturnValue(successAudit('audit-1'));
+
+    const outcome = await logActivity(input(), okResolver, {});
+
+    expect(outcome).toEqual({ kind: 'success', activityId: 'activity-1' });
+  });
+
+  it('never lets a cross-write failure affect the primary success outcome', async () => {
+    timelineCreate.mockReturnValue(successTimeline('activity-1'));
+    auditCreate.mockReturnValue(successAudit('audit-1'));
+
+    const outcome = await logActivity(input(), okResolver, {
+      resolveDealBridgedOrganizationId: async () => ({ status: 'ready' as const, organizationId: 'org-1' }),
+      createCrmTimelineEvent: async () => {
+        throw new Error('CRM write blew up');
+      },
+    });
+
+    expect(outcome).toEqual({ kind: 'success', activityId: 'activity-1' });
+  });
+});

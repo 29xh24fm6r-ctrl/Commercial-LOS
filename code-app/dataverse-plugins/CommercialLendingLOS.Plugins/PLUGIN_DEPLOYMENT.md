@@ -1,10 +1,19 @@
 # LoanDealGovernedTransitionPlugin — deployment
 
-**Status: NOT built, registered, or deployed.** This project was authored in a session with no
-`dotnet` SDK, no Power Platform CLI (`pac`), and no Dataverse credentials — everything below has
-been reviewed by inspection for correctness against the TypeScript sources it mirrors, not
-verified by a compiler or a live registration. Budget real time to fix whatever the review missed
-before trusting this in production.
+**Status (updated 2026-07-23, final-seven-workstreams Workstream 1): built and unit-tested; still
+NOT registered or deployed against any live Dataverse environment.** A working `dotnet` SDK became
+available in the session that ran Workstream 1 — `dotnet build -c Release` now succeeds cleanly (0
+warnings, 0 errors), and a new xUnit test project
+(`dataverse-plugins/CommercialLendingLOS.Plugins.Tests/`, 41 tests) exercises the compiled plugin
+against a hand-rolled in-memory Dataverse fake, covering every transition class in
+`CANONICAL_TRANSITION_POLICY_CONTRACT.md` plus the credit-authority sub-rules. That pass also found
+and fixed two real hardening gaps (a dangling/unresolvable stage or status reference could
+previously surface a raw platform exception instead of a safe fail-closed denial; a plain
+status-only change that wasn't literally DECLINED/WITHDRAWN was never checked for resolving to any
+canonical status at all). See `docs/operator-runbooks/DATAVERSE_GOVERNANCE_PLUGIN_DEPLOYMENT.md`
+for the full operator runbook (prerequisites, exact registration steps, service-account
+requirements, smoke test, rollback). Registration itself still requires a live Dataverse admin
+action this sandbox cannot perform — nothing below should be read as "deployed."
 
 This document supersedes the prior `LoanDealStageAuthorityPlugin` deployment notes — that plugin
 (narrowly scoped to the CREDIT_APPROVAL → COMMITMENT authority rule) has been deleted and folded

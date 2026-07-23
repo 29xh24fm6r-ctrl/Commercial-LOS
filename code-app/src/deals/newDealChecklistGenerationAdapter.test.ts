@@ -8,6 +8,7 @@ import {
   type ChecklistAuditEvent,
 } from './newDealChecklistGenerationAdapter';
 import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
+import { getLoanWorkflowStage } from '../workflow/loanWorkflowStages';
 
 /**
  * Phase 188C — the audited, fail-closed document-checklist generator. Disabled
@@ -97,6 +98,57 @@ describe('idempotency', () => {
     );
     expect(out.kind).toBe('success');
     expect(created.map((p) => p.cr664_documentname)).toEqual(['Doc A', 'Doc B']);
+  });
+});
+
+describe('final-seven-workstreams Workstream 4 — exact row count + idempotent rerun against a real stage template', () => {
+  // Uses the REAL Underwriting stage template (loanWorkflowStages.ts), not an arbitrary fixture --
+  // proves the generator produces exactly the approved set for a real stage, no more, no fewer,
+  // and that an immediate rerun on the same deal creates zero additional rows (the exact scenario
+  // the operator runbook's "idempotent rerun" step must observe before recording evidence).
+  const underwriting = getLoanWorkflowStage('UNDERWRITING');
+  const templateDocumentNames = (underwriting?.requiredDocuments ?? []).map((d) => d.label);
+
+  it('the Underwriting stage template names exactly 4 documents (a stable fixture assumption this test depends on)', () => {
+    expect(templateDocumentNames).toEqual([
+      'Business financial statements',
+      'Tax returns',
+      'Ownership information',
+      'Collateral support',
+    ]);
+  });
+
+  it('generates exactly one row per approved template document on first run — no more, no fewer', async () => {
+    const { d, created, auditCalls } = deps({ listExistingChecklistRows: async () => ({ ok: true, names: [] }) });
+    const out = await generateAuditedDocumentChecklist(baseInput({ templateDocumentNames }), d);
+    expect(out.kind).toBe('success');
+    expect(created).toHaveLength(4);
+    expect(created.map((p) => p.cr664_documentname).sort()).toEqual([...templateDocumentNames].sort());
+    expect(auditCalls).toHaveLength(1);
+    expect([...auditCalls[0]!.createdNames].sort()).toEqual([...templateDocumentNames].sort());
+    expect(auditCalls[0]!.skippedNames).toEqual([]);
+  });
+
+  it('an immediate rerun against the same (now-existing) rows creates zero additional rows and emits no new audit row', async () => {
+    // Simulates the real live-deps shape: listExistingChecklistRows now reflects what the first
+    // run created, exactly as buildLiveAuditedChecklistDeps's live reader would after a real create.
+    const { d, created, auditCalls } = deps({
+      listExistingChecklistRows: async () => ({ ok: true, names: [...templateDocumentNames] }),
+    });
+    const out = await generateAuditedDocumentChecklist(baseInput({ templateDocumentNames }), d);
+    expect(out.kind).toBe('skipped_duplicate_detected');
+    expect(created).toHaveLength(0);
+    expect(auditCalls).toHaveLength(0);
+  });
+
+  it('a partial rerun (some rows already exist) creates only the missing ones, still no duplicates', async () => {
+    const { d, created, auditCalls } = deps({
+      listExistingChecklistRows: async () => ({ ok: true, names: ['Business financial statements', 'Tax returns'] }),
+    });
+    const out = await generateAuditedDocumentChecklist(baseInput({ templateDocumentNames }), d);
+    expect(out.kind).toBe('success');
+    expect(created.map((p) => p.cr664_documentname).sort()).toEqual(['Collateral support', 'Ownership information']);
+    expect([...auditCalls[0]!.skippedNames].sort()).toEqual(['Business financial statements', 'Tax returns']);
   });
 });
 

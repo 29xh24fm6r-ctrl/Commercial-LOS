@@ -10,18 +10,81 @@ import {
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
 import { timelineEventByBind } from './timelineActorBind';
+import {
+  ACTIVITY_TYPE_LABEL,
+  ACTIVITY_TYPE_TO_DEAL_TIMELINE_EVENT_TYPE,
+  appendFoldedOutcomeAndFollowUp,
+  type CanonicalActivityType,
+} from '../activity/canonicalActivityLogging';
+import { resolveLiveDealBridgedOrganizationId, type DealBridgedOrganizationResult } from './dealBridgedOrganizationLookup';
 
 /**
  * Phase 160: governed write for banker-authored activity notes.
  *
  * The canonical activity row is cr664_DealTimelineEvent. A matching
  * audit row records the attempt and shares the same correlation id.
+ *
+ * final-seven-workstreams Workstream 2: this writer now shares its activity-type vocabulary and
+ * outcome/next-follow-up text formatting with the CRM-scoped writer
+ * (`../crm/write/crmWriteAdapter.ts`'s `logActivity()`) via `../activity/canonicalActivityLogging.ts`
+ * — the two forms present the same choices and the two Dataverse rows read the same way. It also
+ * now best-effort cross-writes a matching cr664_crmtimelineevents row when the deal's client is
+ * bridged to a CRM organization, closing the previously-documented gap that only the CRM-to-deal
+ * direction cross-wrote (commit 1c12590 / D3) and the deal-to-CRM direction did not.
  */
 
 const AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002;
 const AUDIT_EVENT_TYPE_STATUS_CHANGE = 788190001;
 const AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
-const TIMELINE_EVENT_TYPE_NOTE_LOGGED = 788190002;
+
+export interface LogActivityCrossWriteDeps {
+  readonly resolveDealBridgedOrganizationId?: (dealId: string) => Promise<DealBridgedOrganizationResult>;
+  readonly createCrmTimelineEvent?: (payload: Record<string, unknown>) => Promise<{ readonly success: boolean; readonly id?: string; readonly error?: { readonly message?: string } }>;
+}
+
+export function buildLiveLogActivityCrossWriteDeps(): LogActivityCrossWriteDeps {
+  return {
+    resolveDealBridgedOrganizationId: resolveLiveDealBridgedOrganizationId,
+    createCrmTimelineEvent: async (payload) => {
+      const { Cr664_crmtimelineeventsService } = await import('../generated/services/Cr664_crmtimelineeventsService');
+      const r = await Cr664_crmtimelineeventsService.create(payload as never);
+      return { success: r.success, id: r.data?.cr664_crmtimelineeventid, error: r.error ?? undefined };
+    },
+  };
+}
+
+/**
+ * Best-effort reverse cross-write (deal cockpit -> CRM company timeline). Never blocks or reverts
+ * the primary deal-timeline write that already succeeded; a failure here is swallowed (the same
+ * best-effort contract `crossWriteDealTimelineEvent` in crmWriteAdapter.ts uses for its own
+ * direction) since neither direction's cross-write has a durable error channel back to the
+ * originating write's own outcome type today — a documented, symmetric limitation, not new.
+ */
+async function crossWriteCrmTimelineEvent(opts: {
+  readonly input: LogActivityInput;
+  readonly activityType: CanonicalActivityType;
+  readonly summaryText: string;
+  readonly occurredAtIso: string;
+  readonly deps: LogActivityCrossWriteDeps;
+}): Promise<void> {
+  if (!opts.deps.resolveDealBridgedOrganizationId || !opts.deps.createCrmTimelineEvent) return;
+  try {
+    const bridge = await opts.deps.resolveDealBridgedOrganizationId(opts.input.dealId);
+    if (bridge.status !== 'ready') return; // no-client-link / no-org-link / unavailable — nothing to cross-write.
+    const label = ACTIVITY_TYPE_LABEL[opts.activityType];
+    await opts.deps.createCrmTimelineEvent({
+      cr664_name: `${label}: ${opts.summaryText.slice(0, 80)}`,
+      cr664_eventtype: opts.activityType,
+      cr664_summary: opts.summaryText,
+      cr664_actor: opts.input.actorEmail,
+      cr664_occurredat: opts.occurredAtIso,
+      'cr664_Organization@odata.bind': `/cr664_crmorganizations(${bridge.organizationId})`,
+      'cr664_OriginatedLoanDeal@odata.bind': `/cr664_loandeals(${opts.input.dealId})`,
+    });
+  } catch {
+    // Best-effort only — see the function doc comment.
+  }
+}
 
 export type LogActivityOutcome =
   | { kind: 'success'; activityId: string }
@@ -44,6 +107,12 @@ export interface LogActivityInput {
   actorEmail: string;
   bankerName: string | undefined;
   note: string;
+  /** Workstream 2 — defaults to 'note' when omitted (preserves the original bare-note behavior). */
+  activityType?: CanonicalActivityType;
+  /** Workstream 2 — optional; folded as text onto cr664_summary (no dedicated column exists). */
+  outcome?: string;
+  /** Workstream 2 — optional; folded as text onto cr664_summary (no dedicated column exists). */
+  nextFollowUpDate?: string;
 }
 
 async function emitAuditEvent(opts: {
@@ -111,11 +180,13 @@ async function createTimelineEvent(opts: {
   correlationId: string;
 }): Promise<{ id: string | undefined; error: string | undefined }> {
   const nowIso = new Date().toISOString();
+  const activityType = opts.input.activityType ?? 'note';
+  const summary = appendFoldedOutcomeAndFollowUp(opts.input.note, opts.input.outcome, opts.input.nextFollowUpDate);
   const payload = {
-    cr664_title: 'Banker activity note',
-    cr664_summary: opts.input.note,
+    cr664_title: `Banker ${ACTIVITY_TYPE_LABEL[activityType]} logged`,
+    cr664_summary: summary,
     cr664_eventat: nowIso,
-    cr664_eventtype: TIMELINE_EVENT_TYPE_NOTE_LOGGED,
+    cr664_eventtype: ACTIVITY_TYPE_TO_DEAL_TIMELINE_EVENT_TYPE[activityType],
     cr664_visibilityscope: TIMELINE_VISIBILITY_BANKER_AND_MANAGER,
     cr664_issystemgenerated: false,
     cr664_relatedentitytype: 'cr664_loandeal',
@@ -124,7 +195,7 @@ async function createTimelineEvent(opts: {
     // cr664_EventBy targets cr664_user — bind the resolved cr664_user, omit when
     // unresolved (fail-closed); never a systemuser id. Owner/state server-defaulted.
     ...timelineEventByBind(opts.actor),
-    cr664_eventsubtype: `activity:note|correlation:${opts.correlationId}`,
+    cr664_eventsubtype: `activity:${activityType}|correlation:${opts.correlationId}`,
   };
   try {
     const result = await Cr664_dealtimelineeventsService.create(
@@ -145,6 +216,7 @@ async function createTimelineEvent(opts: {
 export async function logActivity(
   input: LogActivityInput,
   resolveActorChangedBy: ResolveActorChangedBy = createActorChangedByResolver(),
+  crossWriteDeps: LogActivityCrossWriteDeps = buildLiveLogActivityCrossWriteDeps(),
 ): Promise<LogActivityOutcome> {
   const note = input.note.trim();
   if (note.length === 0) {
@@ -178,6 +250,20 @@ export async function logActivity(
       activityError: timeline.error ?? 'DealTimelineEvent create returned no id',
     };
   }
+
+  // Workstream 2 — best-effort reverse cross-write onto the deal's bridged CRM company timeline
+  // (never blocks/reverts the primary write already committed above; awaited only so tests and
+  // callers observe it deterministically, its own errors are swallowed internally).
+  // Workstream 2 — best-effort reverse cross-write onto the deal's bridged CRM company timeline
+  // (never blocks/reverts the primary write already committed above; awaited only so tests and
+  // callers observe it deterministically, its own errors are swallowed internally).
+  await crossWriteCrmTimelineEvent({
+    input: normalized,
+    activityType: normalized.activityType ?? 'note',
+    summaryText: appendFoldedOutcomeAndFollowUp(normalized.note, normalized.outcome, normalized.nextFollowUpDate),
+    occurredAtIso: new Date().toISOString(),
+    deps: crossWriteDeps,
+  });
 
   const audit = await emitAuditEvent({
     input: normalized,
