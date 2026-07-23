@@ -19,8 +19,18 @@ namespace CommercialLendingLOS.Plugins
     /// NOT COMPILED, REGISTERED, OR DEPLOYED in the session that authored this file -- no `dotnet`
     /// SDK, no Power Platform CLI, no Dataverse credentials were available. Reviewed by inspection
     /// for correctness against the TypeScript sources it mirrors, not verified by a compiler or a
-    /// live registration. See PLUGIN_DEPLOYMENT.md and
-    /// docs/governance/DEPLOYMENT_AND_ROLLBACK_PLAN.md before trusting this in production.
+    /// live registration at that time.
+    ///
+    /// UPDATE (2026-07-23, final-seven-workstreams Workstream 1): a `dotnet` SDK became available;
+    /// this file now compiles cleanly (`dotnet build -c Release`, 0 warnings/0 errors) and is
+    /// covered by a real xUnit suite (`../CommercialLendingLOS.Plugins.Tests/`, 41 tests) that
+    /// exercises Execute() against a hand-rolled in-memory Dataverse fake. That pass found and fixed
+    /// two real gaps in ResolveStage/ResolveStatusCode and the status-only branch (see their inline
+    /// comments) -- both now fail closed instead of throwing a raw platform exception or silently
+    /// allowing an unresolvable status through. Registration against a live org is STILL not done --
+    /// that remains a live Dataverse admin action. See PLUGIN_DEPLOYMENT.md and
+    /// docs/operator-runbooks/DATAVERSE_GOVERNANCE_PLUGIN_DEPLOYMENT.md before trusting this in
+    /// production.
     ///
     /// ARCHITECTURE (see docs/governance/ADR_001_PLATFORM_ENFORCED_CREDIT_WORKFLOW_GOVERNANCE.md):
     /// registered TWICE, sharing this one Execute method:
@@ -302,9 +312,18 @@ namespace CommercialLendingLOS.Plugins
 
             // touchesStatus only, staying within the non-terminal set (OPEN <-> ON_HOLD): this
             // contract does not define a distinct governed meaning for ON_HOLD beyond "not
-            // terminal" (§2) -- not blocked here.
+            // terminal" (§2) -- not blocked here. It must still resolve to A canonical status,
+            // though -- a dangling/malformed status reference is not "not terminal", it is
+            // unresolvable, and must fail closed like every other unresolvable reference in this
+            // file rather than sail through because it merely isn't literally DECLINED/WITHDRAWN.
             if (touchesStatus && !touchesStage)
             {
+                if (toStatusCode == null)
+                {
+                    Deny(serviceProvider, context, tracing, target, isPreValidation, fromStage.Code, toStage?.Code, fromStatusCode, null,
+                        "This deal's target status could not be resolved against the governed reference data. Contact your administrator.");
+                    return;
+                }
                 return;
             }
 
@@ -416,7 +435,18 @@ namespace CommercialLendingLOS.Plugins
         private static ResolvedStage ResolveStage(IOrganizationService service, EntityReference stageReference)
         {
             if (stageReference == null) return null;
-            var record = service.Retrieve(StageReferenceEntity, stageReference.Id, new ColumnSet(StageCodeAttribute, StageSequenceAttribute));
+            Entity record;
+            try
+            {
+                record = service.Retrieve(StageReferenceEntity, stageReference.Id, new ColumnSet(StageCodeAttribute, StageSequenceAttribute));
+            }
+            catch (Exception)
+            {
+                // Fail closed: a dangling/unresolvable stage-reference lookup (e.g. the referenced
+                // row was deleted) must never surface as a raw platform fault -- it is exactly as
+                // unresolvable as a null reference or a non-canonical code, and is denied the same way.
+                return null;
+            }
             var code = record.GetAttributeValue<string>(StageCodeAttribute);
             if (string.IsNullOrEmpty(code) || Array.IndexOf(CanonicalStageCodes, code) < 0) return null; // Non-canonical -- fail closed.
             if (!record.Contains(StageSequenceAttribute)) return null; // Not seeded -- fail closed (mirrors stageOrderingContract.ts).
@@ -450,7 +480,16 @@ namespace CommercialLendingLOS.Plugins
         private static string ResolveStatusCode(IOrganizationService service, EntityReference statusReference)
         {
             if (statusReference == null) return null;
-            var record = service.Retrieve(StatusReferenceEntity, statusReference.Id, new ColumnSet(StatusCodeAttribute));
+            Entity record;
+            try
+            {
+                record = service.Retrieve(StatusReferenceEntity, statusReference.Id, new ColumnSet(StatusCodeAttribute));
+            }
+            catch (Exception)
+            {
+                // Fail closed -- see the matching comment in ResolveStage.
+                return null;
+            }
             var code = record.GetAttributeValue<string>(StatusCodeAttribute);
             var canonical = new[] { StatusOpen, StatusOnHold, StatusDeclined, StatusWithdrawn, StatusBoarded };
             return !string.IsNullOrEmpty(code) && Array.IndexOf(canonical, code) >= 0 ? code : null;
