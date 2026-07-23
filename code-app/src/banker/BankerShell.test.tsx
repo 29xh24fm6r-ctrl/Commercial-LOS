@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { BankerWorkQueueData } from './workQueueQueries';
@@ -286,10 +286,46 @@ describe('Phase 125F — Lending OS shell layout', () => {
         systemUserId: 'sys-1',
         actorEmail: 'mpaller@oldglorybank.com',
         note: 'Client confirmed diligence timeline.',
+        // Workstream 2 (final-seven-workstreams) — the modal now always supplies these three
+        // canonical fields; defaults (Type left at "Note", Outcome/Next follow-up left blank).
+        activityType: 'note',
+        outcome: undefined,
+        nextFollowUpDate: undefined,
       });
     });
     await waitFor(() => {
       expect(loadMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('Workstream 2 (final-seven-workstreams) — logs a call activity with an outcome and next follow-up date', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(dataWithOneDeal());
+    logActivityMock.mockResolvedValue({ kind: 'success', activityId: 'activity-1' });
+    renderShell();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: /^Log Activity$/i }));
+    const dialog = screen.getByRole('dialog', { name: /^Log activity$/i });
+    await user.selectOptions(within(dialog).getByLabelText(/^Type$/i), 'call');
+    await user.type(within(dialog).getByRole('textbox', { name: /activity note/i }), 'Called the borrower.');
+    await user.type(within(dialog).getByLabelText(/^Outcome/i), 'Left voicemail');
+    const followUpInput = within(dialog).getByLabelText(/next follow-up date/i) as HTMLInputElement;
+    fireEvent.change(followUpInput, { target: { value: '2026-08-01' } });
+    await user.click(within(dialog).getByRole('button', { name: /^Log Activity$/i }));
+
+    await waitFor(() => {
+      expect(logActivityMock).toHaveBeenCalledWith({
+        dealId: 'deal-1',
+        dealName: 'Expansion Loan',
+        bankerName: 'Matt Paller',
+        systemUserId: 'sys-1',
+        actorEmail: 'mpaller@oldglorybank.com',
+        note: 'Called the borrower.',
+        activityType: 'call',
+        outcome: 'Left voicemail',
+        nextFollowUpDate: '2026-08-01',
+      });
     });
   });
 

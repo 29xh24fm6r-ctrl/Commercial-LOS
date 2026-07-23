@@ -26,6 +26,12 @@ import {
 } from '../../shared/governance/capabilityAvailability';
 import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../../shared/governance/timelineEnums';
 import { createActorChangedByResolver, type ResolveActorChangedBy } from '../../deals/newDealAuditActorResolver';
+import {
+  ACTIVITY_TYPE_LABEL,
+  ACTIVITY_TYPE_TO_DEAL_TIMELINE_EVENT_TYPE,
+  foldOutcomeAndFollowUp,
+  type CanonicalActivityType,
+} from '../../activity/canonicalActivityLogging';
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -380,7 +386,10 @@ export async function addContact(input: AddContactInput, deps: CrmWriteDeps): Pr
 // Log Activity (cr664_crmtimelineevents)
 // ---------------------------------------------------------------------------
 
-export type CrmActivityType = 'call' | 'email' | 'meeting' | 'note';
+/** Alias kept for this module's existing call sites/exports — the canonical vocabulary itself
+ *  now lives in `../../activity/canonicalActivityLogging.ts`, shared with the deal-scoped writer
+ *  (Workstream 2, final-seven-workstreams). */
+export type CrmActivityType = CanonicalActivityType;
 
 export interface LogActivityInput extends CrmActor {
   readonly activityType: CrmActivityType;
@@ -393,22 +402,12 @@ export interface LogActivityInput extends CrmActor {
   readonly originatedDealId?: string;
 }
 
-const ACTIVITY_LABEL: Record<CrmActivityType, string> = {
-  call: 'Call',
-  email: 'Email',
-  meeting: 'Meeting',
-  note: 'Note',
-};
+const ACTIVITY_LABEL = ACTIVITY_TYPE_LABEL;
 
 /** The real cr664_dealtimelineevent eventtype codes (src/deals/activityQueries.ts), reused
  *  verbatim so a cross-written CRM activity shows up as the SAME kind of interaction on the
  *  deal's Activity Timeline, not a generic note. */
-const CRM_ACTIVITY_TO_DEAL_TIMELINE_EVENT_TYPE: Record<CrmActivityType, number> = {
-  call: 788190000, // CallLogged
-  email: 788190001, // EmailLogged
-  note: 788190002, // NoteLogged
-  meeting: 788190003, // MeetingLogged
-};
+const CRM_ACTIVITY_TO_DEAL_TIMELINE_EVENT_TYPE = ACTIVITY_TYPE_TO_DEAL_TIMELINE_EVENT_TYPE;
 
 /**
  * D3 — best-effort cross-write of a CRM-logged activity onto the originating deal's
@@ -463,9 +462,6 @@ export async function logActivity(input: LogActivityInput, deps: CrmWriteDeps): 
   if (summary.length === 0) return { kind: 'invalid-input', reason: 'An activity summary is required.' };
   const occurredAt = trimmed(input.occurredAt) || new Date().toISOString();
   const label = ACTIVITY_LABEL[input.activityType] ?? 'Activity';
-  const followUp = trimmed(input.nextFollowUpDate);
-  const outcome = trimmed(input.outcome);
-  const notesParts = [outcome ? `Outcome: ${outcome}` : '', followUp ? `Next follow-up: ${followUp}` : ''].filter(Boolean);
   const dealId = trimmed(input.originatedDealId);
 
   const payload = compact({
@@ -474,7 +470,7 @@ export async function logActivity(input: LogActivityInput, deps: CrmWriteDeps): 
     cr664_summary: summary,
     cr664_actor: trimmed(input.actorEmail),
     cr664_occurredat: occurredAt,
-    cr664_notes: notesParts.join(' · '),
+    cr664_notes: foldOutcomeAndFollowUp(input.outcome, input.nextFollowUpDate),
     ...(trimmed(input.organizationId).length > 0
       ? { 'cr664_Organization@odata.bind': `/cr664_crmorganizations(${trimmed(input.organizationId)})` }
       : {}),
