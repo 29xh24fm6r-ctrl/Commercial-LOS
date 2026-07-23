@@ -42,10 +42,25 @@ describe('Phase 170J -- New Deal Intake panel', () => {
     expect(within(truth).getByText('Ready (TEST)')).toBeInTheDocument();
     expect(within(truth).getByText('Production reference approval')).toBeInTheDocument();
     expect(within(truth).getByText('Pending')).toBeInTheDocument();
-    expect(within(truth).getByText('Governed create adapter')).toBeInTheDocument();
+    expect(within(truth).getByText('Governed create adapter (public/global)')).toBeInTheDocument();
     expect(within(truth).getByText('Not wired')).toBeInTheDocument();
     expect(within(truth).getByText('Public + New Deal')).toBeInTheDocument();
     expect(within(truth).getByText('Gated')).toBeInTheDocument();
+  });
+
+  it('the banker pilot table reports Live, and its own row never reads "Not wired" (no contradiction across panels)', () => {
+    const { container } = render(<MemoryRouter><NewDealIntakePanel /></MemoryRouter>);
+    const pilotTruth = container.querySelector('[data-admin-new-deal-banker-pilot-truth]') as HTMLElement;
+    expect(pilotTruth).not.toBeNull();
+    expect(within(pilotTruth).getByText(/Banker pilot create/i)).toBeInTheDocument();
+    expect(within(pilotTruth).getByText('Live')).toBeInTheDocument();
+    // Neither the banker-pilot-specific table nor its row text ever claims
+    // "Not wired" for the pilot's own status — that phrase in this panel
+    // belongs only to the SEPARATE public/global readiness table below it.
+    expect(within(pilotTruth).queryByText(/not wired/i)).toBeNull();
+    const publicTruth = container.querySelector('[data-admin-new-deal-truth]') as HTMLElement;
+    expect(within(publicTruth).getByText('Governed create adapter (public/global)')).toBeInTheDocument();
+    expect(within(publicTruth).getByText('Not wired')).toBeInTheDocument();
   });
 
   it('shows the required future fields including Stage and Status (now Ready, not Blocked)', () => {

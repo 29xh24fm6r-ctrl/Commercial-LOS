@@ -35,7 +35,7 @@ describe('Phase 170J -- New Deal create readiness truth', () => {
     expect(byLabel.get('Stage/Status resolver readiness')?.done).toBe(true);
     expect(byLabel.get('Production reference approval')?.value).toBe('Pending');
     expect(byLabel.get('Production reference approval')?.done).toBe(false);
-    expect(byLabel.get('Governed create adapter')?.value).toBe('Not wired');
+    expect(byLabel.get('Governed create adapter (public/global)')?.value).toBe('Not wired');
     expect(byLabel.get('Public + New Deal')?.value).toBe('Gated');
     expect(byLabel.get('Public + New Deal')?.done).toBe(false);
   });

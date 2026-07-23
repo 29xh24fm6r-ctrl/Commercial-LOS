@@ -43,14 +43,22 @@ export interface NewDealReadinessItem {
 }
 
 /**
- * The single source of truth for + New Deal create readiness. Renders as
- * a small status table so the admin sees exactly what is proven vs
- * pending -- no stale "data source missing" claim.
+ * The single source of truth for + New Deal create readiness -- for the
+ * PUBLIC / GLOBAL create path only. Renders as a small status table so the
+ * admin sees exactly what is proven vs pending -- no stale "data source
+ * missing" claim.
+ *
+ * This table does NOT describe the separate, already-live banker pilot path
+ * (BankerNewDealCreate.tsx, gated by BANKER_CREATE_PILOT_ENABLED) -- see
+ * adminNewDealCreateCapabilityTruth.ts / NEW_DEAL_BANKER_PILOT_TRUTH for
+ * that path's own truth, computed from the pilot's own runtime inputs. The
+ * "Governed create adapter" row below is scoped to public/global explicitly
+ * so it is never misread as the banker pilot's status.
  */
 export const NEW_DEAL_READINESS_TRUTH: readonly NewDealReadinessItem[] = Object.freeze([
   Object.freeze({ label: 'Stage/Status resolver readiness', value: 'Ready (TEST)', done: NEW_DEAL_RESOLVER_READY_IN_TEST }),
   Object.freeze({ label: 'Production reference approval', value: 'Pending', done: NEW_DEAL_PRODUCTION_REFERENCES_APPROVED }),
-  Object.freeze({ label: 'Governed create adapter', value: 'Not wired', done: NEW_DEAL_GOVERNED_CREATE_ADAPTER_WIRED }),
+  Object.freeze({ label: 'Governed create adapter (public/global)', value: 'Not wired', done: NEW_DEAL_GOVERNED_CREATE_ADAPTER_WIRED }),
   Object.freeze({ label: 'Public + New Deal', value: 'Gated', done: NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED }),
 ]);
 

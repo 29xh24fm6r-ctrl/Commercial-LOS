@@ -89,7 +89,7 @@ function setBanker(over: Partial<ReturnType<typeof useBanker>> = {}) {
   });
 }
 
-function renderCreate(props: { onCreated?: () => void } = {}) {
+function renderCreate(props: { onCreated?: (createdDealId: string) => Promise<void> | void } = {}) {
   return render(
     <MemoryRouter>
       <BankerNewDealCreate {...props} />
@@ -728,7 +728,7 @@ describe('Workstream E — duplicate-submit protection (rapid double-click)', ()
 });
 
 describe('Workstream E — onCreated fires so a parent shell can refresh the board + pipeline total', () => {
-  it('calls onCreated exactly once the moment createdDealId is set, even when the follow-up write is skipped', async () => {
+  it('calls onCreated exactly once, with the EXACT createdDealId (never a no-argument fire-and-forget)', async () => {
     setBanker();
     const onCreated = vi.fn();
     orchestrateMock.mockResolvedValue({
@@ -744,9 +744,10 @@ describe('Workstream E — onCreated fires so a parent shell can refresh the boa
     await completeHappyPath(user, container);
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    expect(onCreated).toHaveBeenCalledWith('deal-new-5');
   });
 
-  it('does NOT call onCreated when create fails (no deal record exists)', async () => {
+  it('does NOT call onCreated when create fails (no deal record exists) — never navigates', async () => {
     setBanker();
     const onCreated = vi.fn();
     orchestrateMock.mockResolvedValue({
@@ -762,5 +763,83 @@ describe('Workstream E — onCreated fires so a parent shell can refresh the boa
       expect(container.querySelector('[data-banker-new-deal-result="create_failed"]')).not.toBeNull(),
     );
     expect(onCreated).not.toHaveBeenCalled();
+  });
+
+  it('calls onCreated with the exact createdDealId for a link_readback_mismatch partial outcome (deal still exists)', async () => {
+    setBanker();
+    const onCreated = vi.fn();
+    orchestrateMock.mockResolvedValue({
+      kind: 'link_readback_mismatch',
+      createdDealId: 'deal-lrm-1',
+      correlationId: 'corr-lrm',
+      userFacingMessage: 'partial',
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate({ onCreated });
+    await completeHappyPath(user, container);
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="link_readback_mismatch"]')).not.toBeNull(),
+    );
+    expect(onCreated).toHaveBeenCalledWith('deal-lrm-1');
+  });
+
+  it('calls onCreated with the exact createdDealId for an audit_failed_partial outcome (deal still exists)', async () => {
+    setBanker();
+    const onCreated = vi.fn();
+    orchestrateMock.mockResolvedValue({
+      kind: 'audit_failed_partial',
+      createdDealId: 'deal-afp-1',
+      correlationId: 'corr-abc',
+      auditOutcome: { kind: 'failed', error: 'AuditEvent create returned non-success.' },
+      userFacingMessage: 'partial',
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate({ onCreated });
+    await completeHappyPath(user, container);
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="audit_failed_partial"]')).not.toBeNull(),
+    );
+    expect(onCreated).toHaveBeenCalledWith('deal-afp-1');
+  });
+
+  it('preserves the result banner and awaits the parent before allowing a re-entrant submit', async () => {
+    setBanker();
+    let resolveOnCreated!: () => void;
+    const onCreated = vi.fn(
+      () => new Promise<void>((resolve) => { resolveOnCreated = resolve; }),
+    );
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-new-6',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate({ onCreated });
+    await completeHappyPath(user, container);
+
+    // The result banner shows immediately — it does not wait for the parent's
+    // confirm/navigate work to finish.
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
+    );
+    expect(onCreated).toHaveBeenCalledWith('deal-new-6');
+    expect(orchestrateMock).toHaveBeenCalledTimes(1);
+
+    // The parent (onCreated) has not resolved yet. A re-entrant submit attempt
+    // must not re-invoke the orchestrator while this component is still
+    // awaiting the parent's completion.
+    const submitButton = container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement;
+    fireEvent.click(submitButton);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(orchestrateMock).toHaveBeenCalledTimes(1);
+
+    // Once the parent finishes, the re-entrancy guard releases.
+    resolveOnCreated();
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
   });
 });
