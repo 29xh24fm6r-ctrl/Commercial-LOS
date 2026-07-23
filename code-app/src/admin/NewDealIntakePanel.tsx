@@ -9,6 +9,7 @@ import {
   NEW_DEAL_INTAKE_REGISTRATION_CHECKLIST,
   NEW_DEAL_READINESS_TRUTH,
 } from './adminNewDealIntakeModel';
+import { NEW_DEAL_BANKER_PILOT_TRUTH } from './adminNewDealCreateCapabilityTruth';
 import {
   NEW_DEAL_REFERENCE_TARGETS,
   NEW_DEAL_REFERENCE_TARGETS_CONFIRMED_ON,
@@ -48,7 +49,30 @@ export function NewDealIntakePanel() {
       </header>
 
       <div style={styles.section}>
-        <div style={styles.sectionTitle}>New Deal create readiness</div>
+        <div style={styles.sectionTitle}>Banker pilot create readiness (live path)</div>
+        <p style={styles.sectionNote} data-admin-new-deal-banker-pilot-note>
+          Computed from the exact same runtime inputs BankerNewDealCreate.tsx itself evaluates
+          (evaluateBankerCreateRollout + the pilot&rsquo;s gate values) — never a second,
+          hand-maintained copy that could drift from the real component.
+        </p>
+        <table style={styles.table} data-admin-new-deal-banker-pilot-truth>
+          <tbody>
+            {NEW_DEAL_BANKER_PILOT_TRUTH.map((item) => (
+              <tr key={item.label}>
+                <td style={styles.td}>{item.label}</td>
+                <td style={styles.td}>
+                  <Badge variant={item.done ? 'clear' : 'neutral'} appearance="outline">
+                    {item.value}
+                  </Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={styles.section}>
+        <div style={styles.sectionTitle}>New Deal create readiness (public / global path — separate from the banker pilot above)</div>
         <table style={styles.table} data-admin-new-deal-truth>
           <tbody>
             {NEW_DEAL_READINESS_TRUTH.map((item) => (

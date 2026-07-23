@@ -5,6 +5,7 @@ import {
   loadBankerWorkQueueData,
   type BankerWorkQueueData,
 } from './workQueueQueries';
+import { boundedRetry } from '../shared/async/boundedRetry';
 import { deriveBankerPersonalActivity } from '../shared/analytics/bankerPersonalActivity';
 import { parseCalendarDate } from '../shared/formatters';
 import { PersonalActivitySummary } from './PersonalActivitySummary';
@@ -86,6 +87,24 @@ type LoadState =
   | { kind: 'ready'; data: BankerWorkQueueData }
   | { kind: 'failed'; message: string };
 
+/**
+ * Post-create readback confirmation state for a just-created deal. A create
+ * returning `createdDealId` does not guarantee the pipeline read (a separate
+ * fetch, potentially a different cache/replica tier) reflects it yet, so the
+ * shell confirms the EXACT id appears before navigating — never falling back
+ * to a previous/default deal, and never navigating on an unconfirmed guess.
+ */
+type DealCreateConfirmState =
+  | { kind: 'idle' }
+  | { kind: 'confirming'; createdDealId: string }
+  | { kind: 'timed-out'; createdDealId: string };
+
+/** Bounded readback retry budget for confirming a just-created deal appears
+ *  in the pipeline before navigating to it. Small and fixed — never
+ *  uncontrolled polling. Worst case: 5 attempts, ~4 * 400ms ≈ 1.6s. */
+const DEAL_CREATE_READBACK_MAX_ATTEMPTS = 5;
+const DEAL_CREATE_READBACK_DELAY_MS = 400;
+
 export interface BankerShellProps {
   workspaceName: string;
   /**
@@ -116,6 +135,7 @@ function resolveInitialTab(state: unknown): ShellTab {
 export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps) {
   const { bankerId, fullName, email, systemUserId, writeDisabledReason } = useBanker();
   const location = useLocation();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<ShellTab>(() => resolveInitialTab(location.state));
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
@@ -174,10 +194,36 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   // refreshes this shell's own KPIs (including the pipeline-total) the same way MyWorkQueue's
   // onDataChanged already does for tasks.
   const [dealsRefreshNonce, setDealsRefreshNonce] = useState(0);
-  const onDealCreated = useCallback(() => {
-    setDealsRefreshNonce((n) => n + 1);
-    reload();
-  }, [reload]);
+  const [dealCreateConfirm, setDealCreateConfirm] = useState<DealCreateConfirmState>({ kind: 'idle' });
+  const onDealCreated = useCallback(
+    async (createdDealId: string) => {
+      // Bump PersonalPipeline's refetch + refresh this shell's own KPIs immediately — both are
+      // best-effort UI refreshes independent of the confirmation below.
+      setDealsRefreshNonce((n) => n + 1);
+      reload();
+      setDealCreateConfirm({ kind: 'confirming', createdDealId });
+      // A create returning createdDealId does not guarantee THIS read reflects it yet (a
+      // read-after-write race against a separate fetch/cache tier) — confirm the EXACT id
+      // actually appears before navigating. A stale first read that doesn't include it is
+      // expected and retried; an unrelated existing deal is never substituted. Dynamic import
+      // keeps the static graph SDK-free, matching BankerNewDealCreate.tsx's own dynamic-import
+      // use of the same dealQueries module.
+      const { loadBankerPipeline } = await import('./dealQueries');
+      const { satisfied } = await boundedRetry({
+        attempt: () => loadBankerPipeline(bankerId),
+        isSatisfied: (deals) => deals.some((d) => d.id === createdDealId),
+        maxAttempts: DEAL_CREATE_READBACK_MAX_ATTEMPTS,
+        delayMs: DEAL_CREATE_READBACK_DELAY_MS,
+      });
+      if (satisfied) {
+        setDealCreateConfirm({ kind: 'idle' });
+        navigate(`/deals/${createdDealId}`);
+      } else {
+        setDealCreateConfirm({ kind: 'timed-out', createdDealId });
+      }
+    },
+    [bankerId, reload, navigate],
+  );
 
   const now = useMemo(() => new Date(), [state]);
   const kpis = useMemo(() => {
@@ -223,8 +269,6 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
       })
       .slice(0, 3);
   }, [state]);
-  const navigate = useNavigate();
-
   const activeNav: LendingOSNavKey = TAB_SPECS.find((t) => t.key === tab)?.nav ?? 'dashboard';
   const activityDealOptions =
     state.kind === 'ready'
@@ -277,6 +321,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
                   onSelectTab={setTab}
                   onDealCreated={onDealCreated}
                   dealsRefreshNonce={dealsRefreshNonce}
+                  dealCreateConfirm={dealCreateConfirm}
                 />
               </ErrorBoundary>
             </div>
@@ -382,6 +427,7 @@ function TabContent({
   onWorkQueueDataChanged,
   onDealCreated,
   dealsRefreshNonce,
+  dealCreateConfirm,
 }: {
   tab: ShellTab;
   onNewDeal: () => void;
@@ -401,10 +447,17 @@ function TabContent({
    * left every shell-level count stale until the banker navigated away and back.
    */
   onWorkQueueDataChanged: () => void;
-  /** Remediation 2026-07-22 (Workstream E) — bumps dealsRefreshNonce + reloads shell KPIs. */
-  onDealCreated: () => void;
-  /** Remediation 2026-07-22 (Workstream E) — passed to PersonalPipeline as its refreshToken. */
+  /**
+   * Bumps dealsRefreshNonce + reloads shell KPIs, then confirms the exact
+   * created record via a bounded readback retry and navigates to it (see
+   * `dealCreateConfirm` below for the pending/timeout UI this drives).
+   */
+  onDealCreated: (createdDealId: string) => Promise<void> | void;
+  /** Passed to PersonalPipeline as its refreshToken. */
   dealsRefreshNonce: number;
+  /** Post-create readback confirmation state — renders a visible, honest
+   *  message when confirmation times out instead of silently doing nothing. */
+  dealCreateConfirm: DealCreateConfirmState;
 }) {
   switch (tab) {
     case 'dashboard':
@@ -427,6 +480,16 @@ function TabContent({
           <div data-header-new-deal-target>
             <BankerNewDealCreate onCreated={onDealCreated} />
           </div>
+          {dealCreateConfirm.kind === 'timed-out' && (
+            <div
+              style={styles.dealCreateConfirmTimeout}
+              role="alert"
+              data-banker-deal-create-confirm="timed-out"
+            >
+              The deal (id {dealCreateConfirm.createdDealId}) was created but could not yet be
+              confirmed in your pipeline. Refresh to check again — it is not lost.
+            </div>
+          )}
           <PersonalPipeline refreshToken={dealsRefreshNonce} />
         </div>
       );
@@ -632,6 +695,15 @@ function formatRelativeDate(iso: string | undefined): string {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  dealCreateConfirmTimeout: {
+    background: palette.atRiskBg,
+    border: `1px solid ${palette.atRisk}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.sm} ${spacing.md}`,
+    color: palette.text,
+    fontSize: typography.size.sm,
+    lineHeight: typography.lineHeight.snug,
+  },
   main: {
     padding: `0 ${spacing.xxl} ${spacing.xxl}`,
     display: 'flex',

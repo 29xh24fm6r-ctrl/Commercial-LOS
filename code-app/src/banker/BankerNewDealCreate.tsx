@@ -105,13 +105,18 @@ type Step = 1 | 2 | 3;
 
 export interface BankerNewDealCreateProps {
   /**
-   * Remediation 2026-07-22 (Workstream E) — fires the moment a deal record exists
-   * (createdDealId is set), regardless of whether the downstream loan-structure
-   * profile-completion write below also succeeds, so a parent shell can refresh
-   * the board (PersonalPipeline) and pipeline-total KPI in-session instead of
-   * requiring a tab switch or reload.
+   * Fires the moment a deal record exists (createdDealId is set), regardless of
+   * whether the downstream loan-structure profile-completion write below also
+   * succeeds, so a parent shell can refresh its data, refresh PersonalPipeline,
+   * confirm the exact created record via a bounded readback retry, and navigate
+   * to it. Carries the exact createdDealId (never discarded) so the parent can
+   * never fall back to selecting a previous/default deal. This component awaits
+   * the parent's completion before its own submit handler finishes, but does
+   * not itself reset its form state or navigate anywhere — that stays the
+   * parent's responsibility so the result banner below stays visible for
+   * exactly as long as the parent takes to confirm + navigate.
    */
-  readonly onCreated?: () => void;
+  readonly onCreated?: (createdDealId: string) => Promise<void> | void;
 }
 
 export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}) {
@@ -387,16 +392,23 @@ export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}
           },
         },
       );
-      // Remediation 2026-07-22 (Workstream E) — the moment a deal record exists, let the parent
-      // shell refresh the board + pipeline-total KPI, and (if any loan-structure fields were
-      // filled in) run the governed follow-up write. Both happen regardless of downstream
-      // automation outcome — a created deal is a created deal even if link/audit partially failed.
+      // The moment a deal record exists, run the (best-effort) governed follow-up write, THEN show
+      // the result banner (success / link_readback_mismatch / audit_failed_partial all carry
+      // createdDealId and are a created deal even if link/audit partially failed), and only THEN
+      // hand the exact createdDealId to the parent shell — never discarded, never a fire-and-forget
+      // `onCreated?.()` with no argument. Awaiting the parent here means this component's own
+      // "submitting" state (and the re-entrancy guard in `finally` below) doesn't clear until the
+      // parent has finished refreshing its data, refreshing PersonalPipeline, confirming the exact
+      // record via its own bounded readback retry, and navigating — this component itself never
+      // resets its form or navigates anywhere; that stays the parent's job.
       let profileOutcome: UpdateDealProfileOutcome | 'skipped' | undefined;
       if (result.createdDealId) {
-        onCreated?.();
         profileOutcome = await runProfileFollowUp(result.createdDealId, systemUserId);
+        setSubmit({ kind: 'done', result, profileOutcome });
+        await onCreated?.(result.createdDealId);
+      } else {
+        setSubmit({ kind: 'done', result, profileOutcome });
       }
-      setSubmit({ kind: 'done', result, profileOutcome });
     } catch (err) {
       setSubmit({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
     } finally {
