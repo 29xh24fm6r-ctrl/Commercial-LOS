@@ -148,6 +148,9 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
       industry: deal.industry ?? '',
       guarantorStructure: deal.guarantorStructure ?? '',
       collateralSummary: deal.collateralSummary ?? '',
+      loanPurpose: deal.loanPurpose ?? '',
+      loanTermMonths: deal.loanTermMonths != null ? String(deal.loanTermMonths) : '',
+      ownershipStructure: deal.ownershipStructure ?? '',
     }),
     [deal],
   );
@@ -398,6 +401,45 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
                 rows={3}
                 style={{ ...styles.input, resize: 'vertical' }}
                 data-deal-profile-field="collateralSummary"
+              />
+            </FieldLabel>
+
+            <FieldLabel text="Loan Purpose" missing={!deal.loanPurpose}>
+              <input
+                type="text"
+                value={fields.loanPurpose}
+                onChange={(e) => set('loanPurpose', e.target.value)}
+                disabled={saving}
+                maxLength={200}
+                style={styles.input}
+                placeholder="e.g. Acquisition of commercial property"
+                data-deal-profile-field="loanPurpose"
+              />
+            </FieldLabel>
+
+            <FieldLabel text="Loan Term (months)" missing={!deal.loanTermMonths}>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={fields.loanTermMonths}
+                onChange={(e) => set('loanTermMonths', e.target.value)}
+                disabled={saving}
+                style={styles.input}
+                placeholder="e.g. 60"
+                data-deal-profile-field="loanTermMonths"
+              />
+            </FieldLabel>
+
+            <FieldLabel text="Ownership Structure" missing={!deal.ownershipStructure}>
+              <input
+                type="text"
+                value={fields.ownershipStructure}
+                onChange={(e) => set('ownershipStructure', e.target.value)}
+                disabled={saving}
+                maxLength={100}
+                style={styles.input}
+                placeholder="e.g. LLC, S-Corp, Sole Proprietorship"
+                data-deal-profile-field="ownershipStructure"
               />
             </FieldLabel>
 

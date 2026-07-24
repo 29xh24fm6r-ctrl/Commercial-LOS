@@ -58,8 +58,11 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // one more (risk-rating-persistence) -- see
   // docs/factory-arc/PR106_RISK_RATING_SCHEMA_MIGRATION.md. PR 107 added two
   // more (closing-document-persistence, funding-authorization-persistence)
-  // -- see docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md.
-  notWired: 14,
+  // -- see docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md. Factory Arc
+  // Phase 3 closed origination-loan-structure-fields -- loan purpose/term/
+  // ownership now write/read via updateDealProfile.ts against the live PR105
+  // columns -- see docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md.
+  notWired: 13,
   deliberatelyBlocked: 1,
 });
 

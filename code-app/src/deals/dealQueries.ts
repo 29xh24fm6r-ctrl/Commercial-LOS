@@ -41,6 +41,18 @@ export interface DealDetail {
   collateralSummary: string | undefined;
   createdOn: string | undefined;
 
+  // Factory Arc Phase 3 — the PR105-provisioned columns (cr664_loanpurpose /
+  // cr664_loantermmonths / cr664_ownershipstructure). Read via the raw retrieve
+  // row (see mapDealDetail) since the generated Cr664_loandealsModel.ts does not
+  // declare them yet, pending the operator-run `pac code` regeneration Phase 2
+  // escalated (docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md).
+  // Optional for the same reason as the Phase 189D fields below: existing
+  // hand-built DealDetail fixtures across the test suite predate this phase and
+  // should keep compiling without edits. `mapDealDetail` always sets all three.
+  loanPurpose?: string | undefined;
+  loanTermMonths?: number | undefined;
+  ownershipStructure?: string | undefined;
+
   // Blocker-derivation inputs (rendered in <DealBlockers />)
   stageEntryDate: string | undefined;
   isClosed: boolean;
@@ -359,6 +371,13 @@ function mapDealDetail(
     // indirection needed.
     collateralSummary: deal.cr664_collateralsummary,
     createdOn: deal.createdon,
+
+    // Factory Arc Phase 3 — plain String/Integer columns not yet declared on
+    // the generated model (see the DealDetail field comments above), so read
+    // via the raw retrieve row rather than the typed `deal` accessor.
+    loanPurpose: raw['cr664_loanpurpose'] as string | undefined,
+    loanTermMonths: raw['cr664_loantermmonths'] as number | undefined,
+    ownershipStructure: raw['cr664_ownershipstructure'] as string | undefined,
 
     stageEntryDate: deal.cr664_stageentrydate,
     isClosed:

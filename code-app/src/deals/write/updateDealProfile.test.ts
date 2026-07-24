@@ -414,6 +414,94 @@ describe('updateDealProfile — amortization months (Remediation 2026-07-22, Wor
   });
 });
 
+describe('updateDealProfile — loan structure fields (Factory Arc Phase 3, PR105 columns)', () => {
+  it('writes cr664_loanpurpose (text) and returns the verified value (audited)', async () => {
+    const { deps, store, calls } = fakeDeps();
+    const out = await updateDealProfile(input({ loanPurpose: 'Acquisition' }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_loanpurpose: 'Acquisition' });
+    expect(calls.audit).toBe(1);
+    if (out.kind === 'updated') {
+      expect(out.verified.loanPurpose).toBe('Acquisition');
+      expect(out.changedLabels).toContain('Loan Purpose');
+    }
+  });
+
+  it('rejects a loan purpose over 200 characters (no write) — the same class of bug Phase 1 fixed for the credit memo', async () => {
+    const { deps, calls } = fakeDeps();
+    const out = await updateDealProfile(input({ loanPurpose: 'A'.repeat(201) }), deps);
+    expect(out.kind).toBe('invalid-input');
+    expect(calls.update).toBe(0);
+  });
+
+  it('accepts a loan purpose at exactly the 200-character ceiling', async () => {
+    const { deps, calls } = fakeDeps();
+    const out = await updateDealProfile(input({ loanPurpose: 'A'.repeat(200) }), deps);
+    expect(out.kind).toBe('updated');
+    expect(calls.update).toBe(1);
+  });
+
+  it('writes cr664_loantermmonths as an integer and returns a numeric verified value (audited)', async () => {
+    const { deps, store, calls } = fakeDeps();
+    const out = await updateDealProfile(input({ loanTermMonths: '60' }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_loantermmonths: 60 });
+    expect(calls.audit).toBe(1);
+    if (out.kind === 'updated') {
+      expect(out.verified.loanTermMonths).toBe(60);
+      expect(typeof out.verified.loanTermMonths).toBe('number');
+      expect(out.changedLabels).toContain('Loan Term (months)');
+    }
+  });
+
+  it('rejects zero / negative / non-integer / implausibly large loan terms (no write)', async () => {
+    for (const bad of ['0', '-12', 'abc', '36.5', '601']) {
+      const { deps, calls } = fakeDeps();
+      const out = await updateDealProfile(input({ loanTermMonths: bad }), deps);
+      expect(out.kind).toBe('invalid-input');
+      expect(calls.update).toBe(0);
+    }
+  });
+
+  it('writes cr664_ownershipstructure (text) and returns the verified value (audited)', async () => {
+    const { deps, store, calls } = fakeDeps();
+    const out = await updateDealProfile(input({ ownershipStructure: 'LLC' }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_ownershipstructure: 'LLC' });
+    expect(calls.audit).toBe(1);
+    if (out.kind === 'updated') {
+      expect(out.verified.ownershipStructure).toBe('LLC');
+      expect(out.changedLabels).toContain('Ownership Structure');
+    }
+  });
+
+  it('rejects an ownership structure over 100 characters (no write)', async () => {
+    const { deps, calls } = fakeDeps();
+    const out = await updateDealProfile(input({ ownershipStructure: 'A'.repeat(101) }), deps);
+    expect(out.kind).toBe('invalid-input');
+    expect(calls.update).toBe(0);
+  });
+
+  it('fails closed (readback-mismatch) when a loan-structure value does not read back as written', async () => {
+    const { deps } = fakeDeps({ readDeal: async () => ({ success: true, row: { cr664_loanpurpose: 'Refinance' } }) });
+    const out = await updateDealProfile(input({ loanPurpose: 'Acquisition' }), deps);
+    expect(out.kind).toBe('readback-mismatch');
+  });
+
+  it('clears loanPurpose / loanTermMonths / ownershipStructure when the patch value is null', async () => {
+    for (const [field, writeKey] of [
+      ['loanPurpose', 'cr664_loanpurpose'],
+      ['loanTermMonths', 'cr664_loantermmonths'],
+      ['ownershipStructure', 'cr664_ownershipstructure'],
+    ] as const) {
+      const { deps, store } = fakeDeps({ readDeal: async () => ({ success: true, row: { [writeKey]: null } }) });
+      const out = await updateDealProfile(input({ [field]: null } as DealProfilePatch), deps);
+      expect(out.kind).toBe('updated');
+      expect(store.body).toEqual({ [writeKey]: null });
+    }
+  });
+});
+
 describe('updateDealProfile — write-boundary discipline (source)', () => {
   const SRC = readFileSync(resolve(__dirname, 'updateDealProfile.ts'), 'utf8');
 

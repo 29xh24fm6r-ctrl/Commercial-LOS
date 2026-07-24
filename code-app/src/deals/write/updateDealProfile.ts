@@ -17,6 +17,9 @@
  *   - industry             (choice enum)   → cr664_industry
  *   - guarantorStructure   (choice enum)   → cr664_guarantorstructure
  *   - amortizationMonths   (integer)       → cr664_amortizationmonths
+ *   - loanPurpose          (text, <=200)   → cr664_loanpurpose
+ *   - loanTermMonths       (integer)       → cr664_loantermmonths
+ *   - ownershipStructure   (text, <=100)   → cr664_ownershipstructure
  *
  * Loan amount (cr664_amount) is a mandatory Intake exit criterion, so it is edited here through
  * the same governed authorize→validate→update→readback→audit discipline (the live-smoke gap: no
@@ -26,10 +29,21 @@
  *
  * Remediation 2026-07-22 (Workstream E) added amortizationMonths — cr664_amortizationmonths
  * already exists live on cr664_loandeals but had no read/write path anywhere in the app. No
- * schema change; the field spec just never covered it. Genuinely missing schema (loan term,
- * loan purpose, a deal-level ownership/legal-structure classification distinct from guarantor
- * structure) stays OUT of scope — those require an operator-authorized Dataverse column, not a
- * code change.
+ * schema change; the field spec just never covered it.
+ *
+ * Factory Arc Phase 3 added loanPurpose / loanTermMonths / ownershipStructure — the three
+ * PR105-migration columns (see scripts/schema-migrations/pr105-loan-structure/columns.mjs and
+ * docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md). These are plain
+ * String/Integer columns, not option sets, so they are written/read by raw column name below
+ * rather than through a generated enum import — the generated Cr664_loandealsModel.ts does not
+ * declare them yet (pending the operator-run `pac code` regeneration Phase 2 escalated), but
+ * Cr664_loandealsService.update/get pass the update body and retrieved row through as untyped
+ * Record<string, unknown>, so a real live column round-trips correctly today without waiting on
+ * codegen. If the columns turn out not to exist live, the write fails honestly via the existing
+ * write-failed outcome — nothing here assumes success. Deliberately NOT added to
+ * PROFILE_COMPLETENESS_FIELDS in this phase — that catalog documents itself as requiring a
+ * separate, deliberate reviewer decision per field; extend it in its own reviewed change once
+ * these three have live signal for how bankers actually use them.
  *
  * It creates nothing (no borrowers, no CRM records), changes no stage/status,
  * writes no amount/client, and fabricates no default values. Pure over injected
@@ -57,7 +71,10 @@ export type DealProfileField =
   | 'customerType'
   | 'industry'
   | 'guarantorStructure'
-  | 'amortizationMonths';
+  | 'amortizationMonths'
+  | 'loanPurpose'
+  | 'loanTermMonths'
+  | 'ownershipStructure';
 
 /** A scalar patch value: a string to set, or `null` to clear. */
 export type DealProfilePatch = Partial<Record<DealProfileField, string | null>>;
@@ -100,6 +117,8 @@ interface FieldSpec {
   readonly options?: Readonly<Record<number, string>>;
   /** Human label for validation copy. */
   readonly label: string;
+  /** Hard character ceiling for 'text' fields (matches the live column's max length). Undefined = no cap. */
+  readonly maxLength?: number;
 }
 
 /** The ONLY fields this adapter may write. Anything else is rejected. */
@@ -111,6 +130,9 @@ export const DEAL_PROFILE_FIELD_SPECS: Readonly<Record<DealProfileField, FieldSp
   industry: { kind: 'choice', writeKey: 'cr664_industry', readKey: 'cr664_industry', options: Cr664_loandealscr664_industry, label: 'Industry' },
   guarantorStructure: { kind: 'choice', writeKey: 'cr664_guarantorstructure', readKey: 'cr664_guarantorstructure', options: Cr664_loandealscr664_guarantorstructure, label: 'Guarantor structure' },
   amortizationMonths: { kind: 'integer', writeKey: 'cr664_amortizationmonths', readKey: 'cr664_amortizationmonths', label: 'Amortization (months)' },
+  loanPurpose: { kind: 'text', writeKey: 'cr664_loanpurpose', readKey: 'cr664_loanpurpose', label: 'Loan Purpose', maxLength: 200 },
+  loanTermMonths: { kind: 'integer', writeKey: 'cr664_loantermmonths', readKey: 'cr664_loantermmonths', label: 'Loan Term (months)' },
+  ownershipStructure: { kind: 'text', writeKey: 'cr664_ownershipstructure', readKey: 'cr664_ownershipstructure', label: 'Ownership Structure', maxLength: 100 },
 };
 
 /**
@@ -164,6 +186,10 @@ export interface VerifiedProfilePatch {
   readonly pricingType?: string | undefined;
   /** Numeric so callers can render it directly (months), same convention as `amount`. */
   readonly amortizationMonths?: number | undefined;
+  readonly loanPurpose?: string | undefined;
+  /** Numeric, same convention as `amortizationMonths`. */
+  readonly loanTermMonths?: number | undefined;
+  readonly ownershipStructure?: string | undefined;
 }
 
 export type UpdateDealProfileOutcome =
@@ -292,6 +318,9 @@ function prepareField(
   }
   switch (spec.kind) {
     case 'text':
+      if (spec.maxLength !== undefined && value.length > spec.maxLength) {
+        return { ok: false, reason: `${spec.label} must be ${spec.maxLength} characters or fewer.` };
+      }
       return { ok: true, prepared: { field, spec, writeValue: value, displayValue: value } };
     case 'number': {
       // Accept a plain or lightly-formatted amount ("2500000", "2,500,000", "$2,500,000").
