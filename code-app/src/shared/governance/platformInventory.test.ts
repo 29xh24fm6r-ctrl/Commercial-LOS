@@ -219,6 +219,19 @@ describe('platformInventory — not wired', () => {
     expect(entry.blockerKind).toBe('schema');
   });
 
+  it('document-upload reason reflects the P0-2 pipeline that already exists, blocked only on the schema column (Factory Arc Phase 9)', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'document-upload')!;
+    // The reason must no longer claim the pipeline is unbuilt — it is,
+    // and stays gated purely by the missing cr664_DocumentChecklist File column.
+    expect(entry.reason).not.toMatch(/no binary file upload pipeline exists/i);
+    expect(entry.reason).toMatch(/documentUploadAction/);
+    expect(entry.reason).toMatch(/documentUploadLiveDeps/);
+    expect(entry.reason).toMatch(/ReceiveDocumentModal/);
+    expect(entry.reason).toMatch(/File column/i);
+    expect(entry.reason).toMatch(/fails closed/i);
+    expect(entry.blockerKind).toBe('schema');
+  });
+
   it('stage-reference-data-source stays about cr664_stagereferences (Advance Stage), not the New Deal references', () => {
     const entry = NOT_WIRED.find((n) => n.id === 'stage-reference-data-source')!;
     // The New Deal references (cr664_dealstagereferences) are now registered;
