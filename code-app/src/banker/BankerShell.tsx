@@ -356,6 +356,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
                   onDealCreated={onDealCreated}
                   dealsRefreshNonce={dealsRefreshNonce}
                   dealCreateConfirm={dealCreateConfirm}
+                  newDealFocusNonce={newDealFocusNonce}
                 />
               </ErrorBoundary>
             </div>
@@ -462,6 +463,7 @@ function TabContent({
   onDealCreated,
   dealsRefreshNonce,
   dealCreateConfirm,
+  newDealFocusNonce,
 }: {
   tab: ShellTab;
   onNewDeal: () => void;
@@ -492,7 +494,22 @@ function TabContent({
   /** Post-create readback confirmation state — renders a visible, honest
    *  message when confirmation times out instead of silently doing nothing. */
   dealCreateConfirm: DealCreateConfirmState;
+  /**
+   * Factory Arc Phase 7 — bumped by the header "+ New Deal" shortcut. The Active Deals tab keeps
+   * the create panel collapsed by default (the pipeline list is what a banker actually wants to see
+   * when they click "Active Deals") and expands it only when this nonce increments.
+   */
+  newDealFocusNonce: number;
 }) {
+  // Factory Arc Phase 7 — the New Deal wizard was always fully rendered above the pipeline list,
+  // so clicking "Active Deals" in the nav surfaced a multi-step create form before a banker's
+  // actual deal list. Collapsed by default; the header "+ New Deal" shortcut (newDealFocusNonce)
+  // expands it and the existing scroll/focus effect still lands on it correctly.
+  const [newDealPanelOpen, setNewDealPanelOpen] = useState(false);
+  useEffect(() => {
+    if (newDealFocusNonce > 0) setNewDealPanelOpen(true);
+  }, [newDealFocusNonce]);
+
   switch (tab) {
     case 'dashboard':
       return (
@@ -511,9 +528,7 @@ function TabContent({
     case 'active-deals':
       return (
         <div style={styles.tabStack}>
-          <div data-header-new-deal-target>
-            <BankerNewDealCreate onCreated={onDealCreated} />
-          </div>
+          <PersonalPipeline refreshToken={dealsRefreshNonce} />
           {dealCreateConfirm.kind === 'timed-out' && (
             <div
               style={styles.dealCreateConfirmTimeout}
@@ -524,7 +539,20 @@ function TabContent({
               confirmed in your pipeline. Refresh to check again — it is not lost.
             </div>
           )}
-          <PersonalPipeline refreshToken={dealsRefreshNonce} />
+          <div data-header-new-deal-target>
+            {newDealPanelOpen ? (
+              <BankerNewDealCreate onCreated={onDealCreated} />
+            ) : (
+              <button
+                type="button"
+                style={styles.newDealToggle}
+                onClick={() => setNewDealPanelOpen(true)}
+                data-banker-new-deal-toggle
+              >
+                + New Deal
+              </button>
+            )}
+          </div>
         </div>
       );
     case 'loan-workflow':
@@ -737,6 +765,18 @@ const styles: Record<string, React.CSSProperties> = {
     color: palette.text,
     fontSize: typography.size.sm,
     lineHeight: typography.lineHeight.snug,
+  },
+  newDealToggle: {
+    alignSelf: 'flex-start',
+    background: palette.cobalt,
+    color: palette.textInverse,
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xs} ${spacing.md}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    fontFamily: typography.family,
+    cursor: 'pointer',
   },
   main: {
     padding: `0 ${spacing.xxl} ${spacing.xxl}`,
