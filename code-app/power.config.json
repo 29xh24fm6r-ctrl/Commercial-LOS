@@ -251,6 +251,11 @@
         "naicsindustrymaps": {
           "entitySetName": "cr664_naicsindustrymaps",
           "logicalName": "cr664_naicsindustrymap"
+        },
+        "fundingauthorizations": {
+          "entitySetName": "cr664_fundingauthorizations",
+          "logicalName": "cr664_fundingauthorization",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""

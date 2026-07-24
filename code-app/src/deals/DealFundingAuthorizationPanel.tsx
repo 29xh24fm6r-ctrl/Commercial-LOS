@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { FundingAuthorizationPanel } from '../funding/FundingAuthorizationPanel';
-import { createInMemoryFundingAuthorizationStore } from '../funding/fundingAuthorizationStorage';
+import { createDataverseFundingAuthorizationStore } from '../funding/fundingAuthorizationDataverseStore';
 import { requestFunding } from '../funding/fundingRequestAdapter';
 import { approveFunding, rejectFunding, revokeFunding } from '../funding/fundingApprovalAdapter';
 import { confirmFundingDisbursement } from '../funding/fundingDisbursementConfirmation';
@@ -11,23 +11,23 @@ import type { DealDetail } from './dealQueries';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
- * PR 111 -- mounts the funding-authorization framework (src/funding/*, previously entirely
- * unmounted -- see docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md; no live
- * Dataverse table exists to persist authorization records). Same local-only pattern as
- * DealClosingDocumentsPanel (PR107): createInMemoryFundingAuthorizationStore() is a real, working
- * reference implementation -- NOT persistence, lost on reload -- so this wrapper says so plainly. A
- * no-op audit emitter is used for the same reason: auditing a non-durable record would be a false
- * signal.
+ * PR 112 -- mounts the funding-authorization framework (src/funding/*) against the durable,
+ * Dataverse-backed store (`createDataverseFundingAuthorizationStore`, see
+ * fundingAuthorizationDataverseStore.ts) -- replacing PR 111's session-scoped
+ * `createInMemoryFundingAuthorizationStore()`. See Cr664_fundingauthorizationsModel.ts's own header
+ * for this table's generation-disclosure status: the generated model/service were hand-authored to
+ * match the already-reviewed entity.mjs schema, not produced by a real `pac code` regeneration
+ * against a live org, so this component fails closed with a VISIBLE error (never a silent fallback)
+ * if a live call doesn't behave as expected.
  *
- * Mounting this local-only is honest, not fabricated: FundingAuthorizationPanel's own
+ * Mounting a durable dual-control flow is honest, not fabricated: FundingAuthorizationPanel's own
  * `isSelfApprovalRisk` check and the policy engine's `self_approval_not_permitted` denial correctly
- * and automatically block a single actor from completing both sides of dual-control approval on
- * their own -- a single banker session cannot fake a two-person approval, so the demo accurately
- * reflects what one session can and cannot do.
+ * and automatically block a single actor from completing both sides of dual-control approval --
+ * this holds identically whether the record lives in memory or in Dataverse.
  *
- * Real persistence needs an operator-authorized cr664_fundingauthorization-style table (schema
- * prepared in scripts/schema-migrations/pr107-funding-authorization/*.mjs, not yet applied) --
- * tracked as a NOT_WIRED entry, not built here.
+ * A no-op audit emitter is still used here: this component does not itself resolve a live audit
+ * sink, matching every other panel in this cockpit that defers audit wiring to its own follow-up
+ * (see docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md).
  */
 function buildFundingReadinessFacts(deal: DealDetail): FundingReadinessFacts {
   // dealTerminalStatus is derived honestly from the deal's real status via the same fail-closed
@@ -52,7 +52,7 @@ function buildFundingReadinessFacts(deal: DealDetail): FundingReadinessFacts {
 
 const NO_LIVE_AUDIT_SINK: EmitFundingAudit = async () => ({
   success: false,
-  error: 'Local-only session: no live audit sink is wired yet (see docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md).',
+  error: 'No live audit sink is wired yet for funding authorization (see docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md).',
 });
 
 export function DealFundingAuthorizationPanel({
@@ -64,15 +64,44 @@ export function DealFundingAuthorizationPanel({
   authorized: boolean;
   actorEmail: string | undefined;
 }) {
-  const storeRef = useRef(createInMemoryFundingAuthorizationStore());
+  const storeRef = useRef(createDataverseFundingAuthorizationStore());
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [record, setRecord] = useState<FundingAuthorizationRecord | undefined>(undefined);
   const [requestAmount, setRequestAmount] = useState('');
   const [requestMethod, setRequestMethod] = useState('');
   const [requestError, setRequestError] = useState<string | undefined>(undefined);
+  const [actionError, setActionError] = useState<string | undefined>(undefined);
 
   const facts = useMemo(() => buildFundingReadinessFacts(deal), [deal]);
   const authorizedFacilityAmount = deal.amount ?? 0;
   const email = actorEmail ?? '';
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadState('loading');
+    setLoadError(undefined);
+    storeRef.current
+      .getCurrentRecordForDeal(deal.id)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.success) {
+          setRecord(res.record);
+          setLoadState('ready');
+        } else {
+          setLoadState('error');
+          setLoadError(res.error ?? 'Could not load the funding authorization record.');
+        }
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLoadState('error');
+        setLoadError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [deal.id]);
 
   async function onRequestSubmit(e: FormEvent) {
     e.preventDefault();
@@ -95,41 +124,87 @@ export function DealFundingAuthorizationPanel({
 
   async function onApprove(approvedAmount: number) {
     if (!record) return;
+    setActionError(undefined);
     const outcome = await approveFunding(
       { record, approverEmail: email, approvedAmount, authorizedFacilityAmount },
       { storage: storeRef.current, emitAudit: NO_LIVE_AUDIT_SINK },
     );
-    if (outcome.kind === 'first_approval_recorded' || outcome.kind === 'fully_approved') setRecord(outcome.record);
+    if (outcome.kind === 'first_approval_recorded' || outcome.kind === 'fully_approved') {
+      setRecord(outcome.record);
+    } else if (outcome.kind === 'denied') {
+      setActionError(`Approval denied: ${outcome.reason}`);
+    } else if (outcome.kind === 'write_failed') {
+      setActionError(outcome.error);
+    }
   }
 
   async function onReject() {
     if (!record) return;
+    setActionError(undefined);
     const outcome = await rejectFunding(record, email, { storage: storeRef.current, emitAudit: NO_LIVE_AUDIT_SINK });
-    if (outcome.kind === 'rejected') setRecord(outcome.record);
+    if (outcome.kind === 'rejected') {
+      setRecord(outcome.record);
+    } else if (outcome.kind === 'denied') {
+      setActionError(`Rejection denied: ${outcome.reason}`);
+    } else if (outcome.kind === 'write_failed') {
+      setActionError(outcome.error);
+    }
   }
 
   async function onRevoke() {
     if (!record) return;
+    setActionError(undefined);
     const outcome = await revokeFunding(record, email, { storage: storeRef.current, emitAudit: NO_LIVE_AUDIT_SINK });
-    if (outcome.kind === 'revoked') setRecord(outcome.record);
+    if (outcome.kind === 'revoked') {
+      setRecord(outcome.record);
+    } else if (outcome.kind === 'denied') {
+      setActionError(`Revocation denied: ${outcome.reason}`);
+    } else if (outcome.kind === 'write_failed') {
+      setActionError(outcome.error);
+    }
   }
 
   async function onConfirmDisbursement(fundingDate: string) {
     if (!record) return;
+    setActionError(undefined);
     const outcome = await confirmFundingDisbursement(
       { record, readinessFacts: facts, fundingDate, confirmedByActorEmail: email },
       { storage: storeRef.current, emitAudit: NO_LIVE_AUDIT_SINK },
     );
-    if (outcome.kind === 'confirmed') setRecord(outcome.record);
+    if (outcome.kind === 'confirmed') {
+      setRecord(outcome.record);
+    } else if (outcome.kind === 'denied') {
+      setActionError(`Disbursement denied: ${outcome.reason}`);
+    } else if (outcome.kind === 'blocked') {
+      setActionError(`Disbursement blocked: ${outcome.blockers.join(', ')}`);
+    } else {
+      setActionError(outcome.error);
+    }
+  }
+
+  if (loadState === 'loading') {
+    return (
+      <p style={styles.loadingNote} role="status" data-funding-authorization-loading>
+        Loading funding authorization…
+      </p>
+    );
+  }
+
+  if (loadState === 'error') {
+    return (
+      <p style={styles.error} role="alert" data-funding-authorization-load-error>
+        Could not load the funding authorization record: {loadError}
+      </p>
+    );
   }
 
   return (
     <>
-      <p style={styles.localOnlyNote} role="note" data-funding-authorization-local-only-note>
-        Funding requests and approvals are held for this browser session only — not yet saved to
-        the deal. Real persistence needs an operator-authorized schema addition (see
-        docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md).
-      </p>
+      {actionError && (
+        <p style={styles.error} role="alert" data-funding-authorization-action-error>
+          {actionError}
+        </p>
+      )}
       {!record && (
         <form style={styles.requestForm} onSubmit={onRequestSubmit} data-funding-request-form>
           <label style={styles.label} htmlFor="funding-request-amount">
@@ -182,7 +257,7 @@ export function DealFundingAuthorizationPanel({
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  localOnlyNote: {
+  loadingNote: {
     margin: 0,
     fontSize: typography.size.xs,
     color: palette.textMuted,
@@ -191,7 +266,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: `${spacing.xs} ${spacing.md}`,
     borderRadius: radius.sm,
     lineHeight: typography.lineHeight.snug,
-    marginBottom: spacing.sm,
   },
   requestForm: {
     display: 'flex',

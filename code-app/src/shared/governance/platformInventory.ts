@@ -448,20 +448,24 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     id: 'funding-authorization-persistence',
     label: 'Funding authorization (deal-level persistence)',
     reason:
-      'PR 111 -- DealFundingAuthorizationPanel.tsx mounts the fully-built funding-authorization ' +
-      'framework (src/funding/*, 61+ tests) using its own documented ' +
-      'createInMemoryFundingAuthorizationStore() reference implementation -- real, working dual-' +
-      'control policy logic (request -> first approval -> second approval -> disbursement ' +
-      'confirmation, with FundingAuthorizationPanel\'s own isSelfApprovalRisk check + the policy ' +
-      'engine\'s self_approval_not_permitted denial correctly blocking one actor from completing ' +
-      'both approvals), but explicitly NOT persistence (session-scoped; lost on reload) -- same ' +
-      'disclosed convention as risk-rating / closing-documents above. Readiness facts with no live ' +
-      'source (documents/conditions/exceptions/destination/expiry) are hard-coded to their ' +
-      'fail-closed blocking value, so this session genuinely reaches APPROVED but always shows ' +
-      'blocked at disbursement confirmation -- correct behavior, not a bug. A new ' +
-      'cr664_fundingauthorization table (not a column -- a deal can have a HISTORY of funding-' +
-      'authorization records via supersedesRecordId chains) is specced with idempotent create/' +
-      'verify/rollback scripts in scripts/schema-migrations/pr107-funding-authorization/ -- see ' +
+      'PR 112 -- DealFundingAuthorizationPanel.tsx now writes/reads through ' +
+      'createDataverseFundingAuthorizationStore() (src/funding/fundingAuthorizationDataverseStore.ts), ' +
+      'a durable Dataverse-backed store against the cr664_fundingauthorization table specced in ' +
+      'scripts/schema-migrations/pr107-funding-authorization/entity.mjs (18 columns + primary ' +
+      'cr664_recordid), replacing PR 111\'s session-scoped createInMemoryFundingAuthorizationStore(). ' +
+      'Dual-control policy is unchanged and durable now, not merely session-real: request -> first ' +
+      'approval -> second approval -> disbursement confirmation, with FundingAuthorizationPanel\'s own ' +
+      'isSelfApprovalRisk check + the policy engine\'s self_approval_not_permitted denial correctly ' +
+      'blocking one actor from completing both approvals. The one remaining honest caveat: ' +
+      'Cr664_fundingauthorizationsModel.ts / Service.ts (and the power.config.json data-source entry) ' +
+      'were hand-authored to mechanically match entity.mjs and this repo\'s standard generated-SDK ' +
+      'shape -- NOT produced by a real `pac code add-data-source` + regenerate against a live org (no ' +
+      'live Dataverse credentials exist in this sandbox to do that). The adapter fails closed with a ' +
+      'visible error rather than a silent fallback if a live call does not behave as expected; a real ' +
+      'operator-run regeneration should be diffed against these files. Readiness facts with no live ' +
+      'source (documents/conditions/exceptions/destination/expiry) still hard-code to their fail-' +
+      'closed blocking value, so a session genuinely reaches APPROVED but always shows blocked at ' +
+      'disbursement confirmation -- correct behavior, not a bug. See ' +
       'docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md.',
     blockerKind: 'schema',
   },

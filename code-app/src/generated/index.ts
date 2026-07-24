@@ -29,6 +29,7 @@ export * as Cr664_dealstatusreferencesModel from './models/Cr664_dealstatusrefer
 export * as Cr664_dealtask1sModel from './models/Cr664_dealtask1sModel';
 export * as Cr664_dealtimelineeventsModel from './models/Cr664_dealtimelineeventsModel';
 export * as Cr664_documentchecklistsModel from './models/Cr664_documentchecklistsModel';
+export * as Cr664_fundingauthorizationsModel from './models/Cr664_fundingauthorizationsModel';
 export * as Cr664_kpithresholdconfigurationsModel from './models/Cr664_kpithresholdconfigurationsModel';
 export * as Cr664_loandealsModel from './models/Cr664_loandealsModel';
 export * as Cr664_losuserprofilesModel from './models/Cr664_losuserprofilesModel';
@@ -85,6 +86,7 @@ export * from './services/Cr664_dealstatusreferencesService';
 export * from './services/Cr664_dealtask1sService';
 export * from './services/Cr664_dealtimelineeventsService';
 export * from './services/Cr664_documentchecklistsService';
+export * from './services/Cr664_fundingauthorizationsService';
 export * from './services/Cr664_kpithresholdconfigurationsService';
 export * from './services/Cr664_loandealsService';
 export * from './services/Cr664_losuserprofilesService';
