@@ -1,5 +1,6 @@
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 import { isTestOrSmokeDealName } from '../shared/deals/testDealClassification';
+import { ACTIVE_DEAL_ODATA_PREDICATE } from '../shared/deals/dealVisibilityScopes';
 import { parseCalendarDate } from '../shared/formatters';
 
 /**
@@ -61,10 +62,7 @@ const NO_DATE_KEY = '__no_date__';
  */
 export async function loadPipelineByStageFallback(): Promise<StageAggregate[]> {
   const result = await Cr664_loandealsService.getAll({
-    filter: [
-      `statecode eq 0`,
-      `(cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)`,
-    ].join(' and '),
+    filter: ACTIVE_DEAL_ODATA_PREDICATE,
   });
 
   if (!result.success) {
@@ -101,10 +99,7 @@ export async function loadClosingForecastFallback(
   now: Date = new Date(),
 ): Promise<MonthBucketAggregate[]> {
   const result = await Cr664_loandealsService.getAll({
-    filter: [
-      `statecode eq 0`,
-      `(cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)`,
-    ].join(' and '),
+    filter: ACTIVE_DEAL_ODATA_PREDICATE,
   });
 
   if (!result.success) {

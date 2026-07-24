@@ -1,6 +1,7 @@
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 import type { Cr664_loandeals } from '../generated/models/Cr664_loandealsModel';
 import { operationalDeals, isTestOrSmokeDealName } from '../shared/deals/testDealClassification';
+import { ACTIVE_DEAL_ODATA_PREDICATE } from '../shared/deals/dealVisibilityScopes';
 
 export interface PipelineDeal {
   id: string;
@@ -131,8 +132,7 @@ export async function loadBankerPipeline(
 ): Promise<PipelineDeal[]> {
   const filter = [
     `_cr664_assignedbanker_value eq ${bankerId}`,
-    `statecode eq 0`,
-    `(cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)`,
+    ACTIVE_DEAL_ODATA_PREDICATE,
   ].join(' and ');
 
   const result = await Cr664_loandealsService.getAll({

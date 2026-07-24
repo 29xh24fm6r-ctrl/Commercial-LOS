@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   DEAL_VISIBILITY_SCOPES,
   buildTeamVisibilityFilter,
+  ACTIVE_DEAL_ODATA_PREDICATE,
 } from './dealVisibilityScopes';
 
 const TEAM = '11111111-1111-1111-1111-111111111111';
@@ -57,5 +60,55 @@ describe('P0-4 — buildTeamVisibilityFilter (Owning-Team fallback)', () => {
     const g = buildTeamVisibilityFilter('bad', {});
     expect(g).toContain('_cr664_team_value eq');
     expect(g).toContain('statecode eq 0');
+  });
+});
+
+/**
+ * Factory Arc Phase 6 — canonical active-deal query regression guard.
+ *
+ * Before this phase, `statecode eq 0 and (cr664_isterminalstatus eq false or ... eq null)` was
+ * independently retyped in banker/dealQueries.ts and (twice) in
+ * executive/operationalFallbackQueries.ts — four copies of the identical literal string with no
+ * shared source, which is exactly how the Banker/Team/Manager/Executive active-deal counts drifted
+ * apart in the prior audit documented in docs/remediation/PHASE_1_ARCHITECTURE_MAP_2026-07-22.md
+ * (root cause was the test-deal exclusion helper, not this predicate — but the same "N independent
+ * copies" shape of bug). This test pins that every consumer now imports ACTIVE_DEAL_ODATA_PREDICATE
+ * from this module instead of retyping it, so a future edit to the active-deal rule can't silently
+ * apply to only some surfaces.
+ */
+describe('Factory Arc Phase 6 — ACTIVE_DEAL_ODATA_PREDICATE is the sole source of the active-deal rule', () => {
+  const REPO_SRC = resolve(__dirname, '..', '..');
+  const CONSUMER_FILES = [
+    'banker/dealQueries.ts',
+    'executive/operationalFallbackQueries.ts',
+    'shared/deals/dealVisibilityScopes.ts',
+  ];
+
+  it('is the exact predicate string used by buildTeamVisibilityFilter', () => {
+    expect(ACTIVE_DEAL_ODATA_PREDICATE).toBe(
+      'statecode eq 0 and (cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)',
+    );
+  });
+
+  it('every known active-deal consumer imports ACTIVE_DEAL_ODATA_PREDICATE from this module', () => {
+    for (const rel of CONSUMER_FILES) {
+      const src = readFileSync(resolve(REPO_SRC, rel), 'utf8');
+      expect(src, `${rel} should import ACTIVE_DEAL_ODATA_PREDICATE`).toMatch(
+        /import\s*\{[^}]*ACTIVE_DEAL_ODATA_PREDICATE[^}]*\}\s*from\s*['"].*dealVisibilityScopes['"]|ACTIVE_DEAL_ODATA_PREDICATE\s*=/,
+      );
+    }
+  });
+
+  it('the raw predicate literal is declared in exactly one place (this module), not re-typed elsewhere', () => {
+    const LITERAL = 'cr664_isterminalstatus eq false or cr664_isterminalstatus eq null';
+    for (const rel of CONSUMER_FILES) {
+      const src = readFileSync(resolve(REPO_SRC, rel), 'utf8');
+      const occurrences = (src.match(new RegExp(LITERAL, 'g')) ?? []).length;
+      if (rel === 'shared/deals/dealVisibilityScopes.ts') {
+        expect(occurrences, `${rel} should declare the literal exactly once`).toBe(1);
+      } else {
+        expect(occurrences, `${rel} should not re-declare the literal — it must import the constant instead`).toBe(0);
+      }
+    }
   });
 });
