@@ -251,6 +251,16 @@ describe('platformInventory — not wired', () => {
     expect(entry.blockerKind).toBe('schema');
   });
 
+  it('closing-document-persistence reason points to the Phase 11 schema proposal, not just PR107\'s original gap statement', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'closing-document-persistence')!;
+    expect(entry.reason).toMatch(/PR123_CLOSING_DOCUMENT_PERSISTENCE_SCHEMA_PROPOSAL/);
+    expect(entry.reason).toMatch(/pr123-closing-document-persistence/);
+    expect(entry.reason).toMatch(/cr664_closingdocumentmanifest/);
+    // Deliberately did not repeat the PR 112 hand-authored-SDK precedent for this table.
+    expect(entry.reason).toMatch(/Deliberately NOT hand-authoring/);
+    expect(entry.blockerKind).toBe('schema');
+  });
+
   it('stage-reference-data-source stays about cr664_stagereferences (Advance Stage), not the New Deal references', () => {
     const entry = NOT_WIRED.find((n) => n.id === 'stage-reference-data-source')!;
     // The New Deal references (cr664_dealstagereferences) are now registered;
