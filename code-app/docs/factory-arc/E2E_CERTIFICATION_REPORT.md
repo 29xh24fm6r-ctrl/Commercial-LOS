@@ -4,6 +4,12 @@ Date: 2026-07-24
 Scope: PR #102 (merged) through PR #108 (this consolidated arc), plus PR #109
 (this report + plugin CI test wiring).
 
+**Superseded by PR 111** (see `docs/factory-arc/PR111_FUNDING_SERVICING_ACTIVATION.md`): the
+"Funding authorization" and "Portfolio monitoring" rows below describe the PR 109 point-in-time
+state. PR 111 mounted `DealFundingAuthorizationPanel.tsx` (local-only, real dual-control policy) and
+a live `ServicingLifecyclePanel` loader — both rows are left as-written below (a dated snapshot,
+not rewritten) with this pointer to what changed since.
+
 ## How to read this report
 
 **No live Dataverse environment was available in this sandbox** (no `pac`
