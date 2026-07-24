@@ -274,15 +274,22 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     id: 'document-upload',
     label: 'Document upload (binary file)',
     reason:
-      'No binary file upload pipeline exists. The cr664_DocumentChecklist ' +
-      'schema has no File column to upload to (and no generated upload ' +
-      'service can target what does not exist). The @microsoft/power-apps ' +
-      'SDK does expose client.uploadFileToRecord, so the unblock path is ' +
-      'schema-side: add a File column on cr664_DocumentChecklist, ' +
-      'regenerate the SDK, then wire the in-app upload UI. Phase 22 stamps ' +
+      'Factory Arc Phase 9 -- P0-2 already built the full binary upload ' +
+      'pipeline end to end: documentUploadAction.ts calls the SDK client\'s ' +
+      'uploadFileToRecord directly, documentUploadLiveDeps.ts wires it live, ' +
+      'and ReceiveDocumentModal.tsx exposes a real file picker on the ' +
+      'Documents card. This is no longer "no pipeline exists" -- it stays ' +
+      'NOT_WIRED because the pipeline has no live column to target: the ' +
+      'cr664_DocumentChecklist schema still has no File column, so ' +
+      'DOCUMENT_FILE_UPLOAD_ENABLED / DOCUMENT_UPLOAD_ENABLED stay off and ' +
+      'every upload attempt fails closed rather than landing a binary. The ' +
+      'unblock path is purely schema-side: add the File column via ' +
+      'scripts/dataverse/create-document-checklist-file-columns.ps1, ' +
+      'regenerate the SDK, then flip the flags. Phase 22 stamps ' +
       'cr664_requestdate (Request) and Phase 51 stamps cr664_receiveddate ' +
-      '(Mark received) — both metadata-only; neither carries a binary. ' +
-      'See docs/PHASE_51_DOCUMENT_UPLOAD_SCOPE.md.',
+      '(Mark received) — both metadata-only writes that remain available ' +
+      'regardless. See docs/PHASE_51_DOCUMENT_UPLOAD_SCOPE.md and ' +
+      'docs/P0-2_DOCUMENT_UPLOAD_OPERATOR_DEPENDENCY.md.',
     blockerKind: 'schema',
   },
   {
