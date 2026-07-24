@@ -108,6 +108,36 @@ describe('CrmWriteActions', () => {
     expect(container.querySelector('[data-crm-company-bridge="linked"]')).not.toBeNull();
   });
 
+  it('PR 104 -- warns (without blocking) when a typed company name matches an existing one', async () => {
+    const fns = fakeFns();
+    const user = userEvent.setup();
+    const { container } = render(
+      <CrmWriteActions {...IDENTITY} companyOptions={[{ id: 'org-1', label: 'Acme LLC' }]} personOptions={[]} writeFns={fns} />,
+    );
+    await user.click(container.querySelector('[data-crm-action="company"]') as HTMLElement);
+    expect(container.querySelector('[data-crm-action-duplicate-warning]')).toBeNull();
+
+    // A legal-suffix/case/punctuation variant of an existing company name.
+    await user.type(container.querySelector('[data-crm-field="name"]') as HTMLInputElement, 'ACME, L.L.C.');
+    expect(container.querySelector('[data-crm-action-duplicate-warning]')?.textContent).toMatch(/already in the CRM/i);
+
+    // The warning never blocks the save.
+    await user.click(container.querySelector('[data-crm-action-submit]') as HTMLElement);
+    await waitFor(() => expect(container.querySelector('[data-crm-action-success]')).not.toBeNull());
+    expect(fns.addCompany).toHaveBeenCalledTimes(1);
+  });
+
+  it('PR 104 -- no duplicate warning for a genuinely new company name', async () => {
+    const fns = fakeFns();
+    const user = userEvent.setup();
+    const { container } = render(
+      <CrmWriteActions {...IDENTITY} companyOptions={[{ id: 'org-1', label: 'Acme LLC' }]} personOptions={[]} writeFns={fns} />,
+    );
+    await user.click(container.querySelector('[data-crm-action="company"]') as HTMLElement);
+    await user.type(container.querySelector('[data-crm-field="name"]') as HTMLInputElement, 'Brand New Ventures');
+    expect(container.querySelector('[data-crm-action-duplicate-warning]')).toBeNull();
+  });
+
   it('Add Company Vendor does NOT create a client mirror (not a borrower/client)', async () => {
     const fns = fakeFns();
     const user = userEvent.setup();

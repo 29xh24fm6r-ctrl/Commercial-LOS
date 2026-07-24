@@ -59,6 +59,7 @@ vi.mock('../admin/PerformanceDiagnostics', () => ({ PerformanceDiagnostics: () =
 vi.mock('../admin/EmailLiveDiagnostics', () => ({ EmailLiveDiagnostics: () => <div data-testid="panel-EmailLiveDiagnostics" /> }));
 vi.mock('../admin/PlatformOperationsWorkspacePanel', () => ({ PlatformOperationsWorkspacePanel: () => <div data-testid="panel-PlatformOperationsWorkspacePanel" /> }));
 vi.mock('../admin/AdminCapabilityTruthMatrix', () => ({ AdminCapabilityTruthMatrix: () => <div data-testid="panel-AdminCapabilityTruthMatrix" /> }));
+vi.mock('../admin/TestDataView', () => ({ TestDataView: () => <div data-testid="panel-TestDataView" /> }));
 
 import { AdminWorkspace } from './AdminWorkspace';
 

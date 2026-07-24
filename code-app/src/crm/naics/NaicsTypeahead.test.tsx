@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 // Stub the generated Dataverse service so this unit test never loads the real Power Apps SDK
 // chain (@microsoft/power-apps/data) — the component is driven by injectable loaders below.
 vi.mock('../../generated/services/Cr664_naicscodesService', () => ({
@@ -120,5 +121,116 @@ describe('NaicsTypeahead', () => {
     const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
     fireEvent.change(input, { target: { value: '5614' } });
     await waitFor(() => expect(container.querySelector('[data-naics-bad-format]')).not.toBeNull());
+  });
+
+});
+
+describe('PR 103 — real pointer + keyboard commit parity (not just synthetic fireEvent.change)', () => {
+  it('a REAL userEvent.click (full pointerdown/mousedown/mouseup/click sequence) commits the selection', async () => {
+    // fireEvent.click dispatches only a bare `click` event, skipping the mousedown a real click
+    // produces first — which is exactly what the outside-click-closes-dropdown listener listens
+    // for. userEvent reproduces the full sequence, so this proves that listener never races the
+    // click on a genuinely CONTAINED option away.
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<NaicsTypeahead onSelect={onSelect} loader={readyLoader} />);
+    const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
+    await user.click(input);
+    await user.type(input, 'restaurant');
+    const option = await screen.findByText('Full-Service Restaurants');
+    await user.click(option);
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ code: '722511' }));
+    expect(input).toHaveValue('722511 — Full-Service Restaurants');
+  });
+
+  it('pressing Enter with no arrow-key navigation commits the first (pre-highlighted) result', async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<NaicsTypeahead onSelect={onSelect} loader={readyLoader} />);
+    const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
+    await user.click(input);
+    await user.type(input, 'a'); // matches BOTH seeded hits (Restaurants, Automotive)
+    await screen.findByText('General Automotive Repair');
+    await user.keyboard('{Enter}');
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    // Whichever hit sorts first, Enter with no arrow navigation must commit it — never a no-op.
+    expect(onSelect.mock.calls[0]![0]).toMatchObject({});
+  });
+
+  it('ArrowDown moves the highlight, and Enter commits the newly-highlighted (not the first) option', async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<NaicsTypeahead onSelect={onSelect} loader={readyLoader} />);
+    const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
+    await user.click(input);
+    await user.type(input, 'a'); // both seeded hits match
+    await screen.findByText('General Automotive Repair');
+
+    const firstOption = screen.getAllByRole('option')[0]!;
+    const initiallyHighlighted = firstOption.getAttribute('aria-selected');
+    expect(initiallyHighlighted).toBe('true'); // index 0 is pre-highlighted by default
+
+    await user.keyboard('{ArrowDown}');
+    const secondOption = screen.getAllByRole('option')[1]!;
+    expect(secondOption.getAttribute('aria-selected')).toBe('true');
+    expect(firstOption.getAttribute('aria-selected')).toBe('false');
+
+    await user.keyboard('{Enter}');
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    const committedCode = onSelect.mock.calls[0]![0].code as string;
+    expect(committedCode).toBe(secondOption.getAttribute('data-crm-naics-option'));
+  });
+
+  it('ArrowUp from the first option wraps to the last option', async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<NaicsTypeahead onSelect={onSelect} loader={readyLoader} />);
+    const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
+    await user.click(input);
+    await user.type(input, 'a');
+    await screen.findByText('General Automotive Repair');
+
+    await user.keyboard('{ArrowUp}');
+    const options = screen.getAllByRole('option');
+    expect(options[options.length - 1]!.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('Escape closes the dropdown without committing anything', async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<NaicsTypeahead onSelect={onSelect} loader={readyLoader} />);
+    const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
+    await user.click(input);
+    await user.type(input, 'restaurant');
+    await screen.findByText('Full-Service Restaurants');
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByText('Full-Service Restaurants')).not.toBeInTheDocument();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('a fresh query resets the highlight so a stale index from a prior query is never committed', async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<NaicsTypeahead onSelect={onSelect} loader={readyLoader} />);
+    const input = screen.getByRole('combobox', { name: /Industry \(NAICS\)/i });
+    await user.click(input);
+    await user.type(input, 'a');
+    await screen.findByText('General Automotive Repair');
+    await user.keyboard('{ArrowDown}'); // highlight index 1
+
+    await user.clear(input);
+    await user.type(input, 'restaurant'); // narrows to a single, different hit
+    // "Full-Service Restaurants" was already on screen from the PRIOR ('a') query
+    // (which matched both seeded hits), so a bare findByText would resolve before
+    // the debounced re-filter actually narrows the list. Wait for the stale
+    // "Automotive" hit to actually drop out first, so the assertion below reflects
+    // the post-narrowing render, not a leftover one.
+    await waitFor(() => expect(screen.queryByText('General Automotive Repair')).not.toBeInTheDocument());
+    const restaurantOption = await screen.findByText('Full-Service Restaurants');
+    expect(restaurantOption.closest('button')?.getAttribute('aria-selected')).toBe('true');
+
+    await user.keyboard('{Enter}');
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ code: '722511' }));
   });
 });
