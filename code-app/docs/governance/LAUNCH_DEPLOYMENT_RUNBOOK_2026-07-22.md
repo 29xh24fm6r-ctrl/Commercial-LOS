@@ -12,7 +12,11 @@ sandbox (no `pac`, no live Dataverse credentials); every step is an operator act
 `LIVE_OPERATOR_CERTIFICATION_SCRIPT.md` (governance bypass verification),
 `docs/E2E_CERTIFICATION_TEST_SCRIPT_2026-07-21.md` (full lifecycle live banker script),
 `docs/PRODUCTION_ACCEPTANCE_CHECKLIST.md` (per-capability signoff), `docs/PHASE_256A_OPERATOR_LAUNCH_HARNESS.md`
-(evidence-smoke harness).
+(evidence-smoke harness). **Factory Arc Phase 16 addition:**
+`docs/PHASE_249_CHECKLIST_SIGNOFF_AND_OUTLOOK_CONNECTOR_UNBLOCK.md` (Outlook connector registration
+runbook + `verify-outlook-connector.ps1`) and `docs/PHASE_264_SHAREPOINT_DOCUMENT_STORAGE.md`'s
+"Operator activation runbook (LIVE SharePoint uploads)" section — the two connector deployments this
+runbook's Step 5 previously only gestured at ("no console/connector errors") without naming.
 
 ---
 
@@ -90,6 +94,26 @@ clean `dist/` (`rm -rf dist`) and re-running the push — see `docs/PHASE_113_MI
 Open the play URL from Step 4's `pac` output (or
 `https://apps.powerapps.com/play/e/5f2d77a5-de50-edeb-9d74-5b2400a2320d/app/63858e09-3d0b-47c9-b1d2-65cef742fda4`),
 sign in, and confirm the app loads with no console/connector errors before proceeding.
+
+## Step 5a — Verify the two connectors (Factory Arc Phase 16)
+
+This runbook is the plugin's deployment sequencer but had never named the two Power Platform
+connectors this release also depends on. Both are separate from the plugin (no Dataverse admin
+registration tool involved — connector consent happens in the Power Apps maker portal) and must be
+confirmed independently:
+
+1. **Outlook (borrower email / document-request send)** — run
+   `powershell -File scripts/activation/verify-outlook-connector.ps1`. Expect `STATUS=PASS`. If it
+   reports `STATUS=FAIL`, follow the "Outlook connector registration runbook" section of
+   `docs/PHASE_249_CHECKLIST_SIGNOFF_AND_OUTLOOK_CONNECTOR_UNBLOCK.md` before proceeding — connector
+   registration alone does not enable live sends; that additionally requires `VITE_EMAIL_MODE=LIVE`
+   plus the operator certification the same doc describes.
+2. **SharePoint (portfolio boarding document storage)** — no scripted verifier exists yet for this
+   connector (unlike Outlook). Follow `docs/PHASE_264_SHAREPOINT_DOCUMENT_STORAGE.md`'s "Operator
+   activation runbook (LIVE SharePoint uploads)" section in full if this release intends to enable
+   live SharePoint uploads; if not, confirm `PORTFOLIO_BOARDING_DOCUMENT_SHAREPOINT_UPLOAD_ENABLED`
+   stays `false` (DRY_RUN) and skip the rest of that runbook — this stays consistent with the current
+   default-off posture.
 
 ## Step 6 — Live certification (Phase 4 of the launch mission)
 
