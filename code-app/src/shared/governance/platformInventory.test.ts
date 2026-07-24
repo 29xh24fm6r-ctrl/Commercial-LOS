@@ -261,6 +261,20 @@ describe('platformInventory — not wired', () => {
     expect(entry.blockerKind).toBe('schema');
   });
 
+  it('Factory Arc Phase 14 — annual-review-persistence and portfolio-boarding-audit-governance close a registry blind spot', () => {
+    const ids = new Set(NOT_WIRED.map((n) => n.id));
+    expect(ids.has('annual-review-persistence')).toBe(true);
+    expect(ids.has('portfolio-boarding-audit-governance')).toBe(true);
+    const annualReview = NOT_WIRED.find((n) => n.id === 'annual-review-persistence')!;
+    expect(annualReview.reason).toMatch(/createDisabledAnnualReviewPersistenceAdapter/);
+    expect(annualReview.reason).toMatch(/PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED/);
+    expect(annualReview.blockerKind).toBe('schema');
+    const boardingAudit = NOT_WIRED.find((n) => n.id === 'portfolio-boarding-audit-governance')!;
+    expect(boardingAudit.reason).toMatch(/existingLoanEntryAdapter/);
+    expect(boardingAudit.reason).toMatch(/GOVERNED_WRITES/);
+    expect(boardingAudit.blockerKind).toBe('governance');
+  });
+
   it('stage-reference-data-source stays about cr664_stagereferences (Advance Stage), not the New Deal references', () => {
     const entry = NOT_WIRED.find((n) => n.id === 'stage-reference-data-source')!;
     // The New Deal references (cr664_dealstagereferences) are now registered;

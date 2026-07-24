@@ -450,6 +450,48 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md.',
     blockerKind: 'schema',
   },
+  {
+    id: 'annual-review-persistence',
+    label: 'Portfolio annual review (live persistence)',
+    reason:
+      'Factory Arc Phase 14 -- confirmed genuinely absent, and previously untracked by this registry ' +
+      'entirely (no NOT_WIRED/DELIBERATELY_BLOCKED entry existed for this domain before this phase). ' +
+      'src/portfolioAnnualReview/annualReviewPersistenceAdapter.ts\'s createDisabledAnnualReviewPersistenceAdapter() ' +
+      'fails closed on every operation (readAnnualReviewCycle, searchAnnualReviewPackages, ' +
+      'saveAnnualReviewPackage, updateRequirementStatus, addReviewNote, addEscalation, completeReview) ' +
+      '-- its own header discloses "141A ships NO live annual-review writes; a live adapter arrives in ' +
+      'a later phase once an annual-review schema/persistence plan is approved." No caller anywhere in ' +
+      'the repo invokes this adapter (grepped clean) -- AnnualPortfolioReviewCommandCenter.tsx has zero ' +
+      'onClick/mutation handlers. The displayed cycle is a hardcoded PREVIEW_ANNUAL_REVIEW_CYCLE fixture ' +
+      '(src/navigation/featureSurfaces.tsx), and the whole surface is gated off by default via ' +
+      'PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED: false (src/navigation/featureSurfaceFlags.ts). Unlike ' +
+      'closing-document-persistence or funding-authorization-persistence, no schema proposal exists yet ' +
+      'for this domain -- it needs one covering at minimum a review-cycle/package record, a per-' +
+      'requirement status record, and an escalation record (see ' +
+      'annualReviewPersistenceTypes.ts\'s AnnualReviewPersistenceAdapter contract), a materially larger ' +
+      'design effort than the single-table proposals those two entries describe. Deferred as its own ' +
+      'future phase rather than attempted here. See docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.',
+    blockerKind: 'schema',
+  },
+  {
+    id: 'portfolio-boarding-audit-governance',
+    label: 'Portfolio boarding write (GOVERNED_WRITES registration)',
+    reason:
+      'Factory Arc Phase 14 -- src/portfolioBoarding/existingLoanEntryAdapter.ts is a real write path ' +
+      '(the one with machine-proven smoke evidence, docs/operator-evidence/final-launch/portfolioBoarding.json) ' +
+      'that DOES emit a genuine audit trail via Cr664_portfolioboardedloanauditentriesService -- so this ' +
+      'is not a "no proof at all" gap like Phase 13 found for funding authorization pre-fix. The gap is ' +
+      'narrower: it emits no DealTimelineEvent, and neither this write nor any other portfolio-boarding ' +
+      'write appears in GOVERNED_WRITES (platformInventory.ts) at all, so this registry -- the single ' +
+      'source of truth for what emits audit/timeline evidence -- is silently blind to the whole boarding ' +
+      'domain. Lower urgency than the funding fix because the live persistence path this write depends ' +
+      'on is itself gated off by default (PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: false in ' +
+      'portfolioLoanBoardingFeatureFlags.ts) -- no real write happens in production today. Once that flag ' +
+      'is armed, the same emitLiveFundingAudit-style live-audit-sink pattern Phase 13 used for funding ' +
+      'should extend to a DealTimelineEvent for this write, and the write should be registered in ' +
+      'GOVERNED_WRITES. See docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.',
+    blockerKind: 'governance',
+  },
 ];
 
 // ---------------------------------------------------------------------------

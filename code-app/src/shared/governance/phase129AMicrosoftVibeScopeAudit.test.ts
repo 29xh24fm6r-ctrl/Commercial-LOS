@@ -85,8 +85,12 @@ const AUDIT_COUNTS = Object.freeze({
   // closed risk-rating-persistence -- see
   // docs/factory-arc/PR117_RISK_RATING_PERSISTENCE.md. PR 107 added two
   // more (closing-document-persistence, funding-authorization-persistence)
-  // -- see docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md.
-  notWired: 11,
+  // -- see docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md. Factory Arc
+  // Phase 14 added two more (annual-review-persistence,
+  // portfolio-boarding-audit-governance) -- a registry blind spot this
+  // domain had until now, not new gaps -- see
+  // docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.
+  notWired: 13,
   deliberatelyBlocked: 1,
 });
 

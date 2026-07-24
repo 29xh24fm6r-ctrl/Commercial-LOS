@@ -69,7 +69,10 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // Factory Arc Phase 5 closed risk-rating-persistence -- risk rating /
   // underwriting recommendation now write/read via updateDealProfile.ts against
   // the live PR106 columns -- see docs/factory-arc/PR117_RISK_RATING_PERSISTENCE.md.
-  notWired: 11,
+  // Factory Arc Phase 14 added two more (annual-review-persistence,
+  // portfolio-boarding-audit-governance) -- a registry blind spot this domain had
+  // until now, not new gaps -- see docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.
+  notWired: 13,
   deliberatelyBlocked: 1,
 });
 
