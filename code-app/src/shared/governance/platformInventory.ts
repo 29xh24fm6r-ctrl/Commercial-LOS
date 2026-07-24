@@ -430,7 +430,12 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'operator-run regeneration should be diffed against these files. Readiness facts with no live ' +
       'source (documents/conditions/exceptions/destination/expiry) still hard-code to their fail-' +
       'closed blocking value, so a session genuinely reaches APPROVED but always shows blocked at ' +
-      'disbursement confirmation -- correct behavior, not a bug. See ' +
+      'disbursement confirmation -- correct behavior, not a bug. Factory Arc Phase 10 found the Phase ' +
+      '2 SDK-regeneration escalation (docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md) ' +
+      'covers only cr664_loandeals and never mentioned this second hand-authored table, so an operator ' +
+      'following that runbook alone would regenerate Loan Deal and stop there, unaware this table also ' +
+      'needs the same real-regen-and-diff treatment -- closed with its own escalation runbook, ' +
+      'docs/factory-arc/PR122_FUNDING_AUTHORIZATION_SDK_REGENERATION_ESCALATION.md. See also ' +
       'docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md.',
     blockerKind: 'schema',
   },
