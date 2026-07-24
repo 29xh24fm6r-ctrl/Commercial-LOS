@@ -22,6 +22,7 @@ import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { AdminDealReferenceValues } from '../admin/AdminDealReferenceValues';
 import { AdminLoanRemovalPanel } from '../admin/AdminLoanRemovalPanel';
 import { PlatformOperationsWorkspacePanel } from '../admin/PlatformOperationsWorkspacePanel';
+import { TestDataView } from '../admin/TestDataView';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { palette, spacing, typography } from '../shared/theme';
 
@@ -109,6 +110,11 @@ function AdminWorkspaceContent() {
           <DataQualityFlags />
           <AuditAnomalies />
         </div>
+        {/* PR 104 -- labeled test-data view: the classification every
+            operational query's exclusion policy assumes (SYSTEM TEST -,
+            [SMOKE TEST], [QA], [DEMO], ...) surfaced for an admin to see,
+            not just an invisible filter. */}
+        <TestDataView />
         <div style={styles.twoCol}>
           <AlertBacklog />
           <RefreshStatus />

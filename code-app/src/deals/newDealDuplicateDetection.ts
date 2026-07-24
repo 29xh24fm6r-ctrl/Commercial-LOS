@@ -15,6 +15,7 @@ import {
   isDuplicateMergeApplyEnabled,
   type DealOriginationFeatureFlagConfig,
 } from './dealOriginationFeatureFlags';
+import { normalizeBusinessName } from '../shared/text/normalizeBusinessName';
 
 const MODULE = 'duplicate-detection';
 
@@ -47,21 +48,11 @@ export interface DuplicateDetectionInput {
   readonly detectionEnabledOverride?: boolean;
 }
 
-// D12 — common U.S. business-entity suffixes. Stripped (with a trailing period
-// tolerated) so "Acme LLC", "ACME, L.L.C.", and "acme llc" all normalize to the
-// same key -- capitalization/punctuation/legal-suffix variants of the same
-// borrower must not slip past duplicate detection as unrelated records.
-const LEGAL_SUFFIX_RE = /\b(l\s*l\s*c|inc|incorporated|corp|corporation|co|company|ltd|limited|lp|llp|pllc|pc)\b\.?/g;
-
-function norm(s: string | undefined): string {
-  return (s ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[.,]/g, '')
-    .replace(LEGAL_SUFFIX_RE, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+// D12 — normalize via the shared business-name normalizer so "Acme LLC",
+// "ACME, L.L.C.", and "acme llc" all resolve to the same key --
+// capitalization/punctuation/legal-suffix variants of the same borrower must
+// not slip past duplicate detection as unrelated records.
+const norm = normalizeBusinessName;
 
 /**
  * Detect duplicates by: exact deal name, normalized client name, same banker +

@@ -58,6 +58,7 @@ vi.mock('../admin/FullSystemActivationLaunchPanel', () => ({ FullSystemActivatio
 vi.mock('../admin/PerformanceDiagnostics', () => ({ PerformanceDiagnostics: () => <div data-testid="panel-PerformanceDiagnostics" /> }));
 vi.mock('../admin/EmailLiveDiagnostics', () => ({ EmailLiveDiagnostics: () => <div data-testid="panel-EmailLiveDiagnostics" /> }));
 vi.mock('../admin/PlatformOperationsWorkspacePanel', () => ({ PlatformOperationsWorkspacePanel: () => <div data-testid="panel-PlatformOperationsWorkspacePanel" /> }));
+vi.mock('../admin/TestDataView', () => ({ TestDataView: () => <div data-testid="panel-TestDataView" /> }));
 
 import { AdminWorkspace } from './AdminWorkspace';
 
