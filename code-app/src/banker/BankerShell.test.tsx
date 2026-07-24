@@ -648,6 +648,46 @@ describe('Phase 257 — + New Deal header shortcut opens the governed create flo
   });
 });
 
+describe('Factory Arc Phase 7 — Active Deals tab shows the pipeline first, New Deal wizard collapsed', () => {
+  it('navigating to Active Deals directly (nav, not + New Deal) shows the pipeline with the wizard collapsed', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = renderShell();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('tab', { name: /^Active Deals$/i }));
+
+    expect(screen.getByTestId('card-personal-pipeline')).toBeInTheDocument();
+    // The full multi-step create form is NOT rendered until explicitly opened.
+    expect(container.querySelector('[data-banker-new-deal="panel"]')).toBeNull();
+    expect(container.querySelector('[data-banker-new-deal-toggle]')).not.toBeNull();
+  });
+
+  it('clicking the in-tab "+ New Deal" toggle expands the create panel', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = renderShell();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('tab', { name: /^Active Deals$/i }));
+    await user.click(container.querySelector('[data-banker-new-deal-toggle]') as HTMLButtonElement);
+
+    expect(container.querySelector('[data-banker-new-deal="panel"]')).not.toBeNull();
+  });
+
+  it('the header + New Deal shortcut still expands the panel directly (no extra click needed)', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    const { container } = renderShell();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /^Create deal$/i }));
+
+    expect(container.querySelector('[data-banker-new-deal="panel"]')).not.toBeNull();
+    expect(container.querySelector('[data-banker-new-deal-toggle]')).toBeNull();
+  });
+});
+
 describe('Phase 257 — BankerNewDealCreate uses the production Stage/Status resolver', () => {
   const SRC = readFileSync(resolve(__dirname, 'BankerNewDealCreate.tsx'), 'utf8');
 
