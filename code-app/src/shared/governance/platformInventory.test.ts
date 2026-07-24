@@ -125,6 +125,11 @@ describe('platformInventory — not wired', () => {
     // write path against the live PR105 cr664_financialspreadinputs column
     // (docs/factory-arc/PR116_GLOBAL_CASH_FLOW_PERSISTENCE.md).
     expect(ids.has('financial-spread-persistence')).toBe(false);
+    // Factory Arc Phase 5: risk-rating-persistence NOT_WIRED was removed when
+    // risk rating / underwriting recommendation landed on the governed
+    // updateDealProfile.ts write path against the live PR106 columns
+    // (docs/factory-arc/PR117_RISK_RATING_PERSISTENCE.md).
+    expect(ids.has('risk-rating-persistence')).toBe(false);
     expect(ids.has('document-upload')).toBe(true);
     expect(ids.has('new-deal-create')).toBe(true);
     expect(ids.has('ai-generation')).toBe(true);

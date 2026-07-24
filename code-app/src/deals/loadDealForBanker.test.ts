@@ -592,3 +592,32 @@ describe('loadDealForBanker — Global Cash Flow inputs (Factory Arc Phase 4, PR
     }
   });
 });
+
+describe('loadDealForBanker — risk rating / underwriting recommendation inputs (Factory Arc Phase 5, PR106 JSON columns)', () => {
+  it('maps cr664_riskratinginputs / cr664_underwritingrecommendationinputs off the raw retrieve row', async () => {
+    const riskJson = JSON.stringify({ ratingValue: 'BB' });
+    const recJson = JSON.stringify({ decision: 'approve' });
+    dealGet.mockReturnValue(
+      Promise.resolve({
+        success: true,
+        data: dealRow({ cr664_riskratinginputs: riskJson, cr664_underwritingrecommendationinputs: recJson }),
+      } as never),
+    );
+    const result = await loadDealForBanker('deal-1', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.riskRatingInputsJson).toBe(riskJson);
+      expect(result.deal.underwritingRecommendationInputsJson).toBe(recJson);
+    }
+  });
+
+  it('leaves both fields undefined when the live row does not carry them', async () => {
+    dealGet.mockReturnValue(Promise.resolve({ success: true, data: dealRow() } as never));
+    const result = await loadDealForBanker('deal-1', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.riskRatingInputsJson).toBeUndefined();
+      expect(result.deal.underwritingRecommendationInputsJson).toBeUndefined();
+    }
+  });
+});

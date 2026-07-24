@@ -81,10 +81,12 @@ const AUDIT_COUNTS = Object.freeze({
   // Phase 4 closed financial-spread-persistence -- see
   // docs/factory-arc/PR116_GLOBAL_CASH_FLOW_PERSISTENCE.md. PR 106 added
   // one more (risk-rating-persistence) -- see
-  // docs/factory-arc/PR106_RISK_RATING_SCHEMA_MIGRATION.md. PR 107 added two
+  // docs/factory-arc/PR106_RISK_RATING_SCHEMA_MIGRATION.md. Factory Arc Phase 5
+  // closed risk-rating-persistence -- see
+  // docs/factory-arc/PR117_RISK_RATING_PERSISTENCE.md. PR 107 added two
   // more (closing-document-persistence, funding-authorization-persistence)
   // -- see docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md.
-  notWired: 12,
+  notWired: 11,
   deliberatelyBlocked: 1,
 });
 

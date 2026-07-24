@@ -58,6 +58,14 @@ export interface DealDetail {
   // Phase 189D fields below: existing hand-built DealDetail fixtures keep compiling unedited.
   financialSpreadInputsJson?: string | undefined;
 
+  // Factory Arc Phase 5 — the PR106-provisioned Memo/JSON columns
+  // (cr664_riskratinginputs / cr664_underwritingrecommendationinputs). Same convention as the
+  // Phase 3 fields above: read via the raw retrieve row, optional so existing fixtures keep
+  // compiling. Opaque serialized RiskRatingFormState / UnderwritingRecommendationFormState — see
+  // workflow/underwritingDeepFacts.ts for the shape and fail-closed parse.
+  riskRatingInputsJson?: string | undefined;
+  underwritingRecommendationInputsJson?: string | undefined;
+
   // Blocker-derivation inputs (rendered in <DealBlockers />)
   stageEntryDate: string | undefined;
   isClosed: boolean;
@@ -386,6 +394,10 @@ function mapDealDetail(
     // Factory Arc Phase 4 — plain Memo column not yet declared on the generated model (see the
     // DealDetail field comment above), read via the raw retrieve row.
     financialSpreadInputsJson: raw['cr664_financialspreadinputs'] as string | undefined,
+
+    // Factory Arc Phase 5 — same convention, not yet declared on the generated model.
+    riskRatingInputsJson: raw['cr664_riskratinginputs'] as string | undefined,
+    underwritingRecommendationInputsJson: raw['cr664_underwritingrecommendationinputs'] as string | undefined,
 
     stageEntryDate: deal.cr664_stageentrydate,
     isClosed:

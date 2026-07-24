@@ -20,6 +20,8 @@
  *   - loanPurpose          (text, <=200)   → cr664_loanpurpose
  *   - loanTermMonths       (integer)       → cr664_loantermmonths
  *   - ownershipStructure   (text, <=100)   → cr664_ownershipstructure
+ *   - riskRatingInputs                (text, <=1048576) → cr664_riskratinginputs
+ *   - underwritingRecommendationInputs (text, <=1048576) → cr664_underwritingrecommendationinputs
  *
  * Loan amount (cr664_amount) is a mandatory Intake exit criterion, so it is edited here through
  * the same governed authorize→validate→update→readback→audit discipline (the live-smoke gap: no
@@ -55,6 +57,12 @@
  * GlobalCashFlowPanel.tsx's serialized GlobalCashFlowFormState (see globalCashFlow.ts); this
  * adapter only sees an opaque string, bounded by the column's real 1,048,576-char Memo ceiling.
  *
+ * Factory Arc Phase 5 added riskRatingInputs / underwritingRecommendationInputs — the two PR106
+ * Memo (JSON) columns (scripts/schema-migrations/pr106-risk-rating/columns.mjs), same raw-column-
+ * name technique as Phase 3/4. Persisting these records does NOT flip either fact's
+ * `tracked: false` status in the CREDIT_APPROVAL requirement registry (workflow/
+ * underwritingDeepFacts.ts) — that stays a separate, explicitly-reviewed decision.
+ *
  * It creates nothing (no borrowers, no CRM records), changes no stage/status,
  * writes no amount/client, and fabricates no default values. Pure over injected
  * deps (SDK-free static graph); a live factory wires the generated services +
@@ -85,7 +93,9 @@ export type DealProfileField =
   | 'loanPurpose'
   | 'loanTermMonths'
   | 'ownershipStructure'
-  | 'globalCashFlowInputs';
+  | 'globalCashFlowInputs'
+  | 'riskRatingInputs'
+  | 'underwritingRecommendationInputs';
 
 /** A scalar patch value: a string to set, or `null` to clear. */
 export type DealProfilePatch = Partial<Record<DealProfileField, string | null>>;
@@ -145,6 +155,8 @@ export const DEAL_PROFILE_FIELD_SPECS: Readonly<Record<DealProfileField, FieldSp
   loanTermMonths: { kind: 'integer', writeKey: 'cr664_loantermmonths', readKey: 'cr664_loantermmonths', label: 'Loan Term (months)' },
   ownershipStructure: { kind: 'text', writeKey: 'cr664_ownershipstructure', readKey: 'cr664_ownershipstructure', label: 'Ownership Structure', maxLength: 100 },
   globalCashFlowInputs: { kind: 'text', writeKey: 'cr664_financialspreadinputs', readKey: 'cr664_financialspreadinputs', label: 'Global Cash Flow inputs', maxLength: 1_048_576 },
+  riskRatingInputs: { kind: 'text', writeKey: 'cr664_riskratinginputs', readKey: 'cr664_riskratinginputs', label: 'Risk Rating inputs', maxLength: 1_048_576 },
+  underwritingRecommendationInputs: { kind: 'text', writeKey: 'cr664_underwritingrecommendationinputs', readKey: 'cr664_underwritingrecommendationinputs', label: 'Underwriting Recommendation inputs', maxLength: 1_048_576 },
 };
 
 /**
@@ -204,6 +216,10 @@ export interface VerifiedProfilePatch {
   readonly ownershipStructure?: string | undefined;
   /** Opaque serialized GlobalCashFlowFormState JSON — see globalCashFlow.ts. */
   readonly globalCashFlowInputs?: string | undefined;
+  /** Opaque serialized RiskRatingFormState JSON — see workflow/underwritingDeepFacts.ts. */
+  readonly riskRatingInputs?: string | undefined;
+  /** Opaque serialized UnderwritingRecommendationFormState JSON — see workflow/underwritingDeepFacts.ts. */
+  readonly underwritingRecommendationInputs?: string | undefined;
 }
 
 export type UpdateDealProfileOutcome =

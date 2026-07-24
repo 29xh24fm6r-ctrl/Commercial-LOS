@@ -66,7 +66,10 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // write/read via updateDealProfile.ts against the live PR105
   // cr664_financialspreadinputs column -- see
   // docs/factory-arc/PR116_GLOBAL_CASH_FLOW_PERSISTENCE.md.
-  notWired: 12,
+  // Factory Arc Phase 5 closed risk-rating-persistence -- risk rating /
+  // underwriting recommendation now write/read via updateDealProfile.ts against
+  // the live PR106 columns -- see docs/factory-arc/PR117_RISK_RATING_PERSISTENCE.md.
+  notWired: 11,
   deliberatelyBlocked: 1,
 });
 

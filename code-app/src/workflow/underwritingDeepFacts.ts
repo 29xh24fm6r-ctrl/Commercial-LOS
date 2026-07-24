@@ -106,3 +106,94 @@ export function evaluateUnderwritingRecommendationReadiness(
   }
   return { met: true, reason: '', requiresNonForwardPath: false, decision: record.decision };
 }
+
+// ── Factory Arc Phase 5 — persisted form-state serialization ────────────────
+//
+// The banker-entered rating/recommendation fields, persisted as JSON into
+// cr664_riskratinginputs / cr664_underwritingrecommendationinputs (Memo columns, see
+// scripts/schema-migrations/pr106-risk-rating/columns.mjs). This does NOT flip either fact's
+// `tracked: false` registry status -- that stays a separate, explicitly-reviewed decision (see
+// this file's header comment). Persisting the record is a prerequisite for that future decision,
+// not the decision itself.
+
+const RISK_RATING_STATUSES: readonly RiskRatingStatus[] = ['draft', 'assigned', 'reviewed', 'approved'];
+const RECOMMENDATION_STATUSES: readonly UnderwritingRecommendationStatus[] = ['draft', 'recorded', 'reviewed'];
+const RECOMMENDATION_DECISIONS: readonly UnderwritingRecommendationDecision[] = [
+  'approve',
+  'approve_with_conditions',
+  'decline',
+  'return_for_more_information',
+];
+
+export interface RiskRatingFormState {
+  readonly ratingValue: string;
+  readonly ratingScale: string;
+  readonly rationale: string;
+  readonly status: RiskRatingStatus;
+}
+
+export const EMPTY_RISK_RATING_FORM_STATE: RiskRatingFormState = {
+  ratingValue: '',
+  ratingScale: '',
+  rationale: '',
+  status: 'draft',
+};
+
+export function serializeRiskRatingFormState(state: RiskRatingFormState): string {
+  return JSON.stringify(state);
+}
+
+/** Fail-closed parse: missing, corrupt, or wrong-shaped JSON returns the empty (draft) state. */
+export function parseRiskRatingFormState(json: string | undefined): RiskRatingFormState {
+  if (!json || json.trim().length === 0) return EMPTY_RISK_RATING_FORM_STATE;
+  try {
+    const parsed: unknown = JSON.parse(json);
+    if (!parsed || typeof parsed !== 'object') return EMPTY_RISK_RATING_FORM_STATE;
+    const p = parsed as Partial<RiskRatingFormState>;
+    return {
+      ratingValue: typeof p.ratingValue === 'string' ? p.ratingValue : '',
+      ratingScale: typeof p.ratingScale === 'string' ? p.ratingScale : '',
+      rationale: typeof p.rationale === 'string' ? p.rationale : '',
+      status: RISK_RATING_STATUSES.includes(p.status as RiskRatingStatus) ? (p.status as RiskRatingStatus) : 'draft',
+    };
+  } catch {
+    return EMPTY_RISK_RATING_FORM_STATE;
+  }
+}
+
+export interface UnderwritingRecommendationFormState {
+  readonly decision: UnderwritingRecommendationDecision;
+  readonly rationale: string;
+  readonly status: UnderwritingRecommendationStatus;
+}
+
+export const EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE: UnderwritingRecommendationFormState = {
+  decision: 'approve',
+  rationale: '',
+  status: 'draft',
+};
+
+export function serializeUnderwritingRecommendationFormState(state: UnderwritingRecommendationFormState): string {
+  return JSON.stringify(state);
+}
+
+/** Fail-closed parse: missing, corrupt, or wrong-shaped JSON returns the empty (draft/approve) state. */
+export function parseUnderwritingRecommendationFormState(json: string | undefined): UnderwritingRecommendationFormState {
+  if (!json || json.trim().length === 0) return EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE;
+  try {
+    const parsed: unknown = JSON.parse(json);
+    if (!parsed || typeof parsed !== 'object') return EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE;
+    const p = parsed as Partial<UnderwritingRecommendationFormState>;
+    return {
+      decision: RECOMMENDATION_DECISIONS.includes(p.decision as UnderwritingRecommendationDecision)
+        ? (p.decision as UnderwritingRecommendationDecision)
+        : 'approve',
+      rationale: typeof p.rationale === 'string' ? p.rationale : '',
+      status: RECOMMENDATION_STATUSES.includes(p.status as UnderwritingRecommendationStatus)
+        ? (p.status as UnderwritingRecommendationStatus)
+        : 'draft',
+    };
+  } catch {
+    return EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE;
+  }
+}
