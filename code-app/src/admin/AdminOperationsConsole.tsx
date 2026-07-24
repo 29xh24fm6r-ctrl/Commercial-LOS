@@ -20,14 +20,24 @@ import {
 } from './adminOperationsConsoleModel';
 
 /**
- * Phase 169A -- Admin Operations Console (read-only shell).
+ * Phase 169A -- Admin Operations Console (originally a read-only shell).
  *
  * A governed, admin-only status surface for the administrative workflows
  * the team needs (user/access, new-deal intake, portfolio boarding, CRM
- * onboarding, security roles). Phase 169A is READ-ONLY: every module
- * renders its honest status, blocker, and next safe step, and every
- * action is a disabled placeholder. No writes, no Dataverse calls, no
- * network access, no fabricated data.
+ * onboarding, security roles). Every module renders its honest status,
+ * blocker, and next safe step.
+ *
+ * Factory Arc Phase 15 -- corrected a stale claim: at Phase 169A every
+ * action here really was a disabled placeholder with no writes. Phase 257
+ * wired four of the five modules to real, already-proven governed write
+ * paths (UserAccessManagementPanel's workspace-entitlement control,
+ * NewDealIntakePanel, PortfolioBoardingAdminPanel, CrmOnboardingAdminPanel --
+ * each links out to the live workspace where the actual governed, audited
+ * write happens, per adminOperationsConsoleModel.ts's `manage` field). This
+ * component itself still renders no fabricated data and performs no writes
+ * directly -- only `security-roles` stays a true read-only placeholder
+ * (external to this app, by design). See
+ * docs/factory-arc/PR127_ADMIN_OPERATIONALIZATION.md.
  *
  * Authorization: the surrounding AdminWorkspace is already gated by
  * WorkspaceGate. This component re-derives admin authorization from the

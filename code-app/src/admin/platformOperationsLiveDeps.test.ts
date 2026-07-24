@@ -59,7 +59,7 @@ describe('buildPlatformOperationsConsoleInput', () => {
     }
   });
 
-  it('queries write evidence for the 4 verified-prefix capabilities', async () => {
+  it('queries write evidence for the 5 verified-prefix capabilities', async () => {
     getAllMock.mockResolvedValue({
       success: true,
       data: [{ cr664_actorusername: 'op@bank.com', cr664_changeddate: '2026-07-01T00:00:00Z', cr664_correlationid: 'c-1' }],
@@ -68,7 +68,7 @@ describe('buildPlatformOperationsConsoleInput', () => {
     const input = await buildPlatformOperationsConsoleInput();
     const byKey = new Map(input.capabilities.map((c) => [c.key, c]));
 
-    for (const key of ['new-deal-create', 'stage-progression', 'checklist-generation', 'document-upload']) {
+    for (const key of ['new-deal-create', 'stage-progression', 'checklist-generation', 'document-upload', 'task-generation']) {
       const c = byKey.get(key)!;
       expect(c.latestSuccessfulWrite, `${key}.latestSuccessfulWrite`).toEqual({
         actor: 'op@bank.com',
@@ -83,7 +83,6 @@ describe('buildPlatformOperationsConsoleInput', () => {
     const byKey = new Map(input.capabilities.map((c) => [c.key, c]));
 
     for (const key of [
-      'task-generation',
       'borrower-communication',
       'borrower-sms',
       'crm-manual-write',
