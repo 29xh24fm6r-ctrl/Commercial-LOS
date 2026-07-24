@@ -17,7 +17,12 @@ import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmem
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
 import { Cr664_dealtimelineeventsService } from '../generated/services/Cr664_dealtimelineeventsService';
-import { saveCreditMemoDraft } from './creditMemoActions';
+import {
+  saveCreditMemoDraft,
+  buildSafeMemoTextSummary,
+  mapCreditMemoSaveErrorForBanker,
+  MEMO_TEXT_SAFE_MAX_CHARS,
+} from './creditMemoActions';
 import type { ResolveActorChangedBy } from './newDealAuditActorResolver';
 
 const memoCreate = vi.mocked(Cr664_creditmemo1sService.create);
@@ -246,7 +251,10 @@ describe('saveCreditMemoDraft', () => {
 
     expect(outcome.kind).toBe('memo-failed');
     if (outcome.kind === 'memo-failed') {
-      expect(outcome.memoError).toBe('memo row locked');
+      // SEV-1 remediation: the banker-facing message is sanitized, never the raw Dataverse
+      // string — see the dedicated mapCreditMemoSaveErrorForBanker describe block below.
+      expect(outcome.memoError).not.toBe('memo row locked');
+      expect(outcome.memoError).toMatch(/system error/i);
     }
     expect(memoCreate).toHaveBeenCalledTimes(1);
     // Sections must NOT be attempted once memo create has failed.
@@ -496,5 +504,101 @@ describe('saveCreditMemoDraft', () => {
     expect(memoCreate).toHaveBeenCalledTimes(1);
     // No audit row is POSTed with an unresolved actor — never a systemuser bind.
     expect(auditCreate).not.toHaveBeenCalled();
+  });
+
+  describe('SEV-1 remediation — a memo body longer than the live cr664_memotext ceiling no longer fails the save', () => {
+    it('saves successfully for a memo body materially longer than 2,000 characters', async () => {
+      memoCreate.mockReturnValue(memoOk('memo-long'));
+      sectionCreate.mockReturnValue(sectionOk('s-1'));
+      auditCreate.mockReturnValue(auditOk('a-1'));
+      timelineCreate.mockReturnValue(timelineOk('t-1'));
+
+      const longBody = 'A'.repeat(3000);
+      const outcome = await saveCreditMemoDraft(
+        baseInput({
+          memoBody: longBody,
+          sections: [{ sectionKey: 'executive-summary', sectionLabel: 'Executive Summary', draftText: longBody }],
+        }),
+        okResolver,
+      );
+
+      expect(outcome.kind).toBe('success');
+      const memoPayload = memoCreate.mock.calls[0]![0] as Record<string, unknown>;
+      const memoText = memoPayload.cr664_memotext as string;
+      // Never sent to Dataverse anywhere near the reported ~2,000-char ceiling.
+      expect(memoText.length).toBeLessThanOrEqual(MEMO_TEXT_SAFE_MAX_CHARS);
+      expect(memoText.length).toBeLessThan(2000);
+
+      // Full-fidelity content is NOT lost — it is preserved verbatim in the section draft.
+      const sectionPayload = sectionCreate.mock.calls[0]![0] as Record<string, unknown>;
+      expect(sectionPayload.cr664_drafttext).toBe(longBody);
+      expect((sectionPayload.cr664_drafttext as string).length).toBe(3000);
+    });
+
+    it('does not alter a memo body already within the safe ceiling (byte-for-byte, including whitespace)', async () => {
+      memoCreate.mockReturnValue(memoOk('memo-1'));
+      sectionCreate.mockReturnValue(sectionOk('s-1'));
+      auditCreate.mockReturnValue(auditOk('a-1'));
+      timelineCreate.mockReturnValue(timelineOk('t-1'));
+
+      const shortBody = 'A reasonably normal memo body.  ';
+      await saveCreditMemoDraft(baseInput({ memoBody: shortBody }), okResolver);
+
+      const memoPayload = memoCreate.mock.calls[0]![0] as Record<string, unknown>;
+      expect(memoPayload.cr664_memotext).toBe(shortBody);
+    });
+  });
+});
+
+describe('buildSafeMemoTextSummary', () => {
+  it('returns the body unchanged when at or under the safe ceiling', () => {
+    const body = 'x'.repeat(MEMO_TEXT_SAFE_MAX_CHARS);
+    expect(buildSafeMemoTextSummary(body)).toBe(body);
+  });
+
+  it('returns a short body completely unchanged, including trailing whitespace', () => {
+    expect(buildSafeMemoTextSummary('hello  ')).toBe('hello  ');
+  });
+
+  it('truncates a body over the safe ceiling and never exceeds it', () => {
+    const body = 'x'.repeat(MEMO_TEXT_SAFE_MAX_CHARS + 1000);
+    const result = buildSafeMemoTextSummary(body);
+    expect(result.length).toBeLessThanOrEqual(MEMO_TEXT_SAFE_MAX_CHARS);
+    expect(result.length).toBeLessThan(body.length);
+  });
+
+  it('never produces output anywhere near the reported live 2,000-character ceiling for a huge body', () => {
+    const body = 'x'.repeat(50_000);
+    const result = buildSafeMemoTextSummary(body);
+    expect(result.length).toBeLessThan(2000);
+  });
+});
+
+describe('mapCreditMemoSaveErrorForBanker', () => {
+  it('never returns the raw Dataverse/plugin error text verbatim', () => {
+    const raw = 'PrimitiveValue deserialization error on entity cr664_creditmemo1, attribute cr664_memotext';
+    const mapped = mapCreditMemoSaveErrorForBanker(raw, 'cm-123');
+    expect(mapped).not.toContain('PrimitiveValue');
+    expect(mapped).not.toContain('cr664_creditmemo1');
+    expect(mapped).not.toContain('cr664_memotext');
+  });
+
+  it('maps a memotext length-related error to an actionable, non-technical message', () => {
+    const raw = "The 'cr664_memotext' attribute value exceeds max length of 2000.";
+    const mapped = mapCreditMemoSaveErrorForBanker(raw, 'cm-123');
+    expect(mapped).toMatch(/too long/i);
+    expect(mapped).not.toContain('cr664_memotext');
+    expect(mapped).not.toContain('2000');
+  });
+
+  it('maps any other error to a generic safe message', () => {
+    const mapped = mapCreditMemoSaveErrorForBanker('row locked by another process', 'cm-456');
+    expect(mapped).toMatch(/system error/i);
+    expect(mapped).not.toContain('row locked');
+  });
+
+  it('always includes the correlation id so support can look up the real diagnostic detail', () => {
+    const mapped = mapCreditMemoSaveErrorForBanker('anything', 'cm-789');
+    expect(mapped).toContain('cm-789');
   });
 });
