@@ -20,6 +20,7 @@ import { DealDocuments } from './DealDocuments';
 import { CreditMemo } from './CreditMemo';
 import { GlobalCashFlowPanel } from './GlobalCashFlowPanel';
 import { DealRiskRatingPanel } from './DealRiskRatingPanel';
+import { DealClosingDocumentsPanel } from './DealClosingDocumentsPanel';
 import { ActivityTimeline } from './ActivityTimeline';
 import { BorrowerCommunication } from './BorrowerCommunication';
 import { TeamsChatHandoff } from './TeamsChatHandoff';
@@ -293,6 +294,16 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="closing-booking-readiness"
               >
                 <ClosingBookingReadinessPanel />
+              </div>
+              {/* PR 107 -- mounts the closing-document generation framework (49 tests,
+                  previously entirely unmounted). Local-only pending schema (see
+                  docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md). */}
+              <div
+                id="closing-documents"
+                data-deal-card="closing-documents"
+                data-cockpit-anchor="closing-documents"
+              >
+                <DealClosingDocumentsPanel deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} />
               </div>
               <div
                 id="portfolio-boarding-status"
