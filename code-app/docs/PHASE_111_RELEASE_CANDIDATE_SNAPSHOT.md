@@ -25,7 +25,7 @@ Snapshot date: 2026-05-21. Snapshot anchor: end of Phase 110.
 | Build | `tsc -b && vite build` clean (~1047 kB minified / ~235 kB gzip) | +125 kB / +14 kB |
 | `GOVERNED_WRITES` | **14** entries | +2 since Phase 110 (Phase 105 `deal-borrower-update-email`, Phase 160 `deal-log-activity`); +1 since (Phase 237 `deal-stage-advance`, forward stage-advance write — legacyDisciplineExempt from the Phase 46/47/49/50 sweeps, see platformInventory.ts) |
 | `LOCAL_ONLY_FLOWS` | **16** entries | +1 (Phase 105 updated `borrower-update-draft` shape; net inventory shifted) |
-| `NOT_WIRED` | **11** entries | Includes Phase 160 classification of blocked `new-deal-create`; +2 from PR 105 (`origination-loan-structure-fields`, `financial-spread-persistence` — schema-pending, see docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md) |
+| `NOT_WIRED` | **12** entries | Includes Phase 160 classification of blocked `new-deal-create`; +2 from PR 105 (`origination-loan-structure-fields`, `financial-spread-persistence`); +1 from PR 106 (`risk-rating-persistence`) — all schema-pending, see docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md and docs/factory-arc/PR106_RISK_RATING_SCHEMA_MIGRATION.md |
 | `DELIBERATELY_BLOCKED` | **1** entry (`stage-progression-advance`) | unchanged |
 | Vibe capability groups tracked | 29 in [MICROSOFT_VIBE_CAPABILITY_COVERAGE.md](MICROSOFT_VIBE_CAPABILITY_COVERAGE.md) | unchanged |
 | Workspaces shipped | Banker · Manager · Team · Executive (snapshot) · Admin | unchanged |

@@ -415,6 +415,21 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'FINANCIAL_SPREAD_PERSISTENCE_ENABLED stays false until that migration is applied.',
     blockerKind: 'schema',
   },
+  {
+    id: 'risk-rating-persistence',
+    label: 'Risk Rating / Underwriting Recommendation (deal-level persistence)',
+    reason:
+      'PR 106 -- DealRiskRatingPanel.tsx captures a real RiskRatingRecord / ' +
+      'UnderwritingRecommendationRecord against the already-built, already-tested pure policies in ' +
+      'workflow/underwritingDeepFacts.ts (ARC Phase 3), but has no Dataverse column to round-trip ' +
+      'them through, so entries are local-only (session-scoped; reset on reload) -- same disclosed ' +
+      'convention as this file\'s LOCAL_ONLY_FLOWS. Two additive JSON columns ' +
+      '(cr664_riskratinginputs, cr664_underwritingrecommendationinputs) are specced in ' +
+      'docs/factory-arc/PR106_RISK_RATING_SCHEMA_MIGRATION.md. Persistence landing does NOT by ' +
+      'itself flip the UNDERWRITING:risk_rating requirement-engine entry from tracked: false to ' +
+      'true -- that is a separate, explicitly-reviewed follow-up per the migration doc.',
+    blockerKind: 'schema',
+  },
 ];
 
 // ---------------------------------------------------------------------------

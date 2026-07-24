@@ -249,7 +249,11 @@ describe('Phase 125E — Cockpit recomposition (visual hierarchy)', () => {
     expect(text).not.toMatch(/\bapproval\s+odds\b/i);
     expect(text).not.toMatch(/\bborrower\s+sentiment\b/i);
     expect(text).not.toMatch(/\bpredicted\s+close\s+date\b/i);
-    expect(text).not.toMatch(/\brisk\s+rating\b/i);
+    // PR 106 — "risk rating" itself is no longer banned: DealRiskRatingPanel now renders a REAL,
+    // analyst-entered (never AI/auto-generated) risk-rating capture, honestly labeled local-only
+    // pending schema. What stays forbidden is any FABRICATED framing of it.
+    expect(text).not.toMatch(/\bAI[- ]?(?:generated|assigned|predicted)\s+risk\s+rating\b/i);
+    expect(text).not.toMatch(/\bauto[- ]?generated\s+risk\s+rating\b/i);
     expect(text).not.toMatch(/\bdeal\s+score\b/i);
   });
 });

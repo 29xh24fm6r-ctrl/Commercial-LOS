@@ -79,12 +79,53 @@ describe('evaluateCreditApprovalAuthority', () => {
     const r = evaluateCreditApprovalAuthority(baseInput({ dealAmount: 500_000, requestProfileAmount: 999_999 }));
     expect(r).toMatchObject({ allowed: false, reasonCode: 'amount_conflict' });
   });
+
+  describe('PR 106 — self-approval prevention', () => {
+    it('blocks the advancing actor from approving their own deal, even with override authority', () => {
+      const r = evaluateCreditApprovalAuthority(
+        baseInput({
+          banker: { approvalLimit: 0, creditCommitteeMember: false, approvalOverrideAuthority: true },
+          advancingActorBankerId: 'banker-1',
+          originatingBankerId: 'banker-1',
+        }),
+      );
+      expect(r).toMatchObject({ allowed: false, reasonCode: 'self_approval_not_permitted' });
+    });
+
+    it('allows a genuinely different approver (both ids present, distinct)', () => {
+      const r = evaluateCreditApprovalAuthority(
+        baseInput({ advancingActorBankerId: 'banker-1', originatingBankerId: 'banker-2' }),
+      );
+      expect(r).toEqual({ allowed: true });
+    });
+
+    it('has no opinion (does not deny) when either id is absent -- never fabricates enforcement it cannot verify', () => {
+      const r1 = evaluateCreditApprovalAuthority(baseInput({ advancingActorBankerId: undefined, originatingBankerId: 'banker-2' }));
+      expect(r1).toEqual({ allowed: true });
+      const r2 = evaluateCreditApprovalAuthority(baseInput({ advancingActorBankerId: 'banker-1', originatingBankerId: undefined }));
+      expect(r2).toEqual({ allowed: true });
+    });
+
+    it('self-approval is checked before the amount/committee checks (denies even when those would also fail)', () => {
+      const r = evaluateCreditApprovalAuthority(
+        baseInput({
+          banker: { approvalLimit: 100, creditCommitteeMember: false, approvalOverrideAuthority: false },
+          dealAmount: undefined,
+          requestProfileAmount: undefined,
+          advancingActorBankerId: 'banker-1',
+          originatingBankerId: 'banker-1',
+        }),
+      );
+      expect(r).toMatchObject({ allowed: false, reasonCode: 'self_approval_not_permitted' });
+    });
+  });
 });
 
 describe('describeCreditApprovalAuthorityReason', () => {
   const codes: CreditApprovalAuthorityReasonCode[] = [
     'actor_unresolved', 'no_banker_record', 'authority_fields_absent', 'amount_missing',
     'amount_conflict', 'amount_exceeds_individual_authority', 'committee_authority_required',
+    'self_approval_not_permitted',
   ];
 
   it('returns non-empty, distinct copy for every reason code, never leaking numbers or field names', () => {
