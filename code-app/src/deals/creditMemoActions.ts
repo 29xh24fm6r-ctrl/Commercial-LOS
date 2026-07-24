@@ -103,6 +103,54 @@ export type SaveCreditMemoDraftOutcome =
 const MEMO_STATUS_DRAFT = 788190000;
 const SECTION_REVIEW_STATUS_PENDING = 788190000;
 
+/**
+ * SEV-1 remediation (2026-07 adversarial audit) — a live save against `cr664_memotext` on
+ * `cr664_creditmemo1` failed once the memo body exceeded that column's ~2,000-character Dataverse
+ * ceiling, hard-blocking every deal from moving past Underwriting (no memo could ever be saved for
+ * a real, multi-section credit memo).
+ *
+ * Fix: `cr664_memotext` on the PARENT memo row now only ever needs to carry a short manifest, not
+ * the full memo body — the full, untruncated text of every section is already durably preserved,
+ * verbatim, in the normalized `cr664_creditmemodraftsection` rows this action creates alongside the
+ * memo (see `createMemoSection` below). Nothing reads `cr664_memotext` expecting full-fidelity
+ * content today (`creditMemoQueries.ts` / `checkCreditMemoConsistency` / `creditReadiness.ts` all
+ * either preview-truncate it to 240 chars or don't inspect its content at all), so bounding this one
+ * field loses no real capability. A body at or under the safe ceiling is stored completely
+ * unchanged (byte-for-byte, including whitespace) — only a body that would have overflowed the
+ * live column is shortened, and only on this one summary field; the full memo is never lost.
+ */
+export const MEMO_TEXT_SAFE_MAX_CHARS = 500;
+const MEMO_TEXT_TRUNCATION_SUFFIX = '… (full memo text preserved in this draft’s saved sections)';
+
+/** Exported for tests. Identity for any body already within the safe ceiling — this is NOT a
+ *  general-purpose truncator, only the specific ceiling this one column needs. */
+export function buildSafeMemoTextSummary(memoBody: string): string {
+  if (memoBody.length <= MEMO_TEXT_SAFE_MAX_CHARS) return memoBody;
+  const keep = Math.max(0, MEMO_TEXT_SAFE_MAX_CHARS - MEMO_TEXT_TRUNCATION_SUFFIX.length);
+  return memoBody.slice(0, keep) + MEMO_TEXT_TRUNCATION_SUFFIX;
+}
+
+/**
+ * SEV-1 remediation — a raw Dataverse/plugin error string (table/attribute names, OData traces,
+ * provider-specific text) must never render directly to a banker. The raw detail is not discarded:
+ * it is still recorded on the best-effort Failed audit event's `cr664_failurereason` (see
+ * `emitAuditEvent` below) for support/diagnostics — only the banker-facing outcome is sanitized.
+ * Exported for tests.
+ */
+export function mapCreditMemoSaveErrorForBanker(rawError: string, correlationId: string): string {
+  const lower = rawError.toLowerCase();
+  const mentionsMemoField = lower.includes('memotext') || lower.includes('memo text');
+  const mentionsLengthProblem =
+    lower.includes('maxlength') ||
+    lower.includes('max length') ||
+    lower.includes('too long') ||
+    (lower.includes('length') && (lower.includes('exceed') || lower.includes('limit')));
+  if (mentionsMemoField && mentionsLengthProblem) {
+    return `This memo is too long to save in its current form. Try shortening the memo body, or contact support (reference ${correlationId}) if this persists.`;
+  }
+  return `The draft could not be saved due to a system error. Please try again, and contact support (reference ${correlationId}) if this persists.`;
+}
+
 const AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002;
 const AUDIT_EVENT_TYPE_STATUS_CHANGE = 788190001;
 const AUDIT_ENTITY_TYPE_LOAN_DEAL = 788190000;
@@ -269,7 +317,7 @@ export async function saveCreditMemoDraft(
     const memoPayload = {
       cr664_memoname: input.memoName,
       cr664_memotype: input.memoType,
-      cr664_memotext: input.memoBody,
+      cr664_memotext: buildSafeMemoTextSummary(input.memoBody),
       cr664_status: MEMO_STATUS_DRAFT,
       cr664_version: input.version,
       cr664_generatedat: nowIso,
@@ -287,48 +335,50 @@ export async function saveCreditMemoDraft(
       >[0],
     );
     if (!result.success) {
+      const rawError = result.error?.message ?? 'Unknown memo create error';
       void emitAuditEvent({
         input: trimmedInput,
         actor,
         memoId: undefined,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
-        failureReason: result.error?.message ?? 'Unknown memo create error',
+        failureReason: rawError,
         nowIso,
       });
       return {
         kind: 'memo-failed',
-        memoError: result.error?.message ?? 'Credit memo create failed',
+        memoError: mapCreditMemoSaveErrorForBanker(rawError, correlationId),
       };
     }
     memoId = result.data?.cr664_creditmemo1id;
     if (!memoId) {
+      const rawError = 'Memo create returned success without an id';
       void emitAuditEvent({
         input: trimmedInput,
         actor,
         memoId: undefined,
         correlationId,
         outcome: AUDIT_OUTCOME_FAILED,
-        failureReason: 'Memo create returned success without an id',
+        failureReason: rawError,
         nowIso,
       });
       return {
         kind: 'memo-failed',
-        memoError: 'Credit memo create returned success without an id.',
+        memoError: mapCreditMemoSaveErrorForBanker(rawError, correlationId),
       };
     }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
+    const rawError = err instanceof Error ? err.message : String(err);
     void emitAuditEvent({
       input,
       actor,
       memoId: undefined,
       correlationId,
       outcome: AUDIT_OUTCOME_FAILED,
-      failureReason: message,
+      failureReason: rawError,
       nowIso,
     });
-    return { kind: 'memo-failed', memoError: message };
+    return { kind: 'memo-failed', memoError: mapCreditMemoSaveErrorForBanker(rawError, correlationId) };
   }
 
   // Step 2 + 3 + 4: sections (one create per included section) plus

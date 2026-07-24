@@ -365,7 +365,14 @@ describe('CreditMemoDraftModal — Phase 25 Save Draft flow', () => {
     expect(buttons[0]!.textContent).toMatch(/close/i);
   });
 
-  it('D-02 fix: memo-failed surfaces the REAL service error, never the old generic "dropped connection" copy', async () => {
+  it('D-02 fix: memo-failed renders whatever message the outcome carries, never a hardcoded generic "dropped connection" copy', async () => {
+    // Modal-level rendering-fidelity test: this constructs the outcome directly (bypassing the
+    // real saveCreditMemoDraft), so it pins the MODAL's contract — render `outcome.memoError`
+    // verbatim — not whether that string is itself sanitized. SEV-1 remediation moved raw-error
+    // sanitization to creditMemoActions.ts (see mapCreditMemoSaveErrorForBanker in
+    // creditMemoActions.ts): in production, `memoError` here is now always the ALREADY-safe,
+    // non-technical message — this test's literal string is just an arbitrary fixture proving the
+    // modal doesn't discard/replace it with a second hardcoded string.
     const onSave = vi.fn().mockResolvedValue({
       kind: 'memo-failed',
       memoError: 'cr664_memoname exceeds maximum length of 100 characters',
@@ -386,7 +393,6 @@ describe('CreditMemoDraftModal — Phase 25 Save Draft flow', () => {
     await user.click(screen.getByRole('button', { name: /save credit memo draft/i }));
 
     await screen.findByText(/Could not save draft/i);
-    // The real, exact service error is shown verbatim — this is the actionable blocker.
     expect(
       screen.getByText('cr664_memoname exceeds maximum length of 100 characters'),
     ).toBeInTheDocument();
@@ -398,7 +404,7 @@ describe('CreditMemoDraftModal — Phase 25 Save Draft flow', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('D-02 fix: a different memo-failed error string renders that exact different message (proves it is not a second hardcoded string)', async () => {
+  it('D-02 fix: a different memo-failed message renders that exact different text (proves it is not a second hardcoded string)', async () => {
     const onSave = vi.fn().mockResolvedValue({
       kind: 'memo-failed',
       memoError: 'Required attribute cr664_workspaceid is missing',
