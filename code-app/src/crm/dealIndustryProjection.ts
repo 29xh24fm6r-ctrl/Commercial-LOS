@@ -121,15 +121,6 @@ export async function loadDealIndustryProjection(
 // Live dependency factory (dynamic imports keep the SDK out of the static graph)
 // ---------------------------------------------------------------------------
 
-const MAPPING_DATA_SOURCE = 'cr664_naicsindustrymaps';
-
-interface RawMappingRow {
-  cr664_sectorcode?: string;
-  cr664_dealindustry?: string;
-  cr664_activeflag?: boolean;
-  [key: string]: unknown;
-}
-
 export function buildLiveDealIndustryProjectionDeps(): DealIndustryProjectionDeps {
   return {
     readClientOrganizationId: async (clientRelationshipId) => {
@@ -166,15 +157,12 @@ export function buildLiveDealIndustryProjectionDeps(): DealIndustryProjectionDep
     },
     fetchMappingRows: async () => {
       try {
-        // Read the mapping table via the generic data client by data-source name:
-        // its generated service does not exist until the table is added + the SDK
-        // regenerated, so we must not statically depend on it.
-        const [{ getClient }, { dataSourcesInfo }] = await Promise.all([
-          import('@microsoft/power-apps/data'),
-          import('../../.power/schemas/appschemas/dataSourcesInfo'),
-        ]);
-        const client = getClient(dataSourcesInfo);
-        const res = await client.retrieveMultipleRecordsAsync<RawMappingRow>(MAPPING_DATA_SOURCE, {
+        // Factory Arc Phase 8 — cr664_naicsindustrymaps now has a real generated service (the
+        // generic-data-client workaround this replaced predates that regeneration).
+        const { Cr664_naicsindustrymapsService } = await import(
+          '../generated/services/Cr664_naicsindustrymapsService'
+        );
+        const res = await Cr664_naicsindustrymapsService.getAll({
           select: ['cr664_sectorcode', 'cr664_dealindustry', 'cr664_activeflag'],
           top: 200,
         });

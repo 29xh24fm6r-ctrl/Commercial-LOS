@@ -1,9 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   loadDealIndustryProjection,
+  buildLiveDealIndustryProjectionDeps,
   type DealIndustryProjectionDeps,
 } from './dealIndustryProjection';
 import type { NaicsIndustryMapRow } from './naics/naicsIndustryMap';
+
+vi.mock('../generated/services/Cr664_naicsindustrymapsService', () => ({
+  Cr664_naicsindustrymapsService: { getAll: vi.fn() },
+}));
+
+import { Cr664_naicsindustrymapsService } from '../generated/services/Cr664_naicsindustrymapsService';
 
 /**
  * Deal Industry projection from the linked CRM organization's NAICS.
@@ -73,5 +80,38 @@ describe('loadDealIndustryProjection', () => {
   it('is unavailable when the mapping read fails (table not deployed)', async () => {
     const r = await loadDealIndustryProjection('client-1', deps({ fetchMappingRows: async () => ({ success: false, error: 'data source not found' }) }));
     expect(r.kind).toBe('unavailable');
+  });
+});
+
+describe('buildLiveDealIndustryProjectionDeps — fetchMappingRows (Factory Arc Phase 8)', () => {
+  it('reads cr664_naicsindustrymaps via the real generated service and maps rows', async () => {
+    vi.mocked(Cr664_naicsindustrymapsService.getAll).mockResolvedValue({
+      success: true,
+      data: [
+        { cr664_sectorcode: '31-33', cr664_dealindustry: 'Manufacturing', cr664_activeflag: true },
+        { cr664_sectorcode: '62', cr664_dealindustry: 'Healthcare', cr664_activeflag: false },
+      ],
+    } as never);
+
+    const result = await buildLiveDealIndustryProjectionDeps().fetchMappingRows();
+    expect(result.success).toBe(true);
+    expect(result.rows).toEqual([
+      { sectorCode: '31-33', dealIndustry: 'Manufacturing', active: true },
+      { sectorCode: '62', dealIndustry: 'Healthcare', active: false },
+    ]);
+    expect(Cr664_naicsindustrymapsService.getAll).toHaveBeenCalledWith({
+      select: ['cr664_sectorcode', 'cr664_dealindustry', 'cr664_activeflag'],
+      top: 200,
+    });
+  });
+
+  it('surfaces a failed read honestly (never fabricates rows)', async () => {
+    vi.mocked(Cr664_naicsindustrymapsService.getAll).mockResolvedValue({
+      success: false,
+      error: { message: 'data source not found' },
+    } as never);
+    const result = await buildLiveDealIndustryProjectionDeps().fetchMappingRows();
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('data source not found');
   });
 });
