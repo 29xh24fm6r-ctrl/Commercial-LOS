@@ -49,7 +49,9 @@ import { DealProfileEditLauncher } from './DealProfileEditModal';
  * close-date estimate.
  */
 export function DealMetricDeck() {
-  const { deal, tasks, documents, creditMemo, activity } = useDealData();
+  const { deal, tasks, documents, creditMemo, activity, fundingAuthorization } = useDealData();
+  // Factory Arc Phase 12 — feeds CLOSING_FUNDING:funds_disbursed via deriveDealBlockerModelForStage below.
+  const fundingAuthorizationData = fundingAuthorization?.kind === 'ready' ? fundingAuthorization.data : undefined;
   const now = useMemo(() => new Date(), []);
   const metrics = useMemo(
     () =>
@@ -86,8 +88,9 @@ export function DealMetricDeck() {
         tasks: tasks.kind === 'ready' ? tasks.data : undefined,
         documents: documents.kind === 'ready' ? documents.data : undefined,
         creditMemo: creditMemo.kind === 'ready' ? creditMemo.data : undefined,
+        fundingAuthorization: fundingAuthorizationData,
       }),
-    [deal, tasks, documents, creditMemo],
+    [deal, tasks, documents, creditMemo, fundingAuthorizationData],
   );
 
   const vm = useOptionalDealIntelligence();

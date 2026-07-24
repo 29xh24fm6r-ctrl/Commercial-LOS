@@ -24,6 +24,7 @@ import {
   type RiskRatingPolicy,
   type UnderwritingRecommendationRecord,
 } from './underwritingDeepFacts';
+import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type {
   CanonicalRequirement,
   EvaluatedRequirement,
@@ -63,6 +64,13 @@ export interface WorkflowRequirementFacts {
   readonly riskRating?: RiskRatingRecord;
   readonly riskRatingPolicy?: RiskRatingPolicy;
   readonly underwritingRecommendation?: UnderwritingRecommendationRecord;
+  /**
+   * Factory Arc Phase 12 — the deal's current funding-authorization record (supplied by a loader;
+   * see DealDataProvider.tsx's `fundingAuthorization`). Absent means either the record hasn't loaded
+   * yet or genuinely doesn't exist (no funding has been requested) — CLOSING_FUNDING:funds_disbursed
+   * fails closed as unmet in either case, never fabricated as met.
+   */
+  readonly fundingAuthorization?: FundingAuthorizationRecord;
 }
 
 /**
@@ -81,6 +89,10 @@ export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: Wo
   if (req.id === 'UNDERWRITING:uw_recommendation') {
     const r = evaluateUnderwritingRecommendationReadiness(facts.underwritingRecommendation);
     return evaluated(req, r.met ? 'met' : 'unmet', r.reason);
+  }
+  if (req.id === 'CLOSING_FUNDING:funds_disbursed') {
+    const funded = facts.fundingAuthorization?.authorizationStatus === 'FUNDED';
+    return evaluated(req, funded ? 'met' : 'unmet', funded ? '' : req.blockerReason);
   }
   // Tracked deep fact without a model yet → fail closed (should not happen in Phase 3).
   return evaluated(req, 'unmet', req.blockerReason);

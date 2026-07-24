@@ -46,11 +46,13 @@ import { palette, radius, severityPalette, spacing, typography, type SeverityKey
  * blockers, no AI prediction, no approval-odds claim.
  */
 export function DealBlockers() {
-  const { deal, tasks, documents, creditMemo, activity } = useDealData();
+  const { deal, tasks, documents, creditMemo, activity, fundingAuthorization } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
   const memoData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
   const activityData = activity.kind === 'ready' ? activity.data : undefined;
+  // Factory Arc Phase 12 — feeds CLOSING_FUNDING:funds_disbursed via deriveDealBlockerModelForStage below.
+  const fundingAuthorizationData = fundingAuthorization?.kind === 'ready' ? fundingAuthorization.data : undefined;
   const blockersResult = deriveBlockers(deal, tasksData, documentsData);
   // The authoritative stage-exit blocker model (the SAME model DealMetricDeck's "Blockers" tile
   // and the Stage Map advance guard use) — a mandatory requirement holding stage advancement,
@@ -63,6 +65,7 @@ export function DealBlockers() {
     tasks: tasksData,
     documents: documentsData,
     creditMemo: memoData,
+    fundingAuthorization: fundingAuthorizationData,
   });
   const stageExitSignals: BlockerSignal[] = (stageExitModel?.hardBlockers ?? []).map((b) => ({
     id: `stage-exit:${b.id}`,

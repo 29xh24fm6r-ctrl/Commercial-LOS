@@ -59,10 +59,20 @@ export function DealFundingAuthorizationPanel({
   deal,
   authorized,
   actorEmail,
+  onFundingConfirmed,
 }: {
   deal: DealDetail;
   authorized: boolean;
   actorEmail: string | undefined;
+  /**
+   * Factory Arc Phase 12 — fired after a disbursement is genuinely confirmed (FUNDED), so a caller
+   * embedded inside DealDataProvider can refresh its `fundingAuthorization` fact (feeds
+   * CLOSING_FUNDING:funds_disbursed) without this component importing DealDataProvider directly —
+   * that import pulls in the real generated-service graph and breaks this component's existing
+   * standalone tests, which render it without a provider. See DealFundingAuthorizationPanelConnected.tsx
+   * for the real wiring (BankerDealWorkspace.tsx renders that, not this component, directly).
+   */
+  onFundingConfirmed?: () => void;
 }) {
   const storeRef = useRef(createDataverseFundingAuthorizationStore());
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -173,6 +183,10 @@ export function DealFundingAuthorizationPanel({
     );
     if (outcome.kind === 'confirmed') {
       setRecord(outcome.record);
+      // Factory Arc Phase 12 — the deal is now genuinely FUNDED; tell the caller so it can refresh
+      // DealDataProvider's fundingAuthorization fact (feeds CLOSING_FUNDING:funds_disbursed) without
+      // a page reload. Optional — never called when this component is rendered standalone (tests).
+      onFundingConfirmed?.();
     } else if (outcome.kind === 'denied') {
       setActionError(`Disbursement denied: ${outcome.reason}`);
     } else if (outcome.kind === 'blocked') {

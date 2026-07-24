@@ -15,6 +15,7 @@ import {
   type WorkflowRequirementFacts,
 } from './loanWorkflowRequirementEngine';
 import type { RiskRatingRecord } from './underwritingDeepFacts';
+import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 
 /**
  * ARC Phase 2 — capability proof for typed document status, task-blocking policy, and the
@@ -147,6 +148,28 @@ describe('ARC Phase 3 — deep-fact evaluator (dormant until tracked; fails clos
     expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal }).status).toBe('unmet');
     expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal, riskRating: rr({ status: 'draft' }) }).status).toBe('unmet');
     expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal, riskRating: rr({ status: 'assigned' }) }).status).toBe('met');
+  });
+});
+
+describe('Factory Arc Phase 12 — CLOSING_FUNDING:funds_disbursed (tracked from the start; real durable fact)', () => {
+  const fundsDisbursed = {
+    id: 'CLOSING_FUNDING:funds_disbursed', scope: 'CLOSING_FUNDING' as const, label: 'Funds disbursed', uiCopy: 'Funds disbursed',
+    description: '', category: 'funding' as const, severity: 'blocking' as const, resolverSurface: 'Funding' as const,
+    responsibleRole: 'loan_ops' as const, backingType: 'funding_record' as const, tracked: true, matchMode: 'typed' as const,
+    blockerReason: 'Funds have not yet been disbursed for this deal.',
+  };
+  const fundingRecord = (status: 'PENDING' | 'APPROVED' | 'FUNDED'): FundingAuthorizationRecord => ({
+    dealId: 'd', authorizationStatus: status, requestedAmount: 100000, destinationVerificationStatus: 'verified',
+    conditionsSatisfied: true, exceptions: [], requestedBy: 'banker@bank.test', requestedAt: '2026-07-01T00:00:00Z',
+    correlationId: 'corr-1', supportingDocumentIds: [], auditEventIds: [], recordId: 'fa-1',
+  });
+  it('no funding-authorization record at all fails closed as unmet, never fabricated as met', () => {
+    expect(evaluateDeepFactRequirement(fundsDisbursed, { deal: baseDeal }).status).toBe('unmet');
+  });
+  it('a PENDING or APPROVED record does not satisfy — only FUNDED does', () => {
+    expect(evaluateDeepFactRequirement(fundsDisbursed, { deal: baseDeal, fundingAuthorization: fundingRecord('PENDING') }).status).toBe('unmet');
+    expect(evaluateDeepFactRequirement(fundsDisbursed, { deal: baseDeal, fundingAuthorization: fundingRecord('APPROVED') }).status).toBe('unmet');
+    expect(evaluateDeepFactRequirement(fundsDisbursed, { deal: baseDeal, fundingAuthorization: fundingRecord('FUNDED') }).status).toBe('met');
   });
 });
 

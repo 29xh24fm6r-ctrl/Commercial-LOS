@@ -4,6 +4,8 @@ import { loadDealTasks, type DealTasksResult } from './dealTaskQueries';
 import { loadDealDocuments, type DealDocumentsResult } from './dealDocumentQueries';
 import { loadDealCreditMemo, type CreditMemoData } from './creditMemoQueries';
 import { loadDealActivity, type TimelineEvent } from './activityQueries';
+import { createDataverseFundingAuthorizationStore } from '../funding/fundingAuthorizationDataverseStore';
+import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import {
   timed,
   recordRefresh,
@@ -49,7 +51,9 @@ export type DealDataKey =
   | 'after-document-review'
   | 'after-document-review-task-create'
   | 'after-credit-memo-draft-saved'
-  | 'after-borrower-update-email';
+  | 'after-borrower-update-email'
+  | 'fundingAuthorization'
+  | 'after-funding-confirmed';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -62,6 +66,18 @@ export interface DealData {
   documents: AsyncResult<DealDocumentsResult>;
   creditMemo: AsyncResult<CreditMemoData>;
   activity: AsyncResult<TimelineEvent[]>;
+  /**
+   * Factory Arc Phase 12 — the deal's current funding-authorization record (or `undefined` when
+   * none has been requested yet). Feeds the CLOSING_FUNDING:funds_disbursed workflow requirement
+   * (loanWorkflowRequirementEngine.ts) so the Stage Map / Attention Console / Metric Deck / credit
+   * memo blocker surfaces agree with the live stage-advance write guard.
+   *
+   * Optional on the interface ONLY so the many hand-built DealData test doubles keep compiling
+   * (same convention as `applyVerifiedDealPatch` below); the real DealDataProvider ALWAYS supplies
+   * it. A test double omitting it is equivalent to an unresolved fact — CLOSING_FUNDING:funds_disbursed
+   * fails closed as unmet, never fabricated as met.
+   */
+  fundingAuthorization?: AsyncResult<FundingAuthorizationRecord | undefined>;
   refresh: (key: DealDataKey) => void;
   /**
    * Merge readback-verified deal fields into the in-context deal row. ONLY the
@@ -120,6 +136,9 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   const [activity, setActivity] = useState<AsyncResult<TimelineEvent[]>>({
     kind: 'loading',
   });
+  const [fundingAuthorization, setFundingAuthorization] = useState<
+    AsyncResult<FundingAuthorizationRecord | undefined>
+  >({ kind: 'loading' });
 
   // Used by the unmount cleanup AND by refresh() so a refresh fired
   // after unmount cannot late-write into stale state. Lives on a ref
@@ -172,6 +191,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
     bind(setActivity, p);
     return p;
   }
+  function reloadFundingAuthorization(): Promise<unknown> {
+    setFundingAuthorization({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadDealFundingAuthorization', async () => {
+      const res = await createDataverseFundingAuthorizationStore().getCurrentRecordForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load the funding authorization record.');
+      return res.record;
+    });
+    bind(setFundingAuthorization, p);
+    return p;
+  }
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -190,6 +219,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
       reloadDocuments(),
       reloadCreditMemo(),
       reloadActivity(),
+      reloadFundingAuthorization(),
     ]).then(() => {
       const endedAt =
         typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -296,13 +326,24 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // itself is unchanged.
         reloadActivity();
         break;
+      case 'fundingAuthorization':
+        reloadFundingAuthorization();
+        break;
+      case 'after-funding-confirmed':
+        // Factory Arc Phase 12: DealFundingAuthorizationPanel manages its own store/record state
+        // independently of this provider (it is a sibling consumer, not a descendant reader) — after
+        // a disbursement is confirmed there, this reload is the ONLY way the Stage Map / Attention
+        // Console / Metric Deck / credit-memo blocker surfaces (all of which read
+        // context.fundingAuthorization) learn the deal is now FUNDED without a full page reload.
+        reloadFundingAuthorization();
+        break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <DealDataContext.Provider
-      value={{ deal: dealState, tasks, documents, creditMemo, activity, refresh, applyVerifiedDealPatch }}
+      value={{ deal: dealState, tasks, documents, creditMemo, activity, fundingAuthorization, refresh, applyVerifiedDealPatch }}
     >
       {children}
     </DealDataContext.Provider>

@@ -65,7 +65,7 @@ interface DealDocumentsProps {
 }
 
 export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
-  const { deal, documents, tasks, creditMemo, activity, refresh } = useDealData();
+  const { deal, documents, tasks, creditMemo, activity, fundingAuthorization, refresh } = useDealData();
   const banker = useOptionalBanker();
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [pendingRequestDoc, setPendingRequestDoc] = useState<DealDocument | null>(
@@ -262,6 +262,8 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
     tasks: tasks.kind === 'ready' ? tasks.data : undefined,
     documents: documents.kind === 'ready' ? documents.data : undefined,
     creditMemo: creditMemo.kind === 'ready' ? creditMemo.data : undefined,
+    // Factory Arc Phase 12 — feeds CLOSING_FUNDING:funds_disbursed.
+    fundingAuthorization: fundingAuthorization?.kind === 'ready' ? fundingAuthorization.data : undefined,
   });
   // Additively unions in any unsatisfied dynamically-derived document requirement
   // (documentRequirementDerivation.ts) the static per-stage engine above doesn't

@@ -84,8 +84,19 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
   it('deeper stages carry untracked deep facts (risk rating, approval, closing/funding, boarding)', () => {
     expect(untrackedRequirementsForScope('UNDERWRITING').some((r) => r.id === 'UNDERWRITING:risk_rating')).toBe(true);
     expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_decision')).toBe(true);
-    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:funds_disbursed')).toBe(true);
+    // Factory Arc Phase 12 flipped funds_disbursed to tracked (see below) — executed_docs and
+    // booking_qc remain genuinely untracked deep facts for this same CLOSING_FUNDING scope.
+    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:executed_docs')).toBe(true);
+    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:booking_qc')).toBe(true);
     expect(untrackedRequirementsForScope('BOARDED').some((r) => r.id === 'BOARDED:boarded_loan_record')).toBe(true);
+  });
+
+  it('Factory Arc Phase 12 — CLOSING_FUNDING:funds_disbursed is tracked (real durable Dataverse-backed fact)', () => {
+    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:funds_disbursed')).toBe(false);
+    const req = requirementsForScope('CLOSING_FUNDING').find((r) => r.id === 'CLOSING_FUNDING:funds_disbursed');
+    expect(req?.tracked).toBe(true);
+    expect(req?.severity).toBe('blocking');
+    expect(req?.sourceEntity).toBe('cr664_fundingauthorization');
   });
 
   it('Return / Decline / Withdraw carry placeholder requirements', () => {
