@@ -120,6 +120,11 @@ describe('platformInventory — not wired', () => {
     // the governed updateDealProfile.ts write path against the live PR105
     // columns (docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md).
     expect(ids.has('origination-loan-structure-fields')).toBe(false);
+    // Factory Arc Phase 4: financial-spread-persistence NOT_WIRED was removed
+    // when Global Cash Flow figures landed on the governed updateDealProfile.ts
+    // write path against the live PR105 cr664_financialspreadinputs column
+    // (docs/factory-arc/PR116_GLOBAL_CASH_FLOW_PERSISTENCE.md).
+    expect(ids.has('financial-spread-persistence')).toBe(false);
     expect(ids.has('document-upload')).toBe(true);
     expect(ids.has('new-deal-create')).toBe(true);
     expect(ids.has('ai-generation')).toBe(true);

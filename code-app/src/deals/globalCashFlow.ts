@@ -179,3 +179,95 @@ export function classifyDscr(dscr: number): DscrBand {
   if (dscr >= 1.0) return 'marginal';
   return 'insufficient';
 }
+
+/**
+ * Factory Arc Phase 4 — the banker-entered raw string form state persisted as JSON into
+ * cr664_financialspreadinputs (a Memo column, see
+ * scripts/schema-migrations/pr105-loan-structure/columns.mjs). Kept as raw strings (not the
+ * parsed GlobalCashFlowInput) so a reload restores exactly what was typed, including a blank
+ * field, rather than re-stringifying already-parsed numbers.
+ */
+export interface GlobalCashFlowFormGuarantor {
+  readonly guarantorName: string;
+  readonly grossPersonalIncome: string;
+  readonly nonCashAddbacks: string;
+  readonly personalLivingExpenses: string;
+  readonly otherPersonalDebtService: string;
+}
+
+export interface GlobalCashFlowFormState {
+  readonly netIncome: string;
+  readonly interestExpense: string;
+  readonly incomeTaxes: string;
+  readonly depreciation: string;
+  readonly amortization: string;
+  readonly nonRecurringAddbacks: string;
+  readonly nonRecurringIncome: string;
+  readonly unfinancedCapEx: string;
+  readonly proposedNewDebtService: string;
+  readonly otherBusinessDebtService: string;
+  readonly guarantors: readonly GlobalCashFlowFormGuarantor[];
+}
+
+export const EMPTY_GLOBAL_CASH_FLOW_FORM_STATE: GlobalCashFlowFormState = {
+  netIncome: '',
+  interestExpense: '',
+  incomeTaxes: '',
+  depreciation: '',
+  amortization: '',
+  nonRecurringAddbacks: '',
+  nonRecurringIncome: '',
+  unfinancedCapEx: '',
+  proposedNewDebtService: '',
+  otherBusinessDebtService: '',
+  guarantors: [],
+};
+
+export function serializeGlobalCashFlowFormState(state: GlobalCashFlowFormState): string {
+  return JSON.stringify(state);
+}
+
+function str(v: unknown): string {
+  return typeof v === 'string' ? v : '';
+}
+
+/**
+ * Fail-closed parse: any missing, corrupt, or unexpectedly-shaped JSON returns the empty form
+ * state rather than throwing — a banker sees a blank panel, never a crash, if a live value is
+ * ever malformed.
+ */
+export function parseGlobalCashFlowFormState(json: string | undefined): GlobalCashFlowFormState {
+  if (!json || json.trim().length === 0) return EMPTY_GLOBAL_CASH_FLOW_FORM_STATE;
+  try {
+    const parsed: unknown = JSON.parse(json);
+    if (!parsed || typeof parsed !== 'object') return EMPTY_GLOBAL_CASH_FLOW_FORM_STATE;
+    const p = parsed as Partial<GlobalCashFlowFormState>;
+    const guarantors: GlobalCashFlowFormGuarantor[] = Array.isArray(p.guarantors)
+      ? p.guarantors.map((g) => {
+          const gg = (g ?? {}) as Partial<GlobalCashFlowFormGuarantor>;
+          return {
+            guarantorName: str(gg.guarantorName),
+            grossPersonalIncome: str(gg.grossPersonalIncome),
+            nonCashAddbacks: str(gg.nonCashAddbacks),
+            personalLivingExpenses: str(gg.personalLivingExpenses),
+            otherPersonalDebtService: str(gg.otherPersonalDebtService),
+          };
+        })
+      : [];
+    return {
+      netIncome: str(p.netIncome),
+      interestExpense: str(p.interestExpense),
+      incomeTaxes: str(p.incomeTaxes),
+      depreciation: str(p.depreciation),
+      amortization: str(p.amortization),
+      nonRecurringAddbacks: str(p.nonRecurringAddbacks),
+      nonRecurringIncome: str(p.nonRecurringIncome),
+      unfinancedCapEx: str(p.unfinancedCapEx),
+      proposedNewDebtService: str(p.proposedNewDebtService),
+      otherBusinessDebtService: str(p.otherBusinessDebtService),
+      guarantors,
+    };
+  } catch {
+    return EMPTY_GLOBAL_CASH_FLOW_FORM_STATE;
+  }
+}

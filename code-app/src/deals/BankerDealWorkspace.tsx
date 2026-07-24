@@ -264,15 +264,15 @@ export function BankerDealWorkspace({
               >
                 <CreditMemo />
               </div>
-              {/* PR 105 -- Global Cash Flow DSCR calculator. Local-only pending the
-                  loan-structure schema migration (see
-                  docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md). */}
+              {/* PR 105 -- Global Cash Flow DSCR calculator. Factory Arc Phase 4 wired real
+                  persistence to cr664_financialspreadinputs (see
+                  docs/factory-arc/PR116_GLOBAL_CASH_FLOW_PERSISTENCE.md). */}
               <div
                 id="global-cash-flow"
                 data-deal-card="global-cash-flow"
                 data-cockpit-anchor="global-cash-flow"
               >
-                <GlobalCashFlowPanel />
+                <GlobalCashFlowPanel deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} actorSystemUserId={systemUserId} />
               </div>
               {/* PR 106 -- Risk Rating + Underwriting Recommendation capture. Local-only
                   pending schema (see docs/factory-arc/PR106_RISK_RATING_SCHEMA_MIGRATION.md). */}

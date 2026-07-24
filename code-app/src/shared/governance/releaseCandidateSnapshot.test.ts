@@ -62,7 +62,11 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // Phase 3 closed origination-loan-structure-fields -- loan purpose/term/
   // ownership now write/read via updateDealProfile.ts against the live PR105
   // columns -- see docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md.
-  notWired: 13,
+  // Phase 4 closed financial-spread-persistence -- Global Cash Flow figures now
+  // write/read via updateDealProfile.ts against the live PR105
+  // cr664_financialspreadinputs column -- see
+  // docs/factory-arc/PR116_GLOBAL_CASH_FLOW_PERSISTENCE.md.
+  notWired: 12,
   deliberatelyBlocked: 1,
 });
 
