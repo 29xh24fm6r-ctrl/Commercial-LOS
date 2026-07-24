@@ -4,7 +4,7 @@ import { createDataverseFundingAuthorizationStore } from '../funding/fundingAuth
 import { requestFunding } from '../funding/fundingRequestAdapter';
 import { approveFunding, rejectFunding, revokeFunding } from '../funding/fundingApprovalAdapter';
 import { confirmFundingDisbursement } from '../funding/fundingDisbursementConfirmation';
-import type { EmitFundingAudit } from '../funding/fundingAudit';
+import { emitLiveFundingAudit } from '../funding/fundingAuditLiveDeps';
 import type { FundingAuthorizationRecord, FundingReadinessFacts } from '../funding/fundingAuthorizationTypes';
 import { recognizeCanonicalStatus } from '../workflow/statusReferenceContract';
 import type { DealDetail } from './dealQueries';
@@ -25,9 +25,11 @@ import { palette, radius, spacing, typography } from '../shared/theme';
  * and automatically block a single actor from completing both sides of dual-control approval --
  * this holds identically whether the record lives in memory or in Dataverse.
  *
- * A no-op audit emitter is still used here: this component does not itself resolve a live audit
- * sink, matching every other panel in this cockpit that defers audit wiring to its own follow-up
- * (see docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md).
+ * Factory Arc Phase 13 -- request/approve/reject/revoke/confirm all now emit a real cr664_AuditEvent
+ * via emitLiveFundingAudit (fundingAuditLiveDeps.ts), closing the "no live audit sink" gap this
+ * header used to disclose. A failed/unresolved audit never reverts the funding action that already
+ * happened (recordFundingAudit's own fail-closed discipline, unchanged) -- see
+ * docs/factory-arc/PR125_APPROVAL_CLOSING_FUNDING_BOARDING_PROOF.md.
  */
 function buildFundingReadinessFacts(deal: DealDetail): FundingReadinessFacts {
   // dealTerminalStatus is derived honestly from the deal's real status via the same fail-closed
@@ -49,11 +51,6 @@ function buildFundingReadinessFacts(deal: DealDetail): FundingReadinessFacts {
     dealTerminalStatus,
   };
 }
-
-const NO_LIVE_AUDIT_SINK: EmitFundingAudit = async () => ({
-  success: false,
-  error: 'No live audit sink is wired yet for funding authorization (see docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md).',
-});
 
 export function DealFundingAuthorizationPanel({
   deal,
@@ -119,7 +116,7 @@ export function DealFundingAuthorizationPanel({
     const amount = Number(requestAmount);
     const outcome = await requestFunding(
       { dealId: deal.id, requestedAmount: amount, requestedBy: email, fundingMethod: requestMethod.trim() || undefined },
-      { storage: storeRef.current, emitAudit: NO_LIVE_AUDIT_SINK },
+      { storage: storeRef.current, emitAudit: emitLiveFundingAudit },
     );
     if (outcome.kind === 'requested') {
       setRecord(outcome.record);
@@ -137,7 +134,7 @@ export function DealFundingAuthorizationPanel({
     setActionError(undefined);
     const outcome = await approveFunding(
       { record, approverEmail: email, approvedAmount, authorizedFacilityAmount },
-      { storage: storeRef.current, emitAudit: NO_LIVE_AUDIT_SINK },
+      { storage: storeRef.current, emitAudit: emitLiveFundingAudit },
     );
     if (outcome.kind === 'first_approval_recorded' || outcome.kind === 'fully_approved') {
       setRecord(outcome.record);
@@ -151,7 +148,7 @@ export function DealFundingAuthorizationPanel({
   async function onReject() {
     if (!record) return;
     setActionError(undefined);
-    const outcome = await rejectFunding(record, email, { storage: storeRef.current, emitAudit: NO_LIVE_AUDIT_SINK });
+    const outcome = await rejectFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit });
     if (outcome.kind === 'rejected') {
       setRecord(outcome.record);
     } else if (outcome.kind === 'denied') {
@@ -164,7 +161,7 @@ export function DealFundingAuthorizationPanel({
   async function onRevoke() {
     if (!record) return;
     setActionError(undefined);
-    const outcome = await revokeFunding(record, email, { storage: storeRef.current, emitAudit: NO_LIVE_AUDIT_SINK });
+    const outcome = await revokeFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit });
     if (outcome.kind === 'revoked') {
       setRecord(outcome.record);
     } else if (outcome.kind === 'denied') {
@@ -179,7 +176,7 @@ export function DealFundingAuthorizationPanel({
     setActionError(undefined);
     const outcome = await confirmFundingDisbursement(
       { record, readinessFacts: facts, fundingDate, confirmedByActorEmail: email },
-      { storage: storeRef.current, emitAudit: NO_LIVE_AUDIT_SINK },
+      { storage: storeRef.current, emitAudit: emitLiveFundingAudit },
     );
     if (outcome.kind === 'confirmed') {
       setRecord(outcome.record);
