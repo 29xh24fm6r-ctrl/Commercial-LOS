@@ -163,6 +163,11 @@ beforeEach(() => {
   onCreatedRef.current = undefined;
   setUpBanker();
   loadMock.mockResolvedValue(emptyData());
+  // Permanent safe default: any test (or code path within a test) that invokes the post-create
+  // readback without its own explicit mock resolution gets a well-shaped empty array rather than
+  // `undefined` — matching what a genuinely-empty live pipeline read returns. Individual tests below
+  // still override this with `mockResolvedValueOnce`/`mockResolvedValue` for their own scenarios.
+  loadBankerPipelineMock.mockResolvedValue([]);
 });
 
 async function openActiveDealsTab() {
@@ -223,5 +228,71 @@ describe('BankerShell — post-create confirm-then-navigate', () => {
     fireEvent.click(screen.getByTestId('stub-create-deal'));
 
     await waitFor(() => expect(loadMock).toHaveBeenCalledWith('banker-1'));
+  });
+
+  it('unmounting while the post-create confirmation retry is pending produces no unhandled rejection, no post-unmount state update, and no false confirmation', async () => {
+    // The retry's first attempt is left pending (never auto-resolved by mockResolvedValue) so we
+    // control exactly when it settles — after this shell has already unmounted.
+    let resolveFirstAttempt: ((deals: PipelineDeal[]) => void) | undefined;
+    const firstAttempt = new Promise<PipelineDeal[]>((resolve) => {
+      resolveFirstAttempt = resolve;
+    });
+    loadBankerPipelineMock.mockReturnValueOnce(firstAttempt);
+
+    const rejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
+    process.on('unhandledRejection', onUnhandledRejection);
+
+    try {
+      const { unmount } = renderShell();
+      await openActiveDealsTab();
+
+      fireEvent.click(screen.getByTestId('stub-create-deal'));
+      // Wait until onDealCreated has reached the readback retry's first attempt (still pending on
+      // our controlled promise) before unmounting mid-flight.
+      await waitFor(() => expect(loadBankerPipelineMock).toHaveBeenCalledTimes(1));
+
+      unmount();
+
+      // Settle the retry's in-flight attempt — with a result that WOULD confirm the created deal
+      // — only after the component is gone, so the continuation (isSatisfied check, setState,
+      // navigate) runs entirely post-unmount.
+      resolveFirstAttempt?.([pipelineDeal('deal-new-1')]);
+
+      // Flush the async continuation (microtasks + the mocked dynamic import boundary).
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // No false confirmation / navigation after unmount, and nothing escaped as an unhandled
+      // rejection.
+      expect(navigateMock).not.toHaveBeenCalled();
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+    }
+  });
+
+  it('a rejected readback retry (thrown attempt) is treated as an unconfirmed readback, never an unhandled rejection', async () => {
+    loadBankerPipelineMock.mockReset();
+    loadBankerPipelineMock.mockRejectedValue(new Error('network error'));
+
+    const rejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
+    process.on('unhandledRejection', onUnhandledRejection);
+
+    try {
+      renderShell();
+      await openActiveDealsTab();
+
+      fireEvent.click(screen.getByTestId('stub-create-deal'));
+
+      await waitFor(
+        () => expect(screen.getByText(/could not yet be confirmed in your pipeline/i)).toBeInTheDocument(),
+        { timeout: 5000 },
+      );
+      expect(navigateMock).not.toHaveBeenCalled();
+      expect(rejections).toEqual([]);
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+    }
   });
 });

@@ -1,7 +1,7 @@
 # Workstream 7 — Funding Authorization and Disbursement Control Framework
 
-**Status: MOUNTED LOCAL-ONLY (PR 111) — AWAITING LIVE PERSISTENCE (schema + integration). See the
-PR 111 addendum below.**
+**Status: MOUNTED, DURABLE (PR 112) — schema-integration honesty caveat only. See the PR 112
+addendum below.**
 
 ## Confirmed genuinely missing
 
@@ -94,13 +94,46 @@ closing-document mount (Workstream 6). `FundingReadinessFacts` fields with no li
 session therefore genuinely reaches `APPROVED` but always correctly shows blocked at disbursement
 confirmation — this is correct behavior, not a bug.
 
-What did NOT change: the storage gap. No `cr664_fundingauthorization` table exists; the proposed
-schema above remains unapplied. `fundingTimeline.ts` (no live timeline caller wired) and
+What did NOT change: `fundingTimeline.ts` (no live timeline caller wired) and
 `fundingFeatureFlags.ts` (a tracking constant, not consumed as a mount gate anywhere in this
-codebase) remain allow-listed in `src/navigation/intentionallyUnrouted.ts`; the other 9 entries
-became genuinely reachable and were dropped from that list.
+codebase) remain allow-listed in `src/navigation/intentionallyUnrouted.ts`.
+
+## Addendum (PR 112) — durable Dataverse-backed persistence
+
+PR 112 replaced PR 111's `createInMemoryFundingAuthorizationStore()` with
+`createDataverseFundingAuthorizationStore()` (`src/funding/fundingAuthorizationDataverseStore.ts`),
+a real Dataverse-backed `FundingAuthorizationStorageDeps` implementation against the
+`cr664_fundingauthorization` table specced in
+`scripts/schema-migrations/pr107-funding-authorization/entity.mjs`:
+
+- Every `FundingAuthorizationRecord` field maps 1:1 onto the table's 18 columns + primary
+  `cr664_recordid`. Array/object fields (`exceptions`, `supportingDocumentIds`, `auditEventIds`) round
+  -trip through JSON text columns, parsed fail-closed (a malformed JSON column fails the whole read
+  rather than silently dropping or fabricating a value).
+- Durable history is preserved by construction: `createRecord` always performs a genuine CREATE
+  (never an upsert), and `updateRecord` always resolves the exact existing row by `cr664_recordid`
+  before updating it. A record superseding a prior REVOKED/REJECTED/CANCELLED one is a brand-new row
+  with its own `recordId` and a `supersedesRecordId` pointer — the superseded row is never touched.
+- Stateless by design: the adapter caches nothing in memory, so a fresh instance (e.g. after a
+  component remount) reads exactly the same durable history a prior instance would have.
+- `DealFundingAuthorizationPanel.tsx` now shows a real loading state while the initial durable read
+  is in flight, a visible error state if that read fails, and a visible action-error message for any
+  failed write (approve/reject/revoke/confirm) — no path silently does nothing on failure, and there
+  is no fallback to the in-memory store anywhere in the mounted path.
+
+**Honest disclosure — the one caveat that remains**: `Cr664_fundingauthorizationsModel.ts` /
+`Cr664_fundingauthorizationsService.ts` (and the `power.config.json` data-source entry) were
+hand-authored to mechanically match `entity.mjs` and this repo's standard generated-SDK shape — they
+were **not** produced by a real `pac code add-data-source` + regenerate against a live Dataverse
+org, because no live Dataverse credentials exist in this sandbox to run that step. The field-level
+contract should not differ (both are derived from the same `entity.mjs`), but a real operator-run
+regeneration, once performed, should be diffed against these files rather than assumed identical.
+Because of this, the adapter and panel are built to fail closed with a visible error — never a
+silent fallback — if a live call does not behave as expected.
 
 ## Classification
 
-**MOUNTED LOCAL-ONLY (PR 111) — AWAITING LIVE PERSISTENCE** (schema authorization + integration
-decision with the stage gate remain open).
+**MOUNTED, DURABLE (PR 112)** — dual-control policy and persistence are both real; the only open
+item is confirming this hand-authored SDK pairing against a genuine `pac code` regeneration once an
+operator has live credentials, and the product decision on whether `BOARDED` should require a
+confirmed `FUNDED` record.

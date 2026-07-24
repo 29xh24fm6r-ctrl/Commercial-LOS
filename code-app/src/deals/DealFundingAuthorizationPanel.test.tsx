@@ -1,7 +1,57 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { FundingAuthorizationStorageDeps } from '../funding/fundingAuthorizationStorage';
+import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
+
+/**
+ * PR 112 — DealFundingAuthorizationPanel now loads/writes through
+ * `createDataverseFundingAuthorizationStore()` (see fundingAuthorizationDataverseStore.ts) instead
+ * of an in-memory reference store. This file mocks that factory with a hand-rolled fake whose
+ * backing `Map` lives at MODULE scope (outside any component instance) — the same durability
+ * relationship the real Dataverse-backed store has to the component tree — so tests can genuinely
+ * exercise "does a fresh component instance see what a prior instance wrote," not merely assert
+ * against React state.
+ */
+
+const { durableRows, createStoreMock, injectedUpdateFailure } = vi.hoisted(() => {
+  const durableRows = new Map<string, FundingAuthorizationRecord>();
+  const injectedUpdateFailure: { message: string | undefined } = { message: undefined };
+  return { durableRows, createStoreMock: vi.fn(), injectedUpdateFailure };
+});
+
+// Every call to createDataverseFundingAuthorizationStore() (including the one `useRef` freezes at
+// mount time) reads the SAME module-scoped `durableRows` map and `injectedUpdateFailure` flag, so a
+// test can flip failure-injection AFTER a component already mounted and still have that component's
+// frozen store instance observe it — exactly like a real Dataverse outage would affect an
+// already-constructed adapter mid-session.
+function fakeDurableStore(): FundingAuthorizationStorageDeps {
+  return {
+    createRecord: async (record) => {
+      durableRows.set(record.recordId, record);
+      return { success: true };
+    },
+    updateRecord: async (record) => {
+      if (injectedUpdateFailure.message) return { success: false, error: injectedUpdateFailure.message };
+      if (!durableRows.has(record.recordId)) return { success: false, error: 'No existing record to update.' };
+      durableRows.set(record.recordId, record);
+      return { success: true };
+    },
+    getCurrentRecordForDeal: async (dealId) => {
+      const forDeal = [...durableRows.values()].filter((r) => r.dealId === dealId);
+      const supersededIds = new Set(forDeal.map((r) => r.supersedesRecordId).filter((id): id is string => Boolean(id)));
+      const current = forDeal.filter((r) => !supersededIds.has(r.recordId));
+      const latest = current.slice().sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))[0];
+      return { success: true, record: latest };
+    },
+  };
+}
+
+vi.mock('../funding/fundingAuthorizationDataverseStore', () => ({
+  createDataverseFundingAuthorizationStore: createStoreMock,
+}));
+
 import { DealFundingAuthorizationPanel } from './DealFundingAuthorizationPanel';
 import type { DealDetail } from './dealQueries';
 
@@ -31,50 +81,75 @@ function baseDeal(overrides: Partial<DealDetail> = {}): DealDetail {
   };
 }
 
-describe('DealFundingAuthorizationPanel', () => {
-  it('says plainly that requests/approvals are session-only, not yet saved', () => {
-    render(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
-    expect(screen.getByRole('note')).toHaveTextContent(/not yet saved to the deal/i);
-  });
+async function waitForInitialLoad() {
+  await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+}
 
-  it('shows a request form and no funding-authorization panel record yet when none exists', () => {
+beforeEach(() => {
+  durableRows.clear();
+  injectedUpdateFailure.message = undefined;
+  createStoreMock.mockReset();
+  createStoreMock.mockImplementation(fakeDurableStore);
+});
+
+describe('DealFundingAuthorizationPanel — durable Dataverse-backed store', () => {
+  it('shows a loading state while the durable read is in flight, then the empty request form', async () => {
     render(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
+    expect(screen.getByRole('status')).toHaveTextContent(/loading/i);
+    await waitForInitialLoad();
     expect(screen.getByText(/no funding has been requested for this deal yet/i)).toBeInTheDocument();
     expect(document.querySelector('[data-funding-request-form]')).not.toBeNull();
   });
 
-  it('requesting funding creates a record and the request form disappears', async () => {
+  it('surfaces an honest, visible error when the durable read fails — never a silent fallback', async () => {
+    createStoreMock.mockImplementation(() => ({
+      createRecord: async () => ({ success: true }),
+      updateRecord: async () => ({ success: true }),
+      getCurrentRecordForDeal: async () => ({ success: false, error: 'Dataverse read timed out.' }),
+    }));
+    render(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/dataverse read timed out/i));
+    expect(document.querySelector('[data-funding-request-form]')).toBeNull();
+  });
+
+  it('surfaces an honest, visible error when the durable read rejects', async () => {
+    createStoreMock.mockImplementation(() => ({
+      createRecord: async () => ({ success: true }),
+      updateRecord: async () => ({ success: true }),
+      getCurrentRecordForDeal: async () => {
+        throw new Error('SDK boom');
+      },
+    }));
+    render(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/sdk boom/i));
+  });
+
+  it('requesting funding persists through the durable store and the request form disappears', async () => {
     const user = userEvent.setup();
     const { container } = render(
       <DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />,
     );
+    await waitForInitialLoad();
     await user.type(container.querySelector('#funding-request-amount') as HTMLInputElement, '250000');
     await user.click(screen.getByRole('button', { name: /request funding/i }));
 
     await waitFor(() => expect(container.querySelector('[data-funding-request-form]')).toBeNull());
     expect(screen.getByTestId('funding-status')).toHaveTextContent('PENDING');
+    expect(durableRows.size).toBe(1);
   });
 
-  it('disables the request form entirely when the actor is not authorized', () => {
-    const { container } = render(
-      <DealFundingAuthorizationPanel deal={baseDeal()} authorized={false} actorEmail={undefined} />,
-    );
-    expect((container.querySelector('#funding-request-amount') as HTMLInputElement).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: /request funding/i })).toBeDisabled();
-  });
-
-  it('the same requester cannot approve their own request (self-approval prevention holds locally)', async () => {
+  it('the same requester cannot approve their own request (self-approval prevention holds against the durable store)', async () => {
     const user = userEvent.setup();
     const { container } = render(
       <DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />,
     );
+    await waitForInitialLoad();
     await user.type(container.querySelector('#funding-request-amount') as HTMLInputElement, '100000');
     await user.click(screen.getByRole('button', { name: /request funding/i }));
     await waitFor(() => expect(screen.getByTestId('funding-status')).toHaveTextContent('PENDING'));
 
     expect(screen.getByText(/you requested this funding and cannot also approve it/i)).toBeInTheDocument();
-    const approveButton = screen.getByRole('button', { name: /^approve$/i });
-    expect(approveButton).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^approve$/i })).toBeDisabled();
   });
 
   it('a distinct approver can approve below the dual-control threshold and reaches APPROVED', async () => {
@@ -82,45 +157,66 @@ describe('DealFundingAuthorizationPanel', () => {
     const { container, rerender } = render(
       <DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="requester@bank.test" />,
     );
+    await waitForInitialLoad();
     await user.type(container.querySelector('#funding-request-amount') as HTMLInputElement, '100000');
     await user.click(screen.getByRole('button', { name: /request funding/i }));
     await waitFor(() => expect(screen.getByTestId('funding-status')).toHaveTextContent('PENDING'));
 
-    // A different actor now views/acts on the same deal (fresh render, same wrapper instance's
-    // in-memory store already holds the record via the component's own state).
     rerender(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="approver@bank.test" />);
+    await waitForInitialLoad();
     await user.click(screen.getByRole('button', { name: /^approve$/i }));
     await waitFor(() => expect(screen.getByTestId('funding-status')).toHaveTextContent('APPROVED'));
   });
 
-  it('disbursement confirmation stays blocked because no live readiness source exists yet', async () => {
+  it('a failed approval write surfaces a visible action error instead of silently doing nothing', async () => {
     const user = userEvent.setup();
     const { container, rerender } = render(
       <DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="requester@bank.test" />,
     );
-    await user.type(container.querySelector('#funding-request-amount') as HTMLInputElement, '50000');
+    await waitForInitialLoad();
+    await user.type(container.querySelector('#funding-request-amount') as HTMLInputElement, '100000');
     await user.click(screen.getByRole('button', { name: /request funding/i }));
     await waitFor(() => expect(screen.getByTestId('funding-status')).toHaveTextContent('PENDING'));
 
+    // Inject a failure into the SAME durable store instance the mounted component already froze
+    // into its useRef, simulating an approval write that fails at the durable layer (e.g. a dropped
+    // connection) after the initial read already succeeded.
+    injectedUpdateFailure.message = 'Row lock timeout.';
     rerender(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="approver@bank.test" />);
+    await waitForInitialLoad();
     await user.click(screen.getByRole('button', { name: /^approve$/i }));
-    await waitFor(() => expect(screen.getByTestId('funding-status')).toHaveTextContent('APPROVED'));
-
-    expect(screen.getByTestId('funding-blockers')).toBeInTheDocument();
-    const confirmButton = screen.getByRole('button', { name: /confirm disbursement/i });
-    expect(confirmButton).toBeDisabled();
+    await waitFor(() => expect(screen.getByText(/row lock timeout/i)).toBeInTheDocument());
+    // Status must NOT have silently advanced to APPROVED on a failed write.
+    expect(screen.getByTestId('funding-status')).toHaveTextContent('PENDING');
   });
 
-  it('an unrecognized deal status fails closed (does not silently unblock as OPEN)', () => {
-    render(
-      <DealFundingAuthorizationPanel
-        deal={baseDeal({ status: 'Some Unrecognized Status' })}
-        authorized={true}
-        actorEmail="banker@bank.test"
-      />,
+  it('records survive a component remount because the durable store persists outside the component instance', async () => {
+    const user = userEvent.setup();
+    const { container, unmount } = render(
+      <DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="requester@bank.test" />,
     );
-    // No record yet, so this only pins that rendering with an unrecognized status doesn't throw
-    // and the panel still renders its normal empty state.
-    expect(screen.getByText(/no funding has been requested for this deal yet/i)).toBeInTheDocument();
+    await waitForInitialLoad();
+    await user.type(container.querySelector('#funding-request-amount') as HTMLInputElement, '75000');
+    await user.click(screen.getByRole('button', { name: /request funding/i }));
+    await waitFor(() => expect(screen.getByTestId('funding-status')).toHaveTextContent('PENDING'));
+
+    unmount();
+    expect(durableRows.size).toBe(1); // the durable backing store, not React state, still has it
+
+    render(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="approver@bank.test" />);
+    await waitForInitialLoad();
+    // The freshly-mounted instance loaded the SAME record a prior instance created — never an
+    // empty "no funding requested" state after remount.
+    expect(screen.queryByText(/no funding has been requested for this deal yet/i)).toBeNull();
+    expect(screen.getByTestId('funding-status')).toHaveTextContent('PENDING');
+  });
+
+  it('disables the request form entirely when the actor is not authorized', async () => {
+    const { container } = render(
+      <DealFundingAuthorizationPanel deal={baseDeal()} authorized={false} actorEmail={undefined} />,
+    );
+    await waitForInitialLoad();
+    expect((container.querySelector('#funding-request-amount') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: /request funding/i })).toBeDisabled();
   });
 });

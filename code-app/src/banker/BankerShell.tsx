@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useBanker } from './BankerContext';
 import {
@@ -139,6 +139,19 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   const [tab, setTab] = useState<ShellTab>(() => resolveInitialTab(location.state));
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
+  // Bugfix — the post-create readback retry in `onDealCreated` below is a multi-await async
+  // function that can still be in flight (mid-retry-delay) when this shell unmounts (tab switch /
+  // route change / test teardown). Without this guard, its eventual `setState`/`navigate` calls
+  // fire against an unmounted component, and an uncaught rejection from the retry itself becomes an
+  // unhandled rejection that outlives the component entirely.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const reload = useCallback(() => {
     let cancelled = false;
     setState({ kind: 'loading' });
@@ -201,20 +214,41 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
       // best-effort UI refreshes independent of the confirmation below.
       setDealsRefreshNonce((n) => n + 1);
       reload();
+      if (!mountedRef.current) return;
       setDealCreateConfirm({ kind: 'confirming', createdDealId });
+
       // A create returning createdDealId does not guarantee THIS read reflects it yet (a
       // read-after-write race against a separate fetch/cache tier) — confirm the EXACT id
       // actually appears before navigating. A stale first read that doesn't include it is
       // expected and retried; an unrelated existing deal is never substituted. Dynamic import
       // keeps the static graph SDK-free, matching BankerNewDealCreate.tsx's own dynamic-import
       // use of the same dealQueries module.
-      const { loadBankerPipeline } = await import('./dealQueries');
-      const { satisfied } = await boundedRetry({
-        attempt: () => loadBankerPipeline(bankerId),
-        isSatisfied: (deals) => deals.some((d) => d.id === createdDealId),
-        maxAttempts: DEAL_CREATE_READBACK_MAX_ATTEMPTS,
-        delayMs: DEAL_CREATE_READBACK_DELAY_MS,
-      });
+      //
+      // The retry itself (and the readback read it drives) can reject — a thrown/rejected
+      // `attempt()`, or a shape the caller didn't expect. That must never surface as an unhandled
+      // promise rejection (this is a fire-and-forget callback from BankerNewDealCreate, not
+      // something its caller awaits); it is treated the same as an unconfirmed readback — the
+      // deal itself was already created successfully before this point, only confirmation failed.
+      let satisfied = false;
+      try {
+        const { loadBankerPipeline } = await import('./dealQueries');
+        const result = await boundedRetry({
+          attempt: () => loadBankerPipeline(bankerId),
+          // Fail-closed: a malformed/non-array readback result (e.g. from a failed shape, or a
+          // stubbed test double that never sets a return value) must never be trusted as
+          // confirmation just because `.some` happened not to throw.
+          isSatisfied: (deals) => Array.isArray(deals) && deals.some((deal) => deal.id === createdDealId),
+          maxAttempts: DEAL_CREATE_READBACK_MAX_ATTEMPTS,
+          delayMs: DEAL_CREATE_READBACK_DELAY_MS,
+        });
+        satisfied = result.satisfied;
+      } catch {
+        satisfied = false;
+      }
+
+      // The shell may have unmounted while the retry was mid-flight (tab switch, route change,
+      // test teardown) — never update state or navigate after that.
+      if (!mountedRef.current) return;
       if (satisfied) {
         setDealCreateConfirm({ kind: 'idle' });
         navigate(`/deals/${createdDealId}`);

@@ -406,12 +406,12 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/closing/documents/closingDocumentPackage.ts', reason: 'Workstream 6: package/supersession summarizer. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
   { path: 'src/closing/documents/ClosingDocumentsPanel.tsx', reason: 'Workstream 6: the read-plus-governed-action UI panel. Inert; not mounted in any workspace pending live storage.', plannedPhase: 'Follow-up (schema + integration)' },
   // final-seven-workstreams Workstream 7 — the funding authorization framework. PR 111 mounted
-  // DealFundingAuthorizationPanel.tsx local-only (real dual-control policy logic against
-  // createInMemoryFundingAuthorizationStore() — session-scoped, honestly disclosed; see
-  // docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md), so most of Workstream 7 is
-  // now genuinely reachable and dropped from this list. Two files remain unrouted:
-  { path: 'src/funding/fundingTimeline.ts', reason: 'Workstream 7: pure timeline-event payload builder — not consumed by the PR 111 local-only mount (no timeline UI surface wired yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingFeatureFlags.ts', reason: 'Workstream 7: the capability-tracking constant (now true — see its doc comment) is not itself imported by DealFundingAuthorizationPanel.tsx (no other capability flag gates a mount point in this codebase either; the closing-document / risk-rating panels mount unconditionally). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  // DealFundingAuthorizationPanel.tsx local-only; PR 112 replaced that session-scoped store with a
+  // durable Dataverse-backed one (createDataverseFundingAuthorizationStore(), see
+  // fundingAuthorizationDataverseStore.ts) — so all of Workstream 7's read/write modules are now
+  // genuinely reachable. Two inert files remain unrouted:
+  { path: 'src/funding/fundingTimeline.ts', reason: 'Workstream 7: pure timeline-event payload builder — not consumed by the PR 112 durable mount (no timeline UI surface wired yet). Inert; not mounted.', plannedPhase: 'Follow-up (integration)' },
+  { path: 'src/funding/fundingFeatureFlags.ts', reason: 'Workstream 7: the capability-tracking constant (now true — see its doc comment) is not itself imported by DealFundingAuthorizationPanel.tsx (no other capability flag gates a mount point in this codebase either; the closing-document / risk-rating panels mount unconditionally). Inert; not mounted.', plannedPhase: 'Follow-up (integration)' },
 ];
 
 /** Set of allow-listed paths for O(1) membership checks. */
