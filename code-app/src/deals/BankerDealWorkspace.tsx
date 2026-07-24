@@ -18,6 +18,7 @@ import { DealGovernedTransitionPanel } from './DealGovernedTransitionPanel';
 import { DealTasks } from './DealTasks';
 import { DealDocuments } from './DealDocuments';
 import { CreditMemo } from './CreditMemo';
+import { GlobalCashFlowPanel } from './GlobalCashFlowPanel';
 import { ActivityTimeline } from './ActivityTimeline';
 import { BorrowerCommunication } from './BorrowerCommunication';
 import { TeamsChatHandoff } from './TeamsChatHandoff';
@@ -258,6 +259,16 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="credit-memo"
               >
                 <CreditMemo />
+              </div>
+              {/* PR 105 -- Global Cash Flow DSCR calculator. Local-only pending the
+                  loan-structure schema migration (see
+                  docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md). */}
+              <div
+                id="global-cash-flow"
+                data-deal-card="global-cash-flow"
+                data-cockpit-anchor="global-cash-flow"
+              >
+                <GlobalCashFlowPanel />
               </div>
               <div
                 id="credit-approval-readiness"
