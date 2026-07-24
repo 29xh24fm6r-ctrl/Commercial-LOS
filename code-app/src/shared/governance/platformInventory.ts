@@ -415,6 +415,52 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'FINANCIAL_SPREAD_PERSISTENCE_ENABLED stays false until that migration is applied.',
     blockerKind: 'schema',
   },
+  {
+    id: 'risk-rating-persistence',
+    label: 'Risk Rating / Underwriting Recommendation (deal-level persistence)',
+    reason:
+      'PR 106 -- DealRiskRatingPanel.tsx captures a real RiskRatingRecord / ' +
+      'UnderwritingRecommendationRecord against the already-built, already-tested pure policies in ' +
+      'workflow/underwritingDeepFacts.ts (ARC Phase 3), but has no Dataverse column to round-trip ' +
+      'them through, so entries are local-only (session-scoped; reset on reload) -- same disclosed ' +
+      'convention as this file\'s LOCAL_ONLY_FLOWS. Two additive JSON columns ' +
+      '(cr664_riskratinginputs, cr664_underwritingrecommendationinputs) are specced in ' +
+      'docs/factory-arc/PR106_RISK_RATING_SCHEMA_MIGRATION.md. Persistence landing does NOT by ' +
+      'itself flip the UNDERWRITING:risk_rating requirement-engine entry from tracked: false to ' +
+      'true -- that is a separate, explicitly-reviewed follow-up per the migration doc.',
+    blockerKind: 'schema',
+  },
+  {
+    id: 'closing-document-persistence',
+    label: 'Closing documents (deal-level persistence)',
+    reason:
+      'PR 107 -- DealClosingDocumentsPanel.tsx mounts the fully-built closing-document generation ' +
+      'framework (src/closing/documents/*, 49 tests) using its own documented ' +
+      'createInMemoryClosingDocumentStore() reference implementation -- real, working, but ' +
+      'explicitly NOT persistence (lost on reload). No cr664_closingdocument-style table exists ' +
+      'yet; unlike PR 105/106\'s single additive JSON columns, generated documents are immutable, ' +
+      'append-only, per-document manifest rows (regeneration creates a new manifest via ' +
+      'supersedesManifestId, never mutates the prior one), so real persistence needs its own table, ' +
+      'not a deal-level blob. See docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md.',
+    blockerKind: 'schema',
+  },
+  {
+    id: 'funding-authorization-persistence',
+    label: 'Funding authorization (deal-level persistence)',
+    reason:
+      'PR 107 -- src/funding/* (61 tests, FUNDING_AUTHORIZATION_ENABLED=false) is fully built but ' +
+      'deliberately NOT mounted even local-only: unlike GCF/risk-rating, funding authorization has ' +
+      'real two-person dual-control semantics (fundingAuthorizationPolicy.ts requires a genuinely ' +
+      'different second approver) that a single-session local demo cannot meaningfully simulate ' +
+      'without fabricating a second identity. A new cr664_fundingauthorization table (not a column ' +
+      '-- a deal can have a HISTORY of funding-authorization records via supersedesRecordId chains) ' +
+      'is specced with idempotent create/verify/rollback scripts in ' +
+      'scripts/schema-migrations/pr107-funding-authorization/ -- see ' +
+      'docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md for why this is the one capability in ' +
+      'this arc that stays fully unmounted (not even a local-only preview) until real persistence ' +
+      'exists.',
+    blockerKind: 'schema',
+  },
 ];
 
 // ---------------------------------------------------------------------------

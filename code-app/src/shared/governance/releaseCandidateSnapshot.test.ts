@@ -54,8 +54,12 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) for the schema-pending Global Cash Flow /
   // core loan structure capabilities -- see
-  // docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md.
-  notWired: 11,
+  // docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md. PR 106 added
+  // one more (risk-rating-persistence) -- see
+  // docs/factory-arc/PR106_RISK_RATING_SCHEMA_MIGRATION.md. PR 107 added two
+  // more (closing-document-persistence, funding-authorization-persistence)
+  // -- see docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md.
+  notWired: 14,
   deliberatelyBlocked: 1,
 });
 

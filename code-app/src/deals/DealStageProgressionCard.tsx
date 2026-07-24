@@ -65,6 +65,8 @@ export interface StageAdvanceActor {
   readonly roleType?: string;
   /** The real credit-authority signal (approval limit / committee membership / override) — see creditApprovalAuthority.ts. */
   readonly creditAuthority?: BankerCreditAuthority;
+  /** PR 106 — the actor's own cr664_bankerid, for self-approval prevention on CREDIT_APPROVAL exit. */
+  readonly bankerId?: string;
 }
 
 export function DealStageProgressionCard({
@@ -422,6 +424,8 @@ function StageAdvanceControl({
           banker: actor.creditAuthority,
           dealAmount: facts.deal.amount,
           requestProfileAmount: undefined,
+          advancingActorBankerId: actor.bankerId,
+          originatingBankerId: facts.deal.assignedBankerId,
         })
       : { allowed: true };
 
@@ -453,6 +457,7 @@ function StageAdvanceControl({
       // client-side check (see stageAdvanceWriteDependency.ts's `facts` doc comment).
       facts,
       advancingBankerAuthority: actor.creditAuthority,
+      advancingActorBankerId: actor.bankerId,
       transport: deps.transport,
       auditSink: deps.auditSink,
       timelineSink: deps.timelineSink,

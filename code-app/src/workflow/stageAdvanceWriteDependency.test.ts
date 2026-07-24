@@ -318,6 +318,31 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
       }));
       expect(out.kind).toBe('advanced');
     });
+
+    it('PR 106 — blocks a committee member with override authority from approving their OWN deal', async () => {
+      const upd = vi.fn(async () => ({ ok: true }));
+      const out = await advanceWorkflowStage(creditApprovalInput({
+        facts: { ...creditApprovalFacts, deal: { ...baseDeal, assignedBankerId: 'banker-1' } },
+        advancingBankerAuthority: { approvalLimit: 0, creditCommitteeMember: false, approvalOverrideAuthority: true },
+        advancingActorBankerId: 'banker-1',
+        transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
+      }));
+      expect(out.kind).toBe('blocked');
+      if (out.kind === 'blocked') expect(out.reason).toMatch(/cannot approve your own request/i);
+      expect(upd).not.toHaveBeenCalled();
+    });
+
+    it('PR 106 — allows a genuinely different committee member to approve a deal assigned to someone else', async () => {
+      const upd = vi.fn(async () => ({ ok: true }));
+      const out = await advanceWorkflowStage(creditApprovalInput({
+        facts: { ...creditApprovalFacts, deal: { ...baseDeal, assignedBankerId: 'banker-1' } },
+        advancingBankerAuthority: { approvalLimit: 1_000_000, creditCommitteeMember: true, approvalOverrideAuthority: false },
+        advancingActorBankerId: 'banker-2',
+        transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
+      }));
+      expect(out.kind).toBe('advanced');
+      expect(upd).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('auto-board on advance to BOARDED', () => {

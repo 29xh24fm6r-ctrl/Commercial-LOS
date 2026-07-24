@@ -22,6 +22,7 @@ import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { AdminDealReferenceValues } from '../admin/AdminDealReferenceValues';
 import { AdminLoanRemovalPanel } from '../admin/AdminLoanRemovalPanel';
 import { PlatformOperationsWorkspacePanel } from '../admin/PlatformOperationsWorkspacePanel';
+import { AdminCapabilityTruthMatrix } from '../admin/AdminCapabilityTruthMatrix';
 import { TestDataView } from '../admin/TestDataView';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { palette, spacing, typography } from '../shared/theme';
@@ -80,6 +81,11 @@ function AdminWorkspaceContent() {
             static launch-readiness panels below remain for now (Phase 5 retires them
             from runtime UI). */}
         <PlatformOperationsWorkspacePanel />
+        {/* PR 108 -- one consolidated, filterable view across the four
+            platformInventory.ts registries every readiness panel below
+            already derives from. Additive only: no existing certification
+            panel is touched, retired, or reinterpreted. */}
+        <AdminCapabilityTruthMatrix />
         <ReleaseReadinessGate />
         {/* Phase 236: read-only V1.0 go-live release certification — the single
             leadership answer (operating restart ready; live-write expansion gated).
