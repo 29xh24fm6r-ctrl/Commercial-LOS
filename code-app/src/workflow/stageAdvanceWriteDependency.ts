@@ -139,6 +139,12 @@ export interface StageAdvanceInput {
    */
   readonly advancingBankerAuthority?: BankerCreditAuthority;
   /**
+   * PR 106 — the advancing actor's OWN cr664_banker record id (cr664_bankerid), for self-approval
+   * prevention (see creditApprovalAuthority.ts). Undefined means the check has no opinion (it does
+   * not deny — it does not fabricate either enforcement or a pass; see that module's doc comment).
+   */
+  readonly advancingActorBankerId?: string;
+  /**
    * cr664_loanrequestprofile.cr664_requestedamount, when a live read path supplies it (see the
    * "known gap" note in governedRequestedAmount.ts — no live caller supplies this yet). Undefined
    * is safe: the amount-conflict cross-check simply has nothing to compare against.
@@ -184,6 +190,8 @@ export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<St
       banker: input.advancingBankerAuthority,
       dealAmount: input.facts.deal.amount,
       requestProfileAmount: input.requestProfileAmount,
+      advancingActorBankerId: input.advancingActorBankerId,
+      originatingBankerId: input.facts.deal.assignedBankerId,
     });
     if (!authority.allowed) {
       return {

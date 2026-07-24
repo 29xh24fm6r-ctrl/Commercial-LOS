@@ -31,7 +31,8 @@ export type CreditApprovalAuthorityReasonCode =
   | 'amount_missing'
   | 'amount_conflict'
   | 'amount_exceeds_individual_authority'
-  | 'committee_authority_required';
+  | 'committee_authority_required'
+  | 'self_approval_not_permitted';
 
 export type CreditApprovalAuthorityResult =
   | { readonly allowed: true }
@@ -50,6 +51,10 @@ export interface CreditApprovalAuthorityInput {
   readonly banker: BankerCreditAuthority | undefined;
   readonly dealAmount: number | undefined;
   readonly requestProfileAmount: number | undefined;
+  /** The advancing actor's OWN cr664_banker record id (cr664_bankerid), for self-approval prevention. */
+  readonly advancingActorBankerId?: string | undefined;
+  /** The deal's assigned banker id (cr664_loandeal._cr664_assignedbanker_value), for self-approval prevention. */
+  readonly originatingBankerId?: string | undefined;
 }
 
 function denied(reasonCode: CreditApprovalAuthorityReasonCode, detail: string): CreditApprovalAuthorityResult {
@@ -69,6 +74,24 @@ export function evaluateCreditApprovalAuthority(input: CreditApprovalAuthorityIn
       'authority_fields_absent',
       'One or more credit-authority fields (approval limit, credit committee membership, override authority) are not populated for this banker.',
     );
+  }
+
+  // PR 106 -- self-approval prevention. Checked BEFORE the override-authority bypass so override
+  // authority ("can single-handedly clear the standard approval requirement") can never be used to
+  // approve one's own deal -- that would be exactly the abuse vector self-approval prevention exists
+  // to close. Only actively enforced when BOTH ids are supplied by the caller (the live write path
+  // wires both from already-resolved data -- see DealStageProgressionCard.tsx / BankerDealWorkspace.tsx
+  // for advancingActorBankerId, DealDetail.assignedBankerId for originatingBankerId). When either is
+  // absent this check has no opinion (neither denies nor fabricates a pass) -- same discipline as this
+  // codebase's other "untracked fact" gates (see workflow/underwritingDeepFacts.ts): never enforce a
+  // guarantee we cannot actually verify.
+  if (input.advancingActorBankerId !== undefined && input.originatingBankerId !== undefined) {
+    if (input.advancingActorBankerId === input.originatingBankerId) {
+      return denied(
+        'self_approval_not_permitted',
+        'The advancing actor is this deal\'s assigned banker; a different credit-authority holder must approve it.',
+      );
+    }
   }
 
   if (approvalOverrideAuthority) {
@@ -119,5 +142,7 @@ export function describeCreditApprovalAuthorityReason(reasonCode: CreditApproval
       return 'This loan amount exceeds your individual approval authority.';
     case 'committee_authority_required':
       return 'This approval requires credit committee authority.';
+    case 'self_approval_not_permitted':
+      return 'You are the assigned banker on this deal and cannot approve your own request. A different credit-authority holder must approve it.';
   }
 }
