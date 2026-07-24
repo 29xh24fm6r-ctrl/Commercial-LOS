@@ -274,14 +274,15 @@ export function BankerDealWorkspace({
               >
                 <GlobalCashFlowPanel deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} actorSystemUserId={systemUserId} />
               </div>
-              {/* PR 106 -- Risk Rating + Underwriting Recommendation capture. Local-only
-                  pending schema (see docs/factory-arc/PR106_RISK_RATING_SCHEMA_MIGRATION.md). */}
+              {/* PR 106 -- Risk Rating + Underwriting Recommendation capture. Factory Arc Phase 5
+                  wired real persistence to cr664_riskratinginputs / cr664_underwritingrecommendationinputs
+                  (see docs/factory-arc/PR117_RISK_RATING_PERSISTENCE.md). */}
               <div
                 id="risk-rating"
                 data-deal-card="risk-rating"
                 data-cockpit-anchor="risk-rating"
               >
-                <DealRiskRatingPanel dealId={dealId} ratedBy={fullName} />
+                <DealRiskRatingPanel deal={deal} ratedBy={fullName} authorized={Boolean(systemUserId)} actorEmail={email} actorSystemUserId={systemUserId} />
               </div>
               <div
                 id="credit-approval-readiness"

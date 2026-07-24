@@ -2,8 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   evaluateRiskRatingReadiness,
   evaluateUnderwritingRecommendationReadiness,
+  serializeRiskRatingFormState,
+  parseRiskRatingFormState,
+  EMPTY_RISK_RATING_FORM_STATE,
+  serializeUnderwritingRecommendationFormState,
+  parseUnderwritingRecommendationFormState,
+  EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE,
   type RiskRatingRecord,
   type UnderwritingRecommendationRecord,
+  type RiskRatingFormState,
+  type UnderwritingRecommendationFormState,
 } from './underwritingDeepFacts';
 
 /** ARC Phase 3 — risk-rating and underwriting-recommendation decision policies. */
@@ -58,5 +66,68 @@ describe('ARC Phase 3 — underwriting-recommendation readiness policy', () => {
     expect(r.met).toBe(false);
     expect(r.requiresNonForwardPath).toBe(true);
     expect(r.reason).toMatch(/return path/i);
+  });
+});
+
+describe('RiskRatingFormState serialize / parse (Factory Arc Phase 5)', () => {
+  const filled: RiskRatingFormState = {
+    ratingValue: 'BB',
+    ratingScale: 'Internal 1-10',
+    rationale: 'Stable, seasonal cash flow',
+    status: 'reviewed',
+  };
+
+  it('round-trips a fully populated form state exactly', () => {
+    expect(parseRiskRatingFormState(serializeRiskRatingFormState(filled))).toEqual(filled);
+  });
+
+  it('round-trips the empty (draft) state', () => {
+    expect(parseRiskRatingFormState(serializeRiskRatingFormState(EMPTY_RISK_RATING_FORM_STATE))).toEqual(EMPTY_RISK_RATING_FORM_STATE);
+  });
+
+  it('parses undefined / empty-string input as the empty state', () => {
+    expect(parseRiskRatingFormState(undefined)).toEqual(EMPTY_RISK_RATING_FORM_STATE);
+    expect(parseRiskRatingFormState('')).toEqual(EMPTY_RISK_RATING_FORM_STATE);
+  });
+
+  it('fails closed on corrupt or wrong-shaped JSON — never throws', () => {
+    expect(() => parseRiskRatingFormState('{not valid json')).not.toThrow();
+    expect(parseRiskRatingFormState('{not valid json')).toEqual(EMPTY_RISK_RATING_FORM_STATE);
+    expect(parseRiskRatingFormState('[1,2,3]')).toEqual(EMPTY_RISK_RATING_FORM_STATE);
+    expect(parseRiskRatingFormState('null')).toEqual(EMPTY_RISK_RATING_FORM_STATE);
+  });
+
+  it('rejects an unrecognized status value rather than fabricating one — falls back to draft', () => {
+    const json = JSON.stringify({ ratingValue: 'BB', ratingScale: '', rationale: '', status: 'not-a-real-status' });
+    expect(parseRiskRatingFormState(json).status).toBe('draft');
+  });
+});
+
+describe('UnderwritingRecommendationFormState serialize / parse (Factory Arc Phase 5)', () => {
+  const filled: UnderwritingRecommendationFormState = {
+    decision: 'approve_with_conditions',
+    rationale: 'Subject to covenant compliance',
+    status: 'recorded',
+  };
+
+  it('round-trips a fully populated form state exactly', () => {
+    expect(parseUnderwritingRecommendationFormState(serializeUnderwritingRecommendationFormState(filled))).toEqual(filled);
+  });
+
+  it('round-trips the empty (draft/approve) state', () => {
+    expect(parseUnderwritingRecommendationFormState(serializeUnderwritingRecommendationFormState(EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE))).toEqual(
+      EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE,
+    );
+  });
+
+  it('fails closed on corrupt or wrong-shaped JSON — never throws', () => {
+    expect(() => parseUnderwritingRecommendationFormState('{not valid json')).not.toThrow();
+    expect(parseUnderwritingRecommendationFormState('{not valid json')).toEqual(EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE);
+    expect(parseUnderwritingRecommendationFormState('"just a string"')).toEqual(EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE);
+  });
+
+  it('rejects an unrecognized decision value rather than fabricating one — falls back to approve', () => {
+    const json = JSON.stringify({ decision: 'not-a-real-decision', rationale: '', status: 'draft' });
+    expect(parseUnderwritingRecommendationFormState(json).decision).toBe('approve');
   });
 });

@@ -546,6 +546,62 @@ describe('updateDealProfile — global cash flow inputs (Factory Arc Phase 4, PR
   });
 });
 
+describe('updateDealProfile — risk rating / underwriting recommendation inputs (Factory Arc Phase 5, PR106 JSON columns)', () => {
+  it('writes cr664_riskratinginputs (text) and returns the verified JSON string (audited)', async () => {
+    const { deps, store, calls } = fakeDeps();
+    const json = JSON.stringify({ ratingValue: 'BB' });
+    const out = await updateDealProfile(input({ riskRatingInputs: json }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_riskratinginputs: json });
+    expect(calls.audit).toBe(1);
+    if (out.kind === 'updated') {
+      expect(out.verified.riskRatingInputs).toBe(json);
+      expect(out.changedLabels).toContain('Risk Rating inputs');
+    }
+  });
+
+  it('writes cr664_underwritingrecommendationinputs (text) independently of the risk rating field', async () => {
+    const { deps, store, calls } = fakeDeps();
+    const json = JSON.stringify({ decision: 'approve' });
+    const out = await updateDealProfile(input({ underwritingRecommendationInputs: json }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_underwritingrecommendationinputs: json });
+    expect(calls.audit).toBe(1);
+    if (out.kind === 'updated') {
+      expect(out.verified.underwritingRecommendationInputs).toBe(json);
+      expect(out.changedLabels).toContain('Underwriting Recommendation inputs');
+    }
+  });
+
+  it('rejects a payload over the 1,048,576-char Memo ceiling on either field (no write)', async () => {
+    const tooLong = 'A'.repeat(1_048_577);
+    for (const field of ['riskRatingInputs', 'underwritingRecommendationInputs'] as const) {
+      const { deps, calls } = fakeDeps();
+      const out = await updateDealProfile(input({ [field]: tooLong }), deps);
+      expect(out.kind).toBe('invalid-input');
+      expect(calls.update).toBe(0);
+    }
+  });
+
+  it('fails closed (readback-mismatch) when the saved JSON does not read back as written', async () => {
+    const { deps } = fakeDeps({ readDeal: async () => ({ success: true, row: { cr664_riskratinginputs: '{"ratingValue":"A"}' } }) });
+    const out = await updateDealProfile(input({ riskRatingInputs: JSON.stringify({ ratingValue: 'BB' }) }), deps);
+    expect(out.kind).toBe('readback-mismatch');
+  });
+
+  it('clears the saved rating and recommendation when the patch value is null', async () => {
+    for (const [field, writeKey] of [
+      ['riskRatingInputs', 'cr664_riskratinginputs'],
+      ['underwritingRecommendationInputs', 'cr664_underwritingrecommendationinputs'],
+    ] as const) {
+      const { deps, store } = fakeDeps({ readDeal: async () => ({ success: true, row: { [writeKey]: null } }) });
+      const out = await updateDealProfile(input({ [field]: null } as DealProfilePatch), deps);
+      expect(out.kind).toBe('updated');
+      expect(store.body).toEqual({ [writeKey]: null });
+    }
+  });
+});
+
 describe('updateDealProfile — write-boundary discipline (source)', () => {
   const SRC = readFileSync(resolve(__dirname, 'updateDealProfile.ts'), 'utf8');
 

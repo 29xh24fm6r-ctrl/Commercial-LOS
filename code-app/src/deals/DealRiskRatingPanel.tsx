@@ -2,12 +2,19 @@ import { useMemo, useState } from 'react';
 import {
   evaluateRiskRatingReadiness,
   evaluateUnderwritingRecommendationReadiness,
+  parseRiskRatingFormState,
+  parseUnderwritingRecommendationFormState,
+  serializeRiskRatingFormState,
+  serializeUnderwritingRecommendationFormState,
   type RiskRatingRecord,
   type RiskRatingStatus,
   type UnderwritingRecommendationRecord,
   type UnderwritingRecommendationDecision,
   type UnderwritingRecommendationStatus,
 } from '../workflow/underwritingDeepFacts';
+import { updateDealProfile, type UpdateDealProfileOutcome } from './write/updateDealProfile';
+import { buildLiveUpdateDealProfileDeps } from './write/buildLiveUpdateDealProfileDeps';
+import type { DealDetail } from './dealQueries';
 import { Card } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { WidgetHeader } from '../shared/cockpitPrimitives';
@@ -22,12 +29,15 @@ import { palette, radius, spacing, typography, type SeverityKey } from '../share
  * maker adds the schema + a loader supplies the fact." This panel lets an
  * underwriter actually assign a rating and record a recommendation.
  *
- * Deliberately LOCAL-ONLY, same convention as GlobalCashFlowPanel: no
- * Dataverse column exists yet for either record, so entries reset on
- * reload and the CREDIT_APPROVAL gate stays `tracked: false` (this panel
- * does NOT flip that registry entry -- doing so would fabricate durable
- * enforcement backed only by session state). The readiness preview below
- * shows what the gate WOULD say once a real record source lands.
+ * Factory Arc Phase 5 wired real persistence: each record serializes to its own PR106-provisioned
+ * Memo/JSON column (cr664_riskratinginputs / cr664_underwritingrecommendationinputs) through the
+ * same governed updateDealProfile.ts pipeline as the other deal-profile fields (see that file's
+ * header comment for why the raw-column-name technique is safe without waiting on the
+ * operator-gated SDK regeneration). Persisting the record does NOT flip the CREDIT_APPROVAL gate's
+ * `tracked: false` status -- that stays a separate, explicitly-reviewed decision (fabricating
+ * durable enforcement backed only by this panel's write would be exactly the kind of unreviewed
+ * gate change this codebase's governance discipline exists to prevent). The readiness preview
+ * below shows what the gate WOULD say once that separate decision lands.
  */
 
 const RATING_STATUSES: readonly RiskRatingStatus[] = ['draft', 'assigned', 'reviewed', 'approved'];
@@ -47,15 +57,36 @@ function decisionLabel(d: UnderwritingRecommendationDecision): string {
   }
 }
 
-export function DealRiskRatingPanel({ dealId, ratedBy }: { dealId: string; ratedBy?: string }) {
-  const [ratingValue, setRatingValue] = useState('');
-  const [ratingScale, setRatingScale] = useState('');
-  const [ratingRationale, setRatingRationale] = useState('');
-  const [ratingStatus, setRatingStatus] = useState<RiskRatingStatus>('draft');
+export interface DealRiskRatingPanelProps {
+  readonly deal: DealDetail;
+  readonly ratedBy?: string;
+  readonly authorized: boolean;
+  readonly actorEmail: string | undefined;
+  readonly actorSystemUserId: string | undefined;
+}
 
-  const [decision, setDecision] = useState<UnderwritingRecommendationDecision>('approve');
-  const [recommendationRationale, setRecommendationRationale] = useState('');
-  const [recommendationStatus, setRecommendationStatus] = useState<UnderwritingRecommendationStatus>('draft');
+export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, actorSystemUserId }: DealRiskRatingPanelProps) {
+  const dealId = deal.id;
+  const savedRating = useMemo(() => parseRiskRatingFormState(deal.riskRatingInputsJson), [deal.riskRatingInputsJson]);
+  const savedRecommendation = useMemo(
+    () => parseUnderwritingRecommendationFormState(deal.underwritingRecommendationInputsJson),
+    [deal.underwritingRecommendationInputsJson],
+  );
+
+  const [ratingValue, setRatingValue] = useState(savedRating.ratingValue);
+  const [ratingScale, setRatingScale] = useState(savedRating.ratingScale);
+  const [ratingRationale, setRatingRationale] = useState(savedRating.rationale);
+  const [ratingStatus, setRatingStatus] = useState<RiskRatingStatus>(savedRating.status);
+  const [ratingSave, setRatingSave] = useState<
+    { kind: 'idle' } | { kind: 'saving' } | { kind: 'done'; outcome: UpdateDealProfileOutcome }
+  >({ kind: 'idle' });
+
+  const [decision, setDecision] = useState<UnderwritingRecommendationDecision>(savedRecommendation.decision);
+  const [recommendationRationale, setRecommendationRationale] = useState(savedRecommendation.rationale);
+  const [recommendationStatus, setRecommendationStatus] = useState<UnderwritingRecommendationStatus>(savedRecommendation.status);
+  const [recommendationSave, setRecommendationSave] = useState<
+    { kind: 'idle' } | { kind: 'saving' } | { kind: 'done'; outcome: UpdateDealProfileOutcome }
+  >({ kind: 'idle' });
 
   const ratingRecord: RiskRatingRecord | undefined = useMemo(() => {
     if (ratingValue.trim().length === 0) return undefined;
@@ -83,14 +114,65 @@ export function DealRiskRatingPanel({ dealId, ratedBy }: { dealId: string; rated
   const ratingReadiness = evaluateRiskRatingReadiness(ratingRecord);
   const recommendationReadiness = evaluateUnderwritingRecommendationReadiness(recommendationRecord);
 
+  const ratingSaving = ratingSave.kind === 'saving';
+  const recommendationSaving = recommendationSave.kind === 'saving';
+
+  async function onSaveRating() {
+    if (!authorized || !actorSystemUserId || ratingSaving) return;
+    setRatingSave({ kind: 'saving' });
+    const json = serializeRiskRatingFormState({
+      ratingValue: ratingValue.trim(),
+      ratingScale: ratingScale.trim(),
+      rationale: ratingRationale.trim(),
+      status: ratingStatus,
+    });
+    try {
+      const result = await updateDealProfile(
+        { dealId, actorEmail, actorSystemUserId, authorized: true, patch: { riskRatingInputs: json } },
+        buildLiveUpdateDealProfileDeps(),
+      );
+      setRatingSave({ kind: 'done', outcome: result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setRatingSave({ kind: 'done', outcome: { kind: 'write-failed', error: message, correlationId: '' } });
+    }
+  }
+
+  async function onSaveRecommendation() {
+    if (!authorized || !actorSystemUserId || recommendationSaving) return;
+    setRecommendationSave({ kind: 'saving' });
+    const json = serializeUnderwritingRecommendationFormState({
+      decision,
+      rationale: recommendationRationale.trim(),
+      status: recommendationStatus,
+    });
+    try {
+      const result = await updateDealProfile(
+        { dealId, actorEmail, actorSystemUserId, authorized: true, patch: { underwritingRecommendationInputs: json } },
+        buildLiveUpdateDealProfileDeps(),
+      );
+      setRecommendationSave({ kind: 'done', outcome: result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setRecommendationSave({ kind: 'done', outcome: { kind: 'write-failed', error: message, correlationId: '' } });
+    }
+  }
+
   return (
     <Card>
       <WidgetHeader title="Risk Rating & Underwriting Recommendation" subtitle="Assign a rating and record a recommendation before Credit Approval" />
-      <p style={styles.localOnlyNote} role="note" data-risk-rating-local-only-note>
-        Not yet saved to the deal — entries reset on reload. This does not change the CREDIT_APPROVAL
-        gate's enforcement (still schema-pending); it previews what the gate would say once a real
-        record source lands.
-      </p>
+      {authorized ? (
+        <p style={styles.localOnlyNote} role="note" data-risk-rating-save-note>
+          Click Save to record the rating or recommendation on the deal. This does not change the
+          CREDIT_APPROVAL gate's enforcement (that stays a separate decision); the line below each
+          section previews what the gate would say once that decision lands.
+        </p>
+      ) : (
+        <p style={styles.localOnlyNote} role="note" data-risk-rating-local-only-note>
+          No Dataverse identity is available for your sign-in, so this cannot be saved to the deal —
+          entries reset on reload.
+        </p>
+      )}
 
       <fieldset style={styles.fieldset}>
         <legend style={styles.legend}>Risk rating</legend>
@@ -117,6 +199,18 @@ export function DealRiskRatingPanel({ dealId, ratedBy }: { dealId: string; rated
           <textarea style={styles.textarea} value={ratingRationale} data-risk-rating-field="rationale" onChange={(e) => setRatingRationale(e.target.value)} rows={2} />
         </label>
         <ReadinessLine met={ratingReadiness.met} reason={ratingReadiness.reason} testId="rating-readiness" />
+        <div style={styles.saveRow}>
+          <button
+            type="button"
+            style={authorized && !ratingSaving ? styles.saveBtn : styles.saveBtnDisabled}
+            disabled={!authorized || ratingSaving}
+            onClick={onSaveRating}
+            data-risk-rating-save="rating"
+          >
+            {ratingSaving ? 'Saving…' : 'Save Risk Rating'}
+          </button>
+          {ratingSave.kind === 'done' && <SaveOutcomeNote outcome={ratingSave.outcome} testId="rating" />}
+        </div>
       </fieldset>
 
       <fieldset style={styles.fieldset}>
@@ -149,8 +243,41 @@ export function DealRiskRatingPanel({ dealId, ratedBy }: { dealId: string; rated
           testId="recommendation-readiness"
           nonForward={recommendationReadiness.requiresNonForwardPath}
         />
+        <div style={styles.saveRow}>
+          <button
+            type="button"
+            style={authorized && !recommendationSaving ? styles.saveBtn : styles.saveBtnDisabled}
+            disabled={!authorized || recommendationSaving}
+            onClick={onSaveRecommendation}
+            data-risk-rating-save="recommendation"
+          >
+            {recommendationSaving ? 'Saving…' : 'Save Recommendation'}
+          </button>
+          {recommendationSave.kind === 'done' && <SaveOutcomeNote outcome={recommendationSave.outcome} testId="recommendation" />}
+        </div>
       </fieldset>
     </Card>
+  );
+}
+
+function SaveOutcomeNote({ outcome, testId }: { outcome: UpdateDealProfileOutcome; testId: string }) {
+  if (outcome.kind === 'updated') {
+    return (
+      <span style={styles.saveOk} role="status" data-risk-rating-save-outcome={`${testId}:updated`}>
+        Saved.
+      </span>
+    );
+  }
+  const reason =
+    'reason' in outcome && typeof outcome.reason === 'string'
+      ? outcome.reason
+      : 'error' in outcome && typeof outcome.error === 'string'
+        ? outcome.error
+        : 'This could not be saved. Nothing was changed.';
+  return (
+    <span style={styles.saveError} role="alert" data-risk-rating-save-outcome={`${testId}:${outcome.kind}`}>
+      {reason}
+    </span>
   );
 }
 
@@ -184,4 +311,9 @@ const styles: Record<string, React.CSSProperties> = {
   textarea: { padding: `${spacing.xxs} ${spacing.sm}`, border: `1px solid ${palette.border}`, borderRadius: radius.sm, fontSize: typography.size.sm, fontFamily: typography.family, resize: 'vertical' },
   readinessLine: { display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
   readinessReason: { fontSize: typography.size.sm, color: palette.textMuted },
+  saveRow: { display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  saveBtn: { background: palette.primary, color: palette.textInverse, border: 'none', borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, cursor: 'pointer' },
+  saveBtnDisabled: { background: palette.borderStrong, color: palette.textInverse, border: 'none', borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, cursor: 'not-allowed' },
+  saveOk: { fontSize: typography.size.sm, color: palette.clear, fontWeight: typography.weight.semibold },
+  saveError: { fontSize: typography.size.sm, color: palette.atRiskFg },
 };
