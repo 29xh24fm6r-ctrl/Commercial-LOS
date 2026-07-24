@@ -406,7 +406,18 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'yet; unlike PR 105/106\'s single additive JSON columns, generated documents are immutable, ' +
       'append-only, per-document manifest rows (regeneration creates a new manifest via ' +
       'supersedesManifestId, never mutates the prior one), so real persistence needs its own table, ' +
-      'not a deal-level blob. See docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md.',
+      'not a deal-level blob. See docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md. Factory Arc ' +
+      'Phase 11 closed the "no table proposal exists yet" gap: ' +
+      'scripts/schema-migrations/pr123-closing-document-persistence/ now has a full, reviewed, NOT-' +
+      'yet-applied entity.mjs/create/verify/rollback bundle (mirroring the pr107-funding-authorization ' +
+      'precedent) proposing cr664_closingdocumentmanifest -- one row per generated manifest, matching ' +
+      'GeneratedClosingDocumentManifest field-for-field, plus the rendered content itself. See ' +
+      'docs/factory-arc/PR123_CLOSING_DOCUMENT_PERSISTENCE_SCHEMA_PROPOSAL.md. Deliberately NOT hand-' +
+      'authoring a fake generated SDK model/service for this table the way PR 112 did for funding ' +
+      'authorization -- that precedent is itself flagged for reconciliation (see Phase 10\'s ' +
+      'PR122_FUNDING_AUTHORIZATION_SDK_REGENERATION_ESCALATION.md), so this phase stops at the schema ' +
+      'proposal and stays real: an operator must apply the table live and run a genuine `pac code` ' +
+      'regeneration before any adapter is written.',
     blockerKind: 'schema',
   },
   {
