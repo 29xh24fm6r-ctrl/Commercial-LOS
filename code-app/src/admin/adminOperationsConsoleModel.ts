@@ -1,19 +1,23 @@
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 
 /**
- * Phase 169A -- Admin Operations Console (read-only shell).
+ * Phase 169A -- Admin Operations Console (originally a read-only shell).
  *
- * This module is the honest, side-effect-free status model behind the
- * admin Operations Console. It performs NO writes, NO Dataverse calls,
- * and NO network access. It only describes, per administrative module,
- * the current capability state so an authorized admin can see what is
- * read-only, what is blocked, and what the next safe step is.
+ * This module itself is still honest and side-effect-free: it performs NO
+ * writes, NO Dataverse calls, and NO network access -- it only describes,
+ * per administrative module, the current capability state so an authorized
+ * admin can see what is live, what is blocked, and what the next safe step
+ * is.
  *
- * Phase 169A deliberately wires ZERO live write surfaces into the
- * console. Every module reports `liveWriteEnabledHere: false`. Live
- * surfaces arrive only in later, separately-gated phases (169B user/
- * access, 169C new-deal intake, 169D portfolio boarding, 169E CRM
- * onboarding) and only where an existing governed write path is proven.
+ * Factory Arc Phase 15 -- corrected a stale claim this header carried since
+ * 169A: "every module reports liveWriteEnabledHere: false" was true at 169A,
+ * but Phase 257 (see ADMIN_CONSOLE_MODULES below and its `manage` field)
+ * wired four of the five modules (user-access, new-deal-intake, portfolio-
+ * boarding, crm-onboarding) to real, already-proven governed write paths --
+ * each now reports `status: 'active'` / `liveWriteEnabledHere: true`. Only
+ * `security-roles` remains `preview`/`false` (external to this app by
+ * design -- Dataverse security roles are managed in the Power Platform admin
+ * center, not here). See docs/factory-arc/PR127_ADMIN_OPERATIONALIZATION.md.
  */
 
 /** Coarse status badge for an admin console module. */

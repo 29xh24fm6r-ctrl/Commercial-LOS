@@ -37,6 +37,10 @@ const VERIFIED_SOURCE_PROCESS_PREFIXES: Partial<Record<SmokeCapability, string>>
   'stage-progression': 'StageAdvanceWriteDependency/',
   'checklist-generation': 'checklistWriteDependency/',
   'document-upload': 'documentUploadAction/',
+  // Factory Arc Phase 15 -- verified against src/deals/createDealTaskAction.ts's literal
+  // cr664_sourcescreensourceprocess: 'DealWorkspace/DealTasks/create' (dealTaskActions.ts's
+  // complete-task write shares the same 'DealWorkspace/DealTasks/' prefix).
+  'task-generation': 'DealWorkspace/DealTasks/',
 };
 
 async function loadWriteEvidence(
