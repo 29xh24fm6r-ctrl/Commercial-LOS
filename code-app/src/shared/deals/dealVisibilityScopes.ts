@@ -66,6 +66,19 @@ export const DEAL_VISIBILITY_SCOPES: Readonly<Record<DealVisibilityScopeId, Deal
 const GUID_RE = /^[0-9a-fA-F-]{36}$/;
 
 /**
+ * Factory Arc Phase 6 — the canonical Dataverse OData predicate for "active, non-terminal" on
+ * cr664_loandeal (statecode 0 = Active, and not flagged terminal). Before this phase, this exact
+ * predicate was independently retyped in banker/dealQueries.ts and (twice) in
+ * executive/operationalFallbackQueries.ts — four copies of the same literal string with no shared
+ * source. That's precisely the shape of bug this module's header describes: every surface that
+ * counts "active deals" must use the IDENTICAL predicate or counts silently drift apart the moment
+ * one copy is edited and the others aren't. Every one of those call sites now imports this constant
+ * instead of retyping it; `dealVisibilityScopesCanonicalPredicate.test.ts` pins that they do.
+ */
+export const ACTIVE_DEAL_ODATA_PREDICATE =
+  'statecode eq 0 and (cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)';
+
+/**
  * Build the OData filter for the Team/Manager active-deal scope. Always includes deals owned by the
  * team; when `memberBankerIds` is supplied it ALSO includes active deals assigned to any of those
  * bankers — the Owning-Team fallback, so a deal with no Owning Team still surfaces to oversight.
@@ -75,7 +88,6 @@ export function buildTeamVisibilityFilter(
   teamId: string,
   options: { readonly memberBankerIds?: readonly string[] } = {},
 ): string {
-  const active = 'statecode eq 0 and (cr664_isterminalstatus eq false or cr664_isterminalstatus eq null)';
   const clauses: string[] = [];
   if (GUID_RE.test(teamId.trim())) clauses.push(`_cr664_team_value eq ${teamId.trim()}`);
   for (const id of options.memberBankerIds ?? []) {
@@ -83,5 +95,5 @@ export function buildTeamVisibilityFilter(
   }
   // No valid scoping id at all → fall back to the team-only clause shape (never an unscoped query).
   const scope = clauses.length > 0 ? `(${clauses.join(' or ')})` : `_cr664_team_value eq ${teamId}`;
-  return `${scope} and ${active}`;
+  return `${scope} and ${ACTIVE_DEAL_ODATA_PREDICATE}`;
 }
