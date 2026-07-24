@@ -313,17 +313,14 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/portfolio/riskRating/RiskRatingCard.tsx', reason: 'PE-5 per-loan read-only dual-rating drill-down card; its portfolio-level rollup (PortfolioClassificationPanel) IS routed. Per-loan drilldown surfacing needs a per-loan data flow not yet built on this route (WIRE candidate).', plannedPhase: 'Phase 3+' },
   { path: 'src/portfolio/covenants/covenantMonitoring.ts', reason: 'PE-9 pure covenant-testing engine (DSCR/leverage/liquidity/TNW/current-ratio from spread financials); the CovenantReviewPanel rollup IS routed. The per-loan covenant data flow to feed it is not built on this route yet (WIRE candidate).', plannedPhase: 'Phase 3+' },
   // â”€â”€ src/servicing â”€â”€
-  { path: 'src/servicing/ServicingLifecycleMapperPanel.tsx', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/ServicingLifecyclePanel.tsx', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/deriveServicingCollateralSecurityStatus.ts', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/deriveServicingCovenantReportingStatus.ts', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/deriveServicingInsuranceTicklerStatus.ts', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/deriveServicingLifecycleSnapshot.ts', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/deriveServicingLifecycleStage.ts', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/deriveServicingMaturityRenewalStatus.ts', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/deriveServicingObligations.ts', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/servicingLifecycleMapper.ts', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
-  { path: 'src/servicing/servicingLifecycleTypes.ts', reason: 'Servicing lifecycle panel requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
+  // PR 111 mounted DealServicingLifecyclePanel.tsx (src/deals/) against a new live loader
+  // (loadServicingLifecycleSnapshotForLoan.ts), so ServicingLifecyclePanel.tsx, its 7 pure derivers,
+  // the snapshot deriver, and servicingLifecycleTypes.ts are now genuinely reachable and dropped
+  // from this list. servicingLifecycleMapper.ts / ServicingLifecycleMapperPanel.tsx are a DIFFERENT,
+  // unrelated pre-boarding readiness projection (not the post-boarding lifecycle snapshot family)
+  // and remain unrouted.
+  { path: 'src/servicing/ServicingLifecycleMapperPanel.tsx', reason: 'Pre-boarding servicing readiness projection (distinct from the post-boarding lifecycle snapshot family PR 111 mounted); requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
+  { path: 'src/servicing/servicingLifecycleMapper.ts', reason: 'Pre-boarding servicing readiness projection (distinct from the post-boarding lifecycle snapshot family PR 111 mounted); requires a live servicing snapshot/stage context; standalone read-only preview deferred (WIRE candidate).', plannedPhase: 'Phase 3+' },
   // â”€â”€ src/shared â”€â”€
   { path: 'src/shared/annualReview/annualReviewTaskEngine.ts', reason: 'Shared helper/model consumed by an unrouted subsystem; becomes reachable transitively once its consumer routes.', plannedPhase: 'Phase 3+' },
   { path: 'src/shared/annualReview/deriveBorrowerFinancialRequestPackage.ts', reason: 'Shared helper/model consumed by an unrouted subsystem; becomes reachable transitively once its consumer routes.', plannedPhase: 'Phase 3+' },
@@ -408,22 +405,13 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   { path: 'src/closing/documents/closingDocumentGeneration.ts', reason: 'Workstream 6: the preview/generate/regenerate pipeline. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
   { path: 'src/closing/documents/closingDocumentPackage.ts', reason: 'Workstream 6: package/supersession summarizer. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
   { path: 'src/closing/documents/ClosingDocumentsPanel.tsx', reason: 'Workstream 6: the read-plus-governed-action UI panel. Inert; not mounted in any workspace pending live storage.', plannedPhase: 'Follow-up (schema + integration)' },
-  // final-seven-workstreams Workstream 7 — the funding authorization framework. A new, fully-tested
-  // (61 tests) capability with no live Dataverse table for authorization records yet (see
-  // fundingAuthorizationStorage.ts's doc comment) — not mounted in any workspace pending an
-  // operator-authorized schema addition and a real integration point. See
-  // docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md.
-  { path: 'src/funding/fundingAuthorizationTypes.ts', reason: 'Workstream 7: shared types for the funding-authorization framework. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingAuthorizationPolicy.ts', reason: 'Workstream 7: pure policy engine (dual control, self-approval prohibition, facility-amount cap). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingReadiness.ts', reason: 'Workstream 7: pure disbursement-readiness derivation. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingAudit.ts', reason: 'Workstream 7: governed audit-recording helper. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingTimeline.ts', reason: 'Workstream 7: pure timeline-event payload builder (no live wiring yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingAuthorizationStorage.ts', reason: 'Workstream 7: storage seam + in-memory reference implementation — NO live Dataverse factory exists (no table for this yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingFeatureFlags.ts', reason: 'Workstream 7: the capability gate (default false). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingRequestAdapter.ts', reason: 'Workstream 7: governed funding-request write. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingApprovalAdapter.ts', reason: 'Workstream 7: governed approve/reject/revoke writes. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/fundingDisbursementConfirmation.ts', reason: 'Workstream 7: the sole path to FUNDED, with re-verified readiness at confirmation time. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/funding/FundingAuthorizationPanel.tsx', reason: 'Workstream 7: the read-plus-governed-action UI panel. Inert; not mounted in any workspace pending live storage.', plannedPhase: 'Follow-up (schema + integration)' },
+  // final-seven-workstreams Workstream 7 — the funding authorization framework. PR 111 mounted
+  // DealFundingAuthorizationPanel.tsx local-only (real dual-control policy logic against
+  // createInMemoryFundingAuthorizationStore() — session-scoped, honestly disclosed; see
+  // docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md), so most of Workstream 7 is
+  // now genuinely reachable and dropped from this list. Two files remain unrouted:
+  { path: 'src/funding/fundingTimeline.ts', reason: 'Workstream 7: pure timeline-event payload builder — not consumed by the PR 111 local-only mount (no timeline UI surface wired yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
+  { path: 'src/funding/fundingFeatureFlags.ts', reason: 'Workstream 7: the capability-tracking constant (now true — see its doc comment) is not itself imported by DealFundingAuthorizationPanel.tsx (no other capability flag gates a mount point in this codebase either; the closing-document / risk-rating panels mount unconditionally). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
 ];
 
 /** Set of allow-listed paths for O(1) membership checks. */

@@ -21,6 +21,8 @@ import { CreditMemo } from './CreditMemo';
 import { GlobalCashFlowPanel } from './GlobalCashFlowPanel';
 import { DealRiskRatingPanel } from './DealRiskRatingPanel';
 import { DealClosingDocumentsPanel } from './DealClosingDocumentsPanel';
+import { DealFundingAuthorizationPanel } from './DealFundingAuthorizationPanel';
+import { DealServicingLifecyclePanel } from './DealServicingLifecyclePanel';
 import { ActivityTimeline } from './ActivityTimeline';
 import { BorrowerCommunication } from './BorrowerCommunication';
 import { TeamsChatHandoff } from './TeamsChatHandoff';
@@ -305,12 +307,33 @@ export function BankerDealWorkspace({
               >
                 <DealClosingDocumentsPanel deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} />
               </div>
+              {/* PR 111 -- mounts the funding-authorization framework (61+ tests, previously entirely
+                  unmounted). Local-only pending schema (see
+                  docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md). */}
+              <div
+                id="funding-authorization"
+                data-deal-card="funding-authorization"
+                data-cockpit-anchor="funding-authorization"
+              >
+                <DealFundingAuthorizationPanel deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} />
+              </div>
               <div
                 id="portfolio-boarding-status"
                 data-deal-card="portfolio-boarding-status"
                 data-cockpit-anchor="portfolio-boarding-status"
               >
                 <DealPortfolioBoardingStatusPanel />
+              </div>
+              {/* PR 111 -- mounts the servicing lifecycle deriver family (src/servicing/*, Phase
+                  142E, previously entirely unmounted) against a real live loader. Fully live and
+                  read-only; renders nothing until the deal's stage claims BOARDED (see
+                  DealServicingLifecyclePanel's doc comment). */}
+              <div
+                id="servicing-lifecycle"
+                data-deal-card="servicing-lifecycle"
+                data-cockpit-anchor="servicing-lifecycle"
+              >
+                <DealServicingLifecyclePanel />
               </div>
               {/* ARC Phase 3 — Phase 142C configurable workflow-routing engine,
                   wired live against this deal. Read-only decision support only. */}

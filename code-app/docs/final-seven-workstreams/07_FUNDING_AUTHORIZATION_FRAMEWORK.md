@@ -1,6 +1,7 @@
 # Workstream 7 — Funding Authorization and Disbursement Control Framework
 
-**Status: COMPLETE — AWAITING DEPLOYMENT (schema + integration).**
+**Status: MOUNTED LOCAL-ONLY (PR 111) — AWAITING LIVE PERSISTENCE (schema + integration). See the
+PR 111 addendum below.**
 
 ## Confirmed genuinely missing
 
@@ -76,12 +77,30 @@ Only `createInMemoryFundingAuthorizationStore()` exists — real, tested, explic
 `fundingReadiness.test.ts` 5, `fundingAuthorizationStorage.test.ts` 4, `fundingTimeline.test.ts` 3,
 `FundingAuthorizationPanel.test.tsx` 13).
 
-## Not mounted
+## Addendum (PR 111) — mounted local-only
 
-Allow-listed in `src/navigation/intentionallyUnrouted.ts` (11 entries) pending the schema addition
-above and a real integration point with the Boarded-stage gate (a product decision: should reaching
-BOARDED require a confirmed `FUNDED` funding-authorization record? — not decided by this pass).
+PR 111 mounted this framework in `DealFundingAuthorizationPanel.tsx` (`src/deals/`), using
+`createInMemoryFundingAuthorizationStore()` to drive a real request → first approval → second
+approval (dual control) → disbursement-confirmation flow against the deal cockpit. This is honest,
+not fabricated: `FundingAuthorizationPanel.tsx`'s own `isSelfApprovalRisk` check and the policy
+engine's `self_approval_not_permitted` denial correctly and automatically block one actor from
+completing both sides of dual-control approval — a single banker session cannot fake a two-person
+approval, so the mount accurately reflects what one session can and cannot do. Session is
+disclosed as non-durable (`role="note"`, session-scoped, reset on reload) — same convention as the
+closing-document mount (Workstream 6). `FundingReadinessFacts` fields with no live source
+(`requiredDocumentsComplete`, `conditionsPrecedentResolved`, `exceptionsAllResolved`,
+`destinationVerified`, `approvalExpired`) are hard-coded to their fail-closed blocking value;
+`dealTerminalStatus` is the one real fact, derived via `recognizeCanonicalStatus(deal.status)`. The
+session therefore genuinely reaches `APPROVED` but always correctly shows blocked at disbursement
+confirmation — this is correct behavior, not a bug.
+
+What did NOT change: the storage gap. No `cr664_fundingauthorization` table exists; the proposed
+schema above remains unapplied. `fundingTimeline.ts` (no live timeline caller wired) and
+`fundingFeatureFlags.ts` (a tracking constant, not consumed as a mount gate anywhere in this
+codebase) remain allow-listed in `src/navigation/intentionallyUnrouted.ts`; the other 9 entries
+became genuinely reachable and were dropped from that list.
 
 ## Classification
 
-**COMPLETE — AWAITING DEPLOYMENT** (schema authorization + integration decision with the stage gate).
+**MOUNTED LOCAL-ONLY (PR 111) — AWAITING LIVE PERSISTENCE** (schema authorization + integration
+decision with the stage gate remain open).

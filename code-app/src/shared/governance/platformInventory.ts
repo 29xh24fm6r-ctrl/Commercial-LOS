@@ -448,17 +448,21 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     id: 'funding-authorization-persistence',
     label: 'Funding authorization (deal-level persistence)',
     reason:
-      'PR 107 -- src/funding/* (61 tests, FUNDING_AUTHORIZATION_ENABLED=false) is fully built but ' +
-      'deliberately NOT mounted even local-only: unlike GCF/risk-rating, funding authorization has ' +
-      'real two-person dual-control semantics (fundingAuthorizationPolicy.ts requires a genuinely ' +
-      'different second approver) that a single-session local demo cannot meaningfully simulate ' +
-      'without fabricating a second identity. A new cr664_fundingauthorization table (not a column ' +
-      '-- a deal can have a HISTORY of funding-authorization records via supersedesRecordId chains) ' +
-      'is specced with idempotent create/verify/rollback scripts in ' +
-      'scripts/schema-migrations/pr107-funding-authorization/ -- see ' +
-      'docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md for why this is the one capability in ' +
-      'this arc that stays fully unmounted (not even a local-only preview) until real persistence ' +
-      'exists.',
+      'PR 111 -- DealFundingAuthorizationPanel.tsx mounts the fully-built funding-authorization ' +
+      'framework (src/funding/*, 61+ tests) using its own documented ' +
+      'createInMemoryFundingAuthorizationStore() reference implementation -- real, working dual-' +
+      'control policy logic (request -> first approval -> second approval -> disbursement ' +
+      'confirmation, with FundingAuthorizationPanel\'s own isSelfApprovalRisk check + the policy ' +
+      'engine\'s self_approval_not_permitted denial correctly blocking one actor from completing ' +
+      'both approvals), but explicitly NOT persistence (session-scoped; lost on reload) -- same ' +
+      'disclosed convention as risk-rating / closing-documents above. Readiness facts with no live ' +
+      'source (documents/conditions/exceptions/destination/expiry) are hard-coded to their ' +
+      'fail-closed blocking value, so this session genuinely reaches APPROVED but always shows ' +
+      'blocked at disbursement confirmation -- correct behavior, not a bug. A new ' +
+      'cr664_fundingauthorization table (not a column -- a deal can have a HISTORY of funding-' +
+      'authorization records via supersedesRecordId chains) is specced with idempotent create/' +
+      'verify/rollback scripts in scripts/schema-migrations/pr107-funding-authorization/ -- see ' +
+      'docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md.',
     blockerKind: 'schema',
   },
 ];

@@ -52,7 +52,11 @@ const SEVERITY_TO_STATUS: Record<number, ServicingLifecycleStatus> = {
 function statusSeverity(status: string): number {
   if (status === 'exception_active') return 6;
   if (status === 'expired' || status === 'missing_evidence') return 5;
-  if (status === 'unknown_missing_data' || status === 'review_required') return 3;
+  // 'unknown' (ServicingExceptionStatusValue) and 'unknown_missing_data' (every other component's
+  // status union) both mean the same thing -- the live read couldn't confirm the fact -- and must
+  // carry the same severity; treating an unreadable exception table as severity 0 (healthy) would
+  // silently hide a failed read behind a clean-looking snapshot.
+  if (status === 'unknown_missing_data' || status === 'review_required' || status === 'unknown') return 3;
   if (status === 'attention_required') return 2;
   if (status === 'complete_with_caveats' || status === 'renewal_or_maturity_review' || status === 'healthy_with_caveats') return 1;
   return 0;
