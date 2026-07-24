@@ -182,6 +182,42 @@ function untracked(
 }
 
 /**
+ * Factory Arc Phase 12 — a deep requirement whose backing capability is now real, durable, and
+ * deal-scoped (not actor-relative, not session-only, not gated off by default), so it is authored
+ * `tracked: true` from the start rather than via the `untracked()` helper above. See
+ * loanWorkflowRequirementEngine.ts's `evaluateDeepFactRequirement` for the model this evaluates
+ * against, and docs/factory-arc/PR124_WORKFLOW_REQUIREMENT_ENFORCEMENT.md for the audit that found it.
+ */
+function tracked(
+  id: string,
+  scope: RequirementScope,
+  category: RequirementCategory,
+  label: string,
+  resolverSurface: ResolverSurface,
+  responsibleRole: ResponsibleRole,
+  backingType: CanonicalRequirement['backingType'],
+  sourceEntity: string,
+  blockerReason: string,
+): CanonicalRequirement {
+  return {
+    id,
+    scope,
+    label,
+    description: `${label} — governed exit criterion.`,
+    category,
+    severity: 'blocking',
+    resolverSurface,
+    responsibleRole,
+    backingType,
+    tracked: true,
+    sourceEntity,
+    matchMode: 'typed',
+    uiCopy: label,
+    blockerReason,
+  };
+}
+
+/**
  * DEEP facts, authored as untracked-blocking until their major ARC PR wires the backing record.
  * These are the facts that make each transition genuinely governed (per the truth matrix). They do
  * NOT attach to INTAKE, so Intake → Underwriting stays behavior-compatible with the current live gate.
@@ -206,7 +242,12 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   untracked('DOCUMENTATION:insurance_verified', 'DOCUMENTATION', 'closing', 'Insurance verified', 'Documentation', 'closer', 'condition_record', 'insurance verification record not yet implemented (ARC PR 14)'),
   // Closing & Funding → Boarded (ARC PR 15)
   untracked('CLOSING_FUNDING:executed_docs', 'CLOSING_FUNDING', 'closing', 'Loan documents executed', 'Closing', 'closer', 'closing_record', 'executed-documents record not yet implemented (ARC PR 15)'),
-  untracked('CLOSING_FUNDING:funds_disbursed', 'CLOSING_FUNDING', 'funding', 'Funds disbursed', 'Funding', 'loan_ops', 'funding_record', 'funding/disbursement record not yet implemented (ARC PR 15)'),
+  // Factory Arc Phase 12 -- PR 112's Dataverse-backed funding-authorization store
+  // (createDataverseFundingAuthorizationStore(), unconditionally mounted in
+  // DealFundingAuthorizationPanel.tsx) makes FUNDED a real, durable, deal-scoped fact. Flipped
+  // tracked: true; evaluated against WorkflowRequirementFacts.fundingAuthorization (a loader-supplied
+  // fact, never fabricated -- see loanWorkflowRequirementEngine.ts).
+  tracked('CLOSING_FUNDING:funds_disbursed', 'CLOSING_FUNDING', 'funding', 'Funds disbursed', 'Funding', 'loan_ops', 'funding_record', 'cr664_fundingauthorization', 'Funds have not yet been disbursed for this deal (the funding authorization record is not FUNDED).'),
   untracked('CLOSING_FUNDING:booking_qc', 'CLOSING_FUNDING', 'closing', 'Booking quality control complete', 'Closing', 'loan_ops', 'closing_record', 'booking-QC record not yet implemented (ARC PR 15)'),
   // Boarded / Servicing (ARC PR 16)
   untracked('BOARDED:boarded_loan_record', 'BOARDED', 'boarding', 'Boarded loan / servicing handoff record created', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'real boarded-loan handoff record not yet the source of truth (ARC PR 16)'),

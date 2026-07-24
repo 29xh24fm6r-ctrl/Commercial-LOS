@@ -77,11 +77,14 @@ export function DealStageProgressionCard({
   /** Injected for tests; defaults to the live stage-reference read. */
   loadAvailability?: () => Promise<StageProgressionAvailability>;
 } = {}) {
-  const { deal, tasks, documents, creditMemo, activity } = useDealData();
+  const { deal, tasks, documents, creditMemo, activity, fundingAuthorization } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
   const creditMemoData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
   const activityData = activity.kind === 'ready' ? activity.data : undefined;
+  // Factory Arc Phase 12 — feeds CLOSING_FUNDING:funds_disbursed. `undefined` while loading/failed/
+  // not-yet-requested all correctly fail closed as unmet (never fabricated as met).
+  const fundingAuthorizationData = fundingAuthorization?.kind === 'ready' ? fundingAuthorization.data : undefined;
 
   const eligibility = deriveStageProgressionEligibility({
     deal,
@@ -195,7 +198,7 @@ export function DealStageProgressionCard({
             documents: documentsData,
             creditMemo: creditMemoData,
           })}
-          facts={{ deal, tasks: tasksData, documents: documentsData, creditMemo: creditMemoData }}
+          facts={{ deal, tasks: tasksData, documents: documentsData, creditMemo: creditMemoData, fundingAuthorization: fundingAuthorizationData }}
           dealId={deal.id}
           actor={stageAdvanceActor!}
         />

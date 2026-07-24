@@ -7,6 +7,7 @@ import type { DealDetail } from '../deals/dealQueries';
 import type { DealDocument, DealDocumentsResult } from '../deals/dealDocumentQueries';
 import type { DealTasksResult } from '../deals/dealTaskQueries';
 import type { CreditMemoData } from '../deals/creditMemoQueries';
+import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 
 /** Minimal workflow state the stage policy reads (cast to the full type for the test). */
 function workflow(over: { stageId?: string; status?: 'blocked' | 'at-risk' | 'clear'; nextIds?: string[]; blockers?: string[] } = {}): LoanWorkflowState {
@@ -346,11 +347,21 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
   });
 
   describe('auto-board on advance to BOARDED', () => {
+    // Factory Arc Phase 12 — CLOSING_FUNDING:funds_disbursed is now a tracked, blocking requirement;
+    // a deal genuinely ready to reach BOARDED must carry a FUNDED funding-authorization record.
+    const fundedRecord: FundingAuthorizationRecord = {
+      dealId: 'd-1', authorizationStatus: 'FUNDED', requestedAmount: 100000, approvedAmount: 100000,
+      fundingDate: '2026-07-10', destinationVerificationStatus: 'verified', conditionsSatisfied: true,
+      exceptions: [], requestedBy: 'banker@bank.test', requestedAt: '2026-07-01T00:00:00Z',
+      authorizedAt: '2026-07-05T00:00:00Z', correlationId: 'corr-1', supportingDocumentIds: [],
+      auditEventIds: [], recordId: 'fa-1',
+    };
     const closingFundingFacts: WorkflowRequirementFacts = {
       deal: baseDeal,
       tasks: { open: [], completed: [{ id: 't1', title: 'Booking quality control', completed: true, dueDate: undefined, assigneeName: undefined, modifiedOn: '2026-07-01T00:00:00Z' }] },
       documents: docsOf({ received: [mkDoc('Booking Package', 'received')] }),
       creditMemo: noMemo,
+      fundingAuthorization: fundedRecord,
     };
     function closingFundingInput(over: Partial<StageAdvanceInput> = {}) {
       return input({

@@ -21,7 +21,7 @@ import { CreditMemo } from './CreditMemo';
 import { GlobalCashFlowPanel } from './GlobalCashFlowPanel';
 import { DealRiskRatingPanel } from './DealRiskRatingPanel';
 import { DealClosingDocumentsPanel } from './DealClosingDocumentsPanel';
-import { DealFundingAuthorizationPanel } from './DealFundingAuthorizationPanel';
+import { DealFundingAuthorizationPanelConnected } from './DealFundingAuthorizationPanelConnected';
 import { DealServicingLifecyclePanel } from './DealServicingLifecyclePanel';
 import { ActivityTimeline } from './ActivityTimeline';
 import { BorrowerCommunication } from './BorrowerCommunication';
@@ -315,7 +315,7 @@ export function BankerDealWorkspace({
                 data-deal-card="funding-authorization"
                 data-cockpit-anchor="funding-authorization"
               >
-                <DealFundingAuthorizationPanel deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} />
+                <DealFundingAuthorizationPanelConnected deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} />
               </div>
               <div
                 id="portfolio-boarding-status"
