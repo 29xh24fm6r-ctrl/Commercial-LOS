@@ -41,6 +41,30 @@ jobs:
         run: |
           msbuild "code-app/dataverse-plugins/CommercialLendingLOS.Plugins/CommercialLendingLOS.Plugins.csproj" /t:Build /p:Configuration=Release /p:ContinuousIntegrationBuild=true
 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Run plugin test suite
+        shell: pwsh
+        run: |
+          dotnet test "code-app/dataverse-plugins/CommercialLendingLOS.Plugins.Tests/CommercialLendingLOS.Plugins.Tests.csproj" `
+            --configuration Release `
+            --logger "trx;LogFileName=plugin-tests.trx" `
+            --results-directory "TestResults"
+          "### Dataverse plugin test results" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "See the uploaded TestResults artifact for the full .trx report." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CommercialLendingLOS-Plugin-TestResults
+          path: TestResults/**
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Verify output
         shell: pwsh
         run: |
