@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { computeGlobalCashFlow, classifyDscr, type GlobalCashFlowInput } from './globalCashFlow';
+import {
+  computeGlobalCashFlow,
+  classifyDscr,
+  serializeGlobalCashFlowFormState,
+  parseGlobalCashFlowFormState,
+  EMPTY_GLOBAL_CASH_FLOW_FORM_STATE,
+  type GlobalCashFlowInput,
+  type GlobalCashFlowFormState,
+} from './globalCashFlow';
 
 function baseInput(overrides: Partial<GlobalCashFlowInput> = {}): GlobalCashFlowInput {
   return {
@@ -106,5 +114,60 @@ describe('classifyDscr', () => {
     expect(classifyDscr(1.1)).toBe('marginal');
     expect(classifyDscr(1.0)).toBe('marginal');
     expect(classifyDscr(0.9)).toBe('insufficient');
+  });
+});
+
+describe('GlobalCashFlowFormState serialize / parse (Factory Arc Phase 4)', () => {
+  const filled: GlobalCashFlowFormState = {
+    netIncome: '200000',
+    interestExpense: '30000',
+    incomeTaxes: '40000',
+    depreciation: '50000',
+    amortization: '10000',
+    nonRecurringAddbacks: '5000',
+    nonRecurringIncome: '2000',
+    unfinancedCapEx: '15000',
+    proposedNewDebtService: '250000',
+    otherBusinessDebtService: '10000',
+    guarantors: [
+      { guarantorName: 'Jane Doe', grossPersonalIncome: '120000', nonCashAddbacks: '0', personalLivingExpenses: '60000', otherPersonalDebtService: '5000' },
+      { guarantorName: 'John Roe', grossPersonalIncome: '90000', nonCashAddbacks: '', personalLivingExpenses: '40000', otherPersonalDebtService: '' },
+    ],
+  };
+
+  it('round-trips a fully populated form state exactly', () => {
+    const json = serializeGlobalCashFlowFormState(filled);
+    expect(parseGlobalCashFlowFormState(json)).toEqual(filled);
+  });
+
+  it('round-trips the empty state', () => {
+    const json = serializeGlobalCashFlowFormState(EMPTY_GLOBAL_CASH_FLOW_FORM_STATE);
+    expect(parseGlobalCashFlowFormState(json)).toEqual(EMPTY_GLOBAL_CASH_FLOW_FORM_STATE);
+  });
+
+  it('parses undefined / empty-string input as the empty state (no saved value yet)', () => {
+    expect(parseGlobalCashFlowFormState(undefined)).toEqual(EMPTY_GLOBAL_CASH_FLOW_FORM_STATE);
+    expect(parseGlobalCashFlowFormState('')).toEqual(EMPTY_GLOBAL_CASH_FLOW_FORM_STATE);
+    expect(parseGlobalCashFlowFormState('   ')).toEqual(EMPTY_GLOBAL_CASH_FLOW_FORM_STATE);
+  });
+
+  it('fails closed on corrupt JSON — returns the empty state, never throws', () => {
+    expect(() => parseGlobalCashFlowFormState('{not valid json')).not.toThrow();
+    expect(parseGlobalCashFlowFormState('{not valid json')).toEqual(EMPTY_GLOBAL_CASH_FLOW_FORM_STATE);
+  });
+
+  it('fails closed on valid JSON of the wrong shape (array, primitive, null-ish object)', () => {
+    expect(parseGlobalCashFlowFormState('[1,2,3]')).toEqual(EMPTY_GLOBAL_CASH_FLOW_FORM_STATE);
+    expect(parseGlobalCashFlowFormState('"just a string"')).toEqual(EMPTY_GLOBAL_CASH_FLOW_FORM_STATE);
+    expect(parseGlobalCashFlowFormState('null')).toEqual(EMPTY_GLOBAL_CASH_FLOW_FORM_STATE);
+  });
+
+  it('drops non-string junk on individual fields rather than propagating it', () => {
+    const json = JSON.stringify({ netIncome: 12345, guarantors: [{ guarantorName: 'X', grossPersonalIncome: null }] });
+    const parsed = parseGlobalCashFlowFormState(json);
+    expect(parsed.netIncome).toBe('');
+    expect(parsed.guarantors).toEqual([
+      { guarantorName: 'X', grossPersonalIncome: '', nonCashAddbacks: '', personalLivingExpenses: '', otherPersonalDebtService: '' },
+    ]);
   });
 });

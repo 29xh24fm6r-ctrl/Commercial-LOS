@@ -45,6 +45,16 @@
  * separate, deliberate reviewer decision per field; extend it in its own reviewed change once
  * these three have live signal for how bankers actually use them.
  *
+ * Factory Arc Phase 4 added globalCashFlowInputs — cr664_financialspreadinputs, a Memo (JSON)
+ * column specced in scripts/schema-migrations/pr105-loan-structure/columns.mjs. Same technique as
+ * Factory Arc Phase 3: written/read by raw column name (not a generated enum import) since
+ * Cr664_loandealsModel.ts does not declare it yet, pending the operator-run `pac code`
+ * regeneration (docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md); the update/get
+ * calls already pass bodies/rows through as untyped Record<string, unknown>, so the real live
+ * column round-trips correctly today. The JSON payload itself is
+ * GlobalCashFlowPanel.tsx's serialized GlobalCashFlowFormState (see globalCashFlow.ts); this
+ * adapter only sees an opaque string, bounded by the column's real 1,048,576-char Memo ceiling.
+ *
  * It creates nothing (no borrowers, no CRM records), changes no stage/status,
  * writes no amount/client, and fabricates no default values. Pure over injected
  * deps (SDK-free static graph); a live factory wires the generated services +
@@ -74,7 +84,8 @@ export type DealProfileField =
   | 'amortizationMonths'
   | 'loanPurpose'
   | 'loanTermMonths'
-  | 'ownershipStructure';
+  | 'ownershipStructure'
+  | 'globalCashFlowInputs';
 
 /** A scalar patch value: a string to set, or `null` to clear. */
 export type DealProfilePatch = Partial<Record<DealProfileField, string | null>>;
@@ -133,6 +144,7 @@ export const DEAL_PROFILE_FIELD_SPECS: Readonly<Record<DealProfileField, FieldSp
   loanPurpose: { kind: 'text', writeKey: 'cr664_loanpurpose', readKey: 'cr664_loanpurpose', label: 'Loan Purpose', maxLength: 200 },
   loanTermMonths: { kind: 'integer', writeKey: 'cr664_loantermmonths', readKey: 'cr664_loantermmonths', label: 'Loan Term (months)' },
   ownershipStructure: { kind: 'text', writeKey: 'cr664_ownershipstructure', readKey: 'cr664_ownershipstructure', label: 'Ownership Structure', maxLength: 100 },
+  globalCashFlowInputs: { kind: 'text', writeKey: 'cr664_financialspreadinputs', readKey: 'cr664_financialspreadinputs', label: 'Global Cash Flow inputs', maxLength: 1_048_576 },
 };
 
 /**
@@ -190,6 +202,8 @@ export interface VerifiedProfilePatch {
   /** Numeric, same convention as `amortizationMonths`. */
   readonly loanTermMonths?: number | undefined;
   readonly ownershipStructure?: string | undefined;
+  /** Opaque serialized GlobalCashFlowFormState JSON — see globalCashFlow.ts. */
+  readonly globalCashFlowInputs?: string | undefined;
 }
 
 export type UpdateDealProfileOutcome =

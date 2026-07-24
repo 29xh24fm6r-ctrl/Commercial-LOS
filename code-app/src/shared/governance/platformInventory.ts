@@ -389,19 +389,6 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     blockerKind: 'compound',
   },
   {
-    id: 'financial-spread-persistence',
-    label: 'Global Cash Flow figures (deal-level persistence)',
-    reason:
-      'PR 105 -- GlobalCashFlowPanel.tsx computes a real DSCR from banker-entered figures ' +
-      '(src/deals/globalCashFlow.ts) but has no Dataverse column to round-trip them through, ' +
-      'so entries are local-only (session-scoped; reset on reload), following the same ' +
-      'disclosed convention as this file\'s LOCAL_ONLY_FLOWS. The additive JSON column ' +
-      'cr664_financialspreadinputs (mirroring the live cr664_extendedloanattributes precedent) ' +
-      'is specced in docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md; ' +
-      'FINANCIAL_SPREAD_PERSISTENCE_ENABLED stays false until that migration is applied.',
-    blockerKind: 'schema',
-  },
-  {
     id: 'risk-rating-persistence',
     label: 'Risk Rating / Underwriting Recommendation (deal-level persistence)',
     reason:

@@ -569,3 +569,26 @@ describe('loadDealForBanker — loan structure fields (Factory Arc Phase 3, PR10
     }
   });
 });
+
+describe('loadDealForBanker — Global Cash Flow inputs (Factory Arc Phase 4, PR105 JSON column)', () => {
+  it('maps cr664_financialspreadinputs off the raw retrieve row', async () => {
+    const json = JSON.stringify({ netIncome: '200000' });
+    dealGet.mockReturnValue(
+      Promise.resolve({ success: true, data: dealRow({ cr664_financialspreadinputs: json }) } as never),
+    );
+    const result = await loadDealForBanker('deal-1', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.financialSpreadInputsJson).toBe(json);
+    }
+  });
+
+  it('leaves the field undefined when the live row does not carry it (column not yet applied, or applied but blank)', async () => {
+    dealGet.mockReturnValue(Promise.resolve({ success: true, data: dealRow() } as never));
+    const result = await loadDealForBanker('deal-1', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.financialSpreadInputsJson).toBeUndefined();
+    }
+  });
+});

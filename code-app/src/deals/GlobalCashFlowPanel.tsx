@@ -1,22 +1,32 @@
 import { useMemo, useState } from 'react';
-import { computeGlobalCashFlow, classifyDscr, type GlobalCashFlowInput, type PersonalCashFlowInput } from './globalCashFlow';
+import {
+  computeGlobalCashFlow,
+  classifyDscr,
+  parseGlobalCashFlowFormState,
+  serializeGlobalCashFlowFormState,
+  type GlobalCashFlowInput,
+  type GlobalCashFlowFormState,
+  type PersonalCashFlowInput,
+} from './globalCashFlow';
+import { updateDealProfile, type UpdateDealProfileOutcome } from './write/updateDealProfile';
+import { buildLiveUpdateDealProfileDeps } from './write/buildLiveUpdateDealProfileDeps';
+import type { DealDetail } from './dealQueries';
 import { Card } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { WidgetHeader } from '../shared/cockpitPrimitives';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
- * PR 105 -- Global Cash Flow calculator. Real DSCR math (see
- * globalCashFlow.ts), mounted so a banker can size a deal's global debt
- * capacity during underwriting. Deliberately LOCAL-ONLY for this phase: no
- * Dataverse column exists yet to persist entered figures (the schema
- * migration for a `cr664_financialspreadinputs` column is prepared in
- * docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md but not yet
- * applied). Recalculates from whatever is currently typed -- entries are
- * NOT saved across a reload, and the panel says so plainly, following the
- * same convention as this codebase's other LOCAL_ONLY_FLOWS (see
- * shared/governance/platformInventory.ts) rather than silently implying
- * persistence that doesn't exist yet.
+ * PR 105 -- Global Cash Flow calculator. Real DSCR math (see globalCashFlow.ts), mounted so a
+ * banker can size a deal's global debt capacity during underwriting.
+ *
+ * Factory Arc Phase 4 wired real persistence: entered figures serialize to
+ * cr664_financialspreadinputs (a PR105-provisioned Memo/JSON column) through the same governed
+ * updateDealProfile.ts authorize -> validate -> update -> readback -> audit pipeline used
+ * elsewhere in the deal profile, keyed by the raw column name rather than a generated enum (see
+ * updateDealProfile.ts's header comment and docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md
+ * for why that's safe without waiting on the operator-run SDK regeneration). Values load from the
+ * deal on mount and persist explicitly via the Save button -- not on every keystroke.
  */
 
 interface GuarantorRow extends PersonalCashFlowInput {
@@ -29,22 +39,48 @@ function n(v: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-export function GlobalCashFlowPanel() {
-  const [netIncome, setNetIncome] = useState('');
-  const [interestExpense, setInterestExpense] = useState('');
-  const [incomeTaxes, setIncomeTaxes] = useState('');
-  const [depreciation, setDepreciation] = useState('');
-  const [amortization, setAmortization] = useState('');
-  const [nonRecurringAddbacks, setNonRecurringAddbacks] = useState('');
-  const [nonRecurringIncome, setNonRecurringIncome] = useState('');
-  const [unfinancedCapEx, setUnfinancedCapEx] = useState('');
+/** Reconstruct the panel's guarantor rows from a parsed saved state (or the one-blank-row default). */
+function initialGuarantorRows(saved: GlobalCashFlowFormState): GuarantorRow[] {
+  if (saved.guarantors.length === 0) {
+    return [{ key: 'g-1', guarantorName: '', grossPersonalIncome: undefined, nonCashAddbacks: undefined, personalLivingExpenses: undefined, otherPersonalDebtService: undefined }];
+  }
+  return saved.guarantors.map((g, i) => ({
+    key: `g-${i}`,
+    guarantorName: g.guarantorName,
+    grossPersonalIncome: n(g.grossPersonalIncome),
+    nonCashAddbacks: n(g.nonCashAddbacks),
+    personalLivingExpenses: n(g.personalLivingExpenses),
+    otherPersonalDebtService: n(g.otherPersonalDebtService),
+  }));
+}
 
-  const [proposedNewDebtService, setProposedNewDebtService] = useState('');
-  const [otherBusinessDebtService, setOtherBusinessDebtService] = useState('');
+export interface GlobalCashFlowPanelProps {
+  readonly deal: DealDetail;
+  readonly authorized: boolean;
+  readonly actorEmail: string | undefined;
+  readonly actorSystemUserId: string | undefined;
+}
 
-  const [guarantors, setGuarantors] = useState<GuarantorRow[]>([
-    { key: 'g-1', guarantorName: '', grossPersonalIncome: undefined, nonCashAddbacks: undefined, personalLivingExpenses: undefined, otherPersonalDebtService: undefined },
-  ]);
+export function GlobalCashFlowPanel({ deal, authorized, actorEmail, actorSystemUserId }: GlobalCashFlowPanelProps) {
+  const saved = useMemo(() => parseGlobalCashFlowFormState(deal.financialSpreadInputsJson), [deal.financialSpreadInputsJson]);
+
+  const [netIncome, setNetIncome] = useState(saved.netIncome);
+  const [interestExpense, setInterestExpense] = useState(saved.interestExpense);
+  const [incomeTaxes, setIncomeTaxes] = useState(saved.incomeTaxes);
+  const [depreciation, setDepreciation] = useState(saved.depreciation);
+  const [amortization, setAmortization] = useState(saved.amortization);
+  const [nonRecurringAddbacks, setNonRecurringAddbacks] = useState(saved.nonRecurringAddbacks);
+  const [nonRecurringIncome, setNonRecurringIncome] = useState(saved.nonRecurringIncome);
+  const [unfinancedCapEx, setUnfinancedCapEx] = useState(saved.unfinancedCapEx);
+
+  const [proposedNewDebtService, setProposedNewDebtService] = useState(saved.proposedNewDebtService);
+  const [otherBusinessDebtService, setOtherBusinessDebtService] = useState(saved.otherBusinessDebtService);
+
+  const [guarantors, setGuarantors] = useState<GuarantorRow[]>(() => initialGuarantorRows(saved));
+
+  const [saveState, setSaveState] = useState<
+    { kind: 'idle' } | { kind: 'saving' } | { kind: 'done'; outcome: UpdateDealProfileOutcome }
+  >({ kind: 'idle' });
 
   function updateGuarantor(key: string, patch: Partial<GuarantorRow>) {
     setGuarantors((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -87,13 +123,63 @@ export function GlobalCashFlowPanel() {
 
   const outcome = computeGlobalCashFlow(input);
 
+  const saving = saveState.kind === 'saving';
+
+  async function onSave() {
+    if (!authorized || !actorSystemUserId || saving) return;
+    setSaveState({ kind: 'saving' });
+    const formState: GlobalCashFlowFormState = {
+      netIncome,
+      interestExpense,
+      incomeTaxes,
+      depreciation,
+      amortization,
+      nonRecurringAddbacks,
+      nonRecurringIncome,
+      unfinancedCapEx,
+      proposedNewDebtService,
+      otherBusinessDebtService,
+      guarantors: guarantors
+        .filter((g) => g.guarantorName.trim().length > 0)
+        .map((g) => ({
+          guarantorName: g.guarantorName,
+          grossPersonalIncome: g.grossPersonalIncome?.toString() ?? '',
+          nonCashAddbacks: g.nonCashAddbacks?.toString() ?? '',
+          personalLivingExpenses: g.personalLivingExpenses?.toString() ?? '',
+          otherPersonalDebtService: g.otherPersonalDebtService?.toString() ?? '',
+        })),
+    };
+    try {
+      const result = await updateDealProfile(
+        {
+          dealId: deal.id,
+          actorEmail,
+          actorSystemUserId,
+          authorized: true,
+          patch: { globalCashFlowInputs: serializeGlobalCashFlowFormState(formState) },
+        },
+        buildLiveUpdateDealProfileDeps(),
+      );
+      setSaveState({ kind: 'done', outcome: result });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setSaveState({ kind: 'done', outcome: { kind: 'write-failed', error: message, correlationId: '' } });
+    }
+  }
+
   return (
     <Card>
       <WidgetHeader title="Global Cash Flow" subtitle="DSCR sizing across the business and its guarantors" />
-      <p style={styles.localOnlyNote} role="note" data-gcf-local-only-note>
-        Not yet saved to the deal — entries reset on reload. Persistence needs an operator-applied schema
-        migration (see docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md); the calculation below is real.
-      </p>
+      {authorized ? (
+        <p style={styles.localOnlyNote} role="note" data-gcf-save-note>
+          Click Save to record these figures on the deal. Unsaved changes reset on reload.
+        </p>
+      ) : (
+        <p style={styles.localOnlyNote} role="note" data-gcf-local-only-note>
+          No Dataverse identity is available for your sign-in, so these figures cannot be saved to the deal —
+          entries reset on reload. The calculation below is real.
+        </p>
+      )}
 
       <fieldset style={styles.fieldset}>
         <legend style={styles.legend}>Business</legend>
@@ -141,8 +227,44 @@ export function GlobalCashFlowPanel() {
         </div>
       </fieldset>
 
+      <div style={styles.saveRow}>
+        <button
+          type="button"
+          style={authorized && !saving ? styles.saveBtn : styles.saveBtnDisabled}
+          disabled={!authorized || saving}
+          onClick={onSave}
+          data-gcf-save
+        >
+          {saving ? 'Saving…' : 'Save Global Cash Flow'}
+        </button>
+        {saveState.kind === 'done' && (
+          <SaveOutcomeNote outcome={saveState.outcome} />
+        )}
+      </div>
+
       <Result outcome={outcome} />
     </Card>
+  );
+}
+
+function SaveOutcomeNote({ outcome }: { outcome: UpdateDealProfileOutcome }) {
+  if (outcome.kind === 'updated') {
+    return (
+      <span style={styles.saveOk} role="status" data-gcf-save-outcome="updated">
+        Saved.
+      </span>
+    );
+  }
+  const reason =
+    'reason' in outcome && typeof outcome.reason === 'string'
+      ? outcome.reason
+      : 'error' in outcome && typeof outcome.error === 'string'
+        ? outcome.error
+        : 'The Global Cash Flow figures could not be saved. Nothing was changed.';
+  return (
+    <span style={styles.saveError} role="alert" data-gcf-save-outcome={outcome.kind}>
+      {reason}
+    </span>
   );
 }
 
@@ -252,6 +374,11 @@ const styles: Record<string, React.CSSProperties> = {
   input: { padding: `${spacing.xxs} ${spacing.sm}`, border: `1px solid ${palette.border}`, borderRadius: radius.sm, fontSize: typography.size.sm, fontFamily: typography.family },
   removeBtn: { background: 'transparent', color: palette.textMuted, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xxs} ${spacing.sm}`, fontSize: typography.size.xs, cursor: 'pointer', height: 'fit-content' },
   addBtn: { background: palette.surfaceAlt, color: palette.text, border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, cursor: 'pointer' },
+  saveRow: { display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  saveBtn: { background: palette.primary, color: palette.textInverse, border: 'none', borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, cursor: 'pointer' },
+  saveBtnDisabled: { background: palette.borderStrong, color: palette.textInverse, border: 'none', borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.md}`, fontSize: typography.size.sm, fontWeight: typography.weight.semibold, cursor: 'not-allowed' },
+  saveOk: { fontSize: typography.size.sm, color: palette.clear, fontWeight: typography.weight.semibold },
+  saveError: { fontSize: typography.size.sm, color: palette.atRiskFg },
   insufficient: { background: palette.atRiskBg, border: `1px solid ${palette.atRisk}`, borderRadius: radius.sm, padding: spacing.md, color: palette.text, fontSize: typography.size.sm },
   missingList: { margin: `${spacing.xs} 0 0`, paddingLeft: spacing.lg },
   result: { display: 'flex', flexDirection: 'column', gap: spacing.sm, padding: spacing.md, background: palette.surfaceAlt, borderRadius: radius.sm, border: `1px solid ${palette.divider}` },

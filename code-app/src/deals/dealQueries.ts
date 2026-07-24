@@ -52,6 +52,11 @@ export interface DealDetail {
   loanPurpose?: string | undefined;
   loanTermMonths?: number | undefined;
   ownershipStructure?: string | undefined;
+  // Factory Arc Phase 4 — cr664_financialspreadinputs (a PR105-provisioned Memo/JSON column, not
+  // yet declared on the generated model). Opaque serialized GlobalCashFlowFormState; see
+  // globalCashFlow.ts for the shape and fail-closed parse. Optional for the same reason as the
+  // Phase 189D fields below: existing hand-built DealDetail fixtures keep compiling unedited.
+  financialSpreadInputsJson?: string | undefined;
 
   // Blocker-derivation inputs (rendered in <DealBlockers />)
   stageEntryDate: string | undefined;
@@ -378,6 +383,9 @@ function mapDealDetail(
     loanPurpose: raw['cr664_loanpurpose'] as string | undefined,
     loanTermMonths: raw['cr664_loantermmonths'] as number | undefined,
     ownershipStructure: raw['cr664_ownershipstructure'] as string | undefined,
+    // Factory Arc Phase 4 — plain Memo column not yet declared on the generated model (see the
+    // DealDetail field comment above), read via the raw retrieve row.
+    financialSpreadInputsJson: raw['cr664_financialspreadinputs'] as string | undefined,
 
     stageEntryDate: deal.cr664_stageentrydate,
     isClosed:
