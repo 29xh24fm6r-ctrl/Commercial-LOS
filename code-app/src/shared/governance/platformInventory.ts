@@ -389,20 +389,6 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     blockerKind: 'compound',
   },
   {
-    id: 'origination-loan-structure-fields',
-    label: 'Loan Purpose / Loan Term / Ownership Structure (deal-level)',
-    reason:
-      'PR 105 -- three fields (loan purpose, loan term in months, a deal-level ' +
-      'ownership/legal-structure classification distinct from cr664_guarantorstructure) ' +
-      'have no backing Dataverse column on cr664_loandeal. The governed write path ' +
-      '(src/deals/write/updateDealProfile.ts) already documents this exact gap and stays ' +
-      'out of scope pending an operator-authorized schema change -- see ' +
-      'docs/factory-arc/PR105_LOAN_STRUCTURE_SCHEMA_MIGRATION.md for the exact column ' +
-      'spec, create/verify/rollback scripts, and the ORIGINATION_LOAN_STRUCTURE_FIELDS_ENABLED ' +
-      'flag that stays false until the migration is applied and verified.',
-    blockerKind: 'schema',
-  },
-  {
     id: 'financial-spread-persistence',
     label: 'Global Cash Flow figures (deal-level persistence)',
     reason:

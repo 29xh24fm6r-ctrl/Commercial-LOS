@@ -536,3 +536,36 @@ describe('loadDealForBanker — Phase 189D CRM relationship enrichment', () => {
     }
   });
 });
+
+describe('loadDealForBanker — loan structure fields (Factory Arc Phase 3, PR105 columns)', () => {
+  it('maps cr664_loanpurpose / cr664_loantermmonths / cr664_ownershipstructure off the raw retrieve row', async () => {
+    dealGet.mockReturnValue(
+      Promise.resolve({
+        success: true,
+        data: dealRow({
+          cr664_loanpurpose: 'Acquisition',
+          cr664_loantermmonths: 60,
+          cr664_ownershipstructure: 'LLC',
+        }),
+      } as never),
+    );
+    const result = await loadDealForBanker('deal-1', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.loanPurpose).toBe('Acquisition');
+      expect(result.deal.loanTermMonths).toBe(60);
+      expect(result.deal.ownershipStructure).toBe('LLC');
+    }
+  });
+
+  it('leaves the three fields undefined when the live row does not carry them (columns not yet applied, or applied but blank)', async () => {
+    dealGet.mockReturnValue(Promise.resolve({ success: true, data: dealRow() } as never));
+    const result = await loadDealForBanker('deal-1', 'banker-A');
+    expect(result.kind).toBe('ready');
+    if (result.kind === 'ready') {
+      expect(result.deal.loanPurpose).toBeUndefined();
+      expect(result.deal.loanTermMonths).toBeUndefined();
+      expect(result.deal.ownershipStructure).toBeUndefined();
+    }
+  });
+});

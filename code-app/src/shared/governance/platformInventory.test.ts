@@ -115,6 +115,11 @@ describe('platformInventory — not wired', () => {
     // borrower-update LIVE Send path landed (GOVERNED_WRITES.deal-
     // borrower-update-email via Office365OutlookService.SendEmailV2).
     expect(ids.has('email-delivery')).toBe(false);
+    // Factory Arc Phase 3: origination-loan-structure-fields NOT_WIRED was
+    // removed when loan purpose / loan term / ownership structure landed on
+    // the governed updateDealProfile.ts write path against the live PR105
+    // columns (docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md).
+    expect(ids.has('origination-loan-structure-fields')).toBe(false);
     expect(ids.has('document-upload')).toBe(true);
     expect(ids.has('new-deal-create')).toBe(true);
     expect(ids.has('ai-generation')).toBe(true);
