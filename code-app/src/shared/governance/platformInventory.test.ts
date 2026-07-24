@@ -242,6 +242,15 @@ describe('platformInventory — not wired', () => {
     expect(entry.blockerKind).toBe('schema');
   });
 
+  it('funding-authorization-persistence reason points to its own SDK-regeneration escalation runbook, not just the Loan Deal one (Factory Arc Phase 10)', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'funding-authorization-persistence')!;
+    // PR114's escalation runbook only ever covered cr664_loandeals -- an operator following it
+    // alone would miss that this hand-authored table needs the same regen-and-diff treatment.
+    expect(entry.reason).toMatch(/PR122_FUNDING_AUTHORIZATION_SDK_REGENERATION_ESCALATION/);
+    expect(entry.reason).toMatch(/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION/);
+    expect(entry.blockerKind).toBe('schema');
+  });
+
   it('stage-reference-data-source stays about cr664_stagereferences (Advance Stage), not the New Deal references', () => {
     const entry = NOT_WIRED.find((n) => n.id === 'stage-reference-data-source')!;
     // The New Deal references (cr664_dealstagereferences) are now registered;
