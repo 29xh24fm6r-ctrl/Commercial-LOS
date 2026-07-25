@@ -170,12 +170,37 @@ beforeEach(() => {
   loadBankerPipelineMock.mockResolvedValue([]);
 });
 
+/**
+ * Factory Arc Phase 7 changed Active Deals to land on the pipeline list, with
+ * New Deal collapsed behind its own distinct action (never auto-expanded) —
+ * see BankerShell.tsx's `newDealPanelOpen` / `data-banker-new-deal-toggle`.
+ * The real user journey this suite drives is therefore: land on Active Deals,
+ * THEN take the separate New Deal action, and only then does the create form
+ * (stubbed here as `stub-create-deal`) appear. The toggle carries no
+ * `aria-label`, so its accessible name is its own visible text ("+ New Deal"),
+ * distinct from the header shortcut's `aria-label="Create deal"` — an
+ * accessible role/name query unambiguously reaches the in-tab action instead
+ * of falling back to a `data-*` selector.
+ */
 async function openActiveDealsTab() {
   fireEvent.click(screen.getByRole('button', { name: /^Active Deals$/i }));
+  fireEvent.click(await screen.findByRole('button', { name: '+ New Deal' }));
   await screen.findByTestId('stub-create-deal');
 }
 
 describe('BankerShell — post-create confirm-then-navigate', () => {
+  it('Factory Arc Phase 7 regression: Active Deals alone shows the pipeline, not the create form; New Deal is a distinct action that reveals it', async () => {
+    loadBankerPipelineMock.mockResolvedValue([]);
+    renderShell();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Active Deals$/i }));
+    expect(screen.getByTestId('personal-pipeline-stub')).toBeInTheDocument();
+    expect(screen.queryByTestId('stub-create-deal')).not.toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole('button', { name: '+ New Deal' }));
+    await screen.findByTestId('stub-create-deal');
+  });
+
   it('navigates to the exact created deal once the readback confirms it (first read already has it)', async () => {
     loadBankerPipelineMock.mockResolvedValue([pipelineDeal('deal-new-1')]);
     renderShell();
