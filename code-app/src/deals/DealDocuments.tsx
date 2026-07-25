@@ -210,6 +210,7 @@ export function DealDocuments({ readOnly = false }: DealDocumentsProps = {}) {
       actorEmail: banker.email,
       reviewerName: banker.fullName,
       reviewNote: note,
+      receivedByCoreUserId: pendingReviewDoc.receivedByCoreUserId,
     });
     refresh('after-document-review');
     return outcome;

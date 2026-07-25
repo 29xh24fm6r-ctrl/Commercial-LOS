@@ -3,6 +3,7 @@ import type { DealDocument } from './dealDocumentQueries';
 import type { MarkDocumentReviewedOutcome } from './documentActions';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import { mapDocumentWriteError } from './documentReviewErrorMapping';
 
 interface ReviewDocumentModalProps {
   doc: DealDocument;
@@ -180,7 +181,8 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReviewedOutcome }) {
           </p>
         </div>
       );
-    case 'review-failed':
+    case 'review-failed': {
+      const mapped = mapDocumentWriteError(outcome.docError, outcome.correlationId);
       return (
         <div
           role="alert"
@@ -189,14 +191,29 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReviewedOutcome }) {
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Could not record review
           </div>
-          <p style={styles.outcomeDetail}>
-            The document is unchanged. A Failed audit event was recorded best-effort.
-            Refresh and try again.
-          </p>
-          <p style={styles.outcomeDetailMono}>{outcome.docError}</p>
+          <p style={styles.outcomeDetail}>{mapped.safeMessage}</p>
         </div>
       );
-    case 'governance-partial':
+    }
+    case 'segregation-of-duties':
+      return (
+        <div
+          role="alert"
+          style={{ ...styles.outcomeBox, background: palette.atRiskBg, borderColor: palette.atRisk }}
+        >
+          <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
+            Cannot record review
+          </div>
+          <p style={styles.outcomeDetail}>{outcome.reason}</p>
+        </div>
+      );
+    case 'governance-partial': {
+      const auditMapped = outcome.auditError
+        ? mapDocumentWriteError(outcome.auditError, outcome.correlationId)
+        : undefined;
+      const timelineMapped = outcome.timelineError
+        ? mapDocumentWriteError(outcome.timelineError, outcome.correlationId)
+        : undefined;
       return (
         <div
           role="alert"
@@ -209,18 +226,15 @@ function OutcomeBlock({ outcome }: { outcome: MarkDocumentReviewedOutcome }) {
             The reviewer was recorded on the checklist row, but one or both
             governance writes failed. The review is not fully governed.
           </p>
-          {outcome.auditError && (
-            <p style={styles.outcomeDetailMono}>Audit: {outcome.auditError}</p>
-          )}
-          {outcome.timelineError && (
-            <p style={styles.outcomeDetailMono}>Timeline: {outcome.timelineError}</p>
-          )}
+          {auditMapped && <p style={styles.outcomeDetailMono}>Audit: {auditMapped.safeMessage}</p>}
+          {timelineMapped && <p style={styles.outcomeDetailMono}>Timeline: {timelineMapped.safeMessage}</p>}
           <p style={styles.outcomeDetail}>
             Action: capture this message and ask the AuditEvent / TimelineEvent owner
             to investigate. Do not retry — the document review is already recorded.
           </p>
         </div>
       );
+    }
     case 'unknown':
       return (
         <div

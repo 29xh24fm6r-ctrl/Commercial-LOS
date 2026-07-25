@@ -25,13 +25,18 @@
     cr664_waiverreason           Memo   The required justification for a waiver (never optional -
                                          performDocumentRequirementAction refuses a waive with no
                                          reason before this column is ever written to).
+    cr664_receivedby           Lookup -> cr664_user (NOT systemuser). Production Remediation Factory
+                                         Arc Phase 1 / N-16: the durable "who received it" fact that
+                                         Review's segregation-of-duties check compares its own
+                                         resolved reviewer identity against - the same reviewer must
+                                         never also be the receiver. See rationale below.
 
   REQUIREMENT STATUS OPTION VALUES (must match REQUIREMENT_STATUS_CODES exactly):
     788190100 Not Assessed   788190101 Outstanding   788190102 Requested
     788190103 Under Review   788190104 Reviewed
     788190105 Waived         788190106 Not Applicable
 
-  LOOKUP TARGET RATIONALE (cr664_acknowledgedby -> cr664_user, not systemuser):
+  LOOKUP TARGET RATIONALE (cr664_acknowledgedby / cr664_receivedby -> cr664_user, not systemuser):
     Same rationale as cr664_uploadedby in create-document-checklist-file-columns.ps1: binding a
     REQUIRED actor-identity lookup to /systemusers(...) was REJECTED live in a real production
     incident on this exact table family (see src/deals/newDealAuditActorResolver.ts's header). This
@@ -98,6 +103,14 @@ $LookupRelationship = @{
   fromColumn = 'cr664_AcknowledgedBy'
   toTable    = 'cr664_user'
 }
+# N-16 (Production Remediation Factory Arc Phase 1) - the durable receiver identity Review's
+# segregation-of-duties check reads. Same toTable rationale as $LookupRelationship above.
+$ReceivedByLookupRelationship = @{
+  schemaName = 'cr664_documentchecklist_receivedby_cr664_user'
+  fromTable  = $TableLogical
+  fromColumn = 'cr664_ReceivedBy'
+  toTable    = 'cr664_user'
+}
 
 Write-Host '== create-document-requirement-lifecycle-fields :: provision cr664_documentchecklist requirement-lifecycle columns =='
 Write-Host ("Mode: {0}" -f $(if ($Apply) { 'APPLY (live, gated)' } else { 'DRY-RUN (default, read-only)' }))
@@ -145,7 +158,7 @@ $targetTableExists = Test-DataverseTable $orgUrl $token $LookupRelationship.toTa
 if ($targetTableExists -eq $true) {
   Write-Status $LookupRelationship.toTable 'PASS' 'lookup target table exists'
 } elseif ($targetTableExists -eq $false) {
-  Write-Status $LookupRelationship.toTable 'BLOCKED' 'lookup target table cr664_user does not exist in this org - cr664_acknowledgedby cannot be created. Investigate before proceeding.'
+  Write-Status $LookupRelationship.toTable 'BLOCKED' 'lookup target table cr664_user does not exist in this org - cr664_acknowledgedby / cr664_receivedby cannot be created. Investigate before proceeding.'
 } else {
   Write-Status $LookupRelationship.toTable 'UNKNOWN' 'could not verify lookup target table (no token / transient error).'
 }
@@ -239,9 +252,11 @@ foreach ($col in $ScalarColumns) {
   $created++
 }
 
-# --- Lookup relationship (cr664_acknowledgedby -> cr664_user), via the shared helper. ---
+# --- Lookup relationships (cr664_acknowledgedby / cr664_receivedby -> cr664_user), via the shared helper. ---
 $lookupResult = New-DataverseRelationshipIfMissing -RelDef $LookupRelationship -OrgUrl $orgUrl -Token $token -Apply:$Apply.IsPresent
 if ($lookupResult -eq 'created') { $created++ }
+$receivedByLookupResult = New-DataverseRelationshipIfMissing -RelDef $ReceivedByLookupRelationship -OrgUrl $orgUrl -Token $token -Apply:$Apply.IsPresent
+if ($receivedByLookupResult -eq 'created') { $created++ }
 
 # --- Publish - only if something was actually created this run. ---
 if ($Apply -and $created -gt 0) {
@@ -279,4 +294,4 @@ if ($Apply -or $token) {
 }
 
 Write-Host ("EVIDENCE: [document-requirement-lifecycle][provision] mode={0} created={1} ts={2}" -f $(if ($Apply) { 'apply' } else { 'dry-run' }), $created, (Get-Date -Format o))
-Write-Host 'Next: regenerate the SDK (pac code add-data-source -a dataverse -t cr664_documentchecklists), diff generated changes against src/shared/governance/multiSelectPicklistFieldShapeContract.test.ts, delete src/deals/documentRequirementFields.ts once cr664_requirementstatus/cr664_required/cr664_acknowledged/cr664_acknowledgedby/cr664_acknowledgeddate/cr664_revieweddate/cr664_waived/cr664_waiverreason are part of the generated model, then exercise DocumentRequirementWorkspace against the live schema before any wider rollout.'
+Write-Host 'Next: regenerate the SDK (pac code add-data-source -a dataverse -t cr664_documentchecklists), diff generated changes against src/shared/governance/multiSelectPicklistFieldShapeContract.test.ts, delete src/deals/documentRequirementFields.ts once cr664_requirementstatus/cr664_required/cr664_acknowledged/cr664_acknowledgedby/cr664_acknowledgeddate/cr664_revieweddate/cr664_waived/cr664_waiverreason/cr664_receivedby are part of the generated model, then exercise DocumentRequirementWorkspace against the live schema before any wider rollout.'

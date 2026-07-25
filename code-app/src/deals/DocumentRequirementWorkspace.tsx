@@ -14,6 +14,7 @@ import { performDocumentRequirementAction, type DocumentRequirementActionOutcome
 import { buildLiveDocumentRequirementActionDeps } from './documentRequirementLiveDeps';
 import { deriveBankerIdentityGatedAvailability } from './bankerIdentityGatedAvailability';
 import { buildDocumentChecklistUiEnableReadiness } from './documentChecklistUiEnableReadiness';
+import { mapDocumentWriteError } from './documentReviewErrorMapping';
 
 /**
  * The real banker-managed underwriting document requirement workspace —
@@ -100,6 +101,7 @@ export function DocumentRequirementWorkspace({ dealId, deal, banker, onAfterActi
         actorEmail: banker?.email,
         reviewerName: extra?.reviewerName,
         waiverReason: extra?.waiverReason,
+        receivedByCoreUserId: row.receivedBy,
       },
       banker?.systemUserId ? buildLiveDocumentRequirementActionDeps() : undefined,
     );
@@ -270,10 +272,12 @@ function describeOutcome(outcome: DocumentRequirementActionOutcome): string {
       return outcome.reason;
     case 'unauthorized':
       return outcome.message;
+    case 'segregation-of-duties':
+      return outcome.reason;
     case 'write-failed':
-      return `Could not save: ${outcome.error}`;
+      return mapDocumentWriteError(outcome.error, outcome.correlationId).safeMessage;
     case 'governance-partial':
-      return `Saved, but governance logging failed (audit: ${outcome.auditError ?? 'ok'}, timeline: ${outcome.timelineError ?? 'ok'}). Do not retry.`;
+      return `Saved, but governance logging failed. Do not retry. Reference: ${outcome.correlationId}.`;
     case 'dependency_not_ready':
       return outcome.detail;
     case 'unknown':

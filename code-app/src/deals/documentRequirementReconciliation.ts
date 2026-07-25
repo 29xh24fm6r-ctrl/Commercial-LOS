@@ -30,6 +30,8 @@ export interface LiveDocumentChecklistRow {
   readonly acknowledgedDate: string | undefined;
   readonly requestedDate: string | undefined;
   readonly receivedDate: string | undefined;
+  /** Optional so existing hand-built `LiveDocumentChecklistRow` fixtures keep compiling without edits. */
+  readonly receivedBy?: string | undefined;
   readonly reviewedDate: string | undefined;
   readonly reviewer: string | undefined;
   readonly waived: boolean | undefined;
@@ -64,6 +66,7 @@ function toRequirementRow(row: LiveDocumentChecklistRow): DocumentRequirementRow
     acknowledgedDate: row.acknowledgedDate,
     requestedDate: row.requestedDate,
     receivedDate: row.receivedDate,
+    receivedBy: row.receivedBy,
     reviewedDate: row.reviewedDate,
     reviewer: row.reviewer,
     waived: row.waived ?? status === 'waived',
@@ -83,6 +86,7 @@ function virtualRow(def: RequiredDocumentDefinition): DocumentRequirementRow {
     acknowledgedDate: undefined,
     requestedDate: undefined,
     receivedDate: undefined,
+    receivedBy: undefined,
     reviewedDate: undefined,
     reviewer: undefined,
     waived: false,

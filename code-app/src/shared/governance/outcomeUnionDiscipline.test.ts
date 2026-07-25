@@ -370,10 +370,21 @@ describe('Phase 47 — governance/audit failure branch field naming', () => {
 // returned to the caller. Phase 47 pins that choice. A future phase
 // that decides to surface correlationId in outcomes must update this
 // test explicitly.
+//
+// EXCEPTION (Production Remediation Factory Arc Phase 1 / PR 132 / N-21):
+// MarkDocumentReviewedOutcome's `review-failed` / `governance-partial`
+// branches now carry `correlationId`. Business-safe error mapping
+// (documentReviewErrorMapping.ts) always shows a fixed generic message to
+// the banker and never the raw transport error — the correlation id is the
+// only real, non-fabricated reference a banker can hand to support, so it
+// must be surfaced. See docs/production-remediation/PR132_DOCUMENT_REVIEW_LIFECYCLE.md.
 // ---------------------------------------------------------------------------
+
+const CORRELATION_ID_SURFACED_EXCEPTIONS: ReadonlySet<string> = new Set(['MarkDocumentReviewedOutcome']);
 
 describe('Phase 47 — correlationId is NOT surfaced in any outcome branch', () => {
   for (const mapping of uniqueOutcomeTargets()) {
+    if (CORRELATION_ID_SURFACED_EXCEPTIONS.has(mapping.typeName)) continue;
     it(`${mapping.typeName} does not include a correlationId field`, () => {
       const src = readSource(mapping.file);
       const body = extractOutcomeTypeBody(src, mapping.typeName);
@@ -385,6 +396,14 @@ describe('Phase 47 — correlationId is NOT surfaced in any outcome branch', () 
       ).not.toMatch(/\bcorrelationId\s*:/);
     });
   }
+
+  it('MarkDocumentReviewedOutcome intentionally surfaces correlationId (documented exception above)', () => {
+    const mapping = uniqueOutcomeTargets().find((m) => m.typeName === 'MarkDocumentReviewedOutcome');
+    expect(mapping).toBeDefined();
+    const src = readSource(mapping!.file);
+    const body = extractOutcomeTypeBody(src, mapping!.typeName);
+    expect(body).toMatch(/\bcorrelationId\s*:/);
+  });
 });
 
 // ---------------------------------------------------------------------------
