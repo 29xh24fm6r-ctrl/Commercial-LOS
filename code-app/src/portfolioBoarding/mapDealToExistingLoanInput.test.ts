@@ -49,7 +49,7 @@ describe('mapDealToExistingLoanInput', () => {
     expect(input!.authorized).toBe(true);
   });
 
-  it('never invents fields the deal does not carry (e.g. no risk rating, no booking date)', () => {
+  it('never invents fields the deal does not carry (e.g. no risk rating when none was recorded, no booking date)', () => {
     const input = mapDealToExistingLoanInput({
       deal: deal(),
       authorized: true,
@@ -59,6 +59,29 @@ describe('mapDealToExistingLoanInput', () => {
     expect(input!.currentRiskRating).toBeUndefined();
     expect(input!.bookingDate).toBeUndefined();
     expect(input!.maturityDate).toBeUndefined();
+  });
+
+  // PR A remediation — deriveRiskRatingRecordFromDeal already computes this fact (it's what gates
+  // UNDERWRITING:risk_rating) and ExistingLoanInput already has a matching currentRiskRating field;
+  // they were simply never wired together, the same shape as the N-25 term/purpose gap.
+  it('PR A: maps the deal-side risk rating onto the boarded-loan input when one was recorded', () => {
+    const input = mapDealToExistingLoanInput({
+      deal: deal({ riskRatingInputsJson: JSON.stringify({ ratingValue: '4 - Watch' }) }),
+      authorized: true,
+      actorEmail: 'banker@oldglorybank.com',
+      actorSystemUserId: 'sys-1',
+    });
+    expect(input!.currentRiskRating).toBe('4 - Watch');
+  });
+
+  it('PR A: leaves risk rating undefined rather than fabricated when the deal has malformed/blank rating JSON', () => {
+    const input = mapDealToExistingLoanInput({
+      deal: deal({ riskRatingInputsJson: 'not-json' }),
+      authorized: true,
+      actorEmail: 'banker@oldglorybank.com',
+      actorSystemUserId: 'sys-1',
+    });
+    expect(input!.currentRiskRating).toBeUndefined();
   });
 
   it('returns null (skip auto-boarding) when the deal has no client/borrower name — never fabricates one', () => {

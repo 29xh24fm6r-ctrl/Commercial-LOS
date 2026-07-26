@@ -22,6 +22,7 @@
 
 import type { DealDetail } from '../deals/dealQueries';
 import type { ExistingLoanInput } from './existingLoanEntryAdapter';
+import { deriveRiskRatingRecordFromDeal } from '../workflow/underwritingDeepFacts';
 
 export interface MapDealToExistingLoanInputArgs {
   readonly deal: DealDetail;
@@ -57,6 +58,11 @@ export function mapDealToExistingLoanInput(args: MapDealToExistingLoanInputArgs)
     // it is not mapped here (see the PR doc's remaining limitations).
     termMonths: deal.loanTermMonths,
     purpose: deal.loanPurpose,
+    // Production Remediation Factory Arc PR A — the deal side already computes a durable risk
+    // rating (deriveRiskRatingRecordFromDeal, the same fact that gates UNDERWRITING:risk_rating)
+    // and ExistingLoanInput already has a matching currentRiskRating target field
+    // (existingLoanEntryAdapter.ts); this was simply never wired, the same shape as N-25.
+    currentRiskRating: deriveRiskRatingRecordFromDeal(deal)?.ratingValue,
     authorized: args.authorized,
     actorEmail: args.actorEmail,
     actorSystemUserId: args.actorSystemUserId,
