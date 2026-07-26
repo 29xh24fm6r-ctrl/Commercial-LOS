@@ -16,6 +16,8 @@ import { createDataverseExecutedDocumentAttestationStore } from '../closing/exec
 import type { ExecutedDocumentAttestationRecord } from '../workflow/executedDocumentAttestationTypes';
 import { createDataverseBookingQcCheckStore } from '../closing/bookingQcCheckStore';
 import type { BookingQcCheckRecord } from '../workflow/bookingQcCheckTypes';
+import { createDataverseAdverseActionRecordStore } from '../creditApproval/adverseActionRecordStore';
+import type { AdverseActionRecord } from '../workflow/adverseActionRecordTypes';
 import { loadBoardingHandoffForDeal } from './loadBoardingHandoffForDeal';
 import type { BoardingHandoffReadiness } from '../workflow/boardingHandoffReadiness';
 import {
@@ -76,6 +78,8 @@ export type DealDataKey =
   | 'after-executed-document-attestation-submitted'
   | 'bookingQcChecks'
   | 'after-booking-qc-check-submitted'
+  | 'adverseActionRecords'
+  | 'after-adverse-action-record-submitted'
   | 'boardingHandoff';
 
 export interface DealData {
@@ -154,6 +158,17 @@ export interface DealData {
    * closed as unmet.
    */
   bookingQcChecks?: AsyncResult<readonly BookingQcCheckRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream J. The deal's Adverse Action Record history, feeding
+   * DECLINE:adverse_action (loanWorkflowRequirementEngine.ts). Documents that the notification/
+   * documentation obligation `canonicalStageTransition.ts` flags on every DECLINE was completed —
+   * see adverseActionRecordTypes.ts's header for this record's deliberately narrow scope.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `bookingQcChecks` above); the real DealDataProvider ALWAYS supplies it. A test
+   * double omitting it is equivalent to an unresolved fact — the requirement fails closed as unmet.
+   */
+  adverseActionRecords?: AsyncResult<readonly AdverseActionRecord[]>;
   /**
    * Final LOS Completion arc — Workstream H. The deal's real portfolio boarded-loan handoff
    * evidence (reconciled against the deal's own stage), feeding BOARDED:boarded_loan_record and
@@ -238,6 +253,9 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
     AsyncResult<readonly ExecutedDocumentAttestationRecord[]>
   >({ kind: 'loading' });
   const [bookingQcChecks, setBookingQcChecks] = useState<AsyncResult<readonly BookingQcCheckRecord[]>>({
+    kind: 'loading',
+  });
+  const [adverseActionRecords, setAdverseActionRecords] = useState<AsyncResult<readonly AdverseActionRecord[]>>({
     kind: 'loading',
   });
   const [boardingHandoff, setBoardingHandoff] = useState<AsyncResult<BoardingHandoffReadiness>>({
@@ -355,6 +373,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
     bind(setBookingQcChecks, p);
     return p;
   }
+  function reloadAdverseActionRecords(): Promise<unknown> {
+    setAdverseActionRecords({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadAdverseActionRecords', async () => {
+      const res = await createDataverseAdverseActionRecordStore().listRecordsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load adverse action records.');
+      return res.records ?? [];
+    });
+    bind(setAdverseActionRecords, p);
+    return p;
+  }
   function reloadBoardingHandoff(): Promise<unknown> {
     setBoardingHandoff({ kind: 'loading' });
     const p = timed(PERF_GROUP, 'loadBoardingHandoff', () => loadBoardingHandoffForDeal(deal.id, deal.stage));
@@ -385,6 +413,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
       reloadConditionVerifications(),
       reloadExecutedDocumentAttestations(),
       reloadBookingQcChecks(),
+      reloadAdverseActionRecords(),
       reloadBoardingHandoff(),
     ]).then(() => {
       const endedAt =
@@ -555,6 +584,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         reloadBookingQcChecks();
         reloadActivity();
         break;
+      case 'adverseActionRecords':
+        reloadAdverseActionRecords();
+        break;
+      case 'after-adverse-action-record-submitted':
+        // Final LOS Completion arc — Workstream J: submitAdverseActionAction writes both the
+        // durable adverse action record and a best-effort NoteLogged timeline event, so both must
+        // refresh for the Deal Workspace to see the new documentation state and its activity.
+        reloadAdverseActionRecords();
+        reloadActivity();
+        break;
       case 'boardingHandoff':
         reloadBoardingHandoff();
         break;
@@ -576,6 +615,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         conditionVerifications,
         executedDocumentAttestations,
         bookingQcChecks,
+        adverseActionRecords,
         boardingHandoff,
         refresh,
         applyVerifiedDealPatch,

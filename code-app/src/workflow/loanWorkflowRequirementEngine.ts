@@ -30,6 +30,7 @@ import { evaluateCommitmentReadiness, type CommitmentRecord } from './commitment
 import { evaluateConditionVerificationReadiness, type ConditionVerificationRecord } from './conditionVerificationTypes';
 import { evaluateExecutedDocumentAttestationReadiness, type ExecutedDocumentAttestationRecord } from './executedDocumentAttestationTypes';
 import { evaluateBookingQcReadiness, type BookingQcCheckRecord } from './bookingQcCheckTypes';
+import { evaluateAdverseActionReadiness, type AdverseActionRecord } from './adverseActionRecordTypes';
 import type { BoardingHandoffReadiness } from './boardingHandoffReadiness';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type {
@@ -117,6 +118,14 @@ export interface WorkflowRequirementFacts {
    * closed as unmet in either case, never fabricated as met.
    */
   readonly bookingQcChecks?: readonly BookingQcCheckRecord[];
+  /**
+   * Final LOS Completion arc (Workstream J) — the deal's Adverse Action Record history (supplied by
+   * a loader; see DealDataProvider.tsx's `adverseActionRecords`). Absent/empty means either the
+   * records haven't loaded yet or the obligation genuinely hasn't been documented yet —
+   * DECLINE:adverse_action fails closed as unmet in either case, never fabricated as met. Only
+   * meaningful once the deal is actually DECLINED (see deriveTransitionReadiness below).
+   */
+  readonly adverseActionRecords?: readonly AdverseActionRecord[];
   /**
    * Final LOS Completion arc (Workstream H) — the deal's real portfolio boarded-loan handoff
    * evidence, reconciled against the deal's own stage (see boardingHandoffReadiness.ts /
@@ -449,13 +458,25 @@ export function deriveTransitionReadiness(
   const policy = evaluateCanonicalStageTransition({ request, ordering: nonForward.ordering, authorized: nonForward.authorized });
 
   // Build the requirement list for display: the checkable reason requirement gets a real met/unmet
-  // verdict from the policy outcome; the still-untracked advisory item (authorization/adverse-action)
-  // stays 'untracked' + 'recommended' (visible, never blocking — see the registry's severity override).
+  // verdict from the policy outcome; DECLINE:adverse_action (Workstream J) gets a real verdict from
+  // the durable Adverse Action Record, when one could exist (only once the deal is actually
+  // DECLINED — before that, a decline hasn't happened yet, so there is nothing to document, and the
+  // item correctly stays a non-blocking 'unmet' advisory rather than a fabricated 'met'). The
+  // remaining still-untracked advisory item (RETURN:authorization — see this function's own header
+  // comment on why that stays out of scope) stays 'untracked' + 'recommended' (visible, never
+  // blocking — see the registry's severity override).
   const reasonReqId = `${scope}:reason`;
+  const adverseActionReqId = `${scope}:adverse_action`;
   const requirements = registryReqs.map((r) => {
     if (r.id === reasonReqId) {
       const reasonMissing = !policy.allowed && /reason/i.test(policy.reason);
       return evaluated(r, reasonMissing ? 'unmet' : 'met', r.blockerReason);
+    }
+    if (r.id === adverseActionReqId) {
+      const alreadyDeclined = nonForward.currentStatus === 'DECLINED';
+      const readiness = evaluateAdverseActionReadiness(facts.adverseActionRecords, facts.deal.id);
+      const met = alreadyDeclined && readiness.adverseActionDocumented.met;
+      return evaluated(r, met ? 'met' : 'unmet', met ? '' : r.blockerReason);
     }
     return evaluated(r, 'untracked', r.blockerReason);
   });

@@ -297,11 +297,21 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
  * `docs/governance/CANONICAL_TRANSITION_POLICY_CONTRACT.md` §3.2-3.4/§10). The reason facts below are
  * genuinely checkable today (the caller supplies the reason text directly — no missing Dataverse
  * record blocks them), so they are authored as real (`tracked: true`) requirements, not `untracked()`
- * placeholders. `RETURN:authorization` and `DECLINE:adverse_action` remain `untracked` — this app has
- * no authorization tier beyond identity resolution (contract §5) and no adverse-action completion
- * tracking yet — but are demoted to `recommended` (visible, non-blocking) via
- * `NON_FORWARD_SEVERITY_OVERRIDE` below so they inform without stranding a now-live path on a check
- * this app cannot yet perform (mirrors `CREDIT_SEVERITY_OVERRIDE`'s established pattern above).
+ * placeholders. Both remain `recommended` (visible, non-blocking) via `NON_FORWARD_SEVERITY_OVERRIDE`
+ * below — a DECLINE/RETURN is a live, terminal-or-corrective action already; neither item should ever
+ * strand it (mirrors `CREDIT_SEVERITY_OVERRIDE`'s established pattern above):
+ *
+ *   - `RETURN:authorization` remains `untracked` — this app deliberately has no authorization tier
+ *     beyond identity resolution, and the contract's §5 explicitly rules out inventing one for this
+ *     initiative ("out of scope... left for a future, separately-ratified revision"). This is a
+ *     ratified design decision, not a missing-infrastructure gap (see Final LOS Completion arc
+ *     Workstream J's disposition in docs/final-completion/FINAL_REMAINING_GAP_LEDGER.md).
+ *   - `DECLINE:adverse_action` is flipped `tracked: true` by Final LOS Completion arc Workstream J:
+ *     `adverseActionRecordStore.ts` / `submitAdverseActionAction.ts` now provide a real, durable,
+ *     deal-scoped Adverse Action Record (`cr664_adverseactionrecord`, see
+ *     scripts/schema-migrations/final-arc-adverse-action-record/), evaluated via
+ *     `evaluateAdverseActionReadiness` in `adverseActionRecordTypes.ts` and wired into
+ *     `deriveTransitionReadiness` below.
  */
 const NON_FORWARD_SEVERITY_OVERRIDE: Readonly<Record<string, RequirementSeverity>> = Object.freeze({
   'RETURN:authorization': 'recommended',
@@ -337,7 +347,7 @@ const NON_FORWARD_REQUIREMENTS: readonly CanonicalRequirement[] = [
   checkableNonForward('RETURN:reason', 'RETURN', 'task', 'Return reason', 'Tasks', 'banker'),
   { ...untracked('RETURN:authorization', 'RETURN', 'task', 'Authorized actor for return', 'Tasks', 'banker', 'review_record', 'no return-authorization tier beyond identity resolution exists yet (governance contract §5)'), severity: NON_FORWARD_SEVERITY_OVERRIDE['RETURN:authorization'] },
   checkableNonForward('DECLINE:reason', 'DECLINE', 'adverse_action', 'Decline reason code', 'Approval', 'credit_officer'),
-  { ...untracked('DECLINE:adverse_action', 'DECLINE', 'adverse_action', 'Adverse-action requirement tracked', 'Approval', 'credit_officer', 'review_record', 'adverse-action notification/documentation workflow not yet implemented (governance contract §3.3)'), severity: NON_FORWARD_SEVERITY_OVERRIDE['DECLINE:adverse_action'] },
+  { ...tracked('DECLINE:adverse_action', 'DECLINE', 'adverse_action', 'Adverse-action documentation recorded', 'Approval', 'credit_officer', 'review_record', 'cr664_adverseactionrecord', 'The adverse-action notification/documentation obligation for this decline has not been recorded.'), severity: NON_FORWARD_SEVERITY_OVERRIDE['DECLINE:adverse_action'] },
   checkableNonForward('WITHDRAW:reason', 'WITHDRAW', 'task', 'Withdrawal reason', 'Tasks', 'banker'),
 ];
 

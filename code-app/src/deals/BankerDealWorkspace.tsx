@@ -36,6 +36,7 @@ import { DealCommitmentPanelConnected } from './DealCommitmentPanelConnected';
 import { DealConditionVerificationPanelConnected } from './DealConditionVerificationPanelConnected';
 import { DealExecutedDocumentAttestationPanelConnected } from './DealExecutedDocumentAttestationPanelConnected';
 import { DealBookingQcPanelConnected } from './DealBookingQcPanelConnected';
+import { DealAdverseActionPanelConnected } from './DealAdverseActionPanelConnected';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
 import { DealPortfolioBoardingStatusPanel } from '../workflow/DealPortfolioBoardingStatusPanel';
 import { DealWorkflowRoutingPanel } from '../workflow/DealWorkflowRoutingPanel';
@@ -233,6 +234,21 @@ export function BankerDealWorkspace({
                     alongside the existing Advance control (see DealGovernedTransitionPanel's doc
                     comment for why Advance itself stays on DealStageProgressionCard). */}
                 <DealGovernedTransitionPanel />
+              </div>
+              {/* Final LOS Completion arc (Workstream J) — durable Adverse Action Record. Renders
+                  nothing unless this deal's status is DECLINED (see the panel's own doc comment). */}
+              <div
+                id="adverse-action"
+                data-deal-card="adverse-action"
+                data-cockpit-anchor="adverse-action"
+              >
+                <DealAdverseActionPanelConnected
+                  dealId={deal.id}
+                  dealStatus={deal.status}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                />
               </div>
               {/* Stage reconciliation: the legacy Loan Workflow Command Center
                   (11-stage Opportunity/Qualification spine) was retired here so the

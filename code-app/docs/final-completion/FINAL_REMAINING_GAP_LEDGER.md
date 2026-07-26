@@ -31,8 +31,8 @@ certification package (PR B).
 | 255 | `CLOSING_FUNDING:booking_qc` | Booking QC record | **Does not exist** |
 | 257 | `BOARDED:boarded_loan_record` | Boarded loan as source of truth | Boarding writes are real and live (`buildLiveStageAdvanceDeps.ts` `onDealBoarded`) but not yet the registry's source of truth |
 | 258 | `BOARDED:servicing_owner` | Servicing owner assignment | Not tracked anywhere |
-| 306 | `RETURN:authorization` | Return authorization tier | Only identity resolution exists, no tiered authority |
-| 308 | `DECLINE:adverse_action` | Adverse action workflow | Does not exist |
+| 306 | `RETURN:authorization` | Return authorization tier | Only identity resolution exists, no tiered authority. **Workstream J: stays untracked by design** — governance contract §5 explicitly rules out inventing a new tier for this initiative; see §14. |
+| 308 | `DECLINE:adverse_action` | Adverse action workflow | **Closed by Workstream J** — durable Adverse Action Record now tracks completion (SENT/WAIVED); see §14. |
 
 Already `tracked()` and **not to be rebuilt**: `UNDERWRITING:risk_rating` (233), `UNDERWRITING:uw_recommendation` (234), `CLOSING_FUNDING:funds_disbursed` (254).
 
@@ -95,9 +95,9 @@ arc introduced — Workstream M adds one new authoritative model without retirin
 Full table already produced in the required-first-response report (item 8); repeated here as the
 authoritative source list for Workstream K:
 
-- **Missing entirely:** risk rating assigned/finalized, UW recommendation finalized, commitment issued/accepted, condition satisfied/waived, closing document generated, executed document verified, booking QC completed, boarded-loan-created (dedicated event — only a generic `StageChanged` fires today), servicing-owner-assigned, adverse action.
+- **Missing entirely:** risk rating assigned/finalized, UW recommendation finalized, commitment issued/accepted, condition satisfied/waived, closing document generated, executed document verified, booking QC completed, boarded-loan-created (dedicated event — only a generic `StageChanged` fires today), servicing-owner-assigned. (Adverse action is now closed — see §13.)
 - **Built but not wired (payload shape only):** funding requested/first-approval/second-approval/rejected/revoked — `fundingTimeline.ts` explicitly documents this as "not wired... no dedicated event type exists on the schema yet."
-- **Wired but dead code (unmounted UI):** credit-approval decline, return authorization — both write through `buildLiveCanonicalTransitionDeps.ts`, whose header states `StageWorkflowControl.tsx is not mounted... not reached live today`.
+- **CORRECTION (Workstream J):** the row this table previously carried here — "wired but dead code (unmounted UI): credit-approval decline, return authorization... `StageWorkflowControl.tsx is not mounted`" — was stale by the time this arc reached Workstream J. `DealGovernedTransitionPanel.tsx` mounts `StageWorkflowControl` in `BankerDealWorkspace.tsx` (task #16 of this arc's own tracker, completed earlier) with `liveEnabled` set, so RETURN/DECLINE/WITHDRAW ARE live and reachable today, and their audit/timeline writes through `buildLiveCanonicalTransitionDeps.ts` fire on a real user action, not dead code. The two stale doc-comments making this claim (`canonicalStageTransition.ts`, `buildLiveCanonicalTransitionDeps.ts`) were corrected in the same commit as this ledger update.
 - **Working today:** document requested/uploaded/reviewed, generic stage-change, note-logging.
 
 ## 8. Test-record classification gaps (N-17 follow-on)
@@ -159,6 +159,44 @@ Investigated via direct code read (`src/workflow/loanWorkflowRequirementRegistry
 - The one genuine gap: `cr664_PortfolioManager` (a `systemuser` lookup on `cr664_portfolioboardedloans`) is fully wired on the **manual** boarding path but is **never populated on the auto-board path**, because `DealDetail` carries only `bankerName` (a display string), not a `systemuser` id. `loadBoardingHandoffForDeal.ts` does not select `_cr664_portfoliomanager_value`, and no workflow requirement gates on it.
 - **Why this was not coded:** closing it safely requires either (a) capturing a `systemuser`-typed relationship-manager field earlier in origination (the recommended fix, per `WORKSTREAM_K_PORTFOLIO_BOARDING_FIELD_GAP_2026-07-22.md`'s own recommended-next-step §2), or (b) a reviewed name-to-systemuser resolution service. Both are product/schema decisions requiring operator sign-off, not pure code fixes — attempting a heuristic name-match resolver risks silently binding the wrong operator's record to a live portfolio loan, a data-integrity/security-adjacent risk this arc's guardrails forbid taking unilaterally.
 - **Disposition:** deferred, documented honestly, no placeholder/fabricated resolution introduced. Flagged for the same operator decision already tracked against Workstream K/I-J's shared risk-rating gap.
+
+## 14. Workstream J — Return authorization + adverse action durable records
+
+Targeted the registry's two remaining post-Workstream-H `untracked()` entries: `RETURN:authorization`
+(line 338 as of Workstream A) and `DECLINE:adverse_action` (line 340). Investigated via direct read of
+`docs/governance/CANONICAL_TRANSITION_POLICY_CONTRACT.md` §3.2/§3.3/§5, `canonicalStageTransition.ts`,
+and `loanWorkflowRequirementEngine.ts`'s `deriveTransitionReadiness` (the sole consumer of both
+entries).
+
+- **`RETURN:authorization` — stays untracked, on purpose, not a gap.** The contract's §5 explicitly
+  ratifies "identity resolution is the whole requirement" for RETURN and states in so many words that
+  inventing a distinct return-authority tier "is explicitly out of scope for this initiative and left
+  for a future, separately-ratified revision." Flipping this to `tracked: true` would mean this arc
+  unilaterally deciding a new governance policy the contract deliberately deferred — the same kind of
+  overreach this arc's guardrails forbid elsewhere (e.g. Workstream I/J's credit-controls dependency
+  report declining to invent an exception/override mechanism). No code change made; disposition is
+  "correctly and deliberately not built," not "missing."
+- **`DECLINE:adverse_action` — closed for real.** Built a durable, append-only Adverse Action Record
+  (`cr664_adverseactionrecord`, `adverseActionRecordTypes.ts` / `adverseActionRecordStore.ts` /
+  `submitAdverseActionAction.ts` / `DealAdverseActionPanel(Connected).tsx`, mounted in
+  `BankerDealWorkspace.tsx`, visible only when the deal's status is DECLINED) that lets a credit
+  officer document that the notification/documentation obligation `canonicalStageTransition.ts`
+  already flags on every DECLINE (`adverseActionPending: true`) was completed (SENT) or waived. Flipped
+  the registry entry `tracked: true` and wired `evaluateAdverseActionReadiness` into
+  `deriveTransitionReadiness`'s per-item loop, gated on `currentStatus === 'DECLINED'` (the obligation
+  can only be documented once a decline has actually happened; pre-decline it correctly stays `unmet`,
+  never fabricated as `met`). Severity stays `recommended` (non-blocking) via the existing
+  `NON_FORWARD_SEVERITY_OVERRIDE` — a DECLINE is a terminal action already; this item informs a
+  compliance reviewer, it does not (and per the contract, should not) gate anything.
+  Deliberately does NOT define what an adverse-action notice must contain, when it must be sent, or
+  who must receive it — that is a product/legal-policy decision out of scope for this arc (mirrors the
+  Booking QC precedent tracking pass/fail/waive without defining QC criteria).
+- **Correction found along the way:** `canonicalStageTransition.ts` and `buildLiveCanonicalTransitionDeps.ts`
+  both carried a stale doc-comment claiming `StageWorkflowControl.tsx` was unmounted / RETURN-DECLINE-
+  WITHDRAW were preview-only. That was true when originally written but stale by Workstream J — this
+  arc's own tracker shows "Mount Return/Decline/Withdraw as first-class client workflows" (task #16)
+  completed in an earlier PR, and `DealGovernedTransitionPanel.tsx` does mount the control live in
+  `BankerDealWorkspace.tsx`. Both comments corrected in the same commit (see §7 above).
 
 ## Living-document note
 
