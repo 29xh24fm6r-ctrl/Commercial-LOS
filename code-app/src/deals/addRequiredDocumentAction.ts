@@ -11,6 +11,7 @@ import {
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
 import { timelineEventByBind } from './timelineActorBind';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 // Schema-verified enum constants (mirrors documentActions.ts).
 const AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002;
@@ -191,11 +192,16 @@ export async function addRequiredDocument(
       cr664_receiveddate: nowIso,
     } as unknown as Parameters<typeof Cr664_documentchecklistsService.create>[0]);
     if (!created.success || !created.data?.cr664_documentchecklistid) {
-      return { kind: 'create-failed', docError: created.error?.message ?? 'Document create failed' };
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      return {
+        kind: 'create-failed',
+        docError: mapBusinessSafeError(created.error?.message ?? 'Document create failed', correlationId).safeMessage,
+      };
     }
     documentId = created.data.cr664_documentchecklistid;
   } catch (err: unknown) {
-    return { kind: 'create-failed', docError: err instanceof Error ? err.message : String(err) };
+    const message = err instanceof Error ? err.message : String(err);
+    return { kind: 'create-failed', docError: mapBusinessSafeError(message, correlationId).safeMessage };
   }
 
   // Step 2: readback PROOF â€” the row must carry the name, received date, and deal FK we wrote.
@@ -210,7 +216,8 @@ export async function addRequiredDocument(
       return { kind: 'readback-mismatch', docError: 'The document was created but could not be verified on readback.' };
     }
   } catch (err: unknown) {
-    return { kind: 'readback-mismatch', docError: err instanceof Error ? err.message : String(err) };
+    const message = err instanceof Error ? err.message : String(err);
+    return { kind: 'readback-mismatch', docError: mapBusinessSafeError(message, correlationId).safeMessage };
   }
 
   // Step 3 + 4: audit + timeline in parallel; either failing â†’ governance-partial (the row IS persisted).
@@ -219,7 +226,12 @@ export async function addRequiredDocument(
     emitTimelineEventForAdd({ input, documentId, actor, correlationId, nowIso }),
   ]);
   if (audit.error || timeline.error) {
-    return { kind: 'governance-partial', documentId, auditError: audit.error, timelineError: timeline.error };
+    return {
+      kind: 'governance-partial',
+      documentId,
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
+    };
   }
   return { kind: 'success', documentId };
 }
