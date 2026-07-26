@@ -113,7 +113,12 @@ describe('DocumentRequirementWorkspace', () => {
 
   it('fail-visible: a governance-partial outcome is shown to the banker', async () => {
     loadMock.mockResolvedValue({ kind: 'ready', rows: rowsFixture('not_assessed') });
-    performMock.mockResolvedValue({ kind: 'governance-partial', auditError: 'audit failed', timelineError: undefined });
+    performMock.mockResolvedValue({
+      kind: 'governance-partial',
+      auditError: 'audit failed',
+      timelineError: undefined,
+      correlationId: 'dreq-test-correlation-id',
+    });
     render(<DocumentRequirementWorkspace dealId="deal-1" deal={deal} banker={banker} />);
     await screen.findByText('Loan Application');
 

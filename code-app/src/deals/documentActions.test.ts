@@ -521,6 +521,28 @@ describe('markDocumentReceived', () => {
     expect(timeline1).toBe(`correlation:${audit1 as string}`);
     expect(timeline2).toBe(`correlation:${audit2 as string}`);
   });
+
+  it('persists the resolved receiver identity (cr664_ReceivedBy) when the actor resolves — N-16 durable fact', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('a-1'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    await markDocumentReceived(baseReceiveInput(), okResolver);
+
+    const payload = docUpdate.mock.calls[0]![1] as Record<string, unknown>;
+    expect(payload['cr664_ReceivedBy@odata.bind']).toBe(CORE_USER_BIND);
+  });
+
+  it('still succeeds without a receiver identity when the actor cannot be resolved (best-effort, matches existing posture)', async () => {
+    docUpdate.mockReturnValue(successUpdate());
+    auditCreate.mockReturnValue(successAudit('should-not-be-used'));
+    timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+    await markDocumentReceived(baseReceiveInput(), failResolver);
+
+    const payload = docUpdate.mock.calls[0]![1] as Record<string, unknown>;
+    expect(payload['cr664_ReceivedBy@odata.bind']).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -720,5 +742,43 @@ describe('markDocumentReviewed', () => {
     expect(timeline2).toContain(`correlation:${audit2}`);
     expect(timeline1).toMatch(/^documentchecklist:reviewed\|/);
     expect(timeline2).toMatch(/^documentchecklist:reviewed\|/);
+  });
+
+  describe('segregation of duties (N-16): the same resolved identity cannot both receive and review', () => {
+    it('blocks review with no write when receivedByCoreUserId matches the resolved reviewing actor', async () => {
+      const outcome = await markDocumentReviewed(
+        baseReviewInput({ receivedByCoreUserId: 'core-1' }),
+        okResolver,
+      );
+
+      expect(outcome.kind).toBe('segregation-of-duties');
+      expect(docUpdate).not.toHaveBeenCalled();
+      expect(auditCreate).not.toHaveBeenCalled();
+      expect(timelineCreate).not.toHaveBeenCalled();
+    });
+
+    it('a different resolved reviewer identity may review a document received by someone else', async () => {
+      docUpdate.mockReturnValue(successUpdate());
+      auditCreate.mockReturnValue(successAudit('a-1'));
+      timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+      const outcome = await markDocumentReviewed(
+        baseReviewInput({ receivedByCoreUserId: 'some-other-core-user' }),
+        okResolver,
+      );
+
+      expect(outcome.kind).toBe('success');
+      expect(docUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('review proceeds when no receivedByCoreUserId is known (legacy row predating this fact)', async () => {
+      docUpdate.mockReturnValue(successUpdate());
+      auditCreate.mockReturnValue(successAudit('a-1'));
+      timelineCreate.mockReturnValue(successTimeline('t-1'));
+
+      const outcome = await markDocumentReviewed(baseReviewInput(), okResolver);
+
+      expect(outcome.kind).toBe('success');
+    });
   });
 });

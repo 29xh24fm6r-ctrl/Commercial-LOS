@@ -41,6 +41,7 @@ function toLiveRow(raw: RawChecklistRow): LiveDocumentChecklistRow {
     acknowledgedDate: raw.cr664_acknowledgeddate,
     requestedDate: raw.cr664_requestdate,
     receivedDate: raw.cr664_receiveddate,
+    receivedBy: raw._cr664_receivedby_value,
     reviewedDate: raw.cr664_revieweddate,
     reviewer: raw.cr664_reviewer,
     waived: raw.cr664_waived,

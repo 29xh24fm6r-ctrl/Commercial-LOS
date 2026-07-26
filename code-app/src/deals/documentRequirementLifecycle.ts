@@ -154,6 +154,14 @@ export interface DocumentRequirementRow {
   readonly acknowledgedDate: string | undefined;
   readonly requestedDate: string | undefined;
   readonly receivedDate: string | undefined;
+  /**
+   * Resolved cr664_user row id of whoever ran `receive` — the segregation-
+   * of-duties fact `review` checks against. Optional so existing hand-built
+   * `DocumentRequirementRow` test fixtures keep compiling without edits;
+   * `documentRequirementReconciliation.ts`, the one real producer, always
+   * sets it (undefined for a legacy row that predates this fact).
+   */
+  readonly receivedBy?: string | undefined;
   readonly reviewedDate: string | undefined;
   readonly reviewer: string | undefined;
   readonly waived: boolean;

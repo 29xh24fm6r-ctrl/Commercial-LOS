@@ -24,6 +24,13 @@ export interface DealDocument {
   uploaded: boolean;
   modifiedOn: string | undefined;
   status: DocumentStatus;
+  /**
+   * Resolved cr664_user row id of whoever ran `receive` (N-16 segregation-of-
+   * duties fact). Optional so the many existing hand-built `DealDocument`
+   * test fixtures across the suite keep compiling without edits —
+   * `loadDealDocuments`, the one real producer, always sets it.
+   */
+  receivedByCoreUserId?: string | undefined;
 }
 
 export interface DealDocumentsResult {
@@ -77,6 +84,7 @@ export async function loadDealDocuments(dealId: string): Promise<DealDocumentsRe
       });
     })
     .map((d): DealDocument => {
+      const raw = d as unknown as DocumentRequirementFields;
       const uploaded = d.cr664_uploadstatus === true;
       const status = deriveStatus({
         reviewer: d.cr664_reviewer,
@@ -93,6 +101,7 @@ export async function loadDealDocuments(dealId: string): Promise<DealDocumentsRe
         uploaded,
         modifiedOn: d.modifiedon,
         status,
+        receivedByCoreUserId: raw._cr664_receivedby_value,
       };
     });
 

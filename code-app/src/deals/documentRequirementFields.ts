@@ -1,11 +1,13 @@
 /**
  * Document requirement lifecycle — STOPGAP type augmentation.
  *
- * `cr664_documentchecklist` gets eight new columns via
+ * `cr664_documentchecklist` gets nine new columns via
  * scripts/dataverse/create-document-requirement-lifecycle-fields.ps1:
  * `cr664_requirementstatus` (Choice), `cr664_required` (Boolean),
  * `cr664_acknowledged` (Boolean), `cr664_acknowledgedby` (Lookup ->
- * cr664_user), `cr664_acknowledgeddate` (DateTime), `cr664_revieweddate`
+ * cr664_user), `cr664_acknowledgeddate` (DateTime), `cr664_receivedby`
+ * (Lookup -> cr664_user, Production Remediation Factory Arc Phase 1 / N-16 —
+ * the segregation-of-duties fact `review` checks against), `cr664_revieweddate`
  * (DateTime), `cr664_waived` (Boolean), `cr664_waiverreason` (String). None of
  * these are yet part of the generated `Cr664_documentchecklistsModel.ts` —
  * same stopgap situation as `documentChecklistFileFields.ts`, which this
@@ -25,6 +27,8 @@ export interface DocumentRequirementFields {
   readonly cr664_acknowledged?: boolean;
   readonly _cr664_acknowledgedby_value?: string;
   readonly cr664_acknowledgeddate?: string;
+  /** Resolved cr664_user row id of whoever ran `receive` (segregation-of-duties fact). */
+  readonly _cr664_receivedby_value?: string;
   readonly cr664_revieweddate?: string;
   readonly cr664_waived?: boolean;
   readonly cr664_waiverreason?: string;

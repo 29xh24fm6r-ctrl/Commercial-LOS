@@ -129,7 +129,7 @@ describe('performDocumentRequirementAction', () => {
   });
 
   describe('received without reviewed remains incomplete where review is required', () => {
-    it('receive transitions outstanding -> under_review and stamps receivedDate', async () => {
+    it('receive transitions outstanding -> under_review, stamps receivedDate, and persists the resolved receiver identity (identity-bound, N-16)', async () => {
       const deps = makeDeps();
       const outcome = await performDocumentRequirementAction(
         baseInput({ action: 'receive', documentId: 'row-1', currentStatus: 'outstanding' }),
@@ -138,9 +138,23 @@ describe('performDocumentRequirementAction', () => {
       expect(outcome).toEqual({ kind: 'success', documentId: 'row-1', status: 'under_review' });
       expect(deps.updateRow).toHaveBeenCalledWith(
         'row-1',
-        expect.objectContaining({ cr664_requirementstatus: REQUIREMENT_STATUS_CODES.under_review, cr664_receiveddate: expect.any(String) }),
+        expect.objectContaining({
+          cr664_requirementstatus: REQUIREMENT_STATUS_CODES.under_review,
+          cr664_receiveddate: expect.any(String),
+          'cr664_ReceivedBy@odata.bind': '/cr664_users(u-1)',
+        }),
       );
       expect(isRequirementSatisfied({ required: true, status: 'under_review' }, 'reviewed')).toBe(false);
+    });
+
+    it('receive fails closed with unauthorized when the actor identity cannot be resolved (identity-bound action, N-16)', async () => {
+      const deps = makeDeps({ resolveActorChangedBy: vi.fn().mockResolvedValue(unresolvedActor) });
+      const outcome = await performDocumentRequirementAction(
+        baseInput({ action: 'receive', documentId: 'row-1', currentStatus: 'outstanding' }),
+        deps,
+      );
+      expect(outcome.kind).toBe('unauthorized');
+      expect(deps.updateRow).not.toHaveBeenCalled();
     });
 
     it('review is rejected when the row has not been received yet (still outstanding)', async () => {
@@ -167,6 +181,50 @@ describe('performDocumentRequirementAction', () => {
     );
     expect(isBlockingRequirementStatus('reviewed')).toBe(false);
     expect(isRequirementSatisfied({ required: true, status: 'reviewed' })).toBe(true);
+  });
+
+  describe('segregation of duties (N-16): the same resolved identity cannot both receive and review', () => {
+    it('blocks review with no write when receivedByCoreUserId matches the reviewing actor\'s resolved identity', async () => {
+      const deps = makeDeps({ resolveActorChangedBy: vi.fn().mockResolvedValue({ ok: true, changedByBind: '/cr664_users(u-1)' }) });
+      const outcome = await performDocumentRequirementAction(
+        baseInput({
+          action: 'review',
+          documentId: 'row-1',
+          currentStatus: 'under_review',
+          reviewerName: 'Jane Banker',
+          receivedByCoreUserId: 'u-1',
+        }),
+        deps,
+      );
+      expect(outcome.kind).toBe('segregation-of-duties');
+      expect(deps.updateRow).not.toHaveBeenCalled();
+      expect(deps.emitAudit).not.toHaveBeenCalled();
+    });
+
+    it('a different resolved reviewer identity may review a document received by someone else', async () => {
+      const deps = makeDeps({ resolveActorChangedBy: vi.fn().mockResolvedValue({ ok: true, changedByBind: '/cr664_users(u-2)' }) });
+      const outcome = await performDocumentRequirementAction(
+        baseInput({
+          action: 'review',
+          documentId: 'row-1',
+          currentStatus: 'under_review',
+          reviewerName: 'Jane Banker',
+          receivedByCoreUserId: 'u-1',
+        }),
+        deps,
+      );
+      expect(outcome.kind).toBe('success');
+      expect(deps.updateRow).toHaveBeenCalled();
+    });
+
+    it('review proceeds when no receivedByCoreUserId is known (legacy row predating this fact)', async () => {
+      const deps = makeDeps();
+      const outcome = await performDocumentRequirementAction(
+        baseInput({ action: 'review', documentId: 'row-1', currentStatus: 'under_review', reviewerName: 'Jane Banker' }),
+        deps,
+      );
+      expect(outcome.kind).toBe('success');
+    });
   });
 
   it('review without a reviewer name is rejected as invalid-input, never reaching the transport', async () => {
@@ -275,32 +333,42 @@ describe('performDocumentRequirementAction', () => {
     expect(deps.updateRow).not.toHaveBeenCalled();
   });
 
-  it('reports write-failed when the update transport fails', async () => {
+  it('reports write-failed (with a correlation id) when the update transport fails', async () => {
     const deps = makeDeps({ updateRow: vi.fn().mockResolvedValue({ ok: false, error: 'row locked' }) });
     const outcome = await performDocumentRequirementAction(
       baseInput({ action: 'request', documentId: 'row-1', currentStatus: 'outstanding' }),
       deps,
     );
-    expect(outcome).toEqual({ kind: 'write-failed', error: 'row locked' });
+    expect(outcome).toEqual({ kind: 'write-failed', error: 'row locked', correlationId: expect.any(String) });
     expect(deps.emitAudit).not.toHaveBeenCalled();
   });
 
-  it('reports governance-partial when the audit write fails after a verified update', async () => {
+  it('reports governance-partial (with a correlation id) when the audit write fails after a verified update', async () => {
     const deps = makeDeps({ emitAudit: vi.fn().mockResolvedValue({ ok: false, error: 'audit rejected' }) });
     const outcome = await performDocumentRequirementAction(
       baseInput({ action: 'request', documentId: 'row-1', currentStatus: 'outstanding' }),
       deps,
     );
-    expect(outcome).toEqual({ kind: 'governance-partial', auditError: 'audit rejected', timelineError: undefined });
+    expect(outcome).toEqual({
+      kind: 'governance-partial',
+      auditError: 'audit rejected',
+      timelineError: undefined,
+      correlationId: expect.any(String),
+    });
   });
 
-  it('reports governance-partial when the timeline write fails after a verified update', async () => {
+  it('reports governance-partial (with a correlation id) when the timeline write fails after a verified update', async () => {
     const deps = makeDeps({ emitTimeline: vi.fn().mockResolvedValue({ ok: false, error: 'timeline rejected' }) });
     const outcome = await performDocumentRequirementAction(
       baseInput({ action: 'request', documentId: 'row-1', currentStatus: 'outstanding' }),
       deps,
     );
-    expect(outcome).toEqual({ kind: 'governance-partial', auditError: undefined, timelineError: 'timeline rejected' });
+    expect(outcome).toEqual({
+      kind: 'governance-partial',
+      auditError: undefined,
+      timelineError: 'timeline rejected',
+      correlationId: expect.any(String),
+    });
   });
 
   it('a non-acknowledge action with no documentId is rejected as invalid-input', async () => {

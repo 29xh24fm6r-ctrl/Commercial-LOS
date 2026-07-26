@@ -12,12 +12,16 @@
  *
  * Every transition is validated against the pure state machine
  * (documentRequirementLifecycle.ts) BEFORE any write — an invalid transition
- * never reaches the transport. Acknowledge and Waive persist an
- * actor-identity lookup (cr664_AcknowledgedBy -> cr664_user) and fail closed
- * if the actor cannot be resolved; every other action still audits with a
- * best-effort resolved actor but does not require the lookup to succeed to
- * persist the transition itself, matching this codebase's established
- * actor-resolution posture elsewhere (documentActions.ts).
+ * never reaches the transport. Acknowledge, Waive, and Receive persist an
+ * actor-identity lookup (cr664_AcknowledgedBy / cr664_ReceivedBy -> cr664_user)
+ * and fail closed if the actor cannot be resolved; every other action still
+ * audits with a best-effort resolved actor but does not require the lookup to
+ * succeed to persist the transition itself, matching this codebase's
+ * established actor-resolution posture elsewhere (documentActions.ts).
+ * Receive's resolved identity is what Review's segregation-of-duties check
+ * (Production Remediation Factory Arc Phase 1 / N-16) compares against —
+ * `review` is rejected with no write when the same resolved identity ran
+ * `receive` on the same row (documentReviewSegregationOfDuties.ts).
  *
  * Duplicate-safety for `acknowledge` is two-layered: the pure transition
  * guard (acknowledge is valid ONLY from `not_assessed`) catches a stale UI
@@ -39,6 +43,7 @@ import {
   type DocumentRequirementStatus,
 } from './documentRequirementLifecycle';
 import { REQUIREMENT_STATUS_CODES, requirementStatusFromCode } from './documentRequirementStatusCodes';
+import { extractCoreUserId, isSameCoreUser, SEGREGATION_OF_DUTIES_BLOCK_REASON } from './documentReviewSegregationOfDuties';
 
 // Re-exported for existing consumers (documentRequirementActions.test.ts,
 // documentRequirementLiveReader.ts) — the canonical definitions now live in
@@ -47,8 +52,14 @@ import { REQUIREMENT_STATUS_CODES, requirementStatusFromCode } from './documentR
 // readOnlySurfaceGuard.test.ts's action-module import guard.
 export { REQUIREMENT_STATUS_CODES, requirementStatusFromCode };
 
-/** Actions that persist an actor-identity lookup and therefore fail closed on an unresolved actor. */
-const IDENTITY_BOUND_ACTIONS: ReadonlySet<DocumentRequirementAction> = new Set(['acknowledge', 'waive']);
+/**
+ * Actions that persist an actor-identity lookup and therefore fail closed on
+ * an unresolved actor. `receive` joined this set in Production Remediation
+ * Factory Arc Phase 1 (N-16) — segregation-of-duties enforcement on `review`
+ * requires a durable receiver identity, so `receive` can no longer persist
+ * without one.
+ */
+const IDENTITY_BOUND_ACTIONS: ReadonlySet<DocumentRequirementAction> = new Set(['acknowledge', 'waive', 'receive']);
 
 export type DocumentRequirementActionOutcome =
   | { kind: 'success'; documentId: string; status: DocumentRequirementStatus }
@@ -56,8 +67,15 @@ export type DocumentRequirementActionOutcome =
   | { kind: 'invalid-transition'; reason: string }
   | { kind: 'invalid-input'; reason: string }
   | { kind: 'unauthorized'; message: string }
-  | { kind: 'write-failed'; error: string }
-  | { kind: 'governance-partial'; auditError: string | undefined; timelineError: string | undefined }
+  /** N-16 — `review` attempted by the same resolved identity that ran `receive` on this row. No write. */
+  | { kind: 'segregation-of-duties'; reason: string }
+  | { kind: 'write-failed'; error: string; correlationId: string }
+  | {
+      kind: 'governance-partial';
+      auditError: string | undefined;
+      timelineError: string | undefined;
+      correlationId: string;
+    }
   | { kind: 'dependency_not_ready'; detail: string }
   | { kind: 'unknown'; message: string };
 
@@ -75,6 +93,12 @@ export interface DocumentRequirementActionInput {
   readonly reviewerName?: string;
   /** Required for `waive`. */
   readonly waiverReason?: string;
+  /**
+   * The row's CURRENTLY-PERSISTED `receivedBy` (a resolved cr664_user row id),
+   * from the caller's already-reconciled read — never re-derived here. Only
+   * consulted for `review`; N-16 segregation-of-duties check.
+   */
+  readonly receivedByCoreUserId?: string;
 }
 
 export interface FindRowByNameResult {
@@ -131,7 +155,13 @@ export interface DocumentRequirementActionDeps {
 function fieldsForAction(
   action: DocumentRequirementAction,
   nextStatus: DocumentRequirementStatus,
-  ctx: { reviewerName: string | undefined; waiverReason: string | undefined; acknowledgedByBind: string | undefined; nowIso: string },
+  ctx: {
+    reviewerName: string | undefined;
+    waiverReason: string | undefined;
+    acknowledgedByBind: string | undefined;
+    receivedByBind: string | undefined;
+    nowIso: string;
+  },
 ): Record<string, unknown> {
   const base: Record<string, unknown> = { cr664_requirementstatus: REQUIREMENT_STATUS_CODES[nextStatus] };
   switch (action) {
@@ -146,7 +176,11 @@ function fieldsForAction(
     case 'request':
       return { ...base, cr664_requestdate: ctx.nowIso };
     case 'receive':
-      return { ...base, cr664_receiveddate: ctx.nowIso };
+      return {
+        ...base,
+        cr664_receiveddate: ctx.nowIso,
+        ...(ctx.receivedByBind ? { 'cr664_ReceivedBy@odata.bind': ctx.receivedByBind } : {}),
+      };
     case 'review':
       return { ...base, cr664_revieweddate: ctx.nowIso, cr664_reviewer: ctx.reviewerName };
     case 'return_for_correction':
@@ -200,12 +234,23 @@ export async function performDocumentRequirementAction(
     return { kind: 'unauthorized', message: `Actor identity could not be resolved: ${actor.reason ?? 'unknown'}.` };
   }
 
+  // N-16 — segregation of duties: the resolved identity attempting `review` must not be the
+  // same resolved identity that ran `receive` on this row. Checked BEFORE any write, using the
+  // caller's already-reconciled `receivedByCoreUserId` (never re-derived here) against the
+  // reviewer's just-resolved identity.
+  if (input.action === 'review' && input.receivedByCoreUserId) {
+    const reviewerCoreUserId = extractCoreUserId(actor.ok ? actor.changedByBind : undefined);
+    if (isSameCoreUser(input.receivedByCoreUserId, reviewerCoreUserId)) {
+      return { kind: 'segregation-of-duties', reason: SEGREGATION_OF_DUTIES_BLOCK_REASON };
+    }
+  }
+
   let documentId = input.documentId;
 
   if (input.action === 'acknowledge') {
     const existing = await deps.findRowByName(input.dealId, input.documentName);
     if (!existing.ok) {
-      return { kind: 'write-failed', error: existing.error ?? 'Could not check for an existing row.' };
+      return { kind: 'write-failed', error: existing.error ?? 'Could not check for an existing row.', correlationId };
     }
     if (existing.row) {
       // Duplicate-safe: a row already exists for this document on this deal — never
@@ -222,20 +267,21 @@ export async function performDocumentRequirementAction(
     reviewerName: input.reviewerName,
     waiverReason: input.waiverReason,
     acknowledgedByBind: actor.ok ? actor.changedByBind : undefined,
+    receivedByBind: actor.ok ? actor.changedByBind : undefined,
     nowIso,
   });
 
   if (input.action === 'acknowledge' && !documentId) {
     const create = await deps.createRow({ dealId: input.dealId, documentName: input.documentName, fields });
     if (!create.ok || !create.id) {
-      return { kind: 'write-failed', error: create.error ?? 'Could not create the requirement row.' };
+      return { kind: 'write-failed', error: create.error ?? 'Could not create the requirement row.', correlationId };
     }
     documentId = create.id;
   } else {
     if (!documentId) return { kind: 'invalid-input', reason: 'No document id to update.' };
     const update = await deps.updateRow(documentId, fields);
     if (!update.ok) {
-      return { kind: 'write-failed', error: update.error ?? 'Could not update the requirement row.' };
+      return { kind: 'write-failed', error: update.error ?? 'Could not update the requirement row.', correlationId };
     }
   }
 
@@ -269,6 +315,7 @@ export async function performDocumentRequirementAction(
       kind: 'governance-partial',
       auditError: audit.ok ? undefined : audit.error,
       timelineError: timeline.ok ? undefined : timeline.error,
+      correlationId,
     };
   }
 

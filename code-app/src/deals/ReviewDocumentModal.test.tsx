@@ -156,10 +156,11 @@ describe('ReviewDocumentModal', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows the review-failed outcome when the document update fails', async () => {
+  it('shows the review-failed outcome when the document update fails, never leaking the raw provider error (N-21)', async () => {
     const onConfirm = vi.fn().mockResolvedValue({
       kind: 'review-failed',
-      docError: 'row locked',
+      docError: "Invalid property 'cr664_requirementstatus' at System.ServiceModel.Channels...",
+      correlationId: 'rv-test-correlation-id',
     } satisfies MarkDocumentReviewedOutcome);
     render(
       <ReviewDocumentModal
@@ -175,14 +176,18 @@ describe('ReviewDocumentModal', () => {
     await user.click(screen.getByRole('button', { name: /^mark reviewed$/i }));
 
     expect(await screen.findByText(/could not record review/i)).toBeInTheDocument();
-    expect(screen.getByText(/row locked/i)).toBeInTheDocument();
+    expect(screen.getByText(/we couldn't save that action/i)).toBeInTheDocument();
+    expect(screen.getByText(/rv-test-correlation-id/i)).toBeInTheDocument();
+    expect(screen.queryByText(/cr664_requirementstatus/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/System\.ServiceModel/i)).not.toBeInTheDocument();
   });
 
-  it('shows the critical governance-partial outcome when timeline write fails', async () => {
+  it('shows the critical governance-partial outcome when timeline write fails, never leaking the raw provider error (N-21)', async () => {
     const onConfirm = vi.fn().mockResolvedValue({
       kind: 'governance-partial',
       auditError: undefined,
-      timelineError: 'timeline endpoint 500',
+      timelineError: 'timeline endpoint 500 at System.ServiceModel.Channels...',
+      correlationId: 'gp-test-correlation-id',
     } satisfies MarkDocumentReviewedOutcome);
     render(
       <ReviewDocumentModal
@@ -198,9 +203,36 @@ describe('ReviewDocumentModal', () => {
     await user.click(screen.getByRole('button', { name: /^mark reviewed$/i }));
 
     await screen.findByText(/critical: governance write failed/i);
-    expect(screen.getByText(/timeline endpoint 500/i)).toBeInTheDocument();
+    expect(screen.getByText(/we couldn't save that action/i)).toBeInTheDocument();
+    expect(screen.getByText(/gp-test-correlation-id/i)).toBeInTheDocument();
+    expect(screen.queryByText(/timeline endpoint 500/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/System\.ServiceModel/i)).not.toBeInTheDocument();
     expect(
       screen.getByText(/do not retry — the document review is already recorded/i),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the segregation-of-duties outcome when the reviewer is the same person who received the document (N-16)', async () => {
+    const onConfirm = vi.fn().mockResolvedValue({
+      kind: 'segregation-of-duties',
+      reason:
+        'The person who recorded this document as received cannot also mark it reviewed. Ask a different authorized reviewer to complete this step.',
+    } satisfies MarkDocumentReviewedOutcome);
+    render(
+      <ReviewDocumentModal
+        doc={sampleDoc}
+        reviewerName="M. Paller"
+        onConfirm={onConfirm}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/review note/i), 'reviewed');
+    await user.click(screen.getByRole('button', { name: /^mark reviewed$/i }));
+
+    expect(
+      await screen.findByText(/cannot also mark it reviewed/i),
     ).toBeInTheDocument();
   });
 

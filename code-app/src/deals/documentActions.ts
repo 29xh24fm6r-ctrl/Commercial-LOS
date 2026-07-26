@@ -11,6 +11,7 @@ import {
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
 import { timelineEventByBind } from './timelineActorBind';
+import { extractCoreUserId, isSameCoreUser, SEGREGATION_OF_DUTIES_BLOCK_REASON } from './documentReviewSegregationOfDuties';
 
 /**
  * Phase 22: governed write for requesting an outstanding document on
@@ -417,13 +418,16 @@ export async function markDocumentReceived(
   // Resolve the audit actor's cr664_user bind once, fail-closed.
   const actor = await resolveActorChangedBy(input.actorEmail);
 
-  // Step 1: stamp cr664_receiveddate. This is the only schema-level
-  // write â€” the deriveStatus selector flips the document from
-  // outstanding â†’ received off this field alone.
+  // Step 1: stamp cr664_receiveddate (+ the resolved receiver identity, when
+  // resolved — best-effort, matching this function's established
+  // actor-resolution posture: an unresolved actor never blocks the primary
+  // write here). cr664_ReceivedBy is the durable fact
+  // markDocumentReviewed's segregation-of-duties check (N-16) reads back.
   try {
     const update = await Cr664_documentchecklistsService.update(input.documentId, {
       cr664_receiveddate: nowIso,
       cr664_requirementstatus: REQUIREMENT_STATUS_UNDER_REVIEW,
+      ...(actor.ok && actor.changedByBind ? { 'cr664_ReceivedBy@odata.bind': actor.changedByBind } : {}),
     } as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1]);
     if (!update.success) {
       void emitAuditEventForReceive({
@@ -513,12 +517,15 @@ export async function markDocumentReceived(
 
 export type MarkDocumentReviewedOutcome =
   | { kind: 'success' }
-  | { kind: 'review-failed'; docError: string }
+  | { kind: 'review-failed'; docError: string; correlationId: string }
   | {
       kind: 'governance-partial';
       auditError: string | undefined;
       timelineError: string | undefined;
+      correlationId: string;
     }
+  /** N-16 â€” the same resolved identity that ran `receive` on this row attempted `review`. No write. */
+  | { kind: 'segregation-of-duties'; reason: string }
   | { kind: 'unknown'; message: string };
 
 export interface MarkDocumentReviewedInput {
@@ -538,6 +545,15 @@ export interface MarkDocumentReviewedInput {
    *  A systemuser id is NEVER bound into cr664_ChangedBy (Phase 187H / G-5). */
   actorEmail: string;
   reviewNote: string;
+  /**
+   * The row's CURRENTLY-PERSISTED `cr664_ReceivedBy` (a resolved cr664_user
+   * row id), from the caller's already-loaded document â€” never re-derived
+   * here. When present, N-16 segregation-of-duties blocks a reviewer whose
+   * OWN resolved identity matches it. Undefined for a row that predates this
+   * fact (legacy row, or receive ran with an unresolved actor) â€” review then
+   * proceeds, since there is nothing durable to compare against.
+   */
+  receivedByCoreUserId?: string;
 }
 
 async function emitAuditEventForReview(opts: {
@@ -655,6 +671,18 @@ export async function markDocumentReviewed(
   // Resolve the audit actor's cr664_user bind once, fail-closed.
   const actor = await resolveActorChangedBy(input.actorEmail);
 
+  // N-16 â€” segregation of duties: the resolved identity attempting `review` must not be the
+  // same resolved identity that ran `receive` on this row. Checked BEFORE any write, using the
+  // caller's already-loaded `receivedByCoreUserId` (never re-derived here) against the
+  // reviewer's just-resolved identity. Undefined receivedByCoreUserId (legacy row, or receive
+  // ran with an unresolved actor) has nothing durable to compare against, so review proceeds.
+  if (input.receivedByCoreUserId) {
+    const reviewerCoreUserId = extractCoreUserId(actor.ok ? actor.changedByBind : undefined);
+    if (isSameCoreUser(input.receivedByCoreUserId, reviewerCoreUserId)) {
+      return { kind: 'segregation-of-duties', reason: SEGREGATION_OF_DUTIES_BLOCK_REASON };
+    }
+  }
+
   // Step 1: stamp cr664_reviewer. This is the only schema-level
   // write â€” the deriveStatus selector flips the document from
   // received â†’ reviewed off this field alone, and the Phase 54
@@ -677,6 +705,7 @@ export async function markDocumentReviewed(
       return {
         kind: 'review-failed',
         docError: update.error?.message ?? 'Document update failed',
+        correlationId,
       };
     }
   } catch (err: unknown) {
@@ -689,7 +718,7 @@ export async function markDocumentReviewed(
       failureReason: message,
       nowIso,
     });
-    return { kind: 'review-failed', docError: message };
+    return { kind: 'review-failed', docError: message, correlationId };
   }
 
   // Step 2 + 3: audit + timeline in parallel. Either failing flips
@@ -711,6 +740,7 @@ export async function markDocumentReviewed(
       kind: 'governance-partial',
       auditError: audit.error,
       timelineError: timeline.error,
+      correlationId,
     };
   }
   return { kind: 'success' };
