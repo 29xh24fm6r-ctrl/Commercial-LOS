@@ -85,9 +85,9 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
     // Final LOS Completion arc (Workstream C) flipped the three approval facts to tracked (see
     // below) — memo_finalized remains a genuinely untracked deep fact for this same scope.
     expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:memo_finalized')).toBe(true);
-    // Factory Arc Phase 12 flipped funds_disbursed to tracked (see below) — executed_docs and
-    // booking_qc remain genuinely untracked deep facts for this same CLOSING_FUNDING scope.
-    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:executed_docs')).toBe(true);
+    // Factory Arc Phase 12 flipped funds_disbursed to tracked, and the Final LOS Completion arc
+    // (Workstream F) flipped executed_docs to tracked too (see below) — booking_qc remains a
+    // genuinely untracked deep fact for this same CLOSING_FUNDING scope.
     expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:booking_qc')).toBe(true);
     expect(untrackedRequirementsForScope('BOARDED').some((r) => r.id === 'BOARDED:boarded_loan_record')).toBe(true);
   });
@@ -110,6 +110,14 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
     expect(req?.tracked).toBe(true);
     expect(req?.severity).toBe('blocking');
     expect(req?.sourceEntity).toBe('cr664_fundingauthorization');
+  });
+
+  it('Final LOS Completion arc (Workstream F) — CLOSING_FUNDING:executed_docs is tracked (real, durable, deal-scoped Executed Document Attestation record)', () => {
+    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:executed_docs')).toBe(false);
+    const req = requirementsForScope('CLOSING_FUNDING').find((r) => r.id === 'CLOSING_FUNDING:executed_docs');
+    expect(req?.tracked).toBe(true);
+    expect(req?.severity).toBe('blocking');
+    expect(req?.sourceEntity).toBe('cr664_executeddocattestation');
   });
 
   it('Production Remediation Factory Arc Phase 6 (N-14/N-15) — UNDERWRITING:risk_rating and UNDERWRITING:uw_recommendation are tracked (real, durable, deal-scoped facts)', () => {

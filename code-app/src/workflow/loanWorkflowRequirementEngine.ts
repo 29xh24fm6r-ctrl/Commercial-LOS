@@ -28,6 +28,7 @@ import {
 import { evaluateCreditApprovalDecisionReadiness, type CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
 import { evaluateCommitmentReadiness, type CommitmentRecord } from './commitmentRecordTypes';
 import { evaluateConditionVerificationReadiness, type ConditionVerificationRecord } from './conditionVerificationTypes';
+import { evaluateExecutedDocumentAttestationReadiness, type ExecutedDocumentAttestationRecord } from './executedDocumentAttestationTypes';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type {
   CanonicalRequirement,
@@ -100,6 +101,13 @@ export interface WorkflowRequirementFacts {
    * unmet in either case, never fabricated as met.
    */
   readonly conditionVerifications?: readonly ConditionVerificationRecord[];
+  /**
+   * Final LOS Completion arc (Workstream F/K) — the deal's Executed Document Attestation history
+   * (supplied by a loader; see DealDataProvider.tsx's `executedDocumentAttestations`).
+   * Absent/empty means either the records haven't loaded yet or none have genuinely been recorded —
+   * CLOSING_FUNDING:executed_docs fails closed as unmet in either case, never fabricated as met.
+   */
+  readonly executedDocumentAttestations?: readonly ExecutedDocumentAttestationRecord[];
 }
 
 /**
@@ -154,6 +162,11 @@ export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: Wo
         : req.id === 'DOCUMENTATION:collateral_verified'
           ? r.collateralVerified
           : r.insuranceVerified;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (req.id === 'CLOSING_FUNDING:executed_docs') {
+    const r = evaluateExecutedDocumentAttestationReadiness(facts.executedDocumentAttestations, facts.deal.id);
+    const fact = r.executedDocsAttested;
     return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
   }
   // Tracked deep fact without a model yet → fail closed (should not happen in Phase 3).
@@ -326,7 +339,7 @@ export interface StageExitPolicyResult {
  * requirement is unmet. Risk rating and underwriting recommendation are tracked as of Production
  * Remediation Factory Arc Phase 6 (N-14/N-15) and block for real; the remaining untracked deep facts
  * (approval, closing, boarding, …) are NOT yet enforced live — they are surfaced as "future"
- * requirements and gate certification later, but do not block the transition until their major
+ * requirements and gate attestation later, but do not block the transition until their major
  * phase. This is the shared decision the UI button and the write policy agree on (proven equivalent
  * to evaluateStageTransitionPolicy for the current config).
  */

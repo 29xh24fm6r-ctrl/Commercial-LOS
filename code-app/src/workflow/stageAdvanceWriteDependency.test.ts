@@ -10,6 +10,7 @@ import type { CreditMemoData } from '../deals/creditMemoQueries';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type { RiskRatingRecord, UnderwritingRecommendationRecord } from './underwritingDeepFacts';
 import type { CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
+import type { ExecutedDocumentAttestationRecord } from './executedDocumentAttestationTypes';
 
 /** Minimal workflow state the stage policy reads (cast to the full type for the test). */
 function workflow(over: { stageId?: string; status?: 'blocked' | 'at-risk' | 'clear'; nextIds?: string[]; blockers?: string[] } = {}): LoanWorkflowState {
@@ -467,12 +468,27 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
       authorizedAt: '2026-07-05T00:00:00Z', correlationId: 'corr-1', supportingDocumentIds: [],
       auditEventIds: [], recordId: 'fa-1',
     };
+    // Final LOS Completion arc (Workstream F) — CLOSING_FUNDING:executed_docs is now a tracked,
+    // blocking requirement too; a deal genuinely ready to reach BOARDED must also carry a
+    // ATTESTED executed-document attestation record.
+    const attestedDocsRecord: ExecutedDocumentAttestationRecord = {
+      attestationId: 'edc-1',
+      dealId: 'deal-1',
+      status: 'ATTESTED',
+      executedDateIso: '2026-07-09',
+      notes: 'All documents executed at closing table, originals retained.',
+      attestedByActorEmail: 'closer@bank.test',
+      attestedAtIso: '2026-07-09T00:00:00Z',
+      correlationId: 'edc-corr-1',
+      supersedesAttestationId: undefined,
+    };
     const closingFundingFacts: WorkflowRequirementFacts = {
       deal: baseDeal,
       tasks: { open: [], completed: [{ id: 't1', title: 'Booking quality control', completed: true, dueDate: undefined, assigneeName: undefined, modifiedOn: '2026-07-01T00:00:00Z' }] },
       documents: docsOf({ received: [mkDoc('Booking Package', 'received')] }),
       creditMemo: noMemo,
       fundingAuthorization: fundedRecord,
+      executedDocumentAttestations: [attestedDocsRecord],
     };
     function closingFundingInput(over: Partial<StageAdvanceInput> = {}) {
       return input({

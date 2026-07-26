@@ -260,8 +260,15 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   tracked('DOCUMENTATION:conditions_precedent', 'DOCUMENTATION', 'closing', 'Conditions precedent cleared', 'Documentation', 'loan_ops', 'condition_record', 'cr664_conditionverification', 'Conditions precedent have not been cleared for this deal.'),
   tracked('DOCUMENTATION:collateral_verified', 'DOCUMENTATION', 'closing', 'Collateral verified', 'Documentation', 'closer', 'condition_record', 'cr664_conditionverification', 'Collateral has not been verified for this deal.'),
   tracked('DOCUMENTATION:insurance_verified', 'DOCUMENTATION', 'closing', 'Insurance verified', 'Documentation', 'closer', 'condition_record', 'cr664_conditionverification', 'Insurance has not been verified for this deal.'),
-  // Closing & Funding → Boarded (ARC PR 15)
-  untracked('CLOSING_FUNDING:executed_docs', 'CLOSING_FUNDING', 'closing', 'Loan documents executed', 'Closing', 'closer', 'closing_record', 'executed-documents record not yet implemented (ARC PR 15)'),
+  // Closing & Funding → Boarded (ARC PR 15). Final LOS Completion arc (Workstream F) flips this
+  // tracked — submitExecutedDocumentAttestationAction.ts / executedDocumentAttestationStore.ts
+  // now provide a real, durable, deal-scoped Executed Document Attestation record
+  // (cr664_executeddocattestation, see
+  // scripts/schema-migrations/final-arc-executed-document-attestation/), evaluated via
+  // evaluateExecutedDocumentAttestationReadiness in loanWorkflowRequirementEngine.ts. Distinct
+  // from the pre-existing cr664_closingdocumentmanifest (PR107/PR123), which tracks GENERATION of
+  // closing documents, never whether the borrower actually executed (signed) them.
+  tracked('CLOSING_FUNDING:executed_docs', 'CLOSING_FUNDING', 'closing', 'Loan documents executed', 'Closing', 'closer', 'closing_record', 'cr664_executeddocattestation', 'Executed loan documents have not been attested for this deal.'),
   // Factory Arc Phase 12 -- PR 112's Dataverse-backed funding-authorization store
   // (createDataverseFundingAuthorizationStore(), unconditionally mounted in
   // DealFundingAuthorizationPanel.tsx) makes FUNDED a real, durable, deal-scoped fact. Flipped

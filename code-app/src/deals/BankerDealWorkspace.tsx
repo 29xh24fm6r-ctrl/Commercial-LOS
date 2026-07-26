@@ -34,6 +34,7 @@ import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadines
 import { DealCreditApprovalDecisionPanelConnected } from './DealCreditApprovalDecisionPanelConnected';
 import { DealCommitmentPanelConnected } from './DealCommitmentPanelConnected';
 import { DealConditionVerificationPanelConnected } from './DealConditionVerificationPanelConnected';
+import { DealExecutedDocumentAttestationPanelConnected } from './DealExecutedDocumentAttestationPanelConnected';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
 import { DealPortfolioBoardingStatusPanel } from '../workflow/DealPortfolioBoardingStatusPanel';
 import { DealWorkflowRoutingPanel } from '../workflow/DealWorkflowRoutingPanel';
@@ -356,6 +357,20 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="closing-documents"
               >
                 <DealClosingDocumentsPanel deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} />
+              </div>
+              {/* Final LOS Completion arc (Workstream F) — durable Executed Document Attestation
+                  record: distinct from document GENERATION above. */}
+              <div
+                id="executed-document-attestation"
+                data-deal-card="executed-document-attestation"
+                data-cockpit-anchor="executed-document-attestation"
+              >
+                <DealExecutedDocumentAttestationPanelConnected
+                  dealId={deal.id}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                />
               </div>
               {/* PR 111 -- mounts the funding-authorization framework (61+ tests, previously entirely
                   unmounted). Local-only pending schema (see

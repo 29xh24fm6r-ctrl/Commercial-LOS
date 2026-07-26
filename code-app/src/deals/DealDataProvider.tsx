@@ -12,6 +12,8 @@ import { createDataverseCommitmentStore } from '../commitment/commitmentRecordSt
 import type { CommitmentRecord } from '../workflow/commitmentRecordTypes';
 import { createDataverseConditionVerificationStore } from '../documentation/conditionVerificationStore';
 import type { ConditionVerificationRecord } from '../workflow/conditionVerificationTypes';
+import { createDataverseExecutedDocumentAttestationStore } from '../closing/executedDocumentAttestationStore';
+import type { ExecutedDocumentAttestationRecord } from '../workflow/executedDocumentAttestationTypes';
 import {
   timed,
   recordRefresh,
@@ -65,7 +67,9 @@ export type DealDataKey =
   | 'commitments'
   | 'after-commitment-action-submitted'
   | 'conditionVerifications'
-  | 'after-condition-verification-submitted';
+  | 'after-condition-verification-submitted'
+  | 'executedDocumentAttestations'
+  | 'after-executed-document-attestation-submitted';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -121,6 +125,17 @@ export interface DealData {
    * omitting it is equivalent to an unresolved fact — the requirement fails closed as unmet.
    */
   conditionVerifications?: AsyncResult<readonly ConditionVerificationRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream F. The deal's Executed Document Attestation history,
+   * feeding CLOSING_FUNDING:executed_docs (loanWorkflowRequirementEngine.ts) so the Stage Map /
+   * stage-advance write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `conditionVerifications` above); the real DealDataProvider ALWAYS supplies it. A
+   * test double omitting it is equivalent to an unresolved fact — the requirement fails closed as
+   * unmet.
+   */
+  executedDocumentAttestations?: AsyncResult<readonly ExecutedDocumentAttestationRecord[]>;
   refresh: (key: DealDataKey) => void;
   /**
    * Merge readback-verified deal fields into the in-context deal row. ONLY the
@@ -190,6 +205,9 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   });
   const [conditionVerifications, setConditionVerifications] = useState<
     AsyncResult<readonly ConditionVerificationRecord[]>
+  >({ kind: 'loading' });
+  const [executedDocumentAttestations, setExecutedDocumentAttestations] = useState<
+    AsyncResult<readonly ExecutedDocumentAttestationRecord[]>
   >({ kind: 'loading' });
 
   // Used by the unmount cleanup AND by refresh() so a refresh fired
@@ -283,6 +301,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
     bind(setConditionVerifications, p);
     return p;
   }
+  function reloadExecutedDocumentAttestations(): Promise<unknown> {
+    setExecutedDocumentAttestations({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadExecutedDocumentAttestations', async () => {
+      const res = await createDataverseExecutedDocumentAttestationStore().listAttestationsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load executed document attestations.');
+      return res.records ?? [];
+    });
+    bind(setExecutedDocumentAttestations, p);
+    return p;
+  }
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -305,6 +333,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
       reloadCreditApprovalDecisions(),
       reloadCommitments(),
       reloadConditionVerifications(),
+      reloadExecutedDocumentAttestations(),
     ]).then(() => {
       const endedAt =
         typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -453,6 +482,17 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         reloadConditionVerifications();
         reloadActivity();
         break;
+      case 'executedDocumentAttestations':
+        reloadExecutedDocumentAttestations();
+        break;
+      case 'after-executed-document-attestation-submitted':
+        // Final LOS Completion arc — Workstream F: submitExecutedDocumentAttestationAction writes
+        // both the durable attestation record and a best-effort NoteLogged timeline event, so
+        // both must refresh for the Stage Map / Attention Console to see the new attestation
+        // state and its activity.
+        reloadExecutedDocumentAttestations();
+        reloadActivity();
+        break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -469,6 +509,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         creditApprovalDecisions,
         commitments,
         conditionVerifications,
+        executedDocumentAttestations,
         refresh,
         applyVerifiedDealPatch,
       }}

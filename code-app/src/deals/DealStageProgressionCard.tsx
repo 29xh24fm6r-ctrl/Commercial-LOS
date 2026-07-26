@@ -91,6 +91,7 @@ export function DealStageProgressionCard({
     creditApprovalDecisions,
     commitments,
     conditionVerifications,
+    executedDocumentAttestations,
   } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
@@ -113,6 +114,10 @@ export function DealStageProgressionCard({
   // closed as unmet (never fabricated as met).
   const conditionVerificationsData =
     conditionVerifications?.kind === 'ready' ? conditionVerifications.data : undefined;
+  // Final LOS Completion arc (Workstream F) — feeds CLOSING_FUNDING:executed_docs. `undefined`
+  // while loading/failed correctly fails closed as unmet (never fabricated as met).
+  const executedDocumentAttestationsData =
+    executedDocumentAttestations?.kind === 'ready' ? executedDocumentAttestations.data : undefined;
 
   const eligibility = deriveStageProgressionEligibility({
     deal,
@@ -237,6 +242,7 @@ export function DealStageProgressionCard({
             creditApprovalDecisions: creditApprovalDecisionsData,
             commitments: commitmentsData,
             conditionVerifications: conditionVerificationsData,
+            executedDocumentAttestations: executedDocumentAttestationsData,
           }}
           dealId={deal.id}
           actor={stageAdvanceActor!}
