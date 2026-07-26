@@ -350,6 +350,26 @@ describe('Phase 119 — PersonalPipeline stage grouping', () => {
     expect(screen.queryByText(/^Target close:/i)).toBeNull();
   });
 
+  it('N-24 remediation — target close renders the stored calendar day, never the prior day, west of UTC', async () => {
+    const originalTz = process.env.TZ;
+    process.env.TZ = 'America/New_York';
+    try {
+      loadMock.mockResolvedValue([
+        deal({ id: 'd1', name: 'TZ deal', stage: 'Underwriting', targetCloseDate: '2026-09-08' }),
+      ]);
+      renderShell();
+
+      await waitFor(() => {
+        expect(screen.getByText('TZ deal')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Sep 8, 2026/)).toBeInTheDocument();
+      expect(screen.queryByText(/Sep 7, 2026/)).toBeNull();
+    } finally {
+      process.env.TZ = originalTz;
+    }
+  });
+
   it('Phase 124 — lane amount summary renders only when at least one deal in the lane has a parseable amount', async () => {
     loadMock.mockResolvedValue([
       deal({ id: 'd1', name: 'A', stage: 'Underwriting', amount: 2_500_000 }),
