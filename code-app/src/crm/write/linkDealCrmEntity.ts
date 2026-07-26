@@ -24,6 +24,7 @@
  */
 
 import { newCorrelationId } from '../../shared/governance/correlationId';
+import { mapBusinessSafeError } from '../../shared/errors/businessSafeErrorMapping';
 import {
   authGate,
   buildAuditPayload,
@@ -176,12 +177,13 @@ export async function linkDealCrmEntity(
       entityId,
     });
   } catch (err: unknown) {
-    return { kind: 'write-failed', error: errMessage(err), correlationId };
+    // PR A remediation — a raw transport-failure string, never rendered verbatim.
+    return { kind: 'write-failed', error: mapBusinessSafeError(errMessage(err), correlationId).safeMessage, correlationId };
   }
   if (!updated.success) {
     return {
       kind: 'write-failed',
-      error: updated.error?.message ?? 'Update returned non-success.',
+      error: mapBusinessSafeError(updated.error?.message ?? 'Update returned non-success.', correlationId).safeMessage,
       correlationId,
     };
   }
@@ -213,12 +215,18 @@ export async function linkDealCrmEntity(
       }),
     );
   } catch (err: unknown) {
-    return { kind: 'audit-failed', auditError: errMessage(err), correlationId, dealId, entityId };
+    return {
+      kind: 'audit-failed',
+      auditError: mapBusinessSafeError(errMessage(err), correlationId).safeMessage,
+      correlationId,
+      dealId,
+      entityId,
+    };
   }
   if (!audit.success) {
     return {
       kind: 'audit-failed',
-      auditError: audit.error?.message ?? 'Audit returned non-success.',
+      auditError: mapBusinessSafeError(audit.error?.message ?? 'Audit returned non-success.', correlationId).safeMessage,
       correlationId,
       dealId,
       entityId,

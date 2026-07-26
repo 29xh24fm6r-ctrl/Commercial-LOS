@@ -9,6 +9,7 @@ import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr66
 import { classifyLegacyDocumentStatus, isGovernedExcusedDocument } from '../deals/documentStatusClassification';
 import { requirementStatusFromCode } from '../deals/documentRequirementStatusCodes';
 import type { DocumentRequirementFields } from '../deals/documentRequirementFields';
+import { isPastCalendarDate } from '../shared/formatters';
 
 /**
  * Team Workspace queries. Live operational data — Team Workspace is
@@ -506,9 +507,12 @@ export function daysBetween(a: Date, b: Date): number {
   return Math.floor((b.getTime() - a.getTime()) / MS_PER_DAY);
 }
 
+// PR A remediation — dueDate is date-only; this used to compare a raw `new Date(iso)` (UTC
+// midnight) against the exact current instant, disagreeing with the calendar-safe work-queue
+// primitive (src/shared/workQueue/primitives.ts's isPastDue) on the very same Team Workspace page
+// for a viewer west of UTC. Now delegates to the shared, already-fixed calendar-day predicate.
 export function isPastDue(iso: string | undefined, now: Date = new Date()): boolean {
-  const d = parseDate(iso);
-  return !!d && d.getTime() < now.getTime();
+  return isPastCalendarDate(iso, now);
 }
 
 export function daysInStage(deal: TeamDealRow, now: Date = new Date()): number | undefined {

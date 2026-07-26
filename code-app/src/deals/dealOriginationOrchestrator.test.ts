@@ -105,6 +105,21 @@ describe('orchestrator -- success + downstream determination', () => {
     expect(res.crmOutcome.kind).toBe('disabled');
   });
 
+  // PR A remediation — the banker-entered deal name is genuinely known at submit time (never
+  // fabricated); carrying it through the result lets the UI show a human label alongside the raw
+  // Dataverse id instead of only the id (see BankerNewDealCreate.tsx's OutcomeBanner).
+  it('PR A: carries the banker-entered dealName through on every outcome kind, not just success', async () => {
+    const success = await orchestrateDealOrigination(input({ context: { authorized: true } }), {
+      runGovernedCreate: createReturning(SUCCESS),
+    });
+    expect(success.dealName).toBe('V1 Create Proof - test');
+
+    const failed = await orchestrateDealOrigination(input(), {
+      runGovernedCreate: createReturning({ kind: 'create_failed', error: 'boom' }),
+    });
+    expect(failed.dealName).toBe('V1 Create Proof - test');
+  });
+
   it('create success + a downstream success -> success_created_with_automation', async () => {
     const res = await orchestrateDealOrigination(input({ context: { authorized: true } }), {
       runGovernedCreate: createReturning(SUCCESS),

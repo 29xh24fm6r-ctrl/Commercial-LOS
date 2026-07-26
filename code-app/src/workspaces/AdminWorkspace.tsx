@@ -55,7 +55,7 @@ function AdminWorkspaceContent() {
       <div style={styles.page} data-admin-workspace-shell="lending-os">
       <header style={styles.header}>
         <div style={styles.titleBlock}>
-          <div style={styles.eyebrow}>Commercial Lending Â· Governance</div>
+          <div style={styles.eyebrow}>Commercial Lending · Governance</div>
           <h1 style={styles.title}>Admin Diagnostics</h1>
           <p style={styles.subtitle}>
             Operational control tower: data quality, audit anomalies, alert backlog,

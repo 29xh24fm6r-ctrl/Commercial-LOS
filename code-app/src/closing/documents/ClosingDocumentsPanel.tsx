@@ -17,9 +17,12 @@ import type {
  * `onGenerate`, which is expected to be wired to `generateClosingDocument` + a real (or in-memory)
  * storage dependency — this component never writes directly.
  *
- * NOT mounted anywhere in the live app yet (see src/navigation/intentionallyUnrouted.ts) — there is
- * no live Dataverse storage for generated documents (see closingDocumentStorage.ts's doc comment),
- * so surfacing this to a real banker today would imply a persistence guarantee that does not exist.
+ * PR A correction — this IS mounted in the live app (via DealClosingDocumentsPanel.tsx in
+ * BankerDealWorkspace.tsx); a prior comment here and in
+ * src/navigation/intentionallyUnrouted.ts claiming "Inert; not mounted" was stale and has been
+ * corrected. Durable storage now exists (see closingDocumentStorage.ts's
+ * createDataverseClosingDocumentStore), gated on an operator applying the pending schema migration
+ * — until then, DealClosingDocumentsPanel.tsx still uses the honest in-memory store and says so.
  */
 export interface ClosingDocumentsPanelProps {
   readonly dealId: string;
@@ -27,6 +30,27 @@ export interface ClosingDocumentsPanelProps {
   readonly manifests: readonly GeneratedClosingDocumentManifest[];
   readonly authorized: boolean;
   readonly onGenerate: (template: ClosingDocumentTemplate) => Promise<ClosingDocumentGenerationOutcome>;
+}
+
+/**
+ * PR A remediation — the panel could generate a document but had no way to get its content out of
+ * the browser tab. A plain client-side text download; no server round-trip, no dependency on
+ * durable storage having succeeded (uses the content this same generation call already returned).
+ */
+function downloadClosingDocumentContent(
+  template: ClosingDocumentTemplate,
+  manifest: GeneratedClosingDocumentManifest,
+  renderedContent: string,
+): void {
+  const blob = new Blob([renderedContent], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${template.key}-${manifest.manifestId}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export function ClosingDocumentsPanel({ dealId, facts, manifests, authorized, onGenerate }: ClosingDocumentsPanelProps) {
@@ -130,10 +154,26 @@ export function ClosingDocumentsPanel({ dealId, facts, manifests, authorized, on
                   Generation failed: {outcome.error}
                 </p>
               )}
-              {outcome && outcome.kind === 'generated' && !outcome.auditRecorded && (
-                <p style={styles.warning} role="status">
-                  Document generated, but audit evidence is incomplete. Admin review is required.
-                </p>
+              {outcome && outcome.kind === 'generated' && (
+                <>
+                  {/* PR A remediation — there was no download/export affordance anywhere in this
+                      panel; a banker could generate a document but never get it out of the
+                      browser tab. Uses the content this same generation call already returned —
+                      no extra read, no assumption that durable storage succeeded. */}
+                  <button
+                    type="button"
+                    style={styles.secondaryButton}
+                    onClick={() => downloadClosingDocumentContent(template, outcome.manifest, outcome.renderedContent)}
+                    data-closing-document-download={template.key}
+                  >
+                    Download
+                  </button>
+                  {!outcome.auditRecorded && (
+                    <p style={styles.warning} role="status">
+                      Document generated, but audit evidence is incomplete. Admin review is required.
+                    </p>
+                  )}
+                </>
               )}
             </li>
           );

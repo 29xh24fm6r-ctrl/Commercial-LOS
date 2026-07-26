@@ -186,8 +186,19 @@ export function PersonalPipeline({ refreshToken }: PersonalPipelineProps = {}) {
             >
               <div style={styles.laneHeader}>
                 <span style={styles.laneHeaderLabelGroup}>
-                  <span style={styles.laneHeaderAccent} aria-hidden="true" />
+                  <span
+                    style={{
+                      ...styles.laneHeaderAccent,
+                      background: lane.isDiagnostic ? palette.atRisk : palette.primary,
+                    }}
+                    aria-hidden="true"
+                  />
                   <span style={styles.laneHeaderLabel}>{lane.label}</span>
+                  {lane.isDiagnostic && (
+                    <Badge variant="atRisk" appearance="outline" title="Not one of the 6 canonical loan-workflow stages">
+                      Non-canonical
+                    </Badge>
+                  )}
                 </span>
                 <span style={styles.laneHeaderCount}>
                   {lane.deals.length} deal{lane.deals.length === 1 ? '' : 's'}
@@ -223,6 +234,14 @@ interface Lane {
   ordinal: number;
   deals: PipelineDeal[];
   amountSummary: string | null;
+  /**
+   * PR A remediation — true for a legacy/unrecognized stage value or the "Stage unknown" lane,
+   * false for one of the 6 canonical stages. Every lane header previously rendered with the
+   * identical accent dot regardless of this distinction, so a diagnostic lane (an operator-entered
+   * legacy stage name, or a deal with no parseable stage at all) looked exactly like a healthy
+   * canonical stage — never fabricated as an error, just never visually distinguished either.
+   */
+  isDiagnostic: boolean;
 }
 
 /**
@@ -282,6 +301,7 @@ function buildLanes(deals: readonly PipelineDeal[]): Lane[] {
       ordinal: s.sequence,
       deals: laneDeals,
       amountSummary: amountSummary(laneDeals),
+      isDiagnostic: false,
     };
   });
 
@@ -297,6 +317,7 @@ function buildLanes(deals: readonly PipelineDeal[]): Lane[] {
       ordinal: stageOrdinal(label),
       deals: laneDeals,
       amountSummary: amountSummary(laneDeals),
+      isDiagnostic: true,
     });
   }
 
@@ -310,6 +331,7 @@ function buildLanes(deals: readonly PipelineDeal[]): Lane[] {
           ordinal: Number.POSITIVE_INFINITY,
           deals: unknownDeals,
           amountSummary: amountSummary(unknownDeals),
+          isDiagnostic: true,
         }
       : null;
 

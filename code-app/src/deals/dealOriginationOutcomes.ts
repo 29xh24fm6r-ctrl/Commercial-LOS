@@ -191,6 +191,13 @@ export interface DealOriginationResult {
   readonly kind: DealOriginationTopOutcomeKind;
   readonly correlationId: string;
   readonly createdDealId?: string;
+  /**
+   * PR A remediation — the banker-entered deal name, carried through so the UI can show a human
+   * label alongside (never instead of, for support purposes) the raw Dataverse id. Genuinely known
+   * at submit time (never fabricated); undefined only for outcomes reached before the form's
+   * dealName was read (e.g. a disabled-environment short-circuit).
+   */
+  readonly dealName?: string;
   readonly actorSystemUserId?: string;
   readonly stageLabel?: string;
   readonly statusLabel?: string;

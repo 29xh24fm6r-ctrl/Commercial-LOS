@@ -38,6 +38,7 @@ import {
 } from './dealReferenceResolvers';
 import { GOVERNANCE_REASON_FIELD_ENABLED } from './dealOriginationFeatureFlags';
 import { GOVERNED_TRANSITION_REASON_COLUMN } from './governedTransitionReasonSchema';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 import type {
   CanonicalStageTransport,
   CanonicalAuditSink,
@@ -147,9 +148,13 @@ export function buildLiveCanonicalTransitionDeps(
           input.dealId,
           patch as unknown as Parameters<typeof Cr664_loandealsService.update>[1],
         );
-        return { ok: res.success, error: res.error?.message };
+        // PR A remediation — res.error?.message is a raw transport-failure string; every other
+        // `error` return in this function above is this codebase's own authored, already-safe
+        // descriptive text (e.g. "No active cr664_dealstagereferences row..."), which stays as-is.
+        return { ok: res.success, error: res.error?.message ? mapBusinessSafeError(res.error.message).safeMessage : undefined };
       } catch (err: unknown) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        const raw = err instanceof Error ? err.message : String(err);
+        return { ok: false, error: mapBusinessSafeError(raw).safeMessage };
       }
     },
 
@@ -160,7 +165,12 @@ export function buildLiveCanonicalTransitionDeps(
           select: ['_cr664_stagereference_value', 'cr664_stageentrydate', '_cr664_statusreference_value'],
         });
         if (!res.success || !res.data) {
-          return { ok: false, matched: false, detail: res.error?.message ?? 'Deal transition readback read failed.' };
+          // PR A remediation — res.error?.message is a raw transport-failure string.
+          return {
+            ok: false,
+            matched: false,
+            detail: res.error?.message ? mapBusinessSafeError(res.error.message).safeMessage : 'Deal transition readback read failed.',
+          };
         }
         const raw = res.data as unknown as Record<string, unknown>;
 
@@ -194,7 +204,8 @@ export function buildLiveCanonicalTransitionDeps(
 
         return { ok: true, matched: true };
       } catch (err: unknown) {
-        return { ok: false, matched: false, detail: err instanceof Error ? err.message : String(err) };
+        const raw = err instanceof Error ? err.message : String(err);
+        return { ok: false, matched: false, detail: mapBusinessSafeError(raw).safeMessage };
       }
     },
   };

@@ -8,6 +8,7 @@ import { emitLiveFundingAudit } from '../funding/fundingAuditLiveDeps';
 import type { FundingAuthorizationRecord, FundingReadinessFacts } from '../funding/fundingAuthorizationTypes';
 import { recognizeCanonicalStatus } from '../workflow/statusReferenceContract';
 import type { DealDetail } from './dealQueries';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 import { palette, radius, spacing, typography } from '../shared/theme';
 
 /**
@@ -97,13 +98,15 @@ export function DealFundingAuthorizationPanel({
           setLoadState('ready');
         } else {
           setLoadState('error');
-          setLoadError(res.error ?? 'Could not load the funding authorization record.');
+          // PR A remediation — res.error is a raw transport-failure string; never rendered verbatim.
+          setLoadError(res.error ? mapBusinessSafeError(res.error).safeMessage : 'Could not load the funding authorization record.');
         }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         setLoadState('error');
-        setLoadError(err instanceof Error ? err.message : String(err));
+        const raw = err instanceof Error ? err.message : String(err);
+        setLoadError(mapBusinessSafeError(raw).safeMessage);
       });
     return () => {
       cancelled = true;
@@ -125,7 +128,8 @@ export function DealFundingAuthorizationPanel({
     } else if (outcome.kind === 'invalid_input') {
       setRequestError(outcome.reason);
     } else {
-      setRequestError(outcome.error);
+      // PR A remediation — outcome.error (write_failed) is a raw transport-failure string.
+      setRequestError(mapBusinessSafeError(outcome.error, outcome.correlationId).safeMessage);
     }
   }
 
@@ -141,7 +145,7 @@ export function DealFundingAuthorizationPanel({
     } else if (outcome.kind === 'denied') {
       setActionError(`Approval denied: ${outcome.reason}`);
     } else if (outcome.kind === 'write_failed') {
-      setActionError(outcome.error);
+      setActionError(mapBusinessSafeError(outcome.error).safeMessage);
     }
   }
 
@@ -154,7 +158,7 @@ export function DealFundingAuthorizationPanel({
     } else if (outcome.kind === 'denied') {
       setActionError(`Rejection denied: ${outcome.reason}`);
     } else if (outcome.kind === 'write_failed') {
-      setActionError(outcome.error);
+      setActionError(mapBusinessSafeError(outcome.error).safeMessage);
     }
   }
 
@@ -167,7 +171,7 @@ export function DealFundingAuthorizationPanel({
     } else if (outcome.kind === 'denied') {
       setActionError(`Revocation denied: ${outcome.reason}`);
     } else if (outcome.kind === 'write_failed') {
-      setActionError(outcome.error);
+      setActionError(mapBusinessSafeError(outcome.error).safeMessage);
     }
   }
 
@@ -189,7 +193,7 @@ export function DealFundingAuthorizationPanel({
     } else if (outcome.kind === 'blocked') {
       setActionError(`Disbursement blocked: ${outcome.blockers.join(', ')}`);
     } else {
-      setActionError(outcome.error);
+      setActionError(mapBusinessSafeError(outcome.error).safeMessage);
     }
   }
 

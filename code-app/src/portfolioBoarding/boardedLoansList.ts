@@ -47,6 +47,8 @@ export interface BoardedLoanRow {
   readonly originalCommitment?: number | undefined;
   readonly bookingDate?: string | undefined;
   readonly closingDate?: string | undefined;
+  /** PR A remediation — already persisted at boarding time (cr664_termmonths), never read back. */
+  readonly termMonths?: number | undefined;
   // Sourced from child entities (cr664_portfolioboardedloancollateral / …guarantor),
   // NOT the main boarded-loan row — see WI-6 (deferred). The main getAll never
   // populates them; they stay undefined until the child read lands.
@@ -80,6 +82,7 @@ interface RawBoardedLoan {
   cr664_originalcommitmentamount?: number;
   cr664_bookingdate?: string;
   cr664_closingdate?: string;
+  cr664_termmonths?: number;
   // cr664_PortfolioManager is a systemuser LOOKUP: the id is read via
   // `_cr664_portfoliomanager_value` and the display name via that value's
   // `@OData.Community.Display.V1.FormattedValue` annotation. The raw
@@ -143,6 +146,7 @@ export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
     originalCommitment: numOrNull(r.cr664_originalcommitmentamount) ?? undefined,
     bookingDate: str(r.cr664_bookingdate),
     closingDate: str(r.cr664_closingdate),
+    termMonths: numOrNull(r.cr664_termmonths) ?? undefined,
     // collateralType / lienPosition / guaranteeAmount live on child entities —
     // never populated by the main getAll. Left undefined here (WI-6, deferred).
     portfolioManager: portfolioManagerName(r),
@@ -184,6 +188,7 @@ const CORE_SELECT: readonly string[] = [
   'cr664_originalcommitmentamount',
   'cr664_bookingdate',
   'cr664_closingdate',
+  'cr664_termmonths',
   // Lookup value; selecting the raw `cr664_portfoliomanager` nav property is
   // illegal. The `_value` select also carries the FormattedValue name annotation.
   PORTFOLIO_MANAGER_VALUE_COLUMN,

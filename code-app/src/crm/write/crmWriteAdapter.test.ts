@@ -149,6 +149,17 @@ describe('addCompany', () => {
     if (outcome.kind === 'audit-failed') expect(outcome.id).toBe('new-id');
   });
 
+  // PR A remediation — the raw transport error ("audit down") must never reach the banker; only
+  // the mapped, business-safe message does.
+  it('PR A: audit-failed never carries the raw transport error text', async () => {
+    const deps = stubDeps({ emitAudit: vi.fn(async () => ({ success: false, error: { message: 'audit down' } })) });
+    const outcome = await addCompany({ ...ACTOR, name: 'Acme' }, deps);
+    if (outcome.kind === 'audit-failed') {
+      expect(outcome.auditError).not.toBe('audit down');
+      expect(outcome.auditError).toMatch(/couldn't save that action/i);
+    }
+  });
+
   it('rejects an off-list organization Type before any write (invalid-input)', async () => {
     const deps = stubDeps();
     expect((await addCompany({ ...ACTOR, name: 'Acme', organizationType: 'NotARealType' }, deps)).kind).toBe('invalid-input');
@@ -167,6 +178,15 @@ describe('addCompany', () => {
     expect(outcome.kind).toBe('write-failed');
     expect(deps.readOrganization).not.toHaveBeenCalled();
     expect(deps.emitAudit).not.toHaveBeenCalled();
+  });
+
+  it('PR A: write-failed never carries the raw transport error text', async () => {
+    const deps = stubDeps({ createOrganization: vi.fn(async () => ({ success: false, error: { message: 'bad option value' } })) });
+    const outcome = await addCompany({ ...ACTOR, name: 'Acme' }, deps);
+    if (outcome.kind === 'write-failed') {
+      expect(outcome.error).not.toContain('bad option value');
+      expect(outcome.error).toMatch(/couldn't save that action/i);
+    }
   });
 
   it('reports write-failed when create throws', async () => {

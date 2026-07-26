@@ -201,6 +201,7 @@ export async function orchestrateDealOrigination(
     kind,
     correlationId,
     actorSystemUserId: input.form.actorSystemUserId || undefined,
+    dealName: input.form.dealName || undefined,
     stageLabel: ctx.stageLabel,
     statusLabel: ctx.statusLabel,
     createOutcome,

@@ -40,7 +40,7 @@ fabrication this document exists to prevent.
 | N-18 | **MERGED** | PR133. No schema/operator dependency. |
 | N-19 | **MERGED** | PR133. No schema/operator dependency. |
 | N-20 | **MERGED** | PR133. No schema/operator dependency. |
-| N-21 | **MERGED — PARTIALLY FIXED** | PR132. Error mapping is scoped to the document-requirement write family only — explicitly documented as "not a global sweep," so other write paths may still surface raw transport errors. |
+| N-21 | **MERGED — PARTIALLY FIXED** | PR132 scoped the fix to the document-requirement write family only. PR A extracted the mapper into a shared module and applied it to 6 more confirmed-leaking write families (deal creation, funding, stage transitions, CRM writeback, closing documents) — see `PR_A_REMAINING_PRODUCTION_REMEDIATION.md`. Still not an exhaustive sweep of every write path in the app; further leaks may exist unconfirmed. |
 | N-22 | **MERGED — OPERATOR ACTION REQUIRED** | PR137. New `cr664_crmindustryprojection` column not yet applied to the live org — until then, the durable-record half of this fix cannot actually persist anything (the code path degrades honestly, but the finding's core "never durably reached the deal" complaint is not yet resolved live). |
 | N-23 | **MERGED — OPERATOR ACTION REQUIRED — PARTIALLY FIXED** | PR137. Same unapplied column as N-22. The six-value coarse Industry choice list remains unchanged and only 5/20 NAICS sectors are seeded in the mapping table — both explicitly left as separate maker/admin policy decisions, not defects this fix claims to close. |
 | N-24 | **MERGED** | PR139. No schema/operator dependency (display/derivation logic only). |
@@ -54,14 +54,15 @@ fabrication this document exists to prevent.
 | D-04 | **MERGED** | The umbrella objective ("eliminate one-day date drift") this code names is satisfied by N-24's fix (PR139). |
 | N-04, N-05, N-06, N-12, N-13, N-27–N-32, D-02, D-03 | **NOT FIXED — UNACCOUNTED FOR** | No record of these codes' original claims survives anywhere in this repository. See `PRODUCTION_AUDIT_FINDINGS_N01_N36_2026-07-25.md`'s "Unaccounted-for codes" section. Cannot honestly be marked fixed, partially fixed, or even accurately "not fixed" against a known defect — there is no known defect text to check against. |
 
-## Operator action checklist (the only thing standing between "merged" and "actually fixed in production" for 4 findings)
+## Operator action checklist (the only thing standing between "merged" and "actually fixed in production" for these findings)
 
-Three additive schema migrations are merged but **not applied to any live Dataverse
+Four additive schema migrations are merged but **not applied to any live Dataverse
 environment**, per every one of their own PR's "Operator steps" section:
 
 1. `scripts/schema-migrations/` (PR132's extended 9-field package, includes `cr664_receivedby`) — blocks N-01, N-16.
 2. `scripts/schema-migrations/pr138-crm-industry-projection/` (`cr664_crmindustryprojection`) — blocks N-22, N-23.
 3. `scripts/schema-migrations/pr142-test-record-field/` (`cr664_istestrecord`) — blocks N-17.
+4. `scripts/schema-migrations/pr123-closing-document-persistence/` (`cr664_closingdocumentmanifest`) — blocks durable closing-document storage (PR A). Additionally requires the generated-service pairing's `dataSourcesInfo.ts` entry to be added for real (see `PR_A_REMAINING_PRODUCTION_REMEDIATION.md`'s operator-impact note — that file is gitignored/environment-local, not part of any PR diff).
 
 Each package is additive-only, includes a `verify-*.mjs` and `rollback-*.mjs`, and (per each PR's
 own rollback-considerations section) is safe to apply or roll back independently — none of them
