@@ -223,11 +223,15 @@ function tracked(
  * NOT attach to INTAKE, so Intake → Underwriting stays behavior-compatible with the current live gate.
  */
 const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
-  // Underwriting → Credit Approval (ARC Phase 3): the evaluation models are READY
-  // (src/workflow/underwritingDeepFacts.ts) but no deal-scoped record exists in Dataverse yet, so these
-  // stay untracked/future (fail-closed) until a maker adds the backing + a loader supplies the fact.
-  untracked('UNDERWRITING:risk_rating', 'UNDERWRITING', 'credit', 'Risk rating assigned', 'Credit Memo', 'underwriter', 'risk_rating_record', 'risk-rating model ready (underwritingDeepFacts.ts); needs a deal-scoped cr664 risk-rating record + loader (the cr664_RiskLevelReference lookup has no generated reference table today)'),
-  untracked('UNDERWRITING:uw_recommendation', 'UNDERWRITING', 'credit', 'Underwriting recommendation recorded', 'Credit Memo', 'underwriter', 'review_record', 'recommendation model ready (underwritingDeepFacts.ts); needs a cr664 underwriting-recommendation field/record (approve/approve-with-conditions/decline/return) + loader'),
+  // Underwriting → Credit Approval: Production Remediation Factory Arc Phase 6 (N-14/N-15) flips
+  // these tracked. Factory Arc Phase 5 already made the backing record real, durable, and
+  // deal-scoped (cr664_riskratinginputs / cr664_underwritingrecommendationinputs, read via
+  // deriveRiskRatingRecordFromDeal / deriveUnderwritingRecommendationRecordFromDeal in
+  // underwritingDeepFacts.ts) — the missing piece N-15 found was that the registry still called
+  // these facts untracked and evaluateStageExitPolicy therefore never consulted them. See the
+  // `tracked()` helper's docstring for the CLOSING_FUNDING:funds_disbursed precedent this follows.
+  tracked('UNDERWRITING:risk_rating', 'UNDERWRITING', 'credit', 'Risk rating assigned', 'Credit Memo', 'underwriter', 'risk_rating_record', 'cr664_riskratinginputs', 'A final risk rating with rationale, actor, and timestamp has not been recorded for this deal.'),
+  tracked('UNDERWRITING:uw_recommendation', 'UNDERWRITING', 'credit', 'Underwriting recommendation recorded', 'Credit Memo', 'underwriter', 'review_record', 'cr664_underwritingrecommendationinputs', 'A final underwriting recommendation with rationale, actor, and timestamp has not been recorded for this deal.'),
   // Credit Approval → Commitment (ARC PR 8/9)
   untracked('CREDIT_APPROVAL:memo_finalized', 'CREDIT_APPROVAL', 'credit', 'Credit memo finalized', 'Credit Memo', 'credit_officer', 'memo_status', 'credit memo lifecycle status not yet implemented (ARC PR 8)'),
   untracked('CREDIT_APPROVAL:approval_decision', 'CREDIT_APPROVAL', 'approval', 'Approval decision recorded', 'Approval', 'approver', 'approval_record', 'approval decision record not yet implemented (ARC PR 9)'),

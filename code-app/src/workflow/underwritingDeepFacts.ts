@@ -2,12 +2,18 @@
  * ARC Phase 3 — Underwriting deep-fact models + policies (risk rating, underwriting recommendation).
  *
  * PURE decision logic, no IO. These are the fail-closed policies the requirement engine evaluates for
- * the Underwriting → Credit Approval gate. IMPORTANT (honesty): the current Dataverse schema has NO
- * deal-scoped risk-rating or underwriting-recommendation record (see docs/LOS_WORKFLOW_TRUTH_MATRIX.md
- * — the `cr664_RiskLevelReference` lookup has no generated reference table and is not read into the
- * deal). So these facts remain `tracked: false` in the registry (surfaced as "future"), and these
- * models are NOT yet live-enforced — they are tested and ready, and flip live the moment a real record
- * source lands (a maker adds the schema + a loader supplies the fact). No value is fabricated here.
+ * the Underwriting → Credit Approval gate.
+ *
+ * Production Remediation Factory Arc Phase 6 (N-14/N-15) flipped both facts live: Factory Arc Phase 5
+ * already wired real, deal-scoped persistence (`cr664_riskratinginputs` /
+ * `cr664_underwritingrecommendationinputs`, read via `deriveRiskRatingRecordFromDeal` /
+ * `deriveUnderwritingRecommendationRecordFromDeal` below), and this phase closed the readiness-policy
+ * gap N-14 found (rating=final + blank rationale used to satisfy the gate) by requiring rationale,
+ * the assigning/recording actor, a timestamp, and an exact match on the deal being evaluated — not
+ * just a value and a status. `loanWorkflowRequirementRegistry.ts` now authors both requirements
+ * `tracked: true` (see `CLOSING_FUNDING:funds_disbursed` for the established pattern this follows).
+ * No value is fabricated: an absent, malformed, or legacy (pre-Phase-6) record parses to blank
+ * fields and fails these checks rather than silently satisfying them.
  */
 
 export interface DeepFactReadiness {
@@ -42,17 +48,37 @@ export const DEFAULT_RISK_RATING_POLICY: RiskRatingPolicy = Object.freeze({ minS
 const RISK_STATUS_ORDER: Record<RiskRatingStatus, number> = { draft: 0, assigned: 1, reviewed: 2, approved: 3 };
 
 /**
- * Fail-closed risk-rating readiness. Missing rating → not met. A DRAFT never satisfies. A rating with a
- * value satisfies only when its status meets the configured minimum (default `assigned`).
+ * Fail-closed risk-rating readiness (N-14/N-15 remediation, Factory Arc Phase 6). Missing rating →
+ * not met. A DRAFT never satisfies — it may be incomplete by design. Once status reaches the
+ * configured minimum (default `assigned`), the rating must be DURABLE, not merely a value + a
+ * status: a valid scale, a rationale, the assigning actor, an assignment timestamp, and a match on
+ * the exact deal being evaluated are all required. Blank rationale — the literal N-14 defect — is
+ * one case of this broader "final must be complete" rule, not a special case.
  */
 export function evaluateRiskRatingReadiness(
   record: RiskRatingRecord | undefined,
+  expectedDealId: string,
   policy: RiskRatingPolicy = DEFAULT_RISK_RATING_POLICY,
 ): DeepFactReadiness {
   if (!record) return { met: false, reason: 'No risk rating has been assigned to this deal.' };
   if (record.ratingValue.trim().length === 0) return { met: false, reason: 'Risk rating has no value.' };
   if (RISK_STATUS_ORDER[record.status] < RISK_STATUS_ORDER[policy.minStatus]) {
     return { met: false, reason: `Risk rating is "${record.status}"; a ${policy.minStatus} rating is required.` };
+  }
+  if (!record.ratingScale || record.ratingScale.trim().length === 0) {
+    return { met: false, reason: 'Risk rating has no rating scale recorded.' };
+  }
+  if (!record.rationale || record.rationale.trim().length === 0) {
+    return { met: false, reason: 'Risk rating has no rationale recorded.' };
+  }
+  if (!record.assignedBy || record.assignedBy.trim().length === 0) {
+    return { met: false, reason: 'Risk rating has no recorded assigning actor.' };
+  }
+  if (!record.assignedAtIso || record.assignedAtIso.trim().length === 0) {
+    return { met: false, reason: 'Risk rating has no recorded assignment timestamp.' };
+  }
+  if (record.dealId !== expectedDealId) {
+    return { met: false, reason: 'Risk rating record does not match this deal.' };
   }
   return { met: true, reason: '' };
 }
@@ -87,12 +113,16 @@ export interface UnderwritingRecommendationReadiness extends DeepFactReadiness {
 }
 
 /**
- * Fail-closed underwriting-recommendation readiness. Missing → not met. A DRAFT never satisfies. A
- * DECLINE or RETURN outcome never satisfies a normal advance (it requires the non-forward path).
- * Only a recorded supportable / supportable-with-conditions outcome satisfies the forward Credit Approval gate.
+ * Fail-closed underwriting-recommendation readiness (N-14/N-15 remediation, Factory Arc Phase 6).
+ * Missing → not met. A DRAFT never satisfies. A DECLINE or RETURN outcome never satisfies a normal
+ * advance (it requires the non-forward path). A recorded APPROVE / APPROVE_WITH_CONDITIONS outcome
+ * satisfies the forward gate only when it is durable: rationale, the recording underwriter, a
+ * recorded timestamp, and a match on the exact deal being evaluated are all required — the same
+ * "final must be complete" rule N-14 established for risk rating.
  */
 export function evaluateUnderwritingRecommendationReadiness(
   record: UnderwritingRecommendationRecord | undefined,
+  expectedDealId: string,
 ): UnderwritingRecommendationReadiness {
   if (!record) return { met: false, reason: 'No underwriting recommendation has been recorded.', requiresNonForwardPath: false };
   if (record.status === 'draft') {
@@ -103,6 +133,18 @@ export function evaluateUnderwritingRecommendationReadiness(
   }
   if (record.decision === 'return_for_more_information') {
     return { met: false, reason: 'Underwriting recommends RETURN for more information — route via the Return path.', requiresNonForwardPath: true, decision: 'return_for_more_information' };
+  }
+  if (!record.rationale || record.rationale.trim().length === 0) {
+    return { met: false, reason: 'Underwriting recommendation has no rationale recorded.', requiresNonForwardPath: false, decision: record.decision };
+  }
+  if (!record.underwriterActor || record.underwriterActor.trim().length === 0) {
+    return { met: false, reason: 'Underwriting recommendation has no recorded underwriter.', requiresNonForwardPath: false, decision: record.decision };
+  }
+  if (!record.recordedAtIso || record.recordedAtIso.trim().length === 0) {
+    return { met: false, reason: 'Underwriting recommendation has no recorded timestamp.', requiresNonForwardPath: false, decision: record.decision };
+  }
+  if (record.dealId !== expectedDealId) {
+    return { met: false, reason: 'Underwriting recommendation record does not match this deal.', requiresNonForwardPath: false, decision: record.decision };
   }
   return { met: true, reason: '', requiresNonForwardPath: false, decision: record.decision };
 }
@@ -130,6 +172,15 @@ export interface RiskRatingFormState {
   readonly ratingScale: string;
   readonly rationale: string;
   readonly status: RiskRatingStatus;
+  /**
+   * N-14/N-15 remediation (Factory Arc Phase 6) — durable "exact deal linkage, actor identity,
+   * timestamp" fields the finding requires for a final/assigned rating to count as met. Stamped by
+   * the save path itself (never banker-editable), so a legacy record persisted before this phase
+   * parses these as '' and correctly fails the new checks rather than fabricating them.
+   */
+  readonly dealId: string;
+  readonly assignedBy: string;
+  readonly assignedAtIso: string;
 }
 
 export const EMPTY_RISK_RATING_FORM_STATE: RiskRatingFormState = {
@@ -137,6 +188,9 @@ export const EMPTY_RISK_RATING_FORM_STATE: RiskRatingFormState = {
   ratingScale: '',
   rationale: '',
   status: 'draft',
+  dealId: '',
+  assignedBy: '',
+  assignedAtIso: '',
 };
 
 export function serializeRiskRatingFormState(state: RiskRatingFormState): string {
@@ -155,22 +209,57 @@ export function parseRiskRatingFormState(json: string | undefined): RiskRatingFo
       ratingScale: typeof p.ratingScale === 'string' ? p.ratingScale : '',
       rationale: typeof p.rationale === 'string' ? p.rationale : '',
       status: RISK_RATING_STATUSES.includes(p.status as RiskRatingStatus) ? (p.status as RiskRatingStatus) : 'draft',
+      dealId: typeof p.dealId === 'string' ? p.dealId : '',
+      assignedBy: typeof p.assignedBy === 'string' ? p.assignedBy : '',
+      assignedAtIso: typeof p.assignedAtIso === 'string' ? p.assignedAtIso : '',
     };
   } catch {
     return EMPTY_RISK_RATING_FORM_STATE;
   }
 }
 
+/**
+ * N-15 remediation — the loader that supplies `WorkflowRequirementFacts.riskRating` from the deal's
+ * own persisted record. Returns `undefined` when no rating value has ever been entered (never
+ * fabricated as an empty-but-present record); a malformed/legacy blob parses to blank fields, which
+ * correctly fails `evaluateRiskRatingReadiness`'s checks rather than satisfying them.
+ */
+export function deriveRiskRatingRecordFromDeal(deal: { readonly riskRatingInputsJson?: string }): RiskRatingRecord | undefined {
+  const form = parseRiskRatingFormState(deal.riskRatingInputsJson);
+  if (form.ratingValue.trim().length === 0) return undefined;
+  return {
+    dealId: form.dealId,
+    ratingValue: form.ratingValue,
+    ratingScale: form.ratingScale,
+    rationale: form.rationale,
+    assignedBy: form.assignedBy,
+    assignedAtIso: form.assignedAtIso,
+    status: form.status,
+  };
+}
+
 export interface UnderwritingRecommendationFormState {
   readonly decision: UnderwritingRecommendationDecision;
   readonly rationale: string;
   readonly status: UnderwritingRecommendationStatus;
+  /**
+   * N-14/N-15 remediation (Factory Arc Phase 6) — durable "exact deal linkage, actor identity,
+   * timestamp" fields the finding requires for a final recommendation to count as met. Stamped by
+   * the save path itself (never banker-editable), so a legacy record persisted before this phase
+   * parses these as '' and correctly fails the new checks rather than fabricating them.
+   */
+  readonly dealId: string;
+  readonly underwriterActor: string;
+  readonly recordedAtIso: string;
 }
 
 export const EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE: UnderwritingRecommendationFormState = {
   decision: 'approve',
   rationale: '',
   status: 'draft',
+  dealId: '',
+  underwriterActor: '',
+  recordedAtIso: '',
 };
 
 export function serializeUnderwritingRecommendationFormState(state: UnderwritingRecommendationFormState): string {
@@ -192,8 +281,35 @@ export function parseUnderwritingRecommendationFormState(json: string | undefine
       status: RECOMMENDATION_STATUSES.includes(p.status as UnderwritingRecommendationStatus)
         ? (p.status as UnderwritingRecommendationStatus)
         : 'draft',
+      dealId: typeof p.dealId === 'string' ? p.dealId : '',
+      underwriterActor: typeof p.underwriterActor === 'string' ? p.underwriterActor : '',
+      recordedAtIso: typeof p.recordedAtIso === 'string' ? p.recordedAtIso : '',
     };
   } catch {
     return EMPTY_UNDERWRITING_RECOMMENDATION_FORM_STATE;
   }
+}
+
+/**
+ * N-15 remediation — the loader that supplies `WorkflowRequirementFacts.underwritingRecommendation`
+ * from the deal's own persisted record. Returns `undefined` when no recommendation has ever been
+ * recorded (never fabricated as an empty-but-present record); a malformed/legacy blob parses to
+ * blank fields, which correctly fails `evaluateUnderwritingRecommendationReadiness`'s checks rather
+ * than satisfying them.
+ */
+export function deriveUnderwritingRecommendationRecordFromDeal(deal: {
+  readonly underwritingRecommendationInputsJson?: string;
+}): UnderwritingRecommendationRecord | undefined {
+  const form = parseUnderwritingRecommendationFormState(deal.underwritingRecommendationInputsJson);
+  // dealId is stamped only by the save path (never banker-editable) — its absence means nothing
+  // has ever actually been saved for this deal, as distinct from a saved-but-still-draft record.
+  if (form.dealId.trim().length === 0) return undefined;
+  return {
+    dealId: form.dealId,
+    decision: form.decision,
+    rationale: form.rationale,
+    underwriterActor: form.underwriterActor,
+    recordedAtIso: form.recordedAtIso,
+    status: form.status,
+  };
 }
