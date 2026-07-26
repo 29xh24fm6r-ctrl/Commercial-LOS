@@ -33,6 +33,7 @@ import {
   type ActorChangedByResolution,
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 // Enum values — kept inline (schema-verified), matching dealTaskActions.ts.
 const AUDIT_EVENT_CATEGORY_LIFECYCLE = 788190002;
@@ -202,13 +203,14 @@ export async function createDealTask(
     if (!create.success || !create.data?.cr664_dealtask1id) {
       const msg = create.error?.message ?? 'DealTask create returned non-success';
       void emitAddTaskAuditEvent({ input, actor, taskId: 'unknown', correlationId, outcome: AUDIT_OUTCOME_FAILED, failureReason: msg });
-      return { kind: 'task-create-failed', taskError: msg };
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      return { kind: 'task-create-failed', taskError: mapBusinessSafeError(msg, correlationId).safeMessage };
     }
     taskId = create.data.cr664_dealtask1id;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     void emitAddTaskAuditEvent({ input, actor, taskId: 'unknown', correlationId, outcome: AUDIT_OUTCOME_FAILED, failureReason: message });
-    return { kind: 'task-create-failed', taskError: message };
+    return { kind: 'task-create-failed', taskError: mapBusinessSafeError(message, correlationId).safeMessage };
   }
 
   // Step 2 + 3: audit + timeline, in parallel. Either failure → governance-partial.
@@ -218,7 +220,12 @@ export async function createDealTask(
   ]);
 
   if (audit.error || timeline.error) {
-    return { kind: 'governance-partial', taskId, auditError: audit.error, timelineError: timeline.error };
+    return {
+      kind: 'governance-partial',
+      taskId,
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
+    };
   }
   return { kind: 'success', taskId };
 }

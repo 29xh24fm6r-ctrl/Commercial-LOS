@@ -201,7 +201,9 @@ describe('completeTask', () => {
 
     expect(outcome.kind).toBe('task-failed');
     if (outcome.kind === 'task-failed') {
-      expect(outcome.taskError).toBe('row locked');
+      // Final LOS Completion arc (Workstream P) — the raw message is never rendered to the banker.
+      expect(outcome.taskError).not.toContain('row locked');
+      expect(outcome.taskError).toContain("We couldn't save that action");
     }
     expect(taskUpdate).toHaveBeenCalledTimes(1);
     // Best-effort Failed audit fired.
@@ -222,7 +224,9 @@ describe('completeTask', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toBe('audit write blocked');
+      // Final LOS Completion arc (Workstream P) — never render a raw governance-write error verbatim.
+      expect(outcome.auditError).not.toContain('audit write blocked');
+      expect(outcome.auditError).toContain("We couldn't save that action");
       expect(outcome.timelineError).toBeUndefined();
     }
   });
@@ -237,7 +241,8 @@ describe('completeTask', () => {
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
       expect(outcome.auditError).toBeUndefined();
-      expect(outcome.timelineError).toBe('timeline endpoint 500');
+      expect(outcome.timelineError).not.toContain('timeline endpoint 500');
+      expect(outcome.timelineError).toContain("We couldn't save that action");
     }
   });
 
@@ -250,8 +255,10 @@ describe('completeTask', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toBe('audit boom');
-      expect(outcome.timelineError).toBe('timeline boom');
+      expect(outcome.auditError).not.toContain('audit boom');
+      expect(outcome.timelineError).not.toContain('timeline boom');
+      expect(outcome.auditError).toContain("We couldn't save that action");
+      expect(outcome.timelineError).toContain("We couldn't save that action");
     }
   });
 
@@ -264,7 +271,10 @@ describe('completeTask', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+      // Final LOS Completion arc (Workstream P) — this reason string carries internal schema
+      // jargon (cr664_user / CoreUser bridging detail) that a banker should never see either.
+      expect(outcome.auditError).not.toMatch(/CoreUser/);
+      expect(outcome.auditError).toContain("We couldn't save that action");
     }
     // No audit row is POSTed with an unresolved actor — never a systemuser bind.
     expect(auditCreate).not.toHaveBeenCalled();
@@ -472,7 +482,9 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       const result = await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(result.kind).toBe('task-create-failed');
       if (result.kind === 'task-create-failed') {
-        expect(result.taskError).toBe('schema rejected payload');
+        // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+        expect(result.taskError).not.toContain('schema rejected payload');
+        expect(result.taskError).toContain("We couldn't save that action");
       }
       expect(timelineCreate).not.toHaveBeenCalled();
     });
@@ -485,7 +497,8 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       const result = await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(result.kind).toBe('task-create-failed');
       if (result.kind === 'task-create-failed') {
-        expect(result.taskError).toContain('network error');
+        expect(result.taskError).not.toContain('network error');
+        expect(result.taskError).toContain("We couldn't save that action");
       }
       expect(timelineCreate).not.toHaveBeenCalled();
     });
@@ -500,7 +513,8 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
         expect(result.taskId).toBe('task-new-2');
-        expect(result.auditError).toBe('audit boom');
+        expect(result.auditError).not.toContain('audit boom');
+        expect(result.auditError).toContain("We couldn't save that action");
         expect(result.timelineError).toBeUndefined();
       }
     });
@@ -513,7 +527,8 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
         expect(result.taskId).toBe('task-new-3');
-        expect(result.timelineError).toBe('timeline boom');
+        expect(result.timelineError).not.toContain('timeline boom');
+        expect(result.timelineError).toContain("We couldn't save that action");
         expect(result.auditError).toBeUndefined();
       }
     });
@@ -525,8 +540,10 @@ describe('Phase 70 — createDocumentReviewTask', () => {
       const result = await createDocumentReviewTask(reviewTaskInput(), okResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
-        expect(result.auditError).toBe('audit boom');
-        expect(result.timelineError).toBe('timeline boom');
+        expect(result.auditError).not.toContain('audit boom');
+        expect(result.timelineError).not.toContain('timeline boom');
+        expect(result.auditError).toContain("We couldn't save that action");
+        expect(result.timelineError).toContain("We couldn't save that action");
       }
     });
   });
@@ -647,7 +664,10 @@ describe('WF-1A — createDealTask', () => {
     expect(result.kind).toBe('governance-partial');
     if (result.kind === 'governance-partial') {
       expect(result.taskId).toBe('task-new-3');
-      expect(result.auditError).toMatch(/cr664_user|unresolved/i);
+      // Final LOS Completion arc (Workstream P) — the raw actor-resolution reason (which carries
+      // internal schema jargon) is no longer rendered; only the shared safe message is.
+      expect(result.auditError).not.toMatch(/cr664_user/i);
+      expect(result.auditError).toContain("We couldn't save that action");
     }
     // Fail-closed: no audit row was POSTed without a resolved cr664_user actor.
     expect(auditCreate).not.toHaveBeenCalled();
@@ -659,6 +679,9 @@ describe('WF-1A — createDealTask', () => {
     const result = await createDealTask(dealTaskInput(), okResolver);
 
     expect(result.kind).toBe('task-create-failed');
-    if (result.kind === 'task-create-failed') expect(result.taskError).toMatch(/schema rejected/);
+    if (result.kind === 'task-create-failed') {
+      expect(result.taskError).not.toMatch(/schema rejected/);
+      expect(result.taskError).toContain("We couldn't save that action");
+    }
   });
 });
