@@ -1,4 +1,5 @@
 import { newCorrelationId } from '../../shared/governance/correlationId';
+import { mapBusinessSafeError } from '../../shared/errors/businessSafeErrorMapping';
 import { createActorChangedByResolver, type ResolveActorChangedBy } from '../../deals/newDealAuditActorResolver';
 import { evaluateTemplateEligibility } from './closingDocumentEligibility';
 import { hashClosingDocumentContent, renderClosingDocumentContent } from './closingDocumentContentRenderer';
@@ -76,10 +77,16 @@ export async function generateClosingDocument(
   try {
     writeResult = await deps.storage.createManifestRecord(manifest, renderedContent);
   } catch (err: unknown) {
-    return { kind: 'write_failed', error: err instanceof Error ? err.message : String(err), correlationId };
+    // PR A remediation — a raw transport-failure string, never rendered verbatim.
+    const raw = err instanceof Error ? err.message : String(err);
+    return { kind: 'write_failed', error: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId };
   }
   if (!writeResult.success) {
-    return { kind: 'write_failed', error: writeResult.error ?? 'Manifest storage returned non-success.', correlationId };
+    return {
+      kind: 'write_failed',
+      error: mapBusinessSafeError(writeResult.error ?? 'Manifest storage returned non-success.', correlationId).safeMessage,
+      correlationId,
+    };
   }
 
   const audit = await recordClosingDocumentGenerationAudit(

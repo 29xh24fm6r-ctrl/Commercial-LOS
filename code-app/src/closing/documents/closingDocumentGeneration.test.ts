@@ -114,7 +114,12 @@ describe('generateClosingDocument', () => {
       { storage: failingStore, emitAudit, resolveActorChangedBy: okResolver },
     );
     expect(outcome.kind).toBe('write_failed');
-    if (outcome.kind === 'write_failed') expect(outcome.error).toBe('Dataverse write rejected');
+    // PR A remediation — the raw transport error ("Dataverse write rejected") must never reach
+    // the banker; only the mapped, business-safe message does.
+    if (outcome.kind === 'write_failed') {
+      expect(outcome.error).not.toBe('Dataverse write rejected');
+      expect(outcome.error).toMatch(/couldn't save that action/i);
+    }
     expect(emitAudit).not.toHaveBeenCalled();
   });
 });

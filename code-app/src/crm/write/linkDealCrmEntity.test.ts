@@ -221,6 +221,11 @@ describe('linkDealCrmEntity — failure modes', () => {
     };
     const out = await linkDealCrmEntity(clientInput(), deps);
     expect(out.kind).toBe('audit-failed');
-    if (out.kind === 'audit-failed') expect(out.auditError).toBe('audit down');
+    // PR A remediation — the raw transport error ("audit down") must never reach the banker;
+    // only the mapped, business-safe message does (see LinkDealCrmEntityModal.tsx's rendering).
+    if (out.kind === 'audit-failed') {
+      expect(out.auditError).not.toBe('audit down');
+      expect(out.auditError).toMatch(/couldn't save that action/i);
+    }
   });
 });

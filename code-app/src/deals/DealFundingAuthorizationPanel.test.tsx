@@ -101,18 +101,21 @@ describe('DealFundingAuthorizationPanel — durable Dataverse-backed store', () 
     expect(document.querySelector('[data-funding-request-form]')).not.toBeNull();
   });
 
-  it('surfaces an honest, visible error when the durable read fails — never a silent fallback', async () => {
+  // PR A remediation — a raw transport-failure string used to render verbatim; now only the
+  // mapped, business-safe message reaches the banker.
+  it('surfaces an honest, visible error when the durable read fails — never the raw transport text', async () => {
     createStoreMock.mockImplementation(() => ({
       createRecord: async () => ({ success: true }),
       updateRecord: async () => ({ success: true }),
       getCurrentRecordForDeal: async () => ({ success: false, error: 'Dataverse read timed out.' }),
     }));
     render(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/dataverse read timed out/i));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/couldn't save that action/i));
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/dataverse read timed out/i);
     expect(document.querySelector('[data-funding-request-form]')).toBeNull();
   });
 
-  it('surfaces an honest, visible error when the durable read rejects', async () => {
+  it('surfaces an honest, visible error when the durable read rejects — never the raw exception text', async () => {
     createStoreMock.mockImplementation(() => ({
       createRecord: async () => ({ success: true }),
       updateRecord: async () => ({ success: true }),
@@ -121,7 +124,8 @@ describe('DealFundingAuthorizationPanel — durable Dataverse-backed store', () 
       },
     }));
     render(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/sdk boom/i));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/couldn't save that action/i));
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/sdk boom/i);
   });
 
   it('requesting funding persists through the durable store and the request form disappears', async () => {
@@ -185,7 +189,10 @@ describe('DealFundingAuthorizationPanel — durable Dataverse-backed store', () 
     rerender(<DealFundingAuthorizationPanel deal={baseDeal()} authorized={true} actorEmail="approver@bank.test" />);
     await waitForInitialLoad();
     await user.click(screen.getByRole('button', { name: /^approve$/i }));
-    await waitFor(() => expect(screen.getByText(/row lock timeout/i)).toBeInTheDocument());
+    // PR A remediation — the raw transport error ("Row lock timeout.") must never reach the
+    // banker; only the mapped, business-safe message does.
+    await waitFor(() => expect(screen.getByText(/couldn't save that action/i)).toBeInTheDocument());
+    expect(screen.queryByText(/row lock timeout/i)).toBeNull();
     // Status must NOT have silently advanced to APPROVED on a failed write.
     expect(screen.getByTestId('funding-status')).toHaveTextContent('PENDING');
   });

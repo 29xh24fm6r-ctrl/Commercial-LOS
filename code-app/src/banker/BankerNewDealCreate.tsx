@@ -65,6 +65,7 @@ function describeBridgeFailure(bridge: BridgeOrgToClientOutcome): string {
 }
 import type { DealOriginationResult } from '../deals/dealOriginationOutcomes';
 import type { ExistingDealSignal } from '../deals/newDealDuplicateDetection';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * Phase — CRM-first New Deal create.
@@ -430,7 +431,10 @@ export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: Ba
         setSubmit({ kind: 'done', result, profileOutcome });
       }
     } catch (err) {
-      setSubmit({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
+      // PR A remediation — this used to render the raw exception message verbatim; an unexpected
+      // failure here can be a raw Dataverse/OData/.NET transport error same as any mapped outcome.
+      const raw = err instanceof Error ? err.message : String(err);
+      setSubmit({ kind: 'error', message: mapBusinessSafeError(raw).safeMessage });
     } finally {
       submittingRef.current = false;
     }
@@ -1214,14 +1218,17 @@ function OutcomeBanner({
           An operator must reattempt the audit. This is not a clean success.
           {' '}Correlation id: {r.correlationId}.
           {r.auditOutcome?.error ? (
-            <span data-banker-new-deal-audit-error> Audit error: {r.auditOutcome.error}</span>
+            <span data-banker-new-deal-audit-error>
+              {' '}Audit error: {mapBusinessSafeError(r.auditOutcome.error, r.correlationId).safeMessage}
+            </span>
           ) : null}
         </div>
       );
     case 'create_failed':
       return (
         <div style={styles.bannerError} role="alert" data-banker-new-deal-result="create_failed">
-          The deal could not be created. No record exists. {r.createOutcome.error ?? ''}
+          The deal could not be created. No record exists.{' '}
+          {r.createOutcome.error ? mapBusinessSafeError(r.createOutcome.error, r.correlationId).safeMessage : ''}
         </div>
       );
     case 'validation_error':

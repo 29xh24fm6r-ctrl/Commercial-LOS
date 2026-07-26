@@ -93,6 +93,24 @@ describe('buildLiveCanonicalTransitionDeps — RETURN transport.applyTransition 
     expect(res.error).toMatch(/No active cr664_dealstagereferences row/);
     expect(loandealsUpdate).not.toHaveBeenCalled();
   });
+
+  // PR A remediation — a genuine live-write transport failure (as opposed to the authored
+  // "not seeded" messages above, which stay verbatim — they're already safe, specific, useful
+  // text) must never surface its raw error text to the caller.
+  it('PR A: maps a genuine live-write transport failure to a business-safe message, not the raw text', async () => {
+    stageGetAll.mockResolvedValueOnce(stageRow('UNDERWRITING', 'ref-uw'));
+    loandealsUpdate.mockResolvedValueOnce({ success: false, error: { message: 'Row version conflict 0x80040217' } });
+    const { transport } = buildLiveCanonicalTransitionDeps(actor);
+
+    const res = await transport.applyTransition({
+      dealId: 'deal-1', transition: 'RETURN', fromStage: 'CREDIT_APPROVAL', toStage: 'UNDERWRITING',
+      newStatus: 'OPEN', entryDateIso: '2026-07-02T00:00:00Z',
+    });
+
+    expect(res.ok).toBe(false);
+    expect(res.error).not.toContain('0x80040217');
+    expect(res.error).toMatch(/couldn't save that action/i);
+  });
 });
 
 describe('buildLiveCanonicalTransitionDeps — RETURN transport.readbackTransition (WFLOW-C)', () => {

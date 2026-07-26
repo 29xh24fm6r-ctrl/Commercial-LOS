@@ -17,6 +17,7 @@
  */
 
 import { newCorrelationId } from '../../shared/governance/correlationId';
+import { mapBusinessSafeError } from '../../shared/errors/businessSafeErrorMapping';
 import { isValidPartyType } from '../crmPartyTypes';
 import { isNaicsCode6 } from '../naics/naicsSectorMap';
 import {
@@ -212,10 +213,16 @@ async function governedCreate(opts: {
   try {
     created = await opts.create(opts.payload);
   } catch (err: unknown) {
-    return { kind: 'write-failed', error: err instanceof Error ? err.message : String(err), correlationId };
+    // PR A remediation — a raw transport-failure string, never rendered verbatim.
+    const raw = err instanceof Error ? err.message : String(err);
+    return { kind: 'write-failed', error: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId };
   }
   if (!created.success || !created.id) {
-    return { kind: 'write-failed', error: created.error?.message ?? 'Create returned non-success.', correlationId };
+    return {
+      kind: 'write-failed',
+      error: mapBusinessSafeError(created.error?.message ?? 'Create returned non-success.', correlationId).safeMessage,
+      correlationId,
+    };
   }
   const id = created.id;
 
@@ -246,10 +253,16 @@ async function governedCreate(opts: {
       }),
     );
   } catch (err: unknown) {
-    return { kind: 'audit-failed', auditError: err instanceof Error ? err.message : String(err), correlationId, id };
+    const raw = err instanceof Error ? err.message : String(err);
+    return { kind: 'audit-failed', auditError: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId, id };
   }
   if (!audit.success) {
-    return { kind: 'audit-failed', auditError: audit.error?.message ?? 'Audit returned non-success.', correlationId, id };
+    return {
+      kind: 'audit-failed',
+      auditError: mapBusinessSafeError(audit.error?.message ?? 'Audit returned non-success.', correlationId).safeMessage,
+      correlationId,
+      id,
+    };
   }
 
   return { kind: 'success', id, correlationId, auditId: audit.id, childErrors };
