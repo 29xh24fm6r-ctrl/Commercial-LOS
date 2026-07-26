@@ -57,6 +57,34 @@ describe('P1-11 — test/smoke deal classification', () => {
     expect(isTestOrSmokeDeal(undefined)).toBe(false);
   });
 
+  describe('N-17 remediation (Production Remediation Factory Arc Phase 11) — governed isTestRecord field', () => {
+    it('an explicit isTestRecord: true wins even for an ordinary-looking name', () => {
+      expect(isTestOrSmokeDeal({ name: 'Acme Expansion', isTestRecord: true })).toBe(true);
+    });
+
+    it('an explicit isTestRecord: false wins even for a name matching the test convention', () => {
+      // e.g. a real borrower legitimately named with a word the pattern would otherwise catch —
+      // an admin's explicit classification overrides the name heuristic either direction.
+      expect(isTestOrSmokeDeal({ name: '[QA] Regression deal', isTestRecord: false })).toBe(false);
+    });
+
+    it('undefined/null isTestRecord falls back to name matching exactly as before', () => {
+      expect(isTestOrSmokeDeal({ name: '[SMOKE TEST] x', isTestRecord: undefined })).toBe(true);
+      expect(isTestOrSmokeDeal({ name: '[SMOKE TEST] x', isTestRecord: null })).toBe(true);
+      expect(isTestOrSmokeDeal({ name: 'Acme', isTestRecord: undefined })).toBe(false);
+    });
+
+    it('operationalDeals honors the governed field per-record, mixed with name-fallback records', () => {
+      const deals = [
+        { name: 'Acme', isTestRecord: undefined },
+        { name: 'Governed Test Record', isTestRecord: true },
+        { name: '[SMOKE TEST] name-only record' },
+        { name: 'Governed Real Record', isTestRecord: false },
+      ];
+      expect(operationalDeals(deals).map((d) => d.name)).toEqual(['Acme', 'Governed Real Record']);
+    });
+  });
+
   it('partitions a mixed list, preserving order and never dropping records', () => {
     const deals = [
       { name: 'Acme Expansion', id: 1 },
