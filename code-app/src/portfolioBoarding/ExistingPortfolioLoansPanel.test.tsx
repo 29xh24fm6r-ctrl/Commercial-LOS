@@ -61,6 +61,39 @@ describe('Phase 259 — ExistingPortfolioLoansPanel', () => {
     expect(within(detail).getByText(/Existing portfolio loan \(manually boarded\)/i)).toBeInTheDocument();
   });
 
+  // PR A remediation — term/purpose are already persisted at boarding time (core column +
+  // extended-attributes blob) but were never displayed anywhere in Portfolio; this pins the fix.
+  it('shows loan term and purpose in the detail drawer when persisted, and a placeholder when absent', async () => {
+    loadLoans = vi.fn(async () => [
+      {
+        ...existingRows()[0],
+        termMonths: 60,
+        extended: { purpose: 'Acquisition of commercial property' },
+      },
+    ]);
+    const { container } = renderPanel(IDENTITY, { loadLoans: loadLoans as never });
+    await waitList();
+    const row = container.querySelector('[data-boarded-loan-row="l1"]') as HTMLElement;
+    const user = userEvent.setup();
+    await user.click(row);
+    const detail = container.querySelector('[data-boarded-loan-detail]') as HTMLElement;
+    expect(within(detail).getByText('60 months')).toBeInTheDocument();
+    expect(within(detail).getByText('Acquisition of commercial property')).toBeInTheDocument();
+  });
+
+  it('shows a placeholder for term/purpose when the loan never captured them (never fabricated)', async () => {
+    const { container } = renderPanel();
+    await waitList();
+    const row = container.querySelector('[data-boarded-loan-row="l1"]') as HTMLElement;
+    const user = userEvent.setup();
+    await user.click(row);
+    const detail = container.querySelector('[data-boarded-loan-detail]') as HTMLElement;
+    const termRow = within(detail).getByText('Term').closest('div');
+    const purposeRow = within(detail).getByText('Purpose').closest('div');
+    expect(termRow ? within(termRow).getByText('—') : null).not.toBeNull();
+    expect(purposeRow ? within(purposeRow).getByText('—') : null).not.toBeNull();
+  });
+
   // Factory Arc Phase 9 — the detail drawer shows REAL per-loan child-record
   // counts (collateral, guarantors, etc.), not a fabricated readiness claim.
   it('shows real per-loan record completeness in the detail drawer, distinguishing zero from a failed read', async () => {

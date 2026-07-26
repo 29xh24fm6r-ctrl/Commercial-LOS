@@ -755,6 +755,10 @@ function BoardedDetailDrawer({
     { label: 'Outstanding principal', value: formatAmount(row.outstanding) },
     { label: 'Risk rating', value: row.riskRating ?? '—' },
     { label: 'Maturity', value: row.maturityDate ?? '—' },
+    // PR A remediation — already persisted at boarding time (term at the core column,
+    // purpose inside the extended-attributes blob) but never displayed anywhere in Portfolio.
+    { label: 'Term', value: typeof row.termMonths === 'number' ? `${row.termMonths} months` : '—' },
+    { label: 'Purpose', value: row.extended?.purpose ?? '—' },
     { label: 'Boarding source', value: row.boardingSource ?? '—' },
   ];
 
