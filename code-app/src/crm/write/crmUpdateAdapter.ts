@@ -22,6 +22,7 @@
 import { newCorrelationId } from '../../shared/governance/correlationId';
 import { isValidPartyType } from '../crmPartyTypes';
 import { isNaicsCode6 } from '../naics/naicsSectorMap';
+import { mapBusinessSafeError } from '../../shared/errors/businessSafeErrorMapping';
 
 /** Columns an authorized operator may update through this governed path. */
 export const CRM_UPDATABLE_ORG_FIELDS = [
@@ -156,7 +157,12 @@ export async function updateOrganizationField(input: UpdateOrgFieldInput, deps: 
     error: e instanceof Error ? e.message : String(e),
   }));
   if (!updateResult.success) {
-    return { kind: 'update-failed', error: updateResult.error ?? 'unknown error', correlationId };
+    // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+    return {
+      kind: 'update-failed',
+      error: mapBusinessSafeError(updateResult.error ?? 'unknown error', correlationId).safeMessage,
+      correlationId,
+    };
   }
 
   // Readback verification (when a reader is injected): the written value must read back and
@@ -183,7 +189,12 @@ export async function updateOrganizationField(input: UpdateOrgFieldInput, deps: 
     })
     .catch((e: unknown) => ({ success: false, id: undefined, error: e instanceof Error ? e.message : String(e) }));
   if (!audit.success) {
-    return { kind: 'audit-failed', auditError: audit.error, correlationId };
+    // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+    return {
+      kind: 'audit-failed',
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      correlationId,
+    };
   }
 
   return { kind: 'success', correlationId, auditId: audit.id };

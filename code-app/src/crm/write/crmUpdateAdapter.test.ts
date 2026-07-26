@@ -93,17 +93,26 @@ describe('updateOrganizationField', () => {
     expect(audit.cr664_entityid).toBe('org-1');
   });
 
-  it('surfaces an update failure without claiming success', async () => {
+  it('surfaces an update failure without claiming success, and never renders the raw error verbatim', async () => {
     const deps = stubDeps({ updateOrganization: vi.fn(async () => ({ success: false, error: 'row locked' })) });
     const outcome = await updateOrganizationField({ ...ON, field: 'cr664_notes', value: 'hi' }, deps);
     expect(outcome.kind).toBe('update-failed');
     expect(deps.emitAudit).not.toHaveBeenCalled();
+    // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+    if (outcome.kind === 'update-failed') {
+      expect(outcome.error).not.toContain('row locked');
+      expect(outcome.error).toContain("We couldn't save that action");
+    }
   });
 
-  it('reports audit failure after the write', async () => {
+  it('reports audit failure after the write, and never renders the raw error verbatim', async () => {
     const deps = stubDeps({ emitAudit: vi.fn(async () => ({ success: false, error: 'audit sink down' })) });
     const outcome = await updateOrganizationField({ ...ON, field: 'cr664_notes', value: 'hi' }, deps);
     expect(outcome.kind).toBe('audit-failed');
+    if (outcome.kind === 'audit-failed') {
+      expect(outcome.auditError).not.toContain('audit sink down');
+      expect(outcome.auditError).toContain("We couldn't save that action");
+    }
   });
 
   it('verifies the write via readback when a reader is injected (match → success, audit written)', async () => {
