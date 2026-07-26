@@ -5,6 +5,7 @@ import type { CreditMemoData, CreditMemoSummary } from './creditMemoQueries';
 import { deriveBlockers, type BlockerSignal } from './blockerRules';
 import { deriveDealBlockerModelForStage } from './dealBlockerModel';
 import { parseCalendarDate } from '../shared/formatters';
+import { parseCrmIndustryProjectionRecord } from './crmIndustryProjectionRecord';
 
 /**
  * Phase 24: pure credit memo DRAFT generator. Produces an editable
@@ -197,6 +198,18 @@ function borrowerOverview(
     `Customer type: ${valOrMissing(ctx.deal.customerType, label, 'Customer type', missing)}`,
     `Relationship banker: ${valOrMissing(ctx.deal.bankerName, label, 'Banker', missing)}`,
   ];
+  // N-22/N-23 remediation (Production Remediation Factory Arc Phase 7) — the deal's six-value
+  // Industry choice cannot represent every real CRM classification (e.g. a restaurant, NAICS
+  // 722511, has no seeded mapping and shows here as "Other" or Missing). When the linked CRM
+  // organization's exact NAICS classification has been durably recorded, show it as its own line
+  // regardless of whether the coarse Industry field itself could represent it — this is exactly
+  // what "the memo showed Other" needed: the real classification, not just the coarse fallback.
+  const projection = parseCrmIndustryProjectionRecord(ctx.deal.crmIndustryProjectionJson);
+  if (projection.naicsCode.trim().length > 0) {
+    const title = projection.naicsTitle.trim().length > 0 ? ` — ${projection.naicsTitle}` : '';
+    const sector = projection.sectorTitle.trim().length > 0 ? ` (sector ${projection.sectorCode} — ${projection.sectorTitle})` : '';
+    lines.push(`NAICS classification: ${projection.naicsCode}${title}${sector}`);
+  }
   return sectionWrap(label, lines.join('\n'));
 }
 

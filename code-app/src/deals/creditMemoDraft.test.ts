@@ -10,6 +10,7 @@ import {
   type CreditMemoSectionKey,
   type CreditMemoDraftContext,
 } from './creditMemoDraft';
+import { serializeCrmIndustryProjectionRecord, type CrmIndustryProjectionRecord } from './crmIndustryProjectionRecord';
 
 const FIXED_NOW = new Date('2026-05-13T12:00:00Z');
 
@@ -382,5 +383,47 @@ describe('buildCreditMemoDraft — existing memos are read-only', () => {
   it('does not surface prior-memo count when there are no existing memos', () => {
     const { body } = buildCreditMemoDraft(['executive-summary'], fullCtx());
     expect(body).not.toContain('Prior memos on file');
+  });
+});
+
+describe('N-22/N-23 remediation — borrower overview surfaces the exact durable NAICS classification', () => {
+  const restaurantProjection: CrmIndustryProjectionRecord = {
+    organizationId: 'org-restaurant',
+    naicsCode: '722511',
+    naicsTitle: 'Full-Service Restaurants',
+    sectorCode: '72',
+    sectorTitle: 'Accommodation and Food Services',
+    dealIndustryApplied: '',
+    source: 'none',
+    lastVerifiedAtIso: '2026-07-25T00:00:00Z',
+  };
+
+  it('shows the exact NAICS classification even when the coarse Industry field cannot represent it (the audit\'s restaurant example)', () => {
+    const deal: DealDetail = {
+      ...fullyPopulatedDeal,
+      industry: 'Other',
+      crmIndustryProjectionJson: serializeCrmIndustryProjectionRecord(restaurantProjection),
+    };
+    const body = buildCreditMemoDraft(['borrower-overview'], fullCtx({ deal })).body;
+    expect(body).toContain('NAICS classification: 722511 — Full-Service Restaurants (sector 72 — Accommodation and Food Services)');
+  });
+
+  it('omits the NAICS classification line when no CRM/NAICS projection has been recorded', () => {
+    const body = buildCreditMemoDraft(['borrower-overview'], fullCtx()).body;
+    expect(body).not.toContain('NAICS classification');
+  });
+
+  it('omits the NAICS classification line when the persisted projection JSON is corrupt (fail-closed, never fabricated)', () => {
+    const deal: DealDetail = { ...fullyPopulatedDeal, crmIndustryProjectionJson: '{not valid json' };
+    const body = buildCreditMemoDraft(['borrower-overview'], fullCtx({ deal })).body;
+    expect(body).not.toContain('NAICS classification');
+  });
+
+  it('shows a bare code (no title/sector) when only the code itself is known', () => {
+    const partial: CrmIndustryProjectionRecord = { ...restaurantProjection, naicsTitle: '', sectorCode: '', sectorTitle: '' };
+    const deal: DealDetail = { ...fullyPopulatedDeal, crmIndustryProjectionJson: serializeCrmIndustryProjectionRecord(partial) };
+    const body = buildCreditMemoDraft(['borrower-overview'], fullCtx({ deal })).body;
+    expect(body).toContain('NAICS classification: 722511');
+    expect(body).not.toContain('sector');
   });
 });

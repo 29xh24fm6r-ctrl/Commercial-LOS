@@ -66,6 +66,13 @@ export interface DealDetail {
   riskRatingInputsJson?: string | undefined;
   underwritingRecommendationInputsJson?: string | undefined;
 
+  // Production Remediation Factory Arc Phase 7 (N-22/N-23) — cr664_crmindustryprojection, a
+  // PR138-provisioned Memo/JSON column. Opaque
+  // serialized CrmIndustryProjectionRecord; see crmIndustryProjectionRecord.ts for the shape and
+  // fail-closed parse. Optional for the same reason as the fields above: existing hand-built
+  // DealDetail test fixtures keep compiling unedited.
+  crmIndustryProjectionJson?: string | undefined;
+
   // Blocker-derivation inputs (rendered in <DealBlockers />)
   stageEntryDate: string | undefined;
   isClosed: boolean;
@@ -398,6 +405,10 @@ function mapDealDetail(
     // Factory Arc Phase 5 — same convention, not yet declared on the generated model.
     riskRatingInputsJson: raw['cr664_riskratinginputs'] as string | undefined,
     underwritingRecommendationInputsJson: raw['cr664_underwritingrecommendationinputs'] as string | undefined,
+
+    // Production Remediation Factory Arc Phase 7 (N-22/N-23) — same convention, not yet declared on
+    // the generated model.
+    crmIndustryProjectionJson: raw['cr664_crmindustryprojection'] as string | undefined,
 
     stageEntryDate: deal.cr664_stageentrydate,
     isClosed:
