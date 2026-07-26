@@ -32,6 +32,7 @@ import type { CrmHealthInput } from '../crmRelationshipHealthModel';
 import { deriveLiveBankerCrmDailyActionInput } from '../dailyActions/deriveLiveBankerCrmDailyActionInput';
 import { deriveBankerCrmDailyActionQueue } from '../dailyActions/bankerCrmDailyActionQueue';
 import { BankerCrmDailyActionQueue } from '../dailyActions/BankerCrmDailyActionQueuePanel';
+import { findDuplicateOrganizationClusters, type DuplicateOrganizationCluster } from '../write/crmDuplicateDetection';
 
 /**
  * Phase 260 — Relationship CRM (elite CRM cockpit).
@@ -198,6 +199,32 @@ export function CrmHubWorkspace({
     return new Map(orgHealthInputs.map((r) => [r.organizationId, r]));
   }, [orgHealthInputs]);
 
+  // N-33 (Production Remediation Factory Arc Phase 2) — retroactive duplicate-company detection
+  // over the already-loaded organization list (no new read). Read-only: this only reports clusters
+  // of likely-duplicate ids for a banker/admin to review; nothing is deleted, merged, or reclassified
+  // automatically. See crmDuplicateDetection.ts's findDuplicateOrganizationClusters for the matching
+  // rules (name / legal name / website), shared with the Add-Company create-time check.
+  const duplicateOrgClusters: readonly DuplicateOrganizationCluster[] = useMemo(() => {
+    if (state.kind !== 'ready') return [];
+    const orgs = state.data.organizations;
+    if (orgs.status !== 'ready') return [];
+    return findDuplicateOrganizationClusters(
+      orgs.records.map((r) => ({
+        organizationId: r.id,
+        name: r.title,
+        legalName: r.orgLegalName,
+        website: r.orgWebsite,
+      })),
+    );
+  }, [state]);
+
+  const orgTitleById = useMemo(() => {
+    if (state.kind !== 'ready') return new Map<string, string>();
+    const orgs = state.data.organizations;
+    if (orgs.status !== 'ready') return new Map<string, string>();
+    return new Map(orgs.records.map((r) => [r.id, r.title]));
+  }, [state]);
+
   // No banker/team ownership data is in scope for this phase — pass an empty
   // map rather than guess (every rollup record's bankerId is honestly null).
   const teamRollupInput = useMemo(
@@ -357,6 +384,11 @@ export function CrmHubWorkspace({
           destination a banker has to remember to open. */}
       {CRM_DAILY_ACTION_QUEUE_ENABLED && view === 'companies' && bankerDailyActionQueueViewModel && (
         <BankerCrmDailyActionQueue viewModel={bankerDailyActionQueueViewModel} />
+      )}
+
+      {/* N-33 — possible duplicate companies, read-only. Review-and-decide, never auto-merged. */}
+      {view === 'companies' && duplicateOrgClusters.length > 0 && (
+        <DuplicateOrganizationBanner clusters={duplicateOrgClusters} titleById={orgTitleById} />
       )}
 
       {/* Main area */}
@@ -847,6 +879,48 @@ function FriendlyError({ heading, body }: { heading: string; body: string }) {
   );
 }
 
+/**
+ * N-33 — read-only "possible duplicate companies" banner. Reports clusters
+ * findDuplicateOrganizationClusters found; never deletes, merges, or
+ * reclassifies. Each cluster is a review-and-decide prompt for a banker or
+ * admin, not an automated action.
+ */
+function DuplicateOrganizationBanner({
+  clusters,
+  titleById,
+}: {
+  clusters: readonly DuplicateOrganizationCluster[];
+  titleById: ReadonlyMap<string, string>;
+}) {
+  const totalOrgs = clusters.reduce((sum, c) => sum + c.organizationIds.length, 0);
+  return (
+    <div style={styles.duplicateBanner} role="status" data-crm-duplicate-banner>
+      <div style={styles.duplicateBannerHead}>
+        <strong>
+          {clusters.length} possible duplicate compan{clusters.length === 1 ? 'y group' : 'y groups'} found
+        </strong>
+        <span style={styles.duplicateBannerSub}>
+          {totalOrgs} companies total — review and decide; nothing is merged automatically.
+        </span>
+      </div>
+      <ul style={styles.duplicateBannerList}>
+        {clusters.map((c) => (
+          <li key={`${c.matchType}:${c.matchKey}`} data-crm-duplicate-cluster={c.matchType}>
+            {c.organizationIds.map((id) => titleById.get(id) ?? id).join(' · ')}
+            <span style={styles.duplicateBannerMatchType}> (matched by {matchTypeLabel(c.matchType)})</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function matchTypeLabel(matchType: DuplicateOrganizationCluster['matchType']): string {
+  if (matchType === 'legalName') return 'legal name';
+  if (matchType === 'website') return 'website';
+  return 'name';
+}
+
 function SkeletonRows() {
   return (
     <div style={styles.skeletonWrap} aria-hidden="true" data-crm-skeleton>
@@ -898,6 +972,11 @@ const styles: Record<string, CSSProperties> = {
   cardDetail: { fontSize: typography.size.xs, color: palette.textSubtle },
   cardSkeleton: { width: 48, height: 22, borderRadius: radius.sm, background: palette.surfaceAlt },
   main: { minHeight: 220, position: 'relative' },
+  duplicateBanner: { display: 'flex', flexDirection: 'column', gap: spacing.xs, padding: `${spacing.sm} ${spacing.md}`, background: palette.atRiskBg, border: `1px solid ${palette.atRisk}`, borderRadius: radius.md },
+  duplicateBannerHead: { display: 'flex', flexDirection: 'column', gap: 2 },
+  duplicateBannerSub: { fontSize: typography.size.xs, color: palette.textMuted },
+  duplicateBannerList: { margin: 0, paddingLeft: spacing.lg, display: 'flex', flexDirection: 'column', gap: 2, fontSize: typography.size.sm, color: palette.text },
+  duplicateBannerMatchType: { color: palette.textSubtle, fontSize: typography.size.xs },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: typography.size.sm, background: palette.surface, border: `1px solid ${palette.panelBorder}`, borderRadius: radius.md, boxShadow: shadow.card, overflow: 'hidden' },
   th: { textAlign: 'left', padding: `${spacing.sm} ${spacing.md}`, color: palette.textSubtle, textTransform: 'uppercase', fontSize: typography.size.xs, letterSpacing: typography.letterSpacing.label, borderBottom: `1px solid ${palette.divider}` },
   thRight: { padding: `${spacing.sm} ${spacing.md}`, borderBottom: `1px solid ${palette.divider}` },

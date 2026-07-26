@@ -94,6 +94,13 @@ describe('Phase 120 — BankerDueDiligenceView component', () => {
     ).toBeInTheDocument();
   });
 
+  it('N-20 — requests includeTestDeals: true so a controlled test deal\'s real pending-review documents are never silently excluded from this page', async () => {
+    loadMock.mockResolvedValue(emptyData());
+    renderView();
+    await waitFor(() => expect(loadMock).toHaveBeenCalled());
+    expect(loadMock).toHaveBeenCalledWith('banker-1', { includeTestDeals: true });
+  });
+
   it('renders Outstanding + Pending review sections when real docs are loaded', async () => {
     const data = emptyData();
     data.deals = [

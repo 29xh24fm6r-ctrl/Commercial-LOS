@@ -101,6 +101,10 @@ export interface CrmRecord {
   readonly orgIndustryDerivedSector?: string;
   /** Raw stored notes (`cr664_notes`). */
   readonly orgNotes?: string;
+  /** Raw stored legal name (`cr664_legalname`) — N-33 feeds this into duplicate-cluster detection. */
+  readonly orgLegalName?: string;
+  /** Raw stored website (`cr664_website`) — N-33 feeds this into duplicate-cluster detection. */
+  readonly orgWebsite?: string;
 }
 
 export interface CrmDomainResult {
@@ -182,6 +186,8 @@ export function mapOrganization(o: Cr664_crmorganizations): CrmRecord {
     orgNaicsCode: s(o.cr664_naicscode),
     orgIndustryDerivedSector: derivedFromNaics,
     orgNotes: s(o.cr664_notes),
+    orgLegalName: s(o.cr664_legalname),
+    orgWebsite: s(o.cr664_website),
     detail: pick([
       row('Legal name', s(o.cr664_legalname)),
       row('DBA', s(o.cr664_dbaname)),

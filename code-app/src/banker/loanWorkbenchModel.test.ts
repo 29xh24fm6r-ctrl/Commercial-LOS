@@ -105,8 +105,8 @@ describe('Phase 258 — deriveLoanWorkbench', () => {
   });
 });
 
-describe('D-01 — a classified test/smoke deal is a full row (findable) but excluded from queue-card counts', () => {
-  it('a test-flagged deal still belongs to its sections (findable via rowsForSection / search) but does not increment counts.active', () => {
+describe('N-19 — the queue-card count always equals the table it sits above (no same-page contradiction)', () => {
+  it('a test-flagged deal is a full row (findable via rowsForSection / search) AND counted, with the split disclosed separately', () => {
     const model = deriveLoanWorkbench(
       [
         deal({ id: 'real-1', name: 'Acme WC' }),
@@ -122,21 +122,45 @@ describe('D-01 — a classified test/smoke deal is a full row (findable) but exc
       NOW,
     );
 
-    // The count is an operational-only KPI: only the real deal contributes.
-    expect(model.counts.active).toBe(1);
-
-    // But the test row is still present and section-browsable/searchable —
-    // it is never dropped from `rows`, only excluded from the tally.
+    // The queue-card count matches the table exactly — both real and test rows count.
     const active = rowsForSection(model, 'active');
+    expect(model.counts.active).toBe(active.length);
+    expect(model.counts.active).toBe(2);
+
+    // The test/smoke split is disclosed separately rather than silently folded in.
+    expect(model.testRecordCounts.active).toBe(1);
+
+    // The test row is still present and section-browsable/searchable, labeled.
     expect(active.map((r) => r.id)).toContain('310da4b3-cb86-f111-ab10-70a8a59b1fe2');
     const testRow = model.rows.find((r) => r.id === '310da4b3-cb86-f111-ab10-70a8a59b1fe2')!;
     expect(testRow.isTestRecord).toBe(true);
     expect(testRow.stage).toBe('Underwriting');
   });
 
-  it('a deal with isTestRecord omitted (an ordinary handwritten fixture) is treated as a real deal and counted', () => {
+  it('a deal with isTestRecord omitted (an ordinary handwritten fixture) is treated as a real deal: counted, and not in testRecordCounts', () => {
     const model = deriveLoanWorkbench([deal({ id: 'd1', name: 'No flag set' })], [], 'Dana', NOW);
     expect(model.counts.active).toBe(1);
+    expect(model.testRecordCounts.active).toBe(0);
     expect(model.rows[0]!.isTestRecord).toBeUndefined();
+  });
+
+  it('every section count equals that section\'s exact row count, for a mix of real and test deals across sections', () => {
+    const model = deriveLoanWorkbench(
+      [
+        deal({ id: 'real-1', name: 'Acme WC', createdOn: '2026-06-25T00:00:00Z' }),
+        deal({
+          id: 'test-1',
+          name: '[TEST] Smoke Deal',
+          createdOn: '2026-06-25T00:00:00Z',
+          isTestRecord: true,
+        }),
+      ],
+      [],
+      'Dana',
+      NOW,
+    );
+    for (const key of ['active', 'recent', 'closing', 'attention'] as const) {
+      expect(model.counts[key]).toBe(rowsForSection(model, key).length);
+    }
   });
 });

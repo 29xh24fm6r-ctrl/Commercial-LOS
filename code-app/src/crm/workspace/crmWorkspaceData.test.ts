@@ -52,6 +52,28 @@ describe('Phase 258 — CRM domain mappers', () => {
     expect(r.detail).toContainEqual({ label: 'Tax ID on file', value: 'Yes' });
   });
 
+  it('N-33: exposes raw orgLegalName/orgWebsite so duplicate-cluster detection can read them without a second query', () => {
+    const r = mapOrganization({
+      cr664_crmorganizationid: 'org-4',
+      cr664_displayname: 'Acme Holdings LLC',
+      cr664_legalname: 'Acme Holdings, LLC',
+      cr664_website: 'https://www.acme.com/',
+      cr664_name: 'Acme',
+    } as never);
+    expect(r.orgLegalName).toBe('Acme Holdings, LLC');
+    expect(r.orgWebsite).toBe('https://www.acme.com/');
+  });
+
+  it('N-33: orgLegalName/orgWebsite are undefined (not empty strings) when unset', () => {
+    const r = mapOrganization({
+      cr664_crmorganizationid: 'org-5',
+      cr664_displayname: 'Bare Co',
+      cr664_name: 'Bare Co',
+    } as never);
+    expect(r.orgLegalName).toBeUndefined();
+    expect(r.orgWebsite).toBeUndefined();
+  });
+
   it('exposes raw NAICS/Industry provenance and keeps Industry separate from Type (governed edit)', () => {
     const r = mapOrganization({
       cr664_crmorganizationid: 'org-2',

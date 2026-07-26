@@ -1,6 +1,6 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
-import { buildTeamVisibilityFilter } from '../shared/deals/dealVisibilityScopes';
+import { buildTeamVisibilityFilter, buildTeamVisibilityFilterViaNavigation } from '../shared/deals/dealVisibilityScopes';
 import { operationalDeals } from '../shared/deals/testDealClassification';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
@@ -286,12 +286,17 @@ export async function loadTeamBankers(teamId: string): Promise<TeamBanker[]> {
 // memo-consistency-findings).
 //
 // Authorization boundary:
-//   Each loader scopes children by their PARENT deal's team FK
-//   (cr664_Deal/_cr664_team_value eq <teamId>). The manager's teamId
-//   is resolved once by loadManagerIdentity through the banker-row
-//   lookup; this preserves the same boundary loadTeamPipeline already
-//   uses. Rows whose parent deal is NOT on the manager's team will
-//   not satisfy the OData filter and never reach the client.
+//   Each loader scopes children by their PARENT deal's team FK, OR by the
+//   parent deal's assigned banker being a member of this team (N-03,
+//   Production Remediation Factory Arc Phase 2 — buildTeamVisibilityFilterViaNavigation).
+//   The manager's teamId is resolved once by loadManagerIdentity through the
+//   banker-row lookup; this now matches loadTeamPipeline's own P0-4 fallback
+//   exactly, instead of silently narrower. Before this fix, a deal with an
+//   assigned banker but no Owning Team (reachable at New Deal create, where
+//   cr664_Team is optional) appeared in the team's deal list via the
+//   fallback while its tasks/documents/memos never did — the confirmed root
+//   cause of "a newly created deal's task is invisible in Manager/Team
+//   Workspace even though the deal itself is visible."
 //
 //   The pattern duplicates the team workspace's child-data filter
 //   (src/team/teamQueries.ts loadTeamTasks / loadTeamDocuments /
@@ -338,19 +343,18 @@ export interface TeamScopedTask {
 }
 
 /**
- * Open (non-terminal) tasks whose parent deal sits on the manager's
- * team. Uses the OData navigation-property filter on the parent's
- * team lookup; same approach `loadTeamTasks` uses on the team
- * workspace.
+ * Open (non-terminal) tasks whose parent deal sits on the manager's team, OR
+ * whose parent deal is assigned to one of the team's member bankers (N-03
+ * Owning-Team fallback — see the module header). Uses the OData
+ * navigation-property filter on the parent's team/assigned-banker lookups;
+ * same approach `loadTeamTasks` uses on the team workspace.
  */
 export async function loadManagerTeamTasks(
   teamId: string,
+  memberBankerIds?: readonly string[],
 ): Promise<TeamScopedTask[]> {
   const result = await Cr664_dealtask1sService.getAll({
-    filter: [
-      `cr664_Deal/_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilterViaNavigation('cr664_Deal', teamId, { memberBankerIds }),
     orderBy: ['cr664_duedate asc'],
   });
   if (!result.success) {
@@ -392,19 +396,18 @@ export interface TeamScopedDocument {
 const deriveDocStatus = classifyLegacyDocumentStatus;
 
 /**
- * Document checklist rows whose parent deal sits on the manager's
- * team. The `status` field is derived client-side from the same
- * (reviewer / receivedDate / uploaded) inputs `loadTeamDocuments`
+ * Document checklist rows whose parent deal sits on the manager's team, OR
+ * whose parent deal is assigned to one of the team's member bankers (N-03
+ * Owning-Team fallback). The `status` field is derived client-side from the
+ * same (reviewer / receivedDate / uploaded) inputs `loadTeamDocuments`
  * uses — the rollup derivation buckets by status.
  */
 export async function loadManagerTeamDocuments(
   teamId: string,
+  memberBankerIds?: readonly string[],
 ): Promise<TeamScopedDocument[]> {
   const result = await Cr664_documentchecklistsService.getAll({
-    filter: [
-      `cr664_Deal/_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilterViaNavigation('cr664_Deal', teamId, { memberBankerIds }),
     orderBy: ['cr664_duedate asc'],
   });
   if (!result.success) {
@@ -485,20 +488,19 @@ function lookupMemoStatus(v: unknown): TeamScopedMemoStatusKey | undefined {
 }
 
 /**
- * Credit memo rows whose parent deal sits on the manager's team.
- * Phase 95: the row now carries `textPreview` (cr664_memotext capped
- * at 240 chars) so the Phase 73 consistency check can run on the
- * manager rollup + morning-catch-up surfaces. Sections are loaded
- * separately by `loadManagerTeamMemoSections`.
+ * Credit memo rows whose parent deal sits on the manager's team, OR whose
+ * parent deal is assigned to one of the team's member bankers (N-03
+ * Owning-Team fallback). Phase 95: the row now carries `textPreview`
+ * (cr664_memotext capped at 240 chars) so the Phase 73 consistency check
+ * can run on the manager rollup + morning-catch-up surfaces. Sections are
+ * loaded separately by `loadManagerTeamMemoSections`.
  */
 export async function loadManagerTeamMemos(
   teamId: string,
+  memberBankerIds?: readonly string[],
 ): Promise<TeamScopedMemo[]> {
   const result = await Cr664_creditmemo1sService.getAll({
-    filter: [
-      `cr664_Deal/_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilterViaNavigation('cr664_Deal', teamId, { memberBankerIds }),
     orderBy: ['cr664_generatedat desc'],
   });
   if (!result.success) {
@@ -519,22 +521,20 @@ export async function loadManagerTeamMemos(
 }
 
 /**
- * Phase 95: credit memo draft section rows whose parent deal sits
- * on the manager's team. Same scope pattern the memos / tasks /
- * documents loaders use (parent-deal team navigation filter). The
- * full draft text isn't shipped — only a 240-char preview — to keep
- * the payload small. The Phase 73 consistency check is text-based
- * but compares against short structured deal field values, so the
- * truncated preview is sufficient for its checks.
+ * Phase 95: credit memo draft section rows whose parent deal sits on the
+ * manager's team, OR whose parent deal is assigned to one of the team's
+ * member bankers (N-03 Owning-Team fallback). Same scope pattern the
+ * memos / tasks / documents loaders use. The full draft text isn't shipped
+ * — only a 240-char preview — to keep the payload small. The Phase 73
+ * consistency check is text-based but compares against short structured
+ * deal field values, so the truncated preview is sufficient for its checks.
  */
 export async function loadManagerTeamMemoSections(
   teamId: string,
+  memberBankerIds?: readonly string[],
 ): Promise<TeamScopedMemoSection[]> {
   const result = await Cr664_creditmemodraftsectionsService.getAll({
-    filter: [
-      `cr664_Deal/_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilterViaNavigation('cr664_Deal', teamId, { memberBankerIds }),
     orderBy: ['cr664_sectionkey asc'],
   });
   if (!result.success) {

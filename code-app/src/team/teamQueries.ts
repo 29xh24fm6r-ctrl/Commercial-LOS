@@ -1,6 +1,6 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
-import { buildTeamVisibilityFilter } from '../shared/deals/dealVisibilityScopes';
+import { buildTeamVisibilityFilter, buildTeamVisibilityFilterViaNavigation } from '../shared/deals/dealVisibilityScopes';
 import { operationalDeals } from '../shared/deals/testDealClassification';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
@@ -256,18 +256,15 @@ export interface TeamTaskRow {
 }
 
 /**
- * Tasks where the parent deal's team matches. Uses the OData
- * navigation-property filter: cr664_Deal/_cr664_team_value eq <teamId>.
- * If Dataverse rejects that at runtime, the fallback is a two-step
- * load (team-deal ids -> OR chain on _cr664_deal_value), but we try
- * the cleaner approach first.
+ * Tasks where the parent deal's team matches, OR the parent deal is
+ * assigned to one of the team's member bankers (N-03 Owning-Team
+ * fallback — see buildTeamVisibilityFilterViaNavigation). Uses the OData
+ * navigation-property filter: cr664_Deal/_cr664_team_value eq <teamId>
+ * (or cr664_Deal/_cr664_assignedbanker_value eq <bankerId>).
  */
-export async function loadTeamTasks(teamId: string): Promise<TeamTaskRow[]> {
+export async function loadTeamTasks(teamId: string, memberBankerIds?: readonly string[]): Promise<TeamTaskRow[]> {
   const result = await Cr664_dealtask1sService.getAll({
-    filter: [
-      `cr664_Deal/_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilterViaNavigation('cr664_Deal', teamId, { memberBankerIds }),
     orderBy: ['cr664_duedate asc'],
   });
   if (!result.success) {
@@ -312,12 +309,12 @@ export interface TeamDocumentRow {
 // dealDocumentQueries.ts / workQueueQueries.ts / managerQueries.ts.
 const deriveDocStatus = classifyLegacyDocumentStatus;
 
-export async function loadTeamDocuments(teamId: string): Promise<TeamDocumentRow[]> {
+export async function loadTeamDocuments(
+  teamId: string,
+  memberBankerIds?: readonly string[],
+): Promise<TeamDocumentRow[]> {
   const result = await Cr664_documentchecklistsService.getAll({
-    filter: [
-      `cr664_Deal/_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilterViaNavigation('cr664_Deal', teamId, { memberBankerIds }),
     orderBy: ['cr664_duedate asc'],
   });
   if (!result.success) {
@@ -424,22 +421,22 @@ function lookupMemoStatusTeam(v: unknown): TeamMemoStatusKey | undefined {
 }
 
 /**
- * Credit memos whose parent deal's team matches the given team.
- * Same navigation-property filter pattern that loadTeamTasks /
- * loadTeamDocuments use. No banker / deal-id scoping needed — the
- * team FK on the parent deal is enough.
+ * Credit memos whose parent deal's team matches the given team, OR whose
+ * parent deal is assigned to one of the team's member bankers (N-03
+ * Owning-Team fallback). Same navigation-property filter pattern that
+ * loadTeamTasks / loadTeamDocuments use.
  *
  * Phase 95: the row now carries `textPreview` (cr664_memotext capped
  * at 240 chars) so the Phase 73 consistency check can run on the
  * team rollup surface. Sections are loaded separately by
  * `loadTeamMemoSections`.
  */
-export async function loadTeamMemos(teamId: string): Promise<TeamMemoRow[]> {
+export async function loadTeamMemos(
+  teamId: string,
+  memberBankerIds?: readonly string[],
+): Promise<TeamMemoRow[]> {
   const result = await Cr664_creditmemo1sService.getAll({
-    filter: [
-      `cr664_Deal/_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilterViaNavigation('cr664_Deal', teamId, { memberBankerIds }),
     orderBy: ['cr664_generatedat desc'],
   });
   if (!result.success) {
@@ -466,12 +463,10 @@ export async function loadTeamMemos(teamId: string): Promise<TeamMemoRow[]> {
  */
 export async function loadTeamMemoSections(
   teamId: string,
+  memberBankerIds?: readonly string[],
 ): Promise<TeamMemoSectionRow[]> {
   const result = await Cr664_creditmemodraftsectionsService.getAll({
-    filter: [
-      `cr664_Deal/_cr664_team_value eq ${teamId}`,
-      `statecode eq 0`,
-    ].join(' and '),
+    filter: buildTeamVisibilityFilterViaNavigation('cr664_Deal', teamId, { memberBankerIds }),
     orderBy: ['cr664_sectionkey asc'],
   });
   if (!result.success) {

@@ -193,8 +193,13 @@ export function DealMetricDeck() {
           />
         </DrillThroughCard>
         <DrillThroughCard target={deckTargets['documents']} unstyled>
+          {/* N-18 remediation (Production Remediation Factory Arc Phase 2) — the headline
+              number here has always meant "outstanding", never "total documents", but the bare
+              label "Documents" read as a document-count when it showed 0 while 5 sat received-
+              but-unreviewed right below it. The label now says what the number counts, so "0"
+              reads as "0 outstanding" rather than "no documents exist". */}
           <LargeMetricTile
-            label="Documents"
+            label="Documents Outstanding"
             value={formatNonNegativeCount(metrics.docOutstandingCount)}
             sub={
               metrics.docOutstandingCount === 0

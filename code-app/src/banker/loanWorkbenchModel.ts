@@ -45,18 +45,33 @@ export interface WorkbenchRow {
   /** Section memberships this row belongs to. */
   readonly sections: readonly WorkbenchSectionKey[];
   /**
-   * D-01 fix — true for a classified test/smoke deal (see
-   * testDealClassification.ts). The row still belongs to its sections (so
-   * search and section-browsing find it), but it is excluded from the
-   * section COUNT tallies below so the queue-card numbers stay an
-   * operational-only KPI.
+   * True for a classified test/smoke deal (see testDealClassification.ts).
+   * The row still belongs to its sections (so search and section-browsing
+   * find it) and, per the N-19 remediation below, is also counted in the
+   * section tallies — the queue-card number always equals the number of
+   * rows a banker actually sees in that section. `testRecordCounts` (below)
+   * discloses how many of each tally are test/smoke records, so the
+   * distinction is visible rather than silently baked into a number that
+   * used to disagree with the table beneath it.
    */
   readonly isTestRecord?: boolean;
 }
 
 export interface WorkbenchModel {
   readonly rows: readonly WorkbenchRow[];
+  /**
+   * N-19 remediation (Production Remediation Factory Arc Phase 2) — each
+   * count is exactly `rowsForSection(model, key).length`. Before this fix,
+   * a classified test/smoke deal belonged to its section's rows (so the
+   * table showed it) but was skipped from this tally (so the queue card
+   * did not) — the same page contradicting itself, e.g. "My Active Deals:
+   * 15" over a 23-row table. Never derive this independently; always keep
+   * it equal to the corresponding `rowsForSection` length.
+   */
   readonly counts: Readonly<Record<WorkbenchSectionKey, number>>;
+  /** How many of each section's count are classified test/smoke records — surfaced so the
+   *  distinction stays disclosed now that they are no longer silently excluded from `counts`. */
+  readonly testRecordCounts: Readonly<Record<WorkbenchSectionKey, number>>;
 }
 
 function parseTime(iso: string | undefined): number | undefined {
@@ -147,17 +162,28 @@ export function deriveLoanWorkbench(
     closing: 0,
     attention: 0,
   };
+  const testRecordCounts: Record<WorkbenchSectionKey, number> = {
+    active: 0,
+    recent: 0,
+    closing: 0,
+    attention: 0,
+  };
   for (const r of rows) {
-    // D-01 fix: a classified test/smoke record still belongs to its sections
+    // N-19 remediation: a classified test/smoke record belongs to its sections
     // (so section-browsing and search find it — see rowsForSection below and
-    // the quick-search box in BankerLoanWorkflowWorkbench.tsx), but it is
-    // excluded from the queue-card COUNT tallies so those numbers stay an
-    // operational-only KPI, matching the banker dashboard's own convention.
-    if (r.isTestRecord) continue;
-    for (const sec of r.sections) counts[sec] += 1;
+    // the quick-search box in BankerLoanWorkflowWorkbench.tsx) and now also
+    // counts toward the queue-card tally, so the tally always equals the
+    // table's own row count for that section — never a silent mismatch.
+    // testRecordCounts separately discloses how many of the tally are test
+    // records, preserving the distinction without hiding it in a number that
+    // no longer matches what the banker sees below it.
+    for (const sec of r.sections) {
+      counts[sec] += 1;
+      if (r.isTestRecord) testRecordCounts[sec] += 1;
+    }
   }
 
-  return { rows, counts };
+  return { rows, counts, testRecordCounts };
 }
 
 /** Rows belonging to a section, ordered for that section's intent. */

@@ -320,3 +320,51 @@ describe('Phase 260 — CrmHubWorkspace (elite cockpit)', () => {
     expect(text).toContain('verified and recorded');
   });
 });
+
+describe('N-33 — duplicate-company banner (Production Remediation Factory Arc Phase 2)', () => {
+  it('the exact reported production scenario: "OmniCare 365" x2 + "Omnicare 365" x1 surfaces one cluster on the Companies view', async () => {
+    const { container } = await renderHub(
+      fixture({
+        organizations: {
+          status: 'ready',
+          records: [
+            rec('org-omnicare-1', 'OmniCare 365'),
+            rec('org-omnicare-2', 'OmniCare 365'),
+            rec('org-omnicare-3', 'Omnicare 365'),
+            rec('org-other', 'Totally Unrelated Co'),
+          ],
+        },
+      }),
+    );
+    await waitFor(() => expect(container.querySelector('[data-crm-duplicate-banner]')).not.toBeNull());
+    const banner = container.querySelector('[data-crm-duplicate-banner]') as HTMLElement;
+    expect(banner.textContent).toMatch(/1 possible duplicate company group found/i);
+    const cluster = container.querySelector('[data-crm-duplicate-cluster="name"]') as HTMLElement;
+    expect(cluster.textContent).toContain('OmniCare 365');
+    expect(cluster.textContent).toContain('Omnicare 365');
+    expect(cluster.textContent).not.toContain('Totally Unrelated Co');
+  });
+
+  it('renders no banner at all when there are no duplicates', async () => {
+    const { container } = await renderHub(
+      fixture({
+        organizations: { status: 'ready', records: [rec('o1', 'Acme Holdings'), rec('o2', 'Globex Inc')] },
+      }),
+    );
+    await waitFor(() => expect(container.querySelector('[data-crm-cards]')).not.toBeNull());
+    expect(container.querySelector('[data-crm-duplicate-banner]')).toBeNull();
+  });
+
+  it('never merges or deletes -- both duplicate records still render as separate rows in the table', async () => {
+    const { container } = await renderHub(
+      fixture({
+        organizations: {
+          status: 'ready',
+          records: [rec('org-omnicare-1', 'OmniCare 365'), rec('org-omnicare-2', 'OmniCare 365')],
+        },
+      }),
+    );
+    await waitFor(() => expect(container.querySelector('[data-crm-duplicate-banner]')).not.toBeNull());
+    expect(container.querySelectorAll('[data-crm-record]').length).toBe(2);
+  });
+});

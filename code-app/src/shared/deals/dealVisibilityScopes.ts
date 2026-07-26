@@ -97,3 +97,30 @@ export function buildTeamVisibilityFilter(
   const scope = clauses.length > 0 ? `(${clauses.join(' or ')})` : `_cr664_team_value eq ${teamId}`;
   return `${scope} and ${ACTIVE_DEAL_ODATA_PREDICATE}`;
 }
+
+/**
+ * N-03 (Production Remediation Factory Arc Phase 2) — the navigation-property counterpart of
+ * `buildTeamVisibilityFilter`, for a CHILD entity (task/document/memo/memo-section) scoped through
+ * its parent deal. Before this fix, every Manager/Team child-record loader
+ * (loadManagerTeamTasks/Documents/Memos/MemoSections, loadTeamTasks/Documents/Memos/MemoSections)
+ * filtered ONLY `<navProperty>/_cr664_team_value eq <teamId>` — no Owning-Team fallback — while the
+ * deal-list loaders they're meant to mirror (loadTeamPipeline via buildTeamVisibilityFilter) already
+ * got the fallback in P0-4. A deal with an assigned banker but no Owning Team (a very reachable state
+ * — cr664_Team is optional at New Deal create) would appear in Manager/Team's deal list via the
+ * fallback while its tasks/documents/memos never would, because the child loaders had no matching
+ * fallback clause. This helper closes that gap: same OR-with-banker-ids shape, applied through the
+ * child's navigation property to its parent deal instead of directly on the deal.
+ */
+export function buildTeamVisibilityFilterViaNavigation(
+  navProperty: string,
+  teamId: string,
+  options: { readonly memberBankerIds?: readonly string[] } = {},
+): string {
+  const clauses: string[] = [];
+  if (GUID_RE.test(teamId.trim())) clauses.push(`${navProperty}/_cr664_team_value eq ${teamId.trim()}`);
+  for (const id of options.memberBankerIds ?? []) {
+    if (GUID_RE.test(id.trim())) clauses.push(`${navProperty}/_cr664_assignedbanker_value eq ${id.trim()}`);
+  }
+  const scope = clauses.length > 0 ? `(${clauses.join(' or ')})` : `${navProperty}/_cr664_team_value eq ${teamId}`;
+  return `${scope} and statecode eq 0`;
+}
