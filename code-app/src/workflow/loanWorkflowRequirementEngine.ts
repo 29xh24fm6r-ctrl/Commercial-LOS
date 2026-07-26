@@ -29,6 +29,8 @@ import { evaluateCreditApprovalDecisionReadiness, type CreditApprovalDecisionRec
 import { evaluateCommitmentReadiness, type CommitmentRecord } from './commitmentRecordTypes';
 import { evaluateConditionVerificationReadiness, type ConditionVerificationRecord } from './conditionVerificationTypes';
 import { evaluateExecutedDocumentAttestationReadiness, type ExecutedDocumentAttestationRecord } from './executedDocumentAttestationTypes';
+import { evaluateBookingQcReadiness, type BookingQcCheckRecord } from './bookingQcCheckTypes';
+import type { BoardingHandoffReadiness } from './boardingHandoffReadiness';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type {
   CanonicalRequirement,
@@ -108,6 +110,21 @@ export interface WorkflowRequirementFacts {
    * CLOSING_FUNDING:executed_docs fails closed as unmet in either case, never fabricated as met.
    */
   readonly executedDocumentAttestations?: readonly ExecutedDocumentAttestationRecord[];
+  /**
+   * Final LOS Completion arc (Workstream H/K) — the deal's Booking QC Check history (supplied by a
+   * loader; see DealDataProvider.tsx's `bookingQcChecks`). Absent/empty means either the records
+   * haven't loaded yet or none have genuinely been recorded — CLOSING_FUNDING:booking_qc fails
+   * closed as unmet in either case, never fabricated as met.
+   */
+  readonly bookingQcChecks?: readonly BookingQcCheckRecord[];
+  /**
+   * Final LOS Completion arc (Workstream H) — the deal's real portfolio boarded-loan handoff
+   * evidence, reconciled against the deal's own stage (see boardingHandoffReadiness.ts /
+   * loadBoardingHandoffForDeal.ts). Absent means the read hasn't completed yet — both
+   * BOARDED:boarded_loan_record and BOARDED:servicing_owner fail closed as unmet, never fabricated
+   * as met, when this is undefined.
+   */
+  readonly boardingHandoff?: BoardingHandoffReadiness;
 }
 
 /**
@@ -168,6 +185,20 @@ export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: Wo
     const r = evaluateExecutedDocumentAttestationReadiness(facts.executedDocumentAttestations, facts.deal.id);
     const fact = r.executedDocsAttested;
     return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (req.id === 'CLOSING_FUNDING:booking_qc') {
+    const r = evaluateBookingQcReadiness(facts.bookingQcChecks, facts.deal.id);
+    const fact = r.bookingQcComplete;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (req.id === 'BOARDED:boarded_loan_record') {
+    const met = facts.boardingHandoff?.boardingCompleted ?? false;
+    const reason = facts.boardingHandoff?.blockers[0];
+    return evaluated(req, met ? 'met' : 'unmet', met ? '' : (reason || req.blockerReason));
+  }
+  if (req.id === 'BOARDED:servicing_owner') {
+    const met = facts.boardingHandoff?.servicingOwnerAssigned ?? false;
+    return evaluated(req, met ? 'met' : 'unmet', met ? '' : req.blockerReason);
   }
   // Tracked deep fact without a model yet → fail closed (should not happen in Phase 3).
   return evaluated(req, 'unmet', req.blockerReason);

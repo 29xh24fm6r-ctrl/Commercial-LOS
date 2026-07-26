@@ -11,6 +11,7 @@ import type { FundingAuthorizationRecord } from '../funding/fundingAuthorization
 import type { RiskRatingRecord, UnderwritingRecommendationRecord } from './underwritingDeepFacts';
 import type { CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
 import type { ExecutedDocumentAttestationRecord } from './executedDocumentAttestationTypes';
+import type { BookingQcCheckRecord } from './bookingQcCheckTypes';
 
 /** Minimal workflow state the stage policy reads (cast to the full type for the test). */
 function workflow(over: { stageId?: string; status?: 'blocked' | 'at-risk' | 'clear'; nextIds?: string[]; blockers?: string[] } = {}): LoanWorkflowState {
@@ -482,6 +483,19 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
       correlationId: 'edc-corr-1',
       supersedesAttestationId: undefined,
     };
+    // Final LOS Completion arc (Workstream H) — CLOSING_FUNDING:booking_qc is now a tracked,
+    // blocking requirement too; a deal genuinely ready to reach BOARDED must also carry a PASSED
+    // booking QC check.
+    const passedQcRecord: BookingQcCheckRecord = {
+      checkId: 'qc-1',
+      dealId: 'deal-1',
+      status: 'PASSED',
+      notes: 'Booking package reviewed; all fields match executed documents.',
+      reviewedByActorEmail: 'loanops@bank.test',
+      reviewedAtIso: '2026-07-09T00:00:00Z',
+      correlationId: 'qc-corr-1',
+      supersedesCheckId: undefined,
+    };
     const closingFundingFacts: WorkflowRequirementFacts = {
       deal: baseDeal,
       tasks: { open: [], completed: [{ id: 't1', title: 'Booking quality control', completed: true, dueDate: undefined, assigneeName: undefined, modifiedOn: '2026-07-01T00:00:00Z' }] },
@@ -489,6 +503,7 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
       creditMemo: noMemo,
       fundingAuthorization: fundedRecord,
       executedDocumentAttestations: [attestedDocsRecord],
+      bookingQcChecks: [passedQcRecord],
     };
     function closingFundingInput(over: Partial<StageAdvanceInput> = {}) {
       return input({

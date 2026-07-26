@@ -92,6 +92,8 @@ export function DealStageProgressionCard({
     commitments,
     conditionVerifications,
     executedDocumentAttestations,
+    bookingQcChecks,
+    boardingHandoff,
   } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
@@ -118,6 +120,11 @@ export function DealStageProgressionCard({
   // while loading/failed correctly fails closed as unmet (never fabricated as met).
   const executedDocumentAttestationsData =
     executedDocumentAttestations?.kind === 'ready' ? executedDocumentAttestations.data : undefined;
+  // Final LOS Completion arc (Workstream H) — feeds CLOSING_FUNDING:booking_qc,
+  // BOARDED:boarded_loan_record, and BOARDED:servicing_owner. `undefined` while loading/failed
+  // correctly fails closed as unmet (never fabricated as met).
+  const bookingQcChecksData = bookingQcChecks?.kind === 'ready' ? bookingQcChecks.data : undefined;
+  const boardingHandoffData = boardingHandoff?.kind === 'ready' ? boardingHandoff.data : undefined;
 
   const eligibility = deriveStageProgressionEligibility({
     deal,
@@ -243,6 +250,8 @@ export function DealStageProgressionCard({
             commitments: commitmentsData,
             conditionVerifications: conditionVerificationsData,
             executedDocumentAttestations: executedDocumentAttestationsData,
+            bookingQcChecks: bookingQcChecksData,
+            boardingHandoff: boardingHandoffData,
           }}
           dealId={deal.id}
           actor={stageAdvanceActor!}

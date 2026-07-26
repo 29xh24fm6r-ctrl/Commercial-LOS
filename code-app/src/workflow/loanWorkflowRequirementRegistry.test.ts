@@ -85,11 +85,6 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
     // Final LOS Completion arc (Workstream C) flipped the three approval facts to tracked (see
     // below) — memo_finalized remains a genuinely untracked deep fact for this same scope.
     expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:memo_finalized')).toBe(true);
-    // Factory Arc Phase 12 flipped funds_disbursed to tracked, and the Final LOS Completion arc
-    // (Workstream F) flipped executed_docs to tracked too (see below) — booking_qc remains a
-    // genuinely untracked deep fact for this same CLOSING_FUNDING scope.
-    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:booking_qc')).toBe(true);
-    expect(untrackedRequirementsForScope('BOARDED').some((r) => r.id === 'BOARDED:boarded_loan_record')).toBe(true);
   });
 
   it('Final LOS Completion arc (Workstream C) — CREDIT_APPROVAL:approval_decision/approval_authority/approval_conditions are tracked (real, durable, deal-scoped Credit Approval Decision record)', () => {
@@ -118,6 +113,24 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
     expect(req?.tracked).toBe(true);
     expect(req?.severity).toBe('blocking');
     expect(req?.sourceEntity).toBe('cr664_executeddocattestation');
+  });
+
+  it('Final LOS Completion arc (Workstream H) — CLOSING_FUNDING:booking_qc is tracked (real, durable, deal-scoped Booking QC Check record)', () => {
+    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:booking_qc')).toBe(false);
+    const req = requirementsForScope('CLOSING_FUNDING').find((r) => r.id === 'CLOSING_FUNDING:booking_qc');
+    expect(req?.tracked).toBe(true);
+    expect(req?.severity).toBe('blocking');
+    expect(req?.sourceEntity).toBe('cr664_bookingqccheck');
+  });
+
+  it('Final LOS Completion arc (Workstream H) — BOARDED:boarded_loan_record and BOARDED:servicing_owner are tracked (real portfolio boarded-loan handoff evidence)', () => {
+    for (const id of ['BOARDED:boarded_loan_record', 'BOARDED:servicing_owner']) {
+      expect(untrackedRequirementsForScope('BOARDED').some((r) => r.id === id)).toBe(false);
+      const req = requirementsForScope('BOARDED').find((r) => r.id === id);
+      expect(req?.tracked).toBe(true);
+      expect(req?.severity).toBe('blocking');
+      expect(req?.sourceEntity).toBe('cr664_portfolioboardedloan');
+    }
   });
 
   it('Production Remediation Factory Arc Phase 6 (N-14/N-15) — UNDERWRITING:risk_rating and UNDERWRITING:uw_recommendation are tracked (real, durable, deal-scoped facts)', () => {

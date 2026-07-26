@@ -39,6 +39,7 @@ describe('DealPortfolioBoardingStatusPanel — real boarding-handoff evidence, n
       handoffEvidencePresent: true,
       verdict: 'boarded',
       boardingCompleted: true,
+      servicingOwnerAssigned: false,
       blockers: [],
     };
     const loadHandoff = vi.fn(async () => readiness);
@@ -57,6 +58,7 @@ describe('DealPortfolioBoardingStatusPanel — real boarding-handoff evidence, n
       handoffEvidencePresent: false,
       verdict: 'missing-handoff',
       boardingCompleted: false,
+      servicingOwnerAssigned: false,
       blockers: ['Deal stage is BOARDED but no active cr664_portfolioboardedloans handoff record exists for this deal; the closing→servicing handoff is unproven (fail-closed).'],
     };
     const loadHandoff = vi.fn(async () => readiness);

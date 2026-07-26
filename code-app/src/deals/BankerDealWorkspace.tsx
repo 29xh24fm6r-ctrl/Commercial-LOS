@@ -35,6 +35,7 @@ import { DealCreditApprovalDecisionPanelConnected } from './DealCreditApprovalDe
 import { DealCommitmentPanelConnected } from './DealCommitmentPanelConnected';
 import { DealConditionVerificationPanelConnected } from './DealConditionVerificationPanelConnected';
 import { DealExecutedDocumentAttestationPanelConnected } from './DealExecutedDocumentAttestationPanelConnected';
+import { DealBookingQcPanelConnected } from './DealBookingQcPanelConnected';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
 import { DealPortfolioBoardingStatusPanel } from '../workflow/DealPortfolioBoardingStatusPanel';
 import { DealWorkflowRoutingPanel } from '../workflow/DealWorkflowRoutingPanel';
@@ -366,6 +367,19 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="executed-document-attestation"
               >
                 <DealExecutedDocumentAttestationPanelConnected
+                  dealId={deal.id}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                />
+              </div>
+              {/* Final LOS Completion arc (Workstream H) — durable Booking QC Check record. */}
+              <div
+                id="booking-qc"
+                data-deal-card="booking-qc"
+                data-cockpit-anchor="booking-qc"
+              >
+                <DealBookingQcPanelConnected
                   dealId={deal.id}
                   authorized={Boolean(systemUserId)}
                   actorEmail={email}

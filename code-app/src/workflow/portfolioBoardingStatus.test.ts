@@ -32,6 +32,7 @@ describe('Factory Arc Phase 9 — deriveBoardedHandoffStatus distinguishes requi
       handoffEvidencePresent: false,
       verdict: 'missing-handoff',
       boardingCompleted: false,
+      servicingOwnerAssigned: false,
       blockers: [],
       ...overrides,
     };

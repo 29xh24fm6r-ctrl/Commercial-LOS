@@ -14,6 +14,10 @@ import { createDataverseConditionVerificationStore } from '../documentation/cond
 import type { ConditionVerificationRecord } from '../workflow/conditionVerificationTypes';
 import { createDataverseExecutedDocumentAttestationStore } from '../closing/executedDocumentAttestationStore';
 import type { ExecutedDocumentAttestationRecord } from '../workflow/executedDocumentAttestationTypes';
+import { createDataverseBookingQcCheckStore } from '../closing/bookingQcCheckStore';
+import type { BookingQcCheckRecord } from '../workflow/bookingQcCheckTypes';
+import { loadBoardingHandoffForDeal } from './loadBoardingHandoffForDeal';
+import type { BoardingHandoffReadiness } from '../workflow/boardingHandoffReadiness';
 import {
   timed,
   recordRefresh,
@@ -69,7 +73,10 @@ export type DealDataKey =
   | 'conditionVerifications'
   | 'after-condition-verification-submitted'
   | 'executedDocumentAttestations'
-  | 'after-executed-document-attestation-submitted';
+  | 'after-executed-document-attestation-submitted'
+  | 'bookingQcChecks'
+  | 'after-booking-qc-check-submitted'
+  | 'boardingHandoff';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -136,6 +143,27 @@ export interface DealData {
    * unmet.
    */
   executedDocumentAttestations?: AsyncResult<readonly ExecutedDocumentAttestationRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream H. The deal's Booking QC Check history, feeding
+   * CLOSING_FUNDING:booking_qc (loanWorkflowRequirementEngine.ts) so the Stage Map / stage-advance
+   * write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `executedDocumentAttestations` above); the real DealDataProvider ALWAYS supplies
+   * it. A test double omitting it is equivalent to an unresolved fact — the requirement fails
+   * closed as unmet.
+   */
+  bookingQcChecks?: AsyncResult<readonly BookingQcCheckRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream H. The deal's real portfolio boarded-loan handoff
+   * evidence (reconciled against the deal's own stage), feeding BOARDED:boarded_loan_record and
+   * BOARDED:servicing_owner (loanWorkflowRequirementEngine.ts).
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling; the real
+   * DealDataProvider ALWAYS supplies it. A test double omitting it is equivalent to an unresolved
+   * fact — both requirements fail closed as unmet.
+   */
+  boardingHandoff?: AsyncResult<BoardingHandoffReadiness>;
   refresh: (key: DealDataKey) => void;
   /**
    * Merge readback-verified deal fields into the in-context deal row. ONLY the
@@ -209,6 +237,12 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   const [executedDocumentAttestations, setExecutedDocumentAttestations] = useState<
     AsyncResult<readonly ExecutedDocumentAttestationRecord[]>
   >({ kind: 'loading' });
+  const [bookingQcChecks, setBookingQcChecks] = useState<AsyncResult<readonly BookingQcCheckRecord[]>>({
+    kind: 'loading',
+  });
+  const [boardingHandoff, setBoardingHandoff] = useState<AsyncResult<BoardingHandoffReadiness>>({
+    kind: 'loading',
+  });
 
   // Used by the unmount cleanup AND by refresh() so a refresh fired
   // after unmount cannot late-write into stale state. Lives on a ref
@@ -311,6 +345,22 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
     bind(setExecutedDocumentAttestations, p);
     return p;
   }
+  function reloadBookingQcChecks(): Promise<unknown> {
+    setBookingQcChecks({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadBookingQcChecks', async () => {
+      const res = await createDataverseBookingQcCheckStore().listChecksForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load booking QC checks.');
+      return res.records ?? [];
+    });
+    bind(setBookingQcChecks, p);
+    return p;
+  }
+  function reloadBoardingHandoff(): Promise<unknown> {
+    setBoardingHandoff({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadBoardingHandoff', () => loadBoardingHandoffForDeal(deal.id, deal.stage));
+    bind(setBoardingHandoff, p);
+    return p;
+  }
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -334,6 +384,8 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
       reloadCommitments(),
       reloadConditionVerifications(),
       reloadExecutedDocumentAttestations(),
+      reloadBookingQcChecks(),
+      reloadBoardingHandoff(),
     ]).then(() => {
       const endedAt =
         typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -493,6 +545,19 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         reloadExecutedDocumentAttestations();
         reloadActivity();
         break;
+      case 'bookingQcChecks':
+        reloadBookingQcChecks();
+        break;
+      case 'after-booking-qc-check-submitted':
+        // Final LOS Completion arc — Workstream H: submitBookingQcCheckAction writes both the
+        // durable check record and a best-effort NoteLogged timeline event, so both must refresh
+        // for the Stage Map / Attention Console to see the new QC state and its activity.
+        reloadBookingQcChecks();
+        reloadActivity();
+        break;
+      case 'boardingHandoff':
+        reloadBoardingHandoff();
+        break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -510,6 +575,8 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         commitments,
         conditionVerifications,
         executedDocumentAttestations,
+        bookingQcChecks,
+        boardingHandoff,
         refresh,
         applyVerifiedDealPatch,
       }}

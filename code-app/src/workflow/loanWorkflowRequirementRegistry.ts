@@ -275,10 +275,19 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   // tracked: true; evaluated against WorkflowRequirementFacts.fundingAuthorization (a loader-supplied
   // fact, never fabricated -- see loanWorkflowRequirementEngine.ts).
   tracked('CLOSING_FUNDING:funds_disbursed', 'CLOSING_FUNDING', 'funding', 'Funds disbursed', 'Funding', 'loan_ops', 'funding_record', 'cr664_fundingauthorization', 'Funds have not yet been disbursed for this deal (the funding authorization record is not FUNDED).'),
-  untracked('CLOSING_FUNDING:booking_qc', 'CLOSING_FUNDING', 'closing', 'Booking quality control complete', 'Closing', 'loan_ops', 'closing_record', 'booking-QC record not yet implemented (ARC PR 15)'),
-  // Boarded / Servicing (ARC PR 16)
-  untracked('BOARDED:boarded_loan_record', 'BOARDED', 'boarding', 'Boarded loan / servicing handoff record created', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'real boarded-loan handoff record not yet the source of truth (ARC PR 16)'),
-  untracked('BOARDED:servicing_owner', 'BOARDED', 'servicing', 'Servicing owner assigned', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'servicing-owner assignment not yet tracked (ARC PR 16)'),
+  // Final LOS Completion arc (Workstream H) flips this tracked -- submitBookingQcCheckAction.ts /
+  // bookingQcCheckStore.ts now provide a real, durable, deal-scoped Booking QC Check record
+  // (cr664_bookingqccheck, see scripts/schema-migrations/final-arc-booking-qc-check/), evaluated via
+  // evaluateBookingQcReadiness in loanWorkflowRequirementEngine.ts. No such concept existed
+  // anywhere in the codebase before this record (confirmed by direct search).
+  tracked('CLOSING_FUNDING:booking_qc', 'CLOSING_FUNDING', 'closing', 'Booking quality control complete', 'Closing', 'loan_ops', 'closing_record', 'cr664_bookingqccheck', 'Booking quality control has not been completed for this deal.'),
+  // Boarded / Servicing (ARC PR 16). Final LOS Completion arc (Workstream H) flips both tracked --
+  // WFLOW-H's own loadBoardingHandoffForDeal.ts / boardingHandoffReadiness.ts already made
+  // cr664_portfolioboardedloans (via cr664_OriginatedLoanDeal) the real per-deal source of truth for
+  // display; this wires that same evidence into the write-seam gate for the first time, and extends
+  // it to also read cr664_AssignedServicingOwner for the second fact.
+  tracked('BOARDED:boarded_loan_record', 'BOARDED', 'boarding', 'Boarded loan / servicing handoff record created', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'cr664_portfolioboardedloan', 'No active portfolio boarded-loan handoff record exists for this deal.'),
+  tracked('BOARDED:servicing_owner', 'BOARDED', 'servicing', 'Servicing owner assigned', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'cr664_portfolioboardedloan', 'No servicing owner has been assigned on this deal\'s boarded-loan record.'),
 ];
 
 /**
