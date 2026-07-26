@@ -8,6 +8,7 @@ import type { DealDocument, DealDocumentsResult } from '../deals/dealDocumentQue
 import type { DealTasksResult } from '../deals/dealTaskQueries';
 import type { CreditMemoData } from '../deals/creditMemoQueries';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
+import type { RiskRatingRecord, UnderwritingRecommendationRecord } from './underwritingDeepFacts';
 
 /** Minimal workflow state the stage policy reads (cast to the full type for the test). */
 function workflow(over: { stageId?: string; status?: 'blocked' | 'at-risk' | 'clear'; nextIds?: string[]; blockers?: string[] } = {}): LoanWorkflowState {
@@ -240,6 +241,16 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
           ],
         }),
         creditMemo: { memos: [{ id: 'm1', name: 'Memo', status: 'Draft', statusKey: 'draft', memoType: 'standard', version: 1, generatedAt: '2026-07-01T00:00:00Z', modifiedOn: undefined, borrowerSafe: false, textPreview: undefined }], sections: [] },
+        // N-15 (Production Remediation Factory Arc Phase 6): risk rating and recommendation are now
+        // real, tracked Underwriting exit requirements — "all else satisfied" must include them.
+        riskRating: {
+          dealId: underwritingDeal.id, ratingValue: 'BB', ratingScale: 'Internal 1-10', rationale: 'Stable cash flow.',
+          assignedBy: 'UW Analyst', assignedAtIso: '2026-07-01T00:00:00Z', status: 'assigned',
+        },
+        underwritingRecommendation: {
+          dealId: underwritingDeal.id, decision: 'approve', rationale: 'Supports repayment capacity.',
+          underwriterActor: 'UW Analyst', recordedAtIso: '2026-07-01T00:00:00Z', status: 'recorded',
+        },
       };
       const upd = vi.fn(async () => ({ ok: true }));
       const out = await advanceWorkflowStage(input({
@@ -250,6 +261,79 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
       }));
       expect(out.kind).toBe('advanced');
       expect(upd).toHaveBeenCalledTimes(1);
+    });
+
+    // N-14/N-15 — the write seam, not just the UI preview, must actually block on these.
+    it('N-14/N-15: BLOCKS Underwriting -> Credit Approval when the risk rating has a blank rationale, even though everything else is satisfied', async () => {
+      const underwritingDeal: DealDetail = { ...baseDeal, collateralSummary: 'A/R borrowing base' };
+      const riskRating: RiskRatingRecord = {
+        dealId: underwritingDeal.id, ratingValue: 'BB', ratingScale: 'Internal 1-10', rationale: '',
+        assignedBy: 'UW Analyst', assignedAtIso: '2026-07-01T00:00:00Z', status: 'assigned',
+      };
+      const underwritingRecommendation: UnderwritingRecommendationRecord = {
+        dealId: underwritingDeal.id, decision: 'approve', rationale: 'Supports repayment capacity.',
+        underwriterActor: 'UW Analyst', recordedAtIso: '2026-07-01T00:00:00Z', status: 'recorded',
+      };
+      const facts: WorkflowRequirementFacts = {
+        deal: underwritingDeal,
+        tasks: emptyTasks,
+        documents: docsOf({
+          reviewed: [
+            mkDoc('Business Financial Statements', 'reviewed'),
+            mkDoc('Tax Returns', 'reviewed'),
+            mkDoc('Ownership Information', 'reviewed'),
+            mkDoc('Collateral Support', 'reviewed'),
+          ],
+        }),
+        creditMemo: { memos: [{ id: 'm1', name: 'Memo', status: 'Draft', statusKey: 'draft', memoType: 'standard', version: 1, generatedAt: '2026-07-01T00:00:00Z', modifiedOn: undefined, borrowerSafe: false, textPreview: undefined }], sections: [] },
+        riskRating,
+        underwritingRecommendation,
+      };
+      const upd = vi.fn(async () => ({ ok: true }));
+      const out = await advanceWorkflowStage(input({
+        workflow: workflow({ stageId: 'UNDERWRITING', nextIds: ['CREDIT_APPROVAL'], status: 'clear' }),
+        requestedNextStageId: 'CREDIT_APPROVAL',
+        facts,
+        transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
+      }));
+      expect(out.kind).toBe('blocked');
+      if (out.kind === 'blocked') expect(out.blockers.join(' ')).toMatch(/risk rating/i);
+      expect(upd).not.toHaveBeenCalled();
+    });
+
+    it('N-15: BLOCKS Underwriting -> Credit Approval when the recorded risk rating belongs to a different deal', async () => {
+      const underwritingDeal: DealDetail = { ...baseDeal, collateralSummary: 'A/R borrowing base' };
+      const facts: WorkflowRequirementFacts = {
+        deal: underwritingDeal,
+        tasks: emptyTasks,
+        documents: docsOf({
+          reviewed: [
+            mkDoc('Business Financial Statements', 'reviewed'),
+            mkDoc('Tax Returns', 'reviewed'),
+            mkDoc('Ownership Information', 'reviewed'),
+            mkDoc('Collateral Support', 'reviewed'),
+          ],
+        }),
+        creditMemo: { memos: [{ id: 'm1', name: 'Memo', status: 'Draft', statusKey: 'draft', memoType: 'standard', version: 1, generatedAt: '2026-07-01T00:00:00Z', modifiedOn: undefined, borrowerSafe: false, textPreview: undefined }], sections: [] },
+        riskRating: {
+          dealId: 'some-other-deal', ratingValue: 'BB', ratingScale: 'Internal 1-10', rationale: 'Stable cash flow.',
+          assignedBy: 'UW Analyst', assignedAtIso: '2026-07-01T00:00:00Z', status: 'assigned',
+        },
+        underwritingRecommendation: {
+          dealId: underwritingDeal.id, decision: 'approve', rationale: 'Supports repayment capacity.',
+          underwriterActor: 'UW Analyst', recordedAtIso: '2026-07-01T00:00:00Z', status: 'recorded',
+        },
+      };
+      const upd = vi.fn(async () => ({ ok: true }));
+      const out = await advanceWorkflowStage(input({
+        workflow: workflow({ stageId: 'UNDERWRITING', nextIds: ['CREDIT_APPROVAL'], status: 'clear' }),
+        requestedNextStageId: 'CREDIT_APPROVAL',
+        facts,
+        transport: { updateDealStage: upd, readbackDealStage: vi.fn(async () => ({ ok: true, matched: true })) },
+      }));
+      expect(out.kind).toBe('blocked');
+      if (out.kind === 'blocked') expect(out.blockers.join(' ')).toMatch(/risk rating/i);
+      expect(upd).not.toHaveBeenCalled();
     });
   });
 

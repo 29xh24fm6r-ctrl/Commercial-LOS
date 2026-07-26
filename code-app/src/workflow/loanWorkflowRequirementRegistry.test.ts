@@ -81,8 +81,7 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
     expect(untrackedRequirementsForScope('INTAKE')).toEqual([]);
   });
 
-  it('deeper stages carry untracked deep facts (risk rating, approval, closing/funding, boarding)', () => {
-    expect(untrackedRequirementsForScope('UNDERWRITING').some((r) => r.id === 'UNDERWRITING:risk_rating')).toBe(true);
+  it('deeper stages carry untracked deep facts (approval, closing/funding, boarding)', () => {
     expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_decision')).toBe(true);
     // Factory Arc Phase 12 flipped funds_disbursed to tracked (see below) — executed_docs and
     // booking_qc remain genuinely untracked deep facts for this same CLOSING_FUNDING scope.
@@ -97,6 +96,19 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
     expect(req?.tracked).toBe(true);
     expect(req?.severity).toBe('blocking');
     expect(req?.sourceEntity).toBe('cr664_fundingauthorization');
+  });
+
+  it('Production Remediation Factory Arc Phase 6 (N-14/N-15) — UNDERWRITING:risk_rating and UNDERWRITING:uw_recommendation are tracked (real, durable, deal-scoped facts)', () => {
+    expect(untrackedRequirementsForScope('UNDERWRITING').some((r) => r.id === 'UNDERWRITING:risk_rating')).toBe(false);
+    expect(untrackedRequirementsForScope('UNDERWRITING').some((r) => r.id === 'UNDERWRITING:uw_recommendation')).toBe(false);
+    const risk = requirementsForScope('UNDERWRITING').find((r) => r.id === 'UNDERWRITING:risk_rating');
+    const rec = requirementsForScope('UNDERWRITING').find((r) => r.id === 'UNDERWRITING:uw_recommendation');
+    expect(risk?.tracked).toBe(true);
+    expect(risk?.severity).toBe('blocking');
+    expect(risk?.sourceEntity).toBe('cr664_riskratinginputs');
+    expect(rec?.tracked).toBe(true);
+    expect(rec?.severity).toBe('blocking');
+    expect(rec?.sourceEntity).toBe('cr664_underwritingrecommendationinputs');
   });
 
   it('Return / Decline / Withdraw carry placeholder requirements', () => {
@@ -129,7 +141,9 @@ describe('ARC Phase 1 — evaluation engine: Intake → Underwriting', () => {
 });
 
 describe('ARC Phase 1 — untracked deep facts fail closed for deeper stages', () => {
-  it('BLOCKS Underwriting exit on untracked risk rating + recommendation even when all tracked facts are met', () => {
+  // N-15 remediation (Production Remediation Factory Arc Phase 6): risk rating and recommendation
+  // are no longer untracked placeholders for UNDERWRITING — they are real, tracked blockers now.
+  it('BLOCKS Underwriting exit on a missing risk rating + recommendation even when all other tracked facts are met', () => {
     const facts: WorkflowRequirementFacts = {
       deal: baseDeal,
       tasks: emptyTasks,
@@ -143,12 +157,35 @@ describe('ARC Phase 1 — untracked deep facts fail closed for deeper stages', (
     };
     const r = deriveStageExitReadiness('UNDERWRITING', facts);
     expect(r.status).toBe('blocked');
-    // No TRACKED blocking requirement remains (docs reviewed + fields + spreading credit are satisfied)...
+    // The block is now a real TRACKED blocker, not a fail-closed "untracked" placeholder.
+    expect(r.blocking.some((b) => b.id === 'UNDERWRITING:risk_rating')).toBe(true);
+    expect(r.blocking.some((b) => b.id === 'UNDERWRITING:uw_recommendation')).toBe(true);
+    expect(r.untracked.some((u) => u.id === 'UNDERWRITING:risk_rating')).toBe(false);
+    expect(r.untracked.some((u) => u.id === 'UNDERWRITING:uw_recommendation')).toBe(false);
+  });
+
+  it('is READY once a durable, final risk rating and recommendation are also supplied', () => {
+    const facts: WorkflowRequirementFacts = {
+      deal: baseDeal,
+      tasks: emptyTasks,
+      documents: {
+        outstanding: [],
+        received: [doc('Ownership Information'), doc('Collateral Support')],
+        reviewed: [reviewedDoc('Business Financial Statements'), reviewedDoc('Tax Returns')],
+      },
+      creditMemo: oneMemo,
+      riskRating: {
+        dealId: baseDeal.id, ratingValue: '4', ratingScale: 'OGB-1-8', rationale: 'Stable, seasonal cash flow.',
+        assignedBy: 'UW Analyst', assignedAtIso: '2026-07-20T00:00:00Z', status: 'assigned',
+      },
+      underwritingRecommendation: {
+        dealId: baseDeal.id, decision: 'approve', rationale: 'Repayment capacity supports the recommendation.',
+        underwriterActor: 'UW Analyst', recordedAtIso: '2026-07-20T00:00:00Z', status: 'recorded',
+      },
+    };
+    const r = deriveStageExitReadiness('UNDERWRITING', facts);
+    expect(r.status).toBe('ready');
     expect(r.blocking).toEqual([]);
-    // ...the block is the fail-closed untracked deep facts, which name the missing capability.
-    expect(r.untracked.some((u) => u.id === 'UNDERWRITING:risk_rating')).toBe(true);
-    expect(r.untracked.some((u) => u.id === 'UNDERWRITING:uw_recommendation')).toBe(true);
-    expect(r.untracked.every((u) => /not yet/i.test(u.reason))).toBe(true);
   });
 });
 
