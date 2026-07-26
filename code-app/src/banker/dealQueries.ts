@@ -1,6 +1,6 @@
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 import type { Cr664_loandeals } from '../generated/models/Cr664_loandealsModel';
-import { operationalDeals, isTestOrSmokeDealName } from '../shared/deals/testDealClassification';
+import { operationalDeals, isTestOrSmokeDeal } from '../shared/deals/testDealClassification';
 import { ACTIVE_DEAL_ODATA_PREDICATE } from '../shared/deals/dealVisibilityScopes';
 
 export interface PipelineDeal {
@@ -10,14 +10,17 @@ export interface PipelineDeal {
   stage: string | undefined;
   status: string | undefined;
   /**
-   * True when the deal name matches the controlled test/smoke naming
-   * convention (see testDealClassification.ts). Populated by
-   * loadBankerPipeline/toPipelineDeal for every real read — optional here
-   * only so hand-built PipelineDeal fixtures elsewhere (which represent
-   * ordinary, non-test deals) don't all need updating; omitted is treated
-   * as false everywhere it's read. Any caller that opts in to seeing test
-   * records (includeTestDeals: true) can use this to label them instead of
-   * silently mixing them into an unlabeled operational list.
+   * True when the deal is classified as a test/smoke record — the governed
+   * cr664_istestrecord column when an admin has explicitly set it (N-17,
+   * Production Remediation Factory Arc Phase 11), falling back to the
+   * controlled test/smoke naming convention when unset (see
+   * testDealClassification.ts). Populated by loadBankerPipeline/toPipelineDeal
+   * for every real read — optional here only so hand-built PipelineDeal
+   * fixtures elsewhere (which represent ordinary, non-test deals) don't all
+   * need updating; omitted is treated as false everywhere it's read. Any
+   * caller that opts in to seeing test records (includeTestDeals: true) can
+   * use this to label them instead of silently mixing them into an
+   * unlabeled operational list.
    */
   isTestRecord?: boolean;
   amount: number | undefined;
@@ -79,7 +82,15 @@ function toPipelineDeal(d: Cr664_loandeals): PipelineDeal {
   return {
     id: d.cr664_loandealid,
     name: d.cr664_dealname,
-    isTestRecord: isTestOrSmokeDealName(d.cr664_dealname),
+    // N-17 remediation (Production Remediation Factory Arc Phase 11) — cr664_istestrecord is a
+    // PR142-provisioned, additive Boolean column; not yet declared on the generated model (same
+    // convention as other raw-only fields on this record — see getFormattedValue above). Undefined
+    // on every deal until an admin explicitly classifies it, in which case isTestOrSmokeDeal falls
+    // back to the pre-existing name-convention match unchanged.
+    isTestRecord: isTestOrSmokeDeal({
+      name: d.cr664_dealname,
+      isTestRecord: raw['cr664_istestrecord'] as boolean | undefined,
+    }),
     clientName: d.cr664_clientname,
     // Phase 170L — formatted-value-first hydration parity with the deal
     // detail / team / manager read models. Deals created via the

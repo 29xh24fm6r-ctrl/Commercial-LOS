@@ -252,3 +252,39 @@ describe('P1-11 — loadBankerPipeline excludes classified test/smoke deals by d
     expect(out.map((d) => d.name)).toEqual(['Acme Expansion']);
   });
 });
+
+describe('N-17 remediation (Production Remediation Factory Arc Phase 11) — governed cr664_istestrecord wins over name inference', () => {
+  beforeEach(() => getAllMock.mockReset());
+
+  it('an ordinary-looking name explicitly flagged cr664_istestrecord: true is excluded by default and labeled', async () => {
+    getAllMock.mockResolvedValue({
+      success: true,
+      data: [dealRow({ cr664_loandealid: 'governed-1', cr664_dealname: 'Acme Expansion', cr664_istestrecord: true })],
+    });
+    const excluded = await loadBankerPipeline('banker-1');
+    expect(excluded).toHaveLength(0);
+
+    const included = await loadBankerPipeline('banker-1', { includeTestDeals: true });
+    expect(included).toHaveLength(1);
+    expect(included[0]!.isTestRecord).toBe(true);
+  });
+
+  it('a name matching the test convention explicitly flagged cr664_istestrecord: false is treated as real', async () => {
+    getAllMock.mockResolvedValue({
+      success: true,
+      data: [dealRow({ cr664_loandealid: 'governed-2', cr664_istestrecord: false })],
+    });
+    const out = await loadBankerPipeline('banker-1');
+    expect(out).toHaveLength(1);
+    expect(out[0]!.isTestRecord).toBe(false);
+  });
+
+  it('an unset cr664_istestrecord (the pre-migration default for every existing deal) falls back to name matching unchanged', async () => {
+    getAllMock.mockResolvedValue({
+      success: true,
+      data: [dealRow({ cr664_loandealid: 'ungoverned-1', cr664_istestrecord: undefined })],
+    });
+    const out = await loadBankerPipeline('banker-1');
+    expect(out).toHaveLength(0); // still excluded — the [SMOKE TEST ...] name convention still applies
+  });
+});
