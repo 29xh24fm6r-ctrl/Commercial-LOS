@@ -89,7 +89,12 @@ function setBanker(over: Partial<ReturnType<typeof useBanker>> = {}) {
   });
 }
 
-function renderCreate(props: { onCreated?: (createdDealId: string) => Promise<void> | void } = {}) {
+function renderCreate(
+  props: {
+    onCreated?: (createdDealId: string) => Promise<void> | void;
+    dealPlacementConfirmation?: 'confirming' | 'timed-out';
+  } = {},
+) {
   return render(
     <MemoryRouter>
       <BankerNewDealCreate {...props} />
@@ -260,6 +265,64 @@ describe('Happy path — existing client + team bind and readback via the orches
     expect(callArg.form.existingTeamId).toBe('team-guid-1');
     expect(callArg.context.requireCrmClient).toBe(true);
     expect(callArg.context.existingDeals).toEqual([]);
+  });
+});
+
+describe('N-36 remediation (Production Remediation Factory Arc Phase 10) — success banner never contradicts the parent\'s confirm-then-navigate status', () => {
+  it('with no placement-confirmation status (isolated usage), keeps the original "it now appears" wording', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-xyz',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await completeHappyPath(user, container);
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
+    );
+    expect(screen.getByText(/It now appears in your Active Deals and Loan Workflow\./)).toBeInTheDocument();
+    expect(container.querySelector('[data-banker-new-deal-placement="timed-out"]')).toBeNull();
+  });
+
+  it('when the parent could not confirm placement (timed-out), the banner never asserts "it now appears"', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-xyz',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container, rerender } = renderCreate({ dealPlacementConfirmation: 'confirming' });
+    await completeHappyPath(user, container);
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
+    );
+
+    // The parent has now given up confirming — re-render with the same result but the updated
+    // placement status, exactly as BankerShell does when dealCreateConfirm flips to 'timed-out'
+    // while BankerNewDealCreate itself stays mounted with its already-resolved submit state.
+    rerender(
+      <MemoryRouter>
+        <BankerNewDealCreate dealPlacementConfirmation="timed-out" />
+      </MemoryRouter>,
+    );
+
+    expect(container.querySelector('[data-banker-new-deal-placement="timed-out"]')).not.toBeNull();
+    expect(screen.queryByText(/It now appears in your Active Deals and Loan Workflow\./)).toBeNull();
+    // The deal id, stage, and "Open deal" link are still honest and present — only the
+    // over-claiming placement sentence is suppressed.
+    expect(screen.getByText(/Deal created\. Id deal-xyz/)).toBeInTheDocument();
+    expect(container.querySelector('[data-banker-new-deal-open]')?.getAttribute('href')).toBe('/deals/deal-xyz');
   });
 });
 

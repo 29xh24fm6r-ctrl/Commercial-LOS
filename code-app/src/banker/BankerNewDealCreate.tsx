@@ -117,9 +117,19 @@ export interface BankerNewDealCreateProps {
    * exactly as long as the parent takes to confirm + navigate.
    */
   readonly onCreated?: (createdDealId: string) => Promise<void> | void;
+  /**
+   * N-36 remediation (Production Remediation Factory Arc Phase 10) — the parent's own
+   * confirm-then-navigate status for the deal `onCreated` just reported (see BankerShell.tsx's
+   * `dealCreateConfirm`). While the parent is still confirming, or once it gives up
+   * ('timed-out'), the success banner below must not flatly assert "it now appears in your
+   * Active Deals" — that claim can be actively false at the same moment the parent renders its
+   * own "could not yet be confirmed" notice, and the two contradicting side by side is the exact
+   * N-36 defect. Undefined (the isolated-usage default) keeps the original optimistic wording.
+   */
+  readonly dealPlacementConfirmation?: 'confirming' | 'timed-out';
 }
 
-export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}) {
+export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: BankerNewDealCreateProps = {}) {
   const { bankerId, systemUserId, writeDisabledReason, email } = useBanker();
   const [step, setStep] = useState<Step>(1);
   const [dealName, setDealName] = useState('');
@@ -493,7 +503,7 @@ export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}
         </div>
       )}
 
-      <ResultBanner submit={submit} />
+      <ResultBanner submit={submit} dealPlacementConfirmation={dealPlacementConfirmation} />
     </section>
   );
 }
@@ -1005,7 +1015,13 @@ function OptionPicker({
 // Result banner
 // ---------------------------------------------------------------------------
 
-function ResultBanner({ submit }: { submit: SubmitState }) {
+function ResultBanner({
+  submit,
+  dealPlacementConfirmation,
+}: {
+  submit: SubmitState;
+  dealPlacementConfirmation?: 'confirming' | 'timed-out';
+}) {
   if (submit.kind === 'idle' || submit.kind === 'submitting') return null;
   if (submit.kind === 'error') {
     return (
@@ -1016,7 +1032,7 @@ function ResultBanner({ submit }: { submit: SubmitState }) {
   }
   return (
     <>
-      <OutcomeBanner result={submit.result} />
+      <OutcomeBanner result={submit.result} dealPlacementConfirmation={dealPlacementConfirmation} />
       <ProfileFollowUpBanner profileOutcome={submit.profileOutcome} />
     </>
   );
@@ -1072,7 +1088,13 @@ function describeProfileFollowUpFailure(outcome: Exclude<UpdateDealProfileOutcom
   }
 }
 
-function OutcomeBanner({ result: r }: { result: DealOriginationResult }) {
+function OutcomeBanner({
+  result: r,
+  dealPlacementConfirmation,
+}: {
+  result: DealOriginationResult;
+  dealPlacementConfirmation?: 'confirming' | 'timed-out';
+}) {
   switch (r.kind) {
     case 'success_created_only':
     case 'success_created_with_automation':
@@ -1080,7 +1102,16 @@ function OutcomeBanner({ result: r }: { result: DealOriginationResult }) {
         <>
           <div style={styles.bannerOk} role="status" data-banker-new-deal-result="success">
             ✓ Deal created. Id {r.createdDealId}. Stage {r.stageLabel} · Status {r.statusLabel}.{' '}
-            It now appears in your Active Deals and Loan Workflow.{' '}
+            {dealPlacementConfirmation === 'timed-out' ? (
+              <span data-banker-new-deal-placement="timed-out">
+                Its appearance in your Active Deals list could not yet be confirmed automatically
+                — see the notice above. You can still open it directly.
+              </span>
+            ) : (
+              <span data-banker-new-deal-placement="confirmed-or-pending">
+                It now appears in your Active Deals and Loan Workflow.
+              </span>
+            )}{' '}
             {/* Client-side SPA navigation via react-router (the app's canonical
                 deal-open pattern). A raw <a href> would trigger a full browser
                 navigation to the Power Apps host path and break out of the app
