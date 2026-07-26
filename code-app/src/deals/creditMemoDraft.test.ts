@@ -7,11 +7,54 @@ import {
   MISSING_PLACEHOLDER,
   SECTION_OPTIONS,
   buildCreditMemoDraft,
+  renderSingleSection,
   type CreditMemoSectionKey,
   type CreditMemoDraftContext,
 } from './creditMemoDraft';
+import { serializeGlobalCashFlowFormState, type GlobalCashFlowFormState } from './globalCashFlow';
+import {
+  serializeRiskRatingFormState,
+  serializeUnderwritingRecommendationFormState,
+  type RiskRatingFormState,
+  type UnderwritingRecommendationFormState,
+} from '../workflow/underwritingDeepFacts';
 
 const FIXED_NOW = new Date('2026-05-13T12:00:00Z');
+
+const fullyPopulatedGcfState: GlobalCashFlowFormState = {
+  netIncome: '500000',
+  interestExpense: '50000',
+  incomeTaxes: '75000',
+  depreciation: '40000',
+  amortization: '10000',
+  nonRecurringAddbacks: '0',
+  nonRecurringIncome: '0',
+  unfinancedCapEx: '20000',
+  proposedNewDebtService: '150000',
+  otherBusinessDebtService: '0',
+  guarantors: [
+    {
+      guarantorName: 'Jane Doe',
+      grossPersonalIncome: '200000',
+      nonCashAddbacks: '0',
+      personalLivingExpenses: '80000',
+      otherPersonalDebtService: '0',
+    },
+  ],
+};
+
+const fullyPopulatedRiskRatingState: RiskRatingFormState = {
+  ratingValue: '4',
+  ratingScale: '1-8',
+  rationale: 'Strong cash flow coverage and seasoned management team.',
+  status: 'assigned',
+};
+
+const fullyPopulatedRecommendationState: UnderwritingRecommendationFormState = {
+  decision: 'approve_with_conditions',
+  rationale: 'Supportable subject to updated collateral valuation.',
+  status: 'recorded',
+};
 
 const fullyPopulatedDeal: DealDetail = {
   id: 'deal-77',
@@ -34,6 +77,9 @@ const fullyPopulatedDeal: DealDetail = {
   createdOn: '2026-01-15T00:00:00Z',
   stageEntryDate: '2026-03-01T00:00:00Z',
   isClosed: false,
+  financialSpreadInputsJson: serializeGlobalCashFlowFormState(fullyPopulatedGcfState),
+  riskRatingInputsJson: serializeRiskRatingFormState(fullyPopulatedRiskRatingState),
+  underwritingRecommendationInputsJson: serializeUnderwritingRecommendationFormState(fullyPopulatedRecommendationState),
 };
 
 const sparseDeal: DealDetail = {
@@ -108,7 +154,7 @@ function fullCtx(
 }
 
 describe('SECTION_OPTIONS / ALL_SECTION_KEYS', () => {
-  it('exposes the ten sections required by the Phase 24 brief in order', () => {
+  it('exposes the Phase 24 brief sections plus the five N-07 decision-grade sections, in order', () => {
     expect(SECTION_OPTIONS.map((o) => o.label)).toEqual([
       'Executive Summary',
       'Borrower / Relationship Overview',
@@ -116,12 +162,17 @@ describe('SECTION_OPTIONS / ALL_SECTION_KEYS', () => {
       'Collateral',
       'Guarantor Support',
       'Pricing / Structure',
+      'Global Cash Flow & DSCR Analysis',
+      'Repayment Analysis',
+      'Risk Rating',
+      'Underwriting Recommendation',
+      'Requested Credit Action',
       'Due Diligence / Documents',
       'Open Tasks / Conditions',
       'Risks / Blockers',
       'Recommended Next Steps',
     ]);
-    expect(ALL_SECTION_KEYS.length).toBe(10);
+    expect(ALL_SECTION_KEYS.length).toBe(15);
   });
 });
 
@@ -382,5 +433,135 @@ describe('buildCreditMemoDraft — existing memos are read-only', () => {
   it('does not surface prior-memo count when there are no existing memos', () => {
     const { body } = buildCreditMemoDraft(['executive-summary'], fullCtx());
     expect(body).not.toContain('Prior memos on file');
+  });
+});
+
+describe('N-07 remediation — decision-grade sections (Global Cash Flow, Repayment Analysis, Risk Rating, Underwriting Recommendation, Requested Credit Action)', () => {
+  it('Global Cash Flow & DSCR Analysis renders real computed figures when inputs are captured', () => {
+    const { body, missingFields } = buildCreditMemoDraft(['financial-analysis'], fullCtx());
+    expect(body).toContain('## Global Cash Flow & DSCR Analysis');
+    expect(body).toContain('Business Cash Flow:');
+    expect(body).toContain('Personal Cash Flow — Jane Doe:');
+    expect(body).toMatch(/Global Cash Flow \(business \+ all guarantors\): \$[\d,]+/);
+    expect(body).toMatch(/DSCR: \d+\.\d{2} \(\w+\)/);
+    expect(missingFields.some((m) => m.includes('Global Cash Flow & DSCR Analysis'))).toBe(false);
+  });
+
+  it('Global Cash Flow & DSCR Analysis honestly reports insufficient data instead of fabricating a DSCR', () => {
+    const { body, missingFields } = buildCreditMemoDraft(['financial-analysis'], fullCtx({ deal: sparseDeal }));
+    expect(body).toContain(MISSING_PLACEHOLDER);
+    expect(body).toContain('Missing inputs:');
+    expect(body).not.toMatch(/DSCR: \d/);
+    expect(missingFields).toContain('Global Cash Flow & DSCR Analysis — Global Cash Flow inputs');
+  });
+
+  it('Repayment Analysis reads the SAME computed DSCR as the Global Cash Flow section, plain-language framed', () => {
+    const { body } = buildCreditMemoDraft(['repayment-analysis'], fullCtx());
+    expect(body).toContain('## Repayment Analysis');
+    expect(body).toMatch(/DSCR: \d+\.\d{2}/);
+    expect(body).toContain('Assessment:');
+  });
+
+  it('Repayment Analysis degrades honestly, referencing the Global Cash Flow section, when data is missing', () => {
+    const { body, missingFields } = buildCreditMemoDraft(['repayment-analysis'], fullCtx({ deal: sparseDeal }));
+    expect(body).toContain('Repayment capacity cannot be assessed');
+    expect(body).toContain(MISSING_PLACEHOLDER);
+    expect(missingFields).toContain('Repayment Analysis — Global Cash Flow inputs');
+  });
+
+  it('Risk Rating renders the persisted rating value, scale, status, and rationale', () => {
+    const { body, missingFields } = buildCreditMemoDraft(['risk-rating'], fullCtx());
+    expect(body).toContain('## Risk Rating');
+    expect(body).toContain('Risk rating: 4 (scale: 1-8)');
+    expect(body).toContain('Status: assigned');
+    expect(body).toContain('Strong cash flow coverage and seasoned management team.');
+    expect(missingFields.some((m) => m.includes('Risk Rating'))).toBe(false);
+  });
+
+  it('Risk Rating honestly reports missing when no rating has been assigned', () => {
+    const { body, missingFields } = buildCreditMemoDraft(['risk-rating'], fullCtx({ deal: sparseDeal }));
+    expect(body).toContain(MISSING_PLACEHOLDER);
+    expect(missingFields).toContain('Risk Rating — Risk rating');
+  });
+
+  it('Underwriting Recommendation renders the recorded decision, status, and rationale, with a "not itself a decision" disclaimer', () => {
+    const { body, missingFields } = buildCreditMemoDraft(['underwriting-recommendation'], fullCtx());
+    expect(body).toContain('## Underwriting Recommendation');
+    expect(body).toContain('Recommendation on file: Approve with Conditions');
+    expect(body).toContain('Status: recorded');
+    expect(body).toContain('Supportable subject to updated collateral valuation.');
+    expect(body).toContain('this memo does not itself make a credit decision');
+    expect(missingFields.some((m) => m.includes('Underwriting Recommendation'))).toBe(false);
+  });
+
+  it('Underwriting Recommendation honestly reports nothing recorded, rather than inventing a decision', () => {
+    const { body, missingFields } = buildCreditMemoDraft(['underwriting-recommendation'], fullCtx({ deal: sparseDeal }));
+    expect(body).toContain('No underwriting recommendation has been recorded');
+    expect(missingFields).toContain('Underwriting Recommendation — Underwriting recommendation');
+  });
+
+  it('Requested Credit Action summarizes the real credit ask and references the recorded recommendation, never the literal words "approval"/"approved"', () => {
+    const { body } = buildCreditMemoDraft(['approval-request'], fullCtx());
+    expect(body).toContain('## Requested Credit Action');
+    expect(body).toMatch(/Requested amount: \$[\d,]+/);
+    expect(body).toContain('Revolving Line of Credit');
+    expect(body).toContain('Underwriting recommendation on file: Approve with Conditions');
+    expect(body).not.toMatch(/\bapproval\b/i);
+    expect(body).not.toMatch(/\bapproved\b/i);
+  });
+
+  it('Requested Credit Action degrades honestly when the recommendation has not been recorded', () => {
+    const { body } = buildCreditMemoDraft(
+      ['approval-request'],
+      fullCtx({
+        deal: { ...fullyPopulatedDeal, underwritingRecommendationInputsJson: undefined },
+      }),
+    );
+    expect(body).toContain('Underwriting recommendation: not yet recorded.');
+  });
+
+  it('every new section is included in a full-memo build alongside the original ten', () => {
+    const { body } = buildCreditMemoDraft(ALL_SECTION_KEYS, fullCtx());
+    for (const label of [
+      'Global Cash Flow & DSCR Analysis',
+      'Repayment Analysis',
+      'Risk Rating',
+      'Underwriting Recommendation',
+      'Requested Credit Action',
+    ]) {
+      expect(body).toContain(`## ${label}`);
+    }
+  });
+});
+
+describe('N-09 remediation — renderSingleSection produces boilerplate-free section content', () => {
+  it('contains no header (Deal/Client/Stage/Status/Banker) or footer boilerplate — only the section\'s own content', () => {
+    const text = renderSingleSection('executive-summary', fullCtx());
+    expect(text).not.toContain('DRAFT PREVIEW');
+    expect(text).not.toContain('Generated locally on');
+    expect(text).not.toContain('End of draft preview');
+    expect(text).toContain('## Executive Summary');
+  });
+
+  it('two different sections rendered via renderSingleSection never repeat the same header/footer boilerplate', () => {
+    const exec = renderSingleSection('executive-summary', fullCtx());
+    const collat = renderSingleSection('collateral', fullCtx());
+    // Neither section carries the shared header/footer lines a `buildCreditMemoDraft` body would
+    // (the literal header phrasing "Deal: X" / "Banker: X" — distinct from Executive Summary's
+    // own "Deal name: X" content line, which legitimately repeats the deal name as ITS content).
+    for (const text of [exec, collat]) {
+      expect(text).not.toContain('# Credit Memo — DRAFT PREVIEW');
+      expect(text).not.toMatch(/^Deal: /m);
+      expect(text).not.toMatch(/^Banker: /m);
+    }
+    expect(exec).not.toBe(collat);
+  });
+
+  it('matches exactly the single-section slice buildCreditMemoDraft would wrap with header/footer', () => {
+    const single = renderSingleSection('risk-rating', fullCtx());
+    const { body } = buildCreditMemoDraft(['risk-rating'], fullCtx());
+    // The full body is header + '\n\n' + section + '\n\n' + footer; the section text is identical.
+    expect(body).toContain(single);
+    expect(body.length).toBeGreaterThan(single.length);
   });
 });

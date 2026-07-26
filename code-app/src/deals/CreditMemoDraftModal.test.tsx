@@ -7,6 +7,13 @@ import type { DealDocumentsResult } from './dealDocumentQueries';
 import type { DealTasksResult } from './dealTaskQueries';
 import type { SaveCreditMemoDraftOutcome } from './creditMemoActions';
 import { CreditMemoDraftModal } from './CreditMemoDraftModal';
+import { serializeGlobalCashFlowFormState, type GlobalCashFlowFormState } from './globalCashFlow';
+import {
+  serializeRiskRatingFormState,
+  serializeUnderwritingRecommendationFormState,
+  type RiskRatingFormState,
+  type UnderwritingRecommendationFormState,
+} from '../workflow/underwritingDeepFacts';
 
 const baseDeal: DealDetail = {
   id: 'deal-77',
@@ -158,9 +165,51 @@ describe('CreditMemoDraftModal — section toggling rewrites the body', () => {
 
 describe('CreditMemoDraftModal — missing information panel', () => {
   it('surfaces no missing fields for a fully populated deal', () => {
+    // N-07 remediation — the five new deep-fact sections (Global Cash Flow, Repayment
+    // Analysis, Risk Rating, Underwriting Recommendation, Requested Credit Action) need
+    // their own persisted inputs captured, or they report missing fields just like any
+    // other section. This fixture captures all of them via the real serialize functions.
+    const gcfState: GlobalCashFlowFormState = {
+      netIncome: '500000',
+      interestExpense: '50000',
+      incomeTaxes: '75000',
+      depreciation: '40000',
+      amortization: '10000',
+      nonRecurringAddbacks: '0',
+      nonRecurringIncome: '0',
+      unfinancedCapEx: '20000',
+      proposedNewDebtService: '150000',
+      otherBusinessDebtService: '0',
+      guarantors: [
+        {
+          guarantorName: 'Jane Doe',
+          grossPersonalIncome: '200000',
+          nonCashAddbacks: '0',
+          personalLivingExpenses: '80000',
+          otherPersonalDebtService: '0',
+        },
+      ],
+    };
+    const riskRatingState: RiskRatingFormState = {
+      ratingValue: '4',
+      ratingScale: '1-8',
+      rationale: 'Strong cash flow coverage and seasoned management team.',
+      status: 'assigned',
+    };
+    const recommendationState: UnderwritingRecommendationFormState = {
+      decision: 'approve_with_conditions',
+      rationale: 'Supportable subject to updated collateral valuation.',
+      status: 'recorded',
+    };
+    const fullyPopulatedDeal: DealDetail = {
+      ...baseDeal,
+      financialSpreadInputsJson: serializeGlobalCashFlowFormState(gcfState),
+      riskRatingInputsJson: serializeRiskRatingFormState(riskRatingState),
+      underwritingRecommendationInputsJson: serializeUnderwritingRecommendationFormState(recommendationState),
+    };
     render(
       <CreditMemoDraftModal
-        deal={baseDeal}
+        deal={fullyPopulatedDeal}
         tasks={noTasks}
         documents={noDocs}
         existingMemos={undefined}

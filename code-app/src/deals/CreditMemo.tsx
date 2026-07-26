@@ -407,6 +407,11 @@ function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
 }
 
 function MemoRow({ memo }: { memo: CreditMemoSummary }) {
+  // N-08 remediation (Production Remediation Factory Arc Phase 5) — before this, a banker could
+  // only ever see the 240-char textPreview, with no way to read the rest of a saved memo. The
+  // full text (already durably persisted) is now one click away.
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = Boolean(memo.fullText && memo.textPreview && memo.fullText.trim() !== memo.textPreview.trim());
   return (
     <li style={styles.row}>
       <div style={styles.rowHeader}>
@@ -440,7 +445,21 @@ function MemoRow({ memo }: { memo: CreditMemoSummary }) {
           )}
         </div>
       </div>
-      {memo.textPreview && <p style={styles.preview}>{memo.textPreview}</p>}
+      {expanded && memo.fullText ? (
+        <p style={styles.preview} data-credit-memo-full-text>{memo.fullText}</p>
+      ) : (
+        memo.textPreview && <p style={styles.preview}>{memo.textPreview}</p>
+      )}
+      {hasMore && (
+        <button
+          type="button"
+          style={styles.viewFullTextButton}
+          onClick={() => setExpanded((v) => !v)}
+          data-credit-memo-view-full-text
+        >
+          {expanded ? 'Show less' : 'View full memo text'}
+        </button>
+      )}
     </li>
   );
 }
@@ -450,6 +469,11 @@ function SectionRow({ section }: { section: CreditMemoSectionItem }) {
   // It exposed a raw schema identifier to bankers without value
   // (sectionLabel above already names the section). Kept the key on
   // the title's `title` attribute for engineering-debug hover.
+  // N-08 remediation — same full-text toggle as MemoRow, per-section.
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = Boolean(
+    section.fullText && section.textPreview && section.fullText.trim() !== section.textPreview.trim(),
+  );
   return (
     <li style={styles.row}>
       <div style={styles.rowHeader}>
@@ -477,7 +501,21 @@ function SectionRow({ section }: { section: CreditMemoSectionItem }) {
           </div>
         )}
       </div>
-      {section.textPreview && <p style={styles.preview}>{section.textPreview}</p>}
+      {expanded && section.fullText ? (
+        <p style={styles.preview} data-credit-memo-section-full-text>{section.fullText}</p>
+      ) : (
+        section.textPreview && <p style={styles.preview}>{section.textPreview}</p>
+      )}
+      {hasMore && (
+        <button
+          type="button"
+          style={styles.viewFullTextButton}
+          onClick={() => setExpanded((v) => !v)}
+          data-credit-memo-section-view-full-text
+        >
+          {expanded ? 'Show less' : 'View full section text'}
+        </button>
+      )}
     </li>
   );
 }
@@ -580,6 +618,18 @@ const styles: Record<string, React.CSSProperties> = {
     color: palette.textMuted,
     lineHeight: typography.lineHeight.normal,
     whiteSpace: 'pre-wrap',
+  },
+  viewFullTextButton: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.xxs,
+    background: 'transparent',
+    border: 'none',
+    padding: 0,
+    color: palette.cobalt,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
   },
   errorBox: {
     background: palette.blockedBg,
