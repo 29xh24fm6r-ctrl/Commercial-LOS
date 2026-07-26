@@ -241,4 +241,21 @@ describe('Phase 128B — loadTeamDeals display-value hydration', () => {
       }
     }
   });
+
+  it('final-los-completion (N-17 follow-on): resolves isTestRecord from cr664_istestrecord, not name alone', async () => {
+    getAllMock.mockResolvedValueOnce({
+      success: true,
+      data: [dealRow({ cr664_istestrecord: true })],
+    });
+    let out = await loadTeamDeals('team-1', { includeTestDeals: true });
+    expect(out[0].isTestRecord).toBe(true);
+
+    // Default exclusion now actually drops a governed-test deal, even with an ordinary name.
+    getAllMock.mockResolvedValueOnce({
+      success: true,
+      data: [dealRow({ cr664_istestrecord: true })],
+    });
+    out = await loadTeamDeals('team-1');
+    expect(out).toHaveLength(0);
+  });
 });

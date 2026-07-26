@@ -1,7 +1,7 @@
 import { Cr664_bankersService } from '../generated/services/Cr664_bankersService';
 import { Cr664_loandealsService } from '../generated/services/Cr664_loandealsService';
 import { buildTeamVisibilityFilter, buildTeamVisibilityFilterViaNavigation } from '../shared/deals/dealVisibilityScopes';
-import { operationalDeals } from '../shared/deals/testDealClassification';
+import { isTestOrSmokeDeal, operationalDeals } from '../shared/deals/testDealClassification';
 import { Cr664_dealtask1sService } from '../generated/services/Cr664_dealtask1sService';
 import { Cr664_documentchecklistsService } from '../generated/services/Cr664_documentchecklistsService';
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
@@ -146,6 +146,11 @@ export interface TeamDealRow {
   productType?: string | undefined;
   loanStructure?: string | undefined;
   pricingType?: string | undefined;
+  /** N-17 follow-on (Final LOS Completion arc) — governed cr664_istestrecord classification,
+   *  resolved the same way the banker pipeline resolves it (explicit field wins, name convention
+   *  is the fallback). Optional so existing TeamDealRow literals do not need to enumerate it;
+   *  omitting it falls back to name-only matching in operationalDeals() below, same as before. */
+  isTestRecord?: boolean;
 }
 
 export interface LoadTeamDealsOptions {
@@ -219,6 +224,10 @@ export async function loadTeamDeals(
       pricingType:
         getLookupFormattedValue(raw, 'cr664_pricingtypereference') ??
         d.cr664_pricingtypereferencename,
+      isTestRecord: isTestOrSmokeDeal({
+        name: d.cr664_dealname,
+        isTestRecord: raw['cr664_istestrecord'] as boolean | undefined,
+      }),
     };
   });
   return [...operationalDeals(mapped, { includeTest: options.includeTestDeals === true })];
