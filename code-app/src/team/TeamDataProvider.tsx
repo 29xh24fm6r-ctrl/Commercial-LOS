@@ -85,10 +85,32 @@ export function TeamDataProvider({ children }: { children: React.ReactNode }) {
         .then((memberBankerIds) => loadTeamDeals(teamId, { memberBankerIds }))
         .catch(() => loadTeamDeals(teamId)),
     );
-    bind(setTasks, loadTeamTasks(teamId));
-    bind(setDocuments, loadTeamDocuments(teamId));
-    bind(setMemos, loadTeamMemos(teamId));
-    bind(setMemoSections, loadTeamMemoSections(teamId));
+    // N-03 — resolve member banker ids first so the child loaders get the same Owning-Team
+    // fallback the deal list above already has; fall back to team-only scope if that lookup fails.
+    bind(
+      setTasks,
+      loadTeamMemberBankerIds(teamId)
+        .then((memberBankerIds) => loadTeamTasks(teamId, memberBankerIds))
+        .catch(() => loadTeamTasks(teamId)),
+    );
+    bind(
+      setDocuments,
+      loadTeamMemberBankerIds(teamId)
+        .then((memberBankerIds) => loadTeamDocuments(teamId, memberBankerIds))
+        .catch(() => loadTeamDocuments(teamId)),
+    );
+    bind(
+      setMemos,
+      loadTeamMemberBankerIds(teamId)
+        .then((memberBankerIds) => loadTeamMemos(teamId, memberBankerIds))
+        .catch(() => loadTeamMemos(teamId)),
+    );
+    bind(
+      setMemoSections,
+      loadTeamMemberBankerIds(teamId)
+        .then((memberBankerIds) => loadTeamMemoSections(teamId, memberBankerIds))
+        .catch(() => loadTeamMemoSections(teamId)),
+    );
 
     return () => {
       cancelled = true;

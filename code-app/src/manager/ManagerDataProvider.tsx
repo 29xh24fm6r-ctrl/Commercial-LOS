@@ -121,10 +121,37 @@ export function ManagerDataProvider({ children }: { children: React.ReactNode })
       setTeamPipeline,
     );
     bind(() => loadTeamBankers(teamId), setTeamBankers);
-    bind(() => loadManagerTeamTasks(teamId), setTeamTasks);
-    bind(() => loadManagerTeamDocuments(teamId), setTeamDocuments);
-    bind(() => loadManagerTeamMemos(teamId), setTeamMemos);
-    bind(() => loadManagerTeamMemoSections(teamId), setTeamMemoSections);
+    // N-03 — resolve member banker ids first so the child loaders get the same Owning-Team
+    // fallback the pipeline above already has; fall back to team-only scope if that lookup fails,
+    // rather than dropping the child data entirely.
+    bind(
+      () =>
+        loadTeamBankers(teamId)
+          .then((bankers) => loadManagerTeamTasks(teamId, bankers.map((b) => b.id)))
+          .catch(() => loadManagerTeamTasks(teamId)),
+      setTeamTasks,
+    );
+    bind(
+      () =>
+        loadTeamBankers(teamId)
+          .then((bankers) => loadManagerTeamDocuments(teamId, bankers.map((b) => b.id)))
+          .catch(() => loadManagerTeamDocuments(teamId)),
+      setTeamDocuments,
+    );
+    bind(
+      () =>
+        loadTeamBankers(teamId)
+          .then((bankers) => loadManagerTeamMemos(teamId, bankers.map((b) => b.id)))
+          .catch(() => loadManagerTeamMemos(teamId)),
+      setTeamMemos,
+    );
+    bind(
+      () =>
+        loadTeamBankers(teamId)
+          .then((bankers) => loadManagerTeamMemoSections(teamId, bankers.map((b) => b.id)))
+          .catch(() => loadManagerTeamMemoSections(teamId)),
+      setTeamMemoSections,
+    );
 
     return () => {
       cancelled = true;

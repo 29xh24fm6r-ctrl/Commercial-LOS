@@ -88,3 +88,64 @@ export function detectCrmOrganizationDuplicates(input: CrmDuplicateDetectionInpu
   }
   return { kind: 'no_duplicate_found' };
 }
+
+/**
+ * N-33 (Production Remediation Factory Arc Phase 2) — retroactive duplicate-company detection
+ * across an ALREADY-EXISTING organization list, not just at Add-Company create time. Before this,
+ * `detectCrmOrganizationDuplicates` only ever checked one new candidate against the existing list;
+ * nothing re-scanned organizations already in the CRM, so companies that slipped past (or predate)
+ * the create-time warning — e.g. "OmniCare 365" created twice plus "Omnicare 365" with different
+ * capitalization — were never flagged and silently inflated any listing/total that counted distinct
+ * companies or their linked deals.
+ *
+ * Pure grouping, same normalization rules as the create-time check (name / legal name / website).
+ * Read-only: this never deletes, merges, or otherwise mutates a record — it only reports clusters of
+ * likely-duplicate organization ids for a human (banker/admin) to review and decide, matching this
+ * codebase's "no deletion/merge without operator authorization" rule. Groups smaller than 2 members
+ * are not duplicates and are omitted.
+ */
+export interface DuplicateOrganizationCluster {
+  readonly matchType: 'name' | 'legalName' | 'website';
+  /** The normalized key the cluster matched on (never a raw record id). */
+  readonly matchKey: string;
+  readonly organizationIds: readonly string[];
+}
+
+export function findDuplicateOrganizationClusters(
+  organizations: readonly ExistingOrganizationSignal[],
+  options: { readonly detectionEnabledOverride?: boolean } = {},
+): readonly DuplicateOrganizationCluster[] {
+  const detectionEnabled = options.detectionEnabledOverride ?? DUPLICATE_DETECTION_ENABLED;
+  if (!detectionEnabled) return [];
+
+  const clusters: DuplicateOrganizationCluster[] = [];
+  const claimed = new Set<string>();
+
+  function groupBy(
+    matchType: DuplicateOrganizationCluster['matchType'],
+    keyFor: (o: ExistingOrganizationSignal) => string,
+  ): void {
+    const byKey = new Map<string, string[]>();
+    for (const o of organizations) {
+      const key = keyFor(o);
+      if (key.length === 0) continue;
+      const bucket = byKey.get(key) ?? [];
+      bucket.push(o.organizationId);
+      byKey.set(key, bucket);
+    }
+    for (const [key, ids] of byKey) {
+      // An organization already claimed by a stronger match (name/legal-name) is not re-reported
+      // under a weaker one (website) — each record surfaces in exactly one cluster.
+      const unclaimed = ids.filter((id) => !claimed.has(id));
+      if (unclaimed.length < 2) continue;
+      for (const id of unclaimed) claimed.add(id);
+      clusters.push({ matchType, matchKey: key, organizationIds: unclaimed });
+    }
+  }
+
+  groupBy('name', (o) => normalizeBusinessName(o.name));
+  groupBy('legalName', (o) => normalizeBusinessName(o.legalName));
+  groupBy('website', (o) => normalizedWebsite(o.website));
+
+  return clusters;
+}

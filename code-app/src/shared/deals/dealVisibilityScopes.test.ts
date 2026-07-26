@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import {
   DEAL_VISIBILITY_SCOPES,
   buildTeamVisibilityFilter,
+  buildTeamVisibilityFilterViaNavigation,
   ACTIVE_DEAL_ODATA_PREDICATE,
 } from './dealVisibilityScopes';
 
@@ -59,6 +60,37 @@ describe('P0-4 — buildTeamVisibilityFilter (Owning-Team fallback)', () => {
     // A garbage teamId with no valid members still produces a scoped (never blank) filter.
     const g = buildTeamVisibilityFilter('bad', {});
     expect(g).toContain('_cr664_team_value eq');
+    expect(g).toContain('statecode eq 0');
+  });
+});
+
+describe('N-03 — buildTeamVisibilityFilterViaNavigation (child-record Owning-Team fallback)', () => {
+  it('scopes to the team only, via the navigation property, when no member ids are supplied', () => {
+    const f = buildTeamVisibilityFilterViaNavigation('cr664_Deal', TEAM);
+    expect(f).toContain(`cr664_Deal/_cr664_team_value eq ${TEAM}`);
+    expect(f).not.toContain('_cr664_assignedbanker_value');
+    expect(f).toContain('statecode eq 0');
+  });
+
+  it('includes child rows whose parent deal is owned by the team OR assigned to a team member', () => {
+    const f = buildTeamVisibilityFilterViaNavigation('cr664_Deal', TEAM, { memberBankerIds: [BANKER_A, BANKER_B] });
+    expect(f).toContain(`cr664_Deal/_cr664_team_value eq ${TEAM}`);
+    expect(f).toContain(`cr664_Deal/_cr664_assignedbanker_value eq ${BANKER_A}`);
+    expect(f).toContain(`cr664_Deal/_cr664_assignedbanker_value eq ${BANKER_B}`);
+    expect(f).toMatch(
+      /\(cr664_Deal\/_cr664_team_value eq [^)]+ or cr664_Deal\/_cr664_assignedbanker_value eq [^)]+\) and statecode eq 0/,
+    );
+  });
+
+  it('never emits an unscoped query and rejects non-GUID ids (injection guard)', () => {
+    const f = buildTeamVisibilityFilterViaNavigation('cr664_Deal', TEAM, {
+      memberBankerIds: ["' or 1 eq 1", 'not-a-guid', BANKER_A],
+    });
+    expect(f).not.toContain('1 eq 1');
+    expect(f).not.toContain('not-a-guid');
+    expect(f).toContain(`cr664_Deal/_cr664_assignedbanker_value eq ${BANKER_A}`);
+    const g = buildTeamVisibilityFilterViaNavigation('cr664_Deal', 'bad', {});
+    expect(g).toContain('cr664_Deal/_cr664_team_value eq');
     expect(g).toContain('statecode eq 0');
   });
 });

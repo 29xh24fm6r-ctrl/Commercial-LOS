@@ -4,7 +4,7 @@ import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmem
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
 import { loadBankerPipeline, type PipelineDeal } from './dealQueries';
 import { timed } from '../shared/observability/perfRegistry';
-import { isGovernedExcusedDocument } from '../deals/documentStatusClassification';
+import { classifyLegacyDocumentStatus, isGovernedExcusedDocument } from '../deals/documentStatusClassification';
 import { requirementStatusFromCode } from '../deals/documentRequirementStatusCodes';
 import type { DocumentRequirementFields } from '../deals/documentRequirementFields';
 
@@ -226,15 +226,23 @@ async function loadDocumentsAwaitingActionForDeals(
       uploaded: d.cr664_uploadstatus === true,
       modifiedOn: d.modifiedon,
     }))
-    .filter(
-      (d) =>
-        d.dealId !== '' &&
-        !(d.reviewer && d.reviewer.trim().length > 0),
-    );
+    .filter((d) => d.dealId !== '');
+  // N-18 remediation (Production Remediation Factory Arc Phase 2) — this used to hand-roll the
+  // "reviewer > receivedDate/uploaded > outstanding" rule with its own filter+bucket, contradicting
+  // documentStatusClassification.ts's own header comment claiming every such surface (including
+  // this one) already shared the one canonical rule. Routing through classifyLegacyDocumentStatus
+  // directly makes that claim true and keeps this queue immune to future drift in the other three
+  // surfaces (dealDocumentQueries.ts, managerQueries.ts, teamQueries.ts) that already call it.
   const outstanding: WorkQueueDocumentRow[] = [];
   const pendingReview: WorkQueueDocumentRow[] = [];
   for (const d of rows) {
-    if (d.receivedDate || d.uploaded) {
+    const status = classifyLegacyDocumentStatus({
+      reviewer: d.reviewer,
+      receivedDate: d.receivedDate,
+      uploaded: d.uploaded,
+    });
+    if (status === 'reviewed') continue;
+    if (status === 'received') {
       pendingReview.push(d);
     } else {
       outstanding.push(d);

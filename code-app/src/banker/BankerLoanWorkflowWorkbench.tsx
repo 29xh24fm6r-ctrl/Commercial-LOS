@@ -120,6 +120,11 @@ export function BankerLoanWorkflowWorkbench({
     return { ...base, diligence };
   }, [model, diligenceDealIds]);
 
+  // N-02/N-19 disclosure: how many of each queue-card count are classified test/smoke
+  // records, so a banker sees the split rather than a bare number they'd have to
+  // cross-check against the table to understand.
+  const testRecordCounts = model?.testRecordCounts;
+
   const visibleRows = useMemo(() => {
     if (!model) return [];
     let rows: readonly WorkbenchRow[];
@@ -196,7 +201,14 @@ export function BankerLoanWorkflowWorkbench({
               ) : state.kind === 'loading' ? (
                 <span style={styles.queueSkeleton} aria-hidden="true" />
               ) : (
-                <span style={styles.queueValue}>{value ?? 0}</span>
+                <>
+                  <span style={styles.queueValue}>{value ?? 0}</span>
+                  {testRecordCounts && q.key in testRecordCounts && testRecordCounts[q.key as keyof typeof testRecordCounts] > 0 && (
+                    <span style={styles.queueTestDisclosure} data-loan-queue-test-count={q.key}>
+                      incl. {testRecordCounts[q.key as keyof typeof testRecordCounts]} test/smoke
+                    </span>
+                  )}
+                </>
               )}
             </button>
           );
@@ -360,6 +372,7 @@ const styles: Record<string, CSSProperties> = {
   queueValue: { fontSize: typography.size.xxl, fontWeight: typography.weight.bold, color: palette.text, fontVariantNumeric: 'tabular-nums' },
   queueCta: { fontSize: typography.size.sm, color: palette.cobalt, fontWeight: typography.weight.semibold },
   queueSkeleton: { width: 40, height: 22, borderRadius: radius.sm, background: palette.surfaceAlt },
+  queueTestDisclosure: { fontSize: typography.size.xs, color: palette.textSubtle, fontStyle: 'italic' },
   main: { minHeight: 220 },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: typography.size.sm, background: palette.surface, border: `1px solid ${palette.panelBorder}`, borderRadius: radius.md, boxShadow: shadow.card, overflow: 'hidden' },
   th: { textAlign: 'left', padding: `${spacing.sm} ${spacing.md}`, color: palette.textSubtle, textTransform: 'uppercase', fontSize: typography.size.xs, letterSpacing: typography.letterSpacing.label, borderBottom: `1px solid ${palette.divider}` },

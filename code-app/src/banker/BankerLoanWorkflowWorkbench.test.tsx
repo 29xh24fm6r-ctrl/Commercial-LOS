@@ -151,7 +151,7 @@ describe('Phase 260 — BankerLoanWorkflowWorkbench (elite)', () => {
   });
 });
 
-describe('D-01 — the known production test deal stays findable in Loan Workflow, excluded only from the queue-card count', () => {
+describe('N-19 — the known production test deal stays findable in Loan Workflow AND counts toward the queue-card total (disclosed separately)', () => {
   const KNOWN_DEAL_ID = '310da4b3-cb86-f111-ab10-70a8a59b1fe2';
 
   it('the default loader (no loadData override) requests includeTestDeals: true', async () => {
@@ -165,7 +165,7 @@ describe('D-01 — the known production test deal stays findable in Loan Workflo
     expect(loadWorkQueueMock).toHaveBeenCalledWith('banker-1', { includeTestDeals: true });
   });
 
-  it('the known SYSTEM TEST deal is findable via quick search and shows a TEST badge, but is excluded from the "My Active Deals" count', async () => {
+  it('the known SYSTEM TEST deal is findable via quick search, shows a TEST badge, AND is counted in "My Active Deals" with the split disclosed', async () => {
     const withTestDeal: BankerWorkQueueData = {
       ...data(),
       deals: [
@@ -189,12 +189,14 @@ describe('D-01 — the known production test deal stays findable in Loan Workflo
     };
     const { container } = await renderWorkbench(withTestDeal);
 
-    // "My Active Deals" (the default queue) count reflects only the ONE real
-    // deal — the test record is excluded from the KPI-style tile number.
+    // N-19: "My Active Deals" (the default queue) count equals the table's own
+    // row count — the test record is no longer silently excluded from the tile.
     const activeCard = container.querySelector('[data-loan-queue-card="active"]') as HTMLElement;
-    expect(within(activeCard).getByText('1')).toBeInTheDocument();
+    expect(within(activeCard).getByText('2')).toBeInTheDocument();
+    // The test/smoke split is disclosed on the same card rather than hidden.
+    expect(within(activeCard).getByText(/incl\.\s*1\s*test\/smoke/i)).toBeInTheDocument();
 
-    // But it IS findable via the quick-search box — the known id/name never
+    // It is also findable via the quick-search box — the known id/name never
     // silently disappears from this surface.
     const user = userEvent.setup();
     await user.type(container.querySelector('[data-loan-search]') as HTMLElement, 'system test');
