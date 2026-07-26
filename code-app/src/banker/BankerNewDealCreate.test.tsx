@@ -266,6 +266,29 @@ describe('Happy path — existing client + team bind and readback via the orches
     expect(callArg.context.requireCrmClient).toBe(true);
     expect(callArg.context.existingDeals).toEqual([]);
   });
+
+  // PR A remediation — a bare Dataverse GUID with no human label was shown to bankers on this
+  // banner; the orchestrator now carries the banker-entered dealName through so it can render here.
+  it('PR A: shows the banker-entered deal name alongside the raw id, not the id alone', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-xyz',
+      dealName: 'Acme Expansion',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+    await completeHappyPath(user, container);
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="success"]')).not.toBeNull(),
+    );
+    expect(screen.getByText(/Deal created: Acme Expansion\. Id deal-xyz/)).toBeInTheDocument();
+  });
 });
 
 describe('N-36 remediation (Production Remediation Factory Arc Phase 10) — success banner never contradicts the parent\'s confirm-then-navigate status', () => {
