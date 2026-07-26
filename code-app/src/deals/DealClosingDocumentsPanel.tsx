@@ -1,26 +1,25 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClosingDocumentsPanel } from '../closing/documents/ClosingDocumentsPanel';
-import { createInMemoryClosingDocumentStore } from '../closing/documents/closingDocumentStorage';
+import { createDataverseClosingDocumentStore } from '../closing/documents/closingDocumentStorage';
 import { generateClosingDocument } from '../closing/documents/closingDocumentGeneration';
 import type { ClosingDocumentFactModel, ClosingDocumentTemplate, GeneratedClosingDocumentManifest } from '../closing/documents/closingDocumentTypes';
 import type { DealDetail } from './dealQueries';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * PR 107 -- mounts the closing-document generation framework
- * (src/closing/documents/*, 49 tests, previously entirely unmounted --
- * FACTORY_ARC_BASELINE.md confirmed no live Dataverse table exists to
- * persist generated documents). This wrapper uses
- * createInMemoryClosingDocumentStore(), the module's own documented
- * "real, working reference implementation... NOT persistence; lost on
- * page reload" -- callers must not present it as saved, so the panel
- * below says so plainly. A no-op audit emitter is used for the same
- * reason: auditing a non-durable record would be a false signal.
+ * (src/closing/documents/*, 49 tests).
  *
- * Real persistence needs an operator-authorized cr664_closingdocument-style
- * table (bigger schema ask than an additive JSON column, since manifests
- * are immutable per-document records, not a single deal-level blob) --
- * tracked as a NOT_WIRED entry, not built here.
+ * PR A update: now uses createDataverseClosingDocumentStore() (see closingDocumentStorage.ts),
+ * the same "wire the real store even though the backing table isn't live yet, fail closed
+ * honestly" pattern DealFundingAuthorizationPanel.tsx already established for funding
+ * authorization. The backing table (cr664_closingdocumentmanifest) has NOT been applied to any
+ * live Dataverse environment yet (see scripts/schema-migrations/pr123-closing-document-persistence/)
+ * -- until an operator does, every live read/write this panel attempts fails honestly (an error
+ * banner, never a fabricated success), exactly like the funding panel does today. A no-op audit
+ * emitter is still used -- auditing to the deal's activity timeline is a separate, not-yet-built
+ * capability (see docs/production-remediation/REMAINING_FACTORY_ARC_AFTER_PR141.md).
  */
 function buildClosingDocumentFactModel(deal: DealDetail): ClosingDocumentFactModel {
   return {
@@ -43,9 +42,31 @@ function buildClosingDocumentFactModel(deal: DealDetail): ClosingDocumentFactMod
 }
 
 export function DealClosingDocumentsPanel({ deal, authorized, actorEmail }: { deal: DealDetail; authorized: boolean; actorEmail: string | undefined }) {
-  const storeRef = useRef(createInMemoryClosingDocumentStore());
+  const storeRef = useRef(createDataverseClosingDocumentStore());
   const [manifests, setManifests] = useState<readonly GeneratedClosingDocumentManifest[]>([]);
+  const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const facts = useMemo(() => buildClosingDocumentFactModel(deal), [deal]);
+
+  useEffect(() => {
+    let cancelled = false;
+    storeRef.current.listManifestsForDeal(deal.id).then((res) => {
+      if (cancelled) return;
+      if (res.success) {
+        setManifests(res.manifests ?? []);
+        setLoadError(undefined);
+      } else {
+        // Fail-closed, honest: the schema migration is likely still pending (see this file's
+        // header) -- never presented as "no documents exist yet" when the read itself failed.
+        // res.error is a raw transport-failure string; never rendered verbatim.
+        setLoadError(
+          res.error ? mapBusinessSafeError(res.error).safeMessage : 'Could not load previously generated closing documents.',
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [deal.id]);
 
   async function onGenerate(template: ClosingDocumentTemplate) {
     const outcome = await generateClosingDocument(
@@ -56,17 +77,24 @@ export function DealClosingDocumentsPanel({ deal, authorized, actorEmail }: { de
       },
     );
     if (outcome.kind === 'generated') {
-      setManifests(storeRef.current.all());
+      const refreshed = await storeRef.current.listManifestsForDeal(deal.id);
+      if (refreshed.success) setManifests(refreshed.manifests ?? []);
     }
     return outcome;
   }
 
   return (
     <>
+      {loadError && (
+        <p style={styles.errorNote} role="alert" data-closing-documents-load-error>
+          Could not load previously generated closing documents: {loadError}
+        </p>
+      )}
       <p style={styles.localOnlyNote} role="note" data-closing-documents-local-only-note>
-        Generated documents are held for this browser session only — not yet saved to the deal.
-        Real persistence needs an operator-authorized schema addition (see
-        docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md).
+        Generated documents are saved to Dataverse. If the underlying table has not yet been
+        provisioned by an operator, generation and retrieval will fail honestly rather than
+        pretend to succeed — download the document below immediately after generating it as a
+        precaution.
       </p>
       <ClosingDocumentsPanel dealId={deal.id} facts={facts} manifests={manifests} authorized={authorized} onGenerate={onGenerate} />
     </>
@@ -80,6 +108,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: palette.textMuted,
     background: palette.surfaceAlt,
     border: `1px dashed ${palette.borderStrong}`,
+    padding: `${spacing.xs} ${spacing.md}`,
+    borderRadius: radius.sm,
+    lineHeight: typography.lineHeight.snug,
+  },
+  errorNote: {
+    margin: 0,
+    fontSize: typography.size.xs,
+    color: palette.blockedFg,
+    background: palette.blockedBg,
+    border: `1px solid ${palette.blocked}`,
     padding: `${spacing.xs} ${spacing.md}`,
     borderRadius: radius.sm,
     lineHeight: typography.lineHeight.snug,

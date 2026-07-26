@@ -1,9 +1,44 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DealClosingDocumentsPanel } from './DealClosingDocumentsPanel';
 import type { DealDetail } from './dealQueries';
+import type { ClosingDocumentStorageDeps, ClosingDocumentListResult, ClosingDocumentStorageResult } from '../closing/documents/closingDocumentStorage';
+import type { GeneratedClosingDocumentManifest } from '../closing/documents/closingDocumentTypes';
+
+/**
+ * PR A remediation — this panel now uses createDataverseClosingDocumentStore() (a real
+ * Dataverse-backed store) instead of the in-memory reference implementation. Mirrors
+ * DealFundingAuthorizationPanel.test.tsx's own established pattern: mock the store FACTORY (not
+ * the generated SDK), so the panel's real wiring/logic is exercised end to end against a
+ * controllable fake durable store.
+ */
+const { createStoreMock } = vi.hoisted(() => ({ createStoreMock: vi.fn() }));
+
+vi.mock('../closing/documents/closingDocumentStorage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../closing/documents/closingDocumentStorage')>();
+  return { ...actual, createDataverseClosingDocumentStore: createStoreMock };
+});
+
+function fakeDurableStore(): ClosingDocumentStorageDeps {
+  const manifests: GeneratedClosingDocumentManifest[] = [];
+  return {
+    createManifestRecord: async (manifest): Promise<ClosingDocumentStorageResult> => {
+      manifests.push(manifest);
+      return { success: true, id: manifest.manifestId };
+    },
+    listManifestsForDeal: async (dealId): Promise<ClosingDocumentListResult> => ({
+      success: true,
+      manifests: manifests.filter((m) => m.dealId === dealId),
+    }),
+  };
+}
+
+beforeEach(() => {
+  createStoreMock.mockReset();
+  createStoreMock.mockImplementation(fakeDurableStore);
+});
 
 function baseDeal(overrides: Partial<DealDetail> = {}): DealDetail {
   return {
@@ -32,9 +67,9 @@ function baseDeal(overrides: Partial<DealDetail> = {}): DealDetail {
 }
 
 describe('DealClosingDocumentsPanel', () => {
-  it('says plainly that generated documents are session-only, not yet saved', () => {
+  it('says plainly that documents are saved to Dataverse (not the old session-only wording)', () => {
     render(<DealClosingDocumentsPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
-    expect(screen.getByRole('note')).toHaveTextContent(/not yet saved to the deal/i);
+    expect(screen.getByRole('note')).toHaveTextContent(/saved to Dataverse/i);
   });
 
   it('derives real facts from the deal and shows the closing checklist as eligible', () => {
@@ -50,13 +85,37 @@ describe('DealClosingDocumentsPanel', () => {
     expect(row?.textContent).toMatch(/Missing:.*fundingInstructions/i);
   });
 
-  it('generating a document persists it only for this session (in-memory store) and reports it honestly with no audit', async () => {
+  it('generating a document persists it through the durable store and reports it honestly with no audit', async () => {
     const user = userEvent.setup();
     const { container } = render(<DealClosingDocumentsPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
     const row = container.querySelector('[data-closing-document-row="closing_checklist"]') as HTMLElement;
     const generateBtn = Array.from(row.querySelectorAll('button')).find((b) => /generate/i.test(b.textContent ?? '')) as HTMLButtonElement;
     await user.click(generateBtn);
     await waitFor(() => expect(container.querySelector('[data-testid="closing-document-generated-closing_checklist"]')).not.toBeNull());
+  });
+
+  // PR A remediation — there was no download affordance anywhere in this panel.
+  it('PR A: shows a Download button once a document is generated', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<DealClosingDocumentsPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
+    const row = container.querySelector('[data-closing-document-row="closing_checklist"]') as HTMLElement;
+    const generateBtn = Array.from(row.querySelectorAll('button')).find((b) => /generate/i.test(b.textContent ?? '')) as HTMLButtonElement;
+    await user.click(generateBtn);
+    await waitFor(() => expect(row.querySelector('[data-closing-document-download="closing_checklist"]')).not.toBeNull());
+  });
+
+  // PR A remediation — a failed durable read must surface honestly, never silently look like
+  // "no documents exist yet" for a deal that may well have some.
+  it('PR A: surfaces a visible, mapped (never raw) error when the durable read fails', async () => {
+    createStoreMock.mockImplementation(() => ({
+      createManifestRecord: fakeDurableStore().createManifestRecord,
+      listManifestsForDeal: async () => ({ success: false, error: 'Dataverse read timed out.' }),
+    }));
+    const { container } = render(<DealClosingDocumentsPanel deal={baseDeal()} authorized={true} actorEmail="banker@bank.test" />);
+    await waitFor(() => expect(container.querySelector('[data-closing-documents-load-error]')).not.toBeNull());
+    const errorNote = container.querySelector('[data-closing-documents-load-error]') as HTMLElement;
+    expect(errorNote.textContent).not.toContain('Dataverse read timed out');
+    expect(errorNote.textContent).toMatch(/couldn't save that action/i);
   });
 
   // N-25 remediation (Production Remediation Factory Arc Phase 8)

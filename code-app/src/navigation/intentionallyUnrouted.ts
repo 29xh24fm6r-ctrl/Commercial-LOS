@@ -391,20 +391,14 @@ export const INTENTIONALLY_UNROUTED: readonly IntentionallyUnroutedModule[] = [
   // (schema change requires Matthew's explicit authorization, see
   // docs/final-seven-workstreams/05_DEAL_SCHEMA_EXPANSION.md). Consumed only by its own test.
   { path: 'src/deals/dealPurposeTermOwnershipSchema.ts', reason: 'Phase 5A: prepared purpose/term/ownership option-set + validators, mirroring the NOT-YET-APPLIED provisioning script. Inert; wired only after Phase 5B schema authorization.', plannedPhase: 'Phase 5B (operator-authorized)' },
-  // final-seven-workstreams Workstream 6 — the closing-document generation framework. A new,
-  // fully-tested (49 tests) capability with no live Dataverse table to persist generated documents
-  // in yet (see closingDocumentStorage.ts's doc comment) — not mounted in any workspace pending an
-  // operator-authorized schema addition and a real integration point. See
-  // docs/final-seven-workstreams/06_CLOSING_DOCUMENT_FRAMEWORK.md.
-  { path: 'src/closing/documents/closingDocumentTypes.ts', reason: 'Workstream 6: shared types for the closing-document framework. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/closing/documents/closingDocumentTemplateRegistry.ts', reason: 'Workstream 6: the 5-template pilot registry. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/closing/documents/closingDocumentEligibility.ts', reason: 'Workstream 6: pure eligibility/fact-validation logic. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/closing/documents/closingDocumentContentRenderer.ts', reason: 'Workstream 6: pure content rendering + content hashing. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/closing/documents/closingDocumentStorage.ts', reason: 'Workstream 6: storage seam + in-memory reference implementation — NO live Dataverse factory exists (no table for this yet). Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/closing/documents/closingDocumentAudit.ts', reason: 'Workstream 6: governed audit-recording helper for document generation. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/closing/documents/closingDocumentGeneration.ts', reason: 'Workstream 6: the preview/generate/regenerate pipeline. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/closing/documents/closingDocumentPackage.ts', reason: 'Workstream 6: package/supersession summarizer. Inert; not mounted.', plannedPhase: 'Follow-up (schema + integration)' },
-  { path: 'src/closing/documents/ClosingDocumentsPanel.tsx', reason: 'Workstream 6: the read-plus-governed-action UI panel. Inert; not mounted in any workspace pending live storage.', plannedPhase: 'Follow-up (schema + integration)' },
+  // final-seven-workstreams Workstream 6 — the closing-document generation framework. PR 107
+  // mounted DealClosingDocumentsPanel.tsx (wrapping ClosingDocumentsPanel.tsx) into
+  // BankerDealWorkspace.tsx — this was already genuinely reachable; a stale "Inert; not mounted"
+  // comment here (and in ClosingDocumentsPanel.tsx's own header) claimed otherwise and has been
+  // corrected. PR A added a durable Dataverse-backed store
+  // (createDataverseClosingDocumentStore(), see closingDocumentStorage.ts) alongside the
+  // pre-existing in-memory one — all of Workstream 6's modules are genuinely reachable; none
+  // remain grandfathered here.
   // final-seven-workstreams Workstream 7 — the funding authorization framework. PR 111 mounted
   // DealFundingAuthorizationPanel.tsx local-only; PR 112 replaced that session-scoped store with a
   // durable Dataverse-backed one (createDataverseFundingAuthorizationStore(), see
