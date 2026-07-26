@@ -10,6 +10,8 @@ import { createDataverseCreditApprovalDecisionStore } from '../creditApproval/cr
 import type { CreditApprovalDecisionRecord } from '../workflow/creditApprovalDecisionTypes';
 import { createDataverseCommitmentStore } from '../commitment/commitmentRecordStore';
 import type { CommitmentRecord } from '../workflow/commitmentRecordTypes';
+import { createDataverseConditionVerificationStore } from '../documentation/conditionVerificationStore';
+import type { ConditionVerificationRecord } from '../workflow/conditionVerificationTypes';
 import {
   timed,
   recordRefresh,
@@ -61,7 +63,9 @@ export type DealDataKey =
   | 'creditApprovalDecisions'
   | 'after-credit-approval-decision-submitted'
   | 'commitments'
-  | 'after-commitment-action-submitted';
+  | 'after-commitment-action-submitted'
+  | 'conditionVerifications'
+  | 'after-condition-verification-submitted';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -107,6 +111,16 @@ export interface DealData {
    * unmet.
    */
   commitments?: AsyncResult<readonly CommitmentRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream E. The deal's Condition Verification history, feeding
+   * DOCUMENTATION:conditions_precedent / :collateral_verified / :insurance_verified
+   * (loanWorkflowRequirementEngine.ts) so the Stage Map / stage-advance write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `commitments` above); the real DealDataProvider ALWAYS supplies it. A test double
+   * omitting it is equivalent to an unresolved fact — the requirement fails closed as unmet.
+   */
+  conditionVerifications?: AsyncResult<readonly ConditionVerificationRecord[]>;
   refresh: (key: DealDataKey) => void;
   /**
    * Merge readback-verified deal fields into the in-context deal row. ONLY the
@@ -174,6 +188,9 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   const [commitments, setCommitments] = useState<AsyncResult<readonly CommitmentRecord[]>>({
     kind: 'loading',
   });
+  const [conditionVerifications, setConditionVerifications] = useState<
+    AsyncResult<readonly ConditionVerificationRecord[]>
+  >({ kind: 'loading' });
 
   // Used by the unmount cleanup AND by refresh() so a refresh fired
   // after unmount cannot late-write into stale state. Lives on a ref
@@ -256,6 +273,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
     bind(setCommitments, p);
     return p;
   }
+  function reloadConditionVerifications(): Promise<unknown> {
+    setConditionVerifications({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadConditionVerifications', async () => {
+      const res = await createDataverseConditionVerificationStore().listVerificationsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load condition verification records.');
+      return res.records ?? [];
+    });
+    bind(setConditionVerifications, p);
+    return p;
+  }
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -277,6 +304,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
       reloadFundingAuthorization(),
       reloadCreditApprovalDecisions(),
       reloadCommitments(),
+      reloadConditionVerifications(),
     ]).then(() => {
       const endedAt =
         typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -414,6 +442,17 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         reloadCommitments();
         reloadActivity();
         break;
+      case 'conditionVerifications':
+        reloadConditionVerifications();
+        break;
+      case 'after-condition-verification-submitted':
+        // Final LOS Completion arc — Workstream E: submitConditionVerificationAction writes both
+        // the durable verification record and a best-effort NoteLogged timeline event, so both must
+        // refresh for the Stage Map / Attention Console to see the new verification state and its
+        // activity.
+        reloadConditionVerifications();
+        reloadActivity();
+        break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -429,6 +468,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         fundingAuthorization,
         creditApprovalDecisions,
         commitments,
+        conditionVerifications,
         refresh,
         applyVerifiedDealPatch,
       }}

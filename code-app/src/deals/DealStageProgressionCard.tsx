@@ -81,8 +81,17 @@ export function DealStageProgressionCard({
   /** Injected for tests; defaults to the live stage-reference read. */
   loadAvailability?: () => Promise<StageProgressionAvailability>;
 } = {}) {
-  const { deal, tasks, documents, creditMemo, activity, fundingAuthorization, creditApprovalDecisions, commitments } =
-    useDealData();
+  const {
+    deal,
+    tasks,
+    documents,
+    creditMemo,
+    activity,
+    fundingAuthorization,
+    creditApprovalDecisions,
+    commitments,
+    conditionVerifications,
+  } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
   const creditMemoData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
@@ -99,6 +108,11 @@ export function DealStageProgressionCard({
   // :borrower_acceptance. `undefined` while loading/failed correctly fails closed as unmet (never
   // fabricated as met).
   const commitmentsData = commitments?.kind === 'ready' ? commitments.data : undefined;
+  // Final LOS Completion arc (Workstream E) — feeds DOCUMENTATION:conditions_precedent /
+  // :collateral_verified / :insurance_verified. `undefined` while loading/failed correctly fails
+  // closed as unmet (never fabricated as met).
+  const conditionVerificationsData =
+    conditionVerifications?.kind === 'ready' ? conditionVerifications.data : undefined;
 
   const eligibility = deriveStageProgressionEligibility({
     deal,
@@ -222,6 +236,7 @@ export function DealStageProgressionCard({
             underwritingRecommendation: deriveUnderwritingRecommendationRecordFromDeal(deal),
             creditApprovalDecisions: creditApprovalDecisionsData,
             commitments: commitmentsData,
+            conditionVerifications: conditionVerificationsData,
           }}
           dealId={deal.id}
           actor={stageAdvanceActor!}

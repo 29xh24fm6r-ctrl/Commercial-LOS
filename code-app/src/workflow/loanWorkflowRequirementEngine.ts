@@ -27,6 +27,7 @@ import {
 } from './underwritingDeepFacts';
 import { evaluateCreditApprovalDecisionReadiness, type CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
 import { evaluateCommitmentReadiness, type CommitmentRecord } from './commitmentRecordTypes';
+import { evaluateConditionVerificationReadiness, type ConditionVerificationRecord } from './conditionVerificationTypes';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type {
   CanonicalRequirement,
@@ -91,6 +92,14 @@ export interface WorkflowRequirementFacts {
    * :borrower_acceptance both fail closed as unmet in either case, never fabricated as met.
    */
   readonly commitments?: readonly CommitmentRecord[];
+  /**
+   * Final LOS Completion arc (Workstream E/K) — the deal's Condition Verification history
+   * (supplied by a loader; see DealDataProvider.tsx's `conditionVerifications`). Absent/empty means
+   * either the records haven't loaded yet or none have genuinely been recorded —
+   * DOCUMENTATION:conditions_precedent/:collateral_verified/:insurance_verified all fail closed as
+   * unmet in either case, never fabricated as met.
+   */
+  readonly conditionVerifications?: readonly ConditionVerificationRecord[];
 }
 
 /**
@@ -131,6 +140,20 @@ export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: Wo
   if (req.id === 'COMMITMENT:commitment_issued' || req.id === 'COMMITMENT:borrower_acceptance') {
     const r = evaluateCommitmentReadiness(facts.commitments, facts.deal.id);
     const fact = req.id === 'COMMITMENT:commitment_issued' ? r.commitmentIssued : r.borrowerAcceptance;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (
+    req.id === 'DOCUMENTATION:conditions_precedent' ||
+    req.id === 'DOCUMENTATION:collateral_verified' ||
+    req.id === 'DOCUMENTATION:insurance_verified'
+  ) {
+    const r = evaluateConditionVerificationReadiness(facts.conditionVerifications, facts.deal.id);
+    const fact =
+      req.id === 'DOCUMENTATION:conditions_precedent'
+        ? r.conditionsPrecedent
+        : req.id === 'DOCUMENTATION:collateral_verified'
+          ? r.collateralVerified
+          : r.insuranceVerified;
     return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
   }
   // Tracked deep fact without a model yet → fail closed (should not happen in Phase 3).

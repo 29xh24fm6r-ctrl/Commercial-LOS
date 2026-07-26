@@ -251,10 +251,15 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   // evaluateCommitmentReadiness in loanWorkflowRequirementEngine.ts.
   tracked('COMMITMENT:commitment_issued', 'COMMITMENT', 'closing', 'Commitment / term sheet issued', 'Commitment', 'loan_ops', 'review_record', 'cr664_commitmentrecord', 'No commitment letter has been issued for this deal.'),
   tracked('COMMITMENT:borrower_acceptance', 'COMMITMENT', 'closing', 'Borrower acceptance recorded', 'Commitment', 'banker', 'review_record', 'cr664_commitmentrecord', 'The borrower has not yet accepted a commitment for this deal.'),
-  // Documentation → Closing & Funding (ARC PR 14)
-  untracked('DOCUMENTATION:conditions_precedent', 'DOCUMENTATION', 'closing', 'Conditions precedent cleared', 'Documentation', 'loan_ops', 'condition_record', 'conditions-precedent records not yet implemented (ARC PR 14)'),
-  untracked('DOCUMENTATION:collateral_verified', 'DOCUMENTATION', 'closing', 'Collateral verified', 'Documentation', 'closer', 'condition_record', 'collateral verification record not yet implemented (ARC PR 14)'),
-  untracked('DOCUMENTATION:insurance_verified', 'DOCUMENTATION', 'closing', 'Insurance verified', 'Documentation', 'closer', 'condition_record', 'insurance verification record not yet implemented (ARC PR 14)'),
+  // Documentation → Closing & Funding (ARC PR 14). Final LOS Completion arc (Workstream E) flips
+  // these tracked — submitConditionVerificationAction.ts / conditionVerificationStore.ts now
+  // provide a real, durable, deal-scoped Condition Verification record
+  // (cr664_conditionverification, see
+  // scripts/schema-migrations/final-arc-condition-verification/), evaluated via
+  // evaluateConditionVerificationReadiness in loanWorkflowRequirementEngine.ts.
+  tracked('DOCUMENTATION:conditions_precedent', 'DOCUMENTATION', 'closing', 'Conditions precedent cleared', 'Documentation', 'loan_ops', 'condition_record', 'cr664_conditionverification', 'Conditions precedent have not been cleared for this deal.'),
+  tracked('DOCUMENTATION:collateral_verified', 'DOCUMENTATION', 'closing', 'Collateral verified', 'Documentation', 'closer', 'condition_record', 'cr664_conditionverification', 'Collateral has not been verified for this deal.'),
+  tracked('DOCUMENTATION:insurance_verified', 'DOCUMENTATION', 'closing', 'Insurance verified', 'Documentation', 'closer', 'condition_record', 'cr664_conditionverification', 'Insurance has not been verified for this deal.'),
   // Closing & Funding → Boarded (ARC PR 15)
   untracked('CLOSING_FUNDING:executed_docs', 'CLOSING_FUNDING', 'closing', 'Loan documents executed', 'Closing', 'closer', 'closing_record', 'executed-documents record not yet implemented (ARC PR 15)'),
   // Factory Arc Phase 12 -- PR 112's Dataverse-backed funding-authorization store

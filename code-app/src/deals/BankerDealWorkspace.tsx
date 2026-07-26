@@ -33,6 +33,7 @@ import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
 import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
 import { DealCreditApprovalDecisionPanelConnected } from './DealCreditApprovalDecisionPanelConnected';
 import { DealCommitmentPanelConnected } from './DealCommitmentPanelConnected';
+import { DealConditionVerificationPanelConnected } from './DealConditionVerificationPanelConnected';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
 import { DealPortfolioBoardingStatusPanel } from '../workflow/DealPortfolioBoardingStatusPanel';
 import { DealWorkflowRoutingPanel } from '../workflow/DealWorkflowRoutingPanel';
@@ -319,6 +320,20 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="commitment"
               >
                 <DealCommitmentPanelConnected
+                  dealId={deal.id}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                />
+              </div>
+              {/* Final LOS Completion arc (Workstream E) — durable Condition Verification records:
+                  conditions precedent, collateral, insurance. */}
+              <div
+                id="condition-verification"
+                data-deal-card="condition-verification"
+                data-cockpit-anchor="condition-verification"
+              >
+                <DealConditionVerificationPanelConnected
                   dealId={deal.id}
                   authorized={Boolean(systemUserId)}
                   actorEmail={email}
