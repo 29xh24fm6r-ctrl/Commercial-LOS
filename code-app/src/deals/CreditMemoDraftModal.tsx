@@ -7,6 +7,7 @@ import {
   ALL_SECTION_KEYS,
   SECTION_OPTIONS,
   buildCreditMemoDraft,
+  renderSingleSection,
   type CreditMemoSectionKey,
 } from './creditMemoDraft';
 import { findProhibitedTerms } from './borrowerUpdateDraft';
@@ -89,20 +90,16 @@ export function CreditMemoDraftModal({
 
   // Per-section snapshots used at save time so each
   // cr664_creditmemodraftsection row captures its slice of the
-  // generated content. We regenerate per section here, not by
-  // parsing the combined body — that way each section's draftText
-  // is a clean self-contained chunk.
+  // generated content. N-09 remediation: renderSingleSection returns
+  // ONLY that section's own content (no header/footer boilerplate),
+  // so each saved row is a clean, self-contained chunk rather than
+  // repeating the same ~300-char header on every section.
   const sectionSnapshots = useMemo<DraftSectionSnapshot[]>(
     () =>
       enabledList.map((k) => {
         const opt = SECTION_OPTIONS.find((o) => o.key === k)!;
-        const single = buildCreditMemoDraft([k], {
-          deal,
-          tasks,
-          documents,
-          existingMemos,
-        });
-        return { sectionKey: k, sectionLabel: opt.label, draftText: single.body };
+        const draftText = renderSingleSection(k, { deal, tasks, documents, existingMemos });
+        return { sectionKey: k, sectionLabel: opt.label, draftText };
       }),
     [enabledList, deal, tasks, documents, existingMemos],
   );

@@ -5,6 +5,19 @@ import type { CreditMemoData, CreditMemoSummary } from './creditMemoQueries';
 import { deriveBlockers, type BlockerSignal } from './blockerRules';
 import { deriveDealBlockerModelForStage } from './dealBlockerModel';
 import { parseCalendarDate } from '../shared/formatters';
+import { parseCrmIndustryProjectionRecord } from './crmIndustryProjectionRecord';
+import {
+  computeGlobalCashFlow,
+  classifyDscr,
+  parseGlobalCashFlowFormState,
+  type GlobalCashFlowInput,
+  type GlobalCashFlowOutcome,
+} from './globalCashFlow';
+import {
+  parseRiskRatingFormState,
+  parseUnderwritingRecommendationFormState,
+  type UnderwritingRecommendationDecision,
+} from '../workflow/underwritingDeepFacts';
 
 /**
  * Phase 24: pure credit memo DRAFT generator. Produces an editable
@@ -30,6 +43,23 @@ import { parseCalendarDate } from '../shared/formatters';
  *     "Items to complete before final memo" — process steps, not
  *     credit-decision recommendations.
  *   - Output is internal/banker-facing — no borrower-safe constraints.
+ *
+ * N-07 remediation (Production Remediation Factory Arc Phase 5) — the memo previously omitted
+ * every durable underwriting fact a decision-grade memo needs: Global Cash Flow / DSCR, risk
+ * rating + rationale, underwriting recommendation + rationale, a summary of the credit ask, and a
+ * repayment analysis. Five sections were added, each sourced ONLY from real, already-persisted
+ * facts (Global Cash Flow inputs, risk-rating inputs, underwriting-recommendation inputs — all
+ * already captured elsewhere on the deal via GlobalCashFlowPanel.tsx / DealRiskRatingPanel.tsx /
+ * the underwriting recommendation panel) — never fabricated, honestly degrading to
+ * MISSING_PLACEHOLDER / an "insufficient data" statement when a deal hasn't captured them yet.
+ * The "Underwriting Recommendation" and "Requested Credit Action" sections quote the CURRENTLY
+ * RECORDED fact on the deal (with an explicit "not itself a decision" disclaimer) — the memo
+ * generator still makes no credit decision of its own; it reports one if and only if a banker
+ * already recorded it elsewhere. "Requested Credit Action" (not "Approval Request") deliberately
+ * avoids the literal words "approval"/"approved" — CreditMemoDraftModal.tsx's save-time guard
+ * (findProhibitedTerms, borrowerUpdateDraft.ts) treats those as unsupported commitment language
+ * unless the deal's own stage/status already carries them; the section's REAL content (what's
+ * being asked, routed for a decision) is unaffected by the label choice.
  */
 
 export type CreditMemoSectionKey =
@@ -39,6 +69,11 @@ export type CreditMemoSectionKey =
   | 'collateral'
   | 'guarantor-support'
   | 'pricing-structure'
+  | 'financial-analysis'
+  | 'repayment-analysis'
+  | 'risk-rating'
+  | 'underwriting-recommendation'
+  | 'approval-request'
   | 'due-diligence-documents'
   | 'open-tasks-conditions'
   | 'risks-blockers'
@@ -56,6 +91,11 @@ export const SECTION_OPTIONS: readonly CreditMemoSectionOption[] = [
   { key: 'collateral', label: 'Collateral' },
   { key: 'guarantor-support', label: 'Guarantor Support' },
   { key: 'pricing-structure', label: 'Pricing / Structure' },
+  { key: 'financial-analysis', label: 'Global Cash Flow & DSCR Analysis' },
+  { key: 'repayment-analysis', label: 'Repayment Analysis' },
+  { key: 'risk-rating', label: 'Risk Rating' },
+  { key: 'underwriting-recommendation', label: 'Underwriting Recommendation' },
+  { key: 'approval-request', label: 'Requested Credit Action' },
   { key: 'due-diligence-documents', label: 'Due Diligence / Documents' },
   { key: 'open-tasks-conditions', label: 'Open Tasks / Conditions' },
   { key: 'risks-blockers', label: 'Risks / Blockers' },
@@ -84,6 +124,24 @@ export interface CreditMemoDraftResult {
    *  entry is "Section label — field". Surfaced so the banker sees
    *  what the deal is missing, not just blank text. */
   missingFields: string[];
+}
+
+/**
+ * N-09 remediation (Production Remediation Factory Arc Phase 5) — a single section's own
+ * rendered content, with NO header/footer boilerplate. Before this export existed, the only way
+ * to get one section's text was `buildCreditMemoDraft([key], ctx).body`, which always wraps the
+ * section in the same ~300-char header (Deal/Client/Stage/Status/Banker) and footer — so every
+ * saved `cr664_creditmemodraftsection` row redundantly repeated that boilerplate alongside its
+ * own content, rather than storing that section's content only.
+ */
+export function renderSingleSection(
+  key: CreditMemoSectionKey,
+  ctx: CreditMemoDraftContext,
+): string {
+  const now = ctx.now ?? new Date();
+  const opt = SECTION_OPTIONS.find((o) => o.key === key)!;
+  const missing: string[] = [];
+  return renderSection(opt, ctx, now, missing);
 }
 
 export function buildCreditMemoDraft(
@@ -153,6 +211,16 @@ function renderSection(
       return guarantorSupport(opt.label, ctx, missing);
     case 'pricing-structure':
       return pricingStructure(opt.label, ctx, missing);
+    case 'financial-analysis':
+      return financialAnalysis(opt.label, ctx, missing);
+    case 'repayment-analysis':
+      return repaymentAnalysis(opt.label, ctx, missing);
+    case 'risk-rating':
+      return riskRatingSection(opt.label, ctx, missing);
+    case 'underwriting-recommendation':
+      return underwritingRecommendationSection(opt.label, ctx, missing);
+    case 'approval-request':
+      return approvalRequestSection(opt.label, ctx, missing);
     case 'due-diligence-documents':
       return dueDiligenceDocs(opt.label, ctx, missing);
     case 'open-tasks-conditions':
@@ -200,6 +268,18 @@ function borrowerOverview(
     `Ownership structure: ${valOrMissing(ctx.deal.ownershipStructure, label, 'Ownership structure', missing)}`,
     `Relationship banker: ${valOrMissing(ctx.deal.bankerName, label, 'Banker', missing)}`,
   ];
+  // N-22/N-23 remediation (Production Remediation Factory Arc Phase 7) — the deal's six-value
+  // Industry choice cannot represent every real CRM classification (e.g. a restaurant, NAICS
+  // 722511, has no seeded mapping and shows here as "Other" or Missing). When the linked CRM
+  // organization's exact NAICS classification has been durably recorded, show it as its own line
+  // regardless of whether the coarse Industry field itself could represent it — this is exactly
+  // what "the memo showed Other" needed: the real classification, not just the coarse fallback.
+  const projection = parseCrmIndustryProjectionRecord(ctx.deal.crmIndustryProjectionJson);
+  if (projection.naicsCode.trim().length > 0) {
+    const title = projection.naicsTitle.trim().length > 0 ? ` — ${projection.naicsTitle}` : '';
+    const sector = projection.sectorTitle.trim().length > 0 ? ` (sector ${projection.sectorCode} — ${projection.sectorTitle})` : '';
+    lines.push(`NAICS classification: ${projection.naicsCode}${title}${sector}`);
+  }
   return sectionWrap(label, lines.join('\n'));
 }
 
@@ -267,6 +347,187 @@ function pricingStructure(
         : trackMissing(label, 'Spread margin', missing)
     }`,
   ];
+  return sectionWrap(label, lines.join('\n'));
+}
+
+/** Parses the persisted Global Cash Flow form-state JSON into the numeric input `computeGlobalCashFlow` needs. */
+function n(v: string): number | undefined {
+  if (v.trim().length === 0) return undefined;
+  const parsed = Number(v);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function globalCashFlowOutcomeFor(ctx: CreditMemoDraftContext): GlobalCashFlowOutcome {
+  const saved = parseGlobalCashFlowFormState(ctx.deal.financialSpreadInputsJson);
+  const input: GlobalCashFlowInput = {
+    business: {
+      netIncome: n(saved.netIncome),
+      interestExpense: n(saved.interestExpense),
+      incomeTaxes: n(saved.incomeTaxes),
+      depreciation: n(saved.depreciation),
+      amortization: n(saved.amortization),
+      nonRecurringAddbacks: n(saved.nonRecurringAddbacks),
+      nonRecurringIncome: n(saved.nonRecurringIncome),
+      unfinancedCapEx: n(saved.unfinancedCapEx),
+    },
+    guarantors: saved.guarantors
+      .filter((g) => g.guarantorName.trim().length > 0)
+      .map((g) => ({
+        guarantorName: g.guarantorName,
+        grossPersonalIncome: n(g.grossPersonalIncome),
+        nonCashAddbacks: n(g.nonCashAddbacks),
+        personalLivingExpenses: n(g.personalLivingExpenses),
+        otherPersonalDebtService: n(g.otherPersonalDebtService),
+      })),
+    debtService: {
+      proposedNewDebtService: n(saved.proposedNewDebtService) ?? 0,
+      otherBusinessDebtService: n(saved.otherBusinessDebtService),
+    },
+  };
+  return computeGlobalCashFlow(input);
+}
+
+function formatSignedAmount(n: number): string {
+  const sign = n < 0 ? '-' : '';
+  return `${sign}${formatAmount(Math.abs(n))}`;
+}
+
+function financialAnalysis(
+  label: string,
+  ctx: CreditMemoDraftContext,
+  missing: string[],
+): string {
+  const outcome = globalCashFlowOutcomeFor(ctx);
+  if (outcome.kind === 'insufficient-data') {
+    missing.push(`${label} — Global Cash Flow inputs`);
+    return sectionWrap(
+      label,
+      [
+        `Global Cash Flow has not been fully captured on this deal. ${MISSING_PLACEHOLDER}`,
+        '',
+        'Missing inputs:',
+        ...outcome.missingInputs.map((i) => `  - ${i}`),
+      ].join('\n'),
+    );
+  }
+  const lines: string[] = ['Business Cash Flow:'];
+  for (const li of outcome.business.lineItems) {
+    lines.push(`  ${li.label}: ${formatSignedAmount(li.amount)}`);
+  }
+  for (const g of outcome.guarantors) {
+    lines.push('', `Personal Cash Flow — ${g.guarantorName}:`);
+    for (const li of g.lineItems) {
+      lines.push(`  ${li.label}: ${formatSignedAmount(li.amount)}`);
+    }
+  }
+  lines.push(
+    '',
+    `Global Cash Flow (business + all guarantors): ${formatAmount(outcome.globalCashFlow)}`,
+    `Global Debt Service (proposed + existing): ${formatAmount(outcome.globalDebtService)}`,
+    `DSCR: ${outcome.dscr.toFixed(2)} (${classifyDscr(outcome.dscr)})`,
+  );
+  return sectionWrap(label, lines.join('\n'));
+}
+
+const DSCR_BAND_COPY: Record<ReturnType<typeof classifyDscr>, string> = {
+  strong: 'Global Cash Flow comfortably exceeds Global Debt Service.',
+  acceptable: 'Global Cash Flow meets Global Debt Service with a reasonable cushion.',
+  marginal: 'Global Cash Flow covers Global Debt Service with limited cushion.',
+  insufficient: 'Global Cash Flow does not cover Global Debt Service at the computed ratio.',
+};
+
+function repaymentAnalysis(
+  label: string,
+  ctx: CreditMemoDraftContext,
+  missing: string[],
+): string {
+  const outcome = globalCashFlowOutcomeFor(ctx);
+  if (outcome.kind === 'insufficient-data') {
+    missing.push(`${label} — Global Cash Flow inputs`);
+    return sectionWrap(
+      label,
+      `Repayment capacity cannot be assessed until Global Cash Flow inputs are captured (see "Global Cash Flow & DSCR Analysis"). ${MISSING_PLACEHOLDER}`,
+    );
+  }
+  const band = classifyDscr(outcome.dscr);
+  const lines = [
+    `Global Cash Flow: ${formatAmount(outcome.globalCashFlow)}`,
+    `Global Debt Service (including proposed new debt service): ${formatAmount(outcome.globalDebtService)}`,
+    `DSCR: ${outcome.dscr.toFixed(2)}`,
+    '',
+    `Assessment: ${DSCR_BAND_COPY[band]}`,
+  ];
+  return sectionWrap(label, lines.join('\n'));
+}
+
+function riskRatingSection(
+  label: string,
+  ctx: CreditMemoDraftContext,
+  missing: string[],
+): string {
+  const form = parseRiskRatingFormState(ctx.deal.riskRatingInputsJson);
+  if (form.ratingValue.trim().length === 0) {
+    missing.push(`${label} — Risk rating`);
+    return sectionWrap(label, `Risk rating: ${MISSING_PLACEHOLDER}`);
+  }
+  const lines = [
+    `Risk rating: ${form.ratingValue}${form.ratingScale ? ` (scale: ${form.ratingScale})` : ''}`,
+    `Status: ${form.status}`,
+    `Rationale: ${form.rationale.trim().length > 0 ? form.rationale : trackMissing(label, 'Risk rating rationale', missing)}`,
+  ];
+  return sectionWrap(label, lines.join('\n'));
+}
+
+const RECOMMENDATION_DECISION_LABEL: Record<UnderwritingRecommendationDecision, string> = {
+  approve: 'Approve',
+  approve_with_conditions: 'Approve with Conditions',
+  decline: 'Decline',
+  return_for_more_information: 'Return for More Information',
+};
+
+function underwritingRecommendationSection(
+  label: string,
+  ctx: CreditMemoDraftContext,
+  missing: string[],
+): string {
+  const form = parseUnderwritingRecommendationFormState(ctx.deal.underwritingRecommendationInputsJson);
+  if (form.status === 'draft') {
+    missing.push(`${label} — Underwriting recommendation`);
+    return sectionWrap(label, `No underwriting recommendation has been recorded on this deal yet. ${MISSING_PLACEHOLDER}`);
+  }
+  const lines = [
+    `Recommendation on file: ${RECOMMENDATION_DECISION_LABEL[form.decision]}`,
+    `Status: ${form.status}`,
+    `Rationale: ${form.rationale.trim().length > 0 ? form.rationale : trackMissing(label, 'Recommendation rationale', missing)}`,
+    '',
+    'This reflects the recommendation already recorded on this deal — this memo does not itself make a credit decision.',
+  ];
+  return sectionWrap(label, lines.join('\n'));
+}
+
+function approvalRequestSection(
+  label: string,
+  ctx: CreditMemoDraftContext,
+  missing: string[],
+): string {
+  const lines = [
+    `Requested amount: ${formatAmount(ctx.deal.amount) ?? trackMissing(label, 'Requested amount', missing)}`,
+    `Product / structure: ${valOrMissing(ctx.deal.productType, label, 'Product type', missing)} / ${valOrMissing(ctx.deal.loanStructure, label, 'Loan structure', missing)}`,
+    `Pricing: ${valOrMissing(ctx.deal.pricingType, label, 'Pricing type', missing)}${
+      ctx.deal.spreadIndex ? ` (${ctx.deal.spreadIndex}${ctx.deal.spreadMargin != null ? ` + ${ctx.deal.spreadMargin} bps` : ''})` : ''
+    }`,
+    `Guarantor support: ${valOrMissing(ctx.deal.guarantorStructure, label, 'Guarantor structure', missing)}`,
+    `Collateral: ${valOrMissing(ctx.deal.collateralSummary, label, 'Collateral summary', missing)}`,
+  ];
+  const recommendation = parseUnderwritingRecommendationFormState(ctx.deal.underwritingRecommendationInputsJson);
+  lines.push(
+    '',
+    recommendation.status === 'draft'
+      ? 'Underwriting recommendation: not yet recorded.'
+      : `Underwriting recommendation on file: ${RECOMMENDATION_DECISION_LABEL[recommendation.decision]} (status: ${recommendation.status}).`,
+    '',
+    'This section summarizes the credit ask for decision routing. It is not itself a credit decision.',
+  );
   return sectionWrap(label, lines.join('\n'));
 }
 

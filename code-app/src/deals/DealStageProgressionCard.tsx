@@ -21,6 +21,10 @@ import {
   type WorkflowRequirementFacts,
 } from '../workflow/loanWorkflowRequirementEngine';
 import {
+  deriveRiskRatingRecordFromDeal,
+  deriveUnderwritingRecommendationRecordFromDeal,
+} from '../workflow/underwritingDeepFacts';
+import {
   evaluateCreditApprovalAuthority,
   describeCreditApprovalAuthorityReason,
   type BankerCreditAuthority,
@@ -198,7 +202,15 @@ export function DealStageProgressionCard({
             documents: documentsData,
             creditMemo: creditMemoData,
           })}
-          facts={{ deal, tasks: tasksData, documents: documentsData, creditMemo: creditMemoData, fundingAuthorization: fundingAuthorizationData }}
+          facts={{
+            deal,
+            tasks: tasksData,
+            documents: documentsData,
+            creditMemo: creditMemoData,
+            fundingAuthorization: fundingAuthorizationData,
+            riskRating: deriveRiskRatingRecordFromDeal(deal),
+            underwritingRecommendation: deriveUnderwritingRecommendationRecordFromDeal(deal),
+          }}
           dealId={deal.id}
           actor={stageAdvanceActor!}
         />
@@ -414,8 +426,10 @@ function StageAdvanceControl({
   // ARC Phase 3 — fail-closed caller guard: the live advance requires BOTH the write-seam policy AND
   // the shared requirement engine's tracked-blocking to be clear. This keeps the button and the actual
   // write in agreement even where the engine is stricter than the legacy seam (e.g. Underwriting now
-  // requires the analysis documents REVIEWED). Untracked deep facts are surfaced as "future" and do NOT
-  // block here. The governed seam still enforces its own policy as defense-in-depth.
+  // requires the analysis documents REVIEWED, and — since Production Remediation Factory Arc Phase 6
+  // (N-14/N-15) — a durable, final risk rating and underwriting recommendation). Remaining untracked
+  // deep facts are surfaced as "future" and do NOT block here. The governed seam still enforces its
+  // own policy as defense-in-depth.
   const enginePolicy = evaluateStageExitPolicy(deriveStageExitReadiness(workflow.currentStage.id, facts));
   // 2026-07-14 — credit-authority pre-check (mirrors the write seam's own hard gate, see
   // creditApprovalAuthority.ts) so the button is disabled with a safe reason BEFORE a click, not

@@ -14,7 +14,7 @@ import {
   deriveStageExitReadiness,
   type WorkflowRequirementFacts,
 } from './loanWorkflowRequirementEngine';
-import type { RiskRatingRecord } from './underwritingDeepFacts';
+import type { RiskRatingRecord, UnderwritingRecommendationRecord } from './underwritingDeepFacts';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 
 /**
@@ -108,7 +108,20 @@ describe('ARC Phase 2 — task-blocking policy', () => {
 
 describe('ARC Phase 3 — underwriting review goes live via reviewed-document status', () => {
   const uwDeal = { ...baseDeal, stage: 'Underwriting' };
-  function uwFacts(financials: 'received' | 'reviewed'): WorkflowRequirementFacts {
+  // Production Remediation Factory Arc Phase 6 (N-14/N-15): a fully durable risk rating +
+  // recommendation, used where a test wants "everything else the Underwriting gate checks" met.
+  const durableRiskRating: RiskRatingRecord = {
+    dealId: uwDeal.id, ratingValue: '4', ratingScale: 'OGB-1-8', rationale: 'Stable, seasonal cash flow.',
+    assignedBy: 'UW Analyst', assignedAtIso: '2026-07-20T00:00:00Z', status: 'assigned',
+  };
+  const durableRecommendation: UnderwritingRecommendationRecord = {
+    dealId: uwDeal.id, decision: 'approve', rationale: 'Repayment capacity supports the recommendation.',
+    underwriterActor: 'UW Analyst', recordedAtIso: '2026-07-20T00:00:00Z', status: 'recorded',
+  };
+  function uwFacts(
+    financials: 'received' | 'reviewed',
+    deepFacts: { riskRating?: RiskRatingRecord; underwritingRecommendation?: UnderwritingRecommendationRecord } = {},
+  ): WorkflowRequirementFacts {
     return {
       deal: uwDeal,
       tasks: emptyTasks,
@@ -118,36 +131,51 @@ describe('ARC Phase 3 — underwriting review goes live via reviewed-document st
         reviewed: financials === 'reviewed' ? [mkDoc('Business Financial Statements', 'reviewed', 'UW'), mkDoc('Tax Returns', 'reviewed', 'UW')] : [],
       },
       creditMemo: { memos: [{ id: 'm', name: 'M', status: 'Draft', statusKey: 'draft', memoType: 'Banker draft', version: 1, generatedAt: '2026-07-05T00:00:00Z', modifiedOn: '2026-07-05T00:00:00Z', borrowerSafe: false, textPreview: undefined }], sections: [] },
+      ...deepFacts,
     };
   }
   it('a received-but-unreviewed financial statement BLOCKS the Underwriting exit', () => {
-    const r = deriveStageExitReadiness('UNDERWRITING', uwFacts('received'));
+    const r = deriveStageExitReadiness('UNDERWRITING', uwFacts('received', { riskRating: durableRiskRating, underwritingRecommendation: durableRecommendation }));
     expect(r.blocking.some((b) => /Business Financial Statements/i.test(b.label))).toBe(true);
     expect(evaluateStageExitPolicy(r).allowed).toBe(false);
   });
-  it('reviewing the analysis documents clears the tracked block (untracked deep facts remain, non-live)', () => {
+  // N-15: risk rating and recommendation are now real, tracked Underwriting exit requirements —
+  // reviewing the analysis documents alone is no longer enough.
+  it('N-15: reviewing the analysis documents alone does NOT clear the Underwriting exit — risk rating and recommendation are now real, tracked blockers', () => {
     const r = deriveStageExitReadiness('UNDERWRITING', uwFacts('reviewed'));
+    expect(r.blocking.some((b) => b.id === 'UNDERWRITING:risk_rating')).toBe(true);
+    expect(r.blocking.some((b) => b.id === 'UNDERWRITING:uw_recommendation')).toBe(true);
+    expect(evaluateStageExitPolicy(r).allowed).toBe(false);
+    expect(r.untracked.some((u) => u.id === 'UNDERWRITING:risk_rating')).toBe(false);
+  });
+  it('N-15: supplying a durable, final risk rating AND recommendation clears the Underwriting exit', () => {
+    const r = deriveStageExitReadiness('UNDERWRITING', uwFacts('reviewed', { riskRating: durableRiskRating, underwritingRecommendation: durableRecommendation }));
     expect(r.blocking).toEqual([]);
-    // Live gate (tracked blocking only) is allowed; risk rating / recommendation stay untracked/future.
     expect(evaluateStageExitPolicy(r).allowed).toBe(true);
-    expect(r.untracked.some((u) => u.id === 'UNDERWRITING:risk_rating')).toBe(true);
   });
 });
 
-describe('ARC Phase 3 — deep-fact evaluator (dormant until tracked; fails closed, never fabricated)', () => {
+describe('ARC Phase 3 / N-14 / N-15 — deep-fact evaluator (live for risk rating + recommendation; other deep facts still fail closed untracked)', () => {
   const trackedRisk = {
     id: 'UNDERWRITING:risk_rating', scope: 'UNDERWRITING' as const, label: 'Risk rating assigned', uiCopy: 'Risk rating assigned',
     description: '', category: 'credit' as const, severity: 'blocking' as const, resolverSurface: 'Credit Memo' as const,
     responsibleRole: 'underwriter' as const, backingType: 'risk_rating_record' as const, tracked: true, matchMode: 'typed' as const, blockerReason: 'Risk rating required.',
   };
-  const rr = (over: Partial<RiskRatingRecord> = {}): RiskRatingRecord => ({ dealId: 'd', ratingValue: '4', ratingScale: 'OGB', status: 'assigned', ...over });
-  it('an untracked risk-rating requirement fails closed as untracked (Phase 3 live state)', () => {
+  const rr = (over: Partial<RiskRatingRecord> = {}): RiskRatingRecord => ({
+    dealId: baseDeal.id, ratingValue: '4', ratingScale: 'OGB', rationale: 'Stable cash flow supports the rating.',
+    assignedBy: 'UW Analyst', assignedAtIso: '2026-07-20T00:00:00Z', status: 'assigned', ...over,
+  });
+  it('an untracked risk-rating requirement fails closed as untracked (defense-in-depth for a hypothetical rollback)', () => {
     expect(evaluateDeepFactRequirement({ ...trackedRisk, tracked: false }, { deal: baseDeal }).status).toBe('untracked');
   });
-  it('once tracked: missing/draft does not satisfy; assigned satisfies', () => {
+  it('once tracked: missing/draft/blank-rationale does not satisfy; a durable assigned rating satisfies', () => {
     expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal }).status).toBe('unmet');
     expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal, riskRating: rr({ status: 'draft' }) }).status).toBe('unmet');
+    expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal, riskRating: rr({ rationale: '' }) }).status).toBe('unmet');
     expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal, riskRating: rr({ status: 'assigned' }) }).status).toBe('met');
+  });
+  it('N-15: a risk-rating record scoped to a different deal does not satisfy this deal\'s requirement', () => {
+    expect(evaluateDeepFactRequirement(trackedRisk, { deal: baseDeal, riskRating: rr({ dealId: 'some-other-deal' }) }).status).toBe('unmet');
   });
 });
 

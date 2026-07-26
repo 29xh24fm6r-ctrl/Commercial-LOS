@@ -27,13 +27,14 @@ import {
   type BridgeOrgToClientOutcome,
 } from './write/bridgeOrgToClientRelationship';
 import { loadLiveDealIndustryProjection } from './dealIndustryProjection';
-import { hydrateDealIndustryFromCrm } from '../deals/hydrateDealIndustryFromCrm';
-import type { DealIndustryHydration } from '../deals/dealIndustryHydration';
+import { refreshDealIndustryFromCrm as runRefreshDealIndustryFromCrm, type HydrateDealIndustryDeps } from '../deals/hydrateDealIndustryFromCrm';
+import type { DealIndustryHydration, DealIndustrySource } from '../deals/dealIndustryHydration';
 import { loadLiveDealCrmSiblingDeals, type DealCrmSiblingDealsResult } from '../deals/dealCrmSiblingDeals';
 import { formatCurrency } from '../shared/formatters';
 import { updateDealProfile } from '../deals/write/updateDealProfile';
 import { buildLiveUpdateDealProfileDeps } from '../deals/write/buildLiveUpdateDealProfileDeps';
 import type { DealDetail } from '../deals/dealQueries';
+import { parseCrmIndustryProjectionRecord, serializeCrmIndustryProjectionRecord, type CrmIndustryProjectionRecord } from '../deals/crmIndustryProjectionRecord';
 
 /**
  * Phase 189C — read-only CRM Relationship panel.
@@ -433,12 +434,56 @@ export function DealCrmRelationshipPanel({
       : { ok: false };
   }
 
+  // N-22/N-23 remediation (Production Remediation Factory Arc Phase 7) — governed persistence of
+  // the durable CRM/NAICS projection record (exact code/title/sector/provenance), independent of
+  // whether the coarse industry label itself gets touched. `updateDealProfile`'s verified field is
+  // named `crmIndustryProjectionInputs` (the write-path field key); translated here to
+  // `crmIndustryProjectionJson` (the DealDetail read-path key) so `applyVerifiedDealPatch` actually
+  // updates the field the rest of the cockpit reads, instead of silently merging an unused key.
+  async function persistCrmIndustryProjection(
+    record: CrmIndustryProjectionRecord,
+  ): Promise<{ ok: boolean; verified?: Record<string, unknown> }> {
+    if (!banker?.systemUserId) return { ok: false };
+    const outcome = await updateDealProfile(
+      {
+        dealId: deal.id,
+        actorEmail: banker.email,
+        actorSystemUserId: banker.systemUserId,
+        authorized: true,
+        patch: { crmIndustryProjectionInputs: serializeCrmIndustryProjectionRecord(record) },
+      },
+      buildLiveUpdateDealProfileDeps(),
+    );
+    return outcome.kind === 'updated'
+      ? { ok: true, verified: { crmIndustryProjectionJson: outcome.verified.crmIndustryProjectionInputs } }
+      : { ok: false };
+  }
+
+  const industryHydrationDeps: HydrateDealIndustryDeps = {
+    loadProjection: loadLiveDealIndustryProjection,
+    applyDealIndustry,
+    persistCrmIndustryProjection,
+  };
+
+  // The durable, previously-persisted provenance of the deal's CURRENT stored Industry (N-22
+  // remediation — this used to be recomputed as a provenance-blind guess every time; it is now read
+  // back from the record persisted by the last hydrate/refresh, so a genuine manual override is
+  // never mistaken for a stale CRM-derived value on a later refresh).
+  const priorIndustrySource: DealIndustrySource = parseCrmIndustryProjectionRecord(deal.crmIndustryProjectionJson).source;
+
   // After a CRM client is linked OR the banker re-checks (e.g. having just fixed
   // NAICS in the CRM company record): derive the governed CRM/NAICS Industry,
   // auto-apply it when the deal has no manual value, and refresh the cockpit
   // (header / summary tiles / Intake blocker model / stage map) with the verified
   // patch — no full reload. Fail-closed: any missing hop is an honest unresolved
   // state, and nothing is written unless a valid NAICS actually derives.
+  //
+  // N-22 remediation — this now runs the real, provenance-aware `refreshDealIndustryFromCrm`
+  // (underwritingDeepFacts.ts's sibling, dealIndustryHydration.ts's P1-7 decision) instead of the
+  // provenance-blind `hydrateDealIndustryFromCrm`, using the durable `priorIndustrySource` above —
+  // closing the "refresh behavior / no stale blind overwrite" gap the audit asked for: a value this
+  // panel itself previously CRM-derived now tracks a later NAICS change, while a real manual entry
+  // is still never overwritten.
   async function refreshDealIndustryFromCrm(clientRelationshipId: string | undefined) {
     const requestId = ++industryRefreshRequestIdRef.current;
     // True only while this call is both the latest request AND the component is
@@ -449,14 +494,21 @@ export function DealCrmRelationshipPanel({
 
     if (isCurrent()) setIndustryBusy(true);
     try {
-      const { hydration, appliedPatch } = await hydrateDealIndustryFromCrm(
+      const { decision, appliedPatch } = await runRefreshDealIndustryFromCrm(
         clientRelationshipId,
         deal.industry ?? undefined,
-        { loadProjection: loadLiveDealIndustryProjection, applyDealIndustry },
+        priorIndustrySource,
+        industryHydrationDeps,
       );
       if (!isCurrent()) return;
       if (appliedPatch) applyVerifiedDealPatch?.(appliedPatch as Partial<DealDetail>);
-      setIndustryHydration(hydration);
+      setIndustryHydration({
+        criterionSatisfied: decision.action !== 'unresolved',
+        source: decision.source,
+        status: decision.status,
+        remediation: decision.remediation,
+        unavailable: decision.unavailable,
+      });
     } finally {
       if (isCurrent()) setIndustryBusy(false);
     }
