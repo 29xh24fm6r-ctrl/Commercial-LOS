@@ -68,18 +68,32 @@ which this ledger does not repeat in full):
 2. Stage Map / gate engine (`loanWorkflowStages.ts`) — free-text label, **substring `.includes()` match**. Confirmed live divergence: `"business tax returns".includes("tax returns")` is true, so the panel (#1) and the gate engine (#2) can disagree about whether two named documents are the same requirement.
 3. Closing document generation (`closingDocumentTemplateRegistry.ts`) — typed key, legitimately a different universe (internal artifacts, not borrower-supplied).
 4. Retired pilot list (`documentChecklistPilotConfig.ts`) — dead, display-only.
-5. Portfolio Boarding (`portfolioLoanBoardingTypes.ts`) — 39-key typed enum, cleanest of the six.
+5. Portfolio Boarding (`portfolioLoanBoardingTypes.ts`) — **43-key** typed enum (this ledger's earlier "39" was a stale count from an earlier revision of that file — corrected by Workstream B's direct line-by-line recount), cleanest of the six.
 6. Annual Review (`annualReviewTypes.ts`) — 13-key typed enum, independently declared, spelling drift against #5 (`financial_statements` vs `annual_financial_statements`).
 7. Product/Process templates (`productProcessTemplateRegistry.ts`) — loose `string`, guidance-only (not a live gate), partial overlap/drift against #5/#6.
 
-Workstream B introduces one additive canonical 20-key taxonomy with legacy-alias mapping. Given
-six independently-matching consumers with **different match semantics** (exact vs. substring vs.
+**Closed by Workstream B:** `src/shared/deals/canonicalDocumentTaxonomy.ts` introduces one additive
+canonical 20-key borrower-document taxonomy with legacy-alias mapping, wired to the two typed-enum
+consumers (#5, #6) via `canonicalDocumentKeyForAnnualReviewType()` /
+`canonicalDocumentKeyForPortfolioBoardingType()` — pure, IO-free, no live-gate behavior touched.
+Proves the confirmed `financial_statements`/`annual_financial_statements` drift now resolves to the
+same canonical key (`business_financial_statements`), via a passing regression test. A disclosed
+scoping call excludes Portfolio Boarding's lender-internal/governance/servicing/legal-instrument keys
+(14+ of the 43 — see `PORTFOLIO_BOARDING_OUT_OF_SCOPE` in the module) from the borrower-document
+taxonomy entirely, since forcing them in would misrepresent internal artifacts as borrower-collectible
+documents; five of the 20 canonical keys are themselves a disclosed compression of multiple distinct
+documents (see the module's own header for the full list); and the undifferentiated `tax_returns`
+value in both source systems is resolved to `business_tax_returns` by an explicit, documented policy
+convention, not a derived fact.
+
+Given six independently-matching consumers with **different match semantics** (exact vs. substring vs.
 typed enum), a single-PR rip-and-replace of all six risks silently changing which documents satisfy
-which gates in production. This arc's canonical module will be introduced as the new authoritative
-source and wired into the consumers where doing so is a pure win with no behavior-risk (typed-enum
-consumers first); consumers using substring-match gating are flagged here for a deliberate,
-separately-reviewed cutover rather than folded silently into this arc, in keeping with the
-anti-fabrication discipline this arc requires.
+which gates in production. Consumers using substring-match gating (#1's exact-match reconciliation,
+#2's substring-match stage gate — both LIVE and write-seam-gating) are deliberately NOT touched in
+this workstream — flagged here for a separate, reviewed cutover rather than folded silently into this
+arc, in keeping with the anti-fabrication discipline this arc requires. #3 (a genuinely different,
+internal-artifact universe), #4 (confirmed dead/retired), and #7 (confirmed unrouted, non-gating) are
+also left untouched — there is nothing live to wire for any of the three.
 
 ## 6. Capability / readiness panel fragmentation (Admin)
 
