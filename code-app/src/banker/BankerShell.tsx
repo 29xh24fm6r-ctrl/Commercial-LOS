@@ -541,7 +541,14 @@ function TabContent({
           )}
           <div data-header-new-deal-target>
             {newDealPanelOpen ? (
-              <BankerNewDealCreate onCreated={onDealCreated} />
+              <BankerNewDealCreate
+                onCreated={onDealCreated}
+                dealPlacementConfirmation={
+                  dealCreateConfirm.kind === 'confirming' || dealCreateConfirm.kind === 'timed-out'
+                    ? dealCreateConfirm.kind
+                    : undefined
+                }
+              />
             ) : (
               <button
                 type="button"
