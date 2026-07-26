@@ -208,6 +208,26 @@ describe('deriveCreditMemoFreshness', () => {
     expect(r.reasons.some((reason) => reason.id === 'overdue-tasks')).toBe(true);
   });
 
+  // PR A remediation — dueDate is date-only; a raw `new Date(iso)` (UTC midnight) compared
+  // against the exact current instant used to flag a task due "today" as overdue hours early.
+  // NOW is May 13 noon UTC; a task due 2026-05-13 (today, date-only) must not be overdue yet.
+  it('PR A: a task due "today" (date-only) is not flagged overdue', () => {
+    const memo = makeMemo({});
+    const tasks: DealTasksResult = {
+      open: [task({ id: 't1', title: 'Confirm collateral', dueDate: '2026-05-13' })],
+      completed: [],
+    };
+    const r = deriveCreditMemoFreshness({
+      deal: baseDeal,
+      tasks,
+      documents: emptyDocs(),
+      creditMemo: { memos: [memo], sections: [] },
+      activity: [],
+      now: NOW,
+    });
+    expect(r.reasons.some((reason) => reason.id === 'overdue-tasks')).toBe(false);
+  });
+
   it('flags at-risk when outstanding overdue documents exist', () => {
     const memo = makeMemo({});
     const documents: DealDocumentsResult = {

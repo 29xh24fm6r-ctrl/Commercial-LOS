@@ -8,6 +8,7 @@ import {
   type BlockerSeverity,
   type BlockersResult,
 } from './blockerRules';
+import { isPastCalendarDate } from '../shared/formatters';
 
 /**
  * Phase 26: derived-only credit-memo freshness signal. Pure function;
@@ -207,11 +208,13 @@ function latestMemoActivity(creditMemo: CreditMemoData | undefined): string | un
   return latest;
 }
 
+// PR A remediation — dueDate is date-only; this used to compare a raw `new Date(iso)` (UTC
+// midnight) against the exact current instant, the sibling of the exact bug creditMemoDraft.ts's
+// own `isOverdue` already fixed (Workstream H) — a task/document due "today" could read overdue
+// hours early, and a viewer west of UTC could see it flip a full day early. Now delegates to the
+// same shared calendar-day predicate creditMemoDraft.ts uses, so the two never disagree again.
 function isOverdue(iso: string | undefined, now: Date): boolean {
-  if (!iso) return false;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return false;
-  return d.getTime() < now.getTime();
+  return isPastCalendarDate(iso, now);
 }
 
 function hasNewerActivity(opts: {

@@ -74,6 +74,18 @@ describe('isPastDue', () => {
   it('returns false when the ISO is in the future', () => {
     expect(isPastDue('2026-05-14T00:00:00Z', NOW_MS)).toBe(false);
   });
+
+  // PR A remediation — a date-only value due "today" used to compare its raw UTC-midnight
+  // instant against the exact current moment (NOW_MS is May 13 noon), so it read overdue hours
+  // early. This is the same drift class N-24/D-04 fixed for display everywhere else; this pins it
+  // for the work-queue "overdue" count too, via the shared calendar-day predicate.
+  it('PR A: a date-only value due "today" is not overdue (calendar-day, not raw-instant, comparison)', () => {
+    expect(isPastDue('2026-05-13', NOW_MS)).toBe(false);
+  });
+
+  it('PR A: a date-only value due yesterday is overdue', () => {
+    expect(isPastDue('2026-05-12', NOW_MS)).toBe(true);
+  });
 });
 
 describe('daysFromNow — calendar-day differencing', () => {

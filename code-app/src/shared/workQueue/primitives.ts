@@ -1,4 +1,5 @@
 import type { SeverityKey } from '../theme';
+import { daysUntilCalendarDate, isPastCalendarDate } from '../formatters';
 
 /**
  * Phase 35: shared work-queue primitives.
@@ -101,35 +102,33 @@ export function isReceivedDocumentPendingReview(opts: {
   return elapsed >= (opts.thresholdDays ?? PENDING_REVIEW_AT_RISK_DAYS);
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
 // ---------------------------------------------------------------------------
 // Date math
 // ---------------------------------------------------------------------------
 
+/**
+ * PR A remediation — this used to compare `new Date(iso).getTime()` (UTC midnight, for a
+ * date-only value) directly against the exact current instant `nowMs`, the same UTC-parse-vs-
+ * local-render drift class N-24/D-04 fixed everywhere else (a task "due today" read as overdue
+ * hours before local midnight, and a viewer west of UTC saw items flip to overdue up to a full
+ * day early). Now delegates to the shared, already-fixed calendar-day predicate so this work-queue
+ * primitive agrees with every other surface that already reads through `isPastCalendarDate`
+ * (managerPipelineSnapshot.ts, teamOpsQueueSnapshot.ts, creditMemoDraft.ts).
+ */
 export function isPastDue(iso: string | undefined, nowMs: number): boolean {
-  if (!iso) return false;
-  const ms = new Date(iso).getTime();
-  return Number.isFinite(ms) && ms < nowMs;
+  return isPastCalendarDate(iso, new Date(nowMs));
 }
 
 /**
- * Calendar-day differencing. Normalizes each timestamp to its
- * start-of-UTC-day index before subtracting so the result reads in
- * banker-intuitive whole days regardless of the time-of-day component
- * either timestamp carries. May 13 noon → May 20 midnight = 7 days,
- * not 6.5.
+ * Calendar-day differencing. Delegates to the shared `daysUntilCalendarDate` (local midnight to
+ * local midnight), never a raw-instant/UTC-day floor division — see `isPastDue`'s note above for
+ * why this call site had the same drift class as the fix it now reuses.
  */
 export function daysFromNow(
   iso: string | undefined,
   nowMs: number,
 ): number | null {
-  if (!iso) return null;
-  const ms = new Date(iso).getTime();
-  if (!Number.isFinite(ms)) return null;
-  const targetDay = Math.floor(ms / MS_PER_DAY);
-  const nowDay = Math.floor(nowMs / MS_PER_DAY);
-  return targetDay - nowDay;
+  return daysUntilCalendarDate(iso, new Date(nowMs)) ?? null;
 }
 
 // ---------------------------------------------------------------------------
