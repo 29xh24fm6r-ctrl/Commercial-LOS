@@ -17,6 +17,7 @@ import {
   type CanonicalActivityType,
 } from '../activity/canonicalActivityLogging';
 import { resolveLiveDealBridgedOrganizationId, type DealBridgedOrganizationResult } from './dealBridgedOrganizationLookup';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * Phase 160: governed write for banker-authored activity notes.
@@ -247,7 +248,11 @@ export async function logActivity(
     });
     return {
       kind: 'activity-failed',
-      activityError: timeline.error ?? 'DealTimelineEvent create returned no id',
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      activityError: mapBusinessSafeError(
+        timeline.error ?? 'DealTimelineEvent create returned no id',
+        correlationId,
+      ).safeMessage,
     };
   }
 
@@ -278,7 +283,8 @@ export async function logActivity(
     return {
       kind: 'governance-partial',
       activityId: timeline.id,
-      auditError: audit.error,
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      auditError: mapBusinessSafeError(audit.error, correlationId).safeMessage,
       timelineError: undefined,
     };
   }

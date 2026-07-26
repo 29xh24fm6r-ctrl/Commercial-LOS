@@ -141,10 +141,12 @@ describe('Phase 160 -- logActivity', () => {
 
     const outcome = await logActivity(input(), okResolver);
 
-    expect(outcome).toEqual({
-      kind: 'activity-failed',
-      activityError: 'timeline denied',
-    });
+    // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+    expect(outcome.kind).toBe('activity-failed');
+    if (outcome.kind === 'activity-failed') {
+      expect(outcome.activityError).not.toContain('timeline denied');
+      expect(outcome.activityError).toContain("We couldn't save that action");
+    }
     expect(auditCreate).toHaveBeenCalledTimes(1);
     const auditPayload = auditCreate.mock.calls[0]![0] as Record<string, unknown>;
     expect(auditPayload.cr664_outcomestatus).toBe(788190001);
@@ -157,12 +159,13 @@ describe('Phase 160 -- logActivity', () => {
 
     const outcome = await logActivity(input(), okResolver);
 
-    expect(outcome).toEqual({
-      kind: 'governance-partial',
-      activityId: 'activity-1',
-      auditError: 'audit denied',
-      timelineError: undefined,
-    });
+    expect(outcome.kind).toBe('governance-partial');
+    if (outcome.kind === 'governance-partial') {
+      expect(outcome.activityId).toBe('activity-1');
+      expect(outcome.auditError).not.toContain('audit denied');
+      expect(outcome.auditError).toContain("We couldn't save that action");
+      expect(outcome.timelineError).toBeUndefined();
+    }
   });
 
   it('blocks empty notes without creating local or Dataverse activity', async () => {
@@ -182,7 +185,9 @@ describe('Phase 160 -- logActivity', () => {
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
       expect(outcome.activityId).toBe('activity-1');
-      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+      // Final LOS Completion arc (Workstream P) — the raw reason carries internal schema jargon.
+      expect(outcome.auditError).not.toMatch(/CoreUser/);
+      expect(outcome.auditError).toContain("We couldn't save that action");
     }
     // The primary timeline write still happened.
     expect(timelineCreate).toHaveBeenCalledTimes(1);
