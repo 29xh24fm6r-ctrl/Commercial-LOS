@@ -81,11 +81,44 @@ describe('loadDealCreditMemo — readback / durability', () => {
         modifiedOn: '2026-07-24T10:00:00.000Z',
         borrowerSafe: false,
         textPreview: 'Short manifest text.',
+        fullText: 'Short manifest text.',
       },
     ]);
     expect(result.sections).toHaveLength(1);
     expect(result.sections[0]!.sectionLabel).toBe('Executive Summary');
     expect(result.sections[0]!.textPreview).toBe('Section draft text.');
+    expect(result.sections[0]!.fullText).toBe('Section draft text.');
+  });
+
+  it('N-08 remediation: fullText is the complete, untruncated persisted text even when textPreview is cut', async () => {
+    const longText = 'C'.repeat(3000);
+    memosGetAll.mockResolvedValue({ success: true, data: [memoRow({ cr664_memotext: longText })] } as never);
+    sectionsGetAll.mockResolvedValue({ success: true, data: [sectionRow({ cr664_drafttext: longText })] } as never);
+
+    const result = await loadDealCreditMemo('deal-42');
+
+    expect(result.memos[0]!.fullText).toBe(longText);
+    expect(result.memos[0]!.fullText!.length).toBe(3000);
+    expect(result.memos[0]!.textPreview!.length).toBeLessThan(300);
+    expect(result.sections[0]!.fullText).toBe(longText);
+    expect(result.sections[0]!.fullText!.length).toBe(3000);
+  });
+
+  it('N-09 remediation: sections are ordered by canonical SECTION_OPTIONS order, not alphabetically by section key', async () => {
+    memosGetAll.mockResolvedValue({ success: true, data: [] } as never);
+    sectionsGetAll.mockResolvedValue({
+      success: true,
+      data: [
+        sectionRow({ cr664_creditmemodraftsectionid: 's-risks', cr664_sectionkey: 'risks-blockers' }),
+        sectionRow({ cr664_creditmemodraftsectionid: 's-exec', cr664_sectionkey: 'executive-summary' }),
+        sectionRow({ cr664_creditmemodraftsectionid: 's-loan', cr664_sectionkey: 'loan-request' }),
+        sectionRow({ cr664_creditmemodraftsectionid: 's-unknown', cr664_sectionkey: 'some-legacy-key' }),
+      ],
+    } as never);
+
+    const result = await loadDealCreditMemo('deal-42');
+
+    expect(result.sections.map((s) => s.id)).toEqual(['s-exec', 's-loan', 's-risks', 's-unknown']);
   });
 
   it('SEV-1 remediation: a memo saved with a bounded parent summary still round-trips full-fidelity content through its sections — durability proof', async () => {

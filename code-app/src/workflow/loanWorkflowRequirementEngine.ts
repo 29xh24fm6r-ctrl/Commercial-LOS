@@ -60,8 +60,10 @@ export interface WorkflowRequirementFacts {
   readonly tasksUnavailable?: boolean;
   readonly documentsUnavailable?: boolean;
   readonly creditMemoUnavailable?: boolean;
-  // ARC Phase 3 — deep underwriting facts (supplied by a loader once the backing record exists;
-  // absent today, so the requirements stay untracked/future and these are never fabricated).
+  // ARC Phase 3 model, Factory Arc Phase 5 persistence, Production Remediation Phase 6 enforcement
+  // (N-14/N-15) — supplied by `deriveRiskRatingRecordFromDeal`/`deriveUnderwritingRecommendationRecordFromDeal`
+  // (underwritingDeepFacts.ts) from the deal's own persisted record; absent when nothing has been
+  // recorded yet, never fabricated.
   readonly riskRating?: RiskRatingRecord;
   readonly riskRatingPolicy?: RiskRatingPolicy;
   readonly underwritingRecommendation?: UnderwritingRecommendationRecord;
@@ -84,11 +86,11 @@ export interface WorkflowRequirementFacts {
 export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: WorkflowRequirementFacts): EvaluatedRequirement {
   if (!req.tracked) return evaluated(req, 'untracked', req.blockerReason);
   if (req.id === 'UNDERWRITING:risk_rating') {
-    const r = evaluateRiskRatingReadiness(facts.riskRating, facts.riskRatingPolicy);
+    const r = evaluateRiskRatingReadiness(facts.riskRating, facts.deal.id, facts.riskRatingPolicy);
     return evaluated(req, r.met ? 'met' : 'unmet', r.reason);
   }
   if (req.id === 'UNDERWRITING:uw_recommendation') {
-    const r = evaluateUnderwritingRecommendationReadiness(facts.underwritingRecommendation);
+    const r = evaluateUnderwritingRecommendationReadiness(facts.underwritingRecommendation, facts.deal.id);
     return evaluated(req, r.met ? 'met' : 'unmet', r.reason);
   }
   if (req.id === 'CLOSING_FUNDING:funds_disbursed') {
@@ -262,10 +264,12 @@ export interface StageExitPolicyResult {
 
 /**
  * The LIVE stage-exit policy for ARC Phase 2: a transition is allowed when no TRACKED blocking
- * requirement is unmet. Untracked deep facts (risk rating, approval, closing, boarding, …) are NOT
- * yet enforced live — they are surfaced as "future" requirements and gate certification later, but do
- * not block the transition until their major phase. This is the shared decision the UI button and the
- * write policy agree on (proven equivalent to evaluateStageTransitionPolicy for the current config).
+ * requirement is unmet. Risk rating and underwriting recommendation are tracked as of Production
+ * Remediation Factory Arc Phase 6 (N-14/N-15) and block for real; the remaining untracked deep facts
+ * (approval, closing, boarding, …) are NOT yet enforced live — they are surfaced as "future"
+ * requirements and gate certification later, but do not block the transition until their major
+ * phase. This is the shared decision the UI button and the write policy agree on (proven equivalent
+ * to evaluateStageTransitionPolicy for the current config).
  */
 export function evaluateStageExitPolicy(readiness: StageExitReadiness): StageExitPolicyResult {
   const allowed = readiness.blocking.length === 0;
