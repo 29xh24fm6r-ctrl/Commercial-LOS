@@ -195,11 +195,17 @@ describe('CreditMemoDraftModal — missing information panel', () => {
       ratingScale: '1-8',
       rationale: 'Strong cash flow coverage and seasoned management team.',
       status: 'assigned',
+      dealId: 'deal-77',
+      assignedBy: 'M. Paller',
+      assignedAtIso: '2026-05-10T00:00:00Z',
     };
     const recommendationState: UnderwritingRecommendationFormState = {
       decision: 'approve_with_conditions',
       rationale: 'Supportable subject to updated collateral valuation.',
       status: 'recorded',
+      dealId: 'deal-77',
+      underwriterActor: 'M. Paller',
+      recordedAtIso: '2026-05-10T00:00:00Z',
     };
     const fullyPopulatedDeal: DealDetail = {
       ...baseDeal,

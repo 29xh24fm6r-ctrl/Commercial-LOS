@@ -27,9 +27,13 @@ export type DealIndustryProjection =
   // organizationId is carried once the CRM org is resolved, so a deal-side remediation can open the
   // governed CRM NAICS editor for exactly that company.
   | { kind: 'no-naics'; organizationId: string }
-  | { kind: 'no-sector'; organizationId: string; naicsCode: string }
-  | { kind: 'no-mapping'; organizationId: string; naicsCode: string; sectorCode: string; sectorTitle: string }
-  | { kind: 'derived'; organizationId: string; naicsCode: string; sectorCode: string; sectorTitle: string; dealIndustry: string }
+  // N-22/N-23 remediation (Production Remediation Factory Arc Phase 7) — naicsTitle is the EXACT
+  // reference-table title for this code (e.g. "Full-Service Restaurants"), looked up separately from
+  // the sector title. Undefined when the reference table isn't provisioned or the lookup fails —
+  // never fabricated; the code/sector facts below are unaffected by a missing title.
+  | { kind: 'no-sector'; organizationId: string; naicsCode: string; naicsTitle?: string }
+  | { kind: 'no-mapping'; organizationId: string; naicsCode: string; naicsTitle?: string; sectorCode: string; sectorTitle: string }
+  | { kind: 'derived'; organizationId: string; naicsCode: string; naicsTitle?: string; sectorCode: string; sectorTitle: string; dealIndustry: string }
   | { kind: 'unavailable'; reason: string };
 
 export interface DealIndustryProjectionDeps {
@@ -43,6 +47,12 @@ export interface DealIndustryProjectionDeps {
   ) => Promise<{ success: boolean; naicsCode?: string; error?: string }>;
   /** Read the active NAICS→industry mapping rows. */
   readonly fetchMappingRows: () => Promise<{ success: boolean; rows?: readonly NaicsIndustryMapRow[]; error?: string }>;
+  /**
+   * N-22/N-23 remediation — the EXACT reference-table title for a 6-digit NAICS code (distinct from
+   * the sector title). Best-effort: a failed/unavailable lookup returns `undefined`, never a
+   * fabricated title, and never blocks the rest of the projection.
+   */
+  readonly readNaicsTitle: (naicsCode: string) => Promise<string | undefined>;
 }
 
 const UNAVAILABLE_REASON =
@@ -99,17 +109,27 @@ export async function loadDealIndustryProjection(
   }
   if (!mapRes.success) return unavailable(mapRes.error ?? 'mapping read failed');
 
+  // Best-effort exact-title lookup — never blocks or fails the projection; a lookup failure simply
+  // means the title is omitted (undefined), same "never fabricate" discipline as everything above.
+  let naicsTitle: string | undefined;
+  try {
+    naicsTitle = await deps.readNaicsTitle(naicsCode);
+  } catch {
+    naicsTitle = undefined;
+  }
+
   const resolution = resolveDealIndustryFromNaics(naicsCode, mapRes.rows ?? []);
   switch (resolution.kind) {
     case 'no-sector':
-      return { kind: 'no-sector', organizationId, naicsCode: resolution.naicsCode };
+      return { kind: 'no-sector', organizationId, naicsCode: resolution.naicsCode, naicsTitle };
     case 'no-mapping':
-      return { kind: 'no-mapping', organizationId, naicsCode, sectorCode: resolution.sector.sectorCode, sectorTitle: resolution.sector.sectorTitle };
+      return { kind: 'no-mapping', organizationId, naicsCode, naicsTitle, sectorCode: resolution.sector.sectorCode, sectorTitle: resolution.sector.sectorTitle };
     case 'mapped':
       return {
         kind: 'derived',
         organizationId,
         naicsCode,
+        naicsTitle,
         sectorCode: resolution.sector.sectorCode,
         sectorTitle: resolution.sector.sectorTitle,
         dealIndustry: resolution.dealIndustry,
@@ -153,6 +173,15 @@ export function buildLiveDealIndustryProjectionDeps(): DealIndustryProjectionDep
         };
       } catch (err: unknown) {
         return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    readNaicsTitle: async (naicsCode) => {
+      try {
+        const { findNaicsByCode } = await import('./naics/naicsSearch');
+        const row = await findNaicsByCode(naicsCode);
+        return row?.cr664_title;
+      } catch {
+        return undefined;
       }
     },
     fetchMappingRows: async () => {

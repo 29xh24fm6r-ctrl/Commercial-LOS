@@ -6,6 +6,7 @@ import {
   type DealIndustrySource,
 } from './dealIndustryHydration';
 import type { DealIndustryProjection } from '../crm/dealIndustryProjection';
+import { buildCrmIndustryProjectionRecord, type CrmIndustryProjectionRecord } from './crmIndustryProjectionRecord';
 
 /**
  * Orchestrates deal-Industry hydration from the linked CRM client (PURE over injected deps).
@@ -17,6 +18,12 @@ import type { DealIndustryProjection } from '../crm/dealIndustryProjection';
  *
  * It never fabricates or overwrites: the write happens only when `industryToApply` is present (which
  * the pure decision sets only for a valid CRM NAICS AND no existing manual value).
+ *
+ * N-22/N-23 remediation (Production Remediation Factory Arc Phase 7) — independently of whether the
+ * coarse industry label gets applied, a durable CrmIndustryProjectionRecord (exact NAICS code/title,
+ * sector, source organization, provenance, timestamp) is persisted whenever the projection carries a
+ * NAICS fact — including the `no-mapping`/`no-sector` honest states, where the coarse label is never
+ * touched but the exact classification is still worth recording (see crmIndustryProjectionRecord.ts).
  */
 
 export interface HydrateDealIndustryDeps {
@@ -27,6 +34,29 @@ export interface HydrateDealIndustryDeps {
    * readback-verified deal patch on success, or ok:false (the link/refresh still proceeds honestly).
    */
   readonly applyDealIndustry: (industry: string) => Promise<{ ok: boolean; verified?: Record<string, unknown> }>;
+  /**
+   * N-22/N-23 remediation — governed persistence of the durable CRM/NAICS projection record,
+   * called whenever `buildCrmIndustryProjectionRecord` produces one (see that function for exactly
+   * which projection states qualify). Returns the readback-verified deal patch on success.
+   */
+  readonly persistCrmIndustryProjection: (
+    record: CrmIndustryProjectionRecord,
+  ) => Promise<{ ok: boolean; verified?: Record<string, unknown> }>;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+async function applyProjectionRecord(
+  projection: DealIndustryProjection,
+  source: DealIndustrySource,
+  deps: Pick<HydrateDealIndustryDeps, 'persistCrmIndustryProjection'>,
+): Promise<Record<string, unknown> | undefined> {
+  const record = buildCrmIndustryProjectionRecord(projection, source, nowIso());
+  if (!record) return undefined;
+  const res = await deps.persistCrmIndustryProjection(record);
+  return res.ok ? res.verified : undefined;
 }
 
 export interface HydrateDealIndustryResult {
@@ -42,11 +72,14 @@ export async function hydrateDealIndustryFromCrm(
 ): Promise<HydrateDealIndustryResult> {
   const projection = await deps.loadProjection(clientRelationshipId);
   const hydration = deriveDealIndustryHydration(projection, currentDealIndustry);
+  let appliedPatch: Record<string, unknown> | undefined;
   if (hydration.industryToApply !== undefined) {
     const res = await deps.applyDealIndustry(hydration.industryToApply);
-    if (res.ok) return { hydration, appliedPatch: res.verified };
+    if (res.ok) appliedPatch = res.verified;
   }
-  return { hydration };
+  const projectionPatch = await applyProjectionRecord(projection, hydration.source, deps);
+  if (projectionPatch) appliedPatch = { ...appliedPatch, ...projectionPatch };
+  return appliedPatch ? { hydration, appliedPatch } : { hydration };
 }
 
 export interface RefreshDealIndustryResult {
@@ -70,9 +103,12 @@ export async function refreshDealIndustryFromCrm(
 ): Promise<RefreshDealIndustryResult> {
   const projection = await deps.loadProjection(clientRelationshipId);
   const decision = deriveDealIndustryRefresh(projection, currentDealIndustry, priorSource);
+  let appliedPatch: Record<string, unknown> | undefined;
   if (decision.action === 'apply' && decision.industryToApply !== undefined) {
     const res = await deps.applyDealIndustry(decision.industryToApply);
-    if (res.ok) return { decision, appliedPatch: res.verified };
+    if (res.ok) appliedPatch = res.verified;
   }
-  return { decision };
+  const projectionPatch = await applyProjectionRecord(projection, decision.source, deps);
+  if (projectionPatch) appliedPatch = { ...appliedPatch, ...projectionPatch };
+  return appliedPatch ? { decision, appliedPatch } : { decision };
 }
