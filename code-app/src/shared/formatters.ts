@@ -105,3 +105,29 @@ export function formatCalendarDate(
 ): string {
   return formatDate(value, opts);
 }
+
+/**
+ * N-24/D-04 remediation (Production Remediation Factory Arc Phase 9) — a shared, date-only-safe
+ * "days from today" calculation. Several surfaces (Kanban, Closing Soon, Manager rollups) each
+ * reimplemented `(new Date(iso).getTime() - Date.now()) / 86_400_000` to decide "today" /
+ * "tomorrow" / "Nd past" labels — the same UTC-midnight-vs-local-render drift that shifts the
+ * displayed calendar date also shifts these day counts near a timezone's UTC-offset boundary.
+ * This compares CALENDAR DAYS (local midnight to local midnight), never raw instants, so the
+ * count is stable regardless of what time of day `now` happens to be.
+ */
+export function daysUntilCalendarDate(
+  value: string | Date | null | undefined,
+  now: Date = new Date(),
+): number | undefined {
+  const target = parseCalendarDate(value);
+  if (!target) return undefined;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfTarget = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+  return Math.round((startOfTarget - startOfToday) / 86_400_000);
+}
+
+/** True when a date-only value's calendar day is strictly before today's calendar day. */
+export function isPastCalendarDate(value: string | Date | null | undefined, now: Date = new Date()): boolean {
+  const days = daysUntilCalendarDate(value, now);
+  return days !== undefined && days < 0;
+}

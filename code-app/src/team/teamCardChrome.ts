@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import { formatCalendarDate, parseCalendarDate } from '../shared/formatters';
 
 /** Shared inline styles for the team cards, tokenized through theme.ts. */
 export const teamStyles: Record<string, CSSProperties> = {
@@ -85,8 +86,6 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  if (!parseCalendarDate(iso)) return undefined;
+  return formatCalendarDate(iso);
 }

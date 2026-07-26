@@ -43,10 +43,21 @@ export interface ConsistencyCheckDealInput {
 }
 export interface ConsistencyCheckMemoInput {
   textPreview: string | undefined;
+  /**
+   * N-08 remediation (Production Remediation Factory Arc Phase 5) — the full, untruncated
+   * text, when the caller has it. Optional so the narrower Phase 95 callers (which only ever
+   * loaded `textPreview`) keep compiling unchanged; `collectMemoText` below prefers this over
+   * `textPreview` when present, since the 240-char preview was demonstrated to cut off a
+   * realistic memo header before the Stage/Client lines, producing false "does not reference"
+   * findings against text that plainly IS there in the persisted record.
+   */
+  fullText?: string | undefined;
 }
 export interface ConsistencyCheckSectionInput {
   sectionLabel: string;
   textPreview: string | undefined;
+  /** N-08 remediation — see ConsistencyCheckMemoInput.fullText. */
+  fullText?: string | undefined;
 }
 export interface ConsistencyCheckMemoData {
   memos: readonly ConsistencyCheckMemoInput[];
@@ -153,16 +164,24 @@ export function checkCreditMemoConsistency(
 // Text aggregation
 // ---------------------------------------------------------------------------
 
+/** Prefer the full text; fall back to the (possibly truncated) preview when full text is unavailable. */
+function bestAvailableText(fullText: string | undefined, textPreview: string | undefined): string | undefined {
+  if (fullText && fullText.trim().length > 0) return fullText;
+  return textPreview;
+}
+
 function collectMemoText(creditMemo: ConsistencyCheckMemoData): string {
   const parts: string[] = [];
   for (const m of creditMemo.memos) {
-    if (m.textPreview && m.textPreview.trim().length > 0) {
-      parts.push(m.textPreview);
+    const text = bestAvailableText(m.fullText, m.textPreview);
+    if (text && text.trim().length > 0) {
+      parts.push(text);
     }
   }
   for (const s of creditMemo.sections) {
-    if (s.textPreview && s.textPreview.trim().length > 0) {
-      parts.push(s.textPreview);
+    const text = bestAvailableText(s.fullText, s.textPreview);
+    if (text && text.trim().length > 0) {
+      parts.push(text);
     }
   }
   return parts.join('\n').trim();

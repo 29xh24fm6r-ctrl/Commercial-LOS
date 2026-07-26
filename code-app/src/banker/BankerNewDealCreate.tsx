@@ -117,9 +117,19 @@ export interface BankerNewDealCreateProps {
    * exactly as long as the parent takes to confirm + navigate.
    */
   readonly onCreated?: (createdDealId: string) => Promise<void> | void;
+  /**
+   * N-36 remediation (Production Remediation Factory Arc Phase 10) — the parent's own
+   * confirm-then-navigate status for the deal `onCreated` just reported (see BankerShell.tsx's
+   * `dealCreateConfirm`). While the parent is still confirming, or once it gives up
+   * ('timed-out'), the success banner below must not flatly assert "it now appears in your
+   * Active Deals" — that claim can be actively false at the same moment the parent renders its
+   * own "could not yet be confirmed" notice, and the two contradicting side by side is the exact
+   * N-36 defect. Undefined (the isolated-usage default) keeps the original optimistic wording.
+   */
+  readonly dealPlacementConfirmation?: 'confirming' | 'timed-out';
 }
 
-export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}) {
+export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: BankerNewDealCreateProps = {}) {
   const { bankerId, systemUserId, writeDisabledReason, email } = useBanker();
   const [step, setStep] = useState<Step>(1);
   const [dealName, setDealName] = useState('');
@@ -132,6 +142,13 @@ export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}
   const [collateralSummary, setCollateralSummary] = useState('');
   const [guarantorStructure, setGuarantorStructure] = useState('');
   const [amortizationMonths, setAmortizationMonths] = useState('');
+  // Production Remediation Factory Arc Phase 8 (N-25) — loan purpose, term, and ownership
+  // structure already have a governed profile-edit write path (updateDealProfile.ts's
+  // DEAL_PROFILE_FIELD_SPECS, Factory Arc Phase 3) but were never captured at creation time.
+  // Optional at the UI layer, same as the fields above; only sent if actually filled in.
+  const [loanPurpose, setLoanPurpose] = useState('');
+  const [loanTermMonths, setLoanTermMonths] = useState('');
+  const [ownershipStructure, setOwnershipStructure] = useState('');
   const [productTypeSel, setProductTypeSel] = useState('');
   const [loanStructureSel, setLoanStructureSel] = useState('');
   const [pricingTypeSel, setPricingTypeSel] = useState('');
@@ -268,6 +285,9 @@ export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}
     if (collateralSummary.trim()) patch.collateralSummary = collateralSummary.trim();
     if (guarantorStructure.trim()) patch.guarantorStructure = guarantorStructure.trim();
     if (amortizationMonths.trim()) patch.amortizationMonths = amortizationMonths.trim();
+    if (loanPurpose.trim()) patch.loanPurpose = loanPurpose.trim();
+    if (loanTermMonths.trim()) patch.loanTermMonths = loanTermMonths.trim();
+    if (ownershipStructure.trim()) patch.ownershipStructure = ownershipStructure.trim();
 
     const referencePatch: DealReferencePatch = {};
     const allowedReferenceIds: string[] = [];
@@ -475,6 +495,12 @@ export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}
               onGuarantorStructure={setGuarantorStructure}
               amortizationMonths={amortizationMonths}
               onAmortizationMonths={setAmortizationMonths}
+              loanPurpose={loanPurpose}
+              onLoanPurpose={setLoanPurpose}
+              loanTermMonths={loanTermMonths}
+              onLoanTermMonths={setLoanTermMonths}
+              ownershipStructure={ownershipStructure}
+              onOwnershipStructure={setOwnershipStructure}
               productTypeSel={productTypeSel}
               onProductTypeSel={setProductTypeSel}
               loanStructureSel={loanStructureSel}
@@ -493,7 +519,7 @@ export function BankerNewDealCreate({ onCreated }: BankerNewDealCreateProps = {}
         </div>
       )}
 
-      <ResultBanner submit={submit} />
+      <ResultBanner submit={submit} dealPlacementConfirmation={dealPlacementConfirmation} />
     </section>
   );
 }
@@ -678,6 +704,12 @@ function DetailsStep({
   onGuarantorStructure,
   amortizationMonths,
   onAmortizationMonths,
+  loanPurpose,
+  onLoanPurpose,
+  loanTermMonths,
+  onLoanTermMonths,
+  ownershipStructure,
+  onOwnershipStructure,
   productTypeSel,
   onProductTypeSel,
   loanStructureSel,
@@ -705,6 +737,12 @@ function DetailsStep({
   onGuarantorStructure: (v: string) => void;
   amortizationMonths: string;
   onAmortizationMonths: (v: string) => void;
+  loanPurpose: string;
+  onLoanPurpose: (v: string) => void;
+  loanTermMonths: string;
+  onLoanTermMonths: (v: string) => void;
+  ownershipStructure: string;
+  onOwnershipStructure: (v: string) => void;
   productTypeSel: string;
   onProductTypeSel: (v: string) => void;
   loanStructureSel: string;
@@ -834,10 +872,45 @@ function DetailsStep({
         state={refOptions}
         disabled={submitting}
       />
-      <p style={styles.stepHint}>
-        Loan purpose, term, and ownership status are not yet captured here — they need a new
-        Dataverse field this environment does not have yet.
-      </p>
+      <label style={styles.label}>
+        Loan purpose (optional)
+        <input
+          type="text"
+          value={loanPurpose}
+          maxLength={200}
+          onChange={(e) => onLoanPurpose(e.target.value)}
+          placeholder="e.g. Acquisition of commercial property"
+          style={styles.input}
+          data-banker-new-deal-loan-purpose
+          disabled={submitting}
+        />
+      </label>
+      <label style={styles.label}>
+        Loan term, months (optional)
+        <input
+          type="text"
+          inputMode="numeric"
+          value={loanTermMonths}
+          onChange={(e) => onLoanTermMonths(e.target.value)}
+          placeholder="e.g. 60"
+          style={styles.input}
+          data-banker-new-deal-loan-term
+          disabled={submitting}
+        />
+      </label>
+      <label style={styles.label}>
+        Ownership structure (optional)
+        <input
+          type="text"
+          value={ownershipStructure}
+          maxLength={100}
+          onChange={(e) => onOwnershipStructure(e.target.value)}
+          placeholder="e.g. LLC, S-Corp, Sole Proprietorship"
+          style={styles.input}
+          data-banker-new-deal-ownership-structure
+          disabled={submitting}
+        />
+      </label>
       <div style={styles.stepActions}>
         <button type="button" onClick={onBack} style={styles.actionGhost} data-new-deal-details-back>
           ← Back
@@ -1005,7 +1078,13 @@ function OptionPicker({
 // Result banner
 // ---------------------------------------------------------------------------
 
-function ResultBanner({ submit }: { submit: SubmitState }) {
+function ResultBanner({
+  submit,
+  dealPlacementConfirmation,
+}: {
+  submit: SubmitState;
+  dealPlacementConfirmation?: 'confirming' | 'timed-out';
+}) {
   if (submit.kind === 'idle' || submit.kind === 'submitting') return null;
   if (submit.kind === 'error') {
     return (
@@ -1016,7 +1095,7 @@ function ResultBanner({ submit }: { submit: SubmitState }) {
   }
   return (
     <>
-      <OutcomeBanner result={submit.result} />
+      <OutcomeBanner result={submit.result} dealPlacementConfirmation={dealPlacementConfirmation} />
       <ProfileFollowUpBanner profileOutcome={submit.profileOutcome} />
     </>
   );
@@ -1072,7 +1151,13 @@ function describeProfileFollowUpFailure(outcome: Exclude<UpdateDealProfileOutcom
   }
 }
 
-function OutcomeBanner({ result: r }: { result: DealOriginationResult }) {
+function OutcomeBanner({
+  result: r,
+  dealPlacementConfirmation,
+}: {
+  result: DealOriginationResult;
+  dealPlacementConfirmation?: 'confirming' | 'timed-out';
+}) {
   switch (r.kind) {
     case 'success_created_only':
     case 'success_created_with_automation':
@@ -1080,7 +1165,16 @@ function OutcomeBanner({ result: r }: { result: DealOriginationResult }) {
         <>
           <div style={styles.bannerOk} role="status" data-banker-new-deal-result="success">
             ✓ Deal created. Id {r.createdDealId}. Stage {r.stageLabel} · Status {r.statusLabel}.{' '}
-            It now appears in your Active Deals and Loan Workflow.{' '}
+            {dealPlacementConfirmation === 'timed-out' ? (
+              <span data-banker-new-deal-placement="timed-out">
+                Its appearance in your Active Deals list could not yet be confirmed automatically
+                — see the notice above. You can still open it directly.
+              </span>
+            ) : (
+              <span data-banker-new-deal-placement="confirmed-or-pending">
+                It now appears in your Active Deals and Loan Workflow.
+              </span>
+            )}{' '}
             {/* Client-side SPA navigation via react-router (the app's canonical
                 deal-open pattern). A raw <a href> would trigger a full browser
                 navigation to the Power Apps host path and break out of the app

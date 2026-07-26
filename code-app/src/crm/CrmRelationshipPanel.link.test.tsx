@@ -58,8 +58,8 @@ vi.mock('./dealCrmLinkOptions', () => ({
 // own unit tests). Default to an honest "unavailable" hydration, no patch.
 const hydrateMock = vi.hoisted(() =>
   vi.fn(async () => ({
-    hydration: {
-      criterionSatisfied: false,
+    decision: {
+      action: 'unresolved' as const,
       source: 'none' as const,
       status: 'CRM/NAICS industry derivation is unavailable.',
       unavailable: true,
@@ -67,7 +67,7 @@ const hydrateMock = vi.hoisted(() =>
   })),
 );
 vi.mock('../deals/hydrateDealIndustryFromCrm', () => ({
-  hydrateDealIndustryFromCrm: hydrateMock,
+  refreshDealIndustryFromCrm: hydrateMock,
 }));
 
 // Bridge is mocked at the boundary (SDK-free); bridgedClientRelationshipId stays

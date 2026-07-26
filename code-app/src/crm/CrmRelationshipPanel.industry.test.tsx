@@ -15,8 +15,10 @@ import userEvent from '@testing-library/user-event';
  *     surfaces a DIRECT remediation to the CRM NAICS editor, plus a no-reload
  *     re-check that re-runs the governed derivation.
  *
- * The derivation itself (deriveDealIndustryHydration / hydrateDealIndustryFromCrm)
- * has its own unit tests; here it is mocked at the boundary so we drive the WIRING.
+ * N-22 remediation (Production Remediation Factory Arc Phase 7) — the panel now runs the real,
+ * provenance-aware `refreshDealIndustryFromCrm` (not the provenance-blind `hydrateDealIndustryFromCrm`
+ * this test previously mocked), so it is mocked at that boundary here instead. The derivation itself
+ * (deriveDealIndustryHydration/deriveDealIndustryRefresh) has its own unit tests.
  */
 
 const mockState = vi.hoisted(() => ({
@@ -58,9 +60,9 @@ vi.mock('./write/bridgeOrgToClientRelationship', async (importOriginal) => {
 
 // The governed CRM/NAICS → Industry orchestrator, mocked at the boundary so each
 // test controls the derived outcome (SDK-free, deterministic).
-const hydrateMock = vi.hoisted(() => vi.fn());
+const refreshMock = vi.hoisted(() => vi.fn());
 vi.mock('../deals/hydrateDealIndustryFromCrm', () => ({
-  hydrateDealIndustryFromCrm: hydrateMock,
+  refreshDealIndustryFromCrm: refreshMock,
 }));
 
 import { DealCrmRelationshipPanel } from './CrmRelationshipPanel';
@@ -106,10 +108,11 @@ beforeEach(() => {
 
 describe('DealCrmRelationshipPanel — CRM link → governed Industry hydration', () => {
   it('refreshes the whole cockpit AND auto-hydrates a valid CRM-derived Industry on link', async () => {
-    hydrateMock.mockResolvedValue({
-      hydration: {
-        criterionSatisfied: true,
+    refreshMock.mockResolvedValue({
+      decision: {
+        action: 'apply',
         source: 'crm-derived',
+        industryToApply: 'Other',
         status: 'CRM-derived · NAICS 561110 · Administrative → Other',
         unavailable: false,
       },
@@ -132,11 +135,12 @@ describe('DealCrmRelationshipPanel — CRM link → governed Industry hydration'
       }),
     );
 
-    // The derivation was run against the newly-linked client relationship id and
-    // the deal's current (empty) Industry.
-    await waitFor(() => expect(hydrateMock).toHaveBeenCalledTimes(1));
-    expect(hydrateMock.mock.calls[0][0]).toBe('client-guid-1');
-    expect(hydrateMock.mock.calls[0][1]).toBeUndefined();
+    // The derivation was run against the newly-linked client relationship id, the deal's current
+    // (empty) Industry, and its durably-persisted prior source (none — nothing saved yet).
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(1));
+    expect(refreshMock.mock.calls[0][0]).toBe('client-guid-1');
+    expect(refreshMock.mock.calls[0][1]).toBeUndefined();
+    expect(refreshMock.mock.calls[0][2]).toBe('none');
 
     // The verified CRM-derived Industry patch is merged into the cockpit (no reload).
     await waitFor(() =>
@@ -150,9 +154,9 @@ describe('DealCrmRelationshipPanel — CRM link → governed Industry hydration'
   });
 
   it('a linked company with no NAICS stays unresolved and exposes the CRM remediation + a no-reload re-check', async () => {
-    hydrateMock.mockResolvedValue({
-      hydration: {
-        criterionSatisfied: false,
+    refreshMock.mockResolvedValue({
+      decision: {
+        action: 'unresolved',
         source: 'none',
         status: 'Industry/NAICS unresolved — the linked CRM company has no NAICS code.',
         remediation: { kind: 'edit-crm-naics', organizationId: 'org-9' },
@@ -164,7 +168,7 @@ describe('DealCrmRelationshipPanel — CRM link → governed Industry hydration'
     const user = await linkAcme();
 
     // No Industry was written (nothing to apply) — only the client-link refresh.
-    await waitFor(() => expect(hydrateMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(1));
     expect(mockState.applyVerifiedDealPatch).not.toHaveBeenCalledWith(
       expect.objectContaining({ industry: expect.anything() }),
     );
@@ -177,6 +181,6 @@ describe('DealCrmRelationshipPanel — CRM link → governed Industry hydration'
     // Re-check re-runs the governed derivation without a full reload (the banker
     // returns after fixing NAICS in the CRM record and clicks re-check).
     await user.click(screen.getByRole('button', { name: /Check the CRM-derived Industry/i }));
-    await waitFor(() => expect(hydrateMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(2));
   });
 });

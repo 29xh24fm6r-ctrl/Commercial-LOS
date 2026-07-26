@@ -18,6 +18,11 @@ export function renderClosingDocumentContent(
   if (facts.borrowerLegalName) lines.push(`Borrower: ${facts.borrowerLegalName}`);
   if (facts.product) lines.push(`Product: ${facts.product}`);
   if (typeof facts.loanAmount === 'number') lines.push(`Loan amount: ${facts.loanAmount}`);
+  // N-25 remediation (Production Remediation Factory Arc Phase 8) — display-only; no template
+  // requires these, so their absence never blocks generation (see closingDocumentTypes.ts).
+  if (facts.loanPurpose) lines.push(`Loan purpose: ${facts.loanPurpose}`);
+  if (typeof facts.loanTermMonths === 'number') lines.push(`Loan term: ${facts.loanTermMonths} months`);
+  if (facts.ownershipStructure) lines.push(`Ownership structure: ${facts.ownershipStructure}`);
   if (facts.closingDate) lines.push(`Closing date: ${facts.closingDate}`);
   if (facts.jurisdiction) lines.push(`Jurisdiction: ${facts.jurisdiction}`);
   if (facts.collateralDescription) lines.push(`Collateral: ${facts.collateralDescription}`);

@@ -81,6 +81,31 @@ describe('mapDealToExistingLoanInput', () => {
     expect(input).toBeNull();
   });
 
+  // N-25 remediation (Production Remediation Factory Arc Phase 8) — loanTermMonths/loanPurpose
+  // already existed on the deal (Factory Arc Phase 3) and ExistingLoanInput already has matching
+  // termMonths/purpose fields (existingLoanEntryAdapter.ts); they were simply never wired together.
+  it('N-25: maps loan term months and loan purpose onto the boarded-loan input when the deal has them', () => {
+    const input = mapDealToExistingLoanInput({
+      deal: deal({ loanTermMonths: 60, loanPurpose: 'Acquisition of commercial property' }),
+      authorized: true,
+      actorEmail: 'banker@oldglorybank.com',
+      actorSystemUserId: 'sys-1',
+    });
+    expect(input!.termMonths).toBe(60);
+    expect(input!.purpose).toBe('Acquisition of commercial property');
+  });
+
+  it('N-25: leaves term/purpose undefined rather than fabricated when the deal never captured them', () => {
+    const input = mapDealToExistingLoanInput({
+      deal: deal(),
+      authorized: true,
+      actorEmail: 'banker@oldglorybank.com',
+      actorSystemUserId: 'sys-1',
+    });
+    expect(input!.termMonths).toBeUndefined();
+    expect(input!.purpose).toBeUndefined();
+  });
+
   it('passes through the unauthorized/unresolved actor state honestly rather than defaulting to authorized', () => {
     const input = mapDealToExistingLoanInput({
       deal: deal(),

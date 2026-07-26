@@ -602,6 +602,50 @@ describe('updateDealProfile — risk rating / underwriting recommendation inputs
   });
 });
 
+describe('updateDealProfile — CRM industry projection inputs (Production Remediation Factory Arc Phase 7, N-22/N-23)', () => {
+  it('writes cr664_crmindustryprojection (text) and returns the verified JSON string (audited)', async () => {
+    const { deps, store, calls } = fakeDeps();
+    const json = JSON.stringify({ naicsCode: '722511', naicsTitle: 'Full-Service Restaurants' });
+    const out = await updateDealProfile(input({ crmIndustryProjectionInputs: json }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_crmindustryprojection: json });
+    expect(calls.audit).toBe(1);
+    if (out.kind === 'updated') {
+      expect(out.verified.crmIndustryProjectionInputs).toBe(json);
+      expect(out.changedLabels).toContain('CRM Industry Projection');
+    }
+  });
+
+  it('can be written in the same governed call as industry itself', async () => {
+    const { deps, store } = fakeDeps();
+    const json = JSON.stringify({ naicsCode: '333111' });
+    const out = await updateDealProfile(input({ industry: 'Manufacturing', crmIndustryProjectionInputs: json }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toMatchObject({ cr664_industry: 788190000, cr664_crmindustryprojection: json });
+  });
+
+  it('rejects a payload over the 1,048,576-char Memo ceiling (no write)', async () => {
+    const tooLong = 'A'.repeat(1_048_577);
+    const { deps, calls } = fakeDeps();
+    const out = await updateDealProfile(input({ crmIndustryProjectionInputs: tooLong }), deps);
+    expect(out.kind).toBe('invalid-input');
+    expect(calls.update).toBe(0);
+  });
+
+  it('fails closed (readback-mismatch) when the saved JSON does not read back as written', async () => {
+    const { deps } = fakeDeps({ readDeal: async () => ({ success: true, row: { cr664_crmindustryprojection: '{"naicsCode":"111111"}' } }) });
+    const out = await updateDealProfile(input({ crmIndustryProjectionInputs: JSON.stringify({ naicsCode: '722511' }) }), deps);
+    expect(out.kind).toBe('readback-mismatch');
+  });
+
+  it('clears the saved projection when the patch value is null', async () => {
+    const { deps, store } = fakeDeps({ readDeal: async () => ({ success: true, row: { cr664_crmindustryprojection: null } }) });
+    const out = await updateDealProfile(input({ crmIndustryProjectionInputs: null }), deps);
+    expect(out.kind).toBe('updated');
+    expect(store.body).toEqual({ cr664_crmindustryprojection: null });
+  });
+});
+
 describe('updateDealProfile — write-boundary discipline (source)', () => {
   const SRC = readFileSync(resolve(__dirname, 'updateDealProfile.ts'), 'utf8');
 

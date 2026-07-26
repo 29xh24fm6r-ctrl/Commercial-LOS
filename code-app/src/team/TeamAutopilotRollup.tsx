@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTeamData, type AsyncResult } from './TeamDataProvider';
+import { formatCalendarDate, parseCalendarDate } from '../shared/formatters';
 import type {
   TeamDealRow,
   TeamTaskRow,
@@ -470,14 +471,8 @@ function ErrorBlock({ title, detail }: { title: string; detail: string }) {
 }
 
 function formatTargetClose(iso: string | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  if (!parseCalendarDate(iso)) return '—';
+  return formatCalendarDate(iso);
 }
 
 function formatLedgerDate(iso: string): string {

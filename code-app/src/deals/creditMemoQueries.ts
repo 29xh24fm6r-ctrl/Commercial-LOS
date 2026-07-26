@@ -1,5 +1,6 @@
 import { Cr664_creditmemo1sService } from '../generated/services/Cr664_creditmemo1sService';
 import { Cr664_creditmemodraftsectionsService } from '../generated/services/Cr664_creditmemodraftsectionsService';
+import { ALL_SECTION_KEYS } from './creditMemoDraft';
 
 export type CreditMemoStatusKey = 'draft' | 'final' | 'stale';
 export type CreditMemoReviewStatusKey = 'Pending' | 'Reviewed' | 'NeedsChanges';
@@ -22,6 +23,17 @@ export interface CreditMemoSummary {
   modifiedOn: string | undefined;
   borrowerSafe: boolean;
   textPreview: string | undefined;
+  /**
+   * N-08 remediation (Production Remediation Factory Arc Phase 5) — the full, untruncated
+   * cr664_memotext. Before this fix, only `textPreview` (240 chars) was ever fetched or
+   * rendered anywhere, and the consistency checker (checkCreditMemoConsistency.ts) matched
+   * borrower/stage/amount against that same 240-char string — a realistic memo header is
+   * ~300 chars, so the stage/client fields routinely fell past the cutoff and produced false
+   * "does not reference" findings even though the persisted text plainly contains them.
+   * Optional so existing hand-built `CreditMemoSummary` test fixtures keep compiling without
+   * edits; `loadDealCreditMemo`, the one real producer, always sets it.
+   */
+  fullText?: string | undefined;
 }
 
 /**
@@ -38,6 +50,8 @@ export interface CreditMemoSectionItem {
   lastGeneratedAt: string | undefined;
   modifiedOn: string | undefined;
   textPreview: string | undefined;
+  /** N-08 remediation — the full, untruncated cr664_drafttext for this section (see CreditMemoSummary.fullText). */
+  fullText?: string | undefined;
 }
 
 export interface CreditMemoData {
@@ -53,6 +67,13 @@ function preview(text: string | undefined): string | undefined {
   if (!trimmed) return undefined;
   if (trimmed.length <= PREVIEW_MAX_CHARS) return trimmed;
   return trimmed.slice(0, PREVIEW_MAX_CHARS).trimEnd() + '…';
+}
+
+const SECTION_KEY_ORDER = new Map(ALL_SECTION_KEYS.map((key, index) => [key, index]));
+
+/** Canonical section position (SECTION_OPTIONS order); unrecognized keys sort last. */
+function canonicalSectionOrder(sectionKey: string): number {
+  return SECTION_KEY_ORDER.get(sectionKey as (typeof ALL_SECTION_KEYS)[number]) ?? Number.POSITIVE_INFINITY;
 }
 
 /** Turn "executive_summary" / "borrower-overview" / "BorrowerOverview"
@@ -110,18 +131,27 @@ export async function loadDealCreditMemo(dealId: string): Promise<CreditMemoData
     modifiedOn: m.modifiedon,
     borrowerSafe: m.cr664_borrowersafe === true,
     textPreview: preview(m.cr664_memotext),
+    fullText: m.cr664_memotext,
   }));
 
-  const sections: CreditMemoSectionItem[] = (sectionsResult.data ?? []).map((s) => ({
-    id: s.cr664_creditmemodraftsectionid,
-    sectionKey: s.cr664_sectionkey,
-    sectionLabel: humanizeSectionKey(s.cr664_sectionkey),
-    reviewStatus: s.cr664_reviewstatusname,
-    reviewStatusKey: lookupReviewStatusKey(s.cr664_reviewstatus),
-    lastGeneratedAt: s.cr664_lastgeneratedat,
-    modifiedOn: s.modifiedon,
-    textPreview: preview(s.cr664_drafttext),
-  }));
+  const sections: CreditMemoSectionItem[] = (sectionsResult.data ?? [])
+    .map((s) => ({
+      id: s.cr664_creditmemodraftsectionid,
+      sectionKey: s.cr664_sectionkey,
+      sectionLabel: humanizeSectionKey(s.cr664_sectionkey),
+      reviewStatus: s.cr664_reviewstatusname,
+      reviewStatusKey: lookupReviewStatusKey(s.cr664_reviewstatus),
+      lastGeneratedAt: s.cr664_lastgeneratedat,
+      modifiedOn: s.modifiedon,
+      textPreview: preview(s.cr664_drafttext),
+      fullText: s.cr664_drafttext,
+    }))
+    // N-09 remediation — the live query ordered alphabetically by section key
+    // (`cr664_sectionkey asc`), not the banker's logical/canonical section order
+    // (Executive Summary, Borrower Overview, Loan Request, ...). Re-sort client-side
+    // by the canonical order; a section key the registry doesn't recognize (a legacy
+    // or hand-entered row) sorts after every known section rather than being dropped.
+    .sort((a, b) => canonicalSectionOrder(a.sectionKey) - canonicalSectionOrder(b.sectionKey));
 
   return { memos, sections };
 }

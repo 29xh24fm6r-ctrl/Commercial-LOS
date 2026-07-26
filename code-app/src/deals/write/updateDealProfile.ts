@@ -95,7 +95,8 @@ export type DealProfileField =
   | 'ownershipStructure'
   | 'globalCashFlowInputs'
   | 'riskRatingInputs'
-  | 'underwritingRecommendationInputs';
+  | 'underwritingRecommendationInputs'
+  | 'crmIndustryProjectionInputs';
 
 /** A scalar patch value: a string to set, or `null` to clear. */
 export type DealProfilePatch = Partial<Record<DealProfileField, string | null>>;
@@ -157,6 +158,7 @@ export const DEAL_PROFILE_FIELD_SPECS: Readonly<Record<DealProfileField, FieldSp
   globalCashFlowInputs: { kind: 'text', writeKey: 'cr664_financialspreadinputs', readKey: 'cr664_financialspreadinputs', label: 'Global Cash Flow inputs', maxLength: 1_048_576 },
   riskRatingInputs: { kind: 'text', writeKey: 'cr664_riskratinginputs', readKey: 'cr664_riskratinginputs', label: 'Risk Rating inputs', maxLength: 1_048_576 },
   underwritingRecommendationInputs: { kind: 'text', writeKey: 'cr664_underwritingrecommendationinputs', readKey: 'cr664_underwritingrecommendationinputs', label: 'Underwriting Recommendation inputs', maxLength: 1_048_576 },
+  crmIndustryProjectionInputs: { kind: 'text', writeKey: 'cr664_crmindustryprojection', readKey: 'cr664_crmindustryprojection', label: 'CRM Industry Projection', maxLength: 1_048_576 },
 };
 
 /**
@@ -220,6 +222,8 @@ export interface VerifiedProfilePatch {
   readonly riskRatingInputs?: string | undefined;
   /** Opaque serialized UnderwritingRecommendationFormState JSON — see workflow/underwritingDeepFacts.ts. */
   readonly underwritingRecommendationInputs?: string | undefined;
+  /** Opaque serialized CrmIndustryProjectionRecord JSON — see crmIndustryProjectionRecord.ts. */
+  readonly crmIndustryProjectionInputs?: string | undefined;
 }
 
 export type UpdateDealProfileOutcome =

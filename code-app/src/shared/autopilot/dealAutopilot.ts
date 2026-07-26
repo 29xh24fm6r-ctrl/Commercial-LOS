@@ -30,6 +30,7 @@ import {
   STAGE_AGING_AT_RISK_DAYS,
 } from '../analytics/derivedAnalytics';
 import { PENDING_REVIEW_AT_RISK_DAYS } from '../workQueue/primitives';
+import { daysUntilCalendarDate, isPastCalendarDate } from '../formatters';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** Stale-activity threshold for the low-priority "no recent activity"
@@ -139,8 +140,7 @@ export function deriveNextBestActions(
   // High-priority: overdue tasks
   const overdueTasks = input.openTasks.filter((t) => {
     if (t.completed) return false;
-    const due = parseIso(t.dueDate);
-    return due != null && due < nowMs;
+    return isPastCalendarDate(t.dueDate, now);
   });
   if (overdueTasks.length > 0) {
     candidates.push({
@@ -165,10 +165,9 @@ export function deriveNextBestActions(
   // no reviewer)
   const pendingReview = input.receivedDocuments.filter((d) => {
     if (d.reviewer && d.reviewer.trim().length > 0) return false;
-    const recMs = parseIso(d.receivedDate);
-    if (recMs == null) return false;
-    const daysSince = Math.floor((nowMs - recMs) / MS_PER_DAY);
-    return daysSince >= PENDING_REVIEW_AT_RISK_DAYS;
+    const receivedDaysAgo = daysUntilCalendarDate(d.receivedDate, now);
+    if (receivedDaysAgo === undefined) return false;
+    return -receivedDaysAgo >= PENDING_REVIEW_AT_RISK_DAYS;
   });
   if (pendingReview.length > 0) {
     candidates.push({
@@ -191,15 +190,12 @@ export function deriveNextBestActions(
 
   // Closing-soon signal: split into HIGH when activity is also stale,
   // MEDIUM otherwise.
-  const targetMs = parseIso(input.deal.targetCloseDate);
+  const closeDays = daysUntilCalendarDate(input.deal.targetCloseDate, now);
   let closingSoon = false;
   let daysUntilClose = Number.POSITIVE_INFINITY;
-  if (targetMs != null) {
-    const days = Math.floor((targetMs - nowMs) / MS_PER_DAY);
-    if (days >= 0 && days <= CLOSING_SOON_DAYS) {
-      closingSoon = true;
-      daysUntilClose = days;
-    }
+  if (closeDays !== undefined && closeDays >= 0 && closeDays <= CLOSING_SOON_DAYS) {
+    closingSoon = true;
+    daysUntilClose = closeDays;
   }
   const lastActivityMs = parseIso(input.mostRecentActivityIso);
   const daysSinceActivity =
@@ -237,9 +233,9 @@ export function deriveNextBestActions(
   }
 
   // Medium-priority: stage at-risk
-  const stageEntryMs = parseIso(input.deal.stageEntryDate);
-  if (stageEntryMs != null) {
-    const daysInStage = Math.floor((nowMs - stageEntryMs) / MS_PER_DAY);
+  const stageDays = daysUntilCalendarDate(input.deal.stageEntryDate, now);
+  if (stageDays !== undefined) {
+    const daysInStage = -stageDays;
     if (daysInStage >= STAGE_AGING_AT_RISK_DAYS) {
       candidates.push({
         id: 'stage-aging',
