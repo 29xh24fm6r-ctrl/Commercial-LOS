@@ -8,6 +8,8 @@ import { createDataverseFundingAuthorizationStore } from '../funding/fundingAuth
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import { createDataverseCreditApprovalDecisionStore } from '../creditApproval/creditApprovalDecisionStore';
 import type { CreditApprovalDecisionRecord } from '../workflow/creditApprovalDecisionTypes';
+import { createDataverseCommitmentStore } from '../commitment/commitmentRecordStore';
+import type { CommitmentRecord } from '../workflow/commitmentRecordTypes';
 import {
   timed,
   recordRefresh,
@@ -57,7 +59,9 @@ export type DealDataKey =
   | 'fundingAuthorization'
   | 'after-funding-confirmed'
   | 'creditApprovalDecisions'
-  | 'after-credit-approval-decision-submitted';
+  | 'after-credit-approval-decision-submitted'
+  | 'commitments'
+  | 'after-commitment-action-submitted';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -92,6 +96,17 @@ export interface DealData {
    * double omitting it is equivalent to an unresolved fact — the requirement fails closed as unmet.
    */
   creditApprovalDecisions?: AsyncResult<readonly CreditApprovalDecisionRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream D. The deal's Commitment Record history, feeding
+   * COMMITMENT:commitment_issued / :borrower_acceptance (loanWorkflowRequirementEngine.ts) so the
+   * Stage Map / stage-advance write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `creditApprovalDecisions` above); the real DealDataProvider ALWAYS supplies it. A
+   * test double omitting it is equivalent to an unresolved fact — the requirement fails closed as
+   * unmet.
+   */
+  commitments?: AsyncResult<readonly CommitmentRecord[]>;
   refresh: (key: DealDataKey) => void;
   /**
    * Merge readback-verified deal fields into the in-context deal row. ONLY the
@@ -156,6 +171,9 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   const [creditApprovalDecisions, setCreditApprovalDecisions] = useState<
     AsyncResult<readonly CreditApprovalDecisionRecord[]>
   >({ kind: 'loading' });
+  const [commitments, setCommitments] = useState<AsyncResult<readonly CommitmentRecord[]>>({
+    kind: 'loading',
+  });
 
   // Used by the unmount cleanup AND by refresh() so a refresh fired
   // after unmount cannot late-write into stale state. Lives on a ref
@@ -228,6 +246,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
     bind(setCreditApprovalDecisions, p);
     return p;
   }
+  function reloadCommitments(): Promise<unknown> {
+    setCommitments({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadCommitments', async () => {
+      const res = await createDataverseCommitmentStore().listCommitmentsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load commitment records.');
+      return res.commitments ?? [];
+    });
+    bind(setCommitments, p);
+    return p;
+  }
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -248,6 +276,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
       reloadActivity(),
       reloadFundingAuthorization(),
       reloadCreditApprovalDecisions(),
+      reloadCommitments(),
     ]).then(() => {
       const endedAt =
         typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -375,6 +404,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         reloadCreditApprovalDecisions();
         reloadActivity();
         break;
+      case 'commitments':
+        reloadCommitments();
+        break;
+      case 'after-commitment-action-submitted':
+        // Final LOS Completion arc — Workstream D: submitCommitmentAction writes both the durable
+        // commitment record and a best-effort NoteLogged timeline event, so both must refresh for
+        // the Stage Map / Attention Console to see the new commitment state and its activity.
+        reloadCommitments();
+        reloadActivity();
+        break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -389,6 +428,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         activity,
         fundingAuthorization,
         creditApprovalDecisions,
+        commitments,
         refresh,
         applyVerifiedDealPatch,
       }}

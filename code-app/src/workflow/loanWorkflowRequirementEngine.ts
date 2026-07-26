@@ -26,6 +26,7 @@ import {
   type UnderwritingRecommendationRecord,
 } from './underwritingDeepFacts';
 import { evaluateCreditApprovalDecisionReadiness, type CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
+import { evaluateCommitmentReadiness, type CommitmentRecord } from './commitmentRecordTypes';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type {
   CanonicalRequirement,
@@ -83,6 +84,13 @@ export interface WorkflowRequirementFacts {
    * unmet in either case, never fabricated as met.
    */
   readonly creditApprovalDecisions?: readonly CreditApprovalDecisionRecord[];
+  /**
+   * Final LOS Completion arc (Workstream D/K) — the deal's Commitment Record history (supplied by a
+   * loader; see DealDataProvider.tsx's `commitments`). Absent/empty means either the records
+   * haven't loaded yet or none have genuinely been recorded — COMMITMENT:commitment_issued/
+   * :borrower_acceptance both fail closed as unmet in either case, never fabricated as met.
+   */
+  readonly commitments?: readonly CommitmentRecord[];
 }
 
 /**
@@ -118,6 +126,11 @@ export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: Wo
         : req.id === 'CREDIT_APPROVAL:approval_authority'
           ? r.authorityRecorded
           : r.conditionsDocumented;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (req.id === 'COMMITMENT:commitment_issued' || req.id === 'COMMITMENT:borrower_acceptance') {
+    const r = evaluateCommitmentReadiness(facts.commitments, facts.deal.id);
+    const fact = req.id === 'COMMITMENT:commitment_issued' ? r.commitmentIssued : r.borrowerAcceptance;
     return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
   }
   // Tracked deep fact without a model yet → fail closed (should not happen in Phase 3).

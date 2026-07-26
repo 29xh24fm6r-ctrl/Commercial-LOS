@@ -32,6 +32,7 @@ import { DealDataProvider } from './DealDataProvider';
 import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
 import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
 import { DealCreditApprovalDecisionPanelConnected } from './DealCreditApprovalDecisionPanelConnected';
+import { DealCommitmentPanelConnected } from './DealCommitmentPanelConnected';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
 import { DealPortfolioBoardingStatusPanel } from '../workflow/DealPortfolioBoardingStatusPanel';
 import { DealWorkflowRoutingPanel } from '../workflow/DealWorkflowRoutingPanel';
@@ -308,6 +309,20 @@ export function BankerDealWorkspace({
                   bankerId={bankerId}
                   creditAuthority={creditAuthority}
                   assignedBankerId={deal.assignedBankerId}
+                />
+              </div>
+              {/* Final LOS Completion arc (Workstream D) — durable Commitment Record: issuance +
+                  borrower response. */}
+              <div
+                id="commitment"
+                data-deal-card="commitment"
+                data-cockpit-anchor="commitment"
+              >
+                <DealCommitmentPanelConnected
+                  dealId={deal.id}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
                 />
               </div>
               <div

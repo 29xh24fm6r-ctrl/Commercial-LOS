@@ -244,9 +244,13 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   tracked('CREDIT_APPROVAL:approval_decision', 'CREDIT_APPROVAL', 'approval', 'Approval decision recorded', 'Approval', 'approver', 'approval_record', 'cr664_creditapprovaldecision', 'No approved credit approval decision has been recorded for this deal.'),
   tracked('CREDIT_APPROVAL:approval_authority', 'CREDIT_APPROVAL', 'approval', 'Authorized approver / committee approval', 'Approval', 'approver', 'approval_record', 'cr664_creditapprovaldecision', 'The recorded credit approval decision has no authority tier recorded.'),
   tracked('CREDIT_APPROVAL:approval_conditions', 'CREDIT_APPROVAL', 'approval', 'Conditions of approval documented', 'Approval', 'credit_officer', 'condition_record', 'cr664_creditapprovaldecision', 'No approved credit approval decision has been recorded for this deal.'),
-  // Commitment → Documentation (ARC PR 13)
-  untracked('COMMITMENT:commitment_issued', 'COMMITMENT', 'closing', 'Commitment / term sheet issued', 'Commitment', 'loan_ops', 'review_record', 'commitment issuance record not yet implemented (ARC PR 13)'),
-  untracked('COMMITMENT:borrower_acceptance', 'COMMITMENT', 'closing', 'Borrower acceptance recorded', 'Commitment', 'banker', 'review_record', 'borrower acceptance record not yet implemented (ARC PR 13)'),
+  // Commitment → Documentation (ARC PR 13). Final LOS Completion arc (Workstream D) flips these
+  // tracked — submitCommitmentAction.ts / commitmentRecordStore.ts now provide a real, durable,
+  // deal-scoped Commitment Record (cr664_commitmentrecord, see
+  // scripts/schema-migrations/final-arc-commitment-record/), evaluated via
+  // evaluateCommitmentReadiness in loanWorkflowRequirementEngine.ts.
+  tracked('COMMITMENT:commitment_issued', 'COMMITMENT', 'closing', 'Commitment / term sheet issued', 'Commitment', 'loan_ops', 'review_record', 'cr664_commitmentrecord', 'No commitment letter has been issued for this deal.'),
+  tracked('COMMITMENT:borrower_acceptance', 'COMMITMENT', 'closing', 'Borrower acceptance recorded', 'Commitment', 'banker', 'review_record', 'cr664_commitmentrecord', 'The borrower has not yet accepted a commitment for this deal.'),
   // Documentation → Closing & Funding (ARC PR 14)
   untracked('DOCUMENTATION:conditions_precedent', 'DOCUMENTATION', 'closing', 'Conditions precedent cleared', 'Documentation', 'loan_ops', 'condition_record', 'conditions-precedent records not yet implemented (ARC PR 14)'),
   untracked('DOCUMENTATION:collateral_verified', 'DOCUMENTATION', 'closing', 'Collateral verified', 'Documentation', 'closer', 'condition_record', 'collateral verification record not yet implemented (ARC PR 14)'),
