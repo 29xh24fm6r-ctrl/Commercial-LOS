@@ -9,6 +9,7 @@ import { Badge } from '../shared/Badge';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import { CANONICAL_STAGES, recognizeCanonicalStage } from '../workflow/stageOrderingContract';
 import { STALE_ACTIVITY_DAYS } from '../shared/analytics/bankerPersonalActivity';
+import { formatCalendarDate, parseCalendarDate, daysUntilCalendarDate, isPastCalendarDate } from '../shared/formatters';
 
 /**
  * Remediation 2026-07-22 (Workstream B) — the board's lanes are now built from the same
@@ -468,20 +469,17 @@ function countSignals(deals: PipelineDeal[]): {
   let closingThisMonth = 0;
   let pastTargetClose = 0;
   for (const d of deals) {
-    if (!d.targetCloseDate) continue;
-    const t = new Date(d.targetCloseDate).getTime();
-    if (Number.isNaN(t)) continue;
+    const target = parseCalendarDate(d.targetCloseDate);
+    if (!target) continue;
+    const t = target.getTime();
     if (t >= monthStart && t < monthEnd) closingThisMonth++;
-    if (t < now.getTime()) pastTargetClose++;
+    if (isPastCalendarDate(d.targetCloseDate, now)) pastTargetClose++;
   }
   return { closingThisMonth, pastTargetClose };
 }
 
 function isOverdueDate(iso: string | undefined): boolean {
-  if (!iso) return false;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return false;
-  return d.getTime() < Date.now();
+  return isPastCalendarDate(iso);
 }
 
 /**
@@ -518,15 +516,11 @@ function formatCompactCurrency(amount: number): string {
 }
 
 function formatTargetClose(iso: string | undefined): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  const absolute = d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-  const days = Math.round((d.getTime() - Date.now()) / MS_PER_DAY);
+  const target = parseCalendarDate(iso);
+  if (!target) return null;
+  const absolute = formatCalendarDate(iso);
+  const days = daysUntilCalendarDate(iso);
+  if (days === undefined) return absolute;
   if (days < 0) return `${absolute} (${Math.abs(days)}d past)`;
   if (days === 0) return `${absolute} (today)`;
   if (days === 1) return `${absolute} (tomorrow)`;

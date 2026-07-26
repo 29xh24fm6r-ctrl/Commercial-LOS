@@ -5,6 +5,7 @@ import { dealTeamSeverity, type DealSeverity } from './teamSignals';
 import { Card, CardHeader } from '../shared/Card';
 import { Badge, StatusDot } from '../shared/Badge';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
+import { formatCalendarDate, parseCalendarDate } from '../shared/formatters';
 
 interface FlaggedDeal {
   deal: TeamDeal;
@@ -111,10 +112,8 @@ function ErrorBlock({ title, detail }: { title: string; detail: string }) {
 }
 
 function formatDate(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return undefined;
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  if (!parseCalendarDate(iso)) return undefined;
+  return formatCalendarDate(iso);
 }
 
 const styles: Record<string, React.CSSProperties> = {

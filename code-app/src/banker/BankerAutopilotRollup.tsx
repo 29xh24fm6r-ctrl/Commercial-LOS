@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBanker } from './BankerContext';
+import { formatCalendarDate, parseCalendarDate } from '../shared/formatters';
 import {
   loadBankerWorkQueueData,
   type BankerWorkQueueData,
@@ -465,14 +466,8 @@ function ErrorBlock({ title, detail }: { title: string; detail: string }) {
 }
 
 function formatTargetClose(iso: string | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  if (!parseCalendarDate(iso)) return '—';
+  return formatCalendarDate(iso);
 }
 
 const styles: Record<string, React.CSSProperties> = {

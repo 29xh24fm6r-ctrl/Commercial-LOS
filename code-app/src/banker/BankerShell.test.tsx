@@ -417,6 +417,45 @@ describe('Phase 125F — Lending OS shell layout', () => {
     expect(screen.queryByText(/Outlook is not wired/i)).toBeNull();
   });
 
+  it('N-24 remediation — Closing Soon renders the stored calendar day, never the prior day, west of UTC', async () => {
+    const originalTz = process.env.TZ;
+    process.env.TZ = 'America/New_York';
+    vi.useFakeTimers({ now: new Date(2026, 8, 8, 9, 0, 0), toFake: ['Date'] }); // Sep 8, 2026, 9am local
+    try {
+      setUpBanker();
+      loadMock.mockResolvedValue({
+        ...emptyData(),
+        deals: [
+          {
+            id: 'deal-tz',
+            name: 'TZ Closing Deal',
+            clientName: 'Acme Co',
+            stage: 'Underwriting',
+            status: 'Active',
+            amount: 1_000_000,
+            targetCloseDate: '2026-09-10',
+            lastActivityOn: undefined,
+            stageEntryDate: undefined,
+            isClosed: false,
+            collateralSummary: undefined,
+          },
+        ],
+      });
+      renderShell();
+
+      await waitFor(() => {
+        expect(screen.getByText('TZ Closing Deal')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Sep 10, 2026/)).toBeInTheDocument();
+      expect(screen.queryByText(/Sep 9, 2026/)).toBeNull();
+      expect(screen.getByText(/in 2d/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      process.env.TZ = originalTz;
+    }
+  });
+
   it('switching tabs swaps the rendered card without leaking previous panel content', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());

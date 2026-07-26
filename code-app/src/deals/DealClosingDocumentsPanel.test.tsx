@@ -59,6 +59,19 @@ describe('DealClosingDocumentsPanel', () => {
     await waitFor(() => expect(container.querySelector('[data-testid="closing-document-generated-closing_checklist"]')).not.toBeNull());
   });
 
+  // N-25 remediation (Production Remediation Factory Arc Phase 8)
+  it('N-25: the preview includes loan purpose/term/ownership structure when the deal has them', async () => {
+    const user = userEvent.setup();
+    const deal = baseDeal({ loanPurpose: 'Acquisition of commercial property', loanTermMonths: 60, ownershipStructure: 'LLC' });
+    const { container } = render(<DealClosingDocumentsPanel deal={deal} authorized={true} actorEmail="banker@bank.test" />);
+    const row = container.querySelector('[data-closing-document-row="closing_checklist"]') as HTMLElement;
+    const previewBtn = Array.from(row.querySelectorAll('button')).find((b) => /preview/i.test(b.textContent ?? '')) as HTMLButtonElement;
+    await user.click(previewBtn);
+    expect(row.textContent).toMatch(/Loan purpose: Acquisition of commercial property/);
+    expect(row.textContent).toMatch(/Loan term: 60 months/);
+    expect(row.textContent).toMatch(/Ownership structure: LLC/);
+  });
+
   it('disables generation entirely when the actor is not authorized', () => {
     const { container } = render(<DealClosingDocumentsPanel deal={baseDeal()} authorized={false} actorEmail={undefined} />);
     const row = container.querySelector('[data-closing-document-row="closing_checklist"]') as HTMLElement;

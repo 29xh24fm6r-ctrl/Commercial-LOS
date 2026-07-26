@@ -21,23 +21,21 @@ import { WidgetHeader } from '../shared/cockpitPrimitives';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
- * PR 106 -- Risk Rating + Underwriting Recommendation capture. The pure
- * readiness policies (workflow/underwritingDeepFacts.ts, ARC Phase 3) were
- * fully built and tested but never had a UI to actually produce a
- * RiskRatingRecord / UnderwritingRecommendationRecord -- that doc's own
- * comment says these facts stay `tracked: false` (never enforced) "until a
- * maker adds the schema + a loader supplies the fact." This panel lets an
- * underwriter actually assign a rating and record a recommendation.
+ * PR 106 -- Risk Rating + Underwriting Recommendation capture. This panel lets an underwriter
+ * actually assign a rating and record a recommendation.
  *
  * Factory Arc Phase 5 wired real persistence: each record serializes to its own PR106-provisioned
  * Memo/JSON column (cr664_riskratinginputs / cr664_underwritingrecommendationinputs) through the
  * same governed updateDealProfile.ts pipeline as the other deal-profile fields (see that file's
  * header comment for why the raw-column-name technique is safe without waiting on the
- * operator-gated SDK regeneration). Persisting the record does NOT flip the CREDIT_APPROVAL gate's
- * `tracked: false` status -- that stays a separate, explicitly-reviewed decision (fabricating
- * durable enforcement backed only by this panel's write would be exactly the kind of unreviewed
- * gate change this codebase's governance discipline exists to prevent). The readiness preview
- * below shows what the gate WOULD say once that separate decision lands.
+ * operator-gated SDK regeneration).
+ *
+ * Production Remediation Factory Arc Phase 6 (N-14/N-15) flipped the Underwriting exit gate's
+ * `UNDERWRITING:risk_rating` / `UNDERWRITING:uw_recommendation` requirements `tracked: true` — the
+ * readiness line below is no longer a preview of a future decision, it is what the real gate says
+ * right now. The save handlers stamp `dealId`/actor/timestamp fresh on every save (never
+ * banker-editable) so a final rating or recommendation is durable and cannot silently satisfy the
+ * gate on a stale or blank rationale (see underwritingDeepFacts.ts's readiness functions).
  */
 
 const RATING_STATUSES: readonly RiskRatingStatus[] = ['draft', 'assigned', 'reviewed', 'approved'];
@@ -95,10 +93,14 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
       ratingValue: ratingValue.trim(),
       ratingScale: ratingScale.trim() || 'Internal scale',
       rationale: ratingRationale.trim() || undefined,
-      assignedBy: ratedBy,
+      assignedBy: ratedBy || actorEmail,
+      // N-14/N-15 remediation — the preview shows what saving RIGHT NOW would record (the actual
+      // save stamps its own timestamp fresh; see onSaveRating below), consistent with how assignedBy
+      // already previews the live actor rather than a previously-saved one.
+      assignedAtIso: new Date().toISOString(),
       status: ratingStatus,
     };
-  }, [dealId, ratingValue, ratingScale, ratingRationale, ratingStatus, ratedBy]);
+  }, [dealId, ratingValue, ratingScale, ratingRationale, ratingStatus, ratedBy, actorEmail]);
 
   const recommendationRecord: UnderwritingRecommendationRecord | undefined = useMemo(() => {
     if (recommendationRationale.trim().length === 0 && recommendationStatus === 'draft') return undefined;
@@ -106,13 +108,14 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
       dealId,
       decision,
       rationale: recommendationRationale.trim() || undefined,
-      underwriterActor: ratedBy,
+      underwriterActor: ratedBy || actorEmail,
+      recordedAtIso: new Date().toISOString(),
       status: recommendationStatus,
     };
-  }, [dealId, decision, recommendationRationale, recommendationStatus, ratedBy]);
+  }, [dealId, decision, recommendationRationale, recommendationStatus, ratedBy, actorEmail]);
 
-  const ratingReadiness = evaluateRiskRatingReadiness(ratingRecord);
-  const recommendationReadiness = evaluateUnderwritingRecommendationReadiness(recommendationRecord);
+  const ratingReadiness = evaluateRiskRatingReadiness(ratingRecord, dealId);
+  const recommendationReadiness = evaluateUnderwritingRecommendationReadiness(recommendationRecord, dealId);
 
   const ratingSaving = ratingSave.kind === 'saving';
   const recommendationSaving = recommendationSave.kind === 'saving';
@@ -125,6 +128,9 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
       ratingScale: ratingScale.trim(),
       rationale: ratingRationale.trim(),
       status: ratingStatus,
+      dealId,
+      assignedBy: ratedBy || actorEmail || '',
+      assignedAtIso: new Date().toISOString(),
     });
     try {
       const result = await updateDealProfile(
@@ -145,6 +151,9 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
       decision,
       rationale: recommendationRationale.trim(),
       status: recommendationStatus,
+      dealId,
+      underwriterActor: ratedBy || actorEmail || '',
+      recordedAtIso: new Date().toISOString(),
     });
     try {
       const result = await updateDealProfile(
@@ -163,9 +172,9 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
       <WidgetHeader title="Risk Rating & Underwriting Recommendation" subtitle="Assign a rating and record a recommendation before Credit Approval" />
       {authorized ? (
         <p style={styles.localOnlyNote} role="note" data-risk-rating-save-note>
-          Click Save to record the rating or recommendation on the deal. This does not change the
-          CREDIT_APPROVAL gate's enforcement (that stays a separate decision); the line below each
-          section previews what the gate would say once that decision lands.
+          Click Save to record the rating or recommendation on the deal. The line below each section
+          reflects what the Underwriting exit gate requires right now — a final rating or
+          recommendation needs a rationale, and blank rationale will not satisfy it.
         </p>
       ) : (
         <p style={styles.localOnlyNote} role="note" data-risk-rating-local-only-note>

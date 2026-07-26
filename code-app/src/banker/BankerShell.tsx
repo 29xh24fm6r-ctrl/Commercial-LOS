@@ -7,7 +7,7 @@ import {
 } from './workQueueQueries';
 import { boundedRetry } from '../shared/async/boundedRetry';
 import { deriveBankerPersonalActivity } from '../shared/analytics/bankerPersonalActivity';
-import { parseCalendarDate } from '../shared/formatters';
+import { parseCalendarDate, formatCalendarDate, daysUntilCalendarDate } from '../shared/formatters';
 import { PersonalActivitySummary } from './PersonalActivitySummary';
 import { BankerMorningCatchUp } from './BankerMorningCatchUp';
 import { BankerAutopilotRollup } from './BankerAutopilotRollup';
@@ -749,16 +749,11 @@ function formatTaskDue(iso: string | undefined): string {
 }
 
 function formatRelativeDate(iso: string | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  const absolute = d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-  const days = Math.round((d.getTime() - Date.now()) / 86_400_000);
-  if (days <= 0) return `today (${absolute})`;
+  const target = parseCalendarDate(iso);
+  if (!target) return '—';
+  const absolute = formatCalendarDate(iso);
+  const days = daysUntilCalendarDate(iso);
+  if (days === undefined || days <= 0) return `today (${absolute})`;
   if (days === 1) return `tomorrow (${absolute})`;
   return `in ${days}d (${absolute})`;
 }

@@ -142,6 +142,13 @@ export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: Ba
   const [collateralSummary, setCollateralSummary] = useState('');
   const [guarantorStructure, setGuarantorStructure] = useState('');
   const [amortizationMonths, setAmortizationMonths] = useState('');
+  // Production Remediation Factory Arc Phase 8 (N-25) — loan purpose, term, and ownership
+  // structure already have a governed profile-edit write path (updateDealProfile.ts's
+  // DEAL_PROFILE_FIELD_SPECS, Factory Arc Phase 3) but were never captured at creation time.
+  // Optional at the UI layer, same as the fields above; only sent if actually filled in.
+  const [loanPurpose, setLoanPurpose] = useState('');
+  const [loanTermMonths, setLoanTermMonths] = useState('');
+  const [ownershipStructure, setOwnershipStructure] = useState('');
   const [productTypeSel, setProductTypeSel] = useState('');
   const [loanStructureSel, setLoanStructureSel] = useState('');
   const [pricingTypeSel, setPricingTypeSel] = useState('');
@@ -278,6 +285,9 @@ export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: Ba
     if (collateralSummary.trim()) patch.collateralSummary = collateralSummary.trim();
     if (guarantorStructure.trim()) patch.guarantorStructure = guarantorStructure.trim();
     if (amortizationMonths.trim()) patch.amortizationMonths = amortizationMonths.trim();
+    if (loanPurpose.trim()) patch.loanPurpose = loanPurpose.trim();
+    if (loanTermMonths.trim()) patch.loanTermMonths = loanTermMonths.trim();
+    if (ownershipStructure.trim()) patch.ownershipStructure = ownershipStructure.trim();
 
     const referencePatch: DealReferencePatch = {};
     const allowedReferenceIds: string[] = [];
@@ -485,6 +495,12 @@ export function BankerNewDealCreate({ onCreated, dealPlacementConfirmation }: Ba
               onGuarantorStructure={setGuarantorStructure}
               amortizationMonths={amortizationMonths}
               onAmortizationMonths={setAmortizationMonths}
+              loanPurpose={loanPurpose}
+              onLoanPurpose={setLoanPurpose}
+              loanTermMonths={loanTermMonths}
+              onLoanTermMonths={setLoanTermMonths}
+              ownershipStructure={ownershipStructure}
+              onOwnershipStructure={setOwnershipStructure}
               productTypeSel={productTypeSel}
               onProductTypeSel={setProductTypeSel}
               loanStructureSel={loanStructureSel}
@@ -688,6 +704,12 @@ function DetailsStep({
   onGuarantorStructure,
   amortizationMonths,
   onAmortizationMonths,
+  loanPurpose,
+  onLoanPurpose,
+  loanTermMonths,
+  onLoanTermMonths,
+  ownershipStructure,
+  onOwnershipStructure,
   productTypeSel,
   onProductTypeSel,
   loanStructureSel,
@@ -715,6 +737,12 @@ function DetailsStep({
   onGuarantorStructure: (v: string) => void;
   amortizationMonths: string;
   onAmortizationMonths: (v: string) => void;
+  loanPurpose: string;
+  onLoanPurpose: (v: string) => void;
+  loanTermMonths: string;
+  onLoanTermMonths: (v: string) => void;
+  ownershipStructure: string;
+  onOwnershipStructure: (v: string) => void;
   productTypeSel: string;
   onProductTypeSel: (v: string) => void;
   loanStructureSel: string;
@@ -844,10 +872,45 @@ function DetailsStep({
         state={refOptions}
         disabled={submitting}
       />
-      <p style={styles.stepHint}>
-        Loan purpose, term, and ownership status are not yet captured here — they need a new
-        Dataverse field this environment does not have yet.
-      </p>
+      <label style={styles.label}>
+        Loan purpose (optional)
+        <input
+          type="text"
+          value={loanPurpose}
+          maxLength={200}
+          onChange={(e) => onLoanPurpose(e.target.value)}
+          placeholder="e.g. Acquisition of commercial property"
+          style={styles.input}
+          data-banker-new-deal-loan-purpose
+          disabled={submitting}
+        />
+      </label>
+      <label style={styles.label}>
+        Loan term, months (optional)
+        <input
+          type="text"
+          inputMode="numeric"
+          value={loanTermMonths}
+          onChange={(e) => onLoanTermMonths(e.target.value)}
+          placeholder="e.g. 60"
+          style={styles.input}
+          data-banker-new-deal-loan-term
+          disabled={submitting}
+        />
+      </label>
+      <label style={styles.label}>
+        Ownership structure (optional)
+        <input
+          type="text"
+          value={ownershipStructure}
+          maxLength={100}
+          onChange={(e) => onOwnershipStructure(e.target.value)}
+          placeholder="e.g. LLC, S-Corp, Sole Proprietorship"
+          style={styles.input}
+          data-banker-new-deal-ownership-structure
+          disabled={submitting}
+        />
+      </label>
       <div style={styles.stepActions}>
         <button type="button" onClick={onBack} style={styles.actionGhost} data-new-deal-details-back>
           ← Back
