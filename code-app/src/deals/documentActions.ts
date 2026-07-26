@@ -12,6 +12,7 @@ import {
 } from './newDealAuditActorResolver';
 import { timelineEventByBind } from './timelineActorBind';
 import { extractCoreUserId, isSameCoreUser, SEGREGATION_OF_DUTIES_BLOCK_REASON } from './documentReviewSegregationOfDuties';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * Phase 22: governed write for requesting an outstanding document on
@@ -212,7 +213,8 @@ export async function requestDocument(
       });
       return {
         kind: 'doc-failed',
-        docError: update.error?.message ?? 'Document update failed',
+        // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+        docError: mapBusinessSafeError(update.error?.message ?? 'Document update failed', correlationId).safeMessage,
       };
     }
   } catch (err: unknown) {
@@ -225,7 +227,7 @@ export async function requestDocument(
       failureReason: message,
       nowIso,
     });
-    return { kind: 'doc-failed', docError: message };
+    return { kind: 'doc-failed', docError: mapBusinessSafeError(message, correlationId).safeMessage };
   }
 
   // Step 2 + 3: audit + timeline in parallel. Either failing flips
@@ -245,8 +247,9 @@ export async function requestDocument(
   if (audit.error || timeline.error) {
     return {
       kind: 'governance-partial',
-      auditError: audit.error,
-      timelineError: timeline.error,
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
     };
   }
   return { kind: 'success' };
@@ -440,7 +443,8 @@ export async function markDocumentReceived(
       });
       return {
         kind: 'receive-failed',
-        docError: update.error?.message ?? 'Document update failed',
+        // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+        docError: mapBusinessSafeError(update.error?.message ?? 'Document update failed', correlationId).safeMessage,
       };
     }
   } catch (err: unknown) {
@@ -453,7 +457,7 @@ export async function markDocumentReceived(
       failureReason: message,
       nowIso,
     });
-    return { kind: 'receive-failed', docError: message };
+    return { kind: 'receive-failed', docError: mapBusinessSafeError(message, correlationId).safeMessage };
   }
 
   // Step 2 + 3: audit + timeline in parallel. Either failing flips
@@ -473,8 +477,9 @@ export async function markDocumentReceived(
   if (audit.error || timeline.error) {
     return {
       kind: 'governance-partial',
-      auditError: audit.error,
-      timelineError: timeline.error,
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
     };
   }
   return { kind: 'success' };
@@ -704,7 +709,8 @@ export async function markDocumentReviewed(
       });
       return {
         kind: 'review-failed',
-        docError: update.error?.message ?? 'Document update failed',
+        // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+        docError: mapBusinessSafeError(update.error?.message ?? 'Document update failed', correlationId).safeMessage,
         correlationId,
       };
     }
@@ -718,7 +724,7 @@ export async function markDocumentReviewed(
       failureReason: message,
       nowIso,
     });
-    return { kind: 'review-failed', docError: message, correlationId };
+    return { kind: 'review-failed', docError: mapBusinessSafeError(message, correlationId).safeMessage, correlationId };
   }
 
   // Step 2 + 3: audit + timeline in parallel. Either failing flips
@@ -738,8 +744,9 @@ export async function markDocumentReviewed(
   if (audit.error || timeline.error) {
     return {
       kind: 'governance-partial',
-      auditError: audit.error,
-      timelineError: timeline.error,
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
       correlationId,
     };
   }
