@@ -150,6 +150,16 @@ directory structure rather than a duplicate one.
 - Dataverse governance plugin (`dataverse-plugins/CommercialLendingLOS.Plugins/`) — Workstream T's server-side segregation control, if added in this arc, requires build + registration in the live environment, which is an operator action this arc cannot perform.
 - Any new Dataverse table requires a security-role/column-level-security review before go-live — flagged per new entity as it is added, not assumed away.
 
+## 13. Workstream I — Portfolio ownership / servicing readiness (investigated, blocked — no code shipped)
+
+Investigated via direct code read (`src/workflow/loanWorkflowRequirementRegistry.ts`, `src/portfolioBoarding/*`, `src/servicing/*`, `src/deals/loadBoardingHandoffForDeal.ts`) plus this arc's own `docs/remediation/WORKSTREAM_K_PORTFOLIO_BOARDING_FIELD_GAP_2026-07-22.md` (§3) and `WORKSTREAM_IJ_CREDIT_CONTROLS_DEPENDENCY_REPORT_2026-07-22.md`, both pre-existing from an earlier remediation branch.
+
+- No other `untracked()` registry entries relate to portfolio ownership or servicing readiness. The only entries left after Workstream H are `CREDIT_APPROVAL:memo_finalized`, `RETURN:authorization`, `DECLINE:adverse_action` — none of which are portfolio/servicing concepts (the latter two are Workstream J's actual target).
+- No "servicing readiness checklist" concept (first-payment date, escrow, tickler configuration) exists anywhere in `src/servicing/*` or `Cr664_portfolioboardedloansModel.ts` as a gated requirement — nothing to wire.
+- The one genuine gap: `cr664_PortfolioManager` (a `systemuser` lookup on `cr664_portfolioboardedloans`) is fully wired on the **manual** boarding path but is **never populated on the auto-board path**, because `DealDetail` carries only `bankerName` (a display string), not a `systemuser` id. `loadBoardingHandoffForDeal.ts` does not select `_cr664_portfoliomanager_value`, and no workflow requirement gates on it.
+- **Why this was not coded:** closing it safely requires either (a) capturing a `systemuser`-typed relationship-manager field earlier in origination (the recommended fix, per `WORKSTREAM_K_PORTFOLIO_BOARDING_FIELD_GAP_2026-07-22.md`'s own recommended-next-step §2), or (b) a reviewed name-to-systemuser resolution service. Both are product/schema decisions requiring operator sign-off, not pure code fixes — attempting a heuristic name-match resolver risks silently binding the wrong operator's record to a live portfolio loan, a data-integrity/security-adjacent risk this arc's guardrails forbid taking unilaterally.
+- **Disposition:** deferred, documented honestly, no placeholder/fabricated resolution introduced. Flagged for the same operator decision already tracked against Workstream K/I-J's shared risk-rating gap.
+
 ## Living-document note
 
 This ledger will be updated (not replaced) as each workstream lands, so that by the time the PR
