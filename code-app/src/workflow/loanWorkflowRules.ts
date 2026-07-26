@@ -1,3 +1,4 @@
+import { normalizeDocumentName as normalize } from '../shared/deals/documentNameNormalization';
 import type { CreditMemoData } from '../deals/creditMemoQueries';
 import type { DealDocumentsResult } from '../deals/dealDocumentQueries';
 import type { DealDetail } from '../deals/dealQueries';
@@ -200,8 +201,4 @@ function unavailableBlocker(id: string, label: string): LoanWorkflowBlocker {
     type: 'unavailable',
     severity: 'blocked',
   };
-}
-
-function normalize(value: string): string {
-  return value.trim().toLowerCase().replace(/[-_/]+/g, ' ').replace(/\s+/g, ' ');
 }

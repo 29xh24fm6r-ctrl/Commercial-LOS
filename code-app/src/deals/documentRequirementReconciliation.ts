@@ -12,11 +12,7 @@
 
 import type { RequiredDocumentDefinition } from './documentRequirementDerivation';
 import type { DocumentRequirementRow, DocumentRequirementStatus } from './documentRequirementLifecycle';
-
-/** LEGACY name matching (no business-type key in the schema) — mirrors loanWorkflowRequirementEngine.ts. */
-function normalizeName(value: string): string {
-  return value.trim().toLowerCase().replace(/[-_/]+/g, ' ').replace(/\s+/g, ' ');
-}
+import { normalizeDocumentName as normalizeName } from '../shared/deals/documentNameNormalization';
 
 /** The relevant fields of a live cr664_documentchecklist row, already mapped to a clean shape. */
 export interface LiveDocumentChecklistRow {

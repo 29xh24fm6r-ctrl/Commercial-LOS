@@ -1,3 +1,4 @@
+import { normalizeDocumentName as normalizeName } from '../shared/deals/documentNameNormalization';
 import type { DealDetail } from '../deals/dealQueries';
 import type { DealTasksResult } from '../deals/dealTaskQueries';
 import type { DealDocumentsResult } from '../deals/dealDocumentQueries';
@@ -165,10 +166,6 @@ function fallbackMeta(scope: RequirementScope, category: RequirementCategory, ra
   };
 }
 
-/** LEGACY name matching, demoted to an inferred adapter (no business-type key in the schema). */
-function normalizeName(value: string): string {
-  return value.trim().toLowerCase().replace(/[-_/]+/g, ' ').replace(/\s+/g, ' ');
-}
 
 /** Evaluate a field / credit / closing requirement via the legacy live-readiness adapter. */
 function evaluateViaLegacy(scope: RequirementScope, category: RequirementCategory, raw: LoanWorkflowRequirement, legacy: LegacyEval): EvaluatedRequirement {
