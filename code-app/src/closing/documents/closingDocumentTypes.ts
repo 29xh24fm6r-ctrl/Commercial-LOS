@@ -33,7 +33,10 @@ export type ClosingDocumentFactKey =
   | 'jurisdiction'
   | 'collateralDescription'
   | 'conditionsPrecedentResolved'
-  | 'fundingInstructions';
+  | 'fundingInstructions'
+  | 'loanPurpose'
+  | 'loanTermMonths'
+  | 'ownershipStructure';
 
 /**
  * The facts known about a deal, as far as this framework is concerned. Every field is optional —
@@ -41,6 +44,11 @@ export type ClosingDocumentFactKey =
  * is not tracked anywhere else in this app today (confirmed: no state/jurisdiction field exists on
  * the deal schema), so it will be absent for every real deal until that changes — templates that
  * require it will honestly show as `missing_facts`, not silently skip the check.
+ *
+ * N-25 remediation (Production Remediation Factory Arc Phase 8) — `loanPurpose` / `loanTermMonths`
+ * / `ownershipStructure` are display-only additions: no existing template's `requiredFacts` lists
+ * them, so their presence or absence never changes any template's eligibility. They render when
+ * present, same as every other optional fact here.
  */
 export interface ClosingDocumentFactModel {
   readonly dealId?: string;
@@ -53,6 +61,9 @@ export interface ClosingDocumentFactModel {
   readonly collateralDescription?: string;
   readonly conditionsPrecedentResolved?: boolean;
   readonly fundingInstructions?: string;
+  readonly loanPurpose?: string;
+  readonly loanTermMonths?: number;
+  readonly ownershipStructure?: string;
 }
 
 export interface ClosingDocumentTemplate {
