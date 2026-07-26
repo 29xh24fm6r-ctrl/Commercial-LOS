@@ -9,6 +9,7 @@ import type { DealTasksResult } from '../deals/dealTaskQueries';
 import type { CreditMemoData } from '../deals/creditMemoQueries';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type { RiskRatingRecord, UnderwritingRecommendationRecord } from './underwritingDeepFacts';
+import type { CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
 
 /** Minimal workflow state the stage policy reads (cast to the full type for the test). */
 function workflow(over: { stageId?: string; status?: 'blocked' | 'at-risk' | 'clear'; nextIds?: string[]; blockers?: string[] } = {}): LoanWorkflowState {
@@ -340,6 +341,31 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
   // 2026-07-14 remediation (docs/LOAN_WORKFLOW_INDEPENDENT_AUDIT_2026-07-14.md, finding C3): an
   // interim, role-based approval-authority gate on exiting CREDIT_APPROVAL.
   describe('interim approval-authority gate (finding C3)', () => {
+    // Final LOS Completion arc (Workstream C) — CREDIT_APPROVAL:approval_decision/authority/
+    // conditions are now tracked, real blocking facts (a durable Credit Approval Decision record
+    // must exist for this exact deal). This describe block tests the SEPARATE, standalone
+    // approval-authority gate (finding C3) in isolation, so a satisfying decision record is supplied
+    // here purely to clear the engine-level exit criteria and let each test's own scenario reach
+    // (and exercise) the authority check itself.
+    const satisfyingDecision: CreditApprovalDecisionRecord = {
+      decisionId: 'cad-c3-fixture',
+      dealId: baseDeal.id,
+      status: 'APPROVED',
+      approvedAmount: baseDeal.amount,
+      approvedProduct: undefined,
+      approvedTermMonths: undefined,
+      approvedPricing: undefined,
+      collateralSummary: undefined,
+      conditions: [],
+      authorityTier: 'committee',
+      rationale: 'Fixture decision satisfying the engine-level exit criterion for this describe block.',
+      requestedByActorEmail: 'banker@bank.test',
+      requestedAtIso: '2026-07-20T00:00:00.000Z',
+      decidedByActorEmail: 'committee-member@bank.test',
+      decidedAtIso: '2026-07-24T00:00:00.000Z',
+      correlationId: 'ca-corr-c3-fixture',
+      supersedesDecisionId: undefined,
+    };
     const creditApprovalFacts: WorkflowRequirementFacts = {
       deal: baseDeal,
       tasks: emptyTasks,
@@ -351,6 +377,7 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
           { id: 's2', sectionKey: 'repayment_analysis', sectionLabel: 'Repayment Analysis', reviewStatus: undefined, reviewStatusKey: undefined, lastGeneratedAt: undefined, modifiedOn: undefined, textPreview: undefined },
         ],
       },
+      creditApprovalDecisions: [satisfyingDecision],
     };
     function creditApprovalInput(over: Partial<StageAdvanceInput> = {}) {
       return input({

@@ -31,6 +31,7 @@ import { DealCopilotAssist } from '../copilot/DealCopilotAssist';
 import { DealDataProvider } from './DealDataProvider';
 import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
 import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
+import { DealCreditApprovalDecisionPanelConnected } from './DealCreditApprovalDecisionPanelConnected';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
 import { DealPortfolioBoardingStatusPanel } from '../workflow/DealPortfolioBoardingStatusPanel';
 import { DealWorkflowRoutingPanel } from '../workflow/DealWorkflowRoutingPanel';
@@ -290,6 +291,24 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="credit-approval-readiness"
               >
                 <CreditApprovalReadinessPanel />
+              </div>
+              {/* Final LOS Completion arc (Workstream C) — durable Credit Approval Decision record,
+                  distinct from the read-only readiness projection above. */}
+              <div
+                id="credit-approval-decision"
+                data-deal-card="credit-approval-decision"
+                data-cockpit-anchor="credit-approval-decision"
+              >
+                <DealCreditApprovalDecisionPanelConnected
+                  dealId={deal.id}
+                  dealAmount={deal.amount}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                  bankerId={bankerId}
+                  creditAuthority={creditAuthority}
+                  assignedBankerId={deal.assignedBankerId}
+                />
               </div>
               <div
                 id="closing-booking-readiness"

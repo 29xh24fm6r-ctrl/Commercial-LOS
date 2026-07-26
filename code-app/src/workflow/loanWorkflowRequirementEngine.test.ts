@@ -16,6 +16,7 @@ import {
 } from './loanWorkflowRequirementEngine';
 import type { RiskRatingRecord, UnderwritingRecommendationRecord } from './underwritingDeepFacts';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
+import type { CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
 
 /**
  * ARC Phase 2 — capability proof for typed document status, task-blocking policy, and the
@@ -210,11 +211,34 @@ describe('Credit Approval — committee/reviewed/approved memo requirements neve
       { id: 's2', sectionKey: 'repayment_analysis', sectionLabel: 'Repayment Analysis', reviewStatus: undefined, reviewStatusKey: undefined, lastGeneratedAt: undefined, modifiedOn: undefined, textPreview: undefined },
     ],
   };
+  // Final LOS Completion arc (Workstream C) — CREDIT_APPROVAL:approval_decision/approval_authority/
+  // approval_conditions are now tracked, real blocking facts; a satisfying decision record must be
+  // supplied for this exact deal or the exit is correctly (not spuriously) blocked.
+  const approvedDecision: CreditApprovalDecisionRecord = {
+    decisionId: 'cad-arc-1',
+    dealId: creditApprovalDeal.id,
+    status: 'APPROVED',
+    approvedAmount: creditApprovalDeal.amount,
+    approvedProduct: creditApprovalDeal.productType,
+    approvedTermMonths: undefined,
+    approvedPricing: undefined,
+    collateralSummary: undefined,
+    conditions: [],
+    authorityTier: 'committee',
+    rationale: 'DSCR and collateral coverage support approval.',
+    requestedByActorEmail: 'banker@bank.test',
+    requestedAtIso: '2026-07-20T00:00:00.000Z',
+    decidedByActorEmail: 'committee-member@bank.test',
+    decidedAtIso: '2026-07-24T00:00:00.000Z',
+    correlationId: 'ca-corr-arc-1',
+    supersedesDecisionId: undefined,
+  };
   const facts: WorkflowRequirementFacts = {
     deal: creditApprovalDeal,
     tasks: emptyTasks,
     documents: docsOf({ received: [mkDoc('Approval evidence', 'received')] }),
     creditMemo: memo,
+    creditApprovalDecisions: [approvedDecision],
   };
 
   it('reviewed/committee/approved requirements land in recommended, never blocking — a draft memo with no committee record is not a permanent dead end', () => {
@@ -229,9 +253,15 @@ describe('Credit Approval — committee/reviewed/approved memo requirements neve
     expect(recommendedIds).toContain('CREDIT_APPROVAL:credit:approved credit memo');
   });
 
-  it('Credit Approval exit is genuinely reachable once fields/documents/memo/sections are provided (not stranded)', () => {
+  it('Credit Approval exit is genuinely reachable once fields/documents/memo/sections AND a durable approval decision are provided (not stranded)', () => {
     const r = deriveStageExitReadiness('CREDIT_APPROVAL', facts);
     expect(evaluateStageExitPolicy(r).allowed).toBe(true);
+  });
+
+  it('Final LOS Completion arc (Workstream C) — Credit Approval exit is correctly BLOCKED without a durable approval decision, never fabricated as clear', () => {
+    const r = deriveStageExitReadiness('CREDIT_APPROVAL', { ...facts, creditApprovalDecisions: undefined });
+    expect(evaluateStageExitPolicy(r).allowed).toBe(false);
+    expect(r.blocking.map((b) => b.id)).toContain('CREDIT_APPROVAL:approval_decision');
   });
 
   it('the literal credit-memo-presence requirement still hard-blocks when no memo exists at all', () => {

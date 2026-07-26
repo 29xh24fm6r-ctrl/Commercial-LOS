@@ -6,6 +6,8 @@ import { loadDealCreditMemo, type CreditMemoData } from './creditMemoQueries';
 import { loadDealActivity, type TimelineEvent } from './activityQueries';
 import { createDataverseFundingAuthorizationStore } from '../funding/fundingAuthorizationDataverseStore';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
+import { createDataverseCreditApprovalDecisionStore } from '../creditApproval/creditApprovalDecisionStore';
+import type { CreditApprovalDecisionRecord } from '../workflow/creditApprovalDecisionTypes';
 import {
   timed,
   recordRefresh,
@@ -53,7 +55,9 @@ export type DealDataKey =
   | 'after-credit-memo-draft-saved'
   | 'after-borrower-update-email'
   | 'fundingAuthorization'
-  | 'after-funding-confirmed';
+  | 'after-funding-confirmed'
+  | 'creditApprovalDecisions'
+  | 'after-credit-approval-decision-submitted';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -78,6 +82,16 @@ export interface DealData {
    * fails closed as unmet, never fabricated as met.
    */
   fundingAuthorization?: AsyncResult<FundingAuthorizationRecord | undefined>;
+  /**
+   * Final LOS Completion arc — Workstream C. The deal's Credit Approval Decision records (most
+   * recent last), feeding CREDIT_APPROVAL:approval_decision / approval_authority / approval_conditions
+   * (loanWorkflowRequirementEngine.ts) so the Stage Map / stage-advance write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `fundingAuthorization` above); the real DealDataProvider ALWAYS supplies it. A test
+   * double omitting it is equivalent to an unresolved fact — the requirement fails closed as unmet.
+   */
+  creditApprovalDecisions?: AsyncResult<readonly CreditApprovalDecisionRecord[]>;
   refresh: (key: DealDataKey) => void;
   /**
    * Merge readback-verified deal fields into the in-context deal row. ONLY the
@@ -138,6 +152,9 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   });
   const [fundingAuthorization, setFundingAuthorization] = useState<
     AsyncResult<FundingAuthorizationRecord | undefined>
+  >({ kind: 'loading' });
+  const [creditApprovalDecisions, setCreditApprovalDecisions] = useState<
+    AsyncResult<readonly CreditApprovalDecisionRecord[]>
   >({ kind: 'loading' });
 
   // Used by the unmount cleanup AND by refresh() so a refresh fired
@@ -201,6 +218,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
     bind(setFundingAuthorization, p);
     return p;
   }
+  function reloadCreditApprovalDecisions(): Promise<unknown> {
+    setCreditApprovalDecisions({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadCreditApprovalDecisions', async () => {
+      const res = await createDataverseCreditApprovalDecisionStore().listDecisionsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load credit approval decisions.');
+      return res.decisions ?? [];
+    });
+    bind(setCreditApprovalDecisions, p);
+    return p;
+  }
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -220,6 +247,7 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
       reloadCreditMemo(),
       reloadActivity(),
       reloadFundingAuthorization(),
+      reloadCreditApprovalDecisions(),
     ]).then(() => {
       const endedAt =
         typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -337,13 +365,33 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // context.fundingAuthorization) learn the deal is now FUNDED without a full page reload.
         reloadFundingAuthorization();
         break;
+      case 'creditApprovalDecisions':
+        reloadCreditApprovalDecisions();
+        break;
+      case 'after-credit-approval-decision-submitted':
+        // Final LOS Completion arc — Workstream C: submitCreditApprovalDecision writes both the
+        // durable decision record and a best-effort ApprovalDecision timeline event, so both must
+        // refresh for the Stage Map / Attention Console to see the new decision and its activity.
+        reloadCreditApprovalDecisions();
+        reloadActivity();
+        break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <DealDataContext.Provider
-      value={{ deal: dealState, tasks, documents, creditMemo, activity, fundingAuthorization, refresh, applyVerifiedDealPatch }}
+      value={{
+        deal: dealState,
+        tasks,
+        documents,
+        creditMemo,
+        activity,
+        fundingAuthorization,
+        creditApprovalDecisions,
+        refresh,
+        applyVerifiedDealPatch,
+      }}
     >
       {children}
     </DealDataContext.Provider>

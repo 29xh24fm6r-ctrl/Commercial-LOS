@@ -25,6 +25,7 @@ import {
   type RiskRatingPolicy,
   type UnderwritingRecommendationRecord,
 } from './underwritingDeepFacts';
+import { evaluateCreditApprovalDecisionReadiness, type CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type {
   CanonicalRequirement,
@@ -74,6 +75,14 @@ export interface WorkflowRequirementFacts {
    * fails closed as unmet in either case, never fabricated as met.
    */
   readonly fundingAuthorization?: FundingAuthorizationRecord;
+  /**
+   * Final LOS Completion arc (Workstream C/K) — the deal's Credit Approval Decision history
+   * (supplied by a loader; see DealDataProvider.tsx's `creditApprovalDecisions`). Absent/empty means
+   * either the records haven't loaded yet or none have genuinely been recorded —
+   * CREDIT_APPROVAL:approval_decision/:approval_authority/:approval_conditions all fail closed as
+   * unmet in either case, never fabricated as met.
+   */
+  readonly creditApprovalDecisions?: readonly CreditApprovalDecisionRecord[];
 }
 
 /**
@@ -96,6 +105,20 @@ export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: Wo
   if (req.id === 'CLOSING_FUNDING:funds_disbursed') {
     const funded = facts.fundingAuthorization?.authorizationStatus === 'FUNDED';
     return evaluated(req, funded ? 'met' : 'unmet', funded ? '' : req.blockerReason);
+  }
+  if (
+    req.id === 'CREDIT_APPROVAL:approval_decision' ||
+    req.id === 'CREDIT_APPROVAL:approval_authority' ||
+    req.id === 'CREDIT_APPROVAL:approval_conditions'
+  ) {
+    const r = evaluateCreditApprovalDecisionReadiness(facts.creditApprovalDecisions, facts.deal.id);
+    const fact =
+      req.id === 'CREDIT_APPROVAL:approval_decision'
+        ? r.decisionRecorded
+        : req.id === 'CREDIT_APPROVAL:approval_authority'
+          ? r.authorityRecorded
+          : r.conditionsDocumented;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
   }
   // Tracked deep fact without a model yet → fail closed (should not happen in Phase 3).
   return evaluated(req, 'unmet', req.blockerReason);

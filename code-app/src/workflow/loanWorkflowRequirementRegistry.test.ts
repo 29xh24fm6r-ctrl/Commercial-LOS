@@ -82,12 +82,26 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
   });
 
   it('deeper stages carry untracked deep facts (approval, closing/funding, boarding)', () => {
-    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_decision')).toBe(true);
+    // Final LOS Completion arc (Workstream C) flipped the three approval facts to tracked (see
+    // below) — memo_finalized remains a genuinely untracked deep fact for this same scope.
+    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:memo_finalized')).toBe(true);
     // Factory Arc Phase 12 flipped funds_disbursed to tracked (see below) — executed_docs and
     // booking_qc remain genuinely untracked deep facts for this same CLOSING_FUNDING scope.
     expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:executed_docs')).toBe(true);
     expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:booking_qc')).toBe(true);
     expect(untrackedRequirementsForScope('BOARDED').some((r) => r.id === 'BOARDED:boarded_loan_record')).toBe(true);
+  });
+
+  it('Final LOS Completion arc (Workstream C) — CREDIT_APPROVAL:approval_decision/approval_authority/approval_conditions are tracked (real, durable, deal-scoped Credit Approval Decision record)', () => {
+    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_decision')).toBe(false);
+    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_authority')).toBe(false);
+    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_conditions')).toBe(false);
+    for (const id of ['CREDIT_APPROVAL:approval_decision', 'CREDIT_APPROVAL:approval_authority', 'CREDIT_APPROVAL:approval_conditions']) {
+      const req = requirementsForScope('CREDIT_APPROVAL').find((r) => r.id === id);
+      expect(req?.tracked).toBe(true);
+      expect(req?.severity).toBe('blocking');
+      expect(req?.sourceEntity).toBe('cr664_creditapprovaldecision');
+    }
   });
 
   it('Factory Arc Phase 12 — CLOSING_FUNDING:funds_disbursed is tracked (real durable Dataverse-backed fact)', () => {

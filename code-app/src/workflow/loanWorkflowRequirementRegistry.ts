@@ -234,9 +234,16 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   tracked('UNDERWRITING:uw_recommendation', 'UNDERWRITING', 'credit', 'Underwriting recommendation recorded', 'Credit Memo', 'underwriter', 'review_record', 'cr664_underwritingrecommendationinputs', 'A final underwriting recommendation with rationale, actor, and timestamp has not been recorded for this deal.'),
   // Credit Approval → Commitment (ARC PR 8/9)
   untracked('CREDIT_APPROVAL:memo_finalized', 'CREDIT_APPROVAL', 'credit', 'Credit memo finalized', 'Credit Memo', 'credit_officer', 'memo_status', 'credit memo lifecycle status not yet implemented (ARC PR 8)'),
-  untracked('CREDIT_APPROVAL:approval_decision', 'CREDIT_APPROVAL', 'approval', 'Approval decision recorded', 'Approval', 'approver', 'approval_record', 'approval decision record not yet implemented (ARC PR 9)'),
-  untracked('CREDIT_APPROVAL:approval_authority', 'CREDIT_APPROVAL', 'approval', 'Authorized approver / committee approval', 'Approval', 'approver', 'approval_record', 'approval authority computation not yet implemented (ARC PR 9)'),
-  untracked('CREDIT_APPROVAL:approval_conditions', 'CREDIT_APPROVAL', 'approval', 'Conditions of approval documented', 'Approval', 'credit_officer', 'condition_record', 'approval conditions record not yet implemented (ARC PR 9)'),
+  // Final LOS Completion arc (Workstream C) flips these tracked — submitCreditApprovalDecision.ts /
+  // creditApprovalDecisionStore.ts now provide a real, durable, deal-scoped Credit Approval Decision
+  // record (cr664_creditapprovaldecision, see scripts/schema-migrations/final-arc-credit-approval-
+  // decision/), evaluated via evaluateCreditApprovalDecisionReadiness in
+  // loanWorkflowRequirementEngine.ts. Same "backing capability became real" discipline the
+  // UNDERWRITING risk-rating/recommendation flips above and CLOSING_FUNDING:funds_disbursed below
+  // already followed.
+  tracked('CREDIT_APPROVAL:approval_decision', 'CREDIT_APPROVAL', 'approval', 'Approval decision recorded', 'Approval', 'approver', 'approval_record', 'cr664_creditapprovaldecision', 'No approved credit approval decision has been recorded for this deal.'),
+  tracked('CREDIT_APPROVAL:approval_authority', 'CREDIT_APPROVAL', 'approval', 'Authorized approver / committee approval', 'Approval', 'approver', 'approval_record', 'cr664_creditapprovaldecision', 'The recorded credit approval decision has no authority tier recorded.'),
+  tracked('CREDIT_APPROVAL:approval_conditions', 'CREDIT_APPROVAL', 'approval', 'Conditions of approval documented', 'Approval', 'credit_officer', 'condition_record', 'cr664_creditapprovaldecision', 'No approved credit approval decision has been recorded for this deal.'),
   // Commitment → Documentation (ARC PR 13)
   untracked('COMMITMENT:commitment_issued', 'COMMITMENT', 'closing', 'Commitment / term sheet issued', 'Commitment', 'loan_ops', 'review_record', 'commitment issuance record not yet implemented (ARC PR 13)'),
   untracked('COMMITMENT:borrower_acceptance', 'COMMITMENT', 'closing', 'Borrower acceptance recorded', 'Commitment', 'banker', 'review_record', 'borrower acceptance record not yet implemented (ARC PR 13)'),
