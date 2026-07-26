@@ -50,6 +50,13 @@ export function mapDealToExistingLoanInput(args: MapDealToExistingLoanInputArgs)
     spread: deal.spreadMargin,
     product: deal.productType,
     originatedDealId: deal.id,
+    // N-25 remediation (Production Remediation Factory Arc Phase 8) — already persistable via
+    // Deal Profile editing (Factory Arc Phase 3); ExistingLoanInput already has both target
+    // fields (existingLoanEntryAdapter.ts), they were simply never wired from the deal side.
+    // Ownership structure has no equivalent target field on this boarded-loan schema today, so
+    // it is not mapped here (see the PR doc's remaining limitations).
+    termMonths: deal.loanTermMonths,
+    purpose: deal.loanPurpose,
     authorized: args.authorized,
     actorEmail: args.actorEmail,
     actorSystemUserId: args.actorSystemUserId,

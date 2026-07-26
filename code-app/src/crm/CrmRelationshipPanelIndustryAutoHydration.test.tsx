@@ -9,6 +9,10 @@ import { render, screen, waitFor } from '@testing-library/react';
  * and governed (dealIndustryHydration.ts) -- the gap was that it only ever ran on a manual click,
  * never automatically when the workspace loaded with an already-linked client. This pins that the
  * connected container now auto-runs the same governed hydration path on mount/client-change.
+ *
+ * N-22 remediation (Production Remediation Factory Arc Phase 7) — the panel now runs the real,
+ * provenance-aware `refreshDealIndustryFromCrm` (not the provenance-blind `hydrateDealIndustryFromCrm`
+ * this test previously mocked), passing the deal's own durably-persisted prior source.
  */
 
 const mockState = vi.hoisted(() => ({
@@ -19,6 +23,7 @@ const mockState = vi.hoisted(() => ({
     clientId: 'client-guid',
     clientLookupClassification: 'real-lookup' as const,
     industry: undefined as string | undefined,
+    crmIndustryProjectionJson: undefined as string | undefined,
   } as Record<string, unknown>,
 }));
 
@@ -35,23 +40,24 @@ vi.mock('../banker/BankerContext', () => ({
   }),
 }));
 
-const hydrateMock = vi.hoisted(() => vi.fn());
+const refreshMock = vi.hoisted(() => vi.fn());
 vi.mock('../deals/hydrateDealIndustryFromCrm', () => ({
-  hydrateDealIndustryFromCrm: hydrateMock,
+  refreshDealIndustryFromCrm: refreshMock,
 }));
 
 import { DealCrmRelationshipPanel } from './CrmRelationshipPanel';
 
 beforeEach(() => {
-  hydrateMock.mockReset();
+  refreshMock.mockReset();
 });
 
 describe('DealCrmRelationshipPanel — CRM/NAICS Industry auto-hydration on load', () => {
   it('runs the governed CRM/NAICS Industry check automatically when a client is already linked -- no manual click required', async () => {
-    hydrateMock.mockResolvedValue({
-      hydration: {
-        criterionSatisfied: true,
+    refreshMock.mockResolvedValue({
+      decision: {
+        action: 'apply',
         source: 'crm-derived',
+        industryToApply: 'Manufacturing',
         status: 'CRM-derived · NAICS 311812 · Manufacturing → Manufacturing',
         unavailable: false,
       },
@@ -61,9 +67,12 @@ describe('DealCrmRelationshipPanel — CRM/NAICS Industry auto-hydration on load
 
     // No click on "Check CRM industry" happens in this test -- the status must appear on its own.
     await waitFor(() => {
-      expect(hydrateMock).toHaveBeenCalledWith(
+      // The panel's own persisted prior-source (none, since no projection has been saved yet) is the
+      // 3rd positional argument, ahead of the hydration deps object.
+      expect(refreshMock).toHaveBeenCalledWith(
         'client-guid',
         undefined,
+        'none',
         expect.anything(),
       );
     });
@@ -79,11 +88,12 @@ describe('DealCrmRelationshipPanel — CRM/NAICS Industry auto-hydration on load
       clientName: undefined,
       clientId: undefined,
       industry: undefined,
+      crmIndustryProjectionJson: undefined,
     };
     render(<DealCrmRelationshipPanel />);
 
     // Give any stray microtask a chance to run, then confirm it never fired.
     await new Promise((r) => setTimeout(r, 0));
-    expect(hydrateMock).not.toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 });

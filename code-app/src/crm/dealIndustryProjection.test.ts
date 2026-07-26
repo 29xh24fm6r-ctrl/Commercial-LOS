@@ -31,6 +31,7 @@ function deps(over: Partial<DealIndustryProjectionDeps> = {}): DealIndustryProje
     readClientOrganizationId: async () => ({ success: true, organizationId: 'org-1' }),
     readOrganizationNaics: async () => ({ success: true, naicsCode: '333111' }),
     fetchMappingRows: async () => ({ success: true, rows: MAP_ROWS }),
+    readNaicsTitle: async () => 'Iron and Steel Mills and Ferroalloy Manufacturing',
     ...over,
   };
 }
@@ -39,6 +40,36 @@ describe('loadDealIndustryProjection', () => {
   it('derives the mapped industry through the full governed path', async () => {
     const r = await loadDealIndustryProjection('client-1', deps());
     expect(r).toMatchObject({ kind: 'derived', dealIndustry: 'Manufacturing', naicsCode: '333111', sectorCode: '31-33' });
+  });
+
+  // N-22/N-23 remediation (Production Remediation Factory Arc Phase 7)
+  it('carries the exact NAICS title alongside the sector title when derived', async () => {
+    const r = await loadDealIndustryProjection('client-1', deps());
+    expect(r).toMatchObject({ kind: 'derived', naicsTitle: 'Iron and Steel Mills and Ferroalloy Manufacturing' });
+  });
+
+  it('a failed/unavailable title lookup never blocks the rest of the projection — naicsTitle is simply undefined', async () => {
+    const r = await loadDealIndustryProjection('client-1', deps({ readNaicsTitle: async () => undefined }));
+    expect(r).toMatchObject({ kind: 'derived', dealIndustry: 'Manufacturing' });
+    expect((r as { naicsTitle?: string }).naicsTitle).toBeUndefined();
+  });
+
+  it('a throwing title lookup never blocks the rest of the projection', async () => {
+    const r = await loadDealIndustryProjection('client-1', deps({ readNaicsTitle: async () => { throw new Error('boom'); } }));
+    expect(r.kind).toBe('derived');
+    expect((r as { naicsTitle?: string }).naicsTitle).toBeUndefined();
+  });
+
+  it('carries the exact NAICS title even in a no-mapping (honest blocked) projection — N-23\'s restaurant example', async () => {
+    // Sector 72 (Accommodation/Food Services) is not in MAP_ROWS — mirrors the audit's 722511 example.
+    const r = await loadDealIndustryProjection(
+      'client-1',
+      deps({
+        readOrganizationNaics: async () => ({ success: true, naicsCode: '722511' }),
+        readNaicsTitle: async () => 'Full-Service Restaurants',
+      }),
+    );
+    expect(r).toMatchObject({ kind: 'no-mapping', naicsCode: '722511', naicsTitle: 'Full-Service Restaurants', sectorCode: '72' });
   });
 
   it('is no-crm-link when the deal has no client relationship', async () => {
@@ -113,5 +144,12 @@ describe('buildLiveDealIndustryProjectionDeps — fetchMappingRows (Factory Arc 
     const result = await buildLiveDealIndustryProjectionDeps().fetchMappingRows();
     expect(result.success).toBe(false);
     expect(result.error).toBe('data source not found');
+  });
+});
+
+describe('buildLiveDealIndustryProjectionDeps — readNaicsTitle (N-22/N-23 remediation)', () => {
+  it('is a callable dep that resolves to undefined or a string, never throws, for a code the reference table does not have', async () => {
+    const title = await buildLiveDealIndustryProjectionDeps().readNaicsTitle('000000');
+    expect(title === undefined || typeof title === 'string').toBe(true);
   });
 });

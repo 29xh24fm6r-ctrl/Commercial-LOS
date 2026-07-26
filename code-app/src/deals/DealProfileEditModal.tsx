@@ -29,6 +29,7 @@ import {
   loadLiveDealIndustryProjection,
   type DealIndustryProjection,
 } from '../crm/dealIndustryProjection';
+import { buildCrmIndustryProjectionRecord, serializeCrmIndustryProjectionRecord } from './crmIndustryProjectionRecord';
 
 /**
  * Governed Deal Profile completion — banker-facing entry point + modal.
@@ -203,18 +204,33 @@ function DealProfileEditModal({ onClose }: { onClose: () => void }) {
   async function onApplyCrmIndustry(industryLabel: string) {
     if (!banker?.systemUserId || applyState.kind === 'applying') return;
     setApplyState({ kind: 'applying' });
+    // N-22/N-23 remediation (Production Remediation Factory Arc Phase 7) — persist the durable
+    // exact NAICS/sector/provenance facts in the SAME governed write as the coarse label, so this
+    // surface's apply action carries the same durable record CrmRelationshipPanel's does.
+    const projectionRecord =
+      industryProj.kind !== 'loading' ? buildCrmIndustryProjectionRecord(industryProj, 'crm-derived', new Date().toISOString()) : undefined;
     const outcome = await updateDealProfile(
       {
         dealId: deal.id,
         actorEmail: banker.email,
         actorSystemUserId: banker.systemUserId,
         authorized: true,
-        patch: { industry: industryLabel },
+        patch: {
+          industry: industryLabel,
+          ...(projectionRecord ? { crmIndustryProjectionInputs: serializeCrmIndustryProjectionRecord(projectionRecord) } : {}),
+        },
       },
       buildLiveUpdateDealProfileDeps(),
     );
     if (outcome.kind === 'updated') {
-      applyVerifiedDealPatch?.(outcome.verified as Partial<DealDetail>);
+      // crmIndustryProjectionInputs (the write-path field key) is translated to
+      // crmIndustryProjectionJson (the DealDetail read-path key) so the merged patch actually
+      // updates the field the rest of the cockpit reads.
+      const { crmIndustryProjectionInputs, ...rest } = outcome.verified;
+      applyVerifiedDealPatch?.({
+        ...(rest as Partial<DealDetail>),
+        ...(crmIndustryProjectionInputs !== undefined ? { crmIndustryProjectionJson: crmIndustryProjectionInputs } : {}),
+      });
       set('industry', industryLabel);
       setApplyState({ kind: 'idle' });
     } else {

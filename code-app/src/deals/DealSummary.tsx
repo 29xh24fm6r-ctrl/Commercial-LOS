@@ -52,6 +52,12 @@ export function DealSummary() {
         <Fact label="Pricing" value={formatPricing(deal)} />
         <Fact label="Created" value={formatDate(deal.createdOn)} />
         <Fact label="Stage entered" value={formatDate(deal.stageEntryDate)} />
+        {/* N-25 remediation (Production Remediation Factory Arc Phase 8) — these three fields
+            already existed on DealDetail (Factory Arc Phase 3) but were never actually rendered
+            anywhere in the UI, including here. */}
+        <Fact label="Loan purpose" value={deal.loanPurpose} />
+        <Fact label="Loan term" value={deal.loanTermMonths !== undefined ? `${deal.loanTermMonths} months` : undefined} />
+        <Fact label="Ownership structure" value={deal.ownershipStructure} />
       </dl>
       <div style={styles.longField}>
         <div style={styles.dt}>Collateral</div>

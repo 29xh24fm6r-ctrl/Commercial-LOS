@@ -35,8 +35,8 @@ vi.mock('../banker/BankerContext', () => ({
   }),
 }));
 vi.mock('../deals/hydrateDealIndustryFromCrm', () => ({
-  hydrateDealIndustryFromCrm: vi.fn().mockResolvedValue({
-    hydration: { criterionSatisfied: false, source: 'none', status: 'unresolved', unavailable: true },
+  refreshDealIndustryFromCrm: vi.fn().mockResolvedValue({
+    decision: { action: 'unresolved', source: 'none', status: 'unresolved', unavailable: true },
   }),
 }));
 

@@ -406,7 +406,7 @@ describe('DealProfileEditModal — governed reference lookups', () => {
 });
 
 describe('DealProfileEditModal — CRM/NAICS industry projection (Phase 4B)', () => {
-  const derived = { kind: 'derived', naicsCode: '333111', sectorCode: '31-33', sectorTitle: 'Manufacturing', dealIndustry: 'Manufacturing' };
+  const derived = { kind: 'derived', organizationId: 'org-1', naicsCode: '333111', sectorCode: '31-33', sectorTitle: 'Manufacturing', dealIndustry: 'Manufacturing' };
 
   it('shows the CRM/NAICS source when the deal industry already matches', async () => {
     projMock.mockResolvedValue(derived);
@@ -444,8 +444,13 @@ describe('DealProfileEditModal — CRM/NAICS industry projection (Phase 4B)', ()
     await user.click(apply);
 
     await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1));
-    // Applies ONLY the mapped deal industry option, via the governed adapter.
-    expect((updateMock.mock.calls[0][0] as { patch: Record<string, unknown> }).patch).toEqual({ industry: 'Manufacturing' });
+    // Applies the mapped deal industry option, via the governed adapter.
+    const patch = (updateMock.mock.calls[0][0] as { patch: Record<string, unknown> }).patch;
+    expect(patch.industry).toBe('Manufacturing');
+    // N-22/N-23 remediation — the durable exact NAICS/sector/provenance facts are persisted in the
+    // SAME governed write.
+    const projectionJson = JSON.parse(patch.crmIndustryProjectionInputs as string);
+    expect(projectionJson).toMatchObject({ organizationId: 'org-1', naicsCode: '333111', sectorCode: '31-33', dealIndustryApplied: 'Manufacturing', source: 'crm-derived' });
     // The verified value merges into the cockpit (no reload).
     expect(applyPatch).toHaveBeenCalledWith({ industry: 'Manufacturing' });
   });

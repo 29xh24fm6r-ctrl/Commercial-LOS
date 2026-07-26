@@ -22,6 +22,26 @@ describe('renderClosingDocumentContent', () => {
     const content = renderClosingDocumentContent(template, { conditionsPrecedentResolved: false });
     expect(content).toContain('Conditions precedent resolved: No');
   });
+
+  // N-25 remediation (Production Remediation Factory Arc Phase 8)
+  it('N-25: renders loan purpose, term, and ownership structure when supplied', () => {
+    const template = findClosingDocumentTemplate('closing_checklist')!;
+    const content = renderClosingDocumentContent(template, {
+      dealName: 'Acme Expansion',
+      loanPurpose: 'Acquisition of commercial property',
+      loanTermMonths: 60,
+      ownershipStructure: 'LLC',
+    });
+    expect(content).toContain('Loan purpose: Acquisition of commercial property');
+    expect(content).toContain('Loan term: 60 months');
+    expect(content).toContain('Ownership structure: LLC');
+  });
+
+  it('N-25: omits them when absent, never fabricated', () => {
+    const template = findClosingDocumentTemplate('closing_checklist')!;
+    const content = renderClosingDocumentContent(template, { dealName: 'Acme Expansion' });
+    expect(content).not.toMatch(/Loan purpose:|Loan term:|Ownership structure:/);
+  });
 });
 
 describe('hashClosingDocumentContent', () => {
