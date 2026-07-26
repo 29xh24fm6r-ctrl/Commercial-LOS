@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react';
-import { palette, radius, spacing, typography } from '../shared/theme';
+import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
+import { Badge } from '../shared/Badge';
 import {
   type CanonicalStageCode,
   type StageOrderingResult,
@@ -76,6 +77,18 @@ export interface StageWorkflowControlProps {
 }
 
 const TERMINAL_STATUSES: ReadonlySet<DealStatusCode> = new Set(['DECLINED', 'WITHDRAWN', 'BOARDED']);
+
+/**
+ * PR A remediation — "Current stage" rendered every terminal status (including DECLINED and
+ * WITHDRAWN, both adverse outcomes) as unstyled plain text, giving a declined deal no visual
+ * distinction from a successfully boarded one. Reuses the app's existing severity palette
+ * (Badge/severityPalette) rather than inventing a new color language.
+ */
+function terminalStatusSeverity(status: DealStatusCode): SeverityKey {
+  if (status === 'DECLINED' || status === 'WITHDRAWN') return 'blocked';
+  if (status === 'BOARDED') return 'clear';
+  return 'neutral';
+}
 const PREVIEW_MESSAGE =
   'Stage advancement is not enabled in this environment yet — the action was previewed only and no change was made to the deal.';
 
@@ -183,7 +196,14 @@ export function StageWorkflowControl(props: StageWorkflowControlProps) {
         <span style={styles.label}>Current stage</span>
         <span style={styles.value} data-current-stage>
           {stage ? `${stage.name} (sequence ${stage.sequence})` : 'Unknown stage'}
-          {terminal ? ` — ${currentStatus}` : ''}
+          {terminal && (
+            <>
+              {' '}
+              <Badge variant={terminalStatusSeverity(currentStatus)} appearance="outline">
+                {currentStatus}
+              </Badge>
+            </>
+          )}
         </span>
       </div>
       <div style={styles.row}>
@@ -225,10 +245,10 @@ export function StageWorkflowControl(props: StageWorkflowControlProps) {
         <button type="button" style={btn(canReturn && !submitting)} disabled={!canReturn || submitting} onClick={() => setActiveAction('RETURN')} data-action="return">
           Return to earlier stage
         </button>
-        <button type="button" style={btn(canDeclineOrWithdraw && !submitting)} disabled={!canDeclineOrWithdraw || submitting} onClick={() => setActiveAction('DECLINE')} data-action="decline">
+        <button type="button" style={btn(canDeclineOrWithdraw && !submitting, 'destructive')} disabled={!canDeclineOrWithdraw || submitting} onClick={() => setActiveAction('DECLINE')} data-action="decline">
           Decline
         </button>
-        <button type="button" style={btn(canDeclineOrWithdraw && !submitting)} disabled={!canDeclineOrWithdraw || submitting} onClick={() => setActiveAction('WITHDRAW')} data-action="withdraw">
+        <button type="button" style={btn(canDeclineOrWithdraw && !submitting, 'destructive')} disabled={!canDeclineOrWithdraw || submitting} onClick={() => setActiveAction('WITHDRAW')} data-action="withdraw">
           Withdraw
         </button>
       </div>
@@ -303,12 +323,21 @@ function ReasonInput({ reason, setReason, label }: { reason: string; setReason: 
   );
 }
 
-function btn(enabled: boolean): CSSProperties {
+/**
+ * PR A remediation — Decline/Withdraw used to share the identical blue `primary` tone as the
+ * routine Advance/Return actions; nothing but the button label distinguished an adverse,
+ * effectively-irreversible action from a forward-progress one. `tone: 'destructive'` reuses the
+ * app's existing "blocked" (red, true-blockers-only) status color, already used for severity
+ * elsewhere (Badge/severityPalette), so this doesn't invent a new color language.
+ */
+function btn(enabled: boolean, tone: 'primary' | 'destructive' = 'primary'): CSSProperties {
+  const enabledBg = tone === 'destructive' ? palette.blocked : palette.primary;
+  const enabledFg = tone === 'destructive' ? palette.blockedFg : palette.primaryFg;
   return {
     border: `1px solid ${palette.borderStrong}`,
     borderRadius: radius.sm,
-    background: enabled ? palette.primary : palette.surfaceAlt,
-    color: enabled ? palette.primaryFg : palette.textSubtle,
+    background: enabled ? enabledBg : palette.surfaceAlt,
+    color: enabled ? enabledFg : palette.textSubtle,
     padding: `${spacing.xs} ${spacing.sm}`,
     fontWeight: typography.weight.semibold,
     cursor: enabled ? 'pointer' : 'not-allowed',

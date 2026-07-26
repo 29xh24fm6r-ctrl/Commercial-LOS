@@ -142,4 +142,29 @@ describe('StageWorkflowControl — governed actions', () => {
       expect(btn(name)).toBeDisabled();
     }
   });
+
+  // PR A remediation — "Current stage" used to render every terminal status as unstyled plain
+  // text, giving DECLINED (an adverse outcome) no visual distinction from BOARDED (a successful
+  // one). It must now show a severity-colored badge, not bare text concatenation.
+  it('PR A: DECLINED renders as a "blocked"-severity badge, not plain text', () => {
+    const { container } = render(
+      <StageWorkflowControl ordering={ORDERING} currentStage="UNDERWRITING" currentStatus="DECLINED" gateFacts={{}} authorized liveEnabled />,
+    );
+    const currentStage = container.querySelector('[data-current-stage]') as HTMLElement;
+    expect(currentStage.textContent).toMatch(/DECLINED/);
+    // Plain-text concatenation (" — DECLINED") is gone; the status is now a Badge child element.
+    expect(currentStage.querySelector('span')?.textContent).toBe('DECLINED');
+  });
+
+  it('PR A: Decline and Withdraw buttons use a destructive (non-primary) tone, distinct from Advance/Return', () => {
+    render(
+      <StageWorkflowControl ordering={ORDERING} currentStage="UNDERWRITING" currentStatus="OPEN" gateFacts={{}} authorized liveEnabled />,
+    );
+    const declineBg = btn(/Decline/i).style.background;
+    const withdrawBg = btn(/Withdraw/i).style.background;
+    const returnBg = btn(/Return to earlier stage/i).style.background;
+    expect(declineBg).not.toBe(returnBg);
+    expect(withdrawBg).not.toBe(returnBg);
+    expect(declineBg).toBe(withdrawBg);
+  });
 });

@@ -455,9 +455,15 @@ describe('Phase 119 — PersonalPipeline stage grouping', () => {
     }
     // The unrecognized legacy value gets its own diagnostic lane (visible, not dropped, not
     // merged into a real canonical lane).
-    expect(
-      screen.getByRole('region', { name: 'Stage: TEST — Stage Phase 121' }),
-    ).toBeInTheDocument();
+    const legacyLane = screen.getByRole('region', { name: 'Stage: TEST — Stage Phase 121' });
+    expect(legacyLane).toBeInTheDocument();
+
+    // PR A remediation — every lane header previously rendered with the identical accent color
+    // regardless of canonical vs. diagnostic, so a legacy/unrecognized stage name looked exactly
+    // like a healthy canonical stage. It must now visibly disclose that it isn't one.
+    expect(within(legacyLane).getByText('Non-canonical')).toBeInTheDocument();
+    const intakeLane = screen.getByRole('region', { name: /Stage: Intake/i });
+    expect(within(intakeLane).queryByText('Non-canonical')).toBeNull();
   });
 
   it('Workstream B — a BOARDED-stage deal (should already be excluded upstream) is never placed in one of the 6 active canonical lanes', async () => {
