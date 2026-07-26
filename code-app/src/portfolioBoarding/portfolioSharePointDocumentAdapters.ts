@@ -23,6 +23,7 @@ import {
   DEFAULT_LIBRARY_ROOT_PATH,
 } from './portfolioSharePointDocumentSchemaPlan';
 import { SHAREPOINT_DOCUMENT_MODE } from './portfolioSharePointDocumentMode';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 import type {
   PortfolioSharePointDocumentPort,
   SharePointDocumentUploadInput,
@@ -124,15 +125,27 @@ function classifyHttpStatus(status: number | undefined): 'transient-failure' | '
   return 'transient-failure';
 }
 
-function describeConnectorError(error: { message?: string; status?: number } | undefined): {
+/**
+ * Final LOS completion (Workstream P) — `error.message` here is a genuine raw connector/transport
+ * failure (or, absent one, a generic internal fallback), and every caller below folds the
+ * returned `message` straight into a `reason` field that ends up in `DocumentUploadResult.message`
+ * (`usePortfolioLoanDocumentPersistence.ts`), which `PortfolioLoanBoardingDocumentUploadPanel.tsx`
+ * renders verbatim ("Not uploaded — {ui.message}"). Mapped once, centrally, here -- the single
+ * point all three connector-error call sites (folder ensure / file create / folder list) share --
+ * rather than at each call site.
+ */
+function describeConnectorError(
+  error: { message?: string; status?: number } | undefined,
+  correlationId?: string,
+): {
   message: string;
   status: number | undefined;
 } {
-  const message =
+  const rawMessage =
     error?.message && error.message.length > 0
       ? error.message
       : 'SharePoint connector reported a failure without a message.';
-  return { message, status: error?.status };
+  return { message: mapBusinessSafeError(rawMessage, correlationId).safeMessage, status: error?.status };
 }
 
 export interface LiveSharePointDocumentAdapterOptions {
@@ -164,13 +177,13 @@ export function createLiveSharePointDocumentAdapter(
       try {
         const folderResult = await connector.createFolderIfNotExists(folderPath);
         if (!folderResult.success) {
-          const { message, status } = describeConnectorError(folderResult.error);
+          const { message, status } = describeConnectorError(folderResult.error, input.correlationId);
           return { kind: classifyHttpStatus(status), reason: message };
         }
 
         const uploadResult = await connector.createFile(folderPath, input.fileName, input.contentType, input.content);
         if (!uploadResult.success || !uploadResult.data) {
-          const { message, status } = describeConnectorError(uploadResult.error);
+          const { message, status } = describeConnectorError(uploadResult.error, input.correlationId);
           return { kind: classifyHttpStatus(status), reason: message };
         }
 
@@ -191,8 +204,8 @@ export function createLiveSharePointDocumentAdapter(
           mode: 'LIVE',
         };
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { kind: 'transient-failure', reason: message };
+        const raw = err instanceof Error ? err.message : String(err);
+        return { kind: 'transient-failure', reason: mapBusinessSafeError(raw, input.correlationId).safeMessage };
       }
     },
     async list(input: SharePointDocumentListInput): Promise<SharePointListResult> {
@@ -208,8 +221,8 @@ export function createLiveSharePointDocumentAdapter(
           entries: (result.data ?? []).map((e) => ({ itemId: e.itemId, fileName: e.fileName, webUrl: e.webUrl })),
         };
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        return { kind: 'transient-failure', reason: message };
+        const raw = err instanceof Error ? err.message : String(err);
+        return { kind: 'transient-failure', reason: mapBusinessSafeError(raw).safeMessage };
       }
     },
   };

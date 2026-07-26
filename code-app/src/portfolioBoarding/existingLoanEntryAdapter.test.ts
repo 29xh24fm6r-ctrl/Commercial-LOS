@@ -63,11 +63,14 @@ describe('Phase 259 — boardExistingLoan fail-closed', () => {
     expect(d.createRoot).not.toHaveBeenCalled();
   });
 
-  it('reports write-failed when the root create fails', async () => {
+  it('reports write-failed when the root create fails, mapped to the shared business-safe message', async () => {
     const d = deps({ createRoot: vi.fn(async () => ({ success: false, error: { message: 'create rejected' } })) });
     const out = await boardExistingLoan(baseInput(), d);
     expect(out.kind).toBe('write-failed');
-    if (out.kind === 'write-failed') expect(out.error).toMatch(/create rejected/);
+    if (out.kind === 'write-failed') {
+      expect(out.error).not.toContain('create rejected');
+      expect(out.error).toContain("We couldn't save that action");
+    }
   });
 
   it('fails closed on readback mismatch', async () => {

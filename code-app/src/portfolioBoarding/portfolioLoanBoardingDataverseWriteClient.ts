@@ -16,6 +16,8 @@
  * missing entry fails closed rather than silently no-op-ing.
  */
 
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
+
 interface GeneratedRecordService {
   create(record: Record<string, unknown>): Promise<{ success: boolean; data?: Record<string, unknown>; error?: { message?: string } }>;
   update(id: string, changedFields: Record<string, unknown>): Promise<{ success: boolean; data?: Record<string, unknown>; error?: { message?: string } }>;
@@ -120,7 +122,17 @@ async function resolveEntity(entitySetName: string): Promise<{ service: Generate
   return { service: mod[reg.exportName] as unknown as GeneratedRecordService, idField: reg.idField };
 }
 
-/** The live `DataverseWriteClient`, dynamic-import-backed, SDK-free until called. */
+/**
+ * Final LOS completion (Workstream P) — every `error` this client returns is a raw
+ * Dataverse/network failure string. It bubbles, unmapped, through
+ * `portfolioLoanBoardingLiveDataverseTransport.ts` and
+ * `portfolioLoanBoardingLivePersistence.ts` into `usePortfolioLoanBoardingPersistence.ts`'s
+ * `state.message`, which `PortfolioLoanBoardingSaveBar.tsx` renders verbatim ("Save failed:
+ * {state.message}"). None of those intermediate modules is in this pass's scope, and none of
+ * them do anything with the raw text besides pass it through — so mapping it here, at its
+ * origin, is the only in-scope point that actually closes the leak (every downstream layer
+ * already carries the safe message unchanged).
+ */
 export function buildLivePortfolioBoardingDataverseWriteClient(): DataverseWriteClient {
   return {
     async create(entitySetName, record) {
@@ -128,10 +140,14 @@ export function buildLivePortfolioBoardingDataverseWriteClient(): DataverseWrite
       if (!resolved) return NOT_REGISTERED;
       try {
         const res = await resolved.service.create(record);
-        if (!res.success) return { ok: false, error: res.error?.message ?? 'create returned non-success.' };
+        if (!res.success) {
+          const raw = res.error?.message ?? 'create returned non-success.';
+          return { ok: false, error: mapBusinessSafeError(raw).safeMessage };
+        }
         return { ok: true, id: (res.data?.[resolved.idField] as string | undefined) ?? undefined, record: res.data };
       } catch (err: unknown) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        const raw = err instanceof Error ? err.message : String(err);
+        return { ok: false, error: mapBusinessSafeError(raw).safeMessage };
       }
     },
     async update(entitySetName, id, record) {
@@ -139,10 +155,14 @@ export function buildLivePortfolioBoardingDataverseWriteClient(): DataverseWrite
       if (!resolved) return NOT_REGISTERED;
       try {
         const res = await resolved.service.update(id, record);
-        if (!res.success) return { ok: false, error: res.error?.message ?? 'update returned non-success.' };
+        if (!res.success) {
+          const raw = res.error?.message ?? 'update returned non-success.';
+          return { ok: false, error: mapBusinessSafeError(raw).safeMessage };
+        }
         return { ok: true, record: res.data };
       } catch (err: unknown) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        const raw = err instanceof Error ? err.message : String(err);
+        return { ok: false, error: mapBusinessSafeError(raw).safeMessage };
       }
     },
     async retrieve(entitySetName, id) {
@@ -150,10 +170,14 @@ export function buildLivePortfolioBoardingDataverseWriteClient(): DataverseWrite
       if (!resolved) return NOT_REGISTERED;
       try {
         const res = await resolved.service.get(id);
-        if (!res.success) return { ok: false, error: res.error?.message ?? 'retrieve returned non-success.' };
+        if (!res.success) {
+          const raw = res.error?.message ?? 'retrieve returned non-success.';
+          return { ok: false, error: mapBusinessSafeError(raw).safeMessage };
+        }
         return { ok: true, record: res.data };
       } catch (err: unknown) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        const raw = err instanceof Error ? err.message : String(err);
+        return { ok: false, error: mapBusinessSafeError(raw).safeMessage };
       }
     },
     async retrieveMultiple(entitySetName, query) {
@@ -161,10 +185,14 @@ export function buildLivePortfolioBoardingDataverseWriteClient(): DataverseWrite
       if (!resolved) return NOT_REGISTERED;
       try {
         const res = await resolved.service.getAll(query ? { filter: query } : undefined);
-        if (!res.success) return { ok: false, error: res.error?.message ?? 'retrieveMultiple returned non-success.' };
+        if (!res.success) {
+          const raw = res.error?.message ?? 'retrieveMultiple returned non-success.';
+          return { ok: false, error: mapBusinessSafeError(raw).safeMessage };
+        }
         return { ok: true, records: res.data ?? [] };
       } catch (err: unknown) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        const raw = err instanceof Error ? err.message : String(err);
+        return { ok: false, error: mapBusinessSafeError(raw).safeMessage };
       }
     },
   };

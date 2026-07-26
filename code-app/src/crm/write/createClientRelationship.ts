@@ -20,6 +20,7 @@
  */
 
 import { newCorrelationId } from '../../shared/governance/correlationId';
+import { mapBusinessSafeError } from '../../shared/errors/businessSafeErrorMapping';
 import { authGate, buildAuditPayload, type CrmActor, type WriteResult } from './crmWriteAdapter';
 
 /**
@@ -157,12 +158,18 @@ export async function createClientRelationship(
   try {
     created = await deps.createClientRelationship(payload);
   } catch (err: unknown) {
-    return { kind: 'write-failed', error: err instanceof Error ? err.message : String(err), correlationId };
+    // Final LOS completion (Workstream P) — this workflow is disabled by default today
+    // (CREATE_CLIENT_RELATIONSHIP_ENABLED=false, no live caller yet), but it mirrors
+    // bridgeOrgToClientRelationship.ts's write-failed shape exactly, so it is mapped the same
+    // way now rather than leaving a raw-error trap for whichever UI wires it up next.
+    const raw = err instanceof Error ? err.message : String(err);
+    return { kind: 'write-failed', error: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId };
   }
   if (!created.success || !created.id) {
+    const raw = created.error?.message ?? 'Client relationship create returned non-success.';
     return {
       kind: 'write-failed',
-      error: created.error?.message ?? 'Client relationship create returned non-success.',
+      error: mapBusinessSafeError(raw, correlationId).safeMessage,
       correlationId,
     };
   }
