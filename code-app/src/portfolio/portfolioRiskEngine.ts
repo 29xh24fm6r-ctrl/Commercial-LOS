@@ -4,6 +4,7 @@ import type {
   PortfolioCommandSnapshot,
   PortfolioConcentrationRow,
 } from './portfolioCommandSnapshot';
+import { parseCalendarDate, daysUntilCalendarDate } from '../shared/formatters';
 
 /**
  * Phase 132A — Portfolio risk & concentration engine.
@@ -392,13 +393,13 @@ function deriveMaturityLadder(
 
   for (const r of rows) {
     const iso = r.teamDeal.targetCloseDate;
-    const parsed = iso ? new Date(iso) : undefined;
-    if (!parsed || Number.isNaN(parsed.getTime())) {
+    const parsed = parseCalendarDate(iso);
+    if (!parsed) {
       noDate.dealCount += 1;
       noDate.totalExposure += amountOrZero(r.teamDeal.amount);
       continue;
     }
-    const days = Math.floor((parsed.getTime() - now.getTime()) / MS_PER_DAY);
+    const days = daysUntilCalendarDate(iso, now)!;
     for (const b of buckets) {
       const inLow = days >= b.lowDays;
       const inHigh = b.highDays === undefined ? true : days < b.highDays;
@@ -671,12 +672,8 @@ function isStale(r: ManagerVMRow, now: Date): boolean {
 }
 
 function isClosingSoon(r: ManagerVMRow, now: Date): boolean {
-  const iso = r.teamDeal.targetCloseDate;
-  if (!iso) return false;
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return false;
-  const delta = t - now.getTime();
-  return delta >= 0 && delta <= CLOSING_SOON_DAYS * MS_PER_DAY;
+  const days = daysUntilCalendarDate(r.teamDeal.targetCloseDate, now);
+  return days !== undefined && days >= 0 && days <= CLOSING_SOON_DAYS;
 }
 
 function bandToSeverity(band: PortfolioBand): PortfolioFindingSeverity {

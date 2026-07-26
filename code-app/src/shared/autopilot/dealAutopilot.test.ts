@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -293,6 +293,48 @@ describe('Phase 80 — deriveNextBestActions', () => {
       // appears before it in insertion order).
       expect(r.find((s) => s.id === 'stage-aging')).toBeUndefined();
       expect(r.find((s) => s.id === 'closing-soon')).toBeDefined();
+    });
+  });
+
+  describe('N-24 remediation — date-only fields never drift a day west of UTC', () => {
+    const originalTz = process.env.TZ;
+
+    afterEach(() => {
+      process.env.TZ = originalTz;
+    });
+
+    it('a task due exactly "today" (date-only) is not flagged overdue, even west of UTC', () => {
+      process.env.TZ = 'America/New_York';
+      const now = new Date(2026, 8, 8, 9, 0, 0); // Sep 8, 2026, 9am local
+      const input = emptyInput();
+      input.openTasks = [
+        { id: 't1', title: 'Due today', dueDate: '2026-09-08', completed: false },
+      ];
+      const r = deriveNextBestActions(input, now);
+      expect(r.find((s) => s.id === 'overdue-tasks')).toBeUndefined();
+    });
+
+    it('a task due yesterday (date-only) IS flagged overdue, even west of UTC', () => {
+      process.env.TZ = 'America/New_York';
+      const now = new Date(2026, 8, 8, 9, 0, 0);
+      const input = emptyInput();
+      input.openTasks = [
+        { id: 't1', title: 'Due yesterday', dueDate: '2026-09-07', completed: false },
+      ];
+      const r = deriveNextBestActions(input, now);
+      expect(r.find((s) => s.id === 'overdue-tasks')).toBeDefined();
+    });
+
+    it('closing-soon day count is exact for a date-only targetCloseDate, never off by one, west of UTC', () => {
+      process.env.TZ = 'America/New_York';
+      const now = new Date(2026, 8, 8, 9, 0, 0);
+      const input = emptyInput();
+      input.deal.targetCloseDate = '2026-09-13'; // exactly 5 calendar days from Sep 8
+      input.mostRecentActivityIso = isoDaysAgo(20); // stale -> HIGH combined signal
+      const r = deriveNextBestActions(input, now);
+      const closing = r.find((s) => s.id === 'closing-soon-stale-activity');
+      expect(closing).toBeDefined();
+      expect(closing!.title).toBe('Closes in 5 days and recent activity is light');
     });
   });
 
