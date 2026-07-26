@@ -263,6 +263,9 @@ function borrowerOverview(
     `Client name: ${valOrMissing(ctx.deal.clientName, label, 'Client name', missing)}`,
     `Industry: ${valOrMissing(ctx.deal.industry, label, 'Industry', missing)}`,
     `Customer type: ${valOrMissing(ctx.deal.customerType, label, 'Customer type', missing)}`,
+    // N-25 remediation (Production Remediation Factory Arc Phase 8) — already persistable via
+    // Deal Profile editing (Factory Arc Phase 3), but never surfaced in the memo before.
+    `Ownership structure: ${valOrMissing(ctx.deal.ownershipStructure, label, 'Ownership structure', missing)}`,
     `Relationship banker: ${valOrMissing(ctx.deal.bankerName, label, 'Banker', missing)}`,
   ];
   // N-22/N-23 remediation (Production Remediation Factory Arc Phase 7) — the deal's six-value
@@ -289,6 +292,10 @@ function loanRequest(
     `Requested amount: ${formatAmount(ctx.deal.amount) ?? trackMissing(label, 'Requested amount', missing)}`,
     `Product type: ${valOrMissing(ctx.deal.productType, label, 'Product type', missing)}`,
     `Loan structure: ${valOrMissing(ctx.deal.loanStructure, label, 'Loan structure', missing)}`,
+    // N-25 remediation (Production Remediation Factory Arc Phase 8) — already persistable via
+    // Deal Profile editing (Factory Arc Phase 3), but never surfaced in the memo before.
+    `Loan purpose: ${valOrMissing(ctx.deal.loanPurpose, label, 'Loan purpose', missing)}`,
+    `Loan term: ${formatMonths(ctx.deal.loanTermMonths) ?? trackMissing(label, 'Loan term', missing)}`,
     `Target close date: ${formatDate(ctx.deal.targetCloseDate) ?? trackMissing(label, 'Target close date', missing)}`,
   ];
   return sectionWrap(label, lines.join('\n'));
@@ -710,6 +717,11 @@ function formatAmount(n: number | undefined): string | undefined {
   if (n == null) return undefined;
   if (!Number.isFinite(n)) return undefined;
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+}
+
+function formatMonths(n: number | undefined): string | undefined {
+  if (n == null || !Number.isFinite(n)) return undefined;
+  return `${n} months`;
 }
 
 function formatDate(iso: string | undefined): string | undefined {

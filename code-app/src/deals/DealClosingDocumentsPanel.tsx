@@ -31,6 +31,11 @@ function buildClosingDocumentFactModel(deal: DealDetail): ClosingDocumentFactMod
     loanAmount: deal.amount,
     closingDate: deal.targetCloseDate,
     collateralDescription: deal.collateralSummary,
+    // N-25 remediation (Production Remediation Factory Arc Phase 8) -- already persistable via
+    // Deal Profile editing (Factory Arc Phase 3); display-only here, no template requires them.
+    loanPurpose: deal.loanPurpose,
+    loanTermMonths: deal.loanTermMonths,
+    ownershipStructure: deal.ownershipStructure,
     // jurisdiction / conditionsPrecedentResolved / fundingInstructions have no source on
     // DealDetail today -- left undefined rather than guessed; templates that require them
     // correctly show as ineligible until a real source exists.

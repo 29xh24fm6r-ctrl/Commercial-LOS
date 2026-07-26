@@ -627,6 +627,105 @@ describe('Workstream E — expanded field capture: governed follow-up profile-co
     ).toBeInTheDocument();
   });
 
+  // N-25 remediation (Production Remediation Factory Arc Phase 8) — loan purpose, term, and
+  // ownership structure were previously absent from this wizard entirely (a stale disclaimer said
+  // the schema didn't support them, even though updateDealProfile.ts already governs writing all
+  // three). This proves the wizard now captures and sends them through the same governed
+  // follow-up write as the other optional Step 3 fields.
+  it('N-25: captures loan purpose, term months, and ownership structure and sends them in the follow-up write', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'success_created_only',
+      createdDealId: 'deal-new-25',
+      stageLabel: 'Intake',
+      statusLabel: 'Open',
+      userFacingMessage: 'ok',
+      duplicateOutcome: { module: 'duplicate-detection', kind: 'no_duplicate_found' },
+    });
+    updateDealProfileMock.mockResolvedValue({
+      kind: 'updated',
+      dealId: 'deal-new-25',
+      correlationId: 'corr-25',
+      verified: {},
+      changedLabels: ['Loan Purpose', 'Loan Term (months)', 'Ownership Structure'],
+      auditId: 'audit-25',
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+
+    await screen.findByRole('option', { name: /Acme Holdings LLC/i });
+    await user.click(screen.getByRole('option', { name: /Acme Holdings LLC/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
+    await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '1000000');
+    await user.type(
+      container.querySelector('[data-banker-new-deal-loan-purpose]') as HTMLInputElement,
+      'Acquisition of commercial property',
+    );
+    await user.type(container.querySelector('[data-banker-new-deal-loan-term]') as HTMLInputElement, '60');
+    await user.type(
+      container.querySelector('[data-banker-new-deal-ownership-structure]') as HTMLInputElement,
+      'LLC',
+    );
+    await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
+
+    await waitFor(() => expect(updateDealProfileMock).toHaveBeenCalledTimes(1));
+    const call = updateDealProfileMock.mock.calls[0]![0];
+    expect(call.dealId).toBe('deal-new-25');
+    expect(call.patch).toEqual({
+      loanPurpose: 'Acquisition of commercial property',
+      loanTermMonths: '60',
+      ownershipStructure: 'LLC',
+    });
+  });
+
+  // N-25 remediation — a failed create must not lose what the banker already typed on retry.
+  // No existing test asserted this preservation for ANY Step 3 field; the wizard's own state
+  // management already provides it for free (no field is ever reset on failure) — this proves it.
+  it('N-25: preserves purpose/term/ownership across a failed create so a retry does not lose banker-typed data', async () => {
+    setBanker();
+    orchestrateMock.mockResolvedValue({
+      kind: 'create_failed',
+      createOutcome: { kind: 'failed', error: 'transient failure' },
+      userFacingMessage: 'failed',
+    });
+    const user = userEvent.setup();
+    const { container } = renderCreate();
+
+    await screen.findByRole('option', { name: /Acme Holdings LLC/i });
+    await user.click(screen.getByRole('option', { name: /Acme Holdings LLC/i }));
+    await user.click(container.querySelector('[data-new-deal-client-continue]') as HTMLButtonElement);
+    await screen.findByRole('option', { name: /Commercial East/i });
+    await user.click(screen.getByRole('option', { name: /Commercial East/i }));
+    await user.click(container.querySelector('[data-new-deal-team-continue]') as HTMLButtonElement);
+    await user.type(container.querySelector('[data-banker-new-deal-name]') as HTMLInputElement, 'Acme WC');
+    await user.type(container.querySelector('[data-banker-new-deal-amount]') as HTMLInputElement, '1000000');
+    await user.type(
+      container.querySelector('[data-banker-new-deal-loan-purpose]') as HTMLInputElement,
+      'Working capital',
+    );
+    await user.type(container.querySelector('[data-banker-new-deal-loan-term]') as HTMLInputElement, '36');
+    await user.type(
+      container.querySelector('[data-banker-new-deal-ownership-structure]') as HTMLInputElement,
+      'S-Corp',
+    );
+    await user.click(container.querySelector('[data-banker-new-deal-submit]') as HTMLButtonElement);
+
+    await waitFor(() =>
+      expect(container.querySelector('[data-banker-new-deal-result="create_failed"]')).not.toBeNull(),
+    );
+    expect((container.querySelector('[data-banker-new-deal-loan-purpose]') as HTMLInputElement).value).toBe(
+      'Working capital',
+    );
+    expect((container.querySelector('[data-banker-new-deal-loan-term]') as HTMLInputElement).value).toBe('36');
+    expect(
+      (container.querySelector('[data-banker-new-deal-ownership-structure]') as HTMLInputElement).value,
+    ).toBe('S-Corp');
+  });
+
   it('does NOT issue a follow-up write when nothing beyond name/amount was filled in', async () => {
     setBanker();
     orchestrateMock.mockResolvedValue({

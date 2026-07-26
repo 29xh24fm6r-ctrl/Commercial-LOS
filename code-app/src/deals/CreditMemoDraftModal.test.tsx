@@ -36,6 +36,9 @@ const baseDeal: DealDetail = {
   createdOn: undefined,
   stageEntryDate: undefined,
   isClosed: false,
+  loanPurpose: 'Acquisition of commercial property',
+  loanTermMonths: 60,
+  ownershipStructure: 'LLC',
 };
 
 const noDocs: DealDocumentsResult = { outstanding: [], received: [], reviewed: [] };

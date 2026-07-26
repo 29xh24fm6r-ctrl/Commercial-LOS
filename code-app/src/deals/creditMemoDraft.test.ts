@@ -84,6 +84,9 @@ const fullyPopulatedDeal: DealDetail = {
   createdOn: '2026-01-15T00:00:00Z',
   stageEntryDate: '2026-03-01T00:00:00Z',
   isClosed: false,
+  loanPurpose: 'Acquisition of commercial property',
+  loanTermMonths: 60,
+  ownershipStructure: 'LLC',
   financialSpreadInputsJson: serializeGlobalCashFlowFormState(fullyPopulatedGcfState),
   riskRatingInputsJson: serializeRiskRatingFormState(fullyPopulatedRiskRatingState),
   underwritingRecommendationInputsJson: serializeUnderwritingRecommendationFormState(fullyPopulatedRecommendationState),
@@ -285,6 +288,32 @@ describe('buildCreditMemoDraft — sparse deal, missing-field discipline', () =>
     );
     expect(body).toContain(`Guarantor structure: ${MISSING_PLACEHOLDER}`);
     expect(missingFields).toContain('Guarantor Support — Guarantor structure');
+  });
+
+  // N-25 remediation (Production Remediation Factory Arc Phase 8) — loan purpose, term, and
+  // ownership structure were already persistable via Deal Profile editing (Factory Arc Phase 3)
+  // but never appeared in the memo at all.
+  it('N-25: Loan Request shows loan purpose and term when populated, flags them missing when absent (never invented)', () => {
+    const populated = buildCreditMemoDraft(['loan-request'], fullCtx());
+    expect(populated.body).toContain('Loan purpose: Acquisition of commercial property');
+    expect(populated.body).toContain('Loan term: 60 months');
+    expect(populated.missingFields).toEqual([]);
+
+    const sparse = buildCreditMemoDraft(['loan-request'], fullCtx({ deal: sparseDeal }));
+    expect(sparse.body).toContain(`Loan purpose: ${MISSING_PLACEHOLDER}`);
+    expect(sparse.body).toContain(`Loan term: ${MISSING_PLACEHOLDER}`);
+    expect(sparse.missingFields).toContain('Loan Request — Loan purpose');
+    expect(sparse.missingFields).toContain('Loan Request — Loan term');
+  });
+
+  it('N-25: Borrower Overview shows ownership structure when populated, flags it missing when absent (never a fabricated taxonomy)', () => {
+    const populated = buildCreditMemoDraft(['borrower-overview'], fullCtx());
+    expect(populated.body).toContain('Ownership structure: LLC');
+    expect(populated.missingFields).toEqual([]);
+
+    const sparse = buildCreditMemoDraft(['borrower-overview'], fullCtx({ deal: sparseDeal }));
+    expect(sparse.body).toContain(`Ownership structure: ${MISSING_PLACEHOLDER}`);
+    expect(sparse.missingFields).toContain('Borrower / Relationship Overview — Ownership structure');
   });
 });
 
