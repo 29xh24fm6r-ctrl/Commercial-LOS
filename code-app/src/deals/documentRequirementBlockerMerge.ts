@@ -22,10 +22,7 @@
 import type { DealBlockerItem, DealBlockerModel } from './dealBlockerModel';
 import { isRequirementSatisfied, type DocumentRequirementRow } from './documentRequirementLifecycle';
 import type { RequiredDocumentDefinition } from './documentRequirementDerivation';
-
-function normalize(value: string): string {
-  return value.trim().toLowerCase().replace(/[-_/]+/g, ' ').replace(/\s+/g, ' ');
-}
+import { normalizeDocumentName as normalize } from '../shared/deals/documentNameNormalization';
 
 export function mergeDocumentRequirementBlockers(
   base: DealBlockerModel,
