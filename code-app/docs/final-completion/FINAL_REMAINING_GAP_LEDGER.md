@@ -475,6 +475,23 @@ building a correct multi-stage integration harness against `loanWorkflowRequirem
 real signatures needs more verification room than remained safely available in this pass, so it is
 named here rather than shipped half-verified.
 
+## 22. Workstream W — FINAL_CONTROLLED_PRODUCTION_E2E.md
+
+Produced `docs/final-completion/FINAL_CONTROLLED_PRODUCTION_E2E.md`, an operator-executable script
+certifying this arc's six new durable-record capabilities (Workstreams C/D/E/F/H/J) as ONE
+governed loan lifecycle on a single test deal, in the order a real deal moves through them
+(Underwriting → Credit Approval Decision → Commitment → Condition Verification → Executed Document
+Attestation → Funding → Booking QC → Boarding), plus a separate decline/adverse-action branch and
+cross-cutting checks for Workstreams K/L/M/O/Q. Mirrors
+`docs/governance/LIVE_OPERATOR_CERTIFICATION_SCRIPT.md`'s existing style rather than duplicating
+what that document already certifies (stage/status plugin enforcement, RETURN/DECLINE/WITHDRAW live
+UI behavior).
+
+**Explicitly not executed.** This arc has no live Dataverse connection; every step is derived from
+direct source reads (the same evaluators/stores/panels cited throughout this ledger), not from
+running the app. The document says so in its own certification statement, so it cannot be
+mistaken for a claim of live verification.
+
 ## Living-document note
 
 This ledger will be updated (not replaced) as each workstream lands, so that by the time the PR
