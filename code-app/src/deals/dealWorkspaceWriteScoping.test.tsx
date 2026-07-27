@@ -81,6 +81,7 @@ vi.mock('./documentActions', () => ({ requestDocument: requestDocumentMock }));
 vi.mock('./creditMemoActions', () => ({
   saveCreditMemoDraft: saveCreditMemoDraftMock,
 }));
+vi.mock('./finalizeCreditMemoAction', () => ({ finalizeCreditMemoAction: vi.fn() }));
 vi.mock('../generated/services/Cr664_auditeventsService', () => ({
   Cr664_auditeventsService: { create: auditCreateMock },
 }));

@@ -76,7 +76,8 @@ const AUDIT_COUNTS = Object.freeze({
   // Verification, Executed Document Attestation, Booking QC, Adverse Action Record) -- a
   // registry blind spot those workstreams had until now, not new gaps. Workstream O then added
   // one more: data-quality-flag-create, the first write that CREATES a data quality flag.
-  governedWrites: 21,
+  // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E).
+  governedWrites: 23,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) -- see

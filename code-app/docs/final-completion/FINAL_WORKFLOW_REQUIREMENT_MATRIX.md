@@ -39,7 +39,7 @@ today — a pre-existing, disclosed limitation, not new).
 |---|---|---|---|---|---|
 | `UNDERWRITING:risk_rating` | UNDERWRITING | **tracked** | `cr664_riskratinginputs` | `underwritingDeepFacts.ts` | Pre-arc (Factory Arc Phase 5 / N-14) |
 | `UNDERWRITING:uw_recommendation` | UNDERWRITING | **tracked** | `cr664_underwritingrecommendationinputs` | `underwritingDeepFacts.ts` | Pre-arc (Factory Arc Phase 5 / N-15) |
-| `CREDIT_APPROVAL:memo_finalized` | CREDIT_APPROVAL | **untracked** | — | — | Not closed — see §3 |
+| `CREDIT_APPROVAL:memo_finalized` | CREDIT_APPROVAL | **tracked** | `cr664_creditmemo1` | `evaluateCreditMemoFinalizationReadiness` | **Workstream 146-B** (146 Factory arc) |
 | `CREDIT_APPROVAL:approval_decision` | CREDIT_APPROVAL | **tracked** | `cr664_creditapprovaldecision` | `evaluateCreditApprovalDecisionReadiness` | **Workstream C** |
 | `CREDIT_APPROVAL:approval_authority` | CREDIT_APPROVAL | **tracked** | `cr664_creditapprovaldecision` | `evaluateCreditApprovalDecisionReadiness` | **Workstream C** |
 | `CREDIT_APPROVAL:approval_conditions` | CREDIT_APPROVAL | **tracked** | `cr664_creditapprovaldecision` | `evaluateCreditApprovalDecisionReadiness` | **Workstream C** |
@@ -54,29 +54,36 @@ today — a pre-existing, disclosed limitation, not new).
 | `BOARDED:boarded_loan_record` | BOARDED | **tracked** | `cr664_portfolioboardedloan` | `boardingHandoffReadiness.ts` | Pre-arc (WFLOW-H), wired to write-seam by **Workstream H** |
 | `BOARDED:servicing_owner` | BOARDED | **tracked** | `cr664_portfolioboardedloan` | `boardingHandoffReadiness.ts` | **Workstream H** |
 
-**Net effect of this arc on the deep-requirement layer:** 6 durable-record tables shipped
-(Workstreams C/D/E/F/H), collectively flipping **11 requirements** from untracked to tracked
-(3 Credit Approval + 2 Commitment + 3 Condition Verification + 1 Executed Document + 1 Booking QC +
-1 servicing owner). Of the deep requirements authored in the registry, **only one remains
-untracked**: `CREDIT_APPROVAL:memo_finalized`.
+**Net effect of this arc (Workstreams C-H) on the deep-requirement layer:** 6 durable-record tables
+shipped, collectively flipping **11 requirements** from untracked to tracked (3 Credit Approval +
+2 Commitment + 3 Condition Verification + 1 Executed Document + 1 Booking QC + 1 servicing owner).
+
+**Post-arc addendum (146 Factory arc, Workstream 146-B):** `CREDIT_APPROVAL:memo_finalized` is now
+also tracked — see `creditMemoFinalizationReadiness.ts` / `finalizeCreditMemoAction.ts`. It reuses
+the EXISTING `cr664_creditmemo1` row's `cr664_status` field (draft/final/stale, already persisted
+by every memo save) rather than a new schema field; "current" memo = highest `cr664_version`
+(the same convention `creditMemoQueries.ts` already used), not the append-only supersedes-chain
+pattern the six Workstream C-H durable records use. Of the deep requirements authored in the
+registry, **only one remains untracked**: `RETURN:authorization`.
 
 ## 3. What remains genuinely untracked, and why (not gaps — disclosed, ratified positions)
 
-- **`CREDIT_APPROVAL:memo_finalized`** — requires a credit-memo lifecycle status field (draft →
-  under review → finalized) that does not exist in the schema today (`CreditMemoStatusKey` is only
-  `draft | final | stale`). This is out of scope for this arc — it is its own, separately-scoped
-  schema effort (originally "ARC PR 8"), not attempted here. `CREDIT_SEVERITY_OVERRIDE` demotes
-  three shallow, stage-def-derived duplicates of this same concept (`reviewed memo`, `committee
-  package`, `approved credit memo`) to `'recommended'` specifically so this one real authored
-  requirement remains the single source of truth, rather than three unsatisfiable hard blocks.
 - **`RETURN:authorization`** — deliberately left untracked. `docs/governance/
   CANONICAL_TRANSITION_POLICY_CONTRACT.md` §5 explicitly rules out inventing a new authorization
   tier beyond identity resolution for this initiative ("out of scope... left for a future,
   separately-ratified revision"). This is a ratified design decision, not missing infrastructure —
-  see Workstream J's disposition in `FINAL_REMAINING_GAP_LEDGER.md` §14.
+  see Workstream J's disposition in `FINAL_REMAINING_GAP_LEDGER.md` §14, and the 146 Factory arc's
+  Workstream 146-C ACCEPTED_LIMITATION disposition (gap ledger addendum) for the current-cycle
+  reconfirmation of this same decision.
 
-Both are demoted to `severity: 'recommended'` via their respective overrides, so neither strands a
-live transition while remaining honestly visible (never silently marked "met").
+It is demoted to `severity: 'recommended'` via `NON_FORWARD_SEVERITY_OVERRIDE`, so it never strands
+a live transition while remaining honestly visible (never silently marked "met"). `CREDIT_SEVERITY_
+OVERRIDE` separately demotes three shallow, stage-def-derived duplicates of the memo-finalization
+concept (`reviewed memo`, `committee package`, `approved credit memo`) to `'recommended'` — that
+demotion stays in place even now that `CREDIT_APPROVAL:memo_finalized` itself is tracked, since
+those three still ask about review/committee/approval status the schema has no field for; the one
+real authored requirement remains the single source of truth for finalization, not three
+unsatisfiable hard blocks.
 
 ## 4. Return / Decline / Withdraw — confirmed LIVE, not preview-only
 

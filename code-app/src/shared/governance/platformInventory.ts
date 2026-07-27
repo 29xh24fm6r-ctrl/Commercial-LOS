@@ -229,6 +229,28 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsTimeline: false,
     legacyDisciplineExempt: true,
   },
+  // 146 Factory arc (Workstream 146-B) -- flips the credit memo's cr664_status Draft -> Final.
+  // Phase 272 continues the 265-271 sequential numbering above this same discipline established
+  // (a number to satisfy this schema's required `phase: number` field, not a real Phase-N doc).
+  {
+    id: 'credit-memo-finalize',
+    label: 'Credit memo finalize',
+    phase: 272,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  // 146 Factory arc (Workstream 146-E) -- assigns/reassigns cr664_AssignedServicingOwner on a
+  // boarded portfolio loan. Audit only (like data-quality-flag-create above): a portfolio-loan
+  // admin action is not a deal-facing timeline fact.
+  {
+    id: 'assign-servicing-owner',
+    label: 'Assign servicing owner',
+    phase: 273,
+    emitsAudit: true,
+    emitsTimeline: false,
+    legacyDisciplineExempt: true,
+  },
 ];
 // NOTE: forward stage-advance (DealStageProgressionCard -> stageAdvanceWriteDependency.ts
 // -> buildLiveStageAdvanceDeps.ts) is a real, armed, audited + timelined governed write and

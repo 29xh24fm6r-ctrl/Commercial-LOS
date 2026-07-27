@@ -7,6 +7,7 @@ import { BankerIdentityProvider, type BankerIdentity } from './BankerContext';
 import type { BankerCreditAuthorityFields } from './bankerCreditAuthorityFields';
 import { LoadingState } from '../shared/LoadingState';
 import { ErrorState } from '../shared/ErrorState';
+import { mapBusinessSafeReadError } from '../shared/errors/businessSafeErrorMapping';
 
 type State =
   | { kind: 'loading' }
@@ -49,8 +50,11 @@ export function BankerProvider({ children }: { children: React.ReactNode }) {
       (err: unknown) => {
         // Lookup error -> treat as "not resolvable" but record reason.
         // We never want the systemuser query to fail the workspace.
-        const message = err instanceof Error ? err.message : String(err);
-        return { _error: message } as const;
+        const raw = err instanceof Error ? err.message : String(err);
+        // Final LOS Completion arc (146 Factory arc, Workstream 146-G) — this reason feeds
+        // writeDisabledReason, rendered verbatim in a "Save disabled: {reason}" banner across
+        // many panels (e.g. CreditMemo.tsx); never surface a raw transport error there.
+        return { _error: mapBusinessSafeReadError(raw).safeMessage } as const;
       },
     );
 
@@ -96,8 +100,10 @@ export function BankerProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const message = err instanceof Error ? err.message : String(err);
-        setState({ kind: 'failed', message });
+        const raw = err instanceof Error ? err.message : String(err);
+        // Final LOS Completion arc (146 Factory arc, Workstream 146-G) — the whole-workspace
+        // failure gate (ErrorState below); never a raw transport error.
+        setState({ kind: 'failed', message: mapBusinessSafeReadError(raw).safeMessage });
       });
     return () => {
       cancelled = true;

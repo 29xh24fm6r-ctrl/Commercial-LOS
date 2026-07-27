@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapBusinessSafeError } from './businessSafeErrorMapping';
+import { mapBusinessSafeError, mapBusinessSafeReadError } from './businessSafeErrorMapping';
 
 describe('mapBusinessSafeError', () => {
   it('never renders the raw message text in safeMessage', () => {
@@ -38,5 +38,32 @@ describe('mapBusinessSafeError', () => {
   it('handles an empty raw message without throwing and without an empty technicalDetail', () => {
     const mapped = mapBusinessSafeError('   ');
     expect(mapped.technicalDetail.length).toBeGreaterThan(0);
+  });
+});
+
+describe('mapBusinessSafeReadError (146 Factory arc, Workstream 146-G)', () => {
+  it('never renders the raw message text in safeMessage', () => {
+    const raw = "EntityNotFoundException: cr664_deal with id 'x' does not exist (OData v4)";
+    const mapped = mapBusinessSafeReadError(raw);
+    expect(mapped.safeMessage).not.toContain('EntityNotFoundException');
+    expect(mapped.safeMessage).not.toContain('cr664_deal');
+  });
+
+  it('uses read-appropriate copy ("load"), never the write-path "save that action" claim', () => {
+    const mapped = mapBusinessSafeReadError('boom');
+    expect(mapped.safeMessage).toContain("We couldn't load that information");
+    expect(mapped.safeMessage).not.toContain('save that action');
+  });
+
+  it('preserves the original raw text in technicalDetail, unmodified, for internal diagnostics only', () => {
+    const raw = 'row locked';
+    const mapped = mapBusinessSafeReadError(raw);
+    expect(mapped.technicalDetail).toBe(raw);
+  });
+
+  it('falls back to an honest "no correlation id" reference when none is supplied', () => {
+    const mapped = mapBusinessSafeReadError('boom');
+    expect(mapped.safeMessage).not.toContain('undefined');
+    expect(mapped.safeMessage).toContain('no correlation id');
   });
 });

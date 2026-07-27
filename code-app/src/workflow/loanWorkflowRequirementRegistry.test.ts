@@ -81,10 +81,15 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
     expect(untrackedRequirementsForScope('INTAKE')).toEqual([]);
   });
 
-  it('deeper stages carry untracked deep facts (approval, closing/funding, boarding)', () => {
-    // Final LOS Completion arc (Workstream C) flipped the three approval facts to tracked (see
-    // below) — memo_finalized remains a genuinely untracked deep fact for this same scope.
-    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:memo_finalized')).toBe(true);
+  it('the only remaining untracked deep fact is RETURN:authorization (Workstream 146-B flipped memo_finalized tracked)', () => {
+    // Final LOS Completion arc (Workstream C) flipped the three approval facts to tracked, and the
+    // 146 Factory arc (Workstream 146-B) flipped memo_finalized tracked too (see
+    // creditMemoFinalizationReadiness.ts) — CREDIT_APPROVAL now carries NO untracked deep facts.
+    // RETURN:authorization is a deliberate, ratified non-gap (see
+    // docs/governance/CANONICAL_TRANSITION_POLICY_CONTRACT.md §3.2/§5), not an oversight, and is the
+    // one remaining authored-untracked requirement in the whole registry.
+    expect(untrackedRequirementsForScope('CREDIT_APPROVAL')).toEqual([]);
+    expect(untrackedRequirementsForScope('RETURN').some((r) => r.id === 'RETURN:authorization')).toBe(true);
   });
 
   it('Final LOS Completion arc (Workstream C) — CREDIT_APPROVAL:approval_decision/approval_authority/approval_conditions are tracked (real, durable, deal-scoped Credit Approval Decision record)', () => {

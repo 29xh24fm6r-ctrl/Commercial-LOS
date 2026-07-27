@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import type { DealData } from './DealDataProvider';
 import type { DealDetail } from './dealQueries';
 import type { CreditMemoData, CreditMemoSummary } from './creditMemoQueries';
@@ -49,11 +49,16 @@ vi.mock('./CreditMemoDraftModal', () => ({
 vi.mock('./creditMemoActions', () => ({
   saveCreditMemoDraft: vi.fn(),
 }));
+vi.mock('./finalizeCreditMemoAction', () => ({
+  finalizeCreditMemoAction: vi.fn(),
+}));
 
 import { useDealData } from './DealDataProvider';
 import { CreditMemo } from './CreditMemo';
+import { finalizeCreditMemoAction } from './finalizeCreditMemoAction';
 
 const useDealDataMock = vi.mocked(useDealData);
+const finalizeCreditMemoActionMock = vi.mocked(finalizeCreditMemoAction);
 
 const baseDeal: DealDetail = {
   id: 'deal-73',
@@ -78,7 +83,7 @@ const baseDeal: DealDetail = {
   isClosed: false,
 };
 
-function memo(text: string | undefined): CreditMemoSummary {
+function memo(text: string | undefined, overrides: Partial<CreditMemoSummary> = {}): CreditMemoSummary {
   return {
     id: 'm-1',
     name: 'Acme Working Capital — Draft v1',
@@ -90,11 +95,13 @@ function memo(text: string | undefined): CreditMemoSummary {
     modifiedOn: undefined,
     borrowerSafe: false,
     textPreview: text,
+    ...overrides,
   };
 }
 
 function dealData(
   creditMemo: { kind: 'ready'; data: CreditMemoData } | { kind: 'loading' },
+  refresh: (key: unknown) => void = () => undefined,
 ): DealData {
   return {
     deal: baseDeal,
@@ -105,7 +112,7 @@ function dealData(
     },
     creditMemo,
     activity: { kind: 'ready', data: [] },
-    refresh: () => undefined,
+    refresh: refresh as DealData['refresh'],
   };
 }
 
@@ -227,5 +234,93 @@ describe('CreditMemo — Phase 73 consistency-review states', () => {
     expect(
       screen.queryByRole('status', { name: /consistency review/i }),
     ).toBeNull();
+  });
+});
+
+describe('CreditMemo — Workstream 146-B finalize UI', () => {
+  it('offers "Finalize memo" only on the current (highest-version) Draft memo', () => {
+    useDealDataMock.mockReturnValue(
+      dealData({
+        kind: 'ready',
+        data: {
+          memos: [
+            memo(undefined, { id: 'm-1', version: 1, statusKey: 'draft' }),
+            memo(undefined, { id: 'm-2', version: 2, statusKey: 'draft' }),
+          ],
+          sections: [],
+        },
+      }),
+    );
+    render(<CreditMemo />);
+    const buttons = screen.getAllByRole('button', { name: /finalize memo/i });
+    expect(buttons).toHaveLength(1);
+  });
+
+  it('does not offer "Finalize memo" once the current memo is already Final', () => {
+    useDealDataMock.mockReturnValue(
+      dealData({
+        kind: 'ready',
+        data: { memos: [memo(undefined, { statusKey: 'final', status: 'Final' })], sections: [] },
+      }),
+    );
+    render(<CreditMemo />);
+    expect(screen.queryByRole('button', { name: /finalize memo/i })).toBeNull();
+    expect(screen.getByText(/this memo is finalized/i)).toBeInTheDocument();
+  });
+
+  it('disables Confirm finalize until a note is entered, then calls finalizeCreditMemoAction with the memo id and note', async () => {
+    finalizeCreditMemoActionMock.mockResolvedValue({ kind: 'success', memoId: 'm-1' });
+    const refresh = vi.fn();
+    useDealDataMock.mockReturnValue(
+      dealData(
+        { kind: 'ready', data: { memos: [memo(undefined)], sections: [] } },
+        refresh,
+      ),
+    );
+    render(<CreditMemo />);
+
+    fireEvent.click(screen.getByRole('button', { name: /finalize memo/i }));
+    const confirmButton = screen.getByRole('button', { name: /confirm finalize/i });
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/finalization note/i), {
+      target: { value: 'Committee approved; finalizing.' },
+    });
+    expect(confirmButton).not.toBeDisabled();
+
+    fireEvent.click(confirmButton);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(finalizeCreditMemoActionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dealId: 'deal-73',
+        memoId: 'm-1',
+        finalizeNote: 'Committee approved; finalizing.',
+        actorEmail: 'm@bank.test',
+      }),
+    );
+    expect(refresh).toHaveBeenCalledWith('after-credit-memo-finalized');
+  });
+
+  it('shows a banker-safe error and keeps the panel open when finalization is rejected', async () => {
+    finalizeCreditMemoActionMock.mockResolvedValue({
+      kind: 'invalid-input',
+      message: 'This credit memo has already been finalized.',
+    });
+    useDealDataMock.mockReturnValue(
+      dealData({ kind: 'ready', data: { memos: [memo(undefined)], sections: [] } }),
+    );
+    render(<CreditMemo />);
+
+    fireEvent.click(screen.getByRole('button', { name: /finalize memo/i }));
+    fireEvent.change(screen.getByLabelText(/finalization note/i), {
+      target: { value: 'Finalizing.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /confirm finalize/i }));
+
+    expect(await screen.findByText(/this credit memo has already been finalized/i)).toBeInTheDocument();
+    // Still offered — the panel did not silently close on failure.
+    expect(screen.getByRole('button', { name: /confirm finalize/i })).toBeInTheDocument();
   });
 });

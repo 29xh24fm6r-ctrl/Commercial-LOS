@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useTeam } from './TeamContext';
+import { mapBusinessSafeReadError } from '../shared/errors/businessSafeErrorMapping';
 import {
   loadTeamDeals,
   loadTeamMemberBankerIds,
@@ -71,8 +72,11 @@ export function TeamDataProvider({ children }: { children: React.ReactNode }) {
         })
         .catch((err: unknown) => {
           if (cancelled) return;
-          const message = err instanceof Error ? err.message : String(err);
-          setter({ kind: 'failed', message });
+          const raw = err instanceof Error ? err.message : String(err);
+          // Final LOS Completion arc (146 Factory arc, Workstream 146-G) — never render a raw
+          // Dataverse/transport error verbatim; this single chokepoint fixes every team-domain
+          // sibling consumer of TeamDataProvider's AsyncResult.
+          setter({ kind: 'failed', message: mapBusinessSafeReadError(raw).safeMessage });
         });
     }
 

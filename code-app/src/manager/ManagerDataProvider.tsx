@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useManager } from './ManagerContext';
+import { mapBusinessSafeReadError } from '../shared/errors/businessSafeErrorMapping';
 import {
   loadTeamPipeline,
   loadTeamBankers,
@@ -104,8 +105,14 @@ export function ManagerDataProvider({ children }: { children: React.ReactNode })
         })
         .catch((err: unknown) => {
           if (cancelled) return;
-          const message = err instanceof Error ? err.message : String(err);
-          setter({ kind: 'failed', message });
+          const raw = err instanceof Error ? err.message : String(err);
+          // Final LOS Completion arc (146 Factory arc, Workstream 146-G) — never render a raw
+          // Dataverse/transport error verbatim; every consumer of this provider's AsyncResult
+          // (ManagerMorningCatchUp, TeamPipelineSummary, ManagerAutopilotRollup, ClosingForecast,
+          // AtRiskBlockedDeals, ActivitySummary, ManagerRelationshipMemory, DealsByStage,
+          // TeamWorkQueue, BankerWorkloadSummary, ManagerBloombergControlPanel) inherits the fix
+          // from this single chokepoint.
+          setter({ kind: 'failed', message: mapBusinessSafeReadError(raw).safeMessage });
         });
     }
 

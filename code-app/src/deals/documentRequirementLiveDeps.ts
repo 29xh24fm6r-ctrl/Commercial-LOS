@@ -8,6 +8,7 @@
  */
 
 import { createActorChangedByResolver } from './newDealAuditActorResolver';
+import { normalizeDocumentName } from '../shared/deals/documentNameNormalization';
 import { AUDIT_OUTCOME_SUCCEEDED } from '../shared/governance/auditEnums';
 import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../shared/governance/timelineEnums';
 import { assertChangedByCoreUserBind } from '../shared/governance/auditActorBind';
@@ -63,9 +64,12 @@ async function liveFindRowByName(dealId: string, documentName: string): Promise<
     if (!res.success) {
       return { ok: false, error: res.error?.message ?? 'documentchecklists getAll returned non-success.' };
     }
-    const needle = documentName.trim().toLowerCase();
+    // Final LOS Completion arc (146 Factory arc, Workstream 146-D) — swapped the ad hoc
+    // .trim().toLowerCase() for the shared normalizeDocumentName() (N-11 consolidation had missed
+    // this call site, a fifth independent copy of the same rule).
+    const needle = normalizeDocumentName(documentName);
     const match = (res.data ?? []).find(
-      (r) => (r.cr664_documentname ?? '').trim().toLowerCase() === needle,
+      (r) => normalizeDocumentName(r.cr664_documentname ?? '') === needle,
     ) as { cr664_documentchecklistid?: string; cr664_acknowledged?: boolean } | undefined;
     if (!match?.cr664_documentchecklistid) return { ok: true, row: undefined };
     return { ok: true, row: { id: match.cr664_documentchecklistid, acknowledged: Boolean(match.cr664_acknowledged) } };

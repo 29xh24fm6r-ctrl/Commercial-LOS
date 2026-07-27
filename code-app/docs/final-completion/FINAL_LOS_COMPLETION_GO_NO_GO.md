@@ -144,3 +144,11 @@ consistent, fully tested, fabricates nothing, and every known gap is disclosed w
 rather than silently left implicit. It is **NOT GO for production deployment** until the operator
 activation sequence in §5 is executed and `FINAL_CONTROLLED_PRODUCTION_E2E.md` passes against a
 real environment — that verification is out of this arc's reach and is not claimed here.
+
+## Addendum — 146 Factory arc (Workstream 146-B), post-merge
+
+`CREDIT_APPROVAL:memo_finalized` (§6 above) is no longer an external-only blocker — it is now
+**tracked**, evaluated by `creditMemoFinalizationReadiness.ts` against the existing
+`cr664_creditmemo1.cr664_status` field, with a governed write (`finalizeCreditMemoAction.ts`) to
+flip it. `RETURN:authorization` (§6) remains the one standing, deliberately-untracked, ratified
+disposition.

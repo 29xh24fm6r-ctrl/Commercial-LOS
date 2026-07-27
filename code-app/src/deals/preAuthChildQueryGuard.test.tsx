@@ -82,6 +82,7 @@ vi.mock('./prepareDocumentRequestHandoff', () => ({
   prepareDocumentRequestHandoff: vi.fn(),
 }));
 vi.mock('./creditMemoActions', () => ({ saveCreditMemoDraft: vi.fn() }));
+vi.mock('./finalizeCreditMemoAction', () => ({ finalizeCreditMemoAction: vi.fn() }));
 vi.mock('./CompleteTaskModal', () => ({ CompleteTaskModal: () => null }));
 vi.mock('./RequestDocumentModal', () => ({ RequestDocumentModal: () => null }));
 vi.mock('./CreditMemoDraftModal', () => ({ CreditMemoDraftModal: () => null }));
