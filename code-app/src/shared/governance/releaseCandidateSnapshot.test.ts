@@ -52,8 +52,9 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // Final LOS Completion arc (Workstream M) registered the six durable-record governed writes
   // Workstreams C/D/E/F/H/J shipped (Credit Approval Decision, Commitment, Condition
   // Verification, Executed Document Attestation, Booking QC, Adverse Action Record) -- a
-  // registry blind spot those workstreams had until now, not new gaps.
-  governedWrites: 20,
+  // registry blind spot those workstreams had until now, not new gaps. Workstream O then added
+  // the data-quality-flag-create write (the first write that CREATES a data quality flag).
+  governedWrites: 21,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) for the schema-pending Global Cash Flow /

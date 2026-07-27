@@ -145,9 +145,9 @@ noted so it is not silently dropped, and left as a follow-on item.
 `dataQualityActions.ts`, `AdminDataProvider.tsx`), with flag types `StaleSnapshot, OrphanRecord,
 BrokenReference, MissingOwner, InvalidValue, ASSIGNMENT_MISMATCH`. Workstream O's required
 categories (duplicate borrower/company/deal, near-duplicate names, suspicious active deals,
-zero-amount deals, duplicate entitlements, inconsistent boarding linkage) are **not yet covered** by
-these six flag types or by any detection rule. This arc will add detection rules and, if needed,
-additive flag-type values — it will **not** create a new entity, since one already exists.
+zero-amount deals, duplicate entitlements, inconsistent boarding linkage) were **not covered** by
+these six flag types or by any detection rule. **Closed by Workstream O** — see §16 — without
+creating a new entity; every category maps to an existing flag-type value.
 
 ## 11. Operator migrations already documented (not duplicated here)
 
@@ -262,6 +262,69 @@ code.
 **Not closed — servicing-owner-assigned:** see §7's updated disposition above. Genuinely requires a
 new write action before a timeline event is possible; flagged for the same operator/product decision
 already tracked against Workstream I, not invented here.
+
+## 16. Workstream O — governed duplicate/data-quality detection sweep
+
+Added five pure detection rules in `src/admin/dataQuality/dataQualityFlagCandidates.ts`, covering
+every category §10 listed:
+
+- **Duplicate borrower/company + near-duplicate names** — wraps the already-existing
+  `findDuplicateOrganizationClusters` (`src/crm/write/crmDuplicateDetection.ts`, N-33); normalization
+  already folds case/punctuation/legal-suffix variants together, so a single `matchType: 'name'`
+  cluster covers both exact and near-duplicate names — no separate rule needed.
+- **Duplicate deals + suspicious active deals** — a new `findDuplicateDealClusters` mirroring
+  `findDuplicateOrganizationClusters`'s exact clustering shape (same normalization, same
+  "each record surfaces in exactly one, strongest cluster" rule). **Disclosed policy convention:**
+  "suspicious active deal" is modeled as an active deal that is a member of a duplicate-deal cluster
+  — every deal the sweep sees is already active by construction (the loader only reads
+  `ACTIVE_DEAL_ODATA_PREDICATE` rows), so this is the one evidence-backed reading of "suspicious" this
+  arc's no-invented-business-rules discipline supports, not a fabricated second notion.
+- **Zero-amount active deals** — active deals with `cr664_amount` undefined, null, or exactly zero.
+- **Duplicate workspace entitlements** — parses the existing `"{upn} - Admin {level} Access"` naming
+  convention (`buildEntitlementName` in `adminAccessGrantWrite.ts`) back out of
+  `listAdminEntitlementRows()` (already-existing, unmodified) and clusters active rows by
+  upn + access level. No new entitlement query.
+- **Inconsistent boarding linkage** — wraps the already-existing `evaluateBoardingHandoff`
+  (`src/workflow/boardingHandoffReadiness.ts`) across every deal in the scan, surfacing its two
+  anomaly verdicts (`missing-handoff`, `premature-handoff`) as flag candidates. Re-uses the
+  reconciliation logic verbatim; does not re-derive it.
+
+**Flag-type policy convention (disclosed, not fabricated):** `cr664_flagtype` is a required Dataverse
+choice column with only the six pre-existing values, none of which name a "duplicate" concept. Per
+this arc's own established "reuse an existing enum value + carry the precise category in free text"
+convention (the same trick Workstream K used for `cr664_eventsubtype` and `dataQualityActions.ts`
+already uses for `cr664_relatedentitytype`), every duplicate-* category maps to the existing
+`InvalidValue` value and `inconsistent-boarding-linkage` maps to `BrokenReference` (an honest semantic
+fit — the deal↔boarded-loan reference is inconsistent). **No operator-side schema migration is
+required** — a deliberate choice over authoring a new additive-option-set migration, since every
+category is fully expressible today.
+
+**New governed write:** `src/admin/createDataQualityFlagAction.ts` — the first write that CREATES a
+`cr664_dataqualityflags` row (only resolve existed before this arc; see `dataQualityActions.ts`).
+Mirrors `resolveDataQualityFlag`'s own established audit-pairing convention exactly (same
+file/domain), not the arc's newer `submitXAction.ts` convention — registered in `GOVERNED_WRITES` as
+`data-quality-flag-create` (phase 271, `legacyDisciplineExempt: true`), consistent with how Workstream
+M registered the six durable-record writes.
+
+**Idempotency:** `excludeAlreadyFlagged()` compares each candidate against currently-open flags
+(source table + source record id + flag name) so re-running the sweep never creates a duplicate flag
+for the same finding.
+
+**Admin UI:** `src/admin/AdminDataQualityDetectionPanel.tsx`, mounted in `AdminWorkspace.tsx`
+immediately after the existing Data Quality Flags / Audit Anomalies row. Deliberately
+**admin-triggered, not automatic** — Code Apps have no server-side scheduled-job infrastructure, and
+every write is a single, explicit, audited create the admin requests one candidate at a time (never a
+bulk auto-apply). Never merges, deletes, or revokes anything.
+
+**Live data gathering:** `src/admin/dataQuality/loadDataQualityScanInputs.ts` — partial-failure
+tolerant (one domain failing to load never blocks the others; the panel reports which domains were
+skipped, never silently drops them). Reuses `listAdminEntitlementRows()` unmodified; the deals/
+organizations/boarded-loan-link reads are small, dedicated, read-only queries mirroring patterns
+already proven elsewhere (`operationalFallbackQueries.ts`'s `Cr664_loandealsService.getAll({filter:
+ACTIVE_DEAL_ODATA_PREDICATE})`, `crmWorkspaceData.ts`'s organization read, `boardedLoansList.ts`'s
+shape) rather than touching those files' own shared select/mapping. Generated-service imports are
+dynamic (`await import(...)`), matching the sibling `adminAccessGrantLookup.ts` convention in this
+same domain.
 
 ## Living-document note
 

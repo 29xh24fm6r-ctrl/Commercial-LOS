@@ -242,11 +242,11 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     ).toBeInTheDocument();
   });
 
-  it('reports the current count of governed writes (count is 20 — 14 shipped through Phase 237, plus 6 durable-record writes Final LOS Completion arc Workstream M registered)', () => {
+  it('reports the current count of governed writes (count is 21 — 14 shipped through Phase 237, plus 6 durable-record writes Workstream M registered, plus the data-quality-flag-create write Workstream O added)', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
-    expect(GOVERNED_WRITES.length).toBe(20);
+    expect(GOVERNED_WRITES.length).toBe(21);
     expect(
       within(inv).getByText(`Governed writes (${GOVERNED_WRITES.length})`),
     ).toBeInTheDocument();

@@ -215,6 +215,20 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsTimeline: true,
     legacyDisciplineExempt: true,
   },
+  // Workstream O -- the first write that CREATES a cr664_dataqualityflags row (previously only
+  // resolve existed; see dataQualityActions.ts). Emits an audit event, same as resolve; no
+  // timeline event -- a data-quality flag is an admin-facing exception record, not a deal-facing
+  // timeline fact, matching how the six existing flag types are never timeline-cross-written
+  // either. Follows dataQualityActions.ts's own established audit-pairing convention (see
+  // createDataQualityFlagAction.ts), not the Phase 46/47/49/50 sweeps' pattern.
+  {
+    id: 'data-quality-flag-create',
+    label: 'Data Quality Flag create (detection sweep)',
+    phase: 271,
+    emitsAudit: true,
+    emitsTimeline: false,
+    legacyDisciplineExempt: true,
+  },
 ];
 // NOTE: forward stage-advance (DealStageProgressionCard -> stageAdvanceWriteDependency.ts
 // -> buildLiveStageAdvanceDeps.ts) is a real, armed, audited + timelined governed write and

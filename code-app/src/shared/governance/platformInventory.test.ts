@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the twenty shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70, 160, 237, 265-270)', () => {
+  it('contains the twenty-one shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70, 160, 237, 265-271)', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -47,6 +47,9 @@ describe('platformInventory — governed writes', () => {
         'executed-document-attestation-submit',
         'booking-qc-check-submit',
         'adverse-action-submit',
+        // Workstream O -- the first write that CREATES a data quality flag
+        // (only resolve existed before).
+        'data-quality-flag-create',
       ].sort(),
     );
   });
@@ -1059,8 +1062,8 @@ describe('platformInventory — Phase 67 handoff classification', () => {
     expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
   });
 
-  it('GOVERNED_WRITES count: Final LOS Completion arc (Workstream M) added six durable-record writes on top of the 14 shipped through Phase 237', () => {
-    expect(GOVERNED_WRITES.length).toBe(20);
+  it('GOVERNED_WRITES count: Final LOS Completion arc (Workstream M) added six durable-record writes on top of the 14 shipped through Phase 237, and Workstream O added the data-quality-flag-create write', () => {
+    expect(GOVERNED_WRITES.length).toBe(21);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {
