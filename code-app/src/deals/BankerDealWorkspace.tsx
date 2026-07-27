@@ -18,8 +18,8 @@ import { DealGovernedTransitionPanel } from './DealGovernedTransitionPanel';
 import { DealTasks } from './DealTasks';
 import { DealDocuments } from './DealDocuments';
 import { CreditMemo } from './CreditMemo';
-import { GlobalCashFlowPanel } from './GlobalCashFlowPanel';
-import { DealRiskRatingPanel } from './DealRiskRatingPanel';
+import { GlobalCashFlowPanelConnected } from './GlobalCashFlowPanelConnected';
+import { DealRiskRatingPanelConnected } from './DealRiskRatingPanelConnected';
 import { DealClosingDocumentsPanel } from './DealClosingDocumentsPanel';
 import { DealFundingAuthorizationPanelConnected } from './DealFundingAuthorizationPanelConnected';
 import { DealServicingLifecyclePanel } from './DealServicingLifecyclePanel';
@@ -293,7 +293,7 @@ export function BankerDealWorkspace({
                 data-deal-card="global-cash-flow"
                 data-cockpit-anchor="global-cash-flow"
               >
-                <GlobalCashFlowPanel deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} actorSystemUserId={systemUserId} />
+                <GlobalCashFlowPanelConnected deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} actorSystemUserId={systemUserId} />
               </div>
               {/* PR 106 -- Risk Rating + Underwriting Recommendation capture. Factory Arc Phase 5
                   wired real persistence to cr664_riskratinginputs / cr664_underwritingrecommendationinputs
@@ -303,7 +303,7 @@ export function BankerDealWorkspace({
                 data-deal-card="risk-rating"
                 data-cockpit-anchor="risk-rating"
               >
-                <DealRiskRatingPanel deal={deal} ratedBy={fullName} authorized={Boolean(systemUserId)} actorEmail={email} actorSystemUserId={systemUserId} />
+                <DealRiskRatingPanelConnected deal={deal} ratedBy={fullName} authorized={Boolean(systemUserId)} actorEmail={email} actorSystemUserId={systemUserId} />
               </div>
               <div
                 id="credit-approval-readiness"

@@ -12,7 +12,7 @@ import {
   type UnderwritingRecommendationDecision,
   type UnderwritingRecommendationStatus,
 } from '../workflow/underwritingDeepFacts';
-import { updateDealProfile, type UpdateDealProfileOutcome } from './write/updateDealProfile';
+import { updateDealProfile, type UpdateDealProfileOutcome, type VerifiedProfilePatch } from './write/updateDealProfile';
 import { buildLiveUpdateDealProfileDeps } from './write/buildLiveUpdateDealProfileDeps';
 import type { DealDetail } from './dealQueries';
 import { Card } from '../shared/Card';
@@ -61,9 +61,13 @@ export interface DealRiskRatingPanelProps {
   readonly authorized: boolean;
   readonly actorEmail: string | undefined;
   readonly actorSystemUserId: string | undefined;
+  /** Factory mission PR B — notifies a DealDataProvider-aware wrapper with the readback-verified
+   *  patch so the cockpit's in-context deal updates immediately, without a full browser reload.
+   *  See DealRiskRatingPanelConnected.tsx for the precedent (DealFundingAuthorizationPanelConnected.tsx). */
+  readonly onSaved?: (verified: VerifiedProfilePatch) => void;
 }
 
-export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, actorSystemUserId }: DealRiskRatingPanelProps) {
+export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, actorSystemUserId, onSaved }: DealRiskRatingPanelProps) {
   const dealId = deal.id;
   const savedRating = useMemo(() => parseRiskRatingFormState(deal.riskRatingInputsJson), [deal.riskRatingInputsJson]);
   const savedRecommendation = useMemo(
@@ -138,6 +142,7 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
         buildLiveUpdateDealProfileDeps(),
       );
       setRatingSave({ kind: 'done', outcome: result });
+      if (result.kind === 'updated') onSaved?.(result.verified);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setRatingSave({ kind: 'done', outcome: { kind: 'write-failed', error: message, correlationId: '' } });
@@ -161,6 +166,7 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
         buildLiveUpdateDealProfileDeps(),
       );
       setRecommendationSave({ kind: 'done', outcome: result });
+      if (result.kind === 'updated') onSaved?.(result.verified);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setRecommendationSave({ kind: 'done', outcome: { kind: 'write-failed', error: message, correlationId: '' } });
