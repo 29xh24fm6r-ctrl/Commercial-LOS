@@ -492,9 +492,25 @@ direct source reads (the same evaluators/stores/panels cited throughout this led
 running the app. The document says so in its own certification statement, so it cannot be
 mistaken for a claim of live verification.
 
+## 23. Workstream X — final adversarial audit + GO/NO-GO docs
+
+Produced `docs/final-completion/FINAL_LOS_COMPLETION_GO_NO_GO.md`, the capstone report for the
+whole arc (Workstreams A–X): a per-workstream disposition table, an adversarial self-audit (debug
+markers, uncommitted work, fabrication check, feature-flag inventory, test-count-pin sweep), the
+final validation results, the operator activation sequence, and the remaining external-only
+blockers — all cross-referencing this ledger and the other final-completion docs rather than
+repeating them. Verdict: GO for PR review, NOT GO for production deployment until the operator
+activation sequence runs and `FINAL_CONTROLLED_PRODUCTION_E2E.md` passes live.
+
+Final validation for this pass: `npx tsc -b` 0 errors, `npm run build` clean, `npm run
+audit:reachability` 0 unexpected orphans, `npx vitest run` 950 test files / 13,875 tests passing.
+
 ## Living-document note
 
 This ledger will be updated (not replaced) as each workstream lands, so that by the time the PR
 opens, every row above has one of: a commit reference (fixed in this arc), an explicit "deferred —
 reason" note, or an "external operator action required" note. An empty or stale ledger at PR time
 would be exactly the kind of unfinished-passed-off-as-done this arc exists to prevent.
+
+**Status at Workstream X close: all 22 sections above have one of those three dispositions. This
+ledger is current as of the PR opening — not stale.**
