@@ -15,6 +15,8 @@ import {
   type SaveCreditMemoDraftOutcome,
   type SaveCreditMemoDraftSection,
 } from './creditMemoActions';
+import { finalizeCreditMemoAction, type FinalizeCreditMemoOutcome } from './finalizeCreditMemoAction';
+import { currentCreditMemo } from '../workflow/creditMemoFinalizationReadiness';
 import {
   deriveCreditMemoFreshness,
   type CreditMemoFreshnessResult,
@@ -116,6 +118,31 @@ export function CreditMemo({ readOnly = false }: CreditMemoProps = {}) {
     [banker?.systemUserId, banker?.email, bootstrap.workspaceId, deal.id, deal.name, memosData, refresh],
   );
 
+  // Final LOS Completion arc (Workstream 146-B) — governed finalize. Only the CURRENT
+  // (highest-version) memo can ever be finalized; finalizeCreditMemoAction re-verifies this
+  // server-side regardless of what this closure believes, so a stale UI snapshot is rejected,
+  // never silently finalized against the wrong row.
+  const handleFinalize = useCallback(
+    async (memoId: string, finalizeNote: string): Promise<FinalizeCreditMemoOutcome> => {
+      if (!banker?.email) {
+        return { kind: 'invalid-input', message: 'Cannot finalize: no signed-in banker identity.' };
+      }
+      const outcome = await finalizeCreditMemoAction({
+        dealId: deal.id,
+        actorEmail: banker.email,
+        memoId,
+        finalizeNote,
+      });
+      if (outcome.kind === 'success' || outcome.kind === 'governance-partial') {
+        refresh('after-credit-memo-finalized');
+      }
+      return outcome;
+    },
+    [banker?.email, deal.id, refresh],
+  );
+
+  const currentMemoId = memosData ? currentCreditMemo(memosData)?.id : undefined;
+
   // Phase 125E — memo widget count (number of memo versions).
   const memoCount =
     creditMemo.kind === 'ready' ? creditMemo.data.memos.length : undefined;
@@ -151,7 +178,12 @@ export function CreditMemo({ readOnly = false }: CreditMemoProps = {}) {
         )}
         {freshness && <FreshnessBlock freshness={freshness} />}
         {consistency && <ConsistencyReviewBlock consistency={consistency} />}
-        <Body creditMemo={creditMemo} />
+        <Body
+          creditMemo={creditMemo}
+          currentMemoId={currentMemoId}
+          canFinalize={canWrite}
+          onFinalize={handleFinalize}
+        />
       </Card>
       {!readOnly && showDraft && (
         <CreditMemoDraftModal
@@ -353,7 +385,17 @@ function subtitleFor(creditMemo: AsyncResult<CreditMemoData>): string | undefine
   return parts.join(' · ');
 }
 
-function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
+function Body({
+  creditMemo,
+  currentMemoId,
+  canFinalize,
+  onFinalize,
+}: {
+  creditMemo: AsyncResult<CreditMemoData>;
+  currentMemoId: string | undefined;
+  canFinalize: boolean;
+  onFinalize: (memoId: string, finalizeNote: string) => Promise<FinalizeCreditMemoOutcome>;
+}) {
   if (creditMemo.kind === 'loading')
     return <p style={styles.muted}>Loading credit memo…</p>;
   if (creditMemo.kind === 'failed')
@@ -379,7 +421,13 @@ function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
           </div>
           <ul style={styles.list}>
             {memos.map((m) => (
-              <MemoRow key={m.id} memo={m} />
+              <MemoRow
+                key={m.id}
+                memo={m}
+                isCurrent={m.id === currentMemoId}
+                canFinalize={canFinalize}
+                onFinalize={onFinalize}
+              />
             ))}
           </ul>
         </div>
@@ -406,12 +454,43 @@ function Body({ creditMemo }: { creditMemo: AsyncResult<CreditMemoData> }) {
   );
 }
 
-function MemoRow({ memo }: { memo: CreditMemoSummary }) {
+function MemoRow({
+  memo,
+  isCurrent,
+  canFinalize,
+  onFinalize,
+}: {
+  memo: CreditMemoSummary;
+  isCurrent: boolean;
+  canFinalize: boolean;
+  onFinalize: (memoId: string, finalizeNote: string) => Promise<FinalizeCreditMemoOutcome>;
+}) {
   // N-08 remediation (Production Remediation Factory Arc Phase 5) — before this, a banker could
   // only ever see the 240-char textPreview, with no way to read the rest of a saved memo. The
   // full text (already durably persisted) is now one click away.
   const [expanded, setExpanded] = useState(false);
   const hasMore = Boolean(memo.fullText && memo.textPreview && memo.fullText.trim() !== memo.textPreview.trim());
+  // Final LOS Completion arc (Workstream 146-B) — only the current (highest-version) Draft memo
+  // is ever offered a Finalize control. finalizeCreditMemoAction re-verifies this fail-closed
+  // server-side regardless of what this render believes.
+  const offerFinalize = isCurrent && canFinalize && memo.statusKey === 'draft';
+  const [showFinalize, setShowFinalize] = useState(false);
+  const [finalizeNote, setFinalizeNote] = useState('');
+  const [finalizing, setFinalizing] = useState(false);
+  const [finalizeResult, setFinalizeResult] = useState<FinalizeCreditMemoOutcome | undefined>(undefined);
+
+  const submitFinalize = useCallback(async () => {
+    setFinalizing(true);
+    setFinalizeResult(undefined);
+    const outcome = await onFinalize(memo.id, finalizeNote);
+    setFinalizing(false);
+    setFinalizeResult(outcome);
+    if (outcome.kind === 'success') {
+      setShowFinalize(false);
+      setFinalizeNote('');
+    }
+  }, [onFinalize, memo.id, finalizeNote]);
+
   return (
     <li style={styles.row}>
       <div style={styles.rowHeader}>
@@ -459,6 +538,63 @@ function MemoRow({ memo }: { memo: CreditMemoSummary }) {
         >
           {expanded ? 'Show less' : 'View full memo text'}
         </button>
+      )}
+      {offerFinalize && !showFinalize && (
+        <button
+          type="button"
+          style={styles.viewFullTextButton}
+          onClick={() => setShowFinalize(true)}
+          data-credit-memo-finalize-open
+        >
+          Finalize memo
+        </button>
+      )}
+      {offerFinalize && showFinalize && (
+        <div style={styles.finalizeBox} data-credit-memo-finalize-panel>
+          <label htmlFor={`finalize-note-${memo.id}`} style={styles.finalizeLabel}>
+            Finalization note (required)
+          </label>
+          <textarea
+            id={`finalize-note-${memo.id}`}
+            style={styles.finalizeTextarea}
+            value={finalizeNote}
+            onChange={(e) => setFinalizeNote(e.target.value)}
+            placeholder="Why is this memo being finalized now?"
+            disabled={finalizing}
+          />
+          <div style={styles.finalizeActions}>
+            <button
+              type="button"
+              style={styles.finalizeConfirmButton}
+              onClick={() => void submitFinalize()}
+              disabled={finalizing || finalizeNote.trim().length === 0}
+              data-credit-memo-finalize-confirm
+            >
+              {finalizing ? 'Finalizing…' : 'Confirm finalize'}
+            </button>
+            <button
+              type="button"
+              style={styles.finalizeCancelButton}
+              onClick={() => {
+                setShowFinalize(false);
+                setFinalizeResult(undefined);
+              }}
+              disabled={finalizing}
+            >
+              Cancel
+            </button>
+          </div>
+          {finalizeResult && finalizeResult.kind !== 'success' && (
+            <p role="alert" style={styles.finalizeError} data-credit-memo-finalize-error>
+              {finalizeOutcomeMessage(finalizeResult)}
+            </p>
+          )}
+        </div>
+      )}
+      {memo.statusKey === 'final' && isCurrent && (
+        <p style={styles.finalizeSuccessNote} data-credit-memo-finalized-note>
+          This memo is finalized.
+        </p>
       )}
     </li>
   );
@@ -524,6 +660,19 @@ function memoStatusToSeverity(key: CreditMemoStatusKey | undefined): SeverityKey
   if (key === 'final') return 'clear';
   if (key === 'stale') return 'atRisk';
   return 'neutral';
+}
+
+/** finalizeCreditMemoAction's outcome kinds already carry banker-safe text
+ *  (invalid-input messages are authored copy; write-failed/governance-partial
+ *  errors are already passed through mapBusinessSafeError). This only picks
+ *  which field to render. */
+function finalizeOutcomeMessage(outcome: FinalizeCreditMemoOutcome): string {
+  if (outcome.kind === 'invalid-input') return outcome.message;
+  if (outcome.kind === 'write-failed') return outcome.error;
+  if (outcome.kind === 'governance-partial') {
+    return outcome.auditError ?? outcome.timelineError ?? 'Finalized, but a governance record failed to write.';
+  }
+  return '';
 }
 
 function reviewStatusToSeverity(key: CreditMemoReviewStatusKey | undefined): SeverityKey {
@@ -630,6 +779,64 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: typography.weight.semibold,
     cursor: 'pointer',
     fontFamily: typography.family,
+  },
+  finalizeBox: {
+    marginTop: spacing.xs,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: spacing.xxs,
+    padding: spacing.sm,
+    background: palette.pageBg,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+  },
+  finalizeLabel: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: palette.textMuted,
+  },
+  finalizeTextarea: {
+    fontFamily: typography.family,
+    fontSize: typography.size.sm,
+    padding: spacing.xs,
+    borderRadius: radius.sm,
+    border: `1px solid ${palette.border}`,
+    minHeight: 60,
+    resize: 'vertical',
+  },
+  finalizeActions: { display: 'flex', gap: spacing.xs },
+  finalizeConfirmButton: {
+    background: palette.cobalt,
+    color: '#fff',
+    border: 'none',
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  finalizeCancelButton: {
+    background: 'transparent',
+    color: palette.textMuted,
+    border: `1px solid ${palette.border}`,
+    borderRadius: radius.sm,
+    padding: `${spacing.xxs} ${spacing.sm}`,
+    fontSize: typography.size.sm,
+    cursor: 'pointer',
+    fontFamily: typography.family,
+  },
+  finalizeError: {
+    margin: 0,
+    color: palette.blocked,
+    fontSize: typography.size.sm,
+  },
+  finalizeSuccessNote: {
+    margin: 0,
+    marginTop: spacing.xxs,
+    color: palette.textMuted,
+    fontSize: typography.size.sm,
+    fontStyle: 'italic',
   },
   errorBox: {
     background: palette.blockedBg,

@@ -232,8 +232,12 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   // `tracked()` helper's docstring for the CLOSING_FUNDING:funds_disbursed precedent this follows.
   tracked('UNDERWRITING:risk_rating', 'UNDERWRITING', 'credit', 'Risk rating assigned', 'Credit Memo', 'underwriter', 'risk_rating_record', 'cr664_riskratinginputs', 'A final risk rating with rationale, actor, and timestamp has not been recorded for this deal.'),
   tracked('UNDERWRITING:uw_recommendation', 'UNDERWRITING', 'credit', 'Underwriting recommendation recorded', 'Credit Memo', 'underwriter', 'review_record', 'cr664_underwritingrecommendationinputs', 'A final underwriting recommendation with rationale, actor, and timestamp has not been recorded for this deal.'),
-  // Credit Approval → Commitment (ARC PR 8/9)
-  untracked('CREDIT_APPROVAL:memo_finalized', 'CREDIT_APPROVAL', 'credit', 'Credit memo finalized', 'Credit Memo', 'credit_officer', 'memo_status', 'credit memo lifecycle status not yet implemented (ARC PR 8)'),
+  // Credit Approval → Commitment. Final LOS Completion arc (Workstream 146-B) flips this tracked —
+  // the memo's own cr664_status (draft/final/stale, already persisted by every memo save since
+  // creditMemoActions.ts) now genuinely reflects finalization; evaluateCreditMemoFinalizationReadiness
+  // in creditMemoFinalizationReadiness.ts reads the existing `creditMemo` fact (no new
+  // WorkflowRequirementFacts field needed — the data was already loaded for the legacy shallow gate).
+  tracked('CREDIT_APPROVAL:memo_finalized', 'CREDIT_APPROVAL', 'credit', 'Credit memo finalized', 'Credit Memo', 'credit_officer', 'memo_status', 'cr664_creditmemo1', 'The current credit memo has not been finalized for this deal.'),
   // Final LOS Completion arc (Workstream C) flips these tracked — submitCreditApprovalDecision.ts /
   // creditApprovalDecisionStore.ts now provide a real, durable, deal-scoped Credit Approval Decision
   // record (cr664_creditapprovaldecision, see scripts/schema-migrations/final-arc-credit-approval-

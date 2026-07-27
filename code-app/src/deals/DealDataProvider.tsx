@@ -65,6 +65,7 @@ export type DealDataKey =
   | 'after-document-review'
   | 'after-document-review-task-create'
   | 'after-credit-memo-draft-saved'
+  | 'after-credit-memo-finalized'
   | 'after-borrower-update-email'
   | 'fundingAuthorization'
   | 'after-funding-confirmed'
@@ -509,6 +510,16 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // creditMemo must refresh so the new draft and its section
         // rows appear; activity must refresh so the NoteLogged
         // timeline event appears.
+        reloadCreditMemo();
+        reloadActivity();
+        break;
+      case 'after-credit-memo-finalized':
+        // Final LOS Completion arc (Workstream 146-B) — targeted reload after
+        // finalizeCreditMemoAction. creditMemo must refresh so the flipped
+        // cr664_status (Draft -> Final) is read back (feeds
+        // CREDIT_APPROVAL:memo_finalized via the WorkflowRequirementFacts.creditMemo
+        // fact already consumed by the Stage Map / stage-advance guard); activity
+        // must refresh so the NoteLogged 'creditmemo:finalized' timeline event appears.
         reloadCreditMemo();
         reloadActivity();
         break;

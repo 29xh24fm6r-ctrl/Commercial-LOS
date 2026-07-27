@@ -49,6 +49,7 @@ vi.mock('./prepareDocumentRequestHandoff', () => ({
   prepareDocumentRequestHandoff: vi.fn(),
 }));
 vi.mock('./creditMemoActions', () => ({ saveCreditMemoDraft: vi.fn() }));
+vi.mock('./finalizeCreditMemoAction', () => ({ finalizeCreditMemoAction: vi.fn() }));
 vi.mock('./creditMemoQueries', () => ({}));
 vi.mock('./activityQueries', () => ({}));
 vi.mock('./dealTaskQueries', () => ({}));

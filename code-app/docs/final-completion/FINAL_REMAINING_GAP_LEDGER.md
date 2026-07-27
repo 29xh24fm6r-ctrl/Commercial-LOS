@@ -514,3 +514,19 @@ would be exactly the kind of unfinished-passed-off-as-done this arc exists to pr
 
 **Status at Workstream X close: all 22 sections above have one of those three dispositions. This
 ledger is current as of the PR opening — not stale.**
+
+## Addendum — 146 Factory arc (Workstream 146-B), post-merge
+
+`CREDIT_APPROVAL:memo_finalized` (line 236 above, then genuinely untracked) is now **tracked**.
+`src/workflow/creditMemoFinalizationReadiness.ts` evaluates it against the EXISTING
+`cr664_creditmemo1.cr664_status` field (draft/final/stale — already persisted by every memo save
+since `creditMemoActions.ts`), so no new schema field was needed after all; the original
+"needs a credit-memo lifecycle status field" note above was the honest state at the time it was
+written, before this workstream re-examined it and found the existing field sufficient once a
+governed write (`finalizeCreditMemoAction.ts`) actually flips it. "Current" memo resolution =
+highest `cr664_version` (creditMemoQueries.ts's own convention), not the append-only
+supersedes-chain pattern the six Workstream C-H durable records use.
+
+This is the ledger's first `146-*` entry; the remaining `146-A` through `146-I` workstream
+dispositions are tracked in a separate PR 146 gap inventory, per the factory mission's own
+sequencing requirement (update the ledger before implementation).

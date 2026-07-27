@@ -26,6 +26,7 @@ import {
   type UnderwritingRecommendationRecord,
 } from './underwritingDeepFacts';
 import { evaluateCreditApprovalDecisionReadiness, type CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
+import { evaluateCreditMemoFinalizationReadiness } from './creditMemoFinalizationReadiness';
 import { evaluateCommitmentReadiness, type CommitmentRecord } from './commitmentRecordTypes';
 import { evaluateConditionVerificationReadiness, type ConditionVerificationRecord } from './conditionVerificationTypes';
 import { evaluateExecutedDocumentAttestationReadiness, type ExecutedDocumentAttestationRecord } from './executedDocumentAttestationTypes';
@@ -156,6 +157,10 @@ export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: Wo
   if (req.id === 'CLOSING_FUNDING:funds_disbursed') {
     const funded = facts.fundingAuthorization?.authorizationStatus === 'FUNDED';
     return evaluated(req, funded ? 'met' : 'unmet', funded ? '' : req.blockerReason);
+  }
+  if (req.id === 'CREDIT_APPROVAL:memo_finalized') {
+    const r = evaluateCreditMemoFinalizationReadiness(facts.creditMemo);
+    return evaluated(req, r.memoFinalized.met ? 'met' : 'unmet', r.memoFinalized.met ? '' : (r.memoFinalized.reason || req.blockerReason));
   }
   if (
     req.id === 'CREDIT_APPROVAL:approval_decision' ||

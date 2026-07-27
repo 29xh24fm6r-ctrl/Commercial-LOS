@@ -66,6 +66,7 @@ vi.mock('./activityQueries', () => ({ loadDealActivity }));
 vi.mock('./dealTaskActions', () => ({ completeTask: vi.fn() }));
 vi.mock('./documentActions', () => ({ requestDocument: vi.fn() }));
 vi.mock('./creditMemoActions', () => ({ saveCreditMemoDraft: vi.fn() }));
+vi.mock('./finalizeCreditMemoAction', () => ({ finalizeCreditMemoAction: vi.fn() }));
 vi.mock('../generated/services/Cr664_auditeventsService', () => ({
   Cr664_auditeventsService: { create: vi.fn() },
 }));

@@ -240,6 +240,9 @@ describe('Credit Approval — committee/reviewed/approved memo requirements neve
     creditMemo: memo,
     creditApprovalDecisions: [approvedDecision],
   };
+  // Workstream 146-B — CREDIT_APPROVAL:memo_finalized is now tracked; a genuinely reachable exit
+  // needs the CURRENT memo's status to be Final, not merely present.
+  const finalizedMemo: CreditMemoData = { ...memo, memos: memo.memos.map((m) => ({ ...m, status: 'Final', statusKey: 'final' })) };
 
   it('reviewed/committee/approved requirements land in recommended, never blocking — a draft memo with no committee record is not a permanent dead end', () => {
     const r = deriveStageExitReadiness('CREDIT_APPROVAL', facts);
@@ -253,9 +256,15 @@ describe('Credit Approval — committee/reviewed/approved memo requirements neve
     expect(recommendedIds).toContain('CREDIT_APPROVAL:credit:approved credit memo');
   });
 
-  it('Credit Approval exit is genuinely reachable once fields/documents/memo/sections AND a durable approval decision are provided (not stranded)', () => {
-    const r = deriveStageExitReadiness('CREDIT_APPROVAL', facts);
+  it('Credit Approval exit is genuinely reachable once fields/documents/memo/sections, a durable approval decision, AND a finalized credit memo are provided (not stranded)', () => {
+    const r = deriveStageExitReadiness('CREDIT_APPROVAL', { ...facts, creditMemo: finalizedMemo });
     expect(evaluateStageExitPolicy(r).allowed).toBe(true);
+  });
+
+  it('Workstream 146-B — Credit Approval exit is correctly BLOCKED while the current memo is still Draft, never fabricated as clear', () => {
+    const r = deriveStageExitReadiness('CREDIT_APPROVAL', facts);
+    expect(evaluateStageExitPolicy(r).allowed).toBe(false);
+    expect(r.blocking.map((b) => b.id)).toContain('CREDIT_APPROVAL:memo_finalized');
   });
 
   it('Final LOS Completion arc (Workstream C) — Credit Approval exit is correctly BLOCKED without a durable approval decision, never fabricated as clear', () => {
