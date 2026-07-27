@@ -56,4 +56,28 @@ describe('evaluateAdverseActionReadiness', () => {
     const r = evaluateAdverseActionReadiness([wrongDeal], 'deal-1');
     expect(r.adverseActionDocumented.met).toBe(false);
   });
+
+  it('Workstream V — tie-breaks by most-recent timestamp when two records are BOTH unsuperseded (genuinely ambiguous multiple heads)', () => {
+    const older = record({ recordId: 'aa-1', recordedAtIso: '2026-07-20T00:00:00.000Z' });
+    const newer = record({ recordId: 'aa-2', recordedAtIso: '2026-07-24T00:00:00.000Z' });
+    const r = evaluateAdverseActionReadiness([older, newer], 'deal-1');
+    expect(r.currentRecord?.recordId).toBe('aa-2');
+  });
+
+  it('Workstream V — a supersedes CYCLE zeroes out the head entirely and fails closed, never fabricating a survivor', () => {
+    const a = record({ recordId: 'aa-1', supersedesRecordId: 'aa-2' });
+    const b = record({ recordId: 'aa-2', supersedesRecordId: 'aa-1' });
+    const r = evaluateAdverseActionReadiness([a, b], 'deal-1');
+    expect(r.currentRecord).toBeUndefined();
+    expect(r.adverseActionDocumented.met).toBe(false);
+  });
+
+  it('Workstream V — a dangling supersedesRecordId (pointing at a record not in the list) does not suppress the record itself', () => {
+    const r = evaluateAdverseActionReadiness(
+      [record({ recordId: 'aa-1', supersedesRecordId: 'aa-ghost' })],
+      'deal-1',
+    );
+    expect(r.currentRecord?.recordId).toBe('aa-1');
+    expect(r.adverseActionDocumented.met).toBe(true);
+  });
 });

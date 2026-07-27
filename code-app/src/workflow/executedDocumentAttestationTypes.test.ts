@@ -66,4 +66,29 @@ describe('evaluateExecutedDocumentAttestationReadiness', () => {
     const r = evaluateExecutedDocumentAttestationReadiness([wrongDeal, rightDeal], 'deal-1');
     expect(r.executedDocsAttested.met).toBe(false);
   });
+
+  it('Workstream V — tie-breaks by most-recent timestamp when two records are BOTH unsuperseded (genuinely ambiguous multiple heads)', () => {
+    const older = record({ attestationId: 'edc-1', status: 'REVOKED', attestedAtIso: '2026-07-20T00:00:00.000Z' });
+    const newer = record({ attestationId: 'edc-2', status: 'ATTESTED', attestedAtIso: '2026-07-24T00:00:00.000Z' });
+    const r = evaluateExecutedDocumentAttestationReadiness([older, newer], 'deal-1');
+    expect(r.currentAttestation?.attestationId).toBe('edc-2');
+    expect(r.executedDocsAttested.met).toBe(true);
+  });
+
+  it('Workstream V — a supersedes CYCLE zeroes out the head entirely and fails closed, never fabricating a survivor', () => {
+    const a = record({ attestationId: 'edc-1', status: 'ATTESTED', supersedesAttestationId: 'edc-2' });
+    const b = record({ attestationId: 'edc-2', status: 'ATTESTED', supersedesAttestationId: 'edc-1' });
+    const r = evaluateExecutedDocumentAttestationReadiness([a, b], 'deal-1');
+    expect(r.currentAttestation).toBeUndefined();
+    expect(r.executedDocsAttested.met).toBe(false);
+  });
+
+  it('Workstream V — a dangling supersedesAttestationId (pointing at a record not in the list) does not suppress the record itself', () => {
+    const r = evaluateExecutedDocumentAttestationReadiness(
+      [record({ attestationId: 'edc-1', status: 'ATTESTED', supersedesAttestationId: 'edc-ghost' })],
+      'deal-1',
+    );
+    expect(r.currentAttestation?.attestationId).toBe('edc-1');
+    expect(r.executedDocsAttested.met).toBe(true);
+  });
 });

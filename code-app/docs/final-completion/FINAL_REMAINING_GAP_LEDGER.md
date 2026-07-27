@@ -436,6 +436,45 @@ the governance contract's own ratified §5 decision (Workstream J). Return/Decli
 reconfirmed live, not preview-only. No code changed — pure documentation, grounded directly in the
 registry source, not re-derived from a stale doc.
 
+## 21. Workstream V — full automated test expansion
+
+Investigated this arc's own new code (the six durable-record evaluators in
+`src/workflow/{commitmentRecordTypes,conditionVerificationTypes,executedDocumentAttestationTypes,
+bookingQcCheckTypes,adverseActionRecordTypes,creditApprovalDecisionTypes}.ts`) for real, concrete
+test gaps rather than padding the count. Found and closed:
+
+- **Ambiguous multiple-heads tie-break** — four of the five chain-based evaluators
+  (`evaluateConditionVerificationReadiness`, `evaluateExecutedDocumentAttestationReadiness`,
+  `evaluateBookingQcReadiness`, `evaluateAdverseActionReadiness`) only had a clean 2-node
+  supersedes-chain test; none exercised the genuinely ambiguous case of two records that BOTH go
+  unsuperseded (`commitmentRecordTypes.test.ts` already covered this implicitly). Added the
+  explicit test to each.
+- **Supersedes cycle** — added to all five: two records superseding each other zeroes out
+  `heads` entirely, confirmed to fail closed (never fabricate a survivor) rather than crash or
+  silently pick one.
+- **Dangling `supersedes*Id`** (pointing at a record not in the list) — added to all five,
+  confirming it does not suppress the record itself (the filter only matches ids that ARE present
+  in the list).
+- **`creditApprovalDecisionTypes.ts`'s inconsistent resolution strategy** — unlike its five
+  siblings, this evaluator resolves "current" by `decidedAtIso` timestamp comparison only (no
+  structural chain resolution); `submitCreditApprovalDecision.ts` passes through a caller-supplied
+  `supersedesDecisionId` rather than auto-resolving it. Pinned the actual (stable-sort) same-
+  timestamp collision behavior with a test rather than leaving it unspecified. **Not fixed** —
+  aligning this evaluator with its siblings' chain-based pattern would change already-shipped,
+  tested Workstream C behavior and was judged out of scope for a test-expansion pass; noted here
+  honestly as a real, disclosed inconsistency rather than silently left for a future reader to
+  rediscover.
+
+**Identified but deliberately not attempted:** a full cross-table end-to-end integration test
+exercising all six new workstreams' evaluators together in one deal's lifecycle (Credit Approval
+APPROVED → Commitment ISSUE/ACCEPT → Condition Verification → Executed Document Attestation →
+Booking QC PASS → BOARDED), mirroring the earlier "Workstream K: end-to-end product-chain
+regression test" pattern from a prior phase of this project. Each of the six evaluators is already
+thoroughly tested in isolation (including cross-deal isolation, now confirmed present for all six);
+building a correct multi-stage integration harness against `loanWorkflowRequirementEngine.ts`'s
+real signatures needs more verification room than remained safely available in this pass, so it is
+named here rather than shipped half-verified.
+
 ## Living-document note
 
 This ledger will be updated (not replaced) as each workstream lands, so that by the time the PR

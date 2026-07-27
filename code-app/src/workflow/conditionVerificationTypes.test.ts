@@ -76,6 +76,31 @@ describe('evaluateConditionVerificationReadiness', () => {
     expect(r.conditionsPrecedent.met).toBe(false);
   });
 
+  it('Workstream V — tie-breaks by most-recent timestamp when two records are BOTH unsuperseded (genuinely ambiguous multiple heads)', () => {
+    const older = record({ recordId: 'cv-1', status: 'FAILED', verifiedAtIso: '2026-07-20T00:00:00.000Z' });
+    const newer = record({ recordId: 'cv-2', status: 'CLEARED', verifiedAtIso: '2026-07-24T00:00:00.000Z' });
+    const r = evaluateConditionVerificationReadiness([older, newer], 'deal-1');
+    expect(r.currentRecords.CONDITIONS_PRECEDENT?.recordId).toBe('cv-2');
+    expect(r.conditionsPrecedent.met).toBe(true);
+  });
+
+  it('Workstream V — a supersedes CYCLE zeroes out the head entirely and fails closed, never fabricating a survivor', () => {
+    const a = record({ recordId: 'cv-1', status: 'CLEARED', supersedesRecordId: 'cv-2' });
+    const b = record({ recordId: 'cv-2', status: 'CLEARED', supersedesRecordId: 'cv-1' });
+    const r = evaluateConditionVerificationReadiness([a, b], 'deal-1');
+    expect(r.currentRecords.CONDITIONS_PRECEDENT).toBeUndefined();
+    expect(r.conditionsPrecedent.met).toBe(false);
+  });
+
+  it('Workstream V — a dangling supersedesRecordId (pointing at a record not in the list) does not suppress the record itself', () => {
+    const r = evaluateConditionVerificationReadiness(
+      [record({ recordId: 'cv-1', status: 'CLEARED', supersedesRecordId: 'cv-ghost' })],
+      'deal-1',
+    );
+    expect(r.currentRecords.CONDITIONS_PRECEDENT?.recordId).toBe('cv-1');
+    expect(r.conditionsPrecedent.met).toBe(true);
+  });
+
   it('tracks all three condition types independently when all are recorded', () => {
     const r = evaluateConditionVerificationReadiness(
       [

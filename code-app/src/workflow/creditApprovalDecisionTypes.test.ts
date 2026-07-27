@@ -83,4 +83,23 @@ describe('evaluateCreditApprovalDecisionReadiness', () => {
     const r = evaluateCreditApprovalDecisionReadiness([wrongDeal, rightDeal], 'deal-1');
     expect(r.currentDecision?.dealId).toBe('deal-1');
   });
+
+  // Workstream V — unlike its five siblings (evaluateCommitmentReadiness,
+  // evaluateConditionVerificationReadiness, evaluateExecutedDocumentAttestationReadiness,
+  // evaluateBookingQcReadiness, evaluateAdverseActionReadiness), this evaluator resolves "current"
+  // by decidedAtIso timestamp comparison only -- submitCreditApprovalDecision.ts passes through a
+  // caller-supplied supersedesDecisionId rather than having this function resolve the chain
+  // structurally. This pins the ACTUAL behavior on a same-timestamp collision (a real risk this
+  // evaluator carries that its chain-resolving siblings do not) rather than leaving it unspecified.
+  // A future change could align this evaluator with the chain-based pattern; not attempted here.
+  it('Workstream V — pins the actual (stable-sort) tie-break when two decisions carry an IDENTICAL decidedAtIso (a real ambiguity this evaluator does not resolve structurally, unlike its chain-based siblings)', () => {
+    const same = '2026-07-24T10:00:00.000Z';
+    const first = record({ decisionId: 'cad-1', decidedAtIso: same, approvedAmount: 100_000 });
+    const second = record({ decisionId: 'cad-2', decidedAtIso: same, approvedAmount: 500_000 });
+    const r = evaluateCreditApprovalDecisionReadiness([first, second], 'deal-1');
+    // Stable sort on an exact tie preserves input order -- the FIRST record in the array wins, not
+    // necessarily the one actually decided last. Pinned so a future refactor cannot silently change
+    // this without a test failure calling it out.
+    expect(r.currentDecision?.decisionId).toBe('cad-1');
+  });
 });

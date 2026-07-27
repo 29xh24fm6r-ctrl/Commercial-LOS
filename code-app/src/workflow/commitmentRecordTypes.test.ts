@@ -91,4 +91,21 @@ describe('evaluateCommitmentReadiness', () => {
     expect(withdrawn.commitmentIssued.met).toBe(true);
     expect(withdrawn.borrowerAcceptance.met).toBe(false);
   });
+
+  it('Workstream V — a supersedes CYCLE zeroes out the head entirely and fails closed, never fabricating a survivor', () => {
+    const a = record({ commitmentId: 'cmt-1', supersedesCommitmentId: 'cmt-2' });
+    const b = record({ commitmentId: 'cmt-2', supersedesCommitmentId: 'cmt-1' });
+    const r = evaluateCommitmentReadiness([a, b], 'deal-1');
+    expect(r.currentCommitment).toBeUndefined();
+    expect(r.commitmentIssued.met).toBe(false);
+  });
+
+  it('Workstream V — a dangling supersedesCommitmentId (pointing at a record not in the list) does not suppress the record itself', () => {
+    const r = evaluateCommitmentReadiness(
+      [record({ commitmentId: 'cmt-1', supersedesCommitmentId: 'cmt-ghost' })],
+      'deal-1',
+    );
+    expect(r.currentCommitment?.commitmentId).toBe('cmt-1');
+    expect(r.commitmentIssued.met).toBe(true);
+  });
 });
