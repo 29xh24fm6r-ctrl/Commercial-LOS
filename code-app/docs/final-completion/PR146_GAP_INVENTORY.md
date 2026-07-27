@@ -108,14 +108,14 @@ state of this file rather than reconstructing history from commit messages.
 
 | Field | Value |
 |---|---|
-| Classification | **CODE_FIX** (documentation/proof for existing facts) + **EXTERNAL_DEPENDENCY** (the six new-table facts, blocked with 146-A) |
-| Code location | N/A — this is a verification/documentation workstream over existing evaluators |
-| Dataverse dependency | Same as 146-A for the six new-table facts |
-| Operational dependency | Same as 146-A |
-| Test coverage | Existing reload-driven tests for risk rating / UW recommendation / funds-disbursed / boarded-loan-record / credit-memo-finalized (146-B) already prove their evaluators consume freshly-reloaded facts, not cached client state |
-| Live verification requirement | Deferred to PR 148's controlled E2E for the full chain (real action -> real persistence -> reload -> exact readback -> stage consequence) |
-| Owner | This session (pre-existing facts) / operator + this session (six new-table facts, after 146-A unblocks) |
-| Status | Partially provable now (risk rating, UW recommendation, funds disbursed, boarded loan record, memo finalization all reload-driven per their DealDataProvider wiring); the six Workstream C-H facts' reload proof against genuinely regenerated PAC output remains blocked on 146-A. |
+| Classification | **CODE_FIX** (new automated proof for the client-side reload mechanism) + **EXTERNAL_DEPENDENCY** (live, real-Dataverse readback proof, blocked with 146-A) |
+| Code location | New `src/deals/DealDataProvider.reloadProof.test.tsx` — mounts the REAL `DealDataProvider`, mocks only the SDK-touching loaders, and proves `refresh(key)` genuinely re-invokes the loader and the context value reflects the NEW result (not a cached one) for all three distinct loading mechanisms the provider uses: a plain query function (`loadDealCreditMemo`, proving 146-B's `after-credit-memo-finalized`), a store-factory method (`createDataverseCreditApprovalDecisionStore().listDecisionsForDeal`, the Workstream C/D/E/F/H/J shared pattern), and a bespoke reconciling loader (`loadBoardingHandoffForDeal`, proving 146-E's servicing-owner assignment is picked up on the next `boardingHandoff` reload). |
+| Dataverse dependency | None for the client-side mechanism proof above. The six Workstream C-H facts' reload proof against GENUINELY regenerated PAC output (not this session's hand-authored stand-in) is blocked with 146-A. |
+| Operational dependency | Same as 146-A for the live end-to-end portion |
+| Test coverage | `DealDataProvider.reloadProof.test.tsx` (3 tests, all passing) |
+| Live verification requirement | Deferred to PR 148's controlled E2E for the full chain (real action -> real persistence -> reload -> exact readback -> stage consequence) — this workstream proves the client-side mechanism is sound; it does not substitute for that live proof |
+| Owner | This session (client-side mechanism proof, done) / operator + this session (live E2E proof, PR 148, after 146-A unblocks) |
+| Status | Client-side reload mechanism now has an automated, passing proof (not merely an assertion) that `refresh()` re-fetches rather than serving stale state, covering all three loading-mechanism shapes in the provider. This is real evidence for the "reload -> exact record readback" claim at the client layer; the live, real-Dataverse half of that claim remains blocked on 146-A per the mission's own "DO NOT claim live persistence without exact record readback" constraint. |
 
 ## 146-I — Admin capability truth model upgrade (8 dimensions)
 
