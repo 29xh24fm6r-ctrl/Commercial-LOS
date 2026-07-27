@@ -8,7 +8,7 @@ import {
   type GlobalCashFlowFormState,
   type PersonalCashFlowInput,
 } from './globalCashFlow';
-import { updateDealProfile, type UpdateDealProfileOutcome } from './write/updateDealProfile';
+import { updateDealProfile, type UpdateDealProfileOutcome, type VerifiedProfilePatch } from './write/updateDealProfile';
 import { buildLiveUpdateDealProfileDeps } from './write/buildLiveUpdateDealProfileDeps';
 import type { DealDetail } from './dealQueries';
 import { Card } from '../shared/Card';
@@ -59,9 +59,13 @@ export interface GlobalCashFlowPanelProps {
   readonly authorized: boolean;
   readonly actorEmail: string | undefined;
   readonly actorSystemUserId: string | undefined;
+  /** Factory mission PR B — notifies a DealDataProvider-aware wrapper with the readback-verified
+   *  patch so the cockpit's in-context deal updates immediately, without a full browser reload.
+   *  See GlobalCashFlowPanelConnected.tsx for the precedent (DealFundingAuthorizationPanelConnected.tsx). */
+  readonly onSaved?: (verified: VerifiedProfilePatch) => void;
 }
 
-export function GlobalCashFlowPanel({ deal, authorized, actorEmail, actorSystemUserId }: GlobalCashFlowPanelProps) {
+export function GlobalCashFlowPanel({ deal, authorized, actorEmail, actorSystemUserId, onSaved }: GlobalCashFlowPanelProps) {
   const saved = useMemo(() => parseGlobalCashFlowFormState(deal.financialSpreadInputsJson), [deal.financialSpreadInputsJson]);
 
   const [netIncome, setNetIncome] = useState(saved.netIncome);
@@ -161,6 +165,7 @@ export function GlobalCashFlowPanel({ deal, authorized, actorEmail, actorSystemU
         buildLiveUpdateDealProfileDeps(),
       );
       setSaveState({ kind: 'done', outcome: result });
+      if (result.kind === 'updated') onSaved?.(result.verified);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setSaveState({ kind: 'done', outcome: { kind: 'write-failed', error: message, correlationId: '' } });

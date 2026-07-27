@@ -47,6 +47,18 @@ export function DealAdverseActionPanel({
   onRecordSubmitted?: () => void;
 }) {
   const storeRef = useRef(createDataverseAdverseActionRecordStore());
+  // Factory mission PR B — this panel was missing the isMountedRef guard PR #148 added to its five
+  // final-arc siblings (Credit Approval Decision, Commitment, Condition Verification, Executed
+  // Document Attestation, Booking QC), a regression left uncaught in that PR's own scope. Prevents
+  // any state update — success or failure path — after this panel has unmounted (e.g. the deal
+  // workspace navigates away, or a test unmounts) while listRecordsForDeal is still in flight.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [records, setRecords] = useState<readonly AdverseActionRecord[]>([]);
@@ -62,6 +74,7 @@ export function DealAdverseActionPanel({
     storeRef.current
       .listRecordsForDeal(dealId)
       .then((res) => {
+        if (!isMountedRef.current) return;
         if (res.success) {
           setRecords(res.records ?? []);
           setLoadState('ready');
@@ -71,6 +84,7 @@ export function DealAdverseActionPanel({
         }
       })
       .catch((err: unknown) => {
+        if (!isMountedRef.current) return;
         setLoadState('error');
         const raw = err instanceof Error ? err.message : String(err);
         setLoadError(mapBusinessSafeError(raw).safeMessage);
