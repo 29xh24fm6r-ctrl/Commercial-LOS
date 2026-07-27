@@ -50,6 +50,16 @@ describe('buildLiveDocumentRequirementActionDeps', () => {
       expect(getAllMock).toHaveBeenCalledWith(expect.objectContaining({ filter: expect.stringContaining('deal-1') }));
     });
 
+    it('146-D: matches a row across dash/slash punctuation variants via the shared normalizeDocumentName (not just case/whitespace)', async () => {
+      getAllMock.mockResolvedValue({
+        success: true,
+        data: [{ cr664_documentchecklistid: 'row-2', cr664_documentname: 'Profit-and-Loss / YTD', cr664_acknowledged: false }],
+      } as never);
+      const deps = buildLiveDocumentRequirementActionDeps();
+      const result = await deps.findRowByName('deal-1', 'profit and loss ytd');
+      expect(result).toEqual({ ok: true, row: { id: 'row-2', acknowledged: false } });
+    });
+
     it('returns row: undefined when no row matches', async () => {
       getAllMock.mockResolvedValue({ success: true, data: [] } as never);
       const deps = buildLiveDocumentRequirementActionDeps();
