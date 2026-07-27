@@ -386,6 +386,40 @@ schema + operator-workflow decision (how does an operator actually enter/record 
 totals?) squarely out of "code-safe work only" scope, and is now honestly tracked in `NOT_WIRED`
 rather than left silently undocumented.
 
+## 19. Workstream T — security/segregation certification incl. server-side plugin
+
+Produced `docs/final-completion/FINAL_SECURITY_SEGREGATION_CERTIFICATION.md`, consolidating the
+security/segregation-of-duties posture across the existing governance docs
+(`docs/governance/CANONICAL_TRANSITION_POLICY_CONTRACT.md`, `THREAT_BYPASS_MODEL.md`, `ADR_001...`,
+`GOVERNANCE_INITIATIVE_CERTIFICATION_REPORT_2026-07-21.md`) and extending the investigation to the
+six new Workstream C/D/E/F/H/J tables.
+
+**Confirmed:** the Dataverse governance plugin (`LoanDealGovernedTransitionPlugin.cs`) registers on
+`cr664_loandeal` only — zero server-side coverage exists for the six new tables, exactly as §12
+already forecast. No plugin build or live-environment registration was attempted here (an operator
+action, not code-safe work).
+
+**Investigated per-table whether a client-side same-actor (maker/checker) check is warranted, and
+built one ONLY where the data model actually supports it without inventing a rule:**
+- **Credit Approval Decision** already has a real one (`evaluateCreditApprovalAuthority`'s
+  self-approval prevention, comparing two genuine banker-record ids) — confirmed, not rebuilt.
+- **Commitment, Condition Verification, Executed Document Attestation, Booking QC, Adverse
+  Action** — investigated each record type directly; none carries a second, independently-tracked
+  actor field to check against (each has exactly one `*ActorEmail` field). Deliberately did **not**
+  invent a same-actor rule for any of these (e.g. a fragile name-string comparison, or a rule with
+  no evidentiary basis in how the action is actually used, like requiring a different banker log a
+  borrower's commitment response). The one case with a real, industry-standard rationale — Booking
+  QC reviewer should differ from the deal's originating banker — is named explicitly as a real,
+  scoped future fix (requires threading the deal's assigned-banker identity into
+  `SubmitBookingQcCheckInput` and its live-deps wiring, not attempted here without room to verify it
+  end to end).
+
+**Disposition:** documentation-primary, as the honest outcome of the investigation — no code
+change was warranted beyond what already existed, and inventing one would have violated this arc's
+own "no fabricated business rules" discipline. The residual risk (a direct Dataverse write bypasses
+every client-side check on all six new tables) is disclosed, matching the same risk class
+`THREAT_BYPASS_MODEL.md` already discloses for the loan-deal table itself.
+
 ## Living-document note
 
 This ledger will be updated (not replaced) as each workstream lands, so that by the time the PR
