@@ -107,6 +107,7 @@ describe('generateClosingDocument', () => {
     const failingStore = {
       createManifestRecord: vi.fn(async () => ({ success: false, error: 'Dataverse write rejected' })),
       listManifestsForDeal: vi.fn(async () => ({ success: true, manifests: [] })),
+      getManifestContent: vi.fn(async () => ({ success: false, error: 'not found' })),
     };
     const { emitAudit } = auditSpy();
     const outcome = await generateClosingDocument(

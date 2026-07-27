@@ -280,6 +280,10 @@
         "adverseactionrecords": {
           "entitySetName": "cr664_adverseactionrecords",
           "logicalName": "cr664_adverseactionrecord"
+        },
+        "closingdocumentmanifests": {
+          "entitySetName": "cr664_closingdocumentmanifests",
+          "logicalName": "cr664_closingdocumentmanifest"
         }
       },
       "environmentVariableName": ""

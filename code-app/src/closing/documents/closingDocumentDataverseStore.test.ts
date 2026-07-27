@@ -146,3 +146,47 @@ describe('createDataverseClosingDocumentStore — listManifestsForDeal', () => {
     expect(result.error).toBe('Table does not exist');
   });
 });
+
+/**
+ * Factory mission PR C — before getManifestContent existed, listManifestsForDeal's SELECT_FIELDS
+ * (used above) never included cr664_renderedcontent, and there was no other read path at all — a
+ * genuinely persisted manifest's content was structurally unreachable once the generating browser
+ * tab closed. This is the dedicated single-record content read that closes that gap.
+ */
+describe('createDataverseClosingDocumentStore — getManifestContent', () => {
+  it('reads back the persisted content for an existing manifest id', async () => {
+    getAllMock.mockResolvedValue({
+      success: true,
+      data: [{ cr664_manifestid: 'cdm-1', cr664_renderedcontent: 'the full rendered document' }],
+    });
+    const store = createDataverseClosingDocumentStore();
+    const result = await store.getManifestContent('cdm-1');
+    expect(result).toEqual({ success: true, content: 'the full rendered document' });
+    expect(getAllMock).toHaveBeenCalledWith(
+      expect.objectContaining({ select: ['cr664_manifestid', 'cr664_renderedcontent'] }),
+    );
+  });
+
+  it('fails closed (never fabricates content) when no row matches the manifest id', async () => {
+    getAllMock.mockResolvedValue({ success: true, data: [] });
+    const store = createDataverseClosingDocumentStore();
+    const result = await store.getManifestContent('does-not-exist');
+    expect(result.success).toBe(false);
+    expect(result.content).toBeUndefined();
+  });
+
+  it('fails closed when the row has no recorded content', async () => {
+    getAllMock.mockResolvedValue({ success: true, data: [{ cr664_manifestid: 'cdm-1', cr664_renderedcontent: '' }] });
+    const store = createDataverseClosingDocumentStore();
+    const result = await store.getManifestContent('cdm-1');
+    expect(result.success).toBe(false);
+  });
+
+  it('surfaces an honest failure when the live read fails', async () => {
+    getAllMock.mockResolvedValue({ success: false, error: { message: 'Table does not exist' } });
+    const store = createDataverseClosingDocumentStore();
+    const result = await store.getManifestContent('cdm-1');
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Table does not exist');
+  });
+});

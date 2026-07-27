@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClosingDocumentsPanel } from './ClosingDocumentsPanel';
@@ -32,6 +32,10 @@ function manifest(over: Partial<GeneratedClosingDocumentManifest> = {}): Generat
 }
 
 describe('ClosingDocumentsPanel', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('renders all 5 pilot templates and reports honest completeness when facts are incomplete', () => {
     render(
       <ClosingDocumentsPanel dealId="deal-1" facts={{}} manifests={[]} authorized onGenerate={vi.fn()} />,
@@ -121,5 +125,61 @@ describe('ClosingDocumentsPanel', () => {
     const user = userEvent.setup();
     await user.click(within(checklistRow).getByRole('button', { name: /Generate/ }));
     expect(await within(checklistRow).findByRole('alert')).toHaveTextContent('Generation failed: Dataverse rejected');
+  });
+
+  /**
+   * Factory mission PR C — regression coverage for the closing-document content-readback fix.
+   * Before onGetContent existed, a previously-persisted manifest (loaded via listManifestsForDeal,
+   * i.e. NOT this session's own generation call) had no "Download" affordance at all — the button
+   * only ever appeared for a document just generated in the current session.
+   */
+  it('offers a Download button for a previously-generated manifest, and retrieves its content via onGetContent', async () => {
+    // jsdom does not implement the Blob-URL APIs the actual file-download step uses; stub them so
+    // the click-through completes without touching real browser download machinery.
+    const createObjectURL = vi.fn(() => 'blob:mock-url');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+    const onGetContent = vi.fn(async () => ({ success: true, content: 'the persisted document text' }));
+    render(
+      <ClosingDocumentsPanel
+        dealId="deal-1"
+        facts={FULL_FACTS}
+        manifests={[manifest()]}
+        authorized
+        onGenerate={vi.fn()}
+        onGetContent={onGetContent}
+      />,
+    );
+    const checklistRow = screen.getByText('Closing Checklist').closest('li')!;
+    const downloadButton = within(checklistRow).getByRole('button', { name: 'Download' });
+    const user = userEvent.setup();
+    await user.click(downloadButton);
+    expect(onGetContent).toHaveBeenCalledWith('m-1');
+  });
+
+  it('does not offer a Download button for a previously-generated manifest when onGetContent is not supplied', () => {
+    render(
+      <ClosingDocumentsPanel dealId="deal-1" facts={FULL_FACTS} manifests={[manifest()]} authorized onGenerate={vi.fn()} />,
+    );
+    const checklistRow = screen.getByText('Closing Checklist').closest('li')!;
+    expect(within(checklistRow).queryByRole('button', { name: 'Download' })).toBeNull();
+  });
+
+  it('surfaces an honest retrieval error rather than silently doing nothing when onGetContent fails', async () => {
+    const onGetContent = vi.fn(async () => ({ success: false, error: 'Manifest has no recorded content.' }));
+    render(
+      <ClosingDocumentsPanel
+        dealId="deal-1"
+        facts={FULL_FACTS}
+        manifests={[manifest()]}
+        authorized
+        onGenerate={vi.fn()}
+        onGetContent={onGetContent}
+      />,
+    );
+    const checklistRow = screen.getByText('Closing Checklist').closest('li')!;
+    const user = userEvent.setup();
+    await user.click(within(checklistRow).getByRole('button', { name: 'Download' }));
+    expect(await within(checklistRow).findByRole('alert')).toHaveTextContent('Manifest has no recorded content.');
   });
 });
