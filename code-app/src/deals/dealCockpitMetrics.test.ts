@@ -199,6 +199,32 @@ describe('deriveDealCockpitMetrics — task counts', () => {
     expect(m.taskOverdueCount).toBe(0);
     expect(m.taskCompletedCount).toBe(0);
   });
+
+  it('a task due earlier the SAME calendar day as now is not overdue (calendar-day math, not raw instant)', () => {
+    // Factory mission PR A regression: NOW is 2026-05-27T12:00:00Z. A task due at midnight the same
+    // day (2026-05-27T00:00:00Z, the shape a date-only due date takes) is still "due today," not
+    // overdue -- the pre-fix raw d.getTime() < now.getTime() compare called this overdue for any
+    // time of day after local midnight.
+    const m = deriveDealCockpitMetrics(
+      input({
+        tasks: {
+          open: [
+            {
+              id: 't-due-today',
+              title: 'Due today',
+              dueDate: '2026-05-27T00:00:00Z',
+              modifiedOn: undefined,
+              completed: false,
+              assigneeName: undefined,
+            },
+          ],
+          completed: [],
+        },
+      }),
+      NOW,
+    );
+    expect(m.taskOverdueCount).toBe(0);
+  });
 });
 
 describe('deriveDealCockpitMetrics — memo state', () => {

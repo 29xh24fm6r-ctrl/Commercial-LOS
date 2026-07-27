@@ -285,18 +285,28 @@ export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [
     label: 'Stage progression — Return / Decline / Withdraw (canonical engine)',
     phase: 28,
     reason:
-      'WIRED_DISABLED, scoped specifically to the CANONICAL transition engine ' +
+      'Scoped specifically to the CANONICAL transition engine ' +
       '(src/workflow/canonicalStageTransition.ts + StageWorkflowControl.tsx + approvalAuthorityMatrix.ts): ' +
-      'Return / Decline / Withdraw. That control is built, tested, and gated on AUTO_STAGE_ADVANCE_ENABLED, ' +
-      'but is not mounted in any live workspace, so it stays preview-only regardless of the flag. ' +
-      'NOTE: this is now DISTINCT from forward Advance, which IS live via a SEPARATE surface -- ' +
-      'DealStageProgressionCard.tsx -> stageAdvanceWriteDependency.ts -> buildLiveStageAdvanceDeps.ts ' +
-      '(real audited + timelined write, not yet registered as its own GOVERNED_WRITES entry -- see that ' +
-      "file's header). AUTO_STAGE_ADVANCE_ENABLED itself is ARMED (true, dealOriginationFeatureFlags.ts) " +
-      'as of the WF-1A phase — it is not the remaining blocker for forward Advance. The remaining ' +
-      'prerequisite for BOTH paths is a data-seeding fact this static inventory cannot verify: the maker ' +
-      'adding the cr664_sequence ordinal to the stage reference table and seeding the seven ordered stage ' +
-      'rows in the target environment. See docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md and docs/STAGE_SCHEMA_SETUP.md.',
+      'Return / Decline / Withdraw. That control is built, tested, and gated on AUTO_STAGE_ADVANCE_ENABLED. ' +
+      'CORRECTION (Factory mission PR A, 2026-07-27): the claim that this control "is not mounted in any live ' +
+      'workspace" was stale and is corrected here -- it IS mounted live: DealGovernedTransitionPanel.tsx is ' +
+      'mounted in BankerDealWorkspace.tsx (showAdvance={false}, so only Return/Decline/Withdraw render there; ' +
+      'forward Advance stays on the separate DealStageProgressionCard.tsx control by design, see that file\'s ' +
+      'showAdvance doc comment) and executes a real write -- executeCanonicalStageTransition -> ' +
+      'buildLiveCanonicalTransitionDeps.ts, which emits both a Cr664_auditevents row and a ' +
+      'Cr664_dealtimelineevents row, the same audit+timeline shape as every other governed write. ' +
+      'NOTE: forward Advance (DealStageProgressionCard.tsx -> stageAdvanceWriteDependency.ts -> ' +
+      'buildLiveStageAdvanceDeps.ts) IS already registered as its own GOVERNED_WRITES entry ' +
+      "(id: 'deal-stage-advance') -- the prior claim that it was not yet registered was ALSO stale. " +
+      'This Return/Decline/Withdraw entry remains classified here rather than moved to GOVERNED_WRITES ' +
+      'because, unlike deal-stage-advance, it has not yet been given its own registry id -- a follow-on ' +
+      'registration is still warranted, but the false "unmounted" claim is the defect this correction fixes; ' +
+      'reclassification is left for a dedicated pass so as not to cascade every count-pinned test in this ' +
+      'same change. AUTO_STAGE_ADVANCE_ENABLED itself is ARMED (true, dealOriginationFeatureFlags.ts) as of ' +
+      'the WF-1A phase -- it is not the remaining blocker for either path. The remaining prerequisite for ' +
+      'BOTH paths is a data-seeding fact this static inventory cannot verify: the maker adding the ' +
+      'cr664_sequence ordinal to the stage reference table and seeding the seven ordered stage rows in the ' +
+      'target environment. See docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md and docs/STAGE_SCHEMA_SETUP.md.',
     enablementMapPath: 'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md',
   },
 ];
@@ -533,10 +543,13 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'shape -- NOT produced by a real `pac code add-data-source` + regenerate against a live org (no ' +
       'live Dataverse credentials exist in this sandbox to do that). The adapter fails closed with a ' +
       'visible error rather than a silent fallback if a live call does not behave as expected; a real ' +
-      'operator-run regeneration should be diffed against these files. Readiness facts with no live ' +
-      'source (documents/conditions/exceptions/destination/expiry) still hard-code to their fail-' +
-      'closed blocking value, so a session genuinely reaches APPROVED but always shows blocked at ' +
-      'disbursement confirmation -- correct behavior, not a bug. Factory Arc Phase 10 found the Phase ' +
+      'operator-run regeneration should be diffed against these files. CORRECTION (Factory mission PR A, ' +
+      '2026-07-27): conditionsPrecedentResolved is NO LONGER one of the hard-coded facts -- Workstreams ' +
+      'E/G wired DealFundingAuthorizationPanelConnected.tsx to derive it live via ' +
+      'evaluateConditionVerificationReadiness() against real Condition Verification records. The remaining ' +
+      'readiness facts with no live source (documents/exceptions/destination/expiry) still hard-code to ' +
+      'their fail-closed blocking value, so a session genuinely reaches APPROVED but always shows blocked ' +
+      'at disbursement confirmation -- correct behavior, not a bug. Factory Arc Phase 10 found the Phase ' +
       '2 SDK-regeneration escalation (docs/factory-arc/PR114_LOAN_DEAL_SDK_REGENERATION_ESCALATION.md) ' +
       'covers only cr664_loandeals and never mentioned this second hand-authored table, so an operator ' +
       'following that runbook alone would regenerate Loan Deal and stop there, unaware this table also ' +
@@ -579,12 +592,18 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'narrower: it emits no DealTimelineEvent, and neither this write nor any other portfolio-boarding ' +
       'write appears in GOVERNED_WRITES (platformInventory.ts) at all, so this registry -- the single ' +
       'source of truth for what emits audit/timeline evidence -- is silently blind to the whole boarding ' +
-      'domain. Lower urgency than the funding fix because the live persistence path this write depends ' +
-      'on is itself gated off by default (PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: false in ' +
-      'portfolioLoanBoardingFeatureFlags.ts) -- no real write happens in production today. Once that flag ' +
-      'is armed, the same emitLiveFundingAudit-style live-audit-sink pattern Phase 13 used for funding ' +
-      'should extend to a DealTimelineEvent for this write, and the write should be registered in ' +
-      'GOVERNED_WRITES. See docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.',
+      'domain. CORRECTION (Factory mission PR A, 2026-07-27): the prior claim here -- that the live ' +
+      'persistence path is gated off by PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and "no real write ' +
+      'happens in production today" -- was stale and is corrected here. PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED ' +
+      'gates a DIFFERENT write path (the manual bulk-import / "Add Existing Loan" form, resolved via ' +
+      'resolvePortfolioLoanBoardingPersistenceAdapter.ts, used by portfolioImportRunner.ts / ' +
+      'PortfolioLoanBoardingForm.tsx). The auto-board-on-stage-advance write this entry actually describes ' +
+      '(existingLoanEntryAdapter.ts, invoked unconditionally from buildLiveStageAdvanceDeps.ts\'s ' +
+      'onDealBoarded when a deal reaches BOARDED) has NO feature flag of its own, and AUTO_STAGE_ADVANCE_ENABLED ' +
+      '(the flag that does gate it, transitively, by gating stage-advance itself) is ARMED (true, ' +
+      'dealOriginationFeatureFlags.ts) -- so this write is real and live today, not gated off. The remaining ' +
+      'gap is exactly the registration one above (no DealTimelineEvent on this path, no GOVERNED_WRITES entry) ' +
+      '-- not a flag. See docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.',
     blockerKind: 'governance',
   },
   {

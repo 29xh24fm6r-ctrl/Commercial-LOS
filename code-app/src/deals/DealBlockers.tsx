@@ -10,6 +10,10 @@ import { attentionDestinationFor, focusAttentionTarget } from './attentionNaviga
 import { deriveCreditMemoFreshness } from './creditMemoFreshness';
 import { deriveDealCockpitMetrics } from './dealCockpitMetrics';
 import { deriveDealBlockerModelForStage } from './dealBlockerModel';
+import {
+  deriveRiskRatingRecordFromDeal,
+  deriveUnderwritingRecommendationRecordFromDeal,
+} from '../workflow/underwritingDeepFacts';
 import { DealProfileEditLauncher } from './DealProfileEditModal';
 import { Card, CardFooter } from '../shared/Card';
 import { Badge } from '../shared/Badge';
@@ -46,13 +50,44 @@ import { palette, radius, severityPalette, spacing, typography, type SeverityKey
  * blockers, no AI prediction, no approval-odds claim.
  */
 export function DealBlockers() {
-  const { deal, tasks, documents, creditMemo, activity, fundingAuthorization } = useDealData();
+  const {
+    deal,
+    tasks,
+    documents,
+    creditMemo,
+    activity,
+    fundingAuthorization,
+    creditApprovalDecisions,
+    commitments,
+    conditionVerifications,
+    executedDocumentAttestations,
+    bookingQcChecks,
+    boardingHandoff,
+  } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
   const memoData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
   const activityData = activity.kind === 'ready' ? activity.data : undefined;
   // Factory Arc Phase 12 — feeds CLOSING_FUNDING:funds_disbursed via deriveDealBlockerModelForStage below.
   const fundingAuthorizationData = fundingAuthorization?.kind === 'ready' ? fundingAuthorization.data : undefined;
+  // Factory mission PR A — the remaining deep-fact categories the stage-exit engine can consume.
+  // Before this fix, the Attention Console omitted all six of these, so every tracked requirement
+  // backed by one of them (risk rating, UW recommendation, credit approval decision, commitment,
+  // condition verification, executed document attestation, booking QC, boarding handoff) evaluated
+  // against `undefined` and therefore ALWAYS failed closed as a hard blocker here — even when the
+  // real Dataverse record satisfied it and the Advance button (DealStageProgressionCard, which
+  // already supplied the full set) correctly showed the deal as advanceable. Matching that card's
+  // fact set is what makes the "same engine" convergence in dealBlockerModel.ts's own header
+  // comment actually true in practice, not just in the function call.
+  const creditApprovalDecisionsData =
+    creditApprovalDecisions?.kind === 'ready' ? creditApprovalDecisions.data : undefined;
+  const commitmentsData = commitments?.kind === 'ready' ? commitments.data : undefined;
+  const conditionVerificationsData =
+    conditionVerifications?.kind === 'ready' ? conditionVerifications.data : undefined;
+  const executedDocumentAttestationsData =
+    executedDocumentAttestations?.kind === 'ready' ? executedDocumentAttestations.data : undefined;
+  const bookingQcChecksData = bookingQcChecks?.kind === 'ready' ? bookingQcChecks.data : undefined;
+  const boardingHandoffData = boardingHandoff?.kind === 'ready' ? boardingHandoff.data : undefined;
   const blockersResult = deriveBlockers(deal, tasksData, documentsData);
   // The authoritative stage-exit blocker model (the SAME model DealMetricDeck's "Blockers" tile
   // and the Stage Map advance guard use) — a mandatory requirement holding stage advancement,
@@ -66,6 +101,14 @@ export function DealBlockers() {
     documents: documentsData,
     creditMemo: memoData,
     fundingAuthorization: fundingAuthorizationData,
+    riskRating: deriveRiskRatingRecordFromDeal(deal),
+    underwritingRecommendation: deriveUnderwritingRecommendationRecordFromDeal(deal),
+    creditApprovalDecisions: creditApprovalDecisionsData,
+    commitments: commitmentsData,
+    conditionVerifications: conditionVerificationsData,
+    executedDocumentAttestations: executedDocumentAttestationsData,
+    bookingQcChecks: bookingQcChecksData,
+    boardingHandoff: boardingHandoffData,
   });
   const stageExitSignals: BlockerSignal[] = (stageExitModel?.hardBlockers ?? []).map((b) => ({
     id: `stage-exit:${b.id}`,

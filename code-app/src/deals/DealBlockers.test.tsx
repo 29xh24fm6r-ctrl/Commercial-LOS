@@ -119,3 +119,69 @@ describe('DealBlockers (Attention Console) — agrees with the authoritative sta
     expect(screen.queryByText(/Stage exit:/i)).toBeNull();
   });
 });
+
+/**
+ * Factory mission PR A regression coverage: before this fix, DealBlockers (the Attention Console)
+ * never forwarded creditApprovalDecisions/commitments/conditionVerifications/
+ * executedDocumentAttestations/bookingQcChecks/boardingHandoff/riskRating/underwritingRecommendation
+ * to deriveDealBlockerModelForStage, even though DealDataProvider always supplies them and
+ * DealStageProgressionCard (the Advance button) already forwarded the full set. Every deep,
+ * `severity: 'blocking'` requirement backed by one of those facts therefore evaluated against
+ * `undefined` and ALWAYS failed closed as a hard blocker here — regardless of whether the real
+ * Dataverse record satisfied it — so a banker could see the Advance button correctly enabled while
+ * the Attention Console simultaneously and permanently showed the same requirement as blocked.
+ */
+describe('DealBlockers (Attention Console) — consumes the full deep-fact set, agrees with the Advance button', () => {
+  function commitmentStageDeal(over: Partial<DealDetail> = {}): DealDetail {
+    return baseDeal({
+      stage: 'Commitment',
+      industry: 'Manufacturing',
+      guarantorStructure: 'Personal guaranty',
+      collateralSummary: 'Blanket UCC-1',
+      ...over,
+    });
+  }
+
+  it('omitting commitments (as before this fix) reports the commitment requirements as blocked', () => {
+    useDealDataMock.mockReturnValue(
+      readyDealData({ deal: commitmentStageDeal(), commitments: undefined }),
+    );
+    render(<DealBlockers />);
+    expect(screen.getByText(/Stage exit: Commitment \/ term sheet issued/i)).toBeInTheDocument();
+    expect(screen.getByText(/Stage exit: Borrower acceptance recorded/i)).toBeInTheDocument();
+  });
+
+  it('a real ACCEPTED commitment record clears both commitment stage-exit blockers (matches the Advance button)', () => {
+    useDealDataMock.mockReturnValue(
+      readyDealData({
+        deal: commitmentStageDeal(),
+        commitments: {
+          kind: 'ready',
+          data: [
+            {
+              commitmentId: 'commit-1',
+              dealId: 'd-1',
+              status: 'ACCEPTED',
+              approvedAmount: 4_500_000,
+              approvedProduct: 'RLOC',
+              approvedTermMonths: 36,
+              approvedPricing: 'SOFR + 250',
+              keyTermsSummary: 'Standard RLOC commitment terms.',
+              expirationDateIso: undefined,
+              issuedByActorEmail: 'banker@bank.test',
+              issuedAtIso: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+              respondedByActorEmail: 'borrower@acme.test',
+              respondedAtIso: new Date().toISOString(),
+              declineReason: undefined,
+              correlationId: 'corr-1',
+              supersedesCommitmentId: undefined,
+            },
+          ],
+        },
+      }),
+    );
+    render(<DealBlockers />);
+    expect(screen.queryByText(/Stage exit: Commitment \/ term sheet issued/i)).toBeNull();
+    expect(screen.queryByText(/Stage exit: Borrower acceptance recorded/i)).toBeNull();
+  });
+});

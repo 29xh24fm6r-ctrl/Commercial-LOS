@@ -3,6 +3,7 @@ import type { DealTasksResult } from './dealTaskQueries';
 import type { DealDocumentsResult } from './dealDocumentQueries';
 import type { CreditMemoData } from './creditMemoQueries';
 import type { TimelineEvent, TimelineEventTypeKey } from './activityQueries';
+import { isPastCalendarDate } from '../shared/formatters';
 
 /**
  * Phase 125D — Deal cockpit metric derivation.
@@ -251,11 +252,13 @@ function daysAgo(iso: string | undefined, now: Date): number | undefined {
   return -fwd;
 }
 
+// Factory mission PR A — was a raw-instant compare (`new Date(dueIso).getTime() < now.getTime()`),
+// which flags a task due "today" as overdue hours early depending on the viewer's timezone (the
+// same defect class N-24/D-04 fixed elsewhere; see isPastCalendarDate's own doc comment). Delegates
+// to the shared calendar-day-safe helper so this Metric Deck tile agrees with every other overdue
+// signal in the app (Team Workspace, Credit Memo freshness, the three role work-queues).
 function isOverdueTask(dueIso: string | undefined, now: Date): boolean {
-  if (!dueIso) return false;
-  const d = new Date(dueIso);
-  if (Number.isNaN(d.getTime())) return false;
-  return d.getTime() < now.getTime();
+  return isPastCalendarDate(dueIso, now);
 }
 
 function deriveMemoState(

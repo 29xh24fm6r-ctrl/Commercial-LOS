@@ -59,7 +59,13 @@ function usableContactCount(master: CrmMaster, ownerType: CrmEntityType, ownerId
 export function deriveCrmRelationshipNetworkSnapshot(
   master: CrmMaster,
 ): CrmRelationshipNetworkSnapshot {
-  const orgRollups: CrmOrgRollup[] = master.organizations.map((org) => {
+  // Factory mission PR A — was every consumer below reading master.organizations directly, so an
+  // inactive/archived organization inflated both the headline "N org(s)" stat AND the rollup table
+  // beneath it identically (at least internally consistent, but silently counting non-active
+  // records this repo's own convention excludes for every other entity-count surface). Filtering
+  // once here keeps the summary stat and the detail table agreeing with each other.
+  const activeOrganizations = master.organizations.filter((o) => o.status === 'active');
+  const orgRollups: CrmOrgRollup[] = activeOrganizations.map((org) => {
     const people = master.people.filter((p) => p.orgId === org.orgId);
     const contactPointCount = master.contactPoints.filter(
       (c) => c.ownerType === 'organization' && c.ownerId === org.orgId,
@@ -84,7 +90,7 @@ export function deriveCrmRelationshipNetworkSnapshot(
   });
 
   const nodes: CrmNetworkNode[] = [
-    ...master.organizations.map((o) => ({
+    ...activeOrganizations.map((o) => ({
       entityType: 'organization' as CrmEntityType,
       entityId: o.orgId,
       label: o.legalName,
@@ -111,7 +117,14 @@ export function deriveCrmRelationshipNetworkSnapshot(
   }).length;
 
   return {
-    totalOrganizations: master.organizations.length,
+    // Factory mission PR A — was master.organizations.length unconditionally, counting
+    // inactive/archived organizations alongside real active relationships. This was the one CRM
+    // count surface this repo's audit history found with zero active-state filtering, unlike every
+    // deal-count surface, which consistently excludes non-active/test records. Organizations have
+    // no name-pattern test/smoke convention the way deals do (testDealClassification.ts is
+    // deal-specific), so `status` is the only classification available; excluding non-'active' here
+    // is the equivalent fix for this record type.
+    totalOrganizations: activeOrganizations.length,
     totalPeople: master.people.length,
     totalRelationships: master.relationships.length,
     totalContactPoints: master.contactPoints.length,

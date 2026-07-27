@@ -10,6 +10,7 @@
  */
 
 import { formatCurrency } from '../../shared/formatters';
+import { isTestOrSmokeDeal } from '../../shared/deals/testDealClassification';
 
 export interface LinkedDeal {
   readonly id: string;
@@ -38,6 +39,8 @@ interface RawLoanDeal {
   readonly cr664_amount?: number;
   readonly cr664_stagereferencename?: string;
   readonly cr664_statusreferencename?: string;
+  /** Governed test/smoke classification (falls back to name-pattern matching when absent). */
+  readonly cr664_istestrecord?: boolean;
 }
 
 function str(v: unknown): string | undefined {
@@ -104,7 +107,7 @@ export const loadLinkedDealsForOrganization: LinkedDealsLoader = async (organiza
     const clientFilter = targetIds.map((id) => `_cr664_client_value eq ${id}`).join(' or ');
     const { Cr664_loandealsService } = await import('../../generated/services/Cr664_loandealsService');
     const res = await Cr664_loandealsService.getAll({
-      select: ['cr664_loandealid', 'cr664_dealname', 'cr664_amount'],
+      select: ['cr664_loandealid', 'cr664_dealname', 'cr664_amount', 'cr664_istestrecord'],
       // Admin → Loan Removal (dealRemovalWrite.ts) deactivates a removed deal;
       // exclude it here so a withdrawn deal doesn't linger in the CRM widget.
       filter: `(${clientFilter}) and statecode eq 0`,
@@ -115,8 +118,16 @@ export const loadLinkedDealsForOrganization: LinkedDealsLoader = async (organiza
     }
     const seen = new Set<string>();
     const deals: LinkedDeal[] = [];
-    for (const d of res.data ?? []) {
-      const mapped = mapLinkedDeal(d as RawLoanDeal);
+    for (const raw of res.data ?? []) {
+      const d = raw as RawLoanDeal;
+      // Factory mission PR A — this widget is a genuine relationship-history view (intentionally
+      // NOT filtered to ACTIVE_DEAL_ODATA_PREDICATE's "active, non-terminal" scope; a banker
+      // legitimately wants to see a closed/funded deal in a client's history, not just open ones).
+      // It previously had ZERO test/smoke exclusion, so a disposable test deal linked to a real CRM
+      // company polluted that company's relationship history. Uses the same governed field +
+      // name-pattern fallback every other deal surface uses.
+      if (isTestOrSmokeDeal({ name: d.cr664_dealname, isTestRecord: d.cr664_istestrecord })) continue;
+      const mapped = mapLinkedDeal(d);
       if (seen.has(mapped.id)) continue;
       seen.add(mapped.id);
       deals.push(mapped);

@@ -116,6 +116,28 @@ describe('crmLinkedDeals — loadLinkedDealsForOrganization (DEFECT 6)', () => {
     if (result.status === 'ready') expect(result.deals).toHaveLength(1);
   });
 
+  it('excludes a governed test/smoke record even though this widget is otherwise a full relationship history (Factory mission PR A)', async () => {
+    relGetAll.mockResolvedValue(ok([{ cr664_clientrelationshipid: REL_1 }]));
+    dealGetAll.mockResolvedValue(
+      ok([
+        { cr664_loandealid: 'd-1', cr664_dealname: 'Acme Expansion' },
+        { cr664_loandealid: 'd-2', cr664_dealname: 'SYSTEM TEST - smoke deal', cr664_istestrecord: true },
+      ]),
+    );
+    const result = await loadLinkedDealsForOrganization(ORG);
+    expect(result.status).toBe('ready');
+    if (result.status === 'ready') {
+      expect(result.deals.map((d) => d.id)).toEqual(['d-1']);
+    }
+  });
+
+  it('the select list requests cr664_istestrecord so the governed classification field is available', async () => {
+    relGetAll.mockResolvedValue(ok([{ cr664_clientrelationshipid: REL_1 }]));
+    dealGetAll.mockResolvedValue(ok([]));
+    await loadLinkedDealsForOrganization(ORG);
+    expect(dealGetAll.mock.calls[0]![0]!.select).toContain('cr664_istestrecord');
+  });
+
   it('fails closed to unavailable when the relationship read fails', async () => {
     relGetAll.mockResolvedValue({ success: false, error: { message: 'x' } } as never);
     const result = await loadLinkedDealsForOrganization(ORG);
