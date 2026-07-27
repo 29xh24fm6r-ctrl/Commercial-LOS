@@ -8,12 +8,18 @@
  */
 
 import { AUDIT_OUTCOME_SUCCEEDED } from '../../shared/governance/auditEnums';
+import { TIMELINE_VISIBILITY_BANKER_AND_MANAGER } from '../../shared/governance/timelineEnums';
 import { assertChangedByCoreUserBind } from '../../shared/governance/auditActorBind';
 import {
   createActorChangedByResolver,
   type ResolveActorChangedBy,
 } from '../newDealAuditActorResolver';
-import type { UpdateDealProfileDeps, EmitDealProfileAuditInput } from './updateDealProfile';
+import { timelineEventByBind } from '../timelineActorBind';
+import type {
+  UpdateDealProfileDeps,
+  EmitDealProfileAuditInput,
+  EmitDealProfileTimelineInput,
+} from './updateDealProfile';
 
 // Verified schema enum values (mirrors dealTaskActions — kept inline so the
 // audit does not depend on the generated runtime enum maps).
@@ -67,6 +73,46 @@ async function emitDealProfileAudit(
   }
 }
 
+// Final LOS Completion arc — Workstream K. Title/subtype per field, matching the NoteLogged-reuse
+// convention every other new-timeline-event workstream in this arc already established (no
+// additive option-set migration needed).
+const TIMELINE_EVENT_TYPE_NOTE_LOGGED = 788190002;
+const DEAL_PROFILE_TIMELINE_COPY: Readonly<Record<EmitDealProfileTimelineInput['field'], { title: string; subtype: string }>> = {
+  riskRatingInputs: { title: 'Risk rating assigned', subtype: 'riskrating:assigned' },
+  underwritingRecommendationInputs: { title: 'Underwriting recommendation finalized', subtype: 'uwrecommendation:finalized' },
+};
+
+async function emitDealProfileTimeline(
+  input: EmitDealProfileTimelineInput,
+  resolveActorChangedBy: ResolveActorChangedBy,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const actor = await resolveActorChangedBy(input.actorEmail);
+  const copy = DEAL_PROFILE_TIMELINE_COPY[input.field];
+  const payload = {
+    cr664_title: copy.title,
+    cr664_summary: copy.title,
+    cr664_eventat: new Date().toISOString(),
+    cr664_eventtype: TIMELINE_EVENT_TYPE_NOTE_LOGGED,
+    cr664_visibilityscope: TIMELINE_VISIBILITY_BANKER_AND_MANAGER,
+    cr664_issystemgenerated: false,
+    'cr664_Deal@odata.bind': `/cr664_loandeals(${input.dealId})`,
+    ...timelineEventByBind(actor),
+    cr664_eventsubtype: `${copy.subtype}|correlation:${input.correlationId}`,
+  };
+  try {
+    const { Cr664_dealtimelineeventsService } = await import('../../generated/services/Cr664_dealtimelineeventsService');
+    const result = await Cr664_dealtimelineeventsService.create(
+      payload as unknown as Parameters<typeof Cr664_dealtimelineeventsService.create>[0],
+    );
+    if (!result.success) {
+      return { ok: false, error: result.error?.message ?? 'DealTimelineEvent create returned non-success' };
+    }
+    return { ok: true, id: result.data?.cr664_dealtimelineeventid };
+  } catch (err: unknown) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export function buildLiveUpdateDealProfileDeps(): UpdateDealProfileDeps {
   const resolveActorChangedBy = createActorChangedByResolver();
   return {
@@ -88,5 +134,6 @@ export function buildLiveUpdateDealProfileDeps(): UpdateDealProfileDeps {
       };
     },
     emitAudit: (input) => emitDealProfileAudit(input, resolveActorChangedBy),
+    emitTimeline: (input) => emitDealProfileTimeline(input, resolveActorChangedBy),
   };
 }

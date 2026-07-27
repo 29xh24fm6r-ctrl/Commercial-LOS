@@ -49,6 +49,7 @@ import type { DealDetail } from './dealQueries';
 
 // Verified cr664_dealtimelineevents option-set values (see the generated model).
 const TIMELINE_EVENT_TYPE_STAGE_CHANGED = 788190006; // 'StageChanged'
+const TIMELINE_EVENT_TYPE_NOTE_LOGGED = 788190002; // 'NoteLogged' — reused for boarded-loan-created (Workstream K)
 const TIMELINE_VISIBILITY_BANKER_AND_MANAGER = 788190000; // 'BankerAndManager'
 
 export interface LiveStageAdvanceActor {
@@ -250,6 +251,38 @@ export function buildLiveStageAdvanceDeps(actor: LiveStageAdvanceActor): LiveSta
       );
       const outcome = await boardExistingLoan(input, buildLiveExistingLoanDeps());
       if (outcome.kind === 'success') {
+        // Final LOS Completion arc — Workstream K: a dedicated boarded-loan-created timeline event
+        // on the DEAL's own timeline (distinct from the boarding write's own audit trail on
+        // cr664_portfolioboardedloanauditentries) — previously only the generic StageChanged event
+        // fired here. Best-effort: never blocks or reverts the boarding write that already
+        // succeeded. Reuses NoteLogged (no dedicated option-set value exists for this event, same
+        // discipline this arc used for every other new timeline event it added).
+        try {
+          const { createActorChangedByResolver } = await import('./newDealAuditActorResolver');
+          const { timelineEventByBind } = await import('./timelineActorBind');
+          const resolved = await createActorChangedByResolver()(actor.actorEmail);
+          const payload = {
+            cr664_title: `Boarded as portfolio loan ${outcome.loanNumber}`,
+            cr664_summary: `Deal boarded to the portfolio as loan ${outcome.loanNumber}.`,
+            cr664_eventat: new Date().toISOString(),
+            cr664_eventtype: TIMELINE_EVENT_TYPE_NOTE_LOGGED,
+            cr664_visibilityscope: TIMELINE_VISIBILITY_BANKER_AND_MANAGER,
+            cr664_issystemgenerated: false,
+            cr664_relatedentitytype: 'cr664_portfolioboardedloan',
+            cr664_relatedentityid: outcome.loanId,
+            'cr664_Deal@odata.bind': `/cr664_loandeals(${deal.id})`,
+            ...timelineEventByBind(resolved),
+            cr664_eventsubtype: `boarded:created|correlation:${outcome.correlationId}`,
+          };
+          const { Cr664_dealtimelineeventsService } = await import(
+            '../generated/services/Cr664_dealtimelineeventsService'
+          );
+          await Cr664_dealtimelineeventsService.create(
+            payload as unknown as Parameters<typeof Cr664_dealtimelineeventsService.create>[0],
+          );
+        } catch {
+          // Best-effort — see the comment above.
+        }
         return { ok: true, detail: `Boarded as portfolio loan ${outcome.loanNumber}.` };
       }
       if (outcome.kind === 'duplicate') {

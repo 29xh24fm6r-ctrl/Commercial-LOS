@@ -5,6 +5,7 @@ import { requestFunding } from '../funding/fundingRequestAdapter';
 import { approveFunding, rejectFunding, revokeFunding } from '../funding/fundingApprovalAdapter';
 import { confirmFundingDisbursement } from '../funding/fundingDisbursementConfirmation';
 import { emitLiveFundingAudit } from '../funding/fundingAuditLiveDeps';
+import { emitLiveFundingTimeline } from '../funding/fundingTimelineLiveDeps';
 import type { FundingAuthorizationRecord, FundingReadinessFacts } from '../funding/fundingAuthorizationTypes';
 import { recognizeCanonicalStatus } from '../workflow/statusReferenceContract';
 import type { DealDetail } from './dealQueries';
@@ -137,7 +138,7 @@ export function DealFundingAuthorizationPanel({
     const amount = Number(requestAmount);
     const outcome = await requestFunding(
       { dealId: deal.id, requestedAmount: amount, requestedBy: email, fundingMethod: requestMethod.trim() || undefined },
-      { storage: storeRef.current, emitAudit: emitLiveFundingAudit },
+      { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline },
     );
     if (outcome.kind === 'requested') {
       setRecord(outcome.record);
@@ -156,7 +157,7 @@ export function DealFundingAuthorizationPanel({
     setActionError(undefined);
     const outcome = await approveFunding(
       { record, approverEmail: email, approvedAmount, authorizedFacilityAmount },
-      { storage: storeRef.current, emitAudit: emitLiveFundingAudit },
+      { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline },
     );
     if (outcome.kind === 'first_approval_recorded' || outcome.kind === 'fully_approved') {
       setRecord(outcome.record);
@@ -170,7 +171,7 @@ export function DealFundingAuthorizationPanel({
   async function onReject() {
     if (!record) return;
     setActionError(undefined);
-    const outcome = await rejectFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit });
+    const outcome = await rejectFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline });
     if (outcome.kind === 'rejected') {
       setRecord(outcome.record);
     } else if (outcome.kind === 'denied') {
@@ -183,7 +184,7 @@ export function DealFundingAuthorizationPanel({
   async function onRevoke() {
     if (!record) return;
     setActionError(undefined);
-    const outcome = await revokeFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit });
+    const outcome = await revokeFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline });
     if (outcome.kind === 'revoked') {
       setRecord(outcome.record);
     } else if (outcome.kind === 'denied') {
@@ -198,7 +199,7 @@ export function DealFundingAuthorizationPanel({
     setActionError(undefined);
     const outcome = await confirmFundingDisbursement(
       { record, readinessFacts: facts, fundingDate, confirmedByActorEmail: email },
-      { storage: storeRef.current, emitAudit: emitLiveFundingAudit },
+      { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline },
     );
     if (outcome.kind === 'confirmed') {
       setRecord(outcome.record);

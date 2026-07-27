@@ -109,10 +109,10 @@ arc introduced — Workstream M adds one new authoritative model without retirin
 Full table already produced in the required-first-response report (item 8); repeated here as the
 authoritative source list for Workstream K:
 
-- **Missing entirely:** risk rating assigned/finalized, UW recommendation finalized, commitment issued/accepted, condition satisfied/waived, closing document generated, executed document verified, booking QC completed, boarded-loan-created (dedicated event — only a generic `StageChanged` fires today), servicing-owner-assigned. (Adverse action is now closed — see §13.)
-- **Built but not wired (payload shape only):** funding requested/first-approval/second-approval/rejected/revoked — `fundingTimeline.ts` explicitly documents this as "not wired... no dedicated event type exists on the schema yet."
 - **CORRECTION (Workstream J):** the row this table previously carried here — "wired but dead code (unmounted UI): credit-approval decline, return authorization... `StageWorkflowControl.tsx is not mounted`" — was stale by the time this arc reached Workstream J. `DealGovernedTransitionPanel.tsx` mounts `StageWorkflowControl` in `BankerDealWorkspace.tsx` (task #16 of this arc's own tracker, completed earlier) with `liveEnabled` set, so RETURN/DECLINE/WITHDRAW ARE live and reachable today, and their audit/timeline writes through `buildLiveCanonicalTransitionDeps.ts` fire on a real user action, not dead code. The two stale doc-comments making this claim (`canonicalStageTransition.ts`, `buildLiveCanonicalTransitionDeps.ts`) were corrected in the same commit as this ledger update.
-- **Working today:** document requested/uploaded/reviewed, generic stage-change, note-logging.
+- **CLOSED by Workstream K** (all nine remaining items from the original "missing entirely" / "payload shape only" lists — see §15 below): risk rating assigned/finalized, UW recommendation finalized, closing document generated, boarded-loan-created, funding requested/first-approval/fully-approved/rejected/revoked/funded (6 actions). Commitment issued/accepted, condition satisfied/waived, executed document verified, booking QC completed, and adverse action were already closed by Workstreams D/E/F/H/J respectively, each confirmed still live by Workstream K's own research pass before being marked done (not re-built).
+- **Still genuinely missing, NOT closed by Workstream K — servicing-owner-assigned:** confirmed by direct search that no write action anywhere in the app sets `cr664_AssignedServicingOwner` at all (distinct from `cr664_PortfolioManager`, the field Workstream I already investigated and found blocked for the same underlying reason). There is no existing write site to attach a timeline emission to — this needs a NEW governed write action (most plausibly a manual "assign servicing owner" picker, since auto-deriving the value from `DealDetail` carries the identical name-resolution risk Workstream I declined to build a heuristic for) before a timeline event is even possible. Out of Workstream K's scope (which closes timeline gaps at EXISTING write sites, not new write actions) — flagged here for the same operator/product decision as Workstream I's portfolio-manager gap, not invented.
+- **Working today:** document requested/uploaded/reviewed, generic stage-change, note-logging, plus everything closed by Workstreams D/E/F/H/J/K above.
 
 ## 8. Test-record classification gaps (N-17 follow-on)
 
@@ -216,6 +216,52 @@ entries).
   arc's own tracker shows "Mount Return/Decline/Withdraw as first-class client workflows" (task #16)
   completed in an earlier PR, and `DealGovernedTransitionPanel.tsx` does mount the control live in
   `BankerDealWorkspace.tsx`. Both comments corrected in the same commit (see §7 above).
+
+## 15. Workstream K — Canonical timeline cross-writes
+
+Investigated via direct code read of every write path the original "~18 event types" scope
+referenced, confirming which items §7's original list were already closed by intervening workstreams
+(D/E/F/H/J) versus genuinely still missing. Closed the genuinely-missing items at their EXISTING
+write sites — no new entity, no new write action, no schema/option-set change (reused NoteLogged
+(788190002) with a distinct `cr664_eventsubtype`, same convention as D/E/F/H/J, except closing-
+document generation, which reuses the schema's own pre-existing, semantically exact `DocumentGenerated`
+(788190011) value):
+
+- **Risk rating assigned / UW recommendation finalized** — `updateDealProfile.ts` gained an optional
+  `emitTimeline` dep, called only when `riskRatingInputs`/`underwritingRecommendationInputs` are in
+  the patch (never for the many other, unrelated profile fields this same function writes). Live
+  implementation in `buildLiveUpdateDealProfileDeps.ts`.
+- **Closing document generated** — new `src/closing/documents/closingDocumentTimeline.ts`
+  (`recordClosingDocumentGenerationTimeline` + `liveEmitClosingDocumentTimeline`), wired into
+  `generateClosingDocument`'s optional `emitTimeline` dep and `DealClosingDocumentsPanel.tsx`'s live
+  call site — independent of that same call site's `emitAudit`, which remains a documented, deliberate
+  no-op stub pending separate build-out (unchanged by this workstream).
+- **Boarded-loan-created** — `buildLiveStageAdvanceDeps.ts`'s `onDealBoarded.run` now emits a
+  dedicated timeline event on the deal (distinct from the boarding write's own audit trail on
+  `cr664_portfolioboardedloanauditentries`) after a successful board, in addition to the pre-existing
+  generic `StageChanged` event.
+- **Funding requested / first-approval / fully-approved / rejected / revoked / funded (6 actions)** —
+  new `src/funding/fundingTimelineWrite.ts` (`recordFundingTimeline`, mirroring `fundingAudit.ts`'s
+  exact shape) and `src/funding/fundingTimelineLiveDeps.ts` (`emitLiveFundingTimeline`, mirroring
+  `fundingAuditLiveDeps.ts`), reusing `fundingTimeline.ts`'s pre-existing `buildFundingTimelineEntry`
+  payload-shape logic — which had zero live call sites before this workstream, confirmed by direct
+  search. Wired into `fundingRequestAdapter.ts`, `fundingApprovalAdapter.ts`'s single `persistAndAudit`
+  choke point (covers approve/reject/revoke), and `fundingDisbursementConfirmation.ts`, plus
+  `DealFundingAuthorizationPanel.tsx`'s 5 live call sites.
+- Every new `emitTimeline` dep across all four is (a) optional, so hand-built test doubles predating
+  this workstream keep compiling unedited, and (b) best-effort — a timeline emission failure never
+  blocks or reverts the write/audit that already succeeded, matching this codebase's universal
+  governance-partial discipline.
+
+**Confirmed already closed, not re-built:** commitment issued/accepted (Workstream D), condition
+satisfied/waived (Workstream E), executed document verified (Workstream F), booking QC completed
+(Workstream H), adverse action (Workstream J) — each verified by reading its `emitTimelineEvent`
+function and confirming it is called unconditionally on the write path's success branch, not dead
+code.
+
+**Not closed — servicing-owner-assigned:** see §7's updated disposition above. Genuinely requires a
+new write action before a timeline event is possible; flagged for the same operator/product decision
+already tracked against Workstream I, not invented here.
 
 ## Living-document note
 

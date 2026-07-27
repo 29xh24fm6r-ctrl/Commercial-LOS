@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClosingDocumentsPanel } from '../closing/documents/ClosingDocumentsPanel';
 import { createDataverseClosingDocumentStore } from '../closing/documents/closingDocumentStorage';
 import { generateClosingDocument } from '../closing/documents/closingDocumentGeneration';
+import { liveEmitClosingDocumentTimeline } from '../closing/documents/closingDocumentTimeline';
 import type { ClosingDocumentFactModel, ClosingDocumentTemplate, GeneratedClosingDocumentManifest } from '../closing/documents/closingDocumentTypes';
 import type { DealDetail } from './dealQueries';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -74,6 +75,9 @@ export function DealClosingDocumentsPanel({ deal, authorized, actorEmail }: { de
       {
         storage: storeRef.current,
         emitAudit: async () => ({ success: false, error: 'Local-only session: no live audit sink is wired yet (see docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md).' }),
+        // Final LOS Completion arc — Workstream K: real, live timeline emission (distinct from the
+        // still-stubbed audit above — see this file's header and closingDocumentTimeline.ts).
+        emitTimeline: liveEmitClosingDocumentTimeline,
       },
     );
     if (outcome.kind === 'generated') {

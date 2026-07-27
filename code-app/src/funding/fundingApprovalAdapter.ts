@@ -6,6 +6,7 @@ import {
   type FundingAuthorizationPolicyConfig,
 } from './fundingAuthorizationPolicy';
 import { recordFundingAudit, type EmitFundingAudit } from './fundingAudit';
+import { recordFundingTimeline, type EmitFundingTimeline } from './fundingTimelineWrite';
 import type { FundingAuthorizationStorageDeps } from './fundingAuthorizationStorage';
 import type { FundingAuthorizationRecord } from './fundingAuthorizationTypes';
 
@@ -13,6 +14,13 @@ export interface FundingApprovalDeps {
   readonly storage: FundingAuthorizationStorageDeps;
   readonly emitAudit: EmitFundingAudit;
   readonly resolveActorChangedBy?: ResolveActorChangedBy;
+  /**
+   * Final LOS Completion arc — Workstream K. Optional ONLY so hand-built test doubles predating
+   * this workstream keep compiling without edits — an omitted dep is equivalent to "timeline
+   * emission unavailable," never fabricated as succeeded. Independent of `emitAudit`'s own
+   * success/failure.
+   */
+  readonly emitTimeline?: EmitFundingTimeline;
 }
 
 export type FundingApprovalOutcome =
@@ -35,15 +43,21 @@ async function persistAndAudit(
 ): Promise<PersistResult> {
   const write = await deps.storage.updateRecord(record);
   if (!write.success) return { ok: false, error: write.error ?? 'Record update returned non-success.' };
-  const audit = await recordFundingAudit(
-    record,
-    action,
-    actorEmail,
-    deps.resolveActorChangedBy ?? createActorChangedByResolver(),
-    deps.emitAudit,
-  );
+  const resolveActorChangedBy = deps.resolveActorChangedBy ?? createActorChangedByResolver();
+  const audit = await recordFundingAudit(record, action, actorEmail, resolveActorChangedBy, deps.emitAudit);
   const withAudit = audit.auditId ? { ...record, auditEventIds: [...record.auditEventIds, audit.auditId] } : record;
   if (audit.auditId) await deps.storage.updateRecord(withAudit);
+
+  // Final LOS Completion arc — Workstream K. Best-effort, never blocks the outcome or reflects the
+  // audit's own success/failure — the write above already succeeded and is authoritative.
+  if (deps.emitTimeline) {
+    try {
+      await recordFundingTimeline(withAudit, action, actorEmail, new Date().toISOString(), resolveActorChangedBy, deps.emitTimeline);
+    } catch {
+      // Best-effort — see the comment above.
+    }
+  }
+
   return { ok: true, record: withAudit };
 }
 

@@ -302,4 +302,45 @@ describe('buildLiveStageAdvanceDeps — onDealBoarded (reuses the already-live P
     expect(result.ok).toBe(false);
     expect(boardExistingLoan).not.toHaveBeenCalled();
   });
+
+  describe('Workstream K: boarded-loan-created timeline event', () => {
+    it('emits a dedicated boarded:created timeline event on the deal after a successful board', async () => {
+      mapDealToExistingLoanInput.mockReturnValue({ loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true });
+      boardExistingLoan.mockResolvedValue({ kind: 'success', loanId: 'row-1', loanNumber: 'deal-1', correlationId: 'c1', childCreated: 0, childErrors: [], auditId: 'a1' });
+      resolveActor.mockResolvedValue({ ok: true, changedByBind: '/cr664_users(core-1)' });
+      timelineCreate.mockResolvedValue({ success: true, data: { cr664_dealtimelineeventid: 't-1' } });
+      const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
+
+      const result = await onDealBoarded.run(testDeal);
+
+      expect(result).toEqual({ ok: true, detail: 'Boarded as portfolio loan deal-1.' });
+      expect(timelineCreate).toHaveBeenCalledTimes(1);
+      const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
+      expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-1)');
+      expect(payload.cr664_eventsubtype).toBe('boarded:created|correlation:c1');
+      expect(payload['cr664_EventBy@odata.bind']).toBe('/cr664_users(core-1)');
+    });
+
+    it('does not fail (or change) the boarding outcome when the timeline emission fails', async () => {
+      mapDealToExistingLoanInput.mockReturnValue({ loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true });
+      boardExistingLoan.mockResolvedValue({ kind: 'success', loanId: 'row-1', loanNumber: 'deal-1', correlationId: 'c1', childCreated: 0, childErrors: [], auditId: 'a1' });
+      resolveActor.mockResolvedValue({ ok: true, changedByBind: '/cr664_users(core-1)' });
+      timelineCreate.mockRejectedValue(new Error('timeline down'));
+      const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
+
+      const result = await onDealBoarded.run(testDeal);
+
+      expect(result).toEqual({ ok: true, detail: 'Boarded as portfolio loan deal-1.' });
+    });
+
+    it('does not emit a timeline event for a duplicate (already-boarded) outcome', async () => {
+      mapDealToExistingLoanInput.mockReturnValue({ loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true });
+      boardExistingLoan.mockResolvedValue({ kind: 'duplicate', reason: 'exists', loanNumber: 'deal-1' });
+      const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
+
+      await onDealBoarded.run(testDeal);
+
+      expect(timelineCreate).not.toHaveBeenCalled();
+    });
+  });
 });

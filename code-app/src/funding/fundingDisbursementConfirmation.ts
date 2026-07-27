@@ -1,6 +1,7 @@
 import { createActorChangedByResolver, type ResolveActorChangedBy } from '../deals/newDealAuditActorResolver';
 import { deriveFundingReadiness, type FundingReadinessBlocker } from './fundingReadiness';
 import { recordFundingAudit, type EmitFundingAudit } from './fundingAudit';
+import { recordFundingTimeline, type EmitFundingTimeline } from './fundingTimelineWrite';
 import type { FundingAuthorizationStorageDeps } from './fundingAuthorizationStorage';
 import type { FundingAuthorizationRecord, FundingReadinessFacts } from './fundingAuthorizationTypes';
 
@@ -29,6 +30,13 @@ export interface FundingDisbursementDeps {
   readonly storage: FundingAuthorizationStorageDeps;
   readonly emitAudit: EmitFundingAudit;
   readonly resolveActorChangedBy?: ResolveActorChangedBy;
+  /**
+   * Final LOS Completion arc — Workstream K. Optional ONLY so hand-built test doubles predating
+   * this workstream keep compiling without edits — an omitted dep is equivalent to "timeline
+   * emission unavailable," never fabricated as succeeded. Independent of `emitAudit`'s own
+   * success/failure.
+   */
+  readonly emitTimeline?: EmitFundingTimeline;
 }
 
 export async function confirmFundingDisbursement(
@@ -57,17 +65,22 @@ export async function confirmFundingDisbursement(
   const write = await deps.storage.updateRecord(updated);
   if (!write.success) return { kind: 'write_failed', error: write.error ?? 'Record update returned non-success.' };
 
-  const audit = await recordFundingAudit(
-    updated,
-    'funded',
-    input.confirmedByActorEmail,
-    deps.resolveActorChangedBy ?? createActorChangedByResolver(),
-    deps.emitAudit,
-  );
+  const resolveActorChangedBy = deps.resolveActorChangedBy ?? createActorChangedByResolver();
+  const audit = await recordFundingAudit(updated, 'funded', input.confirmedByActorEmail, resolveActorChangedBy, deps.emitAudit);
   const withAuditId = audit.auditId
     ? { ...updated, auditEventIds: [...updated.auditEventIds, audit.auditId] }
     : updated;
   if (audit.auditId) await deps.storage.updateRecord(withAuditId);
+
+  // Final LOS Completion arc — Workstream K. Best-effort, never blocks the outcome or reflects the
+  // audit's own success/failure — the write above already succeeded and is authoritative.
+  if (deps.emitTimeline) {
+    try {
+      await recordFundingTimeline(withAuditId, 'funded', input.confirmedByActorEmail, new Date().toISOString(), resolveActorChangedBy, deps.emitTimeline);
+    } catch {
+      // Best-effort — see the comment above.
+    }
+  }
 
   return {
     kind: 'confirmed',
