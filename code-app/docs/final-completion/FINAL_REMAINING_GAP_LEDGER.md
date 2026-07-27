@@ -153,10 +153,15 @@ additive flag-type values — it will **not** create a new entity, since one alr
 
 `docs/production-remediation/deployment-and-live-certification/01_MIGRATION_RUNBOOK.md` already
 covers the 4 outstanding PR A/B migrations (document requirement lifecycle, CRM industry
-projection, test-record field, closing document manifest). This arc's new schema (Credit Approval,
-Commitment, Conditions Precedent, Booking QC, timeline/flag option-set additions) will get its own
-migration scripts following the exact same script/verify/rollback shape, added to that same
-directory structure rather than a duplicate one.
+projection, test-record field, closing document manifest). This arc's new schema (Credit Approval
+Decision, Commitment Record, Condition Verification, Executed Document Attestation, Booking QC
+Check, Adverse Action Record — six tables, Workstreams C/D/E/F/H/J) got its own migration scripts
+following the exact same script/verify/rollback shape, added to that same `scripts/schema-migrations/`
+directory structure rather than a duplicate one. **Closed by Workstream S:**
+`docs/final-completion/FINAL_ARC_SCHEMA_MIGRATIONS_INVENTORY.md` inventories all six with exact
+commands, confirms each hand-authored generated-SDK stand-in is derived from the same `entity.mjs`
+its migration script reads (no drift risk), and documents the `pac code add-data-source` /
+`dataSourcesInfo.ts` regeneration step each one still needs from an operator.
 
 ## 12. Connector / security-role dependencies
 
