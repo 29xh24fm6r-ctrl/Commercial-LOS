@@ -21,6 +21,7 @@ import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { AdminDealReferenceValues } from '../admin/AdminDealReferenceValues';
 import { AdminLoanRemovalPanel } from '../admin/AdminLoanRemovalPanel';
+import { AdminAssignServicingOwnerPanel } from '../admin/AdminAssignServicingOwnerPanel';
 import { PlatformOperationsWorkspacePanel } from '../admin/PlatformOperationsWorkspacePanel';
 import { AdminCapabilityTruthMatrix } from '../admin/AdminCapabilityTruthMatrix';
 import { AdminDurableRecordCapabilityPanel } from '../admin/AdminDurableRecordCapabilityPanel';
@@ -144,6 +145,11 @@ function AdminWorkspaceContent() {
             portfolioLoanRemovalWrite.ts for why); this is a governed, audited,
             reversible withdrawal that hides the loan from every active view. */}
         <AdminLoanRemovalPanel />
+        {/* Final LOS Completion arc (Workstream 146-E) -- governed assignment of the
+            cr664_AssignedServicingOwner systemuser lookup, the durable fact
+            BOARDED:servicing_owner (loanWorkflowRequirementEngine.ts) checks for. Until this
+            panel, nothing anywhere wrote this field. */}
+        <AdminAssignServicingOwnerPanel />
         <StageGovernanceDiagnostics />
         <EmailLiveDiagnostics />
         <PerformanceDiagnostics />

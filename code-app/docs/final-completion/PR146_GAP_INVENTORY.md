@@ -67,14 +67,14 @@ state of this file rather than reconstructing history from commit messages.
 
 | Field | Value |
 |---|---|
-| Classification | **CODE_FIX** |
-| Code location | New governed write (assign/reassign `cr664_AssignedServicingOwner`), read side already exists at `src/workflow/boardingHandoffReadiness.ts` (`servicingOwnerAssigned`) |
+| Classification | **VERIFIED_COMPLETE** (this PR) |
+| Code location | `src/admin/assignServicingOwnerWrite.ts` (new, governed write + `searchServicingOwnerLoans`), `src/admin/AdminAssignServicingOwnerPanel.tsx` (new UI, mounted in `AdminWorkspace.tsx`), read side already at `src/workflow/boardingHandoffReadiness.ts` (`servicingOwnerAssigned`) |
 | Dataverse dependency | None new — `cr664_AssignedServicingOwner` lookup (target `systemuser`) already exists on `cr664_portfolioboardedloan`, confirmed via `portfolioLoanBoardingDataverseSchemaPlan.ts` |
 | Operational dependency | None |
-| Test coverage | New evaluator/action test files (in progress) |
-| Live verification requirement | Deferred to PR 148 E2E — assign a servicing owner, reload, confirm `BOARDED:servicing_owner` flips met and the portfolio/admin views show the resolved identity |
+| Test coverage | `assignServicingOwnerWrite.test.ts` (11 tests: fail-closed authorization/identity, no-op-reassignment rejection, readback-verified success, write-failed, readback-mismatch, audit-failed), `AdminAssignServicingOwnerPanel.test.tsx` (4 tests) |
+| Live verification requirement | Deferred to PR 148 E2E — assign a servicing owner, reload, confirm `BOARDED:servicing_owner` flips met and the portfolio/admin/deal views show the resolved identity |
 | Owner | This session |
-| Status | In progress — confirmed via full-repo grep that zero write path exists today; `listGrantablePlatformUsers()` (`adminAccessGrantLookup.ts`) is the candidate resolver, pending confirmation its `id` maps directly to a `systemuser` id. |
+| Status | Done. The picker reuses `portfolioManagerOptions.ts`'s EXISTING `loadPortfolioManagerOptions()` systemuser resolver (NOT `adminAccessGrantLookup.ts`'s `listGrantablePlatformUsers()`, whose `id` is a `cr664_platformuserid` — a different identity space that does not bind through `@odata.bind: /systemusers(...)`) — confirmed both `cr664_PortfolioManager` and `cr664_AssignedServicingOwner` target the same `systemuser` entity. Mirrors `portfolioLoanRemovalWrite.ts`'s injected-deps + readback-verification discipline: the write re-reads the row after the update and fails closed (`readback-mismatch`) if the field does not show the new owner, rather than assuming success. Mounted admin-only (no existing per-loan edit surface existed in the Portfolio workspace to hook into) — a future phase could move this to a portfolio-manager-facing surface, but the durable fact and its governed write path are real and complete. |
 
 ## 146-F — Reconciliation durability (exception record model)
 
