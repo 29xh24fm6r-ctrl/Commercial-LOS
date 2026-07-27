@@ -5,11 +5,17 @@
 
 // Models
 export * as CommonModels from './models/CommonModels';
+export * as Cr664_adverseactionrecordsModel from './models/Cr664_adverseactionrecordsModel';
 export * as Cr664_alertqueuesModel from './models/Cr664_alertqueuesModel';
 export * as Cr664_auditeventsModel from './models/Cr664_auditeventsModel';
 export * as Cr664_bankersModel from './models/Cr664_bankersModel';
+export * as Cr664_bookingqcchecksModel from './models/Cr664_bookingqcchecksModel';
 export * as Cr664_borrowersModel from './models/Cr664_borrowersModel';
 export * as Cr664_clientrelationshipsModel from './models/Cr664_clientrelationshipsModel';
+export * as Cr664_closingdocumentmanifestsModel from './models/Cr664_closingdocumentmanifestsModel';
+export * as Cr664_commitmentrecordsModel from './models/Cr664_commitmentrecordsModel';
+export * as Cr664_conditionverificationsModel from './models/Cr664_conditionverificationsModel';
+export * as Cr664_creditapprovaldecisionsModel from './models/Cr664_creditapprovaldecisionsModel';
 export * as Cr664_creditmemo1sModel from './models/Cr664_creditmemo1sModel';
 export * as Cr664_creditmemodraftsectionsModel from './models/Cr664_creditmemodraftsectionsModel';
 export * as Cr664_crmauditentriesModel from './models/Cr664_crmauditentriesModel';
@@ -29,6 +35,7 @@ export * as Cr664_dealstatusreferencesModel from './models/Cr664_dealstatusrefer
 export * as Cr664_dealtask1sModel from './models/Cr664_dealtask1sModel';
 export * as Cr664_dealtimelineeventsModel from './models/Cr664_dealtimelineeventsModel';
 export * as Cr664_documentchecklistsModel from './models/Cr664_documentchecklistsModel';
+export * as Cr664_executeddocattestationsModel from './models/Cr664_executeddocattestationsModel';
 export * as Cr664_fundingauthorizationsModel from './models/Cr664_fundingauthorizationsModel';
 export * as Cr664_kpithresholdconfigurationsModel from './models/Cr664_kpithresholdconfigurationsModel';
 export * as Cr664_loandealsModel from './models/Cr664_loandealsModel';
@@ -62,11 +69,17 @@ export * as Office365OutlookModel from './models/Office365OutlookModel';
 export * as SystemusersModel from './models/SystemusersModel';
 
 // Services
+export * from './services/Cr664_adverseactionrecordsService';
 export * from './services/Cr664_alertqueuesService';
 export * from './services/Cr664_auditeventsService';
 export * from './services/Cr664_bankersService';
+export * from './services/Cr664_bookingqcchecksService';
 export * from './services/Cr664_borrowersService';
 export * from './services/Cr664_clientrelationshipsService';
+export * from './services/Cr664_closingdocumentmanifestsService';
+export * from './services/Cr664_commitmentrecordsService';
+export * from './services/Cr664_conditionverificationsService';
+export * from './services/Cr664_creditapprovaldecisionsService';
 export * from './services/Cr664_creditmemo1sService';
 export * from './services/Cr664_creditmemodraftsectionsService';
 export * from './services/Cr664_crmauditentriesService';
@@ -86,6 +99,7 @@ export * from './services/Cr664_dealstatusreferencesService';
 export * from './services/Cr664_dealtask1sService';
 export * from './services/Cr664_dealtimelineeventsService';
 export * from './services/Cr664_documentchecklistsService';
+export * from './services/Cr664_executeddocattestationsService';
 export * from './services/Cr664_fundingauthorizationsService';
 export * from './services/Cr664_kpithresholdconfigurationsService';
 export * from './services/Cr664_loandealsService';
