@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { ExistingPortfolioLoansPanel } from './ExistingPortfolioLoansPanel';
 import type { BoardedLoanRow } from './boardedLoansList';
 import type { BoardExistingLoanOutcome, ExistingLoanInput } from './existingLoanEntryAdapter';
@@ -34,12 +35,14 @@ beforeEach(() => {
 
 function renderPanel(identity = IDENTITY, extra: Record<string, unknown> = {}) {
   return render(
-    <ExistingPortfolioLoansPanel
-      {...identity}
-      loadLoans={loadLoans as never}
-      boardLoan={boardLoan as (i: ExistingLoanInput) => Promise<BoardExistingLoanOutcome>}
-      {...extra}
-    />,
+    <MemoryRouter>
+      <ExistingPortfolioLoansPanel
+        {...identity}
+        loadLoans={loadLoans as never}
+        boardLoan={boardLoan as (i: ExistingLoanInput) => Promise<BoardExistingLoanOutcome>}
+        {...extra}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -92,6 +95,26 @@ describe('Phase 259 — ExistingPortfolioLoansPanel', () => {
     const purposeRow = within(detail).getByText('Purpose').closest('div');
     expect(termRow ? within(termRow).getByText('—') : null).not.toBeNull();
     expect(purposeRow ? within(purposeRow).getByText('—') : null).not.toBeNull();
+  });
+
+  it('links an originated portfolio loan back to its deal', async () => {
+    loadLoans = vi.fn(async () => [{ ...existingRows()[0], manuallyBoarded: false, originatedDealId: 'deal-42' }]);
+    const { container } = renderPanel(IDENTITY, { loadLoans: loadLoans as never });
+    await waitList();
+    const user = userEvent.setup();
+    await user.click(container.querySelector('[data-boarded-loan-row="l1"]') as HTMLElement);
+    const link = container.querySelector('[data-originating-deal-link]') as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/deals/deal-42');
+  });
+
+  it('shows an honest no-link state for a manual or legacy portfolio loan', async () => {
+    const { container } = renderPanel();
+    await waitList();
+    const user = userEvent.setup();
+    await user.click(container.querySelector('[data-boarded-loan-row="l1"]') as HTMLElement);
+    expect(container.querySelector('[data-originating-deal-link]')).toBeNull();
+    expect(container.querySelector('[data-originating-deal-unlinked]')).toHaveTextContent('Not linked to an originated deal');
   });
 
   // Factory Arc Phase 9 — the detail drawer shows REAL per-loan child-record
@@ -195,7 +218,7 @@ describe('Phase 259 — ExistingPortfolioLoansPanel', () => {
   });
 
   it('blocks a duplicate loan number', async () => {
-    boardLoan.mockResolvedValueOnce({ kind: 'duplicate', reason: 'already exists', loanNumber: 'LN-0001' });
+    boardLoan.mockResolvedValueOnce({ kind: 'duplicate', reason: 'already exists', loanNumber: 'LN-0001', existingLoanId: 'loan-existing' });
     const { container } = renderPanel();
     await waitList();
     const user = userEvent.setup();
@@ -204,6 +227,7 @@ describe('Phase 259 — ExistingPortfolioLoansPanel', () => {
     await user.type(container.querySelector('[data-xl-field="borrowerLegalName"]') as HTMLInputElement, 'Acme Holdings');
     await user.click(container.querySelector('[data-existing-loan-submit]') as HTMLButtonElement);
     await waitFor(() => expect(container.querySelector('[data-existing-loan-outcome="duplicate"]')).not.toBeNull());
+    expect(container.querySelector('[data-existing-loan-outcome="duplicate"]')).toHaveTextContent('loan-existing');
   });
 
   it('is read-only (Add disabled) without a Dataverse identity', async () => {

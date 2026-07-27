@@ -44,8 +44,8 @@ beforeEach(() => {
   loandealsGet.mockReset();
   auditCreate.mockReset();
   stageGetAll.mockReset();
-  timelineCreate.mockReset();
-  resolveActor.mockReset();
+  timelineCreate.mockReset().mockResolvedValue({ success: true });
+  resolveActor.mockReset().mockResolvedValue({ ok: true, changedByBind: '/cr664_users(core-1)' });
   mapDealToExistingLoanInput.mockReset();
   boardExistingLoan.mockReset();
   buildLiveExistingLoanDeps.mockReset().mockReturnValue({});
@@ -269,17 +269,27 @@ describe('buildLiveStageAdvanceDeps — onDealBoarded (reuses the already-live P
       actorSystemUserId: actor.actorSystemUserId,
     });
     expect(boardExistingLoan).toHaveBeenCalledWith(mappedInput, {});
-    expect(result).toEqual({ ok: true, detail: 'Boarded as portfolio loan deal-1.' });
+    expect(result).toEqual({
+      kind: 'complete',
+      ok: true,
+      loanId: 'row-1',
+      detail: 'Boarded as portfolio loan deal-1; audit and timeline evidence were recorded.',
+    });
   });
 
   it('reports a duplicate loan (already boarded) as ok — not an error', async () => {
     mapDealToExistingLoanInput.mockReturnValue({ loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true });
-    boardExistingLoan.mockResolvedValue({ kind: 'duplicate', reason: 'exists', loanNumber: 'deal-1' });
+    boardExistingLoan.mockResolvedValue({ kind: 'duplicate', reason: 'exists', loanNumber: 'deal-1', existingLoanId: 'row-existing' });
     const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
 
     const result = await onDealBoarded.run(testDeal);
 
-    expect(result).toEqual({ ok: true, detail: 'Already boarded (loan number deal-1 exists).' });
+    expect(result).toEqual({
+      kind: 'already-boarded',
+      ok: true,
+      loanId: 'row-existing',
+      detail: 'Already boarded (loan number deal-1 exists); no new portfolio loan was created.',
+    });
   });
 
   it('reports a write failure honestly, never a fake success', async () => {
@@ -313,7 +323,12 @@ describe('buildLiveStageAdvanceDeps — onDealBoarded (reuses the already-live P
 
       const result = await onDealBoarded.run(testDeal);
 
-      expect(result).toEqual({ ok: true, detail: 'Boarded as portfolio loan deal-1.' });
+      expect(result).toEqual({
+        kind: 'complete',
+        ok: true,
+        loanId: 'row-1',
+        detail: 'Boarded as portfolio loan deal-1; audit and timeline evidence were recorded.',
+      });
       expect(timelineCreate).toHaveBeenCalledTimes(1);
       const payload = timelineCreate.mock.calls[0]![0] as Record<string, unknown>;
       expect(payload['cr664_Deal@odata.bind']).toBe('/cr664_loandeals(deal-1)');
@@ -321,7 +336,7 @@ describe('buildLiveStageAdvanceDeps — onDealBoarded (reuses the already-live P
       expect(payload['cr664_EventBy@odata.bind']).toBe('/cr664_users(core-1)');
     });
 
-    it('does not fail (or change) the boarding outcome when the timeline emission fails', async () => {
+    it('preserves the boarded loan and reports partial evidence when the timeline emission throws', async () => {
       mapDealToExistingLoanInput.mockReturnValue({ loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true });
       boardExistingLoan.mockResolvedValue({ kind: 'success', loanId: 'row-1', loanNumber: 'deal-1', correlationId: 'c1', childCreated: 0, childErrors: [], auditId: 'a1' });
       resolveActor.mockResolvedValue({ ok: true, changedByBind: '/cr664_users(core-1)' });
@@ -330,12 +345,30 @@ describe('buildLiveStageAdvanceDeps — onDealBoarded (reuses the already-live P
 
       const result = await onDealBoarded.run(testDeal);
 
-      expect(result).toEqual({ ok: true, detail: 'Boarded as portfolio loan deal-1.' });
+      expect(result).toEqual({
+        kind: 'partial-evidence',
+        ok: false,
+        loanId: 'row-1',
+        detail: 'Boarded as portfolio loan deal-1, but timeline evidence could not be recorded. The boarded loan was preserved; an operator must reconcile the missing evidence.',
+      });
+    });
+
+    it('preserves the boarded loan and reports partial evidence when timeline create returns non-success', async () => {
+      mapDealToExistingLoanInput.mockReturnValue({ loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true });
+      boardExistingLoan.mockResolvedValue({ kind: 'success', loanId: 'row-1', loanNumber: 'deal-1', correlationId: 'c1', childCreated: 0, childErrors: [], auditId: 'a1' });
+      resolveActor.mockResolvedValue({ ok: true, changedByBind: '/cr664_users(core-1)' });
+      timelineCreate.mockResolvedValue({ success: false, error: { message: 'transport detail must not leak' } });
+      const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
+
+      const result = await onDealBoarded.run(testDeal);
+
+      expect(result.kind).toBe('partial-evidence');
+      expect(result.detail).not.toContain('transport detail');
     });
 
     it('does not emit a timeline event for a duplicate (already-boarded) outcome', async () => {
       mapDealToExistingLoanInput.mockReturnValue({ loanNumber: 'deal-1', borrowerLegalName: 'Acme LLC', authorized: true });
-      boardExistingLoan.mockResolvedValue({ kind: 'duplicate', reason: 'exists', loanNumber: 'deal-1' });
+      boardExistingLoan.mockResolvedValue({ kind: 'duplicate', reason: 'exists', loanNumber: 'deal-1', existingLoanId: 'row-existing' });
       const { onDealBoarded } = buildLiveStageAdvanceDeps(actor);
 
       await onDealBoarded.run(testDeal);

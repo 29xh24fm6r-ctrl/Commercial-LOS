@@ -28,8 +28,8 @@ is marked **Unverified** rather than asserted.
   [src/team/](../src/team/).
 - **Write posture / governance.**
   [src/shared/governance/platformInventory.ts](../src/shared/governance/platformInventory.ts).
-  Current verified counts: **GOVERNED_WRITES = 23**,
-  **LOCAL_ONLY_FLOWS = 16**, **NOT_WIRED = 14**,
+  Current verified counts: **GOVERNED_WRITES = 24**,
+  **LOCAL_ONLY_FLOWS = 16**, **NOT_WIRED = 13**,
   **DELIBERATELY_BLOCKED = 1** (pinned by
   [releaseCandidateSnapshot.test.ts](../src/shared/governance/releaseCandidateSnapshot.test.ts)).
 
@@ -97,7 +97,7 @@ Columns:
 
 ## 4. Write surfaces by workspace (the RW detail)
 
-From `GOVERNED_WRITES` (12 entries) in
+From `GOVERNED_WRITES` (24 entries) in
 [platformInventory.ts](../src/shared/governance/platformInventory.ts),
 grouped by where the affordance lives:
 
@@ -161,7 +161,7 @@ plan.
 - Workspace coverage: **6 / 6 role workspaces + per-deal cockpit built
   and live-reachable.** One required surface (borrower portal) remains
   a tracked compound block.
-- `GOVERNED_WRITES = 23`, `LOCAL_ONLY_FLOWS = 16`, `NOT_WIRED = 14`,
+- `GOVERNED_WRITES = 24`, `LOCAL_ONLY_FLOWS = 16`, `NOT_WIRED = 13`,
   `DELIBERATELY_BLOCKED = 1`.
 - No claim of portal availability, AI usage, Teams integration, live
   delivery confirmation, or upload availability beyond what the

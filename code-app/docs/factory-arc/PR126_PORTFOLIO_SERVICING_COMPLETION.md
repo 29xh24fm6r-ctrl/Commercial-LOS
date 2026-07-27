@@ -44,7 +44,14 @@ effort than the single-table proposals `pr107-funding-authorization` or
 schema proposal in the time remaining this phase risked exactly the kind of under-designed migration
 this arc's discipline exists to prevent. Flagged as its own future phase's scope.
 
-### 2. Portfolio boarding's real write is ungoverned (narrower than Phase 13 found for funding)
+### 2. Portfolio boarding governance gap (historical; closed by PR D)
+
+> PR D closure: auto-boarding now emits its portfolio boarding audit and a deal-scoped
+> `DealTimelineEvent`, and is registered exactly once as
+> `GOVERNED_WRITES.deal-auto-portfolio-board`. A failed timeline write is surfaced as partial
+> evidence while the successful boarded-loan record is preserved. The former
+> `NOT_WIRED.portfolio-boarding-audit-governance` row has been removed. The text below records the
+> original Phase 14 finding and is not the current capability state.
 
 `src/portfolioBoarding/existingLoanEntryAdapter.ts` — the one boarding write path with machine-proven
 smoke evidence (`docs/operator-evidence/final-launch/portfolioBoarding.json`) — DOES emit a genuine

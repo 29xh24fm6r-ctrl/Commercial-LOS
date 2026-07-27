@@ -101,6 +101,7 @@ describe('loadBoardedLoansWith — metadata says the additive column is present'
       ok([{
         cr664_portfolioboardedloanid: 'a',
         cr664_loannumber: 'L-1',
+        _cr664_originatedloandeal_value: 'deal-42',
         cr664_pastduedays: 15,
         cr664_accrualstatus: 'Accruing',
         cr664_nextreviewdate: '2026-08-01',
@@ -133,6 +134,7 @@ describe('loadBoardedLoansWith — metadata says the additive column is present'
       bookingDate: '2025-02-01',
       closingDate: '2025-01-15',
       portfolioManager: 'Jordan Banker',
+      originatedDealId: 'deal-42',
     });
     // Child-sourced fields are never populated from the main row (WI-6, deferred).
     expect(rows[0].collateralType).toBeUndefined();
@@ -236,6 +238,7 @@ describe('WI-1 select-coverage guard — every mapped column is projected', () =
     // silently matches nothing and passes vacuously).
     expect(referenced.has('cr664_loannumber')).toBe(true);
     expect(referenced.has('_cr664_portfoliomanager_value')).toBe(true);
+    expect(referenced.has('_cr664_originatedloandeal_value')).toBe(true);
 
     const projected = new Set(EXTENDED_SELECT_FOR_TESTS);
     const gaps = [...referenced].filter(
@@ -248,6 +251,10 @@ describe('WI-1 select-coverage guard — every mapped column is projected', () =
     // The bare `cr664_portfoliomanager` lookup nav property is not selectable.
     expect(EXTENDED_SELECT_FOR_TESTS).not.toContain('cr664_portfoliomanager');
     expect(EXTENDED_SELECT_FOR_TESTS).toContain('_cr664_portfoliomanager_value');
+  });
+
+  it('projects the originating-deal lookup value as a core column', () => {
+    expect(EXTENDED_SELECT_FOR_TESTS).toContain('_cr664_originatedloandeal_value');
   });
 
   it('does not select columns that live only on child entities (WI-6, deferred)', () => {

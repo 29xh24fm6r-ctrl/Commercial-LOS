@@ -76,8 +76,9 @@ const AUDIT_COUNTS = Object.freeze({
   // Verification, Executed Document Attestation, Booking QC, Adverse Action Record) -- a
   // registry blind spot those workstreams had until now, not new gaps. Workstream O then added
   // one more: data-quality-flag-create, the first write that CREATES a data quality flag.
-  // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E).
-  governedWrites: 23,
+  // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E);
+  // PR D registered the already-live auto-portfolio boarding write.
+  governedWrites: 24,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) -- see
@@ -92,12 +93,11 @@ const AUDIT_COUNTS = Object.freeze({
   // docs/factory-arc/PR117_RISK_RATING_PERSISTENCE.md. PR 107 added two
   // more (closing-document-persistence, funding-authorization-persistence)
   // -- see docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md. Factory Arc
-  // Phase 14 added two more (annual-review-persistence,
-  // portfolio-boarding-audit-governance) -- a registry blind spot this
-  // domain had until now, not new gaps -- see
+  // Phase 14 added annual-review-persistence plus a temporary auto-boarding
+  // registry gap; PR D removed the latter after registering the live write. See
   // docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md. Workstream R
   // (Final LOS Completion arc) added one more (portfolio-migration-reconciliation).
-  notWired: 14,
+  notWired: 13,
   deliberatelyBlocked: 1,
 });
 

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { ExistingPortfolioLoansPanel } from './ExistingPortfolioLoansPanel';
 import type { ExistingLoanInput, BoardExistingLoanOutcome } from './existingLoanEntryAdapter';
 import type { PortfolioManagerOption } from './portfolioManagerOptions';
@@ -29,14 +30,16 @@ function renderForm(
   const boardLoan = vi.fn(async (_input: ExistingLoanInput): Promise<BoardExistingLoanOutcome> => success());
   const loadManagers = opts.loadManagers ?? (async () => MANAGERS);
   const utils = render(
-    <ExistingPortfolioLoansPanel
-      actorEmail="op@bank.test"
-      actorSystemUserId="sys-1"
-      writeDisabledReason={undefined}
-      loadLoans={async () => []}
-      boardLoan={boardLoan}
-      loadManagers={loadManagers}
-    />,
+    <MemoryRouter>
+      <ExistingPortfolioLoansPanel
+        actorEmail="op@bank.test"
+        actorSystemUserId="sys-1"
+        writeDisabledReason={undefined}
+        loadLoans={async () => []}
+        boardLoan={boardLoan}
+        loadManagers={loadManagers}
+      />
+    </MemoryRouter>,
   );
   return { ...utils, boardLoan };
 }

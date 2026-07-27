@@ -762,10 +762,12 @@ function BlockerRemediation({ route, onAddDocument }: { route: RemediationRoute;
   }
 }
 
-function describeStageAdvanceOutcome(outcome: StageAdvanceOutcome): string {
+export function describeStageAdvanceOutcome(outcome: StageAdvanceOutcome): string {
   switch (outcome.kind) {
     case 'advanced':
-      return `Stage advanced to ${outcome.to}.`;
+      return outcome.boardingOutcome
+        ? `Stage advanced to ${outcome.to}. ${outcome.boardingOutcome.detail}`
+        : `Stage advanced to ${outcome.to}.`;
     case 'disabled':
       return 'Stage advancement is not enabled yet; no change was made to the deal.';
     case 'blocked':

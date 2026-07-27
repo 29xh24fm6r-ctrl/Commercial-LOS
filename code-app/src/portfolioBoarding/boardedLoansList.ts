@@ -24,6 +24,8 @@ const MAX_PAGES = 50;
 
 export interface BoardedLoanRow {
   readonly id: string;
+  /** Originating LOS deal lookup id; absent for manual/legacy portfolio loans. */
+  readonly originatedDealId?: string;
   readonly loanNumber: string | undefined;
   readonly borrower: string | undefined;
   readonly status: string | undefined;
@@ -61,8 +63,9 @@ export interface BoardedLoanRow {
   readonly extended?: ExtendedLoanAttributes | null;
 }
 
-interface RawBoardedLoan {
+export interface RawBoardedLoan {
   cr664_portfolioboardedloanid?: string;
+  _cr664_originatedloandeal_value?: string;
   cr664_loannumber?: string;
   cr664_borrowerlegalname?: string;
   cr664_loanstatus?: string;
@@ -126,6 +129,7 @@ export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
   const source = str(r.cr664_boardingsource);
   return {
     id: r.cr664_portfolioboardedloanid ?? '',
+    originatedDealId: str(r._cr664_originatedloandeal_value),
     loanNumber: str(r.cr664_loannumber),
     borrower: str(r.cr664_borrowerlegalname),
     status: str(r.cr664_loanstatus),
@@ -169,6 +173,7 @@ export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
  */
 const CORE_SELECT: readonly string[] = [
   'cr664_portfolioboardedloanid',
+  '_cr664_originatedloandeal_value',
   'cr664_loannumber',
   'cr664_borrowerlegalname',
   'cr664_loanstatus',

@@ -178,7 +178,7 @@ describe('DealDataProvider — stage-gate reload proof (146-H)', () => {
     });
   });
 
-  it('the boardingHandoff key genuinely re-fetches loadBoardingHandoffForDeal, picking up a NEW servicing-owner assignment (146-E)', async () => {
+  it('the boardingHandoff reload picks up a NEW servicing-owner assignment and clears the BOARDED:servicing_owner blocker (146-E)', async () => {
     loadDealCreditMemoMock.mockResolvedValue({ memos: [], sections: [] });
     listDecisionsForDealMock.mockResolvedValue({ success: true, decisions: [] });
     loadBoardingHandoffForDealMock.mockResolvedValueOnce({ boardingCompleted: true, servicingOwnerAssigned: false, blockers: ['No servicing owner assigned.'] });
@@ -203,9 +203,10 @@ describe('DealDataProvider — stage-gate reload proof (146-H)', () => {
 
     await waitFor(() => expect(loadBoardingHandoffForDealMock).toHaveBeenCalledTimes(2));
     await waitFor(() => {
-      const last = seen[seen.length - 1] as { kind: string; data?: { servicingOwnerAssigned: boolean } };
+      const last = seen[seen.length - 1] as { kind: string; data?: { servicingOwnerAssigned: boolean; blockers: readonly string[] } };
       expect(last.kind).toBe('ready');
       expect(last.data?.servicingOwnerAssigned).toBe(true);
+      expect(last.data?.blockers).toEqual([]);
     });
   });
 });

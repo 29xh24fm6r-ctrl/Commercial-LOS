@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
 import { Badge } from '../shared/Badge';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import { loadBoardedLoans, getExtendedColumnProvisioning, type BoardedLoanRow } from './boardedLoansList';
@@ -328,6 +329,7 @@ export function ExistingPortfolioLoansPanel({
       setReloadKey((n) => n + 1);
       setSelected({
         id: outcome.loanId,
+        originatedDealId: undefined,
         loanNumber: outcome.loanNumber,
         borrower: form.borrowerLegalName.trim(),
         status: form.loanStatus.trim() || undefined,
@@ -667,7 +669,9 @@ function describeFailure(o: Exclude<BoardExistingLoanOutcome, { kind: 'success' 
     case 'invalid-input':
       return `Not boarded — ${o.reason}`;
     case 'duplicate':
-      return `Not boarded — ${o.reason}`;
+      return o.existingLoanId
+        ? `Already boarded — ${o.reason} Existing portfolio record: ${o.existingLoanId}.`
+        : `Already boarded — ${o.reason}`;
     case 'write-failed':
       return `Not boarded — the loan could not be written. ${o.error}`;
     case 'readback-mismatch':
@@ -797,6 +801,18 @@ function BoardedDetailDrawer({
         </button>
       </div>
       <dl style={styles.detailList}>
+        <div style={styles.detailRow}>
+          <dt style={styles.detailLabel}>Originating deal</dt>
+          <dd style={styles.detailValue}>
+            {row.originatedDealId ? (
+              <Link to={`/deals/${row.originatedDealId}`} data-originating-deal-link>
+                Open originating deal
+              </Link>
+            ) : (
+              <span data-originating-deal-unlinked>Not linked to an originated deal</span>
+            )}
+          </dd>
+        </div>
         {rows.map((r) => (
           <div key={r.label} style={styles.detailRow}>
             <dt style={styles.detailLabel}>{r.label}</dt>

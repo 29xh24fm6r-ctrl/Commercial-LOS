@@ -244,7 +244,7 @@ export function buildLiveStageAdvanceDeps(actor: LiveStageAdvanceActor): LiveSta
         actorSystemUserId: actor.actorSystemUserId,
       });
       if (!input) {
-        return { ok: false, detail: 'Deal has no borrower/client name to board — skipped auto-boarding.' };
+        return { kind: 'failed', ok: false, detail: 'Deal has no borrower/client name to board — skipped auto-boarding.' };
       }
       const { boardExistingLoan, buildLiveExistingLoanDeps } = await import(
         '../portfolioBoarding/existingLoanEntryAdapter'
@@ -254,8 +254,8 @@ export function buildLiveStageAdvanceDeps(actor: LiveStageAdvanceActor): LiveSta
         // Final LOS Completion arc — Workstream K: a dedicated boarded-loan-created timeline event
         // on the DEAL's own timeline (distinct from the boarding write's own audit trail on
         // cr664_portfolioboardedloanauditentries) — previously only the generic StageChanged event
-        // fired here. Best-effort: never blocks or reverts the boarding write that already
-        // succeeded. Reuses NoteLogged (no dedicated option-set value exists for this event, same
+        // fired here. A failure never blocks or reverts the boarding write that already
+        // succeeded, but is surfaced as partial evidence. Reuses NoteLogged (no dedicated option-set value exists for this event, same
         // discipline this arc used for every other new timeline event it added).
         try {
           const { createActorChangedByResolver } = await import('./newDealAuditActorResolver');
@@ -277,19 +277,42 @@ export function buildLiveStageAdvanceDeps(actor: LiveStageAdvanceActor): LiveSta
           const { Cr664_dealtimelineeventsService } = await import(
             '../generated/services/Cr664_dealtimelineeventsService'
           );
-          await Cr664_dealtimelineeventsService.create(
+          const timeline = await Cr664_dealtimelineeventsService.create(
             payload as unknown as Parameters<typeof Cr664_dealtimelineeventsService.create>[0],
           );
+          if (!timeline.success) {
+            return {
+              kind: 'partial-evidence',
+              ok: false,
+              loanId: outcome.loanId,
+              detail: `Boarded as portfolio loan ${outcome.loanNumber}, but timeline evidence could not be recorded. The boarded loan was preserved; an operator must reconcile the missing evidence.`,
+            };
+          }
         } catch {
-          // Best-effort — see the comment above.
+          return {
+            kind: 'partial-evidence',
+            ok: false,
+            loanId: outcome.loanId,
+            detail: `Boarded as portfolio loan ${outcome.loanNumber}, but timeline evidence could not be recorded. The boarded loan was preserved; an operator must reconcile the missing evidence.`,
+          };
         }
-        return { ok: true, detail: `Boarded as portfolio loan ${outcome.loanNumber}.` };
+        return {
+          kind: 'complete',
+          ok: true,
+          loanId: outcome.loanId,
+          detail: `Boarded as portfolio loan ${outcome.loanNumber}; audit and timeline evidence were recorded.`,
+        };
       }
       if (outcome.kind === 'duplicate') {
-        return { ok: true, detail: `Already boarded (loan number ${outcome.loanNumber} exists).` };
+        return {
+          kind: 'already-boarded',
+          ok: true,
+          detail: `Already boarded (loan number ${outcome.loanNumber} exists); no new portfolio loan was created.`,
+          ...(outcome.existingLoanId ? { loanId: outcome.existingLoanId } : {}),
+        };
       }
       const detail = 'reason' in outcome ? outcome.reason : 'error' in outcome ? outcome.error : outcome.kind;
-      return { ok: false, detail: `Auto-boarding failed: ${detail}` };
+      return { kind: 'failed', ok: false, detail: `Auto-boarding failed: ${detail}` };
     },
   };
 
