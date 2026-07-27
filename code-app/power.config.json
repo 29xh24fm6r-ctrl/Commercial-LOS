@@ -256,6 +256,30 @@
           "entitySetName": "cr664_fundingauthorizations",
           "logicalName": "cr664_fundingauthorization",
           "isHidden": false
+        },
+        "creditapprovaldecisions": {
+          "entitySetName": "cr664_creditapprovaldecisions",
+          "logicalName": "cr664_creditapprovaldecision"
+        },
+        "commitmentrecords": {
+          "entitySetName": "cr664_commitmentrecords",
+          "logicalName": "cr664_commitmentrecord"
+        },
+        "conditionverifications": {
+          "entitySetName": "cr664_conditionverifications",
+          "logicalName": "cr664_conditionverification"
+        },
+        "executeddocumentattestations": {
+          "entitySetName": "cr664_executeddocattestations",
+          "logicalName": "cr664_executeddocattestation"
+        },
+        "bookingqcchecks": {
+          "entitySetName": "cr664_bookingqcchecks",
+          "logicalName": "cr664_bookingqccheck"
+        },
+        "adverseactionrecords": {
+          "entitySetName": "cr664_adverseactionrecords",
+          "logicalName": "cr664_adverseactionrecord"
         }
       },
       "environmentVariableName": ""
