@@ -6,6 +6,7 @@ import type { TimelineEvent } from './activityQueries';
 import { deriveBlockers, type BlockersResult } from './blockerRules';
 import { deriveCreditMemoFreshness } from './creditMemoFreshness';
 import { stageNameGatesMemo } from '../shared/stages/stageCatalog';
+import { isPastCalendarDate } from '../shared/formatters';
 
 /**
  * Phase 27: derived-only stage progression eligibility. Pure function;
@@ -176,9 +177,9 @@ export function deriveStageProgressionEligibility(
   };
 }
 
+// Factory mission PR A — delegates to the shared calendar-day-safe helper (was a raw-instant
+// compare that flagged a same-day due date as overdue hours early depending on timezone) so this
+// Stage Map eligibility badge agrees with every other overdue signal in the app.
 function isOverdue(iso: string | undefined, now: Date): boolean {
-  if (!iso) return false;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return false;
-  return d.getTime() < now.getTime();
+  return isPastCalendarDate(iso, now);
 }

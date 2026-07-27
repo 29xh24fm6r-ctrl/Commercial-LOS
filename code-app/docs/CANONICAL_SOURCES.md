@@ -31,10 +31,23 @@ modules it names. Read the modules.
 
 ## Lifecycle / stage
 
+**The live, gated stage vocabulary the deal cockpit actually runs on is the seven-code
+`CANONICAL_STAGE_CODES` set in
+[stageOrderingContract.ts](../src/workflow/stageOrderingContract.ts)** (`INTAKE, UNDERWRITING,
+CREDIT_APPROVAL, COMMITMENT, DOCUMENTATION, CLOSING_FUNDING, BOARDED`) — consumed by
+`loanWorkflowRequirementEngine.ts`, `loanWorkflowRequirementRegistry.ts`, `dealBlockerModel.ts`,
+`DealStageProgressionCard.tsx`, `DealBlockers.tsx`, and `buildLiveStageAdvanceDeps.ts`.
+`stageCatalog.ts` below is a separate, frozen, governance-only vocabulary retained for
+`platformInventory.ts`'s static inventory and `stageProgressionGuard.ts`'s non-blocking Stage Map
+badge — it gates nothing in the live write path. Do not treat it as the canonical stage source.
+
 | Concern                                       | Canonical source                                                                       |
-| --------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Stage identity, ordering, lifecycle group     | `STAGE_CATALOG` in [stageCatalog.ts](../src/shared/stages/stageCatalog.ts)             |
-| Stage selectors (next / terminal / transition)| `getStageById` / `getNextStage` / `isTerminalStage` / `canTransitionStage` / `getLifecycleGroup` in [stageCatalog.ts](../src/shared/stages/stageCatalog.ts) |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Live stage vocabulary, ordering, next/prior/terminal resolution** | `CANONICAL_STAGE_CODES` / `CANONICAL_STAGES` / `recognizeCanonicalStage` / `resolveStageOrdering` in [stageOrderingContract.ts](../src/workflow/stageOrderingContract.ts) |
+| **Stage-exit requirement evaluation (what gates advancing out of a stage)** | `deriveStageExitReadiness` / `evaluateStageExitPolicy` / `WorkflowRequirementFacts` in [loanWorkflowRequirementEngine.ts](../src/workflow/loanWorkflowRequirementEngine.ts), driven by the requirement list in [loanWorkflowRequirementRegistry.ts](../src/workflow/loanWorkflowRequirementRegistry.ts) |
+| **The one blocker model every surface must consume** (Attention Console, Metric Deck, Stage Map, Advance guard) | `deriveDealBlockerModelForStage` in [dealBlockerModel.ts](../src/deals/dealBlockerModel.ts) — callers MUST pass the full `WorkflowRequirementFacts` shape (see `DealStageProgressionCard.tsx` for the reference construction); a caller that omits a fact category makes every requirement backed by it fail closed as a hard blocker, not a genuine absence |
+| Frozen governance-only stage vocabulary (retired from the cockpit; do not gate new work on this) | `STAGE_CATALOG` in [stageCatalog.ts](../src/shared/stages/stageCatalog.ts) |
+| Stage selectors (next / terminal / transition) — governance-only, see above | `getStageById` / `getNextStage` / `isTerminalStage` / `canTransitionStage` / `getLifecycleGroup` in [stageCatalog.ts](../src/shared/stages/stageCatalog.ts) |
 | Stage NAME → lifecycle group (soft)           | `getLifecycleGroupByName` in [stageCatalog.ts](../src/shared/stages/stageCatalog.ts)   |
 | Memo-gating predicate (Phase 27)              | `stageNameGatesMemo` in [stageCatalog.ts](../src/shared/stages/stageCatalog.ts)        |
 | Lifecycle group pattern set                   | `LIFECYCLE_NAME_PATTERNS` (module-private) in [stageCatalog.ts](../src/shared/stages/stageCatalog.ts) |
@@ -48,6 +61,14 @@ modules it names. Read the modules.
 | Manager deal load (team-scoped, RO)      | `loadDealForManager` in [dealQueries.ts](../src/deals/dealQueries.ts)     |
 | Team deal load (team-scoped, RO)         | `loadDealForTeam` in [dealQueries.ts](../src/deals/dealQueries.ts)        |
 | Banker context (req / optional)          | `useBanker` / `useOptionalBanker` in [BankerContext.tsx](../src/banker/BankerContext.tsx) |
+
+## Deal population & document/task status
+
+| Concern                                  | Canonical source                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------- |
+| Active deal (OData filter)               | `ACTIVE_DEAL_ODATA_PREDICATE` in [dealVisibilityScopes.ts](../src/shared/deals/dealVisibilityScopes.ts) |
+| Test/smoke deal classification & exclusion | `isTestOrSmokeDeal` / `isTestOrSmokeDealName` / `operationalDeals` in [testDealClassification.ts](../src/shared/deals/testDealClassification.ts) |
+| Document status bucket classification (outstanding/received/reviewed) | `classifyLegacyDocumentStatus` / `isGovernedExcusedDocument` in [documentStatusClassification.ts](../src/deals/documentStatusClassification.ts) |
 
 ## Observability & shared primitives
 

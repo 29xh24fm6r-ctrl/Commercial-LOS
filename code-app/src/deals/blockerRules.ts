@@ -1,7 +1,7 @@
 import type { DealDetail } from './dealQueries';
 import type { DealTasksResult } from './dealTaskQueries';
 import type { DealDocumentsResult } from './dealDocumentQueries';
-import { parseCalendarDate, formatCalendarDate } from '../shared/formatters';
+import { parseCalendarDate, formatCalendarDate, isPastCalendarDate } from '../shared/formatters';
 
 export type BlockerSeverity = 'blocked' | 'at-risk' | 'info';
 export type BlockerStatus = 'blocked' | 'at-risk' | 'clear';
@@ -43,9 +43,12 @@ function formatDate(iso: string | undefined): string {
   return formatCalendarDate(iso, { empty: '—' });
 }
 
+// Factory mission PR A — was comparing the parsed calendar-midnight date against the exact
+// current instant, which still flags a due-today item as already overdue for any time of day
+// after local midnight. Delegates fully to the shared calendar-day-safe helper (start-of-day vs.
+// start-of-day) so a due-today item is never overdue until the day actually passes.
 function isPastDue(iso: string | undefined, now: Date): boolean {
-  const d = parseDate(iso);
-  return !!d && d.getTime() < now.getTime();
+  return isPastCalendarDate(iso, now);
 }
 
 function joinPreview(items: string[], max = 3): string {
