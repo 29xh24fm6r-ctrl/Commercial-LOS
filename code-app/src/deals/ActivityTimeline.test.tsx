@@ -566,3 +566,75 @@ describe('ActivityTimeline — Phase 99 Copy Teams summary', () => {
     expect(body).not.toMatch(/Graph\s+connected/i);
   });
 });
+
+describe('ActivityTimeline — Workstream L: banker-friendly subtype labels', () => {
+  it('renders a friendly label for a known descriptive subtype, stripping the correlation suffix', () => {
+    useDealDataMock.mockReturnValue(
+      ready([
+        event('e1', T_NEW_1, {
+          eventSubType: 'riskrating:assigned|correlation:c0ffee-1234',
+        }),
+      ]),
+    );
+    render(<ActivityTimeline />);
+    expect(screen.getByText('Risk rating assigned')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/correlation:c0ffee-1234/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('humanizes an unmapped multi-segment subtype prefix instead of showing it raw', () => {
+    useDealDataMock.mockReturnValue(
+      ready([
+        event('e1', T_NEW_1, {
+          eventSubType: 'condition:collateral:verified|correlation:c1',
+        }),
+      ]),
+    );
+    render(<ActivityTimeline />);
+    expect(
+      screen.getByText('Condition collateral verified'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders no subtype badge for a bare correlation id (no descriptive prefix)', () => {
+    useDealDataMock.mockReturnValue(
+      ready([
+        event('e1', T_NEW_1, {
+          eventSubType: 'correlation:c0ffee-1234',
+          title: 'Task completed',
+        }),
+      ]),
+    );
+    render(<ActivityTimeline />);
+    expect(screen.getByText('Task completed')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/correlation:c0ffee-1234/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('preserves the full raw subtype on the badge title attribute for support/audit lookups', () => {
+    useDealDataMock.mockReturnValue(
+      ready([
+        event('e1', T_NEW_1, {
+          eventSubType: 'commitment:issued|correlation:c-issued-1',
+        }),
+      ]),
+    );
+    render(<ActivityTimeline />);
+    const badge = screen.getByText('Commitment issued');
+    expect(badge).toHaveAttribute(
+      'title',
+      'commitment:issued|correlation:c-issued-1',
+    );
+  });
+
+  it('renders no subtype badge when eventSubType is undefined', () => {
+    useDealDataMock.mockReturnValue(
+      ready([event('e1', T_NEW_1, { title: 'Note logged' })]),
+    );
+    render(<ActivityTimeline />);
+    expect(screen.getByText('Note logged')).toBeInTheDocument();
+    expect(screen.queryByText(/correlation:/i)).not.toBeInTheDocument();
+  });
+});
