@@ -33,6 +33,16 @@ export function DealBookingQcPanel({
   onCheckSubmitted?: () => void;
 }) {
   const storeRef = useRef(createDataverseBookingQcCheckStore());
+  // Lifecycle guard for load()'s async work (mount effect + every post-submit reload). Prevents any
+  // state update — success or failure path — after this panel has unmounted (e.g. the deal
+  // workspace navigates away, or a test unmounts) while listChecksForDeal is still in flight.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [records, setRecords] = useState<readonly BookingQcCheckRecord[]>([]);
@@ -47,6 +57,7 @@ export function DealBookingQcPanel({
     storeRef.current
       .listChecksForDeal(dealId)
       .then((res) => {
+        if (!isMountedRef.current) return;
         if (res.success) {
           setRecords(res.records ?? []);
           setLoadState('ready');
@@ -56,6 +67,7 @@ export function DealBookingQcPanel({
         }
       })
       .catch((err: unknown) => {
+        if (!isMountedRef.current) return;
         setLoadState('error');
         const raw = err instanceof Error ? err.message : String(err);
         setLoadError(mapBusinessSafeError(raw).safeMessage);
