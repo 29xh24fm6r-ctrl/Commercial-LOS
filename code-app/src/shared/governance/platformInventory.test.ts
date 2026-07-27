@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the twenty-three shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70, 160, 237, 265-273)', () => {
+  it('contains the twenty-four shipped governed writes, including PR D auto-portfolio boarding', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -30,6 +30,7 @@ describe('platformInventory — governed writes', () => {
         'credit-memo-draft-save',
         'data-quality-flag-resolve',
         'deal-borrower-update-email',
+        'deal-auto-portfolio-board',
         'deal-document-receive',
         'deal-document-request',
         'deal-document-request-email',
@@ -285,18 +286,20 @@ describe('platformInventory — not wired', () => {
     expect(entry.blockerKind).toBe('schema');
   });
 
-  it('Factory Arc Phase 14 — annual-review-persistence and portfolio-boarding-audit-governance close a registry blind spot', () => {
+  it('PR D registers auto-boarding exactly once and removes its stale NOT_WIRED classification', () => {
     const ids = new Set(NOT_WIRED.map((n) => n.id));
     expect(ids.has('annual-review-persistence')).toBe(true);
-    expect(ids.has('portfolio-boarding-audit-governance')).toBe(true);
+    expect(ids.has('portfolio-boarding-audit-governance')).toBe(false);
     const annualReview = NOT_WIRED.find((n) => n.id === 'annual-review-persistence')!;
     expect(annualReview.reason).toMatch(/createDisabledAnnualReviewPersistenceAdapter/);
     expect(annualReview.reason).toMatch(/PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED/);
     expect(annualReview.blockerKind).toBe('schema');
-    const boardingAudit = NOT_WIRED.find((n) => n.id === 'portfolio-boarding-audit-governance')!;
-    expect(boardingAudit.reason).toMatch(/existingLoanEntryAdapter/);
-    expect(boardingAudit.reason).toMatch(/GOVERNED_WRITES/);
-    expect(boardingAudit.blockerKind).toBe('governance');
+    const boardingWrites = GOVERNED_WRITES.filter((w) => w.id === 'deal-auto-portfolio-board');
+    expect(boardingWrites).toEqual([expect.objectContaining({
+      emitsAudit: true,
+      emitsTimeline: true,
+      legacyDisciplineExempt: true,
+    })]);
   });
 
   it('stage-reference-data-source stays about cr664_stagereferences (Advance Stage), not the New Deal references', () => {
@@ -1069,8 +1072,8 @@ describe('platformInventory — Phase 67 handoff classification', () => {
     expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
   });
 
-  it('GOVERNED_WRITES count: Final LOS Completion arc (Workstream M) added six durable-record writes on top of the 14 shipped through Phase 237, Workstream O added the data-quality-flag-create write, and the 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E)', () => {
-    expect(GOVERNED_WRITES.length).toBe(23);
+  it('GOVERNED_WRITES count includes the distinct PR D auto-portfolio-board write', () => {
+    expect(GOVERNED_WRITES.length).toBe(24);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {

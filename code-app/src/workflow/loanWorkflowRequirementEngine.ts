@@ -212,7 +212,8 @@ export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: Wo
   }
   if (req.id === 'BOARDED:servicing_owner') {
     const met = facts.boardingHandoff?.servicingOwnerAssigned ?? false;
-    return evaluated(req, met ? 'met' : 'unmet', met ? '' : req.blockerReason);
+    const reason = facts.boardingHandoff?.blockers.find((blocker) => /servicing owner/i.test(blocker));
+    return evaluated(req, met ? 'met' : 'unmet', met ? '' : (reason || req.blockerReason));
   }
   // Tracked deep fact without a model yet → fail closed (should not happen in Phase 3).
   return evaluated(req, 'unmet', req.blockerReason);

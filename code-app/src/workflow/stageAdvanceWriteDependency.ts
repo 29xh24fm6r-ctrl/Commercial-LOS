@@ -63,7 +63,7 @@ export type StageAdvanceOutcome =
        * this; a boarding failure is reported here honestly, never silently
        * dropped, and never blocks or reverses the already-persisted stage move.
        */
-      boardingOutcome?: { ok: boolean; detail: string };
+      boardingOutcome?: DealBoardingSideEffectOutcome;
     }
   | { kind: 'disabled'; detail: string }
   | { kind: 'unauthorized'; detail: string }
@@ -112,8 +112,14 @@ export interface StageAdvanceTimelineSink {
  * failing the transition that already, correctly, persisted.
  */
 export interface StageAdvanceOnDealBoarded {
-  run(deal: DealDetail): Promise<{ ok: boolean; detail: string }>;
+  run(deal: DealDetail): Promise<DealBoardingSideEffectOutcome>;
 }
+
+export type DealBoardingSideEffectOutcome =
+  | { kind: 'complete'; ok: true; detail: string; loanId: string }
+  | { kind: 'already-boarded'; ok: true; detail: string; loanId?: string }
+  | { kind: 'partial-evidence'; ok: false; detail: string; loanId: string }
+  | { kind: 'failed'; ok: false; detail: string };
 
 export interface StageAdvanceInput {
   /** Defaults to AUTO_STAGE_ADVANCE_ENABLED (false). */
@@ -249,11 +255,11 @@ export async function advanceWorkflowStage(input: StageAdvanceInput): Promise<St
 
   // Auto-board: best-effort, never reverses or blocks the already-persisted advance.
   if (policy.to === 'BOARDED' && input.onDealBoarded) {
-    let boardingOutcome: { ok: boolean; detail: string };
+    let boardingOutcome: DealBoardingSideEffectOutcome;
     try {
       boardingOutcome = await input.onDealBoarded.run(input.facts.deal);
     } catch (err: unknown) {
-      boardingOutcome = { ok: false, detail: err instanceof Error ? err.message : String(err) };
+      boardingOutcome = { kind: 'failed', ok: false, detail: err instanceof Error ? err.message : String(err) };
     }
     return { kind: 'advanced', from: policy.from, to: policy.to, boardingOutcome };
   }

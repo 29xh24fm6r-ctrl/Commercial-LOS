@@ -291,7 +291,7 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   // display; this wires that same evidence into the write-seam gate for the first time, and extends
   // it to also read cr664_AssignedServicingOwner for the second fact.
   tracked('BOARDED:boarded_loan_record', 'BOARDED', 'boarding', 'Boarded loan / servicing handoff record created', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'cr664_portfolioboardedloan', 'No active portfolio boarded-loan handoff record exists for this deal.'),
-  tracked('BOARDED:servicing_owner', 'BOARDED', 'servicing', 'Servicing owner assigned', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'cr664_portfolioboardedloan', 'No servicing owner has been assigned on this deal\'s boarded-loan record.'),
+  tracked('BOARDED:servicing_owner', 'BOARDED', 'servicing', 'Servicing owner assigned', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'cr664_portfolioboardedloan', 'No servicing owner is assigned. An authorized operator must use Admin → Assign Servicing Owner.'),
 ];
 
 /**

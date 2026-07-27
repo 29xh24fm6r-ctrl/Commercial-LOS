@@ -159,7 +159,7 @@ describe('runPortfolioImport', () => {
   }
   function stubDeps(): ImportRunnerDeps {
     return {
-      loanNumberExists: vi.fn(async () => false),
+      findLoanByNumber: vi.fn(async () => null),
       createRoot: vi.fn(async () => ({ success: true, id: 'x' })),
       readRoot: vi.fn(async () => ({ success: true, data: { cr664_loannumber: 'x' } })),
       createChild: vi.fn(async () => ({ success: true, id: 'c' })),

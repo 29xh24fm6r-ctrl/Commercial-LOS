@@ -90,6 +90,9 @@ export function evaluateBoardingHandoff(
   } else {
     verdict = 'not-boarded';
   }
+  if (handoffEvidencePresent && !evidence?.assignedServicingOwnerId) {
+    blockers.push('No servicing owner is assigned. An authorized operator must use Admin → Assign Servicing Owner.');
+  }
 
   return {
     dealStage: stage,

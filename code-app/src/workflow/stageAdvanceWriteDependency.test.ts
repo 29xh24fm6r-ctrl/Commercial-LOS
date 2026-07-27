@@ -515,7 +515,7 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
     }
 
     it('does not call onDealBoarded for a non-BOARDED advance', async () => {
-      const onDealBoarded = { run: vi.fn(async () => ({ ok: true, detail: 'boarded' })) };
+      const onDealBoarded = { run: vi.fn(async () => ({ kind: 'complete' as const, ok: true as const, detail: 'boarded', loanId: 'loan-1' })) };
       const out = await advanceWorkflowStage(input({ onDealBoarded }));
       expect(out.kind).toBe('advanced');
       expect(onDealBoarded.run).not.toHaveBeenCalled();
@@ -523,22 +523,22 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
     });
 
     it('calls onDealBoarded with the deal after a verified advance to BOARDED, and reports its outcome', async () => {
-      const onDealBoarded = { run: vi.fn(async () => ({ ok: true, detail: 'Boarded as portfolio loan deal-1.' })) };
+      const onDealBoarded = { run: vi.fn(async () => ({ kind: 'complete' as const, ok: true as const, detail: 'Boarded as portfolio loan deal-1.', loanId: 'loan-1' })) };
       const out = await advanceWorkflowStage(closingFundingInput({ onDealBoarded }));
       expect(out.kind).toBe('advanced');
       expect(onDealBoarded.run).toHaveBeenCalledWith(baseDeal);
       if (out.kind === 'advanced') {
         expect(out.to).toBe('BOARDED');
-        expect(out.boardingOutcome).toEqual({ ok: true, detail: 'Boarded as portfolio loan deal-1.' });
+        expect(out.boardingOutcome).toEqual({ kind: 'complete', ok: true, detail: 'Boarded as portfolio loan deal-1.', loanId: 'loan-1' });
       }
     });
 
     it('a boarding failure is reported honestly but does NOT revert or fail the already-persisted advance', async () => {
-      const onDealBoarded = { run: vi.fn(async () => ({ ok: false, detail: 'Auto-boarding failed: write-failed' })) };
+      const onDealBoarded = { run: vi.fn(async () => ({ kind: 'failed' as const, ok: false as const, detail: 'Auto-boarding failed: write-failed' })) };
       const out = await advanceWorkflowStage(closingFundingInput({ onDealBoarded }));
       expect(out.kind).toBe('advanced');
       if (out.kind === 'advanced') {
-        expect(out.boardingOutcome).toEqual({ ok: false, detail: 'Auto-boarding failed: write-failed' });
+        expect(out.boardingOutcome).toEqual({ kind: 'failed', ok: false, detail: 'Auto-boarding failed: write-failed' });
       }
     });
 
@@ -547,7 +547,7 @@ describe('Phase 237F — governed stage advancement write dependency', () => {
       const out = await advanceWorkflowStage(closingFundingInput({ onDealBoarded }));
       expect(out.kind).toBe('advanced');
       if (out.kind === 'advanced') {
-        expect(out.boardingOutcome).toEqual({ ok: false, detail: 'unexpected' });
+        expect(out.boardingOutcome).toEqual({ kind: 'failed', ok: false, detail: 'unexpected' });
       }
     });
 

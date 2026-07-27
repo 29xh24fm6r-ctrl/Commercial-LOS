@@ -31,9 +31,26 @@ vi.mock('./generateDestinationStageWork', () => ({
 }));
 
 import { useDealData, type DealData } from './DealDataProvider';
-import { DealStageProgressionCard } from './DealStageProgressionCard';
+import { DealStageProgressionCard, describeStageAdvanceOutcome } from './DealStageProgressionCard';
 
 const useDealDataMock = vi.mocked(useDealData);
+
+it('does not describe a partial-evidence auto-board as a clean stage success', () => {
+  const message = describeStageAdvanceOutcome({
+    kind: 'advanced',
+    from: 'CLOSING_FUNDING',
+    to: 'BOARDED',
+    boardingOutcome: {
+      kind: 'partial-evidence',
+      ok: false,
+      loanId: 'loan-1',
+      detail: 'Boarded, but timeline evidence could not be recorded.',
+    },
+  });
+
+  expect(message).toContain('Stage advanced to BOARDED');
+  expect(message).toContain('timeline evidence could not be recorded');
+});
 
 const baseDeal: DealDetail = {
   id: 'deal-77',

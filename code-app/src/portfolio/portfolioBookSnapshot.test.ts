@@ -50,6 +50,14 @@ describe('derivePortfolioBookSnapshot', () => {
     expect(snapshot.topExposures).toEqual([]);
   });
 
+  it('preserves originating-deal traceability in the snapshot loan rows', () => {
+    const source = loan({ id: 'linked-loan', originatedDealId: 'deal-42' });
+    const snapshot = derivePortfolioBookSnapshot([source]);
+
+    expect(snapshot.loans[0]).toBe(source);
+    expect(snapshot.loans[0]?.originatedDealId).toBe('deal-42');
+  });
+
   it('rolls boarded loans into book-scoped concentration and top exposure rows', () => {
     const snapshot = derivePortfolioBookSnapshot(
       [

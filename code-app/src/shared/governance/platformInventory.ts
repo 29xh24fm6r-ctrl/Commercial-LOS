@@ -251,17 +251,19 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsTimeline: false,
     legacyDisciplineExempt: true,
   },
+  // PR D — the unconditionally live auto-board invoked after a verified advance to BOARDED.
+  // The root portfolio record and domain audit are created by existingLoanEntryAdapter.ts;
+  // buildLiveStageAdvanceDeps.ts then records the deal-scoped timeline event. Its cross-module
+  // orchestration predates the discipline scanners' single-module registry maps.
+  {
+    id: 'deal-auto-portfolio-board',
+    label: 'Auto-board originated deal to portfolio',
+    phase: 274,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
 ];
-// NOTE: forward stage-advance (DealStageProgressionCard -> stageAdvanceWriteDependency.ts
-// -> buildLiveStageAdvanceDeps.ts) is a real, armed, audited + timelined governed write and
-// belongs in this list. It is deliberately NOT added as its own dedicated registration phase
-// here -- doing so correctly also requires adding matching entries to AUDIT_BY_WRITE_ID,
-// OUTCOME_BY_WRITE_ID, and TIMELINE_BY_WRITE_ID (each independently cross-verified against the
-// real source in auditPayloadDiscipline.test.ts / outcomeUnionDiscipline.test.ts /
-// timelinePayloadDiscipline.test.ts) plus every hardcoded GOVERNED_WRITES.length citation across
-// release-candidate docs. Tracked as a follow-up registration phase; see the New Deal Intake /
-// Loan Workflow audit report for detail. The DELIBERATELY_BLOCKED entry below is corrected in the
-// meantime so this file stops asserting the false "AUTO_STAGE_ADVANCE_ENABLED is off" claim.
 
 // ---------------------------------------------------------------------------
 // Deliberately blocked surfaces (schema or governance gap; not a missing
@@ -580,31 +582,6 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'design effort than the single-table proposals those two entries describe. Deferred as its own ' +
       'future phase rather than attempted here. See docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.',
     blockerKind: 'schema',
-  },
-  {
-    id: 'portfolio-boarding-audit-governance',
-    label: 'Portfolio boarding write (GOVERNED_WRITES registration)',
-    reason:
-      'Factory Arc Phase 14 -- src/portfolioBoarding/existingLoanEntryAdapter.ts is a real write path ' +
-      '(the one with machine-proven smoke evidence, docs/operator-evidence/final-launch/portfolioBoarding.json) ' +
-      'that DOES emit a genuine audit trail via Cr664_portfolioboardedloanauditentriesService -- so this ' +
-      'is not a "no proof at all" gap like Phase 13 found for funding authorization pre-fix. The gap is ' +
-      'narrower: it emits no DealTimelineEvent, and neither this write nor any other portfolio-boarding ' +
-      'write appears in GOVERNED_WRITES (platformInventory.ts) at all, so this registry -- the single ' +
-      'source of truth for what emits audit/timeline evidence -- is silently blind to the whole boarding ' +
-      'domain. CORRECTION (Factory mission PR A, 2026-07-27): the prior claim here -- that the live ' +
-      'persistence path is gated off by PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED and "no real write ' +
-      'happens in production today" -- was stale and is corrected here. PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED ' +
-      'gates a DIFFERENT write path (the manual bulk-import / "Add Existing Loan" form, resolved via ' +
-      'resolvePortfolioLoanBoardingPersistenceAdapter.ts, used by portfolioImportRunner.ts / ' +
-      'PortfolioLoanBoardingForm.tsx). The auto-board-on-stage-advance write this entry actually describes ' +
-      '(existingLoanEntryAdapter.ts, invoked unconditionally from buildLiveStageAdvanceDeps.ts\'s ' +
-      'onDealBoarded when a deal reaches BOARDED) has NO feature flag of its own, and AUTO_STAGE_ADVANCE_ENABLED ' +
-      '(the flag that does gate it, transitively, by gating stage-advance itself) is ARMED (true, ' +
-      'dealOriginationFeatureFlags.ts) -- so this write is real and live today, not gated off. The remaining ' +
-      'gap is exactly the registration one above (no DealTimelineEvent on this path, no GOVERNED_WRITES entry) ' +
-      '-- not a flag. See docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.',
-    blockerKind: 'governance',
   },
   {
     id: 'portfolio-migration-reconciliation',

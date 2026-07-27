@@ -15,7 +15,7 @@ describe('evaluateBoardingHandoff — WFLOW-H (no stage-string-only trust)', () 
     const r = evaluateBoardingHandoff('BOARDED', evidence());
     expect(r.verdict).toBe('boarded');
     expect(r.boardingCompleted).toBe(true);
-    expect(r.blockers).toEqual([]);
+    expect(r.blockers.join(' ')).toMatch(/Admin → Assign Servicing Owner/);
   });
 
   it('MISSING-HANDOFF blocker: deal stage says BOARDED but NO portfolio record → NOT complete', () => {
@@ -61,11 +61,13 @@ describe('evaluateBoardingHandoff — Final LOS Completion arc (Workstream H) �
   it('fails closed when a boarded-loan record exists but has no assigned servicing owner', () => {
     const r = evaluateBoardingHandoff('BOARDED', evidence());
     expect(r.servicingOwnerAssigned).toBe(false);
+    expect(r.blockers.join(' ')).toMatch(/Admin → Assign Servicing Owner/);
   });
 
   it('is met once the boarded-loan record has an assigned servicing owner', () => {
     const r = evaluateBoardingHandoff('BOARDED', evidence({ assignedServicingOwnerId: 'user-1' }));
     expect(r.servicingOwnerAssigned).toBe(true);
+    expect(r.blockers).toEqual([]);
   });
 
   it('fails closed when the record has an assigned owner but is INACTIVE', () => {

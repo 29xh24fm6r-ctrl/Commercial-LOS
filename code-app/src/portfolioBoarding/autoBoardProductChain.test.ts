@@ -40,7 +40,7 @@ function deal(overrides: Partial<DealDetail> = {}): DealDetail {
 
 function deps(over: Partial<ExistingLoanDeps> = {}): ExistingLoanDeps {
   return {
-    loanNumberExists: vi.fn(async () => false),
+    findLoanByNumber: vi.fn(async () => null),
     createRoot: vi.fn(async () => ({ success: true, id: 'loan-1' })),
     readRoot: vi.fn(async () => ({ success: true, data: { cr664_loannumber: 'deal-42' } })),
     createChild: vi.fn(async () => ({ success: true, id: 'child-1' })),

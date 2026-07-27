@@ -54,8 +54,9 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // Verification, Executed Document Attestation, Booking QC, Adverse Action Record) -- a
   // registry blind spot those workstreams had until now, not new gaps. Workstream O then added
   // the data-quality-flag-create write (the first write that CREATES a data quality flag).
-  // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E).
-  governedWrites: 23,
+  // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E);
+  // PR D registered the already-live auto-portfolio boarding write.
+  governedWrites: 24,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) for the schema-pending Global Cash Flow /
@@ -75,13 +76,12 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // Factory Arc Phase 5 closed risk-rating-persistence -- risk rating /
   // underwriting recommendation now write/read via updateDealProfile.ts against
   // the live PR106 columns -- see docs/factory-arc/PR117_RISK_RATING_PERSISTENCE.md.
-  // Factory Arc Phase 14 added two more (annual-review-persistence,
-  // portfolio-boarding-audit-governance) -- a registry blind spot this domain had
-  // until now, not new gaps -- see docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.
+  // Factory Arc Phase 14 added annual-review-persistence plus a temporary
+  // portfolio-boarding registration gap; PR D closed and removed that temporary row.
   // Workstream O added the data-quality-flag-create governed write (see GOVERNED_WRITES) and
   // Workstream R added one more NOT_WIRED entry (portfolio-migration-reconciliation -- the
   // reconciliation engine exists and is tested; only the migration-control schema is missing).
-  notWired: 14,
+  notWired: 13,
   deliberatelyBlocked: 1,
 });
 

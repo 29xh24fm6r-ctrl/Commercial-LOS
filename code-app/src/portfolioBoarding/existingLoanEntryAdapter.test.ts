@@ -25,7 +25,7 @@ function baseInput(over: Partial<ExistingLoanInput> = {}): ExistingLoanInput {
 
 function deps(over: Partial<ExistingLoanDeps> = {}): ExistingLoanDeps {
   return {
-    loanNumberExists: vi.fn(async () => false),
+    findLoanByNumber: vi.fn(async () => null),
     createRoot: vi.fn(async () => ({ success: true, id: 'loan-1' })),
     readRoot: vi.fn(async () => ({ success: true, data: { cr664_loannumber: 'LN-0001' } })),
     createChild: vi.fn(async () => ({ success: true, id: 'child-1' })),
@@ -56,11 +56,15 @@ describe('Phase 259 — boardExistingLoan fail-closed', () => {
   });
 
   it('blocks a duplicate loan number (no record created)', async () => {
-    const d = deps({ loanNumberExists: vi.fn(async () => true) });
+    const createRoot = vi.fn(async () => ({ success: true, id: 'should-not-create' }));
+    const d = deps({ findLoanByNumber: vi.fn(async () => ({ id: 'existing-loan-7' })), createRoot });
     const out = await boardExistingLoan(baseInput(), d);
     expect(out.kind).toBe('duplicate');
-    if (out.kind === 'duplicate') expect(out.loanNumber).toBe('LN-0001');
-    expect(d.createRoot).not.toHaveBeenCalled();
+    if (out.kind === 'duplicate') {
+      expect(out.loanNumber).toBe('LN-0001');
+      expect(out.existingLoanId).toBe('existing-loan-7');
+    }
+    expect(createRoot).not.toHaveBeenCalled();
   });
 
   it('reports write-failed when the root create fails, mapped to the shared business-safe message', async () => {

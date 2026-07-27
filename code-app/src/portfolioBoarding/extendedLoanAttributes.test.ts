@@ -44,7 +44,7 @@ describe('extendedLoanAttributes contract', () => {
 
 function stubDeps(createRoot: ExistingLoanDeps['createRoot']): ExistingLoanDeps {
   return {
-    loanNumberExists: vi.fn(async () => false),
+    findLoanByNumber: vi.fn(async () => null),
     createRoot,
     readRoot: vi.fn(async () => ({ success: true, data: { cr664_loannumber: 'L-1' } })),
     createChild: vi.fn(async () => ({ success: true, id: 'c' })),

@@ -246,7 +246,7 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
-    expect(GOVERNED_WRITES.length).toBe(23);
+    expect(GOVERNED_WRITES.length).toBe(24);
     expect(
       within(inv).getByText(`Governed writes (${GOVERNED_WRITES.length})`),
     ).toBeInTheDocument();

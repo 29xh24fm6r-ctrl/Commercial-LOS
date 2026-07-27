@@ -169,7 +169,7 @@ export type BoardExistingLoanOutcome =
   | { kind: 'unauthorized'; reason: string }
   | { kind: 'identity-unresolved'; reason: string }
   | { kind: 'invalid-input'; reason: string }
-  | { kind: 'duplicate'; reason: string; loanNumber: string }
+  | { kind: 'duplicate'; reason: string; loanNumber: string; existingLoanId?: string }
   | { kind: 'write-failed'; error: string; correlationId: string }
   | { kind: 'readback-mismatch'; expectedLoanNumber: string; actualLoanNumber: string | undefined; correlationId: string }
   | { kind: 'audit-failed'; auditError: string | undefined; correlationId: string; loanId: string }
@@ -188,8 +188,8 @@ export interface ReadResult {
 }
 
 export interface ExistingLoanDeps {
-  /** True iff a boarded loan with this loan number already exists. */
-  readonly loanNumberExists: (loanNumber: string) => Promise<boolean>;
+  /** Resolve an existing boarded loan by loan number; null means no duplicate. */
+  readonly findLoanByNumber: (loanNumber: string) => Promise<{ readonly id?: string } | null>;
   /** Create the root cr664_portfolioboardedloan record. */
   readonly createRoot: (payload: Record<string, unknown>) => Promise<WriteResult>;
   /** Read back the root record's loan number for verification. */
@@ -340,20 +340,21 @@ export async function boardExistingLoan(
   const correlationId = newCorrelationId('xl');
 
   // 4. Duplicate loan-number guard.
-  let exists: boolean;
+  let existing: { readonly id?: string } | null;
   try {
-    exists = await deps.loanNumberExists(loanNumber);
+    existing = await deps.findLoanByNumber(loanNumber);
   } catch (err: unknown) {
     // Genuine raw transport error -- never rendered verbatim (OutcomeBanner renders o.error for
     // write-failed directly). Mapped to the shared business-safe message here, at the return site.
     const raw = err instanceof Error ? err.message : String(err);
     return { kind: 'write-failed', error: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId };
   }
-  if (exists) {
+  if (existing) {
     return {
       kind: 'duplicate',
       reason: `A portfolio loan with number ${loanNumber} already exists. No record was created.`,
       loanNumber,
+      existingLoanId: existing.id,
     };
   }
 
@@ -443,7 +444,7 @@ export async function boardExistingLoan(
 
 export function buildLiveExistingLoanDeps(): ExistingLoanDeps {
   return {
-    loanNumberExists: async (loanNumber) => {
+    findLoanByNumber: async (loanNumber) => {
       const { Cr664_portfolioboardedloansService } = await import('../generated/services/Cr664_portfolioboardedloansService');
       const escaped = loanNumber.replace(/'/g, "''");
       const res = await Cr664_portfolioboardedloansService.getAll({
@@ -451,7 +452,11 @@ export function buildLiveExistingLoanDeps(): ExistingLoanDeps {
         filter: `cr664_loannumber eq '${escaped}'`,
         top: 1,
       });
-      return res.success === true && (res.data ?? []).length > 0;
+      if (!res.success) {
+        throw new Error(res.error?.message ?? 'Duplicate lookup returned non-success.');
+      }
+      const existing = (res.data ?? [])[0];
+      return existing ? { id: existing.cr664_portfolioboardedloanid } : null;
     },
     createRoot: async (payload) => {
       const { Cr664_portfolioboardedloansService } = await import('../generated/services/Cr664_portfolioboardedloansService');
