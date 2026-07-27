@@ -47,6 +47,16 @@ export function DealConditionVerificationPanel({
   onVerificationSubmitted?: () => void;
 }) {
   const storeRef = useRef(createDataverseConditionVerificationStore());
+  // Lifecycle guard for load()'s async work (mount effect + every post-submit reload). Prevents any
+  // state update — success or failure path — after this panel has unmounted (e.g. the deal
+  // workspace navigates away, or a test unmounts) while listVerificationsForDeal is still in flight.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [records, setRecords] = useState<readonly ConditionVerificationRecord[]>([]);
@@ -65,6 +75,7 @@ export function DealConditionVerificationPanel({
     storeRef.current
       .listVerificationsForDeal(dealId)
       .then((res) => {
+        if (!isMountedRef.current) return;
         if (res.success) {
           setRecords(res.records ?? []);
           setLoadState('ready');
@@ -74,6 +85,7 @@ export function DealConditionVerificationPanel({
         }
       })
       .catch((err: unknown) => {
+        if (!isMountedRef.current) return;
         setLoadState('error');
         const raw = err instanceof Error ? err.message : String(err);
         setLoadError(mapBusinessSafeError(raw).safeMessage);

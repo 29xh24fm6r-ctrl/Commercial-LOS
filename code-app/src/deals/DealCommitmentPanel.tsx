@@ -39,6 +39,16 @@ export function DealCommitmentPanel({
   onCommitmentActionSubmitted?: () => void;
 }) {
   const storeRef = useRef(createDataverseCommitmentStore());
+  // Lifecycle guard for load()'s async work (mount effect + every post-submit reload). Prevents any
+  // state update — success or failure path — after this panel has unmounted (e.g. the deal
+  // workspace navigates away, or a test unmounts) while listCommitmentsForDeal is still in flight.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [commitments, setCommitments] = useState<readonly CommitmentRecord[]>([]);
@@ -59,6 +69,7 @@ export function DealCommitmentPanel({
     storeRef.current
       .listCommitmentsForDeal(dealId)
       .then((res) => {
+        if (!isMountedRef.current) return;
         if (res.success) {
           setCommitments(res.commitments ?? []);
           setLoadState('ready');
@@ -68,6 +79,7 @@ export function DealCommitmentPanel({
         }
       })
       .catch((err: unknown) => {
+        if (!isMountedRef.current) return;
         setLoadState('error');
         const raw = err instanceof Error ? err.message : String(err);
         setLoadError(mapBusinessSafeError(raw).safeMessage);
