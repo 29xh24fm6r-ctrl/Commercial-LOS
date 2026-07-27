@@ -77,7 +77,10 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // Factory Arc Phase 14 added two more (annual-review-persistence,
   // portfolio-boarding-audit-governance) -- a registry blind spot this domain had
   // until now, not new gaps -- see docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.
-  notWired: 13,
+  // Workstream O added the data-quality-flag-create governed write (see GOVERNED_WRITES) and
+  // Workstream R added one more NOT_WIRED entry (portfolio-migration-reconciliation -- the
+  // reconciliation engine exists and is tested; only the migration-control schema is missing).
+  notWired: 14,
   deliberatelyBlocked: 1,
 });
 

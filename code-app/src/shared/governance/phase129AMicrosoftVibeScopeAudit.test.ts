@@ -94,8 +94,9 @@ const AUDIT_COUNTS = Object.freeze({
   // Phase 14 added two more (annual-review-persistence,
   // portfolio-boarding-audit-governance) -- a registry blind spot this
   // domain had until now, not new gaps -- see
-  // docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.
-  notWired: 13,
+  // docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md. Workstream R
+  // (Final LOS Completion arc) added one more (portfolio-migration-reconciliation).
+  notWired: 14,
   deliberatelyBlocked: 1,
 });
 

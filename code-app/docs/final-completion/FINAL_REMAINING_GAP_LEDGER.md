@@ -359,6 +359,33 @@ Center surface shows raw Dataverse identifiers (`cr664_portfoliomigrationcontrol
 `cr664_migrationbatchid`) — this is body copy, not a navigation label, so it sits outside Workstream
 Q's stated scope; flagged here for a future pass rather than silently dropped.
 
+## 18. Workstream R — reconciliation engine
+
+Investigated `src/portfolio/reconciliation/` fully. The engine itself is **already complete and not
+broken**: `deriveMigrationReconciliation` (`bookReconciliation.ts`) is a pure, deterministic tie-out
+(count/dollar deltas, per-segment breakdown, two orphan lists, tied/out_of_balance verdict) with 13
+golden tests, and `MigrationReconciliationPanel` (`BookReconciliationPanel.tsx`) is a fully built,
+tested, live-reachable render of it, mounted on the Portfolio Command Center today. Nothing here
+needed rebuilding.
+
+**Two real, narrow gaps found and fixed:**
+
+1. The panel's empty-state copy named raw Dataverse identifiers directly to the end user
+   (`cr664_portfoliomigrationcontrol`, `cr664_migrationbatchid` — the same leak Workstream Q's §17
+   flagged as out of its own scope). Reworded to business language: "Requires the migration control
+   record and the batch-link field to be set up before a batch can be reconciled."
+2. The panel's "no live loader" status had no `NOT_WIRED` entry, unlike its sibling honest-absence
+   surfaces on the same command center. Added `portfolio-migration-reconciliation` to
+   `platformInventory.ts`'s `NOT_WIRED` (blockerKind `schema`), making explicit that the gap is
+   engine-complete-but-data-missing, not logic-missing.
+
+**Deliberately NOT built:** provisioning the `cr664_portfoliomigrationcontrol` table and the
+`cr664_migrationbatchid` column (both fully specified in `reconciliationControlSchemaPlan.ts`), and
+wiring a live loader that feeds operator-entered migration controls into the panel. This is a real
+schema + operator-workflow decision (how does an operator actually enter/record a batch's control
+totals?) squarely out of "code-safe work only" scope, and is now honestly tracked in `NOT_WIRED`
+rather than left silently undocumented.
+
 ## Living-document note
 
 This ledger will be updated (not replaced) as each workstream lands, so that by the time the PR

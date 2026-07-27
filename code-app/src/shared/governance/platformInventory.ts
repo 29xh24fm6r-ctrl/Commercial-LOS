@@ -565,6 +565,24 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'GOVERNED_WRITES. See docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.',
     blockerKind: 'governance',
   },
+  {
+    id: 'portfolio-migration-reconciliation',
+    label: 'Portfolio migration reconciliation (book tie-out)',
+    reason:
+      'Final LOS Completion arc (Workstream R) -- the full reconciliation ENGINE already exists and ' +
+      'is thoroughly tested: deriveMigrationReconciliation (src/portfolio/reconciliation/bookReconciliation.ts) ' +
+      'is a pure, deterministic tie-out (count/dollar deltas, per-segment breakdown, two orphan lists, ' +
+      'tied/out_of_balance verdict), and MigrationReconciliationPanel (BookReconciliationPanel.tsx) is a ' +
+      'fully built, live-reachable render of it, mounted on the Portfolio Command Center. This entry is ' +
+      'not about missing logic -- it is about missing DATA: the panel is always mounted with no props, so ' +
+      'it always renders its honest empty state, because the migration-control source it needs -- the ' +
+      'planned cr664_portfoliomigrationcontrol table and the additive cr664_migrationbatchid column on ' +
+      'the boarded-loan table (both fully specified in reconciliationControlSchemaPlan.ts) -- is not yet ' +
+      'provisioned. Unblock path is schema-only: provision the table/column, regenerate the SDK, then wire ' +
+      'a live loader that reads operator-entered migration controls and passes them (with the matching ' +
+      'boarded-loan rows) into MigrationReconciliationPanel.',
+    blockerKind: 'schema',
+  },
 ];
 
 // ---------------------------------------------------------------------------
