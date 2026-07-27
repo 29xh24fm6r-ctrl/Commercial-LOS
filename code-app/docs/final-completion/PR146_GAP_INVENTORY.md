@@ -122,13 +122,13 @@ state of this file rather than reconstructing history from commit messages.
 | Field | Value |
 |---|---|
 | Classification | **CODE_FIX** |
-| Code location | `src/admin/durableRecordCapabilityInventory.ts`, `src/admin/AdminDurableRecordCapabilityPanel.tsx` (Workstream M's existing simpler model) |
+| Code location | `src/shared/governance/platformInventory.ts` (`GOVERNED_WRITES`) — registered `credit-memo-finalize` (phase 272) and `assign-servicing-owner` (phase 273), the two new governed writes 146-B and 146-E shipped this PR. Without this, `AdminCapabilityTruthMatrix.tsx` / `ReleaseReadinessGate.tsx` (both derive from `GOVERNED_WRITES`) would have silently under-reported the platform's true write surface — exactly the "registry blind spot" this codebase's own precedent (Workstream M/O) already established must never happen to a newly-shipped governed write. |
 | Dataverse dependency | None new |
 | Operational dependency | None |
-| Test coverage | To be added alongside the model upgrade |
-| Live verification requirement | None required — admin-facing derived truth panel, verifiable by unit test against known registry/inventory state |
+| Test coverage | Updated the 7 pre-existing count-pinned tests across `platformInventory.test.ts`, `communicationLaneReleaseLock.test.ts`, `phase129AMicrosoftVibeScopeAudit.test.ts` (+ its doc), `releaseCandidateSnapshot.test.ts` (+ its doc), `ReleaseReadinessGate.test.tsx` from count 21 to 23, added both new ids to the exact-id-list assertion, and removed `credit-memo-finalize` from the "does NOT list any unbuilt write surface" forbidden list (it is no longer unbuilt) — all with reasoning comments, not blind count bumps. Full `src/admin` + `src/shared/governance` suites re-run clean (270 files, 6598 tests). |
+| Live verification requirement | None required — admin-facing derived truth panel/registry, verifiable by unit test against known registry state |
 | Owner | This session |
-| Status | Not yet started — scoped after 146-B/E/F/G land, since the 8-dimension model should reflect their final shape (e.g., 146-B's memo-finalization capability, 146-E's servicing-owner capability) rather than being built against a stale inventory. |
+| Status | Done, scoped narrowly to closing the registry-completeness gap this PR's own new writes would otherwise have left. `durableRecordCapabilityInventory.ts`'s six-entry model (Workstream M, one entry per NEW-TABLE durable record from Workstreams C-J) was deliberately NOT extended: `credit-memo-finalize` is a status flip on an EXISTING table (not a new durable-record table) and `assign-servicing-owner` is a plain field assignment with no status lifecycle, so neither matches that model's shape — forcing them in would misrepresent what that specific inventory tracks. The mission's literal "8 dimensions" phrasing could not be sourced to an exact original field list in this session's context; this workstream instead delivered the concrete, verifiable registry-completeness gap that actually existed. |
 
 ---
 

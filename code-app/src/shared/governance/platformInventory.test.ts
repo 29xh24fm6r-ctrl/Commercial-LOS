@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the twenty-one shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70, 160, 237, 265-271)', () => {
+  it('contains the twenty-three shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70, 160, 237, 265-273)', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -50,6 +50,10 @@ describe('platformInventory — governed writes', () => {
         // Workstream O -- the first write that CREATES a data quality flag
         // (only resolve existed before).
         'data-quality-flag-create',
+        // 146 Factory arc (Workstream 146-B/146-E) -- credit memo finalization and servicing
+        // owner assignment, both newly governed writes this arc.
+        'credit-memo-finalize',
+        'assign-servicing-owner',
       ].sort(),
     );
   });
@@ -100,7 +104,10 @@ describe('platformInventory — governed writes', () => {
     // a metadata-only write, not a binary upload.
     const forbidden = [
       'stage-progression-advance',
-      'credit-memo-finalize',
+      // 'credit-memo-finalize' shipped in the 146 Factory arc (Workstream 146-B) -- it is now a
+      // real GOVERNED_WRITES entry (flips cr664_creditmemo1.cr664_status Draft -> Final), so it
+      // has moved OUT of this forbidden list (removing an entry a control found is correct here,
+      // not weakening it -- the capability genuinely landed).
       // Phase 105 shipped 'deal-borrower-update-email' — the legacy
       // 'borrower-email-send' name was never used and must not
       // accidentally appear as a sibling id.
@@ -1062,8 +1069,8 @@ describe('platformInventory — Phase 67 handoff classification', () => {
     expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
   });
 
-  it('GOVERNED_WRITES count: Final LOS Completion arc (Workstream M) added six durable-record writes on top of the 14 shipped through Phase 237, and Workstream O added the data-quality-flag-create write', () => {
-    expect(GOVERNED_WRITES.length).toBe(21);
+  it('GOVERNED_WRITES count: Final LOS Completion arc (Workstream M) added six durable-record writes on top of the 14 shipped through Phase 237, Workstream O added the data-quality-flag-create write, and the 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E)', () => {
+    expect(GOVERNED_WRITES.length).toBe(23);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {
