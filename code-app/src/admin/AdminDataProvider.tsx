@@ -39,7 +39,8 @@ export type AdminDataKey =
   | 'configuration'
   | 'platformOperations'
   | 'after-resolve'
-  | 'after-alert-resolve';
+  | 'after-alert-resolve'
+  | 'after-dq-create';
 
 export interface AdminData {
   dataQuality: AsyncResult<DataQualityFlagRow[]>;
@@ -199,6 +200,13 @@ export function AdminDataProvider({ children }: { children: React.ReactNode }) {
       case 'after-alert-resolve':
         // Targeted reload after Phase-19 alert resolve/dismiss.
         reloadAlerts();
+        reloadAuditAnomalies();
+        break;
+      case 'after-dq-create':
+        // Final LOS Completion arc (Workstream O) -- a new data-quality flag
+        // was created by the detection sweep; reload the same two cards
+        // 'after-resolve' does.
+        reloadDataQuality();
         reloadAuditAnomalies();
         break;
     }

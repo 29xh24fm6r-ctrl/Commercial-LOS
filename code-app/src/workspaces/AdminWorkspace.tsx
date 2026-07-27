@@ -23,6 +23,8 @@ import { AdminDealReferenceValues } from '../admin/AdminDealReferenceValues';
 import { AdminLoanRemovalPanel } from '../admin/AdminLoanRemovalPanel';
 import { PlatformOperationsWorkspacePanel } from '../admin/PlatformOperationsWorkspacePanel';
 import { AdminCapabilityTruthMatrix } from '../admin/AdminCapabilityTruthMatrix';
+import { AdminDurableRecordCapabilityPanel } from '../admin/AdminDurableRecordCapabilityPanel';
+import { AdminDataQualityDetectionPanel } from '../admin/AdminDataQualityDetectionPanel';
 import { TestDataView } from '../admin/TestDataView';
 import { LendingOSLayout } from '../banker/LendingOSLayout';
 import { palette, spacing, typography } from '../shared/theme';
@@ -86,6 +88,11 @@ function AdminWorkspaceContent() {
             already derives from. Additive only: no existing certification
             panel is touched, retired, or reinterpreted. */}
         <AdminCapabilityTruthMatrix />
+        {/* Final LOS Completion arc (Workstream M) -- registers the six durable-record
+            governed writes Workstreams C/D/E/F/H/J shipped and each one's own domain status
+            vocabulary, a fact the Capability Truth Matrix above does not model. Additive only:
+            no existing panel is touched, retired, or reinterpreted. */}
+        <AdminDurableRecordCapabilityPanel />
         <ReleaseReadinessGate />
         {/* Phase 236: read-only V1.0 go-live release certification — the single
             leadership answer (operating restart ready; live-write expansion gated).
@@ -116,6 +123,7 @@ function AdminWorkspaceContent() {
           <DataQualityFlags />
           <AuditAnomalies />
         </div>
+        <AdminDataQualityDetectionPanel />
         {/* PR 104 -- labeled test-data view: the classification every
             operational query's exclusion policy assumes (SYSTEM TEST -,
             [SMOKE TEST], [QA], [DEMO], ...) surfaced for an admin to see,

@@ -35,6 +35,7 @@ import { resolveConfiguredNewDealReferences } from './newDealReferenceReader';
 import type { NewDealReferenceResolution } from './newDealReferenceResolver';
 import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from './newDealCreateFeatureFlags';
 import { CRM_CLIENT_REQUIRED_MESSAGE } from './newDealCrmIntakeGate';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 import {
   buildNewDealAuditPayload,
   summarizeAuditPayloadShape,
@@ -256,7 +257,10 @@ function resolverDetail(r: Exclude<NewDealReferenceResolution, { kind: 'ready' }
     case 'inactiveStatus':
       return 'The matched Status reference is inactive.';
     case 'serviceError':
-      return `Could not reach Dataverse to verify Stage/Status references (${r.message}).`;
+      // Final LOS Completion arc (Workstream P) — r.message is a raw transport-error string
+      // (see newDealReferenceResolver.ts); it was previously interpolated verbatim into this
+      // authored sentence, which is exactly the leak this workstream closes.
+      return `Could not reach Dataverse to verify Stage/Status references. ${mapBusinessSafeError(r.message).safeMessage}`;
   }
 }
 

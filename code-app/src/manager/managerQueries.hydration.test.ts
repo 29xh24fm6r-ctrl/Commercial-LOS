@@ -292,4 +292,30 @@ describe('Phase 125B — loadTeamPipeline TeamDeal hydration', () => {
       }
     }
   });
+
+  it('final-los-completion (N-17 follow-on): resolves isTestRecord from cr664_istestrecord, not name alone', async () => {
+    getAllMock.mockResolvedValueOnce({
+      success: true,
+      data: [dealRow({ cr664_istestrecord: true })],
+    });
+    let out = await loadTeamPipeline('team-1', { includeTestDeals: true });
+    expect(out[0].isTestRecord).toBe(true);
+
+    // An ordinary name with the field explicitly false stays operational even if excludeTest runs.
+    getAllMock.mockResolvedValueOnce({
+      success: true,
+      data: [dealRow({ cr664_istestrecord: false })],
+    });
+    out = await loadTeamPipeline('team-1');
+    expect(out).toHaveLength(1);
+    expect(out[0].isTestRecord).toBe(false);
+
+    // Default exclusion actually drops a governed-test deal from the pipeline now.
+    getAllMock.mockResolvedValueOnce({
+      success: true,
+      data: [dealRow({ cr664_istestrecord: true })],
+    });
+    out = await loadTeamPipeline('team-1');
+    expect(out).toHaveLength(0);
+  });
 });

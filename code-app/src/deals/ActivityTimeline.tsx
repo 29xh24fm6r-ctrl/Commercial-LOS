@@ -326,6 +326,7 @@ function EventRow({
   const sev = severityFor(event.eventTypeKey);
   const actor = event.isSystemGenerated ? 'System' : event.actorName ?? 'Unknown user';
   const sourceLabel = friendlyEntityLabel(event.relatedEntityType);
+  const subTypeLabel = friendlySubTypeLabel(event.eventSubType);
 
   return (
     <li
@@ -346,12 +347,12 @@ function EventRow({
               {event.eventType}
             </Badge>
           )}
-          {event.eventSubType && (
+          {subTypeLabel && (
             <span
               style={styles.subTypeBadge}
               title={event.eventSubType}
             >
-              {event.eventSubType}
+              {subTypeLabel}
             </span>
           )}
           {isNewSinceLastVisit && (
@@ -439,6 +440,50 @@ function friendlyEntityLabel(
     cr664_dataqualityflag: 'Data quality flag',
   };
   return map[entityType] ?? entityType;
+}
+
+/** Final LOS Completion arc — Workstream L: banker-friendly subtype
+ *  labels. `cr664_eventsubtype` embeds a machine correlation id
+ *  (Phase 50 discipline — `<descriptive>|correlation:<uuid>`, or
+ *  just `correlation:<uuid>` alone for older write sites) that is
+ *  useful for audit/support lookups but reads as raw noise in the
+ *  timeline UI. This strips the correlation portion for display —
+ *  the untouched raw value stays on the badge's `title` attribute —
+ *  and maps the remaining descriptive prefix to a banker-friendly
+ *  phrase. Subtypes with no descriptive portion (bare correlation
+ *  id) render nothing, since they carry no information beyond what
+ *  the Event type badge already shows. */
+const SUBTYPE_PREFIX_LABELS: Record<string, string> = {
+  riskrating: 'Risk rating',
+  uwrecommendation: 'Underwriting recommendation',
+  boarded: 'Boarded loan',
+  closingdocument: 'Closing document',
+  bookingqc: 'Booking QC',
+  executeddocs: 'Executed document',
+  condition: 'Condition',
+  funding: 'Funding',
+  commitment: 'Commitment',
+  adverseaction: 'Adverse action',
+  documentrequirement: 'Document requirement',
+  documentrequest: 'Document request',
+  activity: 'Activity logged',
+  'crm-activity': 'CRM activity',
+};
+
+function friendlySubTypeLabel(eventSubType: string | undefined): string | undefined {
+  if (!eventSubType) return undefined;
+  const withoutTrailingCorrelation = eventSubType.replace(/\|correlation:.+$/, '');
+  const descriptive = /^correlation:/.test(withoutTrailingCorrelation)
+    ? ''
+    : withoutTrailingCorrelation.trim();
+  if (descriptive.length === 0) return undefined;
+
+  const [prefix, ...rest] = descriptive.split(':').map((s) => s.trim()).filter(Boolean);
+  if (!prefix) return undefined;
+  const prefixLabel =
+    SUBTYPE_PREFIX_LABELS[prefix] ?? prefix.charAt(0).toUpperCase() + prefix.slice(1);
+  const restLabel = rest.map((s) => s.replace(/-/g, ' ')).join(' ');
+  return restLabel ? `${prefixLabel} ${restLabel}` : prefixLabel;
 }
 
 function ErrorBlock({ title, detail }: { title: string; detail: string }) {

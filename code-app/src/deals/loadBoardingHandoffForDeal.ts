@@ -24,7 +24,13 @@ export async function loadBoardingHandoffForDeal(
       '../generated/services/Cr664_portfolioboardedloansService'
     );
     const res = await Cr664_portfolioboardedloansService.getAll({
-      select: ['cr664_portfolioboardedloanid', 'cr664_boardingstatus', 'statecode', '_cr664_originatedloandeal_value'],
+      select: [
+        'cr664_portfolioboardedloanid',
+        'cr664_boardingstatus',
+        'statecode',
+        '_cr664_originatedloandeal_value',
+        '_cr664_assignedservicingowner_value',
+      ],
       filter: `_cr664_originatedloandeal_value eq ${dealId}`,
     });
     if (!res.success) {
@@ -37,6 +43,10 @@ export async function loadBoardingHandoffForDeal(
           portfolioBoardedLoanId: String(activeRow['cr664_portfolioboardedloanid'] ?? ''),
           boardingStatus: (activeRow['cr664_boardingstatus'] as string | undefined) ?? null,
           active: true,
+          assignedServicingOwnerId:
+            typeof activeRow['_cr664_assignedservicingowner_value'] === 'string'
+              ? (activeRow['_cr664_assignedservicingowner_value'] as string)
+              : undefined,
         }
       : null;
     return evaluateBoardingHandoff(dealStage, evidence);

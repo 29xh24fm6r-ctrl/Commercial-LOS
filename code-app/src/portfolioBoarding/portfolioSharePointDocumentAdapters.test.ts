@@ -172,7 +172,7 @@ describe('Phase 264 (P0) — createLiveSharePointDocumentAdapter', () => {
     expect(result.kind).toBe('permanent-failure');
   });
 
-  it('treats a thrown connector error as transient rather than crashing', async () => {
+  it('treats a thrown connector error as transient rather than crashing, mapped to the shared business-safe message', async () => {
     const connector = mockConnector({
       createFile: vi.fn(async () => {
         throw new Error('network drop');
@@ -182,7 +182,11 @@ describe('Phase 264 (P0) — createLiveSharePointDocumentAdapter', () => {
 
     const result = await adapter.upload(input());
 
-    expect(result).toEqual({ kind: 'transient-failure', reason: 'network drop' });
+    expect(result.kind).toBe('transient-failure');
+    if (result.kind === 'transient-failure') {
+      expect(result.reason).not.toContain('network drop');
+      expect(result.reason).toContain("We couldn't save that action");
+    }
   });
 
   it('lists real entries from the connector for the loan folder', async () => {

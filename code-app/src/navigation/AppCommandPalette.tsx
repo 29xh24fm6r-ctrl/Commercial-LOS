@@ -1,17 +1,9 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CommandPalette, type CommandGroup } from '../design/CommandPalette';
-import { WORKSPACE_ROUTES, type WorkspaceKey } from '../bootstrap/workspaceRoutes';
+import { WORKSPACE_ROUTES, WORKSPACE_DISPLAY_NAMES, type WorkspaceKey } from '../bootstrap/workspaceRoutes';
 import { FEATURE_SURFACES } from './featureSurfaces';
 import { isFeatureSurfaceFlagEnabled } from './featureSurfaceFlags';
-
-const WORKSPACE_LABELS: Record<WorkspaceKey, string> = {
-  banker: 'Banker workspace',
-  team: 'Team workspace',
-  manager: 'Manager command center',
-  executive: 'Executive dashboard',
-  admin: 'Admin control center',
-};
 
 /**
  * App-wide ⌘K command palette, wired to the real router. Navigation-first
@@ -26,7 +18,7 @@ export function AppCommandPalette() {
       heading: 'Workspaces',
       items: (Object.keys(WORKSPACE_ROUTES) as WorkspaceKey[]).map((key) => ({
         id: `ws-${key}`,
-        label: WORKSPACE_LABELS[key],
+        label: WORKSPACE_DISPLAY_NAMES[key],
         meta: WORKSPACE_ROUTES[key],
         keywords: [key, 'workspace', 'go to'],
         run: () => navigate(WORKSPACE_ROUTES[key]),

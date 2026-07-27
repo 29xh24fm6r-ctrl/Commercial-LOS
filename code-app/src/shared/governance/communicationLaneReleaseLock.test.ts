@@ -115,8 +115,8 @@ const COMMUNICATION_LANE_FILES: readonly string[] = [
 // ---------------------------------------------------------------------------
 
 describe('Phase 110 — Inventory state at release', () => {
-  it('GOVERNED_WRITES count is exactly 14 after Phase 160 added deal-log-activity and Phase 237 added deal-stage-advance', () => {
-    expect(GOVERNED_WRITES.length).toBe(14);
+  it('GOVERNED_WRITES count is exactly 21 (14 shipped through Phase 237, plus 6 durable-record writes Workstream M registered, plus the data-quality-flag-create write Workstream O added)', () => {
+    expect(GOVERNED_WRITES.length).toBe(21);
   });
 
   it('exactly two governed writes are borrower/deal Outlook email sends', () => {

@@ -11,6 +11,7 @@ import {
 } from './newDealAuditActorResolver';
 import { timelineEventByBind } from './timelineActorBind';
 import { maskRecipient } from './emailDelivery/recipientMasking';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * Phase 63: governed write that records a banker-initiated email
@@ -323,7 +324,8 @@ export async function prepareDocumentRequestHandoff(
       afterState: 'Outlook handoff failed (governance emission threw)',
       nowIso,
     });
-    return { kind: 'unknown', message };
+    // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+    return { kind: 'unknown', message: mapBusinessSafeError(message, correlationId).safeMessage };
   }
 
   if (audit.error || timeline.error) {
@@ -332,8 +334,8 @@ export async function prepareDocumentRequestHandoff(
       mode: input.mode,
       method: input.method,
       maskedRecipient,
-      auditError: audit.error,
-      timelineError: timeline.error,
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
     };
   }
   return {

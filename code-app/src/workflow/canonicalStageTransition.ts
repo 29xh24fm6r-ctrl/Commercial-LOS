@@ -14,10 +14,11 @@
  *   - WITHDRAW : terminal (borrower-initiated). Requires authorization + a reason. Sets WITHDRAWN.
  *
  * FAIL-CLOSED throughout: unknown/missing data denies the transition. AUTO_STAGE_ADVANCE_ENABLED is
- * now ARMED (true, as of WF-1A) — the remaining reason RETURN/DECLINE/WITHDRAW stay preview-only is
- * that StageWorkflowControl.tsx (the UI for this engine) is not mounted in any live workspace, not
- * the flag. ADVANCE itself is live via a separate surface (DealStageProgressionCard.tsx). No write
- * happens here until an operator injects a live transport AND mounts the control. Every executed
+ * ARMED (true, as of WF-1A), and RETURN/DECLINE/WITHDRAW are LIVE as of the governance initiative
+ * (2026-07-21): `DealGovernedTransitionPanel.tsx` mounts `StageWorkflowControl.tsx` (the UI for this
+ * engine) in the banker deal workspace with `liveEnabled` set — this comment previously said the
+ * control was unmounted; that is now stale, corrected here (Final LOS Completion arc, Workstream J).
+ * ADVANCE itself is live via a separate surface (DealStageProgressionCard.tsx). Every executed
  * transition is a governed write: policy guard → update → READBACK proof →
  * audit + timeline + correlation id → typed outcome union with honest partial states (never a fake
  * success).

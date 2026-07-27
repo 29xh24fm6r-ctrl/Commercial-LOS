@@ -39,4 +39,21 @@ describe('loadTestDataSnapshot', () => {
     getAll.mockResolvedValueOnce({ success: false, error: { message: 'Dataverse query failed.' } } as never);
     await expect(loadTestDataSnapshot()).rejects.toThrow('Dataverse query failed.');
   });
+
+  it('final-los-completion (N-17 follow-on): selects cr664_istestrecord and honors an explicit true classification even for an ordinary-looking name', async () => {
+    getAll.mockResolvedValueOnce({
+      success: true,
+      data: [
+        { ...dealRow('deal-4', 'Acme Expansion'), cr664_istestrecord: true },
+        { ...dealRow('deal-5', 'Beta Industries'), cr664_istestrecord: false },
+      ],
+    } as never);
+
+    const snapshot = await loadTestDataSnapshot();
+    expect(snapshot.operationalCount).toBe(1);
+    expect(snapshot.testRows.map((r) => r.id)).toEqual(['deal-4']);
+
+    const selectArg = getAll.mock.calls[0]?.[0] as { select?: string[] } | undefined;
+    expect(selectArg?.select).toContain('cr664_istestrecord');
+  });
 });

@@ -4,6 +4,7 @@ import { createActorChangedByResolver, type ResolveActorChangedBy } from '../../
 import { evaluateTemplateEligibility } from './closingDocumentEligibility';
 import { hashClosingDocumentContent, renderClosingDocumentContent } from './closingDocumentContentRenderer';
 import { recordClosingDocumentGenerationAudit, type EmitClosingDocumentAudit } from './closingDocumentAudit';
+import { recordClosingDocumentGenerationTimeline, type EmitClosingDocumentTimeline } from './closingDocumentTimeline';
 import type { ClosingDocumentStorageDeps } from './closingDocumentStorage';
 import type {
   ClosingDocumentFactModel,
@@ -44,6 +45,15 @@ export interface GenerateClosingDocumentDeps {
   readonly storage: ClosingDocumentStorageDeps;
   readonly emitAudit: EmitClosingDocumentAudit;
   readonly resolveActorChangedBy?: ResolveActorChangedBy;
+  /**
+   * Final LOS Completion arc — Workstream K. Optional ONLY so hand-built test doubles predating
+   * this workstream keep compiling without edits — an omitted dep is equivalent to "timeline
+   * emission unavailable," never fabricated as succeeded. Independent of `emitAudit` above (which
+   * remains a documented, deliberate no-op stub at the live call site pending separate build-out —
+   * see DealClosingDocumentsPanel.tsx's header) — a timeline emission failure never blocks or
+   * reflects the audit's own success/failure.
+   */
+  readonly emitTimeline?: EmitClosingDocumentTimeline;
 }
 
 export async function generateClosingDocument(
@@ -89,11 +99,18 @@ export async function generateClosingDocument(
     };
   }
 
-  const audit = await recordClosingDocumentGenerationAudit(
-    manifest,
-    deps.resolveActorChangedBy ?? createActorChangedByResolver(),
-    deps.emitAudit,
-  );
+  const resolveActorChangedBy = deps.resolveActorChangedBy ?? createActorChangedByResolver();
+  const audit = await recordClosingDocumentGenerationAudit(manifest, resolveActorChangedBy, deps.emitAudit);
+
+  // Final LOS Completion arc — Workstream K. Best-effort, never blocks the outcome or reflects the
+  // audit's own success/failure — the manifest write above already succeeded and is authoritative.
+  if (deps.emitTimeline) {
+    try {
+      await recordClosingDocumentGenerationTimeline(manifest, resolveActorChangedBy, deps.emitTimeline);
+    } catch {
+      // Best-effort — see the comment above.
+    }
+  }
 
   return {
     kind: 'generated',

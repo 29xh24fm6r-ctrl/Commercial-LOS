@@ -281,9 +281,11 @@ describe('saveCreditMemoDraft', () => {
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
       expect(outcome.memoId).toBe('memo-1');
-      expect(outcome.sectionErrors).toEqual([
-        { sectionKey: 'loan-request', error: 'section boom' },
-      ]);
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      expect(outcome.sectionErrors).toHaveLength(1);
+      expect(outcome.sectionErrors[0]!.sectionKey).toBe('loan-request');
+      expect(outcome.sectionErrors[0]!.error).not.toContain('section boom');
+      expect(outcome.sectionErrors[0]!.error).toContain("We couldn't save that action");
       expect(outcome.auditError).toBeUndefined();
       expect(outcome.timelineError).toBeUndefined();
     }
@@ -299,7 +301,8 @@ describe('saveCreditMemoDraft', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toBe('audit blocked');
+      expect(outcome.auditError).not.toContain('audit blocked');
+      expect(outcome.auditError).toContain("We couldn't save that action");
       expect(outcome.timelineError).toBeUndefined();
       expect(outcome.sectionErrors).toEqual([]);
     }
@@ -316,7 +319,8 @@ describe('saveCreditMemoDraft', () => {
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
       expect(outcome.auditError).toBeUndefined();
-      expect(outcome.timelineError).toBe('timeline 500');
+      expect(outcome.timelineError).not.toContain('timeline 500');
+      expect(outcome.timelineError).toContain("We couldn't save that action");
       expect(outcome.sectionErrors).toEqual([]);
     }
   });
@@ -332,8 +336,9 @@ describe('saveCreditMemoDraft', () => {
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
       expect(outcome.sectionErrors.length).toBe(2);
-      expect(outcome.auditError).toBe('audit boom');
-      expect(outcome.timelineError).toBe('timeline boom');
+      expect(outcome.sectionErrors.every((e) => !e.error.includes('every section boom'))).toBe(true);
+      expect(outcome.auditError).not.toContain('audit boom');
+      expect(outcome.timelineError).not.toContain('timeline boom');
     }
   });
 
@@ -498,7 +503,9 @@ describe('saveCreditMemoDraft', () => {
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
       expect(outcome.memoId).toBe('memo-1');
-      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+      // Final LOS Completion arc (Workstream P) — the raw reason carries internal schema jargon.
+      expect(outcome.auditError).not.toMatch(/CoreUser/);
+      expect(outcome.auditError).toContain("We couldn't save that action");
     }
     // The primary memo write still happened.
     expect(memoCreate).toHaveBeenCalledTimes(1);

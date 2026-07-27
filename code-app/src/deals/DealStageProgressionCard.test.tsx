@@ -7,6 +7,7 @@ import type { DealTasksResult } from './dealTaskQueries';
 import type { DealDocumentsResult } from './dealDocumentQueries';
 import type { CreditMemoData } from './creditMemoQueries';
 import type { TimelineEvent } from './activityQueries';
+import type { CreditApprovalDecisionRecord } from '../workflow/creditApprovalDecisionTypes';
 
 // The real DealDataProvider transitively imports @microsoft/power-apps
 // SDK service files that Vitest cannot resolve in jsdom. Stub the hook
@@ -257,9 +258,34 @@ describe('DealStageProgressionCard — governed advance flow (armed + seeded + a
 // internals-free messaging.
 // ---------------------------------------------------------------------------
 
+// Satisfies CREDIT_APPROVAL:approval_decision / :approval_authority / :approval_conditions
+// (creditApprovalDecisionTypes.ts) so this describe block isolates the STANDALONE
+// evaluateCreditApprovalAuthority() pre-check under test, rather than tripping the engine-level
+// requirement these tests don't exercise.
+const satisfyingCreditApprovalDecision: CreditApprovalDecisionRecord = {
+  decisionId: 'cad-77',
+  dealId: 'deal-77',
+  status: 'APPROVED',
+  approvedAmount: 4_500_000,
+  approvedProduct: 'RLOC',
+  approvedTermMonths: 60,
+  approvedPricing: 'SOFR + 2.75%',
+  collateralSummary: 'A/R, inventory, equipment.',
+  conditions: [],
+  authorityTier: 'committee',
+  rationale: 'DSCR and collateral coverage support approval.',
+  requestedByActorEmail: 'banker@oldglorybank.com',
+  requestedAtIso: '2026-07-10T00:00:00Z',
+  decidedByActorEmail: 'committee@oldglorybank.com',
+  decidedAtIso: '2026-07-11T00:00:00Z',
+  correlationId: 'ca-corr-77',
+  supersedesDecisionId: undefined,
+};
+
 function creditApprovalDealData(): DealData {
   return {
     deal: { ...baseDeal, stage: 'Credit Approval' },
+    creditApprovalDecisions: { kind: 'ready', data: [satisfyingCreditApprovalDecision] },
     tasks: { kind: 'ready', data: { open: [], completed: [] } satisfies DealTasksResult },
     documents: {
       kind: 'ready',

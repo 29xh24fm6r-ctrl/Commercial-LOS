@@ -17,6 +17,7 @@ import type {
   OutlookEmailPort,
   OutlookSendResult,
 } from './emailDelivery/outlookEmailPort';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * Phase 61: governed write that delivers a banker-initiated document
@@ -326,7 +327,8 @@ export async function sendDocumentRequestEmail(
       mode: adapter.mode,
       providerMessageId: undefined,
     });
-    return { kind: 'unknown', message };
+    // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+    return { kind: 'unknown', message: mapBusinessSafeError(message, correlationId).safeMessage };
   }
 
   const describe = describeSendOutcome(sendResult);
@@ -350,9 +352,16 @@ export async function sendDocumentRequestEmail(
       mode: adapter.mode,
       providerMessageId: undefined,
     });
+    // Final LOS Completion arc (Workstream P) — 'invalid-recipient' is an authored, already-safe
+    // validation message; 'transient-failure'/'permanent-failure' carry the raw Outlook-connector
+    // error text, so only those two are mapped (same distinction as sendBorrowerUpdateEmail.ts).
+    const rawSendError = describe.failureReason ?? 'Outlook send failed';
     return {
       kind: 'send-failed',
-      sendError: describe.failureReason ?? 'Outlook send failed',
+      sendError:
+        sendResult.kind === 'invalid-recipient'
+          ? rawSendError
+          : mapBusinessSafeError(rawSendError, correlationId).safeMessage,
       transient: describe.transient,
       mode: adapter.mode,
     };
@@ -388,8 +397,8 @@ export async function sendDocumentRequestEmail(
       mode: adapter.mode,
       providerMessageId,
       maskedRecipient,
-      auditError: audit.error,
-      timelineError: timeline.error,
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
     };
   }
   return {

@@ -6,6 +6,20 @@ import { loadDealCreditMemo, type CreditMemoData } from './creditMemoQueries';
 import { loadDealActivity, type TimelineEvent } from './activityQueries';
 import { createDataverseFundingAuthorizationStore } from '../funding/fundingAuthorizationDataverseStore';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
+import { createDataverseCreditApprovalDecisionStore } from '../creditApproval/creditApprovalDecisionStore';
+import type { CreditApprovalDecisionRecord } from '../workflow/creditApprovalDecisionTypes';
+import { createDataverseCommitmentStore } from '../commitment/commitmentRecordStore';
+import type { CommitmentRecord } from '../workflow/commitmentRecordTypes';
+import { createDataverseConditionVerificationStore } from '../documentation/conditionVerificationStore';
+import type { ConditionVerificationRecord } from '../workflow/conditionVerificationTypes';
+import { createDataverseExecutedDocumentAttestationStore } from '../closing/executedDocumentAttestationStore';
+import type { ExecutedDocumentAttestationRecord } from '../workflow/executedDocumentAttestationTypes';
+import { createDataverseBookingQcCheckStore } from '../closing/bookingQcCheckStore';
+import type { BookingQcCheckRecord } from '../workflow/bookingQcCheckTypes';
+import { createDataverseAdverseActionRecordStore } from '../creditApproval/adverseActionRecordStore';
+import type { AdverseActionRecord } from '../workflow/adverseActionRecordTypes';
+import { loadBoardingHandoffForDeal } from './loadBoardingHandoffForDeal';
+import type { BoardingHandoffReadiness } from '../workflow/boardingHandoffReadiness';
 import {
   timed,
   recordRefresh,
@@ -53,7 +67,20 @@ export type DealDataKey =
   | 'after-credit-memo-draft-saved'
   | 'after-borrower-update-email'
   | 'fundingAuthorization'
-  | 'after-funding-confirmed';
+  | 'after-funding-confirmed'
+  | 'creditApprovalDecisions'
+  | 'after-credit-approval-decision-submitted'
+  | 'commitments'
+  | 'after-commitment-action-submitted'
+  | 'conditionVerifications'
+  | 'after-condition-verification-submitted'
+  | 'executedDocumentAttestations'
+  | 'after-executed-document-attestation-submitted'
+  | 'bookingQcChecks'
+  | 'after-booking-qc-check-submitted'
+  | 'adverseActionRecords'
+  | 'after-adverse-action-record-submitted'
+  | 'boardingHandoff';
 
 export interface DealData {
   /** The authorized deal record. Banker access was confirmed by
@@ -78,6 +105,80 @@ export interface DealData {
    * fails closed as unmet, never fabricated as met.
    */
   fundingAuthorization?: AsyncResult<FundingAuthorizationRecord | undefined>;
+  /**
+   * Final LOS Completion arc — Workstream C. The deal's Credit Approval Decision records (most
+   * recent last), feeding CREDIT_APPROVAL:approval_decision / approval_authority / approval_conditions
+   * (loanWorkflowRequirementEngine.ts) so the Stage Map / stage-advance write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `fundingAuthorization` above); the real DealDataProvider ALWAYS supplies it. A test
+   * double omitting it is equivalent to an unresolved fact — the requirement fails closed as unmet.
+   */
+  creditApprovalDecisions?: AsyncResult<readonly CreditApprovalDecisionRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream D. The deal's Commitment Record history, feeding
+   * COMMITMENT:commitment_issued / :borrower_acceptance (loanWorkflowRequirementEngine.ts) so the
+   * Stage Map / stage-advance write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `creditApprovalDecisions` above); the real DealDataProvider ALWAYS supplies it. A
+   * test double omitting it is equivalent to an unresolved fact — the requirement fails closed as
+   * unmet.
+   */
+  commitments?: AsyncResult<readonly CommitmentRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream E. The deal's Condition Verification history, feeding
+   * DOCUMENTATION:conditions_precedent / :collateral_verified / :insurance_verified
+   * (loanWorkflowRequirementEngine.ts) so the Stage Map / stage-advance write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `commitments` above); the real DealDataProvider ALWAYS supplies it. A test double
+   * omitting it is equivalent to an unresolved fact — the requirement fails closed as unmet.
+   */
+  conditionVerifications?: AsyncResult<readonly ConditionVerificationRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream F. The deal's Executed Document Attestation history,
+   * feeding CLOSING_FUNDING:executed_docs (loanWorkflowRequirementEngine.ts) so the Stage Map /
+   * stage-advance write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `conditionVerifications` above); the real DealDataProvider ALWAYS supplies it. A
+   * test double omitting it is equivalent to an unresolved fact — the requirement fails closed as
+   * unmet.
+   */
+  executedDocumentAttestations?: AsyncResult<readonly ExecutedDocumentAttestationRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream H. The deal's Booking QC Check history, feeding
+   * CLOSING_FUNDING:booking_qc (loanWorkflowRequirementEngine.ts) so the Stage Map / stage-advance
+   * write guard agree.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `executedDocumentAttestations` above); the real DealDataProvider ALWAYS supplies
+   * it. A test double omitting it is equivalent to an unresolved fact — the requirement fails
+   * closed as unmet.
+   */
+  bookingQcChecks?: AsyncResult<readonly BookingQcCheckRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream J. The deal's Adverse Action Record history, feeding
+   * DECLINE:adverse_action (loanWorkflowRequirementEngine.ts). Documents that the notification/
+   * documentation obligation `canonicalStageTransition.ts` flags on every DECLINE was completed —
+   * see adverseActionRecordTypes.ts's header for this record's deliberately narrow scope.
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling (same
+   * convention as `bookingQcChecks` above); the real DealDataProvider ALWAYS supplies it. A test
+   * double omitting it is equivalent to an unresolved fact — the requirement fails closed as unmet.
+   */
+  adverseActionRecords?: AsyncResult<readonly AdverseActionRecord[]>;
+  /**
+   * Final LOS Completion arc — Workstream H. The deal's real portfolio boarded-loan handoff
+   * evidence (reconciled against the deal's own stage), feeding BOARDED:boarded_loan_record and
+   * BOARDED:servicing_owner (loanWorkflowRequirementEngine.ts).
+   *
+   * Optional on the interface ONLY so hand-built DealData test doubles keep compiling; the real
+   * DealDataProvider ALWAYS supplies it. A test double omitting it is equivalent to an unresolved
+   * fact — both requirements fail closed as unmet.
+   */
+  boardingHandoff?: AsyncResult<BoardingHandoffReadiness>;
   refresh: (key: DealDataKey) => void;
   /**
    * Merge readback-verified deal fields into the in-context deal row. ONLY the
@@ -139,6 +240,27 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
   const [fundingAuthorization, setFundingAuthorization] = useState<
     AsyncResult<FundingAuthorizationRecord | undefined>
   >({ kind: 'loading' });
+  const [creditApprovalDecisions, setCreditApprovalDecisions] = useState<
+    AsyncResult<readonly CreditApprovalDecisionRecord[]>
+  >({ kind: 'loading' });
+  const [commitments, setCommitments] = useState<AsyncResult<readonly CommitmentRecord[]>>({
+    kind: 'loading',
+  });
+  const [conditionVerifications, setConditionVerifications] = useState<
+    AsyncResult<readonly ConditionVerificationRecord[]>
+  >({ kind: 'loading' });
+  const [executedDocumentAttestations, setExecutedDocumentAttestations] = useState<
+    AsyncResult<readonly ExecutedDocumentAttestationRecord[]>
+  >({ kind: 'loading' });
+  const [bookingQcChecks, setBookingQcChecks] = useState<AsyncResult<readonly BookingQcCheckRecord[]>>({
+    kind: 'loading',
+  });
+  const [adverseActionRecords, setAdverseActionRecords] = useState<AsyncResult<readonly AdverseActionRecord[]>>({
+    kind: 'loading',
+  });
+  const [boardingHandoff, setBoardingHandoff] = useState<AsyncResult<BoardingHandoffReadiness>>({
+    kind: 'loading',
+  });
 
   // Used by the unmount cleanup AND by refresh() so a refresh fired
   // after unmount cannot late-write into stale state. Lives on a ref
@@ -201,6 +323,72 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
     bind(setFundingAuthorization, p);
     return p;
   }
+  function reloadCreditApprovalDecisions(): Promise<unknown> {
+    setCreditApprovalDecisions({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadCreditApprovalDecisions', async () => {
+      const res = await createDataverseCreditApprovalDecisionStore().listDecisionsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load credit approval decisions.');
+      return res.decisions ?? [];
+    });
+    bind(setCreditApprovalDecisions, p);
+    return p;
+  }
+  function reloadCommitments(): Promise<unknown> {
+    setCommitments({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadCommitments', async () => {
+      const res = await createDataverseCommitmentStore().listCommitmentsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load commitment records.');
+      return res.commitments ?? [];
+    });
+    bind(setCommitments, p);
+    return p;
+  }
+  function reloadConditionVerifications(): Promise<unknown> {
+    setConditionVerifications({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadConditionVerifications', async () => {
+      const res = await createDataverseConditionVerificationStore().listVerificationsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load condition verification records.');
+      return res.records ?? [];
+    });
+    bind(setConditionVerifications, p);
+    return p;
+  }
+  function reloadExecutedDocumentAttestations(): Promise<unknown> {
+    setExecutedDocumentAttestations({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadExecutedDocumentAttestations', async () => {
+      const res = await createDataverseExecutedDocumentAttestationStore().listAttestationsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load executed document attestations.');
+      return res.records ?? [];
+    });
+    bind(setExecutedDocumentAttestations, p);
+    return p;
+  }
+  function reloadBookingQcChecks(): Promise<unknown> {
+    setBookingQcChecks({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadBookingQcChecks', async () => {
+      const res = await createDataverseBookingQcCheckStore().listChecksForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load booking QC checks.');
+      return res.records ?? [];
+    });
+    bind(setBookingQcChecks, p);
+    return p;
+  }
+  function reloadAdverseActionRecords(): Promise<unknown> {
+    setAdverseActionRecords({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadAdverseActionRecords', async () => {
+      const res = await createDataverseAdverseActionRecordStore().listRecordsForDeal(deal.id);
+      if (!res.success) throw new Error(res.error ?? 'Could not load adverse action records.');
+      return res.records ?? [];
+    });
+    bind(setAdverseActionRecords, p);
+    return p;
+  }
+  function reloadBoardingHandoff(): Promise<unknown> {
+    setBoardingHandoff({ kind: 'loading' });
+    const p = timed(PERF_GROUP, 'loadBoardingHandoff', () => loadBoardingHandoffForDeal(deal.id, deal.stage));
+    bind(setBoardingHandoff, p);
+    return p;
+  }
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -220,6 +408,13 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
       reloadCreditMemo(),
       reloadActivity(),
       reloadFundingAuthorization(),
+      reloadCreditApprovalDecisions(),
+      reloadCommitments(),
+      reloadConditionVerifications(),
+      reloadExecutedDocumentAttestations(),
+      reloadBookingQcChecks(),
+      reloadAdverseActionRecords(),
+      reloadBoardingHandoff(),
     ]).then(() => {
       const endedAt =
         typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -337,13 +532,94 @@ export function DealDataProvider({ deal, children }: DealDataProviderProps) {
         // context.fundingAuthorization) learn the deal is now FUNDED without a full page reload.
         reloadFundingAuthorization();
         break;
+      case 'creditApprovalDecisions':
+        reloadCreditApprovalDecisions();
+        break;
+      case 'after-credit-approval-decision-submitted':
+        // Final LOS Completion arc — Workstream C: submitCreditApprovalDecision writes both the
+        // durable decision record and a best-effort ApprovalDecision timeline event, so both must
+        // refresh for the Stage Map / Attention Console to see the new decision and its activity.
+        reloadCreditApprovalDecisions();
+        reloadActivity();
+        break;
+      case 'commitments':
+        reloadCommitments();
+        break;
+      case 'after-commitment-action-submitted':
+        // Final LOS Completion arc — Workstream D: submitCommitmentAction writes both the durable
+        // commitment record and a best-effort NoteLogged timeline event, so both must refresh for
+        // the Stage Map / Attention Console to see the new commitment state and its activity.
+        reloadCommitments();
+        reloadActivity();
+        break;
+      case 'conditionVerifications':
+        reloadConditionVerifications();
+        break;
+      case 'after-condition-verification-submitted':
+        // Final LOS Completion arc — Workstream E: submitConditionVerificationAction writes both
+        // the durable verification record and a best-effort NoteLogged timeline event, so both must
+        // refresh for the Stage Map / Attention Console to see the new verification state and its
+        // activity.
+        reloadConditionVerifications();
+        reloadActivity();
+        break;
+      case 'executedDocumentAttestations':
+        reloadExecutedDocumentAttestations();
+        break;
+      case 'after-executed-document-attestation-submitted':
+        // Final LOS Completion arc — Workstream F: submitExecutedDocumentAttestationAction writes
+        // both the durable attestation record and a best-effort NoteLogged timeline event, so
+        // both must refresh for the Stage Map / Attention Console to see the new attestation
+        // state and its activity.
+        reloadExecutedDocumentAttestations();
+        reloadActivity();
+        break;
+      case 'bookingQcChecks':
+        reloadBookingQcChecks();
+        break;
+      case 'after-booking-qc-check-submitted':
+        // Final LOS Completion arc — Workstream H: submitBookingQcCheckAction writes both the
+        // durable check record and a best-effort NoteLogged timeline event, so both must refresh
+        // for the Stage Map / Attention Console to see the new QC state and its activity.
+        reloadBookingQcChecks();
+        reloadActivity();
+        break;
+      case 'adverseActionRecords':
+        reloadAdverseActionRecords();
+        break;
+      case 'after-adverse-action-record-submitted':
+        // Final LOS Completion arc — Workstream J: submitAdverseActionAction writes both the
+        // durable adverse action record and a best-effort NoteLogged timeline event, so both must
+        // refresh for the Deal Workspace to see the new documentation state and its activity.
+        reloadAdverseActionRecords();
+        reloadActivity();
+        break;
+      case 'boardingHandoff':
+        reloadBoardingHandoff();
+        break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <DealDataContext.Provider
-      value={{ deal: dealState, tasks, documents, creditMemo, activity, fundingAuthorization, refresh, applyVerifiedDealPatch }}
+      value={{
+        deal: dealState,
+        tasks,
+        documents,
+        creditMemo,
+        activity,
+        fundingAuthorization,
+        creditApprovalDecisions,
+        commitments,
+        conditionVerifications,
+        executedDocumentAttestations,
+        bookingQcChecks,
+        adverseActionRecords,
+        boardingHandoff,
+        refresh,
+        applyVerifiedDealPatch,
+      }}
     >
       {children}
     </DealDataContext.Provider>

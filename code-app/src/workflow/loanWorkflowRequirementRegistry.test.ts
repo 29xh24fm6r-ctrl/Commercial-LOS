@@ -82,12 +82,21 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
   });
 
   it('deeper stages carry untracked deep facts (approval, closing/funding, boarding)', () => {
-    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_decision')).toBe(true);
-    // Factory Arc Phase 12 flipped funds_disbursed to tracked (see below) — executed_docs and
-    // booking_qc remain genuinely untracked deep facts for this same CLOSING_FUNDING scope.
-    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:executed_docs')).toBe(true);
-    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:booking_qc')).toBe(true);
-    expect(untrackedRequirementsForScope('BOARDED').some((r) => r.id === 'BOARDED:boarded_loan_record')).toBe(true);
+    // Final LOS Completion arc (Workstream C) flipped the three approval facts to tracked (see
+    // below) — memo_finalized remains a genuinely untracked deep fact for this same scope.
+    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:memo_finalized')).toBe(true);
+  });
+
+  it('Final LOS Completion arc (Workstream C) — CREDIT_APPROVAL:approval_decision/approval_authority/approval_conditions are tracked (real, durable, deal-scoped Credit Approval Decision record)', () => {
+    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_decision')).toBe(false);
+    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_authority')).toBe(false);
+    expect(untrackedRequirementsForScope('CREDIT_APPROVAL').some((r) => r.id === 'CREDIT_APPROVAL:approval_conditions')).toBe(false);
+    for (const id of ['CREDIT_APPROVAL:approval_decision', 'CREDIT_APPROVAL:approval_authority', 'CREDIT_APPROVAL:approval_conditions']) {
+      const req = requirementsForScope('CREDIT_APPROVAL').find((r) => r.id === id);
+      expect(req?.tracked).toBe(true);
+      expect(req?.severity).toBe('blocking');
+      expect(req?.sourceEntity).toBe('cr664_creditapprovaldecision');
+    }
   });
 
   it('Factory Arc Phase 12 — CLOSING_FUNDING:funds_disbursed is tracked (real durable Dataverse-backed fact)', () => {
@@ -96,6 +105,32 @@ describe('ARC Phase 1 — canonical requirement registry integrity', () => {
     expect(req?.tracked).toBe(true);
     expect(req?.severity).toBe('blocking');
     expect(req?.sourceEntity).toBe('cr664_fundingauthorization');
+  });
+
+  it('Final LOS Completion arc (Workstream F) — CLOSING_FUNDING:executed_docs is tracked (real, durable, deal-scoped Executed Document Attestation record)', () => {
+    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:executed_docs')).toBe(false);
+    const req = requirementsForScope('CLOSING_FUNDING').find((r) => r.id === 'CLOSING_FUNDING:executed_docs');
+    expect(req?.tracked).toBe(true);
+    expect(req?.severity).toBe('blocking');
+    expect(req?.sourceEntity).toBe('cr664_executeddocattestation');
+  });
+
+  it('Final LOS Completion arc (Workstream H) — CLOSING_FUNDING:booking_qc is tracked (real, durable, deal-scoped Booking QC Check record)', () => {
+    expect(untrackedRequirementsForScope('CLOSING_FUNDING').some((r) => r.id === 'CLOSING_FUNDING:booking_qc')).toBe(false);
+    const req = requirementsForScope('CLOSING_FUNDING').find((r) => r.id === 'CLOSING_FUNDING:booking_qc');
+    expect(req?.tracked).toBe(true);
+    expect(req?.severity).toBe('blocking');
+    expect(req?.sourceEntity).toBe('cr664_bookingqccheck');
+  });
+
+  it('Final LOS Completion arc (Workstream H) — BOARDED:boarded_loan_record and BOARDED:servicing_owner are tracked (real portfolio boarded-loan handoff evidence)', () => {
+    for (const id of ['BOARDED:boarded_loan_record', 'BOARDED:servicing_owner']) {
+      expect(untrackedRequirementsForScope('BOARDED').some((r) => r.id === id)).toBe(false);
+      const req = requirementsForScope('BOARDED').find((r) => r.id === id);
+      expect(req?.tracked).toBe(true);
+      expect(req?.severity).toBe('blocking');
+      expect(req?.sourceEntity).toBe('cr664_portfolioboardedloan');
+    }
   });
 
   it('Production Remediation Factory Arc Phase 6 (N-14/N-15) — UNDERWRITING:risk_rating and UNDERWRITING:uw_recommendation are tracked (real, durable, deal-scoped facts)', () => {
@@ -253,10 +288,64 @@ describe('ARC Phase 1 — transition readiness', () => {
     });
     expect(withdrawUnauthorized.status).toBe('blocked');
 
-    // The still-untracked advisory items (authorization/adverse-action) never block a return/decline
-    // that otherwise satisfies its checkable requirements — they surface as visible, non-blocking.
+    // The still-untracked advisory item (RETURN:authorization — see the registry's own header
+    // comment on why that stays out of scope per governance contract §5) never blocks a return that
+    // otherwise satisfies its checkable requirements — it surfaces as visible, non-blocking.
     const authAdvisory = returnOk.exit.requirements.find((r) => r.id === 'RETURN:authorization');
     expect(authAdvisory?.severity).toBe('recommended');
     expect(returnOk.exit.blocking).toHaveLength(0);
+  });
+
+  it('Final LOS Completion arc (Workstream J): DECLINE:adverse_action is genuinely evaluated (never blocks, never fabricated as met)', () => {
+    const facts: WorkflowRequirementFacts = { deal: baseDeal };
+    const ordering = resolveStageOrdering(
+      CANONICAL_STAGE_CODES.map((code, i) => ({ cr664_code: code, cr664_name: code, cr664_sequence: (i + 1) * 10, cr664_activeflag: true })),
+    );
+
+    // Pre-decline: the deal hasn't been declined yet, so there is nothing to document. Correctly
+    // 'unmet', never fabricated as 'met', and never blocking (severity stays 'recommended').
+    const preDecline = deriveTransitionReadiness('UNDERWRITING', 'decline', facts, undefined, {
+      ordering, currentStatus: 'OPEN', declineReason: { code: 'INSUFFICIENT_COLLATERAL' }, authorized: true,
+    });
+    const preDeclineAdverseAction = preDecline.exit.requirements.find((r) => r.id === 'DECLINE:adverse_action');
+    expect(preDeclineAdverseAction?.status).toBe('unmet');
+    expect(preDeclineAdverseAction?.tracked).toBe(true);
+    expect(preDeclineAdverseAction?.severity).toBe('recommended');
+    expect(preDecline.exit.blocking).toHaveLength(0);
+
+    // Post-decline display (currentStatus already DECLINED, e.g. a compliance readout on an
+    // already-terminal deal): with a real, deal-scoped Adverse Action Record present, the item
+    // shows 'met' — proving the wiring reads the durable record, not a permanent placeholder.
+    const declinedFacts: WorkflowRequirementFacts = {
+      deal: baseDeal,
+      adverseActionRecords: [
+        {
+          recordId: 'aa-1',
+          dealId: baseDeal.id,
+          status: 'SENT',
+          notes: 'Adverse action notice mailed to applicant on file.',
+          recordedByActorEmail: 'creditofficer@bank.test',
+          recordedAtIso: '2026-07-26T10:00:00.000Z',
+          correlationId: 'aa-corr-1',
+          supersedesRecordId: undefined,
+        },
+      ],
+    };
+    const postDecline = deriveTransitionReadiness('UNDERWRITING', 'decline', declinedFacts, undefined, {
+      ordering, currentStatus: 'DECLINED', declineReason: { code: 'INSUFFICIENT_COLLATERAL' }, authorized: true,
+    });
+    const postDeclineAdverseAction = postDecline.exit.requirements.find((r) => r.id === 'DECLINE:adverse_action');
+    expect(postDeclineAdverseAction?.status).toBe('met');
+
+    // A DIFFERENT deal's record must never satisfy this deal's requirement (never fabricated).
+    const wrongDealFacts: WorkflowRequirementFacts = {
+      deal: baseDeal,
+      adverseActionRecords: [{ ...declinedFacts.adverseActionRecords![0]!, dealId: 'some-other-deal' }],
+    };
+    const stillUndocumented = deriveTransitionReadiness('UNDERWRITING', 'decline', wrongDealFacts, undefined, {
+      ordering, currentStatus: 'DECLINED', declineReason: { code: 'INSUFFICIENT_COLLATERAL' }, authorized: true,
+    });
+    const stillUndocumentedAdverseAction = stillUndocumented.exit.requirements.find((r) => r.id === 'DECLINE:adverse_action');
+    expect(stillUndocumentedAdverseAction?.status).toBe('unmet');
   });
 });

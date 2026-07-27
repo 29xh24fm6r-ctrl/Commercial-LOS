@@ -70,6 +70,36 @@ const EXPLICIT_ALIASES_LOWER: ReadonlyMap<string, WorkspaceKey> = new Map(
 );
 
 /**
+ * Final LOS Completion arc — Workstream Q: the one audited, canonical
+ * display name per workspace key, taken verbatim from EXPLICIT_ALIASES
+ * above (the primary, non-alternate name — 'manager' has a second alias,
+ * 'Portfolio Management', for the portfolio surface swap; that stays a
+ * separate, deliberate vocabulary, not a case covered here).
+ *
+ * Before this, `src/navigation/AppCommandPalette.tsx` maintained its own
+ * second, independently-typed label map for these same five destinations,
+ * which had drifted to a different, inconsistent casing ("Manager command
+ * center" vs. the live name "Manager Command Center") — the exact
+ * "used in some places but not all" gap this workstream closes. Any
+ * surface that needs the audited live-system name imports this constant
+ * instead of retyping its own copy.
+ *
+ * Deliberately NOT applied to the sidebar switcher's compact
+ * "<Role> Workspace" labels (`workspaceEntitlements.ts`'s `LINK_META`) or
+ * the per-workspace page header titles — those are an intentionally
+ * distinct, internally-consistent vocabulary (a short nav identifier vs.
+ * the descriptive live-system name), not a drifted copy of this one. See
+ * docs/final-completion/FINAL_REMAINING_GAP_LEDGER.md for the disposition.
+ */
+export const WORKSPACE_DISPLAY_NAMES: Readonly<Record<WorkspaceKey, string>> = Object.freeze({
+  banker: 'Banker Workspace',
+  team: 'Team Workspace',
+  manager: 'Manager Command Center',
+  executive: 'Executive Dashboard',
+  admin: 'Admin Control Center',
+});
+
+/**
  * Substring regex fallback. Catches workspace names that don't
  * appear in EXPLICIT_ALIASES but contain a role keyword
  * (e.g. "Senior Banker Office" → banker; "Audit Admin Surface"

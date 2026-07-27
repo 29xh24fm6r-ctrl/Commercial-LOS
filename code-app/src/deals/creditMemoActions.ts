@@ -12,6 +12,7 @@ import {
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
 import { timelineEventByBind } from './timelineActorBind';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * Phase 25: governed credit-memo draft save. The fifth governed
@@ -416,9 +417,10 @@ export async function saveCreditMemoDraft(
     timelineP,
   ]);
 
+  // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
   const sectionErrors = sections
     .filter((s) => s.error)
-    .map((s) => ({ sectionKey: s.sectionKey, error: s.error as string }));
+    .map((s) => ({ sectionKey: s.sectionKey, error: mapBusinessSafeError(s.error as string, correlationId).safeMessage }));
   const sectionIds = sections
     .filter((s) => s.id)
     .map((s) => s.id as string);
@@ -428,8 +430,8 @@ export async function saveCreditMemoDraft(
       kind: 'governance-partial',
       memoId,
       sectionErrors,
-      auditError: audit.error,
-      timelineError: timeline.error,
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
     };
   }
 

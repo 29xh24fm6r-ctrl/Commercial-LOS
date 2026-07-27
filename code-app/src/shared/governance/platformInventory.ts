@@ -156,6 +156,79 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsTimeline: true,
     legacyDisciplineExempt: true,
   },
+  // Final LOS Completion arc (Workstream M) -- registers the six durable-record governed writes
+  // Workstreams C/D/E/F/H/J shipped, none of which had been added here, so
+  // AdminCapabilityTruthMatrix's "live governed write" list was silently incomplete since those
+  // workstreams landed. All six follow the identical shape every write above does (correlation id,
+  // parallel audit + timeline emission, mapBusinessSafeError) but were built under this arc's own
+  // per-entity submit*.ts convention rather than the Phase 46/47/49/50 sweeps' pattern -- see
+  // `durableRecordCapabilityInventory.ts` for each one's own status vocabulary (a concern
+  // GOVERNED_WRITES itself does not model). Phase numbers 265-270 are assigned sequentially, chosen
+  // above the highest real Phase-N doc number in this repo (264) to guarantee no collision -- this
+  // arc's own workstreams are lettered (A-X), not phase-numbered, so these numbers exist only to
+  // satisfy this schema's required `phase: number` field, not to claim a real Phase 265-270 doc.
+  {
+    id: 'credit-approval-decision-submit',
+    label: 'Credit Approval Decision submit',
+    phase: 265,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'commitment-submit',
+    label: 'Commitment issue / respond',
+    phase: 266,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'condition-verification-submit',
+    label: 'Condition Verification submit',
+    phase: 267,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'executed-document-attestation-submit',
+    label: 'Executed Document Attestation submit',
+    phase: 268,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'booking-qc-check-submit',
+    label: 'Booking QC Check submit',
+    phase: 269,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'adverse-action-submit',
+    label: 'Adverse Action Record submit',
+    phase: 270,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  // Workstream O -- the first write that CREATES a cr664_dataqualityflags row (previously only
+  // resolve existed; see dataQualityActions.ts). Emits an audit event, same as resolve; no
+  // timeline event -- a data-quality flag is an admin-facing exception record, not a deal-facing
+  // timeline fact, matching how the six existing flag types are never timeline-cross-written
+  // either. Follows dataQualityActions.ts's own established audit-pairing convention (see
+  // createDataQualityFlagAction.ts), not the Phase 46/47/49/50 sweeps' pattern.
+  {
+    id: 'data-quality-flag-create',
+    label: 'Data Quality Flag create (detection sweep)',
+    phase: 271,
+    emitsAudit: true,
+    emitsTimeline: false,
+    legacyDisciplineExempt: true,
+  },
 ];
 // NOTE: forward stage-advance (DealStageProgressionCard -> stageAdvanceWriteDependency.ts
 // -> buildLiveStageAdvanceDeps.ts) is a real, armed, audited + timelined governed write and
@@ -491,6 +564,24 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
       'should extend to a DealTimelineEvent for this write, and the write should be registered in ' +
       'GOVERNED_WRITES. See docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.',
     blockerKind: 'governance',
+  },
+  {
+    id: 'portfolio-migration-reconciliation',
+    label: 'Portfolio migration reconciliation (book tie-out)',
+    reason:
+      'Final LOS Completion arc (Workstream R) -- the full reconciliation ENGINE already exists and ' +
+      'is thoroughly tested: deriveMigrationReconciliation (src/portfolio/reconciliation/bookReconciliation.ts) ' +
+      'is a pure, deterministic tie-out (count/dollar deltas, per-segment breakdown, two orphan lists, ' +
+      'tied/out_of_balance verdict), and MigrationReconciliationPanel (BookReconciliationPanel.tsx) is a ' +
+      'fully built, live-reachable render of it, mounted on the Portfolio Command Center. This entry is ' +
+      'not about missing logic -- it is about missing DATA: the panel is always mounted with no props, so ' +
+      'it always renders its honest empty state, because the migration-control source it needs -- the ' +
+      'planned cr664_portfoliomigrationcontrol table and the additive cr664_migrationbatchid column on ' +
+      'the boarded-loan table (both fully specified in reconciliationControlSchemaPlan.ts) -- is not yet ' +
+      'provisioned. Unblock path is schema-only: provision the table/column, regenerate the SDK, then wire ' +
+      'a live loader that reads operator-entered migration controls and passes them (with the matching ' +
+      'boarded-loan rows) into MigrationReconciliationPanel.',
+    blockerKind: 'schema',
   },
 ];
 

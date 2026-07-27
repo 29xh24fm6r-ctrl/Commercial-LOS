@@ -11,6 +11,7 @@ import {
   type ResolveActorChangedBy,
 } from './newDealAuditActorResolver';
 import { timelineEventByBind } from './timelineActorBind';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * Phase 21: governed write for completing an open cr664_DealTask1 from
@@ -205,7 +206,8 @@ export async function completeTask(
       });
       return {
         kind: 'task-failed',
-        taskError: update.error?.message ?? 'Task update failed',
+        // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+        taskError: mapBusinessSafeError(update.error?.message ?? 'Task update failed', correlationId).safeMessage,
       };
     }
   } catch (err: unknown) {
@@ -217,7 +219,7 @@ export async function completeTask(
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
     });
-    return { kind: 'task-failed', taskError: message };
+    return { kind: 'task-failed', taskError: mapBusinessSafeError(message, correlationId).safeMessage };
   }
 
   // Step 2 + 3: emit audit + timeline events. Run in parallel — they
@@ -237,8 +239,8 @@ export async function completeTask(
   if (audit.error || timeline.error) {
     return {
       kind: 'governance-partial',
-      auditError: audit.error,
-      timelineError: timeline.error,
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
     };
   }
   return { kind: 'success' };
@@ -450,7 +452,8 @@ export async function createDocumentReviewTask(
         outcome: AUDIT_OUTCOME_FAILED,
         failureReason: msg,
       });
-      return { kind: 'task-create-failed', taskError: msg };
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      return { kind: 'task-create-failed', taskError: mapBusinessSafeError(msg, correlationId).safeMessage };
     }
     taskId = create.data.cr664_dealtask1id;
   } catch (err: unknown) {
@@ -464,7 +467,7 @@ export async function createDocumentReviewTask(
       outcome: AUDIT_OUTCOME_FAILED,
       failureReason: message,
     });
-    return { kind: 'task-create-failed', taskError: message };
+    return { kind: 'task-create-failed', taskError: mapBusinessSafeError(message, correlationId).safeMessage };
   }
 
   // Step 2 + 3: audit + timeline, in parallel. Either failure flips
@@ -492,8 +495,9 @@ export async function createDocumentReviewTask(
     return {
       kind: 'governance-partial',
       taskId,
-      auditError: audit.error,
-      timelineError: timeline.error,
+      // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+      auditError: audit.error ? mapBusinessSafeError(audit.error, correlationId).safeMessage : undefined,
+      timelineError: timeline.error ? mapBusinessSafeError(timeline.error, correlationId).safeMessage : undefined,
     };
   }
   return { kind: 'success', taskId };

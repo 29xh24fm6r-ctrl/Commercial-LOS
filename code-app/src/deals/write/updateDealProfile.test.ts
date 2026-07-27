@@ -646,6 +646,46 @@ describe('updateDealProfile — CRM industry projection inputs (Production Remed
   });
 });
 
+describe('updateDealProfile — Workstream K: risk rating / UW recommendation timeline emission', () => {
+  it('emits a timeline event when riskRatingInputs changes', async () => {
+    const timelineCalls: unknown[] = [];
+    const { deps } = fakeDeps({ emitTimeline: async (t) => { timelineCalls.push(t); return { ok: true, id: 't-1' }; } });
+    const out = await updateDealProfile(input({ riskRatingInputs: JSON.stringify({ ratingValue: 'BB' }) }), deps);
+    expect(out.kind).toBe('updated');
+    expect(timelineCalls).toHaveLength(1);
+    expect(timelineCalls[0]).toMatchObject({ dealId: 'deal-1', field: 'riskRatingInputs' });
+  });
+
+  it('emits a timeline event when underwritingRecommendationInputs changes', async () => {
+    const timelineCalls: unknown[] = [];
+    const { deps } = fakeDeps({ emitTimeline: async (t) => { timelineCalls.push(t); return { ok: true, id: 't-1' }; } });
+    const out = await updateDealProfile(input({ underwritingRecommendationInputs: JSON.stringify({ decision: 'approve' }) }), deps);
+    expect(out.kind).toBe('updated');
+    expect(timelineCalls).toHaveLength(1);
+    expect(timelineCalls[0]).toMatchObject({ dealId: 'deal-1', field: 'underwritingRecommendationInputs' });
+  });
+
+  it('does NOT emit a timeline event for unrelated profile fields', async () => {
+    const timelineCalls: unknown[] = [];
+    const { deps } = fakeDeps({ emitTimeline: async (t) => { timelineCalls.push(t); return { ok: true, id: 't-1' }; } });
+    const out = await updateDealProfile(input({ collateralSummary: 'A/R, inventory' }), deps);
+    expect(out.kind).toBe('updated');
+    expect(timelineCalls).toHaveLength(0);
+  });
+
+  it('does not fail the write when emitTimeline is entirely absent (backward compatible)', async () => {
+    const { deps } = fakeDeps();
+    const out = await updateDealProfile(input({ riskRatingInputs: JSON.stringify({ ratingValue: 'A' }) }), deps);
+    expect(out.kind).toBe('updated');
+  });
+
+  it('does not fail the write when emitTimeline rejects (best-effort, never blocks the outcome)', async () => {
+    const { deps } = fakeDeps({ emitTimeline: async () => { throw new Error('timeline down'); } });
+    const out = await updateDealProfile(input({ riskRatingInputs: JSON.stringify({ ratingValue: 'A' }) }), deps);
+    expect(out.kind).toBe('updated');
+  });
+});
+
 describe('updateDealProfile — write-boundary discipline (source)', () => {
   const SRC = readFileSync(resolve(__dirname, 'updateDealProfile.ts'), 'utf8');
 

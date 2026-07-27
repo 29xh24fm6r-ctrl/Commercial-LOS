@@ -24,6 +24,12 @@ export interface BoardingHandoffEvidence {
   readonly boardingStatus?: string | null;
   /** True when the record is state Active (statecode 0). Inactive records don't count. */
   readonly active: boolean;
+  /**
+   * Final LOS Completion arc (Workstream H) — cr664_AssignedServicingOwner's lookup id
+   * (`_cr664_assignedservicingowner_value`), when set. Undefined means the field is genuinely
+   * blank on the record, never fabricated as assigned.
+   */
+  readonly assignedServicingOwnerId?: string;
 }
 
 export type BoardingHandoffVerdict =
@@ -43,6 +49,13 @@ export interface BoardingHandoffReadiness {
   readonly verdict: BoardingHandoffVerdict;
   /** The honest BOARDED exit-gate fact: BOTH the stage AND real evidence — never stage-only. */
   readonly boardingCompleted: boolean;
+  /**
+   * Final LOS Completion arc (Workstream H) — BOARDED:servicing_owner. True only when a real
+   * boarded-loan handoff record exists (same `handoffEvidencePresent` gate as `boardingCompleted`)
+   * AND its `cr664_AssignedServicingOwner` lookup is set. A boarded record with no assigned owner
+   * fails closed as unmet — never fabricated as assigned.
+   */
+  readonly servicingOwnerAssigned: boolean;
   readonly blockers: readonly string[];
 }
 
@@ -85,6 +98,7 @@ export function evaluateBoardingHandoff(
     verdict,
     // Stop deal.stage-string-only: completion requires the stage AND real evidence.
     boardingCompleted: dealClaimsBoarded && handoffEvidencePresent,
+    servicingOwnerAssigned: handoffEvidencePresent && Boolean(evidence?.assignedServicingOwnerId),
     blockers,
   };
 }
@@ -105,6 +119,7 @@ export function unavailableBoardingHandoff(
     handoffEvidencePresent: false,
     verdict: 'missing-handoff',
     boardingCompleted: false,
+    servicingOwnerAssigned: false,
     blockers: [reason],
   };
 }

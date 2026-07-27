@@ -54,12 +54,13 @@ describe('buildLivePortfolioBoardingDataverseWriteClient', () => {
     expect(result).toEqual({ ok: false, error: 'entity_not_registered' });
   });
 
-  it('reports a non-success create honestly, never a fake id', async () => {
+  it('reports a non-success create honestly, never a fake id -- mapped to the shared business-safe message', async () => {
     createMock.mockResolvedValue({ success: false, error: { message: 'validation failed' } } as never);
     const client = buildLivePortfolioBoardingDataverseWriteClient();
     const result = await client.create('cr664_portfolioboardedloans', {});
     expect(result.ok).toBe(false);
-    expect(result.error).toBe('validation failed');
+    expect(result.error).not.toContain('validation failed');
+    expect(result.error).toContain("We couldn't save that action");
   });
 
   it('update calls the entity service update with the id and fields', async () => {
@@ -92,10 +93,12 @@ describe('buildLivePortfolioBoardingDataverseWriteClient', () => {
     expect(getAllMock).toHaveBeenCalledWith(undefined);
   });
 
-  it('catches a thrown error from the SDK call', async () => {
+  it('catches a thrown error from the SDK call, mapped to the shared business-safe message', async () => {
     createMock.mockRejectedValue(new Error('network down'));
     const client = buildLivePortfolioBoardingDataverseWriteClient();
     const result = await client.create('cr664_portfolioboardedloans', {});
-    expect(result).toEqual({ ok: false, error: 'network down' });
+    expect(result.ok).toBe(false);
+    expect(result.error).not.toContain('network down');
+    expect(result.error).toContain("We couldn't save that action");
   });
 });

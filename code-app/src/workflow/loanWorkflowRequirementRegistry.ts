@@ -234,28 +234,60 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
   tracked('UNDERWRITING:uw_recommendation', 'UNDERWRITING', 'credit', 'Underwriting recommendation recorded', 'Credit Memo', 'underwriter', 'review_record', 'cr664_underwritingrecommendationinputs', 'A final underwriting recommendation with rationale, actor, and timestamp has not been recorded for this deal.'),
   // Credit Approval → Commitment (ARC PR 8/9)
   untracked('CREDIT_APPROVAL:memo_finalized', 'CREDIT_APPROVAL', 'credit', 'Credit memo finalized', 'Credit Memo', 'credit_officer', 'memo_status', 'credit memo lifecycle status not yet implemented (ARC PR 8)'),
-  untracked('CREDIT_APPROVAL:approval_decision', 'CREDIT_APPROVAL', 'approval', 'Approval decision recorded', 'Approval', 'approver', 'approval_record', 'approval decision record not yet implemented (ARC PR 9)'),
-  untracked('CREDIT_APPROVAL:approval_authority', 'CREDIT_APPROVAL', 'approval', 'Authorized approver / committee approval', 'Approval', 'approver', 'approval_record', 'approval authority computation not yet implemented (ARC PR 9)'),
-  untracked('CREDIT_APPROVAL:approval_conditions', 'CREDIT_APPROVAL', 'approval', 'Conditions of approval documented', 'Approval', 'credit_officer', 'condition_record', 'approval conditions record not yet implemented (ARC PR 9)'),
-  // Commitment → Documentation (ARC PR 13)
-  untracked('COMMITMENT:commitment_issued', 'COMMITMENT', 'closing', 'Commitment / term sheet issued', 'Commitment', 'loan_ops', 'review_record', 'commitment issuance record not yet implemented (ARC PR 13)'),
-  untracked('COMMITMENT:borrower_acceptance', 'COMMITMENT', 'closing', 'Borrower acceptance recorded', 'Commitment', 'banker', 'review_record', 'borrower acceptance record not yet implemented (ARC PR 13)'),
-  // Documentation → Closing & Funding (ARC PR 14)
-  untracked('DOCUMENTATION:conditions_precedent', 'DOCUMENTATION', 'closing', 'Conditions precedent cleared', 'Documentation', 'loan_ops', 'condition_record', 'conditions-precedent records not yet implemented (ARC PR 14)'),
-  untracked('DOCUMENTATION:collateral_verified', 'DOCUMENTATION', 'closing', 'Collateral verified', 'Documentation', 'closer', 'condition_record', 'collateral verification record not yet implemented (ARC PR 14)'),
-  untracked('DOCUMENTATION:insurance_verified', 'DOCUMENTATION', 'closing', 'Insurance verified', 'Documentation', 'closer', 'condition_record', 'insurance verification record not yet implemented (ARC PR 14)'),
-  // Closing & Funding → Boarded (ARC PR 15)
-  untracked('CLOSING_FUNDING:executed_docs', 'CLOSING_FUNDING', 'closing', 'Loan documents executed', 'Closing', 'closer', 'closing_record', 'executed-documents record not yet implemented (ARC PR 15)'),
+  // Final LOS Completion arc (Workstream C) flips these tracked — submitCreditApprovalDecision.ts /
+  // creditApprovalDecisionStore.ts now provide a real, durable, deal-scoped Credit Approval Decision
+  // record (cr664_creditapprovaldecision, see scripts/schema-migrations/final-arc-credit-approval-
+  // decision/), evaluated via evaluateCreditApprovalDecisionReadiness in
+  // loanWorkflowRequirementEngine.ts. Same "backing capability became real" discipline the
+  // UNDERWRITING risk-rating/recommendation flips above and CLOSING_FUNDING:funds_disbursed below
+  // already followed.
+  tracked('CREDIT_APPROVAL:approval_decision', 'CREDIT_APPROVAL', 'approval', 'Approval decision recorded', 'Approval', 'approver', 'approval_record', 'cr664_creditapprovaldecision', 'No approved credit approval decision has been recorded for this deal.'),
+  tracked('CREDIT_APPROVAL:approval_authority', 'CREDIT_APPROVAL', 'approval', 'Authorized approver / committee approval', 'Approval', 'approver', 'approval_record', 'cr664_creditapprovaldecision', 'The recorded credit approval decision has no authority tier recorded.'),
+  tracked('CREDIT_APPROVAL:approval_conditions', 'CREDIT_APPROVAL', 'approval', 'Conditions of approval documented', 'Approval', 'credit_officer', 'condition_record', 'cr664_creditapprovaldecision', 'No approved credit approval decision has been recorded for this deal.'),
+  // Commitment → Documentation (ARC PR 13). Final LOS Completion arc (Workstream D) flips these
+  // tracked — submitCommitmentAction.ts / commitmentRecordStore.ts now provide a real, durable,
+  // deal-scoped Commitment Record (cr664_commitmentrecord, see
+  // scripts/schema-migrations/final-arc-commitment-record/), evaluated via
+  // evaluateCommitmentReadiness in loanWorkflowRequirementEngine.ts.
+  tracked('COMMITMENT:commitment_issued', 'COMMITMENT', 'closing', 'Commitment / term sheet issued', 'Commitment', 'loan_ops', 'review_record', 'cr664_commitmentrecord', 'No commitment letter has been issued for this deal.'),
+  tracked('COMMITMENT:borrower_acceptance', 'COMMITMENT', 'closing', 'Borrower acceptance recorded', 'Commitment', 'banker', 'review_record', 'cr664_commitmentrecord', 'The borrower has not yet accepted a commitment for this deal.'),
+  // Documentation → Closing & Funding (ARC PR 14). Final LOS Completion arc (Workstream E) flips
+  // these tracked — submitConditionVerificationAction.ts / conditionVerificationStore.ts now
+  // provide a real, durable, deal-scoped Condition Verification record
+  // (cr664_conditionverification, see
+  // scripts/schema-migrations/final-arc-condition-verification/), evaluated via
+  // evaluateConditionVerificationReadiness in loanWorkflowRequirementEngine.ts.
+  tracked('DOCUMENTATION:conditions_precedent', 'DOCUMENTATION', 'closing', 'Conditions precedent cleared', 'Documentation', 'loan_ops', 'condition_record', 'cr664_conditionverification', 'Conditions precedent have not been cleared for this deal.'),
+  tracked('DOCUMENTATION:collateral_verified', 'DOCUMENTATION', 'closing', 'Collateral verified', 'Documentation', 'closer', 'condition_record', 'cr664_conditionverification', 'Collateral has not been verified for this deal.'),
+  tracked('DOCUMENTATION:insurance_verified', 'DOCUMENTATION', 'closing', 'Insurance verified', 'Documentation', 'closer', 'condition_record', 'cr664_conditionverification', 'Insurance has not been verified for this deal.'),
+  // Closing & Funding → Boarded (ARC PR 15). Final LOS Completion arc (Workstream F) flips this
+  // tracked — submitExecutedDocumentAttestationAction.ts / executedDocumentAttestationStore.ts
+  // now provide a real, durable, deal-scoped Executed Document Attestation record
+  // (cr664_executeddocattestation, see
+  // scripts/schema-migrations/final-arc-executed-document-attestation/), evaluated via
+  // evaluateExecutedDocumentAttestationReadiness in loanWorkflowRequirementEngine.ts. Distinct
+  // from the pre-existing cr664_closingdocumentmanifest (PR107/PR123), which tracks GENERATION of
+  // closing documents, never whether the borrower actually executed (signed) them.
+  tracked('CLOSING_FUNDING:executed_docs', 'CLOSING_FUNDING', 'closing', 'Loan documents executed', 'Closing', 'closer', 'closing_record', 'cr664_executeddocattestation', 'Executed loan documents have not been attested for this deal.'),
   // Factory Arc Phase 12 -- PR 112's Dataverse-backed funding-authorization store
   // (createDataverseFundingAuthorizationStore(), unconditionally mounted in
   // DealFundingAuthorizationPanel.tsx) makes FUNDED a real, durable, deal-scoped fact. Flipped
   // tracked: true; evaluated against WorkflowRequirementFacts.fundingAuthorization (a loader-supplied
   // fact, never fabricated -- see loanWorkflowRequirementEngine.ts).
   tracked('CLOSING_FUNDING:funds_disbursed', 'CLOSING_FUNDING', 'funding', 'Funds disbursed', 'Funding', 'loan_ops', 'funding_record', 'cr664_fundingauthorization', 'Funds have not yet been disbursed for this deal (the funding authorization record is not FUNDED).'),
-  untracked('CLOSING_FUNDING:booking_qc', 'CLOSING_FUNDING', 'closing', 'Booking quality control complete', 'Closing', 'loan_ops', 'closing_record', 'booking-QC record not yet implemented (ARC PR 15)'),
-  // Boarded / Servicing (ARC PR 16)
-  untracked('BOARDED:boarded_loan_record', 'BOARDED', 'boarding', 'Boarded loan / servicing handoff record created', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'real boarded-loan handoff record not yet the source of truth (ARC PR 16)'),
-  untracked('BOARDED:servicing_owner', 'BOARDED', 'servicing', 'Servicing owner assigned', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'servicing-owner assignment not yet tracked (ARC PR 16)'),
+  // Final LOS Completion arc (Workstream H) flips this tracked -- submitBookingQcCheckAction.ts /
+  // bookingQcCheckStore.ts now provide a real, durable, deal-scoped Booking QC Check record
+  // (cr664_bookingqccheck, see scripts/schema-migrations/final-arc-booking-qc-check/), evaluated via
+  // evaluateBookingQcReadiness in loanWorkflowRequirementEngine.ts. No such concept existed
+  // anywhere in the codebase before this record (confirmed by direct search).
+  tracked('CLOSING_FUNDING:booking_qc', 'CLOSING_FUNDING', 'closing', 'Booking quality control complete', 'Closing', 'loan_ops', 'closing_record', 'cr664_bookingqccheck', 'Booking quality control has not been completed for this deal.'),
+  // Boarded / Servicing (ARC PR 16). Final LOS Completion arc (Workstream H) flips both tracked --
+  // WFLOW-H's own loadBoardingHandoffForDeal.ts / boardingHandoffReadiness.ts already made
+  // cr664_portfolioboardedloans (via cr664_OriginatedLoanDeal) the real per-deal source of truth for
+  // display; this wires that same evidence into the write-seam gate for the first time, and extends
+  // it to also read cr664_AssignedServicingOwner for the second fact.
+  tracked('BOARDED:boarded_loan_record', 'BOARDED', 'boarding', 'Boarded loan / servicing handoff record created', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'cr664_portfolioboardedloan', 'No active portfolio boarded-loan handoff record exists for this deal.'),
+  tracked('BOARDED:servicing_owner', 'BOARDED', 'servicing', 'Servicing owner assigned', 'Boarding', 'portfolio_manager', 'boarded_loan_record', 'cr664_portfolioboardedloan', 'No servicing owner has been assigned on this deal\'s boarded-loan record.'),
 ];
 
 /**
@@ -265,11 +297,21 @@ const DEEP_REQUIREMENTS: readonly CanonicalRequirement[] = [
  * `docs/governance/CANONICAL_TRANSITION_POLICY_CONTRACT.md` §3.2-3.4/§10). The reason facts below are
  * genuinely checkable today (the caller supplies the reason text directly — no missing Dataverse
  * record blocks them), so they are authored as real (`tracked: true`) requirements, not `untracked()`
- * placeholders. `RETURN:authorization` and `DECLINE:adverse_action` remain `untracked` — this app has
- * no authorization tier beyond identity resolution (contract §5) and no adverse-action completion
- * tracking yet — but are demoted to `recommended` (visible, non-blocking) via
- * `NON_FORWARD_SEVERITY_OVERRIDE` below so they inform without stranding a now-live path on a check
- * this app cannot yet perform (mirrors `CREDIT_SEVERITY_OVERRIDE`'s established pattern above).
+ * placeholders. Both remain `recommended` (visible, non-blocking) via `NON_FORWARD_SEVERITY_OVERRIDE`
+ * below — a DECLINE/RETURN is a live, terminal-or-corrective action already; neither item should ever
+ * strand it (mirrors `CREDIT_SEVERITY_OVERRIDE`'s established pattern above):
+ *
+ *   - `RETURN:authorization` remains `untracked` — this app deliberately has no authorization tier
+ *     beyond identity resolution, and the contract's §5 explicitly rules out inventing one for this
+ *     initiative ("out of scope... left for a future, separately-ratified revision"). This is a
+ *     ratified design decision, not a missing-infrastructure gap (see Final LOS Completion arc
+ *     Workstream J's disposition in docs/final-completion/FINAL_REMAINING_GAP_LEDGER.md).
+ *   - `DECLINE:adverse_action` is flipped `tracked: true` by Final LOS Completion arc Workstream J:
+ *     `adverseActionRecordStore.ts` / `submitAdverseActionAction.ts` now provide a real, durable,
+ *     deal-scoped Adverse Action Record (`cr664_adverseactionrecord`, see
+ *     scripts/schema-migrations/final-arc-adverse-action-record/), evaluated via
+ *     `evaluateAdverseActionReadiness` in `adverseActionRecordTypes.ts` and wired into
+ *     `deriveTransitionReadiness` below.
  */
 const NON_FORWARD_SEVERITY_OVERRIDE: Readonly<Record<string, RequirementSeverity>> = Object.freeze({
   'RETURN:authorization': 'recommended',
@@ -305,7 +347,7 @@ const NON_FORWARD_REQUIREMENTS: readonly CanonicalRequirement[] = [
   checkableNonForward('RETURN:reason', 'RETURN', 'task', 'Return reason', 'Tasks', 'banker'),
   { ...untracked('RETURN:authorization', 'RETURN', 'task', 'Authorized actor for return', 'Tasks', 'banker', 'review_record', 'no return-authorization tier beyond identity resolution exists yet (governance contract §5)'), severity: NON_FORWARD_SEVERITY_OVERRIDE['RETURN:authorization'] },
   checkableNonForward('DECLINE:reason', 'DECLINE', 'adverse_action', 'Decline reason code', 'Approval', 'credit_officer'),
-  { ...untracked('DECLINE:adverse_action', 'DECLINE', 'adverse_action', 'Adverse-action requirement tracked', 'Approval', 'credit_officer', 'review_record', 'adverse-action notification/documentation workflow not yet implemented (governance contract §3.3)'), severity: NON_FORWARD_SEVERITY_OVERRIDE['DECLINE:adverse_action'] },
+  { ...tracked('DECLINE:adverse_action', 'DECLINE', 'adverse_action', 'Adverse-action documentation recorded', 'Approval', 'credit_officer', 'review_record', 'cr664_adverseactionrecord', 'The adverse-action notification/documentation obligation for this decline has not been recorded.'), severity: NON_FORWARD_SEVERITY_OVERRIDE['DECLINE:adverse_action'] },
   checkableNonForward('WITHDRAW:reason', 'WITHDRAW', 'task', 'Withdrawal reason', 'Tasks', 'banker'),
 ];
 

@@ -31,6 +31,12 @@ import { DealCopilotAssist } from '../copilot/DealCopilotAssist';
 import { DealDataProvider } from './DealDataProvider';
 import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
 import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
+import { DealCreditApprovalDecisionPanelConnected } from './DealCreditApprovalDecisionPanelConnected';
+import { DealCommitmentPanelConnected } from './DealCommitmentPanelConnected';
+import { DealConditionVerificationPanelConnected } from './DealConditionVerificationPanelConnected';
+import { DealExecutedDocumentAttestationPanelConnected } from './DealExecutedDocumentAttestationPanelConnected';
+import { DealBookingQcPanelConnected } from './DealBookingQcPanelConnected';
+import { DealAdverseActionPanelConnected } from './DealAdverseActionPanelConnected';
 import { ClosingBookingReadinessPanel } from '../workflow/ClosingBookingReadinessPanel';
 import { DealPortfolioBoardingStatusPanel } from '../workflow/DealPortfolioBoardingStatusPanel';
 import { DealWorkflowRoutingPanel } from '../workflow/DealWorkflowRoutingPanel';
@@ -229,6 +235,21 @@ export function BankerDealWorkspace({
                     comment for why Advance itself stays on DealStageProgressionCard). */}
                 <DealGovernedTransitionPanel />
               </div>
+              {/* Final LOS Completion arc (Workstream J) — durable Adverse Action Record. Renders
+                  nothing unless this deal's status is DECLINED (see the panel's own doc comment). */}
+              <div
+                id="adverse-action"
+                data-deal-card="adverse-action"
+                data-cockpit-anchor="adverse-action"
+              >
+                <DealAdverseActionPanelConnected
+                  dealId={deal.id}
+                  dealStatus={deal.status}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                />
+              </div>
               {/* Stage reconciliation: the legacy Loan Workflow Command Center
                   (11-stage Opportunity/Qualification spine) was retired here so the
                   cockpit shows ONE canonical stage map (DealStageProgressionCard). */}
@@ -291,6 +312,52 @@ export function BankerDealWorkspace({
               >
                 <CreditApprovalReadinessPanel />
               </div>
+              {/* Final LOS Completion arc (Workstream C) — durable Credit Approval Decision record,
+                  distinct from the read-only readiness projection above. */}
+              <div
+                id="credit-approval-decision"
+                data-deal-card="credit-approval-decision"
+                data-cockpit-anchor="credit-approval-decision"
+              >
+                <DealCreditApprovalDecisionPanelConnected
+                  dealId={deal.id}
+                  dealAmount={deal.amount}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                  bankerId={bankerId}
+                  creditAuthority={creditAuthority}
+                  assignedBankerId={deal.assignedBankerId}
+                />
+              </div>
+              {/* Final LOS Completion arc (Workstream D) — durable Commitment Record: issuance +
+                  borrower response. */}
+              <div
+                id="commitment"
+                data-deal-card="commitment"
+                data-cockpit-anchor="commitment"
+              >
+                <DealCommitmentPanelConnected
+                  dealId={deal.id}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                />
+              </div>
+              {/* Final LOS Completion arc (Workstream E) — durable Condition Verification records:
+                  conditions precedent, collateral, insurance. */}
+              <div
+                id="condition-verification"
+                data-deal-card="condition-verification"
+                data-cockpit-anchor="condition-verification"
+              >
+                <DealConditionVerificationPanelConnected
+                  dealId={deal.id}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                />
+              </div>
               <div
                 id="closing-booking-readiness"
                 data-deal-card="closing-booking-readiness"
@@ -307,6 +374,33 @@ export function BankerDealWorkspace({
                 data-cockpit-anchor="closing-documents"
               >
                 <DealClosingDocumentsPanel deal={deal} authorized={Boolean(systemUserId)} actorEmail={email} />
+              </div>
+              {/* Final LOS Completion arc (Workstream F) — durable Executed Document Attestation
+                  record: distinct from document GENERATION above. */}
+              <div
+                id="executed-document-attestation"
+                data-deal-card="executed-document-attestation"
+                data-cockpit-anchor="executed-document-attestation"
+              >
+                <DealExecutedDocumentAttestationPanelConnected
+                  dealId={deal.id}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                />
+              </div>
+              {/* Final LOS Completion arc (Workstream H) — durable Booking QC Check record. */}
+              <div
+                id="booking-qc"
+                data-deal-card="booking-qc"
+                data-cockpit-anchor="booking-qc"
+              >
+                <DealBookingQcPanelConnected
+                  dealId={deal.id}
+                  authorized={Boolean(systemUserId)}
+                  actorEmail={email}
+                  systemUserId={systemUserId}
+                />
               </div>
               {/* PR 111 -- mounts the funding-authorization framework (61+ tests, previously entirely
                   unmounted). Local-only pending schema (see

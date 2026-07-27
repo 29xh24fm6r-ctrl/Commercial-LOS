@@ -21,6 +21,7 @@
  */
 
 import { newCorrelationId } from '../shared/governance/correlationId';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 import {
   EXTENDED_LOAN_ATTRIBUTES_PERSISTENCE_ENABLED,
   EXTENDED_LOAN_ATTRIBUTES_COLUMN,
@@ -343,7 +344,10 @@ export async function boardExistingLoan(
   try {
     exists = await deps.loanNumberExists(loanNumber);
   } catch (err: unknown) {
-    return { kind: 'write-failed', error: err instanceof Error ? err.message : String(err), correlationId };
+    // Genuine raw transport error -- never rendered verbatim (OutcomeBanner renders o.error for
+    // write-failed directly). Mapped to the shared business-safe message here, at the return site.
+    const raw = err instanceof Error ? err.message : String(err);
+    return { kind: 'write-failed', error: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId };
   }
   if (exists) {
     return {
@@ -358,10 +362,12 @@ export async function boardExistingLoan(
   try {
     root = await deps.createRoot(buildRootPayload(input, persistExtended));
   } catch (err: unknown) {
-    return { kind: 'write-failed', error: err instanceof Error ? err.message : String(err), correlationId };
+    const raw = err instanceof Error ? err.message : String(err);
+    return { kind: 'write-failed', error: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId };
   }
   if (!root.success || !root.id) {
-    return { kind: 'write-failed', error: root.error?.message ?? 'Boarded-loan create returned non-success.', correlationId };
+    const raw = root.error?.message ?? 'Boarded-loan create returned non-success.';
+    return { kind: 'write-failed', error: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId };
   }
   const loanId = root.id;
 

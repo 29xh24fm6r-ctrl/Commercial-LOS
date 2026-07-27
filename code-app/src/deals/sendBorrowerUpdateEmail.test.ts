@@ -256,7 +256,10 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       expect(result.kind).toBe('send-failed');
       if (result.kind === 'send-failed') {
         expect(result.transient).toBe(false);
-        expect(result.sendError).toMatch(/403 forbidden/);
+        // Final LOS Completion arc (Workstream P) — permanent-failure carries the raw
+        // Outlook-connector error text, so it's mapped to the shared safe message.
+        expect(result.sendError).not.toMatch(/403 forbidden/);
+        expect(result.sendError).toContain("We couldn't save that action");
         expect(result.mode).toBe('LIVE');
       }
     });
@@ -282,6 +285,12 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
         ),
       }, okResolver);
       expect(result.kind).toBe('send-failed');
+      // Final LOS Completion arc (Workstream P) — invalid-recipient is an authored, already-safe
+      // validation message (never a raw connector error), so it is NOT run through the generic
+      // safe-error mapper — unlike transient/permanent-failure above.
+      if (result.kind === 'send-failed') {
+        expect(result.sendError).toBe('rejected by transport');
+      }
     });
 
     it('emits a Failed audit row (best-effort) and NO timeline row when send fails', async () => {
@@ -306,7 +315,8 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
         expect(result.auditError).toBeUndefined();
-        expect(result.timelineError).toBe('timeline 500');
+        expect(result.timelineError).not.toContain('timeline 500');
+        expect(result.timelineError).toContain("We couldn't save that action");
         expect(result.maskedRecipient).toBe('b***@e***.com');
       }
     });
@@ -319,7 +329,8 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       }, okResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
-        expect(result.auditError).toBe('audit 500');
+        expect(result.auditError).not.toContain('audit 500');
+        expect(result.auditError).toContain("We couldn't save that action");
         expect(result.timelineError).toBeUndefined();
       }
     });
@@ -344,7 +355,9 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
       }, failResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
-        expect(result.auditError).toMatch(/CoreUser is empty/);
+        // Final LOS Completion arc (Workstream P) — the raw reason carries internal schema jargon.
+        expect(result.auditError).not.toMatch(/CoreUser/);
+        expect(result.auditError).toContain("We couldn't save that action");
       }
       // The send path still ran (timeline emitted); the audit is NOT POSTed.
       expect(auditCreate).not.toHaveBeenCalled();
@@ -358,7 +371,11 @@ describe('Phase 105 — sendBorrowerUpdateEmail', () => {
         adapter: adapterThrowing(new Error('boom')),
       }, okResolver);
       expect(result.kind).toBe('unknown');
-      if (result.kind === 'unknown') expect(result.message).toBe('boom');
+      // Final LOS Completion arc (Workstream P) — never render a raw thrown error verbatim.
+      if (result.kind === 'unknown') {
+        expect(result.message).not.toBe('boom');
+        expect(result.message).toContain("We couldn't save that action");
+      }
     });
 
     it('returns kind: "unknown" for an empty recipient (caught BEFORE adapter)', async () => {

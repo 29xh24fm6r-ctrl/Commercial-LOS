@@ -219,7 +219,9 @@ describe('Phase 63 — prepareDocumentRequestHandoff', () => {
       const result = await prepareDocumentRequestHandoff(baseInput(), okResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
-        expect(result.auditError).toBe('audit boom');
+        // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+        expect(result.auditError).not.toContain('audit boom');
+        expect(result.auditError).toContain("We couldn't save that action");
         expect(result.timelineError).toBeUndefined();
         expect(result.maskedRecipient).toBe('b***@e***.com');
         expect(result.method).toBe('mailto');
@@ -233,7 +235,8 @@ describe('Phase 63 — prepareDocumentRequestHandoff', () => {
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
         expect(result.auditError).toBeUndefined();
-        expect(result.timelineError).toBe('timeline boom');
+        expect(result.timelineError).not.toContain('timeline boom');
+        expect(result.timelineError).toContain("We couldn't save that action");
       }
     });
 
@@ -243,8 +246,8 @@ describe('Phase 63 — prepareDocumentRequestHandoff', () => {
       const result = await prepareDocumentRequestHandoff(baseInput(), okResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
-        expect(result.auditError).toBe('audit boom');
-        expect(result.timelineError).toBe('timeline boom');
+        expect(result.auditError).not.toContain('audit boom');
+        expect(result.timelineError).not.toContain('timeline boom');
       }
     });
 
@@ -256,7 +259,9 @@ describe('Phase 63 — prepareDocumentRequestHandoff', () => {
       const result = await prepareDocumentRequestHandoff(baseInput(), failResolver);
       expect(result.kind).toBe('governance-partial');
       if (result.kind === 'governance-partial') {
-        expect(result.auditError).toMatch(/CoreUser is empty/);
+        // Final LOS Completion arc (Workstream P) — the raw reason carries internal schema jargon.
+        expect(result.auditError).not.toMatch(/CoreUser/);
+        expect(result.auditError).toContain("We couldn't save that action");
       }
       // The handoff path still ran (timeline emitted); the audit is NOT POSTed.
       expect(auditCreate).not.toHaveBeenCalled();

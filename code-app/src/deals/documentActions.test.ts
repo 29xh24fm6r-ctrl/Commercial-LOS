@@ -217,7 +217,8 @@ describe('requestDocument', () => {
 
     expect(outcome.kind).toBe('doc-failed');
     if (outcome.kind === 'doc-failed') {
-      expect(outcome.docError).toBe('row locked');
+      expect(outcome.docError).not.toContain('row locked');
+      expect(outcome.docError).toContain("We couldn't save that action");
     }
     expect(docUpdate).toHaveBeenCalledTimes(1);
     // Best-effort Failed audit.
@@ -238,7 +239,8 @@ describe('requestDocument', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toBe('audit write blocked');
+      expect(outcome.auditError).not.toContain('audit write blocked');
+      expect(outcome.auditError).toContain("We couldn't save that action");
       expect(outcome.timelineError).toBeUndefined();
     }
   });
@@ -253,7 +255,8 @@ describe('requestDocument', () => {
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
       expect(outcome.auditError).toBeUndefined();
-      expect(outcome.timelineError).toBe('timeline 500');
+      expect(outcome.timelineError).not.toContain('timeline 500');
+      expect(outcome.timelineError).toContain("We couldn't save that action");
     }
   });
 
@@ -266,8 +269,10 @@ describe('requestDocument', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toBe('audit boom');
-      expect(outcome.timelineError).toBe('timeline boom');
+      expect(outcome.auditError).not.toContain('audit boom');
+      expect(outcome.auditError).toContain("We couldn't save that action");
+      expect(outcome.timelineError).not.toContain('timeline boom');
+      expect(outcome.timelineError).toContain("We couldn't save that action");
     }
   });
 
@@ -288,7 +293,8 @@ describe('requestDocument', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+      expect(outcome.auditError).not.toMatch(/CoreUser/);
+      expect(outcome.auditError).toContain("We couldn't save that action");
     }
     // The primary write still happened.
     expect(docUpdate).toHaveBeenCalledTimes(1);
@@ -437,7 +443,8 @@ describe('markDocumentReceived', () => {
 
     expect(outcome.kind).toBe('receive-failed');
     if (outcome.kind === 'receive-failed') {
-      expect(outcome.docError).toBe('row locked');
+      expect(outcome.docError).not.toContain('row locked');
+      expect(outcome.docError).toContain("We couldn't save that action");
     }
     expect(docUpdate).toHaveBeenCalledTimes(1);
     expect(auditCreate).toHaveBeenCalled();
@@ -456,7 +463,8 @@ describe('markDocumentReceived', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toBe('audit write blocked');
+      expect(outcome.auditError).not.toContain('audit write blocked');
+      expect(outcome.auditError).toContain("We couldn't save that action");
       expect(outcome.timelineError).toBeUndefined();
     }
   });
@@ -471,7 +479,8 @@ describe('markDocumentReceived', () => {
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
       expect(outcome.auditError).toBeUndefined();
-      expect(outcome.timelineError).toBe('timeline 500');
+      expect(outcome.timelineError).not.toContain('timeline 500');
+      expect(outcome.timelineError).toContain("We couldn't save that action");
     }
   });
 
@@ -495,7 +504,8 @@ describe('markDocumentReceived', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+      expect(outcome.auditError).not.toMatch(/CoreUser/);
+      expect(outcome.auditError).toContain("We couldn't save that action");
     }
     expect(docUpdate).toHaveBeenCalledTimes(1);
     expect(auditCreate).not.toHaveBeenCalled();
@@ -660,7 +670,8 @@ describe('markDocumentReviewed', () => {
 
     expect(outcome.kind).toBe('review-failed');
     if (outcome.kind === 'review-failed') {
-      expect(outcome.docError).toBe('row locked');
+      expect(outcome.docError).not.toContain('row locked');
+      expect(outcome.docError).toContain("We couldn't save that action");
     }
     expect(docUpdate).toHaveBeenCalledTimes(1);
     expect(auditCreate).toHaveBeenCalled();
@@ -679,7 +690,8 @@ describe('markDocumentReviewed', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toBe('audit write blocked');
+      expect(outcome.auditError).not.toContain('audit write blocked');
+      expect(outcome.auditError).toContain("We couldn't save that action");
       expect(outcome.timelineError).toBeUndefined();
     }
   });
@@ -715,7 +727,8 @@ describe('markDocumentReviewed', () => {
 
     expect(outcome.kind).toBe('governance-partial');
     if (outcome.kind === 'governance-partial') {
-      expect(outcome.auditError).toMatch(/CoreUser is empty/);
+      expect(outcome.auditError).not.toMatch(/CoreUser/);
+      expect(outcome.auditError).toContain("We couldn't save that action");
     }
     expect(docUpdate).toHaveBeenCalledTimes(1);
     expect(auditCreate).not.toHaveBeenCalled();

@@ -81,7 +81,20 @@ export function DealStageProgressionCard({
   /** Injected for tests; defaults to the live stage-reference read. */
   loadAvailability?: () => Promise<StageProgressionAvailability>;
 } = {}) {
-  const { deal, tasks, documents, creditMemo, activity, fundingAuthorization } = useDealData();
+  const {
+    deal,
+    tasks,
+    documents,
+    creditMemo,
+    activity,
+    fundingAuthorization,
+    creditApprovalDecisions,
+    commitments,
+    conditionVerifications,
+    executedDocumentAttestations,
+    bookingQcChecks,
+    boardingHandoff,
+  } = useDealData();
   const tasksData = tasks.kind === 'ready' ? tasks.data : undefined;
   const documentsData = documents.kind === 'ready' ? documents.data : undefined;
   const creditMemoData = creditMemo.kind === 'ready' ? creditMemo.data : undefined;
@@ -89,6 +102,29 @@ export function DealStageProgressionCard({
   // Factory Arc Phase 12 — feeds CLOSING_FUNDING:funds_disbursed. `undefined` while loading/failed/
   // not-yet-requested all correctly fail closed as unmet (never fabricated as met).
   const fundingAuthorizationData = fundingAuthorization?.kind === 'ready' ? fundingAuthorization.data : undefined;
+  // Final LOS Completion arc (Workstream C) — feeds CREDIT_APPROVAL:approval_decision /
+  // approval_authority / approval_conditions. `undefined` while loading/failed correctly fails
+  // closed as unmet (never fabricated as met).
+  const creditApprovalDecisionsData =
+    creditApprovalDecisions?.kind === 'ready' ? creditApprovalDecisions.data : undefined;
+  // Final LOS Completion arc (Workstream D) — feeds COMMITMENT:commitment_issued /
+  // :borrower_acceptance. `undefined` while loading/failed correctly fails closed as unmet (never
+  // fabricated as met).
+  const commitmentsData = commitments?.kind === 'ready' ? commitments.data : undefined;
+  // Final LOS Completion arc (Workstream E) — feeds DOCUMENTATION:conditions_precedent /
+  // :collateral_verified / :insurance_verified. `undefined` while loading/failed correctly fails
+  // closed as unmet (never fabricated as met).
+  const conditionVerificationsData =
+    conditionVerifications?.kind === 'ready' ? conditionVerifications.data : undefined;
+  // Final LOS Completion arc (Workstream F) — feeds CLOSING_FUNDING:executed_docs. `undefined`
+  // while loading/failed correctly fails closed as unmet (never fabricated as met).
+  const executedDocumentAttestationsData =
+    executedDocumentAttestations?.kind === 'ready' ? executedDocumentAttestations.data : undefined;
+  // Final LOS Completion arc (Workstream H) — feeds CLOSING_FUNDING:booking_qc,
+  // BOARDED:boarded_loan_record, and BOARDED:servicing_owner. `undefined` while loading/failed
+  // correctly fails closed as unmet (never fabricated as met).
+  const bookingQcChecksData = bookingQcChecks?.kind === 'ready' ? bookingQcChecks.data : undefined;
+  const boardingHandoffData = boardingHandoff?.kind === 'ready' ? boardingHandoff.data : undefined;
 
   const eligibility = deriveStageProgressionEligibility({
     deal,
@@ -210,6 +246,12 @@ export function DealStageProgressionCard({
             fundingAuthorization: fundingAuthorizationData,
             riskRating: deriveRiskRatingRecordFromDeal(deal),
             underwritingRecommendation: deriveUnderwritingRecommendationRecordFromDeal(deal),
+            creditApprovalDecisions: creditApprovalDecisionsData,
+            commitments: commitmentsData,
+            conditionVerifications: conditionVerificationsData,
+            executedDocumentAttestations: executedDocumentAttestationsData,
+            bookingQcChecks: bookingQcChecksData,
+            boardingHandoff: boardingHandoffData,
           }}
           dealId={deal.id}
           actor={stageAdvanceActor!}

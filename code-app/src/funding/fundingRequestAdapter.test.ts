@@ -77,3 +77,42 @@ describe('requestFunding', () => {
     expect(emitAudit).not.toHaveBeenCalled();
   });
 });
+
+describe('requestFunding — Workstream K: timeline emission', () => {
+  it('emits a timeline event on the happy path when emitTimeline is supplied', async () => {
+    const store = createInMemoryFundingAuthorizationStore();
+    const { emitAudit } = emitAuditMock();
+    const emitTimeline = vi.fn(async (_event: { action: string }) => ({ success: true }));
+    const outcome = await requestFunding(
+      { dealId: 'deal-1', requestedAmount: 100, requestedBy: 'x@bank.test' },
+      { storage: store, emitAudit, emitTimeline, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('requested');
+    expect(emitTimeline).toHaveBeenCalledTimes(1);
+    const event = emitTimeline.mock.calls[0]![0] as { action: string };
+    expect(event.action).toBe('requested');
+  });
+
+  it('does not fail the request when emitTimeline is entirely absent (backward compatible)', async () => {
+    const store = createInMemoryFundingAuthorizationStore();
+    const { emitAudit } = emitAuditMock();
+    const outcome = await requestFunding(
+      { dealId: 'deal-1', requestedAmount: 100, requestedBy: 'x@bank.test' },
+      { storage: store, emitAudit, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('requested');
+  });
+
+  it('does not fail the request when emitTimeline rejects (best-effort, never blocks the outcome)', async () => {
+    const store = createInMemoryFundingAuthorizationStore();
+    const { emitAudit } = emitAuditMock();
+    const emitTimeline = vi.fn(async () => {
+      throw new Error('timeline down');
+    });
+    const outcome = await requestFunding(
+      { dealId: 'deal-1', requestedAmount: 100, requestedBy: 'x@bank.test' },
+      { storage: store, emitAudit, emitTimeline, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('requested');
+  });
+});

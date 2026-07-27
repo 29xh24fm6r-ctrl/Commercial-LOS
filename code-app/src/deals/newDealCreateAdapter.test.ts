@@ -150,7 +150,9 @@ describe('Phase 170M -- resolver dependency (fail closed)', () => {
       [{ kind: 'inactiveStatus' }, /matched Status reference is inactive/i, [/inactiveStatus/]],
       // "serviceError" is the real Dataverse-failure scenario — distinct
       // wording from the missing/inactive/duplicate reference-data cases.
-      [{ kind: 'serviceError', message: 'timeout after 30s' }, /Could not reach Dataverse.*timeout after 30s/i, [/^serviceError$/]],
+      // Final LOS Completion arc (Workstream P) — the raw message ("timeout after 30s") is no
+      // longer interpolated verbatim; only the shared safe message follows the intro sentence.
+      [{ kind: 'serviceError', message: 'timeout after 30s' }, /Could not reach Dataverse.*We couldn't save that action/i, [/^serviceError$/, /timeout after 30s/]],
     ];
     for (const [r, expected, forbidden] of cases) {
       const d = deps({ resolveReferences: async () => r });

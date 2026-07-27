@@ -2,6 +2,7 @@ import { newCorrelationId } from '../shared/governance/correlationId';
 import { createActorChangedByResolver, type ResolveActorChangedBy } from '../deals/newDealAuditActorResolver';
 import { evaluateRequestedAmount } from './fundingAuthorizationPolicy';
 import { recordFundingAudit, type EmitFundingAudit } from './fundingAudit';
+import { recordFundingTimeline, type EmitFundingTimeline } from './fundingTimelineWrite';
 import type { FundingAuthorizationStorageDeps } from './fundingAuthorizationStorage';
 import type { FundingAuthorizationRecord } from './fundingAuthorizationTypes';
 
@@ -24,6 +25,13 @@ export interface FundingRequestDeps {
   readonly storage: FundingAuthorizationStorageDeps;
   readonly emitAudit: EmitFundingAudit;
   readonly resolveActorChangedBy?: ResolveActorChangedBy;
+  /**
+   * Final LOS Completion arc — Workstream K. Optional ONLY so hand-built test doubles predating
+   * this workstream keep compiling without edits — an omitted dep is equivalent to "timeline
+   * emission unavailable," never fabricated as succeeded. Independent of `emitAudit`'s own
+   * success/failure.
+   */
+  readonly emitTimeline?: EmitFundingTimeline;
 }
 
 export async function requestFunding(
@@ -64,15 +72,20 @@ export async function requestFunding(
     return { kind: 'write_failed', error: writeResult.error ?? 'Record storage returned non-success.', correlationId };
   }
 
-  const audit = await recordFundingAudit(
-    record,
-    'requested',
-    input.requestedBy,
-    deps.resolveActorChangedBy ?? createActorChangedByResolver(),
-    deps.emitAudit,
-  );
+  const resolveActorChangedBy = deps.resolveActorChangedBy ?? createActorChangedByResolver();
+  const audit = await recordFundingAudit(record, 'requested', input.requestedBy, resolveActorChangedBy, deps.emitAudit);
   const withAuditId = audit.auditId ? { ...record, auditEventIds: [audit.auditId] } : record;
   if (audit.auditId) await deps.storage.updateRecord(withAuditId);
+
+  // Final LOS Completion arc — Workstream K. Best-effort, never blocks the outcome or reflects the
+  // audit's own success/failure — the write above already succeeded and is authoritative.
+  if (deps.emitTimeline) {
+    try {
+      await recordFundingTimeline(withAuditId, 'requested', input.requestedBy, nowIso, resolveActorChangedBy, deps.emitTimeline);
+    } catch {
+      // Best-effort — see the comment above.
+    }
+  }
 
   return {
     kind: 'requested',

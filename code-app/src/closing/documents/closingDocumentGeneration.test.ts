@@ -124,6 +124,48 @@ describe('generateClosingDocument', () => {
   });
 });
 
+describe('generateClosingDocument — Workstream K: timeline emission', () => {
+  it('emits a timeline event on the happy path when emitTimeline is supplied', async () => {
+    const store = createInMemoryClosingDocumentStore();
+    const { emitAudit } = auditSpy();
+    const timelineCalls: unknown[] = [];
+    const emitTimeline = vi.fn(async (event: unknown) => {
+      timelineCalls.push(event);
+      return { success: true };
+    });
+    const outcome = await generateClosingDocument(
+      { template, facts: FULL_FACTS, authorized: true, actorEmail: 'banker@bank.test' },
+      { storage: store, emitAudit, emitTimeline, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('generated');
+    expect(timelineCalls).toHaveLength(1);
+  });
+
+  it('does not fail generation when emitTimeline is entirely absent (backward compatible)', async () => {
+    const store = createInMemoryClosingDocumentStore();
+    const { emitAudit } = auditSpy();
+    const outcome = await generateClosingDocument(
+      { template, facts: FULL_FACTS, authorized: true, actorEmail: 'banker@bank.test' },
+      { storage: store, emitAudit, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('generated');
+  });
+
+  it('does not fail generation when emitTimeline rejects (best-effort, never blocks the outcome)', async () => {
+    const store = createInMemoryClosingDocumentStore();
+    const { emitAudit } = auditSpy();
+    const emitTimeline = vi.fn(async () => {
+      throw new Error('timeline down');
+    });
+    const outcome = await generateClosingDocument(
+      { template, facts: FULL_FACTS, authorized: true, actorEmail: 'banker@bank.test' },
+      { storage: store, emitAudit, emitTimeline, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('generated');
+    expect(store.all()).toHaveLength(1);
+  });
+});
+
 describe('regenerateClosingDocument', () => {
   it('creates a NEW manifest that supersedes the prior one, without mutating the prior manifest', async () => {
     const store = createInMemoryClosingDocumentStore();

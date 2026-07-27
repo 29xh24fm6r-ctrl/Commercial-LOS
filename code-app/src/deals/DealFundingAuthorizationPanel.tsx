@@ -5,6 +5,7 @@ import { requestFunding } from '../funding/fundingRequestAdapter';
 import { approveFunding, rejectFunding, revokeFunding } from '../funding/fundingApprovalAdapter';
 import { confirmFundingDisbursement } from '../funding/fundingDisbursementConfirmation';
 import { emitLiveFundingAudit } from '../funding/fundingAuditLiveDeps';
+import { emitLiveFundingTimeline } from '../funding/fundingTimelineLiveDeps';
 import type { FundingAuthorizationRecord, FundingReadinessFacts } from '../funding/fundingAuthorizationTypes';
 import { recognizeCanonicalStatus } from '../workflow/statusReferenceContract';
 import type { DealDetail } from './dealQueries';
@@ -32,20 +33,26 @@ import { palette, radius, spacing, typography } from '../shared/theme';
  * happened (recordFundingAudit's own fail-closed discipline, unchanged) -- see
  * docs/factory-arc/PR125_APPROVAL_CLOSING_FUNDING_BOARDING_PROOF.md.
  */
-function buildFundingReadinessFacts(deal: DealDetail): FundingReadinessFacts {
+function buildFundingReadinessFacts(deal: DealDetail, conditionsPrecedentMet: boolean): FundingReadinessFacts {
   // dealTerminalStatus is derived honestly from the deal's real status via the same fail-closed
   // canonical resolver every other governed action in this app uses. An unrecognized/unresolved
   // status must never silently read as "OPEN" (an affirmative claim); it maps to 'DECLINED' -- a
   // blocking disposition -- rather than guessing the deal is fine.
   const dealTerminalStatus = recognizeCanonicalStatus(deal.status) ?? 'DECLINED';
   return {
-    // No live source exists yet for document completeness, conditions-precedent resolution,
-    // exception resolution, destination verification, or approval-expiry tracking (see
+    // No live source exists yet for document completeness, exception resolution, destination
+    // verification, or approval-expiry tracking (see
     // docs/final-seven-workstreams/07_FUNDING_AUTHORIZATION_FRAMEWORK.md). Fail-closed to the
     // blocking value rather than fabricate readiness -- this session will genuinely progress a
     // request through approval, but correctly always shows blocked at disbursement confirmation.
     requiredDocumentsComplete: false,
-    conditionsPrecedentResolved: false,
+    // Final LOS Completion arc (Workstream G) -- conditions precedent now has a real, durable
+    // source: the Condition Verification record (Workstream E, see conditionVerificationTypes.ts).
+    // `conditionsPrecedentMet` is supplied by the caller (see DealFundingAuthorizationPanelConnected.tsx),
+    // computed via evaluateConditionVerificationReadiness against the deal's live record list --
+    // never fabricated, fails closed to false when the caller has none to supply (e.g. this
+    // component's own standalone tests, which render it without a provider).
+    conditionsPrecedentResolved: conditionsPrecedentMet,
     exceptionsAllResolved: false,
     destinationVerified: false,
     approvalExpired: false,
@@ -58,6 +65,7 @@ export function DealFundingAuthorizationPanel({
   authorized,
   actorEmail,
   onFundingConfirmed,
+  conditionsPrecedentMet = false,
 }: {
   deal: DealDetail;
   authorized: boolean;
@@ -71,6 +79,14 @@ export function DealFundingAuthorizationPanel({
    * for the real wiring (BankerDealWorkspace.tsx renders that, not this component, directly).
    */
   onFundingConfirmed?: () => void;
+  /**
+   * Final LOS Completion arc (Workstream G) — whether the deal's Condition Verification record
+   * (Workstream E) shows conditions precedent CLEARED/WAIVED. Optional, defaulting to `false` (fail
+   * closed) so this component's own standalone tests, which render it without a provider and never
+   * supply this prop, keep their existing behavior unchanged. See
+   * DealFundingAuthorizationPanelConnected.tsx for the real wiring.
+   */
+  conditionsPrecedentMet?: boolean;
 }) {
   const storeRef = useRef(createDataverseFundingAuthorizationStore());
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -81,7 +97,10 @@ export function DealFundingAuthorizationPanel({
   const [requestError, setRequestError] = useState<string | undefined>(undefined);
   const [actionError, setActionError] = useState<string | undefined>(undefined);
 
-  const facts = useMemo(() => buildFundingReadinessFacts(deal), [deal]);
+  const facts = useMemo(
+    () => buildFundingReadinessFacts(deal, conditionsPrecedentMet),
+    [deal, conditionsPrecedentMet],
+  );
   const authorizedFacilityAmount = deal.amount ?? 0;
   const email = actorEmail ?? '';
 
@@ -119,7 +138,7 @@ export function DealFundingAuthorizationPanel({
     const amount = Number(requestAmount);
     const outcome = await requestFunding(
       { dealId: deal.id, requestedAmount: amount, requestedBy: email, fundingMethod: requestMethod.trim() || undefined },
-      { storage: storeRef.current, emitAudit: emitLiveFundingAudit },
+      { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline },
     );
     if (outcome.kind === 'requested') {
       setRecord(outcome.record);
@@ -138,7 +157,7 @@ export function DealFundingAuthorizationPanel({
     setActionError(undefined);
     const outcome = await approveFunding(
       { record, approverEmail: email, approvedAmount, authorizedFacilityAmount },
-      { storage: storeRef.current, emitAudit: emitLiveFundingAudit },
+      { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline },
     );
     if (outcome.kind === 'first_approval_recorded' || outcome.kind === 'fully_approved') {
       setRecord(outcome.record);
@@ -152,7 +171,7 @@ export function DealFundingAuthorizationPanel({
   async function onReject() {
     if (!record) return;
     setActionError(undefined);
-    const outcome = await rejectFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit });
+    const outcome = await rejectFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline });
     if (outcome.kind === 'rejected') {
       setRecord(outcome.record);
     } else if (outcome.kind === 'denied') {
@@ -165,7 +184,7 @@ export function DealFundingAuthorizationPanel({
   async function onRevoke() {
     if (!record) return;
     setActionError(undefined);
-    const outcome = await revokeFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit });
+    const outcome = await revokeFunding(record, email, { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline });
     if (outcome.kind === 'revoked') {
       setRecord(outcome.record);
     } else if (outcome.kind === 'denied') {
@@ -180,7 +199,7 @@ export function DealFundingAuthorizationPanel({
     setActionError(undefined);
     const outcome = await confirmFundingDisbursement(
       { record, readinessFacts: facts, fundingDate, confirmedByActorEmail: email },
-      { storage: storeRef.current, emitAudit: emitLiveFundingAudit },
+      { storage: storeRef.current, emitAudit: emitLiveFundingAudit, emitTimeline: emitLiveFundingTimeline },
     );
     if (outcome.kind === 'confirmed') {
       setRecord(outcome.record);

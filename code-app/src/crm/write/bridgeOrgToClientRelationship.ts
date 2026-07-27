@@ -25,6 +25,7 @@
  */
 
 import { newCorrelationId } from '../../shared/governance/correlationId';
+import { mapBusinessSafeError } from '../../shared/errors/businessSafeErrorMapping';
 import { authGate, buildAuditPayload, type CrmActor, type WriteResult } from './crmWriteAdapter';
 import { isDealLinkableOrgType } from '../orgClientBridgeEligibility';
 import {
@@ -189,7 +190,11 @@ export async function bridgeOrgToClientRelationship(
   try {
     existing = await deps.findClientRelationshipByName(clientName);
   } catch (err: unknown) {
-    return { kind: 'write-failed', error: err instanceof Error ? err.message : String(err), correlationId };
+    // Genuine raw transport error -- mapBridgeFailureToLinkOutcome (CrmRelationshipPanel.tsx)
+    // forwards this write-failed.error verbatim into LinkDealCrmEntityModal.tsx's rendered
+    // outcome.error, so it must never carry raw transport text.
+    const raw = err instanceof Error ? err.message : String(err);
+    return { kind: 'write-failed', error: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId };
   }
   const match = existing.find((r) => normalizeName(r.clientName ?? '') === normalizeName(clientName));
   if (match) {
@@ -220,12 +225,14 @@ export async function bridgeOrgToClientRelationship(
   try {
     created = await deps.createClientRelationship(payload);
   } catch (err: unknown) {
-    return { kind: 'write-failed', error: err instanceof Error ? err.message : String(err), correlationId };
+    const raw = err instanceof Error ? err.message : String(err);
+    return { kind: 'write-failed', error: mapBusinessSafeError(raw, correlationId).safeMessage, correlationId };
   }
   if (!created.success || !created.id) {
+    const raw = created.error?.message ?? 'Client relationship create returned non-success.';
     return {
       kind: 'write-failed',
-      error: created.error?.message ?? 'Client relationship create returned non-success.',
+      error: mapBusinessSafeError(raw, correlationId).safeMessage,
       correlationId,
     };
   }

@@ -29,18 +29,25 @@ export interface TestDataSnapshot {
 
 export async function loadTestDataSnapshot(): Promise<TestDataSnapshot> {
   const result = await Cr664_loandealsService.getAll({
-    select: ['cr664_loandealid', 'cr664_dealname', 'createdon', 'cr664_stagereferencename'],
+    // Final LOS Completion arc (N-17 follow-on) — cr664_istestrecord was previously omitted from
+    // this select list, so this view (whose entire purpose is showing the governed classification)
+    // silently fell back to name-only matching, same bug fixed for Manager/Team in this arc.
+    select: ['cr664_loandealid', 'cr664_dealname', 'createdon', 'cr664_stagereferencename', 'cr664_istestrecord'],
     orderBy: ['createdon desc'],
   });
   if (!result.success) {
     throw new Error(result.error?.message ?? 'Failed to load deals for the test-data view.');
   }
-  const rows: TestDataDealRow[] = (result.data ?? []).map((d) => ({
-    id: d.cr664_loandealid,
-    name: d.cr664_dealname,
-    createdOn: d.createdon,
-    stage: d.cr664_stagereferencename,
-  }));
+  const rows: TestDataDealRow[] = (result.data ?? []).map((d) => {
+    const raw = d as unknown as Record<string, unknown>;
+    return {
+      id: d.cr664_loandealid,
+      name: d.cr664_dealname,
+      createdOn: d.createdon,
+      stage: d.cr664_stagereferencename,
+      isTestRecord: raw['cr664_istestrecord'] as boolean | undefined,
+    };
+  });
   const { operational, test } = partitionDealsByTestClassification(rows);
   return { operationalCount: operational.length, testRows: test };
 }

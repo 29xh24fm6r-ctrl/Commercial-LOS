@@ -157,3 +157,55 @@ describe('revokeFunding', () => {
     expect(outcome).toEqual({ kind: 'denied', reason: 'already_funded' });
   });
 });
+
+describe('fundingApprovalAdapter — Workstream K: timeline emission', () => {
+  it('approveFunding emits a timeline event when emitTimeline is supplied', async () => {
+    const rec = record({ requestedAmount: 50_000 });
+    const store = await seededStore(rec);
+    const emitAudit = emitAuditMock();
+    const emitTimeline = vi.fn(async (_event: { action: string }) => ({ success: true }));
+    const outcome = await approveFunding(
+      { record: rec, approverEmail: 'approver@bank.test', approvedAmount: 50_000, authorizedFacilityAmount: 1_000_000 },
+      { storage: store, emitAudit, emitTimeline, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('fully_approved');
+    expect(emitTimeline).toHaveBeenCalledTimes(1);
+    const event = emitTimeline.mock.calls[0]![0] as { action: string };
+    expect(event.action).toBe('fully_approved');
+  });
+
+  it('rejectFunding emits a timeline event when emitTimeline is supplied', async () => {
+    const rec = record();
+    const store = await seededStore(rec);
+    const emitAudit = emitAuditMock();
+    const emitTimeline = vi.fn(async () => ({ success: true }));
+    const outcome = await rejectFunding(rec, 'x@bank.test', { storage: store, emitAudit, emitTimeline, resolveActorChangedBy: okResolver });
+    expect(outcome.kind).toBe('rejected');
+    expect(emitTimeline).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fail the action when emitTimeline is entirely absent (backward compatible)', async () => {
+    const rec = record({ requestedAmount: 50_000 });
+    const store = await seededStore(rec);
+    const emitAudit = emitAuditMock();
+    const outcome = await approveFunding(
+      { record: rec, approverEmail: 'approver@bank.test', approvedAmount: 50_000, authorizedFacilityAmount: 1_000_000 },
+      { storage: store, emitAudit, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('fully_approved');
+  });
+
+  it('does not fail the action when emitTimeline rejects (best-effort, never blocks the outcome)', async () => {
+    const rec = record({ requestedAmount: 50_000 });
+    const store = await seededStore(rec);
+    const emitAudit = emitAuditMock();
+    const emitTimeline = vi.fn(async () => {
+      throw new Error('timeline down');
+    });
+    const outcome = await approveFunding(
+      { record: rec, approverEmail: 'approver@bank.test', approvedAmount: 50_000, authorizedFacilityAmount: 1_000_000 },
+      { storage: store, emitAudit, emitTimeline, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('fully_approved');
+  });
+});

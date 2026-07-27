@@ -3,13 +3,14 @@
  * (canonicalStageTransition.ts). Kept SDK-only and SEPARATE from the pure engine
  * so the core stays importable without the data client.
  *
- * DISABLED IN PRACTICE, but not because of the flag: AUTO_STAGE_ADVANCE_ENABLED is
- * ARMED (true, as of WF-1A) — the reason `executeCanonicalStageTransition` is never
- * reached live today is that StageWorkflowControl.tsx (the only UI for RETURN/
- * DECLINE/WITHDRAW) is not mounted in any workspace. Do not assume the flag alone
- * keeps this inert; the sinks are only reached by an explicit, gated, authorized
- * invocation once mounted. NO borrower-comms module is imported (DECLINE/WITHDRAW
- * never send anything).
+ * LIVE as of the governance initiative (2026-07-21): AUTO_STAGE_ADVANCE_ENABLED is
+ * ARMED (true, as of WF-1A) AND `DealGovernedTransitionPanel.tsx` mounts
+ * StageWorkflowControl.tsx (the UI for RETURN/DECLINE/WITHDRAW) in the banker deal
+ * workspace with `liveEnabled` set — `executeCanonicalStageTransition` IS reachable
+ * from a real, authorized user action today. (This comment previously claimed the
+ * control was unmounted; that was stale and is corrected here — Final LOS
+ * Completion arc, Workstream J.) NO borrower-comms module is imported (DECLINE/
+ * WITHDRAW never send anything).
  *
  * Each sink mirrors a PROVEN governed-write pattern (nothing invented):
  *   - applyTransition writes the deal's StageReference + cr664_stageentrydate for a

@@ -25,6 +25,13 @@ import {
   type RiskRatingPolicy,
   type UnderwritingRecommendationRecord,
 } from './underwritingDeepFacts';
+import { evaluateCreditApprovalDecisionReadiness, type CreditApprovalDecisionRecord } from './creditApprovalDecisionTypes';
+import { evaluateCommitmentReadiness, type CommitmentRecord } from './commitmentRecordTypes';
+import { evaluateConditionVerificationReadiness, type ConditionVerificationRecord } from './conditionVerificationTypes';
+import { evaluateExecutedDocumentAttestationReadiness, type ExecutedDocumentAttestationRecord } from './executedDocumentAttestationTypes';
+import { evaluateBookingQcReadiness, type BookingQcCheckRecord } from './bookingQcCheckTypes';
+import { evaluateAdverseActionReadiness, type AdverseActionRecord } from './adverseActionRecordTypes';
+import type { BoardingHandoffReadiness } from './boardingHandoffReadiness';
 import type { FundingAuthorizationRecord } from '../funding/fundingAuthorizationTypes';
 import type {
   CanonicalRequirement,
@@ -74,6 +81,59 @@ export interface WorkflowRequirementFacts {
    * fails closed as unmet in either case, never fabricated as met.
    */
   readonly fundingAuthorization?: FundingAuthorizationRecord;
+  /**
+   * Final LOS Completion arc (Workstream C/K) — the deal's Credit Approval Decision history
+   * (supplied by a loader; see DealDataProvider.tsx's `creditApprovalDecisions`). Absent/empty means
+   * either the records haven't loaded yet or none have genuinely been recorded —
+   * CREDIT_APPROVAL:approval_decision/:approval_authority/:approval_conditions all fail closed as
+   * unmet in either case, never fabricated as met.
+   */
+  readonly creditApprovalDecisions?: readonly CreditApprovalDecisionRecord[];
+  /**
+   * Final LOS Completion arc (Workstream D/K) — the deal's Commitment Record history (supplied by a
+   * loader; see DealDataProvider.tsx's `commitments`). Absent/empty means either the records
+   * haven't loaded yet or none have genuinely been recorded — COMMITMENT:commitment_issued/
+   * :borrower_acceptance both fail closed as unmet in either case, never fabricated as met.
+   */
+  readonly commitments?: readonly CommitmentRecord[];
+  /**
+   * Final LOS Completion arc (Workstream E/K) — the deal's Condition Verification history
+   * (supplied by a loader; see DealDataProvider.tsx's `conditionVerifications`). Absent/empty means
+   * either the records haven't loaded yet or none have genuinely been recorded —
+   * DOCUMENTATION:conditions_precedent/:collateral_verified/:insurance_verified all fail closed as
+   * unmet in either case, never fabricated as met.
+   */
+  readonly conditionVerifications?: readonly ConditionVerificationRecord[];
+  /**
+   * Final LOS Completion arc (Workstream F/K) — the deal's Executed Document Attestation history
+   * (supplied by a loader; see DealDataProvider.tsx's `executedDocumentAttestations`).
+   * Absent/empty means either the records haven't loaded yet or none have genuinely been recorded —
+   * CLOSING_FUNDING:executed_docs fails closed as unmet in either case, never fabricated as met.
+   */
+  readonly executedDocumentAttestations?: readonly ExecutedDocumentAttestationRecord[];
+  /**
+   * Final LOS Completion arc (Workstream H/K) — the deal's Booking QC Check history (supplied by a
+   * loader; see DealDataProvider.tsx's `bookingQcChecks`). Absent/empty means either the records
+   * haven't loaded yet or none have genuinely been recorded — CLOSING_FUNDING:booking_qc fails
+   * closed as unmet in either case, never fabricated as met.
+   */
+  readonly bookingQcChecks?: readonly BookingQcCheckRecord[];
+  /**
+   * Final LOS Completion arc (Workstream J) — the deal's Adverse Action Record history (supplied by
+   * a loader; see DealDataProvider.tsx's `adverseActionRecords`). Absent/empty means either the
+   * records haven't loaded yet or the obligation genuinely hasn't been documented yet —
+   * DECLINE:adverse_action fails closed as unmet in either case, never fabricated as met. Only
+   * meaningful once the deal is actually DECLINED (see deriveTransitionReadiness below).
+   */
+  readonly adverseActionRecords?: readonly AdverseActionRecord[];
+  /**
+   * Final LOS Completion arc (Workstream H) — the deal's real portfolio boarded-loan handoff
+   * evidence, reconciled against the deal's own stage (see boardingHandoffReadiness.ts /
+   * loadBoardingHandoffForDeal.ts). Absent means the read hasn't completed yet — both
+   * BOARDED:boarded_loan_record and BOARDED:servicing_owner fail closed as unmet, never fabricated
+   * as met, when this is undefined.
+   */
+  readonly boardingHandoff?: BoardingHandoffReadiness;
 }
 
 /**
@@ -96,6 +156,58 @@ export function evaluateDeepFactRequirement(req: CanonicalRequirement, facts: Wo
   if (req.id === 'CLOSING_FUNDING:funds_disbursed') {
     const funded = facts.fundingAuthorization?.authorizationStatus === 'FUNDED';
     return evaluated(req, funded ? 'met' : 'unmet', funded ? '' : req.blockerReason);
+  }
+  if (
+    req.id === 'CREDIT_APPROVAL:approval_decision' ||
+    req.id === 'CREDIT_APPROVAL:approval_authority' ||
+    req.id === 'CREDIT_APPROVAL:approval_conditions'
+  ) {
+    const r = evaluateCreditApprovalDecisionReadiness(facts.creditApprovalDecisions, facts.deal.id);
+    const fact =
+      req.id === 'CREDIT_APPROVAL:approval_decision'
+        ? r.decisionRecorded
+        : req.id === 'CREDIT_APPROVAL:approval_authority'
+          ? r.authorityRecorded
+          : r.conditionsDocumented;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (req.id === 'COMMITMENT:commitment_issued' || req.id === 'COMMITMENT:borrower_acceptance') {
+    const r = evaluateCommitmentReadiness(facts.commitments, facts.deal.id);
+    const fact = req.id === 'COMMITMENT:commitment_issued' ? r.commitmentIssued : r.borrowerAcceptance;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (
+    req.id === 'DOCUMENTATION:conditions_precedent' ||
+    req.id === 'DOCUMENTATION:collateral_verified' ||
+    req.id === 'DOCUMENTATION:insurance_verified'
+  ) {
+    const r = evaluateConditionVerificationReadiness(facts.conditionVerifications, facts.deal.id);
+    const fact =
+      req.id === 'DOCUMENTATION:conditions_precedent'
+        ? r.conditionsPrecedent
+        : req.id === 'DOCUMENTATION:collateral_verified'
+          ? r.collateralVerified
+          : r.insuranceVerified;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (req.id === 'CLOSING_FUNDING:executed_docs') {
+    const r = evaluateExecutedDocumentAttestationReadiness(facts.executedDocumentAttestations, facts.deal.id);
+    const fact = r.executedDocsAttested;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (req.id === 'CLOSING_FUNDING:booking_qc') {
+    const r = evaluateBookingQcReadiness(facts.bookingQcChecks, facts.deal.id);
+    const fact = r.bookingQcComplete;
+    return evaluated(req, fact.met ? 'met' : 'unmet', fact.met ? '' : (fact.reason || req.blockerReason));
+  }
+  if (req.id === 'BOARDED:boarded_loan_record') {
+    const met = facts.boardingHandoff?.boardingCompleted ?? false;
+    const reason = facts.boardingHandoff?.blockers[0];
+    return evaluated(req, met ? 'met' : 'unmet', met ? '' : (reason || req.blockerReason));
+  }
+  if (req.id === 'BOARDED:servicing_owner') {
+    const met = facts.boardingHandoff?.servicingOwnerAssigned ?? false;
+    return evaluated(req, met ? 'met' : 'unmet', met ? '' : req.blockerReason);
   }
   // Tracked deep fact without a model yet → fail closed (should not happen in Phase 3).
   return evaluated(req, 'unmet', req.blockerReason);
@@ -267,7 +379,7 @@ export interface StageExitPolicyResult {
  * requirement is unmet. Risk rating and underwriting recommendation are tracked as of Production
  * Remediation Factory Arc Phase 6 (N-14/N-15) and block for real; the remaining untracked deep facts
  * (approval, closing, boarding, …) are NOT yet enforced live — they are surfaced as "future"
- * requirements and gate certification later, but do not block the transition until their major
+ * requirements and gate attestation later, but do not block the transition until their major
  * phase. This is the shared decision the UI button and the write policy agree on (proven equivalent
  * to evaluateStageTransitionPolicy for the current config).
  */
@@ -346,13 +458,25 @@ export function deriveTransitionReadiness(
   const policy = evaluateCanonicalStageTransition({ request, ordering: nonForward.ordering, authorized: nonForward.authorized });
 
   // Build the requirement list for display: the checkable reason requirement gets a real met/unmet
-  // verdict from the policy outcome; the still-untracked advisory item (authorization/adverse-action)
-  // stays 'untracked' + 'recommended' (visible, never blocking — see the registry's severity override).
+  // verdict from the policy outcome; DECLINE:adverse_action (Workstream J) gets a real verdict from
+  // the durable Adverse Action Record, when one could exist (only once the deal is actually
+  // DECLINED — before that, a decline hasn't happened yet, so there is nothing to document, and the
+  // item correctly stays a non-blocking 'unmet' advisory rather than a fabricated 'met'). The
+  // remaining still-untracked advisory item (RETURN:authorization — see this function's own header
+  // comment on why that stays out of scope) stays 'untracked' + 'recommended' (visible, never
+  // blocking — see the registry's severity override).
   const reasonReqId = `${scope}:reason`;
+  const adverseActionReqId = `${scope}:adverse_action`;
   const requirements = registryReqs.map((r) => {
     if (r.id === reasonReqId) {
       const reasonMissing = !policy.allowed && /reason/i.test(policy.reason);
       return evaluated(r, reasonMissing ? 'unmet' : 'met', r.blockerReason);
+    }
+    if (r.id === adverseActionReqId) {
+      const alreadyDeclined = nonForward.currentStatus === 'DECLINED';
+      const readiness = evaluateAdverseActionReadiness(facts.adverseActionRecords, facts.deal.id);
+      const met = alreadyDeclined && readiness.adverseActionDocumented.met;
+      return evaluated(r, met ? 'met' : 'unmet', met ? '' : r.blockerReason);
     }
     return evaluated(r, 'untracked', r.blockerReason);
   });

@@ -71,7 +71,12 @@ const LIVE_WORKSPACE_NAMES: ReadonlyArray<readonly [string, string]> = [
 // Audit-cited governance counts. Kept in one place so a drift trips
 // both the count assertion AND the doc-citation assertion.
 const AUDIT_COUNTS = Object.freeze({
-  governedWrites: 14,
+  // Final LOS Completion arc (Workstream M) registered the six durable-record governed writes
+  // Workstreams C/D/E/F/H/J shipped (Credit Approval Decision, Commitment, Condition
+  // Verification, Executed Document Attestation, Booking QC, Adverse Action Record) -- a
+  // registry blind spot those workstreams had until now, not new gaps. Workstream O then added
+  // one more: data-quality-flag-create, the first write that CREATES a data quality flag.
+  governedWrites: 21,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) -- see
@@ -89,8 +94,9 @@ const AUDIT_COUNTS = Object.freeze({
   // Phase 14 added two more (annual-review-persistence,
   // portfolio-boarding-audit-governance) -- a registry blind spot this
   // domain had until now, not new gaps -- see
-  // docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md.
-  notWired: 13,
+  // docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md. Workstream R
+  // (Final LOS Completion arc) added one more (portfolio-migration-reconciliation).
+  notWired: 14,
   deliberatelyBlocked: 1,
 });
 

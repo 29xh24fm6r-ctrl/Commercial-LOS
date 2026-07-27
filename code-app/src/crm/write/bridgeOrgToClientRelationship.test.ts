@@ -176,12 +176,16 @@ describe('bridgeOrgToClientRelationship — eligibility + validation + auth', ()
 });
 
 describe('bridgeOrgToClientRelationship — failure modes', () => {
-  it('write-failed when the create IO fails (no readback / audit)', async () => {
+  it('write-failed when the create IO fails (no readback / audit), mapped to the shared business-safe message', async () => {
     const { deps, calls } = fakeDeps({
       createClientRelationship: async () => ({ success: false, error: { message: 'boom' } }),
     });
     const out = await bridgeOrgToClientRelationship(input(), deps);
     expect(out.kind).toBe('write-failed');
+    if (out.kind === 'write-failed') {
+      expect(out.error).not.toContain('boom');
+      expect(out.error).toContain("We couldn't save that action");
+    }
     expect(calls.read).toBe(0);
     expect(calls.audit).toBe(0);
   });

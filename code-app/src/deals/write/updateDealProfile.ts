@@ -192,10 +192,34 @@ export interface EmitDealProfileAuditInput {
   readonly actorSystemUserId: string;
 }
 
+/**
+ * Final LOS Completion arc — Workstream K. `riskRatingInputs` / `underwritingRecommendationInputs`
+ * saves previously emitted an audit row but no timeline event — a genuine gap confirmed by direct
+ * investigation (see docs/final-completion/FINAL_REMAINING_GAP_LEDGER.md §7). `field` distinguishes
+ * which of the two changed, so the caller can title/subtype the event correctly; `updateDealProfile`
+ * only invokes this dep for these two fields, never for the other, unrelated profile fields this
+ * function also writes.
+ */
+export type DealProfileTimelineField = 'riskRatingInputs' | 'underwritingRecommendationInputs';
+
+export interface EmitDealProfileTimelineInput {
+  readonly dealId: string;
+  readonly correlationId: string;
+  readonly field: DealProfileTimelineField;
+  readonly actorEmail: string | undefined;
+  readonly actorSystemUserId: string;
+}
+
 export interface UpdateDealProfileDeps {
   readonly updateDeal: (dealId: string, body: Record<string, unknown>) => Promise<DealProfileWriteResult>;
   readonly readDeal: (dealId: string) => Promise<DealProfileReadback>;
   readonly emitAudit: (input: EmitDealProfileAuditInput) => Promise<{ ok: boolean; id?: string; error?: string }>;
+  /**
+   * Optional ONLY so hand-built test doubles predating Workstream K keep compiling without edits —
+   * `updateDealProfile` calls it (when supplied) exclusively for the two Workstream K fields above;
+   * an omitted dep is equivalent to "timeline emission unavailable," never fabricated as succeeded.
+   */
+  readonly emitTimeline?: (input: EmitDealProfileTimelineInput) => Promise<{ ok: boolean; id?: string; error?: string }>;
 }
 
 /** The verified, updated fields returned so the cockpit can reflect them. */
@@ -569,6 +593,25 @@ export async function updateDealProfile(
   }
   if (!audit.ok) {
     return { kind: 'audit-failed', auditError: audit.error, correlationId, dealId };
+  }
+
+  // 10. Final LOS Completion arc — Workstream K: risk rating / underwriting recommendation saves
+  // now also emit a timeline event, closing a confirmed gap (the audit above already fires for
+  // every profile field; only these two genuinely lacked ANY timeline signal). Best-effort and
+  // never blocks the outcome — the write + audit above already succeeded and are the authoritative
+  // record; a timeline emission failure here is not surfaced as a write failure, same as this
+  // function already tolerates `emitTimeline` being entirely absent.
+  const timelineFields: readonly DealProfileTimelineField[] = prepared
+    .map((p) => p.field)
+    .filter((f): f is DealProfileTimelineField => f === 'riskRatingInputs' || f === 'underwritingRecommendationInputs');
+  if (deps.emitTimeline) {
+    for (const field of timelineFields) {
+      try {
+        await deps.emitTimeline({ dealId, correlationId, field, actorEmail: input.actorEmail, actorSystemUserId });
+      } catch {
+        // Best-effort — see the comment above.
+      }
+    }
   }
 
   return { kind: 'updated', dealId, correlationId, verified, changedLabels, auditId: audit.id };

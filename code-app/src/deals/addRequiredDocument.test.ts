@@ -78,11 +78,16 @@ describe('addRequiredDocument — governed intake of a required document', () =>
     expect(timelineCreate).not.toHaveBeenCalled();
   });
 
-  it('does not fake success when the create call fails', async () => {
+  it('does not fake success when the create call fails, and never renders the raw error verbatim', async () => {
     docCreate.mockResolvedValue({ success: false, error: { message: 'Dataverse rejected the create' } } as never);
     const out = await addRequiredDocument(INPUT, okResolver);
     expect(out.kind).toBe('create-failed');
     expect(docGet).not.toHaveBeenCalled();
+    // Final LOS Completion arc (Workstream P) — never render a raw transport error verbatim.
+    if (out.kind === 'create-failed') {
+      expect(out.docError).not.toContain('Dataverse rejected the create');
+      expect(out.docError).toContain("We couldn't save that action");
+    }
   });
 
   it('rejects an empty document name / note without any write', async () => {

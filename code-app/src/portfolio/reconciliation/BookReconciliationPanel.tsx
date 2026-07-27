@@ -54,8 +54,8 @@ export function MigrationReconciliationPanel({ reconciliation, batchLabel }: Pro
           for a batch to reconcile the boarded book. A migration is not complete until it ties.
         </p>
         <p style={styles.subtle}>
-          Requires the <code>cr664_portfoliomigrationcontrol</code> entity and the additive{' '}
-          <code>cr664_migrationbatchid</code> column to be provisioned.
+          Requires the migration control record and the batch-link field to be set up before a batch
+          can be reconciled.
         </p>
       </section>
     );

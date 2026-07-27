@@ -135,3 +135,45 @@ describe('confirmFundingDisbursement', () => {
     expect(outcome).toEqual({ kind: 'blocked', blockers: ['deal_declined'] });
   });
 });
+
+describe('confirmFundingDisbursement — Workstream K: timeline emission', () => {
+  it('emits a timeline event on the happy path when emitTimeline is supplied', async () => {
+    const rec = record();
+    const store = await seededStore(rec);
+    const emitAudit = emitAuditMock();
+    const emitTimeline = vi.fn(async (_event: { action: string }) => ({ success: true }));
+    const outcome = await confirmFundingDisbursement(
+      { record: rec, readinessFacts: CLEAR_FACTS, fundingDate: '2026-07-03', confirmedByActorEmail: 'ops@bank.test' },
+      { storage: store, emitAudit, emitTimeline, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('confirmed');
+    expect(emitTimeline).toHaveBeenCalledTimes(1);
+    const event = emitTimeline.mock.calls[0]![0] as { action: string };
+    expect(event.action).toBe('funded');
+  });
+
+  it('does not fail confirmation when emitTimeline is entirely absent (backward compatible)', async () => {
+    const rec = record();
+    const store = await seededStore(rec);
+    const emitAudit = emitAuditMock();
+    const outcome = await confirmFundingDisbursement(
+      { record: rec, readinessFacts: CLEAR_FACTS, fundingDate: '2026-07-03', confirmedByActorEmail: 'ops@bank.test' },
+      { storage: store, emitAudit, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('confirmed');
+  });
+
+  it('does not fail confirmation when emitTimeline rejects (best-effort, never blocks the outcome)', async () => {
+    const rec = record();
+    const store = await seededStore(rec);
+    const emitAudit = emitAuditMock();
+    const emitTimeline = vi.fn(async () => {
+      throw new Error('timeline down');
+    });
+    const outcome = await confirmFundingDisbursement(
+      { record: rec, readinessFacts: CLEAR_FACTS, fundingDate: '2026-07-03', confirmedByActorEmail: 'ops@bank.test' },
+      { storage: store, emitAudit, emitTimeline, resolveActorChangedBy: okResolver },
+    );
+    expect(outcome.kind).toBe('confirmed');
+  });
+});
