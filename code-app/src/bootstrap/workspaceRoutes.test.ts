@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   WORKSPACE_ROUTES,
+  WORKSPACE_DISPLAY_NAMES,
   resolveWorkspaceRoute,
   isPortfolioWorkspaceName,
 } from './workspaceRoutes';
@@ -254,5 +255,29 @@ describe('Phase 126B — isPortfolioWorkspaceName predicate', () => {
     expect(resolveWorkspaceRoute('Portfolio Management')).toBe(
       WORKSPACE_ROUTES.manager,
     );
+  });
+});
+
+describe('Workstream Q — WORKSPACE_DISPLAY_NAMES matches the live-alias contract', () => {
+  it('has exactly one display name per WORKSPACE_ROUTES key', () => {
+    expect(Object.keys(WORKSPACE_DISPLAY_NAMES).sort()).toEqual(
+      Object.keys(WORKSPACE_ROUTES).sort(),
+    );
+  });
+
+  it("every display name resolves back to its own key's route (cross-checked against the live alias table, not just asserted)", () => {
+    for (const key of Object.keys(WORKSPACE_ROUTES) as (keyof typeof WORKSPACE_ROUTES)[]) {
+      expect(resolveWorkspaceRoute(WORKSPACE_DISPLAY_NAMES[key])).toBe(WORKSPACE_ROUTES[key]);
+    }
+  });
+
+  it('matches the six documented live Platform Workspace names verbatim for the five non-portfolio keys', () => {
+    expect(WORKSPACE_DISPLAY_NAMES).toEqual({
+      banker: 'Banker Workspace',
+      team: 'Team Workspace',
+      manager: 'Manager Command Center',
+      executive: 'Executive Dashboard',
+      admin: 'Admin Control Center',
+    });
   });
 });

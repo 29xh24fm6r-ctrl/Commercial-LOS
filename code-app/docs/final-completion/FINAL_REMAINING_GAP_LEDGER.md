@@ -326,6 +326,39 @@ shape) rather than touching those files' own shared select/mapping. Generated-se
 dynamic (`await import(...)`), matching the sibling `adminAccessGrantLookup.ts` convention in this
 same domain.
 
+## 17. Workstream Q — navigation/business-label completion
+
+Investigated the whole reachable navigation surface (route table, `LendingOSLayout`'s sidebar, the
+⌘K command palette, workspace shells, CRM hub tabs, per-deal cockpit anchors). Most of it is already
+clean and business-friendly — no `cr664_` raw entity names, no internal phase/workstream references,
+no admin-only technical vocabulary leaking into banker/manager/executive/team-visible navigation.
+
+**One real, narrow gap found and fixed:** `src/navigation/AppCommandPalette.tsx` maintained its own
+`WORKSPACE_LABELS` map for the same five workspace destinations `src/bootstrap/workspaceRoutes.ts`'s
+`EXPLICIT_ALIASES` already documents as the audited live Dataverse Platform Workspace names — and it
+had drifted to a different, inconsistent casing (`'Manager command center'` vs. the live
+`'Manager Command Center'`; same for executive/admin). Added `WORKSPACE_DISPLAY_NAMES` to
+`workspaceRoutes.ts` (the one canonical, audited display name per key, cross-checked against
+`resolveWorkspaceRoute` so it can never silently point at the wrong destination) and pointed
+`AppCommandPalette.tsx` at it, deleting its own drifted copy.
+
+**Deliberately NOT changed — a real distinction, not an oversight:** `workspaceEntitlements.ts`'s
+`LINK_META` (the sidebar switcher's compact `"<Role> Workspace"` labels — Banker/Team/Manager/
+Portfolio/Executive/Admin Workspace) and the per-workspace page header titles (e.g. "Manager Command
+Center" as the `<h1>`) are an intentionally distinct, internally-consistent vocabulary — a short,
+uniform nav identifier vs. the descriptive live-system name — not a drifted copy of the command
+palette's labels. These are extensively pinned by `LendingOSLayout.test.tsx`,
+`WorkspaceSwitcher.test.tsx`, `workspaceEntitlements.test.tsx`, `ManagerWorkspace.test.tsx`, and
+`phase122BScriptContract.test.ts`; forcing them to match the live-system names would change
+already-shipped, working accessibility labels (`aria-label="Switch to Manager Workspace"`) for no
+functional gain, which is exactly the kind of unnecessary churn this arc's discipline avoids. No
+code invented here to manufacture a "fix" for a difference that isn't a defect.
+
+Also noted, out of scope: `BookReconciliationPanel.tsx`'s empty-state copy on the Portfolio Command
+Center surface shows raw Dataverse identifiers (`cr664_portfoliomigrationcontrol`,
+`cr664_migrationbatchid`) — this is body copy, not a navigation label, so it sits outside Workstream
+Q's stated scope; flagged here for a future pass rather than silently dropped.
+
 ## Living-document note
 
 This ledger will be updated (not replaced) as each workstream lands, so that by the time the PR
