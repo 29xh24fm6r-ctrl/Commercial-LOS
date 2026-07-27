@@ -39,3 +39,23 @@ export function mapBusinessSafeError(rawMessage: string, correlationId?: string)
     technicalDetail: detail,
   };
 }
+
+const GENERIC_SAFE_READ_MESSAGE =
+  "We couldn't load that information just now. Nothing was changed — please try again in a moment. " +
+  'If this keeps happening, share this reference with support.';
+
+/**
+ * Final LOS Completion arc (146 Factory arc, Workstream 146-G) — the read-path sibling of
+ * mapBusinessSafeError above. That mapper's copy ("We couldn't save that action") is a write-path
+ * claim that is actively wrong for a load/list failure (nothing was ever "saved" to fail). Same
+ * discipline otherwise: a raw transport error string (Dataverse/OData/network) is never rendered
+ * to a banker; `safeMessage` is a fixed, banker-facing string; `technicalDetail` preserves the
+ * original text for an internal diagnostic surface only.
+ */
+export function mapBusinessSafeReadError(rawMessage: string, correlationId?: string): MappedBusinessSafeError {
+  const detail = rawMessage.trim().length > 0 ? rawMessage.trim() : 'empty error message';
+  return {
+    safeMessage: `${GENERIC_SAFE_READ_MESSAGE} Reference: ${shortReference(correlationId)}.`,
+    technicalDetail: detail,
+  };
+}

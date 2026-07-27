@@ -95,14 +95,14 @@ state of this file rather than reconstructing history from commit messages.
 
 | Field | Value |
 |---|---|
-| Classification | **CODE_FIX** |
-| Code location | ~20 file-pairs identified across `manager/`, `team/`, `banker/`, `executive/`, `deals/`, `admin/`, `crm/`, `portfolioBoarding/` — every one funnels a raw `err.message`/`result.error?.message` into a `role="alert"` DOM element with no `mapBusinessSafeError` in the path (full list captured in this PR's research; see commit for the file-by-file fix) |
+| Classification | **CODE_FIX** (partial — 3 of ~20 file-pairs closed via the highest-leverage chokepoints) |
+| Code location | Added `mapBusinessSafeReadError()` (`src/shared/errors/businessSafeErrorMapping.ts`) — the read-path sibling of the existing write-path `mapBusinessSafeError()` (that one's "We couldn't save that action" copy is actively wrong for a load failure). Applied at the single `bind()`/`.catch()` chokepoint in `ManagerDataProvider.tsx` and `TeamDataProvider.tsx` (each fans out to ~10 downstream cards in one fix) and both catches in `BankerProvider.tsx` (the whole-workspace gate AND the `writeDisabledReason` reason text rendered in "Save disabled: {reason}" banners across many panels). |
 | Dataverse dependency | None |
 | Operational dependency | None |
-| Test coverage | To be added per fixed file/component |
-| Live verification requirement | None required — this is a pure client-side string-mapping fix, verifiable by unit test |
+| Test coverage | `businessSafeErrorMapping.test.ts` — 4 new tests for `mapBusinessSafeReadError` (never renders raw text, uses read-appropriate copy, preserves technicalDetail, correlation-id fallback). Full `src/manager`, `src/team`, `src/banker` suites re-run clean (885 tests) confirming no consumer pinned the old raw-message behavior. |
+| Live verification requirement | None required — pure client-side string-mapping fix, verifiable by unit test |
 | Owner | This session |
-| Status | Root cause confirmed: the prior safe-error audit (Workstream P) was scoped only to write actions; the read/list/loader side was never generalized. In progress. |
+| Status | Partial, honestly incomplete. Root cause confirmed: the prior safe-error audit (Workstream P) was scoped only to write actions; the read/list/loader side was never generalized (~20 file-pairs across `manager/`, `team/`, `banker/`, `executive/`, `deals/`, `admin/`, `crm/`, `portfolioBoarding/` per this PR's research). This pass closed the 3 highest-leverage Provider-level chokepoints (manager, team, banker — collectively covering roughly a dozen downstream components). NOT yet fixed: `executive/snapshotQueries.ts` + `operationalFallbackQueries.ts`, `deals/dealQueries.ts` / `dealTaskQueries.ts` / `dealDocumentQueries.ts` / `activityQueries.ts` / `creditMemoQueries.ts` / `documentRequirementLiveReader.ts` / `stageProgressionAvailabilityLoader.ts`, `portfolioBoarding/boardedLoansList.ts`, `admin/adminDiagnosticsQueries.ts` / `adminUserAccessQueries.ts` / `dealReferenceAdminQueries.ts` / `workspaceEntitlementWrite.ts` / `loadDataQualityScanInputs.ts` / `TestDataView.tsx` / `NewDealResolverReadinessCard.tsx` / `EmailLiveDiagnostics.tsx`, and `crm/` (`CrmIntelligencePanel.tsx`, `NaicsTypeahead.tsx`, `CrmOrgFieldInlineEdit.tsx`). Explicitly not silently deferred — tracked here as the remaining scope for a follow-on pass. |
 
 ## 146-H — Stage-gate reload proof
 
