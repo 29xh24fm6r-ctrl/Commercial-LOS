@@ -420,6 +420,22 @@ own "no fabricated business rules" discipline. The residual risk (a direct Datav
 every client-side check on all six new tables) is disclosed, matching the same risk class
 `THREAT_BYPASS_MODEL.md` already discloses for the loan-deal table itself.
 
+## 20. Workstream U — FINAL_WORKFLOW_REQUIREMENT_MATRIX.md
+
+Produced `docs/final-completion/FINAL_WORKFLOW_REQUIREMENT_MATRIX.md`, a fresh, complete snapshot
+of `loanWorkflowRequirementRegistry.ts`'s current state — every stage exit and non-forward action's
+requirements, tracked vs. untracked, and which workstream closed each one. Written as a clean
+replacement read rather than another appended correction to `docs/LOS_WORKFLOW_TRUTH_MATRIX.md`
+(that document's own honest lineage convention — append, don't rewrite — has, after several rounds
+of updates, become slow to read for "what's true right now").
+
+Confirms: Workstreams C/D/E/F/H collectively flipped 11 deep requirements from untracked to
+tracked; only `CREDIT_APPROVAL:memo_finalized` remains genuinely untracked (needs a credit-memo
+lifecycle status field, out of scope); `RETURN:authorization` remains deliberately untracked per
+the governance contract's own ratified §5 decision (Workstream J). Return/Decline/Withdraw
+reconfirmed live, not preview-only. No code changed — pure documentation, grounded directly in the
+registry source, not re-derived from a stale doc.
+
 ## Living-document note
 
 This ledger will be updated (not replaced) as each workstream lands, so that by the time the PR
