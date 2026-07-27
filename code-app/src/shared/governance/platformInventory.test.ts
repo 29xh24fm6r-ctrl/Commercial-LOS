@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the fourteen shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70, 160, 237)', () => {
+  it('contains the twenty shipped governed writes (Phases 18, 19, 21, 22, 25, 51, 55, 61, 63, 70, 160, 237, 265-270)', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -39,6 +39,14 @@ describe('platformInventory — governed writes', () => {
         'deal-log-activity',
         'deal-stage-advance',
         'deal-task-complete',
+        // Final LOS Completion arc (Workstream M) -- the six durable-record governed writes
+        // Workstreams C/D/E/F/H/J shipped, registered here for the first time.
+        'credit-approval-decision-submit',
+        'commitment-submit',
+        'condition-verification-submit',
+        'executed-document-attestation-submit',
+        'booking-qc-check-submit',
+        'adverse-action-submit',
       ].sort(),
     );
   });
@@ -60,6 +68,12 @@ describe('platformInventory — governed writes', () => {
         'deal-log-activity',
         'credit-memo-draft-save',
         'deal-stage-advance',
+        'credit-approval-decision-submit',
+        'commitment-submit',
+        'condition-verification-submit',
+        'executed-document-attestation-submit',
+        'booking-qc-check-submit',
+        'adverse-action-submit',
       ].includes(w.id),
     );
     for (const w of dealWrites) {
@@ -1045,8 +1059,8 @@ describe('platformInventory — Phase 67 handoff classification', () => {
     expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
   });
 
-  it('GOVERNED_WRITES count: Phase 237 added the 14th governed write (deal-stage-advance)', () => {
-    expect(GOVERNED_WRITES.length).toBe(14);
+  it('GOVERNED_WRITES count: Final LOS Completion arc (Workstream M) added six durable-record writes on top of the 14 shipped through Phase 237', () => {
+    expect(GOVERNED_WRITES.length).toBe(20);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {

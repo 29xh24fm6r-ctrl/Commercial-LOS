@@ -156,6 +156,65 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsTimeline: true,
     legacyDisciplineExempt: true,
   },
+  // Final LOS Completion arc (Workstream M) -- registers the six durable-record governed writes
+  // Workstreams C/D/E/F/H/J shipped, none of which had been added here, so
+  // AdminCapabilityTruthMatrix's "live governed write" list was silently incomplete since those
+  // workstreams landed. All six follow the identical shape every write above does (correlation id,
+  // parallel audit + timeline emission, mapBusinessSafeError) but were built under this arc's own
+  // per-entity submit*.ts convention rather than the Phase 46/47/49/50 sweeps' pattern -- see
+  // `durableRecordCapabilityInventory.ts` for each one's own status vocabulary (a concern
+  // GOVERNED_WRITES itself does not model). Phase numbers 265-270 are assigned sequentially, chosen
+  // above the highest real Phase-N doc number in this repo (264) to guarantee no collision -- this
+  // arc's own workstreams are lettered (A-X), not phase-numbered, so these numbers exist only to
+  // satisfy this schema's required `phase: number` field, not to claim a real Phase 265-270 doc.
+  {
+    id: 'credit-approval-decision-submit',
+    label: 'Credit Approval Decision submit',
+    phase: 265,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'commitment-submit',
+    label: 'Commitment issue / respond',
+    phase: 266,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'condition-verification-submit',
+    label: 'Condition Verification submit',
+    phase: 267,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'executed-document-attestation-submit',
+    label: 'Executed Document Attestation submit',
+    phase: 268,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'booking-qc-check-submit',
+    label: 'Booking QC Check submit',
+    phase: 269,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'adverse-action-submit',
+    label: 'Adverse Action Record submit',
+    phase: 270,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
 ];
 // NOTE: forward stage-advance (DealStageProgressionCard -> stageAdvanceWriteDependency.ts
 // -> buildLiveStageAdvanceDeps.ts) is a real, armed, audited + timelined governed write and

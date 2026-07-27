@@ -49,7 +49,11 @@ function readDoc(rel: string): string {
  * update the value here in the same commit.
  */
 const PHASE_111_SNAPSHOT = Object.freeze({
-  governedWrites: 14,
+  // Final LOS Completion arc (Workstream M) registered the six durable-record governed writes
+  // Workstreams C/D/E/F/H/J shipped (Credit Approval Decision, Commitment, Condition
+  // Verification, Executed Document Attestation, Booking QC, Adverse Action Record) -- a
+  // registry blind spot those workstreams had until now, not new gaps.
+  governedWrites: 20,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) for the schema-pending Global Cash Flow /
