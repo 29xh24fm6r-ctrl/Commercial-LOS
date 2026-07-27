@@ -30,6 +30,15 @@ export interface ClosingDocumentsPanelProps {
   readonly manifests: readonly GeneratedClosingDocumentManifest[];
   readonly authorized: boolean;
   readonly onGenerate: (template: ClosingDocumentTemplate) => Promise<ClosingDocumentGenerationOutcome>;
+  /**
+   * Factory mission PR C — reads back a previously-persisted manifest's rendered content. Optional
+   * so this panel keeps rendering (minus this one button) against a caller that hasn't wired a
+   * durable content-read yet. Without this, "Download" only ever worked for a document generated
+   * in the CURRENT session (see downloadClosingDocumentContent's doc comment) -- a document
+   * generated in an earlier session, or reopened after a reload, had no way to retrieve its content
+   * at all, even once genuinely persisted.
+   */
+  readonly onGetContent?: (manifestId: string) => Promise<{ readonly success: boolean; readonly content?: string; readonly error?: string }>;
 }
 
 /**
@@ -53,7 +62,7 @@ function downloadClosingDocumentContent(
   URL.revokeObjectURL(url);
 }
 
-export function ClosingDocumentsPanel({ dealId, facts, manifests, authorized, onGenerate }: ClosingDocumentsPanelProps) {
+export function ClosingDocumentsPanel({ dealId, facts, manifests, authorized, onGenerate, onGetContent }: ClosingDocumentsPanelProps) {
   const eligibility = useMemo(() => evaluateAllTemplates(facts), [facts]);
   const dealManifests = useMemo(() => manifests.filter((m) => m.dealId === dealId), [manifests, dealId]);
   const currentByTemplate = useMemo(() => latestManifestsByTemplate(dealManifests), [dealManifests]);
@@ -64,6 +73,8 @@ export function ClosingDocumentsPanel({ dealId, facts, manifests, authorized, on
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [generating, setGenerating] = useState<string | null>(null);
   const [lastOutcome, setLastOutcome] = useState<Record<string, ClosingDocumentGenerationOutcome>>({});
+  const [retrieving, setRetrieving] = useState<string | null>(null);
+  const [retrieveError, setRetrieveError] = useState<Record<string, string>>({});
 
   async function handleGenerate(template: ClosingDocumentTemplate) {
     setGenerating(template.key);
@@ -72,6 +83,27 @@ export function ClosingDocumentsPanel({ dealId, facts, manifests, authorized, on
       setLastOutcome((prev) => ({ ...prev, [template.key]: outcome }));
     } finally {
       setGenerating(null);
+    }
+  }
+
+  /** Factory mission PR C — retrieves a PREVIOUSLY-persisted manifest's content (as opposed to
+   *  downloadClosingDocumentContent below, which only ever has this session's in-memory result). */
+  async function handleRetrieveAndDownload(template: ClosingDocumentTemplate, manifest: GeneratedClosingDocumentManifest) {
+    if (!onGetContent) return;
+    setRetrieving(template.key);
+    setRetrieveError((prev) => ({ ...prev, [template.key]: '' }));
+    try {
+      const result = await onGetContent(manifest.manifestId);
+      if (result.success && result.content) {
+        downloadClosingDocumentContent(template, manifest, result.content);
+      } else {
+        setRetrieveError((prev) => ({
+          ...prev,
+          [template.key]: result.error ?? 'Could not retrieve this document’s content.',
+        }));
+      }
+    } finally {
+      setRetrieving(null);
     }
   }
 
@@ -147,6 +179,28 @@ export function ClosingDocumentsPanel({ dealId, facts, manifests, authorized, on
                 <pre style={styles.previewBox}>{previewClosingDocument(template, facts).kind === 'preview'
                   ? (previewClosingDocument(template, facts) as { renderedContent: string }).renderedContent
                   : ''}</pre>
+              )}
+
+              {current && !outcome && onGetContent && (
+                <>
+                  {/* Factory mission PR C — a manifest generated in an EARLIER session (or reloaded
+                      after this one) has no in-memory renderedContent to fall back on; this reads
+                      the persisted content back from durable storage instead. */}
+                  <button
+                    type="button"
+                    style={styles.secondaryButton}
+                    onClick={() => handleRetrieveAndDownload(template, current)}
+                    disabled={retrieving === template.key}
+                    data-closing-document-retrieve={template.key}
+                  >
+                    {retrieving === template.key ? 'Retrieving…' : 'Download'}
+                  </button>
+                  {retrieveError[template.key] && (
+                    <p style={styles.error} role="alert" data-closing-document-retrieve-error={template.key}>
+                      {retrieveError[template.key]}
+                    </p>
+                  )}
+                </>
               )}
 
               {outcome && outcome.kind === 'write_failed' && (

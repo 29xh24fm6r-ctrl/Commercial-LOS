@@ -32,12 +32,28 @@ export interface ClosingDocumentListResult {
   readonly error?: string;
 }
 
+export interface ClosingDocumentContentResult {
+  readonly success: boolean;
+  readonly content?: string;
+  readonly error?: string;
+}
+
 export interface ClosingDocumentStorageDeps {
   readonly createManifestRecord: (
     manifest: GeneratedClosingDocumentManifest,
     renderedContent: string,
   ) => Promise<ClosingDocumentStorageResult>;
   readonly listManifestsForDeal: (dealId: string) => Promise<ClosingDocumentListResult>;
+  /**
+   * Factory mission PR C — reads the rendered content for a single, already-persisted manifest.
+   * Before this method existed, `listManifestsForDeal` (metadata only, no content column) was the
+   * ONLY read path a reloaded/reopened deal workspace had, and `ClosingDocumentsPanel.tsx`'s
+   * "Download" button only ever worked off the in-session `renderedContent` a generation call
+   * returned directly -- so a genuinely persisted document became permanently inaccessible the
+   * moment the browser tab that generated it closed, even once the backing table is live. See
+   * `SELECT_FIELDS_WITH_CONTENT` below for the Dataverse-backed implementation.
+   */
+  readonly getManifestContent: (manifestId: string) => Promise<ClosingDocumentContentResult>;
 }
 
 export function createInMemoryClosingDocumentStore(): ClosingDocumentStorageDeps & {
@@ -56,6 +72,12 @@ export function createInMemoryClosingDocumentStore(): ClosingDocumentStorageDeps
       success: true,
       manifests: manifests.filter((m) => m.dealId === dealId),
     }),
+    getManifestContent: async (manifestId) => {
+      const c = content.get(manifestId);
+      return c === undefined
+        ? { success: false, error: `No content on record for manifest ${manifestId}.` }
+        : { success: true, content: c };
+    },
     all: () => manifests,
     contentFor: (manifestId) => content.get(manifestId),
   };
@@ -90,6 +112,12 @@ const SELECT_FIELDS = [
 ] as const;
 
 type ClosingDocumentManifestRow = Record<(typeof SELECT_FIELDS)[number], unknown>;
+
+/** Factory mission PR C — the minimal select for a single content read: just the id (to confirm
+ *  the row matches) and the rendered-content Memo column `listManifestsForDeal` deliberately
+ *  excludes (a list view has no reason to pull every manifest's full rendered text). */
+const SELECT_FIELDS_WITH_CONTENT = ['cr664_manifestid', 'cr664_renderedcontent'] as const;
+type ClosingDocumentContentRow = Record<(typeof SELECT_FIELDS_WITH_CONTENT)[number], unknown>;
 
 type MapResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string };
 
@@ -224,6 +252,33 @@ export function createDataverseClosingDocumentStore(): ClosingDocumentStorageDep
           if (mapped.ok) manifests.push(mapped.value);
         }
         return { success: true, manifests };
+      } catch (err: unknown) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+
+    getManifestContent: async (manifestId) => {
+      try {
+        const { Cr664_closingdocumentmanifestsService } = await import(
+          '../../generated/services/Cr664_closingdocumentmanifestsService'
+        );
+        const result = await Cr664_closingdocumentmanifestsService.getAll({
+          select: [...SELECT_FIELDS_WITH_CONTENT],
+          filter: `cr664_manifestid eq '${manifestId.replace(/'/g, "''")}'`,
+          top: 1,
+        });
+        if (!result.success || !Array.isArray(result.data)) {
+          return { success: false, error: result.error?.message ?? 'Closing document content read failed.' };
+        }
+        const row = result.data[0] as unknown as ClosingDocumentContentRow | undefined;
+        if (!row) {
+          return { success: false, error: `No manifest found with id ${manifestId}.` };
+        }
+        const content = row.cr664_renderedcontent;
+        if (typeof content !== 'string' || content.length === 0) {
+          return { success: false, error: `Manifest ${manifestId} has no recorded content.` };
+        }
+        return { success: true, content };
       } catch (err: unknown) {
         return { success: false, error: err instanceof Error ? err.message : String(err) };
       }

@@ -100,7 +100,14 @@ export function DealClosingDocumentsPanel({ deal, authorized, actorEmail }: { de
         pretend to succeed — download the document below immediately after generating it as a
         precaution.
       </p>
-      <ClosingDocumentsPanel dealId={deal.id} facts={facts} manifests={manifests} authorized={authorized} onGenerate={onGenerate} />
+      <ClosingDocumentsPanel
+        dealId={deal.id}
+        facts={facts}
+        manifests={manifests}
+        authorized={authorized}
+        onGenerate={onGenerate}
+        onGetContent={(manifestId) => storeRef.current.getManifestContent(manifestId)}
+      />
     </>
   );
 }

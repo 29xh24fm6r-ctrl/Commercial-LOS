@@ -23,15 +23,21 @@ vi.mock('../closing/documents/closingDocumentStorage', async (importOriginal) =>
 
 function fakeDurableStore(): ClosingDocumentStorageDeps {
   const manifests: GeneratedClosingDocumentManifest[] = [];
+  const content = new Map<string, string>();
   return {
-    createManifestRecord: async (manifest): Promise<ClosingDocumentStorageResult> => {
+    createManifestRecord: async (manifest, renderedContent): Promise<ClosingDocumentStorageResult> => {
       manifests.push(manifest);
+      content.set(manifest.manifestId, renderedContent);
       return { success: true, id: manifest.manifestId };
     },
     listManifestsForDeal: async (dealId): Promise<ClosingDocumentListResult> => ({
       success: true,
       manifests: manifests.filter((m) => m.dealId === dealId),
     }),
+    getManifestContent: async (manifestId) => {
+      const c = content.get(manifestId);
+      return c === undefined ? { success: false, error: 'not found' } : { success: true, content: c };
+    },
   };
 }
 
