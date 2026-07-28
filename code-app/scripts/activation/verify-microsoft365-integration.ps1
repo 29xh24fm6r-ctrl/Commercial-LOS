@@ -14,6 +14,7 @@ param(
   [switch]$RequireTeamsIcons,
   [switch]$RequireOutlookRuntimeBinding,
   [switch]$RequireCalendarRuntimeBinding,
+  [switch]$RequireTeamsPackage,
   [string]$RepoRoot
 )
 
@@ -23,6 +24,7 @@ $teamsDir = Join-Path $repo 'microsoft365\teams'
 $manifestPath = Join-Path $teamsDir 'manifest.template.json'
 $outlookVerifier = Join-Path $PSScriptRoot 'verify-outlook-connector.ps1'
 $calendarVerifier = Join-Path $PSScriptRoot 'verify-outlook-calendar-connector.ps1'
+$teamsPackageBuilder = Join-Path $repo 'scripts\microsoft365\build-teams-package.ps1'
 $expectedEnvironmentId = '5f2d77a5-de50-edeb-9d74-5b2400a2320d'
 $expectedAppId = '63858e09-3d0b-47c9-b1d2-65cef742fda4'
 $expectedTenantId = 'e5d2be43-2e2c-4968-b5f3-c73dd825ee80'
@@ -52,6 +54,7 @@ $calendarRuntime = 'UNKNOWN'
 $calendarRead = 'UNKNOWN'
 $calendarWrite = 'UNKNOWN'
 $calendarStatus = 'UNKNOWN'
+$teamsPackage = 'UNKNOWN'
 
 if (Test-Path -LiteralPath $outlookVerifier) {
   $outlookOutput = & powershell -File $outlookVerifier -RepoRoot $repo 2>&1
@@ -130,6 +133,23 @@ if ($RequireTeamsIcons) {
   Write-Host '[INFO] Teams icon presence not required in this run. Pass -RequireTeamsIcons before packaging/upload.'
 }
 
+if ($RequireTeamsPackage) {
+  if (Test-Path -LiteralPath $teamsPackageBuilder) {
+    $teamsPackageOutput = & powershell -File $teamsPackageBuilder -RepoRoot $repo -ValidateOnly 2>&1
+    $teamsPackageExit = $LASTEXITCODE
+    $teamsPackageOutput | ForEach-Object { Write-Host $_ }
+    if ($teamsPackageExit -eq 0) {
+      $teamsPackage = 'PASS'
+    } else {
+      $teamsPackage = 'BLOCKED'
+      $ok = $false
+    }
+  } else {
+    $teamsPackage = 'BLOCKED'
+    $ok = (Write-Check 'Teams package builder' $false 'scripts/microsoft365/build-teams-package.ps1 is missing') -and $ok
+  }
+}
+
 if (-not $ok) {
   Write-Host 'STATUS=BLOCKED'
   exit 1
@@ -137,9 +157,9 @@ if (-not $ok) {
 
 if ($unknown) {
   Write-Host 'STATUS=UNKNOWN'
-  Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=UNKNOWN outlookConfigured={0} outlookRuntime={1} outlookLive={2} calendarConfigured={3} calendarRuntime={4} calendarRead={5} calendarWrite={6} teamsManifest={7} requireIcons={8} requireOutlookRuntimeBinding={9} requireCalendarRuntimeBinding={10} ts={11}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $calendarConfigured, $calendarRuntime, $calendarRead, $calendarWrite, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, $RequireCalendarRuntimeBinding.IsPresent, (Get-Date -Format o))
+  Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=UNKNOWN outlookConfigured={0} outlookRuntime={1} outlookLive={2} calendarConfigured={3} calendarRuntime={4} calendarRead={5} calendarWrite={6} teamsPackage={7} teamsManifest={8} requireIcons={9} requireOutlookRuntimeBinding={10} requireCalendarRuntimeBinding={11} requireTeamsPackage={12} ts={13}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $calendarConfigured, $calendarRuntime, $calendarRead, $calendarWrite, $teamsPackage, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, $RequireCalendarRuntimeBinding.IsPresent, $RequireTeamsPackage.IsPresent, (Get-Date -Format o))
   exit 0
 }
 
 Write-Host 'STATUS=PASS'
-Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=PASS outlookConfigured={0} outlookRuntime={1} outlookLive={2} calendarConfigured={3} calendarRuntime={4} calendarRead={5} calendarWrite={6} teamsManifest={7} requireIcons={8} requireOutlookRuntimeBinding={9} requireCalendarRuntimeBinding={10} ts={11}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $calendarConfigured, $calendarRuntime, $calendarRead, $calendarWrite, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, $RequireCalendarRuntimeBinding.IsPresent, (Get-Date -Format o))
+Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=PASS outlookConfigured={0} outlookRuntime={1} outlookLive={2} calendarConfigured={3} calendarRuntime={4} calendarRead={5} calendarWrite={6} teamsPackage={7} teamsManifest={8} requireIcons={9} requireOutlookRuntimeBinding={10} requireCalendarRuntimeBinding={11} requireTeamsPackage={12} ts={13}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $calendarConfigured, $calendarRuntime, $calendarRead, $calendarWrite, $teamsPackage, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, $RequireCalendarRuntimeBinding.IsPresent, $RequireTeamsPackage.IsPresent, (Get-Date -Format o))
