@@ -8,6 +8,7 @@ import {
   type BankerCalendarReadState,
 } from './outlookCalendarReadAdapter';
 import type { CalendarTimeRange } from './bankerAvailability';
+import { MeetingProposalControl } from './MeetingProposalControl';
 
 function buildCandidateWindows(now = new Date()): CalendarTimeRange[] {
   const base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 14, 0, 0);
@@ -117,9 +118,14 @@ export function DealCalendarAvailabilityPanel() {
           <p style={mutedStyle}>Availability will display only after the calendar adapter returns real events.</p>
         )}
       </section>
-      <button type="button" style={proposalButtonStyle} aria-label="Prepare meeting proposal">
-        Prepare meeting proposal
-      </button>
+      <MeetingProposalControl
+        dealId={deal.id}
+        dealName={dealName}
+        candidateStart={candidateWindows[0]?.start ?? new Date().toISOString()}
+        candidateEnd={candidateWindows[0]?.end ?? new Date(Date.now() + 60 * 60 * 1000).toISOString()}
+        timezone={candidateWindows[0]?.timezone ?? 'UTC'}
+        requiredAttendees={[]}
+      />
       <CardFooter>
         <span>No Outlook calendar create/update/delete is executed from this panel.</span>
         <span>Scheduling requires a future explicit confirmation flow and audit event.</span>
@@ -134,4 +140,3 @@ const itemStyle: React.CSSProperties = { border: `1px solid ${palette.border}`, 
 const mutedStyle: React.CSSProperties = { margin: 0, color: palette.textMuted, fontSize: typography.size.sm };
 const pillStyle: React.CSSProperties = { border: `1px solid ${palette.border}`, borderRadius: radius.pill, padding: '2px 8px', fontSize: typography.size.xs, color: palette.textMuted };
 const subheadStyle: React.CSSProperties = { margin: 0, fontSize: typography.size.sm, color: palette.text };
-const proposalButtonStyle: React.CSSProperties = { border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: `${spacing.xs} ${spacing.sm}`, background: palette.surfaceAlt, color: palette.text, cursor: 'default' };
