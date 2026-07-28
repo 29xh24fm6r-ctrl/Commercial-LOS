@@ -28,6 +28,7 @@ import { BorrowerCommunication } from './BorrowerCommunication';
 import { TeamsChatHandoff } from './TeamsChatHandoff';
 import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
 import { DealCopilotAssist } from '../copilot/DealCopilotAssist';
+import { DealCalendarAvailabilityPanel } from '../calendar/DealCalendarAvailabilityPanel';
 import { DealDataProvider } from './DealDataProvider';
 import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
 import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
@@ -473,6 +474,11 @@ export function BankerDealWorkspace({
               </div>
               <div data-deal-card="borrower-package-prep">
                 <BorrowerPackagePrepPanel />
+              </div>
+              {/* M365-2: governed read-only Outlook calendar / banker availability.
+                  Default mode is disabled; the panel never creates meetings. */}
+              <div data-deal-card="calendar-availability">
+                <DealCalendarAvailabilityPanel />
               </div>
               {/* Phase 86: no-admin Teams chat handoff. */}
               <div data-deal-card="teams-chat-handoff">
