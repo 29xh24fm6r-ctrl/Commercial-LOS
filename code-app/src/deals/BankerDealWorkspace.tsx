@@ -27,6 +27,7 @@ import { ActivityTimeline } from './ActivityTimeline';
 import { BorrowerCommunication } from './BorrowerCommunication';
 import { TeamsChatHandoff } from './TeamsChatHandoff';
 import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
+import { TeamsChannelPostPanel } from '../teamsChannelPosting/TeamsChannelPostPanel';
 import { DealCopilotAssist } from '../copilot/DealCopilotAssist';
 import { DealCalendarAvailabilityPanel } from '../calendar/DealCalendarAvailabilityPanel';
 import { DealDataProvider } from './DealDataProvider';
@@ -487,6 +488,11 @@ export function BankerDealWorkspace({
               {/* Phase 96: copy-to-Teams deal summary. */}
               <div data-deal-card="teams-deal-summary-handoff">
                 <TeamsDealSummaryHandoff />
+              </div>
+              {/* M365-5: governed server-side Teams channel posting boundary.
+                  Defaults disabled/not-configured; no browser Graph call. */}
+              <div data-deal-card="teams-channel-post">
+                <TeamsChannelPostPanel />
               </div>
               {/* Phase 130A: read-only Copilot assist (connector not
                   configured). Context-only local summaries built from

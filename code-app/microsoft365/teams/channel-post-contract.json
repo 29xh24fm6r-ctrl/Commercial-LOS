@@ -1,0 +1,57 @@
+{
+  "name": "Commercial LOS Teams Channel Posting Boundary",
+  "version": "2026-07-28",
+  "runtimeState": "NOT_CONFIGURED",
+  "featureGate": "VITE_TEAMS_CHANNEL_POST_ENABLED=false",
+  "approvedBoundary": {
+    "preferred": "Dataverse Custom API plus server-side handler",
+    "alternatives": [
+      "Power Automate flow",
+      "Azure Function",
+      "approved custom connector"
+    ],
+    "browserDirectGraphAllowed": false
+  },
+  "approvedTargets": [
+    {
+      "alias": "credit-ops-test-channel",
+      "displayName": "Credit Ops Test Channel",
+      "environment": "test",
+      "active": false,
+      "policyVersion": "teams-channel-post-2026-07-28"
+    }
+  ],
+  "contentPolicy": {
+    "allowedFields": [
+      "dealName",
+      "stage",
+      "assignedBanker",
+      "blockers",
+      "nextAction",
+      "losDeepLink",
+      "timestamp"
+    ],
+    "forbiddenContent": [
+      "tax identifiers",
+      "account numbers",
+      "confidential document contents",
+      "raw team IDs",
+      "raw channel IDs",
+      "access tokens"
+    ]
+  },
+  "audit": {
+    "required": true,
+    "fields": [
+      "actor",
+      "dealId",
+      "targetAlias",
+      "contentHash",
+      "safePreview",
+      "transportOutcome",
+      "returnedMessageId",
+      "correlationId",
+      "timestamp"
+    ]
+  }
+}
