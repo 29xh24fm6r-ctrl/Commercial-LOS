@@ -67,6 +67,17 @@ describe('M365-3 governed meeting creation boundary', () => {
     expect(src).toMatch(/Returned event ID is evidence, not delivery confirmation/);
   });
 
+  it('documents the Teams meeting join URL boundary and forbids fabricated URLs', () => {
+    const contract = read('microsoft365/teams/teams-meeting-boundary-contract.json');
+    const doc = read('docs/governance/M365_A4_TEAMS_MEETING_CREATION_BOUNDARY_2026-07-28.md');
+    const src = read('src/calendar/teamsMeetingBoundary.ts');
+    expect(contract).toMatch(/teamsJoinUrl/);
+    expect(contract).toMatch(/fabricated join URLs/);
+    expect(doc).toMatch(/does not expose a reliable Teams join URL field/);
+    expect(src).toMatch(/server_side_boundary_required/);
+    expect(src).toMatch(/validateTeamsJoinUrl/);
+  });
+
   it('Copilot cannot schedule or confirm meetings', () => {
     const copilot = [
       'src/copilot/copilotConnector.ts',

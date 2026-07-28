@@ -1,0 +1,40 @@
+{
+  "name": "Commercial LOS Teams Meeting Creation Boundary",
+  "version": "2026-07-28",
+  "runtimeState": "NOT_CONFIGURED",
+  "featureGate": "VITE_TEAMS_MEETING_CREATION_ENABLED=false",
+  "preferredBoundary": "Dataverse Custom API or Power Automate action using Microsoft Graph onlineMeeting/calendar event APIs with application-managed audit",
+  "browserDirectGraphAllowed": false,
+  "input": {
+    "calendarEventId": "optional when event already exists",
+    "dealId": "required",
+    "subject": "required",
+    "start": "required ISO datetime",
+    "end": "required ISO datetime",
+    "timezone": "required",
+    "requiredAttendees": "approved internal diagnostic recipients only during certification",
+    "correlationId": "required",
+    "idempotencyKey": "required"
+  },
+  "output": {
+    "outcome": "LIVE_ACCEPTED | LIVE_CONFIRMED | BLOCKED | UNKNOWN | FAILED",
+    "eventId": "required for accepted/confirmed calendar event",
+    "teamsJoinUrl": "required for LIVE_CONFIRMED Teams meeting",
+    "auditEventId": "required after Dataverse audit write",
+    "correlationId": "required"
+  },
+  "proofRequiredForConfirmed": [
+    "real Teams join URL returned by Microsoft",
+    "organizer can open URL",
+    "attendee can join URL",
+    "event visible on organizer calendar",
+    "invite received by attendee"
+  ],
+  "forbidden": [
+    "fabricated join URLs",
+    "browser Graph calls",
+    "raw access tokens in client",
+    "raw tenant IDs in evidence",
+    "external recipients during diagnostic certification"
+  ]
+}
