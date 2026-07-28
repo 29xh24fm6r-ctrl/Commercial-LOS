@@ -78,14 +78,14 @@ export function DealCalendarAvailabilityPanel() {
         trailing={<span style={pillStyle}>{statusLabel}</span>}
       />
       <section aria-label="Upcoming banker meetings" style={sectionStyle}>
-        {state.kind === 'loading' && <p style={mutedStyle}>Loading calendar readiness…</p>}
+        {state.kind === 'loading' && <p style={mutedStyle}>Loading calendar readiness...</p>}
         {state.kind !== 'loading' && state.message && <p style={mutedStyle}>{state.message}</p>}
         {state.events.length > 0 ? (
           <ul style={listStyle}>
             {state.events.map((event) => (
               <li key={event.id} style={itemStyle}>
                 <strong>{event.subject}</strong>
-                <span>{new Date(event.start).toLocaleString()} – {new Date(event.end).toLocaleString()}</span>
+                <span>{new Date(event.start).toLocaleString()} - {new Date(event.end).toLocaleString()}</span>
                 <span>Timezone: {event.timezone}</span>
                 {event.organizer && <span>Organizer: {event.organizer}</span>}
                 {event.attendees && event.attendees.length > 0 && (
@@ -107,7 +107,7 @@ export function DealCalendarAvailabilityPanel() {
             {state.availability.map((window) => (
               <li key={`${window.start}-${window.end}`} style={itemStyle}>
                 <strong>{window.status.replace(/_/g, ' ')}</strong>
-                <span>{new Date(window.start).toLocaleString()} – {new Date(window.end).toLocaleString()} ({window.timezone})</span>
+                <span>{new Date(window.start).toLocaleString()} - {new Date(window.end).toLocaleString()} ({window.timezone})</span>
                 {window.conflictSubjects.length > 0 && (
                   <span>Conflicts: {window.conflictSubjects.join('; ')}</span>
                 )}

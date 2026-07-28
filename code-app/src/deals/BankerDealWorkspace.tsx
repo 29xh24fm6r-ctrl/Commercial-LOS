@@ -30,6 +30,7 @@ import { TeamsDealSummaryHandoff } from './TeamsDealSummaryHandoff';
 import { TeamsChannelPostPanel } from '../teamsChannelPosting/TeamsChannelPostPanel';
 import { DealCopilotAssist } from '../copilot/DealCopilotAssist';
 import { DealCalendarAvailabilityPanel } from '../calendar/DealCalendarAvailabilityPanel';
+import { OutlookCalendarReadDiagnosticPanel } from '../calendar/OutlookCalendarReadDiagnosticPanel';
 import { DealDataProvider } from './DealDataProvider';
 import { BorrowerPackagePrepPanel } from '../workflow/BorrowerPackagePrepPanel';
 import { CreditApprovalReadinessPanel } from '../workflow/CreditApprovalReadinessPanel';
@@ -480,6 +481,9 @@ export function BankerDealWorkspace({
                   Default mode is disabled; the panel never creates meetings. */}
               <div data-deal-card="calendar-availability">
                 <DealCalendarAvailabilityPanel />
+              </div>
+              <div data-deal-card="calendar-read-diagnostic">
+                <OutlookCalendarReadDiagnosticPanel />
               </div>
               {/* Phase 86: no-admin Teams chat handoff. */}
               <div data-deal-card="teams-chat-handoff">
