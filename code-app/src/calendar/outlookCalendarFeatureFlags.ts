@@ -1,4 +1,10 @@
-export type OutlookCalendarReadMode = 'disabled' | 'live_read_only';
+import {
+  parseOutlookCalendarReadMode,
+  getM365ActivationConfig,
+  type OutlookCalendarReadMode,
+} from '../microsoft365/m365ActivationConfig';
+
+export type { OutlookCalendarReadMode };
 
 export const OUTLOOK_CALENDAR_READ_MODES: readonly OutlookCalendarReadMode[] = [
   'disabled',
@@ -8,11 +14,9 @@ export const OUTLOOK_CALENDAR_READ_MODES: readonly OutlookCalendarReadMode[] = [
 export function resolveOutlookCalendarReadMode(
   env: Record<string, string | undefined> = {},
 ): OutlookCalendarReadMode {
-  const raw = (env.VITE_OUTLOOK_CALENDAR_READ_MODE ?? '').trim();
-  return raw === 'live_read_only' ? 'live_read_only' : 'disabled';
+  return parseOutlookCalendarReadMode(env.VITE_OUTLOOK_CALENDAR_READ_MODE);
 }
 
 export function getOutlookCalendarReadMode(): OutlookCalendarReadMode {
-  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
-  return resolveOutlookCalendarReadMode(env);
+  return getM365ActivationConfig().outlookCalendarReadMode;
 }

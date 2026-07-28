@@ -1,8 +1,9 @@
+import { resolveM365ActivationConfig, getM365ActivationConfig } from '../microsoft365/m365ActivationConfig';
+
 export function resolveTeamsChannelPostEnabled(env: Record<string, string | undefined> = {}): boolean {
-  return env.VITE_TEAMS_CHANNEL_POST_ENABLED === 'true';
+  return resolveM365ActivationConfig(env).teamsChannelPostEnabled;
 }
 
 export function isTeamsChannelPostEnabled(): boolean {
-  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
-  return resolveTeamsChannelPostEnabled(env);
+  return getM365ActivationConfig().teamsChannelPostEnabled;
 }

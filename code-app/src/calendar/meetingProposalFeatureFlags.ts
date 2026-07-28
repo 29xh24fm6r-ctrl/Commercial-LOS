@@ -1,3 +1,5 @@
+import { resolveM365ActivationConfig, getM365ActivationConfig } from '../microsoft365/m365ActivationConfig';
+
 export interface MeetingWriteFeatureGates {
   outlookCalendarWriteEnabled: boolean;
   teamsMeetingCreationEnabled: boolean;
@@ -6,13 +8,17 @@ export interface MeetingWriteFeatureGates {
 export function resolveMeetingWriteFeatureGates(
   env: Record<string, string | undefined> = {},
 ): MeetingWriteFeatureGates {
+  const config = resolveM365ActivationConfig(env);
   return {
-    outlookCalendarWriteEnabled: env.VITE_OUTLOOK_CALENDAR_WRITE_ENABLED === 'true',
-    teamsMeetingCreationEnabled: env.VITE_TEAMS_MEETING_CREATION_ENABLED === 'true',
+    outlookCalendarWriteEnabled: config.outlookCalendarWriteEnabled,
+    teamsMeetingCreationEnabled: config.teamsMeetingCreationEnabled,
   };
 }
 
 export function getMeetingWriteFeatureGates(): MeetingWriteFeatureGates {
-  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
-  return resolveMeetingWriteFeatureGates(env);
+  const config = getM365ActivationConfig();
+  return {
+    outlookCalendarWriteEnabled: config.outlookCalendarWriteEnabled,
+    teamsMeetingCreationEnabled: config.teamsMeetingCreationEnabled,
+  };
 }
