@@ -33,13 +33,17 @@ describe('212–224 — write flags are disabled by default in source', () => {
     'CRM_LIVE_PERSISTENCE_ENABLED',
     'PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED',
     'PORTFOLIO_BOARDING_ROUTE_ENABLED',
-    'DOCUMENT_UPLOAD_ENABLED',
   ];
   it('every still-gated launch write flag is initialized to false', () => {
     const all = sources.map((s) => s.src).join('\n');
     for (const flag of flags) {
       expect(all).toMatch(new RegExp(`${flag}\\s*=\\s*false`));
     }
+  });
+
+  it('document upload is initialized true after live File-column certification', () => {
+    const all = sources.map((s) => s.src).join('\n');
+    expect(all).toMatch(/DOCUMENT_UPLOAD_ENABLED\s*=\s*true/);
   });
 
   it('the checklist write flag is reset to false (Completion Phase A safe-off)', () => {

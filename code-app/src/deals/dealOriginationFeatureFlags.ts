@@ -35,7 +35,9 @@ export const DOCUMENT_CHECKLIST_GENERATION_ENABLED = false as const;
 // scripts/dataverse/create-document-checklist-file-columns.ps1 has actually been run -Apply
 // against the live org, the SDK is regenerated, and a real upload smoke is captured. See
 // src/deals/documentUploadAction.ts and docs/PHASE_51_DOCUMENT_UPLOAD_SCOPE.md §7.
-export const DOCUMENT_FILE_UPLOAD_ENABLED = false as const;
+// Activated 2026-07-28 after live metadata verification confirmed
+// cr664_documentfile is FileType (25 MB) and all governed metadata/audit fields exist.
+export const DOCUMENT_FILE_UPLOAD_ENABLED = true as const;
 export const PORTFOLIO_SIDE_EFFECTS_ENABLED = false as const;
 // Completion Phase A — borrower send is the highest-risk domain (live email). Safe default
 // (off); arm only after the Outlook connector is registered, the SDK regenerated, and a real
@@ -141,7 +143,11 @@ export function isDocumentChecklistEnabled(config?: DealOriginationFeatureFlagCo
 }
 export function isDocumentFileUploadEnabled(config?: DealOriginationFeatureFlagConfig): boolean {
   if (isMalformedOriginationConfig(config)) return false;
-  return gate(DOCUMENT_FILE_UPLOAD_ENABLED, config?.documentFileUploadEnabled);
+  // The routed document workspace has no environment-config injection seam. Once
+  // the hard launch constant is certified, an absent config therefore means the
+  // certified source default. A supplied config remains an explicit kill switch.
+  if (config === undefined) return DOCUMENT_FILE_UPLOAD_ENABLED === true;
+  return gate(DOCUMENT_FILE_UPLOAD_ENABLED, config.documentFileUploadEnabled);
 }
 export function isPortfolioSideEffectsEnabled(config?: DealOriginationFeatureFlagConfig): boolean {
   if (isMalformedOriginationConfig(config)) return false;

@@ -1,0 +1,15 @@
+adx_accountrelationship: 
+adx_append: false
+adx_appendto: false
+adx_contactrelationship: 
+adx_create: false
+adx_delete: false
+adx_entitylogicalname: cr664_loandeal
+adx_entityname: Borrower loans - relationship child
+adx_entitypermission_webrole: []
+adx_entitypermissionid: caaf0db6-7d12-4fe6-a587-c77239c121b3
+adx_parententitypermission: e52d209c-ab99-40aa-8086-e734f5de3717
+adx_parentrelationship: cr664_LoanDeal_cr664_Client_cr664_ClientRelationship
+adx_read: true
+adx_scope: 756150003
+adx_write: false

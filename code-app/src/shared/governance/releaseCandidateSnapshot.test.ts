@@ -56,7 +56,7 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // the data-quality-flag-create write (the first write that CREATES a data quality flag).
   // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E);
   // PR D registered auto-portfolio boarding; PR E registered live Return/Decline/Withdraw.
-  governedWrites: 25,
+  governedWrites: 27,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) for the schema-pending Global Cash Flow /
@@ -81,7 +81,7 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // Workstream O added the data-quality-flag-create governed write (see GOVERNED_WRITES) and
   // Workstream R added one more NOT_WIRED entry (portfolio-migration-reconciliation -- the
   // reconciliation engine exists and is tested; only the migration-control schema is missing).
-  notWired: 13,
+  notWired: 11,
   deliberatelyBlocked: 0,
 });
 

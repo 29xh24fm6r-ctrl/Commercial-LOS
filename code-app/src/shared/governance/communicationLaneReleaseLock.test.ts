@@ -115,8 +115,8 @@ const COMMUNICATION_LANE_FILES: readonly string[] = [
 // ---------------------------------------------------------------------------
 
 describe('Phase 110 — Inventory state at release', () => {
-  it('GOVERNED_WRITES count is exactly 25, including PR E stage transitions', () => {
-    expect(GOVERNED_WRITES.length).toBe(25);
+  it('GOVERNED_WRITES count is exactly 27, including deferred-capability completion', () => {
+    expect(GOVERNED_WRITES.length).toBe(27);
   });
 
   it('exactly two governed writes are borrower/deal Outlook email sends', () => {

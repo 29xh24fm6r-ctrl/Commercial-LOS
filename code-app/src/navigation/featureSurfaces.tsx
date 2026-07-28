@@ -9,8 +9,7 @@ import { AdminConfigurationSummaryPanel } from '../adminConfig/AdminConfiguratio
 import { deriveAdminConfigurationReviewQueue } from '../adminConfig/deriveAdminConfigurationReviewQueue';
 import { CreditCommitteePackageReviewQueuePanel } from '../committee/CreditCommitteePackageReviewQueuePanel';
 import { deriveCreditCommitteePackageQueue } from '../committee/creditCommitteePackageQueue';
-import { AnnualPortfolioReviewCommandCenter } from '../portfolioAnnualReview/AnnualPortfolioReviewCommandCenter';
-import type { AnnualReviewCycle } from '../shared/annualReview/annualReviewTypes';
+import { AnnualPortfolioReviewLiveSurface } from '../portfolioAnnualReview/AnnualPortfolioReviewLiveSurface';
 import { PortfolioLoanBoardingForm } from '../portfolioBoarding/PortfolioLoanBoardingForm';
 import { CrmIntelligencePanel } from '../crm/intelligence/CrmIntelligencePanel';
 import { CrmCommandCenterRoute } from '../crm/commandCenter/CrmCommandCenterRoute';
@@ -48,14 +47,6 @@ export interface FeatureSurface {
 
 /** Deterministic, non-live placeholder timestamp for preview-only view models. */
 const PREVIEW_ISO = '1970-01-01T00:00:00.000Z';
-
-/** Empty annual-review cycle for the read-only portfolio-review preview. */
-const PREVIEW_ANNUAL_REVIEW_CYCLE: AnnualReviewCycle = {
-  cycleId: 'preview',
-  reviewYear: 1970,
-  asOfDate: '1970-01-01',
-  status: 'planned',
-};
 
 export const FEATURE_SURFACES: readonly FeatureSurface[] = [
   {
@@ -160,10 +151,10 @@ export const FEATURE_SURFACES: readonly FeatureSurface[] = [
     key: 'portfolio-annual-review',
     flag: 'PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED',
     label: 'Annual portfolio review',
-    description: 'Read-only annual portfolio review command center preview (empty cycle).',
+    description: 'Live boarded-loan annual review command center with governed, audited completion.',
     workspace: 'manager',
-    entryModule: 'src/portfolioAnnualReview/AnnualPortfolioReviewCommandCenter.tsx',
-    render: () => <AnnualPortfolioReviewCommandCenter cycle={PREVIEW_ANNUAL_REVIEW_CYCLE} />,
+    entryModule: 'src/portfolioAnnualReview/AnnualPortfolioReviewLiveSurface.tsx',
+    render: () => <AnnualPortfolioReviewLiveSurface />,
   },
   {
     key: 'portfolio-boarding',

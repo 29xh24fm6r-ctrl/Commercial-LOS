@@ -204,9 +204,9 @@ export const PLATFORM_OPERATIONS_CAPABILITY_SPECS: readonly PlatformOperationsCa
       { name: 'DOCUMENT_FILE_UPLOAD_ENABLED', value: DOCUMENT_FILE_UPLOAD_ENABLED, required: true },
       { name: 'DOCUMENT_UPLOAD_ENABLED', value: DOCUMENT_UPLOAD_ENABLED, required: false },
     ],
-    routeState: 'Gated file picker in ReceiveDocumentModal.tsx, off by default.',
+    routeState: 'Live file picker in ReceiveDocumentModal.tsx; explicit runtime config can still kill-switch it.',
     diState:
-      'Live write adapter wired: documentUploadLiveDeps.ts / documentUploadAction.ts. Note: two independent flags exist today (DOCUMENT_FILE_UPLOAD_ENABLED here and DOCUMENT_UPLOAD_ENABLED in activation/documentUploadActivation.ts) — reconcile before enabling.',
+      'Live write adapter wired: documentUploadLiveDeps.ts / documentUploadAction.ts. Both launch constants are armed after live FileType metadata verification.',
     actorAuthorizationRequirement: 'Resolved actor identity via the platform-user bridge.',
     auditSinkState: 'Writes audited via dealOriginationAudit.ts -> cr664_AuditEvent.',
     rollback: 'Set DOCUMENT_FILE_UPLOAD_ENABLED = false in src/deals/dealOriginationFeatureFlags.ts.',

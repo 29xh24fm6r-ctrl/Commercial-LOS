@@ -39,7 +39,9 @@ export const FEATURE_SURFACE_FLAG_DEFAULTS: FeatureSurfaceFlags = Object.freeze(
   INTEGRATIONS_ROUTE_ENABLED: false,
   SERVICING_ROUTE_ENABLED: false,
   ANNUAL_REVIEW_ROUTE_ENABLED: false,
-  PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED: false,
+  // Activated with the existing portfolio review + audit tables and the
+  // governed live completion adapter.
+  PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED: true,
   COMMITTEE_ROUTE_ENABLED: false,
   // CRM-C — intentionally activated. Routes the standalone CRM Command Center
   // destination (unified readiness + read-only CRM intelligence) so CRM no longer

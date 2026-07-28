@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the twenty-five shipped governed writes, including PR E non-forward transitions', () => {
+  it('contains the twenty-seven shipped governed writes, including deferred-capability completion', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -37,6 +37,7 @@ describe('platformInventory — governed writes', () => {
         'deal-document-request-handoff',
         'deal-document-review',
         'deal-document-review-task-create',
+        'deal-document-upload',
         'deal-log-activity',
         'deal-stage-advance',
         'deal-stage-return-decline-withdraw',
@@ -56,6 +57,7 @@ describe('platformInventory — governed writes', () => {
         // owner assignment, both newly governed writes this arc.
         'credit-memo-finalize',
         'assign-servicing-owner',
+        'portfolio-annual-review-complete',
       ].sort(),
     );
   });
@@ -167,7 +169,7 @@ describe('platformInventory — not wired', () => {
     // updateDealProfile.ts write path against the live PR106 columns
     // (docs/factory-arc/PR117_RISK_RATING_PERSISTENCE.md).
     expect(ids.has('risk-rating-persistence')).toBe(false);
-    expect(ids.has('document-upload')).toBe(true);
+    expect(ids.has('document-upload')).toBe(false);
     expect(ids.has('new-deal-create')).toBe(true);
     expect(ids.has('ai-generation')).toBe(true);
     expect(ids.has('test-coverage-build-verification')).toBe(true);
@@ -221,7 +223,7 @@ describe('platformInventory — not wired', () => {
     expect(byId.get('outlook-connector-live-send')).toBeUndefined();
     expect(byId.get('email-delivery')).toBeUndefined();
     // Schema-blocked
-    expect(byId.get('document-upload')?.blockerKind).toBe('schema');
+    expect(byId.get('document-upload')).toBeUndefined();
     expect(byId.get('stage-reference-data-source')?.blockerKind).toBe(
       'schema',
     );
@@ -266,17 +268,15 @@ describe('platformInventory — not wired', () => {
     expect(entry.blockerKind).toBe('schema');
   });
 
-  it('document-upload reason reflects the P0-2 pipeline that already exists, blocked only on the schema column (Factory Arc Phase 9)', () => {
-    const entry = NOT_WIRED.find((n) => n.id === 'document-upload')!;
+  it('retires document-upload after live File-column verification', () => {
+    const entry = NOT_WIRED.find((n) => n.id === 'document-upload');
     // The reason must no longer claim the pipeline is unbuilt — it is,
     // and stays gated purely by the missing cr664_DocumentChecklist File column.
-    expect(entry.reason).not.toMatch(/no binary file upload pipeline exists/i);
-    expect(entry.reason).toMatch(/documentUploadAction/);
-    expect(entry.reason).toMatch(/documentUploadLiveDeps/);
-    expect(entry.reason).toMatch(/ReceiveDocumentModal/);
-    expect(entry.reason).toMatch(/File column/i);
-    expect(entry.reason).toMatch(/fails closed/i);
-    expect(entry.blockerKind).toBe('schema');
+    expect(entry).toBeUndefined();
+    expect(GOVERNED_WRITES.find((w) => w.id === 'deal-document-upload')).toMatchObject({
+      emitsAudit: true,
+      emitsTimeline: true,
+    });
   });
 
   it('funding-authorization-persistence reason points to its own SDK-regeneration escalation runbook, not just the Loan Deal one (Factory Arc Phase 10)', () => {
@@ -300,18 +300,25 @@ describe('platformInventory — not wired', () => {
 
   it('PR D registers auto-boarding exactly once and removes its stale NOT_WIRED classification', () => {
     const ids = new Set(NOT_WIRED.map((n) => n.id));
-    expect(ids.has('annual-review-persistence')).toBe(true);
+    expect(ids.has('annual-review-persistence')).toBe(false);
+    expect(ids.has('document-upload')).toBe(false);
     expect(ids.has('portfolio-boarding-audit-governance')).toBe(false);
-    const annualReview = NOT_WIRED.find((n) => n.id === 'annual-review-persistence')!;
-    expect(annualReview.reason).toMatch(/createDisabledAnnualReviewPersistenceAdapter/);
-    expect(annualReview.reason).toMatch(/PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED/);
-    expect(annualReview.blockerKind).toBe('schema');
     const boardingWrites = GOVERNED_WRITES.filter((w) => w.id === 'deal-auto-portfolio-board');
     expect(boardingWrites).toEqual([expect.objectContaining({
       emitsAudit: true,
       emitsTimeline: true,
       legacyDisciplineExempt: true,
     })]);
+    expect(GOVERNED_WRITES).toContainEqual(expect.objectContaining({
+      id: 'deal-document-upload',
+      emitsAudit: true,
+      emitsTimeline: true,
+    }));
+    expect(GOVERNED_WRITES).toContainEqual(expect.objectContaining({
+      id: 'portfolio-annual-review-complete',
+      emitsAudit: true,
+      emitsTimeline: false,
+    }));
   });
 
   it('stage-reference-data-source stays about cr664_stagereferences (Advance Stage), not the New Deal references', () => {
@@ -1085,7 +1092,7 @@ describe('platformInventory — Phase 67 handoff classification', () => {
   });
 
   it('GOVERNED_WRITES count includes PR D auto-boarding and PR E non-forward transitions', () => {
-    expect(GOVERNED_WRITES.length).toBe(25);
+    expect(GOVERNED_WRITES.length).toBe(27);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {

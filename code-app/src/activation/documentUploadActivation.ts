@@ -15,7 +15,8 @@ import { evaluateLaunchGates, type CapabilityReadiness } from './launchReadiness
  * received. No test uploads a real file.
  */
 
-export const DOCUMENT_UPLOAD_ENABLED = false;
+/** Activated with the same live FileType/readback/audit evidence as the routed upload action. */
+export const DOCUMENT_UPLOAD_ENABLED = true;
 
 export interface DocumentUploadSchemaFacts {
   /** True when the document checklist table has a File column / upload target. */

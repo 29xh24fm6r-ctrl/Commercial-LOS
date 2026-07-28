@@ -271,6 +271,22 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsTimeline: true,
     legacyDisciplineExempt: true,
   },
+  {
+    id: 'deal-document-upload',
+    label: 'Deal document binary upload',
+    phase: 276,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
+  {
+    id: 'portfolio-annual-review-complete',
+    label: 'Portfolio annual review completion',
+    phase: 277,
+    emitsAudit: true,
+    emitsTimeline: false,
+    legacyDisciplineExempt: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -332,7 +348,7 @@ export interface NotWiredEntry {
   blockerKind: NotWiredBlockerKind;
 }
 
-export const NOT_WIRED: readonly NotWiredEntry[] = [
+const HISTORICAL_NOT_WIRED: readonly NotWiredEntry[] = [
   {
     id: 'new-deal-create',
     label: 'New Deal create',
@@ -580,6 +596,12 @@ export const NOT_WIRED: readonly NotWiredEntry[] = [
     blockerKind: 'schema',
   },
 ];
+
+/** Completed capabilities stay in the historical source above for traceability
+ * but are no longer exposed to runtime inventory consumers as current gaps. */
+export const NOT_WIRED: readonly NotWiredEntry[] = HISTORICAL_NOT_WIRED.filter(
+  (entry) => entry.id !== 'document-upload' && entry.id !== 'annual-review-persistence',
+);
 
 // ---------------------------------------------------------------------------
 // Executive transitional fallback (Phase 15 + reaffirmed by Phase 30 gate)

@@ -164,8 +164,14 @@ function Get-DocumentChecklistAttributeBody($ColumnDef) {
 function Get-DataverseAttributeType([string]$OrgUrl, [string]$Token, [string]$TableLogical, [string]$ColumnLogical) {
   if (-not $Token -or -not $OrgUrl) { return $null }
   try {
-    $r = Invoke-DataverseGet $OrgUrl $Token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')?`$select=AttributeType" -f $TableLogical, $ColumnLogical)
-    return $r.AttributeType
+    $r = Invoke-DataverseGet $OrgUrl $Token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')?`$select=AttributeType,AttributeTypeName" -f $TableLogical, $ColumnLogical)
+    # Dataverse File columns are derived attributes: the base AttributeType is
+    # reported as Virtual while AttributeTypeName.Value carries FileType.
+    # Normalize that pair so the verifier does not falsely block a real File column.
+    if ($r.AttributeType -eq 'Virtual' -and $r.AttributeTypeName.Value -eq 'FileType') {
+      return 'File'
+    }
+    return [string]$r.AttributeType
   } catch { return $null }
 }
 

@@ -55,7 +55,12 @@ function Get-DataverseToken([string]$orgUrl) {
   try {
     if (Get-Command Get-AzAccessToken -ErrorAction SilentlyContinue) {
       $t = Get-AzAccessToken -ResourceUrl $resource -ErrorAction Stop
-      if ($t -and $t.Token) { return $t.Token }
+      if ($t -and $t.Token) {
+        if ($t.Token -is [System.Security.SecureString]) {
+          return [System.Net.NetworkCredential]::new('', $t.Token).Password
+        }
+        return [string]$t.Token
+      }
     }
   } catch { }
   return $null

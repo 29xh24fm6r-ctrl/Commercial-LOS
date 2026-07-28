@@ -49,7 +49,10 @@ describe('Phase 6 — surface flags remain default-off', () => {
    * so CRM is discoverable beyond the hidden crm-hub tab. It is read-only (no write
    * path); every OTHER surface flag must still default off.
    */
-  const INTENTIONALLY_ROUTED = new Set(['CRM_COMMAND_CENTER_ROUTE_ENABLED']);
+  const INTENTIONALLY_ROUTED = new Set([
+    'CRM_COMMAND_CENTER_ROUTE_ENABLED',
+    'PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED',
+  ]);
 
   it('every surface references a flag that defaults false (except intentionally-routed read surfaces)', () => {
     for (const s of FEATURE_SURFACES) {
