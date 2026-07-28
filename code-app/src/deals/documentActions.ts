@@ -80,9 +80,6 @@ const TIMELINE_SUBTYPE_DOCUMENT_REVIEWED = 'documentchecklist:reviewed';
 // and left cr664_requirementstatus unset, so the two panels could disagree (Documents showed
 // "Received/Reviewed" while Requirements inferred a different lifecycle state). (Defect 8.)
 const REQUIREMENT_STATUS_REQUESTED = 788190102;
-const REQUIREMENT_STATUS_UNDER_REVIEW = 788190103;
-const REQUIREMENT_STATUS_REVIEWED = 788190104;
-
 function beforeStateForRequest(prior: string | undefined): string {
   if (!prior) return 'Not yet requested';
   return `Previously requested (${prior})`;
@@ -429,7 +426,6 @@ export async function markDocumentReceived(
   try {
     const update = await Cr664_documentchecklistsService.update(input.documentId, {
       cr664_receiveddate: nowIso,
-      cr664_requirementstatus: REQUIREMENT_STATUS_UNDER_REVIEW,
       ...(actor.ok && actor.changedByBind ? { 'cr664_ReceivedBy@odata.bind': actor.changedByBind } : {}),
     } as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1]);
     if (!update.success) {
@@ -696,7 +692,6 @@ export async function markDocumentReviewed(
   try {
     const update = await Cr664_documentchecklistsService.update(input.documentId, {
       cr664_reviewer: reviewerName,
-      cr664_requirementstatus: REQUIREMENT_STATUS_REVIEWED,
     } as unknown as Parameters<typeof Cr664_documentchecklistsService.update>[1]);
     if (!update.success) {
       void emitAuditEventForReview({

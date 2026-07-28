@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Badge } from '../shared/Badge';
 import { Guilloche } from '../design';
 import { EMAIL_MODE } from '../deals/emailDelivery/emailMode';
+import { deriveProductionEnvironmentVerification } from '../admin/productionEnvironmentVerification';
 import { palette, radius, shadow, spacing, typography } from '../shared/theme';
 import {
   LogActivityModal,
@@ -98,6 +99,25 @@ export function GreetingHeader({
   const firstName = deriveFirstName(fullName);
   const greeting = greetingForHour(now.getHours());
   const pipelineDisplay = useCountUp(pipelineAmount ?? 0);
+  const borrowerSendDomain = deriveProductionEnvironmentVerification().domains.find(
+    (domain) => domain.key === 'borrowerSend',
+  );
+  const emailBadge =
+    EMAIL_MODE === 'LIVE' && borrowerSendDomain?.enabled !== true
+      ? {
+          label: 'Email: proof pending',
+          aria: 'Email transport is LIVE; borrower-send delivery proof is pending',
+          title:
+            borrowerSendDomain?.missingSteps.join(' ') ||
+            'Email transport is LIVE, but borrower-send delivery proof is not yet accepted.',
+          variant: 'atRisk' as const,
+        }
+      : {
+          label: `Email: ${EMAIL_MODE}`,
+          aria: `Email delivery mode: ${EMAIL_MODE}`,
+          title: undefined,
+          variant: EMAIL_MODE === 'LIVE' ? ('clear' as const) : ('neutral' as const),
+        };
   return (
     <header className="cc-rise-in" style={styles.header} aria-label="Banker workspace greeting header">
       {/* Intaglio v2 hero — the guilloché elevated to atmosphere behind the band,
@@ -180,11 +200,12 @@ export function GreetingHeader({
       )}
       <div style={styles.metaRow}>
         <Badge
-          variant={EMAIL_MODE === 'LIVE' ? 'clear' : 'neutral'}
+          variant={emailBadge.variant}
           appearance="outline"
-          aria-label={`Email delivery mode: ${EMAIL_MODE}`}
+          aria-label={emailBadge.aria}
+          title={emailBadge.title}
         >
-          Email: {EMAIL_MODE}
+          {emailBadge.label}
         </Badge>
         {writeDisabledReason && (
           <Badge variant="atRisk" appearance="outline" title={writeDisabledReason}>

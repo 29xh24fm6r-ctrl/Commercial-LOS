@@ -148,11 +148,10 @@ export function derivePortfolioBookSnapshot(
 ): PortfolioBookSnapshot {
   const totalExposure = loans.reduce((sum, row) => sum + exposure(row), 0);
   const ratedLoanIds = new Set(ratings.map((rating) => rating.loanId).filter(Boolean));
-  const rowsWithRatingText = loans.filter((row) => row.riskRating !== undefined);
   const criticizedCount = ratings.filter((rating) => rating.obligorGrade >= 5).length;
   const classifiedCount = ratings.filter((rating) => rating.obligorGrade >= 6).length;
   // P2-16 — one predicate feeds both the count and the drill-through list, so they can never diverge.
-  const unmappedRatingLoans = rowsWithRatingText.filter((row) => !ratedLoanIds.has(row.id));
+  const unmappedRatingLoans = loans.filter((row) => !ratedLoanIds.has(row.id));
 
   return {
     isEmpty: loans.length === 0,
