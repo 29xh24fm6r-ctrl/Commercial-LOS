@@ -37,8 +37,8 @@ export type RemediationRoute =
   | { kind: 'edit-profile'; field: string }
   | { kind: 'add-document'; documentName: string }
   | { kind: 'link-client' }
-  | { kind: 'open-tasks' }
-  | { kind: 'credit-memo' }
+  | { kind: 'open-deal-section'; selector: string; label: string }
+  | { kind: 'open-route'; href: string; label: string }
   | { kind: 'none'; reason: string };
 
 export interface DealBlockerItem {
@@ -77,18 +77,70 @@ function isClientField(r: EvaluatedRequirement): boolean {
 /** Map an evaluated requirement to the operator action that resolves it. Exported so the Stage Map
  *  renders the SAME remediation route the model exposes to the tiles. */
 export function remediationForRequirement(r: EvaluatedRequirement): RemediationRoute {
+  const exactDestination: Readonly<Record<string, RemediationRoute>> = {
+    'UNDERWRITING:risk_rating': {
+      kind: 'open-deal-section',
+      selector: '[data-deal-card="risk-rating"]',
+      label: 'Open Risk Rating',
+    },
+    'UNDERWRITING:uw_recommendation': {
+      kind: 'open-deal-section',
+      selector: '[data-deal-card="risk-rating"]',
+      label: 'Open Underwriting Recommendation',
+    },
+    'CREDIT_APPROVAL:memo_finalized': {
+      kind: 'open-deal-section',
+      selector: '[data-deal-card="credit-memo"]',
+      label: 'Open Credit Memo',
+    },
+    'CLOSING_FUNDING:executed_docs': {
+      kind: 'open-deal-section',
+      selector: '[data-deal-card="executed-document-attestation"]',
+      label: 'Open Executed Documents',
+    },
+    'CLOSING_FUNDING:booking_qc': {
+      kind: 'open-deal-section',
+      selector: '[data-deal-card="booking-qc"]',
+      label: 'Open Booking QC',
+    },
+    'BOARDED:servicing_owner': {
+      kind: 'open-route',
+      href: '/admin#assign-servicing-owner',
+      label: 'Open Admin assignment',
+    },
+  };
+  const exact = exactDestination[r.id];
+  if (exact) return exact;
+
   switch (r.category) {
     case 'field':
       return isClientField(r) ? { kind: 'link-client' } : { kind: 'edit-profile', field: r.label };
     case 'document':
       return { kind: 'add-document', documentName: r.label };
     case 'task':
-      return { kind: 'open-tasks' };
+      return { kind: 'open-deal-section', selector: '[data-deal-card="tasks"]', label: 'Open Tasks' };
     case 'credit':
-      return { kind: 'credit-memo' };
+      return { kind: 'open-deal-section', selector: '[data-deal-card="credit-memo"]', label: 'Open Credit Memo' };
+    case 'approval':
+      return { kind: 'open-deal-section', selector: '[data-deal-card="credit-approval-decision"]', label: 'Open Approval Decision' };
+    case 'closing':
+      if (r.whereToResolve === 'Commitment') {
+        return { kind: 'open-deal-section', selector: '[data-deal-card="commitment"]', label: 'Open Commitment' };
+      }
+      if (r.whereToResolve === 'Documentation') {
+        return { kind: 'open-deal-section', selector: '[data-deal-card="condition-verification"]', label: 'Open Condition Verification' };
+      }
+      return { kind: 'open-deal-section', selector: '[data-deal-card="closing-booking-readiness"]', label: 'Open Closing Readiness' };
+    case 'funding':
+      return { kind: 'open-deal-section', selector: '[data-deal-card="funding-authorization"]', label: 'Open Funding Authorization' };
+    case 'boarding':
+      return { kind: 'open-deal-section', selector: '[data-deal-card="portfolio-boarding-status"]', label: 'Open Portfolio Boarding' };
+    case 'monitoring':
+      return { kind: 'open-route', href: '/portfolio', label: 'Open Portfolio Monitoring' };
+    case 'adverse_action':
+      return { kind: 'open-deal-section', selector: '[data-deal-card="adverse-action"]', label: 'Open Adverse Action' };
     default:
-      // Capabilities without a banker-resolvable surface at this stage (approval/closing/etc.).
-      return { kind: 'none', reason: r.reason || 'Resolved in a later stage.' };
+      return { kind: 'none', reason: r.reason || 'No resolving action is available.' };
   }
 }
 

@@ -12,26 +12,10 @@ import { adminStyles } from './adminCardChrome';
 import { palette, radius, spacing, typography, type SeverityKey } from '../shared/theme';
 
 /**
- * PR 108 -- Admin Capability Truth Matrix.
- *
- * The Phase 0 baseline survey found several overlapping "is this feature
- * live" panels already in AdminWorkspace.tsx (ReleaseReadinessGate,
- * V1GoLiveReleaseCertificationPanel, FullSystemActivationLaunchPanel,
- * EliteCrmLosActivationReadinessPanel, OgbCrmWorkflowActivationPanel,
- * V1ActivationReadinessPanel, FullSystemLaunchReadinessConsole), each
- * independently projecting capability state from platformInventory.ts with
- * no single canonical view tying them together. Retiring or merging any of
- * those existing, individually-certified panels is a real product/
- * compliance decision this PR does not make -- they are release-candidate
- * certification surfaces, not casually replaceable.
- *
- * This is ADDITIVE instead: one new panel reading the SAME four
- * platformInventory.ts registries every other panel already derives from
- * (GOVERNED_WRITES, NOT_WIRED, LOCAL_ONLY_FLOWS, DELIBERATELY_BLOCKED),
- * shown together in one place with filtering, so an admin doesn't have to
- * cross-reference six panels to answer "what exactly is live vs.
- * schema-blocked vs. connector-blocked vs. a deliberate non-goal." No
- * existing panel is touched, removed, or reinterpreted.
+ * Authoritative operator-facing classification of the four mutually
+ * exclusive platform capability inventories. PR E retires the competing
+ * legacy readiness projections from AdminWorkspace so this remains the
+ * canonical answer to what is governed, local, blocked, or not wired.
  */
 
 type MatrixKind = 'governed-write' | 'not-wired' | 'local-only' | 'deliberately-blocked';
@@ -65,17 +49,17 @@ function buildRows(): MatrixRow[] {
       kind: 'governed-write',
       id: w.id,
       label: w.label,
-      detail: `Phase ${w.phase} -- emits audit: ${w.emitsAudit ? 'yes' : 'no'}, emits timeline: ${w.emitsTimeline ? 'yes' : 'no'}.`,
+      detail: `Audit history: ${w.emitsAudit ? 'recorded' : 'not recorded'}. Deal timeline: ${w.emitsTimeline ? 'recorded' : 'not applicable'}.`,
     });
   }
   for (const n of NOT_WIRED) {
     rows.push({ kind: 'not-wired', id: n.id, label: n.label, detail: n.reason, blockerKind: n.blockerKind });
   }
   for (const l of LOCAL_ONLY_FLOWS) {
-    rows.push({ kind: 'local-only', id: l.id, label: l.label, detail: `Phase ${l.phase} -- ${l.note}` });
+    rows.push({ kind: 'local-only', id: l.id, label: l.label, detail: l.note });
   }
   for (const b of DELIBERATELY_BLOCKED) {
-    rows.push({ kind: 'deliberately-blocked', id: b.id, label: b.label, detail: `Phase ${b.phase} -- ${b.reason}` });
+    rows.push({ kind: 'deliberately-blocked', id: b.id, label: b.label, detail: b.reason });
   }
   return rows;
 }
@@ -142,7 +126,7 @@ export function AdminCapabilityTruthMatrix() {
         </ul>
       )}
       <CardFooter>
-        <span>Sourced live from shared/governance/platformInventory.ts -- the same registries every other admin readiness panel reads from. This view does not replace them; it cross-references all four in one place.</span>
+        <span>One mutually exclusive inventory: each capability is classified once as governed, unavailable, local-only, or intentionally blocked.</span>
       </CardFooter>
     </Card>
   );

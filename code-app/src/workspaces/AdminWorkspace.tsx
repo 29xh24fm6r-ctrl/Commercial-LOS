@@ -9,14 +9,8 @@ import { RefreshStatus } from '../admin/RefreshStatus';
 import { AlertBacklog } from '../admin/AlertBacklog';
 import { ConfigurationOverview } from '../admin/ConfigurationOverview';
 import { StageGovernanceDiagnostics } from '../admin/StageGovernanceDiagnostics';
-import { ReleaseReadinessGate } from '../admin/ReleaseReadinessGate';
-import { OgbCrmWorkflowActivationPanel } from '../admin/OgbCrmWorkflowActivationPanel';
-import { EliteCrmLosActivationReadinessPanel } from '../admin/EliteCrmLosActivationReadinessPanel';
-import { V1ActivationReadinessPanel } from '../admin/V1ActivationReadinessPanel';
-import { FullSystemLaunchReadinessConsole } from '../admin/FullSystemLaunchReadinessConsole';
 import { AdminOperatorActionQueue } from '../admin/AdminOperatorActionQueue';
-import { V1GoLiveReleaseCertificationPanel } from '../admin/V1GoLiveReleaseCertificationPanel';
-import { FullSystemActivationLaunchPanel } from '../admin/FullSystemActivationLaunchPanel';
+import { FinalOperatingCertificationPanel } from '../admin/FinalOperatingCertificationPanel';
 import { PerformanceDiagnostics } from '../admin/PerformanceDiagnostics';
 import { EmailLiveDiagnostics } from '../admin/EmailLiveDiagnostics';
 import { AdminDealReferenceValues } from '../admin/AdminDealReferenceValues';
@@ -80,44 +74,18 @@ function AdminWorkspaceContent() {
             Admin-only (inherits the WorkspaceGate route + adminWorkspaceEntitlementQuery
             live entitlement gate) — bankers cannot reach this data, not merely have it
             hidden by CSS. Placed first among the launch/readiness panels since it is the
-            live, operational replacement this phase's brief describes; the legacy
-            static launch-readiness panels below remain for now (Phase 5 retires them
-            from runtime UI). */}
+            live operational capability view. PR E retires the competing legacy
+            readiness projections from runtime composition. */}
         <PlatformOperationsWorkspacePanel />
-        {/* PR 108 -- one consolidated, filterable view across the four
-            platformInventory.ts registries every readiness panel below
-            already derives from. Additive only: no existing certification
-            panel is touched, retired, or reinterpreted. */}
+        <FinalOperatingCertificationPanel />
         <AdminCapabilityTruthMatrix />
-        {/* Final LOS Completion arc (Workstream M) -- registers the six durable-record
-            governed writes Workstreams C/D/E/F/H/J shipped and each one's own domain status
-            vocabulary, a fact the Capability Truth Matrix above does not model. Additive only:
-            no existing panel is touched, retired, or reinterpreted. */}
+        {/* Final LOS Completion arc (Workstream M) -- records the six durable-record
+            governed writes Workstreams C/D/E/F/H/J shipped and each one's domain status
+            vocabulary, complementing the authoritative matrix above. */}
         <AdminDurableRecordCapabilityPanel />
-        <ReleaseReadinessGate />
-        {/* Phase 236: read-only V1.0 go-live release certification — the single
-            leadership answer (operating restart ready; live-write expansion gated).
-            No mutation, no gate flip, no action affordance. Admin-only. */}
-        <V1GoLiveReleaseCertificationPanel />
-        {/* Phase 237: read-only full system activation launch certification — the
-            six live-write domains classified CERTIFIABLE_NOW / NEEDS_COMPLETION /
-            NOT_SAFE_TO_ENABLE with exact blockers and operator unblock actions. No
-            gate flip, no mutation, no action affordance. Admin-only. */}
-        <FullSystemActivationLaunchPanel />
-        {/* Phase 202: read-only OGB CRM / Lending Workflow activation status,
-            admin-only (inherits the admin route + AdminProvider gate). */}
-        <EliteCrmLosActivationReadinessPanel />
-        <OgbCrmWorkflowActivationPanel />
-        {/* Phase 203: read-only final V1 activation readiness gate, admin-only
-            (inherits the admin route + AdminProvider gate). */}
-        <V1ActivationReadinessPanel />
-        {/* Phase 198: read-only full-system launch readiness, admin-only (inherits
-            the WorkspaceGate admin route + AdminProvider identity gate). No new
-            route, no entitlement widening, no action affordance. */}
-        <FullSystemLaunchReadinessConsole />
-        {/* Phase 234: read-only admin operator action queue — groups remaining
-            readiness blockers into operator tasks by category. No mutation, no
-            gate flip, no action affordance. Admin-only (inherits the route gate). */}
+        {/* PR E retires the seven competing legacy readiness/certification projections from
+            runtime composition. Their source and focused tests remain for history, while the
+            evidence-backed Final Operating Certification above is the single verdict. */}
         <AdminOperatorActionQueue />
         <SystemHealthSummary />
         <div style={styles.twoCol}>
@@ -149,7 +117,9 @@ function AdminWorkspaceContent() {
             cr664_AssignedServicingOwner systemuser lookup, the durable fact
             BOARDED:servicing_owner (loanWorkflowRequirementEngine.ts) checks for. Until this
             panel, nothing anywhere wrote this field. */}
-        <AdminAssignServicingOwnerPanel />
+        <div id="assign-servicing-owner">
+          <AdminAssignServicingOwnerPanel />
+        </div>
         <StageGovernanceDiagnostics />
         <EmailLiveDiagnostics />
         <PerformanceDiagnostics />

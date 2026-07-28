@@ -251,6 +251,14 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsTimeline: false,
     legacyDisciplineExempt: true,
   },
+  {
+    id: 'deal-stage-return-decline-withdraw',
+    label: 'Deal stage return / decline / withdraw',
+    phase: 275,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
   // PR D — the unconditionally live auto-board invoked after a verified advance to BOARDED.
   // The root portfolio record and domain audit are created by existingLoanEntryAdapter.ts;
   // buildLiveStageAdvanceDeps.ts then records the deal-scoped timeline event. Its cross-module
@@ -281,37 +289,7 @@ export interface DeliberatelyBlockedEntry {
   enablementMapPath?: string;
 }
 
-export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [
-  {
-    id: 'stage-progression-advance',
-    label: 'Stage progression — Return / Decline / Withdraw (canonical engine)',
-    phase: 28,
-    reason:
-      'Scoped specifically to the CANONICAL transition engine ' +
-      '(src/workflow/canonicalStageTransition.ts + StageWorkflowControl.tsx + approvalAuthorityMatrix.ts): ' +
-      'Return / Decline / Withdraw. That control is built, tested, and gated on AUTO_STAGE_ADVANCE_ENABLED. ' +
-      'CORRECTION (Factory mission PR A, 2026-07-27): the claim that this control "is not mounted in any live ' +
-      'workspace" was stale and is corrected here -- it IS mounted live: DealGovernedTransitionPanel.tsx is ' +
-      'mounted in BankerDealWorkspace.tsx (showAdvance={false}, so only Return/Decline/Withdraw render there; ' +
-      'forward Advance stays on the separate DealStageProgressionCard.tsx control by design, see that file\'s ' +
-      'showAdvance doc comment) and executes a real write -- executeCanonicalStageTransition -> ' +
-      'buildLiveCanonicalTransitionDeps.ts, which emits both a Cr664_auditevents row and a ' +
-      'Cr664_dealtimelineevents row, the same audit+timeline shape as every other governed write. ' +
-      'NOTE: forward Advance (DealStageProgressionCard.tsx -> stageAdvanceWriteDependency.ts -> ' +
-      'buildLiveStageAdvanceDeps.ts) IS already registered as its own GOVERNED_WRITES entry ' +
-      "(id: 'deal-stage-advance') -- the prior claim that it was not yet registered was ALSO stale. " +
-      'This Return/Decline/Withdraw entry remains classified here rather than moved to GOVERNED_WRITES ' +
-      'because, unlike deal-stage-advance, it has not yet been given its own registry id -- a follow-on ' +
-      'registration is still warranted, but the false "unmounted" claim is the defect this correction fixes; ' +
-      'reclassification is left for a dedicated pass so as not to cascade every count-pinned test in this ' +
-      'same change. AUTO_STAGE_ADVANCE_ENABLED itself is ARMED (true, dealOriginationFeatureFlags.ts) as of ' +
-      'the WF-1A phase -- it is not the remaining blocker for either path. The remaining prerequisite for ' +
-      'BOTH paths is a data-seeding fact this static inventory cannot verify: the maker adding the ' +
-      'cr664_sequence ordinal to the stage reference table and seeding the seven ordered stage rows in the ' +
-      'target environment. See docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md and docs/STAGE_SCHEMA_SETUP.md.',
-    enablementMapPath: 'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md',
-  },
-];
+export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [];
 
 // ---------------------------------------------------------------------------
 // Not wired (capability is absent in the app today; presence elsewhere is

@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { deriveDealBlockerModel, deriveDealBlockerModelForStage } from './dealBlockerModel';
 import type { DealDetail } from './dealQueries';
 import type { DealDocument, DealDocumentsResult } from './dealDocumentQueries';
 import type { DealTasksResult } from './dealTaskQueries';
+import { evaluateBoardingHandoff } from '../workflow/boardingHandoffReadiness';
 
 /**
  * The ONE authoritative blocker model. Pins: hard blockers = the stage-exit engine's tracked
@@ -105,5 +108,66 @@ describe('deriveDealBlockerModelForStage', () => {
   it('recognizes the Intake stage by its stored name', () => {
     const model = deriveDealBlockerModelForStage('Intake', { deal: deal(), tasks: noTasks, documents: noDocs, creditMemo: undefined });
     expect(model?.stageCode).toBe('INTAKE');
+  });
+});
+
+describe('deep lifecycle blocker remediation', () => {
+  it.each([
+    ['UNDERWRITING', 'Risk rating assigned', '[data-deal-card="risk-rating"]', 'Open Risk Rating'],
+    ['CREDIT_APPROVAL', 'Approval decision recorded', '[data-deal-card="credit-approval-decision"]', 'Open Approval Decision'],
+    ['COMMITMENT', 'Commitment / term sheet issued', '[data-deal-card="commitment"]', 'Open Commitment'],
+    ['DOCUMENTATION', 'Conditions precedent cleared', '[data-deal-card="condition-verification"]', 'Open Condition Verification'],
+    ['CLOSING_FUNDING', 'Loan documents executed', '[data-deal-card="executed-document-attestation"]', 'Open Executed Documents'],
+    ['CLOSING_FUNDING', 'Funds disbursed', '[data-deal-card="funding-authorization"]', 'Open Funding Authorization'],
+    ['CLOSING_FUNDING', 'Booking quality control complete', '[data-deal-card="booking-qc"]', 'Open Booking QC'],
+    ['BOARDED', 'Boarded loan / servicing handoff record created', '[data-deal-card="portfolio-boarding-status"]', 'Open Portfolio Boarding'],
+  ] as const)('routes %s / %s to its exact resolving surface', (stage, label, selector, actionLabel) => {
+    const model = deriveDealBlockerModel(stage, {
+      deal: deal({ stage }),
+      tasks: noTasks,
+      documents: noDocs,
+      creditMemo: undefined,
+    });
+    expect(model.hardBlockers.find((b) => b.label === label)?.remediation).toEqual({
+      kind: 'open-deal-section',
+      selector,
+      label: actionLabel,
+    });
+  });
+
+  it('routes servicing-owner assignment to the governed Admin surface', () => {
+    const model = deriveDealBlockerModel('BOARDED', {
+      deal: deal({ stage: 'Boarded' }),
+      tasks: noTasks,
+      documents: noDocs,
+      creditMemo: undefined,
+      boardingHandoff: evaluateBoardingHandoff('Boarded', {
+        portfolioBoardedLoanId: 'loan-1',
+        active: true,
+      }),
+    });
+    expect(model.hardBlockers.find((b) => b.label === 'Servicing owner assigned')?.remediation).toEqual({
+      kind: 'open-route',
+      href: '/admin#assign-servicing-owner',
+      label: 'Open Admin assignment',
+    });
+  });
+
+  it('every in-cockpit deep remediation selector is mounted by BankerDealWorkspace', () => {
+    const workspace = readFileSync(resolve(__dirname, 'BankerDealWorkspace.tsx'), 'utf8');
+    for (const stage of ['UNDERWRITING', 'CREDIT_APPROVAL', 'COMMITMENT', 'DOCUMENTATION', 'CLOSING_FUNDING', 'BOARDED'] as const) {
+      const model = deriveDealBlockerModel(stage, {
+        deal: deal({ stage }),
+        tasks: noTasks,
+        documents: noDocs,
+        creditMemo: undefined,
+      });
+      for (const blocker of model.hardBlockers) {
+        if (blocker.remediation.kind !== 'open-deal-section') continue;
+        const card = blocker.remediation.selector.match(/data-deal-card="([^"]+)"/)?.[1];
+        expect(card, blocker.id).toBeDefined();
+        expect(workspace, `${blocker.id} targets an unmounted deal card`).toContain(`data-deal-card="${card}"`);
+      }
+    }
   });
 });

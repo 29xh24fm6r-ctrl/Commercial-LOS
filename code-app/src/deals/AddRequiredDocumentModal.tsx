@@ -1,6 +1,7 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import type { AddRequiredDocumentOutcome } from './addRequiredDocumentAction';
+import { useDialogDismissal } from '../shared/ui/useDialogDismissal';
 
 /**
  * Governed intake of a REQUIRED deal document that has no checklist row yet.
@@ -33,9 +34,19 @@ export function AddRequiredDocumentModal({ candidateNames, presetName, onConfirm
   const [name, setName] = useState(presetName ?? candidateNames[0] ?? '');
   const [note, setNote] = useState('');
   const [save, setSave] = useState<SaveState>({ kind: 'idle' });
+  const noteRef = useRef<HTMLTextAreaElement>(null);
 
   const saving = save.kind === 'saving';
   const canSubmit = name.trim().length > 0 && note.trim().length > 0 && !saving;
+  const dialogRef = useDialogDismissal<HTMLDivElement>({
+    onClose,
+    disabled: saving,
+    closeOnOutsideClick: false,
+  });
+
+  useEffect(() => {
+    noteRef.current?.focus();
+  }, []);
 
   async function onSave() {
     if (!canSubmit) return;
@@ -47,13 +58,13 @@ export function AddRequiredDocumentModal({ candidateNames, presetName, onConfirm
   const titleId = 'add-required-document-title';
   return (
     <div role="dialog" aria-modal="true" aria-labelledby={titleId} style={styles.overlay}>
-      <div style={styles.card} data-add-document-modal>
+      <div style={styles.card} data-add-document-modal ref={dialogRef}>
         <header style={styles.header}>
           <h2 id={titleId} style={styles.title}>Add required document</h2>
           <p style={styles.subtitle}>
             Records the governed receipt of a required document and associates it with this deal. This
-            marks the document <strong>received</strong> (metadata) — it is not a file upload; no file
-            bytes are stored (the checklist schema has no file column yet).
+            marks the document <strong>received</strong>. It records receipt details; it does not attach
+            or store the document file itself.
           </p>
         </header>
 
@@ -93,6 +104,7 @@ export function AddRequiredDocumentModal({ candidateNames, presetName, onConfirm
               <label style={styles.field}>
                 <span style={styles.fieldLabel}>Receipt note</span>
                 <textarea
+                  ref={noteRef}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   disabled={saving}

@@ -39,10 +39,10 @@ describe('203 — doc + snapshot', () => {
   });
 });
 
-describe('203 — admin-only mount, no widening', () => {
-  it('AdminWorkspace mounts the V1 activation readiness panel', () => {
-    expect(ADMIN_WORKSPACE).toMatch(/import \{ V1ActivationReadinessPanel \} from '\.\.\/admin\/V1ActivationReadinessPanel'/);
-    expect(ADMIN_WORKSPACE).toMatch(/<V1ActivationReadinessPanel\s*\/>/);
+describe('203 — historical panel retirement, no widening', () => {
+  it('AdminWorkspace retires V1 activation readiness in favor of final certification', () => {
+    expect(ADMIN_WORKSPACE).not.toContain('V1ActivationReadinessPanel');
+    expect(ADMIN_WORKSPACE).toMatch(/<FinalOperatingCertificationPanel\s*\/>/);
   });
   it('the admin workspace is reached only via the admin-gated route (no new route)', () => {
     expect(APP).toMatch(/<WorkspaceGate allowed=\{WORKSPACE_ROUTES\.admin\}>\s*<AdminWorkspace\s*\/>/);

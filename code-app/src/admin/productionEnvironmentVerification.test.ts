@@ -115,14 +115,15 @@ describe('Phase 241/242A/256B — production environment verification', () => {
     expect(vm.domains.find((d) => d.key === 'newDealCreate')?.enabled).toBe(true);
   });
 
-  it('the committed source certifies all six toggles (Phase 256B full launch) and never fakes via fetch', () => {
+  it('the committed source records six environment certifications without equating them to full launch', () => {
     const src = readFileSync(resolve(__dirname, 'productionEnvironmentVerification.ts'), 'utf8');
     const certBlock = src.slice(
       src.indexOf('export const PRODUCTION_ENVIRONMENT_CERTIFICATION'),
       src.indexOf('export const ENVIRONMENT_VERIFICATION_STEPS'),
     );
     expect(certBlock).toMatch(/newDealCreate:\s*true/);
-    // All six toggles are true in the committed certification constant (Phase 256B).
+    // All six environment-certification assertions are present; evidence and runtime gates still
+    // hold current launch to 1/6 as proven above.
     expect(certBlock.match(/:\s*true/g) ?? []).toHaveLength(6);
     expect(src).not.toMatch(/\bfetch\s*\(/);
   });

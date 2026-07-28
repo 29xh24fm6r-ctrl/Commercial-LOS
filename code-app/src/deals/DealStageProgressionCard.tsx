@@ -33,6 +33,7 @@ import {
 import { buildLiveStageAdvanceDeps } from './buildLiveStageAdvanceDeps';
 import { AUTO_STAGE_ADVANCE_ENABLED } from './dealOriginationFeatureFlags';
 import { remediationForRequirement, type RemediationRoute } from './dealBlockerModel';
+import { focusAttentionTarget } from './attentionNavigation';
 import { DealProfileEditLauncher } from './DealProfileEditModal';
 import { AddRequiredDocumentModal } from './AddRequiredDocumentModal';
 import type { AddRequiredDocumentOutcome } from './addRequiredDocumentAction';
@@ -659,8 +660,11 @@ function StageAdvanceRequirements({
   const blockingRow = (it: (typeof blocking)[number]) => (
     <li key={it.id} style={styles.reqItem} data-req-severity="blocked" data-req-where={it.whereToResolve} data-req-role={it.responsibleRole}>
       <SeverityGlyph severity="blocked" />
-      <span style={styles.reqLabel}>{it.uiCopy}</span>
-      <span style={styles.reqWhere}>{`— ${it.whereToResolve} · ${it.responsibleRole}`}</span>
+      <span style={styles.reqBody}>
+        <span style={styles.reqLabel}>{it.uiCopy}</span>
+        <span style={styles.reqReason} data-req-disabled-reason>{it.reason}</span>
+        <span style={styles.reqWhere}>{`${it.whereToResolve} · ${it.responsibleRole}`}</span>
+      </span>
       {canWrite && <BlockerRemediation route={remediationForRequirement(it)} onAddDocument={(name) => setAddDocName(name)} />}
     </li>
   );
@@ -713,14 +717,6 @@ function StageAdvanceRequirements({
   );
 }
 
-/** Scroll a deal-cockpit element into view by CSS selector. Best-effort: a no-op when the target is
- *  not mounted (e.g. in a narrowed test). Used to jump a banker straight to the resolving surface. */
-function scrollToSelector(selector: string): void {
-  if (typeof document === 'undefined') return;
-  const el = document.querySelector(selector);
-  (el as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
 /**
  * The direct remediation control for one hard blocker. The banker resolves the requirement in place:
  *   - a missing profile field (amount, target close, industry, …) → opens the governed Deal Profile;
@@ -741,21 +737,26 @@ function BlockerRemediation({ route, onAddDocument }: { route: RemediationRoute;
       );
     case 'link-client':
       return (
-        <button type="button" style={styles.remediationButton} data-req-remediation="link-client" onClick={() => scrollToSelector('[data-crm-link-action="client"]')}>
+        <button type="button" style={styles.remediationButton} data-req-remediation="link-client" onClick={() => focusAttentionTarget('[data-crm-link-action="client"]')}>
           Link a CRM client
         </button>
       );
-    case 'open-tasks':
+    case 'open-deal-section':
       return (
-        <button type="button" style={styles.remediationButton} data-req-remediation="open-tasks" onClick={() => scrollToSelector('[data-resolver-surface="Tasks"]')}>
-          Open Tasks
+        <button
+          type="button"
+          style={styles.remediationButton}
+          data-req-remediation="open-deal-section"
+          onClick={() => focusAttentionTarget(route.selector)}
+        >
+          {route.label}
         </button>
       );
-    case 'credit-memo':
+    case 'open-route':
       return (
-        <button type="button" style={styles.remediationButton} data-req-remediation="credit-memo" onClick={() => scrollToSelector('[data-resolver-surface="Credit Memo"]')}>
-          Open Credit Memo
-        </button>
+        <a href={route.href} style={styles.remediationLink} data-req-remediation="open-route">
+          {route.label}
+        </a>
       );
     case 'none':
       return null;
@@ -849,11 +850,19 @@ const styles: Record<string, React.CSSProperties> = {
   reqItem: {
     display: 'flex',
     gap: spacing.xs,
-    alignItems: 'baseline',
+    alignItems: 'flex-start',
     fontSize: typography.size.sm,
     color: palette.text,
   },
+  reqBody: {
+    display: 'flex',
+    minWidth: 0,
+    flex: 1,
+    flexDirection: 'column',
+    gap: 2,
+  },
   reqLabel: { color: palette.text },
+  reqReason: { color: palette.blockedFg, fontSize: typography.size.xs },
   reqWhere: { color: palette.textSubtle, fontSize: typography.size.xs },
   remediationButton: {
     marginLeft: spacing.xs,
@@ -867,6 +876,18 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontFamily: typography.family,
     whiteSpace: 'nowrap',
+  },
+  remediationLink: {
+    marginLeft: spacing.xs,
+    color: palette.primary,
+    border: `1px solid ${palette.primary}`,
+    borderRadius: radius.sm,
+    padding: `0 ${spacing.xs}`,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    fontFamily: typography.family,
+    whiteSpace: 'nowrap',
+    textDecoration: 'none',
   },
   reqFootnote: {
     margin: 0,

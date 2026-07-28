@@ -197,7 +197,8 @@ describe('CreateDocumentReviewTaskModal — Phase 70', () => {
     expect(
       await screen.findByText(/could not create review task/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/schema rejected payload/i)).toBeInTheDocument();
+    expect(screen.queryByText(/schema rejected payload/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/couldn't save that action/i)).toBeInTheDocument();
   });
 
   it('renders the governance-partial critical panel + auditError + timelineError', async () => {
@@ -224,7 +225,8 @@ describe('CreateDocumentReviewTaskModal — Phase 70', () => {
     expect(
       await screen.findByText(/governance write failed/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/tl 500/i)).toBeInTheDocument();
+    expect(screen.queryByText(/tl 500/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Deal timeline:/i)).toBeInTheDocument();
     expect(screen.getByText(/Do not retry/i)).toBeInTheDocument();
   });
 
@@ -271,5 +273,27 @@ describe('CreateDocumentReviewTaskModal — Phase 70', () => {
     const user = userEvent.setup();
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns focus to the launcher after the dialog closes', async () => {
+    const launcher = document.createElement('button');
+    launcher.textContent = 'Create task';
+    document.body.appendChild(launcher);
+    launcher.focus();
+    const onClose = vi.fn();
+    const { unmount } = render(
+      <CreateDocumentReviewTaskModal
+        doc={sampleDoc}
+        openTasks={[]}
+        bankerName="M. Paller"
+        onConfirm={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+
+    expect(screen.getByLabelText(/follow-up note/i)).toHaveFocus();
+    unmount();
+    expect(launcher).toHaveFocus();
+    launcher.remove();
   });
 });

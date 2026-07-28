@@ -28,9 +28,9 @@ is marked **Unverified** rather than asserted.
   [src/team/](../src/team/).
 - **Write posture / governance.**
   [src/shared/governance/platformInventory.ts](../src/shared/governance/platformInventory.ts).
-  Current verified counts: **GOVERNED_WRITES = 24**,
+  Current verified counts: **GOVERNED_WRITES = 25**,
   **LOCAL_ONLY_FLOWS = 16**, **NOT_WIRED = 13**,
-  **DELIBERATELY_BLOCKED = 1** (pinned by
+  **DELIBERATELY_BLOCKED = 0** (pinned by
   [releaseCandidateSnapshot.test.ts](../src/shared/governance/releaseCandidateSnapshot.test.ts)).
 
 ## 2. Live workspace-name contract
@@ -97,7 +97,7 @@ Columns:
 
 ## 4. Write surfaces by workspace (the RW detail)
 
-From `GOVERNED_WRITES` (24 entries) in
+From `GOVERNED_WRITES` (25 entries) in
 [platformInventory.ts](../src/shared/governance/platformInventory.ts),
 grouped by where the affordance lives:
 
@@ -122,10 +122,9 @@ plan.
    `PipelineByStage` + `MonthlyClosingForecast` transitional fallback
    with real snapshot entities. **Blocker:** schema (snapshot entities
    don't exist). Tracked: `EXEC_TRANSITIONAL_FALLBACK_FEATURES`.
-2. **Stage progression Advance Stage write** — the one
-   `DELIBERATELY_BLOCKED` entry. **Blocker:** Lane G schema (register
-   `Cr664_stagereferences` as a data source + sequence field). Plan:
-   [STAGE_PROGRESSION_ENABLEMENT_MAP.md](STAGE_PROGRESSION_ENABLEMENT_MAP.md).
+2. **Stage transitions** — forward Advance and Return/Decline/Withdraw are mounted,
+   audited, timeline-backed governed writes. Environment seed and smoke evidence remain
+   activation prerequisites, not a reason to classify the code path as deliberately blocked.
 3. **Binary document upload** — `NOT_WIRED.document-upload`.
    **Blocker:** Lane C (File column on `cr664_DocumentChecklist`).
 4. **Admin system-settings / KPI-threshold edit** — currently RO.
@@ -161,8 +160,8 @@ plan.
 - Workspace coverage: **6 / 6 role workspaces + per-deal cockpit built
   and live-reachable.** One required surface (borrower portal) remains
   a tracked compound block.
-- `GOVERNED_WRITES = 24`, `LOCAL_ONLY_FLOWS = 16`, `NOT_WIRED = 13`,
-  `DELIBERATELY_BLOCKED = 1`.
+- `GOVERNED_WRITES = 25`, `LOCAL_ONLY_FLOWS = 16`, `NOT_WIRED = 13`,
+  `DELIBERATELY_BLOCKED = 0`.
 - No claim of portal availability, AI usage, Teams integration, live
   delivery confirmation, or upload availability beyond what the
   inventory supports.

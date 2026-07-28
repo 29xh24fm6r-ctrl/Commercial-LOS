@@ -13,7 +13,6 @@ import { PortfolioLoanBoardingStatusBanner } from './PortfolioLoanBoardingStatus
 import { PortfolioLoanBoardingSearchPanel } from './PortfolioLoanBoardingSearchPanel';
 import { PortfolioLoanBoardingList } from './PortfolioLoanBoardingList';
 import { PortfolioLoanBoardingDetail } from './PortfolioLoanBoardingDetail';
-import { PortfolioLoanBoardingCreateFlow } from './PortfolioLoanBoardingCreateFlow';
 
 interface Props {
   access: BoardingAccessResult;
@@ -27,9 +26,8 @@ interface Props {
  * Permission-before-render: it shows nothing actionable unless `access` grants
  * it. No fake records; honest empty / read-only / not-configured states.
  */
-export function PortfolioLoanBoardingWorkspace({ access, adapter, packages = [] }: Props) {
+export function PortfolioLoanBoardingWorkspace({ access, adapter: _adapter, packages = [] }: Props) {
   const [filter, setFilter] = useState<BoardingListFilter>({});
-  const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<PortfolioLoanBoardingPackage | undefined>(undefined);
 
   const rows = useMemo(() => deriveBoardingListRows(packages), [packages]);
@@ -51,18 +49,11 @@ export function PortfolioLoanBoardingWorkspace({ access, adapter, packages = [] 
         <>
           {access.canCreate && (
             <div style={actionRowStyle}>
-              <button
-                type="button"
-                onClick={() => setCreating((v) => !v)}
-                style={createButtonStyle}
-              >
-                {creating ? 'Close create form' : 'Create boarded loan'}
-              </button>
+              <span style={guidanceStyle}>
+                Manual boarding is completed in Portfolio Command Center → Existing Portfolio Loans.
+              </span>
+              <a href="/portfolio" style={createButtonStyle}>Open Portfolio Command Center</a>
             </div>
-          )}
-
-          {creating && access.canCreate && (
-            <PortfolioLoanBoardingCreateFlow adapter={adapter} />
           )}
 
           <PortfolioLoanBoardingSearchPanel filter={filter} onChange={setFilter} />
@@ -86,7 +77,8 @@ const pageStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap
 const headerStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4 };
 const titleStyle: CSSProperties = { margin: 0, fontSize: typography.size.xl, fontWeight: typography.weight.semibold, color: palette.text };
 const subtitleStyle: CSSProperties = { margin: 0, fontSize: typography.size.sm, color: palette.textSubtle };
-const actionRowStyle: CSSProperties = { display: 'flex', gap: spacing.md };
+const actionRowStyle: CSSProperties = { display: 'flex', gap: spacing.md, alignItems: 'center', flexWrap: 'wrap' };
+const guidanceStyle: CSSProperties = { fontSize: typography.size.sm, color: palette.textMuted };
 const createButtonStyle: CSSProperties = {
   fontSize: typography.size.sm,
   fontWeight: typography.weight.semibold,
@@ -96,4 +88,5 @@ const createButtonStyle: CSSProperties = {
   borderRadius: 6,
   padding: `${spacing.xs} ${spacing.md}`,
   cursor: 'pointer',
+  textDecoration: 'none',
 };

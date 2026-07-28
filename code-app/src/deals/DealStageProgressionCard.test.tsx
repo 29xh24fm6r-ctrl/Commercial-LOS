@@ -198,6 +198,7 @@ describe('DealStageProgressionCard — governed advance flow (armed + seeded + a
     const req = screen.getByText(/Provide required document: Loan application/i).closest('li')!;
     expect(req.getAttribute('data-req-where')).toBe('Documents');
     expect(req.getAttribute('data-req-severity')).toBe('blocked');
+    expect(req.querySelector('[data-req-disabled-reason]')?.textContent).toMatch(/Loan application.*on file/i);
     // Log Activity is explicitly NOT a substitute for a governed requirement.
     expect(
       screen.getByText(/does not substitute for a required document, task, or field/i),
