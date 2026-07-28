@@ -17,6 +17,7 @@ export function normalizeBusinessName(s: string | undefined): string {
     .trim()
     .toLowerCase()
     .replace(/[.,]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
     .replace(LEGAL_SUFFIX_RE, '')
     .replace(/\s+/g, ' ')
     .trim();

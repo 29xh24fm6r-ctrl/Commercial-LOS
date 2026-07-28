@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   evaluateRiskRatingReadiness,
   evaluateUnderwritingRecommendationReadiness,
@@ -79,6 +79,12 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
   const [ratingScale, setRatingScale] = useState(savedRating.ratingScale);
   const [ratingRationale, setRatingRationale] = useState(savedRating.rationale);
   const [ratingStatus, setRatingStatus] = useState<RiskRatingStatus>(savedRating.status);
+  const ratingDraftRef = useRef({
+    ratingValue: savedRating.ratingValue,
+    ratingScale: savedRating.ratingScale,
+    ratingRationale: savedRating.rationale,
+    ratingStatus: savedRating.status,
+  });
   const [ratingSave, setRatingSave] = useState<
     { kind: 'idle' } | { kind: 'saving' } | { kind: 'done'; outcome: UpdateDealProfileOutcome }
   >({ kind: 'idle' });
@@ -86,6 +92,11 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
   const [decision, setDecision] = useState<UnderwritingRecommendationDecision>(savedRecommendation.decision);
   const [recommendationRationale, setRecommendationRationale] = useState(savedRecommendation.rationale);
   const [recommendationStatus, setRecommendationStatus] = useState<UnderwritingRecommendationStatus>(savedRecommendation.status);
+  const recommendationDraftRef = useRef({
+    decision: savedRecommendation.decision,
+    recommendationRationale: savedRecommendation.rationale,
+    recommendationStatus: savedRecommendation.status,
+  });
   const [recommendationSave, setRecommendationSave] = useState<
     { kind: 'idle' } | { kind: 'saving' } | { kind: 'done'; outcome: UpdateDealProfileOutcome }
   >({ kind: 'idle' });
@@ -127,11 +138,12 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
   async function onSaveRating() {
     if (!authorized || !actorSystemUserId || ratingSaving) return;
     setRatingSave({ kind: 'saving' });
+    const draft = ratingDraftRef.current;
     const json = serializeRiskRatingFormState({
-      ratingValue: ratingValue.trim(),
-      ratingScale: ratingScale.trim(),
-      rationale: ratingRationale.trim(),
-      status: ratingStatus,
+      ratingValue: draft.ratingValue.trim(),
+      ratingScale: draft.ratingScale.trim(),
+      rationale: draft.ratingRationale.trim(),
+      status: draft.ratingStatus,
       dealId,
       assignedBy: ratedBy || actorEmail || '',
       assignedAtIso: new Date().toISOString(),
@@ -152,10 +164,11 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
   async function onSaveRecommendation() {
     if (!authorized || !actorSystemUserId || recommendationSaving) return;
     setRecommendationSave({ kind: 'saving' });
+    const draft = recommendationDraftRef.current;
     const json = serializeUnderwritingRecommendationFormState({
-      decision,
-      rationale: recommendationRationale.trim(),
-      status: recommendationStatus,
+      decision: draft.decision,
+      rationale: draft.recommendationRationale.trim(),
+      status: draft.recommendationStatus,
       dealId,
       underwriterActor: ratedBy || actorEmail || '',
       recordedAtIso: new Date().toISOString(),
@@ -194,15 +207,25 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
         <div style={styles.grid}>
           <label style={styles.field}>
             <span style={styles.label}>Rating value</span>
-            <input style={styles.input} value={ratingValue} data-risk-rating-field="value" onChange={(e) => setRatingValue(e.target.value)} placeholder="e.g. BB, 5, Pass" />
+            <input style={styles.input} value={ratingValue} data-risk-rating-field="value" onChange={(e) => {
+              ratingDraftRef.current.ratingValue = e.target.value;
+              setRatingValue(e.target.value);
+            }} placeholder="e.g. BB, 5, Pass" />
           </label>
           <label style={styles.field}>
             <span style={styles.label}>Rating scale</span>
-            <input style={styles.input} value={ratingScale} data-risk-rating-field="scale" onChange={(e) => setRatingScale(e.target.value)} placeholder="e.g. Internal 1-10" />
+            <input style={styles.input} value={ratingScale} data-risk-rating-field="scale" onChange={(e) => {
+              ratingDraftRef.current.ratingScale = e.target.value;
+              setRatingScale(e.target.value);
+            }} placeholder="e.g. Internal 1-10" />
           </label>
           <label style={styles.field}>
             <span style={styles.label}>Status</span>
-            <select style={styles.input} value={ratingStatus} data-risk-rating-field="status" onChange={(e) => setRatingStatus(e.target.value as RiskRatingStatus)}>
+            <select style={styles.input} value={ratingStatus} data-risk-rating-field="status" onChange={(e) => {
+              const value = e.target.value as RiskRatingStatus;
+              ratingDraftRef.current.ratingStatus = value;
+              setRatingStatus(value);
+            }}>
               {RATING_STATUSES.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
@@ -211,7 +234,10 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
         </div>
         <label style={styles.field}>
           <span style={styles.label}>Rationale</span>
-          <textarea style={styles.textarea} value={ratingRationale} data-risk-rating-field="rationale" onChange={(e) => setRatingRationale(e.target.value)} rows={2} />
+          <textarea style={styles.textarea} value={ratingRationale} data-risk-rating-field="rationale" onChange={(e) => {
+            ratingDraftRef.current.ratingRationale = e.target.value;
+            setRatingRationale(e.target.value);
+          }} rows={2} />
         </label>
         <ReadinessLine met={ratingReadiness.met} reason={ratingReadiness.reason} testId="rating-readiness" />
         <div style={styles.saveRow}>
@@ -233,7 +259,11 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
         <div style={styles.grid}>
           <label style={styles.field}>
             <span style={styles.label}>Decision</span>
-            <select style={styles.input} value={decision} data-risk-rating-field="decision" onChange={(e) => setDecision(e.target.value as UnderwritingRecommendationDecision)}>
+            <select style={styles.input} value={decision} data-risk-rating-field="decision" onChange={(e) => {
+              const value = e.target.value as UnderwritingRecommendationDecision;
+              recommendationDraftRef.current.decision = value;
+              setDecision(value);
+            }}>
               {DECISIONS.map((d) => (
                 <option key={d} value={d}>{decisionLabel(d)}</option>
               ))}
@@ -241,7 +271,11 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
           </label>
           <label style={styles.field}>
             <span style={styles.label}>Status</span>
-            <select style={styles.input} value={recommendationStatus} data-risk-rating-field="recommendation-status" onChange={(e) => setRecommendationStatus(e.target.value as UnderwritingRecommendationStatus)}>
+            <select style={styles.input} value={recommendationStatus} data-risk-rating-field="recommendation-status" onChange={(e) => {
+              const value = e.target.value as UnderwritingRecommendationStatus;
+              recommendationDraftRef.current.recommendationStatus = value;
+              setRecommendationStatus(value);
+            }}>
               {RECOMMENDATION_STATUSES.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
@@ -250,7 +284,10 @@ export function DealRiskRatingPanel({ deal, ratedBy, authorized, actorEmail, act
         </div>
         <label style={styles.field}>
           <span style={styles.label}>Rationale</span>
-          <textarea style={styles.textarea} value={recommendationRationale} data-risk-rating-field="recommendation-rationale" onChange={(e) => setRecommendationRationale(e.target.value)} rows={2} />
+          <textarea style={styles.textarea} value={recommendationRationale} data-risk-rating-field="recommendation-rationale" onChange={(e) => {
+            recommendationDraftRef.current.recommendationRationale = e.target.value;
+            setRecommendationRationale(e.target.value);
+          }} rows={2} />
         </label>
         <ReadinessLine
           met={recommendationReadiness.met}

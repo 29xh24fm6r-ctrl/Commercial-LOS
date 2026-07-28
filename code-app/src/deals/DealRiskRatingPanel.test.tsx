@@ -213,6 +213,46 @@ describe('DealRiskRatingPanel', () => {
       expect(body.cr664_underwritingrecommendationinputs).toBeUndefined();
     });
 
+    it('saves the status selected by mouse/click path, not a stale prior status', async () => {
+      dealUpdate.mockResolvedValue({ success: true, data: {} } as never);
+      Cr664_loandealsService.get = vi.fn().mockImplementation(async () => {
+        const lastCall = dealUpdate.mock.calls[dealUpdate.mock.calls.length - 1];
+        const body = lastCall ? (lastCall[1] as Record<string, unknown>) : {};
+        return { success: true, data: { ...body } };
+      }) as never;
+
+      const rating: RiskRatingFormState = {
+        ratingValue: '5',
+        ratingScale: 'Internal 1-10',
+        rationale: 'Stable repayment capacity.',
+        status: 'assigned',
+        dealId: 'deal-1',
+        assignedBy: 'M. Paller',
+        assignedAtIso: '2026-07-20T00:00:00Z',
+      };
+      const user = userEvent.setup();
+      const { container } = render(
+        <DealRiskRatingPanel
+          deal={baseDeal({ riskRatingInputsJson: serializeRiskRatingFormState(rating) })}
+          ratedBy="M. Paller"
+          authorized={true}
+          actorEmail="banker@bank.com"
+          actorSystemUserId="sys-1"
+        />,
+      );
+
+      await user.selectOptions(
+        container.querySelector('[data-risk-rating-field="status"]') as HTMLSelectElement,
+        'reviewed',
+      );
+      await user.click(screen.getByText('Save Risk Rating'));
+
+      await waitFor(() => expect(container.querySelector('[data-risk-rating-save-outcome="rating:updated"]')).not.toBeNull());
+      const [, body] = dealUpdate.mock.calls[0] as [string, Record<string, unknown>];
+      const parsed = JSON.parse(body.cr664_riskratinginputs as string);
+      expect(parsed.status).toBe('reviewed');
+    });
+
     it('does not attempt a save when unauthorized (buttons disabled, no write call)', async () => {
       const user = userEvent.setup();
       render(<DealRiskRatingPanel deal={baseDeal()} ratedBy="M. Paller" authorized={false} actorEmail={undefined} actorSystemUserId={undefined} />);

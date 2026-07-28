@@ -42,11 +42,17 @@ function buildClosingDocumentFactModel(deal: DealDetail): ClosingDocumentFactMod
   };
 }
 
+function isClosingFundingStage(stage: string | undefined): boolean {
+  return (stage ?? '').trim().toLowerCase() === 'closing & funding';
+}
+
 export function DealClosingDocumentsPanel({ deal, authorized, actorEmail }: { deal: DealDetail; authorized: boolean; actorEmail: string | undefined }) {
   const storeRef = useRef(createDataverseClosingDocumentStore());
   const [manifests, setManifests] = useState<readonly GeneratedClosingDocumentManifest[]>([]);
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const facts = useMemo(() => buildClosingDocumentFactModel(deal), [deal]);
+  const stageEligible = isClosingFundingStage(deal.stage);
+  const generationAuthorized = authorized && stageEligible;
 
   useEffect(() => {
     let cancelled = false;
@@ -99,11 +105,17 @@ export function DealClosingDocumentsPanel({ deal, authorized, actorEmail }: { de
         If a secondary evidence write fails, the saved document is preserved and the incomplete
         evidence is shown for administrator review.
       </p>
+      {!stageEligible && (
+        <p style={styles.stageGateNote} role="status" data-closing-documents-stage-gate>
+          Closing document generation unlocks only at the Closing & Funding stage. Current stage:{' '}
+          {deal.stage?.trim() || 'Not set'}.
+        </p>
+      )}
       <ClosingDocumentsPanel
         dealId={deal.id}
         facts={facts}
         manifests={manifests}
-        authorized={authorized}
+        authorized={generationAuthorized}
         onGenerate={onGenerate}
         onGetContent={(manifestId) => storeRef.current.getManifestContent(manifestId)}
       />
@@ -123,6 +135,16 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: typography.lineHeight.snug,
   },
   errorNote: {
+    margin: 0,
+    fontSize: typography.size.xs,
+    color: palette.blockedFg,
+    background: palette.blockedBg,
+    border: `1px solid ${palette.blocked}`,
+    padding: `${spacing.xs} ${spacing.md}`,
+    borderRadius: radius.sm,
+    lineHeight: typography.lineHeight.snug,
+  },
+  stageGateNote: {
     margin: 0,
     fontSize: typography.size.xs,
     color: palette.blockedFg,

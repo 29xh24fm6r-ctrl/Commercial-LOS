@@ -24,7 +24,7 @@ vi.mock('../generated/services/Cr664_profitabilityrefreshstatusesService', () =>
 }));
 
 import { Cr664_auditeventsService } from '../generated/services/Cr664_auditeventsService';
-import { loadLatestCapabilityWrite } from './adminDiagnosticsQueries';
+import { loadLatestCapabilityWrite, summarizeAuditFailure } from './adminDiagnosticsQueries';
 
 const getAllMock = vi.mocked(Cr664_auditeventsService.getAll);
 
@@ -115,5 +115,28 @@ describe('loadLatestCapabilityWrite', () => {
     await expect(loadLatestCapabilityWrite('NewDealCreateAdapter/', 'success')).rejects.toThrow(
       /not_registered/,
     );
+  });
+});
+
+describe('summarizeAuditFailure', () => {
+  it('maps raw Dataverse memo-length JSON into an operator-safe message', () => {
+    const raw = JSON.stringify({
+      error: {
+        code: '0x80044331',
+        message:
+          "A validation error occurred. The length of the 'cr664_memotext' attribute of the 'cr664_creditmemo1' entity exceeded the maximum allowed length of '2000'.",
+        '@Microsoft.PowerApps.CDS.ErrorDetails.ApiExceptionSourceKey':
+          'Plugin/Microsoft.Crm.ObjectModel.TargetAttributeValidationPlugin',
+      },
+    });
+
+    const out = summarizeAuditFailure(raw);
+
+    expect(out).toBe(
+      'Credit memo draft exceeded the former text limit. The save path now stores a bounded summary and preserves the full memo in sections.',
+    );
+    expect(out).not.toContain('0x80044331');
+    expect(out).not.toContain('TargetAttributeValidationPlugin');
+    expect(out).not.toContain('cr664_memotext');
   });
 });

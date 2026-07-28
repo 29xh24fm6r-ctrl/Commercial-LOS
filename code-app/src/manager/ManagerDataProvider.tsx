@@ -123,8 +123,13 @@ export function ManagerDataProvider({ children }: { children: React.ReactNode })
     bind(
       () =>
         loadTeamBankers(teamId)
-          .then((bankers) => loadTeamPipeline(teamId, { memberBankerIds: bankers.map((b) => b.id) }))
-          .catch(() => loadTeamPipeline(teamId)),
+          .then((bankers) =>
+            loadTeamPipeline(teamId, {
+              memberBankerIds: bankers.map((b) => b.id),
+              includeTestDeals: true,
+            }),
+          )
+          .catch(() => loadTeamPipeline(teamId, { includeTestDeals: true })),
       setTeamPipeline,
     );
     bind(() => loadTeamBankers(teamId), setTeamBankers);

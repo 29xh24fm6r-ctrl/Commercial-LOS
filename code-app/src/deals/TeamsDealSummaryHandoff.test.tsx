@@ -628,7 +628,7 @@ describe('TeamsDealSummaryHandoff — Phase 96', () => {
     });
   });
 
-  it('counts pending-review documents as received docs with no reviewer', () => {
+  it('counts pending-review documents from the canonical received bucket only', () => {
     useDealDataMock.mockReturnValue(
       dealData({
         documents: {
@@ -647,27 +647,30 @@ describe('TeamsDealSummaryHandoff — Phase 96', () => {
                 modifiedOn: undefined,
                 status: 'received',
               },
+            ],
+            reviewed: [
               {
                 id: 'doc-revd',
                 name: 'Tax Return',
                 dueDate: undefined,
                 requestDate: undefined,
                 receivedDate: '2026-05-10T00:00:00Z',
-                reviewer: 'B. Other',
+                // Live reviewed rows can have sparse reviewer display text;
+                // being in the reviewed bucket is the canonical fact.
+                reviewer: undefined,
                 uploaded: false,
                 modifiedOn: undefined,
                 status: 'reviewed',
               },
             ],
-            reviewed: [],
           },
         },
       }),
     );
     render(<TeamsDealSummaryHandoff />);
     const preview = screen.getByTestId('teams-deal-summary-preview');
-    // 1 received doc with no reviewer; the reviewed-by-B-Other row
-    // does not count as pending-review.
+    // 1 canonical received doc; the reviewed bucket row does not
+    // count as pending-review even when reviewer display text is blank.
     expect(preview.textContent).toContain('- Documents pending review: 1');
   });
 });
