@@ -109,7 +109,7 @@ export function MyWorkQueue({ filter = 'all', onDataChanged }: MyWorkQueueProps 
   const reload = useCallback(() => {
     let cancelled = false;
     setState({ kind: 'loading' });
-    loadBankerWorkQueueData(bankerId)
+    loadBankerWorkQueueData(bankerId, { includeTestDeals: true })
       .then((data) => {
         if (!cancelled) setState({ kind: 'ready', data });
       })
@@ -452,7 +452,7 @@ export function MyWorkQueue({ filter = 'all', onDataChanged }: MyWorkQueueProps 
           </>
         )}
         <CardFooter>
-          <span>Scoped to your active deals.</span>
+          <span>Scoped to your active deals, including active smoke/test-originated deals.</span>
           <span>Open a row to act in the Deal Workspace, or complete inline.</span>
         </CardFooter>
       </Card>

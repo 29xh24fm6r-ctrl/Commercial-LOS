@@ -30,7 +30,7 @@ import {
   isPortfolioWorkspaceName,
 } from '../bootstrap/workspaceRoutes';
 import { WorkspaceSwitcher } from '../bootstrap/WorkspaceSwitcher';
-import { LendingOSLayout } from '../banker/LendingOSLayout';
+import { LendingOSLayout, type LendingOSNavKey } from '../banker/LendingOSLayout';
 import { PortfolioCommandCenter } from '../portfolio/PortfolioCommandCenter';
 import { CrmManagerWorkingSurface } from '../crm/workspaceIntegration/CrmManagerWorkingSurface';
 import { managerCrmPreviewInput } from '../crm/workspaceIntegration/crmWorkspacePreviewInputs';
@@ -83,6 +83,7 @@ export function ManagerWorkspace() {
 
 function ManagerWorkspaceContent() {
   const { fullName, email, teamName } = useManager();
+  const [activeNav, setActiveNav] = useState<LendingOSNavKey>('dashboard');
   const crmRollupState = useCrmRollupWorkspaceData();
   // Reaching this content means ManagerProvider has already authorized the
   // viewer as a manager — the same authorization the rollup is scoped to, so
@@ -140,15 +141,22 @@ function ManagerWorkspaceContent() {
     ? 'Portfolio workspace switcher'
     : 'Manager workspace switcher';
 
+  const showDashboard = !isPortfolio && activeNav === 'dashboard';
+  const showTasks = !isPortfolio && (showDashboard || activeNav === 'tasks' || activeNav === 'my-alerts');
+  const showDeals = !isPortfolio && (showDashboard || activeNav === 'active-deals');
+  const showWorkflow = !isPortfolio && (showDashboard || activeNav === 'loan-workflow' || activeNav === 'due-diligence');
+  const showCrm = !isPortfolio && (showDashboard || activeNav === 'crm-hub' || activeNav === 'relationships');
+  const showActivity = !isPortfolio && (showDashboard || activeNav === 'activity');
+
   // Phase 124E â€” wrap the manager body in the same LendingOSLayout
   // shell the banker workspace uses so the dark left toolbar +
   // workspace switcher render consistently across role surfaces.
-  // `onNavSelect` is intentionally undefined â€” the Lending OS
-  // sidebar nav items are banker-coded and remain non-interactive
-  // on the manager + portfolio surfaces for now.
+  // Adversarial audit DEF-03: manager nav now drives real manager
+  // sections instead of acting as a highlight-only shell.
   return (
     <LendingOSLayout
-      activeNav="dashboard"
+      activeNav={isPortfolio ? 'dashboard' : activeNav}
+      onNavSelect={isPortfolio ? undefined : setActiveNav}
       fullName={fullName}
       email={email}
       workspaceName={shellWorkspaceName}
@@ -199,40 +207,40 @@ function ManagerWorkspaceContent() {
               scoped (not banker-scoped); PortfolioCommandCenterBook reads the
               filter via useOptionalManagerBankerFilter(), which simply resolves
               to "no filter" when the control is absent. */}
-          {!isPortfolio && <ManagerOperatingCommandCenter />}
-          {!isPortfolio && <ManagerWorkflowLaunchReadinessPanel />}
+          {showDashboard && <ManagerOperatingCommandCenter />}
+          {showWorkflow && <ManagerWorkflowLaunchReadinessPanel />}
           {/* BUGFIX-PRODUCTION-CRM-SURFACES-NOT-VISIBLE-1 â€” visible read-only CRM
               team intelligence (honest preview posture; no assignment mutation,
               no CRM writes, no permission widening). */}
-          {!isPortfolio && !CRM_LIVE_ROLLUPS_ENABLED && (
+          {showCrm && (!CRM_LIVE_ROLLUPS_ENABLED || crmRollupState.kind !== 'ready') && (
             <CrmManagerWorkingSurface input={managerCrmPreviewInput()} />
           )}
-          {!isPortfolio && CRM_LIVE_ROLLUPS_ENABLED && liveManagerCrmSurfaceInput && (
+          {showCrm && CRM_LIVE_ROLLUPS_ENABLED && liveManagerCrmSurfaceInput && (
             <CrmManagerWorkingSurface input={liveManagerCrmSurfaceInput} />
           )}
-          {!isPortfolio && CRM_LIVE_ROLLUPS_ENABLED && crmRollupState.kind === 'loading' && (
+          {showCrm && CRM_LIVE_ROLLUPS_ENABLED && crmRollupState.kind === 'loading' && (
             <div style={styles.crmRollupNotice} aria-hidden="true">Loading CRM team intelligence…</div>
           )}
-          {!isPortfolio && CRM_LIVE_ROLLUPS_ENABLED && crmRollupState.kind === 'failed' && (
+          {showCrm && CRM_LIVE_ROLLUPS_ENABLED && crmRollupState.kind === 'failed' && (
             <div style={styles.crmRollupNotice} role="alert">
               CRM team intelligence is temporarily unavailable. Refresh to try again.
             </div>
           )}
-          {!isPortfolio && <TeamWorkQueue />}
-          {!isPortfolio && <ManagerBankerFilterControl />}
-          {!isPortfolio && <ManagerMorningCatchUp />}
-          {!isPortfolio && <ManagerAutopilotRollup />}
-          {!isPortfolio && <ManagerRelationshipMemory />}
-          {!isPortfolio && <TeamPipelineSummary />}
-          {!isPortfolio && (
+          {showTasks && <TeamWorkQueue />}
+          {showDashboard && <ManagerBankerFilterControl />}
+          {showDashboard && <ManagerMorningCatchUp />}
+          {showDashboard && <ManagerAutopilotRollup />}
+          {(showDashboard || showActivity) && <ManagerRelationshipMemory />}
+          {showDeals && <TeamPipelineSummary />}
+          {showDeals && (
             <div style={styles.twoCol}>
               <DealsByStage />
               <ClosingForecast />
             </div>
           )}
-          {!isPortfolio && <AtRiskBlockedDeals />}
-          {!isPortfolio && <BankerWorkloadSummary />}
-          {!isPortfolio && <ManagerActivitySummary />}
+          {(showDeals || activeNav === 'my-alerts') && <AtRiskBlockedDeals />}
+          {showDeals && <BankerWorkloadSummary />}
+          {showActivity && <ManagerActivitySummary />}
         </main>
       </div>
     </LendingOSLayout>

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
 import type { ManagerData } from '../manager/ManagerDataProvider';
@@ -243,9 +244,26 @@ describe('Phase 124E — Manager Workspace static-source discipline', () => {
     expect(SRC).toMatch(/workspaceLinks=\{workspaceLinks\}/);
   });
 
-  it('does NOT pass onNavSelect (sidebar nav stays non-interactive on the manager surface)', () => {
-    // Verify the LendingOSLayout element has no onNavSelect prop.
-    expect(SRC).not.toMatch(/<LendingOSLayout[\s\S]*?onNavSelect=/);
+  it('passes onNavSelect so manager sidebar nav is interactive', () => {
+    expect(SRC).toMatch(/<LendingOSLayout[\s\S]*?onNavSelect=/);
+    expect(SRC).toMatch(/setActiveNav/);
+  });
+});
+
+describe('DEF-03 — manager sidebar nav drives manager sections', () => {
+  it('changes the active sidebar item when a manager nav destination is clicked', async () => {
+    renderManagerWorkspace();
+
+    const user = userEvent.setup();
+    const dashboard = screen.getByRole('button', { name: 'Dashboard' });
+    const crmHub = screen.getByRole('button', { name: 'CRM Hub' });
+
+    expect(dashboard).toHaveAttribute('aria-current', 'page');
+    await user.click(crmHub);
+
+    expect(crmHub).toHaveAttribute('aria-current', 'page');
+    expect(dashboard).not.toHaveAttribute('aria-current');
+    expect(screen.getByText('Team CRM Intelligence')).toBeInTheDocument();
   });
 });
 

@@ -127,12 +127,12 @@ describe('derivePortfolioBookSnapshot', () => {
       '2026-07-02T00:00:00.000Z',
     );
     // Count is derived from the list, so they cannot diverge.
-    expect(snapshot.commandRibbon.unmappedRatingCount).toBe(2);
-    expect(snapshot.unmappedRatingLoans).toHaveLength(2);
-    // Exactly the two loans with rating text that did not resolve to a dual rating.
-    expect(snapshot.unmappedRatingLoans.map((r) => r.id).sort()).toEqual(['unmapped-1', 'unmapped-2']);
-    // A loan WITHOUT rating text is not "unmapped" (nothing to map); a rated loan is excluded.
-    expect(snapshot.unmappedRatingLoans.map((r) => r.id)).not.toContain('no-rating-text');
+    expect(snapshot.commandRibbon.unmappedRatingCount).toBe(3);
+    expect(snapshot.unmappedRatingLoans).toHaveLength(3);
+    // Exactly the loans whose displayed rating state is not backed by a dual-rating record.
+    expect(snapshot.unmappedRatingLoans.map((r) => r.id).sort()).toEqual(['no-rating-text', 'unmapped-1', 'unmapped-2']);
+    // A loan WITHOUT rating text is included because the UI surfaces it as an unmapped/unknown rating condition.
+    expect(snapshot.unmappedRatingLoans.map((r) => r.id)).toContain('no-rating-text');
     expect(snapshot.unmappedRatingLoans.map((r) => r.id)).not.toContain('rated');
   });
 

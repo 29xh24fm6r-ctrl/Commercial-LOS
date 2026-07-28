@@ -150,6 +150,16 @@ describe('MyWorkQueue — Phase 53 receive integration', () => {
     expect(button).toBeInTheDocument();
   });
 
+  it('loads the action queue with active smoke/test-originated deals included', async () => {
+    loadMock.mockResolvedValue(workQueueData());
+    render(<MyWorkQueue />);
+
+    await screen.findByText(/personal financial statement/i);
+
+    expect(loadMock).toHaveBeenCalledWith('banker-1', { includeTestDeals: true });
+    expect(screen.getByText(/including active smoke\/test-originated deals/i)).toBeInTheDocument();
+  });
+
   it('does NOT render the Mark received button when systemUserId is missing', async () => {
     useBankerMock.mockReturnValue({
       bankerId: 'banker-1',
