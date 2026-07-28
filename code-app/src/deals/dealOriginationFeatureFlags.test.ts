@@ -41,12 +41,12 @@ describe('origination flags -- Phase 228A production core constants', () => {
 
     // WF-1A: AUTO_STAGE_ADVANCE_ENABLED is INTENTIONALLY armed for the "walk one
     // deal" pilot — a deliberate per-domain arming, not an up-by-source-default. Every
-    // OTHER live-write domain remains at its safe default (off).
+    // Certified checklist, upload, and borrower email domains are intentionally armed.
     expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
     expect(DOCUMENT_FILE_UPLOAD_ENABLED).toBe(true);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
 
     for (const c of [
       CRM_AUTOMATION_ENABLED,
@@ -78,16 +78,14 @@ describe('origination flags -- Phase 228A production core gates', () => {
     borrowerMessagingMode: 'send_enabled' as const,
   };
 
-  it('gate readers keep the reset live-write domains off even when config is true', () => {
+  it('gate readers enable only the armed domains when config is true', () => {
     expect(isBankerCreateEnabled(fullyTrue)).toBe(false);
     expect(isTaskGenerationEnabled(fullyTrue)).toBe(true);
     expect(isDuplicateDetectionEnabled(fullyTrue)).toBe(true);
 
-    // These domains' hard constants are false, so they stay OFF/disabled even with
-    // explicit true config (fail-closed).
-    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(false);
-    expect(resolveBorrowerMessagingMode(fullyTrue)).toBe('disabled');
-    expect(isAnyBorrowerTransportEnabled(fullyTrue)).toBe(false);
+    expect(isDocumentChecklistEnabled(fullyTrue)).toBe(true);
+    expect(resolveBorrowerMessagingMode(fullyTrue)).toBe('send_enabled');
+    expect(isAnyBorrowerTransportEnabled(fullyTrue)).toBe(true);
     // WF-1A: AUTO_STAGE_ADVANCE_ENABLED is armed, so with an explicit true config the
     // gate reader now enables it (deliberate per-domain arming for the walk).
     expect(isAutoStageAdvanceEnabled(fullyTrue)).toBe(true);

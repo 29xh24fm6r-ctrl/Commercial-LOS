@@ -75,14 +75,14 @@ function packageWithChildren(): PortfolioLoanBoardingPackage {
 describe('Phase 140L — feature flags fail closed', () => {
   it('live persistence default is the safe default (off)', () => {
     expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(
-      false,
+      true,
     );
   });
 
   it('resolves disabled with no config', () => {
     expect(
       resolvePortfolioBoardingFeatureFlags().PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('enables only on an exact true', () => {

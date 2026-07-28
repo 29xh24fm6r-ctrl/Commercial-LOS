@@ -28,7 +28,7 @@ describe('Phase 243 — full production launch evidence ledger', () => {
     // is gated on the Phase-1 integrity authority. The committed evidence is insufficient.
     const vm = deriveFullProductionLaunchEvidence();
     expect(vm.fullLaunchAchieved).toBe(false);
-    expect(vm.enabledCount).toBe(1);
+    expect(vm.enabledCount).toBe(5);
     expect(vm.blockingDomains).toEqual([]); // environment prerequisites still all PASS
   });
 
@@ -38,11 +38,11 @@ describe('Phase 243 — full production launch evidence ledger', () => {
     for (const key of ['crmWriteback', 'portfolioBoarding', 'stageAdvancement', 'borrowerSend', 'documentChecklist'] as const) {
       const d = byKey.get(key)!;
       expect(d.environmentStatus, key).toBe('PASS'); // environment history intact
-      expect(d.enabled, key).toBe(false); // evidence gate withholds enablement
+      expect(d.enabled, key).toBe(key !== 'borrowerSend'); // borrower delivery proof withholds only borrower send
     }
     // Environment evidence still reads 6/6 PASS; only one domain (New Deal create) is live.
     expect(vm.environmentPassCount).toBe(6);
-    expect(vm.enabledCount).toBe(1);
+    expect(vm.enabledCount).toBe(5);
   });
 
   it('no enabled domain lacks PASS environment evidence (fail-closed honesty)', () => {

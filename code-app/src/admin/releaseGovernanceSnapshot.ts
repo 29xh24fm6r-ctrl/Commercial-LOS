@@ -1,34 +1,16 @@
-/**
- * Phase 197 — Full System Launch Readiness model.
- *
- * Factory Arc Phase 5 renamed this file from `fullSystemLaunchReadinessModel.ts`
- * (identifier `deriveFullSystemLaunchReadiness` -> `deriveReleaseGovernanceSnapshot`,
- * interface `FullSystemLaunchReadiness` -> `ReleaseGovernanceSnapshot`). This module
- * was already admin-only — mounted only by FullSystemLaunchReadinessConsole.tsx
- * inside AdminWorkspace.tsx, never imported by src/banker, src/manager, src/deals,
- * src/portfolioBoarding, or src/portfolio (see releaseGovernanceRuntimeImportGuard.test.ts,
- * which now also scans src/portfolio). The rename reframes it explicitly as a
- * release-governance snapshot for Admin Platform Operations, not a live "launch
- * console" concept a banker or manager could ever reach.
- *
- * PURE, READ-ONLY, OFFLINE. `deriveReleaseGovernanceSnapshot()` produces one
- * honest view of whether the entire OGB LOS is ready for V1 launch. It is
- * derived ONLY from existing governance constants + static phase posture — it
- * makes no SDK call, no Dataverse read/write, no fetch, and flips no gate. It
- * never enables anything; it only reports the current, fail-closed posture.
- */
+import {
+  deriveProductionEnvironmentVerification,
+  type ActivationDomainKey,
+} from './productionEnvironmentVerification';
 
-import {
-  BANKER_NEW_DEAL_CREATE_ENABLED,
-  DOCUMENT_CHECKLIST_GENERATION_ENABLED,
-} from '../deals/dealOriginationFeatureFlags';
-import { NEW_DEAL_CREATE_ADAPTER_ENABLED } from '../deals/newDealCreateFeatureFlags';
-import { NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED } from './adminNewDealIntakeModel';
-import {
-  DOCUMENT_CHECKLIST_PILOT_UI_ENABLED,
-  DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED,
-} from '../deals/documentChecklistPilotConfig';
-import { evaluateBankerCreateRollout } from '../deals/bankerNewDealCreateRollout';
+/**
+ * Current, read-only release-governance projection.
+ *
+ * Capability flags cannot make this view green by themselves. The six
+ * live-write domains resolve through productionEnvironmentVerification, which
+ * requires environment certification, an armed runtime gate, and accepted
+ * high-confidence machine proof.
+ */
 
 export type LaunchRecommendation = 'GO' | 'CONDITIONAL_GO' | 'NO_GO';
 export type LaunchDomainStatus = 'ready' | 'conditional' | 'blocked';
@@ -49,36 +31,22 @@ export interface ReleaseGovernanceSnapshot {
   readonly domains: readonly LaunchReadinessDomain[];
 }
 
-/** Human-facing label for a recommendation enum. */
 export function launchRecommendationLabel(rec: LaunchRecommendation): string {
-  switch (rec) {
-    case 'GO':
-      return 'GO';
-    case 'NO_GO':
-      return 'NO GO';
-    case 'CONDITIONAL_GO':
-    default:
-      return 'CONDITIONAL GO';
-  }
+  if (rec === 'NO_GO') return 'NO GO';
+  if (rec === 'CONDITIONAL_GO') return 'CONDITIONAL GO';
+  return 'GO';
 }
 
-/**
- * Derive the full-system launch readiness. The create + checklist gates are
- * read live (all false by default) so this view is tied to the real posture,
- * never to fabricated state.
- */
 export function deriveReleaseGovernanceSnapshot(): ReleaseGovernanceSnapshot {
-  // The default (no-override) rollout decision — disabled until an operator
-  // enables the certified pilot switch with all preconditions met.
-  const defaultRollout = evaluateBankerCreateRollout();
-  const createGatesAllFalse =
-    (BANKER_NEW_DEAL_CREATE_ENABLED as boolean) === false &&
-    (NEW_DEAL_CREATE_ADAPTER_ENABLED as boolean) === false &&
-    (NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED as boolean) === false;
-  const checklistGatesAllFalse =
-    DOCUMENT_CHECKLIST_PILOT_UI_ENABLED === false &&
-    DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED === false &&
-    (DOCUMENT_CHECKLIST_GENERATION_ENABLED as boolean) === false;
+  const verification = deriveProductionEnvironmentVerification();
+  const byKey = new Map(verification.domains.map((domain) => [domain.key, domain]));
+  const enabled = (key: ActivationDomainKey) => byKey.get(key)?.enabled === true;
+  const missing = (key: ActivationDomainKey) => [
+    ...(byKey.get(key)?.missingSteps ?? []),
+  ];
+  const remainingEvidenceActions = verification.domains
+    .filter((domain) => !domain.enabled)
+    .flatMap((domain) => domain.missingSteps);
 
   const domains: LaunchReadinessDomain[] = [
     {
@@ -86,177 +54,132 @@ export function deriveReleaseGovernanceSnapshot(): ReleaseGovernanceSnapshot {
       label: 'Banker Workspace',
       status: 'ready',
       details: [
-        'The banker workspace is built, governed, and permission controlled.',
-        'It loads behind a fail-closed identity + entitlement gate, with no fallback dashboard and no fake/sample data.',
+        'The banker workspace is mounted, governed, and permission controlled.',
+        'It loads behind fail-closed identity and entitlement checks with live data or honest empty states.',
       ],
       requiredActions: [],
-      safetyNotes: [
-        'Permission-before-render is required; unauthorized users fail closed.',
-      ],
+      safetyNotes: ['Unauthorized users never receive banker workspace content.'],
     },
     {
       id: 'new-deal-create',
       label: 'New Deal Create',
-      status: 'conditional',
+      status: enabled('newDealCreate') ? 'ready' : 'conditional',
       details: [
-        'A controlled live New Deal create path exists and is certified (Phase 194/195).',
-        `The three global create gates remain false (BANKER_NEW_DEAL_CREATE_ENABLED=${BANKER_NEW_DEAL_CREATE_ENABLED}, NEW_DEAL_CREATE_ADAPTER_ENABLED=${NEW_DEAL_CREATE_ADAPTER_ENABLED}, NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED=${NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED}).`,
-        `evaluateBankerCreateRollout() returns "${defaultRollout}" by default; operator enablement and signoff are required for live create.`,
-        'No actorless create is allowed — a resolved actor systemuser + banker authorization are required.',
+        'The authorized-banker create path uses the governed adapter, production Stage/Status references, audit, and readback.',
+        'Public and anonymous create remain deliberately unavailable.',
       ],
-      requiredActions: [
-        'Operator enables the certified pilot switch for the approved pilot context and signs off.',
-      ],
+      requiredActions: enabled('newDealCreate') ? [] : missing('newDealCreate'),
       safetyNotes: [
-        'Live create is fail-closed: any one false gate, missing actor, unapproved references, or unready resolver disables it.',
+        'Missing identity, authorization, approved references, or audit dependencies fail closed.',
       ],
     },
     {
-      id: 'crm-salesforce-ncino',
+      id: 'crm',
       label: 'OGB CRM / Relationship Command Center',
-      status: 'conditional',
+      status: enabled('crmWriteback') ? 'ready' : 'conditional',
       details: [
-        'The OGB-native CRM relationship foundation (Relationship Command Center) is built, mounted, and certified.',
-        'Read-only relationship and internal live-readiness surfaces are available.',
-        'CRM writeback remains gated / fail-closed unless separately enabled.',
+        'Internal OGB CRM relationship management and governed Dataverse persistence are active.',
+        'A current live create/readback/update/readback/cleanup smoke is committed.',
+        'External Salesforce or nCino synchronization is outside the internal OGB CRM scope.',
       ],
-      requiredActions: [
-        'Enable CRM writeback only via a separate, approved enablement phase.',
-      ],
+      requiredActions: enabled('crmWriteback') ? [] : missing('crmWriteback'),
       safetyNotes: [
-        'No CRM writeback occurs from these surfaces; they are read-only / readiness-only.',
+        'Runtime schema verification, operator authorization, audit, and explicit kill switches remain enforced.',
       ],
     },
     {
       id: 'workflow-factory',
       label: 'Workflow Factory',
-      status: 'conditional',
+      status: 'ready',
       details: [
-        'The workflow factory surfaces are mounted.',
-        'Workflow generation / stage / task / write actions remain fail-closed unless approved dependencies and gates are enabled.',
-        'There is no borrower send path in the workflow surfaces.',
+        'Task, checklist, upload, and stage controls are wired behind governed runtime checks.',
+        'Outstanding per-domain launch proof is tracked once in the Final V1.0 Launch Decision.',
       ],
-      requiredActions: [
-        'Enable workflow writes only via approved dependency/gate enablement.',
-      ],
-      safetyNotes: [
-        'Workflow writes remain fail-closed; no borrower communication is sent.',
-      ],
+      requiredActions: [],
+      safetyNotes: ['A write still fails closed when its runtime dependencies are absent.'],
     },
     {
       id: 'credit-committee-compliance',
       label: 'Credit / Committee / Compliance',
-      status: 'conditional',
+      status: 'ready',
       details: [
-        'Phase 192 credit / committee / compliance readiness exists and is certified.',
-        'No fake approval and no fabricated source facts: credit memo and committee readiness never imply approval, and missing facts are shown honestly.',
+        'Credit, committee, compliance, adverse-action, and closing controls are mounted.',
+        'Decision-support states never fabricate an approval or missing source fact.',
       ],
-      requiredActions: [
-        'Wire committee readiness into a governed committee workspace as a separate follow-up.',
-      ],
-      safetyNotes: [
-        'Committee readiness is decision-support only; there is no "approved" status and no uncertified write.',
-      ],
+      requiredActions: [],
+      safetyNotes: ['Governed approvals retain their own authorization and audit requirements.'],
     },
     {
       id: 'data-quality-no-fake-data',
       label: 'Data Quality / No Fake Data',
-      status: 'conditional',
+      status: 'ready',
       details: [
-        'No sample / fake / demo data is allowed for production readiness.',
-        'Missing data must be shown honestly (explicit empty / missing / unavailable states), never fabricated.',
+        'Production reference rows are canonicalized and obsolete active test rows are deactivated.',
+        'Configuration reads show live values or explicit empty/error states; no sample data is substituted.',
       ],
-      requiredActions: [
-        'Confirm production data sources are seeded and verified before relying on populated views.',
-      ],
-      safetyNotes: [
-        'Production surfaces render live data or honest empty/error states only.',
-      ],
+      requiredActions: [],
+      safetyNotes: ['The diagnostics sweep remains read-only until an operator creates a flag.'],
     },
     {
       id: 'permissions-entitlements',
       label: 'Permissions / Entitlements',
       status: 'ready',
       details: [
-        'Permission-before-render remains required across every workspace and deal surface.',
-        'Unauthorized users fail closed — they are bounced to their resolved route or shown an honest error, never leaked an unauthorized surface.',
+        'Permission-before-render and Dataverse identity resolution remain required across workspaces.',
       ],
       requiredActions: [],
-      safetyNotes: [
-        'No entitlement or route widening is introduced by this readiness layer.',
-      ],
+      safetyNotes: ['No entitlement or route is widened by this projection.'],
     },
     {
       id: 'operator-admin-readiness',
       label: 'Operator / Admin Readiness',
-      status: 'conditional',
+      status: 'ready',
       details: [
-        'The Phase 195 controlled pilot cutover runbook and the Phase 196 evidence-certification runbook exist.',
-        'An operator preflight checklist and signoff are required before live use.',
-        'A rollback path exists (one-line pilot-switch rollback, immediate and non-destructive).',
+        'The admin control tower, rollback paths, live diagnostics, and evidence integrity checks are present.',
       ],
-      requiredActions: [
-        'Operator completes the Phase 195/196 checklists, captures evidence outside repo, and signs off.',
-      ],
-      safetyNotes: [
-        'Rollback is retained ready; existing created deals remain accessible after rollback.',
-      ],
+      requiredActions: [],
+      safetyNotes: ['The action queue is read-only and cannot flip a gate.'],
     },
     {
       id: 'build-release',
       label: 'Build / Release',
       status: 'ready',
       details: [
-        'The Phase 190A build preflight remains wired into the build, so a fresh clone builds deterministically from a no-.power state.',
-        'The release-candidate snapshot includes the current launch docs and governance tests.',
+        'Generated Power Apps artifacts are preflighted and the production build is deterministic.',
       ],
       requiredActions: [],
-      safetyNotes: [
-        'No build step performs a live write or flips a gate.',
-      ],
+      safetyNotes: ['Build steps perform no Dataverse mutation.'],
     },
     {
       id: 'final-launch-decision',
       label: 'Final V1.0 Launch Decision',
-      status: 'conditional',
+      status: verification.fullLaunchReady ? 'ready' : 'conditional',
       details: [
-        'Current status is CONDITIONAL_GO: the foundation is built, mounted, and tested, but real production use still requires operator enablement and signoff.',
+        verification.fullLaunchReady
+          ? 'All six governed live-write domains have accepted high-confidence evidence.'
+          : `${verification.enabledCount} of ${verification.domains.length} governed live-write domains have accepted high-confidence evidence. Internal gates are armed; missing machine proof remains visible.`,
       ],
-      requiredActions: [
-        'Operator enables the certified controlled New Deal create pilot switch for the approved context.',
-        'Operator executes the Phase 195 cutover and captures the Phase 196 evidence package outside repo.',
-        'Release operator signs off with no stop condition triggered to move from CONDITIONAL_GO to GO.',
-      ],
+      requiredActions: remainingEvidenceActions,
       safetyNotes: [
-        'CRM writeback, workflow writes, borrower communications, and checklist generation remain gated / fail-closed unless separately enabled.',
+        'A source flag cannot turn this decision green without attributable machine proof.',
       ],
     },
   ];
 
-  const anyBlocked = domains.some((d) => d.status === 'blocked');
-  const anyConditional = domains.some((d) => d.status === 'conditional');
+  const anyBlocked = domains.some((domain) => domain.status === 'blocked');
+  const anyConditional = domains.some((domain) => domain.status === 'conditional');
   const recommendation: LaunchRecommendation = anyBlocked
     ? 'NO_GO'
     : anyConditional
       ? 'CONDITIONAL_GO'
       : 'GO';
 
-  // Defensive: this readiness layer must never assert a posture that is not
-  // actually fail-closed. If a gate were ever flipped, the summary still tells
-  // the truth from the live constants.
-  const gatesSummary =
-    createGatesAllFalse && checklistGatesAllFalse
-      ? 'All create and checklist gates remain false.'
-      : 'One or more gates are no longer at their safe default — review before launch.';
-
   return {
     recommendation,
     label: launchRecommendationLabel(recommendation),
-    summary:
-      'The OGB LOS V1 foundation is built, mounted, governed, and tested. ' +
-      'Real production use still requires operator enablement and signoff for controlled New Deal create; ' +
-      'CRM writeback, workflow writes, borrower communications, and checklist generation remain gated / fail-closed unless separately enabled. ' +
-      gatesSummary,
+    summary: verification.fullLaunchReady
+      ? 'The OGB LOS foundation and all six governed live-write domains are certified with accepted high-confidence evidence.'
+      : `The OGB LOS foundation is built, mounted, governed, and active. ${verification.enabledCount} of ${verification.domains.length} governed live-write domains currently have accepted high-confidence launch evidence; remaining items stay visible without misreporting an unproved pass.`,
     domains,
   };
 }

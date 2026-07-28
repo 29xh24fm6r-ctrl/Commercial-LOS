@@ -15,7 +15,7 @@ import { deriveCrmSchemaGate, type CrmSchemaFacts } from './crmActivation';
  * uncontrolled bulk import, governed internal portfolio writes through injected transport + audit.
  */
 
-export const PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED = false;
+export const PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED = true;
 export const PORTFOLIO_BOARDING_ROUTE_ENABLED = false;
 
 /** Reuse the shared schema-check shape; a portfolio schema gate is the same shape. */

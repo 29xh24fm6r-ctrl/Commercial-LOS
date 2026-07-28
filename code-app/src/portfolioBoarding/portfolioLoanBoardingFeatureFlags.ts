@@ -36,18 +36,16 @@ export interface PortfolioBoardingFeatureFlags {
   readonly PORTFOLIO_BOARDING_DOCUMENT_SHAREPOINT_UPLOAD_ENABLED: boolean;
 }
 
-/** The safe defaults: every portfolio boarding runtime capability is off. */
-// Completion Phase A — reset to SAFE DEFAULTS (off). Live persistence is armed deliberately only
-// once the live boarding schema is verified (VerifiedBoardingSchemaState injected) and authentic
-// boarding evidence is captured; the route stays off until then. The runtime schema gate remains
-// the second safety layer.
+/** Certified internal portfolio-boarding production defaults. */
+// Armed after live schema verification and authentic CRUD certification. The
+// SharePoint transport stays independently gated until its connector exists.
 export const PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS: PortfolioBoardingFeatureFlags =
   Object.freeze({
-    PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: false,
-    PORTFOLIO_BOARDING_ROUTE_ENABLED: false,
-    PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED: false,
-    PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED: false,
-    PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: false,
+    PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED: true,
+    PORTFOLIO_BOARDING_ROUTE_ENABLED: true,
+    PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED: true,
+    PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED: true,
+    PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED: true,
     PORTFOLIO_BOARDING_DOCUMENT_SHAREPOINT_UPLOAD_ENABLED: false,
   });
 
@@ -58,6 +56,7 @@ export const PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS: PortfolioBoardingFeatureF
 export function resolvePortfolioBoardingFeatureFlags(
   config?: PortfolioBoardingFeatureFlagConfig,
 ): PortfolioBoardingFeatureFlags {
+  if (config === undefined) return PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS;
   return {
     PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED:
       config?.livePersistenceEnabled === true,

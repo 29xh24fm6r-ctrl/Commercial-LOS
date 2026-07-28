@@ -1,20 +1,22 @@
 {
-    "capability":  "documentChecklist",
-    "outcome":  "passed",
-    "operatorUpn":  "mpaller@oldglorybank.com",
-    "environmentUrl":  "https://org3a57b8d4.crm.dynamics.com/",
-    "environmentId":  "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
-    "correlationId":  "documentChecklist-launch-smoke-20260625",
-    "startedAtIso":  "2026-06-25T20:50:00.000Z",
-    "completedAtIso":  "2026-06-25T20:55:00.000Z",
-    "liveOperationPerformed":  true,
-    "readbackVerified":  true,
-    "rollbackVerified":  true,
-    "evidenceNote":  "Controlled document checklist launch smoke completed in the app with live write transport: create/readback/update/readback/cleanup verified.",
-    "affectedRecordIds":  [
-
-                          ],
-    "cleanupRecordIds":  [
-
-                         ]
+  "capability": "documentChecklist",
+  "outcome": "passed",
+  "operatorUpn": "mpaller@oldglorybank.com",
+  "environmentUrl": "https://org3a57b8d4.crm.dynamics.com/",
+  "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+  "correlationId": "documentChecklist-live-b09550f6-b9de-4a99-aca6-23a211fb1a0c",
+  "startedAtIso": "2026-07-28T16:36:18.7542133Z",
+  "completedAtIso": "2026-07-28T16:36:20.4745484Z",
+  "liveOperationPerformed": true,
+  "readbackVerified": true,
+  "rollbackVerified": true,
+  "auditVerified": true,
+  "evidenceNote": "Token-backed controlled Dataverse smoke exercised the production checklist row payload: create/readback/update/readback, attributable cr664_AuditEvent write, delete, and confirmed 404 cleanup.",
+  "affectedRecordIds": [
+    "78fafe73-a28a-f111-ab10-70a8a59b1fe2",
+    "7bfafe73-a28a-f111-ab10-70a8a59b1fe2"
+  ],
+  "cleanupRecordIds": [
+    "78fafe73-a28a-f111-ab10-70a8a59b1fe2"
+  ]
 }

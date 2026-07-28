@@ -24,11 +24,11 @@ describe('Phase 229 -- internal OGB CRM admin active', () => {
     expect(CRM_ADMIN_LIVE_WRITE_ENABLED).toBe(false);
   });
 
-  it('reads the real live persistence flag (now safe-default off), not a hardcoded value', () => {
+  it('reads the certified live persistence flag, not a hardcoded value', () => {
     expect(CRM_LIVE_PERSISTENCE_DEFAULT).toBe(
       CRM_FEATURE_FLAG_DEFAULTS.CRM_LIVE_PERSISTENCE_ENABLED,
     );
-    expect(CRM_LIVE_PERSISTENCE_DEFAULT).toBe(false);
+    expect(CRM_LIVE_PERSISTENCE_DEFAULT).toBe(true);
   });
 
   it('reports the external connector as disabled_by_default', () => {
@@ -36,21 +36,21 @@ describe('Phase 229 -- internal OGB CRM admin active', () => {
   });
 
   it('explains the governed internal CRM activation reason', () => {
-    expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/enabled/i);
-    expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/fails closed/i);
-    expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/disabled_by_default/);
+    expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/live/i);
+    expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/certification/i);
+    expect(CRM_ONBOARDING_DISABLED_REASON).toMatch(/Salesforce|nCino/i);
   });
 });
 
 describe('Phase 169E -- readiness and data groups', () => {
-  it('reports the CRM stack present with internal persistence safe-default off and external connector off', () => {
+  it('reports the CRM stack and internal persistence active while the external connector stays off', () => {
     const live = CRM_ONBOARDING_READINESS.find(
       (r) => r.label === 'Live runtime persistence enabled',
     );
     const connector = CRM_ONBOARDING_READINESS.find(
       (r) => r.label === 'External CRM connector enabled',
     );
-    expect(live?.present).toBe(false);
+    expect(live?.present).toBe(true);
     expect(connector?.present).toBe(false);
     expect(CRM_ONBOARDING_READINESS.some((r) => r.label === 'Persistence adapter' && r.present)).toBe(true);
   });
@@ -74,9 +74,9 @@ describe('Phase 169E -- readiness and data groups', () => {
     }
   });
 
-  it('has five ordered next steps ending at exposing live admin create/import', () => {
-    expect(CRM_ONBOARDING_NEXT_STEPS.map((s) => s.order)).toEqual([1, 2, 3, 4, 5]);
-    expect(CRM_ONBOARDING_NEXT_STEPS[4]!.title).toMatch(/live admin create\/import/i);
+  it('lists the three remaining operational follow-ups', () => {
+    expect(CRM_ONBOARDING_NEXT_STEPS.map((s) => s.order)).toEqual([1, 2, 3]);
+    expect(CRM_ONBOARDING_NEXT_STEPS[2]!.title).toMatch(/CRM Hub/i);
   });
 });
 

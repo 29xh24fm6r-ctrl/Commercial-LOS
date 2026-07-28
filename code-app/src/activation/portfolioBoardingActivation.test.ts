@@ -34,9 +34,9 @@ function board(over: Partial<PortfolioBoardingInput> = {}): PortfolioBoardingInp
 }
 
 describe('Phase 229 â€” single-record internal portfolio boarding (fail-closed seam)', () => {
-  it('is disabled by default and boards only when explicitly enabled', async () => {
-    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect((await boardPortfolioLoan(board())).outcome).toBe('disabled');
+  it('is enabled for the certified runtime and still honors an explicit kill switch', async () => {
+    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect((await boardPortfolioLoan(board())).outcome).toBe('boarded');
     expect((await boardPortfolioLoan(board({ enabled: true }))).outcome).toBe('boarded');
   });
   it('unauthorized / schema_not_verified / validation_error fail closed', async () => {

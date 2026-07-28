@@ -32,19 +32,19 @@ describe('203 — deriveV1ActivationReadiness()', () => {
     expect(BANKER_CREATE_PILOT_ENABLED).toBe(true);
   });
 
-  it('CRM writeback is GATED now that CRM_LIVE_PERSISTENCE_ENABLED is at its safe default (false)', () => {
-    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(r.crmWriteback).toBe('GATED');
+  it('CRM writeback is ENABLED after live CRUD certification', () => {
+    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(r.crmWriteback).toBe('ENABLED');
   });
 
-  it('borrower communications are GATED (matches the constant)', () => {
-    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
-    expect(r.borrowerCommunications).toBe('GATED');
+  it('borrower email communications are ENABLED (matches the constant)', () => {
+    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
+    expect(r.borrowerCommunications).toBe('ENABLED');
   });
 
-  it('checklist generation is GATED (matches the constant)', () => {
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(r.checklistGeneration).toBe('GATED');
+  it('checklist generation is ENABLED (matches the constant)', () => {
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(r.checklistGeneration).toBe('ENABLED');
   });
 
   it('broad workflow writes are GATED', () => {

@@ -103,6 +103,24 @@ function lookupAuditOutcome(v: unknown): AuditOutcomeKey | undefined {
   return undefined;
 }
 
+/** Keep provider payloads and stack traces out of the operator UI. */
+export function summarizeAuditFailure(reason: string | undefined): string | undefined {
+  if (!reason) return undefined;
+  let message = reason;
+  try {
+    const parsed = JSON.parse(reason) as { error?: { message?: unknown }; message?: unknown };
+    const candidate = parsed.error?.message ?? parsed.message;
+    if (typeof candidate === 'string' && candidate.trim()) message = candidate;
+  } catch {
+    // Plain-text failure reasons are already valid input.
+  }
+  message = message.replace(/\\r?\\n/g, ' ').replace(/\s+/g, ' ').trim();
+  if (/cr664_memotext.+maximum allowed length|maximum allowed length.+cr664_memotext/i.test(message)) {
+    return 'Credit memo draft exceeded the former text limit. The save path now stores a bounded summary and preserves the full memo in sections.';
+  }
+  return message.length > 500 ? `${message.slice(0, 497)}…` : message;
+}
+
 /**
  * Audit events with non-Succeeded outcomes. Server-filtered, ordered
  * newest-first; top 100 to keep the executive-grade UI responsive.
@@ -127,7 +145,7 @@ export async function loadAuditAnomalies(): Promise<AuditAnomalyRow[]> {
       eventType: r.cr664_eventtypename,
       outcomeStatus: r.cr664_outcomestatusname,
       outcomeKey: lookupAuditOutcome(r.cr664_outcomestatus),
-      failureReason: r.cr664_failurereason,
+      failureReason: summarizeAuditFailure(r.cr664_failurereason),
       actorUserName: r.cr664_actorusername ?? r.cr664_changedbyname,
       changedDate: r.cr664_changeddate,
       entityType: r.cr664_entitytypename,

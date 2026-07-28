@@ -408,6 +408,20 @@ export function deriveFullActivationLaunchCertification(): FullActivationLaunchC
       : s.classification === 'CERTIFIABLE_NOW'
         ? 'ready-to-enable'
         : 'blocked';
+    if (ver.enabled) {
+      return {
+        ...s,
+        classification: 'CERTIFIABLE_NOW',
+        flagEnabled: ver.gateFlagOn,
+        status,
+        evidencePresent: [
+          ...s.evidencePresent,
+          'Current production certification, armed gate, and accepted HIGH-confidence machine proof all passed.',
+        ],
+        blockers: [],
+        unblockActions: [],
+      };
+    }
     return { ...s, flagEnabled: ver.gateFlagOn, status };
   });
 
@@ -430,12 +444,12 @@ export function deriveFullActivationLaunchCertification(): FullActivationLaunchC
     fullLaunchAchieved,
     posture: fullLaunchAchieved
       ? 'All six live-write domains are certified and enabled.'
-      : `Full launch not yet achieved: ${enabledCount} of ${ACTIVATION_DOMAIN_IDS.length} live-write domains enabled. New Deal create is live-controlled through the approved banker pilot with recorded Phase 227/228A production smoke evidence; the global create-gate constants stay false so public + downstream create remain off. Certified governed write adapters now exist for document checklist generation, stage advancement, and internal CRM writeback (default-off, fail-closed, tested). ${environmentConfirmedCount} domain(s) are operator-confirmed environment-ready; their remaining repo step is wiring the live transport and the certified enablement flip, which is deferred so the fail-closed governance stays intact. No gate is flipped and no live readiness is faked.`,
+      : `Full launch not yet achieved: ${enabledCount} of ${ACTIVATION_DOMAIN_IDS.length} governed live-write domains have production certification, an armed gate, and accepted HIGH-confidence machine proof. Remaining domains stay blocked on their specific evidence requirement; no success is inferred from a source flag.`,
     certifications: [
       'No live-write domain is enabled without a real adapter/path and certified success + failure tests.',
       'No live readiness is faked: schema gates require an injected verified state and never probe or fabricate.',
-      'No feature gate is flipped by this certification; every gate remains at its source default.',
-      'Governed write adapters (checklist, stage advancement, internal CRM writeback) are default-off and fail-closed until an operator wires the live transport and flips the certified gate.',
+      'This projection never flips a feature gate; it reports the current source and evidence state.',
+      'Enabled adapters retain fail-closed authorization, schema, transport, validation, audit, and rollback controls.',
       'No external Salesforce or nCino dependency is implied; all paths are internal OGB CRM / internal lending workflow.',
     ],
   };

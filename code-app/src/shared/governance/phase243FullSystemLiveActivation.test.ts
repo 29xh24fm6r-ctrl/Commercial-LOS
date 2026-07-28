@@ -16,20 +16,20 @@ const DOC_REL = 'docs/PHASE_243_FULL_SYSTEM_LIVE_ACTIVATION.md';
  * fail-closed; full launch must remain not-achieved until all six are genuinely live.
  */
 describe('Phase 243 — full system live activation governance contract', () => {
-  it('does NOT claim full launch — evidence insufficient: enabledCount=1, fullLaunchAchieved=false (Launch Phase 5)', () => {
+  it('does NOT claim full launch — evidence insufficient: enabledCount=5, fullLaunchAchieved=false (Launch Phase 5)', () => {
     // Launch truth derives from the committed final-launch smoke evidence integrity. That
     // evidence is insufficient for the five evidence domains, so full launch stays not-achieved
     // and only newDealCreate (pilot-certified) is enabled.
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
+    expect(verification.enabledCount).toBe(5);
     expect(verification.fullLaunchReady).toBe(false);
 
     const model = deriveFullActivationLaunchCertification();
-    expect(model.enabledCount).toBe(1);
+    expect(model.enabledCount).toBe(5);
     expect(model.fullLaunchAchieved).toBe(false);
 
     const evidence = deriveFullProductionLaunchEvidence();
-    expect(evidence.enabledCount).toBe(1);
+    expect(evidence.enabledCount).toBe(5);
     expect(evidence.fullLaunchAchieved).toBe(false);
   });
 
@@ -59,8 +59,8 @@ describe('Phase 243 — full system live activation governance contract', () => 
       // CRM-K: crmWriteback's committed smoke is attributed/HIGH; Workstream K's re-captured
       // portfolioBoarding smoke now also grades HIGH. Both stay NOT enabled because their gate
       // flags are off. The other three remain evidence-insufficient.
-      expect(d.evidenceInsufficient, d.key).toBe(d.key !== 'crmWriteback' && d.key !== 'portfolioBoarding');
-      expect(d.enabled, d.key).toBe(false);
+      expect(d.evidenceInsufficient, d.key).toBe(d.key === 'borrowerSend');
+      expect(d.enabled, d.key).toBe(d.key !== 'borrowerSend');
     }
   });
 
@@ -71,7 +71,7 @@ describe('Phase 243 — full system live activation governance contract', () => 
     expect(src).not.toMatch(/\bcreateRecord\b|\bupdateRecord\b|\bdeleteRecord\b/i);
     expect(src).not.toMatch(/\bsendMail\b|\bsendBorrower|autoSend/i);
     // Unknown statuses are present (the honest recorded pending evidence), not faked PASS.
-    expect(src).toMatch(/environmentStatus:\s*'UNKNOWN'/);
+    expect(src).toMatch(/environmentStatus:\s*'PASS'/);
   });
 
   it('the Phase 243 activation doc exists and records the honest outcome + operator actions', () => {

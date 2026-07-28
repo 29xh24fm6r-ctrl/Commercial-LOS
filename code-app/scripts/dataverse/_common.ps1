@@ -43,7 +43,9 @@ function Resolve-DataverseEnv {
 # none is available (dry-run can still print the plan; -Apply requires one).
 # Sources, in order: DATAVERSE_ACCESS_TOKEN env, az CLI, Az PowerShell module.
 function Get-DataverseToken([string]$orgUrl) {
-  if ($env:DATAVERSE_ACCESS_TOKEN) { return $env:DATAVERSE_ACCESS_TOKEN }
+  if ($env:DATAVERSE_ACCESS_TOKEN -and $env:DATAVERSE_ACCESS_TOKEN -ne 'System.Security.SecureString') {
+    return $env:DATAVERSE_ACCESS_TOKEN
+  }
   if (-not $orgUrl) { return $null }
   $resource = ([uri]$orgUrl).GetLeftPart([System.UriPartial]::Authority)
   # 1) az CLI (if installed + logged in)

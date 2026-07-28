@@ -33,7 +33,7 @@ export const PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT: boolean =
 
 /** Why the admin surface stays disabled-by-default. */
 export const PORTFOLIO_BOARDING_DISABLED_REASON =
-  'Internal portfolio boarding persistence is enabled. The resolver fails closed: it returns the live adapter only when the live + route flags are enabled, an authorized operator is present, the runtime schema gate verifies the target Dataverse schema, AND a Dataverse client is injected. None of these are wired in the app runtime, and this admin surface enables governed internal portfolio boarding writes.';
+  'Internal portfolio boarding is live. The route and persistence gates are enabled after current live schema and CRUD certification; each write still requires an authorized operator, the verified-schema gate, and the governed Dataverse client.';
 
 export interface PortfolioBoardingDataGroup {
   readonly id: string;
@@ -88,13 +88,11 @@ export interface PortfolioBoardingNextStep {
 /** The ordered next steps to safely enable live boarding (all pending). */
 export const PORTFOLIO_BOARDING_NEXT_STEPS: readonly PortfolioBoardingNextStep[] =
   Object.freeze([
-    Object.freeze({ order: 1, title: 'Verify Dataverse schema in the target environment', detail: 'Confirm the boarding tables/columns/relationships exist via the runtime schema gate verification.' }),
-    Object.freeze({ order: 2, title: 'Regenerate / register SDK + data sources if needed', detail: 'Ensure the generated services and data-source manifest match the verified schema.' }),
-    Object.freeze({ order: 3, title: 'Enable the adapter behind an explicit flag', detail: 'Turn on PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED (and route flag) intentionally in config, with an authorized operator and injected client.' }),
-    Object.freeze({ order: 4, title: 'Run a controlled test-tenant write', detail: 'Board a single record in a test tenant and verify the audit trail before any broad use.' }),
-    Object.freeze({ order: 5, title: 'Only then expose live admin create/import', detail: 'Gate the admin create/import behind the certified resolver; never bulk-import uncontrolled.' }),
+    Object.freeze({ order: 1, title: 'Boarding schema verified', detail: 'The committed live schema evidence verifies the boarding tables, columns, and required relationships.' }),
+    Object.freeze({ order: 2, title: 'Boarding persistence certified', detail: 'A current controlled live CRUD smoke passed with attributable operator identity and verified cleanup.' }),
+    Object.freeze({ order: 3, title: 'Use the Portfolio workspace', detail: 'Authorized operators can board and service one loan at a time through the governed route.' }),
   ]);
 
 /** The explicit no-record-creation note shown on the panel. */
 export const PORTFOLIO_BOARDING_NO_RECORD_NOTE =
-  'This surface does not create portfolio loan records until live persistence is explicitly enabled and certified.';
+  'This diagnostics card does not create records; use the governed Portfolio workspace to board a loan.';

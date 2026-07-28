@@ -40,7 +40,7 @@ export const CRM_ADMIN_CONNECTOR_MODE = CRM_CONNECTOR_MODE;
 
 /** Why the CRM admin surface stays disabled-by-default. */
 export const CRM_ONBOARDING_DISABLED_REASON =
-  'This admin surface enables governed internal CRM management only — it performs no live CRM write, import, or sync. The persistence resolver fails closed: it returns the live adapter only when the live persistence flag is enabled, an authorized operator is present, the runtime schema gate verifies the target Dataverse schema, AND a transport is injected. None of these are wired in the app runtime, and the external CRM connector mode is disabled_by_default.';
+  'Internal OGB CRM management is live through the governed CRM Hub adapter. The separately gated internal writeback spine is enabled after a current live create/readback/update/cleanup certification; external Salesforce or nCino synchronization remains outside this internal CRM scope.';
 
 export interface CrmOnboardingDataGroup {
   readonly id: string;
@@ -99,13 +99,11 @@ export interface CrmOnboardingNextStep {
 /** The ordered next steps to safely enable live CRM onboarding (all pending). */
 export const CRM_ONBOARDING_NEXT_STEPS: readonly CrmOnboardingNextStep[] =
   Object.freeze([
-    Object.freeze({ order: 1, title: 'Verify CRM Dataverse schema in the target environment', detail: 'Confirm the CRM tables/columns/relationships exist via the runtime schema gate verification.' }),
-    Object.freeze({ order: 2, title: 'Register / regenerate SDK + data sources if needed', detail: 'Ensure the generated services and data-source manifest match the verified schema.' }),
-    Object.freeze({ order: 3, title: 'Enable CRM runtime persistence behind an explicit flag', detail: 'Turn on CRM_LIVE_PERSISTENCE_ENABLED intentionally in config, with an authorized operator and injected transport.' }),
-    Object.freeze({ order: 4, title: 'Run a controlled test-tenant write', detail: 'Create a single CRM record in a test tenant and verify the audit trail before any broad use.' }),
-    Object.freeze({ order: 5, title: 'Only then expose live admin create/import', detail: 'Gate the admin create/import behind the certified resolver; never bulk-import uncontrolled; no external sync until separately certified.' }),
+    Object.freeze({ order: 1, title: 'Internal CRM schema verified', detail: 'The committed live schema evidence verifies all internal CRM tables, columns, and required relationships.' }),
+    Object.freeze({ order: 2, title: 'Internal CRM persistence certified', detail: 'A current controlled live CRUD smoke passed with attributable operator identity and verified cleanup.' }),
+    Object.freeze({ order: 3, title: 'Use the CRM Hub for governed writes', detail: 'Authorized users manage companies, contacts, relationships, tasks, and activity through the mounted CRM Hub.' }),
   ]);
 
 /** The explicit no-record-creation / no-sync note shown on the panel. */
 export const CRM_ONBOARDING_NO_RECORD_NOTE =
-  'This surface does not create CRM records or sync external CRM data until live persistence is explicitly enabled and certified.';
+  'Internal CRM records are created through the governed CRM Hub. This diagnostics card does not start an external CRM synchronization.';

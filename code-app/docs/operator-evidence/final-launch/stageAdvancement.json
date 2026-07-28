@@ -1,21 +1,23 @@
 {
-    "capability":  "stageAdvancement",
-    "outcome":  "failed",
-    "operatorUpn":  "mpaller@oldglorybank.com",
-    "environmentUrl":  "https://org3a57b8d4.crm.dynamics.com/",
-    "environmentId":  "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
-    "correlationId":  "stageAdvancement-launch-smoke-20260625",
-    "startedAtIso":  "2026-06-25T21:00:00.000Z",
-    "completedAtIso":  "2026-06-25T21:05:00.000Z",
-    "liveOperationPerformed":  false,
-    "readbackVerified":  false,
-    "rollbackVerified":  false,
-    "auditVerified":  false,
-    "evidenceNote":  "PENDING MACHINE PROOF (WFLOW-I): this record carries NO affectedRecordIds, so the transition, audit, timeline, readback, and rollback are NOT machine-proven. The verification booleans were corrected to false to stop overclaiming a verified readback the artifact cannot substantiate. Re-capture via the operator smoke harness recording deal id, audit id, timeline id, affectedRecordIds, and a concrete readbackProof before this domain can be accepted.",
-    "affectedRecordIds":  [
-
-                          ],
-    "cleanupRecordIds":  [
-
-                         ]
+  "capability": "stageAdvancement",
+  "outcome": "passed",
+  "operatorUpn": "mpaller@oldglorybank.com",
+  "environmentUrl": "https://org3a57b8d4.crm.dynamics.com/",
+  "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+  "correlationId": "stageAdvancement-live-70171ced-7f7f-45c6-92b2-f0f21cab4490",
+  "startedAtIso": "2026-07-28T16:36:20.4775484Z",
+  "completedAtIso": "2026-07-28T16:36:22.5992942Z",
+  "liveOperationPerformed": true,
+  "readbackVerified": true,
+  "rollbackVerified": true,
+  "auditVerified": true,
+  "evidenceNote": "Token-backed controlled smoke moved the dedicated WF-1A test deal from INTAKE to UNDERWRITING, verified persisted stage and entry date, wrote attributable audit and StageChanged timeline records, restored INTAKE, and verified rollback.",
+  "affectedRecordIds": [
+    "f003b58b-7079-f111-ab0f-70a8a59be491",
+    "7cfafe73-a28a-f111-ab10-70a8a59b1fe2",
+    "7dfafe73-a28a-f111-ab10-70a8a59b1fe2"
+  ],
+  "cleanupRecordIds": [
+    "f003b58b-7079-f111-ab0f-70a8a59be491"
+  ]
 }
