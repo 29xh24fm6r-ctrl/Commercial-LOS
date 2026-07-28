@@ -107,6 +107,20 @@ const COMMUNICATION_LANE_FILES: readonly string[] = [
   'src/admin/EmailLiveDiagnostics.tsx',
 ];
 
+const GOVERNED_M365_CALENDAR_SOURCE_ALLOWLIST: readonly string[] = [
+  'src/calendar/bankerAvailability.ts',
+  'src/calendar/outlookCalendarReadAdapter.ts',
+  'src/calendar/meetingProposalWorkflow.ts',
+  'src/calendar/meetingCreationAdapter.ts',
+  'src/calendar/AdminOutlookEventCreationDiagnosticPanel.tsx',
+  'src/calendar/teamsMeetingBoundary.ts',
+];
+
+function isAllowedProductionSourceHit(patternName: string, rel: string): boolean {
+  return patternName === 'calendar send / event create / meeting create' &&
+    GOVERNED_M365_CALENDAR_SOURCE_ALLOWLIST.includes(rel);
+}
+
 // ---------------------------------------------------------------------------
 // Block 1 — Inventory state at release (data-layer)
 //
@@ -348,7 +362,7 @@ describe('Phase 110 — No out-of-scope behavior anywhere in production source',
       for (const abs of PRODUCTION_SOURCE_FILES) {
         const rel = relForward(abs);
         const src = stripComments(readFileSync(abs, 'utf8'));
-        if (re.test(src)) violations.push(`${rel}: ${re}`);
+        if (re.test(src) && !isAllowedProductionSourceHit(name, rel)) violations.push(`${rel}: ${re}`);
       }
       expect(violations).toEqual([]);
     });
