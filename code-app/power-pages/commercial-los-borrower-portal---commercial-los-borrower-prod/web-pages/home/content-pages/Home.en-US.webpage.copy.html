@@ -87,6 +87,25 @@
                   <div><dt>Status</dt><dd>{% if document.cr664_uploadstatus %}Received{% else %}Requested{% endif %}</dd></div>
                   <div><dt>Received</dt><dd>{{ document.cr664_receiveddate | default: 'Not received' | escape }}</dd></div>
                 </dl>
+                {% unless document.cr664_uploadstatus %}
+                  <form
+                    class="borrower-upload"
+                    data-borrower-upload
+                    data-document-id="{{ document.cr664_documentchecklistid | escape }}"
+                  >
+                    <label for="file-{{ document.cr664_documentchecklistid | escape }}">
+                      Select requested file
+                    </label>
+                    <input
+                      id="file-{{ document.cr664_documentchecklistid | escape }}"
+                      type="file"
+                      required
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg"
+                    />
+                    <button class="borrower-button" type="submit">Upload securely</button>
+                    <p class="borrower-upload-status" role="status" aria-live="polite"></p>
+                  </form>
+                {% endunless %}
               </article>
             {% endfor %}
           </div>

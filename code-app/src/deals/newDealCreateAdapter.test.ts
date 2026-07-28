@@ -352,8 +352,8 @@ describe('Phase 170M -- disabled-by-default posture', () => {
     expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
   });
 
-  it('11. NOT_WIRED still includes new-deal-create', () => {
-    expect(NOT_WIRED.some((e) => e.id === 'new-deal-create')).toBe(true);
+  it('11. the obsolete public/admin path is not a current NOT_WIRED capability', () => {
+    expect(NOT_WIRED.some((e) => e.id === 'new-deal-create')).toBe(false);
   });
 });
 

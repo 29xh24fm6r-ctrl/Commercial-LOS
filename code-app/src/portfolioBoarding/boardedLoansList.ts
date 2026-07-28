@@ -26,6 +26,8 @@ export interface BoardedLoanRow {
   readonly id: string;
   /** Originating LOS deal lookup id; absent for manual/legacy portfolio loans. */
   readonly originatedDealId?: string;
+  /** Migration batch used by the live portfolio book tie-out. */
+  readonly migrationBatchId?: string;
   readonly loanNumber: string | undefined;
   readonly borrower: string | undefined;
   readonly status: string | undefined;
@@ -66,6 +68,7 @@ export interface BoardedLoanRow {
 export interface RawBoardedLoan {
   cr664_portfolioboardedloanid?: string;
   _cr664_originatedloandeal_value?: string;
+  cr664_migrationbatchid?: string;
   cr664_loannumber?: string;
   cr664_borrowerlegalname?: string;
   cr664_loanstatus?: string;
@@ -130,6 +133,7 @@ export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
   return {
     id: r.cr664_portfolioboardedloanid ?? '',
     originatedDealId: str(r._cr664_originatedloandeal_value),
+    migrationBatchId: str(r.cr664_migrationbatchid),
     loanNumber: str(r.cr664_loannumber),
     borrower: str(r.cr664_borrowerlegalname),
     status: str(r.cr664_loanstatus),
@@ -174,6 +178,7 @@ export function mapBoardedLoanRow(r: RawBoardedLoan): BoardedLoanRow {
 const CORE_SELECT: readonly string[] = [
   'cr664_portfolioboardedloanid',
   '_cr664_originatedloandeal_value',
+  'cr664_migrationbatchid',
   'cr664_loannumber',
   'cr664_borrowerlegalname',
   'cr664_loanstatus',

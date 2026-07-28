@@ -28,9 +28,9 @@ is marked **Unverified** rather than asserted.
   [src/team/](../src/team/).
 - **Write posture / governance.**
   [src/shared/governance/platformInventory.ts](../src/shared/governance/platformInventory.ts).
-  Current verified counts: **GOVERNED_WRITES = 27**,
-  **LOCAL_ONLY_FLOWS = 16**, **NOT_WIRED = 11**,
-  **DELIBERATELY_BLOCKED = 0** (pinned by
+  Current verified counts: **GOVERNED_WRITES = 28**,
+  **LOCAL_ONLY_FLOWS = 16**, **NOT_WIRED = 0**,
+  **DELIBERATELY_BLOCKED = 3** (pinned by
   [releaseCandidateSnapshot.test.ts](../src/shared/governance/releaseCandidateSnapshot.test.ts)).
 
 ## 2. Live workspace-name contract

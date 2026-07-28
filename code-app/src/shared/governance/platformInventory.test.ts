@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the twenty-seven shipped governed writes, including deferred-capability completion', () => {
+  it('contains the twenty-eight shipped governed writes, including deferred-capability completion', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -58,6 +58,7 @@ describe('platformInventory — governed writes', () => {
         'credit-memo-finalize',
         'assign-servicing-owner',
         'portfolio-annual-review-complete',
+        'deal-closing-document-generate',
       ].sort(),
     );
   });
@@ -86,6 +87,7 @@ describe('platformInventory — governed writes', () => {
         'executed-document-attestation-submit',
         'booking-qc-check-submit',
         'adverse-action-submit',
+        'deal-closing-document-generate',
       ].includes(w.id),
     );
     for (const w of dealWrites) {
@@ -133,7 +135,7 @@ describe('platformInventory — mutually exclusive truth categories', () => {
       emitsTimeline: true,
       legacyDisciplineExempt: true,
     });
-    expect(DELIBERATELY_BLOCKED).toHaveLength(0);
+    expect(DELIBERATELY_BLOCKED).toHaveLength(3);
   });
 
   it('does not repeat an inventory id across truth categories', () => {
@@ -147,7 +149,7 @@ describe('platformInventory — mutually exclusive truth categories', () => {
   });
 });
 
-describe('platformInventory — not wired', () => {
+describe.skip('platformInventory — historical not-wired assertions (superseded by Phase 278)', () => {
   it('lists every brief-mandated capability that is not built', () => {
     const ids = new Set(NOT_WIRED.map((n) => n.id));
     // Phase 105: email-delivery NOT_WIRED was removed when the
@@ -334,6 +336,55 @@ describe('platformInventory — not wired', () => {
       (n) => n.id === 'test-coverage-build-verification',
     )!;
     expect(tcv.reason).toMatch(/no runtime signal|in-process signal/i);
+  });
+});
+
+describe('platformInventory — Phase 278 current capability truth', () => {
+  it('has no remaining current NOT_WIRED capabilities', () => {
+    expect(NOT_WIRED).toEqual([]);
+  });
+
+  it('records only genuine external trust-boundary blockers', () => {
+    expect(DELIBERATELY_BLOCKED.map((entry) => entry.id).sort()).toEqual([
+      'ai-generation',
+      'borrower-external-identity',
+      'in-app-ci-execution',
+    ]);
+
+    const byId = new Map(DELIBERATELY_BLOCKED.map((entry) => [entry.id, entry]));
+    expect(byId.get('ai-generation')?.reason).toMatch(
+      /server-side Azure OpenAI|Copilot Studio/i,
+    );
+    expect(byId.get('ai-generation')?.reason).toMatch(
+      /DLP approval|managed identity|audit-before-model/i,
+    );
+    expect(byId.get('borrower-external-identity')?.reason).toMatch(
+      /private Power Pages site|contact-scoped|binary upload/i,
+    );
+    expect(byId.get('borrower-external-identity')?.reason).toMatch(
+      /Conditional Access|Open registration remains disabled/i,
+    );
+    expect(byId.get('in-app-ci-execution')?.reason).toMatch(
+      /production browser is deliberately not trusted|source-controlled build pipeline/i,
+    );
+  });
+
+  it('registers upload, annual review, and closing document persistence as governed writes', () => {
+    expect(GOVERNED_WRITES).toContainEqual(expect.objectContaining({
+      id: 'deal-document-upload',
+      emitsAudit: true,
+      emitsTimeline: true,
+    }));
+    expect(GOVERNED_WRITES).toContainEqual(expect.objectContaining({
+      id: 'portfolio-annual-review-complete',
+      emitsAudit: true,
+      emitsTimeline: false,
+    }));
+    expect(GOVERNED_WRITES).toContainEqual(expect.objectContaining({
+      id: 'deal-closing-document-generate',
+      emitsAudit: true,
+      emitsTimeline: true,
+    }));
   });
 });
 
@@ -1092,7 +1143,7 @@ describe('platformInventory — Phase 67 handoff classification', () => {
   });
 
   it('GOVERNED_WRITES count includes PR D auto-boarding and PR E non-forward transitions', () => {
-    expect(GOVERNED_WRITES.length).toBe(27);
+    expect(GOVERNED_WRITES.length).toBe(28);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {
@@ -1131,13 +1182,13 @@ describe('platformInventory — Phase 70 review-task governed write', () => {
 });
 
 describe('platformInventory — workspace deal access matrix', () => {
-  it('banker is read-write; manager and team are read-only; executive and admin are denied', () => {
+  it('banker is read-write and every other internal workspace is read-only', () => {
     const byRole = new Map(WORKSPACE_DEAL_ACCESS.map((w) => [w.role, w]));
     expect(byRole.get('banker')?.dealAccess).toBe('read-write');
     expect(byRole.get('manager')?.dealAccess).toBe('read-only');
     expect(byRole.get('team')?.dealAccess).toBe('read-only');
-    expect(byRole.get('executive')?.dealAccess).toBe('denied');
-    expect(byRole.get('admin')?.dealAccess).toBe('denied');
+    expect(byRole.get('executive')?.dealAccess).toBe('read-only');
+    expect(byRole.get('admin')?.dealAccess).toBe('read-only');
   });
 
   it('every non-denied workspace names its authorization function', () => {
@@ -1197,7 +1248,7 @@ describe('platformInventory — Phase 43 stage progression enablement', () => {
 
 const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 
-describe('platformInventory — Phase 65 borrower portal deferral', () => {
+describe.skip('platformInventory — historical Phase 65 borrower portal deferral', () => {
   it('borrower-portal appears in NOT_WIRED', () => {
     const entry = NOT_WIRED.find((n) => n.id === 'borrower-portal');
     expect(entry).toBeDefined();

@@ -38,7 +38,14 @@ $orgUrl = if ($envInfo) { $envInfo.OrgUrl } else { $null }
 function Get-DataverseAttributeType([string]$OrgUrl, [string]$Token, [string]$TableLogical, [string]$ColumnLogical) {
   if (-not $Token -or -not $OrgUrl) { return $null }
   try {
-    $r = Invoke-DataverseGet $OrgUrl $Token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')?`$select=AttributeType" -f $TableLogical, $ColumnLogical)
+    $r = Invoke-DataverseGet $OrgUrl $Token ("EntityDefinitions(LogicalName='{0}')/Attributes(LogicalName='{1}')?`$select=AttributeType,AttributeTypeName" -f $TableLogical, $ColumnLogical)
+    # Dataverse metadata exposes File columns as AttributeType=Virtual with
+    # AttributeTypeName.Value=FileType. Normalize that platform representation
+    # to the checker contract's business type so a healthy File column is not
+    # reported as blocked.
+    if ($r.AttributeType -eq 'Virtual' -and $r.AttributeTypeName.Value -eq 'FileType') {
+      return 'File'
+    }
     return $r.AttributeType
   } catch { return $null }
 }

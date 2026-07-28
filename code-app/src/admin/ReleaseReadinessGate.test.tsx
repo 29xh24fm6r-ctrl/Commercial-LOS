@@ -246,7 +246,7 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
-    expect(GOVERNED_WRITES.length).toBe(27);
+    expect(GOVERNED_WRITES.length).toBe(28);
     expect(
       within(inv).getByText(`Governed writes (${GOVERNED_WRITES.length})`),
     ).toBeInTheDocument();
@@ -281,42 +281,34 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     expect(pins.length).toBe(LOCAL_ONLY_FLOWS.length);
   });
 
-  it('groups NOT_WIRED entries by blockerKind (schema / compound / governance / observability remain after Phase 104)', () => {
+  it('renders no upstream-blocker groups when current NOT_WIRED is empty', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
-    // Each kind that has at least one entry surfaces its sub-group
-    // header. Phase 104 removed the last connector-blocked entry
-    // (outlook-connector-live-send) by wiring the document-request
-    // LIVE send through SendEmailV2; the "Connector not registered"
-    // sub-header therefore no longer renders. The BLOCKER_KIND_LABEL
-    // entry for 'connector' is still defined in ReleaseReadinessGate
-    // so a future connector blocker (e.g. calendar half of
-    // capability 1.8) will resurface the header automatically.
+    expect(NOT_WIRED).toEqual([]);
     expect(
       within(inv).queryByText(/Connector not registered \(upstream blocked\)/i),
     ).toBeNull();
     expect(
-      within(inv).getByText(/Schema column missing \(upstream blocked\)/i),
-    ).toBeInTheDocument();
+      within(inv).queryByText(/Schema column missing \(upstream blocked\)/i),
+    ).toBeNull();
     expect(
-      within(inv).getByText(/Compound upstream blocker/i),
-    ).toBeInTheDocument();
+      within(inv).queryByText(/Compound upstream blocker/i),
+    ).toBeNull();
     expect(
-      within(inv).getByText(/Governance non-goal/i),
-    ).toBeInTheDocument();
+      within(inv).queryByText(/Governance non-goal/i),
+    ).toBeNull();
     expect(
-      within(inv).getByText(/In-app observability not wired/i),
-    ).toBeInTheDocument();
+      within(inv).queryByText(/In-app observability not wired/i),
+    ).toBeNull();
   });
 
-  it('surfaces the borrower-portal entry as a compound upstream blocker (still NOT_WIRED)', () => {
+  it('surfaces external identity as a deliberate blocker while the private portal is wired', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
-    const entry = NOT_WIRED.find((e) => e.id === 'borrower-portal');
+    const entry = DELIBERATELY_BLOCKED.find((e) => e.id === 'borrower-external-identity');
     expect(entry).toBeDefined();
-    expect(entry!.blockerKind).toBe('compound');
     expect(within(inv).getByText(entry!.label)).toBeInTheDocument();
   });
 
@@ -417,23 +409,16 @@ describe('ReleaseReadinessGate — Phase 68 conservative-copy ban list', () => {
     expect(everyText).not.toMatch(/\bupload available\b/i);
   });
 
-  it('uses the Phase 68 canonical labels verbatim ("handoff", "local-only", "not wired", "upstream", "schema column missing")', () => {
+  it('uses the current canonical labels verbatim ("handoff", "local-only", "not wired", "deliberately blocked")', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const everyText = document.body.textContent ?? '';
-    // Each canonical label appears at least once in the rendered
-    // gate. "Not wired" appears as a pin and as the overall
-    // status; "upstream blocked" appears in the sub-group headings;
-    // "handoff" appears in the LOCAL_ONLY note for the Phase 67
-    // borrower-safe status packet. Phase 104 removed the last
-    // connector-blocked NOT_WIRED entry, so the "Connector not
-    // registered" sub-header no longer renders; the
-    // BLOCKER_KIND_LABEL constant in ReleaseReadinessGate still
-    // defines that label for any future connector blocker.
+    // NOT_WIRED is currently empty, so historical upstream/schema
+    // subgroup labels correctly do not render.
     expect(everyText).toMatch(/handoff/i);
     expect(everyText).toMatch(/local-only/i);
     expect(everyText).toMatch(/not wired/i);
-    expect(everyText).toMatch(/upstream/i);
-    expect(everyText).toMatch(/schema column missing/i);
+    expect(everyText).toMatch(/deliberately blocked/i);
+    expect(everyText).not.toMatch(/schema column missing/i);
   });
 });

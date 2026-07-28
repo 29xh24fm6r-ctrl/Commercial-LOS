@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, relative, sep } from 'node:path';
-import { GOVERNED_WRITES, LOCAL_ONLY_FLOWS, NOT_WIRED } from './platformInventory';
+import {
+  DELIBERATELY_BLOCKED,
+  GOVERNED_WRITES,
+  LOCAL_ONLY_FLOWS,
+  NOT_WIRED,
+} from './platformInventory';
 
 /**
  * Phase 106 — Outlook LIVE email mode release-readiness pin.
@@ -173,21 +178,12 @@ describe('Phase 106 — ReleaseReadinessGate inventory no longer carries email-d
     }
   });
 
-  it('the borrower-portal compound entry honestly acknowledges the Phase 104 / 105 swap', () => {
-    // The borrower-portal row is the only place where "borrower email
-    // delivery" still appears as a cross-reference, and only as a
-    // truthful description of what IS wired (banker-initiated) vs
-    // what is NOT (automation, inbound, portal).
-    const bp = NOT_WIRED.find((n) => n.id === 'borrower-portal');
+  it('external identity activation remains explicit while the private portal is wired', () => {
+    const bp = DELIBERATELY_BLOCKED.find((n) => n.id === 'borrower-external-identity');
     expect(bp).toBeDefined();
-    expect(bp!.reason).toMatch(/Phase\s+104.*document-request/i);
-    // Note: the source text has a soft line-break artifact ("borrower- " +
-    // "update"). Allow any whitespace between the hyphen and "update".
-    expect(bp!.reason).toMatch(/Phase\s+105.*borrower[\s-]+update/i);
-    // And explicitly pin that the row's remaining gap is automation
-    // / inbound / portal — not the send path itself.
-    expect(bp!.reason).toMatch(/no\s+automation/i);
-    expect(bp!.reason).toMatch(/no\s+(?:scheduled|event[- ]driven|inbound)/i);
+    expect(bp!.reason).toMatch(/private Power Pages site/i);
+    expect(bp!.reason).toMatch(/Conditional Access/i);
+    expect(NOT_WIRED.find((n) => n.id === 'borrower-portal')).toBeUndefined();
   });
 });
 
@@ -359,19 +355,18 @@ describe('Phase 106 — Phase 101 summary handoffs are copy-to-clipboard regardl
 // reason text explicitly disclaims automation / inbound / portal.
 // ---------------------------------------------------------------------------
 
-describe('Phase 106 — borrower portal / automation / inbound / subscriptions remain honestly blocked', () => {
-  it('NOT_WIRED.borrower-portal is still present with blockerKind: compound', () => {
-    const entry = NOT_WIRED.find((n) => n.id === 'borrower-portal');
+describe('Phase 278 — portal identity boundary and email automation remain explicit', () => {
+  it('external identity activation is deliberately blocked, not NOT_WIRED', () => {
+    const entry = DELIBERATELY_BLOCKED.find((n) => n.id === 'borrower-external-identity');
     expect(entry).toBeDefined();
-    expect(entry!.blockerKind).toBe('compound');
+    expect(NOT_WIRED.find((n) => n.id === 'borrower-portal')).toBeUndefined();
   });
 
-  it('borrower-portal reason explicitly disclaims automation / inbound / portal as still missing', () => {
-    const entry = NOT_WIRED.find((n) => n.id === 'borrower-portal')!;
-    expect(entry.reason).toMatch(/no\s+automation/i);
-    expect(entry.reason).toMatch(/no\s+inbound[- ]mail\s+sync/i);
-    expect(entry.reason).toMatch(/no\s+scheduled\s+trigger/i);
-    expect(entry.reason).toMatch(/no\s+event[- ]driven\s+push/i);
+  it('external identity reason names the live portal boundary and tenant blocker', () => {
+    const entry = DELIBERATELY_BLOCKED.find((n) => n.id === 'borrower-external-identity')!;
+    expect(entry.reason).toMatch(/private Power Pages site/i);
+    expect(entry.reason).toMatch(/contact-scoped table permissions/i);
+    expect(entry.reason).toMatch(/Conditional Access/i);
   });
 
   it('no production source contains automation / scheduler / trigger / inbound-mail wiring', () => {

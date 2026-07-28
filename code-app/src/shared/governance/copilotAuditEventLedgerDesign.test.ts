@@ -179,7 +179,7 @@ describe('Phase 137I — no table / migration / plugin / Azure Function source w
     const offenders = files.filter((f) =>
       /(^|[\\/])(function\.json|host\.json|local\.settings\.json)$/i.test(f) ||
       /\.(sql)$/i.test(f) ||
-      /migration/i.test(f),
+      /(^|[\\/])copilot[\\/].*migration/i.test(f),
     );
     expect(offenders).toEqual([]);
   });

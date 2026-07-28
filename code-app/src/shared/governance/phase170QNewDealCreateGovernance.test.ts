@@ -39,10 +39,9 @@ describe('Phase 170Q -- gates default disabled', () => {
     expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
   });
 
-  it('new-deal-create remains in NOT_WIRED (WIRED_DISABLED, not live)', () => {
+  it('the disabled redundant public/admin path is not reported as a current product gap', () => {
     const entry = NOT_WIRED.find((e) => e.id === 'new-deal-create');
-    expect(entry).toBeDefined();
-    expect(entry!.reason).toMatch(/WIRED_DISABLED/);
+    expect(entry).toBeUndefined();
   });
 });
 

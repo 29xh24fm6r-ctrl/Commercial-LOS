@@ -103,7 +103,9 @@ describe('Phase 137K — no server / plugin / Azure Function / migration source 
         (f) =>
           /(^|[\\/])(function\.json|host\.json|local\.settings\.json)$/i.test(f) ||
           /\.sql$/i.test(f) ||
-          /migration/i.test(f),
+          // This control guards the Copilot boundary, not legitimate
+          // client-side business features whose names include "migration".
+          /(^|[\\/])copilot[\\/].*migration/i.test(f),
       ),
     ).toEqual([]);
   });

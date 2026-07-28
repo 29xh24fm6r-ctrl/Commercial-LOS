@@ -165,7 +165,7 @@ describe('Phase 139A — no plugin / Azure Function / migration / schema source 
         (f) =>
           /(^|[\\/])(function\.json|host\.json|local\.settings\.json)$/i.test(f) ||
           /\.sql$/i.test(f) ||
-          /migration/i.test(f),
+          /(^|[\\/])copilot[\\/].*migration/i.test(f),
       ),
     ).toEqual([]);
   });

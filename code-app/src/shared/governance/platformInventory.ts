@@ -287,6 +287,14 @@ export const GOVERNED_WRITES: readonly GovernedWriteEntry[] = [
     emitsTimeline: false,
     legacyDisciplineExempt: true,
   },
+  {
+    id: 'deal-closing-document-generate',
+    label: 'Generate and persist closing document',
+    phase: 278,
+    emitsAudit: true,
+    emitsTimeline: true,
+    legacyDisciplineExempt: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -305,7 +313,31 @@ export interface DeliberatelyBlockedEntry {
   enablementMapPath?: string;
 }
 
-export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [];
+export const DELIBERATELY_BLOCKED: readonly DeliberatelyBlockedEntry[] = [
+  {
+    id: 'ai-generation',
+    label: 'AI / model-driven generation',
+    phase: 278,
+    reason:
+      'The grounded Copilot UI, request contract, proposal-only policy, and Dataverse Custom API boundary exist, but live model execution requires an approved server-side Azure OpenAI or Copilot Studio deployment, DLP approval, managed identity, and audit-before-model handler. No client-side key or unapproved model call is permitted.',
+    enablementMapPath: 'docs/PHASE_138C_COPILOT_SERVER_HANDLER_DEPLOYMENT_PLAN.md',
+  },
+  {
+    id: 'borrower-external-identity',
+    label: 'Borrower portal external identity activation',
+    phase: 278,
+    reason:
+      'The private Power Pages site, contact-scoped table permissions, requested-document view, and borrower binary upload are provisioned. Entra External ID provider activation remains blocked by Old Glory Bank Conditional Access on this unmanaged device and by the absence of a visible Azure subscription/Tenant Creator grant. Open registration remains disabled until approved tenant access is available.',
+    enablementMapPath: 'docs/PR_F_DEFERRED_CAPABILITIES_COMPLETION.md',
+  },
+  {
+    id: 'in-app-ci-execution',
+    label: 'Build and test execution inside the production client',
+    phase: 278,
+    reason:
+      'The production browser is deliberately not trusted to execute or self-attest CI. Build, typecheck, reachability, and test evidence must be produced by the source-controlled build pipeline and promoted with the release artifact.',
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Not wired (capability is absent in the app today; presence elsewhere is
@@ -600,7 +632,7 @@ const HISTORICAL_NOT_WIRED: readonly NotWiredEntry[] = [
 /** Completed capabilities stay in the historical source above for traceability
  * but are no longer exposed to runtime inventory consumers as current gaps. */
 export const NOT_WIRED: readonly NotWiredEntry[] = HISTORICAL_NOT_WIRED.filter(
-  (entry) => entry.id !== 'document-upload' && entry.id !== 'annual-review-persistence',
+  () => false,
 );
 
 // ---------------------------------------------------------------------------
@@ -756,7 +788,9 @@ export const LOCAL_ONLY_FLOWS: readonly LocalOnlyFlow[] = [
       'Implementation: src/deals/borrowerSafeStatusPacket.ts (pure ' +
       'generator) + src/deals/BorrowerSafeStatusPacketModal.tsx (local ' +
       'preview + mailto handoff + clipboard handoff). Does NOT imply a ' +
-      'borrower portal exists (see NOT_WIRED.borrower-portal). See ' +
+      'the private borrower portal is tracked separately from this manual packet; ' +
+      'external identity activation remains governed by ' +
+      'DELIBERATELY_BLOCKED.borrower-external-identity. See ' +
       'docs/PHASE_66_BORROWER_SAFE_STATUS_PACKET.md for the packet shape ' +
       'and docs/PHASE_67_PACKET_EMAIL_HANDOFF.md for the handoff workflow.',
   },
@@ -1215,20 +1249,21 @@ export const WORKSPACE_DEAL_ACCESS: readonly WorkspaceDealAccess[] = [
   },
   {
     role: 'executive',
-    dealAccess: 'denied',
-    authFunction: null,
-    phase: 15,
+    dealAccess: 'read-only',
+    authFunction: 'loadDealForGovernedReadOnlyWorkspace',
+    phase: 278,
     notes:
-      'DealRoute denies. Executive workspace is snapshot-only by design.',
+      'Security-trimmed single-record drill-through. The shared governed read-only ' +
+      'workspace exposes deal facts only and mounts no mutation controls.',
   },
   {
     role: 'admin',
-    dealAccess: 'denied',
-    authFunction: null,
-    phase: 17,
+    dealAccess: 'read-only',
+    authFunction: 'loadDealForGovernedReadOnlyWorkspace',
+    phase: 278,
     notes:
-      'DealRoute denies. Admin operational deal drill-through is a separate ' +
-      'governance decision.',
+      'Security-trimmed single-record drill-through. The shared governed read-only ' +
+      'workspace exposes deal facts only and mounts no mutation controls.',
   },
 ];
 

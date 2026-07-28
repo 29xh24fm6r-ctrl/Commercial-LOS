@@ -58,6 +58,7 @@ export * as Cr664_portfolioboardedloaninsurancesModel from './models/Cr664_portf
 export * as Cr664_portfolioboardedloanreviewsModel from './models/Cr664_portfolioboardedloanreviewsModel';
 export * as Cr664_portfolioboardedloansModel from './models/Cr664_portfolioboardedloansModel';
 export * as Cr664_portfolioboardedloanticklersModel from './models/Cr664_portfolioboardedloanticklersModel';
+export * as Cr664_portfoliomigrationcontrolsModel from './models/Cr664_portfoliomigrationcontrolsModel';
 export * as Cr664_producttypereferencesModel from './models/Cr664_producttypereferencesModel';
 export * as Cr664_profitabilityrefreshstatusesModel from './models/Cr664_profitabilityrefreshstatusesModel';
 export * as Cr664_profitabilitysnapshot1sModel from './models/Cr664_profitabilitysnapshot1sModel';
@@ -122,6 +123,7 @@ export * from './services/Cr664_portfolioboardedloaninsurancesService';
 export * from './services/Cr664_portfolioboardedloanreviewsService';
 export * from './services/Cr664_portfolioboardedloansService';
 export * from './services/Cr664_portfolioboardedloanticklersService';
+export * from './services/Cr664_portfoliomigrationcontrolsService';
 export * from './services/Cr664_producttypereferencesService';
 export * from './services/Cr664_profitabilityrefreshstatusesService';
 export * from './services/Cr664_profitabilitysnapshot1sService';

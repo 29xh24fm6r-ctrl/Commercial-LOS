@@ -36,10 +36,10 @@ import {
  *       + the per-deal route; Portfolio is a query surface, NOT a
  *       separate route.
  *   §3  The per-deal cockpit dispatcher admits banker/manager/team and
- *       denies executive/admin (deliberate governance denial).
+ *       provides a security-trimmed read-only executive/admin workspace.
  *   §4  Borrower / relationship surfaces are CARDS hosted in existing
- *       workspaces, not standalone routes; the borrower portal is the
- *       one required-but-unbuilt surface (tracked NOT_WIRED).
+ *       workspaces, not standalone routes; the borrower portal is a
+ *       separately deployed private Power Pages surface.
  *   §5  Governance counts match the numbers the audit doc cites
  *       (12 / 16 / 8 / 1), and the doc cites them verbatim.
  *
@@ -78,7 +78,7 @@ const AUDIT_COUNTS = Object.freeze({
   // one more: data-quality-flag-create, the first write that CREATES a data quality flag.
   // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E);
   // PR D registered auto-portfolio boarding; PR E registered live Return/Decline/Withdraw.
-  governedWrites: 27,
+  governedWrites: 28,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) -- see
@@ -97,8 +97,8 @@ const AUDIT_COUNTS = Object.freeze({
   // registry gap; PR D removed the latter after registering the live write. See
   // docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md. Workstream R
   // (Final LOS Completion arc) added one more (portfolio-migration-reconciliation).
-  notWired: 11,
-  deliberatelyBlocked: 0,
+  notWired: 0,
+  deliberatelyBlocked: 3,
 });
 
 const AUDIT_DOC = 'docs/PHASE_129A_MICROSOFT_VIBE_SCOPE_AUDIT.md';
@@ -188,11 +188,10 @@ describe('Phase 129A §3 — per-deal cockpit reachability matches the audit', (
     expect(dealRoute).toMatch(/WORKSPACE_ROUTES\.team/);
   });
 
-  it('does NOT wire an executive or admin deal workspace (deliberate denial)', () => {
-    expect(dealRoute).not.toMatch(/ExecutiveDealWorkspace/);
-    expect(dealRoute).not.toMatch(/AdminDealWorkspace/);
-    // The fall-through is an explicit access-denied state.
-    expect(dealRoute).toMatch(/Access denied/);
+  it('wires executive and admin to the shared governed read-only workspace', () => {
+    expect(dealRoute).toMatch(/WORKSPACE_ROUTES\.executive/);
+    expect(dealRoute).toMatch(/WORKSPACE_ROUTES\.admin/);
+    expect(dealRoute).toMatch(/GovernedReadOnlyDealWorkspace/);
   });
 });
 
@@ -211,9 +210,13 @@ describe('Phase 129A §4 — borrower / relationship surfaces are cards, not rou
     expect(app).not.toMatch(/workspaces\/(borrower|client|relationship)/);
   });
 
-  it('the borrower portal is the one required-but-unbuilt surface (tracked NOT_WIRED, not silently dropped)', () => {
-    const portal = NOT_WIRED.find((e) => e.id === 'borrower-portal');
-    expect(portal).toBeDefined();
+  it('the private portal is wired and only external identity activation remains blocked', () => {
+    expect(NOT_WIRED.find((e) => e.id === 'borrower-portal')).toBeUndefined();
+    const identity = DELIBERATELY_BLOCKED.find(
+      (e) => e.id === 'borrower-external-identity',
+    );
+    expect(identity).toBeDefined();
+    expect(identity!.reason).toMatch(/private Power Pages site/i);
   });
 });
 

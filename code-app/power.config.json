@@ -254,8 +254,7 @@
         },
         "fundingauthorizations": {
           "entitySetName": "cr664_fundingauthorizations",
-          "logicalName": "cr664_fundingauthorization",
-          "isHidden": false
+          "logicalName": "cr664_fundingauthorization"
         },
         "creditapprovaldecisions": {
           "entitySetName": "cr664_creditapprovaldecisions",
@@ -284,6 +283,10 @@
         "closingdocumentmanifests": {
           "entitySetName": "cr664_closingdocumentmanifests",
           "logicalName": "cr664_closingdocumentmanifest"
+        },
+        "portfoliomigrationcontrols": {
+          "entitySetName": "cr664_portfoliomigrationcontrols",
+          "logicalName": "cr664_portfoliomigrationcontrol"
         }
       },
       "environmentVariableName": ""

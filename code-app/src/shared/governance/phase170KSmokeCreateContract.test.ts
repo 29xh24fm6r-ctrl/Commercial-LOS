@@ -235,7 +235,7 @@ describe('Phase 170K — no scope creep', () => {
     expect(NEW_DEAL_GOVERNED_CREATE_ADAPTER_WIRED).toBe(false);
   });
 
-  it('10. NOT_WIRED still includes new-deal-create', () => {
-    expect(NOT_WIRED.some((e) => e.id === 'new-deal-create')).toBe(true);
+  it('10. the redundant public/admin path is absent from current NOT_WIRED', () => {
+    expect(NOT_WIRED.some((e) => e.id === 'new-deal-create')).toBe(false);
   });
 });

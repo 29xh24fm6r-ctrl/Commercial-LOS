@@ -8,6 +8,7 @@ import { ManagerDealWorkspace } from '../manager/ManagerDealWorkspace';
 import { TeamProvider } from '../team/TeamProvider';
 import { TeamDealWorkspace } from '../team/TeamDealWorkspace';
 import { ErrorState } from '../shared/ErrorState';
+import { GovernedReadOnlyDealWorkspace } from './GovernedReadOnlyDealWorkspace';
 
 /**
  * Deal route dispatcher. Branches on the user's resolved workspace and
@@ -60,6 +61,26 @@ export function DealRoute() {
       <TeamProvider>
         <TeamDealWorkspace dealId={dealId} />
       </TeamProvider>
+    );
+  }
+
+  if (route === WORKSPACE_ROUTES.executive) {
+    return (
+      <GovernedReadOnlyDealWorkspace
+        dealId={dealId}
+        role="Executive"
+        returnTo={WORKSPACE_ROUTES.executive}
+      />
+    );
+  }
+
+  if (route === WORKSPACE_ROUTES.admin) {
+    return (
+      <GovernedReadOnlyDealWorkspace
+        dealId={dealId}
+        role="Admin"
+        returnTo={WORKSPACE_ROUTES.admin}
+      />
     );
   }
 

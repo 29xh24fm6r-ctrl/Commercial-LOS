@@ -43,6 +43,7 @@ export interface Cr664_portfolioboardedloansBase {
   cr664_loannumber?: string;
   cr664_loanstatus?: string;
   cr664_maturitydate?: string;
+  cr664_migrationbatchid?: string;
   cr664_name: string;
   cr664_nextreviewdate?: string;
   cr664_originalcommitmentamount?: number;

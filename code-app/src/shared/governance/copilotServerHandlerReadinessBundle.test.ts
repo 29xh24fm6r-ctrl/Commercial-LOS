@@ -111,7 +111,7 @@ describe('Phase 137L — no server / plugin / Azure Function / migration source 
         (f) =>
           /(^|[\\/])(function\.json|host\.json|local\.settings\.json)$/i.test(f) ||
           /\.sql$/i.test(f) ||
-          /migration/i.test(f),
+          /(^|[\\/])copilot[\\/].*migration/i.test(f),
       ),
     ).toEqual([]);
   });

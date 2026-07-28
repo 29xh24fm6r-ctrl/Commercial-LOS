@@ -53,8 +53,8 @@ describe('Phase 170J -- New Deal create readiness truth', () => {
     expect(NEW_DEAL_INTAKE_BLOCKER).toMatch(/Advance Stage|stage-progression/i);
   });
 
-  it('+ New Deal create remains in NOT_WIRED', () => {
-    expect(NOT_WIRED.some((e) => e.id === 'new-deal-create')).toBe(true);
+  it('+ the obsolete public/admin create path is not a current NOT_WIRED capability', () => {
+    expect(NOT_WIRED.some((e) => e.id === 'new-deal-create')).toBe(false);
   });
 });
 

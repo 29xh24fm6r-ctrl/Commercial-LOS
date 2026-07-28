@@ -12,13 +12,14 @@ describe('AdminCapabilityTruthMatrix', () => {
     expect(screen.getByText(new RegExp(`${total} tracked capabilities`))).toBeInTheDocument();
   });
 
-  it('lists a known NOT_WIRED entry with its blocker kind', () => {
+  it('lists a known deliberate blocker while current NOT_WIRED is empty', () => {
     const { container } = render(<AdminCapabilityTruthMatrix />);
-    const known = NOT_WIRED[0]!;
+    const known = DELIBERATELY_BLOCKED[0]!;
     const row = container.querySelector(`[data-admin-truth-matrix-row="${known.id}"]`);
     expect(row).not.toBeNull();
     expect(row?.textContent).toContain(known.label);
-    expect(row?.textContent).toContain(known.blockerKind);
+    expect(row?.textContent).toContain('Deliberately blocked');
+    expect(NOT_WIRED).toEqual([]);
   });
 
   it('filters to only NOT_WIRED entries when that filter is clicked', async () => {
