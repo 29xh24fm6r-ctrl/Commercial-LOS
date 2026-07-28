@@ -61,7 +61,8 @@ describe('M365-4 Teams package validation', () => {
     try {
       const result = run(PACKAGE_SCRIPT, root, ['-ValidateOnly']);
       expect(result.status).toBe(1);
-      expect(result.text).toMatch(/outline width expected 32/i);
+      expect(result.text).toMatch(/outline width\s+expected 32/i);
+      expect(result.text).toMatch(/STATUS=BLOCKED/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -73,6 +74,7 @@ describe('M365-4 Teams package validation', () => {
       const result = run(PACKAGE_SCRIPT, root);
       expect(result.status).toBe(0);
       expect(result.text).toMatch(/entries=color.png,manifest.json,outline.png/);
+      expect(result.text).toMatch(/PACKAGE_SHA256=[A-F0-9]{64}/);
       expect(existsSync(join(root, 'dist/microsoft365/teams/commercial-los-teams-app.zip'))).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -95,6 +97,14 @@ describe('M365-4 Teams package validation', () => {
     const src = readFileSync(PACKAGE_SCRIPT, 'utf8');
     expect(src).not.toMatch(/teams app upload|graph\.microsoft|Invoke-RestMethod|Invoke-WebRequest|pac code push/i);
     expect(src).toMatch(/Compress-Archive/);
+    expect(src).toMatch(/Get-FileHash/);
     expect(src).toMatch(/dist\\microsoft365\\teams/);
+  });
+
+  it('documents tenant activation, assignment, hash evidence, and rollback', () => {
+    const doc = readFileSync(resolve(REPO_ROOT, 'docs/governance/M365_A5_TEAMS_APP_ACTIVATION_PACKAGE_2026-07-28.md'), 'utf8');
+    expect(doc).toMatch(/PACKAGE_SHA256/);
+    expect(doc).toMatch(/Tenant upload checklist/);
+    expect(doc).toMatch(/Rollback/);
   });
 });

@@ -8,17 +8,37 @@ This folder contains the Teams app manifest template for hosting the live Power 
 2. Add Teams package icons beside it:
    - `outline.png`: transparent 32x32 PNG.
    - `color.png`: full-color 192x192 PNG.
-3. Run:
+3. Validate without writing a package:
 
    ```powershell
-   powershell -File scripts/activation/verify-microsoft365-integration.ps1 -RequireTeamsIcons
+   powershell -File scripts/microsoft365/build-teams-package.ps1 -ValidateOnly
    ```
 
-4. Zip exactly these three files at the ZIP root:
+4. Build the local package for tenant upload evidence:
+
+   ```powershell
+   powershell -File scripts/microsoft365/build-teams-package.ps1
+   ```
+
+   The script writes only under `dist/microsoft365/teams/`, prints `PACKAGE_SHA256=...`, and never uploads the app.
+
+5. Zip structure must contain exactly these three files at the ZIP root:
    - `manifest.json`
    - `outline.png`
    - `color.png`
-5. Upload the ZIP through Teams Admin Center or Teams app upload, per Old Glory Bank tenant policy.
+6. Upload the ZIP through Teams Admin Center or Teams app upload, per Old Glory Bank tenant policy.
+
+## Version strategy
+
+- Patch version: runbook/doc-only or icon/package rebuilds.
+- Minor version: tab URL or app capability changes.
+- Major version: identity, permission, or tenant policy changes.
+
+Record the manifest version and `PACKAGE_SHA256` in `docs/operator-evidence/m365-calendar-teams/teams-app.md`.
+
+## Rollback
+
+Disable assignment for the test users first. If the package itself must be rolled back, upload the last certified ZIP/version recorded in evidence and verify the personal tab URL opens the previous production Power Apps URL.
 
 ## Security posture
 
