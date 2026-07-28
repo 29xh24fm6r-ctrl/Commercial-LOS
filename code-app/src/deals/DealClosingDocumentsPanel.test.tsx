@@ -143,4 +143,20 @@ describe('DealClosingDocumentsPanel', () => {
     const generateBtn = Array.from(row.querySelectorAll('button')).find((b) => /generate/i.test(b.textContent ?? '')) as HTMLButtonElement;
     expect(generateBtn.disabled).toBe(true);
   });
+
+  it('blocks generation before the Closing & Funding stage even when facts and actor are otherwise valid', () => {
+    const { container } = render(
+      <DealClosingDocumentsPanel
+        deal={baseDeal({ stage: 'Credit Approval' })}
+        authorized={true}
+        actorEmail="banker@bank.test"
+      />,
+    );
+    expect(container.querySelector('[data-closing-documents-stage-gate]')?.textContent).toMatch(
+      /unlocks only at the Closing & Funding stage/i,
+    );
+    const row = container.querySelector('[data-closing-document-row="closing_checklist"]') as HTMLElement;
+    const generateBtn = Array.from(row.querySelectorAll('button')).find((b) => /generate/i.test(b.textContent ?? '')) as HTMLButtonElement;
+    expect(generateBtn.disabled).toBe(true);
+  });
 });

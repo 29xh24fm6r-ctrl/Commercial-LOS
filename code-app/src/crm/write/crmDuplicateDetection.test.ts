@@ -28,6 +28,15 @@ describe('detectCrmOrganizationDuplicates', () => {
     expect(outcome.kind === 'exact_duplicate_found' && outcome.candidates).toEqual(['org-1']);
   });
 
+  it('flags an exact duplicate when dashes are replaced with spaces', () => {
+    const outcome = detectCrmOrganizationDuplicates({
+      candidateName: 'Old Glory Bank',
+      existing: [{ organizationId: 'org-1', name: 'Old-Glory Bank' }],
+    });
+    expect(outcome.kind).toBe('exact_duplicate_found');
+    expect(outcome.kind === 'exact_duplicate_found' && outcome.candidates).toEqual(['org-1']);
+  });
+
   it('flags an exact duplicate by normalized legal name even when the display name differs', () => {
     const outcome = detectCrmOrganizationDuplicates({
       candidateName: 'Acme Foods',

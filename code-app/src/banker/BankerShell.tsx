@@ -155,7 +155,7 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   const reload = useCallback(() => {
     let cancelled = false;
     setState({ kind: 'loading' });
-    loadBankerWorkQueueData(bankerId)
+    loadBankerWorkQueueData(bankerId, { includeTestDeals: true })
       .then((data) => {
         if (!cancelled) setState({ kind: 'ready', data });
       })

@@ -212,9 +212,11 @@ export function TeamsDealSummaryHandoff() {
     return {
       openTaskCount: tasks.data.open.length,
       outstandingDocumentCount: documents.data.outstanding.length,
-      pendingReviewDocumentCount: documents.data.received.filter(
-        (d) => !(d.reviewer && d.reviewer.trim().length > 0),
-      ).length,
+      // `loadDealDocuments` already splits canonical buckets:
+      // outstanding / received / reviewed. Trust the bucket instead of
+      // re-deriving from display-only reviewer text; live reviewed rows can
+      // have sparse reviewer text and must not be counted as pending review.
+      pendingReviewDocumentCount: documents.data.received.length,
     };
   }, [tasks, documents]);
 

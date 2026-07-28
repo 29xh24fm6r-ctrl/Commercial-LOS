@@ -417,6 +417,15 @@ describe('Phase 125F — Lending OS shell layout', () => {
     expect(screen.queryByText(/Outlook is not wired/i)).toBeNull();
   });
 
+  it('loads the dashboard shell with active smoke/test-originated deals included so right-rail tasks reconcile with Tasks & Actions', async () => {
+    setUpBanker();
+    loadMock.mockResolvedValue(emptyData());
+    renderShell();
+    await waitFor(() => {
+      expect(loadMock).toHaveBeenCalledWith('banker-1', { includeTestDeals: true });
+    });
+  });
+
   it('N-24 remediation — Closing Soon renders the stored calendar day, never the prior day, west of UTC', async () => {
     const originalTz = process.env.TZ;
     process.env.TZ = 'America/New_York';
