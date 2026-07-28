@@ -78,7 +78,7 @@ const AUDIT_COUNTS = Object.freeze({
   // one more: data-quality-flag-create, the first write that CREATES a data quality flag.
   // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E);
   // PR D registered auto-portfolio boarding; PR E registered live Return/Decline/Withdraw.
-  governedWrites: 25,
+  governedWrites: 27,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) -- see
@@ -97,7 +97,7 @@ const AUDIT_COUNTS = Object.freeze({
   // registry gap; PR D removed the latter after registering the live write. See
   // docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md. Workstream R
   // (Final LOS Completion arc) added one more (portfolio-migration-reconciliation).
-  notWired: 13,
+  notWired: 11,
   deliberatelyBlocked: 0,
 });
 

@@ -4,10 +4,12 @@ import type { AnnualReviewCommandRow } from '../shared/annualReview/deriveAnnual
 
 interface Props {
   row: AnnualReviewCommandRow;
+  onCompleteReview?: (loanId: string) => Promise<void>;
+  completing?: boolean;
 }
 
 /** Phase 141A — one annual-review loan row. Honest "Not set" for absent values. */
-export function AnnualReviewLoanRow({ row }: Props) {
+export function AnnualReviewLoanRow({ row, onCompleteReview, completing = false }: Props) {
   return (
     <div role="row" style={rowStyle}>
       <span style={cellStyle}>{row.borrowerName ?? 'Not set'}</span>
@@ -23,6 +25,17 @@ export function AnnualReviewLoanRow({ row }: Props) {
       <span style={soundnessStyle(row.soundnessStatus)}>{row.soundnessStatus}</span>
       <span style={cellStyle}>{row.riskRating ?? 'Not set'}</span>
       <span style={escalationStyle(row.escalationLevel)}>{row.escalationLevel}</span>
+      {onCompleteReview ? (
+        <span style={cellStyle}>
+          <button
+            type="button"
+            disabled={!row.loanId || row.reviewStatus !== 'ready_to_complete' || completing}
+            onClick={() => row.loanId && void onCompleteReview(row.loanId)}
+          >
+            {completing ? 'Completing…' : 'Complete review'}
+          </button>
+        </span>
+      ) : null}
     </div>
   );
 }

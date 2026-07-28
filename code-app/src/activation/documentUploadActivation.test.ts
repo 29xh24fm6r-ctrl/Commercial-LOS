@@ -36,8 +36,8 @@ function up(over: Partial<DocumentUploadInput> = {}): DocumentUploadInput {
 
 describe('Phase 228B â€” governed upload adapter enabled with fail-closed controls', () => {
   it('is enabled by default but still blocks when target or transport is not ready', async () => {
-    expect(DOCUMENT_UPLOAD_ENABLED).toBe(false);
-    expect((await uploadDocument(up())).outcome).toBe('disabled');
+    expect(DOCUMENT_UPLOAD_ENABLED).toBe(true);
+    expect((await uploadDocument(up())).outcome).toBe('uploaded');
     expect((await uploadDocument(up({ enabled: true, transport: undefined }))).outcome).toBe('disabled');
     expect((await uploadDocument(up({ enabled: true, uploadTargetReady: false }))).outcome).toBe('disabled');
   });

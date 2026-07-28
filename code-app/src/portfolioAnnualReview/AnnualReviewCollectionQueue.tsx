@@ -6,6 +6,8 @@ import { AnnualReviewLoanRow } from './AnnualReviewLoanRow';
 
 interface Props {
   rows: readonly AnnualReviewCommandRow[];
+  onCompleteReview?: (loanId: string) => Promise<void>;
+  completingLoanId?: string;
 }
 
 const COLUMNS = [
@@ -14,7 +16,7 @@ const COLUMNS = [
 ] as const;
 
 /** Phase 141A — annual review collection queue. Honest empty state. */
-export function AnnualReviewCollectionQueue({ rows }: Props) {
+export function AnnualReviewCollectionQueue({ rows, onCompleteReview, completingLoanId }: Props) {
   return (
     <Card>
       <CardHeader title="Annual review collection queue" subtitle={`${rows.length} loan(s) in scope`} />
@@ -28,7 +30,12 @@ export function AnnualReviewCollectionQueue({ rows }: Props) {
             ))}
           </div>
           {rows.map((row, i) => (
-            <AnnualReviewLoanRow key={row.loanId ?? row.loanNumber ?? i} row={row} />
+            <AnnualReviewLoanRow
+              key={row.loanId ?? row.loanNumber ?? i}
+              row={row}
+              onCompleteReview={onCompleteReview}
+              completing={Boolean(row.loanId && row.loanId === completingLoanId)}
+            />
           ))}
         </div>
       )}

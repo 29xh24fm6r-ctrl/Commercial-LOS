@@ -1,0 +1,114 @@
+<main class="borrower-portal">
+  <section class="borrower-hero">
+    <p class="borrower-eyebrow">OLD GLORY BANK · COMMERCIAL LENDING</p>
+    <h1>Your secure borrower workspace</h1>
+    <p class="borrower-lede">
+      Review active loan requests and requested-document status through one
+      protected workspace.
+    </p>
+  </section>
+
+  {% if user %}
+    <section class="borrower-panel" aria-labelledby="relationships-heading">
+      <div>
+        <p class="borrower-eyebrow">SIGNED IN AS</p>
+        <h2 id="relationships-heading">{{ user.fullname | escape }}</h2>
+      </div>
+
+      {% fetchxml borrower_relationships %}
+      <fetch>
+        <entity name="cr664_clientrelationship">
+          <attribute name="cr664_clientrelationshipid" />
+          <attribute name="cr664_name" />
+          <filter>
+            <condition attribute="cr664_portalcontact" operator="eq" value="{{ user.id }}" />
+          </filter>
+          <link-entity name="cr664_loandeal" from="cr664_client" to="cr664_clientrelationshipid" alias="loan">
+            <attribute name="cr664_loandealid" />
+            <attribute name="cr664_dealname" />
+            <attribute name="cr664_loanamount" />
+            <attribute name="cr664_targetclosingdate" />
+            <attribute name="cr664_stage" />
+          </link-entity>
+        </entity>
+      </fetch>
+      {% endfetchxml %}
+
+      {% if borrower_relationships.results.entities.size > 0 %}
+        <div class="borrower-grid">
+          {% for relationship in borrower_relationships.results.entities %}
+            <article class="borrower-card">
+              <p class="borrower-eyebrow">{{ relationship.cr664_name | escape }}</p>
+              <h3>{{ relationship['loan.cr664_dealname'] | default: 'Commercial loan' | escape }}</h3>
+              <dl>
+                <div><dt>Amount</dt><dd>{{ relationship['loan.cr664_loanamount'] | default: 'Not set' | escape }}</dd></div>
+                <div><dt>Target close</dt><dd>{{ relationship['loan.cr664_targetclosingdate'] | default: 'Not set' | escape }}</dd></div>
+                <div><dt>Stage</dt><dd>{{ relationship['loan.cr664_stage'] | default: 'In progress' | escape }}</dd></div>
+              </dl>
+              <a class="borrower-button" href="/profile/">Manage your secure profile</a>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="borrower-empty">
+          <h3>No linked commercial relationships</h3>
+          <p>Your identity is verified, but no borrower relationship has been assigned to this contact yet. Contact your banker for assistance.</p>
+        </div>
+      {% endif %}
+
+      {% fetchxml borrower_documents %}
+      <fetch>
+        <entity name="cr664_documentchecklist">
+          <attribute name="cr664_documentchecklistid" />
+          <attribute name="cr664_documentname" />
+          <attribute name="cr664_duedate" />
+          <attribute name="cr664_receiveddate" />
+          <attribute name="cr664_uploadstatus" />
+          <link-entity name="cr664_loandeal" from="cr664_loandealid" to="cr664_deal" alias="documentloan">
+            <link-entity name="cr664_clientrelationship" from="cr664_clientrelationshipid" to="cr664_client" alias="documentrelationship">
+              <filter>
+                <condition attribute="cr664_portalcontact" operator="eq" value="{{ user.id }}" />
+              </filter>
+            </link-entity>
+          </link-entity>
+        </entity>
+      </fetch>
+      {% endfetchxml %}
+
+      <div class="borrower-documents">
+        <p class="borrower-eyebrow">REQUESTED DOCUMENTS</p>
+        {% if borrower_documents.results.entities.size > 0 %}
+          <div class="borrower-grid">
+            {% for document in borrower_documents.results.entities %}
+              <article class="borrower-card">
+                <h3>{{ document.cr664_documentname | escape }}</h3>
+                <dl>
+                  <div><dt>Due</dt><dd>{{ document.cr664_duedate | default: 'Not set' | escape }}</dd></div>
+                  <div><dt>Status</dt><dd>{% if document.cr664_uploadstatus %}Received{% else %}Requested{% endif %}</dd></div>
+                  <div><dt>Received</dt><dd>{{ document.cr664_receiveddate | default: 'Not received' | escape }}</dd></div>
+                </dl>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p>No document requests are currently linked to your commercial loans.</p>
+        {% endif %}
+      </div>
+    </section>
+  {% else %}
+    <section class="borrower-panel borrower-signin" aria-labelledby="signin-heading">
+      <div>
+        <p class="borrower-eyebrow">SECURE ACCESS</p>
+        <h2 id="signin-heading">Sign in to continue</h2>
+        <p>Use the email address invited by your Old Glory Bank relationship team.</p>
+      </div>
+      <a class="borrower-button" href="/SignIn?returnUrl=%2F">Sign in securely</a>
+    </section>
+  {% endif %}
+
+  <section class="borrower-trust" aria-label="Security information">
+    <div><strong>Private by default</strong><span>Only records linked to your authenticated contact are available.</span></div>
+    <div><strong>Document storage ready</strong><span>The governed file store supports files up to 25 MB after identity activation.</span></div>
+    <div><strong>Need help?</strong><span>Contact your relationship banker using a trusted phone number.</span></div>
+  </section>
+</main>

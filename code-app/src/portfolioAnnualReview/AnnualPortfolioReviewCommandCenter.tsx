@@ -15,6 +15,9 @@ interface Props {
   loans?: readonly AnnualReviewLoanSnapshot[];
   cycle: AnnualReviewCycle;
   asOfDate?: string | Date;
+  /** Governed completion callback. Omitted for read-only embeds. */
+  onCompleteReview?: (loanId: string) => Promise<void>;
+  completingLoanId?: string;
 }
 
 interface RowFilter {
@@ -29,7 +32,13 @@ interface RowFilter {
  * Phase 141A — annual portfolio review command center. Pure derivation from
  * authorized loans; no data loading, no write affordance, honest empty states.
  */
-export function AnnualPortfolioReviewCommandCenter({ loans = [], cycle, asOfDate }: Props) {
+export function AnnualPortfolioReviewCommandCenter({
+  loans = [],
+  cycle,
+  asOfDate,
+  onCompleteReview,
+  completingLoanId,
+}: Props) {
   const [filter, setFilter] = useState<RowFilter>({
     ownerQuery: '',
     riskRating: '',
@@ -113,7 +122,11 @@ export function AnnualPortfolioReviewCommandCenter({ loans = [], cycle, asOfDate
       </Card>
 
       <AnnualReviewExceptionTape escalations={model.escalations} />
-      <AnnualReviewCollectionQueue rows={visibleRows} />
+      <AnnualReviewCollectionQueue
+        rows={visibleRows}
+        onCompleteReview={onCompleteReview}
+        completingLoanId={completingLoanId}
+      />
     </section>
   );
 }

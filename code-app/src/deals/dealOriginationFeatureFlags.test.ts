@@ -6,6 +6,7 @@ import {
   AUTO_STAGE_ADVANCE_ENABLED,
   TASK_GENERATION_ENABLED,
   DOCUMENT_CHECKLIST_GENERATION_ENABLED,
+  DOCUMENT_FILE_UPLOAD_ENABLED,
   PORTFOLIO_SIDE_EFFECTS_ENABLED,
   BORROWER_MESSAGING_ENABLED,
   BORROWER_EMAIL_TRANSPORT_ENABLED,
@@ -18,6 +19,7 @@ import {
   isAutoStageAdvanceEnabled,
   isTaskGenerationEnabled,
   isDocumentChecklistEnabled,
+  isDocumentFileUploadEnabled,
   isPortfolioSideEffectsEnabled,
   isDuplicateDetectionEnabled,
   isDuplicateMergeApplyEnabled,
@@ -42,6 +44,7 @@ describe('origination flags -- Phase 228A production core constants', () => {
     // OTHER live-write domain remains at its safe default (off).
     expect(AUTO_STAGE_ADVANCE_ENABLED).toBe(true);
     expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
+    expect(DOCUMENT_FILE_UPLOAD_ENABLED).toBe(true);
     expect(BORROWER_MESSAGING_ENABLED).toBe(false);
     expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
 
@@ -100,6 +103,8 @@ describe('origination flags -- Phase 228A production core gates', () => {
     expect(resolveBorrowerInviteMode()).toBe('disabled');
     expect(resolveBorrowerMessagingMode()).toBe('disabled');
     expect(isAnyBorrowerTransportEnabled()).toBe(false);
+    expect(isDocumentFileUploadEnabled()).toBe(true);
+    expect(isDocumentFileUploadEnabled({ documentFileUploadEnabled: false })).toBe(false);
   });
 });
 

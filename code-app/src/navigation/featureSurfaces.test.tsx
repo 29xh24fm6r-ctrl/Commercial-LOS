@@ -29,6 +29,7 @@ const INTENTIONALLY_ENABLED_FLAGS: ReadonlySet<FeatureSurfaceFlagName> = new Set
   // CRM is no longer a hidden BankerShell tab. Read-only (unified readiness + CRM
   // intelligence); no write path is enabled by this flag.
   'CRM_COMMAND_CENTER_ROUTE_ENABLED',
+  'PORTFOLIO_ANNUAL_REVIEW_ROUTE_ENABLED',
 ]);
 
 /**

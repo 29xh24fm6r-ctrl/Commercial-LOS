@@ -246,7 +246,7 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
-    expect(GOVERNED_WRITES.length).toBe(25);
+    expect(GOVERNED_WRITES.length).toBe(27);
     expect(
       within(inv).getByText(`Governed writes (${GOVERNED_WRITES.length})`),
     ).toBeInTheDocument();
@@ -320,14 +320,13 @@ describe('ReleaseReadinessGate — Phase 68 capability inventory', () => {
     expect(within(inv).getByText(entry!.label)).toBeInTheDocument();
   });
 
-  it('surfaces document-upload as a schema-blocker (still NOT_WIRED)', () => {
+  it('does not surface document-upload after live File-column verification', () => {
     useAdminDataMock.mockReturnValue(makeAdminData());
     render(<ReleaseReadinessGate />);
     const inv = getInventorySection();
     const entry = NOT_WIRED.find((e) => e.id === 'document-upload');
-    expect(entry).toBeDefined();
-    expect(entry!.blockerKind).toBe('schema');
-    expect(within(inv).getByText(entry!.label)).toBeInTheDocument();
+    expect(entry).toBeUndefined();
+    expect(within(inv).queryByText('Deal document binary upload')).toBeNull();
   });
 
   it('no longer surfaces outlook-connector-live-send — Phase 104 swap removed it from NOT_WIRED', () => {

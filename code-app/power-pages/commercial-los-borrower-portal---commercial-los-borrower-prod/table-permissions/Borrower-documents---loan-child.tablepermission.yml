@@ -1,0 +1,15 @@
+adx_accountrelationship: 
+adx_append: false
+adx_appendto: false
+adx_contactrelationship: 
+adx_create: false
+adx_delete: false
+adx_entitylogicalname: cr664_documentchecklist
+adx_entityname: Borrower documents - loan child
+adx_entitypermission_webrole: []
+adx_entitypermissionid: faf25904-a0c3-47fc-8fec-d68204180ffa
+adx_parententitypermission: caaf0db6-7d12-4fe6-a587-c77239c121b3
+adx_parentrelationship: cr664_documentchecklist_cr664_loandeal_Deal
+adx_read: true
+adx_scope: 756150003
+adx_write: true

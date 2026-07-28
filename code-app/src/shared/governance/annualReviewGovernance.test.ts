@@ -90,13 +90,14 @@ describe('Phase 141A — no fetch / Dataverse / outreach in source', () => {
     expect(FILES.length).toBeGreaterThan(10);
   });
 
-  it('no React component calls fetch / XMLHttpRequest or imports Dataverse SDK', () => {
+  it('components avoid direct transport; the live surface may resolve authenticated Power Apps context', () => {
     const hits = FILES.filter(
       (f) =>
         f.isComponent &&
         (/\b(fetch|XMLHttpRequest)\s*\(/.test(f.code) ||
-          /@microsoft\/power-apps/.test(f.code) ||
-          /Cr664_\w+Service/.test(f.code)),
+          /Cr664_\w+Service/.test(f.code) ||
+          (/@microsoft\/power-apps/.test(f.code) &&
+            f.rel !== 'src/portfolioAnnualReview/AnnualPortfolioReviewLiveSurface.tsx')),
     );
     expect(hits.map((h) => h.rel)).toEqual([]);
   });
