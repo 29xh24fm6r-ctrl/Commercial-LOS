@@ -1,0 +1,145 @@
+{
+  "name": "Old Glory Bank Commercial LOS Copilot",
+  "version": "2026-07-28",
+  "purpose": "Microsoft Copilot Studio agent contract for governed, read-only and proposal-only assistance across the Commercial Lending LOS.",
+  "powerPlatform": {
+    "tenantId": "e5d2be43-2e2c-4968-b5f3-c73dd825ee80",
+    "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+    "dataverseUrl": "https://org3a57b8d4.crm.dynamics.com",
+    "powerAppsAppId": "63858e09-3d0b-47c9-b1d2-65cef742fda4"
+  },
+  "supportedSurfaces": [
+    {
+      "workspace": "banker",
+      "surface": "deal",
+      "source": "src/deals/BankerDealWorkspace.tsx",
+      "copilotMount": "src/copilot/DealCopilotAssist.tsx",
+      "primaryUseCases": [
+        "summarize active deal",
+        "explain missing fields",
+        "explain blockers",
+        "suggest next best action",
+        "draft borrower questions as proposals only"
+      ]
+    },
+    {
+      "workspace": "manager",
+      "surface": "workspace",
+      "source": "src/manager/ManagerBloombergControlPanel.tsx",
+      "copilotMount": "src/copilot/CopilotAssistPanel.tsx",
+      "primaryUseCases": [
+        "summarize manager portfolio",
+        "prioritize team blockers",
+        "suggest evidence review focus",
+        "prepare review talking points"
+      ]
+    },
+    {
+      "workspace": "portfolio",
+      "surface": "workspace",
+      "source": "src/portfolio/PortfolioCommandCenter.tsx",
+      "copilotMount": "src/copilot/CopilotAssistPanel.tsx",
+      "primaryUseCases": [
+        "summarize boarded loans",
+        "explain boarding exceptions",
+        "suggest follow-up review",
+        "identify portfolio risk themes"
+      ]
+    },
+    {
+      "workspace": "team",
+      "surface": "workspace",
+      "source": "src/team/TeamOpsQueue.tsx",
+      "copilotMount": "src/copilot/CopilotAssistPanel.tsx",
+      "primaryUseCases": [
+        "summarize team work queue",
+        "prioritize urgent tasks",
+        "explain stalled items",
+        "prepare handoff summary"
+      ]
+    },
+    {
+      "workspace": "executive",
+      "surface": "workspace",
+      "source": "src/executive/ExecutiveCommandCenter.tsx",
+      "copilotMount": "src/copilot/CopilotAssistPanel.tsx",
+      "primaryUseCases": [
+        "summarize executive dashboard",
+        "explain portfolio risk movements",
+        "prepare board-ready narrative",
+        "surface governance blockers"
+      ]
+    }
+  ],
+  "customApi": {
+    "name": "cr664_RunLosCopilotAssist",
+    "requestContract": "src/copilot/copilotCustomApiContract.ts",
+    "transportBoundary": "src/copilot/copilotDataverseCustomApiTransport.ts",
+    "auditTable": "cr664_copilotauditevent",
+    "auditRequirement": "audit_start must be written before any model or agent call; audit_unavailable fails closed before the model boundary."
+  },
+  "modes": {
+    "default": "not_configured",
+    "allowedLiveModes": [
+      "live_read_only",
+      "proposal_only"
+    ],
+    "clientVisibleConfig": [
+      "VITE_COPILOT_MODE",
+      "VITE_COPILOT_CUSTOM_API_NAME",
+      "VITE_COPILOT_ENDPOINT_ALIAS",
+      "VITE_COPILOT_POLICY_VERSION"
+    ]
+  },
+  "policy": {
+    "allowBrowserDirectModelCalls": false,
+    "allowClientSecrets": false,
+    "allowAutonomousWrites": false,
+    "requireHumanConfirmation": true,
+    "allowedProposalActionTypes": [
+      "request_document",
+      "draft_borrower_message",
+      "create_task",
+      "flag_for_review",
+      "prepare_credit_memo",
+      "explain_only"
+    ],
+    "readOnlyFloor": "explain_only"
+  },
+  "copilotStudio": {
+    "agentInstructions": [
+      "You are the Commercial Lending LOS Copilot for Old Glory Bank.",
+      "Use only authorized Dataverse context returned by cr664_RunLosCopilotAssist or configured Copilot Studio knowledge sources.",
+      "Never claim an approval, covenant waiver, document receipt, borrower contact, Teams post, Outlook send, or Dataverse update has occurred unless the governed LOS system returns that fact.",
+      "For write-capable intents, return proposals only. The user must confirm through the LOS governed write path.",
+      "Prefer cited evidence and clear uncertainty over unsupported confidence."
+    ],
+    "toolsToCreate": [
+      {
+        "name": "RunLosCopilotAssist",
+        "type": "Dataverse Custom API or custom connector action",
+        "target": "cr664_RunLosCopilotAssist",
+        "description": "Grounded LOS summarization, risk explanation, next-action, and proposal-only assistance."
+      }
+    ],
+    "knowledgeSources": [
+      {
+        "name": "Dataverse LOS records",
+        "scope": "Rows available to the signed-in user through Dataverse security and the custom API response."
+      },
+      {
+        "name": "Approved LOS operating runbooks",
+        "scope": "SharePoint or Dataverse knowledge source containing published, approved operator documentation only."
+      }
+    ],
+    "channels": [
+      "Power Apps code app",
+      "Microsoft Teams after tenant app approval",
+      "Microsoft 365 Copilot after tenant declarative-agent approval"
+    ]
+  },
+  "verification": {
+    "script": "scripts/activation/verify-copilot-integration.ps1",
+    "expectedStatus": "PASS"
+  }
+}
