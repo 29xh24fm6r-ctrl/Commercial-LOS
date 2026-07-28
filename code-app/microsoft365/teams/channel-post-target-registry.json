@@ -1,0 +1,13 @@
+{
+  "version": "2026-07-28",
+  "targets": [
+    {
+      "alias": "credit-ops-test-channel",
+      "displayName": "Credit Ops Test Channel",
+      "environment": "test",
+      "active": false,
+      "policyVersion": "teams-channel-post-2026-07-28",
+      "provisioningState": "OPERATOR_REQUIRED"
+    }
+  ]
+}

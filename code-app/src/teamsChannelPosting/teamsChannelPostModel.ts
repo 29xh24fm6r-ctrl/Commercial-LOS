@@ -26,6 +26,7 @@ export interface TeamsChannelPostProposal {
   safePreview: string;
   contentHash: string;
   correlationId: string;
+  idempotencyKey: string;
   policyVersion: string;
 }
 
@@ -47,4 +48,9 @@ export interface TeamsChannelPostAuditEvent {
   returnedMessageId?: string;
   correlationId: string;
   timestamp: string;
+}
+
+export interface TeamsChannelPostTransportRequest extends TeamsChannelPostProposal {
+  operatorConfirmed: boolean;
+  actor?: string;
 }

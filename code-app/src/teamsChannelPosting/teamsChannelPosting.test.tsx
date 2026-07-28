@@ -6,7 +6,12 @@ const { useDealDataMock } = vi.hoisted(() => ({ useDealDataMock: vi.fn() }));
 vi.mock('../deals/DealDataProvider', () => ({ useDealData: useDealDataMock }));
 
 import { buildSafeTeamsChannelPreview, redactTeamsChannelContent } from './teamsChannelContentPolicy';
-import { createDisabledTeamsChannelPostAdapter, resetTeamsChannelPostAdapterForTest } from './teamsChannelPostAdapter';
+import {
+  createDisabledTeamsChannelPostAdapter,
+  createGovernedTeamsChannelPostAdapter,
+  getApprovedTeamsChannelTargets,
+  resetTeamsChannelPostAdapterForTest,
+} from './teamsChannelPostAdapter';
 import { resolveTeamsChannelPostEnabled } from './teamsChannelPostFeatureFlags';
 import { TeamsChannelPostPanel } from './TeamsChannelPostPanel';
 
@@ -39,7 +44,15 @@ describe('M365-5 Teams channel posting boundary', () => {
     });
     expect(proposal.targetAlias).toBe('credit-ops-test-channel');
     expect(proposal.contentHash).toMatch(/^h[0-9a-f]{8}$/);
+    expect(proposal.idempotencyKey).toBe(`credit-ops-test-channel|${proposal.contentHash}|corr`);
     expect(proposal.safePreview).toMatch(/Missing appraisal/);
+  });
+
+  it('ships approved channel targets inactive until operator activation', () => {
+    const targets = getApprovedTeamsChannelTargets();
+    expect(targets).toHaveLength(1);
+    expect(targets[0].alias).toBe('credit-ops-test-channel');
+    expect(targets[0].active).toBe(false);
   });
 
   it('disabled adapter never posts', async () => {
@@ -54,6 +67,19 @@ describe('M365-5 Teams channel posting boundary', () => {
     expect(outcome.message).toMatch(/disabled/);
   });
 
+  it('governed adapter blocks inactive targets before transport send', async () => {
+    const proposal = buildSafeTeamsChannelPreview({
+      dealId: 'deal-1',
+      dealName: 'Riverside',
+      targetAlias: 'credit-ops-test-channel',
+      correlationId: 'corr',
+    });
+    const transport = { send: vi.fn() };
+    const outcome = await createGovernedTeamsChannelPostAdapter({ transport }).post(proposal);
+    expect(outcome.kind).toBe('WRITE_DISABLED');
+    expect(transport.send).not.toHaveBeenCalled();
+  });
+
   it('panel previews and confirms into disabled state without claiming success', async () => {
     useDealDataMock.mockReturnValue({
       deal: { id: 'deal-1', dealName: 'Riverside', stage: 'Underwriting', bankerName: 'Banker A' },
@@ -62,6 +88,7 @@ describe('M365-5 Teams channel posting boundary', () => {
     fireEvent.click(screen.getByRole('button', { name: /Prepare Teams channel post/i }));
     expect(screen.getByRole('dialog', { name: /Teams channel post preview/i })).toBeInTheDocument();
     expect(screen.getByText(/Target alias: credit-ops-test-channel/i)).toBeInTheDocument();
+    expect(screen.getByText(/Idempotency key: credit-ops-test-channel\|/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Confirm server-side post request/i }));
     expect(await screen.findByRole('status')).toHaveTextContent(/WRITE_DISABLED/);
     expect(screen.queryByText(/posted successfully/i)).not.toBeInTheDocument();
