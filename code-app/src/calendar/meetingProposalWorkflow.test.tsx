@@ -3,12 +3,16 @@ import { describe, expect, it, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import {
   classifyMeetingCreationResponse,
+  allRecipientsAreApprovedInternal,
+  buildMeetingIdempotencyKey,
+  buildOutlookCalendarEventPayload,
   createDefaultMeetingProposal,
   validateMeetingProposal,
 } from './meetingProposalWorkflow';
 import { resolveMeetingWriteFeatureGates } from './meetingProposalFeatureFlags';
 import {
   createDisabledMeetingCreationAdapter,
+  createGovernedOutlookMeetingCreationAdapter,
   resetMeetingCreationAdapterForTest,
   setMeetingCreationAdapterForTest,
 } from './meetingCreationAdapter';
@@ -106,6 +110,76 @@ describe('M365-3 meeting proposal gates and validation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Prepare meeting proposal' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm creation request' }));
     expect(await screen.findByRole('status')).toHaveTextContent(/AUDIT_FAILED/);
+  });
+
+  it('maps proposals to the exact Outlook V4 event payload shape', () => {
+    const payload = buildOutlookCalendarEventPayload({
+      ...BASE,
+      requiredAttendees: ['credit@oldglorybank.com'],
+      optionalAttendees: ['manager@oldglorybank.com'],
+      location: 'Conference Room A',
+    });
+    expect(payload).toMatchObject({
+      subject: BASE.subject,
+      start: '2026-07-29T14:00:00.000Z',
+      end: '2026-07-29T15:00:00.000Z',
+      timeZone: 'UTC',
+      requiredAttendees: 'credit@oldglorybank.com',
+      optionalAttendees: 'manager@oldglorybank.com',
+      location: 'Conference Room A',
+      isHtml: false,
+      importance: 'normal',
+      responseRequested: true,
+    });
+    expect(payload.body).toContain(BASE.correlationId);
+  });
+
+  it('enforces approved internal recipients before governed create', async () => {
+    const adapter = createGovernedOutlookMeetingCreationAdapter({
+      gates: { outlookCalendarWriteEnabled: true, teamsMeetingCreationEnabled: false },
+      operationsProvider: async () => ({
+        async V4CalendarPostItem() {
+          throw new Error('should not submit external attendees');
+        },
+      }),
+    });
+    const proposal = { ...BASE, requiredAttendees: ['borrower@example.com'], teamsMeetingRequested: false };
+    expect(allRecipientsAreApprovedInternal(proposal, ['credit@oldglorybank.com'])).toBe(false);
+    const outcome = await adapter.createGoverned({
+      calendarId: 'Calendar',
+      proposal,
+      idempotencyKey: buildMeetingIdempotencyKey(proposal),
+      approvedInternalRecipients: ['credit@oldglorybank.com'],
+      operatorConfirmed: true,
+    });
+    expect(outcome.kind).toBe('blocked');
+    expect(outcome.message).toMatch(/approved internal test recipients/);
+  });
+
+  it('returns accepted with event ID and blocks duplicate idempotency keys', async () => {
+    let calls = 0;
+    const adapter = createGovernedOutlookMeetingCreationAdapter({
+      gates: { outlookCalendarWriteEnabled: true, teamsMeetingCreationEnabled: false },
+      operationsProvider: async () => ({
+        async V4CalendarPostItem(calendarId, item) {
+          calls += 1;
+          expect(calendarId).toBe('Calendar');
+          expect(item).toMatchObject({ subject: BASE.subject });
+          return { success: true, data: { id: 'evt-123' } };
+        },
+      }),
+    });
+    const proposal = { ...BASE, requiredAttendees: ['credit@oldglorybank.com'], teamsMeetingRequested: false };
+    const request = {
+      calendarId: 'Calendar',
+      proposal,
+      idempotencyKey: buildMeetingIdempotencyKey(proposal),
+      approvedInternalRecipients: ['credit@oldglorybank.com'],
+      operatorConfirmed: true,
+    };
+    expect(await adapter.createGoverned(request)).toMatchObject({ kind: 'accepted', eventId: 'evt-123' });
+    expect(await adapter.createGoverned(request)).toMatchObject({ kind: 'blocked' });
+    expect(calls).toBe(1);
   });
 
   it('duplicate submission is blocked by correlation id', async () => {

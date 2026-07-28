@@ -3,12 +3,14 @@ import { useDealData } from '../deals/DealDataProvider';
 import { Card, CardFooter, CardHeader } from '../shared/Card';
 import { palette, radius, spacing, typography } from '../shared/theme';
 import { buildSafeTeamsChannelPreview } from './teamsChannelContentPolicy';
-import { getTeamsChannelPostAdapter } from './teamsChannelPostAdapter';
+import { getApprovedTeamsChannelTargets, getTeamsChannelPostAdapter } from './teamsChannelPostAdapter';
 import type { TeamsChannelPostOutcome } from './teamsChannelPostModel';
 
 export function TeamsChannelPostPanel() {
   const { deal } = useDealData();
   const dealName = (deal as typeof deal & { dealName?: string }).dealName ?? deal.name;
+  const targets = getApprovedTeamsChannelTargets();
+  const [targetAlias, setTargetAlias] = useState<string>(targets[0]?.alias ?? 'credit-ops-test-channel');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [outcome, setOutcome] = useState<TeamsChannelPostOutcome | undefined>();
   const proposal = useMemo(
@@ -20,10 +22,10 @@ export function TeamsChannelPostPanel() {
       blockers: [],
       nextAction: 'Review current blockers and next action owner.',
       losDeepLink: `#/deals/${deal.id}`,
-      targetAlias: 'credit-ops-test-channel',
+      targetAlias,
       correlationId: `teams-post-${deal.id}`,
     }),
-    [deal.bankerName, deal.id, deal.stage, dealName],
+    [deal.bankerName, deal.id, deal.stage, dealName, targetAlias],
   );
 
   async function confirmPost() {
@@ -40,12 +42,23 @@ export function TeamsChannelPostPanel() {
       <button type="button" style={buttonStyle} onClick={() => setPreviewOpen(true)}>
         Prepare Teams channel post
       </button>
+      <label style={labelStyle}>
+        Approved target alias
+        <select value={targetAlias} onChange={(event) => setTargetAlias(event.target.value)} style={selectStyle}>
+          {targets.map((target) => (
+            <option key={target.alias} value={target.alias}>
+              {target.displayName} ({target.active ? 'active' : 'inactive'})
+            </option>
+          ))}
+        </select>
+      </label>
       {previewOpen && (
         <section role="dialog" aria-label="Teams channel post preview" style={previewWrapStyle}>
           <h4 style={headingStyle}>Safe preview</h4>
           <p style={mutedStyle}>Target alias: {proposal.targetAlias}</p>
           <pre style={previewStyle}>{proposal.safePreview}</pre>
           <p style={mutedStyle}>Content hash: {proposal.contentHash}</p>
+          <p style={mutedStyle}>Idempotency key: {proposal.idempotencyKey}</p>
           <button type="button" style={buttonStyle} onClick={confirmPost}>
             Confirm server-side post request
           </button>
@@ -66,3 +79,5 @@ const previewWrapStyle: React.CSSProperties = { border: `1px solid ${palette.bor
 const headingStyle: React.CSSProperties = { margin: 0, fontSize: typography.size.md };
 const previewStyle: React.CSSProperties = { margin: 0, whiteSpace: 'pre-wrap', background: palette.surfaceSubtle, padding: spacing.sm, borderRadius: radius.sm, fontSize: typography.size.xs };
 const mutedStyle: React.CSSProperties = { margin: 0, color: palette.textMuted, fontSize: typography.size.sm };
+const labelStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: spacing.xs, fontSize: typography.size.sm };
+const selectStyle: React.CSSProperties = { border: `1px solid ${palette.border}`, borderRadius: radius.sm, padding: spacing.xs, background: palette.surface, color: palette.text };

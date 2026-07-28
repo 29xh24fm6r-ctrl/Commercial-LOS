@@ -19,6 +19,14 @@ export function stableContentHash(input: string): string {
   return `h${hash.toString(16).padStart(8, '0')}`;
 }
 
+export function buildTeamsChannelPostIdempotencyKey(input: {
+  targetAlias: string;
+  contentHash: string;
+  correlationId: string;
+}): string {
+  return `${input.targetAlias}|${input.contentHash}|${input.correlationId}`;
+}
+
 export function buildSafeTeamsChannelPreview(input: {
   dealId: string;
   dealName: string;
@@ -41,6 +49,7 @@ export function buildSafeTeamsChannelPreview(input: {
     `Timestamp: ${new Date().toISOString()}`,
   ].filter(Boolean).join('\n');
   const safePreview = redactTeamsChannelContent(raw);
+  const contentHash = stableContentHash(safePreview);
   return {
     dealId: input.dealId,
     dealName: input.dealName,
@@ -51,8 +60,13 @@ export function buildSafeTeamsChannelPreview(input: {
     losDeepLink: input.losDeepLink,
     targetAlias: input.targetAlias,
     safePreview,
-    contentHash: stableContentHash(safePreview),
+    contentHash,
     correlationId: input.correlationId,
+    idempotencyKey: buildTeamsChannelPostIdempotencyKey({
+      targetAlias: input.targetAlias,
+      contentHash,
+      correlationId: input.correlationId,
+    }),
     policyVersion: input.policyVersion ?? 'teams-channel-post-2026-07-28',
   };
 }

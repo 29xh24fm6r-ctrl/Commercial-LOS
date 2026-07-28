@@ -1,0 +1,28 @@
+{
+  "name": "cr664_TeamsChannelPost",
+  "displayName": "Commercial LOS Teams Channel Post",
+  "boundEntity": "none",
+  "allowedCaller": "server-side Dataverse Custom API or approved Power Automate child flow",
+  "request": {
+    "dealId": "string",
+    "targetAlias": "string",
+    "safePreview": "string",
+    "contentHash": "string",
+    "correlationId": "string",
+    "idempotencyKey": "string",
+    "policyVersion": "string",
+    "operatorConfirmed": "boolean"
+  },
+  "response": {
+    "outcome": "LIVE_ACCEPTED | LIVE_CONFIRMED | BLOCKED | UNKNOWN | FAILED",
+    "returnedMessageId": "string optional",
+    "auditEventId": "string optional",
+    "correlationId": "string"
+  },
+  "transportRules": {
+    "timeoutSeconds": 20,
+    "retry": "retry only UNKNOWN/transient transport failure after idempotency reconciliation",
+    "idempotency": "same targetAlias + contentHash + correlationId must not post twice",
+    "authorization": "caller must be an approved LOS operator and targetAlias must be active in the server-side registry"
+  }
+}

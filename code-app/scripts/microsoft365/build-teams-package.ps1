@@ -14,6 +14,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+trap {
+  Write-Host 'STATUS=BLOCKED'
+  Write-Error $_
+  exit 1
+}
 $repo = if ($RepoRoot) { (Resolve-Path -LiteralPath $RepoRoot).Path } else { (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path }
 $teamsDir = Join-Path $repo 'microsoft365\teams'
 $manifestTemplate = Join-Path $teamsDir 'manifest.template.json'
@@ -88,6 +93,8 @@ if (($entries -join '|') -ne ($expected -join '|')) {
 
 if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
 Compress-Archive -Path (Join-Path $workDir '*') -DestinationPath $zipPath -Force
+$hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zipPath).Hash
 
 Write-Host 'STATUS=PASS'
-Write-Host ("EVIDENCE: [teams-package] STATUS=PASS package={0} entries={1} ts={2}" -f $zipPath, ($entries -join ','), (Get-Date -Format o))
+Write-Host ("PACKAGE_SHA256={0}" -f $hash)
+Write-Host ("EVIDENCE: [teams-package] STATUS=PASS package={0} sha256={1} entries={2} ts={3}" -f $zipPath, $hash, ($entries -join ','), (Get-Date -Format o))

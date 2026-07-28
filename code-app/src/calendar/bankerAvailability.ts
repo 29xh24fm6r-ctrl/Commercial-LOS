@@ -13,6 +13,9 @@ export interface BankerCalendarEvent extends CalendarTimeRange {
   onlineMeeting?: boolean;
   dealId?: string;
   dealName?: string;
+  isAllDay?: boolean;
+  showAs?: 'free' | 'tentative' | 'busy' | 'oof' | 'workingElsewhere' | 'unknown';
+  sourceCalendarId?: string;
 }
 
 export interface AvailabilityWindow extends CalendarTimeRange {
@@ -51,6 +54,72 @@ export function isWithinBusinessHours(range: CalendarTimeRange, businessStartHou
   return start.getUTCHours() >= businessStartHour && end.getUTCHours() <= businessEndHour;
 }
 
+export function normalizeAttendeeList(value: unknown): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.flatMap(normalizeAttendeeList);
+  if (typeof value === 'string') {
+    return value
+      .split(/[;,]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+  }
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const address = record.address ?? record.Address ?? record.emailAddress ?? record.EmailAddress;
+    if (typeof address === 'string') return [address.trim()].filter(Boolean);
+    if (address && typeof address === 'object') {
+      const nested = address as Record<string, unknown>;
+      const nestedAddress = nested.address ?? nested.Address;
+      if (typeof nestedAddress === 'string') return [nestedAddress.trim()].filter(Boolean);
+    }
+  }
+  return [];
+}
+
+export function normalizeShowAs(value: unknown): BankerCalendarEvent['showAs'] {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (normalized === 'free') return 'free';
+  if (normalized === 'tentative') return 'tentative';
+  if (normalized === 'busy') return 'busy';
+  if (normalized === 'oof') return 'oof';
+  if (normalized === 'workingelsewhere' || normalized === 'working elsewhere') return 'workingElsewhere';
+  return 'unknown';
+}
+
+export function normalizeCalendarEvent(raw: Record<string, unknown>, sourceCalendarId?: string): BankerCalendarEvent | undefined {
+  const id = raw.id ?? raw.Id ?? raw.iCalUId ?? raw.ICalUId;
+  const subject = raw.subject ?? raw.Subject;
+  const start = raw.startWithTimeZone ?? raw.StartWithTimeZone ?? raw.start ?? raw.Start;
+  const end = raw.endWithTimeZone ?? raw.EndWithTimeZone ?? raw.end ?? raw.End;
+  if (typeof id !== 'string' || typeof subject !== 'string' || typeof start !== 'string' || typeof end !== 'string') {
+    return undefined;
+  }
+  const normalizedRange = normalizeIsoRange({
+    start,
+    end,
+    timezone: String(raw.timeZone ?? raw.TimeZone ?? 'UTC'),
+  });
+  if (!normalizedRange) return undefined;
+  const organizer = raw.organizer ?? raw.Organizer;
+  return {
+    id,
+    subject,
+    ...normalizedRange,
+    organizer: typeof organizer === 'string' ? organizer : undefined,
+    attendees: [
+      ...normalizeAttendeeList(raw.requiredAttendees ?? raw.RequiredAttendees),
+      ...normalizeAttendeeList(raw.optionalAttendees ?? raw.OptionalAttendees),
+      ...normalizeAttendeeList(raw.Attendees ?? raw.attendees),
+    ],
+    location: typeof (raw.location ?? raw.Location) === 'string' ? String(raw.location ?? raw.Location) : undefined,
+    onlineMeeting: Boolean(raw.onlineMeeting ?? raw.OnlineMeeting),
+    isAllDay: Boolean(raw.isAllDay ?? raw.IsAllDay),
+    showAs: normalizeShowAs(raw.showAs ?? raw.ShowAs),
+    sourceCalendarId,
+  };
+}
+
 export function deriveAvailabilityWindows(
   candidateWindows: CalendarTimeRange[],
   events: BankerCalendarEvent[],
@@ -71,7 +140,7 @@ export function deriveAvailabilityWindows(
         conflictSubjects: [],
       };
     }
-    const conflicts = events.filter((event) => eventConflictsWithRange(event, normalized));
+    const conflicts = events.filter((event) => event.showAs !== 'free' && eventConflictsWithRange(event, normalized));
     return {
       ...normalized,
       status: conflicts.length > 0 ? 'conflict' : 'available',
