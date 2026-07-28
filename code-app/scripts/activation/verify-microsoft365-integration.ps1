@@ -13,6 +13,7 @@
 param(
   [switch]$RequireTeamsIcons,
   [switch]$RequireOutlookRuntimeBinding,
+  [switch]$RequireCalendarRuntimeBinding,
   [string]$RepoRoot
 )
 
@@ -21,6 +22,7 @@ $repo = if ($RepoRoot) { (Resolve-Path -LiteralPath $RepoRoot).Path } else { (Re
 $teamsDir = Join-Path $repo 'microsoft365\teams'
 $manifestPath = Join-Path $teamsDir 'manifest.template.json'
 $outlookVerifier = Join-Path $PSScriptRoot 'verify-outlook-connector.ps1'
+$calendarVerifier = Join-Path $PSScriptRoot 'verify-outlook-calendar-connector.ps1'
 $expectedEnvironmentId = '5f2d77a5-de50-edeb-9d74-5b2400a2320d'
 $expectedAppId = '63858e09-3d0b-47c9-b1d2-65cef742fda4'
 $expectedTenantId = 'e5d2be43-2e2c-4968-b5f3-c73dd825ee80'
@@ -45,6 +47,11 @@ $outlookConfigured = 'UNKNOWN'
 $outlookRuntime = 'UNKNOWN'
 $outlookLive = 'UNKNOWN'
 $outlookStatus = 'UNKNOWN'
+$calendarConfigured = 'UNKNOWN'
+$calendarRuntime = 'UNKNOWN'
+$calendarRead = 'UNKNOWN'
+$calendarWrite = 'UNKNOWN'
+$calendarStatus = 'UNKNOWN'
 
 if (Test-Path -LiteralPath $outlookVerifier) {
   $outlookOutput = & powershell -File $outlookVerifier -RepoRoot $repo 2>&1
@@ -67,6 +74,32 @@ if (Test-Path -LiteralPath $outlookVerifier) {
   }
 } else {
   $ok = (Write-Check 'Outlook verifier' $false 'scripts/activation/verify-outlook-connector.ps1 is missing') -and $ok
+}
+
+if ($RequireCalendarRuntimeBinding) {
+  if (Test-Path -LiteralPath $calendarVerifier) {
+    $calendarOutput = & powershell -File $calendarVerifier -RepoRoot $repo 2>&1
+    $calendarExit = $LASTEXITCODE
+    $calendarOutput | ForEach-Object { Write-Host $_ }
+    $calendarText = ($calendarOutput | Out-String)
+    $calendarConfigured = Read-StateValue $calendarText 'CALENDAR_CONFIGURED'
+    $calendarRuntime = Read-StateValue $calendarText 'CALENDAR_RUNTIME_BOUND'
+    $calendarRead = Read-StateValue $calendarText 'CALENDAR_READ_OPERATIONS'
+    $calendarWrite = Read-StateValue $calendarText 'CALENDAR_WRITE_OPERATIONS'
+    $calendarStatus = Read-StateValue $calendarText 'STATUS'
+    if ($calendarExit -ne 0 -or $calendarStatus -eq 'BLOCKED') { $ok = $false }
+    if ($calendarStatus -eq 'UNKNOWN') { $unknown = $true }
+    if ($calendarRuntime -ne 'PASS') {
+      if ($calendarRuntime -eq 'BLOCKED') {
+        $ok = (Write-Check 'Calendar runtime binding required' $false 'dataSourcesInfo.ts exists but lacks office365 Connector binding') -and $ok
+      } else {
+        Write-Host '[UNKNOWN] Calendar runtime binding required - runtime manifest absent; generate/sync dataSourcesInfo.ts and verify before deployment.'
+        $unknown = $true
+      }
+    }
+  } else {
+    $ok = (Write-Check 'Calendar verifier' $false 'scripts/activation/verify-outlook-calendar-connector.ps1 is missing') -and $ok
+  }
 }
 
 if (-not (Test-Path -LiteralPath $manifestPath)) {
@@ -104,9 +137,9 @@ if (-not $ok) {
 
 if ($unknown) {
   Write-Host 'STATUS=UNKNOWN'
-  Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=UNKNOWN outlookConfigured={0} outlookRuntime={1} outlookLive={2} teamsManifest={3} requireIcons={4} requireOutlookRuntimeBinding={5} ts={6}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, (Get-Date -Format o))
+  Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=UNKNOWN outlookConfigured={0} outlookRuntime={1} outlookLive={2} calendarConfigured={3} calendarRuntime={4} calendarRead={5} calendarWrite={6} teamsManifest={7} requireIcons={8} requireOutlookRuntimeBinding={9} requireCalendarRuntimeBinding={10} ts={11}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $calendarConfigured, $calendarRuntime, $calendarRead, $calendarWrite, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, $RequireCalendarRuntimeBinding.IsPresent, (Get-Date -Format o))
   exit 0
 }
 
 Write-Host 'STATUS=PASS'
-Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=PASS outlookConfigured={0} outlookRuntime={1} outlookLive={2} teamsManifest={3} requireIcons={4} requireOutlookRuntimeBinding={5} ts={6}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, (Get-Date -Format o))
+Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=PASS outlookConfigured={0} outlookRuntime={1} outlookLive={2} calendarConfigured={3} calendarRuntime={4} calendarRead={5} calendarWrite={6} teamsManifest={7} requireIcons={8} requireOutlookRuntimeBinding={9} requireCalendarRuntimeBinding={10} ts={11}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $calendarConfigured, $calendarRuntime, $calendarRead, $calendarWrite, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, $RequireCalendarRuntimeBinding.IsPresent, (Get-Date -Format o))
