@@ -45,12 +45,11 @@
     status.textContent = 'Uploading securely…';
     try {
       await portalRequest(
-        `/_api/cr664_documentchecklists(${encodeURIComponent(documentId)})/cr664_documentfile`,
+        `/_api/cr664_documentchecklists(${encodeURIComponent(documentId)})/cr664_documentfile?x-ms-file-name=${encodeURIComponent(file.name)}`,
         {
-          method: 'PUT',
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/octet-stream',
-            'x-ms-file-name': encodeURIComponent(file.name),
           },
           body: await file.arrayBuffer(),
         },

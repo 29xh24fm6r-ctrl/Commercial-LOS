@@ -44,9 +44,10 @@ describe('borrower portal live binary-upload wiring', () => {
     expect(javascript).toMatch(/shell\.getTokenDeferred/);
     expect(javascript).toMatch(/__RequestVerificationToken/);
     expect(javascript).toMatch(
-      /_api\/cr664_documentchecklists\(\$\{encodeURIComponent\(documentId\)\}\)\/cr664_documentfile/,
+      /_api\/cr664_documentchecklists\(\$\{encodeURIComponent\(documentId\)\}\)\/cr664_documentfile\?x-ms-file-name=\$\{encodeURIComponent\(file\.name\)\}/,
     );
-    expect(javascript).toMatch(/method:\s*'PUT'/);
+    expect(javascript).toMatch(/method:\s*'PATCH'/);
+    expect(javascript).not.toMatch(/'x-ms-file-name':\s*encodeURIComponent/);
     expect(javascript).toMatch(/16 \* 1024 \* 1024/);
   });
 
