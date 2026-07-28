@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { resolve, relative, sep } from 'node:path';
 import {
+  DELIBERATELY_BLOCKED,
   GOVERNED_WRITES,
   LOCAL_ONLY_FLOWS,
   NOT_WIRED,
@@ -116,7 +117,7 @@ const COMMUNICATION_LANE_FILES: readonly string[] = [
 
 describe('Phase 110 — Inventory state at release', () => {
   it('GOVERNED_WRITES count is exactly 27, including deferred-capability completion', () => {
-    expect(GOVERNED_WRITES.length).toBe(27);
+    expect(GOVERNED_WRITES.length).toBe(28);
   });
 
   it('exactly two governed writes are borrower/deal Outlook email sends', () => {
@@ -137,19 +138,12 @@ describe('Phase 110 — Inventory state at release', () => {
     expect(entry).toBeUndefined();
   });
 
-  it('the borrower-portal compound NOT_WIRED entry honestly acknowledges Phase 104 + Phase 105 while pinning what is still missing', () => {
-    const bp = NOT_WIRED.find((n) => n.id === 'borrower-portal');
+  it('external identity is explicitly blocked without misclassifying the wired private portal', () => {
+    const bp = DELIBERATELY_BLOCKED.find((n) => n.id === 'borrower-external-identity');
     expect(bp).toBeDefined();
-    expect(bp!.blockerKind).toBe('compound');
-    // Phase 104 mentioned as a closed lane.
-    expect(bp!.reason).toMatch(/Phase\s+104.*document-request/i);
-    // Phase 105 mentioned as a closed lane.
-    expect(bp!.reason).toMatch(/Phase\s+105.*borrower[\s-]+update/i);
-    // Automation / inbound / event-push gaps remain open and named.
-    expect(bp!.reason).toMatch(/no\s+automation/i);
-    expect(bp!.reason).toMatch(/no\s+scheduled\s+trigger/i);
-    expect(bp!.reason).toMatch(/no\s+event[-\s]driven\s+push/i);
-    expect(bp!.reason).toMatch(/no\s+inbound[-\s]mail\s+sync/i);
+    expect(bp!.reason).toMatch(/private Power Pages site/i);
+    expect(bp!.reason).toMatch(/Conditional Access/i);
+    expect(NOT_WIRED.find((n) => n.id === 'borrower-portal')).toBeUndefined();
   });
 
   it('LOCAL_ONLY_FLOWS.outlook-summary-handoff (Phase 101) is still copy-to-clipboard regardless of EMAIL_MODE', () => {

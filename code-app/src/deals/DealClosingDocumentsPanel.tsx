@@ -3,6 +3,7 @@ import { ClosingDocumentsPanel } from '../closing/documents/ClosingDocumentsPane
 import { createDataverseClosingDocumentStore } from '../closing/documents/closingDocumentStorage';
 import { generateClosingDocument } from '../closing/documents/closingDocumentGeneration';
 import { liveEmitClosingDocumentTimeline } from '../closing/documents/closingDocumentTimeline';
+import { liveEmitClosingDocumentAudit } from '../closing/documents/closingDocumentAuditLiveDeps';
 import type { ClosingDocumentFactModel, ClosingDocumentTemplate, GeneratedClosingDocumentManifest } from '../closing/documents/closingDocumentTypes';
 import type { DealDetail } from './dealQueries';
 import { palette, radius, spacing, typography } from '../shared/theme';
@@ -17,10 +18,9 @@ import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping'
  * honestly" pattern DealFundingAuthorizationPanel.tsx already established for funding
  * authorization. The backing table (cr664_closingdocumentmanifest) has NOT been applied to any
  * live Dataverse environment yet (see scripts/schema-migrations/pr123-closing-document-persistence/)
- * -- until an operator does, every live read/write this panel attempts fails honestly (an error
- * banner, never a fabricated success), exactly like the funding panel does today. A no-op audit
- * emitter is still used -- auditing to the deal's activity timeline is a separate, not-yet-built
- * capability (see docs/production-remediation/REMAINING_FACTORY_ARC_AFTER_PR141.md).
+ * The live schema is provisioned in the target environment. Manifest persistence,
+ * governed audit evidence, and deal timeline evidence are independent sinks: a
+ * secondary evidence failure is surfaced without rolling back a saved document.
  */
 function buildClosingDocumentFactModel(deal: DealDetail): ClosingDocumentFactModel {
   return {
@@ -74,7 +74,7 @@ export function DealClosingDocumentsPanel({ deal, authorized, actorEmail }: { de
       { template, facts, authorized, actorEmail: actorEmail ?? '' },
       {
         storage: storeRef.current,
-        emitAudit: async () => ({ success: false, error: 'Local-only session: no live audit sink is wired yet (see docs/factory-arc/PR107_CLOSING_FUNDING_ACTIVATION.md).' }),
+        emitAudit: liveEmitClosingDocumentAudit,
         // Final LOS Completion arc — Workstream K: real, live timeline emission (distinct from the
         // still-stubbed audit above — see this file's header and closingDocumentTimeline.ts).
         emitTimeline: liveEmitClosingDocumentTimeline,
@@ -95,10 +95,9 @@ export function DealClosingDocumentsPanel({ deal, authorized, actorEmail }: { de
         </p>
       )}
       <p style={styles.localOnlyNote} role="note" data-closing-documents-local-only-note>
-        Generated documents are saved to Dataverse. If the underlying table has not yet been
-        provisioned by an operator, generation and retrieval will fail honestly rather than
-        pretend to succeed — download the document below immediately after generating it as a
-        precaution.
+        Generated documents are saved to Dataverse with governed audit and deal-timeline evidence.
+        If a secondary evidence write fails, the saved document is preserved and the incomplete
+        evidence is shown for administrator review.
       </p>
       <ClosingDocumentsPanel
         dealId={deal.id}

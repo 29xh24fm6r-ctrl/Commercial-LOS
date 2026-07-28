@@ -63,6 +63,19 @@ vi.mock('../team/TeamDealWorkspace', () => ({
     <div data-testid="team-deal-workspace">team-workspace:{dealId}</div>
   ),
 }));
+vi.mock('./GovernedReadOnlyDealWorkspace', () => ({
+  GovernedReadOnlyDealWorkspace: ({
+    dealId,
+    role,
+  }: {
+    dealId: string;
+    role: string;
+  }) => (
+    <div data-testid={`${role.toLowerCase()}-deal-workspace`}>
+      {role.toLowerCase()}-workspace:{dealId}
+    </div>
+  ),
+}));
 
 import { WORKSPACE_ROUTES } from '../bootstrap/workspaceRoutes';
 import { DealRoute } from './DealRoute';
@@ -156,9 +169,11 @@ describe('DealRoute dispatch matrix — team', () => {
 });
 
 describe('DealRoute dispatch matrix — executive', () => {
-  it('renders ACCESS DENIED for executive route and mounts NO workspace', () => {
+  it('mounts the security-trimmed executive read-only workspace', () => {
     renderRoute({ route: WORKSPACE_ROUTES.executive });
-    expect(screen.getByText(/access denied/i)).toBeInTheDocument();
+    expect(screen.getByTestId('executive-deal-workspace')).toHaveTextContent(
+      'executive-workspace:deal-1',
+    );
     expect(screen.queryByTestId('banker-provider')).not.toBeInTheDocument();
     expect(screen.queryByTestId('manager-provider')).not.toBeInTheDocument();
     expect(screen.queryByTestId('team-provider')).not.toBeInTheDocument();
@@ -175,9 +190,11 @@ describe('DealRoute dispatch matrix — executive', () => {
 });
 
 describe('DealRoute dispatch matrix — admin', () => {
-  it('renders ACCESS DENIED for admin route and mounts NO workspace', () => {
+  it('mounts the security-trimmed admin read-only workspace', () => {
     renderRoute({ route: WORKSPACE_ROUTES.admin });
-    expect(screen.getByText(/access denied/i)).toBeInTheDocument();
+    expect(screen.getByTestId('admin-deal-workspace')).toHaveTextContent(
+      'admin-workspace:deal-1',
+    );
     expect(screen.queryByTestId('banker-provider')).not.toBeInTheDocument();
     expect(screen.queryByTestId('manager-provider')).not.toBeInTheDocument();
     expect(screen.queryByTestId('team-provider')).not.toBeInTheDocument();
@@ -227,7 +244,8 @@ describe('DealRoute dispatch matrix — strict role isolation', () => {
         screen.queryByTestId('team-provider'),
       ].filter(Boolean);
       // Banker / manager / team routes mount exactly one provider.
-      // Executive / admin / unknown mount zero.
+      // Executive / admin use dedicated read-only surfaces and mount none
+      // of the banker/manager/team providers counted here.
       const allowed: string[] = [
         WORKSPACE_ROUTES.banker,
         WORKSPACE_ROUTES.manager,

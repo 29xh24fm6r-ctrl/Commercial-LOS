@@ -159,6 +159,12 @@
 - adx_name: Authentication/Registration/ExternalLoginEnabled
   adx_sitesettingid: e4ff4947-8f59-45d5-9b89-0f8b93e63c1b
   adx_value: true
+- adx_name: Webapi/cr664_documentchecklist/enabled
+  adx_sitesettingid: 915bc550-2c17-42a0-aff0-ea775305f26b
+  adx_value: true
+- adx_name: Webapi/cr664_documentchecklist/fields
+  adx_sitesettingid: a256e446-50fe-4ed5-8e3c-dbe6e7a74beb
+  adx_value: cr664_documentfile,cr664_originalfilename,cr664_mimetype,cr664_filesizebytes,cr664_uploadedon,cr664_receiveddate,cr664_uploadstatus
 - adx_name: Authentication/OpenAuth/Twitter/ConsumerSecret
   adx_sitesettingid: ea75aad5-fc30-42f0-b0c3-3cb39fcbafdd
 - adx_name: OnlineDomains

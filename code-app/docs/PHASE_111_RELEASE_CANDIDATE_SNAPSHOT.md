@@ -23,10 +23,10 @@ Snapshot date: 2026-05-21. Snapshot anchor: end of Phase 110.
 | Latest commit | Phase 110 — Communication Lane Final Release Lock | +8 phases |
 | Tests | **2523 passing** across **111 test files** | +345 tests / +7 files |
 | Build | `tsc -b && vite build` clean (~1047 kB minified / ~235 kB gzip) | +125 kB / +14 kB |
-| `GOVERNED_WRITES` | **27** entries | Includes PR D auto-boarding, PR E's Return/Decline/Withdraw write, binary document upload, and annual-review completion. |
+| `GOVERNED_WRITES` | **28** entries | Includes PR D auto-boarding, PR E's Return/Decline/Withdraw write, binary document upload, annual-review completion, and live closing-document generation. |
 | `LOCAL_ONLY_FLOWS` | **16** entries | +1 (Phase 105 updated `borrower-update-draft` shape; net inventory shifted) |
-| `NOT_WIRED` | **11** entries | Binary document upload and annual-review persistence are now live governed writes; the remaining entries continue to describe genuine unavailable capabilities. |
-| `DELIBERATELY_BLOCKED` | **0** entries | PR E removed the false blocked classification for the already-mounted Return/Decline/Withdraw path. |
+| `NOT_WIRED` | **0** entries | Live schema/runtime reconciliation retired the stale rows; superseded designs are historical only. |
+| `DELIBERATELY_BLOCKED` | **3** entries | External Identity, approved server-side AI, and in-client CI execution remain explicit trust/policy boundaries. |
 | Vibe capability groups tracked | 29 in [MICROSOFT_VIBE_CAPABILITY_COVERAGE.md](MICROSOFT_VIBE_CAPABILITY_COVERAGE.md) | unchanged |
 | Workspaces shipped | Banker · Manager · Team · Executive (snapshot) · Admin | unchanged |
 | Admin Workspace card stack | ReleaseReadinessGate · SystemHealthSummary · DataQualityFlags · AuditAnomalies · AlertBacklog · RefreshStatus · ConfigurationOverview · StageGovernanceDiagnostics · **EmailLiveDiagnostics (NEW Phase 109)** · PerformanceDiagnostics | +1 card |

@@ -58,6 +58,35 @@ Live Dataverse/security foundation:
   anonymous, create, or delete permission.
 - The home page filters relationships by `cr664_portalcontact = user.id` and
   does not expose a global borrower query.
+- Requested documents now expose a contact-scoped binary upload control. It
+  uses the authenticated Power Pages anti-forgery token, the Dataverse File
+  column endpoint, a 16 MB single-request limit, and a narrow Web API field
+  allowlist.
+- A failed binary request never marks the document received. If the binary
+  succeeds but metadata fails, the portal reports partial completion and
+  leaves an explicit banker-review message.
+
+## Remaining inventory reconciliation
+
+- Executive and admin `/deals/:id` routes now use one security-trimmed,
+  read-only Dataverse workspace. It loads one record and exposes no mutation
+  controls.
+- Closing document generation now writes its existing durable
+  `cr664_closingdocumentmanifest` row plus governed audit/timeline evidence.
+- `cr664_fundingauthorization` and all 18 expected columns are live and the
+  generated Power Apps service is refreshed.
+- Canonical deal stages have live unique `cr664_sequence` values for all seven
+  active rows; the unused separate-stage-table proposal remains historical
+  only.
+- Portfolio migration reconciliation now has a live
+  `cr664_portfoliomigrationcontrol` table, nine control fields, a
+  `cr664_migrationbatchid` boarded-loan field, generated Power Apps services,
+  and a fail-closed live tie-out panel.
+- The redundant disabled public/admin New Deal surface is no longer reported
+  as a product gap; banker New Deal creation remains the governed live path.
+- Current `NOT_WIRED` count is zero. AI model execution, production-browser CI
+  execution, and borrower external-identity activation are represented as
+  deliberate trust-boundary blocks rather than falsely reported missing code.
 
 ## External ID activation blocker
 

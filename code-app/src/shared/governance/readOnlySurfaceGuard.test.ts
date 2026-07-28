@@ -96,11 +96,11 @@ describe('Phase 44 — executive role is fully read-only', () => {
     }
   });
 
-  it('platformInventory pins executive deal access as denied', () => {
+  it('platformInventory pins executive deal access as governed read-only', () => {
     const exec = WORKSPACE_DEAL_ACCESS.find((w) => w.role === 'executive');
     expect(exec).toBeDefined();
-    expect(exec!.dealAccess).toBe('denied');
-    expect(exec!.authFunction).toBeNull();
+    expect(exec!.dealAccess).toBe('read-only');
+    expect(exec!.authFunction).toBe('loadDealForGovernedReadOnlyWorkspace');
   });
 
   it('exec transitional fallback features are the documented two and nothing else (Phase 15 invariant)', () => {
@@ -229,11 +229,11 @@ describe('Phase 44 — admin diagnostic surfaces are read-only', () => {
     }
   });
 
-  it('platformInventory pins admin deal access as denied', () => {
+  it('platformInventory pins admin deal access as governed read-only', () => {
     const admin = WORKSPACE_DEAL_ACCESS.find((w) => w.role === 'admin');
     expect(admin).toBeDefined();
-    expect(admin!.dealAccess).toBe('denied');
-    expect(admin!.authFunction).toBeNull();
+    expect(admin!.dealAccess).toBe('read-only');
+    expect(admin!.authFunction).toBe('loadDealForGovernedReadOnlyWorkspace');
   });
 
   it('the admin governed writes are exactly the three Phase 18/19 entries', () => {
@@ -294,16 +294,17 @@ describe('Phase 44 — governance inventory disjointness', () => {
 // ---------------------------------------------------------------------------
 // DealRoute permission boundary — the gate that turns the deal-access
 // matrix above into runtime behavior. A static-source check confirms
-// the executive and admin branches still deny.
+// executive and admin share the governed read-only workspace.
 // ---------------------------------------------------------------------------
 
-describe('Phase 44 — DealRoute denies executive and admin', () => {
-  it('DealRoute source contains both denial branches for executive and admin', () => {
+describe('Phase 278 — DealRoute gives executive and admin governed read-only access', () => {
+  it('DealRoute branches both roles to the shared read-only workspace', () => {
     const src = readSource(resolve(REPO_SRC, 'deals', 'DealRoute.tsx'));
     // The exact denial markers — these are stable strings on the
     // route component per Phase 15 (executive) and Phase 17 (admin)
     // and survived the Phase 38 permission-regression hardening.
     expect(src).toMatch(/executive/i);
     expect(src).toMatch(/admin/i);
+    expect(src).toMatch(/GovernedReadOnlyDealWorkspace/);
   });
 });

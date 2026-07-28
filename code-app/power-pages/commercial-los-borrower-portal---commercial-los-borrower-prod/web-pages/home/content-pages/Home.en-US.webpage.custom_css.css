@@ -54,3 +54,30 @@
   .borrower-signin { align-items: flex-start; flex-direction: column; }
   .borrower-trust { grid-template-columns: 1fr; }
 }
+.borrower-upload {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(17, 39, 80, 0.16);
+}
+
+.borrower-upload label {
+  font-weight: 700;
+  color: #112750;
+}
+
+.borrower-upload input[type="file"] {
+  max-width: 100%;
+}
+
+.borrower-upload-status {
+  min-height: 1.4rem;
+  margin: 0;
+  color: #334766;
+}
+
+.borrower-upload button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}

@@ -145,16 +145,15 @@ describe('Phase 181B -- production resolver profile (code/name, no GUID)', () =>
   });
 });
 
-describe('Phase 181C-F -- gates stay closed; public create disabled; NOT_WIRED unchanged', () => {
+describe('Phase 181C-F -- legacy public create remains disabled without becoming a product gap', () => {
   it('all three banker create gates remain hard false', () => {
     expect(BANKER_NEW_DEAL_CREATE_ENABLED).toBe(false);
     expect(NEW_DEAL_CREATE_ADAPTER_ENABLED).toBe(false);
     expect(NEW_DEAL_INTAKE_LIVE_CREATE_ENABLED).toBe(false);
   });
 
-  it('new-deal-create remains in NOT_WIRED (WIRED_DISABLED until certified)', () => {
+  it('new-deal-create is absent from current NOT_WIRED because banker create is live', () => {
     const entry = NOT_WIRED.find((e) => e.id === 'new-deal-create');
-    expect(entry).toBeDefined();
-    expect(entry!.reason).toMatch(/WIRED_DISABLED/);
+    expect(entry).toBeUndefined();
   });
 });

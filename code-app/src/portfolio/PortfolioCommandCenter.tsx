@@ -42,7 +42,7 @@ import {
   portfolioRiskCopilotSummaries,
 } from './portfolioRiskEngine';
 import { RiskConcentrationRadar } from './RiskConcentrationRadar';
-import { MigrationReconciliationPanel } from './reconciliation/BookReconciliationPanel';
+import { LiveMigrationReconciliationPanel } from './reconciliation/LiveMigrationReconciliationPanel';
 import { PortfolioProfitabilityPanel } from './profitability/PortfolioProfitabilityPanel';
 import { deriveLoanProfitability } from './profitability/loanProfitability';
 import { PortfolioClassificationPanel } from './riskRating/PortfolioClassificationPanel';
@@ -250,7 +250,7 @@ export function PortfolioCommandCenterBook() {
         </div>
       )}
 
-      <MigrationReconciliationPanel />
+      <LiveMigrationReconciliationPanel loans={loans.kind === 'ready' ? loans.data : []} />
       <PortfolioProfitabilityPanel loans={book?.profitability ?? []} />
       <PortfolioClassificationPanel ratings={book?.ratings ?? []} />
       {/* Phase 264 (P3) — CECL-style pooling: complements the per-loan panel
@@ -470,7 +470,7 @@ export function PortfolioCommandCenterLegacy() {
           until an operator records controls (needs the migration-control entity
           + cr664_migrationbatchid provisioned). A migration is not complete
           until it ties. */}
-      <MigrationReconciliationPanel />
+      <LiveMigrationReconciliationPanel loans={[]} />
       {/* Phase PE-4 — portfolio profitability (capital-weighted ROE, ROE
           distribution, low-ROE / negative-contribution outliers). Read-only over
           pure derivations; honest guidance state until loans carry real
