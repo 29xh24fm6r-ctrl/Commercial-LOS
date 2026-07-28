@@ -4,6 +4,8 @@ import type { DealTask } from './dealTaskQueries';
 import type { CreateDocumentReviewTaskOutcome } from './dealTaskActions';
 import { Badge } from '../shared/Badge';
 import { palette, radius, spacing, typography } from '../shared/theme';
+import { useDialogDismissal } from '../shared/ui/useDialogDismissal';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * Phase 70: banker-side "Create review task" modal.
@@ -67,20 +69,15 @@ export function CreateDocumentReviewTaskModal({
   const [state, setState] = useState<ModalState>({ kind: 'editing' });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const dialogRef = useDialogDismissal<HTMLDivElement>({
+    onClose,
+    disabled: state.kind === 'submitting',
+    closeOnOutsideClick: false,
+  });
+
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && state.kind !== 'submitting') {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, state.kind]);
 
   // Best-effort duplicate detection: title-substring match against
   // openTasks. No promise of completeness — the schema has no
@@ -116,7 +113,7 @@ export function CreateDocumentReviewTaskModal({
       aria-labelledby="create-review-task-title"
       style={styles.overlay}
     >
-      <div style={styles.card}>
+      <div style={styles.card} ref={dialogRef}>
         <header style={styles.header}>
           <div>
             <div style={styles.eyebrow}>Deal Workspace · Documents</div>
@@ -153,9 +150,7 @@ export function CreateDocumentReviewTaskModal({
                 We found an existing open task titled{' '}
                 <em>{suspectedDuplicate.title}</em>. You may proceed and create
                 another, but consider whether the existing task suffices.
-                Duplicate detection is a title-substring match only; the
-                schema has no document foreign key on tasks, so this hint is
-                advisory.
+                This is a best-effort name match, so the hint is advisory.
               </div>
             )}
             <section style={styles.noteSection}>
@@ -183,9 +178,8 @@ export function CreateDocumentReviewTaskModal({
               <p id="create-review-task-note-help" style={styles.helperLine}>
                 The task is self-assigned to you. It surfaces in your work
                 queue and on the deal's open-tasks list. No automatic routing
-                or escalation occurs. The cr664_dealtask1s schema has no
-                document foreign key; the document linkage lives in the task
-                title plus the audit + timeline rows' related-entity fields.
+                or escalation occurs. The document name is included in the task,
+                audit history, and deal timeline.
               </p>
             </section>
           </>
@@ -281,7 +275,7 @@ function OutcomeBlock({
             No task was created. A Failed audit event was recorded best-effort.
             Refresh and try again.
           </p>
-          <p style={styles.outcomeDetailMono}>{outcome.taskError}</p>
+          <p style={styles.outcomeDetail}>{mapBusinessSafeError(outcome.taskError).safeMessage}</p>
         </div>
       );
     case 'governance-partial':
@@ -303,11 +297,11 @@ function OutcomeBlock({
             timeline pair is incomplete.
           </p>
           {outcome.auditError && (
-            <p style={styles.outcomeDetailMono}>Audit: {outcome.auditError}</p>
+            <p style={styles.outcomeDetail}>Audit history: {mapBusinessSafeError(outcome.auditError).safeMessage}</p>
           )}
           {outcome.timelineError && (
             <p style={styles.outcomeDetailMono}>
-              Timeline: {outcome.timelineError}
+              Deal timeline: {mapBusinessSafeError(outcome.timelineError).safeMessage}
             </p>
           )}
           <p style={styles.outcomeDetail}>
@@ -329,7 +323,7 @@ function OutcomeBlock({
           <div style={{ ...styles.outcomeTitle, color: palette.atRiskFg }}>
             Unexpected error
           </div>
-          <p style={styles.outcomeDetail}>{outcome.message}</p>
+          <p style={styles.outcomeDetail}>{mapBusinessSafeError(outcome.message).safeMessage}</p>
         </div>
       );
   }

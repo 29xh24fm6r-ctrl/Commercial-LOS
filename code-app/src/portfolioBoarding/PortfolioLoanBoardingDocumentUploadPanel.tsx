@@ -4,6 +4,7 @@ import { palette, spacing, typography } from '../shared/theme';
 import { PORTFOLIO_LOAN_DOCUMENTS } from '../shared/portfolioBoarding/portfolioLoanDocumentCatalog';
 import type { PortfolioLoanDocumentRecord } from '../shared/portfolioBoarding/portfolioLoanBoardingTypes';
 import type { DocumentUploadResult } from './usePortfolioLoanDocumentPersistence';
+import { mapBusinessSafeError } from '../shared/errors/businessSafeErrorMapping';
 
 /**
  * Phase 264 (P0) — real document upload UI.
@@ -93,7 +94,8 @@ export function PortfolioLoanBoardingDocumentUploadPanel({
       if (result.ok) setUi({ kind: 'done', result });
       else setUi({ kind: 'error', message: result.message ?? 'Upload failed.' });
     } catch (err: unknown) {
-      setUi({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
+      const raw = err instanceof Error ? err.message : String(err);
+      setUi({ kind: 'error', message: mapBusinessSafeError(raw).safeMessage });
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -103,15 +105,14 @@ export function PortfolioLoanBoardingDocumentUploadPanel({
     <Card>
       <CardHeader
         title="Document Upload"
-        subtitle={canUpload ? `Upload adapter connected — ${uploadMode}` : 'Upload adapter not configured'}
+        subtitle={canUpload ? 'Document intake available' : 'Document intake unavailable'}
       />
       {liveButNoConnector && (
         <div role="status" style={notConfiguredStyle} data-portfolio-upload-connector-missing>
-          <p style={titleStyle}>SharePoint connector not registered</p>
+          <p style={titleStyle}>Document storage is unavailable</p>
           <p style={detailStyle}>
-            LIVE mode is selected, but the SharePoint Online connector has not been registered or wired
-            for this app yet. No file can be stored until an operator adds the SharePoint Online data
-            source, regenerates the SDK, and wires the connector. Nothing was stored.
+            This environment cannot currently store portfolio documents. Contact an administrator
+            before retrying. Nothing was stored.
           </p>
         </div>
       )}
@@ -198,7 +199,7 @@ export function PortfolioLoanBoardingDocumentUploadPanel({
       )}
 
       <CardFooter>
-        <span>No direct Dataverse call bypassing the metadata adapter. Upload goes through the SharePoint port only.</span>
+        <span>A stored document is confirmed only when a real document link is returned.</span>
       </CardFooter>
     </Card>
   );

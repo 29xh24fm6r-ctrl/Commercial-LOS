@@ -125,7 +125,7 @@ describe('Phase 140M — workspace renders honest states', () => {
     expect(screen.queryByText('Create boarded loan')).not.toBeInTheDocument();
   });
 
-  it('live: shows the create affordance and renders authorized rows (no fake rows)', () => {
+  it('live: routes manual boarding to the real Portfolio form and renders authorized rows', () => {
     const access = resolveBoardingAccess({
       isAuthorizedOperator: true,
       routeEnabled: true,
@@ -135,7 +135,9 @@ describe('Phase 140M — workspace renders honest states', () => {
     render(
       <PortfolioLoanBoardingWorkspace access={access} adapter={liveAdapter()} packages={[pkg()]} />,
     );
-    expect(screen.getByText('Create boarded loan')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Create boarded loan/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Open Portfolio Command Center/i })).toHaveAttribute('href', '/portfolio');
+    expect(screen.getByText(/Existing Portfolio Loans/i)).toBeInTheDocument();
     expect(screen.getByText('Synthetic Obligor')).toBeInTheDocument();
   });
 });

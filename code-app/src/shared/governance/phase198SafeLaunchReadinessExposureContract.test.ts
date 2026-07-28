@@ -52,27 +52,22 @@ describe('198 — doc + snapshot', () => {
 });
 
 describe('198 — admin-only mount inherits existing gating', () => {
-  it('the admin workspace imports and renders the readiness console', () => {
-    expect(ADMIN_WORKSPACE).toMatch(
-      /import \{ FullSystemLaunchReadinessConsole \} from '\.\.\/admin\/FullSystemLaunchReadinessConsole'/,
-    );
-    expect(ADMIN_WORKSPACE).toMatch(/<FullSystemLaunchReadinessConsole\s*\/>/);
+  it('the admin workspace renders the authoritative final certification instead', () => {
+    expect(ADMIN_WORKSPACE).not.toContain('FullSystemLaunchReadinessConsole');
+    expect(ADMIN_WORKSPACE).toMatch(/<FinalOperatingCertificationPanel\s*\/>/);
   });
 
   it('the admin workspace is reached only through the admin-gated route', () => {
     expect(APP).toMatch(/<WorkspaceGate allowed=\{WORKSPACE_ROUTES\.admin\}>\s*<AdminWorkspace\s*\/>/);
   });
 
-  it('no non-admin workspace imports the readiness console (no widened exposure)', () => {
+  it('the retired readiness console is not runtime-mounted in any workspace', () => {
     for (const rel of WORKSPACE_FILES) {
       const src = read(rel);
       const imports = src.includes('FullSystemLaunchReadinessConsole');
-      if (rel.endsWith('AdminWorkspace.tsx')) {
-        expect(imports, rel).toBe(true);
-      } else {
-        expect(imports, rel).toBe(false);
-      }
+      expect(imports, rel).toBe(false);
     }
+    expect(ADMIN_WORKSPACE).toContain('FinalOperatingCertificationPanel');
   });
 
   it('introduces no new workspace route (route count unchanged = 5)', () => {

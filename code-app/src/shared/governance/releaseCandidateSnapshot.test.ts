@@ -55,8 +55,8 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // registry blind spot those workstreams had until now, not new gaps. Workstream O then added
   // the data-quality-flag-create write (the first write that CREATES a data quality flag).
   // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E);
-  // PR D registered the already-live auto-portfolio boarding write.
-  governedWrites: 24,
+  // PR D registered auto-portfolio boarding; PR E registered live Return/Decline/Withdraw.
+  governedWrites: 25,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) for the schema-pending Global Cash Flow /
@@ -82,7 +82,7 @@ const PHASE_111_SNAPSHOT = Object.freeze({
   // Workstream R added one more NOT_WIRED entry (portfolio-migration-reconciliation -- the
   // reconciliation engine exists and is tested; only the migration-control schema is missing).
   notWired: 13,
-  deliberatelyBlocked: 1,
+  deliberatelyBlocked: 0,
 });
 
 describe('Phase 111 Ã¢â‚¬â€ Release-candidate snapshot exists and is current', () => {

@@ -60,6 +60,7 @@ vi.mock('../admin/EmailLiveDiagnostics', () => ({ EmailLiveDiagnostics: () => <d
 vi.mock('../admin/PlatformOperationsWorkspacePanel', () => ({ PlatformOperationsWorkspacePanel: () => <div data-testid="panel-PlatformOperationsWorkspacePanel" /> }));
 vi.mock('../admin/AdminCapabilityTruthMatrix', () => ({ AdminCapabilityTruthMatrix: () => <div data-testid="panel-AdminCapabilityTruthMatrix" /> }));
 vi.mock('../admin/AdminDurableRecordCapabilityPanel', () => ({ AdminDurableRecordCapabilityPanel: () => <div data-testid="panel-AdminDurableRecordCapabilityPanel" /> }));
+vi.mock('../admin/FinalOperatingCertificationPanel', () => ({ FinalOperatingCertificationPanel: () => <div data-testid="panel-FinalOperatingCertificationPanel" /> }));
 vi.mock('../admin/AdminDataQualityDetectionPanel', () => ({ AdminDataQualityDetectionPanel: () => <div data-testid="panel-AdminDataQualityDetectionPanel" /> }));
 vi.mock('../admin/TestDataView', () => ({ TestDataView: () => <div data-testid="panel-TestDataView" /> }));
 
@@ -104,5 +105,17 @@ describe('Phase 257 — AdminWorkspace renders inside the Lending OS sidebar she
     expect(
       within(provider).getByRole('navigation', { name: /lending os navigation/i }),
     ).toBeInTheDocument();
+  });
+
+  it('mounts one final certification verdict and retires competing legacy projections', () => {
+    renderAdmin();
+    expect(screen.getByTestId('panel-FinalOperatingCertificationPanel')).toBeInTheDocument();
+    expect(screen.queryByTestId('panel-ReleaseReadinessGate')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('panel-V1GoLiveReleaseCertificationPanel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('panel-FullSystemActivationLaunchPanel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('panel-OgbCrmWorkflowActivationPanel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('panel-EliteCrmLosActivationReadinessPanel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('panel-V1ActivationReadinessPanel')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('panel-FullSystemLaunchReadinessConsole')).not.toBeInTheDocument();
   });
 });

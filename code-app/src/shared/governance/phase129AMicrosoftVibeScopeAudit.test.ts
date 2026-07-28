@@ -77,8 +77,8 @@ const AUDIT_COUNTS = Object.freeze({
   // registry blind spot those workstreams had until now, not new gaps. Workstream O then added
   // one more: data-quality-flag-create, the first write that CREATES a data quality flag.
   // 146 Factory arc added credit-memo-finalize (146-B) and assign-servicing-owner (146-E);
-  // PR D registered the already-live auto-portfolio boarding write.
-  governedWrites: 24,
+  // PR D registered auto-portfolio boarding; PR E registered live Return/Decline/Withdraw.
+  governedWrites: 25,
   localOnlyFlows: 16,
   // PR 105 added two NOT_WIRED entries (origination-loan-structure-fields,
   // financial-spread-persistence) -- see
@@ -98,7 +98,7 @@ const AUDIT_COUNTS = Object.freeze({
   // docs/factory-arc/PR126_PORTFOLIO_SERVICING_COMPLETION.md. Workstream R
   // (Final LOS Completion arc) added one more (portfolio-migration-reconciliation).
   notWired: 13,
-  deliberatelyBlocked: 1,
+  deliberatelyBlocked: 0,
 });
 
 const AUDIT_DOC = 'docs/PHASE_129A_MICROSOFT_VIBE_SCOPE_AUDIT.md';

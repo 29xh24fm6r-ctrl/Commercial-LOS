@@ -46,7 +46,7 @@ function validRecord(capability: FinalLaunchCapability, over: Partial<FinalLaunc
 const allFiveValid = () => FINAL_LAUNCH_CAPABILITIES.map((c) => validRecord(c));
 
 describe('Phase 256A — final-launch readiness projection', () => {
-  it('with NO artifacts: this projection withholds deployment and projects only 1/6, even though the real gates are already live (6/6)', () => {
+  it('with NO artifacts: this projection withholds deployment and both projected/current state remain 1/6', () => {
     const r = deriveFinalLaunchReadiness({ records: [] });
     expect(r.deploymentAllowed).toBe(false);
     expect(r.allCapabilitiesGo).toBe(false);
@@ -67,7 +67,7 @@ describe('Phase 256A — final-launch readiness projection', () => {
     expect(r.newDealCertified).toBe(true);
   });
 
-  it('with VALID artifacts for all five: deploymentAllowed true and projection reaches 6/6; the real gates are live too (Phase 256B)', () => {
+  it('with VALID injected artifacts: the projection reaches 6/6 while current committed state remains 1/6', () => {
     const r = deriveFinalLaunchReadiness({ records: allFiveValid() });
     expect(r.allCapabilitiesGo).toBe(true);
     expect(r.deploymentAllowed).toBe(true);
@@ -105,7 +105,7 @@ describe('Phase 256A — final-launch readiness projection', () => {
     expect(r.capabilities.find((c) => c.capability === 'borrowerSend')?.smokeGo).toBe(false);
   });
 
-  it('this module (the projection) assigns NO live gate constant — the 256B gate flips live in the flag-source files, not here', () => {
+  it('this projection assigns no live gate constant', () => {
     const src = readFileSync(resolve(__dirname, 'finalLaunchReadiness.ts'), 'utf8');
     // The projection module must never assign a gate constant (true or false); it only derives.
     expect(src).not.toMatch(/_ENABLED\s*=\s*(true|false)/);

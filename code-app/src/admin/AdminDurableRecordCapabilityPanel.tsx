@@ -47,18 +47,14 @@ export function AdminDurableRecordCapabilityPanel() {
                   </Badge>
                 ))}
               </div>
-              <p style={styles.detail}>
-                Types: {c.typesFile} · Store: {c.storeFile} · Action: {c.actionFile} · Mounted via {c.mountedInPanel}
-              </p>
+              <p style={styles.detail}>Governed action: {governedWrite?.label ?? 'Not registered'}</p>
             </li>
           );
         })}
       </ul>
       <CardFooter>
         <span>
-          Sourced from shared/governance/durableRecordCapabilityInventory.ts — a new, additive
-          registry alongside platformInventory.ts's existing four. Does not replace or reinterpret the
-          9 pre-existing capability/readiness panels or AdminCapabilityTruthMatrix.
+          Status choices shown here are the values operators can record for each durable lifecycle record.
         </span>
       </CardFooter>
     </Card>

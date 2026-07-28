@@ -53,7 +53,8 @@ describe('Phase 264 (P0) — PortfolioLoanBoardingDocumentUploadPanel', () => {
   it('LIVE selected without a wired connector renders a clear fail-closed explanation (never a form, never a crash)', () => {
     const { container } = renderPanel({ uploadMode: 'LIVE', connectorAvailable: false });
     expect(container.querySelector('[data-portfolio-upload-connector-missing]')).not.toBeNull();
-    expect(screen.getByText('SharePoint connector not registered')).toBeInTheDocument();
+    expect(screen.getByText('Document storage is unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/connector|SDK|data source/i)).not.toBeInTheDocument();
     expect(container.querySelector('[data-portfolio-upload-form]')).toBeNull();
   });
 

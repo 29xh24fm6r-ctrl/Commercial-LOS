@@ -88,8 +88,9 @@ describe('204 — no widening; admin surfaces preserved', () => {
     expect(APP).toMatch(/<WorkspaceGate allowed=\{WORKSPACE_ROUTES\.admin\}>\s*<AdminWorkspace\s*\/>/);
   });
 
-  it('AdminWorkspace still wraps AdminProvider and mounts the V1 readiness panel', () => {
+  it('AdminWorkspace wraps AdminProvider and mounts the authoritative final certification', () => {
     expect(ADMIN_WORKSPACE).toMatch(/<AdminProvider>/);
-    expect(ADMIN_WORKSPACE).toMatch(/<V1ActivationReadinessPanel\s*\/>/);
+    expect(ADMIN_WORKSPACE).toMatch(/<FinalOperatingCertificationPanel\s*\/>/);
+    expect(ADMIN_WORKSPACE).not.toContain('V1ActivationReadinessPanel');
   });
 });

@@ -127,7 +127,7 @@ export function ReviewDocumentModal({
               style={{ ...styles.textarea, opacity: inProgress ? 0.6 : 1 }}
             />
             <p id="review-document-note-help" style={styles.helperLine}>
-              Stamps your name on cr664_reviewer. This records that you
+              Records your name as the reviewer. This confirms that you
               reviewed the document — it does not approve, accept, or
               validate the contents. The note flows to the audit trail
               and deal activity timeline.

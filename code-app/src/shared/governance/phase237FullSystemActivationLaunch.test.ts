@@ -92,13 +92,10 @@ describe('Phase 237 — full system activation launch governance contract', () =
     expect(withoutCerts).not.toMatch(/salesforce|ncino/i);
   });
 
-  it('the panel is mounted high in the admin workspace', () => {
+  it('the legacy panel is retired from the admin workspace', () => {
     const ws = read('src/workspaces/AdminWorkspace.tsx');
-    expect(ws).toMatch(/import \{ FullSystemActivationLaunchPanel \}/);
-    expect(ws).toMatch(/<FullSystemActivationLaunchPanel \/>/);
-    expect(ws.indexOf('<FullSystemActivationLaunchPanel />')).toBeLessThan(
-      ws.indexOf('<FullSystemLaunchReadinessConsole />'),
-    );
+    expect(ws).not.toContain('FullSystemActivationLaunchPanel');
+    expect(ws).toMatch(/<FinalOperatingCertificationPanel\s*\/>/);
   });
 
   it('the new governed write adapters are default-OFF, fail-closed, and flip no gate', () => {

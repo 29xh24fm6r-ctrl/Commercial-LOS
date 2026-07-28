@@ -23,10 +23,10 @@ Snapshot date: 2026-05-21. Snapshot anchor: end of Phase 110.
 | Latest commit | Phase 110 — Communication Lane Final Release Lock | +8 phases |
 | Tests | **2523 passing** across **111 test files** | +345 tests / +7 files |
 | Build | `tsc -b && vite build` clean (~1047 kB minified / ~235 kB gzip) | +125 kB / +14 kB |
-| `GOVERNED_WRITES` | **24** entries | Includes the distinct PR D `deal-auto-portfolio-board` write, which creates the portfolio loan, emits its boarding audit, and records a deal timeline event; the cross-module path is explicitly `legacyDisciplineExempt`. |
+| `GOVERNED_WRITES` | **25** entries | Includes PR D auto-boarding and PR E's separately registered Return/Decline/Withdraw write; both emit audit and timeline evidence. |
 | `LOCAL_ONLY_FLOWS` | **16** entries | +1 (Phase 105 updated `borrower-update-draft` shape; net inventory shifted) |
 | `NOT_WIRED` | **13** entries | PR D removed `portfolio-boarding-audit-governance`: auto-boarding is live, audited, timelined, and now registered in `GOVERNED_WRITES`. Remaining entries continue to describe genuine unavailable capabilities. |
-| `DELIBERATELY_BLOCKED` | **1** entry (`stage-progression-advance`) | unchanged |
+| `DELIBERATELY_BLOCKED` | **0** entries | PR E removed the false blocked classification for the already-mounted Return/Decline/Withdraw path. |
 | Vibe capability groups tracked | 29 in [MICROSOFT_VIBE_CAPABILITY_COVERAGE.md](MICROSOFT_VIBE_CAPABILITY_COVERAGE.md) | unchanged |
 | Workspaces shipped | Banker · Manager · Team · Executive (snapshot) · Admin | unchanged |
 | Admin Workspace card stack | ReleaseReadinessGate · SystemHealthSummary · DataQualityFlags · AuditAnomalies · AlertBacklog · RefreshStatus · ConfigurationOverview · StageGovernanceDiagnostics · **EmailLiveDiagnostics (NEW Phase 109)** · PerformanceDiagnostics | +1 card |
@@ -286,8 +286,7 @@ Before promoting this build to a release candidate:
 - [ ] `NOT_WIRED.outlook-connector-live-send` and
   `NOT_WIRED.email-delivery` are absent. If either reappears, Phase
   104 / 105 work has been undone.
-- [ ] `DELIBERATELY_BLOCKED` still has one entry
-  (`stage-progression-advance`).
+- [ ] `DELIBERATELY_BLOCKED` remains empty unless a genuinely intentional block is added.
 - [ ] Borrower-portal `NOT_WIRED` entry is still present (LIVE email
   does not imply a portal exists).
 

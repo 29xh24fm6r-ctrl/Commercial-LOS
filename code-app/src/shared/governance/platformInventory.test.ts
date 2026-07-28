@@ -21,7 +21,7 @@ import {
  */
 
 describe('platformInventory — governed writes', () => {
-  it('contains the twenty-four shipped governed writes, including PR D auto-portfolio boarding', () => {
+  it('contains the twenty-five shipped governed writes, including PR E non-forward transitions', () => {
     const ids = GOVERNED_WRITES.map((w) => w.id).sort();
     expect(ids).toEqual(
       [
@@ -39,6 +39,7 @@ describe('platformInventory — governed writes', () => {
         'deal-document-review-task-create',
         'deal-log-activity',
         'deal-stage-advance',
+        'deal-stage-return-decline-withdraw',
         'deal-task-complete',
         // Final LOS Completion arc (Workstream M) -- the six durable-record governed writes
         // Workstreams C/D/E/F/H/J shipped, registered here for the first time.
@@ -76,6 +77,7 @@ describe('platformInventory — governed writes', () => {
         'deal-log-activity',
         'credit-memo-draft-save',
         'deal-stage-advance',
+        'deal-stage-return-decline-withdraw',
         'credit-approval-decision-submit',
         'commitment-submit',
         'condition-verification-submit',
@@ -104,7 +106,6 @@ describe('platformInventory — governed writes', () => {
     // though Phase 51 shipped `deal-document-receive` — receive is
     // a metadata-only write, not a binary upload.
     const forbidden = [
-      'stage-progression-advance',
       // 'credit-memo-finalize' shipped in the 146 Factory arc (Workstream 146-B) -- it is now a
       // real GOVERNED_WRITES entry (flips cr664_creditmemo1.cr664_status Draft -> Final), so it
       // has moved OUT of this forbidden list (removing an entry a control found is correct here,
@@ -122,14 +123,25 @@ describe('platformInventory — governed writes', () => {
   });
 });
 
-describe('platformInventory — deliberately blocked', () => {
-  it('lists stage-progression-advance as Blocked with the schema reason', () => {
-    const entry = DELIBERATELY_BLOCKED.find(
-      (b) => b.id === 'stage-progression-advance',
-    );
-    expect(entry).toBeDefined();
-    expect(entry!.reason).toMatch(/stagereferences|stage reference/i);
-    expect(entry!.reason).toMatch(/ordering|sequence/i);
+describe('platformInventory — mutually exclusive truth categories', () => {
+  it('classifies the live Return / Decline / Withdraw write only as governed', () => {
+    const entry = GOVERNED_WRITES.find((w) => w.id === 'deal-stage-return-decline-withdraw');
+    expect(entry).toMatchObject({
+      emitsAudit: true,
+      emitsTimeline: true,
+      legacyDisciplineExempt: true,
+    });
+    expect(DELIBERATELY_BLOCKED).toHaveLength(0);
+  });
+
+  it('does not repeat an inventory id across truth categories', () => {
+    const ids = [
+      ...GOVERNED_WRITES.map((entry) => entry.id),
+      ...NOT_WIRED.map((entry) => entry.id),
+      ...LOCAL_ONLY_FLOWS.map((entry) => entry.id),
+      ...DELIBERATELY_BLOCKED.map((entry) => entry.id),
+    ];
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 
@@ -1072,8 +1084,8 @@ describe('platformInventory — Phase 67 handoff classification', () => {
     expect(writeIds.has('borrower-safe-status-packet')).toBe(false);
   });
 
-  it('GOVERNED_WRITES count includes the distinct PR D auto-portfolio-board write', () => {
-    expect(GOVERNED_WRITES.length).toBe(24);
+  it('GOVERNED_WRITES count includes PR D auto-boarding and PR E non-forward transitions', () => {
+    expect(GOVERNED_WRITES.length).toBe(25);
   });
 
   it('the Phase 67 deferral doc actually exists on disk', () => {
@@ -1152,32 +1164,10 @@ describe('platformInventory — Phase 43 stage progression enablement', () => {
     expect(REFERENCE_DATA_GOVERNED.stageCatalog.progressionEnabled).toBe(false);
   });
 
-  it('stage-progression-advance is still in DELIBERATELY_BLOCKED', () => {
-    const entry = DELIBERATELY_BLOCKED.find(
-      (b) => b.id === 'stage-progression-advance',
-    );
-    expect(entry).toBeDefined();
-  });
-
-  it('stage-progression-advance is NOT in GOVERNED_WRITES', () => {
+  it('the mounted non-forward transition path is governed, not deliberately blocked', () => {
     const writeIds = new Set(GOVERNED_WRITES.map((w) => w.id));
-    expect(writeIds.has('stage-progression-advance')).toBe(false);
-  });
-
-  it('blocked reason still cites the Phase 28 schema gap', () => {
-    const entry = DELIBERATELY_BLOCKED.find(
-      (b) => b.id === 'stage-progression-advance',
-    )!;
-    expect(entry.reason).toMatch(/Cr664_stagereferences|sequence|stage reference/i);
-  });
-
-  it('stage-progression-advance carries an enablementMapPath pointing at the planning doc', () => {
-    const entry = DELIBERATELY_BLOCKED.find(
-      (b) => b.id === 'stage-progression-advance',
-    )!;
-    expect(entry.enablementMapPath).toBe(
-      'docs/STAGE_PROGRESSION_ENABLEMENT_MAP.md',
-    );
+    expect(writeIds.has('deal-stage-return-decline-withdraw')).toBe(true);
+    expect(DELIBERATELY_BLOCKED.some((b) => /stage-progression|return|decline|withdraw/.test(b.id))).toBe(false);
   });
 
   it('the enablement map file actually exists on disk', () => {

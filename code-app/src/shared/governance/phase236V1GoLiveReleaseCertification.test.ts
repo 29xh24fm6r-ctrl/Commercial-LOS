@@ -23,15 +23,10 @@ describe('Phase 236 — V1.0 go-live release certification contract', () => {
     expect(vm.operatingRestartReady).toBe(true);
   });
 
-  it('the admin panel is mounted high in the admin workspace', () => {
+  it('the legacy panel is retired from the admin workspace', () => {
     const ws = read('src/workspaces/AdminWorkspace.tsx');
-    expect(ws).toMatch(/import \{ V1GoLiveReleaseCertificationPanel \}/);
-    expect(ws).toMatch(/<V1GoLiveReleaseCertificationPanel \/>/);
-    // High visibility: it sits at the top of the readiness stack (before the
-    // detailed activation/launch panels).
-    expect(ws.indexOf('<V1GoLiveReleaseCertificationPanel />')).toBeLessThan(
-      ws.indexOf('<FullSystemLaunchReadinessConsole />'),
-    );
+    expect(ws).not.toContain('V1GoLiveReleaseCertificationPanel');
+    expect(ws).toMatch(/<FinalOperatingCertificationPanel\s*\/>/);
   });
 
   it('the certification doc exists and includes the required sections', () => {

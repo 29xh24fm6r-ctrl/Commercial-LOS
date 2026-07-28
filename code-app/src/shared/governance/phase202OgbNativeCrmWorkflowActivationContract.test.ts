@@ -74,10 +74,10 @@ describe('202 — internal activation model', () => {
   });
 });
 
-describe('202 — admin activation surface mounted + admin-gated', () => {
-  it('AdminWorkspace mounts the activation panel', () => {
-    expect(ADMIN_WORKSPACE).toMatch(/import \{ OgbCrmWorkflowActivationPanel \} from '\.\.\/admin\/OgbCrmWorkflowActivationPanel'/);
-    expect(ADMIN_WORKSPACE).toMatch(/<OgbCrmWorkflowActivationPanel\s*\/>/);
+describe('202 — historical activation surface retained + admin route gated', () => {
+  it('AdminWorkspace retires the competing activation panel in favor of final certification', () => {
+    expect(ADMIN_WORKSPACE).not.toContain('OgbCrmWorkflowActivationPanel');
+    expect(ADMIN_WORKSPACE).toContain('FinalOperatingCertificationPanel');
   });
   it('the admin workspace is reached only through the admin-gated route (no widening)', () => {
     expect(APP).toMatch(/<WorkspaceGate allowed=\{WORKSPACE_ROUTES\.admin\}>\s*<AdminWorkspace\s*\/>/);
