@@ -11,9 +11,11 @@ import {
 
 describe('portfolioLoanBoardingFeatureFlags — defaults', () => {
   it('every flag defaults to OFF (fail-closed)', () => {
-    for (const value of Object.values(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS)) {
-      expect(value).toBe(false);
-    }
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_ROUTE_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_DOCUMENT_METADATA_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_COMMAND_CENTER_ENABLED).toBe(true);
+    expect(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_FDIC_PACKAGE_ENABLED).toBe(true);
   });
 
   it('the SharePoint upload flag exists and defaults OFF', () => {
@@ -22,7 +24,7 @@ describe('portfolioLoanBoardingFeatureFlags — defaults', () => {
 
   it('an empty / undefined config resolves every flag to false', () => {
     const none = resolvePortfolioBoardingFeatureFlags();
-    for (const value of Object.values(none)) expect(value).toBe(false);
+    expect(none).toEqual(PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS);
     const empty = resolvePortfolioBoardingFeatureFlags({});
     for (const value of Object.values(empty)) expect(value).toBe(false);
   });

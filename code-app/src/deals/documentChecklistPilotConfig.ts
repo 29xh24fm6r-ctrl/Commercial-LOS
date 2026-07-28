@@ -9,7 +9,7 @@
  */
 
 /** Disabled by default. Gates the panel's informational/preview posture only. */
-export const DOCUMENT_CHECKLIST_PILOT_UI_ENABLED = false as const;
+export const DOCUMENT_CHECKLIST_PILOT_UI_ENABLED = true as const;
 
 /**
  * Phase 188I -- FUTURE-STATE flag for a controlled UI generate action (188J).
@@ -22,7 +22,7 @@ export const DOCUMENT_CHECKLIST_PILOT_UI_ENABLED = false as const;
  * closed. No live write, borrower contact, or auto-run is introduced by adding
  * this constant.
  */
-export const DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = false as const;
+export const DOCUMENT_CHECKLIST_UI_GENERATE_ACTION_ENABLED = true as const;
 
 /**
  * Operator-curated approved checklist document names for the pilot preview.

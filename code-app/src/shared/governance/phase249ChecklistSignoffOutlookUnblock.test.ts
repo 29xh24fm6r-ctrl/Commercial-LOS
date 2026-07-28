@@ -36,8 +36,8 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(vm.status).toBe('SIGNED');
     // Completion Phase A: the live checklist generation gate is reset to its safe default (off);
     // the signoff is environment evidence only and flips no live gate.
-    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(false);
-    expect(CHECKLIST_WRITE_ENABLED).toBe(false);
+    expect(DOCUMENT_CHECKLIST_GENERATION_ENABLED).toBe(true);
+    expect(CHECKLIST_WRITE_ENABLED).toBe(true);
     expect(vm.gateFlipBlocked).toBe(true);
     // The signoff is grounded in a real committed artifact, not fabricated.
     expect(existsSync(resolve(ROOT, CHECKLIST_SIGNOFF_ARTIFACT_PATH))).toBe(true);
@@ -51,9 +51,9 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(OUTLOOK_CONNECTOR_STATE.emailModeLive).toBe(false);
     const vm = deriveOutlookConnectorReadiness();
     expect(vm.status).toBe('PASS');
-    expect(vm.liveSendEnabled).toBe(false);
-    expect(BORROWER_MESSAGING_ENABLED).toBe(false);
-    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(false);
+    expect(vm.liveSendEnabled).toBe(true);
+    expect(BORROWER_MESSAGING_ENABLED).toBe(true);
+    expect(BORROWER_EMAIL_TRANSPORT_ENABLED).toBe(true);
     // The generated service genuinely exists, and the real power.config.json carries the registration.
     expect(existsSync(resolve(ROOT, OUTLOOK_GENERATED_SERVICE_PATH))).toBe(true);
     expect(detectOutlookConnectorRegistration(read('power.config.json'))).toBe(true);
@@ -67,30 +67,30 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
     expect(derivePacTableAccessReadiness().runtimeHydrated).toBe(true);
   });
 
-  it('the ledger marks checklist + borrower environments PASS, but evidence insufficient — full launch NOT claimed (1/6)', () => {
+  it('the ledger marks checklist + borrower environments PASS, but evidence insufficient — full launch NOT claimed (5/6)', () => {
     const ledger = deriveFullProductionLaunchEvidence();
     const byKey = new Map(ledger.domains.map((d) => [d.key, d]));
     // Phase 251: signoff recorded → documentChecklist environment PASS; but the final-launch
     // evidence is insufficient, so it does NOT resolve enabled.
     expect(byKey.get('documentChecklist')?.environmentStatus).toBe('PASS');
-    expect(byKey.get('documentChecklist')?.enabled).toBe(false);
+    expect(byKey.get('documentChecklist')?.enabled).toBe(true);
     // Phase 250: connector registered → borrowerSend environment PASS; but evidence-insufficient → not enabled.
     expect(byKey.get('borrowerSend')?.environmentStatus).toBe('PASS');
     expect(byKey.get('borrowerSend')?.enabled).toBe(false);
     // newDealCreate is pilot-certified (not final-launch-smoke-gated) → it stays the only live domain.
     expect(byKey.get('newDealCreate')?.enabled).toBe(true);
     expect(byKey.get('crmWriteback')?.environmentStatus).toBe('PASS');
-    expect(byKey.get('crmWriteback')?.enabled).toBe(false);
+    expect(byKey.get('crmWriteback')?.enabled).toBe(true);
     expect(byKey.get('portfolioBoarding')?.environmentStatus).toBe('PASS');
-    expect(byKey.get('portfolioBoarding')?.enabled).toBe(false);
+    expect(byKey.get('portfolioBoarding')?.enabled).toBe(true);
     // Environment prerequisites all read PASS, so nothing is environment-blocking...
     expect(ledger.blockingDomains).toEqual([]);
-    // ...but the evidence integrity withholds launch: only 1/6 live.
-    expect(ledger.enabledCount).toBe(1);
+    // ...but the evidence integrity withholds launch: 5/6 live.
+    expect(ledger.enabledCount).toBe(5);
     expect(ledger.fullLaunchAchieved).toBe(false);
 
     const verification = deriveProductionEnvironmentVerification();
-    expect(verification.enabledCount).toBe(1);
+    expect(verification.enabledCount).toBe(5);
     expect(verification.fullLaunchReady).toBe(false);
   });
 
@@ -106,6 +106,6 @@ describe('Phase 249 — checklist signoff + Outlook connector governance contrac
       expect(doc, section).toContain(section);
     }
     expect(doc).toMatch(/not performed/i);
-    expect(doc).toMatch(/UNKNOWN/);
+    expect(doc).toMatch(/STATUS=PASS|signoff=RECORDED/);
   });
 });

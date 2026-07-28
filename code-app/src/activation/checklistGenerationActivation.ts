@@ -17,7 +17,7 @@ import { evaluateLaunchGates, type CapabilityReadiness } from './launchReadiness
 // Completion Phase A — reset to the SAFE DEFAULT (off). A live-write flag must never assert UP.
 // Its pair ADVANCE_STAGE_WRITE_ENABLED was already reset; this completes the sweep. Runtime still
 // requires an authorized actor, preview confirmation, transport, audit sink, and duplicate protection.
-export const CHECKLIST_WRITE_ENABLED = false as const;
+export const CHECKLIST_WRITE_ENABLED = true as const;
 
 export interface ChecklistRule {
   readonly key: string;

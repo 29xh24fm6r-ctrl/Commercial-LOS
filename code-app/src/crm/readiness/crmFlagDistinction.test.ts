@@ -24,11 +24,11 @@ import {
  * admin surface performs no live write.
  */
 describe('CRM-I — CRM flag drift reconciliation', () => {
-  it('the AUTHORITATIVE CRM feature flags are all false (the real gates)', () => {
-    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(false);
-    expect(CRM_CONTACT_EDITING_ENABLED).toBe(false);
-    expect(CRM_VENDOR_EDITING_ENABLED).toBe(false);
-    expect(CRM_TIMELINE_ENABLED).toBe(false);
+  it('the AUTHORITATIVE internal CRM feature flags are armed after certification', () => {
+    expect(CRM_LIVE_PERSISTENCE_ENABLED).toBe(true);
+    expect(CRM_CONTACT_EDITING_ENABLED).toBe(true);
+    expect(CRM_VENDOR_EDITING_ENABLED).toBe(true);
+    expect(CRM_TIMELINE_ENABLED).toBe(true);
   });
 
   it('the activation seam switches are renamed with _CAPABLE and do NOT collide with the feature flags', () => {

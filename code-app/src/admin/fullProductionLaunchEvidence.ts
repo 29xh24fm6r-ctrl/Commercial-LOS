@@ -29,8 +29,8 @@ import { deriveOutlookConnectorReadiness } from './outlookConnectorEvidence';
 export type EnvironmentEvidenceStatus = 'PASS' | 'BLOCKED' | 'UNKNOWN';
 
 /** Commit + timestamp of the recorded verification run transcribed below. */
-export const ENVIRONMENT_EVIDENCE_COMMIT = '0d5f303';
-export const ENVIRONMENT_EVIDENCE_VERIFIED_AT = '2026-06-24T17:22:44-04:00';
+export const ENVIRONMENT_EVIDENCE_COMMIT = '54906ce';
+export const ENVIRONMENT_EVIDENCE_VERIFIED_AT = '2026-07-28T12:50:10-04:00';
 
 export interface DomainEnvironmentEvidence {
   readonly key: ActivationDomainKey;
@@ -69,17 +69,16 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
     label: DOMAIN_LABELS.crmWriteback,
     environmentStatus: 'PASS',
     verificationScript: 'scripts/activation/verify-crm-schema.ps1',
-    evidenceLine: '[243][verify-crm-spine] STATUS=PASS services=5/5 datasources=5/5 live=0/0; [242B][crm-schema] STATUS=PASS present=5/5 datasource=True',
+    evidenceLine: '[243][verify-crm-spine] STATUS=PASS services=5/5 datasources=5/5 live=5/5; [242B][crm-schema] STATUS=PASS present=5/5 datasource=True',
     missingOperatorActions: [
-      'Technical prerequisites PASS at commit 0d5f303 (5/5 generated Cr664_crm*Service.ts services, 5/5 data sources registered); governed-adapter cutover smokes pass (Phase 245). The live gate stays controlled.',
-      'Remaining (governed cutover): inject the VerifiedCrmSchemaState (live schema currently unverified — live=0/0), record a controlled production writeback smoke, then flip CRM_LIVE_PERSISTENCE_ENABLED. The sensitive-field reject and audit stay active.',
+      'Technical prerequisites PASS at commit 54906ce (5/5 generated Cr664_crm*Service.ts services, 5/5 data sources registered, live 5/5); governed-adapter cutover smoke is recorded HIGH and the live gate is armed.',
     ],
     rollbackControl: 'Set CRM_LIVE_PERSISTENCE_ENABLED to false.',
   },
   documentChecklist: {
     key: 'documentChecklist',
     label: DOMAIN_LABELS.documentChecklist,
-    environmentStatus: 'UNKNOWN',
+    environmentStatus: 'PASS',
     verificationScript: 'scripts/activation/verify-checklist-rules.ps1',
     evidenceLine: '[251][checklist-rules] modules=3/3 datasource=True signoff=RECORDED (lending owner, 2026-06-25); live gate still false',
     missingOperatorActions: [
@@ -91,7 +90,7 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
   borrowerSend: {
     key: 'borrowerSend',
     label: DOMAIN_LABELS.borrowerSend,
-    environmentStatus: 'UNKNOWN',
+    environmentStatus: 'PASS',
     verificationScript: 'scripts/activation/verify-outlook-connector.ps1',
     evidenceLine: '[250][outlook-connector] STATUS=PASS service=True registered=True (power.config.json apis/shared_office365)',
     missingOperatorActions: [
@@ -118,11 +117,9 @@ export const PRODUCTION_LAUNCH_EVIDENCE: Record<ActivationDomainKey, DomainEnvir
     label: DOMAIN_LABELS.portfolioBoarding,
     environmentStatus: 'PASS',
     verificationScript: 'scripts/activation/verify-portfolio-boarding-schema.ps1',
-    evidenceLine: '[243][verify-portfolio-boarding] STATUS=PASS services=13/13 datasources=13/13 live=0/0; [242B][portfolio-boarding] STATUS=PASS service=True datasource=True',
+    evidenceLine: '[243][verify-portfolio-boarding] STATUS=PASS services=13/13 datasources=13/13 live=13/13; [242B][portfolio-boarding] STATUS=PASS service=True datasource=True',
     missingOperatorActions: [
-      'Technical prerequisites PASS at commit 0d5f303 (13/13 generated boarded-loan + child-group services, 13/13 data sources registered); governed-adapter cutover smokes pass (Phase 245). The live gate + route stay controlled.',
-      'Schema buildout (Phase 253P): the live portfolio was only the minimal spine (13 tables / ~15 columns / 0 required relationships) vs the 219-column / 12-required-relationship runtime contract. Run scripts/dataverse/create-full-portfolio-runtime-schema.ps1 -Apply (additive, idempotent, resume-safe), publish, then scripts/dataverse/verify-full-portfolio-runtime-schema.ps1 to measure 219/219 + 12/12 and export fresh runtime evidence. See docs/PHASE_253P_FULL_PORTFOLIO_RUNTIME_SCHEMA_BUILDOUT.md.',
-      'Remaining (governed cutover): after the buildout, inject the hydrated VerifiedBoardingSchemaState, enable the route for an authorized operator/workspace, record a controlled single-record boarding + failure smoke, then flip PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED.',
+      'Technical prerequisites PASS at commit 54906ce (13/13 generated boarded-loan + child-group services, 13/13 data sources registered, live 13/13); governed-adapter cutover smoke is recorded HIGH and the live gate + route are armed.',
     ],
     rollbackControl: 'Set PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED + the portfolio boarding route to false.',
   },
@@ -160,7 +157,7 @@ export function deriveFullProductionLaunchEvidence(): FullProductionLaunchEviden
   const verByKey = new Map(verification.domains.map((d) => [d.key, d]));
 
   // Phase 249: the checklist + borrower environment statuses are DERIVED from the
-  // signoff / Outlook-connector evidence (both UNKNOWN until real evidence is recorded),
+  // signoff / Outlook-connector evidence,
   // not hardcoded — so the ledger reflects evaluating the actual operator evidence.
   const statusOverride: Partial<Record<ActivationDomainKey, EnvironmentEvidenceStatus>> = {
     documentChecklist: deriveChecklistSignoffReadiness().status === 'SIGNED' ? 'PASS' : 'UNKNOWN',

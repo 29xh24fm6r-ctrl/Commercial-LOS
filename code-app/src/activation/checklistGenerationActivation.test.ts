@@ -48,10 +48,10 @@ function wInput(over: Partial<ChecklistWriteInput> = {}): ChecklistWriteInput {
 }
 
 describe('Phase 228B â€” governed checklist write gated fail-closed (Completion Phase A safe-off)', () => {
-  it('is disabled by default (safe-off); an explicit enable still requires transport and audit sink', async () => {
-    expect(CHECKLIST_WRITE_ENABLED).toBe(false);
-    // Safe-off default: an unspecified `enabled` fails closed to 'disabled'; an injected disable also fails closed.
-    expect((await generateAndWriteChecklist(wInput())).outcome).toBe('disabled');
+  it('is enabled for the certified runtime; every call still requires transport and audit sink', async () => {
+    expect(CHECKLIST_WRITE_ENABLED).toBe(true);
+    // Unspecified `enabled` uses the certified default; an injected disable still fails closed.
+    expect((await generateAndWriteChecklist(wInput())).outcome).toBe('written');
     expect((await generateAndWriteChecklist(wInput({ enabled: false }))).outcome).toBe('disabled');
     // An explicit enable with full valid input writes; enable-but-missing-transport still fails closed.
     expect((await generateAndWriteChecklist(wInput({ enabled: true }))).outcome).toBe('written');

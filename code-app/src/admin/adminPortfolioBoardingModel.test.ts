@@ -20,29 +20,29 @@ describe('Phase 229 -- internal portfolio boarding admin active', () => {
     expect(PORTFOLIO_BOARDING_ADMIN_LIVE_WRITE_ENABLED).toBe(true);
   });
 
-  it('reads the real live persistence flag (now safe-default off), not a hardcoded value', () => {
+  it('reads the certified live persistence flag, not a hardcoded value', () => {
     expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT).toBe(
       PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS.PORTFOLIO_BOARDING_LIVE_PERSISTENCE_ENABLED,
     );
-    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT).toBe(false);
+    expect(PORTFOLIO_BOARDING_LIVE_PERSISTENCE_DEFAULT).toBe(true);
   });
 
   it('explains the governed internal portfolio activation reason', () => {
-    expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/enabled/i);
-    expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/fails closed/i);
-    expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/injected/i);
+    expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/live/i);
+    expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/certification/i);
+    expect(PORTFOLIO_BOARDING_DISABLED_REASON).toMatch(/authorized operator/i);
   });
 });
 
 describe('Phase 169D -- readiness and data groups', () => {
-  it('reports the boarding stack present with live persistence safe-default off', () => {
+  it('reports the boarding stack and certified live persistence present', () => {
     const labels = PORTFOLIO_BOARDING_READINESS.map((r) => r.label);
     expect(labels).toContain('Persistence adapter');
     expect(labels).toContain('Runtime schema gate');
     const live = PORTFOLIO_BOARDING_READINESS.find(
       (r) => r.label === 'Live runtime persistence enabled',
     );
-    expect(live?.present).toBe(false);
+    expect(live?.present).toBe(true);
   });
 
   it('lists all nine required boarding data groups', () => {
@@ -63,9 +63,9 @@ describe('Phase 169D -- readiness and data groups', () => {
     }
   });
 
-  it('has five ordered next steps ending at exposing live admin create/import', () => {
-    expect(PORTFOLIO_BOARDING_NEXT_STEPS.map((s) => s.order)).toEqual([1, 2, 3, 4, 5]);
-    expect(PORTFOLIO_BOARDING_NEXT_STEPS[4]!.title).toMatch(/live admin create\/import/i);
+  it('lists the three remaining operational follow-ups', () => {
+    expect(PORTFOLIO_BOARDING_NEXT_STEPS.map((s) => s.order)).toEqual([1, 2, 3]);
+    expect(PORTFOLIO_BOARDING_NEXT_STEPS[2]!.title).toMatch(/Portfolio workspace/i);
   });
 });
 

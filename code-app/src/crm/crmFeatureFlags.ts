@@ -16,27 +16,26 @@
  */
 
 // ---------------------------------------------------------------------------
-// Default constants (every CRM runtime capability is off in this phase)
+// Certified internal CRM production defaults
 // ---------------------------------------------------------------------------
 
-export const CRM_ROUTE_ENABLED = false;
-// Completion Phase A — reset to the SAFE DEFAULT (off). Armed deliberately only once the live
-// CRM schema is verified (VerifiedCrmSchemaState injected) and authentic writeback evidence is
-// captured. The runtime schema gate remains the second safety layer.
-export const CRM_LIVE_PERSISTENCE_ENABLED = false;
-export const CRM_CONTACT_EDITING_ENABLED = false;
-export const CRM_VENDOR_EDITING_ENABLED = false;
-export const CRM_TIMELINE_ENABLED = false;
-export const CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED = false;
+export const CRM_ROUTE_ENABLED = true;
+// Armed after live schema verification and authentic CRUD certification.
+// Authorization, schema, and transport checks remain independent safety layers.
+export const CRM_LIVE_PERSISTENCE_ENABLED = true;
+export const CRM_CONTACT_EDITING_ENABLED = true;
+export const CRM_VENDOR_EDITING_ENABLED = true;
+export const CRM_TIMELINE_ENABLED = true;
+export const CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED = true;
 // CRM-ELITE-1 Phase 2 — read-only relationship-health card + team rollup inside
 // the already-live, already-authorized CRM Hub. No new Dataverse read, no write.
-export const CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED = false as const;
+export const CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED = true as const;
 // CRM-ELITE-1 Phase 3 — live manager/executive CRM rollups, replacing the
 // hardcoded crmWorkspacePreviewInputs.ts strip. Read-only.
-export const CRM_LIVE_ROLLUPS_ENABLED = false as const;
+export const CRM_LIVE_ROLLUPS_ENABLED = true as const;
 // CRM-ELITE-1 Phase 4 — banker daily action queue populated from real signals
 // only (missing-contact / activity-gap categories). Read-only.
-export const CRM_DAILY_ACTION_QUEUE_ENABLED = false as const;
+export const CRM_DAILY_ACTION_QUEUE_ENABLED = true as const;
 
 export interface CrmFeatureFlagConfig {
   /** Enables the live Dataverse persistence adapter. Default: disabled. */
@@ -71,17 +70,17 @@ export interface CrmFeatureFlagState {
   readonly CRM_DAILY_ACTION_QUEUE_ENABLED: boolean;
 }
 
-/** The safe defaults: every CRM runtime capability is off. */
+/** Certified production defaults for the internal OGB CRM runtime. */
 export const CRM_FEATURE_FLAG_DEFAULTS: CrmFeatureFlagState = Object.freeze({
-  CRM_ROUTE_ENABLED: false,
-  CRM_LIVE_PERSISTENCE_ENABLED: false,
-  CRM_CONTACT_EDITING_ENABLED: false,
-  CRM_VENDOR_EDITING_ENABLED: false,
-  CRM_TIMELINE_ENABLED: false,
-  CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED: false,
-  CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED: false,
-  CRM_LIVE_ROLLUPS_ENABLED: false,
-  CRM_DAILY_ACTION_QUEUE_ENABLED: false,
+  CRM_ROUTE_ENABLED: true,
+  CRM_LIVE_PERSISTENCE_ENABLED: true,
+  CRM_CONTACT_EDITING_ENABLED: true,
+  CRM_VENDOR_EDITING_ENABLED: true,
+  CRM_TIMELINE_ENABLED: true,
+  CRM_ANNUAL_REVIEW_INTEGRATION_ENABLED: true,
+  CRM_RELATIONSHIP_HEALTH_DISPLAY_ENABLED: true,
+  CRM_LIVE_ROLLUPS_ENABLED: true,
+  CRM_DAILY_ACTION_QUEUE_ENABLED: true,
 });
 
 /**
@@ -96,10 +95,10 @@ export const CRM_FEATURE_FLAG_DEFAULTS: CrmFeatureFlagState = Object.freeze({
 export function deriveCrmFeatureFlagState(
   config?: CrmFeatureFlagConfig,
 ): CrmFeatureFlagState {
+  if (config === undefined) return CRM_FEATURE_FLAG_DEFAULTS;
   const livePersistence = config?.livePersistenceEnabled === true;
   return {
-    // Route registration is intentionally not enabled in Phase 141L.
-    CRM_ROUTE_ENABLED: false,
+    CRM_ROUTE_ENABLED: config?.routeEnabled === true,
     CRM_LIVE_PERSISTENCE_ENABLED: livePersistence,
     CRM_CONTACT_EDITING_ENABLED:
       livePersistence && config?.contactEditingEnabled === true,

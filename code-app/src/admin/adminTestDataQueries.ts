@@ -32,7 +32,11 @@ export async function loadTestDataSnapshot(): Promise<TestDataSnapshot> {
     // Final LOS Completion arc (N-17 follow-on) — cr664_istestrecord was previously omitted from
     // this select list, so this view (whose entire purpose is showing the governed classification)
     // silently fell back to name-only matching, same bug fixed for Manager/Team in this arc.
-    select: ['cr664_loandealid', 'cr664_dealname', 'createdon', 'cr664_stagereferencename', 'cr664_istestrecord'],
+    // The legacy cr664_stagereferencename shadow property is not present in
+    // the live Dataverse table. Stage is deliberately omitted here: this
+    // view classifies test data and must not fail its entire load for a
+    // nonessential display field.
+    select: ['cr664_loandealid', 'cr664_dealname', 'createdon', 'cr664_istestrecord'],
     orderBy: ['createdon desc'],
   });
   if (!result.success) {
@@ -44,7 +48,7 @@ export async function loadTestDataSnapshot(): Promise<TestDataSnapshot> {
       id: d.cr664_loandealid,
       name: d.cr664_dealname,
       createdOn: d.createdon,
-      stage: d.cr664_stagereferencename,
+      stage: undefined,
       isTestRecord: raw['cr664_istestrecord'] as boolean | undefined,
     };
   });

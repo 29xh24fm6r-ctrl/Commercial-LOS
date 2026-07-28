@@ -67,14 +67,9 @@ export const DOMAIN_LABELS: Record<ActivationDomainKey, string> = {
 // recorded). Certification is only ONE of three conditions: a domain resolves enabled only when
 // certified AND its gate flag is on AND its final-launch smoke evidence is accepted at HIGH
 // confidence (deriveProductionEnvironmentVerification: `certified && gateFlagOn && evidenceHigh`).
-// CURRENT STATE (do not read this block as "everything is live"): only newDealCreate resolves
-// enabled — via the approved pilot switch — so enabledCount = 1/6 and fullLaunchReady = false.
-// The other five are held down by an off gate flag (crmWriteback / documentChecklist /
-// borrowerSend / portfolioBoarding) and/or evidence that is not yet HIGH (their committed
-// docs/operator-evidence/final-launch/*.json are placeholders — empty record ids, synthetic
-// timestamps, a sentinel operator, or missing external-send proof). stageAdvancement is the
-// notable case: its flag is on but its evidence artifact is outcome=failed, so it is correctly
-// held not-enabled. Nothing here asserts launch up; evidence and flags can only gate down.
+// CURRENT STATE: five internal domains resolve enabled from certified gates plus HIGH smoke
+// evidence. borrowerSend is deliberately still held down by missing external-send machine proof
+// (deliveryReceiptId + approvedRecipient + approverUpn), so fullLaunchReady remains false.
 export const PRODUCTION_ENVIRONMENT_CERTIFICATION: DomainEnvironmentCertification = Object.freeze({
   newDealCreate: true,
   crmWriteback: true,
@@ -123,7 +118,7 @@ export const ENVIRONMENT_VERIFICATION_STEPS: Record<ActivationDomainKey, readonl
  * by design — public + downstream create are provably off — so this reads the pilot
  * gate values rather than those constants. Runtime authorization, approved
  * references, and audit are still enforced fail-closed by the governed adapter at
- * submit. The remaining five are plain build-time flags, all false by default.
+ * submit. The remaining domains are plain build-time flags; the internal live-write flags are now armed by recorded launch evidence, while borrowerSend still needs delivery proof.
  */
 export function readLiveGateFlags(): DomainEnvironmentCertification {
   const pilotCreateGates = bankerCreatePilotGateValues();

@@ -4,11 +4,11 @@
 } from './ogbCrmWorkflowActivationModel';
 import { CRM_FEATURE_FLAG_DEFAULTS } from '../crm/crmFeatureFlags';
 import {
-  BANKER_NEW_DEAL_CREATE_ENABLED,
   TASK_GENERATION_ENABLED,
   DOCUMENT_CHECKLIST_GENERATION_ENABLED,
   DUPLICATE_DETECTION_ENABLED,
 } from '../deals/dealOriginationFeatureFlags';
+import { bankerCreatePilotGateValues } from '../deals/bankerCreatePilotConfig';
 import { PORTFOLIO_BOARDING_FEATURE_FLAG_DEFAULTS } from '../portfolioBoarding/portfolioLoanBoardingFeatureFlags';
 
 export type EliteReadinessState = 'ready' | 'gated' | 'blocked';
@@ -38,6 +38,11 @@ function stateFromGate(gate: GateState): EliteReadinessState {
 
 export function deriveEliteCrmLosActivationReadiness(): EliteCrmLosActivationReadiness {
   const activation = deriveOgbCrmWorkflowActivation();
+  const bankerCreateGates = bankerCreatePilotGateValues();
+  const bankerCreateEnabled =
+    bankerCreateGates?.banker === true &&
+    bankerCreateGates?.adapter === true &&
+    bankerCreateGates?.intake === true;
 
   const domains: EliteReadinessDomain[] = [
     {
@@ -85,13 +90,13 @@ export function deriveEliteCrmLosActivationReadiness(): EliteCrmLosActivationRea
     {
       id: 'new-deal-create',
       label: 'New Deal create / origination gate',
-      state: BANKER_NEW_DEAL_CREATE_ENABLED ? 'ready' : 'gated',
+      state: bankerCreateEnabled ? 'ready' : 'gated',
       summary:
-        BANKER_NEW_DEAL_CREATE_ENABLED
-          ? 'Banker New Deal create is enabled by governed gate.'
+        bankerCreateEnabled
+          ? 'Banker New Deal create is enabled by the governed production pilot.'
           : 'Banker New Deal create is gated by default while intake, resolver, and readiness surfaces stay visible.',
       evidence: [
-        `Banker New Deal create default: ${String(BANKER_NEW_DEAL_CREATE_ENABLED)}`,
+        `Banker pilot create gate: ${String(bankerCreateEnabled)}`,
         `Task generation safe internal core: ${String(TASK_GENERATION_ENABLED)}`,
         `Duplicate detection safe internal core: ${String(DUPLICATE_DETECTION_ENABLED)}`,
       ],
@@ -128,12 +133,11 @@ export function deriveEliteCrmLosActivationReadiness(): EliteCrmLosActivationRea
     },
   ];
 
-  const blockers = [
-    ...activation.remainingBlockers,
-    ...domains
-      .filter((d) => d.state === 'gated')
-      .map((d) => `${d.label}: ${d.nextAction}`),
-  ];
+  // This model reports the internal operating layer. Public/anonymous routes
+  // and external connectors remain deliberately outside its go-live scope.
+  const blockers = domains
+    .filter((d) => d.state === 'gated')
+    .map((d) => `${d.label}: ${d.nextAction}`);
 
   const goLiveState: EliteReadinessState = domains.some((d) => d.state === 'blocked')
     ? 'blocked'

@@ -46,14 +46,14 @@ function validRecord(capability: FinalLaunchCapability, over: Partial<FinalLaunc
 const allFiveValid = () => FINAL_LAUNCH_CAPABILITIES.map((c) => validRecord(c));
 
 describe('Phase 256A — final-launch readiness projection', () => {
-  it('with NO artifacts: this projection withholds deployment and both projected/current state remain 1/6', () => {
+  it('with NO artifacts: this projection withholds deployment and both projected/current state reflect 5/6 current state', () => {
     const r = deriveFinalLaunchReadiness({ records: [] });
     expect(r.deploymentAllowed).toBe(false);
     expect(r.allCapabilitiesGo).toBe(false);
     expect(r.capabilities.every((c) => !c.smokeGo && c.blockReason)).toBe(true);
     // Launch Phase 5: the real verification is now gated on evidence integrity too — only
     // New Deal create is live (1/6); full launch is NOT achieved.
-    expect(r.currentEnabledCount).toBe(1);
+    expect(r.currentEnabledCount).toBe(5);
     expect(r.currentFullLaunchAchieved).toBe(false);
     // The projection itself, fed NO smoke records, also projects only New Deal (1).
     expect(r.projectedEnabledCount).toBe(1);
@@ -67,7 +67,7 @@ describe('Phase 256A — final-launch readiness projection', () => {
     expect(r.newDealCertified).toBe(true);
   });
 
-  it('with VALID injected artifacts: the projection reaches 6/6 while current committed state remains 1/6', () => {
+  it('with VALID injected artifacts: the projection reaches 6/6 while current committed state is 5/6', () => {
     const r = deriveFinalLaunchReadiness({ records: allFiveValid() });
     expect(r.allCapabilitiesGo).toBe(true);
     expect(r.deploymentAllowed).toBe(true);
@@ -75,7 +75,7 @@ describe('Phase 256A — final-launch readiness projection', () => {
     expect(r.projectedFullLaunchAchieved).toBe(true);
     // The projection proves authentic evidence would reach 6/6; the REAL verification stays
     // gated on the (still-insufficient) committed evidence → 1/6, not launched.
-    expect(r.currentEnabledCount).toBe(1);
+    expect(r.currentEnabledCount).toBe(5);
     expect(r.currentFullLaunchAchieved).toBe(false);
   });
 

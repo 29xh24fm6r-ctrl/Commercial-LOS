@@ -66,6 +66,11 @@ export interface CapabilityControlInput {
   label: string;
   category: CapabilityCategory;
   flags: CapabilityGateFlag[];
+  /**
+   * Capabilities such as manual CRM writes and audit emission are controlled
+   * by actor authorization rather than a global boolean kill switch.
+   */
+  enabledWithoutFlag?: boolean;
   /** Non-flag blockers (missing schema/service/reference), if any. */
   blockers?: string[];
   /** Latest recorded smoke result, or null if none has been run. */
@@ -139,9 +144,14 @@ function assess(c: CapabilityControlInput): CapabilityControlState {
   if (blockers.length > 0) {
     state = 'blocked';
     reason = `Blocked: ${blockers.join('; ')}.`;
-  } else if (requiredFalse.length === 0 && c.flags.some((f) => f.required)) {
+  } else if (
+    requiredFalse.length === 0 &&
+    (c.flags.some((f) => f.required) || c.enabledWithoutFlag === true)
+  ) {
     state = 'enabled';
-    reason = 'All required gates are satisfied.';
+    reason = c.enabledWithoutFlag
+      ? 'Active through the governed actor-authorization gate; no global feature flag is required.'
+      : 'All required gates are satisfied.';
   } else if (requiredFalse.length === 0) {
     // No required flags declared — treat as disabled (nothing asserts it on).
     state = 'disabled';
