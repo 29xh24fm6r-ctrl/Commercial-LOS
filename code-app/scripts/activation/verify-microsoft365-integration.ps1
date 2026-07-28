@@ -2,18 +2,22 @@
   Verifies the Microsoft 365 integration readiness artifacts for this Code App.
 
   Read-only:
-    - verifies the Office 365 Outlook connector + generated service using the existing script;
+    - verifies Office 365 Outlook configuration/runtime binding with verify-outlook-connector.ps1;
     - verifies the Teams app manifest template points at the deployed Commercial LOS Power Apps URL;
     - optionally verifies Teams package icons are present.
 
-  This script performs no Outlook send, no Teams upload, no Graph call, no Dataverse write, and no
-  pac code push.
+  This script performs no Outlook send, no Teams upload, no Graph call, no Dataverse write,
+  no connector registration, and no Power Apps code deployment.
 #>
 [CmdletBinding()]
-param([switch]$RequireTeamsIcons)
+param(
+  [switch]$RequireTeamsIcons,
+  [switch]$RequireOutlookRuntimeBinding,
+  [string]$RepoRoot
+)
 
 $ErrorActionPreference = 'Stop'
-$repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$repo = if ($RepoRoot) { (Resolve-Path -LiteralPath $RepoRoot).Path } else { (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path }
 $teamsDir = Join-Path $repo 'microsoft365\teams'
 $manifestPath = Join-Path $teamsDir 'manifest.template.json'
 $outlookVerifier = Join-Path $PSScriptRoot 'verify-outlook-connector.ps1'
@@ -27,13 +31,40 @@ function Write-Check($Name, $Ok, $Detail) {
   return [bool]$Ok
 }
 
+function Read-StateValue($Text, $Name) {
+  $match = [regex]::Match($Text, "(?m)^$Name=(PASS|BLOCKED|UNKNOWN)\s*$")
+  if ($match.Success) { return $match.Groups[1].Value }
+  return 'UNKNOWN'
+}
+
 Write-Host '== Microsoft 365 integration readiness verification =='
 
 $ok = $true
+$unknown = $false
+$outlookConfigured = 'UNKNOWN'
+$outlookRuntime = 'UNKNOWN'
+$outlookLive = 'UNKNOWN'
+$outlookStatus = 'UNKNOWN'
 
 if (Test-Path -LiteralPath $outlookVerifier) {
-  & powershell -File $outlookVerifier
-  if ($LASTEXITCODE -ne 0) { $ok = $false }
+  $outlookOutput = & powershell -File $outlookVerifier -RepoRoot $repo 2>&1
+  $outlookExit = $LASTEXITCODE
+  $outlookOutput | ForEach-Object { Write-Host $_ }
+  $outlookText = ($outlookOutput | Out-String)
+  $outlookConfigured = Read-StateValue $outlookText 'CONFIGURED'
+  $outlookRuntime = Read-StateValue $outlookText 'RUNTIME_BOUND'
+  $outlookLive = Read-StateValue $outlookText 'LIVE_CERTIFIED'
+  $outlookStatus = Read-StateValue $outlookText 'STATUS'
+  if ($outlookExit -ne 0 -or $outlookStatus -eq 'BLOCKED') { $ok = $false }
+  if ($outlookStatus -eq 'UNKNOWN') { $unknown = $true }
+  if ($RequireOutlookRuntimeBinding -and $outlookRuntime -ne 'PASS') {
+    if ($outlookRuntime -eq 'BLOCKED') {
+      $ok = (Write-Check 'Outlook runtime binding required' $false 'dataSourcesInfo.ts exists but lacks office365 Connector binding') -and $ok
+    } else {
+      Write-Host '[UNKNOWN] Outlook runtime binding required - runtime manifest absent; generate/sync dataSourcesInfo.ts and verify before deployment.'
+      $unknown = $true
+    }
+  }
 } else {
   $ok = (Write-Check 'Outlook verifier' $false 'scripts/activation/verify-outlook-connector.ps1 is missing') -and $ok
 }
@@ -67,9 +98,15 @@ if ($RequireTeamsIcons) {
 }
 
 if (-not $ok) {
-  Write-Host 'STATUS: BLOCKED'
+  Write-Host 'STATUS=BLOCKED'
   exit 1
 }
 
-Write-Host 'STATUS: PASS'
-Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=PASS teamsManifest={0} requireIcons={1} ts={2}" -f $manifestPath, $RequireTeamsIcons.IsPresent, (Get-Date -Format o))
+if ($unknown) {
+  Write-Host 'STATUS=UNKNOWN'
+  Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=UNKNOWN outlookConfigured={0} outlookRuntime={1} outlookLive={2} teamsManifest={3} requireIcons={4} requireOutlookRuntimeBinding={5} ts={6}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, (Get-Date -Format o))
+  exit 0
+}
+
+Write-Host 'STATUS=PASS'
+Write-Host ("EVIDENCE: [microsoft365-integration] STATUS=PASS outlookConfigured={0} outlookRuntime={1} outlookLive={2} teamsManifest={3} requireIcons={4} requireOutlookRuntimeBinding={5} ts={6}" -f $outlookConfigured, $outlookRuntime, $outlookLive, $manifestPath, $RequireTeamsIcons.IsPresent, $RequireOutlookRuntimeBinding.IsPresent, (Get-Date -Format o))

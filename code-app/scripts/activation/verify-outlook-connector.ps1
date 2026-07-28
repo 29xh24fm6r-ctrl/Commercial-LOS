@@ -1,59 +1,157 @@
 <#
-  Phase 242B — verify-outlook-connector.ps1
+  Phase 242B/250 hardening — verify-outlook-connector.ps1
 
   READ-ONLY operator verification. Inspects repository artifacts only.
   NO live write, NO Dataverse create/update/delete, NO email send, NO feature-flag
   flip, NO Power Platform deploy, NO route/permission change.
 
-  What it checks:
-    - the generated Office 365 Outlook connector service exists
-    - the connector is registered, in EITHER the data-source manifest
-      (.power/schemas/appschemas/dataSourcesInfo.ts) OR power.config.json
-
-  Phase 250: PAC writes connector registration to power.config.json (the apis/
-  shared_office365 entry), and dataSourcesInfo.ts may NOT contain the connector
-  string. So both sources are inspected; either match counts as registered.
-
-  It does NOT send mail and does NOT exercise the connector. It only confirms the
-  connector + regenerated SDK are present so a separately-governed send path could
-  later be certified.
+  It distinguishes three states:
+    CONFIGURED      — generated Outlook service exists and power.config.json
+                      declares shared_office365 with the office365 data source.
+    RUNTIME_BOUND   — if .power/schemas/appschemas/dataSourcesInfo.ts exists,
+                      it must contain an office365 entry with dataSourceType:
+                      Connector. power.config.json alone is never runtime proof.
+    LIVE_CERTIFIED  — manual evidence only. Connector acceptance is not delivery;
+                      actual inbox receipt must be recorded separately.
 #>
+[CmdletBinding()]
+param(
+  [string]$RepoRoot,
+  [switch]$ManualConnectorAccepted,
+  [switch]$ManualInboxReceiptConfirmed
+)
 
 $ErrorActionPreference = 'Stop'
-$repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$repo = if ($RepoRoot) { (Resolve-Path -LiteralPath $RepoRoot).Path } else { (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path }
 $servicePath = Join-Path $repo 'src\generated\services\Office365OutlookService.ts'
 $dsiPath = Join-Path $repo '.power\schemas\appschemas\dataSourcesInfo.ts'
 $powerConfigPath = Join-Path $repo 'power.config.json'
 
-$serviceExists = Test-Path -LiteralPath $servicePath
-$dsiText = if (Test-Path -LiteralPath $dsiPath) { Get-Content -Raw -LiteralPath $dsiPath } else { '' }
-$powerConfigText = if (Test-Path -LiteralPath $powerConfigPath) { Get-Content -Raw -LiteralPath $powerConfigPath } else { '' }
-
-# Real PAC manifest shapes for the Office 365 Outlook connector.
-$registrationPattern = '(?i)shared_office365|office\s*365|new_Office365Outlook'
-$registeredInManifest = [bool]($dsiText -match $registrationPattern)
-$registeredInPowerConfig = [bool]($powerConfigText -match $registrationPattern)
-$connectorRegistered = $registeredInManifest -or $registeredInPowerConfig
-
-if ($serviceExists -and $connectorRegistered) { $status = 'PASS' }
-elseif (-not $serviceExists) { $status = 'BLOCKED' }
-else { $status = 'UNKNOWN' }
-
-Write-Host '== Phase 242B/250 :: Outlook connector + SDK verification (read-only) =='
-Write-Host 'Checks: generated Office365Outlook service + connector registration (dataSourcesInfo.ts OR power.config.json).'
-Write-Host ("Generated service present: {0}" -f $serviceExists)
-Write-Host ("Connector registered in dataSourcesInfo.ts: {0}" -f $registeredInManifest)
-Write-Host ("Connector registered in power.config.json: {0}" -f $registeredInPowerConfig)
-Write-Host ("Connector registered (either source): {0}" -f $connectorRegistered)
-Write-Host ("STATUS: {0}" -f $status)
-
-if ($status -ne 'PASS') {
-  Write-Host 'NEXT (operator, manual):'
-  Write-Host '  1) In the maker portal add/authorize the Office 365 Outlook connector for the app.'
-  Write-Host '  2) Register it (power.config.json apis/shared_office365) and regenerate the typed SDK; confirm Office365OutlookService is generated.'
-  Write-Host '  3) Re-run this script. Exact steps: scripts/activation/README.md (Outlook connector).'
-} else {
-  Write-Host 'NEXT (operator, manual): connector + SDK present. The borrower-send gate flip + explicit audited live-send certification remain separate governed steps.'
+function Read-OptionalText($Path) {
+  if (Test-Path -LiteralPath $Path) { return Get-Content -Raw -LiteralPath $Path }
+  return ''
 }
 
-Write-Host ("EVIDENCE: [250][outlook-connector] STATUS={0} service={1} registered={2} source={3} ts={4}" -f $status, $serviceExists, $connectorRegistered, $(if ($registeredInPowerConfig) { 'power.config.json' } elseif ($registeredInManifest) { 'dataSourcesInfo.ts' } else { 'none' }), (Get-Date -Format o))
+function Convert-OptionalJson($Text) {
+  if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
+  try { return $Text | ConvertFrom-Json } catch { return $null }
+}
+
+function Get-OutlookPowerConfigState($PowerConfigText) {
+  $json = Convert-OptionalJson $PowerConfigText
+  if ($null -eq $json) {
+    return @{
+      HasSharedOffice365 = $false
+      HasOffice365DataSource = $false
+      Detail = 'power.config.json missing or invalid'
+    }
+  }
+
+  $refs = $json.connectionReferences
+  if ($null -eq $refs) {
+    return @{
+      HasSharedOffice365 = $false
+      HasOffice365DataSource = $false
+      Detail = 'connectionReferences missing'
+    }
+  }
+
+  $hasShared = $false
+  $hasDataSource = $false
+  foreach ($prop in $refs.PSObject.Properties) {
+    $value = $prop.Value
+    $id = [string]$value.id
+    $dataSources = @($value.dataSources | ForEach-Object { [string]$_ })
+    if ($id -match '/providers/Microsoft\.PowerApps/apis/shared_office365$' -or $id -eq 'shared_office365') {
+      $hasShared = $true
+    }
+    if ($dataSources -contains 'office365') {
+      $hasDataSource = $true
+    }
+  }
+
+  return @{
+    HasSharedOffice365 = $hasShared
+    HasOffice365DataSource = $hasDataSource
+    Detail = "shared_office365=$hasShared office365DataSource=$hasDataSource"
+  }
+}
+
+function Get-OutlookRuntimeBindingState($DataSourcesInfoPath, $DataSourcesInfoText) {
+  if (-not (Test-Path -LiteralPath $DataSourcesInfoPath)) {
+    return @{
+      Status = 'UNKNOWN'
+      HasManifest = $false
+      Detail = 'runtime manifest absent; follow the Microsoft 365 integration runbook to generate/sync and verify before deployment'
+    }
+  }
+
+  $hasOffice365 = [bool]($DataSourcesInfoText -match '(?m)["'']office365["'']\s*:')
+  $hasConnectorType = [bool]($DataSourcesInfoText -match '(?s)["'']office365["'']\s*:\s*\{.*?["'']dataSourceType["'']\s*:\s*["'']Connector["'']')
+  if ($hasOffice365 -and $hasConnectorType) {
+    return @{
+      Status = 'PASS'
+      HasManifest = $true
+      Detail = 'office365 runtime data source is bound as dataSourceType Connector'
+    }
+  }
+
+  return @{
+    Status = 'BLOCKED'
+    HasManifest = $true
+    Detail = 'runtime manifest exists but office365 Connector entry is absent; power.config.json alone is not runtime binding proof'
+  }
+}
+
+$serviceExists = Test-Path -LiteralPath $servicePath
+$dsiText = Read-OptionalText $dsiPath
+$powerConfigText = Read-OptionalText $powerConfigPath
+
+$configState = Get-OutlookPowerConfigState $powerConfigText
+$configuredPass = $serviceExists -and $configState.HasSharedOffice365 -and $configState.HasOffice365DataSource
+$configuredStatus = if ($configuredPass) { 'PASS' } else { 'BLOCKED' }
+
+$runtimeState = Get-OutlookRuntimeBindingState $dsiPath $dsiText
+$runtimeStatus = $runtimeState.Status
+
+$liveCertifiedStatus = if ($ManualConnectorAccepted -and $ManualInboxReceiptConfirmed) { 'PASS' } else { 'UNKNOWN' }
+
+$status = if ($configuredStatus -eq 'BLOCKED' -or $runtimeStatus -eq 'BLOCKED') {
+  'BLOCKED'
+} elseif ($configuredStatus -eq 'PASS' -and $runtimeStatus -eq 'PASS') {
+  'PASS'
+} else {
+  'UNKNOWN'
+}
+
+Write-Host '== Outlook connector configuration/runtime/live-certification verification (read-only) =='
+Write-Host 'CONFIGURED means generated service + power.config.json shared_office365/office365 are present.'
+Write-Host 'RUNTIME_BOUND means dataSourcesInfo.ts, when present, contains office365 with dataSourceType Connector.'
+Write-Host 'LIVE_CERTIFIED is manual evidence only: connector acceptance is not delivery; actual inbox receipt must be recorded separately.'
+Write-Host ("Generated service present: {0}" -f $serviceExists)
+Write-Host ("power.config.json Outlook registration: {0}" -f $configState.Detail)
+Write-Host ("runtime manifest: {0}" -f $runtimeState.Detail)
+Write-Host ("manual connector accepted evidence supplied: {0}" -f $ManualConnectorAccepted.IsPresent)
+Write-Host ("manual inbox receipt evidence supplied: {0}" -f $ManualInboxReceiptConfirmed.IsPresent)
+Write-Host ("CONFIGURED={0}" -f $configuredStatus)
+Write-Host ("RUNTIME_BOUND={0}" -f $runtimeStatus)
+Write-Host ("LIVE_CERTIFIED={0}" -f $liveCertifiedStatus)
+Write-Host ("STATUS={0}" -f $status)
+
+if ($configuredStatus -ne 'PASS') {
+  Write-Host 'NEXT (operator, manual): add/authorize Office 365 Outlook, confirm power.config.json has shared_office365 with dataSources ["office365"], and regenerate the typed service.'
+}
+if ($runtimeStatus -eq 'BLOCKED') {
+  Write-Host 'NEXT (operator, manual): follow the Microsoft 365 integration runbook runtime-binding recovery sequence; verify dataSourcesInfo.ts has office365 dataSourceType Connector; rebuild before deployment.'
+}
+if ($runtimeStatus -eq 'UNKNOWN') {
+  Write-Host 'NEXT (operator, manual): generate/sync .power/schemas/appschemas/dataSourcesInfo.ts and verify office365 runtime binding before deployment.'
+}
+if ($ManualConnectorAccepted -and -not $ManualInboxReceiptConfirmed) {
+  Write-Host 'NOTE: Connector accepted the smoke message, but delivery is NOT certified until actual inbox receipt is confirmed.'
+}
+
+Write-Host ("EVIDENCE: [outlook-connector-runtime-binding] CONFIGURED={0} RUNTIME_BOUND={1} LIVE_CERTIFIED={2} STATUS={3} service={4} manifestExists={5} ts={6}" -f $configuredStatus, $runtimeStatus, $liveCertifiedStatus, $status, $serviceExists, $runtimeState.HasManifest, (Get-Date -Format o))
+
+if ($status -eq 'BLOCKED') { exit 1 }
+exit 0

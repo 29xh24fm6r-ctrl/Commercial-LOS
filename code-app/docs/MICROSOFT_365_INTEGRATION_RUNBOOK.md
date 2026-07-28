@@ -15,11 +15,84 @@ The separation matters. Outlook send is already a connector-backed governed writ
   powershell -File scripts/activation/verify-outlook-connector.ps1
   ```
 
-- Expected result: `STATUS=PASS`.
+- Expected deployment-readiness result:
+  - `CONFIGURED=PASS`
+  - `RUNTIME_BOUND=PASS`
+  - `STATUS=PASS`
+- `LIVE_CERTIFIED=PASS` is a separate manual evidence state. It requires actual inbox receipt evidence; connector acceptance alone is not delivery confirmation.
 - The only production connector callsite remains `Office365OutlookService.SendEmailV2` through `src/deals/emailDelivery/outlookEmailAdapters.ts`.
 - `VITE_EMAIL_MODE=LIVE` is the environment switch for real send. Missing or misspelled values fail closed to `DRY_RUN`.
 
 Before enabling broad borrower/document live send, run a diagnostic-mailbox smoke and record the evidence required by `scripts/dataverse/run-final-launch-smokes.ps1 -RecordManualEvidence`.
+
+## Outlook runtime-binding recovery sequence
+
+Use this sequence when the Admin Outlook LIVE Email Diagnostics smoke reports a runtime data-source error such as:
+
+```text
+Unable to find data source: office365 in data sources info.
+```
+
+First confirm the tenant connection and bind it into the local runtime manifest:
+
+```powershell
+pac connection list
+pac code add-data-source -a shared_office365 -c <connection-id>
+```
+
+Do not commit or paste the full connection ID into source control, tickets, or PR text. Mask it in evidence, for example `<masked-outlook-connection-id>`.
+
+Then verify the generated runtime manifest contains the Outlook connector entry:
+
+```powershell
+Select-String `
+  -Path .\.power\schemas\appschemas\dataSourcesInfo.ts `
+  -Pattern '"office365"|shared_office365' `
+  -Context 0,12
+```
+
+The required runtime proof is an `office365` entry with:
+
+```text
+dataSourceType: "Connector"
+```
+
+`power.config.json` proves configuration only; it does not prove the deployed runtime bundle is bound. Repeated `pac code push` without the runtime binding will redeploy the broken bundle.
+
+After the runtime manifest is repaired:
+
+```powershell
+npm run build
+pac code push
+```
+
+Then certify the live diagnostic path:
+
+1. Open Admin Workspace.
+2. Find **Outlook LIVE Email Diagnostics**.
+3. Confirm **Mode: LIVE**.
+4. Send only to an internal diagnostic mailbox.
+5. Confirm the UI reports `Connector accepted the smoke message.`
+6. Verify actual inbox receipt separately.
+
+Important distinctions:
+
+- Connector acceptance is not delivery confirmation.
+- Actual inbox receipt must be recorded separately for `LIVE_CERTIFIED=PASS`.
+- `.power` is generated/local and must not be committed.
+- The full Outlook connection ID must not be committed.
+
+For predeployment readiness, run:
+
+```powershell
+powershell -File scripts/activation/verify-microsoft365-integration.ps1 -RequireOutlookRuntimeBinding
+```
+
+Expected behavior:
+
+- `power.config.json` configured + runtime manifest missing `office365` => `BLOCKED`.
+- runtime manifest absent entirely => `UNKNOWN` with instructions to generate/sync it before deployment.
+- runtime manifest present + `office365` `Connector` entry => `PASS`.
 
 ## Current Teams posture
 
