@@ -24,6 +24,29 @@ export interface MeetingProposal {
   correlationId: string;
 }
 
+export interface OutlookCalendarEventPayload {
+  subject: string;
+  start: string;
+  end: string;
+  timeZone: string;
+  requiredAttendees: string;
+  optionalAttendees: string;
+  location?: string;
+  body: string;
+  isHtml: boolean;
+  importance: 'normal';
+  responseRequested: boolean;
+  categories: string[];
+}
+
+export interface GovernedCalendarCreateRequest {
+  calendarId: string;
+  proposal: MeetingProposal;
+  idempotencyKey: string;
+  approvedInternalRecipients: string[];
+  operatorConfirmed: boolean;
+}
+
 export interface MeetingCreationOutcome {
   kind: MeetingCreationOutcomeKind;
   message: string;
@@ -87,6 +110,49 @@ export function createDefaultMeetingProposal(input: {
     source: 'banker-calendar-availability-panel',
     policyVersion: 'm365-calendar-teams-2026-07-28',
     correlationId: input.correlationId,
+  };
+}
+
+export function buildMeetingIdempotencyKey(proposal: MeetingProposal): string {
+  return [
+    proposal.dealId,
+    proposal.start,
+    proposal.end,
+    proposal.requiredAttendees.join(',').toLowerCase(),
+    proposal.optionalAttendees.join(',').toLowerCase(),
+  ].join('|');
+}
+
+export function allRecipientsAreApprovedInternal(
+  proposal: MeetingProposal,
+  approvedInternalRecipients: string[],
+): boolean {
+  const approved = new Set(approvedInternalRecipients.map((recipient) => recipient.trim().toLowerCase()).filter(Boolean));
+  return [...proposal.requiredAttendees, ...proposal.optionalAttendees]
+    .every((recipient) => approved.has(recipient.trim().toLowerCase()) && recipient.toLowerCase().endsWith('@oldglorybank.com'));
+}
+
+export function buildOutlookCalendarEventPayload(proposal: MeetingProposal): OutlookCalendarEventPayload {
+  return {
+    subject: proposal.subject,
+    start: new Date(proposal.start).toISOString(),
+    end: new Date(proposal.end).toISOString(),
+    timeZone: proposal.timezone,
+    requiredAttendees: proposal.requiredAttendees.join(';'),
+    optionalAttendees: proposal.optionalAttendees.join(';'),
+    location: proposal.location,
+    body: [
+      proposal.bodyPreview,
+      '',
+      `LOS deal: ${proposal.dealId}`,
+      `Correlation: ${proposal.correlationId}`,
+      `Policy: ${proposal.policyVersion}`,
+      proposal.teamsMeetingRequested ? 'Teams meeting requested: yes' : 'Teams meeting requested: no',
+    ].join('\n'),
+    isHtml: false,
+    importance: 'normal',
+    responseRequested: true,
+    categories: ['Commercial LOS'],
   };
 }
 
