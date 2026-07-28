@@ -1,0 +1,50 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.21/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.21",
+  "version": "1.0.0",
+  "id": "63858e09-3d0b-47c9-b1d2-65cef742fda4",
+  "developer": {
+    "name": "Old Glory Bank",
+    "websiteUrl": "https://oldglorybank.com",
+    "privacyUrl": "https://oldglorybank.com/privacy",
+    "termsOfUseUrl": "https://oldglorybank.com/terms"
+  },
+  "name": {
+    "short": "Commercial LOS",
+    "full": "Old Glory Bank Commercial Lending LOS"
+  },
+  "description": {
+    "short": "Commercial lending origination and portfolio command center.",
+    "full": "Old Glory Bank Commercial Lending LOS hosted as a Microsoft Teams tab. The app uses existing Power Apps and Dataverse authentication and keeps Teams communication user-mediated unless a separately approved Graph posting service is added."
+  },
+  "icons": {
+    "outline": "outline.png",
+    "color": "color.png"
+  },
+  "accentColor": "#10245A",
+  "staticTabs": [
+    {
+      "entityId": "commercial-los-home",
+      "name": "Commercial LOS",
+      "contentUrl": "https://apps.powerapps.com/play/e/5f2d77a5-de50-edeb-9d74-5b2400a2320d/app/63858e09-3d0b-47c9-b1d2-65cef742fda4?tenantId=e5d2be43-2e2c-4968-b5f3-c73dd825ee80",
+      "websiteUrl": "https://apps.powerapps.com/play/e/5f2d77a5-de50-edeb-9d74-5b2400a2320d/app/63858e09-3d0b-47c9-b1d2-65cef742fda4?tenantId=e5d2be43-2e2c-4968-b5f3-c73dd825ee80",
+      "scopes": [
+        "personal"
+      ]
+    }
+  ],
+  "validDomains": [
+    "apps.powerapps.com",
+    "make.powerapps.com",
+    "oldglorybank.com"
+  ],
+  "webApplicationInfo": {
+    "id": "63858e09-3d0b-47c9-b1d2-65cef742fda4",
+    "resource": "https://apps.powerapps.com"
+  },
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": []
+    }
+  }
+}
