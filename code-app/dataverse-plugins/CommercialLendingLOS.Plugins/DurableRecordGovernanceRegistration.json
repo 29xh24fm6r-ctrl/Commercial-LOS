@@ -1,0 +1,43 @@
+{
+  "assemblyName": "CommercialLendingLOS.Plugins",
+  "pluginType": "CommercialLendingLOS.Plugins.DurableRecordGovernancePlugin",
+  "stage": 20,
+  "mode": 0,
+  "rank": 1,
+  "supportedDeployment": 0,
+  "entities": [
+    {
+      "logicalName": "cr664_creditapprovaldecision",
+      "preImageAttributes": "cr664_decisionid,cr664_dealid,cr664_decisionstatus,cr664_requestedby,cr664_decidedby,cr664_rationale,cr664_authoritytier,cr664_correlationid"
+    },
+    {
+      "logicalName": "cr664_commitmentrecord",
+      "preImageAttributes": "cr664_commitmentid,cr664_dealid,cr664_commitmentstatus,cr664_issuedby,cr664_respondedby,cr664_supersedescommitmentid,cr664_correlationid"
+    },
+    {
+      "logicalName": "cr664_conditionverification",
+      "preImageAttributes": "cr664_recordid,cr664_dealid,cr664_conditiontype,cr664_verificationstatus,cr664_verifiedby,cr664_supersedesrecordid,cr664_correlationid"
+    },
+    {
+      "logicalName": "cr664_executeddocattestation",
+      "preImageAttributes": "cr664_attestationid,cr664_dealid,cr664_attestationstatus,cr664_attestedby,cr664_supersedesattestationid,cr664_correlationid"
+    },
+    {
+      "logicalName": "cr664_bookingqccheck",
+      "preImageAttributes": "cr664_checkid,cr664_dealid,cr664_qcstatus,cr664_reviewedby,cr664_supersedescheckid,cr664_correlationid"
+    },
+    {
+      "logicalName": "cr664_adverseactionrecord",
+      "preImageAttributes": "cr664_recordid,cr664_dealid,cr664_actionstatus,cr664_recordedby,cr664_supersedesrecordid,cr664_correlationid"
+    },
+    {
+      "logicalName": "cr664_fundingauthorization",
+      "preImageAttributes": "cr664_recordid,cr664_dealid,cr664_authorizationstatus,cr664_requestedamount,cr664_approvedamount,cr664_fundingdate,cr664_destinationverificationstatus,cr664_conditionssatisfied,cr664_exceptionsjson,cr664_authorizedby,cr664_secondapprovedby,cr664_requestedby,cr664_requestedat,cr664_authorizedat,cr664_correlationid,cr664_supportingdocumentidsjson,cr664_auditeventidsjson,cr664_supersedesrecordid"
+    }
+  ],
+  "messages": [
+    "Create",
+    "Update",
+    "Delete"
+  ]
+}

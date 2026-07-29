@@ -97,17 +97,33 @@ filters.
 
 ## Remaining GO blockers
 
-1. A tenant administrator must confirm the retention/legal-hold policy that
-   applies to Dataverse File and its related audit evidence.
+1. A tenant administrator must enable/confirm environment, table, and column
+   auditing and the retention/legal-hold policy that applies to Dataverse File
+   and its related audit evidence. Read-only metadata now proves environment
+   auditing and all scoped table audit flags are disabled.
 2. Distinct live identities must perform document review, credit approval,
    funding authorization, boarding, servicing, and the associated prohibited
    same-actor/direct-route tests.
 3. For a funding amount at or above $250,000, two funding approvers must be
    distinct from each other and from the requester.
-4. The six newer durable-record tables do not yet have server-side Dataverse
-   plug-in enforcement. Their client-side controls must not be represented as
-   independently bypass-resistant.
-5. The incomplete boarded-loan servicing owner, status, and risk facts require
+4. The incomplete boarded-loan servicing owner, status, and risk facts require
    an authoritative servicing/core source and must not be fabricated.
+
+## Server-enforcement update
+
+The prior server-side blocker is closed for seven durable tables, including
+funding authorization:
+
+- strong-named assembly SHA-256
+  `7edb89b1bd568e8b018a6cc364b3e1811a6716c8fe1f2a8d89694fb4449459b6`;
+- 21/21 active synchronous PreOperation steps;
+- 7/7 Update pre-images;
+- solution-managed in `CommercialLendingLOS`;
+- 64/64 plug-in tests passed;
+- 7/7 direct spoofed Web API creates rejected with unchanged row counts.
+
+See `DURABLE_RECORD_SERVER_ENFORCEMENT_EVIDENCE_2026-07-29.md`. This closes
+the direct-bypass implementation gap but does not replace positive multi-user
+certification.
 
 No production GO claim is made by this addendum.

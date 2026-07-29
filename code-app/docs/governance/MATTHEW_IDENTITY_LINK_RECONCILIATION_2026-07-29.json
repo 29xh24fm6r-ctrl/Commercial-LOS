@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+  "organizationUrl": "https://org3a57b8d4.crm.dynamics.com",
+  "purpose": "Reconcile the existing Matthew identity chain required by server-side durable-record enforcement.",
+  "deleteAllowed": false,
+  "operations": [
+    {
+      "entitySet": "cr664_users",
+      "recordId": "940a202e-756a-f111-ab0c-70a8a59be491",
+      "ifMatch": "W/\"4644303\"",
+      "before": {
+        "cr664_email": "mpaller@oldglorybank.com",
+        "cr664_activeaccessflag": false,
+        "_cr664_role_value": "930a202e-756a-f111-ab0c-70a8a59be491",
+        "_cr664_primaryworkspace_value": "920a202e-756a-f111-ab0c-70a8a59be491",
+        "statecode": 0
+      },
+      "patch": {
+        "cr664_activeaccessflag": true
+      },
+      "rollbackPatch": {
+        "cr664_activeaccessflag": false
+      }
+    },
+    {
+      "entitySet": "cr664_bankers",
+      "recordId": "d7975960-0d59-f111-bec7-70a8a59be491",
+      "ifMatch": "W/\"5081665\"",
+      "before": {
+        "cr664_email": "mpaller@oldglorybank.com",
+        "cr664_activeflag": true,
+        "_cr664_userloginmapping_value": null,
+        "cr664_approvallimit": 1000000.0,
+        "cr664_creditcommitteemember": true,
+        "cr664_approvaloverrideauthority": false,
+        "statecode": 0
+      },
+      "patch": {
+        "cr664_UserLoginMapping@odata.bind": "/cr664_users(940a202e-756a-f111-ab0c-70a8a59be491)"
+      },
+      "rollbackPatch": {
+        "cr664_UserLoginMapping@odata.bind": null
+      }
+    }
+  ],
+  "safety": [
+    "Both updates use If-Match against the captured ETag.",
+    "No role, approval limit, committee membership, override authority, workspace, email, or state is widened.",
+    "No row or history is deleted.",
+    "Post-apply readback must prove both links and capture new ETags."
+  ],
+  "applyEvidence": {
+    "result": "PASS",
+    "coreUser": {
+      "cr664_activeaccessflag": true,
+      "etag": "W/\"5246993\"",
+      "versionNumber": 5246993
+    },
+    "banker": {
+      "_cr664_userloginmapping_value": "940a202e-756a-f111-ab0c-70a8a59be491",
+      "etag": "W/\"5246995\"",
+      "versionNumber": 5246995
+    }
+  },
+  "status": "APPLIED_AND_READ_BACK"
+}

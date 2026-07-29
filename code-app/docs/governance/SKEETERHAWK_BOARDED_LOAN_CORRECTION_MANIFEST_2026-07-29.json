@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "manifestType": "authoritative-boarded-loan-correction",
+  "generatedAtUtc": "2026-07-29T00:00:00Z",
+  "environmentId": "5f2d77a5-de50-edeb-9d74-5b2400a2320d",
+  "organizationUrl": "https://org3a57b8d4.crm.dynamics.com",
+  "mode": "DRY_RUN_ONLY",
+  "mutationAuthorized": false,
+  "deleteAllowed": false,
+  "target": {
+    "entitySet": "cr664_portfolioboardedloans",
+    "logicalName": "cr664_portfolioboardedloan",
+    "recordId": "2b55128b-5376-f111-ab0f-70a8a59be491",
+    "loanNumber": "0100066127",
+    "etag": "W/\"4727477\"",
+    "versionNumber": 4727477,
+    "lastObservedModifiedOnUtc": "2026-07-02T20:21:02Z"
+  },
+  "observed": {
+    "cr664_name": "0100066127 — Skeeterhawk Express Transport LLC",
+    "cr664_loannumber": "0100066127",
+    "cr664_borrowerlegalname": "Skeeterhawk Express Transport LLC",
+    "cr664_borrowerdba": null,
+    "cr664_coresystemloanid": null,
+    "cr664_legacysystemid": null,
+    "cr664_originalcommitmentamount": 84840.0,
+    "cr664_currentoutstandingprincipal": 42579.68,
+    "cr664_availablebalance": 0.0,
+    "cr664_bookingdate": "2024-11-07T00:00:00Z",
+    "cr664_closingdate": null,
+    "cr664_maturitydate": "2027-11-07T00:00:00Z",
+    "cr664_loanstatus": null,
+    "cr664_currentriskrating": null,
+    "cr664_priorriskrating": null,
+    "cr664_boardingstatus": null,
+    "cr664_boardingready": false,
+    "cr664_boardready": false,
+    "cr664_portfoliomonitoringready": false,
+    "cr664_readinessjson": null,
+    "cr664_snapshotjson": null,
+    "cr664_originateddealid": null,
+    "_cr664_originatedloandeal_value": null,
+    "_cr664_assignedservicingowner_value": null,
+    "_cr664_portfoliomanager_value": null,
+    "_cr664_client_value": null,
+    "_cr664_team_value": null,
+    "statecode": 0
+  },
+  "readOnlySourceSearch": {
+    "matchingOriginatedLoanDealsByName": 0,
+    "matchingCrmOrganizationsByName": 0,
+    "conclusion": "No repository or Dataverse relationship row provides an authoritative deal/client link for this loan."
+  },
+  "requiredAuthoritativeInputs": [
+    {
+      "field": "cr664_loanstatus",
+      "sourceRequired": "core servicing system",
+      "value": null,
+      "status": "BLOCKED"
+    },
+    {
+      "field": "cr664_currentriskrating",
+      "sourceRequired": "core servicing or approved credit-risk system",
+      "value": null,
+      "status": "BLOCKED"
+    },
+    {
+      "field": "cr664_AssignedServicingOwner@odata.bind",
+      "sourceRequired": "approved servicing ownership roster",
+      "value": null,
+      "status": "BLOCKED"
+    },
+    {
+      "field": "cr664_Team@odata.bind",
+      "sourceRequired": "approved servicing team assignment",
+      "value": null,
+      "status": "BLOCKED"
+    },
+    {
+      "field": "cr664_PortfolioManager@odata.bind",
+      "sourceRequired": "approved portfolio ownership roster",
+      "value": null,
+      "status": "BLOCKED"
+    },
+    {
+      "field": "cr664_Client@odata.bind",
+      "sourceRequired": "authoritative CRM/core client crosswalk",
+      "value": null,
+      "status": "BLOCKED"
+    },
+    {
+      "field": "cr664_OriginatedLoanDeal@odata.bind",
+      "sourceRequired": "authoritative origination-to-core loan crosswalk",
+      "value": null,
+      "status": "BLOCKED"
+    },
+    {
+      "field": "cr664_coresystemloanid",
+      "sourceRequired": "core servicing system immutable loan ID",
+      "value": null,
+      "status": "BLOCKED"
+    }
+  ],
+  "proposedPatch": null,
+  "applyContract": {
+    "preconditions": [
+      "All required authoritative inputs are non-null and their source/provenance is recorded.",
+      "Record ID, loan number, ETag, and version still match this manifest.",
+      "A fresh read proves there is still exactly one active row for loan 0100066127.",
+      "The proposed client, user, team, manager, and originated-deal lookup targets each exist and are active.",
+      "The risk rating and loan status use values accepted by the core servicing source, not UI-invented vocabulary.",
+      "Matthew approves the completed before/after patch after authoritative values are supplied."
+    ],
+    "httpMethod": "PATCH",
+    "concurrencyHeader": "If-Match: W/\"4727477\"",
+    "postconditions": [
+      "Read back every patched field and a new ETag/version.",
+      "Recalculate boarded-loan readiness without overriding missing facts.",
+      "Reconcile Portfolio, Manager, Team, Dashboard, and servicing surfaces.",
+      "Capture Dataverse audit actor/timestamp and the application audit/timeline correlation ID.",
+      "No duplicate boarded-loan row was created."
+    ],
+    "rollback": "A separately approved compensating PATCH may restore captured before-values. No delete is permitted."
+  },
+  "verdict": "BLOCKED_AWAITING_AUTHORITATIVE_SERVICING_VALUES"
+}

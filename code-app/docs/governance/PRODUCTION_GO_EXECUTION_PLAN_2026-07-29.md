@@ -413,3 +413,36 @@ The deployment gate is closed. Managed-Edge acceptance, live byte-level file
 proof, final memo readback, authoritative boarded-loan completion, tenant
 retention confirmation, and distinct-user segregation-of-duties certification
 remain open. The verdict remains **NO-GO**.
+
+## Server enforcement and identity-readiness checkpoint — 2026-07-29
+
+The seven newer durable-record tables now have active server-side Dataverse
+enforcement. The strong-named assembly is solution-managed, all 21 synchronous
+PreOperation steps and seven pre-images read back correctly, 64 plug-in tests
+pass, and seven direct spoofed Web API creates were rejected with unchanged
+row counts. The prior client-only enforcement defect is closed.
+
+Matthew's existing core-user active flag and banker-to-core link were
+reconciled through ETag-protected, reversible patches without changing his
+role, approval limit, committee membership, override authority, workspace, or
+record state. Eight missing custom role/workspace catalog rows were created
+idempotently with no update/delete path.
+
+The four distinct people and three least-privilege Dataverse security roles
+are still tenant/human gates. The read-only identity verifier returns BLOCKED
+until real UPNs are supplied and linked. Environment auditing is disabled, all
+scoped table audit flags are disabled, and legal-hold/LTR configuration remains
+unconfirmed. Skeeterhawk loan `0100066127` remains blocked on authoritative
+servicing owner, loan status, risk rating, and source crosswalk values; the
+correction manifest contains no fabricated patch.
+
+Authoritative artifacts:
+
+- `DURABLE_RECORD_SERVER_ENFORCEMENT_EVIDENCE_2026-07-29.md`
+- `PRODUCTION_GO_IDENTITY_PROVISIONING_2026-07-29.md`
+- `DATAVERSE_FILE_RETENTION_LEGAL_HOLD_CERTIFICATION_2026-07-29.md`
+- `SKEETERHAWK_BOARDED_LOAN_CORRECTION_MANIFEST_2026-07-29.json`
+
+The verdict remains **NO-GO** pending tenant auditing/retention confirmation,
+real UPN provisioning and MFA, authoritative servicing values, and independent
+multi-user certification.

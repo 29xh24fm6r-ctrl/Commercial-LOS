@@ -19,9 +19,10 @@
     <Nullable>disable</Nullable>
     <AssemblyName>CommercialLendingLOS.Plugins</AssemblyName>
     <RootNamespace>CommercialLendingLOS.Plugins</RootNamespace>
-    <SignAssembly>false</SignAssembly>
-    <!-- Dataverse plugin assemblies are typically registered unsigned (Sandbox isolation mode)
-         unless your organization's registration policy requires strong-naming. -->
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>CommercialLendingLOS.Plugins.snk</AssemblyOriginatorKeyFile>
+    <!-- The production Dataverse organization rejects a public plug-in assembly without a
+         public key token (0x8004416c), including Sandbox-isolated assemblies. -->
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
