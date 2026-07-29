@@ -1,17 +1,19 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { useBootstrap } from '../../bootstrap/BootstrapContext';
 import { deriveWorkspaceLinks, useEntitledRoutes } from '../../bootstrap/workspaceEntitlements';
-import { WorkspaceSwitcher } from '../../bootstrap/WorkspaceSwitcher';
 import { WORKSPACE_ROUTES } from '../../bootstrap/workspaceRoutes';
 import { CRM_SECTIONS } from './crmWorkspaceModel';
 import { CrmExperience } from './CrmExperience';
 import { useEffect, useState } from 'react';
 import { resolveCurrentSystemUserId } from '../../shared/governance/currentUserLookup';
+import { LendingOSLayout } from '../../banker/LendingOSLayout';
+import { crmSectionPath, crmSidebarDestination } from './crmShellNavigation';
 import './crmWorkspace.css';
 
 export function CrmWorkspace() {
   const bootstrap = useBootstrap();
   const entitled = useEntitledRoutes();
+  const navigate = useNavigate();
   const links = deriveWorkspaceLinks({
     bootstrapRoute: bootstrap.route,
     currentRoute: WORKSPACE_ROUTES.crm,
@@ -30,37 +32,48 @@ export function CrmWorkspace() {
   }, [bootstrap.entraObjectId]);
 
   return (
-    <div className="crmws" data-crm-workspace>
-      <header className="crmws__masthead">
-        <div>
-          <div className="crmws__eyebrow">Old Glory Bank · Commercial Banking</div>
-          <h1>CRM Workspace</h1>
-          <p>Companies, people, opportunities, activity, and lending relationships in one governed workspace.</p>
-        </div>
-        <WorkspaceSwitcher links={links} tone="dark" aria-label="CRM workspace switcher" />
-      </header>
-      <nav className="crmws__nav" aria-label="CRM sections">
-        {CRM_SECTIONS.map((section) => (
-          <NavLink key={section} to={section} className={({ isActive }) => isActive ? 'is-active' : undefined}>
-            {section[0].toUpperCase() + section.slice(1)}
-          </NavLink>
-        ))}
-      </nav>
-      <main className="crmws__main">
-        <Routes>
-          <Route index element={<Navigate to="home" replace />} />
+    <LendingOSLayout
+      activeNav="crm-hub"
+      onNavSelect={(navKey) => {
+        const destination = crmSidebarDestination(navKey, bootstrap.route);
+        navigate(destination.route, destination.state ? { state: destination.state } : undefined);
+      }}
+      fullName={bootstrap.fullName}
+      email={bootstrap.upn}
+      workspaceName="CRM Workspace"
+      workspaceLinks={links}
+    >
+      <div className="crmws" data-crm-workspace>
+        <header className="crmws__masthead">
+          <div>
+            <div className="crmws__eyebrow">Old Glory Bank · Commercial Banking</div>
+            <h1>CRM Workspace</h1>
+            <p>Companies, people, opportunities, activity, and lending relationships in one governed workspace.</p>
+          </div>
+        </header>
+        <nav className="crmws__nav" aria-label="CRM sections">
           {CRM_SECTIONS.map((section) => (
-            <Route key={section} path={`${section}/:recordId?`} element={
-              <CrmExperience section={section} actorEmail={bootstrap.upn} actorSystemUserId={systemUserId}
-                copilotRole={copilotRole}
-                userName={bootstrap.fullName}
-                writeDisabledReason={systemUserId ? undefined : 'No Dataverse systemuser is resolved for this signed-in identity.'} />
-            } />
+            <NavLink key={section} to={crmSectionPath(section)} className={({ isActive }) => isActive ? 'is-active' : undefined}>
+              {section[0].toUpperCase() + section.slice(1)}
+            </NavLink>
           ))}
-          <Route path="*" element={<CrmSectionBlocked />} />
-        </Routes>
-      </main>
-    </div>
+        </nav>
+        <main className="crmws__main">
+          <Routes>
+            <Route index element={<Navigate to="home" replace />} />
+            {CRM_SECTIONS.map((section) => (
+              <Route key={section} path={`${section}/:recordId?`} element={
+                <CrmExperience section={section} actorEmail={bootstrap.upn} actorSystemUserId={systemUserId}
+                  copilotRole={copilotRole}
+                  userName={bootstrap.fullName}
+                  writeDisabledReason={systemUserId ? undefined : 'No Dataverse systemuser is resolved for this signed-in identity.'} />
+              } />
+            ))}
+            <Route path="*" element={<CrmSectionBlocked />} />
+          </Routes>
+        </main>
+      </div>
+    </LendingOSLayout>
   );
 }
 
