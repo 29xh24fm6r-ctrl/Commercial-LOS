@@ -6,12 +6,16 @@ import { CrmWriteActions } from '../workspace/CrmWriteActions';
 import { deriveCrmHome, explicitPersonClassifications, relatedToCompany, relatedToPerson, searchCrm } from './crmWorkspaceSelectors';
 import { CRM_GROWTH_SCHEMA_DEPENDENCY, CRM_OPPORTUNITY_STAGES } from './crmGrowthModel';
 import { CrmEngagementCenter } from './CrmEngagementCenter';
+import { CrmCopilotSurface } from './CrmCopilotSurface';
+import type { CopilotWorkspaceContext } from '../../copilot/copilotAssistantAdapter';
 
 interface Props {
   readonly section: string;
   readonly actorEmail: string;
   readonly actorSystemUserId?: string;
   readonly writeDisabledReason?: string;
+  readonly copilotRole: CopilotWorkspaceContext['workspaceRole'];
+  readonly userName: string;
 }
 
 type State = { kind: 'loading' } | { kind: 'failed'; message: string } | { kind: 'ready'; data: CrmWorkspaceData };
@@ -32,7 +36,7 @@ export function CrmExperience(props: Props) {
   return <ReadyExperience {...props} data={state.data} refresh={() => setNonce((n) => n + 1)} />;
 }
 
-function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDisabledReason, refresh }: Props & { data: CrmWorkspaceData; refresh: () => void }) {
+function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDisabledReason, copilotRole, userName, refresh }: Props & { data: CrmWorkspaceData; refresh: () => void }) {
   const navigate = useNavigate();
   const { recordId } = useParams();
   const [query, setQuery] = useState('');
@@ -63,7 +67,7 @@ function ReadyExperience({ section, data, actorEmail, actorSystemUserId, writeDi
       {section === 'relationships' && <RecordIndex title="Relationships" domain="relationships" records={data.relationships.records} status={data.relationships.status} />}
       {section === 'activities' && <Timeline title="Activity center" records={data.timelineEvents.records} status={data.timelineEvents.status} />}
       {section === 'tasks' && <TaskCenter data={data} />}
-      {section === 'insights' && <Insights data={data} />}
+      {section === 'insights' && <><Insights data={data} /><CrmCopilotSurface data={data} role={copilotRole} userName={userName} /></>}
       {section === 'reports' && <Reports data={data} />}
       {['opportunities','referrals'].includes(section) && <GrowthDependency section={section} />}
       {section === 'calendar' && <CrmEngagementCenter bankerEmail={actorEmail} />}

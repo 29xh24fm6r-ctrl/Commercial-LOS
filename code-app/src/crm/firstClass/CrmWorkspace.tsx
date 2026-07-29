@@ -18,6 +18,9 @@ export function CrmWorkspace() {
     entitledRoutes: entitled.routes,
   });
   const [systemUserId, setSystemUserId] = useState<string | undefined>();
+  const copilotRole = bootstrap.route === WORKSPACE_ROUTES.executive ? 'executive'
+    : bootstrap.route === WORKSPACE_ROUTES.manager ? 'manager'
+    : bootstrap.route === WORKSPACE_ROUTES.team ? 'team' : 'banker';
   useEffect(() => {
     let cancelled = false;
     resolveCurrentSystemUserId(bootstrap.entraObjectId).then((id) => {
@@ -49,6 +52,8 @@ export function CrmWorkspace() {
           {CRM_SECTIONS.map((section) => (
             <Route key={section} path={`${section}/:recordId?`} element={
               <CrmExperience section={section} actorEmail={bootstrap.upn} actorSystemUserId={systemUserId}
+                copilotRole={copilotRole}
+                userName={bootstrap.fullName}
                 writeDisabledReason={systemUserId ? undefined : 'No Dataverse systemuser is resolved for this signed-in identity.'} />
             } />
           ))}
