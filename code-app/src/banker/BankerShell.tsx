@@ -144,6 +144,23 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   const navigate = useNavigate();
   const [tab, setTab] = useState<ShellTab>(() => resolveInitialTab(location.state, location.search));
   const [pendingTab, setPendingTab] = useState<ShellTab | null>(null);
+  const mountedRef = useRef(true);
+  const transitionTimerRef = useRef<number | null>(null);
+  const pendingClearTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (transitionTimerRef.current !== null) {
+        window.clearTimeout(transitionTimerRef.current);
+      }
+      if (pendingClearTimerRef.current !== null) {
+        window.clearTimeout(pendingClearTimerRef.current);
+      }
+    };
+  }, []);
+
   const selectTab = useCallback((next: ShellTab) => {
     setPendingTab(next);
     const params = new URLSearchParams(location.search);
@@ -152,9 +169,20 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
       { pathname: location.pathname, search: `?${params.toString()}` },
       { state: { ...(location.state && typeof location.state === 'object' ? location.state : {}), initialTab: next } },
     );
-    window.setTimeout(() => {
+    if (transitionTimerRef.current !== null) {
+      window.clearTimeout(transitionTimerRef.current);
+    }
+    if (pendingClearTimerRef.current !== null) {
+      window.clearTimeout(pendingClearTimerRef.current);
+    }
+    transitionTimerRef.current = window.setTimeout(() => {
+      transitionTimerRef.current = null;
+      if (!mountedRef.current) return;
       setTab(next);
-      window.setTimeout(() => setPendingTab(null), 350);
+      pendingClearTimerRef.current = window.setTimeout(() => {
+        pendingClearTimerRef.current = null;
+        if (mountedRef.current) setPendingTab(null);
+      }, 350);
     }, 0);
   }, [location.pathname, location.search, location.state, navigate]);
 
@@ -172,14 +200,6 @@ export function BankerShell({ workspaceName, workspaceLinks }: BankerShellProps)
   // route change / test teardown). Without this guard, its eventual `setState`/`navigate` calls
   // fire against an unmounted component, and an uncaught rejection from the retry itself becomes an
   // unhandled rejection that outlives the component entirely.
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
   const reload = useCallback(() => {
     let cancelled = false;
     setState({ kind: 'loading' });

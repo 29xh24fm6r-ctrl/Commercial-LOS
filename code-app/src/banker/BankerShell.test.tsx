@@ -654,6 +654,25 @@ describe('Phase 257 — CRM Hub + Loan Workflow nav are wired to real content', 
     expect(screen.getByTestId('loan-workbench')).toBeInTheDocument();
   });
 
+  it('cancels pending tab-transition timers when the shell unmounts', () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
+    try {
+      setUpBanker();
+      loadMock.mockResolvedValue(emptyData());
+      const { unmount } = renderShell();
+
+      fireEvent.click(screen.getByRole('button', { name: /^Loan Workflow$/i }));
+      unmount();
+
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      expect(() => vi.runAllTimers()).not.toThrow();
+    } finally {
+      clearTimeoutSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it('every real sidebar nav button is clickable AND lands on a non-empty content panel (no dead nav)', async () => {
     setUpBanker();
     loadMock.mockResolvedValue(emptyData());
